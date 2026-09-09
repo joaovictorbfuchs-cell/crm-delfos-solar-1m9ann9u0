@@ -12,6 +12,8 @@ import {
   fetchSistemas,
   fetchManutencoes,
   fetchAtividades,
+  createAtividade as apiCreateAtividade,
+  deleteAtividade as apiDeleteAtividade,
   createManutencao as apiCreateManutencao,
   createCliente as apiCreateCliente,
   updateCliente as apiUpdateCliente,
@@ -42,8 +44,21 @@ interface ClientesContextType {
     tecnico?: string
     descricao?: string
   }) => Promise<Manutencao>
+  addAtividade: (data: {
+    cliente_id: string
+    tipo: import('@/types/crm').AtividadeTipo
+    titulo?: string
+    descricao: string
+    data?: string
+    autor?: string
+  }) => Promise<Atividade>
+  removeAtividade: (id: string) => Promise<void>
   updateCliente: (id: string, data: Partial<Cliente>) => Promise<Cliente>
-  updateClienteStatus: (id: string, status: Cliente['status']) => Promise<void>
+  updateClienteStatus: (
+    id: string,
+    status: Cliente['status'],
+    options?: { skipActivityLog?: boolean },
+  ) => Promise<void>
   updateSistema: (clienteId: string, data: Partial<Sistema>) => Promise<Sistema>
   refreshData: () => Promise<void>
 }
@@ -171,6 +186,30 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     return created
   }
 
+  const addAtividade = async (data: {
+    cliente_id: string
+    tipo: import('@/types/crm').AtividadeTipo
+    titulo?: string
+    descricao: string
+    data?: string
+    autor?: string
+  }) => {
+    const created = await apiCreateAtividade(data)
+    setAtividades((prev) => [created, ...prev.filter((a) => a.id !== created.id)])
+    return created
+  }
+
+  const removeAtividade = async (id: string) => {
+    setAtividades((prev) => prev.filter((a) => a.id !== id))
+    try {
+      await apiDeleteAtividade(id)
+    } catch (err) {
+      console.error('Erro ao excluir atividade:', err)
+      fetchAtividades().then(setAtividades).catch(console.error)
+      throw err
+    }
+  }
+
   const updateCliente = async (id: string, data: Partial<Cliente>): Promise<Cliente> => {
     // Optimistic update
     setClientes((prev) => prev.map((c) => (c.id === id ? { ...c, ...data } : c)))
@@ -186,12 +225,37 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
   }
 
-  const updateClienteStatus = async (id: string, status: Cliente['status']) => {
+  const updateClienteStatus = async (
+    id: string,
+    status: Cliente['status'],
+    options?: { skipActivityLog?: boolean },
+  ) => {
+    const previous = clientes.find((c) => c.id === id)
+    const oldStatus = previous?.status
+
     // Optimistic update
     setClientes((prev) => prev.map((c) => (c.id === id ? { ...c, status } : c)))
+
     try {
       const updated = await apiUpdateClienteStatus(id, status)
       setClientes((prev) => prev.map((c) => (c.id === id ? updated : c)))
+
+      // Se mudou de estágio, registrar evento automático na timeline de atividades
+      if (!options?.skipActivityLog && oldStatus && oldStatus !== status) {
+        try {
+          const act = await apiCreateAtividade({
+            cliente_id: id,
+            tipo: 'mudanca_estagio',
+            titulo: `Mudança de estágio: ${oldStatus} → ${status}`,
+            descricao: `O lead ${previous?.nome || ''} avançou no funil de vendas de "${oldStatus}" para "${status}".`,
+            data: new Date().toISOString(),
+            autor: 'João Silva',
+          })
+          setAtividades((prev) => [act, ...prev])
+        } catch (actErr) {
+          console.warn('Falha ao registrar atividade de mudança de estágio:', actErr)
+        }
+      }
     } catch (err) {
       console.error('Erro ao atualizar status do cliente:', err)
       // Reverter recarregando dados
@@ -242,6 +306,8 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         closeFichaCliente,
         addCliente,
         addManutencao,
+        addAtividade,
+        removeAtividade,
         updateCliente,
         updateClienteStatus,
         updateSistema,

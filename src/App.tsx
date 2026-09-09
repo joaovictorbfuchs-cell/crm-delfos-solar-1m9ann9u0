@@ -11,6 +11,7 @@ import Index from './pages/Index'
 import Comercial from './pages/Comercial'
 import Manutencoes from './pages/Manutencoes'
 import Clientes from './pages/Clientes'
+import Atividades from './pages/Atividades'
 import Login from './pages/Login'
 import NotFound from './pages/NotFound'
 
@@ -32,6 +33,7 @@ const App = () => (
             >
               <Route path="/" element={<Index />} />
               <Route path="/comercial" element={<Comercial />} />
+              <Route path="/atividades" element={<Atividades />} />
               <Route path="/manutencoes" element={<Manutencoes />} />
               <Route path="/clientes" element={<Clientes />} />
             </Route>

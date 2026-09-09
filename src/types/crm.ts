@@ -27,6 +27,14 @@ export type ManutencaoTipo = 'Limpeza' | 'Revisão Elétrica' | 'Troca de Invers
 
 export type ManutencaoStatus = 'Agendado' | 'Em andamento' | 'Concluído'
 
+export type AtividadeTipo =
+  | 'anotacao'
+  | 'ligacao'
+  | 'reuniao'
+  | 'proposta'
+  | 'visita_tecnica'
+  | 'mudanca_estagio'
+
 export interface Cliente extends RecordModel {
   id: string
   collectionId: string
@@ -129,8 +137,11 @@ export interface Atividade extends RecordModel {
   collectionId: string
   collectionName: string
   cliente_id: string
-  data: string
+  tipo: AtividadeTipo
+  titulo?: string
   descricao: string
+  data: string
+  autor?: string
   created: string
   updated: string
   expand?: {

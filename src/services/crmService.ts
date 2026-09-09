@@ -4,6 +4,7 @@ import type {
   Sistema,
   Manutencao,
   Atividade,
+  AtividadeTipo,
   ManutencaoTipo,
   ManutencaoStatus,
 } from '@/types/crm'
@@ -47,6 +48,30 @@ export async function fetchAtividades(): Promise<Atividade[]> {
     expand: 'cliente_id',
   })
   return records
+}
+
+export async function createAtividade(data: {
+  cliente_id: string
+  tipo: AtividadeTipo
+  titulo?: string
+  descricao: string
+  data?: string
+  autor?: string
+}): Promise<Atividade> {
+  const payload = {
+    ...data,
+    data: data.data || new Date().toISOString(),
+    autor: data.autor || 'João Silva',
+  }
+  const record = await pb.collection('atividades').create<Atividade>(payload, {
+    expand: 'cliente_id',
+  })
+  return record
+}
+
+export async function deleteAtividade(id: string): Promise<boolean> {
+  await pb.collection('atividades').delete(id)
+  return true
 }
 
 export async function createManutencao(data: {
