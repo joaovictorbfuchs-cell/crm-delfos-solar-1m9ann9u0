@@ -1,21 +1,65 @@
 import React, { useState, useRef, useEffect } from 'react'
-import { MapPin, Zap, GripVertical } from 'lucide-react'
+import { MapPin, Zap, GripVertical, type LucideIcon } from 'lucide-react'
 import type { Cliente, ClienteStatus } from '@/types/crm'
 import { formatCurrency } from '@/lib/formatters'
 import { useClientes } from '@/contexts/ClientesContext'
-import { ProductBadge } from '@/components/StatusBadge'
+import { ProductBadge, FUNIL_ETAPAS_CONFIG } from '@/components/StatusBadge'
 
 interface KanbanBoardProps {
   clientes: Cliente[]
 }
 
-export const KANBAN_COLUMNS: { id: ClienteStatus; title: string; borderClass: string }[] = [
-  { id: 'Novo Lead', title: '1 - Novo Lead', borderClass: 'border-t-slate-400' },
-  { id: 'Levantamento', title: '2 - Levantamento', borderClass: 'border-t-sky-400' },
-  { id: 'Orçamento', title: '3 - Orçamento', borderClass: 'border-t-indigo-400' },
-  { id: 'Negociação', title: '4 - Negociação', borderClass: 'border-t-amber-500' },
-  { id: 'Fechado', title: '5 - Fechado', borderClass: 'border-t-[#16A34A]' },
-  { id: 'Contato Futuro', title: '6 - Contato Futuro', borderClass: 'border-t-gray-400' },
+export interface KanbanColumnDef {
+  id: ClienteStatus
+  title: string
+  borderClass: string
+  icon: LucideIcon
+  iconColorClass: string
+}
+
+export const KANBAN_COLUMNS: KanbanColumnDef[] = [
+  {
+    id: 'Novo Lead',
+    title: '1 - Novo Lead',
+    borderClass: 'border-t-slate-400',
+    icon: FUNIL_ETAPAS_CONFIG['Novo Lead'].icon,
+    iconColorClass: FUNIL_ETAPAS_CONFIG['Novo Lead'].iconColorClass,
+  },
+  {
+    id: 'Levantamento',
+    title: '2 - Levantamento',
+    borderClass: 'border-t-sky-400',
+    icon: FUNIL_ETAPAS_CONFIG['Levantamento'].icon,
+    iconColorClass: FUNIL_ETAPAS_CONFIG['Levantamento'].iconColorClass,
+  },
+  {
+    id: 'Orçamento',
+    title: '3 - Orçamento',
+    borderClass: 'border-t-indigo-400',
+    icon: FUNIL_ETAPAS_CONFIG['Orçamento'].icon,
+    iconColorClass: FUNIL_ETAPAS_CONFIG['Orçamento'].iconColorClass,
+  },
+  {
+    id: 'Negociação',
+    title: '4 - Negociação',
+    borderClass: 'border-t-amber-500',
+    icon: FUNIL_ETAPAS_CONFIG['Negociação'].icon,
+    iconColorClass: FUNIL_ETAPAS_CONFIG['Negociação'].iconColorClass,
+  },
+  {
+    id: 'Fechado',
+    title: '5 - Fechado',
+    borderClass: 'border-t-[#16A34A]',
+    icon: FUNIL_ETAPAS_CONFIG['Fechado'].icon,
+    iconColorClass: FUNIL_ETAPAS_CONFIG['Fechado'].iconColorClass,
+  },
+  {
+    id: 'Contato Futuro',
+    title: '6 - Contato Futuro',
+    borderClass: 'border-t-gray-400',
+    icon: FUNIL_ETAPAS_CONFIG['Contato Futuro'].icon,
+    iconColorClass: FUNIL_ETAPAS_CONFIG['Contato Futuro'].iconColorClass,
+  },
 ]
 
 export const KanbanBoard: React.FC<KanbanBoardProps> = ({ clientes }) => {
@@ -220,20 +264,21 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ clientes }) => {
             >
               {/* Header da Coluna */}
               <div className="flex items-center justify-between pb-2 mb-2 border-b border-gray-200/60">
-                <div className="flex items-center gap-2">
-                  <h3 className="font-semibold text-xs text-gray-800 uppercase tracking-wider">
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <col.icon className={`w-4 h-4 shrink-0 ${col.iconColorClass}`} />
+                  <h3 className="font-semibold text-xs text-gray-800 uppercase tracking-wider truncate">
                     {col.title}
                   </h3>
-                  <span
-                    className={`text-xs font-bold px-2 py-0.5 rounded-full shadow-xs border transition-colors ${
-                      isOver
-                        ? 'bg-emerald-600 text-white border-emerald-600'
-                        : 'bg-white text-gray-700 border-gray-200'
-                    }`}
-                  >
-                    {colClients.length}
-                  </span>
                 </div>
+                <span
+                  className={`text-xs font-bold px-2 py-0.5 rounded-full shadow-xs border transition-colors shrink-0 ml-1.5 ${
+                    isOver
+                      ? 'bg-emerald-600 text-white border-emerald-600'
+                      : 'bg-white text-gray-700 border-gray-200'
+                  }`}
+                >
+                  {colClients.length}
+                </span>
               </div>
 
               {/* Cards List / Drop Zone */}
