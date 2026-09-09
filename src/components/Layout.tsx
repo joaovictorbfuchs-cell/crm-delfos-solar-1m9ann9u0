@@ -17,6 +17,7 @@ import {
 import { useAuth } from '@/contexts/AuthContext'
 import { FichaClienteDrawer } from '@/components/FichaClienteDrawer'
 import { DelfosLogo } from '@/components/DelfosLogo'
+import { NotificacoesBell } from '@/components/NotificacoesBell'
 
 export default function Layout() {
   const { user, logout } = useAuth()
@@ -311,14 +312,17 @@ export default function Layout() {
             </h1>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
+            {/* Sino de Notificações / Lembretes de Hoje */}
+            <NotificacoesBell />
+
             <div className="hidden sm:flex flex-col text-right">
               <span className="text-xs font-semibold text-gray-800">
                 {user?.name || 'João Silva'}
               </span>
               <span className="text-[11px] text-gray-400">Erechim & Região</span>
             </div>
-            <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-[#166534] to-[#16A34A] text-white flex items-center justify-center font-bold text-sm shadow-xs border border-white">
+            <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-[#166534] to-[#16A34A] text-white flex items-center justify-center font-bold text-sm shadow-xs border border-white shrink-0">
               {userInitial}
             </div>
           </div>

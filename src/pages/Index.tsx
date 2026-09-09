@@ -5,6 +5,7 @@ import { formatCurrency } from '@/lib/formatters'
 import { KanbanBoard } from '@/components/KanbanBoard'
 import { ManutencoesList } from '@/components/ManutencoesList'
 import { NovaManutencaoModal } from '@/components/NovaManutencaoModal'
+import { PainelLembretesHoje } from '@/components/PainelLembretesHoje'
 
 export default function Index() {
   const { clientes, isLoading } = useClientes()
@@ -77,7 +78,26 @@ export default function Index() {
         </div>
 
         {/* Card 3: Valor Total Estimado do Funil */}
+        <div className="bg-white rounded-xl p-5 border border-gray-200/80 shadow-xs hover:shadow-md transition-shadow">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wider text-gray-500">
+                Valor Total no Funil
+              </p>
+              <h3 className="text-2xl font-bold text-gray-900 mt-1">
+                {formatCurrency(valorTotalFunil)}
+              </h3>
+              <p className="text-[11px] text-gray-400 mt-0.5">Soma de negócios em aberto</p>
+            </div>
+            <div className="w-12 h-12 rounded-xl bg-amber-50 border border-amber-100 text-amber-600 flex items-center justify-center">
+              <DollarSign className="w-6 h-6" />
+            </div>
+          </div>
+        </div>
       </div>
+
+      {/* Painel "Lembretes de Hoje" destacado acima das abas */}
+      <PainelLembretesHoje />
 
       {/* Main Tabs Container */}
       <div className="bg-white rounded-xl border border-gray-200/80 shadow-xs p-3 sm:p-5">
