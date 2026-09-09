@@ -240,8 +240,8 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ clientes }) => {
   }, [])
 
   return (
-    <div className="w-full overflow-x-auto pb-6 pt-1 select-none">
-      <div className="flex gap-4.5 min-w-[1800px] 2xl:min-w-0 2xl:grid 2xl:grid-cols-6 items-start">
+    <div className="w-full pb-4 pt-1 select-none overflow-hidden">
+      <div className="grid grid-cols-6 gap-2 sm:gap-2.5 lg:gap-3 items-start w-full">
         {KANBAN_COLUMNS.map((col) => {
           const colClients = clientes.filter((c) => c.status === col.id)
           const totalColValue = colClients.reduce((sum, c) => sum + (c.valor_estimado || 0), 0)
@@ -254,27 +254,27 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ clientes }) => {
               onDragOver={(e) => handleDragOver(e, col.id)}
               onDragLeave={(e) => handleDragLeave(e, col.id)}
               onDrop={(e) => handleDrop(e, col.id)}
-              className={`w-[295px] 2xl:w-full flex-shrink-0 rounded-xl p-3.5 border-t-4 ${
+              className={`min-w-0 w-full rounded-xl p-2 sm:p-2.5 border-t-4 ${
                 col.borderClass
               } shadow-xs flex flex-col transition-all duration-150 ${
                 isOver
-                  ? 'bg-emerald-50/80 ring-2 ring-emerald-500 ring-offset-2 border-emerald-400'
+                  ? 'bg-emerald-50/80 ring-2 ring-emerald-500 ring-offset-1 border-emerald-400'
                   : 'bg-[#F1F5F3]'
               }`}
             >
               {/* Header da Coluna */}
-              <div className="flex items-center justify-between pb-2.5 mb-2.5 border-b border-gray-200/60">
-                <div className="flex items-center gap-1.5 min-w-0">
-                  <col.icon className={`w-4 h-4 shrink-0 ${col.iconColorClass}`} />
+              <div className="flex items-center justify-between pb-2 mb-2 border-b border-gray-200/60 gap-1 min-w-0">
+                <div className="flex items-center gap-1 sm:gap-1.5 min-w-0">
+                  <col.icon className={`w-3.5 h-3.5 shrink-0 ${col.iconColorClass}`} />
                   <h3
-                    className="font-semibold text-xs text-gray-800 uppercase tracking-wider truncate"
+                    className="font-semibold text-[11px] sm:text-xs text-gray-800 uppercase tracking-tight truncate"
                     title={col.title}
                   >
                     {col.title}
                   </h3>
                 </div>
                 <span
-                  className={`text-xs font-bold px-2 py-0.5 rounded-full shadow-xs border transition-colors shrink-0 ml-1.5 ${
+                  className={`text-[10px] sm:text-xs font-bold px-1.5 sm:px-2 py-0.5 rounded-full shadow-xs border transition-colors shrink-0 ml-1 ${
                     isOver
                       ? 'bg-emerald-600 text-white border-emerald-600'
                       : 'bg-white text-gray-700 border-gray-200'
@@ -285,16 +285,16 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ clientes }) => {
               </div>
 
               {/* Cards List / Drop Zone */}
-              <div className="space-y-3 flex-1 min-h-[340px] flex flex-col">
+              <div className="space-y-2 flex-1 min-h-[300px] flex flex-col min-w-0">
                 {colClients.length === 0 ? (
                   <div
-                    className={`h-28 flex-1 flex items-center justify-center border-2 border-dashed rounded-lg text-xs transition-colors ${
+                    className={`h-24 flex-1 flex items-center justify-center border-2 border-dashed rounded-lg text-[11px] text-center p-1 transition-colors ${
                       isOver
                         ? 'border-emerald-400 bg-emerald-100/40 text-emerald-700 font-medium'
                         : 'border-gray-200 text-gray-400'
                     }`}
                   >
-                    {isOver ? 'Soltar aqui' : 'Nenhum cliente'}
+                    {isOver ? 'Soltar aqui' : 'Vazio'}
                   </div>
                 ) : (
                   colClients.map((client) => {
@@ -310,40 +310,53 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ clientes }) => {
                         onTouchMove={handleTouchMove}
                         onTouchEnd={handleTouchEnd}
                         onClick={() => handleCardClick(client.id)}
-                        className={`bg-white rounded-xl p-4 border transition-all duration-150 cursor-grab active:cursor-grabbing group relative ${
+                        className={`bg-white rounded-lg sm:rounded-xl p-2.5 sm:p-3 border transition-all duration-150 cursor-grab active:cursor-grabbing group relative overflow-hidden min-w-0 ${
                           isDraggingThis
                             ? 'opacity-40 scale-95 border-emerald-400 shadow-inner'
                             : 'border-gray-200 shadow-xs hover:shadow-md hover:-translate-y-0.5 hover:border-emerald-300'
                         }`}
                       >
-                        <div className="flex items-start justify-between gap-1.5">
+                        {/* Nome do Cliente com Grip */}
+                        <div className="flex items-start justify-between gap-1 min-w-0">
                           <div
-                            className="font-semibold text-sm text-gray-900 group-hover:text-emerald-700 transition-colors break-words leading-snug"
+                            className="font-semibold text-xs sm:text-sm text-gray-900 group-hover:text-emerald-700 transition-colors line-clamp-2 leading-snug break-words flex-1 min-w-0"
                             title={client.nome}
                           >
                             {client.nome}
                           </div>
-                          <GripVertical className="w-4 h-4 text-gray-300 group-hover:text-gray-500 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity mt-0.5" />
+                          <GripVertical className="w-3.5 h-3.5 text-gray-300 group-hover:text-gray-500 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity mt-0.5 hidden sm:block" />
                         </div>
 
                         {/* Etiqueta colorida de produto */}
-                        <div className="mt-2.5">
-                          <ProductBadge produto={client.produto || 'Energia Solar'} />
+                        <div className="mt-1.5 sm:mt-2 min-w-0">
+                          <ProductBadge
+                            produto={client.produto || 'Energia Solar'}
+                            size="sm"
+                            className="text-[10px] sm:text-[11px] py-0.5 px-1.5 sm:px-2 max-w-full"
+                          />
                         </div>
 
-                        <div className="flex items-center text-xs text-gray-500 mt-2.5 gap-1.5">
-                          <MapPin className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                        {/* Cidade */}
+                        <div className="flex items-center text-[11px] sm:text-xs text-gray-500 mt-1.5 sm:mt-2 gap-1 min-w-0">
+                          <MapPin className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-gray-400 shrink-0" />
                           <span className="truncate" title={client.cidade}>
-                            {client.cidade}
+                            {client.cidade || 'Não informada'}
                           </span>
                         </div>
 
-                        <div className="flex items-center justify-between mt-3 pt-2.5 border-t border-gray-100 text-xs gap-2">
-                          <div className="flex items-center gap-1 font-semibold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-md shrink-0">
-                            <Zap className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                            <span>{client.potencia_kwp} kWp</span>
+                        {/* Potência e Valor Estimado */}
+                        <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-100 text-[11px] sm:text-xs gap-1 min-w-0 flex-wrap sm:flex-nowrap">
+                          <div
+                            className="flex items-center gap-0.5 sm:gap-1 font-semibold text-emerald-700 bg-emerald-50 px-1.5 sm:px-2 py-0.5 rounded shrink-0 text-[10px] sm:text-[11px]"
+                            title={`${client.potencia_kwp || 0} kWp`}
+                          >
+                            <Zap className="w-3 h-3 text-emerald-600 shrink-0" />
+                            <span>{client.potencia_kwp || 0} kWp</span>
                           </div>
-                          <span className="font-bold text-gray-900 text-sm whitespace-nowrap">
+                          <span
+                            className="font-bold text-gray-900 text-[11px] sm:text-xs whitespace-nowrap ml-auto"
+                            title={formatCurrency(client.valor_estimado)}
+                          >
                             {formatCurrency(client.valor_estimado)}
                           </span>
                         </div>
@@ -354,15 +367,15 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ clientes }) => {
 
                 {/* Drop indicator quando há cards na coluna e o usuário está passando por cima */}
                 {isOver && colClients.length > 0 && (
-                  <div className="h-10 rounded-lg border-2 border-dashed border-emerald-400 bg-emerald-100/50 flex items-center justify-center text-xs text-emerald-700 font-medium">
-                    Soltar nesta etapa
+                  <div className="h-9 rounded-lg border-2 border-dashed border-emerald-400 bg-emerald-100/50 flex items-center justify-center text-[11px] text-emerald-700 font-medium">
+                    Soltar aqui
                   </div>
                 )}
               </div>
 
               {/* Col Footer total */}
               {colClients.length > 0 && (
-                <div className="mt-3 pt-2.5 border-t border-gray-200/60 text-right text-[11px] text-gray-500">
+                <div className="mt-2 pt-2 border-t border-gray-200/60 text-right text-[10px] sm:text-[11px] text-gray-500 truncate">
                   Total:{' '}
                   <strong className="text-gray-800 font-semibold">
                     {formatCurrency(totalColValue)}

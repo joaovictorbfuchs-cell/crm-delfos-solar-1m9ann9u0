@@ -96,7 +96,7 @@ export default function Index() {
       </div>
 
       {/* Main Tabs Container */}
-      <div className="bg-white rounded-xl border border-gray-200/80 shadow-xs p-5">
+      <div className="bg-white rounded-xl border border-gray-200/80 shadow-xs p-3 sm:p-5">
         {/* Tab Headers */}
         <div className="border-b border-gray-200 flex items-center gap-6 mb-6">
           <button

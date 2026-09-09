@@ -81,55 +81,55 @@ export const ProductBadge: React.FC<ProductBadgeProps> = ({
     case 'Energia Solar':
       return (
         <span
-          className={`inline-flex items-center font-medium rounded-md bg-emerald-50 text-emerald-800 border border-emerald-200/80 ${sizeClasses} ${className}`}
+          className={`inline-flex items-center font-medium rounded-md bg-emerald-50 text-emerald-800 border border-emerald-200/80 max-w-full ${sizeClasses} ${className}`}
         >
           <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1.5 shrink-0" />
-          Energia Solar
+          <span className="truncate">Energia Solar</span>
         </span>
       )
     case 'Manutenção avulsa':
       return (
         <span
-          className={`inline-flex items-center font-medium rounded-md bg-amber-50 text-amber-800 border border-amber-200/80 ${sizeClasses} ${className}`}
+          className={`inline-flex items-center font-medium rounded-md bg-amber-50 text-amber-800 border border-amber-200/80 max-w-full ${sizeClasses} ${className}`}
         >
           <span className="w-1.5 h-1.5 rounded-full bg-amber-500 mr-1.5 shrink-0" />
-          Manutenção avulsa
+          <span className="truncate">Manutenção avulsa</span>
         </span>
       )
     case 'Plano de O&M':
       return (
         <span
-          className={`inline-flex items-center font-medium rounded-md bg-blue-50 text-blue-800 border border-blue-200/80 ${sizeClasses} ${className}`}
+          className={`inline-flex items-center font-medium rounded-md bg-blue-50 text-blue-800 border border-blue-200/80 max-w-full ${sizeClasses} ${className}`}
         >
           <span className="w-1.5 h-1.5 rounded-full bg-blue-500 mr-1.5 shrink-0" />
-          Plano de O&M
+          <span className="truncate">Plano de O&M</span>
         </span>
       )
     case 'Sistemas Híbridos':
       return (
         <span
-          className={`inline-flex items-center font-medium rounded-md bg-purple-50 text-purple-800 border border-purple-200/80 ${sizeClasses} ${className}`}
+          className={`inline-flex items-center font-medium rounded-md bg-purple-50 text-purple-800 border border-purple-200/80 max-w-full ${sizeClasses} ${className}`}
         >
           <span className="w-1.5 h-1.5 rounded-full bg-purple-500 mr-1.5 shrink-0" />
-          Sistemas Híbridos
+          <span className="truncate">Sistemas Híbridos</span>
         </span>
       )
     case 'Carregadores veiculares':
       return (
         <span
-          className={`inline-flex items-center font-medium rounded-md bg-teal-50 text-teal-800 border border-teal-200/80 ${sizeClasses} ${className}`}
+          className={`inline-flex items-center font-medium rounded-md bg-teal-50 text-teal-800 border border-teal-200/80 max-w-full ${sizeClasses} ${className}`}
         >
           <span className="w-1.5 h-1.5 rounded-full bg-teal-500 mr-1.5 shrink-0" />
-          Carregadores veiculares
+          <span className="truncate">Carregadores veiculares</span>
         </span>
       )
     default:
       return (
         <span
-          className={`inline-flex items-center font-medium rounded-md bg-gray-50 text-gray-700 border border-gray-200 ${sizeClasses} ${className}`}
+          className={`inline-flex items-center font-medium rounded-md bg-gray-50 text-gray-700 border border-gray-200 max-w-full ${sizeClasses} ${className}`}
         >
           <span className="w-1.5 h-1.5 rounded-full bg-gray-400 mr-1.5 shrink-0" />
-          {produto || 'Energia Solar'}
+          <span className="truncate">{produto || 'Energia Solar'}</span>
         </span>
       )
   }
