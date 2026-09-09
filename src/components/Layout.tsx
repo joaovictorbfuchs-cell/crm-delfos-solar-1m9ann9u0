@@ -5,7 +5,6 @@ import {
   KanbanSquare,
   Wrench,
   Users,
-  Sun,
   Menu,
   X,
   LogOut,
@@ -13,6 +12,7 @@ import {
 } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { FichaClienteDrawer } from '@/components/FichaClienteDrawer'
+import { DelfosLogo } from '@/components/DelfosLogo'
 
 export default function Layout() {
   const { user, logout } = useAuth()
@@ -54,18 +54,10 @@ export default function Layout() {
       {/* Sidebar for Desktop */}
       <aside className="hidden lg:flex w-60 flex-col bg-white border-r border-[#E5E7EB] shrink-0 sticky top-0 h-screen z-30">
         {/* Brand Logo */}
-        <div className="p-6 border-b border-[#E5E7EB] flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-[#166534] to-[#16A34A] flex items-center justify-center text-white shadow-md shadow-emerald-500/20">
-            <Sun className="w-6 h-6 animate-pulse" />
-          </div>
-          <div>
-            <span className="font-extrabold text-base tracking-tight text-gray-900 block leading-tight">
-              DELFOS
-            </span>
-            <span className="text-xs font-semibold tracking-wider text-[#16A34A] uppercase block">
-              Energia Solar
-            </span>
-          </div>
+        <div className="px-5 py-4 border-b border-[#E5E7EB] flex items-center justify-center">
+          <NavLink to="/" className="flex items-center justify-center py-1 group">
+            <DelfosLogo height={48} className="transition-transform group-hover:scale-105" />
+          </NavLink>
         </div>
 
         {/* Navigation Links */}
@@ -130,23 +122,18 @@ export default function Layout() {
           />
           <div className="relative z-50 w-72 max-w-[80%] bg-white h-full shadow-2xl flex flex-col animate-in slide-in-from-left duration-250">
             {/* Header */}
-            <div className="p-5 border-b border-gray-200 flex items-center justify-between">
-              <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-[#166534] to-[#16A34A] flex items-center justify-center text-white shadow-xs">
-                  <Sun className="w-5 h-5" />
-                </div>
-                <div>
-                  <span className="font-bold text-sm text-gray-900 block leading-tight">
-                    DELFOS
-                  </span>
-                  <span className="text-[11px] font-semibold text-[#16A34A] uppercase block">
-                    Energia Solar
-                  </span>
-                </div>
-              </div>
+            <div className="p-4 border-b border-gray-200 flex items-center justify-between">
+              <NavLink
+                to="/"
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center"
+              >
+                <DelfosLogo height={40} />
+              </NavLink>
               <button
                 onClick={() => setMobileMenuOpen(false)}
                 className="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg"
+                aria-label="Fechar menu"
               >
                 <X className="w-5 h-5" />
               </button>

@@ -1,7 +1,8 @@
 import React, { useState } from 'react'
 import { useNavigate, Navigate } from 'react-router-dom'
-import { Sun, Lock, Mail, AlertCircle, Loader2 } from 'lucide-react'
+import { Lock, Mail, AlertCircle, Loader2 } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
+import { DelfosLogo } from '@/components/DelfosLogo'
 
 export default function Login() {
   const { login, isAuthenticated } = useAuth()
@@ -45,11 +46,11 @@ export default function Login() {
       <div className="w-full max-w-md bg-white rounded-2xl shadow-xl border border-gray-100 p-8 relative z-10">
         {/* Brand */}
         <div className="flex flex-col items-center text-center mb-8">
-          <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-[#166534] to-[#16A34A] flex items-center justify-center text-white shadow-lg shadow-emerald-600/25 mb-3">
-            <Sun className="w-8 h-8 animate-pulse" />
+          <div className="mb-3 py-1 flex items-center justify-center">
+            <DelfosLogo height={64} />
           </div>
-          <h1 className="text-2xl font-extrabold text-gray-900 tracking-tight">DELFOS SOLAR</h1>
-          <p className="text-sm text-gray-500 mt-1">CRM & Gestão Operacional de Energia Solar</p>
+          <h1 className="text-xl font-bold text-gray-900 tracking-tight">Painel de Acesso</h1>
+          <p className="text-xs text-gray-500 mt-1">CRM & Gestão Operacional de Energia Solar</p>
         </div>
 
         {error && (
