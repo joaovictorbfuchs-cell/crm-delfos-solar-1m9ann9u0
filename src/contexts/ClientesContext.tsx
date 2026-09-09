@@ -6,6 +6,7 @@ import {
   fetchAtividades,
   createManutencao as apiCreateManutencao,
   createCliente as apiCreateCliente,
+  updateCliente as apiUpdateCliente,
   updateClienteStatus as apiUpdateClienteStatus,
 } from '@/services/crmService'
 import { useRealtime } from '@/hooks/use-realtime'
@@ -30,6 +31,7 @@ interface ClientesContextType {
     tecnico?: string
     descricao?: string
   }) => Promise<Manutencao>
+  updateCliente: (id: string, data: Partial<Cliente>) => Promise<Cliente>
   updateClienteStatus: (id: string, status: Cliente['status']) => Promise<void>
   refreshData: () => Promise<void>
 }
@@ -139,6 +141,21 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     return created
   }
 
+  const updateCliente = async (id: string, data: Partial<Cliente>): Promise<Cliente> => {
+    // Optimistic update
+    setClientes((prev) => prev.map((c) => (c.id === id ? { ...c, ...data } : c)))
+    try {
+      const updated = await apiUpdateCliente(id, data)
+      setClientes((prev) => prev.map((c) => (c.id === id ? updated : c)))
+      return updated
+    } catch (err) {
+      console.error('Erro ao atualizar cliente:', err)
+      // Reverter recarregando dados
+      await loadAllData()
+      throw err
+    }
+  }
+
   const updateClienteStatus = async (id: string, status: Cliente['status']) => {
     // Optimistic update
     setClientes((prev) => prev.map((c) => (c.id === id ? { ...c, status } : c)))
@@ -169,6 +186,7 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         closeFichaCliente,
         addCliente,
         addManutencao,
+        updateCliente,
         updateClienteStatus,
         refreshData: loadAllData,
       }}

@@ -41,7 +41,11 @@ export async function createCliente(data: Partial<Cliente> & { nome: string }): 
   return record
 }
 
-export async function updateClienteStatus(id: string, status: Cliente['status']): Promise<Cliente> {
-  const record = await pb.collection('clientes').update<Cliente>(id, { status })
+export async function updateCliente(id: string, data: Partial<Cliente>): Promise<Cliente> {
+  const record = await pb.collection('clientes').update<Cliente>(id, data)
   return record
+}
+
+export async function updateClienteStatus(id: string, status: Cliente['status']): Promise<Cliente> {
+  return updateCliente(id, { status })
 }

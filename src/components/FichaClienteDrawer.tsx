@@ -10,7 +10,6 @@ import {
   Cpu,
   Layers,
   Image as ImageIcon,
-  CheckCircle2,
   Clock,
   Wrench,
   Droplets,
@@ -19,13 +18,42 @@ import {
 import { useClientes } from '@/contexts/ClientesContext'
 import { formatDate, formatDateTime, getTelhadoLabel } from '@/lib/formatters'
 import { StatusBadge, ProductBadge } from './StatusBadge'
+import { InlineEditField } from './InlineEditField'
+import type { Cliente, OrigemLeadTipo, ProdutoTipo, TelhadoTipo } from '@/types/crm'
+
+const PRODUTOS: ProdutoTipo[] = [
+  'Energia Solar',
+  'Plano de O&M',
+  'Sistemas Híbridos',
+  'Carregadores veiculares',
+  'Manutenção avulsa',
+]
+
+const ORIGENS: OrigemLeadTipo[] = ['Facebook', 'Instagram', 'Indicação', 'Site', 'Outro']
+
+const TELHADOS: { value: TelhadoTipo; label: string }[] = [
+  { value: 'ceramico', label: 'Cerâmico' },
+  { value: 'metalico', label: 'Metálico' },
+  { value: 'laje', label: 'Laje' },
+  { value: 'fibrocimento', label: 'Fibrocimento' },
+]
 
 export const FichaClienteDrawer: React.FC = () => {
-  const { selectedCliente, selectedClienteId, closeFichaCliente, manutencoes, atividades } =
-    useClientes()
+  const {
+    selectedCliente,
+    selectedClienteId,
+    closeFichaCliente,
+    manutencoes,
+    atividades,
+    updateCliente,
+  } = useClientes()
 
   if (!selectedClienteId || !selectedCliente) {
     return null
+  }
+
+  const handleUpdateField = async (field: keyof Cliente, value: unknown) => {
+    await updateCliente(selectedCliente.id, { [field]: value } as Partial<Cliente>)
   }
 
   // Filter client's activities and sort by data
@@ -64,21 +92,60 @@ export const FichaClienteDrawer: React.FC = () => {
       <div className="relative z-50 w-full sm:w-[480px] bg-white h-full shadow-2xl flex flex-col border-l border-gray-200 animate-in slide-in-from-right duration-250 ease-out">
         {/* Header */}
         <div className="p-6 border-b border-gray-100 flex items-start justify-between bg-white sticky top-0 z-10">
-          <div className="space-y-1.5 pr-4">
+          <div className="space-y-1.5 pr-4 flex-1 min-w-0">
             <div className="flex items-center gap-2.5 flex-wrap">
-              <h2 className="text-xl font-bold text-gray-900 tracking-tight">
-                {selectedCliente.nome}
-              </h2>
+              <InlineEditField
+                value={selectedCliente.nome}
+                displayValue={
+                  <h2 className="text-xl font-bold text-gray-900 tracking-tight">
+                    {selectedCliente.nome}
+                  </h2>
+                }
+                type="text"
+                placeholder="Nome do cliente"
+                onSave={async (val) => {
+                  const str = String(val).trim()
+                  if (!str) throw new Error('O nome não pode ficar vazio')
+                  await handleUpdateField('nome', str)
+                }}
+              />
               <StatusBadge status={selectedCliente.status} />
-              <ProductBadge produto={selectedCliente.produto || 'Energia Solar'} size="md" />
+              <InlineEditField
+                value={selectedCliente.produto || 'Energia Solar'}
+                displayValue={
+                  <ProductBadge produto={selectedCliente.produto || 'Energia Solar'} size="md" />
+                }
+                type="select"
+                options={PRODUTOS.map((p) => ({ value: p, label: p }))}
+                onSave={async (val) => handleUpdateField('produto', val as ProdutoTipo)}
+              />
             </div>{' '}
-            <div className="flex items-center text-sm text-gray-500 gap-1.5">
-              <MapPin className="w-4 h-4 text-gray-400 shrink-0" />
-              <span>{selectedCliente.cidade}</span>
+            <div className="flex items-center text-sm text-gray-500 gap-2 flex-wrap">
+              <div className="inline-flex items-center gap-1">
+                <MapPin className="w-4 h-4 text-gray-400 shrink-0" />
+                <InlineEditField
+                  value={selectedCliente.cidade}
+                  displayValue={<span>{selectedCliente.cidade || 'Sem cidade'}</span>}
+                  type="text"
+                  placeholder="Cidade/UF"
+                  onSave={async (val) => handleUpdateField('cidade', String(val))}
+                />
+              </div>
               <span className="text-gray-300">•</span>
-              <span className="font-medium text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded text-xs">
-                {selectedCliente.potencia_kwp} kWp
-              </span>
+              <InlineEditField
+                value={selectedCliente.potencia_kwp}
+                displayValue={
+                  <span className="font-medium text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded text-xs">
+                    {selectedCliente.potencia_kwp} kWp
+                  </span>
+                }
+                type="number"
+                step="0.1"
+                min={0}
+                unit="kWp"
+                placeholder="0"
+                onSave={async (val) => handleUpdateField('potencia_kwp', Number(val))}
+              />
             </div>
           </div>
           <button
@@ -102,42 +169,89 @@ export const FichaClienteDrawer: React.FC = () => {
             <div className="space-y-2.5 text-sm">
               <div className="flex items-center gap-3">
                 <Phone className="w-4 h-4 text-gray-400 shrink-0" />
-                <span className="text-gray-500 min-w-[70px]">Telefone:</span>
-                <span className="font-medium text-gray-800">
-                  {selectedCliente.telefone || 'Não informado'}
-                </span>
+                <span className="text-gray-500 min-w-[70px] shrink-0">Telefone:</span>
+                <InlineEditField
+                  value={selectedCliente.telefone}
+                  displayValue={
+                    <span className="font-medium text-gray-800">
+                      {selectedCliente.telefone || 'Não informado'}
+                    </span>
+                  }
+                  type="text"
+                  placeholder="(00) 00000-0000"
+                  onSave={async (val) => handleUpdateField('telefone', String(val))}
+                />
               </div>
+
               <div className="flex items-start gap-3">
                 <Home className="w-4 h-4 text-gray-400 shrink-0 mt-0.5" />
-                <span className="text-gray-500 min-w-[70px]">Endereço:</span>
-                <span className="font-medium text-gray-800">
-                  {selectedCliente.endereco || 'Não informado'}
-                </span>
+                <span className="text-gray-500 min-w-[70px] shrink-0">Endereço:</span>
+                <InlineEditField
+                  value={selectedCliente.endereco}
+                  displayValue={
+                    <span className="font-medium text-gray-800 break-words">
+                      {selectedCliente.endereco || 'Não informado'}
+                    </span>
+                  }
+                  type="text"
+                  placeholder="Rua, número, bairro..."
+                  className="flex-1"
+                  onSave={async (val) => handleUpdateField('endereco', String(val))}
+                />
               </div>
+
               <div className="flex items-center gap-3">
                 <FileText className="w-4 h-4 text-gray-400 shrink-0" />
-                <span className="text-gray-500 min-w-[70px]">Nº da UC:</span>
-                <span className="font-mono font-medium text-gray-800 bg-gray-50 px-2 py-0.5 rounded border border-gray-200 text-xs">
-                  {selectedCliente.uc || 'Não informada'}
-                </span>
-              </div>
-              {selectedCliente.origem_lead && (
-                <div className="flex items-center gap-3">
-                  <FileText className="w-4 h-4 text-gray-400 shrink-0" />
-                  <span className="text-gray-500 min-w-[70px]">Origem:</span>
-                  <span className="font-medium text-gray-800">{selectedCliente.origem_lead}</span>
-                </div>
-              )}
-              {selectedCliente.consumo_kwh_mes !== undefined &&
-                selectedCliente.consumo_kwh_mes > 0 && (
-                  <div className="flex items-center gap-3">
-                    <Zap className="w-4 h-4 text-gray-400 shrink-0" />
-                    <span className="text-gray-500 min-w-[70px]">Consumo:</span>
-                    <span className="font-semibold text-emerald-800">
-                      {selectedCliente.consumo_kwh_mes} kWh/mês
+                <span className="text-gray-500 min-w-[70px] shrink-0">Nº da UC:</span>
+                <InlineEditField
+                  value={selectedCliente.uc}
+                  displayValue={
+                    <span className="font-mono font-medium text-gray-800 bg-gray-50 px-2 py-0.5 rounded border border-gray-200 text-xs">
+                      {selectedCliente.uc || 'Não informada'}
                     </span>
-                  </div>
-                )}
+                  }
+                  type="text"
+                  placeholder="Ex: 100234567"
+                  onSave={async (val) => handleUpdateField('uc', String(val))}
+                />
+              </div>
+
+              <div className="flex items-center gap-3">
+                <FileText className="w-4 h-4 text-gray-400 shrink-0" />
+                <span className="text-gray-500 min-w-[70px] shrink-0">Origem:</span>
+                <InlineEditField
+                  value={selectedCliente.origem_lead || 'Outro'}
+                  displayValue={
+                    <span className="font-medium text-gray-800">
+                      {selectedCliente.origem_lead || 'Não informada'}
+                    </span>
+                  }
+                  type="select"
+                  options={ORIGENS.map((o) => ({ value: o, label: o }))}
+                  onSave={async (val) => handleUpdateField('origem_lead', val as OrigemLeadTipo)}
+                />
+              </div>
+
+              <div className="flex items-center gap-3">
+                <Zap className="w-4 h-4 text-gray-400 shrink-0" />
+                <span className="text-gray-500 min-w-[70px] shrink-0">Consumo:</span>
+                <InlineEditField
+                  value={selectedCliente.consumo_kwh_mes}
+                  displayValue={
+                    <span className="font-semibold text-emerald-800">
+                      {selectedCliente.consumo_kwh_mes
+                        ? `${selectedCliente.consumo_kwh_mes} kWh/mês`
+                        : 'Não informado'}
+                    </span>
+                  }
+                  type="number"
+                  step="1"
+                  min={0}
+                  unit="kWh/mês"
+                  placeholder="0"
+                  onSave={async (val) => handleUpdateField('consumo_kwh_mes', Number(val))}
+                />
+              </div>
             </div>
           </div>
           {/* Seção Dados Técnicos do Sistema */}
@@ -152,9 +266,17 @@ export const FichaClienteDrawer: React.FC = () => {
                   <Calendar className="w-3.5 h-3.5 text-gray-400" />
                   Instalação
                 </div>
-                <div className="font-semibold text-gray-800">
-                  {formatDate(selectedCliente.data_instalacao)}
-                </div>
+                <InlineEditField
+                  value={selectedCliente.data_instalacao}
+                  displayValue={
+                    <span className="font-semibold text-gray-800">
+                      {formatDate(selectedCliente.data_instalacao)}
+                    </span>
+                  }
+                  type="date"
+                  placeholder="DD/MM/AAAA"
+                  onSave={async (val) => handleUpdateField('data_instalacao', String(val))}
+                />
               </div>
 
               <div className="p-3 bg-gray-50/70 rounded-lg border border-gray-100">
@@ -162,49 +284,124 @@ export const FichaClienteDrawer: React.FC = () => {
                   <Zap className="w-3.5 h-3.5 text-emerald-600" />
                   Potência Total
                 </div>
-                <div className="font-semibold text-emerald-800">
-                  {selectedCliente.potencia_kwp} kWp
-                </div>
+                <InlineEditField
+                  value={selectedCliente.potencia_kwp}
+                  displayValue={
+                    <span className="font-semibold text-emerald-800">
+                      {selectedCliente.potencia_kwp} kWp
+                    </span>
+                  }
+                  type="number"
+                  step="0.1"
+                  min={0}
+                  unit="kWp"
+                  placeholder="0"
+                  onSave={async (val) => handleUpdateField('potencia_kwp', Number(val))}
+                />
               </div>
 
-              <div className="p-3 bg-gray-50/70 rounded-lg border border-gray-100 col-span-1 sm:col-span-2">
-                <div className="text-xs text-gray-500 flex items-center gap-1.5 mb-1">
+              {/* Inversor: Marca e Modelo */}
+              <div className="p-3 bg-gray-50/70 rounded-lg border border-gray-100 col-span-1 sm:col-span-2 space-y-2">
+                <div className="text-xs text-gray-500 flex items-center gap-1.5">
                   <Cpu className="w-3.5 h-3.5 text-gray-400" />
                   Inversor
                 </div>
-                <div className="font-semibold text-gray-800">
-                  {selectedCliente.inversor_modelo ||
-                    selectedCliente.inversor_marca ||
-                    'Não informado'}
-                </div>
-                {selectedCliente.inversor_marca && (
-                  <div className="text-xs text-gray-500 mt-0.5">
-                    Marca: {selectedCliente.inversor_marca}
+
+                <div className="space-y-1.5 text-sm">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-gray-500 min-w-[50px]">Modelo:</span>
+                    <InlineEditField
+                      value={selectedCliente.inversor_modelo}
+                      displayValue={
+                        <span className="font-semibold text-gray-800">
+                          {selectedCliente.inversor_modelo || 'Não informado'}
+                        </span>
+                      }
+                      type="text"
+                      placeholder="Ex: SUN2000-5KTL"
+                      onSave={async (val) => handleUpdateField('inversor_modelo', String(val))}
+                    />
                   </div>
-                )}
+
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-gray-500 min-w-[50px]">Marca:</span>
+                    <InlineEditField
+                      value={selectedCliente.inversor_marca}
+                      displayValue={
+                        <span className="text-xs text-gray-600 font-medium">
+                          {selectedCliente.inversor_marca || 'Não informada'}
+                        </span>
+                      }
+                      type="text"
+                      placeholder="Ex: Huawei, Growatt, Deye"
+                      onSave={async (val) => handleUpdateField('inversor_marca', String(val))}
+                    />
+                  </div>
+                </div>
               </div>
 
-              <div className="p-3 bg-gray-50/70 rounded-lg border border-gray-100 col-span-1 sm:col-span-2">
-                <div className="text-xs text-gray-500 flex items-center gap-1.5 mb-1">
+              {/* Placas Solares: Quantidade e Marca */}
+              <div className="p-3 bg-gray-50/70 rounded-lg border border-gray-100 col-span-1 sm:col-span-2 space-y-2">
+                <div className="text-xs text-gray-500 flex items-center gap-1.5">
                   <Layers className="w-3.5 h-3.5 text-gray-400" />
                   Placas Solares
                 </div>
-                <div className="font-semibold text-gray-800">
-                  {selectedCliente.placas_qtd
-                    ? `${selectedCliente.placas_qtd} placas`
-                    : 'Quantidade não informada'}
-                  {selectedCliente.placas_marca ? ` — ${selectedCliente.placas_marca}` : ''}
+
+                <div className="space-y-1.5 text-sm">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-gray-500 min-w-[70px]">Quantidade:</span>
+                    <InlineEditField
+                      value={selectedCliente.placas_qtd}
+                      displayValue={
+                        <span className="font-semibold text-gray-800">
+                          {selectedCliente.placas_qtd
+                            ? `${selectedCliente.placas_qtd} placas`
+                            : 'Não informada'}
+                        </span>
+                      }
+                      type="number"
+                      step="1"
+                      min={0}
+                      unit="un"
+                      placeholder="0"
+                      onSave={async (val) => handleUpdateField('placas_qtd', Number(val))}
+                    />
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-gray-500 min-w-[70px]">Marca:</span>
+                    <InlineEditField
+                      value={selectedCliente.placas_marca}
+                      displayValue={
+                        <span className="text-xs text-gray-600 font-medium">
+                          {selectedCliente.placas_marca || 'Não informada'}
+                        </span>
+                      }
+                      type="text"
+                      placeholder="Ex: Canadian Solar, Jinko, JA Solar"
+                      onSave={async (val) => handleUpdateField('placas_marca', String(val))}
+                    />
+                  </div>
                 </div>
               </div>
 
+              {/* Tipo de Telhado */}
               <div className="p-3 bg-gray-50/70 rounded-lg border border-gray-100 col-span-1 sm:col-span-2">
-                <div className="text-xs text-gray-500 flex items-center gap-1.5 mb-1">
+                <div className="text-xs text-gray-500 flex items-center gap-1.5 mb-1.5">
                   <Home className="w-3.5 h-3.5 text-gray-400" />
                   Tipo de Telhado
                 </div>
-                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-white text-gray-800 text-xs font-medium border border-gray-200">
-                  {getTelhadoLabel(selectedCliente.telhado_tipo)}
-                </div>
+                <InlineEditField
+                  value={selectedCliente.telhado_tipo || 'ceramico'}
+                  displayValue={
+                    <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-white text-gray-800 text-xs font-medium border border-gray-200">
+                      {getTelhadoLabel(selectedCliente.telhado_tipo)}
+                    </div>
+                  }
+                  type="select"
+                  options={TELHADOS}
+                  onSave={async (val) => handleUpdateField('telhado_tipo', val as TelhadoTipo)}
+                />
               </div>
             </div>
           </div>
