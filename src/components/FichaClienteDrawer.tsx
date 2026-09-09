@@ -93,6 +93,7 @@ export const FichaClienteDrawer: React.FC = () => {
     updateClienteStatus,
     updateSistema,
     addAtividade,
+    updateAtividadeStatus,
     removeAtividade,
   } = useClientes()
 
@@ -172,8 +173,8 @@ export const FichaClienteDrawer: React.FC = () => {
         aria-hidden="true"
       />
 
-      {/* Drawer panel: 780px desktop, full screen on mobile */}
-      <div className="relative z-50 w-full sm:w-[780px] max-w-full sm:max-w-[95vw] bg-white h-full shadow-2xl flex flex-col border-l border-gray-200 animate-in slide-in-from-right duration-250 ease-out">
+      {/* Drawer panel: ocupa quase toda a largura da tela no desktop (~calc(100vw - 68px)), deixando a sidebar visível; tela cheia no mobile */}
+      <div className="relative z-50 w-full lg:w-[calc(100vw-68px)] max-w-full bg-white h-full shadow-2xl flex flex-col border-l border-gray-200 animate-in slide-in-from-right duration-250 ease-out">
         {/* Top Header unificado com dados essenciais e fechar */}
         <div className="p-4 border-b border-gray-100 flex items-center justify-between bg-white sticky top-0 z-20">
           <div className="flex items-center gap-2.5 flex-wrap flex-1 min-w-0 pr-2">
@@ -1195,7 +1196,15 @@ export const FichaClienteDrawer: React.FC = () => {
                   ) : (
                     <div className="pt-2">
                       {clientAtividades.map((atv) => (
-                        <AtividadeItem key={atv.id} atividade={atv} onDelete={removeAtividade} />
+                        <AtividadeItem
+                          key={atv.id}
+                          atividade={atv}
+                          onDelete={removeAtividade}
+                          onToggleStatus={async (id, current) => {
+                            const next = current === 'concluida' ? 'pendente' : 'concluida'
+                            await updateAtividadeStatus(id, next)
+                          }}
+                        />
                       ))}
                     </div>
                   )}
@@ -1247,7 +1256,7 @@ export const FichaClienteDrawer: React.FC = () => {
           {/* ================================================================ */}
           {/* COLUNA DIREITA: PAINEL FIXO DE RESUMO (PIPEDRIVE SIDEBAR)        */}
           {/* ================================================================ */}
-          <div className="w-full md:w-[280px] lg:w-[300px] shrink-0 bg-[#F8FAF9] p-4 space-y-4 overflow-y-auto border-t md:border-t-0">
+          <div className="w-full md:w-[320px] lg:w-[360px] shrink-0 bg-[#F8FAF9] p-4 sm:p-5 space-y-4 overflow-y-auto border-t md:border-t-0">
             <div className="text-xs font-bold uppercase tracking-wider text-gray-500 flex items-center gap-1.5">
               <TrendingUp className="w-3.5 h-3.5 text-emerald-600" />
               Resumo do Cliente

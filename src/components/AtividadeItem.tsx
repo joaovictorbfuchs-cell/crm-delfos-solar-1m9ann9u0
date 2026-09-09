@@ -1,86 +1,38 @@
 import React from 'react'
-import {
-  FileText,
-  PhoneCall,
-  Users,
-  Send,
-  Wrench,
-  ArrowRightLeft,
-  Calendar,
-  Clock,
-  User,
-  Trash2,
-} from 'lucide-react'
+import { Calendar, User, Trash2, CheckCircle2, Circle } from 'lucide-react'
 import type { Atividade, AtividadeTipo } from '@/types/crm'
 import { formatDateTime } from '@/lib/formatters'
 
 export interface AtividadeItemProps {
   atividade: Atividade
   onDelete?: (id: string) => void
+  onToggleStatus?: (id: string, currentStatus: string) => void
   showClienteName?: boolean
 }
 
+import { getTipoAtividadeConfig } from '@/constants/atividadesTipos'
+
 export function getAtividadeConfig(tipo: AtividadeTipo | string) {
-  switch (tipo) {
-    case 'anotacao':
-      return {
-        label: 'Anotação',
-        badgeClass: 'bg-amber-50 text-amber-700 border-amber-200',
-        iconBg: 'bg-amber-100 text-amber-700 border-amber-200',
-        icon: FileText,
-      }
-    case 'ligacao':
-      return {
-        label: 'Ligação',
-        badgeClass: 'bg-blue-50 text-blue-700 border-blue-200',
-        iconBg: 'bg-blue-100 text-blue-700 border-blue-200',
-        icon: PhoneCall,
-      }
-    case 'reuniao':
-      return {
-        label: 'Reunião',
-        badgeClass: 'bg-purple-50 text-purple-700 border-purple-200',
-        iconBg: 'bg-purple-100 text-purple-700 border-purple-200',
-        icon: Users,
-      }
-    case 'proposta':
-      return {
-        label: 'Proposta Comercial',
-        badgeClass: 'bg-emerald-50 text-emerald-800 border-emerald-200',
-        iconBg: 'bg-emerald-100 text-emerald-800 border-emerald-200',
-        icon: Send,
-      }
-    case 'visita_tecnica':
-      return {
-        label: 'Visita Técnica / O.S.',
-        badgeClass: 'bg-teal-50 text-teal-800 border-teal-200',
-        iconBg: 'bg-teal-100 text-teal-800 border-teal-200',
-        icon: Wrench,
-      }
-    case 'mudanca_estagio':
-      return {
-        label: 'Mudança de Estágio',
-        badgeClass: 'bg-indigo-50 text-indigo-700 border-indigo-200',
-        iconBg: 'bg-indigo-100 text-indigo-700 border-indigo-200',
-        icon: ArrowRightLeft,
-      }
-    default:
-      return {
-        label: 'Atividade',
-        badgeClass: 'bg-gray-50 text-gray-700 border-gray-200',
-        iconBg: 'bg-gray-100 text-gray-700 border-gray-200',
-        icon: Clock,
-      }
+  const conf = getTipoAtividadeConfig(tipo)
+  return {
+    label: conf.tituloPadrao,
+    badgeClass: conf.badgeClass,
+    iconBg: conf.iconBg,
+    icon: conf.icon,
+    corHex: conf.corHex,
   }
 }
 
 export const AtividadeItem: React.FC<AtividadeItemProps> = ({
   atividade,
   onDelete,
+  onToggleStatus,
   showClienteName,
 }) => {
   const config = getAtividadeConfig(atividade.tipo)
   const Icon = config.icon
+  const isConcluida = atividade.status === 'concluida'
+  const responsavel = atividade.responsavel_nome || atividade.autor
 
   return (
     <div className="relative pl-7 pb-5 group">
@@ -98,15 +50,46 @@ export const AtividadeItem: React.FC<AtividadeItemProps> = ({
       </div>
 
       {/* Conteúdo do Card */}
-      <div className="bg-white rounded-xl border border-gray-200/90 p-3.5 shadow-xs hover:border-emerald-300 transition-all">
+      <div
+        className={`bg-white rounded-xl border p-3.5 shadow-xs transition-all ${
+          isConcluida
+            ? 'border-gray-200 bg-gray-50/70 opacity-80'
+            : 'border-gray-200/90 hover:border-emerald-300'
+        }`}
+      >
         <div className="flex items-start justify-between gap-2 flex-wrap mb-1.5">
           <div className="flex items-center gap-2 flex-wrap">
+            {onToggleStatus && atividade.tipo !== 'mudanca_estagio' && (
+              <button
+                type="button"
+                onClick={() => onToggleStatus(atividade.id, atividade.status || 'pendente')}
+                className={`flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded transition-colors ${
+                  isConcluida
+                    ? 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200'
+                    : 'bg-amber-100 text-amber-800 hover:bg-amber-200'
+                }`}
+                title={isConcluida ? 'Marcar como pendente' : 'Marcar como concluída'}
+              >
+                {isConcluida ? (
+                  <>
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>Concluída</span>
+                  </>
+                ) : (
+                  <>
+                    <Circle className="w-3.5 h-3.5 text-amber-600" />
+                    <span>Pendente</span>
+                  </>
+                )}
+              </button>
+            )}
+
             <span
-              className={`text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded border ${config.badgeClass}`}
+              className={`text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded border ${config.badgeClass} truncate max-w-[200px]`}
+              title={config.label}
             >
               {config.label}
             </span>
-
             {showClienteName && atividade.expand?.cliente_id && (
               <span className="text-xs font-semibold text-gray-900 bg-gray-100 px-2 py-0.5 rounded">
                 {atividade.expand.cliente_id.nome}
@@ -120,10 +103,13 @@ export const AtividadeItem: React.FC<AtividadeItemProps> = ({
           </div>
 
           <div className="flex items-center gap-1.5 ml-auto">
-            {atividade.autor && (
-              <div className="flex items-center text-[11px] text-gray-500 gap-1 bg-gray-50 px-2 py-0.5 rounded border border-gray-100">
-                <User className="w-3 h-3 text-gray-400" />
-                <span className="truncate max-w-[120px]">{atividade.autor}</span>
+            {responsavel && (
+              <div
+                className="flex items-center text-[11px] text-gray-600 gap-1 bg-emerald-50/60 text-emerald-900 px-2 py-0.5 rounded border border-emerald-200"
+                title={`Responsável: ${responsavel}`}
+              >
+                <User className="w-3 h-3 text-emerald-600" />
+                <span className="truncate max-w-[130px] font-medium">{responsavel}</span>
               </div>
             )}
 

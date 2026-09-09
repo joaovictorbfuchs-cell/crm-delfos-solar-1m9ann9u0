@@ -4,6 +4,8 @@ import type {
   Sistema,
   Manutencao,
   Atividade,
+  AtividadeStatus,
+  SistemaUsuario,
   ManutencaoTipo,
   ManutencaoStatus,
 } from '@/types/crm'
@@ -12,7 +14,9 @@ import {
   fetchSistemas,
   fetchManutencoes,
   fetchAtividades,
+  fetchUsuarios,
   createAtividade as apiCreateAtividade,
+  updateAtividade as apiUpdateAtividade,
   deleteAtividade as apiDeleteAtividade,
   createManutencao as apiCreateManutencao,
   createCliente as apiCreateCliente,
@@ -28,6 +32,7 @@ interface ClientesContextType {
   sistemas: Sistema[]
   manutencoes: Manutencao[]
   atividades: Atividade[]
+  usuarios: SistemaUsuario[]
   isLoading: boolean
   error: string | null
   selectedClienteId: string | null
@@ -48,10 +53,14 @@ interface ClientesContextType {
     cliente_id: string
     tipo: import('@/types/crm').AtividadeTipo
     titulo?: string
-    descricao: string
+    descricao?: string
     data?: string
     autor?: string
+    status?: AtividadeStatus
+    responsavel_id?: string
+    responsavel_nome?: string
   }) => Promise<Atividade>
+  updateAtividadeStatus: (id: string, status: AtividadeStatus) => Promise<void>
   removeAtividade: (id: string) => Promise<void>
   updateCliente: (id: string, data: Partial<Cliente>) => Promise<Cliente>
   updateClienteStatus: (
@@ -71,6 +80,7 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [sistemas, setSistemas] = useState<Sistema[]>([])
   const [manutencoes, setManutencoes] = useState<Manutencao[]>([])
   const [atividades, setAtividades] = useState<Atividade[]>([])
+  const [usuarios, setUsuarios] = useState<SistemaUsuario[]>([])
   const [isLoading, setIsLoading] = useState<boolean>(true)
   const [error, setError] = useState<string | null>(null)
   const [selectedClienteId, setSelectedClienteId] = useState<string | null>(null)
@@ -83,16 +93,18 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     try {
       setIsLoading(true)
       setError(null)
-      const [cList, sList, mList, aList] = await Promise.all([
+      const [cList, sList, mList, aList, uList] = await Promise.all([
         fetchClientes(),
         fetchSistemas(),
         fetchManutencoes(),
         fetchAtividades(),
+        fetchUsuarios(),
       ])
       setClientes(cList)
       setSistemas(sList)
       setManutencoes(mList)
       setAtividades(aList)
+      setUsuarios(uList)
     } catch (err: unknown) {
       console.error('Error loading CRM data:', err)
       setError(err instanceof Error ? err.message : 'Erro ao carregar dados do CRM')
@@ -190,13 +202,28 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     cliente_id: string
     tipo: import('@/types/crm').AtividadeTipo
     titulo?: string
-    descricao: string
+    descricao?: string
     data?: string
     autor?: string
+    status?: AtividadeStatus
+    responsavel_id?: string
+    responsavel_nome?: string
   }) => {
     const created = await apiCreateAtividade(data)
     setAtividades((prev) => [created, ...prev.filter((a) => a.id !== created.id)])
     return created
+  }
+
+  const updateAtividadeStatus = async (id: string, status: AtividadeStatus) => {
+    // Optimistic update
+    setAtividades((prev) => prev.map((a) => (a.id === id ? { ...a, status } : a)))
+    try {
+      await apiUpdateAtividade(id, { status })
+    } catch (err) {
+      console.error('Erro ao atualizar status da atividade:', err)
+      fetchAtividades().then(setAtividades).catch(console.error)
+      throw err
+    }
   }
 
   const removeAtividade = async (id: string) => {
@@ -297,6 +324,7 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         sistemas,
         manutencoes,
         atividades,
+        usuarios,
         isLoading,
         error,
         selectedClienteId,
@@ -307,6 +335,7 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         addCliente,
         addManutencao,
         addAtividade,
+        updateAtividadeStatus,
         removeAtividade,
         updateCliente,
         updateClienteStatus,

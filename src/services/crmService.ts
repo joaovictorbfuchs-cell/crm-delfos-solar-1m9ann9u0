@@ -5,6 +5,8 @@ import type {
   Manutencao,
   Atividade,
   AtividadeTipo,
+  AtividadeStatus,
+  SistemaUsuario,
   ManutencaoTipo,
   ManutencaoStatus,
 } from '@/types/crm'
@@ -45,26 +47,50 @@ export async function fetchManutencoes(): Promise<Manutencao[]> {
 export async function fetchAtividades(): Promise<Atividade[]> {
   const records = await pb.collection('atividades').getFullList<Atividade>({
     sort: '-data',
-    expand: 'cliente_id',
+    expand: 'cliente_id,responsavel_id',
   })
   return records
+}
+
+export async function fetchUsuarios(): Promise<SistemaUsuario[]> {
+  try {
+    const records = await pb.collection('users').getFullList<SistemaUsuario>({
+      sort: 'name',
+    })
+    return records
+  } catch (err) {
+    console.error('Erro ao buscar usuários:', err)
+    return []
+  }
 }
 
 export async function createAtividade(data: {
   cliente_id: string
   tipo: AtividadeTipo
   titulo?: string
-  descricao: string
+  descricao?: string
   data?: string
   autor?: string
+  status?: AtividadeStatus
+  responsavel_id?: string
+  responsavel_nome?: string
 }): Promise<Atividade> {
   const payload = {
     ...data,
+    descricao: data.descricao || '',
+    status: data.status || 'pendente',
     data: data.data || new Date().toISOString(),
-    autor: data.autor || 'João Silva',
+    autor: data.autor || 'João Delfos',
   }
   const record = await pb.collection('atividades').create<Atividade>(payload, {
-    expand: 'cliente_id',
+    expand: 'cliente_id,responsavel_id',
+  })
+  return record
+}
+
+export async function updateAtividade(id: string, data: Partial<Atividade>): Promise<Atividade> {
+  const record = await pb.collection('atividades').update<Atividade>(id, data, {
+    expand: 'cliente_id,responsavel_id',
   })
   return record
 }

@@ -28,12 +28,34 @@ export type ManutencaoTipo = 'Limpeza' | 'Revisão Elétrica' | 'Troca de Invers
 export type ManutencaoStatus = 'Agendado' | 'Em andamento' | 'Concluído'
 
 export type AtividadeTipo =
+  // Os 12 tipos oficiais solicitados:
+  | 'contato_ligacao'
+  | 'reuniao_presencial'
+  | 'follow_up'
+  | 'instalacao'
+  | 'proposta'
+  | 'limpeza_manutencao'
+  | 'auto_leitura_rge'
+  | 'ligar_indicacao'
+  | 'configuracao_datalogger'
+  | 'garantia_equipamento'
+  | 'relatorio_solarview'
+  | 'contato_reativacao'
+  // Tipos legados mantidos para retrocompatibilidade
   | 'anotacao'
   | 'ligacao'
   | 'reuniao'
-  | 'proposta'
   | 'visita_tecnica'
   | 'mudanca_estagio'
+
+export type AtividadeStatus = 'pendente' | 'concluida' | 'cancelada'
+
+export interface SistemaUsuario {
+  id: string
+  name: string
+  email: string
+  avatar?: string
+}
 
 export interface Cliente extends RecordModel {
   id: string
@@ -139,12 +161,16 @@ export interface Atividade extends RecordModel {
   cliente_id: string
   tipo: AtividadeTipo
   titulo?: string
-  descricao: string
+  descricao?: string
   data: string
   autor?: string
+  status?: AtividadeStatus
+  responsavel_id?: string
+  responsavel_nome?: string
   created: string
   updated: string
   expand?: {
     cliente_id?: Cliente
+    responsavel_id?: SistemaUsuario
   }
 }
