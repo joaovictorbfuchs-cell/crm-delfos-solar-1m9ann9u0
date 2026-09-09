@@ -5,7 +5,6 @@ interface DelfosLogoProps {
   className?: string
   /**
    * Largura ou estilo personalizado.
-   * Por padrão viewBox é 480 280 (aspect ratio ~ 1.71).
    */
   height?: number | string
   width?: number | string
@@ -14,6 +13,10 @@ interface DelfosLogoProps {
    * mas por padrão renderizamos o SVG vetorial nítido e responsivo.
    */
   variant?: 'svg' | 'image'
+  /**
+   * Se true, renderiza apenas o símbolo (swoosh de sol) sem o texto, ideal para sidebar recolhida.
+   */
+  collapsed?: boolean
 }
 
 /**
@@ -32,6 +35,7 @@ export const DelfosLogo: React.FC<DelfosLogoProps> = ({
   height = 42,
   width,
   variant = 'svg',
+  collapsed = false,
 }) => {
   if (variant === 'image') {
     return (
@@ -122,32 +126,48 @@ export const DelfosLogo: React.FC<DelfosLogoProps> = ({
       />
 
       {/* Texto Central: "delfos" */}
-      <g fill="#175EA8">
-        <text
-          x="260"
-          y="162"
-          textAnchor="middle"
-          fontFamily="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif"
-          fontSize="92"
-          fontWeight="800"
-          letterSpacing="0.22em"
-        >
-          delfos
-        </text>
+      {!collapsed && (
+        <g fill="#175EA8">
+          <text
+            x="260"
+            y="162"
+            textAnchor="middle"
+            fontFamily="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif"
+            fontSize="92"
+            fontWeight="800"
+            letterSpacing="0.22em"
+          >
+            delfos
+          </text>
 
-        {/* Texto Inferior: "solar" */}
-        <text
-          x="264"
-          y="200"
-          textAnchor="middle"
-          fontFamily="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif"
-          fontSize="24"
-          fontWeight="700"
-          letterSpacing="0.68em"
-        >
-          solar
-        </text>
-      </g>
+          {/* Texto Inferior: "solar" */}
+          <text
+            x="264"
+            y="200"
+            textAnchor="middle"
+            fontFamily="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif"
+            fontSize="24"
+            fontWeight="700"
+            letterSpacing="0.68em"
+          >
+            solar
+          </text>
+        </g>
+      )}
+      {collapsed && (
+        <g fill="#175EA8">
+          <text
+            x="260"
+            y="180"
+            textAnchor="middle"
+            fontFamily="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif"
+            fontSize="120"
+            fontWeight="900"
+          >
+            D
+          </text>
+        </g>
+      )}
     </svg>
   )
 }

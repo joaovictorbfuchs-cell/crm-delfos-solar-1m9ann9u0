@@ -59,14 +59,6 @@ export default function Comercial() {
               {formatCurrency(totalFechado)}
             </span>
           </div>
-
-          <button
-            onClick={() => setIsNovoLeadOpen(true)}
-            className="inline-flex items-center gap-2 px-4 py-2.5 bg-[#16A34A] hover:bg-[#15803D] text-white text-sm font-semibold rounded-xl shadow-xs hover:shadow-md transition-all duration-150 hover:scale-[1.02] shrink-0"
-          >
-            <UserPlus className="w-4 h-4" />
-            <span>+ Novo Lead</span>
-          </button>
         </div>
       </div>
 
@@ -81,9 +73,9 @@ export default function Comercial() {
           </div>
           <button
             onClick={() => setIsNovoLeadOpen(true)}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-[#16A34A] hover:bg-[#15803D] text-white text-xs font-semibold rounded-lg shadow-xs hover:shadow transition-all duration-150"
+            className="inline-flex items-center gap-2 px-4 py-2.5 bg-[#16A34A] hover:bg-[#15803D] text-white text-sm font-semibold rounded-xl shadow-xs hover:shadow-md transition-all duration-150 hover:scale-[1.02]"
           >
-            <UserPlus className="w-3.5 h-3.5" />
+            <UserPlus className="w-4 h-4" />
             <span>+ Novo Lead</span>
           </button>
         </div>

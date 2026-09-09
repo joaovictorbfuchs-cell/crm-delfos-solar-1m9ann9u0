@@ -1,17 +1,15 @@
 import React, { useState } from 'react'
-import { Users, TrendingUp, DollarSign, Loader2, UserPlus } from 'lucide-react'
+import { Users, TrendingUp, DollarSign, Loader2 } from 'lucide-react'
 import { useClientes } from '@/contexts/ClientesContext'
 import { formatCurrency } from '@/lib/formatters'
 import { KanbanBoard } from '@/components/KanbanBoard'
 import { ManutencoesList } from '@/components/ManutencoesList'
 import { NovaManutencaoModal } from '@/components/NovaManutencaoModal'
-import { NovoLeadModal } from '@/components/NovoLeadModal'
 
 export default function Index() {
   const { clientes, isLoading } = useClientes()
   const [activeTab, setActiveTab] = useState<'comercial' | 'manutencoes'>('comercial')
   const [isNovaManutencaoOpen, setIsNovaManutencaoOpen] = useState(false)
-  const [isNovoLeadOpen, setIsNovoLeadOpen] = useState(false)
 
   // Top metric calculations
   const totalClientes = clientes.length
@@ -34,7 +32,7 @@ export default function Index() {
 
   return (
     <div className="space-y-6">
-      {/* Top action bar with "+ Novo Lead" */}
+      {/* Top title */}
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-xl font-bold text-gray-900 tracking-tight">Dashboard Delfos Solar</h1>
@@ -42,13 +40,6 @@ export default function Index() {
             Acompanhamento de vendas, metas comerciais e ordens de serviço
           </p>
         </div>
-        <button
-          onClick={() => setIsNovoLeadOpen(true)}
-          className="inline-flex items-center gap-2 px-4 py-2.5 bg-[#16A34A] hover:bg-[#15803D] text-white text-sm font-semibold rounded-xl shadow-xs hover:shadow-md transition-all duration-150 hover:scale-[1.02]"
-        >
-          <UserPlus className="w-4 h-4" />
-          <span>+ Novo Lead</span>
-        </button>
       </div>
 
       {/* 3 Metric Cards */}
@@ -147,13 +138,6 @@ export default function Index() {
                     Chapecó
                   </p>
                 </div>
-                <button
-                  onClick={() => setIsNovoLeadOpen(true)}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#16A34A] hover:bg-[#15803D] text-white text-xs font-semibold rounded-lg shadow-xs hover:shadow transition-all duration-150"
-                >
-                  <UserPlus className="w-3.5 h-3.5" />
-                  <span>+ Novo Lead</span>
-                </button>
               </div>
               <KanbanBoard clientes={clientes} />
             </div>
@@ -170,9 +154,6 @@ export default function Index() {
         isOpen={isNovaManutencaoOpen}
         onClose={() => setIsNovaManutencaoOpen(false)}
       />
-
-      {/* Modal Novo Lead */}
-      <NovoLeadModal isOpen={isNovoLeadOpen} onClose={() => setIsNovoLeadOpen(false)} />
     </div>
   )
 }

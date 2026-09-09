@@ -241,7 +241,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ clientes }) => {
 
   return (
     <div className="w-full overflow-x-auto pb-6 pt-1 select-none">
-      <div className="flex gap-4 min-w-[1380px] xl:min-w-0 xl:grid xl:grid-cols-6 items-start">
+      <div className="flex gap-4.5 min-w-[1800px] 2xl:min-w-0 2xl:grid 2xl:grid-cols-6 items-start">
         {KANBAN_COLUMNS.map((col) => {
           const colClients = clientes.filter((c) => c.status === col.id)
           const totalColValue = colClients.reduce((sum, c) => sum + (c.valor_estimado || 0), 0)
@@ -254,7 +254,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ clientes }) => {
               onDragOver={(e) => handleDragOver(e, col.id)}
               onDragLeave={(e) => handleDragLeave(e, col.id)}
               onDrop={(e) => handleDrop(e, col.id)}
-              className={`w-[270px] xl:w-full flex-shrink-0 rounded-xl p-3 border-t-4 ${
+              className={`w-[295px] 2xl:w-full flex-shrink-0 rounded-xl p-3.5 border-t-4 ${
                 col.borderClass
               } shadow-xs flex flex-col transition-all duration-150 ${
                 isOver
@@ -263,10 +263,13 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ clientes }) => {
               }`}
             >
               {/* Header da Coluna */}
-              <div className="flex items-center justify-between pb-2 mb-2 border-b border-gray-200/60">
+              <div className="flex items-center justify-between pb-2.5 mb-2.5 border-b border-gray-200/60">
                 <div className="flex items-center gap-1.5 min-w-0">
                   <col.icon className={`w-4 h-4 shrink-0 ${col.iconColorClass}`} />
-                  <h3 className="font-semibold text-xs text-gray-800 uppercase tracking-wider truncate">
+                  <h3
+                    className="font-semibold text-xs text-gray-800 uppercase tracking-wider truncate"
+                    title={col.title}
+                  >
                     {col.title}
                   </h3>
                 </div>
@@ -282,7 +285,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ clientes }) => {
               </div>
 
               {/* Cards List / Drop Zone */}
-              <div className="space-y-2.5 flex-1 min-h-[340px] flex flex-col">
+              <div className="space-y-3 flex-1 min-h-[340px] flex flex-col">
                 {colClients.length === 0 ? (
                   <div
                     className={`h-28 flex-1 flex items-center justify-center border-2 border-dashed rounded-lg text-xs transition-colors ${
@@ -307,35 +310,40 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ clientes }) => {
                         onTouchMove={handleTouchMove}
                         onTouchEnd={handleTouchEnd}
                         onClick={() => handleCardClick(client.id)}
-                        className={`bg-white rounded-xl p-3.5 border transition-all duration-150 cursor-grab active:cursor-grabbing group relative ${
+                        className={`bg-white rounded-xl p-4 border transition-all duration-150 cursor-grab active:cursor-grabbing group relative ${
                           isDraggingThis
                             ? 'opacity-40 scale-95 border-emerald-400 shadow-inner'
                             : 'border-gray-200 shadow-xs hover:shadow-md hover:-translate-y-0.5 hover:border-emerald-300'
                         }`}
                       >
-                        <div className="flex items-start justify-between gap-1">
-                          <div className="font-semibold text-sm text-gray-900 group-hover:text-emerald-700 transition-colors line-clamp-1">
+                        <div className="flex items-start justify-between gap-1.5">
+                          <div
+                            className="font-semibold text-sm text-gray-900 group-hover:text-emerald-700 transition-colors break-words leading-snug"
+                            title={client.nome}
+                          >
                             {client.nome}
                           </div>
-                          <GripVertical className="w-4 h-4 text-gray-300 group-hover:text-gray-500 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
+                          <GripVertical className="w-4 h-4 text-gray-300 group-hover:text-gray-500 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity mt-0.5" />
                         </div>
 
                         {/* Etiqueta colorida de produto */}
-                        <div className="mt-2">
+                        <div className="mt-2.5">
                           <ProductBadge produto={client.produto || 'Energia Solar'} />
                         </div>
 
-                        <div className="flex items-center text-xs text-gray-500 mt-2 gap-1">
+                        <div className="flex items-center text-xs text-gray-500 mt-2.5 gap-1.5">
                           <MapPin className="w-3.5 h-3.5 text-gray-400 shrink-0" />
-                          <span className="truncate">{client.cidade}</span>
+                          <span className="truncate" title={client.cidade}>
+                            {client.cidade}
+                          </span>
                         </div>
 
-                        <div className="flex items-center justify-between mt-3 pt-2.5 border-t border-gray-100 text-xs">
-                          <div className="flex items-center gap-1 font-medium text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded">
-                            <Zap className="w-3.5 h-3.5 text-emerald-600" />
+                        <div className="flex items-center justify-between mt-3 pt-2.5 border-t border-gray-100 text-xs gap-2">
+                          <div className="flex items-center gap-1 font-semibold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-md shrink-0">
+                            <Zap className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
                             <span>{client.potencia_kwp} kWp</span>
                           </div>
-                          <span className="font-semibold text-gray-900">
+                          <span className="font-bold text-gray-900 text-sm whitespace-nowrap">
                             {formatCurrency(client.valor_estimado)}
                           </span>
                         </div>
@@ -354,8 +362,11 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ clientes }) => {
 
               {/* Col Footer total */}
               {colClients.length > 0 && (
-                <div className="mt-2.5 pt-2 border-t border-gray-200/60 text-right text-[11px] text-gray-500">
-                  Total: <strong className="text-gray-700">{formatCurrency(totalColValue)}</strong>
+                <div className="mt-3 pt-2.5 border-t border-gray-200/60 text-right text-[11px] text-gray-500">
+                  Total:{' '}
+                  <strong className="text-gray-800 font-semibold">
+                    {formatCurrency(totalColValue)}
+                  </strong>
                 </div>
               )}
             </div>
