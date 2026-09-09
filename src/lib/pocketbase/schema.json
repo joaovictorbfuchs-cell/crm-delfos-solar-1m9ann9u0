@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-09T17:41:08.446Z",
+  "generatedAt": "2026-09-09T18:19:36.644Z",
   "collections": [
     {
       "name": "users",
@@ -103,12 +103,12 @@
           "required": false,
           "system": false,
           "selectValues": [
-            "Lead",
-            "Orçamento Enviado",
-            "Proposta",
+            "Novo Lead",
+            "Levantamento",
+            "Orçamento",
             "Negociação",
             "Fechado",
-            "Perdido"
+            "Contato Futuro"
           ]
         },
         {

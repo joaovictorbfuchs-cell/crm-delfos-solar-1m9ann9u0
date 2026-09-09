@@ -32,14 +32,47 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({ status, className = ''
           {status}
         </span>
       )
-    case 'Perdido':
+    case 'Novo Lead':
+      return (
+        <span
+          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-800 border border-slate-200 ${className}`}
+        >
+          Novo Lead
+        </span>
+      )
+    case 'Levantamento':
+      return (
+        <span
+          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-sky-100 text-sky-800 border border-sky-200 ${className}`}
+        >
+          Levantamento
+        </span>
+      )
+    case 'Orçamento':
+      return (
+        <span
+          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800 border border-indigo-200 ${className}`}
+        >
+          Orçamento
+        </span>
+      )
+    case 'Negociação':
+      return (
+        <span
+          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800 border border-amber-300 font-semibold ${className}`}
+        >
+          Negociação
+        </span>
+      )
+    case 'Contato Futuro':
       return (
         <span
           className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700 border border-gray-200 ${className}`}
         >
-          Perdido
+          Contato Futuro
         </span>
       )
+    // Compatibilidade com valores legados
     case 'Lead':
       return (
         <span
@@ -64,12 +97,12 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({ status, className = ''
           Proposta
         </span>
       )
-    case 'Negociação':
+    case 'Perdido':
       return (
         <span
-          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-900 border border-green-300 font-semibold ${className}`}
+          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700 border border-gray-200 ${className}`}
         >
-          Negociação
+          Perdido
         </span>
       )
     default:

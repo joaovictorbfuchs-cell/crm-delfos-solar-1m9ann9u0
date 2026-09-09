@@ -8,7 +8,7 @@ export default function Comercial() {
   const { clientes, isLoading } = useClientes()
 
   const totalPotencial = clientes
-    .filter((c) => c.status !== 'Perdido')
+    .filter((c) => c.status !== 'Contato Futuro' && (c.status as string) !== 'Perdido')
     .reduce((sum, c) => sum + (c.valor_estimado || 0), 0)
 
   const fechados = clientes.filter((c) => c.status === 'Fechado')

@@ -1,12 +1,12 @@
 import type { RecordModel } from 'pocketbase'
 
 export type ClienteStatus =
-  | 'Lead'
-  | 'Orçamento Enviado'
-  | 'Proposta'
+  | 'Novo Lead'
+  | 'Levantamento'
+  | 'Orçamento'
   | 'Negociação'
   | 'Fechado'
-  | 'Perdido'
+  | 'Contato Futuro'
 
 export type TelhadoTipo = 'ceramico' | 'metalico' | 'laje' | 'fibrocimento'
 

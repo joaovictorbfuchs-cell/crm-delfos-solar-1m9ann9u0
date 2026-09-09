@@ -35,3 +35,8 @@ export async function createManutencao(data: {
   const record = await pb.collection('manutencoes').create<Manutencao>(data)
   return record
 }
+
+export async function updateClienteStatus(id: string, status: Cliente['status']): Promise<Cliente> {
+  const record = await pb.collection('clientes').update<Cliente>(id, { status })
+  return record
+}

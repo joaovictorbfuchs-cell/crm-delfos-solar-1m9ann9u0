@@ -14,9 +14,9 @@ export default function Index() {
   // Top metric calculations
   const totalClientes = clientes.length
 
-  // Negócios em Aberto: Lead, Orçamento Enviado, Proposta, Negociação
+  // Negócios em Aberto: Novo Lead, Levantamento, Orçamento, Negociação
   const negociosEmAberto = clientes.filter((c) =>
-    ['Lead', 'Orçamento Enviado', 'Proposta', 'Negociação'].includes(c.status),
+    ['Novo Lead', 'Levantamento', 'Orçamento', 'Negociação'].includes(c.status),
   )
 
   const valorTotalFunil = negociosEmAberto.reduce((sum, c) => sum + (c.valor_estimado || 0), 0)
@@ -58,7 +58,7 @@ export default function Index() {
                 Negócios em Aberto
               </p>
               <h3 className="text-2xl font-bold text-gray-900 mt-1">{negociosEmAberto.length}</h3>
-              <p className="text-[11px] text-gray-400 mt-0.5">Leads, orçamentos e propostas</p>
+              <p className="text-[11px] text-gray-400 mt-0.5">Leads, levantamentos e propostas</p>
             </div>
             <div className="w-12 h-12 rounded-xl bg-blue-50 border border-blue-100 text-blue-600 flex items-center justify-center">
               <TrendingUp className="w-6 h-6" />
