@@ -13,10 +13,10 @@ const ORIGENS: OrigemLeadTipo[] = ['Facebook', 'Instagram', 'Indicação', 'Site
 
 const PRODUTOS: ProdutoTipo[] = [
   'Energia Solar',
-  'Manutenção avulsa',
   'Plano de O&M',
   'Sistemas Híbridos',
   'Carregadores veiculares',
+  'Manutenção avulsa',
 ]
 
 export const NovoLeadModal: React.FC<NovoLeadModalProps> = ({ isOpen, onClose }) => {
