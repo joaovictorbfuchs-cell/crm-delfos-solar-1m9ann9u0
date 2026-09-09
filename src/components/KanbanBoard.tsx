@@ -337,29 +337,10 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ clientes }) => {
                         </div>
 
                         {/* Cidade */}
-                        <div className="flex items-center text-[11px] sm:text-xs text-gray-500 mt-1.5 sm:mt-2 gap-1 min-w-0">
-                          <MapPin className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-gray-400 shrink-0" />
-                          <span className="truncate" title={client.cidade}>
-                            {client.cidade || 'Não informada'}
-                          </span>
-                        </div>
+                        <div className="flex items-center text-[11px] sm:text-xs text-gray-500 mt-1.5 sm:mt-2 gap-1 min-w-0"></div>
 
                         {/* Potência e Valor Estimado */}
-                        <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-100 text-[11px] sm:text-xs gap-1 min-w-0 flex-wrap sm:flex-nowrap">
-                          <div
-                            className="flex items-center gap-0.5 sm:gap-1 font-semibold text-emerald-700 bg-emerald-50 px-1.5 sm:px-2 py-0.5 rounded shrink-0 text-[10px] sm:text-[11px]"
-                            title={`${client.potencia_kwp || 0} kWp`}
-                          >
-                            <Zap className="w-3 h-3 text-emerald-600 shrink-0" />
-                            <span>{client.potencia_kwp || 0} kWp</span>
-                          </div>
-                          <span
-                            className="font-bold text-gray-900 text-[11px] sm:text-xs whitespace-nowrap ml-auto"
-                            title={formatCurrency(client.valor_estimado)}
-                          >
-                            {formatCurrency(client.valor_estimado)}
-                          </span>
-                        </div>
+                        <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-100 text-[11px] sm:text-xs gap-1 min-w-0 flex-wrap sm:flex-nowrap"></div>
                       </div>
                     )
                   })
