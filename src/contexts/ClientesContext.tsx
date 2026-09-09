@@ -5,6 +5,7 @@ import {
   fetchManutencoes,
   fetchAtividades,
   createManutencao as apiCreateManutencao,
+  createCliente as apiCreateCliente,
   updateClienteStatus as apiUpdateClienteStatus,
 } from '@/services/crmService'
 import { useRealtime } from '@/hooks/use-realtime'
@@ -20,6 +21,7 @@ interface ClientesContextType {
   selectedCliente: Cliente | null
   openFichaCliente: (id: string) => void
   closeFichaCliente: () => void
+  addCliente: (data: Partial<Cliente> & { nome: string }) => Promise<Cliente>
   addManutencao: (data: {
     cliente_id: string
     data: string
@@ -105,6 +107,16 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     isAuthenticated,
   )
 
+  const addCliente = async (data: Partial<Cliente> & { nome: string }) => {
+    const created = await apiCreateCliente(data)
+    // Atualiza estado local imediatamente caso o realtime demore
+    setClientes((prev) => {
+      if (prev.some((c) => c.id === created.id)) return prev
+      return [created, ...prev]
+    })
+    return created
+  }
+
   const openFichaCliente = (id: string) => {
     setSelectedClienteId(id)
   }
@@ -155,6 +167,7 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         selectedCliente,
         openFichaCliente,
         closeFichaCliente,
+        addCliente,
         addManutencao,
         updateClienteStatus,
         refreshData: loadAllData,

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-09T18:24:55.105Z",
+  "generatedAt": "2026-09-09T20:07:12.835Z",
   "collections": [
     {
       "name": "users",
@@ -149,6 +149,32 @@
           "selectValues": ["ceramico", "metalico", "laje", "fibrocimento"]
         },
         {
+          "name": "produto",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": [
+            "Energia Solar",
+            "Manutenção avulsa",
+            "Plano de O&M",
+            "Sistemas Híbridos",
+            "Carregadores veiculares"
+          ]
+        },
+        {
+          "name": "consumo_kwh_mes",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "origem_lead",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["Facebook", "Instagram", "Indicação", "Site", "Outro"]
+        },
+        {
           "name": "created",
           "type": "autodate",
           "required": false,
@@ -161,6 +187,32 @@
           "required": false,
           "system": false,
           "autodateTriggers": ["onCreate", "onUpdate"]
+        },
+        {
+          "name": "produto",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": [
+            "Energia Solar",
+            "Manutenção avulsa",
+            "Plano de O&M",
+            "Sistemas Híbridos",
+            "Carregadores veiculares"
+          ]
+        },
+        {
+          "name": "consumo_kwh_mes",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "origem_lead",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["Facebook", "Instagram", "Indicação", "Site", "Outro"]
         }
       ],
       "indexes": [

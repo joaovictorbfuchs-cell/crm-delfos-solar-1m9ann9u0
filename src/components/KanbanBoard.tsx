@@ -3,6 +3,7 @@ import { MapPin, Zap, GripVertical } from 'lucide-react'
 import type { Cliente, ClienteStatus } from '@/types/crm'
 import { formatCurrency } from '@/lib/formatters'
 import { useClientes } from '@/contexts/ClientesContext'
+import { ProductBadge } from '@/components/StatusBadge'
 
 interface KanbanBoardProps {
   clientes: Cliente[]
@@ -272,6 +273,11 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ clientes }) => {
                             {client.nome}
                           </div>
                           <GripVertical className="w-4 h-4 text-gray-300 group-hover:text-gray-500 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
+                        </div>
+
+                        {/* Etiqueta colorida de produto */}
+                        <div className="mt-2">
+                          <ProductBadge produto={client.produto || 'Energia Solar'} />
                         </div>
 
                         <div className="flex items-center text-xs text-gray-500 mt-2 gap-1">

@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react'
 import { Search, Eye, MapPin, Zap, Users, Loader2 } from 'lucide-react'
 import { useClientes } from '@/contexts/ClientesContext'
-import { StatusBadge } from '@/components/StatusBadge'
+import { StatusBadge, ProductBadge } from '@/components/StatusBadge'
 import { formatCurrency } from '@/lib/formatters'
 
 export default function Clientes() {
@@ -70,6 +70,7 @@ export default function Clientes() {
               <thead className="bg-[#F8FAF9] border-b border-gray-200 text-xs font-semibold text-gray-600 uppercase tracking-wider">
                 <tr>
                   <th className="py-3.5 px-4">Nome do Cliente</th>
+                  <th className="py-3.5 px-4">Produto</th>
                   <th className="py-3.5 px-4">Cidade</th>
                   <th className="py-3.5 px-4">Potência</th>
                   <th className="py-3.5 px-4">Valor Estimado</th>
@@ -88,7 +89,12 @@ export default function Clientes() {
                       <div className="font-semibold text-gray-900 group-hover:text-emerald-700 transition-colors">
                         {c.nome}
                       </div>
-                      <div className="text-xs text-gray-400 font-mono">UC: {c.uc || '-'}</div>
+                      <div className="text-xs text-gray-400 font-mono">
+                        {c.telefone ? `${c.telefone} • ` : ''}UC: {c.uc || '-'}
+                      </div>
+                    </td>
+                    <td className="py-3.5 px-4 whitespace-nowrap">
+                      <ProductBadge produto={c.produto || 'Energia Solar'} />
                     </td>
                     <td className="py-3.5 px-4 text-gray-600 whitespace-nowrap">
                       <div className="inline-flex items-center gap-1.5">

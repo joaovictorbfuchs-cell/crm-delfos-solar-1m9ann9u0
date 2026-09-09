@@ -18,7 +18,7 @@ import {
 } from 'lucide-react'
 import { useClientes } from '@/contexts/ClientesContext'
 import { formatDate, formatDateTime, getTelhadoLabel } from '@/lib/formatters'
-import { StatusBadge } from './StatusBadge'
+import { StatusBadge, ProductBadge } from './StatusBadge'
 
 export const FichaClienteDrawer: React.FC = () => {
   const { selectedCliente, selectedClienteId, closeFichaCliente, manutencoes, atividades } =
@@ -70,7 +70,8 @@ export const FichaClienteDrawer: React.FC = () => {
                 {selectedCliente.nome}
               </h2>
               <StatusBadge status={selectedCliente.status} />
-            </div>
+              <ProductBadge produto={selectedCliente.produto || 'Energia Solar'} size="md" />
+            </div>{' '}
             <div className="flex items-center text-sm text-gray-500 gap-1.5">
               <MapPin className="w-4 h-4 text-gray-400 shrink-0" />
               <span>{selectedCliente.cidade}</span>
@@ -120,9 +121,25 @@ export const FichaClienteDrawer: React.FC = () => {
                   {selectedCliente.uc || 'Não informada'}
                 </span>
               </div>
+              {selectedCliente.origem_lead && (
+                <div className="flex items-center gap-3">
+                  <FileText className="w-4 h-4 text-gray-400 shrink-0" />
+                  <span className="text-gray-500 min-w-[70px]">Origem:</span>
+                  <span className="font-medium text-gray-800">{selectedCliente.origem_lead}</span>
+                </div>
+              )}
+              {selectedCliente.consumo_kwh_mes !== undefined &&
+                selectedCliente.consumo_kwh_mes > 0 && (
+                  <div className="flex items-center gap-3">
+                    <Zap className="w-4 h-4 text-gray-400 shrink-0" />
+                    <span className="text-gray-500 min-w-[70px]">Consumo:</span>
+                    <span className="font-semibold text-emerald-800">
+                      {selectedCliente.consumo_kwh_mes} kWh/mês
+                    </span>
+                  </div>
+                )}
             </div>
           </div>
-
           {/* Seção Dados Técnicos do Sistema */}
           <div className="bg-white rounded-xl p-5 border border-gray-100 shadow-sm space-y-4">
             <h3 className="text-xs font-bold uppercase tracking-wider text-gray-400 flex items-center gap-2">

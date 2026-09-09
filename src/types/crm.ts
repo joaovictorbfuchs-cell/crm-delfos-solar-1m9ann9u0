@@ -8,6 +8,15 @@ export type ClienteStatus =
   | 'Fechado'
   | 'Contato Futuro'
 
+export type ProdutoTipo =
+  | 'Energia Solar'
+  | 'Manutenção avulsa'
+  | 'Plano de O&M'
+  | 'Sistemas Híbridos'
+  | 'Carregadores veiculares'
+
+export type OrigemLeadTipo = 'Facebook' | 'Instagram' | 'Indicação' | 'Site' | 'Outro'
+
 export type TelhadoTipo = 'ceramico' | 'metalico' | 'laje' | 'fibrocimento'
 
 export type ManutencaoTipo = 'Limpeza' | 'Revisão Elétrica' | 'Troca de Inversor'
@@ -32,6 +41,9 @@ export interface Cliente extends RecordModel {
   placas_qtd: number
   placas_marca: string
   telhado_tipo: TelhadoTipo
+  produto?: ProdutoTipo
+  consumo_kwh_mes?: number
+  origem_lead?: OrigemLeadTipo
   created: string
   updated: string
 }
