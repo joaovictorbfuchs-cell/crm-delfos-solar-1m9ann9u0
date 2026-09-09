@@ -19,6 +19,10 @@ export type OrigemLeadTipo = 'Facebook' | 'Instagram' | 'Indicação' | 'Site' |
 
 export type TelhadoTipo = 'ceramico' | 'metalico' | 'laje' | 'fibrocimento'
 
+export type TipoAtendimento = 'aéreo' | 'subterrâneo'
+
+export type NumeroFases = 'monofásico' | 'bifásico' | 'trifásico'
+
 export type ManutencaoTipo = 'Limpeza' | 'Revisão Elétrica' | 'Troca de Inversor'
 
 export type ManutencaoStatus = 'Agendado' | 'Em andamento' | 'Concluído'
@@ -44,8 +48,62 @@ export interface Cliente extends RecordModel {
   produto?: ProdutoTipo
   consumo_kwh_mes?: number
   origem_lead?: OrigemLeadTipo
+  // Novos campos cadastrais
+  nome_fantasia?: string
+  razao_social?: string
+  cnpj?: string
+  cpf?: string
+  inscricao_estadual?: string
+  email?: string
+  cep?: string
+  estado?: string
+  bairro?: string
+  numero?: string
+  complemento?: string
+  contato?: string
+  data_nascimento_fundacao?: string
+  rg?: string
   created: string
   updated: string
+}
+
+export interface Sistema extends RecordModel {
+  id: string
+  collectionId: string
+  collectionName: string
+  cliente_id: string
+  // Destaque inicial
+  geracao_media_mensal_kwh?: number
+  // Instalação
+  data_instalacao?: string
+  potencia_total_kwp?: number
+  quantidade_placas?: number
+  marca_placas?: string
+  tipo_telhado?: TelhadoTipo
+  numero_uc?: string
+  // Localização
+  latitude?: number
+  longitude?: number
+  // Concessionária
+  padrao_entrada?: string
+  tipo_atendimento?: TipoAtendimento
+  numero_fases?: NumeroFases
+  secao_cabos?: string
+  tipo_caixa_medicao?: string
+  amperagem_disjuntor?: string
+  // Equipamentos
+  quantidade_modulos?: number
+  fabricante_modulos?: string
+  modelo_modulos?: string
+  fabricante_inversores?: string
+  modelo_inversores?: string
+  potencia_pico_modulos_kwp?: number
+  potencia_pico_inversores_kwp?: number
+  created: string
+  updated: string
+  expand?: {
+    cliente_id?: Cliente
+  }
 }
 
 export interface Manutencao extends RecordModel {

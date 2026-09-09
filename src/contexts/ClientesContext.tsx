@@ -1,25 +1,36 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react'
-import type { Cliente, Manutencao, Atividade, ManutencaoTipo, ManutencaoStatus } from '@/types/crm'
+import type {
+  Cliente,
+  Sistema,
+  Manutencao,
+  Atividade,
+  ManutencaoTipo,
+  ManutencaoStatus,
+} from '@/types/crm'
 import {
   fetchClientes,
+  fetchSistemas,
   fetchManutencoes,
   fetchAtividades,
   createManutencao as apiCreateManutencao,
   createCliente as apiCreateCliente,
   updateCliente as apiUpdateCliente,
   updateClienteStatus as apiUpdateClienteStatus,
+  upsertSistemaForCliente,
 } from '@/services/crmService'
 import { useRealtime } from '@/hooks/use-realtime'
 import { useAuth } from '@/contexts/AuthContext'
 
 interface ClientesContextType {
   clientes: Cliente[]
+  sistemas: Sistema[]
   manutencoes: Manutencao[]
   atividades: Atividade[]
   isLoading: boolean
   error: string | null
   selectedClienteId: string | null
   selectedCliente: Cliente | null
+  selectedSistema: Sistema | null
   openFichaCliente: (id: string) => void
   closeFichaCliente: () => void
   addCliente: (data: Partial<Cliente> & { nome: string }) => Promise<Cliente>
@@ -33,6 +44,7 @@ interface ClientesContextType {
   }) => Promise<Manutencao>
   updateCliente: (id: string, data: Partial<Cliente>) => Promise<Cliente>
   updateClienteStatus: (id: string, status: Cliente['status']) => Promise<void>
+  updateSistema: (clienteId: string, data: Partial<Sistema>) => Promise<Sistema>
   refreshData: () => Promise<void>
 }
 
@@ -41,6 +53,7 @@ const ClientesContext = createContext<ClientesContextType | undefined>(undefined
 export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { isAuthenticated } = useAuth()
   const [clientes, setClientes] = useState<Cliente[]>([])
+  const [sistemas, setSistemas] = useState<Sistema[]>([])
   const [manutencoes, setManutencoes] = useState<Manutencao[]>([])
   const [atividades, setAtividades] = useState<Atividade[]>([])
   const [isLoading, setIsLoading] = useState<boolean>(true)
@@ -55,12 +68,14 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     try {
       setIsLoading(true)
       setError(null)
-      const [cList, mList, aList] = await Promise.all([
+      const [cList, sList, mList, aList] = await Promise.all([
         fetchClientes(),
+        fetchSistemas(),
         fetchManutencoes(),
         fetchAtividades(),
       ])
       setClientes(cList)
+      setSistemas(sList)
       setManutencoes(mList)
       setAtividades(aList)
     } catch (err: unknown) {
@@ -85,6 +100,21 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         setClientes((prev) => prev.map((c) => (c.id === data.record.id ? data.record : c)))
       } else if (data.action === 'delete') {
         setClientes((prev) => prev.filter((c) => c.id !== data.record.id))
+      }
+    },
+    isAuthenticated,
+  )
+
+  // Realtime updates for sistemas
+  useRealtime<Sistema>(
+    'sistemas',
+    (data) => {
+      if (data.action === 'create') {
+        setSistemas((prev) => [data.record, ...prev])
+      } else if (data.action === 'update') {
+        setSistemas((prev) => prev.map((s) => (s.id === data.record.id ? data.record : s)))
+      } else if (data.action === 'delete') {
+        setSistemas((prev) => prev.filter((s) => s.id !== data.record.id))
       }
     },
     isAuthenticated,
@@ -170,24 +200,51 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
   }
 
+  const updateSistema = async (clienteId: string, data: Partial<Sistema>): Promise<Sistema> => {
+    const existing = sistemas.find((s) => s.cliente_id === clienteId)
+    // Optimistic update
+    if (existing) {
+      setSistemas((prev) => prev.map((s) => (s.id === existing.id ? { ...s, ...data } : s)))
+    }
+    try {
+      const saved = await upsertSistemaForCliente(clienteId, data, existing?.id)
+      setSistemas((prev) => {
+        const found = prev.some((s) => s.id === saved.id)
+        if (found) {
+          return prev.map((s) => (s.id === saved.id ? saved : s))
+        }
+        return [saved, ...prev]
+      })
+      return saved
+    } catch (err) {
+      console.error('Erro ao salvar sistema:', err)
+      await loadAllData()
+      throw err
+    }
+  }
+
   const selectedCliente = clientes.find((c) => c.id === selectedClienteId) || null
+  const selectedSistema = sistemas.find((s) => s.cliente_id === selectedClienteId) || null
 
   return (
     <ClientesContext.Provider
       value={{
         clientes,
+        sistemas,
         manutencoes,
         atividades,
         isLoading,
         error,
         selectedClienteId,
         selectedCliente,
+        selectedSistema,
         openFichaCliente,
         closeFichaCliente,
         addCliente,
         addManutencao,
         updateCliente,
         updateClienteStatus,
+        updateSistema,
         refreshData: loadAllData,
       }}
     >

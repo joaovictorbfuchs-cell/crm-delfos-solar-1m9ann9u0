@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-09T20:17:38.736Z",
+  "generatedAt": "2026-09-09T21:13:20.499Z",
   "collections": [
     {
       "name": "users",
@@ -187,6 +187,90 @@
           "required": false,
           "system": false,
           "selectValues": ["Facebook", "Instagram", "Indicação", "Site", "Outro"]
+        },
+        {
+          "name": "nome_fantasia",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "razao_social",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "cnpj",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "cpf",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "inscricao_estadual",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "email",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "cep",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "estado",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "bairro",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "numero",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "complemento",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "contato",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "data_nascimento_fundacao",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "rg",
+          "type": "text",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": [
@@ -316,6 +400,176 @@
         }
       ],
       "indexes": ["CREATE INDEX idx_atividades_cliente_id ON atividades (cliente_id)"]
+    },
+    {
+      "name": "sistemas",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "cliente_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "clientes"
+        },
+        {
+          "name": "geracao_media_mensal_kwh",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "data_instalacao",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "potencia_total_kwp",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "quantidade_placas",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "marca_placas",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "tipo_telhado",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["ceramico", "metalico", "laje", "fibrocimento"]
+        },
+        {
+          "name": "numero_uc",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "latitude",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "longitude",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "padrao_entrada",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "tipo_atendimento",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["aéreo", "subterrâneo"]
+        },
+        {
+          "name": "numero_fases",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["monofásico", "bifásico", "trifásico"]
+        },
+        {
+          "name": "secao_cabos",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "tipo_caixa_medicao",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "amperagem_disjuntor",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "quantidade_modulos",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "fabricante_modulos",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "modelo_modulos",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "fabricante_inversores",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "modelo_inversores",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "potencia_pico_modulos_kwp",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "potencia_pico_inversores_kwp",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": ["CREATE INDEX idx_sistemas_cliente_id ON sistemas (cliente_id)"]
     }
   ]
 }
