@@ -77,22 +77,6 @@ export default function Index() {
         </div>
 
         {/* Card 3: Valor Total Estimado do Funil */}
-        <div className="bg-white rounded-xl p-5 border border-gray-200/80 shadow-xs hover:shadow-md transition-shadow sm:col-span-2 lg:col-span-1">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wider text-gray-500">
-                Valor Total no Funil
-              </p>
-              <h3 className="text-2xl font-bold text-[#166534] mt-1">
-                {formatCurrency(valorTotalFunil)}
-              </h3>
-              <p className="text-[11px] text-gray-400 mt-0.5">Potencial em negociação ativa</p>
-            </div>
-            <div className="w-12 h-12 rounded-xl bg-amber-50 border border-amber-100 text-amber-600 flex items-center justify-center">
-              <DollarSign className="w-6 h-6" />
-            </div>
-          </div>
-        </div>
       </div>
 
       {/* Main Tabs Container */}
