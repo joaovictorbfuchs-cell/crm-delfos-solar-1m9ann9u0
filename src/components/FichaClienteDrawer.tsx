@@ -141,8 +141,8 @@ export const FichaClienteDrawer: React.FC = () => {
         aria-hidden="true"
       />
 
-      {/* Drawer panel (480px on desktop, full screen on mobile) */}
-      <div className="relative z-50 w-full sm:w-[500px] bg-white h-full shadow-2xl flex flex-col border-l border-gray-200 animate-in slide-in-from-right duration-250 ease-out">
+      {/* Drawer panel (780px / max 90vw on desktop, full screen on mobile) */}
+      <div className="relative z-50 w-full sm:w-[780px] max-w-full sm:max-w-[90vw] bg-white h-full shadow-2xl flex flex-col border-l border-gray-200 animate-in slide-in-from-right duration-250 ease-out">
         {/* Header */}
         <div className="p-5 border-b border-gray-100 flex items-start justify-between bg-white sticky top-0 z-20">
           <div className="space-y-1.5 pr-3 flex-1 min-w-0">
