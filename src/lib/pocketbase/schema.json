@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-10T00:08:09.520Z",
+  "generatedAt": "2026-09-10T00:23:58.714Z",
   "collections": [
     {
       "name": "users",
@@ -627,6 +627,220 @@
         }
       ],
       "indexes": ["CREATE INDEX idx_sistemas_cliente_id ON sistemas (cliente_id)"]
+    },
+    {
+      "name": "profissionais",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "nome",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "telefone",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "especialidade",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": [
+            "Instalação",
+            "Manutenção",
+            "Limpeza",
+            "Projeto Elétrico",
+            "Almoxarifado"
+          ]
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_profissionais_nome ON profissionais (nome)",
+        "CREATE INDEX idx_profissionais_especialidade ON profissionais (especialidade)"
+      ]
+    },
+    {
+      "name": "projetos",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "cliente_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "clientes"
+        },
+        {
+          "name": "etapa",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": [
+            "Levantamento de Informações",
+            "Elaboração de Projeto",
+            "Pedido de Compra",
+            "Aguardando Material",
+            "Instalação",
+            "Concluído"
+          ]
+        },
+        {
+          "name": "potencia_kwp",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "cidade",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "profissional_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "profissionais"
+        },
+        {
+          "name": "profissional_nome",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "observacoes",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_projetos_cliente ON projetos (cliente_id)",
+        "CREATE INDEX idx_projetos_etapa ON projetos (etapa)",
+        "CREATE INDEX idx_projetos_profissional ON projetos (profissional_id)"
+      ]
+    },
+    {
+      "name": "projeto_eventos",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "projeto_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "projetos"
+        },
+        {
+          "name": "etapa_anterior",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "etapa_nova",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "profissional_nome",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "autor",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "data",
+          "type": "date",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "descricao",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_projeto_eventos_projeto ON projeto_eventos (projeto_id)",
+        "CREATE INDEX idx_projeto_eventos_data ON projeto_eventos (data)"
+      ]
     }
   ]
 }

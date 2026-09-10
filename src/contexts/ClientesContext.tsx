@@ -8,6 +8,10 @@ import type {
   SistemaUsuario,
   ManutencaoTipo,
   ManutencaoStatus,
+  Profissional,
+  Projeto,
+  ProjetoEvento,
+  ProjetoEtapa,
 } from '@/types/crm'
 import {
   fetchClientes,
@@ -15,6 +19,9 @@ import {
   fetchManutencoes,
   fetchAtividades,
   fetchUsuarios,
+  fetchProfissionais,
+  fetchProjetos,
+  fetchProjetoEventos,
   createAtividade as apiCreateAtividade,
   updateAtividade as apiUpdateAtividade,
   deleteAtividade as apiDeleteAtividade,
@@ -23,6 +30,13 @@ import {
   updateCliente as apiUpdateCliente,
   updateClienteStatus as apiUpdateClienteStatus,
   upsertSistemaForCliente,
+  createProfissional as apiCreateProfissional,
+  updateProfissional as apiUpdateProfissional,
+  deleteProfissional as apiDeleteProfissional,
+  createProjeto as apiCreateProjeto,
+  updateProjeto as apiUpdateProjeto,
+  deleteProjeto as apiDeleteProjeto,
+  createProjetoEvento as apiCreateProjetoEvento,
 } from '@/services/crmService'
 import { useRealtime } from '@/hooks/use-realtime'
 import { useAuth } from '@/contexts/AuthContext'
@@ -33,12 +47,18 @@ interface ClientesContextType {
   manutencoes: Manutencao[]
   atividades: Atividade[]
   usuarios: SistemaUsuario[]
+  profissionais: Profissional[]
+  projetos: Projeto[]
+  projetoEventos: ProjetoEvento[]
   isLoading: boolean
   error: string | null
   selectedClienteId: string | null
   selectedCliente: Cliente | null
   selectedSistema: Sistema | null
-  openFichaCliente: (id: string) => void
+  selectedClienteProjeto: Projeto | null
+  activeClientTab: 'historico' | 'projeto'
+  setActiveClientTab: (tab: 'historico' | 'projeto') => void
+  openFichaCliente: (id: string, initialTab?: 'historico' | 'projeto') => void
   closeFichaCliente: () => void
   addCliente: (data: Partial<Cliente> & { nome: string }) => Promise<Cliente>
   addManutencao: (data: {
@@ -69,6 +89,40 @@ interface ClientesContextType {
     options?: { skipActivityLog?: boolean },
   ) => Promise<void>
   updateSistema: (clienteId: string, data: Partial<Sistema>) => Promise<Sistema>
+  // Profissionais
+  addProfissional: (data: {
+    nome: string
+    telefone: string
+    especialidade: Profissional['especialidade']
+  }) => Promise<Profissional>
+  updateProfissional: (id: string, data: Partial<Profissional>) => Promise<Profissional>
+  removeProfissional: (id: string) => Promise<void>
+  // Projetos
+  addProjeto: (data: {
+    cliente_id: string
+    etapa?: ProjetoEtapa
+    potencia_kwp?: number
+    cidade?: string
+    profissional_id?: string
+    profissional_nome?: string
+    observacoes?: string
+  }) => Promise<Projeto>
+  updateProjeto: (id: string, data: Partial<Projeto>) => Promise<Projeto>
+  updateProjetoEtapa: (
+    projetoId: string,
+    novaEtapa: ProjetoEtapa,
+    options?: {
+      profissional_id?: string
+      profissional_nome?: string
+      descricao?: string
+    },
+  ) => Promise<Projeto>
+  assignProjetoProfissional: (
+    projetoId: string,
+    profissionalId: string | null,
+    profissionalNome: string | null,
+  ) => Promise<Projeto>
+  removeProjeto: (id: string) => Promise<void>
   refreshData: () => Promise<void>
 }
 
@@ -81,9 +135,13 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [manutencoes, setManutencoes] = useState<Manutencao[]>([])
   const [atividades, setAtividades] = useState<Atividade[]>([])
   const [usuarios, setUsuarios] = useState<SistemaUsuario[]>([])
+  const [profissionais, setProfissionais] = useState<Profissional[]>([])
+  const [projetos, setProjetos] = useState<Projeto[]>([])
+  const [projetoEventos, setProjetoEventos] = useState<ProjetoEvento[]>([])
   const [isLoading, setIsLoading] = useState<boolean>(true)
   const [error, setError] = useState<string | null>(null)
   const [selectedClienteId, setSelectedClienteId] = useState<string | null>(null)
+  const [activeClientTab, setActiveClientTab] = useState<'historico' | 'projeto'>('historico')
 
   const loadAllData = useCallback(async () => {
     if (!isAuthenticated) {
@@ -93,18 +151,24 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     try {
       setIsLoading(true)
       setError(null)
-      const [cList, sList, mList, aList, uList] = await Promise.all([
+      const [cList, sList, mList, aList, uList, pList, projList, evList] = await Promise.all([
         fetchClientes(),
         fetchSistemas(),
         fetchManutencoes(),
         fetchAtividades(),
         fetchUsuarios(),
+        fetchProfissionais(),
+        fetchProjetos(),
+        fetchProjetoEventos(),
       ])
       setClientes(cList)
       setSistemas(sList)
       setManutencoes(mList)
       setAtividades(aList)
       setUsuarios(uList)
+      setProfissionais(pList)
+      setProjetos(projList)
+      setProjetoEventos(evList)
     } catch (err: unknown) {
       console.error('Error loading CRM data:', err)
       setError(err instanceof Error ? err.message : 'Erro ao carregar dados do CRM')
@@ -166,6 +230,33 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     isAuthenticated,
   )
 
+  // Realtime updates for profissionais
+  useRealtime<Profissional>(
+    'profissionais',
+    () => {
+      fetchProfissionais().then(setProfissionais).catch(console.error)
+    },
+    isAuthenticated,
+  )
+
+  // Realtime updates for projetos
+  useRealtime<Projeto>(
+    'projetos',
+    () => {
+      fetchProjetos().then(setProjetos).catch(console.error)
+    },
+    isAuthenticated,
+  )
+
+  // Realtime updates for projeto_eventos
+  useRealtime<ProjetoEvento>(
+    'projeto_eventos',
+    () => {
+      fetchProjetoEventos().then(setProjetoEventos).catch(console.error)
+    },
+    isAuthenticated,
+  )
+
   const addCliente = async (data: Partial<Cliente> & { nome: string }) => {
     const created = await apiCreateCliente(data)
     // Atualiza estado local imediatamente caso o realtime demore
@@ -176,8 +267,9 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     return created
   }
 
-  const openFichaCliente = (id: string) => {
+  const openFichaCliente = (id: string, initialTab: 'historico' | 'projeto' = 'historico') => {
     setSelectedClienteId(id)
+    setActiveClientTab(initialTab)
   }
 
   const closeFichaCliente = () => {
@@ -314,8 +406,222 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
   }
 
+  // Gerenciamento de Profissionais
+  const addProfissional = async (data: {
+    nome: string
+    telefone: string
+    especialidade: Profissional['especialidade']
+  }) => {
+    const created = await apiCreateProfissional(data)
+    setProfissionais((prev) => [...prev, created])
+    return created
+  }
+
+  const updateProfissional = async (id: string, data: Partial<Profissional>) => {
+    const updated = await apiUpdateProfissional(id, data)
+    setProfissionais((prev) => prev.map((p) => (p.id === id ? updated : p)))
+    return updated
+  }
+
+  const removeProfissional = async (id: string) => {
+    await apiDeleteProfissional(id)
+    setProfissionais((prev) => prev.filter((p) => p.id !== id))
+  }
+
+  // Gerenciamento de Projetos
+  const addProjeto = async (data: {
+    cliente_id: string
+    etapa?: ProjetoEtapa
+    potencia_kwp?: number
+    cidade?: string
+    profissional_id?: string
+    profissional_nome?: string
+    observacoes?: string
+  }) => {
+    const client = clientes.find((c) => c.id === data.cliente_id)
+    const initialEtapa: ProjetoEtapa = data.etapa || 'Levantamento de Informações'
+    const payload = {
+      cliente_id: data.cliente_id,
+      etapa: initialEtapa,
+      potencia_kwp: data.potencia_kwp ?? client?.potencia_kwp ?? 0,
+      cidade: data.cidade ?? client?.cidade ?? '',
+      profissional_id: data.profissional_id,
+      profissional_nome: data.profissional_nome,
+      observacoes: data.observacoes || '',
+    }
+    const created = await apiCreateProjeto(payload)
+    setProjetos((prev) => [created, ...prev])
+
+    // Registrar evento de criação do projeto
+    try {
+      const ev = await apiCreateProjetoEvento({
+        projeto_id: created.id,
+        etapa_anterior: '',
+        etapa_nova: initialEtapa,
+        profissional_nome: created.profissional_nome || '',
+        autor: 'João Silva',
+        descricao: `Projeto solar iniciado na etapa "${initialEtapa}".`,
+      })
+      setProjetoEventos((prev) => [ev, ...prev])
+    } catch (e) {
+      console.warn('Erro ao criar evento inicial do projeto:', e)
+    }
+
+    // Registrar na timeline de atividades do cliente
+    try {
+      const ativ = await apiCreateAtividade({
+        cliente_id: data.cliente_id,
+        tipo: 'mudanca_estagio',
+        titulo: `Projeto: ${initialEtapa}`,
+        descricao: `Novo projeto iniciado na etapa "${initialEtapa}".${created.profissional_nome ? ` Profissional responsável: ${created.profissional_nome}.` : ''}`,
+        data: new Date().toISOString(),
+        autor: 'João Silva',
+        status: 'concluida',
+      })
+      setAtividades((prev) => [ativ, ...prev])
+    } catch (e) {
+      console.warn('Erro ao registrar atividade inicial do projeto:', e)
+    }
+
+    return created
+  }
+
+  const updateProjeto = async (id: string, data: Partial<Projeto>) => {
+    const updated = await apiUpdateProjeto(id, data)
+    setProjetos((prev) => prev.map((p) => (p.id === id ? updated : p)))
+    return updated
+  }
+
+  const updateProjetoEtapa = async (
+    projetoId: string,
+    novaEtapa: ProjetoEtapa,
+    options?: {
+      profissional_id?: string
+      profissional_nome?: string
+      descricao?: string
+    },
+  ) => {
+    const prevProj = projetos.find((p) => p.id === projetoId)
+    const etapaAnterior = prevProj?.etapa || ''
+    if (etapaAnterior === novaEtapa && !options?.profissional_id) {
+      return prevProj!
+    }
+
+    const payload: Partial<Projeto> = {
+      etapa: novaEtapa,
+    }
+    if (options?.profissional_id !== undefined) {
+      payload.profissional_id = options.profissional_id
+      payload.profissional_nome = options.profissional_nome || ''
+    }
+
+    // Optimistic update
+    setProjetos((prev) => prev.map((p) => (p.id === projetoId ? { ...p, ...payload } : p)))
+
+    try {
+      const updated = await apiUpdateProjeto(projetoId, payload)
+      setProjetos((prev) => prev.map((p) => (p.id === projetoId ? updated : p)))
+
+      // Registrar evento no histórico de projeto_eventos
+      try {
+        const ev = await apiCreateProjetoEvento({
+          projeto_id: projetoId,
+          etapa_anterior: etapaAnterior,
+          etapa_nova: novaEtapa,
+          profissional_nome: updated.profissional_nome || '',
+          autor: 'João Silva',
+          descricao:
+            options?.descricao ||
+            `Projeto avançou de "${etapaAnterior}" para "${novaEtapa}".${updated.profissional_nome ? ` Profissional: ${updated.profissional_nome}.` : ''}`,
+        })
+        setProjetoEventos((prev) => [ev, ...prev])
+      } catch (evErr) {
+        console.warn('Erro ao registrar projeto_evento:', evErr)
+      }
+
+      // Registrar entrada na timeline do cliente (aba Histórico)
+      if (updated.cliente_id) {
+        try {
+          const ativ = await apiCreateAtividade({
+            cliente_id: updated.cliente_id,
+            tipo: 'mudanca_estagio',
+            titulo: `Projeto: ${etapaAnterior ? `${etapaAnterior} → ` : ''}${novaEtapa}`,
+            descricao: `Projeto de energia solar avançou para a etapa "${novaEtapa}".${updated.profissional_nome ? ` Responsável: ${updated.profissional_nome}.` : ''}`,
+            data: new Date().toISOString(),
+            autor: 'João Silva',
+            status: 'concluida',
+          })
+          setAtividades((prev) => [ativ, ...prev])
+        } catch (ativErr) {
+          console.warn('Erro ao registrar atividade de projeto:', ativErr)
+        }
+      }
+
+      return updated
+    } catch (err) {
+      console.error('Erro ao atualizar etapa do projeto:', err)
+      fetchProjetos().then(setProjetos).catch(console.error)
+      throw err
+    }
+  }
+
+  const assignProjetoProfissional = async (
+    projetoId: string,
+    profissionalId: string | null,
+    profissionalNome: string | null,
+  ) => {
+    const payload: Partial<Projeto> = {
+      profissional_id: profissionalId || '',
+      profissional_nome: profissionalNome || '',
+    }
+    const updated = await apiUpdateProjeto(projetoId, payload)
+    setProjetos((prev) => prev.map((p) => (p.id === projetoId ? updated : p)))
+
+    // Registrar evento no projeto_eventos
+    try {
+      const ev = await apiCreateProjetoEvento({
+        projeto_id: projetoId,
+        etapa_nova: updated.etapa,
+        profissional_nome: updated.profissional_nome || '',
+        autor: 'João Silva',
+        descricao: updated.profissional_nome
+          ? `Profissional ${updated.profissional_nome} atribuído à etapa ${updated.etapa}.`
+          : `Profissional desatribuído da etapa ${updated.etapa}.`,
+      })
+      setProjetoEventos((prev) => [ev, ...prev])
+    } catch (e) {
+      console.warn('Erro ao registrar evento de atribuição:', e)
+    }
+
+    // Registrar no histórico do cliente
+    if (updated.cliente_id && updated.profissional_nome) {
+      try {
+        const ativ = await apiCreateAtividade({
+          cliente_id: updated.cliente_id,
+          tipo: 'mudanca_estagio',
+          titulo: `Profissional atribuído: ${updated.profissional_nome}`,
+          descricao: `Profissional ${updated.profissional_nome} foi designado para a etapa de "${updated.etapa}".`,
+          data: new Date().toISOString(),
+          autor: 'João Silva',
+          status: 'concluida',
+        })
+        setAtividades((prev) => [ativ, ...prev])
+      } catch (e) {
+        console.warn('Erro ao registrar atividade de profissional:', e)
+      }
+    }
+
+    return updated
+  }
+
+  const removeProjeto = async (id: string) => {
+    await apiDeleteProjeto(id)
+    setProjetos((prev) => prev.filter((p) => p.id !== id))
+  }
+
   const selectedCliente = clientes.find((c) => c.id === selectedClienteId) || null
   const selectedSistema = sistemas.find((s) => s.cliente_id === selectedClienteId) || null
+  const selectedClienteProjeto = projetos.find((p) => p.cliente_id === selectedClienteId) || null
 
   return (
     <ClientesContext.Provider
@@ -325,11 +631,17 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         manutencoes,
         atividades,
         usuarios,
+        profissionais,
+        projetos,
+        projetoEventos,
         isLoading,
         error,
         selectedClienteId,
         selectedCliente,
         selectedSistema,
+        selectedClienteProjeto,
+        activeClientTab,
+        setActiveClientTab,
         openFichaCliente,
         closeFichaCliente,
         addCliente,
@@ -340,6 +652,14 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         updateCliente,
         updateClienteStatus,
         updateSistema,
+        addProfissional,
+        updateProfissional,
+        removeProfissional,
+        addProjeto,
+        updateProjeto,
+        updateProjetoEtapa,
+        assignProjetoProfissional,
+        removeProjeto,
         refreshData: loadAllData,
       }}
     >

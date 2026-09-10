@@ -174,3 +174,63 @@ export interface Atividade extends RecordModel {
     responsavel_id?: SistemaUsuario
   }
 }
+
+export type ProfissionalEspecialidade =
+  | 'Instalação'
+  | 'Manutenção'
+  | 'Limpeza'
+  | 'Projeto Elétrico'
+  | 'Almoxarifado'
+
+export interface Profissional extends RecordModel {
+  id: string
+  collectionId: string
+  collectionName: string
+  nome: string
+  telefone: string
+  especialidade: ProfissionalEspecialidade
+  created: string
+  updated: string
+}
+
+export type ProjetoEtapa =
+  | 'Levantamento de Informações'
+  | 'Elaboração de Projeto'
+  | 'Pedido de Compra'
+  | 'Aguardando Material'
+  | 'Instalação'
+  | 'Concluído'
+
+export interface Projeto extends RecordModel {
+  id: string
+  collectionId: string
+  collectionName: string
+  cliente_id: string
+  etapa: ProjetoEtapa
+  potencia_kwp?: number
+  cidade?: string
+  profissional_id?: string
+  profissional_nome?: string
+  observacoes?: string
+  created: string
+  updated: string
+  expand?: {
+    cliente_id?: Cliente
+    profissional_id?: Profissional
+  }
+}
+
+export interface ProjetoEvento extends RecordModel {
+  id: string
+  collectionId: string
+  collectionName: string
+  projeto_id: string
+  etapa_anterior?: string
+  etapa_nova: ProjetoEtapa | string
+  profissional_nome?: string
+  autor?: string
+  data: string
+  descricao?: string
+  created: string
+  updated: string
+}

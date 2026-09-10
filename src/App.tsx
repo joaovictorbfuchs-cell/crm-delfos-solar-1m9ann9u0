@@ -9,6 +9,7 @@ import Layout from './components/Layout'
 
 import Index from './pages/Index'
 import Comercial from './pages/Comercial'
+import Projetos from './pages/Projetos'
 import Manutencoes from './pages/Manutencoes'
 import Clientes from './pages/Clientes'
 import Atividades from './pages/Atividades'
@@ -33,6 +34,7 @@ const App = () => (
             >
               <Route path="/" element={<Index />} />
               <Route path="/comercial" element={<Comercial />} />
+              <Route path="/projetos" element={<Projetos />} />
               <Route path="/atividades" element={<Atividades />} />
               <Route path="/manutencoes" element={<Manutencoes />} />
               <Route path="/clientes" element={<Clientes />} />

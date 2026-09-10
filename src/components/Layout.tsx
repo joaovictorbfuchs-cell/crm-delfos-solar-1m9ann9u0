@@ -3,6 +3,7 @@ import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard,
   KanbanSquare,
+  FolderKanban,
   CalendarCheck,
   Wrench,
   Users,
@@ -58,6 +59,8 @@ export default function Layout() {
         return 'Dashboard'
       case '/comercial':
         return 'Funil Comercial'
+      case '/projetos':
+        return 'Projetos e Obras'
       case '/atividades':
         return 'Atividades e Tarefas'
       case '/manutencoes':
@@ -72,6 +75,7 @@ export default function Layout() {
   const navItems = [
     { name: 'Dashboard', path: '/', icon: LayoutDashboard },
     { name: 'Comercial', path: '/comercial', icon: KanbanSquare },
+    { name: 'Projetos', path: '/projetos', icon: FolderKanban },
     { name: 'Atividades', path: '/atividades', icon: CalendarCheck },
     { name: 'Manutenções', path: '/manutencoes', icon: Wrench },
     { name: 'Clientes', path: '/clientes', icon: Users },

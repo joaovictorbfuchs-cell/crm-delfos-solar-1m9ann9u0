@@ -9,6 +9,10 @@ import type {
   SistemaUsuario,
   ManutencaoTipo,
   ManutencaoStatus,
+  Profissional,
+  Projeto,
+  ProjetoEvento,
+  ProjetoEtapa,
 } from '@/types/crm'
 
 export async function fetchClientes(): Promise<Cliente[]> {
@@ -151,4 +155,113 @@ export async function upsertSistemaForCliente(
     return updateSistema(existing.id, data)
   }
   return createSistema({ ...data, cliente_id: clienteId })
+}
+
+// -------------------------------------------------------------
+// Profissionais & Projetos Services
+// -------------------------------------------------------------
+
+export async function fetchProfissionais(): Promise<Profissional[]> {
+  const records = await pb.collection('profissionais').getFullList<Profissional>({
+    sort: 'nome',
+  })
+  return records
+}
+
+export async function createProfissional(
+  data: Omit<Partial<Profissional>, 'id'> & {
+    nome: string
+    especialidade: Profissional['especialidade']
+  },
+): Promise<Profissional> {
+  const record = await pb.collection('profissionais').create<Profissional>(data)
+  return record
+}
+
+export async function updateProfissional(
+  id: string,
+  data: Partial<Profissional>,
+): Promise<Profissional> {
+  const record = await pb.collection('profissionais').update<Profissional>(id, data)
+  return record
+}
+
+export async function deleteProfissional(id: string): Promise<boolean> {
+  await pb.collection('profissionais').delete(id)
+  return true
+}
+
+export async function fetchProjetos(): Promise<Projeto[]> {
+  const records = await pb.collection('projetos').getFullList<Projeto>({
+    sort: '-updated',
+    expand: 'cliente_id,profissional_id',
+  })
+  return records
+}
+
+export async function fetchProjetoByClienteId(clienteId: string): Promise<Projeto | null> {
+  try {
+    const record = await pb
+      .collection('projetos')
+      .getFirstListItem<Projeto>(`cliente_id='${clienteId}'`, {
+        expand: 'cliente_id,profissional_id',
+      })
+    return record
+  } catch (_) {
+    return null
+  }
+}
+
+export async function createProjeto(data: {
+  cliente_id: string
+  etapa: ProjetoEtapa
+  potencia_kwp?: number
+  cidade?: string
+  profissional_id?: string
+  profissional_nome?: string
+  observacoes?: string
+}): Promise<Projeto> {
+  const record = await pb.collection('projetos').create<Projeto>(data, {
+    expand: 'cliente_id,profissional_id',
+  })
+  return record
+}
+
+export async function updateProjeto(id: string, data: Partial<Projeto>): Promise<Projeto> {
+  const record = await pb.collection('projetos').update<Projeto>(id, data, {
+    expand: 'cliente_id,profissional_id',
+  })
+  return record
+}
+
+export async function deleteProjeto(id: string): Promise<boolean> {
+  await pb.collection('projetos').delete(id)
+  return true
+}
+
+export async function fetchProjetoEventos(projetoId?: string): Promise<ProjetoEvento[]> {
+  const filter = projetoId ? `projeto_id='${projetoId}'` : ''
+  const records = await pb.collection('projeto_eventos').getFullList<ProjetoEvento>({
+    filter,
+    sort: '-data',
+  })
+  return records
+}
+
+export async function createProjetoEvento(data: {
+  projeto_id: string
+  etapa_anterior?: string
+  etapa_nova: string
+  profissional_nome?: string
+  autor?: string
+  data?: string
+  descricao?: string
+}): Promise<ProjetoEvento> {
+  const payload = {
+    ...data,
+    data: data.data || new Date().toISOString(),
+    autor: data.autor || 'João Silva',
+  }
+  const record = await pb.collection('projeto_eventos').create<ProjetoEvento>(payload)
+  return record
 }
