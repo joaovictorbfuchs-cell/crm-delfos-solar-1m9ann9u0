@@ -23,12 +23,14 @@ interface QuickAddAtividadeProps {
     responsavel_nome?: string
   }) => Promise<unknown>
   defaultMode?: 'anotacao' | 'atividade'
+  onSuccess?: () => void
 }
 
 export const QuickAddAtividade: React.FC<QuickAddAtividadeProps> = ({
   clienteId,
   onAdd,
   defaultMode = 'atividade',
+  onSuccess,
 }) => {
   const { usuarios } = useClientes()
   const { user } = useAuth()
@@ -49,10 +51,20 @@ export const QuickAddAtividade: React.FC<QuickAddAtividadeProps> = ({
     now.setMinutes(now.getMinutes() - now.getTimezoneOffset())
     return now.toISOString().slice(0, 16)
   })
-  const [showAllTipos, setShowAllTipos] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
+
+  // Atualiza responsavelId quando user ou usuarios carregarem se estiver vazio
+  React.useEffect(() => {
+    if (!responsavelId) {
+      if (user?.id) {
+        setResponsavelId(user.id)
+      } else if (usuarios.length > 0) {
+        setResponsavelId(usuarios[0].id)
+      }
+    }
+  }, [user, usuarios, responsavelId])
 
   // Ao alternar para Anotação ou Atividade, ou ao mudar de subtipo:
   // "o nome do tipo escolhido também deve virar o título automaticamente. Descrição continua opcional. Substituir os 4 tipos antigos do quick add pelos mesmos 12 tipos (com ícones)"
@@ -107,6 +119,7 @@ export const QuickAddAtividade: React.FC<QuickAddAtividadeProps> = ({
       }
 
       setSuccess(true)
+      if (onSuccess) onSuccess()
       setTimeout(() => setSuccess(false), 2500)
     } catch (err: unknown) {
       console.error('Falha ao adicionar atividade/anotação:', err)
@@ -148,31 +161,22 @@ export const QuickAddAtividade: React.FC<QuickAddAtividadeProps> = ({
           </button>
         </div>
 
-        {mode === 'atividade' && (
-          <button
-            type="button"
-            onClick={() => setShowAllTipos((prev) => !prev)}
-            className="text-[11px] font-semibold text-emerald-700 hover:text-emerald-900 flex items-center gap-1"
-          >
-            <span>{showAllTipos ? 'Mostrar menos' : 'Ver todos os 12 tipos'}</span>
-            <ChevronDown
-              className={`w-3.5 h-3.5 transition-transform ${showAllTipos ? 'rotate-180' : ''}`}
-            />
-          </button>
-        )}
+        <span className="text-[11px] text-gray-400 font-medium">
+          {mode === 'atividade' ? '12 tipos de atividade Pipedrive' : 'Nota interna rápida'}
+        </span>
       </div>
-
-      {/* Grid de seleção dos 12 tipos com ícones quando em modo Atividade */}
+      {/* Grid de seleção dos 12 tipos como ícones com título atualizado automaticamente ao clicar */}
       {mode === 'atividade' && (
         <div className="space-y-1.5">
-          <span className="text-[11px] font-semibold text-gray-500 block">
-            Selecione o tipo (o título é atualizado automaticamente):
-          </span>
-          <div
-            className={`grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-1.5 transition-all ${
-              showAllTipos ? 'max-h-64' : 'max-h-24'
-            } overflow-y-auto p-1 bg-gray-50/70 rounded-xl border border-gray-100`}
-          >
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-semibold text-gray-600">
+              Escolha o tipo da atividade (define o título):
+            </span>
+            <span className="text-[10px] text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+              {getTipoAtividadeConfig(subTipo).tituloPadrao}
+            </span>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-1.5 p-1 bg-gray-50/70 rounded-xl border border-gray-100">
             {ATIVIDADES_12_TIPOS.map((item) => {
               const ItemIcon = item.icon
               const isSelected = subTipo === item.id
@@ -183,98 +187,116 @@ export const QuickAddAtividade: React.FC<QuickAddAtividadeProps> = ({
                   onClick={() => handleSelectTipo(item)}
                   className={`flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-left text-xs transition-all ${
                     isSelected
-                      ? 'bg-emerald-600 text-white font-bold shadow-2xs ring-1 ring-emerald-600'
-                      : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200/60'
+                      ? 'bg-[#16A34A] text-white font-bold shadow-2xs ring-1 ring-[#16A34A]'
+                      : 'bg-white text-gray-700 hover:bg-emerald-50/50 hover:text-emerald-900 border border-gray-200/70'
                   }`}
-                  title={item.tituloPadrao}
+                  title={`${item.tituloPadrao} — ${item.descricaoAjuda}`}
                 >
-                  <ItemIcon
-                    className={`w-3.5 h-3.5 shrink-0 ${
-                      isSelected ? 'text-white' : 'text-gray-500'
+                  <div
+                    className={`p-1 rounded-md shrink-0 ${
+                      isSelected ? 'bg-white/20 text-white' : `${item.iconBg} ${item.iconText}`
                     }`}
-                  />
-                  <span className="truncate text-[11px]">{item.tituloPadrao}</span>
+                  >
+                    <ItemIcon className="w-3.5 h-3.5" />
+                  </div>
+                  <span className="truncate text-[11px] leading-tight">{item.tituloPadrao}</span>
                 </button>
               )
             })}
           </div>
         </div>
       )}
-
-      {/* Formulário */}
+      {/* Formulário: se Anotação, campo de texto simples e direto; se Atividade, título + data/hora + responsável + descrição opcional */}
       <form onSubmit={handleSubmit} className="space-y-3">
-        <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5">
-          {/* Título */}
-          <div className="sm:col-span-6">
-            <label className="text-[11px] font-semibold text-gray-600 block mb-1">
-              Título da Atividade
+        {mode === 'anotacao' ? (
+          <div className="space-y-2">
+            <label className="text-[11px] font-semibold text-gray-700 block">
+              Conteúdo da Anotação
             </label>
-            <input
-              type="text"
-              value={titulo}
-              onChange={(e) => setTitulo(e.target.value)}
-              placeholder="Título da atividade ou anotação..."
-              className="w-full text-xs px-3 py-2 rounded-xl border border-gray-200 focus:outline-none focus:ring-1 focus:ring-emerald-500 bg-white"
+            <textarea
+              rows={3}
+              value={descricao}
+              onChange={(e) => setDescricao(e.target.value)}
+              placeholder="Escreva a anotação sobre a fatura, negociação, restrições ou observações internas..."
+              className="w-full text-xs p-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 resize-none bg-white shadow-2xs"
+              autoFocus
             />
           </div>
+        ) : (
+          <div className="space-y-3">
+            <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5">
+              {/* Título (preenchido automaticamente ao clicar no ícone) */}
+              <div className="sm:col-span-6">
+                <label className="text-[11px] font-semibold text-gray-600 block mb-1">
+                  Título da Atividade
+                </label>
+                <input
+                  type="text"
+                  value={titulo}
+                  onChange={(e) => setTitulo(e.target.value)}
+                  placeholder="Título da atividade..."
+                  className="w-full text-xs px-3 py-2 rounded-xl border border-gray-200 focus:outline-none focus:ring-1 focus:ring-emerald-500 bg-white"
+                />
+              </div>
 
-          {/* Data e Hora */}
-          <div className="sm:col-span-3">
-            <label className="text-[11px] font-semibold text-gray-600 block mb-1">
-              Data e Horário
-            </label>
-            <input
-              type="datetime-local"
-              value={dataHora}
-              onChange={(e) => setDataHora(e.target.value)}
-              className="w-full text-xs px-2.5 py-2 rounded-xl border border-gray-200 focus:outline-none focus:ring-1 focus:ring-emerald-500 text-gray-700 bg-white"
-            />
+              {/* Data e Hora */}
+              <div className="sm:col-span-3">
+                <label className="text-[11px] font-semibold text-gray-600 block mb-1">
+                  Data e Horário
+                </label>
+                <input
+                  type="datetime-local"
+                  value={dataHora}
+                  onChange={(e) => setDataHora(e.target.value)}
+                  className="w-full text-xs px-2.5 py-2 rounded-xl border border-gray-200 focus:outline-none focus:ring-1 focus:ring-emerald-500 text-gray-700 bg-white"
+                />
+              </div>
+
+              {/* Usuário Responsável (padrão: usuário logado) */}
+              <div className="sm:col-span-3">
+                <label className="text-[11px] font-semibold text-gray-600 block mb-1 flex items-center gap-1">
+                  <User className="w-3 h-3 text-emerald-600" />
+                  Responsável
+                </label>
+                <select
+                  value={responsavelId}
+                  onChange={(e) => setResponsavelId(e.target.value)}
+                  className="w-full text-xs px-2.5 py-2 rounded-xl border border-gray-200 focus:outline-none focus:ring-1 focus:ring-emerald-500 bg-white"
+                >
+                  {usuarios.length === 0 && user && (
+                    <option value={user.id}>{user.name || user.email}</option>
+                  )}
+                  {usuarios.map((u) => (
+                    <option key={u.id} value={u.id}>
+                      {u.name} {user?.id === u.id ? '(Você)' : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Descrição Detalhada - Opcional */}
+            <div>
+              <label className="text-[11px] font-semibold text-gray-600 flex items-center justify-between mb-1">
+                <span>Descrição detalhada</span>
+                <span className="text-[10px] text-gray-400 font-normal">Opcional</span>
+              </label>
+              <textarea
+                rows={2}
+                value={descricao}
+                onChange={(e) => setDescricao(e.target.value)}
+                placeholder="Detalhes adicionais da atividade, pauta da reunião ou observações técnicas (opcional)..."
+                className="w-full text-xs p-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-1 focus:ring-emerald-500 resize-none bg-white"
+              />
+            </div>
           </div>
-
-          {/* Usuário Responsável */}
-          <div className="sm:col-span-3">
-            <label className="text-[11px] font-semibold text-gray-600 block mb-1 flex items-center gap-1">
-              <User className="w-3 h-3 text-emerald-600" />
-              Responsável
-            </label>
-            <select
-              value={responsavelId}
-              onChange={(e) => setResponsavelId(e.target.value)}
-              className="w-full text-xs px-2.5 py-2 rounded-xl border border-gray-200 focus:outline-none focus:ring-1 focus:ring-emerald-500 bg-white"
-            >
-              <option value="">Selecione...</option>
-              {usuarios.map((u) => (
-                <option key={u.id} value={u.id}>
-                  {u.name}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-
-        {/* Descrição Detalhada - Opcional */}
-        <div>
-          <label className="text-[11px] font-semibold text-gray-600 flex items-center justify-between mb-1">
-            <span>Descrição / Observações</span>
-            <span className="text-[10px] text-gray-400 font-normal">Opcional</span>
-          </label>
-          <textarea
-            rows={2}
-            value={descricao}
-            onChange={(e) => setDescricao(e.target.value)}
-            placeholder={
-              mode === 'anotacao'
-                ? 'Escreva a anotação sobre o cliente (opcional)...'
-                : 'Descreva a atividade agendada ou realizada (opcional)...'
-            }
-            className="w-full text-xs p-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-1 focus:ring-emerald-500 resize-none bg-white"
-          />
-        </div>
+        )}
 
         {error && <p className="text-[11px] text-red-600 font-medium">{error}</p>}
         {success && (
           <p className="text-[11px] text-emerald-700 font-bold bg-emerald-50 px-2 py-1 rounded border border-emerald-200">
-            ✓ Atividade salva com sucesso na timeline e no calendário!
+            ✓ {mode === 'anotacao' ? 'Anotação salva' : 'Atividade agendada'} com sucesso na
+            timeline!
           </p>
         )}
 
@@ -302,7 +324,7 @@ export const QuickAddAtividade: React.FC<QuickAddAtividadeProps> = ({
             )}
           </button>
         </div>
-      </form>
+      </form>{' '}
     </div>
   )
 }

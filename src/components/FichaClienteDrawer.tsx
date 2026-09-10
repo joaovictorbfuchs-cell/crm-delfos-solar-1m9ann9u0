@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useMemo } from 'react'
 import {
   X,
   MapPin,
@@ -9,7 +9,6 @@ import {
   Zap,
   Cpu,
   Layers,
-  Image as ImageIcon,
   Clock,
   Wrench,
   Droplets,
@@ -24,11 +23,13 @@ import {
   Sun,
   DollarSign,
   TrendingUp,
-  Tag,
-  Filter,
+  ChevronDown,
+  ChevronUp,
+  CalendarCheck2,
+  Sparkles,
 } from 'lucide-react'
 import { useClientes } from '@/contexts/ClientesContext'
-import { formatCurrency, formatDate, getTelhadoLabel } from '@/lib/formatters'
+import { formatCurrency, formatDate, formatDateTime, getTelhadoLabel } from '@/lib/formatters'
 import { StatusBadge, ProductBadge } from './StatusBadge'
 import { InlineEditField } from './InlineEditField'
 import { AtividadeItem } from './AtividadeItem'
@@ -37,11 +38,11 @@ import type {
   Cliente,
   Sistema,
   ClienteStatus,
-  OrigemLeadTipo,
   ProdutoTipo,
   TelhadoTipo,
   TipoAtendimento,
   NumeroFases,
+  Atividade,
 } from '@/types/crm'
 
 const PRODUTOS: ProdutoTipo[] = [
@@ -79,8 +80,6 @@ const FASES: { value: NumeroFases; label: string }[] = [
   { value: 'trifásico', label: 'Trifásico' },
 ]
 
-type FichaTab = 'detalhes' | 'atividades' | 'anotacoes'
-
 export const FichaClienteDrawer: React.FC = () => {
   const {
     selectedCliente,
@@ -97,8 +96,55 @@ export const FichaClienteDrawer: React.FC = () => {
     removeAtividade,
   } = useClientes()
 
-  const [activeTab, setActiveTab] = useState<FichaTab>('detalhes')
-  const [atividadeFiltro, setAtividadeFiltro] = useState<string>('todos')
+  // Seção expansível de detalhes cadastrais/técnicos dentro do painel esquerdo
+  const [detalhesOpen, setDetalhesOpen] = useState(false)
+
+  // Memoized: Todos os registros do cliente em UMA linha do tempo única cronológica (mais recente -> mais antigo)
+  const timelineAtividades = useMemo(() => {
+    if (!selectedCliente) return []
+    return atividades
+      .filter((a) => a.cliente_id === selectedCliente.id)
+      .sort((a, b) => {
+        const timeA = new Date(a.data || a.created).getTime()
+        const timeB = new Date(b.data || b.created).getTime()
+        return timeB - timeA
+      })
+  }, [atividades, selectedCliente])
+
+  // Próxima atividade agendada: atividade pendente com data futura mais próxima (ou a pendente mais próxima de agora)
+  const proximaAtividade = useMemo<Atividade | null>(() => {
+    if (!selectedCliente) return null
+    const pendentes = atividades.filter(
+      (a) =>
+        a.cliente_id === selectedCliente.id &&
+        a.status === 'pendente' &&
+        a.tipo !== 'mudanca_estagio',
+    )
+    if (pendentes.length === 0) return null
+
+    const now = Date.now()
+    // Prioriza atividades futuras ordenadas pela data mais próxima; se não houver futuras, pega a pendente mais recente
+    const futuras = pendentes
+      .filter((a) => new Date(a.data || a.created).getTime() >= now - 60 * 60 * 1000)
+      .sort(
+        (a, b) => new Date(a.data || a.created).getTime() - new Date(b.data || b.created).getTime(),
+      )
+
+    if (futuras.length > 0) return futuras[0]
+
+    // Se só tem pendentes atrasadas, pega a mais recente entre elas
+    return pendentes.sort(
+      (a, b) => new Date(b.data || b.created).getTime() - new Date(a.data || a.created).getTime(),
+    )[0]
+  }, [atividades, selectedCliente])
+
+  // Manutenções do cliente
+  const clientManutencoes = useMemo(() => {
+    if (!selectedCliente) return []
+    return manutencoes
+      .filter((m) => m.cliente_id === selectedCliente.id)
+      .sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime())
+  }, [manutencoes, selectedCliente])
 
   if (!selectedClienteId || !selectedCliente) {
     return null
@@ -120,27 +166,6 @@ export const FichaClienteDrawer: React.FC = () => {
       await updateCliente(selectedCliente.id, { telhado_tipo: value as TelhadoTipo })
     }
   }
-
-  // Filtrar atividades do cliente e ordenar: mais recentes no topo
-  const allClientAtividades = atividades
-    .filter((a) => a.cliente_id === selectedCliente.id)
-    .sort(
-      (a, b) => new Date(b.data || b.created).getTime() - new Date(a.data || a.created).getTime(),
-    )
-
-  // Lista para aba Atividades (unificada, podendo filtrar por tipo)
-  const clientAtividades = allClientAtividades.filter((a) => {
-    if (atividadeFiltro === 'todos') return true
-    return a.tipo === atividadeFiltro
-  })
-
-  // Lista para aba Anotações (apenas anotações)
-  const clientAnotacoes = allClientAtividades.filter((a) => a.tipo === 'anotacao')
-
-  // Manutenções do cliente
-  const clientManutencoes = manutencoes
-    .filter((m) => m.cliente_id === selectedCliente.id)
-    .sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime())
 
   const getServiceIcon = (tipo: string) => {
     switch (tipo) {
@@ -216,75 +241,87 @@ export const FichaClienteDrawer: React.FC = () => {
         </div>
 
         {/* Layout Pipedrive em 2 Colunas:
-            - Desktop: Flex horizontal (painel principal à esquerda 60-65%, resumo fixo à direita 35-40%)
+            - Desktop: Flex horizontal (painel principal à esquerda 65-70%, resumo fixo à direita 30-35%)
             - Mobile: Flex vertical (empilhado)
         */}
         <div className="flex-1 overflow-hidden flex flex-col md:flex-row bg-[#F8FAF9]/70">
           {/* ================================================================ */}
-          {/* COLUNA ESQUERDA: PAINEL PRINCIPAL COM ABAS (DETALHES / ATIVIDADES / ANOTAÇÕES) */}
+          {/* COLUNA ESQUERDA: PAINEL PRINCIPAL — ABA ÚNICA "HISTÓRICO"        */}
           {/* ================================================================ */}
           <div className="flex-1 overflow-y-auto flex flex-col min-w-0 border-b md:border-b-0 md:border-r border-gray-200/80 bg-white">
-            {/* Header das Abas */}
+            {/* Header com a Única Aba: "Histórico" */}
             <div className="sticky top-0 z-10 bg-white border-b border-gray-200 px-4 pt-3 flex items-center justify-between gap-2">
-              <div className="flex items-center gap-1 sm:gap-2">
+              <div className="flex items-center gap-2">
                 <button
                   type="button"
-                  onClick={() => setActiveTab('detalhes')}
-                  className={`px-3 py-2 text-xs font-bold border-b-2 transition-all flex items-center gap-1.5 ${
-                    activeTab === 'detalhes'
-                      ? 'border-[#16A34A] text-[#166534] bg-emerald-50/50 rounded-t-md'
-                      : 'border-transparent text-gray-500 hover:text-gray-800'
-                  }`}
+                  className="px-4 py-2 text-xs font-bold border-b-2 border-[#16A34A] text-[#166534] bg-emerald-50/60 rounded-t-md flex items-center gap-2 cursor-default"
                 >
-                  <FileText className="w-3.5 h-3.5" />
-                  Detalhes
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setActiveTab('atividades')}
-                  className={`px-3 py-2 text-xs font-bold border-b-2 transition-all flex items-center gap-1.5 relative ${
-                    activeTab === 'atividades'
-                      ? 'border-[#16A34A] text-[#166534] bg-emerald-50/50 rounded-t-md'
-                      : 'border-transparent text-gray-500 hover:text-gray-800'
-                  }`}
-                >
-                  <Clock className="w-3.5 h-3.5" />
-                  Atividades
-                  {allClientAtividades.length > 0 && (
-                    <span className="ml-0.5 px-1.5 py-0.2 rounded-full text-[10px] bg-emerald-100 text-emerald-800 font-bold">
-                      {allClientAtividades.length}
-                    </span>
-                  )}
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setActiveTab('anotacoes')}
-                  className={`px-3 py-2 text-xs font-bold border-b-2 transition-all flex items-center gap-1.5 ${
-                    activeTab === 'anotacoes'
-                      ? 'border-[#16A34A] text-[#166534] bg-emerald-50/50 rounded-t-md'
-                      : 'border-transparent text-gray-500 hover:text-gray-800'
-                  }`}
-                >
-                  <FileText className="w-3.5 h-3.5 text-amber-500" />
-                  Anotações
-                  {clientAnotacoes.length > 0 && (
-                    <span className="ml-0.5 px-1.5 py-0.2 rounded-full text-[10px] bg-amber-100 text-amber-800 font-bold">
-                      {clientAnotacoes.length}
+                  <Clock className="w-4 h-4 text-[#16A34A]" />
+                  <span>Histórico</span>
+                  {timelineAtividades.length > 0 && (
+                    <span className="px-2 py-0.5 rounded-full text-[10px] bg-emerald-100 text-emerald-800 font-bold">
+                      {timelineAtividades.length}
                     </span>
                   )}
                 </button>
               </div>
+
+              {/* Botão de alternar visualização dos Dados Completos / Técnicos */}
+              <button
+                type="button"
+                onClick={() => setDetalhesOpen((prev) => !prev)}
+                className={`text-xs font-semibold px-3 py-1.5 rounded-lg border transition-all flex items-center gap-1.5 ${
+                  detalhesOpen
+                    ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
+                    : 'bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100'
+                }`}
+              >
+                <FileText className="w-3.5 h-3.5 text-emerald-600" />
+                <span>
+                  {detalhesOpen
+                    ? 'Ocultar Detalhes Cadastrais'
+                    : 'Ver Detalhes Cadastrais & Técnicos'}
+                </span>
+                {detalhesOpen ? (
+                  <ChevronUp className="w-3.5 h-3.5 text-emerald-700" />
+                ) : (
+                  <ChevronDown className="w-3.5 h-3.5 text-gray-500" />
+                )}
+              </button>
             </div>
 
-            {/* Conteúdo da Aba Selecionada */}
+            {/* Conteúdo do Painel Principal */}
             <div className="p-4 space-y-4 flex-1">
               {/* ======================================================== */}
-              {/* ABA 1: DETALHES (DADOS CADASTRAIS + DADOS TÉCNICOS)      */}
+              {/* SEÇÃO EXPANSÍVEL: DADOS CADASTRAIS E TÉCNICOS COMPLETOS  */}
+              {/* Preserva edição inline completa e todos os campos       */}
               {/* ======================================================== */}
-              {activeTab === 'detalhes' && (
-                <div className="space-y-4">
+              {detalhesOpen && (
+                <div className="rounded-2xl border border-emerald-200/90 bg-emerald-50/20 p-4 space-y-4 animate-in fade-in duration-200">
+                  <div className="flex items-center justify-between pb-2 border-b border-emerald-200/60">
+                    <div className="flex items-center gap-2">
+                      <div className="p-1.5 bg-emerald-100 text-emerald-800 rounded-lg">
+                        <FileText className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <h3 className="text-xs font-bold uppercase tracking-wider text-emerald-950">
+                          Dados Completos Cadastrais e Técnicos
+                        </h3>
+                        <p className="text-[11px] text-gray-500">
+                          Edite os campos diretamente com um clique no lápis de edição.
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setDetalhesOpen(false)}
+                      className="text-xs text-gray-500 hover:text-gray-800 flex items-center gap-1 font-medium"
+                    >
+                      <ChevronUp className="w-3.5 h-3.5" />
+                      Recolher
+                    </button>
+                  </div>
+
                   {/* Destaque Inicial: Geração Média Mensal */}
                   <div className="p-4 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-700 text-white shadow-sm space-y-1">
                     <div className="flex items-center justify-between text-xs font-medium text-emerald-100">
@@ -323,14 +360,14 @@ export const FichaClienteDrawer: React.FC = () => {
                     </p>
                   </div>
 
-                  {/* Seção Dados Cadastrais */}
-                  <div className="bg-gray-50/60 rounded-xl p-4 border border-gray-200/70 space-y-3">
-                    <div className="flex items-center justify-between border-b border-gray-200/60 pb-2">
-                      <h3 className="text-xs font-bold uppercase tracking-wider text-gray-700 flex items-center gap-1.5">
+                  {/* Dados Cadastrais */}
+                  <div className="bg-white rounded-xl p-4 border border-gray-200/80 shadow-xs space-y-3">
+                    <div className="flex items-center justify-between border-b border-gray-100 pb-2">
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-gray-700 flex items-center gap-1.5">
                         <FileText className="w-3.5 h-3.5 text-emerald-600" />
-                        Dados Cadastrais
-                      </h3>
-                      <span className="text-[10px] uppercase font-semibold text-gray-400 bg-white px-2 py-0.5 rounded border border-gray-200">
+                        Identificação da Pessoa / Empresa
+                      </h4>
+                      <span className="text-[10px] uppercase font-semibold text-gray-400 bg-gray-50 px-2 py-0.5 rounded border border-gray-200">
                         PF / PJ
                       </span>
                     </div>
@@ -388,14 +425,14 @@ export const FichaClienteDrawer: React.FC = () => {
                         />
                       </div>
 
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 border-t border-gray-200/60">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 border-t border-gray-100">
                         <div className="flex items-center gap-2">
                           <Hash className="w-3.5 h-3.5 text-gray-400 shrink-0" />
                           <span className="text-gray-500 w-16 shrink-0">CNPJ:</span>
                           <InlineEditField
                             value={selectedCliente.cnpj}
                             displayValue={
-                              <span className="font-mono text-gray-800 text-[11px] bg-white px-1.5 py-0.5 rounded border border-gray-200">
+                              <span className="font-mono text-gray-800 text-[11px] bg-gray-50 px-1.5 py-0.5 rounded border border-gray-200">
                                 {selectedCliente.cnpj || 'Não inf.'}
                               </span>
                             }
@@ -410,7 +447,7 @@ export const FichaClienteDrawer: React.FC = () => {
                           <InlineEditField
                             value={selectedCliente.cpf}
                             displayValue={
-                              <span className="font-mono text-gray-800 text-[11px] bg-white px-1.5 py-0.5 rounded border border-gray-200">
+                              <span className="font-mono text-gray-800 text-[11px] bg-gray-50 px-1.5 py-0.5 rounded border border-gray-200">
                                 {selectedCliente.cpf || 'Não inf.'}
                               </span>
                             }
@@ -456,7 +493,7 @@ export const FichaClienteDrawer: React.FC = () => {
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-2 pt-1 border-t border-gray-200/60">
+                      <div className="flex items-center gap-2 pt-1 border-t border-gray-100">
                         <Calendar className="w-3.5 h-3.5 text-gray-400 shrink-0" />
                         <span className="text-gray-500 w-24 shrink-0">Nasc./Fund.:</span>
                         <InlineEditField
@@ -525,7 +562,7 @@ export const FichaClienteDrawer: React.FC = () => {
                       </div>
 
                       {/* Endereço detalhado */}
-                      <div className="pt-2 border-t border-gray-200/60 space-y-2">
+                      <div className="pt-2 border-t border-gray-100 space-y-2">
                         <div className="flex items-center gap-2">
                           <Home className="w-3.5 h-3.5 text-gray-400 shrink-0" />
                           <span className="text-gray-500 w-24 shrink-0">Logradouro:</span>
@@ -638,8 +675,8 @@ export const FichaClienteDrawer: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* Subseção Localização da Instalação */}
-                  <div className="bg-gray-50/60 rounded-xl p-4 border border-gray-200/70 space-y-2.5">
+                  {/* Localização da Instalação */}
+                  <div className="bg-white rounded-xl p-4 border border-gray-200/80 shadow-xs space-y-2.5">
                     <div className="text-[11px] uppercase font-bold text-gray-500 tracking-wider flex items-center gap-1.5">
                       <MapPin className="w-3.5 h-3.5 text-emerald-600" />
                       Localização da Instalação
@@ -661,7 +698,7 @@ export const FichaClienteDrawer: React.FC = () => {
                         />
                       </div>
 
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 border-t border-gray-200/60">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 border-t border-gray-100">
                         <div className="flex items-center gap-2">
                           <Compass className="w-3.5 h-3.5 text-gray-400 shrink-0" />
                           <span className="text-gray-500 w-16 shrink-0">Latitude:</span>
@@ -709,8 +746,8 @@ export const FichaClienteDrawer: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* Subseção Concessionária */}
-                  <div className="bg-gray-50/60 rounded-xl p-4 border border-gray-200/70 space-y-2.5">
+                  {/* Concessionária de Energia */}
+                  <div className="bg-white rounded-xl p-4 border border-gray-200/80 shadow-xs space-y-2.5">
                     <div className="text-[11px] uppercase font-bold text-gray-500 tracking-wider flex items-center gap-1.5">
                       <Activity className="w-3.5 h-3.5 text-emerald-600" />
                       Concessionária de Energia
@@ -722,7 +759,7 @@ export const FichaClienteDrawer: React.FC = () => {
                         <InlineEditField
                           value={ucExibida}
                           displayValue={
-                            <span className="font-mono font-bold text-gray-900 bg-white px-2 py-0.5 rounded border border-gray-200 text-xs">
+                            <span className="font-mono font-bold text-gray-900 bg-gray-50 px-2 py-0.5 rounded border border-gray-200 text-xs">
                               {ucExibida || 'Não informada'}
                             </span>
                           }
@@ -755,7 +792,7 @@ export const FichaClienteDrawer: React.FC = () => {
                           <InlineEditField
                             value={selectedSistema?.tipo_atendimento || 'aéreo'}
                             displayValue={
-                              <span className="capitalize font-medium text-gray-800 bg-white px-2 py-0.5 rounded border border-gray-200">
+                              <span className="capitalize font-medium text-gray-800 bg-gray-50 px-2 py-0.5 rounded border border-gray-200">
                                 {selectedSistema?.tipo_atendimento || 'aéreo'}
                               </span>
                             }
@@ -772,7 +809,7 @@ export const FichaClienteDrawer: React.FC = () => {
                           <InlineEditField
                             value={selectedSistema?.numero_fases || 'trifásico'}
                             displayValue={
-                              <span className="capitalize font-medium text-gray-800 bg-white px-2 py-0.5 rounded border border-gray-200">
+                              <span className="capitalize font-medium text-gray-800 bg-gray-50 px-2 py-0.5 rounded border border-gray-200">
                                 {selectedSistema?.numero_fases || 'trifásico'}
                               </span>
                             }
@@ -785,7 +822,7 @@ export const FichaClienteDrawer: React.FC = () => {
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 border-t border-gray-200/60">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 border-t border-gray-100">
                         <div className="flex items-center gap-2">
                           <span className="text-gray-500 w-20 shrink-0">Seção cabos:</span>
                           <InlineEditField
@@ -810,7 +847,7 @@ export const FichaClienteDrawer: React.FC = () => {
                           <InlineEditField
                             value={selectedSistema?.amperagem_disjuntor || '40 A'}
                             displayValue={
-                              <span className="font-semibold text-gray-800 bg-white px-2 py-0.5 rounded border border-gray-200">
+                              <span className="font-semibold text-gray-800 bg-gray-50 px-2 py-0.5 rounded border border-gray-200">
                                 {selectedSistema?.amperagem_disjuntor || 'Não inf.'}
                               </span>
                             }
@@ -826,15 +863,15 @@ export const FichaClienteDrawer: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* Subseção Instalação Elétrica & Telhado */}
-                  <div className="bg-gray-50/60 rounded-xl p-4 border border-gray-200/70 space-y-2.5">
+                  {/* Instalação Elétrica e Telhado */}
+                  <div className="bg-white rounded-xl p-4 border border-gray-200/80 shadow-xs space-y-2.5">
                     <div className="text-[11px] uppercase font-bold text-gray-500 tracking-wider flex items-center gap-1.5">
                       <Zap className="w-3.5 h-3.5 text-emerald-600" />
                       Instalação Elétrica e Telhado
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs">
-                      <div className="p-2.5 bg-white rounded-lg border border-gray-200">
+                      <div className="p-2.5 bg-gray-50/70 rounded-lg border border-gray-200">
                         <div className="text-[10px] text-gray-400 flex items-center gap-1 mb-1 uppercase font-semibold">
                           <Calendar className="w-3 h-3" />
                           Data Instalação
@@ -856,7 +893,7 @@ export const FichaClienteDrawer: React.FC = () => {
                         />
                       </div>
 
-                      <div className="p-2.5 bg-white rounded-lg border border-gray-200">
+                      <div className="p-2.5 bg-gray-50/70 rounded-lg border border-gray-200">
                         <div className="text-[10px] text-gray-400 flex items-center gap-1 mb-1 uppercase font-semibold">
                           <Zap className="w-3 h-3 text-emerald-600" />
                           Potência Total
@@ -879,7 +916,7 @@ export const FichaClienteDrawer: React.FC = () => {
                         />
                       </div>
 
-                      <div className="p-2.5 bg-white rounded-lg border border-gray-200">
+                      <div className="p-2.5 bg-gray-50/70 rounded-lg border border-gray-200">
                         <div className="text-[10px] text-gray-400 flex items-center gap-1 mb-1 uppercase font-semibold">
                           <Home className="w-3 h-3" />
                           Tipo Telhado
@@ -901,16 +938,16 @@ export const FichaClienteDrawer: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* Subseção Equipamentos (Módulos & Inversores) */}
-                  <div className="bg-gray-50/60 rounded-xl p-4 border border-gray-200/70 space-y-3">
+                  {/* Equipamentos Fotovoltaicos */}
+                  <div className="bg-white rounded-xl p-4 border border-gray-200/80 shadow-xs space-y-3">
                     <div className="text-[11px] uppercase font-bold text-gray-500 tracking-wider flex items-center gap-1.5">
                       <Layers className="w-3.5 h-3.5 text-emerald-600" />
                       Equipamentos Fotovoltaicos
                     </div>
 
                     {/* Módulos */}
-                    <div className="p-3 bg-white rounded-lg border border-gray-200 space-y-2 text-xs">
-                      <div className="flex items-center justify-between border-b border-gray-100 pb-1.5">
+                    <div className="p-3 bg-gray-50/50 rounded-lg border border-gray-200 space-y-2 text-xs">
+                      <div className="flex items-center justify-between border-b border-gray-200/70 pb-1.5">
                         <span className="font-bold text-gray-800 flex items-center gap-1.5">
                           <Layers className="w-3.5 h-3.5 text-blue-600" />
                           Módulos Fotovoltaicos
@@ -927,7 +964,7 @@ export const FichaClienteDrawer: React.FC = () => {
                               0
                             }
                             displayValue={
-                              <span className="font-bold text-blue-800 bg-blue-50 px-2 py-0.5 rounded text-xs">
+                              <span className="font-bold text-blue-800 bg-blue-50 px-2 py-0.5 rounded text-xs border border-blue-200">
                                 {selectedSistema?.quantidade_modulos ??
                                   selectedSistema?.quantidade_placas ??
                                   selectedCliente.placas_qtd ??
@@ -998,12 +1035,12 @@ export const FichaClienteDrawer: React.FC = () => {
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-2 pt-1 border-t border-gray-50">
+                      <div className="flex items-center gap-2 pt-1 border-t border-gray-100">
                         <span className="text-gray-500 w-16 shrink-0">Modelo:</span>
                         <InlineEditField
                           value={selectedSistema?.modelo_modulos || 'CS3W-455MS MONOCRISTAL 455Wp'}
                           displayValue={
-                            <span className="font-mono text-gray-800 text-[11px] bg-gray-50 px-2 py-0.5 rounded border border-gray-200">
+                            <span className="font-mono text-gray-800 text-[11px] bg-white px-2 py-0.5 rounded border border-gray-200">
                               {selectedSistema?.modelo_modulos || 'CS3W-455MS MONOCRISTAL 455Wp'}
                             </span>
                           }
@@ -1018,8 +1055,8 @@ export const FichaClienteDrawer: React.FC = () => {
                     </div>
 
                     {/* Inversores */}
-                    <div className="p-3 bg-white rounded-lg border border-gray-200 space-y-2 text-xs">
-                      <div className="flex items-center justify-between border-b border-gray-100 pb-1.5">
+                    <div className="p-3 bg-gray-50/50 rounded-lg border border-gray-200 space-y-2 text-xs">
+                      <div className="flex items-center justify-between border-b border-gray-200/70 pb-1.5">
                         <span className="font-bold text-gray-800 flex items-center gap-1.5">
                           <Cpu className="w-3.5 h-3.5 text-purple-600" />
                           Inversor Solar
@@ -1031,7 +1068,7 @@ export const FichaClienteDrawer: React.FC = () => {
                           <InlineEditField
                             value={selectedSistema?.potencia_pico_inversores_kwp ?? potenciaExibida}
                             displayValue={
-                              <span className="font-bold text-purple-800 bg-purple-50 px-2 py-0.5 rounded text-xs">
+                              <span className="font-bold text-purple-800 bg-purple-50 px-2 py-0.5 rounded text-xs border border-purple-200">
                                 {selectedSistema?.potencia_pico_inversores_kwp ?? potenciaExibida}{' '}
                                 kWp
                               </span>
@@ -1103,18 +1140,18 @@ export const FichaClienteDrawer: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* Histórico de Manutenções */}
+                  {/* Histórico de Manutenções na seção de Detalhes */}
                   {clientManutencoes.length > 0 && (
-                    <div className="bg-gray-50/60 rounded-xl p-4 border border-gray-200/70 space-y-3">
-                      <h3 className="text-xs font-bold uppercase tracking-wider text-gray-700 flex items-center gap-1.5">
+                    <div className="bg-white rounded-xl p-4 border border-gray-200/80 shadow-xs space-y-3">
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-gray-700 flex items-center gap-1.5">
                         <Wrench className="w-3.5 h-3.5 text-emerald-600" />
-                        Histórico de Manutenções ({clientManutencoes.length})
-                      </h3>
+                        Histórico de Ordens de Manutenção ({clientManutencoes.length})
+                      </h4>
                       <div className="space-y-2.5">
                         {clientManutencoes.map((m) => (
                           <div
                             key={m.id}
-                            className="p-3 rounded-lg border border-gray-200 bg-white space-y-2 text-xs"
+                            className="p-3 rounded-lg border border-gray-200 bg-gray-50/50 space-y-2 text-xs"
                           >
                             <div className="flex items-center justify-between flex-wrap gap-2">
                               <div className="flex items-center gap-2">
@@ -1137,157 +1174,154 @@ export const FichaClienteDrawer: React.FC = () => {
               )}
 
               {/* ======================================================== */}
-              {/* ABA 2: ATIVIDADES (HISTÓRICO CRONOLÓGICO UNIFICADO)     */}
+              {/* TOPO DA ABA HISTÓRICO: ÁREA RÁPIDA DE NOVA ENTRADA       */}
+              {/* Alterna Anotação vs Agendar Atividade (12 tipos)         */}
               {/* ======================================================== */}
-              {activeTab === 'atividades' && (
-                <div className="space-y-4">
-                  {/* Quick-add de atividade ou anotação logo abaixo das abas */}
-                  <QuickAddAtividade
-                    clienteId={selectedCliente.id}
-                    onAdd={addAtividade}
-                    defaultMode="atividade"
-                  />
-
-                  {/* Filtro rápido por tipo de atividade */}
-                  <div className="flex items-center justify-between border-b border-gray-100 pb-2 gap-2 flex-wrap">
-                    <div className="flex items-center gap-1 text-xs text-gray-500">
-                      <Filter className="w-3.5 h-3.5 text-gray-400" />
-                      <span className="font-semibold">Filtrar timeline:</span>
-                    </div>
-
-                    <div className="flex items-center gap-1 flex-wrap text-xs">
-                      {[
-                        { id: 'todos', label: 'Todos' },
-                        { id: 'anotacao', label: 'Anotações' },
-                        { id: 'ligacao', label: 'Ligações' },
-                        { id: 'reuniao', label: 'Reuniões' },
-                        { id: 'proposta', label: 'Propostas' },
-                        { id: 'visita_tecnica', label: 'Visitas' },
-                        { id: 'mudanca_estagio', label: 'Estágios' },
-                      ].map((f) => (
-                        <button
-                          key={f.id}
-                          type="button"
-                          onClick={() => setAtividadeFiltro(f.id)}
-                          className={`px-2 py-0.5 rounded-md text-[11px] font-medium transition-colors ${
-                            atividadeFiltro === f.id
-                              ? 'bg-emerald-600 text-white font-bold'
-                              : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                          }`}
-                        >
-                          {f.label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Lista Cronológica de Atividades (mais recentes no topo) */}
-                  {clientAtividades.length === 0 ? (
-                    <div className="text-center py-10 px-4 bg-gray-50/50 rounded-xl border border-dashed border-gray-200">
-                      <Clock className="w-8 h-8 text-gray-300 mx-auto mb-2" />
-                      <p className="text-xs font-semibold text-gray-600">
-                        Nenhuma atividade registrada
-                      </p>
-                      <p className="text-[11px] text-gray-400 mt-0.5">
-                        Use o campo acima para adicionar anotações ou agendar ligações, reuniões e
-                        visitas.
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="pt-2">
-                      {clientAtividades.map((atv) => (
-                        <AtividadeItem
-                          key={atv.id}
-                          atividade={atv}
-                          onDelete={removeAtividade}
-                          onToggleStatus={async (id, current) => {
-                            const next = current === 'concluida' ? 'pendente' : 'concluida'
-                            await updateAtividadeStatus(id, next)
-                          }}
-                        />
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
+              <QuickAddAtividade
+                clienteId={selectedCliente.id}
+                onAdd={addAtividade}
+                defaultMode="atividade"
+              />
 
               {/* ======================================================== */}
-              {/* ABA 3: ANOTAÇÕES (LISTA SÓ AS ANOTAÇÕES DO CLIENTE)       */}
+              {/* LINHA DO TEMPO CRONOLÓGICA ÚNICA (SEM SEPARAÇÃO POR TIPO)*/}
+              {/* Anotações, Atividades, Ligações, Reuniões, Estágios...   */}
               {/* ======================================================== */}
-              {activeTab === 'anotacoes' && (
-                <div className="space-y-4">
-                  {/* Quick-add configurado para anotação */}
-                  <QuickAddAtividade
-                    clienteId={selectedCliente.id}
-                    onAdd={addAtividade}
-                    defaultMode="anotacao"
-                  />
-
-                  <div className="flex items-center justify-between border-b border-gray-100 pb-2">
-                    <span className="text-xs font-bold text-gray-700 uppercase tracking-wider flex items-center gap-1.5">
-                      <FileText className="w-3.5 h-3.5 text-amber-500" />
-                      Anotações Cadastradas ({clientAnotacoes.length})
+              <div className="space-y-2 pt-2">
+                <div className="flex items-center justify-between border-b border-gray-100 pb-2">
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-gray-700 uppercase tracking-wider">
+                    <Clock className="w-3.5 h-3.5 text-[#16A34A]" />
+                    <span>Linha do Tempo Unificada</span>
+                    <span className="text-[11px] font-normal text-gray-400 capitalize">
+                      ({timelineAtividades.length}{' '}
+                      {timelineAtividades.length === 1 ? 'registro' : 'registros'})
                     </span>
                   </div>
-
-                  {clientAnotacoes.length === 0 ? (
-                    <div className="text-center py-10 px-4 bg-amber-50/30 rounded-xl border border-dashed border-amber-200">
-                      <FileText className="w-8 h-8 text-amber-300 mx-auto mb-2" />
-                      <p className="text-xs font-semibold text-gray-700">
-                        Nenhuma anotação registrada para este cliente
-                      </p>
-                      <p className="text-[11px] text-gray-400 mt-0.5">
-                        Use o campo rápido acima para salvar notas, faturas e observações sobre a
-                        negociação.
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="pt-2">
-                      {clientAnotacoes.map((atv) => (
-                        <AtividadeItem key={atv.id} atividade={atv} onDelete={removeAtividade} />
-                      ))}
-                    </div>
-                  )}
+                  <span className="text-[10px] text-gray-400">
+                    Do mais recente para o mais antigo
+                  </span>
                 </div>
-              )}
+
+                {timelineAtividades.length === 0 ? (
+                  <div className="text-center py-12 px-4 bg-gray-50/60 rounded-2xl border border-dashed border-gray-200">
+                    <Clock className="w-8 h-8 text-gray-300 mx-auto mb-2" />
+                    <p className="text-xs font-semibold text-gray-700">
+                      Nenhum registro no histórico deste cliente
+                    </p>
+                    <p className="text-[11px] text-gray-400 mt-1 max-w-sm mx-auto">
+                      Use a área rápida acima para registrar anotações ou agendar ligações,
+                      reuniões, propostas e tarefas.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="pt-2">
+                    {timelineAtividades.map((atv) => (
+                      <AtividadeItem
+                        key={atv.id}
+                        atividade={atv}
+                        onDelete={removeAtividade}
+                        onToggleStatus={async (id, current) => {
+                          const next = current === 'concluida' ? 'pendente' : 'concluida'
+                          await updateAtividadeStatus(id, next)
+                        }}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
           {/* ================================================================ */}
           {/* COLUNA DIREITA: PAINEL FIXO DE RESUMO (PIPEDRIVE SIDEBAR)        */}
+          {/* Nome, telefone, cidade, potência, valor, estágio e próxima ativ. */}
           {/* ================================================================ */}
           <div className="w-full md:w-[320px] lg:w-[360px] shrink-0 bg-[#F8FAF9] p-4 sm:p-5 space-y-4 overflow-y-auto border-t md:border-t-0">
-            <div className="text-xs font-bold uppercase tracking-wider text-gray-500 flex items-center gap-1.5">
-              <TrendingUp className="w-3.5 h-3.5 text-emerald-600" />
-              Resumo do Cliente
+            <div className="text-xs font-bold uppercase tracking-wider text-gray-500 flex items-center justify-between">
+              <span className="flex items-center gap-1.5">
+                <TrendingUp className="w-3.5 h-3.5 text-emerald-600" />
+                Resumo do Cliente
+              </span>
+              <span className="text-[10px] text-gray-400 bg-white px-2 py-0.5 rounded border border-gray-200 font-semibold">
+                Pipedrive CRM
+              </span>
             </div>
 
-            {/* Card 1: Estágio no Funil */}
+            {/* Card 1: Próxima Atividade Agendada (NOVO REQUISITO) */}
+            <div className="bg-white rounded-xl p-3.5 border border-emerald-200/80 shadow-xs space-y-2 relative overflow-hidden">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] uppercase font-bold text-emerald-800 tracking-wider flex items-center gap-1">
+                  <CalendarCheck2 className="w-3.5 h-3.5 text-emerald-600" />
+                  Próxima Atividade Agendada
+                </span>
+                {proximaAtividade && (
+                  <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-amber-100 text-amber-800">
+                    Pendente
+                  </span>
+                )}
+              </div>
+
+              {proximaAtividade ? (
+                <div className="p-2.5 rounded-lg bg-emerald-50/50 border border-emerald-100 space-y-1.5 text-xs">
+                  <div className="font-bold text-gray-900 leading-tight">
+                    {proximaAtividade.titulo || 'Atividade Agendada'}
+                  </div>
+                  <div className="flex items-center gap-1.5 text-[11px] text-emerald-800 font-medium">
+                    <Calendar className="w-3 h-3 text-emerald-600 shrink-0" />
+                    <span>{formatDateTime(proximaAtividade.data || proximaAtividade.created)}</span>
+                  </div>
+                  {proximaAtividade.responsavel_nome && (
+                    <div className="flex items-center gap-1 text-[11px] text-gray-600">
+                      <User className="w-3 h-3 text-gray-400 shrink-0" />
+                      <span className="truncate">Resp: {proximaAtividade.responsavel_nome}</span>
+                    </div>
+                  )}
+                  {proximaAtividade.descricao && (
+                    <p className="text-[11px] text-gray-600 italic line-clamp-2 pt-0.5">
+                      "{proximaAtividade.descricao}"
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <div className="py-3 px-2.5 text-center bg-gray-50/70 rounded-lg border border-dashed border-gray-200 space-y-1">
+                  <Calendar className="w-5 h-5 text-gray-300 mx-auto" />
+                  <p className="text-xs font-semibold text-gray-600">Nenhuma atividade pendente</p>
+                  <p className="text-[11px] text-gray-400">
+                    Agende uma ligação, visita ou follow-up na área rápida à esquerda.
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Card 2: Estágio Atual no Funil (com seletor rápido) */}
             <div className="bg-white rounded-xl p-3.5 border border-gray-200 shadow-xs space-y-2">
               <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider block">
-                Estágio no Funil
+                Estágio Atual no Funil
               </span>
               <div className="flex items-center justify-between gap-2">
                 <StatusBadge status={selectedCliente.status} />
               </div>
-              <div className="pt-1">
-                <InlineEditField
+              <div className="pt-1 border-t border-gray-100">
+                <label className="text-[10px] text-gray-400 block mb-1 font-semibold uppercase">
+                  Mudar estágio rapidamente:
+                </label>
+                <select
                   value={selectedCliente.status}
-                  displayValue={
-                    <span className="text-xs text-emerald-700 hover:underline font-medium cursor-pointer">
-                      Alterar estágio comercial →
-                    </span>
+                  onChange={async (e) =>
+                    updateClienteStatus(selectedCliente.id, e.target.value as ClienteStatus)
                   }
-                  type="select"
-                  options={ETAPAS_STATUS}
-                  onSave={async (val) =>
-                    updateClienteStatus(selectedCliente.id, val as ClienteStatus)
-                  }
-                />
+                  className="w-full text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-gray-200 bg-white text-gray-800 focus:outline-none focus:ring-1 focus:ring-emerald-500 cursor-pointer shadow-2xs"
+                >
+                  {ETAPAS_STATUS.map((e) => (
+                    <option key={e.value} value={e.value}>
+                      {e.label}
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
 
-            {/* Card 2: Valor Estimado */}
+            {/* Card 3: Valor Estimado */}
             <div className="bg-white rounded-xl p-3.5 border border-gray-200 shadow-xs space-y-1">
               <div className="flex items-center justify-between text-[10px] uppercase font-bold text-gray-400 tracking-wider">
                 <span>Valor Estimado</span>
@@ -1307,13 +1341,13 @@ export const FichaClienteDrawer: React.FC = () => {
                 placeholder="0,00"
                 onSave={async (val) => handleUpdateClienteField('valor_estimado', Number(val) || 0)}
               />
-              <span className="text-[11px] text-gray-400 block">Receita potencial da proposta</span>
+              <span className="text-[11px] text-gray-400 block">Receita potencial do negócio</span>
             </div>
 
-            {/* Card 3: Potência do Sistema */}
+            {/* Card 4: Potência do Sistema */}
             <div className="bg-white rounded-xl p-3.5 border border-gray-200 shadow-xs space-y-1">
               <div className="flex items-center justify-between text-[10px] uppercase font-bold text-gray-400 tracking-wider">
-                <span>Potência Instalada</span>
+                <span>Potência do Sistema</span>
                 <Zap className="w-3.5 h-3.5 text-amber-500" />
               </div>
               <InlineEditField
@@ -1334,12 +1368,12 @@ export const FichaClienteDrawer: React.FC = () => {
               {geracaoExibida > 0 && (
                 <div className="flex items-center gap-1 text-[11px] font-medium text-amber-700 bg-amber-50 px-2 py-0.5 rounded mt-1">
                   <Sun className="w-3 h-3 text-amber-500 shrink-0" />
-                  <span>{geracaoExibida.toLocaleString('pt-BR')} kWh/mês estimativa</span>
+                  <span>{geracaoExibida.toLocaleString('pt-BR')} kWh/mês estimado</span>
                 </div>
               )}
             </div>
 
-            {/* Card 4: Contato Rápido & Localização */}
+            {/* Card 5: Contato Rápido & Cidade */}
             <div className="bg-white rounded-xl p-3.5 border border-gray-200 shadow-xs space-y-2.5 text-xs">
               <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider block border-b border-gray-100 pb-1.5">
                 Contato & Cidade
@@ -1347,7 +1381,7 @@ export const FichaClienteDrawer: React.FC = () => {
 
               {/* Nome */}
               <div className="space-y-0.5">
-                <span className="text-[11px] text-gray-400">Cliente:</span>
+                <span className="text-[11px] text-gray-400">Nome:</span>
                 <div className="font-semibold text-gray-800 truncate">{selectedCliente.nome}</div>
               </div>
 
@@ -1397,25 +1431,16 @@ export const FichaClienteDrawer: React.FC = () => {
               )}
             </div>
 
-            {/* Card 5: Atalho para Criar Atividade rápida */}
-            <div className="bg-emerald-50 rounded-xl p-3.5 border border-emerald-200/80 space-y-2 text-xs">
-              <span className="font-bold text-emerald-900 block text-xs">Ações Rápidas</span>
-              <div className="grid grid-cols-2 gap-1.5">
-                <button
-                  type="button"
-                  onClick={() => setActiveTab('atividades')}
-                  className="px-2.5 py-1.5 bg-white hover:bg-emerald-100 border border-emerald-200 rounded-lg text-[11px] font-semibold text-emerald-800 transition-colors shadow-2xs text-center"
-                >
-                  + Atividade
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setActiveTab('anotacoes')}
-                  className="px-2.5 py-1.5 bg-white hover:bg-amber-100 border border-amber-200 rounded-lg text-[11px] font-semibold text-amber-800 transition-colors shadow-2xs text-center"
-                >
-                  + Anotação
-                </button>
+            {/* Card 6: Dica Pipedrive */}
+            <div className="bg-emerald-50/70 rounded-xl p-3 border border-emerald-200/80 text-xs text-emerald-900 space-y-1">
+              <div className="font-bold flex items-center gap-1 text-[11px]">
+                <Sparkles className="w-3 h-3 text-emerald-600" />
+                Histórico Pipedrive
               </div>
+              <p className="text-[11px] text-emerald-800/90 leading-relaxed">
+                Todas as anotações, ligações, reuniões e mudanças de estágio estão unificadas em
+                ordem cronológica na timeline à esquerda.
+              </p>
             </div>
           </div>
         </div>
