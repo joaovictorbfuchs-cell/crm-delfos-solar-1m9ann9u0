@@ -392,24 +392,6 @@ export const FichaOMDrawer: React.FC = () => {
 
           <button
             type="button"
-            onClick={() => setActiveTab('servicos')}
-            className={`px-3 py-3 text-xs font-bold border-b-2 flex items-center gap-1.5 transition-colors whitespace-nowrap ${
-              activeTab === 'servicos'
-                ? 'border-[#16A34A] text-[#166534] bg-white rounded-t-lg shadow-xs'
-                : 'border-transparent text-gray-500 hover:text-gray-800'
-            }`}
-          >
-            <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-            <span>2. Serviços do Plano</span>
-            {contrato?.servicos_realizados && (
-              <span className="ml-1 px-1.5 py-0.2 rounded-full text-[10px] bg-emerald-100 text-emerald-800 font-bold">
-                {contrato.servicos_realizados.length}/{SERVICOS_CATALOGO_OM.length}
-              </span>
-            )}
-          </button>
-
-          <button
-            type="button"
             onClick={() => setActiveTab('anomalias')}
             className={`px-3 py-3 text-xs font-bold border-b-2 flex items-center gap-1.5 transition-colors whitespace-nowrap ${
               activeTab === 'anomalias'
