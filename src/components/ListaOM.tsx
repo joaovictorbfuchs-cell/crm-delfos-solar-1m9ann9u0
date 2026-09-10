@@ -25,8 +25,14 @@ import {
 import { useClientes } from '@/contexts/ClientesContext'
 import { formatCurrency, formatDate } from '@/lib/formatters'
 import type { OMPlanoTipo } from '@/types/crm'
+import { categorizarClienteOM, calcularContagensOM } from '@/lib/omCategorizacao'
 
-export type SituacaoOM = 'com_plano_ativo' | 'com_servico_avulso' | 'plano_vencido' | 'sem_plano'
+export type SituacaoOM =
+  | 'com_plano_ativo'
+  | 'com_servico_avulso'
+  | 'plano_vencido'
+  | 'sem_plano'
+  | 'anomalia_aberta'
 
 interface ClienteOMItem {
   clienteId: string
@@ -41,6 +47,8 @@ interface ClienteOMItem {
   dataVencimento?: string
   diasRestantes?: number
   servicoAvulsoTitulo?: string
+  anomaliaTitulo?: string
+  temAnomaliaAberta?: boolean
   proximaAtividadeTitulo?: string
   proximaAtividadeData?: string
 }
@@ -51,7 +59,7 @@ interface ListaOMProps {
 }
 
 export const ListaOM: React.FC<ListaOMProps> = ({ onOpenFichaOM, onOpenNovoContrato }) => {
-  const { clientes, contratosOM, sistemas, servicosAdicionaisOM } = useClientes()
+  const { clientes, contratosOM, sistemas, servicosAdicionaisOM, anomaliasOM } = useClientes()
 
   const [busca, setBusca] = useState('')
   const [filtroSituacao, setFiltroSituacao] = useState<string>('todos')
@@ -60,7 +68,7 @@ export const ListaOM: React.FC<ListaOMProps> = ({ onOpenFichaOM, onOpenNovoContr
     'status',
   )
 
-  // Mapear TODOS os clientes da base para o módulo de O&M
+  // Mapear TODOS os clientes da base para o módulo de O&M usando a mesma categorização unificada
   const itensOM = useMemo(() => {
     const list: ClienteOMItem[] = []
 
@@ -68,36 +76,44 @@ export const ListaOM: React.FC<ListaOMProps> = ({ onOpenFichaOM, onOpenNovoContr
       const sistema = sistemas.find((s) => s.cliente_id === cliente.id)
       const potencia = sistema?.potencia_total_kwp ?? cliente.potencia_kwp ?? 0
 
-      // 1. Verificar Contrato O&M
-      const contrato = contratosOM.find((c) => c.cliente_id === cliente.id)
+      // Categorização unificada
+      const {
+        categoria,
+        contratoAtivo,
+        contratoVencido,
+        temAnomaliaAberta,
+        temServicoAvulsoEmAndamento,
+      } = categorizarClienteOM(cliente.id, contratosOM, servicosAdicionaisOM, anomaliasOM)
 
-      // 2. Verificar Serviços Avulsos em andamento / pendentes
+      // Tradução para SituacaoOM da lista
+      let situacao: SituacaoOM = 'sem_plano'
+      if (categoria === 'plano_ativo') situacao = 'com_plano_ativo'
+      else if (categoria === 'plano_vencido') situacao = 'plano_vencido'
+      else if (categoria === 'anomalia_aberta') situacao = 'anomalia_aberta'
+      else if (categoria === 'servico_avulso') situacao = 'com_servico_avulso'
+      else situacao = 'sem_plano'
+
+      // Contrato relevante (ativo prioritário, ou vencido)
+      const contrato = contratoAtivo || contratoVencido
+
+      let diasRestantes: number | undefined
+      if (contrato?.data_vencimento) {
+        diasRestantes = Math.ceil(
+          (new Date(contrato.data_vencimento).getTime() - new Date().getTime()) /
+            (1000 * 60 * 60 * 24),
+        )
+      }
+
+      // Serviços avulsos em andamento / pendentes
       const servicoAvulsoEmAndamento = servicosAdicionaisOM.find(
         (s) =>
           s.cliente_id === cliente.id && (s.status === 'em execução' || s.status === 'pendente'),
       )
 
-      let situacao: SituacaoOM = 'sem_plano'
-      let diasRestantes: number | undefined
-
-      if (contrato) {
-        if (contrato.data_vencimento) {
-          diasRestantes = Math.ceil(
-            (new Date(contrato.data_vencimento).getTime() - new Date().getTime()) /
-              (1000 * 60 * 60 * 24),
-          )
-        }
-
-        if (contrato.status === 'Vencido' || (diasRestantes !== undefined && diasRestantes < 0)) {
-          situacao = 'plano_vencido'
-        } else {
-          situacao = 'com_plano_ativo'
-        }
-      } else if (servicoAvulsoEmAndamento) {
-        situacao = 'com_servico_avulso'
-      } else {
-        situacao = 'sem_plano'
-      }
+      // Anomalia aberta
+      const anomaliaAberta = anomaliasOM.find(
+        (a) => a.cliente_id === cliente.id && a.status !== 'Resolvido' && a.status !== 'Cancelado',
+      )
 
       list.push({
         clienteId: cliente.id,
@@ -112,23 +128,30 @@ export const ListaOM: React.FC<ListaOMProps> = ({ onOpenFichaOM, onOpenNovoContr
         dataVencimento: contrato?.data_vencimento,
         diasRestantes,
         servicoAvulsoTitulo: servicoAvulsoEmAndamento?.descricao || undefined,
+        anomaliaTitulo: anomaliaAberta?.titulo || undefined,
+        temAnomaliaAberta,
         proximaAtividadeTitulo:
           contrato?.proxima_atividade_titulo ||
-          (servicoAvulsoEmAndamento ? `O.S. ${servicoAvulsoEmAndamento.status}` : undefined),
-        proximaAtividadeData: contrato?.proxima_atividade_data || servicoAvulsoEmAndamento?.data,
+          (servicoAvulsoEmAndamento ? `O.S. ${servicoAvulsoEmAndamento.status}` : undefined) ||
+          (anomaliaAberta ? `Anomalia: ${anomaliaAberta.titulo}` : undefined),
+        proximaAtividadeData:
+          contrato?.proxima_atividade_data ||
+          servicoAvulsoEmAndamento?.data ||
+          anomaliaAberta?.data_abertura,
       })
     }
 
     return list
-  }, [clientes, contratosOM, sistemas, servicosAdicionaisOM])
+  }, [clientes, contratosOM, sistemas, servicosAdicionaisOM, anomaliasOM])
 
-  // Contadores para o resumo de filtros rápidos
+  // Contadores para o resumo de filtros rápidos (alinhados com a mesma função e os cards do topo)
   const contagens = useMemo(() => {
     return {
       todos: itensOM.length,
       com_plano_ativo: itensOM.filter((i) => i.situacao === 'com_plano_ativo').length,
       sem_plano: itensOM.filter((i) => i.situacao === 'sem_plano').length,
       com_servico_avulso: itensOM.filter((i) => i.situacao === 'com_servico_avulso').length,
+      anomalia_aberta: itensOM.filter((i) => i.situacao === 'anomalia_aberta').length,
       plano_vencido: itensOM.filter((i) => i.situacao === 'plano_vencido').length,
     }
   }, [itensOM])
@@ -153,12 +176,13 @@ export const ListaOM: React.FC<ListaOMProps> = ({ onOpenFichaOM, onOpenNovoContr
       })
       .sort((a, b) => {
         if (ordenacao === 'status') {
-          // Prioridade visual: Oportunidades / Serviços avulsos / Vencidos / Ativos
+          // Prioridade visual: Ativos / Anomalias / Serviços avulsos / Sem plano / Vencidos
           const prioridade: Record<SituacaoOM, number> = {
-            com_servico_avulso: 1,
-            com_plano_ativo: 2,
-            sem_plano: 3,
+            anomalia_aberta: 1,
+            com_servico_avulso: 2,
+            com_plano_ativo: 3,
             plano_vencido: 4,
+            sem_plano: 5,
           }
           return prioridade[a.situacao] - prioridade[b.situacao]
         }
@@ -178,14 +202,25 @@ export const ListaOM: React.FC<ListaOMProps> = ({ onOpenFichaOM, onOpenNovoContr
   }, [itensOM, busca, filtroSituacao, filtroPlano, ordenacao])
 
   // Badge da Situação Visual
-  const renderSituacaoBadge = (situacao: SituacaoOM) => {
+  const renderSituacaoBadge = (situacao: SituacaoOM, temAnomaliaAberta?: boolean) => {
     switch (situacao) {
       case 'com_plano_ativo':
         return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            Com plano O&M ativo
-          </span>
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              Com plano O&M ativo
+            </span>
+            {temAnomaliaAberta && (
+              <span
+                title="Cliente com anomalia aberta registrada"
+                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-purple-100 text-purple-800 border border-purple-200"
+              >
+                <AlertTriangle className="w-3 h-3 text-purple-600" />
+                Anomalia aberta
+              </span>
+            )}
+          </div>
         )
       case 'sem_plano':
         return (
@@ -199,6 +234,13 @@ export const ListaOM: React.FC<ListaOMProps> = ({ onOpenFichaOM, onOpenNovoContr
           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-800 border border-blue-300">
             <Wrench className="w-3.5 h-3.5 text-blue-600" />
             Com serviço avulso em andamento
+          </span>
+        )
+      case 'anomalia_aberta':
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-purple-100 text-purple-800 border border-purple-300">
+            <AlertTriangle className="w-3.5 h-3.5 text-purple-600" />
+            Anomalia aberta
           </span>
         )
       case 'plano_vencido':
@@ -290,21 +332,36 @@ export const ListaOM: React.FC<ListaOMProps> = ({ onOpenFichaOM, onOpenNovoContr
           }`}
         >
           <Wrench className="w-3.5 h-3.5 text-blue-500" />
-          Com serviço avulso ({contagens.com_servico_avulso})
+          Serviços avulsos ({contagens.com_servico_avulso})
         </button>
 
         <button
           type="button"
-          onClick={() => setFiltroSituacao('plano_vencido')}
+          onClick={() => setFiltroSituacao('anomalia_aberta')}
           className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all whitespace-nowrap flex items-center gap-1.5 ${
-            filtroSituacao === 'plano_vencido'
-              ? 'bg-rose-600 text-white border-rose-600 shadow-xs'
-              : 'bg-white text-rose-800 border-rose-200 hover:bg-rose-50'
+            filtroSituacao === 'anomalia_aberta'
+              ? 'bg-purple-600 text-white border-purple-600 shadow-xs'
+              : 'bg-white text-purple-800 border-purple-200 hover:bg-purple-50'
           }`}
         >
-          <AlertTriangle className="w-3.5 h-3.5 text-rose-500" />
-          Plano vencido ({contagens.plano_vencido})
+          <AlertTriangle className="w-3.5 h-3.5 text-purple-500" />
+          Anomalias abertas ({contagens.anomalia_aberta})
         </button>
+
+        {contagens.plano_vencido > 0 && (
+          <button
+            type="button"
+            onClick={() => setFiltroSituacao('plano_vencido')}
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all whitespace-nowrap flex items-center gap-1.5 ${
+              filtroSituacao === 'plano_vencido'
+                ? 'bg-rose-600 text-white border-rose-600 shadow-xs'
+                : 'bg-white text-rose-800 border-rose-200 hover:bg-rose-50'
+            }`}
+          >
+            <AlertTriangle className="w-3.5 h-3.5 text-rose-500" />
+            Plano vencido ({contagens.plano_vencido})
+          </button>
+        )}
       </div>
 
       {/* Barra de Filtros e Busca */}
@@ -334,7 +391,8 @@ export const ListaOM: React.FC<ListaOMProps> = ({ onOpenFichaOM, onOpenNovoContr
               <option value="todos">Todas as Situações</option>
               <option value="com_plano_ativo">Com plano O&M ativo</option>
               <option value="sem_plano">Sem plano (Oportunidade)</option>
-              <option value="com_servico_avulso">Com serviço avulso em andamento</option>
+              <option value="com_servico_avulso">Serviço avulso em andamento</option>
+              <option value="anomalia_aberta">Anomalia aberta</option>
               <option value="plano_vencido">Plano vencido</option>
             </select>
           </div>
@@ -438,7 +496,7 @@ export const ListaOM: React.FC<ListaOMProps> = ({ onOpenFichaOM, onOpenNovoContr
 
                       {/* Situação O&M */}
                       <td className="py-3.5 px-4 whitespace-nowrap">
-                        {renderSituacaoBadge(item.situacao)}
+                        {renderSituacaoBadge(item.situacao, item.temAnomaliaAberta)}
                       </td>
 
                       {/* Plano */}
@@ -457,6 +515,15 @@ export const ListaOM: React.FC<ListaOMProps> = ({ onOpenFichaOM, onOpenNovoContr
                           <div className="text-[11px] text-amber-800 font-medium flex items-center gap-1">
                             <Sparkles className="w-3.5 h-3.5 text-amber-600 shrink-0" />
                             <span>Prospecção aberta: Ofertar Plano ou Limpeza</span>
+                          </div>
+                        ) : item.situacao === 'anomalia_aberta' ? (
+                          <div className="text-gray-800 truncate" title={item.anomaliaTitulo}>
+                            <span className="font-semibold text-purple-700 block text-[11px]">
+                              Anomalia em aberto:
+                            </span>
+                            <span className="text-[11px] text-gray-600 truncate block">
+                              {item.anomaliaTitulo || 'Em atendimento técnico'}
+                            </span>
                           </div>
                         ) : item.servicoAvulsoTitulo ? (
                           <div className="text-gray-800 truncate" title={item.servicoAvulsoTitulo}>
@@ -525,7 +592,7 @@ export const ListaOM: React.FC<ListaOMProps> = ({ onOpenFichaOM, onOpenNovoContr
                       </p>
                     </div>
                     <div className="flex flex-col items-end gap-1">
-                      {renderSituacaoBadge(item.situacao)}
+                      {renderSituacaoBadge(item.situacao, item.temAnomaliaAberta)}
                       {item.plano && renderPlanoBadge(item.plano)}
                     </div>
                   </div>
@@ -550,6 +617,15 @@ export const ListaOM: React.FC<ListaOMProps> = ({ onOpenFichaOM, onOpenNovoContr
                     <div className="bg-amber-100/70 p-2.5 rounded-lg text-xs flex items-center gap-1.5 text-amber-900 font-semibold">
                       <Sparkles className="w-3.5 h-3.5 text-amber-600 shrink-0" />
                       <span>Oportunidade: Oferecer Plano O&M ou Limpeza Avulsa</span>
+                    </div>
+                  ) : item.situacao === 'anomalia_aberta' ? (
+                    <div className="bg-purple-50 p-2.5 rounded-lg text-xs space-y-0.5">
+                      <span className="text-[11px] font-bold text-purple-700 uppercase block">
+                        Anomalia em aberto:
+                      </span>
+                      <div className="font-medium text-gray-800">
+                        {item.anomaliaTitulo || 'Em atendimento'}
+                      </div>
                     </div>
                   ) : item.servicoAvulsoTitulo ? (
                     <div className="bg-blue-50 p-2.5 rounded-lg text-xs space-y-0.5">

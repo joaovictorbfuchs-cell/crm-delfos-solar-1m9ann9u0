@@ -14,6 +14,7 @@ import {
 } from 'lucide-react'
 import { useClientes } from '@/contexts/ClientesContext'
 import { ListaOM } from '@/components/ListaOM'
+import { calcularContagensOM } from '@/lib/omCategorizacao'
 import { ModalNovoContratoOM } from '@/components/ModalNovoContratoOM'
 import { ManutencoesList } from '@/components/ManutencoesList'
 import { NovaManutencaoModal } from '@/components/NovaManutencaoModal'
@@ -33,21 +34,16 @@ export default function Manutencoes() {
   const [isNovoContratoOpen, setIsNovoContratoOpen] = useState(false)
   const [isNovaManutencaoOpen, setIsNovaManutencaoOpen] = useState(false)
 
-  // Métricas do Módulo O&M
-  const totalClientes = clientes.length
-  const contratosAtivos = contratosOM.filter((c) => c.status === 'Ativo').length
-  const clientesSemPlano = clientes.filter(
-    (cl) => !contratosOM.some((ct) => ct.cliente_id === cl.id),
-  ).length
-  const servicosAvulsosEmAndamento = servicosAdicionaisOM.filter(
-    (s) => s.status === 'em execução' || s.status === 'pendente',
-  ).length
-  const anomaliasAbertas = anomaliasOM.filter(
-    (a) => a.status !== 'Resolvido' && a.status !== 'Cancelado',
-  ).length
-
-  // Receita mensal recorrente gerada pela carteira O&M
-  const mrrTotal = contratosOM.reduce((acc, c) => acc + (c.valor_mensal || 0), 0)
+  // Métricas do Módulo O&M unificadas com a categorização exclusiva por cliente
+  const contagens = React.useMemo(
+    () => calcularContagensOM(clientes, contratosOM, servicosAdicionaisOM, anomaliasOM),
+    [clientes, contratosOM, servicosAdicionaisOM, anomaliasOM],
+  )
+  const totalClientes = contagens.totalClientes
+  const contratosAtivos = contagens.planosAtivos
+  const clientesSemPlano = contagens.semPlano
+  const servicosAvulsosEmAndamento = contagens.servicosAvulsos
+  const anomaliasAbertas = contagens.anomaliasAbertas
 
   if (isLoading) {
     return (
@@ -184,15 +180,23 @@ export default function Manutencoes() {
           </div>
 
           {/* Card Anomalias Abertas */}
-          <div className="bg-white rounded-xl p-4 border border-gray-200/80 shadow-xs flex items-center justify-between">
+          <div className="bg-white rounded-xl p-4 border border-purple-200 shadow-xs flex items-center justify-between">
             <div>
-              <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">
+              <span className="text-[11px] font-bold text-purple-700 uppercase tracking-wider">
                 Anomalias Abertas
               </span>
               <div className="text-2xl font-extrabold text-purple-600 mt-0.5">
                 {anomaliasAbertas}
               </div>
-              <div className="text-[11px] text-gray-400 mt-0.5">Em triagem / campo</div>
+              <div className="text-[11px] text-purple-600/90 font-medium mt-0.5">
+                {contagens.totalAnomaliasAbertasOcorrencias > 0
+                  ? `${contagens.totalAnomaliasAbertasOcorrencias} ${
+                      contagens.totalAnomaliasAbertasOcorrencias === 1
+                        ? 'anomalia aberta'
+                        : 'anomalias abertas'
+                    } no total`
+                  : 'Nenhuma em aberto'}
+              </div>
             </div>
             <div className="w-10 h-10 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center shrink-0">
               <AlertTriangle className="w-5 h-5" />
