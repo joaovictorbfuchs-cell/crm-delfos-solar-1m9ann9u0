@@ -33,7 +33,7 @@ export interface TipoAtividadeDef {
 export const ATIVIDADES_12_TIPOS: TipoAtividadeDef[] = [
   {
     id: 'contato_ligacao',
-    tituloPadrao: 'Entrar em contato - Ligação',
+    tituloPadrao: 'Entrar em contato',
     descricaoAjuda: 'Chamada telefônica ou contato inicial com o cliente',
     corHex: '#2563EB', // Blue
     badgeClass: 'bg-blue-50 text-blue-700 border-blue-200',
@@ -143,7 +143,7 @@ export const ATIVIDADES_12_TIPOS: TipoAtividadeDef[] = [
   },
   {
     id: 'relatorio_solarview',
-    tituloPadrao: 'Fazer Relatório Solarview',
+    tituloPadrao: 'Relatório Solarview',
     descricaoAjuda: 'Extração e envio do balanço energético e economia mensal em PDF',
     corHex: '#059669', // Emerald
     badgeClass: 'bg-emerald-50 text-emerald-800 border-emerald-200',
@@ -154,7 +154,7 @@ export const ATIVIDADES_12_TIPOS: TipoAtividadeDef[] = [
   },
   {
     id: 'contato_reativacao',
-    tituloPadrao: 'Contato para Reativação',
+    tituloPadrao: 'Reativar Cliente',
     descricaoAjuda: 'Retomada de leads antigos, renegociação de tarifas ou upgrades',
     corHex: '#475569', // Slate
     badgeClass: 'bg-slate-100 text-slate-800 border-slate-300',
@@ -173,7 +173,7 @@ export function getTipoAtividadeConfig(tipo: AtividadeTipo | string): TipoAtivid
   // Aliases e retrocompatibilidade
   switch (tipo) {
     case 'ligacao':
-      return ATIVIDADES_12_TIPOS[0] // Entrar em contato - Ligação
+      return ATIVIDADES_12_TIPOS[0] // Entrar em contato
     case 'reuniao':
       return ATIVIDADES_12_TIPOS[1] // Reunião Presencial
     case 'proposta':

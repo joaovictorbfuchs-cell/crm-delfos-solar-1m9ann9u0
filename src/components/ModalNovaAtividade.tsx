@@ -216,7 +216,7 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
               type="text"
               value={titulo}
               onChange={(e) => setTitulo(e.target.value)}
-              placeholder="Ex: Entrar em contato - Ligação"
+              placeholder="Ex: Entrar em contato"
               required
               className="w-full text-xs sm:text-sm px-3.5 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-medium text-gray-900 bg-white"
             />

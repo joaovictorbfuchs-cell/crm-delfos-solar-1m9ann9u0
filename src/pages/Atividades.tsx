@@ -276,7 +276,7 @@ export const Atividades: React.FC = () => {
                   className="text-xs px-2.5 py-2 rounded-xl border border-gray-200 focus:outline-none focus:ring-1 focus:ring-emerald-500 bg-white"
                 >
                   <option value="todos">Todos os tipos</option>
-                  <option value="contato_ligacao">Entrar em contato - Ligação</option>
+                  <option value="contato_ligacao">Entrar em contato</option>
                   <option value="reuniao_presencial">Reunião Presencial</option>
                   <option value="follow_up">Follow-up</option>
                   <option value="instalacao">Instalação</option>
@@ -287,7 +287,7 @@ export const Atividades: React.FC = () => {
                   <option value="configuracao_datalogger">Configuração Datalogger</option>
                   <option value="garantia_equipamento">Garantia equipamento</option>
                   <option value="relatorio_solarview">Relatório Solarview</option>
-                  <option value="contato_reativacao">Contato Reativação</option>
+                  <option value="contato_reativacao">Reativar Cliente</option>
                 </select>
 
                 <select
