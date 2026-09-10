@@ -435,64 +435,55 @@ export function gerarHTMLPropostaOM(dados: PropostaPDFInput): string {
       background: #2563EB;
       color: #FFFFFF;
     }
-    /* Price Summary Cards */
-    .pricing-summary {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 12px;
-      margin-bottom: 14px;
+    /* Row de Destaque Final da Tabela de Planos */
+    .plans-table tr.row-total td {
+      background: #DCFCE7 !important;
+      border-top: 2px solid #16A34A;
+      border-bottom: 2px solid #16A34A;
+      color: #14532D;
+      padding: 9px 6px;
+      vertical-align: middle;
     }
-    .chosen-card {
-      background: linear-gradient(135deg, #F0FDF4, #DCFCE7);
-      border: 2px solid #16A34A;
-      border-radius: 10px;
-      padding: 12px;
-      text-align: center;
-      position: relative;
-    }
-    .chosen-card-tag {
-      position: absolute;
-      top: -9px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: #16A34A;
-      color: #FFFFFF;
-      font-size: 9px;
-      font-weight: 800;
-      text-transform: uppercase;
-      padding: 2px 10px;
-      border-radius: 10px;
-      letter-spacing: 0.05em;
-    }
-    .chosen-plano-name {
-      font-size: 15px;
-      font-weight: 800;
-      color: #065F46;
-      margin-top: 4px;
-      margin-bottom: 2px;
-    }
-    .chosen-price-mensal {
-      font-size: 26px;
-      font-weight: 900;
-      color: #15803D;
-      line-height: 1;
-      margin: 4px 0;
-    }
-    .chosen-price-sub {
+    .plans-table tr.row-total td:first-child {
       font-size: 10.5px;
+      font-weight: 800;
+      color: #064E3B;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+    .plans-table tr.row-total td.col-rec {
+      background: #BBF7D0 !important;
+      border-left: 2px solid #16A34A;
+      border-right: 2px solid #16A34A;
+    }
+    .plans-table tr.row-total .price-val {
+      font-size: 12px;
+      font-weight: 800;
+      color: #14532D;
+      line-height: 1.2;
+    }
+    .plans-table tr.row-total .price-val-rec {
+      font-size: 13px;
+      font-weight: 900;
+      color: #064E3B;
+      line-height: 1.2;
+    }
+    .plans-table tr.row-total .price-annual {
+      font-size: 8.5px;
       font-weight: 600;
       color: #047857;
+      margin-top: 2px;
     }
+    /* Condições Gerais e Vigência */
     .terms-card {
       background: #F9FAFB;
       border: 1px solid #E5E7EB;
-      border-radius: 10px;
-      padding: 10px 12px;
+      border-left: 4px solid #16A34A;
+      border-radius: 8px;
+      padding: 10px 14px;
       font-size: 9.5px;
       color: #4B5563;
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
+      margin-bottom: 14px;
     }
     .terms-card ul {
       margin: 4px 0 0 0;
@@ -782,37 +773,34 @@ export function gerarHTMLPropostaOM(dados: PropostaPDFInput): string {
           <td><span class="check-yes">✓ 1x ao ano</span></td>
           <td class="col-rec"><span class="check-yes">✓ 2x ao ano</span></td>
         </tr>
-        <tr style="background: #F9FAFB; font-weight: 700;">
-          <td style="font-weight: 700;">Investimento Mensal (Faturamento Anual)</td>
-          <td><strong>${formatBRL(49.9)}/mês</strong><br /><span style="font-size: 8.5px; color: #6B7280;">(${formatBRL(49.9 * 12)}/ano)</span></td>
-          <td><strong>${formatBRL(74.9)}/mês</strong><br /><span style="font-size: 8.5px; color: #6B7280;">(${formatBRL(74.9 * 12)}/ano)</span></td>
-          <td class="col-rec" style="font-size: 10.5px; color: #065F46;">
-            <strong>${formatBRL(99.9)}/mês</strong><br /><span style="font-size: 8.5px; color: #047857;">(${formatBRL(99.9 * 12)}/ano)</span>
+        <tr class="row-total">
+          <td>Investimento Mensal</td>
+          <td>
+            <div class="price-val">${formatBRL(49.9)}/mês</div>
+            <div class="price-annual">(${formatBRL(49.9 * 12)}/ano)</div>
+          </td>
+          <td>
+            <div class="price-val">${formatBRL(74.9)}/mês</div>
+            <div class="price-annual">(${formatBRL(74.9 * 12)}/ano)</div>
+          </td>
+          <td class="col-rec">
+            <div class="price-val-rec">${formatBRL(99.9)}/mês</div>
+            <div class="price-annual">(${formatBRL(99.9 * 12)}/ano)</div>
           </td>
         </tr>
       </tbody>
     </table>
 
-    <!-- Resumo dos Planos O&M & Condições -->
-    <div class="pricing-summary">
-      <div class="chosen-card">
-        <div class="chosen-card-tag">Opções para Escolha do Cliente</div>
-        <div class="chosen-plano-name">3 OPÇÕES DE PLANOS O&M</div>
-        <p style="font-size: 10.5px; color: #065F46; font-weight: 600; margin: 10px 0 0 0; line-height: 1.45; padding: 0 8px;">
-          As três opções de plano apresentadas acima ficam à disposição do cliente para escolha após a apresentação.
-        </p>
-      </div>
-
-      <div class="terms-card">
-        <strong style="color: #111827; font-size: 10.5px; margin-bottom: 3px;">Condições Gerais e Vigência:</strong>
-        <ul>
-          <li><strong>Escolha flexível:</strong> O cliente escolhe livremente a modalidade após a apresentação dos cenários.</li>
-          <li><strong>Vigência contratual:</strong> 12 meses renováveis, garantindo atendimento contínuo e preventivo.</li>
-          <li><strong>Forma de pagamento:</strong> Mensalidades via boleto bancário ou PIX corporativo Delfos.</li>
-          <li><strong>Equipe técnica qualificada:</strong> Técnicos certificados NR-10 e NR-35 com equipamentos calibrados.</li>
-          <li><strong>Garantia de segurança:</strong> Produtos específicos para fotovoltaico, preservando a garantia dos fabricantes.</li>
-        </ul>
-      </div>
+    <!-- Condições Gerais e Vigência -->
+    <div class="terms-card">
+      <strong style="color: #111827; font-size: 10.5px; margin-bottom: 3px; display: block;">Condições Gerais e Vigência:</strong>
+      <ul>
+        <li><strong>Escolha flexível:</strong> O cliente escolhe livremente a modalidade após a apresentação dos cenários.</li>
+        <li><strong>Vigência contratual:</strong> 12 meses renováveis, garantindo atendimento contínuo e preventivo.</li>
+        <li><strong>Forma de pagamento:</strong> Mensalidades via boleto bancário ou PIX corporativo Delfos.</li>
+        <li><strong>Equipe técnica qualificada:</strong> Técnicos certificados NR-10 e NR-35 com equipamentos calibrados.</li>
+        <li><strong>Garantia de segurança:</strong> Produtos específicos para fotovoltaico, preservando a garantia dos fabricantes.</li>
+      </ul>
     </div>
 
     <!-- Footer da Proposta -->
