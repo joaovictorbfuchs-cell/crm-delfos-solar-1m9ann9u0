@@ -40,7 +40,9 @@ import { AtividadeItem } from './AtividadeItem'
 import { QuickAddAtividade } from './QuickAddAtividade'
 import { FichaClienteOM } from './FichaClienteOM'
 import { ModalNovaPropostaOM } from './ModalNovaPropostaOM'
+import { ModalOrcamentoSolar } from './ModalOrcamentoSolar'
 import { ImportarDadosDocumento } from './ImportarDadosDocumento'
+import type { OrcamentoSolar } from '@/types/crm'
 import { ShieldCheck, FileCheck, ExternalLink, Download, UploadCloud } from 'lucide-react'
 import {
   abrirPropostaEmNovaAba,
@@ -118,11 +120,16 @@ export const FichaClienteDrawer: React.FC = () => {
     updateProjetoEtapa,
     assignProjetoProfissional,
     propostasOM,
+    orcamentosSolar,
   } = useClientes()
 
   // Modal de Proposta O&M
   const [isModalPropostaOpen, setIsModalPropostaOpen] = useState(false)
   const [propostaVisualizar, setPropostaVisualizar] = useState<PropostaOM | null>(null)
+  const [isModalOrcamentoSolarOpen, setIsModalOrcamentoSolarOpen] = useState(false)
+  const [orcamentoSolarVisualizar, setOrcamentoSolarVisualizar] = useState<OrcamentoSolar | null>(
+    null,
+  )
 
   // Seção expansível de detalhes cadastrais/técnicos dentro do painel esquerdo
   const [detalhesOpen, setDetalhesOpen] = useState(false)
@@ -184,6 +191,18 @@ export const FichaClienteDrawer: React.FC = () => {
       .filter((ev) => ev.projeto_id === selectedClienteProjeto.id)
       .sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime())
   }, [projetoEventos, selectedClienteProjeto])
+
+  // Orçamentos Solares do cliente
+  const clientOrcamentosSolar = useMemo(() => {
+    if (!selectedCliente) return []
+    return orcamentosSolar
+      .filter((o) => o.cliente_id === selectedCliente.id)
+      .sort(
+        (a, b) =>
+          new Date(b.data_orcamento || b.created).getTime() -
+          new Date(a.data_orcamento || a.created).getTime(),
+      )
+  }, [orcamentosSolar, selectedCliente])
 
   // Propostas O&M do cliente
   const clientPropostasOM = useMemo(() => {
@@ -322,13 +341,27 @@ export const FichaClienteDrawer: React.FC = () => {
             <button
               type="button"
               onClick={() => {
+                setOrcamentoSolarVisualizar(null)
+                setIsModalOrcamentoSolarOpen(true)
+              }}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#16A34A] hover:bg-[#15803D] text-white text-xs font-bold rounded-lg shadow-xs transition-all hover:scale-[1.02]"
+              title="Gerar Orçamento Técnico de Energia Solar Fotovoltaica"
+            >
+              <Sun className="w-4 h-4" />
+              <span className="hidden sm:inline">Gerar Orçamento Solar</span>
+              <span className="sm:hidden">Orçamento</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
                 setPropostaVisualizar(null)
                 setIsModalPropostaOpen(true)
               }}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#16A34A] hover:bg-[#15803D] text-white text-xs font-bold rounded-lg shadow-xs transition-all hover:scale-[1.02]"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 text-xs font-bold rounded-lg shadow-xs transition-all hover:scale-[1.02]"
               title="Criar proposta formal de Operação e Manutenção"
             >
-              <FileCheck className="w-4 h-4" />
+              <FileCheck className="w-4 h-4 text-emerald-600" />
               <span className="hidden sm:inline">Gerar Proposta O&M</span>
               <span className="sm:hidden">Proposta O&M</span>
             </button>
@@ -1735,6 +1768,95 @@ export const FichaClienteDrawer: React.FC = () => {
                   )}
 
                   {/* ======================================================== */}
+                  {/* SEÇÃO: ORÇAMENTOS DE ENERGIA SOLAR GERADOS DO CLIENTE    */}
+                  {/* ======================================================== */}
+                  {clientOrcamentosSolar.length > 0 && (
+                    <div className="bg-gradient-to-r from-emerald-50/80 via-white to-amber-50/40 rounded-xl p-3.5 border border-emerald-200/90 shadow-2xs space-y-2.5">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-950 uppercase tracking-wider">
+                          <Sun className="w-4 h-4 text-emerald-600" />
+                          <span>Orçamentos de Energia Solar ({clientOrcamentosSolar.length})</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setOrcamentoSolarVisualizar(null)
+                            setIsModalOrcamentoSolarOpen(true)
+                          }}
+                          className="text-[11px] font-bold text-emerald-700 hover:text-emerald-800 bg-white px-2 py-0.5 rounded border border-emerald-300 hover:bg-emerald-50 transition-colors"
+                        >
+                          + Novo Orçamento
+                        </button>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        {clientOrcamentosSolar.map((o) => (
+                          <div
+                            key={o.id}
+                            className="bg-white p-3 rounded-lg border border-emerald-100 hover:border-emerald-300 shadow-2xs space-y-1.5 transition-all text-xs"
+                          >
+                            <div className="flex items-center justify-between">
+                              <span className="font-extrabold text-gray-900">
+                                {o.potencia_kwp.toFixed(2)} kWp •{' '}
+                                {formatCurrency(o.valor_investimento)}
+                              </span>
+                              <span
+                                className={`text-[10px] font-bold px-1.5 py-0.2 rounded ${
+                                  o.status === 'Aprovado'
+                                    ? 'bg-emerald-100 text-emerald-800'
+                                    : o.status === 'Enviado ao cliente'
+                                      ? 'bg-blue-100 text-blue-800'
+                                      : o.status === 'Rejeitado'
+                                        ? 'bg-red-100 text-red-800'
+                                        : 'bg-amber-100 text-amber-800'
+                                }`}
+                              >
+                                {o.status}
+                              </span>
+                            </div>
+
+                            <div className="flex items-baseline justify-between text-[11px]">
+                              <span className="text-gray-500">
+                                {o.numero_placas} placas ({o.potencia_placa_wp}W)
+                              </span>
+                              <span className="font-semibold text-emerald-700">
+                                {o.geracao_mensal_kwh ? `${o.geracao_mensal_kwh} kWh/mês` : ''}
+                              </span>
+                            </div>
+
+                            <div className="text-[10px] text-gray-400 flex items-center justify-between pt-1 border-t border-gray-100">
+                              <span>{formatDate(o.data_orcamento || o.created)}</span>
+                              <div className="flex items-center gap-1.5">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setOrcamentoSolarVisualizar(o)
+                                    setIsModalOrcamentoSolarOpen(true)
+                                  }}
+                                  className="text-[10px] font-bold text-gray-600 hover:text-emerald-700 hover:bg-gray-50 px-1.5 py-0.5 rounded border border-gray-200"
+                                  title="Editar Orçamento"
+                                >
+                                  Editar
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setOrcamentoSolarVisualizar(o)
+                                    setIsModalOrcamentoSolarOpen(true)
+                                  }}
+                                  className="text-[10px] font-bold text-emerald-800 hover:underline flex items-center gap-0.5"
+                                >
+                                  <span>Ver Proposta PDF</span>
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* ======================================================== */}
                   {/* SEÇÃO: PROPOSTAS O&M GERADAS DO CLIENTE                   */}
                   {/* Lista propostas anteriores com opção de abrir/regenerar   */}
                   {/* ======================================================== */}
@@ -2127,6 +2249,17 @@ export const FichaClienteDrawer: React.FC = () => {
         }}
         initialClienteId={selectedCliente?.id}
         initialProposta={propostaVisualizar}
+      />
+
+      {/* Modal Novo / Editar Orçamento Solar */}
+      <ModalOrcamentoSolar
+        isOpen={isModalOrcamentoSolarOpen}
+        onClose={() => {
+          setIsModalOrcamentoSolarOpen(false)
+          setOrcamentoSolarVisualizar(null)
+        }}
+        initialClienteId={selectedCliente?.id}
+        initialOrcamento={orcamentoSolarVisualizar}
       />
     </div>
   )

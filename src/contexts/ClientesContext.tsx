@@ -58,7 +58,12 @@ import {
   fetchPropostasOM,
   createPropostaOM as apiCreatePropostaOM,
   deletePropostaOM as apiDeletePropostaOM,
+  fetchOrcamentosSolar,
+  createOrcamentoSolar as apiCreateOrcamentoSolar,
+  updateOrcamentoSolar as apiUpdateOrcamentoSolar,
+  deleteOrcamentoSolar as apiDeleteOrcamentoSolar,
 } from '@/services/crmService'
+import type { OrcamentoSolar } from '@/types/crm'
 import type { PropostaOM } from '@/types/crm'
 import { useRealtime } from '@/hooks/use-realtime'
 import { useAuth } from '@/contexts/AuthContext'
@@ -77,6 +82,7 @@ interface ClientesContextType {
   servicosAdicionaisOM: ServicoAdicionalOM[]
   timelineOM: TimelineOM[]
   propostasOM: PropostaOM[]
+  orcamentosSolar: OrcamentoSolar[]
   isLoading: boolean
   error: string | null
   selectedClienteId: string | null
@@ -173,6 +179,10 @@ interface ClientesContextType {
   addTimelineOM: (data: Parameters<typeof apiCreateTimelineOM>[0]) => Promise<TimelineOM>
   addPropostaOM: (data: Parameters<typeof apiCreatePropostaOM>[0]) => Promise<PropostaOM>
   removePropostaOM: (id: string) => Promise<void>
+  // Orçamentos Solares
+  addOrcamentoSolar: (data: Partial<OrcamentoSolar>) => Promise<OrcamentoSolar>
+  updateOrcamentoSolar: (id: string, data: Partial<OrcamentoSolar>) => Promise<OrcamentoSolar>
+  removeOrcamentoSolar: (id: string) => Promise<void>
   refreshData: () => Promise<void>
 }
 
@@ -193,6 +203,7 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [servicosAdicionaisOM, setServicosAdicionaisOM] = useState<ServicoAdicionalOM[]>([])
   const [timelineOM, setTimelineOM] = useState<TimelineOM[]>([])
   const [propostasOM, setPropostasOM] = useState<PropostaOM[]>([])
+  const [orcamentosSolar, setOrcamentosSolar] = useState<OrcamentoSolar[]>([])
   const [isLoading, setIsLoading] = useState<boolean>(true)
   const [error, setError] = useState<string | null>(null)
   const [selectedClienteId, setSelectedClienteId] = useState<string | null>(null)
@@ -223,6 +234,7 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         adicList,
         timeList,
         propList,
+        orcList,
       ] = await Promise.all([
         fetchClientes(),
         fetchSistemas(),
@@ -237,6 +249,7 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         fetchServicosAdicionaisOM(),
         fetchTimelineOM(),
         fetchPropostasOM(),
+        fetchOrcamentosSolar(),
       ])
       setClientes(cList)
       setSistemas(sList)
@@ -251,6 +264,7 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       setServicosAdicionaisOM(adicList)
       setTimelineOM(timeList)
       setPropostasOM(propList)
+      setOrcamentosSolar(orcList)
     } catch (err: unknown) {
       console.error('Error loading CRM data:', err)
       setError(err instanceof Error ? err.message : 'Erro ao carregar dados do CRM')
@@ -380,6 +394,15 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     'propostas_om',
     () => {
       fetchPropostasOM().then(setPropostasOM).catch(console.error)
+    },
+    isAuthenticated,
+  )
+
+  // Realtime updates for orcamentos_solar
+  useRealtime<OrcamentoSolar>(
+    'orcamentos_solar',
+    () => {
+      fetchOrcamentosSolar().then(setOrcamentosSolar).catch(console.error)
     },
     isAuthenticated,
   )
@@ -921,6 +944,26 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     await apiDeletePropostaOM(id)
     setPropostasOM((prev) => prev.filter((p) => p.id !== id))
   }
+
+  const addOrcamentoSolar = async (data: Partial<OrcamentoSolar>): Promise<OrcamentoSolar> => {
+    const created = await apiCreateOrcamentoSolar(data)
+    setOrcamentosSolar((prev) => [created, ...prev.filter((o) => o.id !== created.id)])
+    return created
+  }
+
+  const updateOrcamentoSolar = async (
+    id: string,
+    data: Partial<OrcamentoSolar>,
+  ): Promise<OrcamentoSolar> => {
+    const updated = await apiUpdateOrcamentoSolar(id, data)
+    setOrcamentosSolar((prev) => prev.map((o) => (o.id === id ? updated : o)))
+    return updated
+  }
+
+  const removeOrcamentoSolar = async (id: string): Promise<void> => {
+    await apiDeleteOrcamentoSolar(id)
+    setOrcamentosSolar((prev) => prev.filter((o) => o.id !== id))
+  }
   const selectedCliente = clientes.find((c) => c.id === selectedClienteId) || null
   const selectedSistema = sistemas.find((s) => s.cliente_id === selectedClienteId) || null
   const selectedClienteProjeto = projetos.find((p) => p.cliente_id === selectedClienteId) || null
@@ -986,6 +1029,10 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         propostasOM,
         addPropostaOM,
         removePropostaOM,
+        orcamentosSolar,
+        addOrcamentoSolar,
+        updateOrcamentoSolar,
+        removeOrcamentoSolar,
         refreshData: loadAllData,
       }}
     >

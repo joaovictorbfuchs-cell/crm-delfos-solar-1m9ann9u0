@@ -12,6 +12,7 @@ import Comercial from './pages/Comercial'
 import Projetos from './pages/Projetos'
 import Manutencoes from './pages/Manutencoes'
 import Clientes from './pages/Clientes'
+import Orcamentos from './pages/Orcamentos'
 import Atividades from './pages/Atividades'
 import Login from './pages/Login'
 import NotFound from './pages/NotFound'
@@ -34,6 +35,7 @@ const App = () => (
             >
               <Route path="/" element={<Index />} />
               <Route path="/comercial" element={<Comercial />} />
+              <Route path="/orcamentos" element={<Orcamentos />} />
               <Route path="/projetos" element={<Projetos />} />
               <Route path="/atividades" element={<Atividades />} />
               <Route path="/manutencoes" element={<Manutencoes />} />

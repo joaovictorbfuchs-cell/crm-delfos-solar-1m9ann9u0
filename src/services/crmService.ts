@@ -528,3 +528,52 @@ export async function deletePropostaOM(id: string): Promise<boolean> {
   await pb.collection('propostas_om').delete(id)
   return true
 }
+
+// ============================================================================
+// ORÇAMENTOS DE ENERGIA SOLAR FOTOVOLTAICA
+// ============================================================================
+
+export async function fetchOrcamentosSolar(): Promise<import('@/types/crm').OrcamentoSolar[]> {
+  const records = await pb
+    .collection('orcamentos_solar')
+    .getFullList<import('@/types/crm').OrcamentoSolar>({
+      sort: '-data_orcamento,-created',
+      expand: 'cliente_id',
+    })
+  return records
+}
+
+export async function createOrcamentoSolar(
+  data: Partial<import('@/types/crm').OrcamentoSolar>,
+): Promise<import('@/types/crm').OrcamentoSolar> {
+  const payload = {
+    ...data,
+    status: data.status || 'Em elaboração',
+    data_orcamento: data.data_orcamento || new Date().toISOString(),
+    validade_dias: data.validade_dias || 5,
+    autor: data.autor || 'Delfos Solar',
+  }
+  const record = await pb
+    .collection('orcamentos_solar')
+    .create<import('@/types/crm').OrcamentoSolar>(payload, {
+      expand: 'cliente_id',
+    })
+  return record
+}
+
+export async function updateOrcamentoSolar(
+  id: string,
+  data: Partial<import('@/types/crm').OrcamentoSolar>,
+): Promise<import('@/types/crm').OrcamentoSolar> {
+  const record = await pb
+    .collection('orcamentos_solar')
+    .update<import('@/types/crm').OrcamentoSolar>(id, data, {
+      expand: 'cliente_id',
+    })
+  return record
+}
+
+export async function deleteOrcamentoSolar(id: string): Promise<boolean> {
+  await pb.collection('orcamentos_solar').delete(id)
+  return true
+}

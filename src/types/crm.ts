@@ -409,3 +409,80 @@ export interface PropostaOM extends RecordModel {
     cliente_id?: Cliente
   }
 }
+
+// -------------------------------------------------------------
+// Tipos para Orçamentos de Energia Solar Fotovoltaica
+// -------------------------------------------------------------
+
+export type OrcamentoSolarStatus = 'Em elaboração' | 'Enviado ao cliente' | 'Aprovado' | 'Rejeitado'
+export type OrcamentoTipoCliente = 'residencial' | 'comercial' | 'industrial' | 'rural'
+export type OrcamentoTipoEstrutura = 'ceramico' | 'metalico' | 'laje' | 'fibrocimento' | 'solo'
+export type OrcamentoOrientacaoTelhado = 'leste' | 'oeste' | 'norte' | 'sul'
+
+export interface OrcamentoSolar extends RecordModel {
+  id: string
+  collectionId: string
+  collectionName: string
+  cliente_id: string
+  status: OrcamentoSolarStatus
+  tipo_cliente: OrcamentoTipoCliente
+  consumo_kwh_mes: number
+  tarifa_kwh: number
+  potencia_kwp: number
+  numero_placas: number
+  potencia_placa_wp: number
+  marca_painel: string
+  marca_inversor: string
+  quantidade_inversores: number
+  tipo_estrutura: OrcamentoTipoEstrutura
+  orientacao_telhado: OrcamentoOrientacaoTelhado
+  area_necessaria_m2: number
+  codigo_finame?: string
+  valor_investimento: number
+  // Custos
+  custo_mao_de_obra?: number
+  custo_materiais_extras?: number
+  custo_frete_guincho?: number
+  custo_subestacao?: number
+  custo_terceirizacao?: number
+  custo_administracao?: number
+  custo_marketing_combustivel?: number
+  custo_risco_engenharia?: number
+  custo_comissao_comercial?: number
+  custo_indicacao?: number
+  custo_impostos?: number
+  valor_total_custos?: number
+  custo_por_kwp?: number
+  // Cálculos solares
+  geracao_anual_kwh?: number
+  geracao_mensal_kwh?: number
+  geracao_detalhada_json?: unknown
+  economia_1_mes?: number
+  economia_1_ano?: number
+  economia_5_anos?: number
+  economia_10_anos?: number
+  economia_25_anos?: number
+  gasto_sem_solar_1_ano?: number
+  gasto_sem_solar_5_anos?: number
+  gasto_sem_solar_10_anos?: number
+  gasto_sem_solar_25_anos?: number
+  conta_primeiro_mes_com_solar?: number
+  conta_4_anos_reajuste?: number
+  conta_10_anos_reajuste?: number
+  payback_meses?: number
+  // Parcelas
+  parcela_a_vista?: number
+  parcela_cartao_18x?: number
+  parcela_financiamento_banco1?: number
+  parcela_financiamento_banco2?: number
+  // Metadados
+  data_orcamento: string
+  validade_dias?: number
+  autor?: string
+  observacoes?: string
+  created: string
+  updated: string
+  expand?: {
+    cliente_id?: Cliente
+  }
+}

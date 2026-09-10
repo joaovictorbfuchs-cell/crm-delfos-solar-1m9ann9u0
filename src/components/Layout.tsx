@@ -14,6 +14,7 @@ import {
   ChevronLeft,
   PanelLeftClose,
   PanelLeftOpen,
+  Sun,
 } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { FichaClienteDrawer } from '@/components/FichaClienteDrawer'
@@ -59,14 +60,16 @@ export default function Layout() {
         return 'Dashboard'
       case '/comercial':
         return 'Funil Comercial'
+      case '/orcamentos':
+        return 'Orçamentos de Energia Solar'
       case '/projetos':
-        return 'Projetos e Obras'
+        return 'Projetos & Pós-Venda'
       case '/atividades':
-        return 'Atividades e Tarefas'
+        return 'Atividades & Calendário'
       case '/manutencoes':
-        return 'Gestão de O&M e Manutenções'
+        return 'Contratos & Manutenções (O&M)'
       case '/clientes':
-        return 'Base de Clientes'
+        return 'Gestão de Clientes'
       default:
         return 'Delfos Solar CRM'
     }
@@ -75,12 +78,12 @@ export default function Layout() {
   const navItems = [
     { name: 'Dashboard', path: '/', icon: LayoutDashboard },
     { name: 'Comercial', path: '/comercial', icon: KanbanSquare },
+    { name: 'Orçamentos', path: '/orcamentos', icon: Sun },
     { name: 'Projetos', path: '/projetos', icon: FolderKanban },
     { name: 'Atividades', path: '/atividades', icon: CalendarCheck },
     { name: 'O&M / Manutenções', path: '/manutencoes', icon: Wrench },
     { name: 'Clientes', path: '/clientes', icon: Users },
   ]
-
   const userInitial = user?.name ? user.name.charAt(0).toUpperCase() : 'J'
 
   return (

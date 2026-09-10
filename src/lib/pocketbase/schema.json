@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-10T15:20:17.383Z",
+  "generatedAt": "2026-09-10T19:12:51.455Z",
   "collections": [
     {
       "name": "users",
@@ -1469,6 +1469,361 @@
         "CREATE INDEX idx_propostas_om_cliente ON propostas_om (cliente_id)",
         "CREATE INDEX idx_propostas_om_plano ON propostas_om (plano_escolhido)",
         "CREATE INDEX idx_propostas_om_data ON propostas_om (data_proposta)"
+      ]
+    },
+    {
+      "name": "orcamentos_solar",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "cliente_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "clientes"
+        },
+        {
+          "name": "status",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["Em elaboração", "Enviado ao cliente", "Aprovado", "Rejeitado"]
+        },
+        {
+          "name": "tipo_cliente",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["residencial", "comercial", "industrial", "rural"]
+        },
+        {
+          "name": "consumo_kwh_mes",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "tarifa_kwh",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "potencia_kwp",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "numero_placas",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "potencia_placa_wp",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "marca_painel",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "marca_inversor",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "quantidade_inversores",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "tipo_estrutura",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["ceramico", "metalico", "laje", "fibrocimento", "solo"]
+        },
+        {
+          "name": "orientacao_telhado",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["leste", "oeste", "norte", "sul"]
+        },
+        {
+          "name": "area_necessaria_m2",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "codigo_finame",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "valor_investimento",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "custo_mao_de_obra",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "custo_materiais_extras",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "custo_frete_guincho",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "custo_subestacao",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "custo_terceirizacao",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "custo_administracao",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "custo_marketing_combustivel",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "custo_risco_engenharia",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "custo_comissao_comercial",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "custo_indicacao",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "custo_impostos",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "valor_total_custos",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "custo_por_kwp",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "geracao_anual_kwh",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "geracao_mensal_kwh",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "geracao_detalhada_json",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "economia_1_mes",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "economia_1_ano",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "economia_5_anos",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "economia_10_anos",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "economia_25_anos",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "gasto_sem_solar_1_ano",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "gasto_sem_solar_5_anos",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "gasto_sem_solar_10_anos",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "gasto_sem_solar_25_anos",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "conta_primeiro_mes_com_solar",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "conta_4_anos_reajuste",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "conta_10_anos_reajuste",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "payback_meses",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "parcela_a_vista",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "parcela_cartao_18x",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "parcela_financiamento_banco1",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "parcela_financiamento_banco2",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "data_orcamento",
+          "type": "date",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "validade_dias",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "autor",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "observacoes",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_orcamentos_solar_cliente ON orcamentos_solar (cliente_id)",
+        "CREATE INDEX idx_orcamentos_solar_status ON orcamentos_solar (status)",
+        "CREATE INDEX idx_orcamentos_solar_data ON orcamentos_solar (data_orcamento)"
       ]
     }
   ]
