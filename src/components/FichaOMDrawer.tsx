@@ -392,24 +392,6 @@ export const FichaOMDrawer: React.FC = () => {
 
           <button
             type="button"
-            onClick={() => setActiveTab('anomalias')}
-            className={`px-3 py-3 text-xs font-bold border-b-2 flex items-center gap-1.5 transition-colors whitespace-nowrap ${
-              activeTab === 'anomalias'
-                ? 'border-[#16A34A] text-[#166534] bg-white rounded-t-lg shadow-xs'
-                : 'border-transparent text-gray-500 hover:text-gray-800'
-            }`}
-          >
-            <AlertTriangle className="w-4 h-4 text-amber-600" />
-            <span>3. Protocolo de Anomalias</span>
-            {clienteAnomalias.length > 0 && (
-              <span className="ml-1 px-1.5 py-0.2 rounded-full text-[10px] bg-amber-100 text-amber-800 font-bold">
-                {clienteAnomalias.length}
-              </span>
-            )}
-          </button>
-
-          <button
-            type="button"
             onClick={() => setActiveTab('adicionais')}
             className={`px-3 py-3 text-xs font-bold border-b-2 flex items-center gap-1.5 transition-colors whitespace-nowrap ${
               activeTab === 'adicionais'
