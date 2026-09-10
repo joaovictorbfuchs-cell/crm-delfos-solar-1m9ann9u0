@@ -79,12 +79,12 @@ interface ClientesContextType {
   selectedSistema: Sistema | null
   selectedClienteProjeto: Projeto | null
   selectedContratoOM: ContratoOM | null
-  activeClientTab: 'historico' | 'projeto'
+  activeClientTab: 'historico' | 'projeto' | 'om'
   selectedOMClienteId: string | null
   openFichaOM: (clienteId: string) => void
   closeFichaOM: () => void
-  setActiveClientTab: (tab: 'historico' | 'projeto') => void
-  openFichaCliente: (id: string, initialTab?: 'historico' | 'projeto') => void
+  setActiveClientTab: (tab: 'historico' | 'projeto' | 'om') => void
+  openFichaCliente: (id: string, initialTab?: 'historico' | 'projeto' | 'om') => void
   closeFichaCliente: () => void
   addCliente: (data: Partial<Cliente> & { nome: string }) => Promise<Cliente>
   addManutencao: (data: {
@@ -188,7 +188,9 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [error, setError] = useState<string | null>(null)
   const [selectedClienteId, setSelectedClienteId] = useState<string | null>(null)
   const [selectedOMClienteId, setSelectedOMClienteId] = useState<string | null>(null)
-  const [activeClientTab, setActiveClientTab] = useState<'historico' | 'projeto'>('historico')
+  const [activeClientTab, setActiveClientTab] = useState<'historico' | 'projeto' | 'om'>(
+    'historico',
+  )
 
   const loadAllData = useCallback(async () => {
     if (!isAuthenticated) {
@@ -371,7 +373,10 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     return created
   }
 
-  const openFichaCliente = (id: string, initialTab: 'historico' | 'projeto' = 'historico') => {
+  const openFichaCliente = (
+    id: string,
+    initialTab: 'historico' | 'projeto' | 'om' = 'historico',
+  ) => {
     setSelectedClienteId(id)
     setActiveClientTab(initialTab)
   }
@@ -725,6 +730,9 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   // Funções O&M
   const openFichaOM = (clienteId: string) => {
+    // Abrir diretamente a FichaClienteDrawer na aba 'om'
+    setSelectedClienteId(clienteId)
+    setActiveClientTab('om')
     setSelectedOMClienteId(clienteId)
   }
 

@@ -38,6 +38,8 @@ import { StatusBadge, ProductBadge } from './StatusBadge'
 import { InlineEditField } from './InlineEditField'
 import { AtividadeItem } from './AtividadeItem'
 import { QuickAddAtividade } from './QuickAddAtividade'
+import { FichaClienteOM } from './FichaClienteOM'
+import { ShieldCheck } from 'lucide-react'
 import type {
   Cliente,
   Sistema,
@@ -327,6 +329,19 @@ export const FichaClienteDrawer: React.FC = () => {
                     </span>
                   )}
                 </button>
+
+                <button
+                  type="button"
+                  onClick={() => setActiveClientTab('om')}
+                  className={`px-4 py-2 text-xs font-bold border-b-2 rounded-t-md flex items-center gap-2 transition-colors ${
+                    activeClientTab === 'om'
+                      ? 'border-[#16A34A] text-[#166534] bg-emerald-50/60'
+                      : 'border-transparent text-gray-500 hover:text-gray-800 hover:bg-gray-50'
+                  }`}
+                >
+                  <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                  <span>O&M (Manutenção)</span>
+                </button>
               </div>
 
               {/* Botão de alternar visualização dos Dados Completos / Técnicos */}
@@ -355,6 +370,16 @@ export const FichaClienteDrawer: React.FC = () => {
 
             {/* Conteúdo do Painel Principal */}
             <div className="p-4 space-y-4 flex-1">
+              {/* ======================================================== */}
+              {/* ABA O&M: Plano, Serviços Avulsos e Anomalias             */}
+              {/* ======================================================== */}
+              {activeClientTab === 'om' && (
+                <FichaClienteOM
+                  clienteId={selectedCliente.id}
+                  onNavigateToTab={(tab) => setActiveClientTab(tab)}
+                />
+              )}
+
               {/* ======================================================== */}
               {/* ABA PROJETO: Funil Operacional, Responsável e Histórico  */}
               {/* ======================================================== */}
