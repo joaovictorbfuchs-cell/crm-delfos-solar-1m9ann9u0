@@ -211,15 +211,7 @@ export const ListaOM: React.FC<ListaOMProps> = ({ onOpenFichaOM, onOpenNovoContr
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
               Com plano O&M ativo
             </span>
-            {temAnomaliaAberta && (
-              <span
-                title="Cliente com anomalia aberta registrada"
-                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-purple-100 text-purple-800 border border-purple-200"
-              >
-                <AlertTriangle className="w-3 h-3 text-purple-600" />
-                Anomalia aberta
-              </span>
-            )}
+            {temAnomaliaAberta && null}
           </div>
         )
       case 'sem_plano':
