@@ -11,9 +11,9 @@ export interface PropostaCalculos {
     Prevenção: { mensal: number; anual: number }
     Completo: { mensal: number; anual: number }
   }
-  planoEscolhido: OMPlanoTipo
-  valorMensalEscolhido: number
-  valorAnualEscolhido: number
+  planoEscolhido?: OMPlanoTipo
+  valorMensalEscolhido?: number
+  valorAnualEscolhido?: number
 }
 
 export const PLANOS_OM_VALORES: Record<OMPlanoTipo, { mensal: number; anual: number }> = {
@@ -25,11 +25,10 @@ export const PLANOS_OM_VALORES: Record<OMPlanoTipo, { mensal: number; anual: num
 export function calcularPropostaOM(params: {
   geracaoMensalKwh: number
   valorKwh: number
-  planoEscolhido: OMPlanoTipo
+  planoEscolhido?: OMPlanoTipo
 }): PropostaCalculos {
   const geracao = Math.max(0, Number(params.geracaoMensalKwh) || 0)
   const tarifa = Math.max(0, Number(params.valorKwh) || 0)
-  const plano = params.planoEscolhido || 'Completo'
 
   // Cálculos obrigatórios
   const valorAtivoProtegido = geracao * tarifa
@@ -44,8 +43,9 @@ export function calcularPropostaOM(params: {
     Completo: { ...PLANOS_OM_VALORES.Completo },
   }
 
-  const valorMensalEscolhido = planos[plano].mensal
-  const valorAnualEscolhido = planos[plano].anual
+  const plano = params.planoEscolhido
+  const valorMensalEscolhido = plano ? planos[plano]?.mensal : undefined
+  const valorAnualEscolhido = plano ? planos[plano]?.anual : undefined
 
   return {
     valorAtivoProtegido,
@@ -717,16 +717,13 @@ export function gerarHTMLPropostaOM(dados: PropostaPDFInput): string {
           <th>Escopo do Serviço de O&M</th>
           <th style="width: 18%;">
             Essencial
-            ${calculos.planoEscolhido === 'Essencial' ? '<br /><span class="badge-tag tag-chosen">Selecionado</span>' : ''}
           </th>
           <th style="width: 18%;">
             Prevenção
-            ${calculos.planoEscolhido === 'Prevenção' ? '<br /><span class="badge-tag tag-chosen">Selecionado</span>' : ''}
           </th>
           <th class="col-rec" style="width: 18%;">
             Completo
             <br /><span class="badge-tag tag-rec">Recomendado</span>
-            ${calculos.planoEscolhido === 'Completo' ? '<span class="badge-tag tag-chosen">Selecionado</span>' : ''}
           </th>
         </tr>
       </thead>
@@ -796,20 +793,24 @@ export function gerarHTMLPropostaOM(dados: PropostaPDFInput): string {
       </tbody>
     </table>
 
-    <!-- Resumo do Plano Selecionado & Condições -->
+    <!-- Resumo dos Planos O&M & Condições -->
     <div class="pricing-summary">
       <div class="chosen-card">
-        <div class="chosen-card-tag">Plano Escolhido para esta Proposta</div>
-        <div class="chosen-plano-name">PLANO ${calculos.planoEscolhido.toUpperCase()}</div>
-        <div style="font-size: 10px; color: #065F46; font-weight: 600;">Investimento mensal com faturamento anual</div>
-        <div class="chosen-price-mensal">${formatBRL(calculos.valorMensalEscolhido)}<span style="font-size: 14px; font-weight: 600;">/mês</span></div>
-        <div class="chosen-price-sub">Valor Total Anual: <strong>${formatBRL(calculos.valorAnualEscolhido)}</strong></div>
+        <div class="chosen-card-tag">Opções para Escolha do Cliente</div>
+        <div class="chosen-plano-name">3 OPÇÕES DE PLANOS O&M</div>
+        <div style="font-size: 10px; color: #065F46; font-weight: 600; margin-top: 4px;">Escolha o plano ideal para sua usina:</div>
+        <div style="font-size: 11.5px; font-weight: 700; color: #166534; margin-top: 6px; line-height: 1.5; text-align: left; padding: 0 10px;">
+          <div>• <strong>Essencial:</strong> ${formatBRL(49.9)}/mês (${formatBRL(49.9 * 12)}/ano)</div>
+          <div>• <strong>Prevenção:</strong> ${formatBRL(74.9)}/mês (${formatBRL(74.9 * 12)}/ano)</div>
+          <div>• <strong>Completo (Recomendado):</strong> ${formatBRL(99.9)}/mês (${formatBRL(99.9 * 12)}/ano)</div>
+        </div>
       </div>
 
       <div class="terms-card">
         <strong style="color: #111827; font-size: 10.5px; margin-bottom: 3px;">Condições Gerais e Vigência:</strong>
         <ul>
-          <li><strong>Vigência contratual:</strong> 12 meses renováveis, garantindo atendimento contínuo.</li>
+          <li><strong>Escolha flexível:</strong> O cliente escolhe livremente a modalidade após a apresentação dos cenários.</li>
+          <li><strong>Vigência contratual:</strong> 12 meses renováveis, garantindo atendimento contínuo e preventivo.</li>
           <li><strong>Forma de pagamento:</strong> Mensalidades via boleto bancário ou PIX corporativo Delfos.</li>
           <li><strong>Equipe técnica qualificada:</strong> Técnicos certificados NR-10 e NR-35 com equipamentos calibrados.</li>
           <li><strong>Garantia de segurança:</strong> Produtos específicos para fotovoltaico, preservando a garantia dos fabricantes.</li>

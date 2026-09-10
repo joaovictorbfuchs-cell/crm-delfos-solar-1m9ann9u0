@@ -489,7 +489,7 @@ export async function fetchPropostasOM(
 
 export async function createPropostaOM(data: {
   cliente_id: string
-  plano_escolhido: import('@/types/crm').OMPlanoTipo
+  plano_escolhido?: import('@/types/crm').OMPlanoTipo | ''
   potencia_kwp: number
   geracao_mensal_kwh: number
   marca_inversores?: string
@@ -503,9 +503,9 @@ export async function createPropostaOM(data: {
   perda_20_ano: number
   prejuizo_20_dias: number
   prejuizo_30_dias: number
-  valor_mensal_plano: number
-  valor_anual_plano: number
-  data_proposta: string
+  valor_mensal_plano?: number
+  valor_anual_plano?: number
+  data_proposta?: string
   autor?: string
   status?: string
   observacoes?: string

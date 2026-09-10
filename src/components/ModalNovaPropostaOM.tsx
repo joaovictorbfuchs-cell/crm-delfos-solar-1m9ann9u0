@@ -1,27 +1,9 @@
 import React, { useState, useMemo, useEffect } from 'react'
-import {
-  X,
-  FileCheck,
-  FileText,
-  Calculator,
-  Zap,
-  ShieldCheck,
-  TrendingDown,
-  AlertTriangle,
-  Download,
-  ExternalLink,
-  CheckCircle2,
-  DollarSign,
-  Sun,
-  Layers,
-  MapPin,
-  Sparkles,
-  Info,
-} from 'lucide-react'
+import { X, FileCheck, Download, ExternalLink, Sparkles, Info } from 'lucide-react'
 import { useClientes } from '@/contexts/ClientesContext'
 import { useAuth } from '@/contexts/AuthContext'
 import { formatCurrency, getTelhadoLabel } from '@/lib/formatters'
-import type { Cliente, Sistema, OMPlanoTipo, PropostaOM } from '@/types/crm'
+import type { PropostaOM } from '@/types/crm'
 import {
   calcularPropostaOM,
   abrirPropostaEmNovaAba,
@@ -53,7 +35,6 @@ export const ModalNovaPropostaOM: React.FC<ModalNovaPropostaOMProps> = ({
   const [valorKwh, setValorKwh] = useState<number>(0.92)
   const [distanciaKm, setDistanciaKm] = useState<number>(15)
   const [valorKm, setValorKm] = useState<number>(2.5)
-  const [planoEscolhido, setPlanoEscolhido] = useState<OMPlanoTipo>('Completo')
   const [observacoes, setObservacoes] = useState<string>('')
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false)
 
@@ -73,7 +54,6 @@ export const ModalNovaPropostaOM: React.FC<ModalNovaPropostaOMProps> = ({
       setValorKwh(initialProposta.valor_kwh || 0.92)
       setDistanciaKm(initialProposta.distancia_km ?? 15)
       setValorKm(initialProposta.valor_km ?? 2.5)
-      setPlanoEscolhido(initialProposta.plano_escolhido || 'Completo')
       setObservacoes(initialProposta.observacoes || '')
     }
   }, [initialProposta])
@@ -130,9 +110,8 @@ export const ModalNovaPropostaOM: React.FC<ModalNovaPropostaOMProps> = ({
     return calcularPropostaOM({
       geracaoMensalKwh,
       valorKwh,
-      planoEscolhido,
     })
-  }, [geracaoMensalKwh, valorKwh, planoEscolhido])
+  }, [geracaoMensalKwh, valorKwh])
 
   // Montar objeto de proposta para PDF
   const propostaPDFData = useMemo<PropostaPDFInput | null>(() => {
@@ -192,10 +171,9 @@ export const ModalNovaPropostaOM: React.FC<ModalNovaPropostaOMProps> = ({
     setIsSubmitting(true)
 
     try {
-      // 1. Gravar registro em propostas_om
+      // 1. Gravar registro em propostas_om (sem exigir plano escolhido, o cliente escolhe após apresentação)
       const nova = await addPropostaOM({
         cliente_id: clienteAtual.id,
-        plano_escolhido: planoEscolhido,
         potencia_kwp: potenciaKwp,
         geracao_mensal_kwh: geracaoMensalKwh,
         marca_inversores: marcaInversores,
@@ -209,23 +187,19 @@ export const ModalNovaPropostaOM: React.FC<ModalNovaPropostaOMProps> = ({
         perda_20_ano: calculos.perda20Ano,
         prejuizo_20_dias: calculos.prejuizo20Dias,
         prejuizo_30_dias: calculos.prejuizo30Dias,
-        valor_mensal_plano: calculos.valorMensalEscolhido,
-        valor_anual_plano: calculos.valorAnualEscolhido,
         data_proposta: new Date().toISOString(),
         autor: user?.name || 'Equipe Comercial Delfos Solar',
         status: 'Proposta Enviada',
         observacoes,
       })
 
-      // 2. Gravar atividade na timeline unificada do cliente com tipo "proposta"
+      // 2. Gravar atividade na timeline unificada do cliente com tipo "proposta" (sem citar plano específico)
       try {
         await addAtividade({
           cliente_id: clienteAtual.id,
           tipo: 'proposta',
-          titulo: `Proposta O&M Gerada: Plano ${planoEscolhido}`,
-          descricao: `Proposta técnica e comercial de Gestão e Manutenção gerada para usina de ${potenciaKwp} kWp.\nPlano escolhido: ${planoEscolhido} (${formatCurrency(
-            calculos.valorMensalEscolhido,
-          )}/mês — ${formatCurrency(calculos.valorAnualEscolhido)}/ano).\nAtivo protegido: ${formatCurrency(
+          titulo: 'Proposta O&M Gerada',
+          descricao: `Proposta técnica e comercial de Gestão e Manutenção gerada para usina de ${potenciaKwp} kWp com comparativo dos 3 planos (Essencial, Prevenção e Completo).\nAtivo protegido: ${formatCurrency(
             calculos.valorAtivoProtegido,
           )}/mês. Perda evitada por prevenção: até ${formatCurrency(calculos.perda20Ano)}/ano.`,
           data: new Date().toISOString(),
@@ -236,13 +210,13 @@ export const ModalNovaPropostaOM: React.FC<ModalNovaPropostaOMProps> = ({
         console.error('Erro ao adicionar atividade de proposta:', errAtv)
       }
 
-      // 3. Gravar na timeline O&M
+      // 3. Gravar na timeline O&M (sem citar plano específico)
       try {
         await addTimelineOM({
           cliente_id: clienteAtual.id,
           tipo: 'interacao',
-          titulo: `Proposta O&M: Plano ${planoEscolhido} Emitida`,
-          descricao: `Documento PDF oficial emitido para o cliente com os cenários de perda e comparativo dos 3 planos. Status: Proposta Enviada.`,
+          titulo: 'Proposta O&M Emitida',
+          descricao: `Documento PDF oficial emitido para o cliente com os cenários de perda e comparativo dos 3 planos (Essencial, Prevenção e Completo). Status: Proposta Enviada.`,
           data: new Date().toISOString(),
           autor: user?.name || 'Equipe Comercial Delfos Solar',
           status_tag: 'Proposta Enviada',
@@ -578,36 +552,23 @@ export const ModalNovaPropostaOM: React.FC<ModalNovaPropostaOMProps> = ({
             </div>
           </div>
 
-          {/* 5. ESCOLHA DO PLANO PARA A PROPOSTA */}
+          {/* 5. PLANOS INCLUSOS NA PROPOSTA & OBSERVAÇÕES */}
           <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-xs space-y-3">
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold uppercase tracking-wider text-gray-700 flex items-center gap-1.5">
                 <span className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-800 flex items-center justify-center text-[11px] font-extrabold">
                   5
                 </span>
-                Escolha do Plano da Proposta
+                Opções Apresentadas na Proposta
               </span>
               <span className="text-[11px] text-emerald-700 font-bold bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
-                Recomendado: Completo (Proteção Máxima)
+                Os 3 planos são incluídos no PDF para decisão do cliente
               </span>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               {/* Plano Essencial */}
-              <button
-                type="button"
-                onClick={() => setPlanoEscolhido('Essencial')}
-                className={`p-3.5 rounded-xl border-2 text-left transition-all relative ${
-                  planoEscolhido === 'Essencial'
-                    ? 'border-[#16A34A] bg-emerald-50/50 shadow-sm'
-                    : 'border-gray-200 hover:border-gray-300 bg-white'
-                }`}
-              >
-                {planoEscolhido === 'Essencial' && (
-                  <span className="absolute top-2 right-2 text-emerald-600">
-                    <CheckCircle2 className="w-4 h-4 fill-emerald-600 text-white" />
-                  </span>
-                )}
+              <div className="p-3.5 rounded-xl border border-gray-200 bg-white">
                 <div className="text-xs font-bold text-gray-800">Plano Essencial</div>
                 <div className="text-lg font-black text-emerald-700 mt-1">R$ 49,90/mês</div>
                 <div className="text-[10px] text-gray-500">Faturamento Anual: R$ 598,80/ano</div>
@@ -616,23 +577,10 @@ export const ModalNovaPropostaOM: React.FC<ModalNovaPropostaOMProps> = ({
                   <li>• Relatório mensal analítico</li>
                   <li>• Suporte técnico e RGE</li>
                 </ul>
-              </button>
+              </div>
 
               {/* Plano Prevenção */}
-              <button
-                type="button"
-                onClick={() => setPlanoEscolhido('Prevenção')}
-                className={`p-3.5 rounded-xl border-2 text-left transition-all relative ${
-                  planoEscolhido === 'Prevenção'
-                    ? 'border-[#16A34A] bg-emerald-50/50 shadow-sm'
-                    : 'border-gray-200 hover:border-gray-300 bg-white'
-                }`}
-              >
-                {planoEscolhido === 'Prevenção' && (
-                  <span className="absolute top-2 right-2 text-emerald-600">
-                    <CheckCircle2 className="w-4 h-4 fill-emerald-600 text-white" />
-                  </span>
-                )}
+              <div className="p-3.5 rounded-xl border border-gray-200 bg-white">
                 <div className="text-xs font-bold text-gray-800">Plano Prevenção</div>
                 <div className="text-lg font-black text-emerald-700 mt-1">R$ 74,90/mês</div>
                 <div className="text-[10px] text-gray-500">Faturamento Anual: R$ 898,80/ano</div>
@@ -642,26 +590,13 @@ export const ModalNovaPropostaOM: React.FC<ModalNovaPropostaOMProps> = ({
                   <li>• 1x Limpeza de placas anual</li>
                   <li>• Reaperto geral de conexões</li>
                 </ul>
-              </button>
+              </div>
 
               {/* Plano Completo (Recomendado) */}
-              <button
-                type="button"
-                onClick={() => setPlanoEscolhido('Completo')}
-                className={`p-3.5 rounded-xl border-2 text-left transition-all relative ${
-                  planoEscolhido === 'Completo'
-                    ? 'border-[#16A34A] bg-emerald-50/60 shadow-sm ring-1 ring-emerald-400'
-                    : 'border-gray-200 hover:border-gray-300 bg-white'
-                }`}
-              >
+              <div className="p-3.5 rounded-xl border-2 border-emerald-500 bg-emerald-50/40 relative">
                 <span className="absolute -top-2 left-3 bg-emerald-600 text-white text-[9px] font-extrabold px-2 py-0.2 rounded-full uppercase tracking-wider">
-                  Recomendado
+                  Recomendado Delfos
                 </span>
-                {planoEscolhido === 'Completo' && (
-                  <span className="absolute top-2 right-2 text-emerald-600">
-                    <CheckCircle2 className="w-4 h-4 fill-emerald-600 text-white" />
-                  </span>
-                )}
                 <div className="text-xs font-bold text-gray-800 pt-0.5">Plano Completo</div>
                 <div className="text-lg font-black text-emerald-700 mt-1">R$ 99,90/mês</div>
                 <div className="text-[10px] text-gray-500">Faturamento Anual: R$ 1.198,80/ano</div>
@@ -671,25 +606,16 @@ export const ModalNovaPropostaOM: React.FC<ModalNovaPropostaOMProps> = ({
                   <li>• Verificação semestral de anomalias</li>
                   <li>• Suporte técnico ilimitado VIP</li>
                 </ul>
-              </button>
+              </div>
             </div>
 
-            {/* Destaque do plano selecionado */}
-            <div className="p-3 bg-emerald-50 rounded-lg border border-emerald-200 flex items-center justify-between text-xs">
-              <div className="flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-emerald-600 shrink-0" />
-                <span className="text-emerald-950">
-                  Plano Selecionado para a Proposta: <strong>{planoEscolhido}</strong>
-                </span>
-              </div>
-              <div className="text-right">
-                <span className="font-extrabold text-emerald-700">
-                  {formatCurrency(calculos.valorMensalEscolhido)} / mês
-                </span>
-                <span className="text-[11px] text-emerald-800 ml-1">
-                  ({formatCurrency(calculos.valorAnualEscolhido)} / ano)
-                </span>
-              </div>
+            {/* Aviso informativo de escolha posterior pelo cliente */}
+            <div className="p-3 bg-emerald-50/80 rounded-lg border border-emerald-200 flex items-center gap-2 text-xs text-emerald-950">
+              <Sparkles className="w-4 h-4 text-emerald-600 shrink-0" />
+              <span>
+                A proposta é emitida com o comparativo completo das 3 opções. O cliente escolhe
+                livremente após a apresentação.
+              </span>
             </div>
 
             {/* Observações da proposta */}

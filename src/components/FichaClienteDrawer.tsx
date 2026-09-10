@@ -1608,8 +1608,6 @@ export const FichaClienteDrawer: React.FC = () => {
 
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                         {clientPropostasOM.map((p) => {
-                          const valorMensal = p.valor_mensal_plano || 99.9
-                          const valorAnual = p.valor_anual_plano || valorMensal * 12
                           return (
                             <div
                               key={p.id}
@@ -1617,7 +1615,7 @@ export const FichaClienteDrawer: React.FC = () => {
                             >
                               <div className="flex items-center justify-between">
                                 <span className="font-extrabold text-emerald-800">
-                                  Plano {p.plano_escolhido}
+                                  Proposta O&M {p.potencia_kwp ? `(${p.potencia_kwp} kWp)` : ''}
                                 </span>
                                 <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-1.5 py-0.2 rounded">
                                   {p.status || 'Proposta Enviada'}
@@ -1626,10 +1624,11 @@ export const FichaClienteDrawer: React.FC = () => {
 
                               <div className="flex items-baseline justify-between text-[11px]">
                                 <span className="text-gray-500">
-                                  {formatCurrency(valorMensal)}/mês
+                                  Ativo Protegido: {formatCurrency(p.valor_ativo_protegido || 0)}
+                                  /mês
                                 </span>
-                                <span className="font-semibold text-gray-800">
-                                  Total: {formatCurrency(valorAnual)}/ano
+                                <span className="font-semibold text-emerald-700">
+                                  3 Planos Comparados
                                 </span>
                               </div>
 
@@ -1653,7 +1652,6 @@ export const FichaClienteDrawer: React.FC = () => {
                                       const calc = calcularPropostaOM({
                                         geracaoMensalKwh: p.geracao_mensal_kwh,
                                         valorKwh: p.valor_kwh,
-                                        planoEscolhido: p.plano_escolhido,
                                       })
                                       abrirPropostaEmNovaAba({
                                         cliente: {

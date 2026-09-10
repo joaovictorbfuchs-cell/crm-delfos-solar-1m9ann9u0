@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-10T13:57:19.935Z",
+  "generatedAt": "2026-09-10T14:19:08.409Z",
   "collections": [
     {
       "name": "users",
@@ -1296,7 +1296,7 @@
         {
           "name": "plano_escolhido",
           "type": "select",
-          "required": true,
+          "required": false,
           "system": false,
           "selectValues": ["Essencial", "Prevenção", "Completo"]
         },
@@ -1381,13 +1381,13 @@
         {
           "name": "valor_mensal_plano",
           "type": "number",
-          "required": true,
+          "required": false,
           "system": false
         },
         {
           "name": "valor_anual_plano",
           "type": "number",
-          "required": true,
+          "required": false,
           "system": false
         },
         {

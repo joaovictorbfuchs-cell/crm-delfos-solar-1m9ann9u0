@@ -487,7 +487,7 @@ export const FichaClienteOM: React.FC<FichaClienteOMProps> = ({ clienteId, onNav
                   >
                     <div className="flex items-center justify-between">
                       <span className="font-extrabold text-emerald-800">
-                        Plano {prop.plano_escolhido}
+                        Proposta O&M {prop.potencia_kwp ? `(${prop.potencia_kwp} kWp)` : ''}
                       </span>
                       <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.2 rounded-full">
                         {prop.status || 'Proposta Enviada'}
@@ -495,13 +495,8 @@ export const FichaClienteOM: React.FC<FichaClienteOMProps> = ({ clienteId, onNav
                     </div>
 
                     <div className="flex items-baseline justify-between text-[11px] text-gray-700">
-                      <span>{formatCurrency(prop.valor_mensal_plano || 99.9)}/mês</span>
-                      <span className="font-semibold text-emerald-700">
-                        {formatCurrency(
-                          prop.valor_anual_plano || (prop.valor_mensal_plano || 99.9) * 12,
-                        )}
-                        /ano
-                      </span>
+                      <span>Ativo: {formatCurrency(prop.valor_ativo_protegido || 0)}/mês</span>
+                      <span className="font-semibold text-emerald-700">3 Opções Inclusas</span>
                     </div>
 
                     <div className="text-[10px] text-gray-400 flex items-center justify-between pt-1 border-t border-gray-100">
@@ -524,7 +519,6 @@ export const FichaClienteOM: React.FC<FichaClienteOMProps> = ({ clienteId, onNav
                             const calc = calcularPropostaOM({
                               geracaoMensalKwh: prop.geracao_mensal_kwh,
                               valorKwh: prop.valor_kwh,
-                              planoEscolhido: prop.plano_escolhido,
                             })
                             abrirPropostaEmNovaAba({
                               cliente: {

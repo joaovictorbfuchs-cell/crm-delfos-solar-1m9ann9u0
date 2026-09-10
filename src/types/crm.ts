@@ -375,7 +375,7 @@ export interface PropostaOM extends RecordModel {
   collectionId: string
   collectionName: string
   cliente_id: string
-  plano_escolhido: OMPlanoTipo
+  plano_escolhido?: OMPlanoTipo | ''
   potencia_kwp: number
   geracao_mensal_kwh: number
   marca_inversores?: string
@@ -389,8 +389,8 @@ export interface PropostaOM extends RecordModel {
   perda_20_ano: number
   prejuizo_20_dias: number
   prejuizo_30_dias: number
-  valor_mensal_plano: number
-  valor_anual_plano: number
+  valor_mensal_plano?: number
+  valor_anual_plano?: number
   data_proposta: string
   autor?: string
   status?: string
