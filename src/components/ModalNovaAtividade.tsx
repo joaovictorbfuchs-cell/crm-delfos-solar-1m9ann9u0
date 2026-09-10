@@ -10,6 +10,7 @@ import {
 } from 'lucide-react'
 import { useClientes } from '@/contexts/ClientesContext'
 import { useAuth } from '@/contexts/AuthContext'
+import { ClienteAutocomplete } from '@/components/ClienteAutocomplete'
 import {
   ATIVIDADES_12_TIPOS,
   getTipoAtividadeConfig,
@@ -56,8 +57,8 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
       setTitulo(conf.tituloPadrao)
       if (initialClienteId) {
         setClienteId(initialClienteId)
-      } else if (!clienteId && clientes.length > 0) {
-        setClienteId(clientes[0].id)
+      } else {
+        setClienteId('')
       }
 
       // Definir responsável padrão: usuário logado se encontrado na lista, ou primeiro usuário
@@ -223,25 +224,26 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-            {/* Cliente */}
+            {/* Cliente com Autocomplete em tempo real */}
             <div className="space-y-1">
-              <label className="text-xs font-semibold text-gray-700 flex items-center gap-1">
-                <Building className="w-3.5 h-3.5 text-gray-400" />
-                Cliente Vinculado <span className="text-red-500">*</span>
+              <label className="text-xs font-semibold text-gray-700 flex items-center justify-between">
+                <span className="flex items-center gap-1">
+                  <Building className="w-3.5 h-3.5 text-gray-400" />
+                  Cliente Vinculado <span className="text-red-500">*</span>
+                </span>
+                <span className="text-[10px] text-gray-400 font-normal">Busque por nome</span>
               </label>
-              <select
+              <ClienteAutocomplete
+                clientes={clientes}
                 value={clienteId}
-                onChange={(e) => setClienteId(e.target.value)}
+                onChange={(id) => {
+                  setClienteId(id)
+                  if (formError) setFormError(null)
+                }}
+                placeholder="Digite o nome do cliente..."
                 required
-                className="w-full text-xs px-3 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white text-gray-900"
-              >
-                <option value="">Selecione um cliente...</option>
-                {clientes.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.nome} {c.cidade ? `(${c.cidade})` : ''}
-                  </option>
-                ))}
-              </select>
+                error={Boolean(formError && !clienteId)}
+              />
             </div>
 
             {/* Usuário Responsável */}
