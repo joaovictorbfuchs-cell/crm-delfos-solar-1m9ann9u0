@@ -383,20 +383,6 @@ export const KanbanProjetos: React.FC<KanbanProjetosProps> = ({
                         </div>
 
                         {/* Potência kWp & Cidade */}
-                        <div className="flex items-center justify-between gap-1 text-[11px] text-gray-600 mt-2">
-                          <div className="flex items-center gap-1 font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
-                            <Zap className="w-3 h-3 text-amber-500 shrink-0" />
-                            <span>{potencia} kWp</span>
-                          </div>
-
-                          <div
-                            className="flex items-center gap-1 text-[10px] text-gray-500 truncate max-w-[55%]"
-                            title={cidade}
-                          >
-                            <MapPin className="w-3 h-3 text-gray-400 shrink-0" />
-                            <span className="truncate">{cidade}</span>
-                          </div>
-                        </div>
 
                         {/* Profissional Responsável pela etapa */}
                         <div className="mt-2.5 pt-2 border-t border-gray-100 flex items-center justify-between gap-1">
