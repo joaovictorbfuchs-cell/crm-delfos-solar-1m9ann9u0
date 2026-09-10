@@ -413,30 +413,6 @@ export const FichaClienteOM: React.FC<FichaClienteOMProps> = ({ clienteId, onNav
               </span>
             )}
           </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveSubTab('anomalias')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
-              activeSubTab === 'anomalias'
-                ? 'bg-amber-600 text-white shadow-2xs'
-                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-            }`}
-          >
-            <AlertTriangle className="w-3.5 h-3.5" />
-            <span>Anomalias</span>
-            {clienteAnomalias.length > 0 && (
-              <span
-                className={`text-[10px] px-1.5 py-0.2 rounded font-bold ${
-                  activeSubTab === 'anomalias'
-                    ? 'bg-white/20 text-white'
-                    : 'bg-amber-100 text-amber-800'
-                }`}
-              >
-                {clienteAnomalias.length}
-              </span>
-            )}
-          </button>
         </div>
 
         {onNavigateToTab && (
@@ -603,96 +579,13 @@ export const FichaClienteOM: React.FC<FichaClienteOMProps> = ({ clienteId, onNav
 
               {/* Tabela de Serviços Inclusos no Plano com Check / Calendário */}
               <div className="bg-white rounded-2xl border border-gray-200 shadow-xs overflow-hidden">
-                <div className="p-3.5 bg-gray-50/70 border-b border-gray-200 flex items-center justify-between flex-wrap gap-2">
-                  <div>
-                    <h4 className="text-xs font-bold uppercase tracking-wider text-gray-800 flex items-center gap-1.5">
-                      <ShieldCheck className="w-4 h-4 text-emerald-600" />
-                      Serviços Inclusos no Plano ({contrato.plano})
-                    </h4>
-                    <p className="text-[11px] text-gray-500">
-                      Controle os atendimentos: clique para marcar como realizado (check) ou
-                      agendado.
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-3 text-xs font-medium">
-                    <span className="flex items-center gap-1 text-emerald-700 font-bold">
-                      <CheckCircle2 className="w-3.5 h-3.5" /> Realizado
-                    </span>
-                    <span className="flex items-center gap-1 text-blue-700 font-bold">
-                      <Calendar className="w-3.5 h-3.5" /> Agendado
-                    </span>
-                  </div>
-                </div>
-
                 <div className="divide-y divide-gray-100">
                   {SERVICOS_CATALOGO_OM.map((srv, idx) => {
                     const isRealizado = (contrato.servicos_realizados || []).includes(srv.nome)
                     const isAgendado = (contrato.servicos_agendados || []).includes(srv.nome)
 
-                    return (
-                      <div
-                        key={srv.id}
-                        className="p-3 flex items-center justify-between gap-3 hover:bg-gray-50/60 transition-colors text-xs"
-                      >
-                        <div className="flex items-start gap-2.5">
-                          <div
-                            className={`w-6 h-6 rounded-md flex items-center justify-center font-bold text-[11px] shrink-0 mt-0.5 ${
-                              isRealizado
-                                ? 'bg-emerald-100 text-emerald-700'
-                                : isAgendado
-                                  ? 'bg-blue-100 text-blue-700'
-                                  : 'bg-gray-100 text-gray-500'
-                            }`}
-                          >
-                            {idx + 1}
-                          </div>
-                          <div>
-                            <div className="font-semibold text-gray-900 flex items-center gap-1.5">
-                              <span>{srv.nome}</span>
-                              {isRealizado && (
-                                <span className="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 inline-flex items-center gap-0.5">
-                                  <Check className="w-3 h-3 text-emerald-600" /> Realizado
-                                </span>
-                              )}
-                              {isAgendado && (
-                                <span className="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-blue-100 text-blue-800 inline-flex items-center gap-0.5">
-                                  <Calendar className="w-3 h-3 text-blue-600" /> Agendado
-                                </span>
-                              )}
-                            </div>
-                            <span className="text-[11px] text-gray-400">Freq: {srv.freq}</span>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-1.5 shrink-0">
-                          <button
-                            type="button"
-                            onClick={() => handleToggleServico(srv.nome, 'realizado')}
-                            className={`px-2.5 py-1 rounded-md text-[11px] font-semibold border transition-all inline-flex items-center gap-1 ${
-                              isRealizado
-                                ? 'bg-emerald-600 text-white border-emerald-600 shadow-2xs'
-                                : 'bg-white text-gray-600 border-gray-200 hover:border-emerald-300 hover:bg-emerald-50/50'
-                            }`}
-                          >
-                            <CheckCircle2 className="w-3 h-3" />
-                            <span>{isRealizado ? 'Concluído' : 'Check'}</span>
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={() => handleToggleServico(srv.nome, 'agendado')}
-                            className={`px-2.5 py-1 rounded-md text-[11px] font-semibold border transition-all inline-flex items-center gap-1 ${
-                              isAgendado
-                                ? 'bg-blue-600 text-white border-blue-600 shadow-2xs'
-                                : 'bg-white text-gray-600 border-gray-200 hover:border-blue-300 hover:bg-blue-50/50'
-                            }`}
-                          >
-                            <Calendar className="w-3 h-3" />
-                            <span>{isAgendado ? 'Agendado' : 'Agendar'}</span>
-                          </button>
-                        </div>
-                      </div>
-                    )
+                    return
+                    null
                   })}
                 </div>
               </div>
