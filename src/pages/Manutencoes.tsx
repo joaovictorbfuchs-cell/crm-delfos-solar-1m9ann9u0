@@ -180,28 +180,6 @@ export default function Manutencoes() {
           </div>
 
           {/* Card Anomalias Abertas */}
-          <div className="bg-white rounded-xl p-4 border border-purple-200 shadow-xs flex items-center justify-between">
-            <div>
-              <span className="text-[11px] font-bold text-purple-700 uppercase tracking-wider">
-                Anomalias Abertas
-              </span>
-              <div className="text-2xl font-extrabold text-purple-600 mt-0.5">
-                {anomaliasAbertas}
-              </div>
-              <div className="text-[11px] text-purple-600/90 font-medium mt-0.5">
-                {contagens.totalAnomaliasAbertasOcorrencias > 0
-                  ? `${contagens.totalAnomaliasAbertasOcorrencias} ${
-                      contagens.totalAnomaliasAbertasOcorrencias === 1
-                        ? 'anomalia aberta'
-                        : 'anomalias abertas'
-                    } no total`
-                  : 'Nenhuma em aberto'}
-              </div>
-            </div>
-            <div className="w-10 h-10 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center shrink-0">
-              <AlertTriangle className="w-5 h-5" />
-            </div>
-          </div>
         </div>
       )}
 

@@ -335,19 +335,6 @@ export const ListaOM: React.FC<ListaOMProps> = ({ onOpenFichaOM, onOpenNovoContr
           Serviços avulsos ({contagens.com_servico_avulso})
         </button>
 
-        <button
-          type="button"
-          onClick={() => setFiltroSituacao('anomalia_aberta')}
-          className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all whitespace-nowrap flex items-center gap-1.5 ${
-            filtroSituacao === 'anomalia_aberta'
-              ? 'bg-purple-600 text-white border-purple-600 shadow-xs'
-              : 'bg-white text-purple-800 border-purple-200 hover:bg-purple-50'
-          }`}
-        >
-          <AlertTriangle className="w-3.5 h-3.5 text-purple-500" />
-          Anomalias abertas ({contagens.anomalia_aberta})
-        </button>
-
         {contagens.plano_vencido > 0 && (
           <button
             type="button"
