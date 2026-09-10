@@ -168,7 +168,7 @@ export const Atividades: React.FC = () => {
             }`}
           >
             <CalendarDays className="w-4 h-4 text-emerald-600" />
-            <span>Calendário Mensal</span>
+            <span>Calendário de Atividades</span>
           </button>
 
           <button
@@ -206,7 +206,7 @@ export const Atividades: React.FC = () => {
 
         <div className="text-xs text-gray-500 font-medium">
           {activeView === 'calendario' && (
-            <span>Clique nos dias ou nos chips para ver detalhes e marcar como concluída</span>
+            <span>Alterne entre visão semanal (7 dias) e mensal no topo do calendário</span>
           )}
           {activeView === 'pendentes' && (
             <span>Marque as tarefas pelo círculo à esquerda para dar baixa</span>
