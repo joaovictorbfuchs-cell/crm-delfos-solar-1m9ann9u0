@@ -38,7 +38,7 @@ export const Orcamentos: React.FC = () => {
     clientes,
     updateOrcamentoSolar,
     removeOrcamentoSolar,
-    setSelectedClienteId,
+    openFichaCliente,
   } = useClientes()
 
   const [busca, setBusca] = useState('')

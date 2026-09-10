@@ -1840,14 +1840,74 @@ export const FichaClienteDrawer: React.FC = () => {
                                 </button>
                                 <button
                                   type="button"
-                                  onClick={() => {
-                                    setOrcamentoSolarVisualizar(o)
-                                    setIsModalOrcamentoSolarOpen(true)
+                                  onClick={async () => {
+                                    const { abrirOrcamentoEmNovaAba } =
+                                      await import('@/lib/orcamentoGenerator')
+                                    const { calcularOrcamentoSolar } =
+                                      await import('@/lib/energiaSolar')
+                                    const calc = calcularOrcamentoSolar({
+                                      consumoKwhMes: o.consumo_kwh_mes,
+                                      tipoCliente: o.tipo_cliente || 'residencial',
+                                      tarifaKwh: o.tarifa_kwh,
+                                      potenciaKwp: o.potencia_kwp,
+                                      orientacaoTelhado: o.orientacao_telhado,
+                                      valorInvestimentoInformado: o.valor_investimento,
+                                      custos: {
+                                        maoDeObra: o.custo_mao_de_obra || 0,
+                                        materiaisExtras: o.custo_materiais_extras || 0,
+                                        freteGuincho: o.custo_frete_guincho || 0,
+                                        subestacao: o.custo_subestacao || 0,
+                                        terceirizacao: o.custo_terceirizacao || 0,
+                                        administracao: o.custo_administracao || 0,
+                                        marketingCombustivel: o.custo_marketing_combustivel || 0,
+                                        riscoEngenharia: o.custo_risco_engenharia || 0,
+                                        comissaoComercial: o.custo_comissao_comercial || 0,
+                                        indicacao: o.custo_indicacao || 0,
+                                        impostos: o.custo_impostos || 0,
+                                      },
+                                    })
+                                    abrirOrcamentoEmNovaAba({
+                                      cliente: {
+                                        nome: selectedCliente.nome,
+                                        cpfOuCnpj:
+                                          selectedCliente.cnpj || selectedCliente.cpf || '',
+                                        endereco: [
+                                          selectedCliente.endereco,
+                                          selectedCliente.numero,
+                                          selectedCliente.bairro,
+                                        ]
+                                          .filter(Boolean)
+                                          .join(', '),
+                                        municipio: selectedCliente.cidade || 'Erechim / RS',
+                                        email: selectedCliente.email || '',
+                                        telefone: selectedCliente.telefone || '',
+                                        tipoCliente: o.tipo_cliente,
+                                      },
+                                      representanteComercial: o.autor || 'Delfos Solar',
+                                      sistema: {
+                                        potenciaKwp: o.potencia_kwp,
+                                        consumoKwhMes: o.consumo_kwh_mes,
+                                        numeroPlacas: o.numero_placas,
+                                        potenciaPlacaWp: o.potencia_placa_wp,
+                                        marcaPlacas: o.marca_painel,
+                                        marcaInversor: o.marca_inversor,
+                                        quantidadeInversores: o.quantidade_inversores,
+                                        tipoEstrutura: o.tipo_estrutura,
+                                        orientacaoTelhado: o.orientacao_telhado,
+                                        areaNecessariaM2: o.area_necessaria_m2,
+                                        codigoFiname: o.codigo_finame,
+                                        prazoEntregaDias: 30,
+                                      },
+                                      calculos: calc,
+                                      dataEmissao: o.data_orcamento || o.created,
+                                      validadeDias: o.validade_dias || 5,
+                                      observacoes: o.observacoes,
+                                    })
                                   }}
                                   className="text-[10px] font-bold text-emerald-800 hover:underline flex items-center gap-0.5"
                                 >
                                   <span>Ver Proposta PDF</span>
-                                </button>
+                                </button>{' '}
                               </div>
                             </div>
                           </div>
