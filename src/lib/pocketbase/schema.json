@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-10T00:23:58.714Z",
+  "generatedAt": "2026-09-10T00:44:56.876Z",
   "collections": [
     {
       "name": "users",
@@ -840,6 +840,439 @@
       "indexes": [
         "CREATE INDEX idx_projeto_eventos_projeto ON projeto_eventos (projeto_id)",
         "CREATE INDEX idx_projeto_eventos_data ON projeto_eventos (data)"
+      ]
+    },
+    {
+      "name": "contratos_om",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "cliente_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "clientes"
+        },
+        {
+          "name": "plano",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["Essencial", "Prevenção", "Completo"]
+        },
+        {
+          "name": "status",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["Ativo", "Vencendo em 30 dias", "Vencido", "Cancelado"]
+        },
+        {
+          "name": "valor_mensal",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "valor_anual",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "data_inicio",
+          "type": "date",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "data_vencimento",
+          "type": "date",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "proxima_atividade_data",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "proxima_atividade_titulo",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "servicos_realizados",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "servicos_agendados",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "observacoes",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_contratos_om_cliente ON contratos_om (cliente_id)",
+        "CREATE INDEX idx_contratos_om_status ON contratos_om (status)",
+        "CREATE INDEX idx_contratos_om_plano ON contratos_om (plano)"
+      ]
+    },
+    {
+      "name": "anomalias_om",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "contrato_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "contratos_om"
+        },
+        {
+          "name": "cliente_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "clientes"
+        },
+        {
+          "name": "codigo",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "titulo",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "descricao",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "etapa",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": [
+            "Detecção",
+            "Solicitação de Informações",
+            "Triagem Remota",
+            "Diagnóstico In Loco",
+            "Execução",
+            "Faturamento"
+          ]
+        },
+        {
+          "name": "status",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["Aberto", "Em análise", "Em execução", "Resolvido", "Cancelado"]
+        },
+        {
+          "name": "severidade",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["Baixa", "Média", "Alta", "Crítica"]
+        },
+        {
+          "name": "data_abertura",
+          "type": "date",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "data_resolucao",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "tecnico_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "profissionais"
+        },
+        {
+          "name": "tecnico_nome",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "solucao_adotada",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "valor_faturamento",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_anomalias_om_cliente ON anomalias_om (cliente_id)",
+        "CREATE INDEX idx_anomalias_om_etapa ON anomalias_om (etapa)",
+        "CREATE INDEX idx_anomalias_om_status ON anomalias_om (status)"
+      ]
+    },
+    {
+      "name": "servicos_adicionais_om",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "contrato_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "contratos_om"
+        },
+        {
+          "name": "cliente_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "clientes"
+        },
+        {
+          "name": "data",
+          "type": "date",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "tipo",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": [
+            "diagnostico_tecnico",
+            "manutencao_corretiva",
+            "inspecao_termografica",
+            "limpeza_avulsa",
+            "testes_inversor",
+            "substituicao_inversor",
+            "relatorio_seguradora",
+            "configuracao_datalogger",
+            "gestao_rateio",
+            "auditoria_faturamento",
+            "manutencao_ativos"
+          ]
+        },
+        {
+          "name": "descricao",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "valor",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "status",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["pendente", "em execução", "faturado", "cancelado"]
+        },
+        {
+          "name": "tecnico_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "profissionais"
+        },
+        {
+          "name": "tecnico_nome",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_servicos_adic_cliente ON servicos_adicionais_om (cliente_id)",
+        "CREATE INDEX idx_servicos_adic_status ON servicos_adicionais_om (status)"
+      ]
+    },
+    {
+      "name": "timeline_om",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "cliente_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "clientes"
+        },
+        {
+          "name": "contrato_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "contratos_om"
+        },
+        {
+          "name": "tipo",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": [
+            "anomalia",
+            "servico_plano",
+            "servico_adicional",
+            "relatorio",
+            "interacao",
+            "inspecao"
+          ]
+        },
+        {
+          "name": "titulo",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "descricao",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "data",
+          "type": "date",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "autor",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "status_tag",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "referencia_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_timeline_om_cliente ON timeline_om (cliente_id)",
+        "CREATE INDEX idx_timeline_om_data ON timeline_om (data)"
       ]
     }
   ]

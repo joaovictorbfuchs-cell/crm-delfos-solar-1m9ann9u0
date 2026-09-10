@@ -64,7 +64,7 @@ export default function Layout() {
       case '/atividades':
         return 'Atividades e Tarefas'
       case '/manutencoes':
-        return 'Manutenções e O.S.'
+        return 'Gestão de O&M e Manutenções'
       case '/clientes':
         return 'Base de Clientes'
       default:
@@ -77,7 +77,7 @@ export default function Layout() {
     { name: 'Comercial', path: '/comercial', icon: KanbanSquare },
     { name: 'Projetos', path: '/projetos', icon: FolderKanban },
     { name: 'Atividades', path: '/atividades', icon: CalendarCheck },
-    { name: 'Manutenções', path: '/manutencoes', icon: Wrench },
+    { name: 'O&M / Manutenções', path: '/manutencoes', icon: Wrench },
     { name: 'Clientes', path: '/clientes', icon: Users },
   ]
 

@@ -234,3 +234,133 @@ export interface ProjetoEvento extends RecordModel {
   created: string
   updated: string
 }
+
+// -------------------------------------------------------------
+// Tipos para Gestão de O&M (Operação e Manutenção)
+// -------------------------------------------------------------
+
+export type OMPlanoTipo = 'Essencial' | 'Prevenção' | 'Completo'
+
+export type OMStatusPlano = 'Ativo' | 'Vencendo em 30 dias' | 'Vencido' | 'Cancelado'
+
+export type OMAnomaliaEtapa =
+  | 'Detecção'
+  | 'Solicitação de Informações'
+  | 'Triagem Remota'
+  | 'Diagnóstico In Loco'
+  | 'Execução'
+  | 'Faturamento'
+
+export type OMAnomaliaStatus = 'Aberto' | 'Em análise' | 'Em execução' | 'Resolvido' | 'Cancelado'
+
+export type OMAnomaliaSeveridade = 'Baixa' | 'Média' | 'Alta' | 'Crítica'
+
+export type OMServicoAdicionalTipo =
+  | 'diagnostico_tecnico'
+  | 'manutencao_corretiva'
+  | 'inspecao_termografica'
+  | 'limpeza_avulsa'
+  | 'testes_inversor'
+  | 'substituicao_inversor'
+  | 'relatorio_seguradora'
+  | 'configuracao_datalogger'
+  | 'gestao_rateio'
+  | 'auditoria_faturamento'
+  | 'manutencao_ativos'
+
+export type OMServicoAdicionalStatus = 'pendente' | 'em execução' | 'faturado' | 'cancelado'
+
+export type OMTimelineTipo =
+  | 'anomalia'
+  | 'servico_plano'
+  | 'servico_adicional'
+  | 'relatorio'
+  | 'interacao'
+  | 'inspecao'
+
+export interface ContratoOM extends RecordModel {
+  id: string
+  collectionId: string
+  collectionName: string
+  cliente_id: string
+  plano: OMPlanoTipo
+  status: OMStatusPlano
+  valor_mensal: number
+  valor_anual: number
+  data_inicio: string
+  data_vencimento: string
+  proxima_atividade_data?: string
+  proxima_atividade_titulo?: string
+  servicos_realizados?: string[]
+  servicos_agendados?: string[]
+  observacoes?: string
+  created: string
+  updated: string
+  expand?: {
+    cliente_id?: Cliente
+  }
+}
+
+export interface AnomaliaOM extends RecordModel {
+  id: string
+  collectionId: string
+  collectionName: string
+  contrato_id?: string
+  cliente_id: string
+  codigo?: string
+  titulo: string
+  descricao?: string
+  etapa: OMAnomaliaEtapa
+  status: OMAnomaliaStatus
+  severidade?: OMAnomaliaSeveridade
+  data_abertura: string
+  data_resolucao?: string
+  tecnico_id?: string
+  tecnico_nome?: string
+  solucao_adotada?: string
+  valor_faturamento?: number
+  created: string
+  updated: string
+  expand?: {
+    cliente_id?: Cliente
+    tecnico_id?: Profissional
+  }
+}
+
+export interface ServicoAdicionalOM extends RecordModel {
+  id: string
+  collectionId: string
+  collectionName: string
+  contrato_id?: string
+  cliente_id: string
+  data: string
+  tipo: OMServicoAdicionalTipo
+  descricao: string
+  valor: number
+  status: OMServicoAdicionalStatus
+  tecnico_id?: string
+  tecnico_nome?: string
+  created: string
+  updated: string
+  expand?: {
+    cliente_id?: Cliente
+    tecnico_id?: Profissional
+  }
+}
+
+export interface TimelineOM extends RecordModel {
+  id: string
+  collectionId: string
+  collectionName: string
+  cliente_id: string
+  contrato_id?: string
+  tipo: OMTimelineTipo
+  titulo: string
+  descricao?: string
+  data: string
+  autor?: string
+  status_tag?: string
+  referencia_id?: string
+  created: string
+  updated: string
+}

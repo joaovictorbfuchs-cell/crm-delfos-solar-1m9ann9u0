@@ -13,6 +13,10 @@ import type {
   Projeto,
   ProjetoEvento,
   ProjetoEtapa,
+  ContratoOM,
+  AnomaliaOM,
+  ServicoAdicionalOM,
+  TimelineOM,
 } from '@/types/crm'
 
 export async function fetchClientes(): Promise<Cliente[]> {
@@ -263,5 +267,199 @@ export async function createProjetoEvento(data: {
     autor: data.autor || 'João Silva',
   }
   const record = await pb.collection('projeto_eventos').create<ProjetoEvento>(payload)
+  return record
+}
+
+// -------------------------------------------------------------
+// O&M (Operação e Manutenção) Services
+// -------------------------------------------------------------
+
+export async function fetchContratosOM(): Promise<ContratoOM[]> {
+  try {
+    const records = await pb.collection('contratos_om').getFullList<ContratoOM>({
+      sort: '-created',
+      expand: 'cliente_id',
+    })
+    return records
+  } catch (err) {
+    console.error('Erro ao buscar contratos O&M:', err)
+    return []
+  }
+}
+
+export async function fetchContratoOMByClienteId(clienteId: string): Promise<ContratoOM | null> {
+  try {
+    const record = await pb
+      .collection('contratos_om')
+      .getFirstListItem<ContratoOM>(`cliente_id='${clienteId}'`, {
+        expand: 'cliente_id',
+      })
+    return record
+  } catch (_) {
+    return null
+  }
+}
+
+export async function createContratoOM(data: {
+  cliente_id: string
+  plano: ContratoOM['plano']
+  status: ContratoOM['status']
+  valor_mensal: number
+  valor_anual: number
+  data_inicio: string
+  data_vencimento: string
+  proxima_atividade_data?: string
+  proxima_atividade_titulo?: string
+  servicos_realizados?: string[]
+  servicos_agendados?: string[]
+  observacoes?: string
+}): Promise<ContratoOM> {
+  const record = await pb.collection('contratos_om').create<ContratoOM>(data, {
+    expand: 'cliente_id',
+  })
+  return record
+}
+
+export async function updateContratoOM(id: string, data: Partial<ContratoOM>): Promise<ContratoOM> {
+  const record = await pb.collection('contratos_om').update<ContratoOM>(id, data, {
+    expand: 'cliente_id',
+  })
+  return record
+}
+
+export async function deleteContratoOM(id: string): Promise<boolean> {
+  await pb.collection('contratos_om').delete(id)
+  return true
+}
+
+export async function fetchAnomaliasOM(clienteId?: string): Promise<AnomaliaOM[]> {
+  try {
+    const filter = clienteId ? `cliente_id='${clienteId}'` : ''
+    const records = await pb.collection('anomalias_om').getFullList<AnomaliaOM>({
+      filter,
+      sort: '-data_abertura',
+      expand: 'cliente_id,tecnico_id',
+    })
+    return records
+  } catch (err) {
+    console.error('Erro ao buscar anomalias O&M:', err)
+    return []
+  }
+}
+
+export async function createAnomaliaOM(data: {
+  cliente_id: string
+  contrato_id?: string
+  codigo?: string
+  titulo: string
+  descricao?: string
+  etapa: AnomaliaOM['etapa']
+  status: AnomaliaOM['status']
+  severidade?: AnomaliaOM['severidade']
+  data_abertura: string
+  data_resolucao?: string
+  tecnico_id?: string
+  tecnico_nome?: string
+  solucao_adotada?: string
+  valor_faturamento?: number
+}): Promise<AnomaliaOM> {
+  const record = await pb.collection('anomalias_om').create<AnomaliaOM>(data, {
+    expand: 'cliente_id,tecnico_id',
+  })
+  return record
+}
+
+export async function updateAnomaliaOM(id: string, data: Partial<AnomaliaOM>): Promise<AnomaliaOM> {
+  const record = await pb.collection('anomalias_om').update<AnomaliaOM>(id, data, {
+    expand: 'cliente_id,tecnico_id',
+  })
+  return record
+}
+
+export async function deleteAnomaliaOM(id: string): Promise<boolean> {
+  await pb.collection('anomalias_om').delete(id)
+  return true
+}
+
+export async function fetchServicosAdicionaisOM(clienteId?: string): Promise<ServicoAdicionalOM[]> {
+  try {
+    const filter = clienteId ? `cliente_id='${clienteId}'` : ''
+    const records = await pb.collection('servicos_adicionais_om').getFullList<ServicoAdicionalOM>({
+      filter,
+      sort: '-data',
+      expand: 'cliente_id,tecnico_id',
+    })
+    return records
+  } catch (err) {
+    console.error('Erro ao buscar serviços adicionais O&M:', err)
+    return []
+  }
+}
+
+export async function createServicoAdicionalOM(data: {
+  cliente_id: string
+  contrato_id?: string
+  data: string
+  tipo: ServicoAdicionalOM['tipo']
+  descricao: string
+  valor: number
+  status: ServicoAdicionalOM['status']
+  tecnico_id?: string
+  tecnico_nome?: string
+}): Promise<ServicoAdicionalOM> {
+  const record = await pb.collection('servicos_adicionais_om').create<ServicoAdicionalOM>(data, {
+    expand: 'cliente_id,tecnico_id',
+  })
+  return record
+}
+
+export async function updateServicoAdicionalOM(
+  id: string,
+  data: Partial<ServicoAdicionalOM>,
+): Promise<ServicoAdicionalOM> {
+  const record = await pb
+    .collection('servicos_adicionais_om')
+    .update<ServicoAdicionalOM>(id, data, {
+      expand: 'cliente_id,tecnico_id',
+    })
+  return record
+}
+
+export async function deleteServicoAdicionalOM(id: string): Promise<boolean> {
+  await pb.collection('servicos_adicionais_om').delete(id)
+  return true
+}
+
+export async function fetchTimelineOM(clienteId?: string): Promise<TimelineOM[]> {
+  try {
+    const filter = clienteId ? `cliente_id='${clienteId}'` : ''
+    const records = await pb.collection('timeline_om').getFullList<TimelineOM>({
+      filter,
+      sort: '-data',
+    })
+    return records
+  } catch (err) {
+    console.error('Erro ao buscar timeline O&M:', err)
+    return []
+  }
+}
+
+export async function createTimelineOM(data: {
+  cliente_id: string
+  contrato_id?: string
+  tipo: TimelineOM['tipo']
+  titulo: string
+  descricao?: string
+  data: string
+  autor?: string
+  status_tag?: string
+  referencia_id?: string
+}): Promise<TimelineOM> {
+  const payload = {
+    ...data,
+    data: data.data || new Date().toISOString(),
+    autor: data.autor || 'João Silva',
+  }
+  const record = await pb.collection('timeline_om').create<TimelineOM>(payload)
   return record
 }

@@ -12,6 +12,10 @@ import type {
   Projeto,
   ProjetoEvento,
   ProjetoEtapa,
+  ContratoOM,
+  AnomaliaOM,
+  ServicoAdicionalOM,
+  TimelineOM,
 } from '@/types/crm'
 import {
   fetchClientes,
@@ -22,6 +26,10 @@ import {
   fetchProfissionais,
   fetchProjetos,
   fetchProjetoEventos,
+  fetchContratosOM,
+  fetchAnomaliasOM,
+  fetchServicosAdicionaisOM,
+  fetchTimelineOM,
   createAtividade as apiCreateAtividade,
   updateAtividade as apiUpdateAtividade,
   deleteAtividade as apiDeleteAtividade,
@@ -37,6 +45,16 @@ import {
   updateProjeto as apiUpdateProjeto,
   deleteProjeto as apiDeleteProjeto,
   createProjetoEvento as apiCreateProjetoEvento,
+  createContratoOM as apiCreateContratoOM,
+  updateContratoOM as apiUpdateContratoOM,
+  deleteContratoOM as apiDeleteContratoOM,
+  createAnomaliaOM as apiCreateAnomaliaOM,
+  updateAnomaliaOM as apiUpdateAnomaliaOM,
+  deleteAnomaliaOM as apiDeleteAnomaliaOM,
+  createServicoAdicionalOM as apiCreateServicoAdicionalOM,
+  updateServicoAdicionalOM as apiUpdateServicoAdicionalOM,
+  deleteServicoAdicionalOM as apiDeleteServicoAdicionalOM,
+  createTimelineOM as apiCreateTimelineOM,
 } from '@/services/crmService'
 import { useRealtime } from '@/hooks/use-realtime'
 import { useAuth } from '@/contexts/AuthContext'
@@ -50,13 +68,21 @@ interface ClientesContextType {
   profissionais: Profissional[]
   projetos: Projeto[]
   projetoEventos: ProjetoEvento[]
+  contratosOM: ContratoOM[]
+  anomaliasOM: AnomaliaOM[]
+  servicosAdicionaisOM: ServicoAdicionalOM[]
+  timelineOM: TimelineOM[]
   isLoading: boolean
   error: string | null
   selectedClienteId: string | null
   selectedCliente: Cliente | null
   selectedSistema: Sistema | null
   selectedClienteProjeto: Projeto | null
+  selectedContratoOM: ContratoOM | null
   activeClientTab: 'historico' | 'projeto'
+  selectedOMClienteId: string | null
+  openFichaOM: (clienteId: string) => void
+  closeFichaOM: () => void
   setActiveClientTab: (tab: 'historico' | 'projeto') => void
   openFichaCliente: (id: string, initialTab?: 'historico' | 'projeto') => void
   closeFichaCliente: () => void
@@ -123,6 +149,22 @@ interface ClientesContextType {
     profissionalNome: string | null,
   ) => Promise<Projeto>
   removeProjeto: (id: string) => Promise<void>
+  // O&M Methods
+  addContratoOM: (data: Parameters<typeof apiCreateContratoOM>[0]) => Promise<ContratoOM>
+  updateContratoOM: (id: string, data: Partial<ContratoOM>) => Promise<ContratoOM>
+  removeContratoOM: (id: string) => Promise<void>
+  addAnomaliaOM: (data: Parameters<typeof apiCreateAnomaliaOM>[0]) => Promise<AnomaliaOM>
+  updateAnomaliaOM: (id: string, data: Partial<AnomaliaOM>) => Promise<AnomaliaOM>
+  removeAnomaliaOM: (id: string) => Promise<void>
+  addServicoAdicionalOM: (
+    data: Parameters<typeof apiCreateServicoAdicionalOM>[0],
+  ) => Promise<ServicoAdicionalOM>
+  updateServicoAdicionalOM: (
+    id: string,
+    data: Partial<ServicoAdicionalOM>,
+  ) => Promise<ServicoAdicionalOM>
+  removeServicoAdicionalOM: (id: string) => Promise<void>
+  addTimelineOM: (data: Parameters<typeof apiCreateTimelineOM>[0]) => Promise<TimelineOM>
   refreshData: () => Promise<void>
 }
 
@@ -138,9 +180,14 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [profissionais, setProfissionais] = useState<Profissional[]>([])
   const [projetos, setProjetos] = useState<Projeto[]>([])
   const [projetoEventos, setProjetoEventos] = useState<ProjetoEvento[]>([])
+  const [contratosOM, setContratosOM] = useState<ContratoOM[]>([])
+  const [anomaliasOM, setAnomaliasOM] = useState<AnomaliaOM[]>([])
+  const [servicosAdicionaisOM, setServicosAdicionaisOM] = useState<ServicoAdicionalOM[]>([])
+  const [timelineOM, setTimelineOM] = useState<TimelineOM[]>([])
   const [isLoading, setIsLoading] = useState<boolean>(true)
   const [error, setError] = useState<string | null>(null)
   const [selectedClienteId, setSelectedClienteId] = useState<string | null>(null)
+  const [selectedOMClienteId, setSelectedOMClienteId] = useState<string | null>(null)
   const [activeClientTab, setActiveClientTab] = useState<'historico' | 'projeto'>('historico')
 
   const loadAllData = useCallback(async () => {
@@ -151,7 +198,20 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     try {
       setIsLoading(true)
       setError(null)
-      const [cList, sList, mList, aList, uList, pList, projList, evList] = await Promise.all([
+      const [
+        cList,
+        sList,
+        mList,
+        aList,
+        uList,
+        pList,
+        projList,
+        evList,
+        contList,
+        anomList,
+        adicList,
+        timeList,
+      ] = await Promise.all([
         fetchClientes(),
         fetchSistemas(),
         fetchManutencoes(),
@@ -160,6 +220,10 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         fetchProfissionais(),
         fetchProjetos(),
         fetchProjetoEventos(),
+        fetchContratosOM(),
+        fetchAnomaliasOM(),
+        fetchServicosAdicionaisOM(),
+        fetchTimelineOM(),
       ])
       setClientes(cList)
       setSistemas(sList)
@@ -169,6 +233,10 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       setProfissionais(pList)
       setProjetos(projList)
       setProjetoEventos(evList)
+      setContratosOM(contList)
+      setAnomaliasOM(anomList)
+      setServicosAdicionaisOM(adicList)
+      setTimelineOM(timeList)
     } catch (err: unknown) {
       console.error('Error loading CRM data:', err)
       setError(err instanceof Error ? err.message : 'Erro ao carregar dados do CRM')
@@ -253,6 +321,42 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     'projeto_eventos',
     () => {
       fetchProjetoEventos().then(setProjetoEventos).catch(console.error)
+    },
+    isAuthenticated,
+  )
+
+  // Realtime updates for contratos_om
+  useRealtime<ContratoOM>(
+    'contratos_om',
+    () => {
+      fetchContratosOM().then(setContratosOM).catch(console.error)
+    },
+    isAuthenticated,
+  )
+
+  // Realtime updates for anomalias_om
+  useRealtime<AnomaliaOM>(
+    'anomalias_om',
+    () => {
+      fetchAnomaliasOM().then(setAnomaliasOM).catch(console.error)
+    },
+    isAuthenticated,
+  )
+
+  // Realtime updates for servicos_adicionais_om
+  useRealtime<ServicoAdicionalOM>(
+    'servicos_adicionais_om',
+    () => {
+      fetchServicosAdicionaisOM().then(setServicosAdicionaisOM).catch(console.error)
+    },
+    isAuthenticated,
+  )
+
+  // Realtime updates for timeline_om
+  useRealtime<TimelineOM>(
+    'timeline_om',
+    () => {
+      fetchTimelineOM().then(setTimelineOM).catch(console.error)
     },
     isAuthenticated,
   )
@@ -619,9 +723,130 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     setProjetos((prev) => prev.filter((p) => p.id !== id))
   }
 
+  // Funções O&M
+  const openFichaOM = (clienteId: string) => {
+    setSelectedOMClienteId(clienteId)
+  }
+
+  const closeFichaOM = () => {
+    setSelectedOMClienteId(null)
+  }
+
+  const addContratoOM = async (data: Parameters<typeof apiCreateContratoOM>[0]) => {
+    const created = await apiCreateContratoOM(data)
+    setContratosOM((prev) => [created, ...prev.filter((c) => c.id !== created.id)])
+    return created
+  }
+
+  const updateContratoOM = async (id: string, data: Partial<ContratoOM>) => {
+    setContratosOM((prev) => prev.map((c) => (c.id === id ? { ...c, ...data } : c)))
+    const updated = await apiUpdateContratoOM(id, data)
+    setContratosOM((prev) => prev.map((c) => (c.id === id ? updated : c)))
+    return updated
+  }
+
+  const removeContratoOM = async (id: string) => {
+    await apiDeleteContratoOM(id)
+    setContratosOM((prev) => prev.filter((c) => c.id !== id))
+  }
+
+  const addAnomaliaOM = async (data: Parameters<typeof apiCreateAnomaliaOM>[0]) => {
+    const created = await apiCreateAnomaliaOM(data)
+    setAnomaliasOM((prev) => [created, ...prev.filter((a) => a.id !== created.id)])
+    // Adicionar à timeline também
+    try {
+      const timeEv = await apiCreateTimelineOM({
+        cliente_id: data.cliente_id,
+        contrato_id: data.contrato_id,
+        tipo: 'anomalia',
+        titulo: `Nova Anomalia: ${data.titulo}`,
+        descricao: data.descricao || `Anomalia registrada na etapa ${data.etapa}.`,
+        data: data.data_abertura || new Date().toISOString(),
+        autor: data.tecnico_nome || 'Sistema Delfos',
+        status_tag: data.status,
+      })
+      setTimelineOM((prev) => [timeEv, ...prev])
+    } catch (e) {
+      console.warn('Erro ao registrar timeline para anomalia:', e)
+    }
+    return created
+  }
+
+  const updateAnomaliaOM = async (id: string, data: Partial<AnomaliaOM>) => {
+    setAnomaliasOM((prev) => prev.map((a) => (a.id === id ? { ...a, ...data } : a)))
+    const updated = await apiUpdateAnomaliaOM(id, data)
+    setAnomaliasOM((prev) => prev.map((a) => (a.id === id ? updated : a)))
+    // Se mudou etapa ou status, logar na timeline
+    if (data.etapa || data.status) {
+      try {
+        const timeEv = await apiCreateTimelineOM({
+          cliente_id: updated.cliente_id,
+          contrato_id: updated.contrato_id,
+          tipo: 'anomalia',
+          titulo: `Anomalia atualizada: ${updated.titulo}`,
+          descricao: `Etapa: ${updated.etapa} | Status: ${updated.status}`,
+          data: new Date().toISOString(),
+          autor: updated.tecnico_nome || 'Sistema Delfos',
+          status_tag: updated.status,
+        })
+        setTimelineOM((prev) => [timeEv, ...prev])
+      } catch (e) {
+        console.warn('Erro ao registrar timeline de update de anomalia:', e)
+      }
+    }
+    return updated
+  }
+
+  const removeAnomaliaOM = async (id: string) => {
+    await apiDeleteAnomaliaOM(id)
+    setAnomaliasOM((prev) => prev.filter((a) => a.id !== id))
+  }
+
+  const addServicoAdicionalOM = async (data: Parameters<typeof apiCreateServicoAdicionalOM>[0]) => {
+    const created = await apiCreateServicoAdicionalOM(data)
+    setServicosAdicionaisOM((prev) => [created, ...prev.filter((s) => s.id !== created.id)])
+    // Registrar na timeline
+    try {
+      const timeEv = await apiCreateTimelineOM({
+        cliente_id: data.cliente_id,
+        contrato_id: data.contrato_id,
+        tipo: 'servico_adicional',
+        titulo: `Serviço Extra: ${data.descricao}`,
+        descricao: `Valor: R$ ${data.valor.toFixed(2)} | Status: ${data.status}`,
+        data: data.data || new Date().toISOString(),
+        autor: data.tecnico_nome || 'João Silva',
+        status_tag: data.status,
+      })
+      setTimelineOM((prev) => [timeEv, ...prev])
+    } catch (e) {
+      console.warn('Erro ao registrar timeline para servico adicional:', e)
+    }
+    return created
+  }
+
+  const updateServicoAdicionalOM = async (id: string, data: Partial<ServicoAdicionalOM>) => {
+    setServicosAdicionaisOM((prev) => prev.map((s) => (s.id === id ? { ...s, ...data } : s)))
+    const updated = await apiUpdateServicoAdicionalOM(id, data)
+    setServicosAdicionaisOM((prev) => prev.map((s) => (s.id === id ? updated : s)))
+    return updated
+  }
+
+  const removeServicoAdicionalOM = async (id: string) => {
+    await apiDeleteServicoAdicionalOM(id)
+    setServicosAdicionaisOM((prev) => prev.filter((s) => s.id !== id))
+  }
+
+  const addTimelineOM = async (data: Parameters<typeof apiCreateTimelineOM>[0]) => {
+    const created = await apiCreateTimelineOM(data)
+    setTimelineOM((prev) => [created, ...prev.filter((t) => t.id !== created.id)])
+    return created
+  }
+
   const selectedCliente = clientes.find((c) => c.id === selectedClienteId) || null
   const selectedSistema = sistemas.find((s) => s.cliente_id === selectedClienteId) || null
   const selectedClienteProjeto = projetos.find((p) => p.cliente_id === selectedClienteId) || null
+  const selectedContratoOM =
+    contratosOM.find((c) => c.cliente_id === (selectedOMClienteId || selectedClienteId)) || null
 
   return (
     <ClientesContext.Provider
@@ -634,13 +859,21 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         profissionais,
         projetos,
         projetoEventos,
+        contratosOM,
+        anomaliasOM,
+        servicosAdicionaisOM,
+        timelineOM,
         isLoading,
         error,
         selectedClienteId,
         selectedCliente,
         selectedSistema,
         selectedClienteProjeto,
+        selectedContratoOM,
         activeClientTab,
+        selectedOMClienteId,
+        openFichaOM,
+        closeFichaOM,
         setActiveClientTab,
         openFichaCliente,
         closeFichaCliente,
@@ -660,6 +893,16 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         updateProjetoEtapa,
         assignProjetoProfissional,
         removeProjeto,
+        addContratoOM,
+        updateContratoOM,
+        removeContratoOM,
+        addAnomaliaOM,
+        updateAnomaliaOM,
+        removeAnomaliaOM,
+        addServicoAdicionalOM,
+        updateServicoAdicionalOM,
+        removeServicoAdicionalOM,
+        addTimelineOM,
         refreshData: loadAllData,
       }}
     >

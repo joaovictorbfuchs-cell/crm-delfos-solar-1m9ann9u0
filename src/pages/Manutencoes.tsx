@@ -1,72 +1,213 @@
 import React, { useState } from 'react'
-import { Wrench, Loader2, CheckCircle2, Clock, Calendar } from 'lucide-react'
+import {
+  ShieldCheck,
+  Loader2,
+  CheckCircle2,
+  Clock,
+  Calendar,
+  AlertTriangle,
+  Plus,
+  Wrench,
+  Layers,
+  Sparkles,
+  TrendingUp,
+} from 'lucide-react'
 import { useClientes } from '@/contexts/ClientesContext'
+import { ListaOM } from '@/components/ListaOM'
+import { FichaOMDrawer } from '@/components/FichaOMDrawer'
+import { ModalNovoContratoOM } from '@/components/ModalNovoContratoOM'
 import { ManutencoesList } from '@/components/ManutencoesList'
 import { NovaManutencaoModal } from '@/components/NovaManutencaoModal'
 
 export default function Manutencoes() {
-  const { manutencoes, isLoading } = useClientes()
+  const { contratosOM, anomaliasOM, manutencoes, isLoading, openFichaOM } = useClientes()
+
+  const [viewMode, setViewMode] = useState<'om' | 'os_avulsa'>('om')
+  const [isNovoContratoOpen, setIsNovoContratoOpen] = useState(false)
   const [isNovaManutencaoOpen, setIsNovaManutencaoOpen] = useState(false)
 
-  const concluidas = manutencoes.filter((m) => m.status === 'Concluído').length
-  const emAndamento = manutencoes.filter((m) => m.status === 'Em andamento').length
-  const agendadas = manutencoes.filter((m) => m.status === 'Agendado').length
+  // Métricas do Módulo O&M
+  const totalContratos = contratosOM.length
+  const contratosAtivos = contratosOM.filter((c) => c.status === 'Ativo').length
+  const contratosVencendo = contratosOM.filter((c) => c.status === 'Vencendo em 30 dias').length
+  const contratosVencidos = contratosOM.filter((c) => c.status === 'Vencido').length
+  const anomaliasAbertas = anomaliasOM.filter(
+    (a) => a.status !== 'Resolvido' && a.status !== 'Cancelado',
+  ).length
+
+  // Receita mensal recorrente gerada pela carteira O&M
+  const mrrTotal = contratosOM.reduce((acc, c) => acc + (c.valor_mensal || 0), 0)
 
   if (isLoading) {
     return (
       <div className="h-[60vh] flex flex-col items-center justify-center gap-3 text-gray-400">
         <Loader2 className="w-8 h-8 animate-spin text-[#16A34A]" />
-        <p className="text-sm">Carregando ordens de manutenção...</p>
+        <p className="text-sm">Carregando carteira de O&M e manutenções...</p>
       </div>
     )
   }
 
   return (
     <div className="space-y-6">
-      {/* Metrics Row */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="bg-white rounded-xl p-4 border border-gray-200/80 shadow-xs flex items-center justify-between">
-          <div>
-            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
-              Agendadas
-            </span>
-            <div className="text-2xl font-bold text-blue-600 mt-0.5">{agendadas}</div>
-          </div>
-          <div className="w-10 h-10 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
-            <Calendar className="w-5 h-5" />
-          </div>
-        </div>
-
-        <div className="bg-white rounded-xl p-4 border border-gray-200/80 shadow-xs flex items-center justify-between">
-          <div>
-            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
-              Em Andamento
-            </span>
-            <div className="text-2xl font-bold text-amber-600 mt-0.5">{emAndamento}</div>
-          </div>
-          <div className="w-10 h-10 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center">
-            <Clock className="w-5 h-5" />
+      {/* Top Header com Seletor de Modo: Carteira O&M vs Ordens de Serviço Avulsas */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-white p-4 rounded-2xl border border-gray-200/80 shadow-xs">
+        <div>
+          <div className="flex items-center gap-2">
+            <div className="p-2 bg-emerald-100 text-emerald-800 rounded-xl">
+              <ShieldCheck className="w-5 h-5 text-emerald-700" />
+            </div>
+            <div>
+              <h2 className="text-lg font-bold text-gray-900 tracking-tight">
+                Gestão de O&M (Operação e Manutenção)
+              </h2>
+              <p className="text-xs text-gray-500">
+                Acompanhamento contratual, monitoramento, anomalias e serviços técnicos para
+                clientes com plano
+              </p>
+            </div>
           </div>
         </div>
 
-        <div className="bg-white rounded-xl p-4 border border-gray-200/80 shadow-xs flex items-center justify-between">
-          <div>
-            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
-              Concluídas
-            </span>
-            <div className="text-2xl font-bold text-emerald-600 mt-0.5">{concluidas}</div>
+        {/* Alternador de Visualização & Botão de Criação */}
+        <div className="flex items-center gap-2 flex-wrap self-stretch sm:self-auto">
+          <div className="bg-gray-100 p-1 rounded-xl flex items-center text-xs font-semibold text-gray-600">
+            <button
+              type="button"
+              onClick={() => setViewMode('om')}
+              className={`px-3 py-1.5 rounded-lg transition-all ${
+                viewMode === 'om'
+                  ? 'bg-white text-emerald-800 shadow-xs font-bold'
+                  : 'hover:text-gray-900'
+              }`}
+            >
+              Planos O&M Ativos ({totalContratos})
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode('os_avulsa')}
+              className={`px-3 py-1.5 rounded-lg transition-all ${
+                viewMode === 'os_avulsa'
+                  ? 'bg-white text-emerald-800 shadow-xs font-bold'
+                  : 'hover:text-gray-900'
+              }`}
+            >
+              O.S. Avulsas ({manutencoes.length})
+            </button>
           </div>
-          <div className="w-10 h-10 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
-            <CheckCircle2 className="w-5 h-5" />
-          </div>
+
+          {viewMode === 'om' ? (
+            <button
+              onClick={() => setIsNovoContratoOpen(true)}
+              className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#16A34A] hover:bg-[#15803D] text-white text-xs font-bold rounded-xl shadow-xs transition-all hover:scale-[1.02]"
+            >
+              <Plus className="w-4 h-4" />
+              Novo Contrato O&M
+            </button>
+          ) : (
+            <button
+              onClick={() => setIsNovaManutencaoOpen(true)}
+              className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#16A34A] hover:bg-[#15803D] text-white text-xs font-bold rounded-xl shadow-xs transition-all hover:scale-[1.02]"
+            >
+              <Plus className="w-4 h-4" />
+              Nova O.S. Avulsa
+            </button>
+          )}
         </div>
       </div>
 
-      {/* Main Table / Cards List */}
-      <div className="bg-white rounded-xl border border-gray-200/80 p-5 shadow-xs">
-        <ManutencoesList onOpenNovaManutencao={() => setIsNovaManutencaoOpen(true)} />
-      </div>
+      {/* Cards de Métricas de O&M */}
+      {viewMode === 'om' && (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          {/* Card Ativos */}
+          <div className="bg-white rounded-xl p-4 border border-gray-200/80 shadow-xs flex items-center justify-between">
+            <div>
+              <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">
+                Planos Ativos
+              </span>
+              <div className="text-2xl font-extrabold text-emerald-600 mt-0.5">
+                {contratosAtivos}
+              </div>
+              <div className="text-[11px] text-gray-400 mt-0.5">Operação regular</div>
+            </div>
+            <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+              <CheckCircle2 className="w-5 h-5" />
+            </div>
+          </div>
 
+          {/* Card Vencendo em 30 dias */}
+          <div className="bg-white rounded-xl p-4 border border-gray-200/80 shadow-xs flex items-center justify-between">
+            <div>
+              <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">
+                Vencendo (30d)
+              </span>
+              <div className="text-2xl font-extrabold text-amber-600 mt-0.5">
+                {contratosVencendo}
+              </div>
+              <div className="text-[11px] text-amber-600/90 font-medium mt-0.5">
+                Requer renovação
+              </div>
+            </div>
+            <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
+              <Clock className="w-5 h-5" />
+            </div>
+          </div>
+
+          {/* Card Vencidos */}
+          <div className="bg-white rounded-xl p-4 border border-gray-200/80 shadow-xs flex items-center justify-between">
+            <div>
+              <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">
+                Vencidos
+              </span>
+              <div className="text-2xl font-extrabold text-rose-600 mt-0.5">
+                {contratosVencidos}
+              </div>
+              <div className="text-[11px] text-rose-500 font-medium mt-0.5">
+                Aguardando regularização
+              </div>
+            </div>
+            <div className="w-10 h-10 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center shrink-0">
+              <AlertTriangle className="w-5 h-5" />
+            </div>
+          </div>
+
+          {/* Card Anomalias / MRR */}
+          <div className="bg-white rounded-xl p-4 border border-gray-200/80 shadow-xs flex items-center justify-between">
+            <div>
+              <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">
+                Anomalias Abertas
+              </span>
+              <div className="text-2xl font-extrabold text-blue-600 mt-0.5">{anomaliasAbertas}</div>
+              <div className="text-[11px] text-gray-400 mt-0.5">Em triagem/execução</div>
+            </div>
+            <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
+              <Wrench className="w-5 h-5" />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Conteúdo Principal de acordo com a aba selecionada */}
+      {viewMode === 'om' ? (
+        <ListaOM
+          onOpenFichaOM={(clienteId) => openFichaOM(clienteId)}
+          onOpenNovoContrato={() => setIsNovoContratoOpen(true)}
+        />
+      ) : (
+        <div className="bg-white rounded-xl border border-gray-200/80 p-5 shadow-xs">
+          <ManutencoesList onOpenNovaManutencao={() => setIsNovaManutencaoOpen(true)} />
+        </div>
+      )}
+
+      {/* Drawer da Ficha de O&M Universal */}
+      <FichaOMDrawer />
+
+      {/* Modal Novo Contrato de O&M */}
+      <ModalNovoContratoOM
+        isOpen={isNovoContratoOpen}
+        onClose={() => setIsNovoContratoOpen(false)}
+      />
+
+      {/* Modal O.S. Avulsa */}
       <NovaManutencaoModal
         isOpen={isNovaManutencaoOpen}
         onClose={() => setIsNovaManutencaoOpen(false)}
