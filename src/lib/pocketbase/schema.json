@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-10T02:26:31.138Z",
+  "generatedAt": "2026-09-10T13:57:19.935Z",
   "collections": [
     {
       "name": "users",
@@ -1273,6 +1273,166 @@
       "indexes": [
         "CREATE INDEX idx_timeline_om_cliente ON timeline_om (cliente_id)",
         "CREATE INDEX idx_timeline_om_data ON timeline_om (data)"
+      ]
+    },
+    {
+      "name": "propostas_om",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "cliente_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "clientes"
+        },
+        {
+          "name": "plano_escolhido",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["Essencial", "Prevenção", "Completo"]
+        },
+        {
+          "name": "potencia_kwp",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "geracao_mensal_kwh",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "marca_inversores",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "tipo_instalacao",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "numero_modulos",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "valor_kwh",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "distancia_km",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "valor_km",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "valor_ativo_protegido",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "perda_15_ano",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "perda_20_ano",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "prejuizo_20_dias",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "prejuizo_30_dias",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "valor_mensal_plano",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "valor_anual_plano",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "data_proposta",
+          "type": "date",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "autor",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "status",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "observacoes",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_propostas_om_cliente ON propostas_om (cliente_id)",
+        "CREATE INDEX idx_propostas_om_plano ON propostas_om (plano_escolhido)",
+        "CREATE INDEX idx_propostas_om_data ON propostas_om (data_proposta)"
       ]
     }
   ]

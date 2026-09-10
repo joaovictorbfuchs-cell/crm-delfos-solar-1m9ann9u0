@@ -18,6 +18,8 @@ import { calcularContagensOM } from '@/lib/omCategorizacao'
 import { ModalNovoContratoOM } from '@/components/ModalNovoContratoOM'
 import { ManutencoesList } from '@/components/ManutencoesList'
 import { NovaManutencaoModal } from '@/components/NovaManutencaoModal'
+import { ModalNovaPropostaOM } from '@/components/ModalNovaPropostaOM'
+import { FileCheck } from 'lucide-react'
 
 export default function Manutencoes() {
   const {
@@ -33,6 +35,7 @@ export default function Manutencoes() {
   const [viewMode, setViewMode] = useState<'om' | 'os_avulsa'>('om')
   const [isNovoContratoOpen, setIsNovoContratoOpen] = useState(false)
   const [isNovaManutencaoOpen, setIsNovaManutencaoOpen] = useState(false)
+  const [isNovaPropostaOpen, setIsNovaPropostaOpen] = useState(false)
 
   // Métricas do Módulo O&M unificadas com a categorização exclusiva por cliente
   const contagens = React.useMemo(
@@ -103,13 +106,25 @@ export default function Manutencoes() {
           </div>
 
           {viewMode === 'om' ? (
-            <button
-              onClick={() => setIsNovoContratoOpen(true)}
-              className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#16A34A] hover:bg-[#15803D] text-white text-xs font-bold rounded-xl shadow-xs transition-all hover:scale-[1.02]"
-            >
-              <Plus className="w-4 h-4" />
-              Novo Contrato O&M
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setIsNovaPropostaOpen(true)}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 text-xs font-bold rounded-xl shadow-2xs transition-all hover:scale-[1.02]"
+                title="Criar proposta O&M com PDF"
+              >
+                <FileCheck className="w-4 h-4 text-emerald-700" />
+                <span>Nova Proposta O&M</span>
+              </button>
+
+              <button
+                onClick={() => setIsNovoContratoOpen(true)}
+                className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#16A34A] hover:bg-[#15803D] text-white text-xs font-bold rounded-xl shadow-xs transition-all hover:scale-[1.02]"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Novo Contrato O&M</span>
+              </button>
+            </div>
           ) : (
             <button
               onClick={() => setIsNovaManutencaoOpen(true)}
@@ -205,6 +220,12 @@ export default function Manutencoes() {
       <NovaManutencaoModal
         isOpen={isNovaManutencaoOpen}
         onClose={() => setIsNovaManutencaoOpen(false)}
+      />
+
+      {/* Modal Nova Proposta O&M */}
+      <ModalNovaPropostaOM
+        isOpen={isNovaPropostaOpen}
+        onClose={() => setIsNovaPropostaOpen(false)}
       />
     </div>
   )

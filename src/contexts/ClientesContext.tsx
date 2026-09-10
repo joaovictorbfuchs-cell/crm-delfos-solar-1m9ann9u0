@@ -55,7 +55,11 @@ import {
   updateServicoAdicionalOM as apiUpdateServicoAdicionalOM,
   deleteServicoAdicionalOM as apiDeleteServicoAdicionalOM,
   createTimelineOM as apiCreateTimelineOM,
+  fetchPropostasOM,
+  createPropostaOM as apiCreatePropostaOM,
+  deletePropostaOM as apiDeletePropostaOM,
 } from '@/services/crmService'
+import type { PropostaOM } from '@/types/crm'
 import { useRealtime } from '@/hooks/use-realtime'
 import { useAuth } from '@/contexts/AuthContext'
 
@@ -72,6 +76,7 @@ interface ClientesContextType {
   anomaliasOM: AnomaliaOM[]
   servicosAdicionaisOM: ServicoAdicionalOM[]
   timelineOM: TimelineOM[]
+  propostasOM: PropostaOM[]
   isLoading: boolean
   error: string | null
   selectedClienteId: string | null
@@ -166,6 +171,8 @@ interface ClientesContextType {
   ) => Promise<ServicoAdicionalOM>
   removeServicoAdicionalOM: (id: string) => Promise<void>
   addTimelineOM: (data: Parameters<typeof apiCreateTimelineOM>[0]) => Promise<TimelineOM>
+  addPropostaOM: (data: Parameters<typeof apiCreatePropostaOM>[0]) => Promise<PropostaOM>
+  removePropostaOM: (id: string) => Promise<void>
   refreshData: () => Promise<void>
 }
 
@@ -185,6 +192,7 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [anomaliasOM, setAnomaliasOM] = useState<AnomaliaOM[]>([])
   const [servicosAdicionaisOM, setServicosAdicionaisOM] = useState<ServicoAdicionalOM[]>([])
   const [timelineOM, setTimelineOM] = useState<TimelineOM[]>([])
+  const [propostasOM, setPropostasOM] = useState<PropostaOM[]>([])
   const [isLoading, setIsLoading] = useState<boolean>(true)
   const [error, setError] = useState<string | null>(null)
   const [selectedClienteId, setSelectedClienteId] = useState<string | null>(null)
@@ -214,6 +222,7 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         anomList,
         adicList,
         timeList,
+        propList,
       ] = await Promise.all([
         fetchClientes(),
         fetchSistemas(),
@@ -227,6 +236,7 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         fetchAnomaliasOM(),
         fetchServicosAdicionaisOM(),
         fetchTimelineOM(),
+        fetchPropostasOM(),
       ])
       setClientes(cList)
       setSistemas(sList)
@@ -240,6 +250,7 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       setAnomaliasOM(anomList)
       setServicosAdicionaisOM(adicList)
       setTimelineOM(timeList)
+      setPropostasOM(propList)
     } catch (err: unknown) {
       console.error('Error loading CRM data:', err)
       setError(err instanceof Error ? err.message : 'Erro ao carregar dados do CRM')
@@ -360,6 +371,15 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     'timeline_om',
     () => {
       fetchTimelineOM().then(setTimelineOM).catch(console.error)
+    },
+    isAuthenticated,
+  )
+
+  // Realtime updates for propostas_om
+  useRealtime<PropostaOM>(
+    'propostas_om',
+    () => {
+      fetchPropostasOM().then(setPropostasOM).catch(console.error)
     },
     isAuthenticated,
   )
@@ -887,10 +907,20 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   const addTimelineOM = async (data: Parameters<typeof apiCreateTimelineOM>[0]) => {
     const created = await apiCreateTimelineOM(data)
-    setTimelineOM((prev) => [created, ...prev.filter((t) => t.id !== created.id)])
+    setTimelineOM((prev) => [created, ...prev])
     return created
   }
 
+  const addPropostaOM = async (data: Parameters<typeof apiCreatePropostaOM>[0]) => {
+    const created = await apiCreatePropostaOM(data)
+    setPropostasOM((prev) => [created, ...prev])
+    return created
+  }
+
+  const removePropostaOM = async (id: string) => {
+    await apiDeletePropostaOM(id)
+    setPropostasOM((prev) => prev.filter((p) => p.id !== id))
+  }
   const selectedCliente = clientes.find((c) => c.id === selectedClienteId) || null
   const selectedSistema = sistemas.find((s) => s.cliente_id === selectedClienteId) || null
   const selectedClienteProjeto = projetos.find((p) => p.cliente_id === selectedClienteId) || null
@@ -953,6 +983,9 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         updateServicoAdicionalOM,
         removeServicoAdicionalOM,
         addTimelineOM,
+        propostasOM,
+        addPropostaOM,
+        removePropostaOM,
         refreshData: loadAllData,
       }}
     >

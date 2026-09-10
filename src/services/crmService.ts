@@ -463,3 +463,68 @@ export async function createTimelineOM(data: {
   const record = await pb.collection('timeline_om').create<TimelineOM>(payload)
   return record
 }
+
+// -------------------------------------------------------------
+// Propostas O&M Services
+// -------------------------------------------------------------
+
+export async function fetchPropostasOM(
+  clienteId?: string,
+): Promise<import('@/types/crm').PropostaOM[]> {
+  try {
+    const filter = clienteId ? `cliente_id='${clienteId}'` : ''
+    const records = await pb
+      .collection('propostas_om')
+      .getFullList<import('@/types/crm').PropostaOM>({
+        filter,
+        sort: '-data_proposta',
+        expand: 'cliente_id',
+      })
+    return records
+  } catch (err) {
+    console.error('Erro ao buscar propostas O&M:', err)
+    return []
+  }
+}
+
+export async function createPropostaOM(data: {
+  cliente_id: string
+  plano_escolhido: import('@/types/crm').OMPlanoTipo
+  potencia_kwp: number
+  geracao_mensal_kwh: number
+  marca_inversores?: string
+  tipo_instalacao?: string
+  numero_modulos?: number
+  valor_kwh: number
+  distancia_km?: number
+  valor_km?: number
+  valor_ativo_protegido: number
+  perda_15_ano: number
+  perda_20_ano: number
+  prejuizo_20_dias: number
+  prejuizo_30_dias: number
+  valor_mensal_plano: number
+  valor_anual_plano: number
+  data_proposta: string
+  autor?: string
+  status?: string
+  observacoes?: string
+}): Promise<import('@/types/crm').PropostaOM> {
+  const payload = {
+    ...data,
+    status: data.status || 'Proposta Enviada',
+    data_proposta: data.data_proposta || new Date().toISOString(),
+    autor: data.autor || 'Delfos Solar O&M',
+  }
+  const record = await pb
+    .collection('propostas_om')
+    .create<import('@/types/crm').PropostaOM>(payload, {
+      expand: 'cliente_id',
+    })
+  return record
+}
+
+export async function deletePropostaOM(id: string): Promise<boolean> {
+  await pb.collection('propostas_om').delete(id)
+  return true
+}

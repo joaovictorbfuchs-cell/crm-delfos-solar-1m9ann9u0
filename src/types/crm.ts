@@ -78,8 +78,9 @@ export interface Cliente extends RecordModel {
   produto?: ProdutoTipo
   consumo_kwh_mes?: number
   origem_lead?: OrigemLeadTipo
-  // Novos campos cadastrais
-  nome_fantasia?: string
+  // Proposta O&M ID
+  proposta_om_id?: string
+  // Novos campos cadastrais  nome_fantasia?: string
   razao_social?: string
   cnpj?: string
   cpf?: string
@@ -363,4 +364,40 @@ export interface TimelineOM extends RecordModel {
   referencia_id?: string
   created: string
   updated: string
+}
+
+// -------------------------------------------------------------
+// Tipos para Propostas de O&M
+// -------------------------------------------------------------
+
+export interface PropostaOM extends RecordModel {
+  id: string
+  collectionId: string
+  collectionName: string
+  cliente_id: string
+  plano_escolhido: OMPlanoTipo
+  potencia_kwp: number
+  geracao_mensal_kwh: number
+  marca_inversores?: string
+  tipo_instalacao?: string
+  numero_modulos?: number
+  valor_kwh: number
+  distancia_km?: number
+  valor_km?: number
+  valor_ativo_protegido: number
+  perda_15_ano: number
+  perda_20_ano: number
+  prejuizo_20_dias: number
+  prejuizo_30_dias: number
+  valor_mensal_plano: number
+  valor_anual_plano: number
+  data_proposta: string
+  autor?: string
+  status?: string
+  observacoes?: string
+  created: string
+  updated: string
+  expand?: {
+    cliente_id?: Cliente
+  }
 }

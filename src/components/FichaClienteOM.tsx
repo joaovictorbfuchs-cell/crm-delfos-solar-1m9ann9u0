@@ -21,7 +21,12 @@ import {
   ChevronRight,
   Filter,
   Check,
+  FileCheck,
+  ExternalLink,
 } from 'lucide-react'
+import { ModalNovaPropostaOM } from '@/components/ModalNovaPropostaOM'
+import { abrirPropostaEmNovaAba, calcularPropostaOM } from '@/lib/propostaOMGenerator'
+import type { PropostaOM } from '@/types/crm'
 import { useClientes } from '@/contexts/ClientesContext'
 import { formatCurrency, formatDate } from '@/lib/formatters'
 import type {
@@ -58,9 +63,12 @@ export const FichaClienteOM: React.FC<FichaClienteOMProps> = ({ clienteId, onNav
     addServicoAdicionalOM,
     updateServicoAdicionalOM,
     addAtividade,
+    propostasOM,
   } = useClientes()
 
   const [activeSubTab, setActiveSubTab] = useState<'plano' | 'adicionais' | 'anomalias'>('plano')
+  const [modalPropostaOpen, setModalPropostaOpen] = useState(false)
+  const [propostaVisualizar, setPropostaVisualizar] = useState<PropostaOM | null>(null)
 
   // Modais de Criação
   const [modalNovaAnomalia, setModalNovaAnomalia] = useState(false)
@@ -112,6 +120,17 @@ export const FichaClienteOM: React.FC<FichaClienteOMProps> = ({ clienteId, onNav
       .filter((s) => s.cliente_id === clienteId)
       .sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime())
   }, [servicosAdicionaisOM, clienteId])
+
+  const clientePropostasOM = useMemo(() => {
+    if (!clienteId) return []
+    return propostasOM
+      .filter((p) => p.cliente_id === clienteId)
+      .sort(
+        (a, b) =>
+          new Date(b.data_proposta || b.created).getTime() -
+          new Date(a.data_proposta || a.created).getTime(),
+      )
+  }, [propostasOM, clienteId])
 
   if (!cliente) return null
 
@@ -432,6 +451,119 @@ export const FichaClienteOM: React.FC<FichaClienteOMProps> = ({ clienteId, onNav
       {/* ========================================================================= */}
       {activeSubTab === 'plano' && (
         <div className="space-y-4">
+          {/* Card com Propostas O&M Geradas para este Cliente */}
+          <div className="bg-gradient-to-r from-emerald-50/80 via-white to-emerald-50/50 p-4 rounded-xl border border-emerald-200 shadow-2xs space-y-3">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <div className="flex items-center gap-2">
+                <FileCheck className="w-4 h-4 text-emerald-700" />
+                <span className="text-xs font-bold uppercase tracking-wider text-emerald-950">
+                  Propostas O&M Emitidas ({clientePropostasOM.length})
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setPropostaVisualizar(null)
+                  setModalPropostaOpen(true)
+                }}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#16A34A] hover:bg-[#15803D] text-white text-xs font-bold rounded-lg shadow-2xs transition-all hover:scale-[1.02]"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                Nova Proposta O&M
+              </button>
+            </div>
+
+            {clientePropostasOM.length === 0 ? (
+              <p className="text-xs text-gray-500 italic">
+                Nenhuma proposta O&M gerada ainda para este cliente. Clique no botão acima para
+                gerar a proposta em PDF.
+              </p>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                {clientePropostasOM.map((prop) => (
+                  <div
+                    key={prop.id}
+                    className="p-3 bg-white rounded-lg border border-emerald-100 hover:border-emerald-300 shadow-2xs space-y-1.5 text-xs transition-all"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="font-extrabold text-emerald-800">
+                        Plano {prop.plano_escolhido}
+                      </span>
+                      <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.2 rounded-full">
+                        {prop.status || 'Proposta Enviada'}
+                      </span>
+                    </div>
+
+                    <div className="flex items-baseline justify-between text-[11px] text-gray-700">
+                      <span>{formatCurrency(prop.valor_mensal_plano || 99.9)}/mês</span>
+                      <span className="font-semibold text-emerald-700">
+                        {formatCurrency(
+                          prop.valor_anual_plano || (prop.valor_mensal_plano || 99.9) * 12,
+                        )}
+                        /ano
+                      </span>
+                    </div>
+
+                    <div className="text-[10px] text-gray-400 flex items-center justify-between pt-1 border-t border-gray-100">
+                      <span>{formatDate(prop.data_proposta || prop.created)}</span>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setPropostaVisualizar(prop)
+                            setModalPropostaOpen(true)
+                          }}
+                          className="text-emerald-700 hover:text-emerald-900 font-bold flex items-center gap-1"
+                        >
+                          <ExternalLink className="w-3 h-3" />
+                          <span>Ver / Regenerar</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const calc = calcularPropostaOM({
+                              geracaoMensalKwh: prop.geracao_mensal_kwh,
+                              valorKwh: prop.valor_kwh,
+                              planoEscolhido: prop.plano_escolhido,
+                            })
+                            abrirPropostaEmNovaAba({
+                              cliente: {
+                                nome: cliente.nome,
+                                cpfOuCnpj: cliente.cnpj || cliente.cpf,
+                                endereco: cliente.endereco,
+                                municipio: cliente.cidade,
+                                email: cliente.email,
+                                telefone: cliente.telefone,
+                              },
+                              tecnico: {
+                                potenciaKwp: prop.potencia_kwp,
+                                geracaoMediaKwh: prop.geracao_mensal_kwh,
+                                marcaInversores: prop.marca_inversores,
+                                tipoInstalacao: prop.tipo_instalacao,
+                                numeroModulos: prop.numero_modulos,
+                              },
+                              parametros: {
+                                valorKwh: prop.valor_kwh,
+                                distanciaKm: prop.distancia_km,
+                                valorKm: prop.valor_km,
+                              },
+                              calculos: calc,
+                              dataEmissao: prop.data_proposta || prop.created,
+                              autor: prop.autor,
+                            })
+                          }}
+                          className="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 font-bold hover:bg-emerald-200"
+                        >
+                          PDF
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
           {!contrato ? (
             /* Cliente sem plano ativo: Destaque de Oportunidade e ações para ofertar */
             <div className="p-6 bg-gradient-to-br from-amber-50/70 via-white to-amber-50/30 rounded-2xl border-2 border-dashed border-amber-300 space-y-4">
@@ -584,8 +716,7 @@ export const FichaClienteOM: React.FC<FichaClienteOMProps> = ({ clienteId, onNav
                     const isRealizado = (contrato.servicos_realizados || []).includes(srv.nome)
                     const isAgendado = (contrato.servicos_agendados || []).includes(srv.nome)
 
-                    return
-                    null
+                    return null
                   })}
                 </div>
               </div>
@@ -1149,6 +1280,16 @@ export const FichaClienteOM: React.FC<FichaClienteOMProps> = ({ clienteId, onNav
           )}
         </div>
       )}
+      {/* Modal de Proposta O&M */}
+      <ModalNovaPropostaOM
+        isOpen={modalPropostaOpen}
+        onClose={() => {
+          setModalPropostaOpen(false)
+          setPropostaVisualizar(null)
+        }}
+        initialClienteId={clienteId}
+        initialProposta={propostaVisualizar}
+      />
     </div>
   )
 }
