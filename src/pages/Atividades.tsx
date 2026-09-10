@@ -283,7 +283,7 @@ export const Atividades: React.FC = () => {
                   <option value="proposta">Proposta</option>
                   <option value="limpeza_manutencao">Limpeza e Manutenção</option>
                   <option value="auto_leitura_rge">Auto Leitura - RGE</option>
-                  <option value="ligar_indicacao">Ligar p/ Indicação</option>
+                  <option value="ligar_indicacao">Solicitar indicação</option>
                   <option value="configuracao_datalogger">Configuração Datalogger</option>
                   <option value="garantia_equipamento">Garantia equipamento</option>
                   <option value="relatorio_solarview">Relatório Solarview</option>

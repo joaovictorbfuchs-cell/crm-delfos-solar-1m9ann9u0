@@ -110,7 +110,7 @@ export const ATIVIDADES_12_TIPOS: TipoAtividadeDef[] = [
   },
   {
     id: 'ligar_indicacao',
-    tituloPadrao: 'Ligar para solicitar Indicação',
+    tituloPadrao: 'Solicitar indicação',
     descricaoAjuda: 'Contato com cliente satisfeito solicitando recomendações',
     corHex: '#EA580C', // Orange Red
     badgeClass: 'bg-amber-50 text-orange-700 border-orange-200',
