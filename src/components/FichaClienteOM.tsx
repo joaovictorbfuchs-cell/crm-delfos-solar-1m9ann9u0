@@ -584,8 +584,75 @@ export const FichaClienteOM: React.FC<FichaClienteOMProps> = ({ clienteId, onNav
                     const isRealizado = (contrato.servicos_realizados || []).includes(srv.nome)
                     const isAgendado = (contrato.servicos_agendados || []).includes(srv.nome)
 
-                    return
-                    null
+                    return (
+                      <div
+                        key={srv.id}
+                        className="p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 hover:bg-gray-50/60 transition-colors"
+                      >
+                        <div className="flex items-start gap-3">
+                          <div
+                            className={`w-7 h-7 rounded-lg flex items-center justify-center font-bold text-xs shrink-0 mt-0.5 ${
+                              isRealizado
+                                ? 'bg-emerald-100 text-emerald-700'
+                                : isAgendado
+                                  ? 'bg-blue-100 text-blue-700'
+                                  : 'bg-gray-100 text-gray-500'
+                            }`}
+                          >
+                            {idx + 1}
+                          </div>
+                          <div>
+                            <div className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+                              <span>{srv.nome}</span>
+                              {isRealizado && (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">
+                                  <CheckCircle2 className="w-3 h-3 text-emerald-600" /> Realizado
+                                </span>
+                              )}
+                              {isAgendado && (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-800">
+                                  <Calendar className="w-3 h-3 text-blue-600" /> Agendado
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-xs text-gray-400 mt-0.5">
+                              Frequência prevista: {srv.freq}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Botões de Ação Rápida */}
+                        <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => handleToggleServico(srv.nome, 'realizado')}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 border transition-all ${
+                              isRealizado
+                                ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
+                                : 'bg-white text-gray-600 border-gray-200 hover:border-emerald-300 hover:bg-emerald-50/50'
+                            }`}
+                            title="Alternar status de realizado"
+                          >
+                            <CheckCircle2 className="w-3.5 h-3.5" />
+                            <span>{isRealizado ? 'Concluído' : 'Marcar Check'}</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => handleToggleServico(srv.nome, 'agendado')}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 border transition-all ${
+                              isAgendado
+                                ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
+                                : 'bg-white text-gray-600 border-gray-200 hover:border-blue-300 hover:bg-blue-50/50'
+                            }`}
+                            title="Alternar status de agendado"
+                          >
+                            <Calendar className="w-3.5 h-3.5" />
+                            <span>{isAgendado ? 'Agendado' : 'Agendar'}</span>
+                          </button>
+                        </div>
+                      </div>
+                    )
                   })}
                 </div>
               </div>

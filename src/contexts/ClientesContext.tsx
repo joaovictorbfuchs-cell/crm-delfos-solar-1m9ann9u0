@@ -106,6 +106,7 @@ interface ClientesContextType {
     responsavel_id?: string
     responsavel_nome?: string
   }) => Promise<Atividade>
+  updateAtividade: (id: string, data: Partial<Atividade>) => Promise<Atividade>
   updateAtividadeStatus: (id: string, status: AtividadeStatus) => Promise<void>
   removeAtividade: (id: string) => Promise<void>
   updateCliente: (id: string, data: Partial<Cliente>) => Promise<Cliente>
@@ -413,6 +414,46 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     const created = await apiCreateAtividade(data)
     setAtividades((prev) => [created, ...prev.filter((a) => a.id !== created.id)])
     return created
+  }
+
+  const updateAtividade = async (id: string, data: Partial<Atividade>): Promise<Atividade> => {
+    // Optimistic update
+    setAtividades((prev) =>
+      prev.map((a) => {
+        if (a.id !== id) return a
+        const updatedObj: Atividade = { ...a, ...data }
+        // Se cliente_id mudou e temos o objeto cliente em cache, manter expand coerente
+        if (data.cliente_id && data.cliente_id !== a.cliente_id) {
+          const matchingCliente = clientes.find((c) => c.id === data.cliente_id)
+          if (matchingCliente) {
+            updatedObj.expand = {
+              ...updatedObj.expand,
+              cliente_id: matchingCliente,
+            }
+          }
+        }
+        if (data.responsavel_id && data.responsavel_id !== a.responsavel_id) {
+          const matchingUser = usuarios.find((u) => u.id === data.responsavel_id)
+          if (matchingUser) {
+            updatedObj.expand = {
+              ...updatedObj.expand,
+              responsavel_id: matchingUser,
+            }
+          }
+        }
+        return updatedObj
+      }),
+    )
+
+    try {
+      const updated = await apiUpdateAtividade(id, data)
+      setAtividades((prev) => prev.map((a) => (a.id === id ? updated : a)))
+      return updated
+    } catch (err) {
+      console.error('Erro ao atualizar atividade:', err)
+      fetchAtividades().then(setAtividades).catch(console.error)
+      throw err
+    }
   }
 
   const updateAtividadeStatus = async (id: string, status: AtividadeStatus) => {
@@ -888,6 +929,7 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         addCliente,
         addManutencao,
         addAtividade,
+        updateAtividade,
         updateAtividadeStatus,
         removeAtividade,
         updateCliente,
