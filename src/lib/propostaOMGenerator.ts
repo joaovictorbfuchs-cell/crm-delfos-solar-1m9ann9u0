@@ -798,12 +798,9 @@ export function gerarHTMLPropostaOM(dados: PropostaPDFInput): string {
       <div class="chosen-card">
         <div class="chosen-card-tag">Opções para Escolha do Cliente</div>
         <div class="chosen-plano-name">3 OPÇÕES DE PLANOS O&M</div>
-        <div style="font-size: 10px; color: #065F46; font-weight: 600; margin-top: 4px;">Escolha o plano ideal para sua usina:</div>
-        <div style="font-size: 11.5px; font-weight: 700; color: #166534; margin-top: 6px; line-height: 1.5; text-align: left; padding: 0 10px;">
-          <div>• <strong>Essencial:</strong> ${formatBRL(49.9)}/mês (${formatBRL(49.9 * 12)}/ano)</div>
-          <div>• <strong>Prevenção:</strong> ${formatBRL(74.9)}/mês (${formatBRL(74.9 * 12)}/ano)</div>
-          <div>• <strong>Completo (Recomendado):</strong> ${formatBRL(99.9)}/mês (${formatBRL(99.9 * 12)}/ano)</div>
-        </div>
+        <p style="font-size: 10.5px; color: #065F46; font-weight: 600; margin: 10px 0 0 0; line-height: 1.45; padding: 0 8px;">
+          As três opções de plano apresentadas acima ficam à disposição do cliente para escolha após a apresentação.
+        </p>
       </div>
 
       <div class="terms-card">
