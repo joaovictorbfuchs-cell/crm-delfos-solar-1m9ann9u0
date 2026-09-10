@@ -40,7 +40,8 @@ import { AtividadeItem } from './AtividadeItem'
 import { QuickAddAtividade } from './QuickAddAtividade'
 import { FichaClienteOM } from './FichaClienteOM'
 import { ModalNovaPropostaOM } from './ModalNovaPropostaOM'
-import { ShieldCheck, FileCheck, ExternalLink, Download } from 'lucide-react'
+import { ImportarDadosDocumento } from './ImportarDadosDocumento'
+import { ShieldCheck, FileCheck, ExternalLink, Download, UploadCloud } from 'lucide-react'
 import {
   abrirPropostaEmNovaAba,
   baixarPropostaHTML,
@@ -125,6 +126,8 @@ export const FichaClienteDrawer: React.FC = () => {
 
   // Seção expansível de detalhes cadastrais/técnicos dentro do painel esquerdo
   const [detalhesOpen, setDetalhesOpen] = useState(false)
+  // Seção de Importar dados por documento
+  const [importDocOpen, setImportDocOpen] = useState(false)
   const [isCreatingProjeto, setIsCreatingProjeto] = useState(false)
 
   // Memoized: Todos os registros do cliente em UMA linha do tempo única cronológica (mais recente -> mais antigo)
@@ -254,6 +257,11 @@ export const FichaClienteDrawer: React.FC = () => {
     selectedSistema?.data_instalacao || selectedCliente.data_instalacao || ''
   const ucExibida = selectedSistema?.numero_uc || selectedCliente.uc || ''
   const telhadoExibido = selectedSistema?.tipo_telhado || selectedCliente.telhado_tipo || 'ceramico'
+  const concessionariaExibida =
+    selectedCliente.concessionaria || selectedSistema?.concessionaria || ''
+  const classeConsumoExibida =
+    selectedCliente.classe_consumo || selectedSistema?.classe_consumo || ''
+  const tarifaExibida = selectedCliente.tarifa ?? selectedSistema?.tarifa ?? 0
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
@@ -296,6 +304,21 @@ export const FichaClienteDrawer: React.FC = () => {
             />
           </div>
           <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setImportDocOpen((prev) => !prev)}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg shadow-xs transition-all hover:scale-[1.02] ${
+                importDocOpen
+                  ? 'bg-emerald-800 text-white'
+                  : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-300'
+              }`}
+              title="Importar dados automaticamente por documento (Conta de Luz, CNH, RG, Planilha)"
+            >
+              <UploadCloud className="w-4 h-4" />
+              <span className="hidden sm:inline">Importar por Documento</span>
+              <span className="sm:hidden">Importar Doc</span>
+            </button>
+
             <button
               type="button"
               onClick={() => {
@@ -409,6 +432,53 @@ export const FichaClienteDrawer: React.FC = () => {
 
             {/* Conteúdo do Painel Principal */}
             <div className="p-4 space-y-4 flex-1">
+              {/* ======================================================== */}
+              {/* SEÇÃO IMPORTAR DADOS POR DOCUMENTO (IA NATIVA SKIP CLOUD) */}
+              {/* ======================================================== */}
+              {importDocOpen && (
+                <ImportarDadosDocumento
+                  cliente={selectedCliente}
+                  sistema={selectedSistema}
+                  onClose={() => setImportDocOpen(false)}
+                  onApplyImport={async ({
+                    clienteUpdates,
+                    sistemaUpdates,
+                    fileName,
+                    resumoCampos,
+                  }) => {
+                    // 1. Atualizar cliente
+                    if (Object.keys(clienteUpdates).length > 0) {
+                      await updateCliente(selectedCliente.id, clienteUpdates)
+                    }
+
+                    // 2. Atualizar sistema
+                    if (Object.keys(sistemaUpdates).length > 0) {
+                      await updateSistema(selectedCliente.id, sistemaUpdates)
+                    }
+
+                    // 3. Registrar evento na timeline / histórico do cliente
+                    const detalhesTexto =
+                      resumoCampos.length > 0
+                        ? `Campos atualizados:\n• ${resumoCampos.slice(0, 10).join('\n• ')}${
+                            resumoCampos.length > 10
+                              ? `\n...e mais ${resumoCampos.length - 10} campos.`
+                              : ''
+                          }`
+                        : 'Dados extraídos e atualizados com sucesso.'
+
+                    await addAtividade({
+                      cliente_id: selectedCliente.id,
+                      tipo: 'anotacao',
+                      titulo: `Dados importados de documento: ${fileName}`,
+                      descricao: detalhesTexto,
+                      data: new Date().toISOString(),
+                      status: 'concluida',
+                      responsavel_nome: 'IA Extrator Delfos',
+                    })
+                  }}
+                />
+              )}
+
               {/* ======================================================== */}
               {/* ABA O&M: Plano, Serviços Avulsos e Anomalias             */}
               {/* ======================================================== */}
@@ -1164,6 +1234,87 @@ export const FichaClienteDrawer: React.FC = () => {
                             />
                           </div>
 
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            <div className="flex items-center gap-2">
+                              <span className="text-gray-500 w-24 shrink-0">Concessionária:</span>
+                              <InlineEditField
+                                value={concessionariaExibida}
+                                displayValue={
+                                  <span className="font-bold text-gray-800 bg-gray-50 px-2 py-0.5 rounded border border-gray-200">
+                                    {concessionariaExibida || 'Não informada'}
+                                  </span>
+                                }
+                                type="text"
+                                placeholder="RGE, CPFL, Celesc..."
+                                onSave={async (val) => {
+                                  await handleUpdateClienteField('concessionaria', String(val))
+                                  await handleUpdateSistemaField('concessionaria', String(val))
+                                }}
+                              />
+                            </div>
+
+                            <div className="flex items-center gap-2">
+                              <span className="text-gray-500 w-20 shrink-0">Classe:</span>
+                              <InlineEditField
+                                value={classeConsumoExibida}
+                                displayValue={
+                                  <span className="font-medium text-gray-800 bg-gray-50 px-2 py-0.5 rounded border border-gray-200">
+                                    {classeConsumoExibida || 'Não inf.'}
+                                  </span>
+                                }
+                                type="text"
+                                placeholder="Residencial, Comercial..."
+                                onSave={async (val) => {
+                                  await handleUpdateClienteField('classe_consumo', String(val))
+                                  await handleUpdateSistemaField('classe_consumo', String(val))
+                                }}
+                              />
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            <div className="flex items-center gap-2">
+                              <span className="text-gray-500 w-24 shrink-0">Consumo médio:</span>
+                              <InlineEditField
+                                value={selectedCliente.consumo_kwh_mes || 0}
+                                displayValue={
+                                  <span className="font-bold text-gray-800">
+                                    {selectedCliente.consumo_kwh_mes
+                                      ? `${selectedCliente.consumo_kwh_mes} kWh/mês`
+                                      : 'Não informado'}
+                                  </span>
+                                }
+                                type="number"
+                                unit="kWh"
+                                placeholder="Ex: 650"
+                                onSave={async (val) =>
+                                  handleUpdateClienteField('consumo_kwh_mes', Number(val) || 0)
+                                }
+                              />
+                            </div>
+
+                            <div className="flex items-center gap-2">
+                              <span className="text-gray-500 w-20 shrink-0">Tarifa:</span>
+                              <InlineEditField
+                                value={tarifaExibida}
+                                displayValue={
+                                  <span className="font-mono text-gray-800 text-[11px] bg-gray-50 px-1.5 py-0.5 rounded border border-gray-200">
+                                    {tarifaExibida > 0
+                                      ? `R$ ${Number(tarifaExibida).toFixed(2)}`
+                                      : 'Não inf.'}
+                                  </span>
+                                }
+                                type="number"
+                                step="0.01"
+                                placeholder="0.95"
+                                onSave={async (val) => {
+                                  const num = Number(val) || 0
+                                  await handleUpdateClienteField('tarifa', num)
+                                  await handleUpdateSistemaField('tarifa', num)
+                                }}
+                              />
+                            </div>
+                          </div>
                           <div className="flex items-center gap-2">
                             <span className="text-gray-500 w-24 shrink-0">Padrão entrada:</span>
                             <InlineEditField

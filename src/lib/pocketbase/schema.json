@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-10T15:11:14.098Z",
+  "generatedAt": "2026-09-10T15:20:17.383Z",
   "collections": [
     {
       "name": "users",
@@ -268,6 +268,24 @@
         },
         {
           "name": "rg",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "tarifa",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "classe_consumo",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "concessionaria",
           "type": "text",
           "required": false,
           "system": false
@@ -624,6 +642,24 @@
           "required": false,
           "system": false,
           "autodateTriggers": ["onCreate", "onUpdate"]
+        },
+        {
+          "name": "concessionaria",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "tarifa",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "classe_consumo",
+          "type": "text",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": ["CREATE INDEX idx_sistemas_cliente_id ON sistemas (cliente_id)"]

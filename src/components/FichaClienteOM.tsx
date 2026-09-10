@@ -434,16 +434,18 @@ export const FichaClienteOM: React.FC<FichaClienteOMProps> = ({ clienteId, onNav
           </button>
         </div>
 
-        {onNavigateToTab && (
-          <button
-            type="button"
-            onClick={() => onNavigateToTab('historico')}
-            className="text-xs text-emerald-700 hover:text-emerald-900 font-semibold flex items-center gap-1 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200/60"
-          >
-            <Clock className="w-3.5 h-3.5 text-emerald-600" />
-            <span>Ver eventos na Timeline</span>
-          </button>
-        )}
+        <div className="flex items-center gap-2">
+          {onNavigateToTab && (
+            <button
+              type="button"
+              onClick={() => onNavigateToTab('historico')}
+              className="text-xs text-emerald-700 hover:text-emerald-900 font-semibold flex items-center gap-1 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200/60"
+            >
+              <Clock className="w-3.5 h-3.5 text-emerald-600" />
+              <span>Ver eventos na Timeline</span>
+            </button>
+          )}
+        </div>
       </div>
 
       {/* ========================================================================= */}

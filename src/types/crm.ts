@@ -80,7 +80,8 @@ export interface Cliente extends RecordModel {
   origem_lead?: OrigemLeadTipo
   // Proposta O&M ID
   proposta_om_id?: string
-  // Novos campos cadastrais  nome_fantasia?: string
+  // Novos campos cadastrais
+  nome_fantasia?: string
   razao_social?: string
   cnpj?: string
   cpf?: string
@@ -94,6 +95,10 @@ export interface Cliente extends RecordModel {
   contato?: string
   data_nascimento_fundacao?: string
   rg?: string
+  // Campos de consumo / concessionária adicionados
+  tarifa?: number
+  classe_consumo?: string
+  concessionaria?: string
   created: string
   updated: string
 }
@@ -116,6 +121,9 @@ export interface Sistema extends RecordModel {
   latitude?: number
   longitude?: number
   // Concessionária
+  concessionaria?: string
+  tarifa?: number
+  classe_consumo?: string
   padrao_entrada?: string
   tipo_atendimento?: TipoAtendimento
   numero_fases?: NumeroFases
