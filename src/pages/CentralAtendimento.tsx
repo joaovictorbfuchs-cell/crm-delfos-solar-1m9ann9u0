@@ -16,10 +16,6 @@ import {
   Send,
   ArrowRight,
   Settings,
-  Copy,
-  Check,
-  ExternalLink,
-  Radio,
 } from 'lucide-react'
 import { useClientes } from '@/contexts/ClientesContext'
 import { useAuth } from '@/contexts/AuthContext'
@@ -27,18 +23,10 @@ import { ModalVincularCliente } from '@/components/ModalVincularCliente'
 import { ModalGerenciarWhatsAppTemplates } from '@/components/ModalGerenciarWhatsAppTemplates'
 import { ConversaChatView } from '@/components/ConversaChatView'
 import type { WhatsAppConversa } from '@/types/crm'
-import { formatDateTime, formatWhatsAppPhone } from '@/lib/formatters'
+import { formatWhatsAppPhone } from '@/lib/formatters'
 
 export const CentralAtendimento: React.FC = () => {
-  const {
-    whatsAppConversas,
-    clientes,
-    refreshConversas,
-    vincularConversa,
-    assumirAtendimento,
-    finalizarAtendimento,
-    whatsAppConfig,
-  } = useClientes()
+  const { whatsAppConversas, clientes, refreshConversas, vincularConversa } = useClientes()
 
   const { user } = useAuth()
 
@@ -57,7 +45,6 @@ export const CentralAtendimento: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('')
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [modalTemplatesOpen, setModalTemplatesOpen] = useState(false)
-  const [copiedWebhook, setCopiedWebhook] = useState(false)
   const [activeMobileTab, setActiveMobileTab] = useState<'novos' | 'atendimento' | 'resolvidos'>(
     'novos',
   )
@@ -223,81 +210,6 @@ export const CentralAtendimento: React.FC = () => {
           </button>
         </div>
       </div>
-
-      {/* Banner / Painel de Aviso do Webhook de Recebimento Z-API */}
-      {(() => {
-        const backendBase = (import.meta.env.VITE_POCKETBASE_URL || '').replace(/\/+$/, '')
-        const webhookUrl =
-          whatsAppConfig?.webhookUrl ||
-          (backendBase ? `${backendBase}/backend/v1/whatsapp/webhook` : '')
-        const handleCopy = () => {
-          if (!webhookUrl) return
-          navigator.clipboard.writeText(webhookUrl)
-          setCopiedWebhook(true)
-          setTimeout(() => setCopiedWebhook(false), 3000)
-        }
-
-        return (
-          <div className="bg-gradient-to-r from-emerald-50 via-teal-50 to-green-50 border border-emerald-200/80 rounded-2xl p-4 sm:p-4.5 shadow-2xs flex flex-col md:flex-row items-start md:items-center justify-between gap-3 text-xs">
-            <div className="flex items-start gap-3 min-w-0">
-              <div className="p-2 rounded-xl bg-emerald-100/80 text-emerald-800 shrink-0 mt-0.5">
-                <Radio className="w-4 h-4 text-emerald-700 animate-pulse" />
-              </div>
-              <div className="min-w-0">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="font-bold text-gray-900">Webhook de Recebimento (Z-API)</span>
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
-                    GET / POST Ativo
-                  </span>
-                </div>
-                <p className="text-gray-600 text-[11px] sm:text-xs mt-0.5 leading-relaxed">
-                  Para as mensagens enviadas ao seu WhatsApp chegarem automaticamente aqui na
-                  Central, cadastre esta URL no painel da Z-API em{' '}
-                  <strong className="text-gray-800">
-                    Webhooks &gt; Ao receber mensagem (On-Message-Received)
-                  </strong>
-                  :
-                </p>
-                <div className="mt-2 flex items-center gap-2 flex-wrap">
-                  <code className="px-2.5 py-1 bg-white border border-emerald-300 rounded-lg text-emerald-950 font-mono text-[11px] select-all shadow-2xs break-all">
-                    {webhookUrl}
-                  </code>
-                  <button
-                    type="button"
-                    onClick={handleCopy}
-                    className="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold text-[11px] transition-colors shadow-2xs shrink-0"
-                    title="Copiar URL do Webhook"
-                  >
-                    {copiedWebhook ? (
-                      <>
-                        <Check className="w-3.5 h-3.5" />
-                        <span>Copiado!</span>
-                      </>
-                    ) : (
-                      <>
-                        <Copy className="w-3.5 h-3.5" />
-                        <span>Copiar URL</span>
-                      </>
-                    )}
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <div className="self-end md:self-center shrink-0">
-              <button
-                type="button"
-                onClick={() => setModalTemplatesOpen(true)}
-                className="text-[11px] font-semibold text-emerald-800 hover:text-emerald-950 underline underline-offset-2 flex items-center gap-1"
-              >
-                <span>Ver credenciais Z-API</span>
-                <ExternalLink className="w-3 h-3" />
-              </button>
-            </div>
-          </div>
-        )
-      })()}
 
       {/* Main Grid: Navegação por 3 colunas e Área de Chat */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 min-h-[640px]">
