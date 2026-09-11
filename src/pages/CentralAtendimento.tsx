@@ -1,21 +1,15 @@
-import React, { useState, useEffect, useMemo } from 'react'
+import React, { useState, useEffect, useMemo, useRef } from 'react'
 import {
   MessageSquare,
   Users,
-  Clock,
   CheckCircle2,
-  AlertCircle,
   Search,
-  Filter,
   UserPlus,
   RefreshCw,
-  Sparkles,
   Phone,
-  MessageCircle,
-  Calendar,
-  Send,
-  ArrowRight,
   Settings,
+  Bell,
+  BellOff,
 } from 'lucide-react'
 import { useClientes } from '@/contexts/ClientesContext'
 import { useAuth } from '@/contexts/AuthContext'
@@ -24,9 +18,17 @@ import { ModalGerenciarWhatsAppTemplates } from '@/components/ModalGerenciarWhat
 import { ConversaChatView } from '@/components/ConversaChatView'
 import type { WhatsAppConversa } from '@/types/crm'
 import { formatWhatsAppPhone } from '@/lib/formatters'
+import {
+  playWhatsAppNotificationSound,
+  isDesktopNotificationSupported,
+  getDesktopNotificationPermission,
+  requestDesktopNotificationPermission,
+  showWhatsAppDesktopNotification,
+} from '@/lib/whatsappAudioNotification'
 
 export const CentralAtendimento: React.FC = () => {
-  const { whatsAppConversas, clientes, refreshConversas, vincularConversa } = useClientes()
+  const { whatsAppConversas, whatsAppMensagens, clientes, refreshConversas, vincularConversa } =
+    useClientes()
 
   const { user } = useAuth()
 
@@ -48,6 +50,102 @@ export const CentralAtendimento: React.FC = () => {
   const [activeMobileTab, setActiveMobileTab] = useState<'novos' | 'atendimento' | 'resolvidos'>(
     'novos',
   )
+
+  // Preferência de notificações sonoras e desktop persistida em localStorage
+  const [notificacoesAtivas, setNotificacoesAtivas] = useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem('delfos_whatsapp_notificacoes')
+      return saved !== null ? saved === 'true' : true
+    } catch {
+      return true
+    }
+  })
+
+  // Salvar no localStorage quando o toggle mudar
+  const handleToggleNotificacoes = async () => {
+    const novoValor = !notificacoesAtivas
+    setNotificacoesAtivas(novoValor)
+    try {
+      localStorage.setItem('delfos_whatsapp_notificacoes', String(novoValor))
+    } catch {
+      /* intentionally ignored */
+    }
+
+    // Ao ativar, se suporte a desktop notification existir e permissão estiver em default, pedir permissão
+    if (novoValor && isDesktopNotificationSupported()) {
+      const perm = getDesktopNotificationPermission()
+      if (perm === 'default') {
+        await requestDesktopNotificationPermission()
+      }
+    }
+  }
+
+  // Rastreamento de mensagens já notificadas para não repetir nem disparar na carga inicial
+  const notifiedIdsRef = useRef<Set<string>>(new Set())
+  const isInitialLoadRef = useRef(true)
+
+  // Monitorar chegada de novas mensagens recebidas de clientes para emitir som e notificação desktop
+  useEffect(() => {
+    // Se for a primeira carga da página, popular a lista de conhecidos sem disparar alertas
+    if (isInitialLoadRef.current) {
+      if (whatsAppMensagens.length > 0 || whatsAppConversas.length > 0) {
+        whatsAppMensagens.forEach((m) => {
+          notifiedIdsRef.current.add(m.id)
+          if (m.id_externo_gateway) notifiedIdsRef.current.add(m.id_externo_gateway)
+        })
+        isInitialLoadRef.current = false
+      }
+      return
+    }
+
+    if (!notificacoesAtivas) return
+
+    // Encontrar mensagens recebidas de clientes que ainda não foram notificadas
+    const novasRecebidas = whatsAppMensagens.filter((m) => {
+      // Notificar apenas mensagens recebidas (vindas do cliente), nunca enviadas pelo próprio atendente
+      if (m.direcao !== 'recebida') return false
+      if (notifiedIdsRef.current.has(m.id)) return false
+      if (m.id_externo_gateway && notifiedIdsRef.current.has(m.id_externo_gateway)) return false
+      return true
+    })
+
+    if (novasRecebidas.length > 0) {
+      // Disparar o som via Web Audio API (apenas uma vez para o lote)
+      playWhatsAppNotificationSound()
+
+      // Disparar notificação desktop para as novas mensagens recebidas
+      novasRecebidas.forEach((msg) => {
+        notifiedIdsRef.current.add(msg.id)
+        if (msg.id_externo_gateway) notifiedIdsRef.current.add(msg.id_externo_gateway)
+
+        // Obter identificação do cliente ou telefone
+        let nomeOuTelefone = formatWhatsAppPhone(msg.telefone_destino)
+        if (msg.cliente_id) {
+          const cli = clientes.find((c) => c.id === msg.cliente_id)
+          if (cli?.nome) nomeOuTelefone = cli.nome
+        } else if (msg.conversa_id) {
+          const conv = whatsAppConversas.find((c) => c.id === msg.conversa_id)
+          if (conv?.cliente_id) {
+            const cli = clientes.find((c) => c.id === conv.cliente_id)
+            if (cli?.nome) nomeOuTelefone = cli.nome
+          }
+        }
+
+        const preview = msg.conteudo_final || 'Nova mensagem de WhatsApp'
+
+        showWhatsAppDesktopNotification({
+          title: 'Nova mensagem de WhatsApp',
+          clientNameOrPhone: nomeOuTelefone,
+          messagePreview: preview,
+          onClick: () => {
+            if (msg.conversa_id) {
+              setSelectedConversaId(msg.conversa_id)
+            }
+          },
+        })
+      })
+    }
+  }, [whatsAppMensagens, whatsAppConversas, clientes, notificacoesAtivas])
 
   const handleManualRefresh = async () => {
     setIsRefreshing(true)
@@ -220,6 +318,40 @@ export const CentralAtendimento: React.FC = () => {
 
         {/* Ações da Barra de Ferramentas */}
         <div className="flex items-center gap-2">
+          {/* Toggle de Notificações Sonoras e Desktop */}
+          <button
+            type="button"
+            onClick={handleToggleNotificacoes}
+            className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-semibold transition-all shadow-2xs ${
+              notificacoesAtivas
+                ? 'bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border-emerald-300'
+                : 'bg-gray-50 hover:bg-gray-100 text-gray-500 border-gray-200'
+            }`}
+            title={
+              notificacoesAtivas
+                ? 'Notificações sonoras e desktop ativadas (Clique para desativar)'
+                : 'Notificações desativadas (Clique para ativar alertas de novas mensagens)'
+            }
+            aria-label={
+              notificacoesAtivas
+                ? 'Desativar notificações de novas mensagens'
+                : 'Ativar notificações de novas mensagens'
+            }
+          >
+            {notificacoesAtivas ? (
+              <>
+                <Bell className="w-3.5 h-3.5 text-emerald-600" />
+                <span className="hidden sm:inline">Notificações</span>
+                <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500" />
+              </>
+            ) : (
+              <>
+                <BellOff className="w-3.5 h-3.5 text-gray-400" />
+                <span className="hidden sm:inline">Silenciado</span>
+              </>
+            )}
+          </button>
+
           <button
             type="button"
             onClick={handleManualRefresh}

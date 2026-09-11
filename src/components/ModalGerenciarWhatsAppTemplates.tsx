@@ -495,12 +495,12 @@ export const ModalGerenciarWhatsAppTemplates: React.FC<ModalGerenciarWhatsAppTem
               <div className="bg-emerald-50/70 border border-emerald-200 rounded-2xl p-4 text-xs space-y-2 text-emerald-950">
                 <div className="font-bold text-emerald-900 flex items-center gap-1.5">
                   <ExternalLink className="w-4 h-4 text-emerald-700" />
-                  Webhook de Recebimento Z-API (Central de Atendimento)
+                  1. Webhook de Recebimento de Mensagens (On-Message-Received)
                 </div>
                 <p className="text-[12px] text-emerald-800">
                   Para receber mensagens dos clientes em tempo real na{' '}
-                  <strong>Central de Atendimento</strong>, copie a URL do Webhook abaixo e configure
-                  no painel da Z-API no campo{' '}
+                  <strong>Central de Atendimento</strong>, copie a URL abaixo e cadastre no painel
+                  da Z-API em{' '}
                   <strong>Webhooks &gt; Ao receber mensagem (On-Message-Received)</strong>:
                 </p>
                 <div className="flex items-center gap-2 mt-2">
@@ -520,9 +520,57 @@ export const ModalGerenciarWhatsAppTemplates: React.FC<ModalGerenciarWhatsAppTem
                         whatsAppConfig?.webhookUrl ||
                         `${window.location.origin}/backend/v1/whatsapp/webhook`
                       navigator.clipboard.writeText(url)
-                      alert('URL do Webhook copiada com sucesso!')
+                      alert('URL do Webhook de Recebimento copiada com sucesso!')
                     }}
                     className="px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg text-xs transition-colors shrink-0 shadow-2xs"
+                  >
+                    Copiar URL
+                  </button>
+                </div>
+              </div>
+
+              {/* Box de URL do Webhook Z-API para Status de Mensagens (Checks Azuis) */}
+              <div className="bg-sky-50/70 border border-sky-200 rounded-2xl p-4 text-xs space-y-2 text-sky-950">
+                <div className="font-bold text-sky-950 flex items-center justify-between flex-wrap gap-2">
+                  <div className="flex items-center gap-1.5">
+                    <ExternalLink className="w-4 h-4 text-sky-700" />
+                    <span>
+                      2. Webhook de Status das Mensagens (Checks Azuis / On-Message-Status-Received)
+                    </span>
+                  </div>
+                  <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-sky-100 text-sky-800 border border-sky-300">
+                    Confirmação de Leitura
+                  </span>
+                </div>
+                <p className="text-[12px] text-sky-900 leading-relaxed">
+                  Para ativar a atualização automática de entrega e checks azuis reais (
+                  <strong>Lida / Entregue</strong>) nas conversas, cadastre a URL abaixo no painel
+                  da Z-API em{' '}
+                  <strong>
+                    Webhooks &gt; Ao receber status das mensagens (On-Message-Status-Received)
+                  </strong>
+                  :
+                </p>
+                <div className="flex items-center gap-2 mt-2">
+                  <input
+                    type="text"
+                    readOnly
+                    value={
+                      whatsAppConfig?.webhookStatusUrl ||
+                      `${window.location.origin}/backend/v1/whatsapp/webhook-status`
+                    }
+                    className="flex-1 font-mono text-[11px] bg-white border border-sky-300 rounded-lg px-3 py-2 text-gray-800 shadow-2xs select-all focus:outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const url =
+                        whatsAppConfig?.webhookStatusUrl ||
+                        `${window.location.origin}/backend/v1/whatsapp/webhook-status`
+                      navigator.clipboard.writeText(url)
+                      alert('URL do Webhook de Status das Mensagens copiada com sucesso!')
+                    }}
+                    className="px-3 py-2 bg-sky-600 hover:bg-sky-700 text-white font-bold rounded-lg text-xs transition-colors shrink-0 shadow-2xs"
                   >
                     Copiar URL
                   </button>

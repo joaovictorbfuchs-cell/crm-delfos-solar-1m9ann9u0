@@ -204,6 +204,7 @@ export interface WhatsAppConfigStatus {
   apiKeyMasked?: string
   originNumber?: string
   webhookUrl?: string
+  webhookStatusUrl?: string
   secretsRequired: string[]
 }
 
