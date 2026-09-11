@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useRef } from 'react'
 import {
   X,
   MapPin,
@@ -136,6 +136,54 @@ export const FichaClienteDrawer: React.FC = () => {
   // Seção de Importar dados por documento
   const [importDocOpen, setImportDocOpen] = useState(false)
   const [isCreatingProjeto, setIsCreatingProjeto] = useState(false)
+
+  // Ref para o container com scroll da coluna esquerda
+  const scrollContainerRef = useRef<HTMLDivElement>(null)
+  // Ref para a seção de detalhes cadastrais e técnicos
+  const detalhesSectionRef = useRef<HTMLDivElement>(null)
+
+  // Ação robusta para alternar/abrir a seção e rolar suavemente até ela
+  const handleToggleDetalhes = () => {
+    if (activeClientTab === 'historico' && detalhesOpen) {
+      // Já está aberta e visível na aba histórico: recolhe
+      setDetalhesOpen(false)
+      return
+    }
+
+    // Se estiver em outra aba ou fechada: garante aba histórico e abre detalhes
+    setActiveClientTab('historico')
+    setDetalhesOpen(true)
+
+    const scrollParaSecao = (tentativa = 0) => {
+      const container = scrollContainerRef.current
+      const el =
+        detalhesSectionRef.current || document.getElementById('secao-detalhes-cadastrais-tecnicos')
+
+      if (el && container) {
+        // Calcula a posição do elemento relativa ao container com scroll
+        const containerRect = container.getBoundingClientRect()
+        const elRect = el.getBoundingClientRect()
+        const relativeTop = elRect.top - containerRect.top + container.scrollTop
+
+        container.scrollTo({
+          top: Math.max(0, relativeTop - 12),
+          behavior: 'smooth',
+        })
+      } else if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      } else if (tentativa < 10) {
+        // Se ainda não montou no DOM (troca de aba/estado React), tenta novamente com rAF
+        requestAnimationFrame(() => scrollParaSecao(tentativa + 1))
+      }
+    }
+
+    // Inicia após a renderização do React
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        scrollParaSecao()
+      })
+    })
+  }
 
   // Memoized: Todos os registros do cliente em UMA linha do tempo única cronológica (mais recente -> mais antigo)
   // Integrando anotações, atividades normais e propostas O&M da collection propostas_om
@@ -423,7 +471,10 @@ export const FichaClienteDrawer: React.FC = () => {
           {/* ================================================================ */}
           {/* COLUNA ESQUERDA: PAINEL PRINCIPAL — ABA ÚNICA "HISTÓRICO"        */}
           {/* ================================================================ */}
-          <div className="flex-1 overflow-y-auto flex flex-col min-w-0 border-b md:border-b-0 md:border-r border-gray-200/80 bg-white">
+          <div
+            ref={scrollContainerRef}
+            className="flex-1 overflow-y-auto flex flex-col min-w-0 border-b md:border-b-0 md:border-r border-gray-200/80 bg-white"
+          >
             {/* Header com Abas: "Histórico" e "Projeto" */}
             <div className="sticky top-0 z-10 bg-white border-b border-gray-200 px-4 pt-3 flex items-center justify-between gap-2">
               <div className="flex items-center gap-2">
@@ -480,16 +531,7 @@ export const FichaClienteDrawer: React.FC = () => {
               {/* Botão de alternar visualização dos Dados Completos / Técnicos */}
               <button
                 type="button"
-                onClick={() => {
-                  setActiveClientTab('historico')
-                  setDetalhesOpen(true)
-                  setTimeout(() => {
-                    const el = document.getElementById('secao-detalhes-cadastrais-tecnicos')
-                    if (el) {
-                      el.scrollIntoView({ behavior: 'smooth', block: 'start' })
-                    }
-                  }, 100)
-                }}
+                onClick={handleToggleDetalhes}
                 className={`text-xs font-semibold px-3 py-1.5 rounded-lg border transition-all flex items-center gap-1.5 ${
                   detalhesOpen && activeClientTab === 'historico'
                     ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
@@ -497,8 +539,16 @@ export const FichaClienteDrawer: React.FC = () => {
                 }`}
               >
                 <FileText className="w-3.5 h-3.5 text-emerald-600" />
-                <span>Ver Detalhes Cadastrais & Técnicos</span>
-                <ChevronDown className="w-3.5 h-3.5 text-emerald-700" />
+                <span>
+                  {detalhesOpen && activeClientTab === 'historico'
+                    ? 'Ocultar Detalhes Cadastrais'
+                    : 'Ver Detalhes Cadastrais & Técnicos'}
+                </span>
+                {detalhesOpen && activeClientTab === 'historico' ? (
+                  <ChevronUp className="w-3.5 h-3.5 text-emerald-700" />
+                ) : (
+                  <ChevronDown className="w-3.5 h-3.5 text-emerald-700" />
+                )}
               </button>
             </div>
 
@@ -822,6 +872,7 @@ export const FichaClienteDrawer: React.FC = () => {
                   {/* ======================================================== */}
                   {detalhesOpen && (
                     <div
+                      ref={detalhesSectionRef}
                       id="secao-detalhes-cadastrais-tecnicos"
                       className="rounded-2xl border border-emerald-200/90 bg-emerald-50/20 p-4 space-y-4 animate-in fade-in duration-200"
                     >
