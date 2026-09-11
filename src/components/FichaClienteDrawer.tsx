@@ -138,16 +138,54 @@ export const FichaClienteDrawer: React.FC = () => {
   const [isCreatingProjeto, setIsCreatingProjeto] = useState(false)
 
   // Memoized: Todos os registros do cliente em UMA linha do tempo única cronológica (mais recente -> mais antigo)
+  // Integrando anotações, atividades normais e propostas O&M da collection propostas_om
   const timelineAtividades = useMemo(() => {
     if (!selectedCliente) return []
-    return atividades
-      .filter((a) => a.cliente_id === selectedCliente.id)
-      .sort((a, b) => {
-        const timeA = new Date(a.data || a.created).getTime()
-        const timeB = new Date(b.data || b.created).getTime()
-        return timeB - timeA
+
+    // Atividades normais
+    const atvs = atividades.filter((a) => a.cliente_id === selectedCliente.id)
+
+    // Converter propostas O&M em itens da timeline unificada
+    const propsOMAsAtividades = (propostasOM || [])
+      .filter((p) => p.cliente_id === selectedCliente.id)
+      .map((p) => {
+        const dataProp = p.data_proposta || p.created
+        const valorMensalExibido = p.valor_mensal_plano
+          ? formatCurrency(p.valor_mensal_plano)
+          : p.valor_ativo_protegido
+            ? `${formatCurrency(p.valor_ativo_protegido)}/mês (ativo)`
+            : ''
+
+        const planoTexto = p.plano_recomendado || (p.potencia_kwp ? `${p.potencia_kwp} kWp` : 'O&M')
+        const descricaoTexto = [
+          `Plano oferecido: ${planoTexto}`,
+          valorMensalExibido ? `Valor: ${valorMensalExibido}` : '',
+          p.potencia_kwp ? `Potência: ${p.potencia_kwp} kWp` : '',
+        ]
+          .filter(Boolean)
+          .join(' • ')
+
+        return {
+          id: `prop-om-${p.id}`,
+          cliente_id: selectedCliente.id,
+          tipo: 'proposta' as const,
+          titulo: `Proposta O&M Emitida: Plano ${planoTexto}`,
+          descricao: descricaoTexto,
+          data: dataProp,
+          status: 'concluida' as const,
+          created: p.created,
+          updated: p.updated || p.created,
+          responsavel_nome: p.autor || 'Equipe O&M Delfos',
+          _propostaOM: p,
+        } as Atividade & { _propostaOM?: PropostaOM }
       })
-  }, [atividades, selectedCliente])
+
+    return [...atvs, ...propsOMAsAtividades].sort((a, b) => {
+      const timeA = new Date(a.data || a.created).getTime()
+      const timeB = new Date(b.data || b.created).getTime()
+      return timeB - timeA
+    })
+  }, [atividades, propostasOM, selectedCliente])
 
   // Próxima atividade agendada: atividade pendente com data futura mais próxima (ou a pendente mais próxima de agora)
   const proximaAtividade = useMemo<Atividade | null>(() => {
@@ -445,6 +483,12 @@ export const FichaClienteDrawer: React.FC = () => {
                 onClick={() => {
                   setActiveClientTab('historico')
                   setDetalhesOpen(true)
+                  setTimeout(() => {
+                    const el = document.getElementById('secao-detalhes-cadastrais-tecnicos')
+                    if (el) {
+                      el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                    }
+                  }, 100)
                 }}
                 className={`text-xs font-semibold px-3 py-1.5 rounded-lg border transition-all flex items-center gap-1.5 ${
                   detalhesOpen && activeClientTab === 'historico'
@@ -453,16 +497,8 @@ export const FichaClienteDrawer: React.FC = () => {
                 }`}
               >
                 <FileText className="w-3.5 h-3.5 text-emerald-600" />
-                <span>
-                  {detalhesOpen && activeClientTab === 'historico'
-                    ? 'Ocultar Detalhes Cadastrais'
-                    : 'Ver Detalhes Cadastrais & Técnicos'}
-                </span>
-                {detalhesOpen && activeClientTab === 'historico' ? (
-                  <ChevronUp className="w-3.5 h-3.5 text-emerald-700" />
-                ) : (
-                  <ChevronDown className="w-3.5 h-3.5 text-gray-500" />
-                )}
+                <span>Ver Detalhes Cadastrais & Técnicos</span>
+                <ChevronDown className="w-3.5 h-3.5 text-emerald-700" />
               </button>
             </div>
 
@@ -785,7 +821,10 @@ export const FichaClienteDrawer: React.FC = () => {
                   {/* Preserva edição inline completa e todos os campos       */}
                   {/* ======================================================== */}
                   {detalhesOpen && (
-                    <div className="rounded-2xl border border-emerald-200/90 bg-emerald-50/20 p-4 space-y-4 animate-in fade-in duration-200">
+                    <div
+                      id="secao-detalhes-cadastrais-tecnicos"
+                      className="rounded-2xl border border-emerald-200/90 bg-emerald-50/20 p-4 space-y-4 animate-in fade-in duration-200"
+                    >
                       <div className="flex items-center justify-between pb-2 border-b border-emerald-200/60">
                         <div className="flex items-center gap-2">
                           <div className="p-1.5 bg-emerald-100 text-emerald-800 rounded-lg">
@@ -2070,17 +2109,130 @@ export const FichaClienteDrawer: React.FC = () => {
                       </div>
                     ) : (
                       <div className="pt-2">
-                        {timelineAtividades.map((atv) => (
-                          <AtividadeItem
-                            key={atv.id}
-                            atividade={atv}
-                            onDelete={removeAtividade}
-                            onToggleStatus={async (id, current) => {
-                              const next = current === 'concluida' ? 'pendente' : 'concluida'
-                              await updateAtividadeStatus(id, next)
-                            }}
-                          />
-                        ))}
+                        {timelineAtividades.map((atv) => {
+                          const propOM = (atv as any)._propostaOM as PropostaOM | undefined
+
+                          if (propOM) {
+                            return (
+                              <div
+                                key={atv.id}
+                                className="group relative flex items-start gap-3 p-3.5 rounded-xl border border-emerald-200/90 bg-gradient-to-r from-emerald-50/70 via-white to-emerald-50/30 hover:border-emerald-400 hover:shadow-xs transition-all my-2 text-xs"
+                              >
+                                {/* Ícone próprio de Proposta O&M */}
+                                <div className="p-2 rounded-xl bg-emerald-100 text-emerald-800 shrink-0 mt-0.5 border border-emerald-200">
+                                  <FileCheck className="w-4 h-4 text-emerald-700" />
+                                </div>
+
+                                <div className="flex-1 min-w-0 space-y-1">
+                                  <div className="flex items-center justify-between flex-wrap gap-1">
+                                    <div className="flex items-center gap-2">
+                                      <span className="font-bold text-emerald-950 text-sm">
+                                        Proposta O&M{' '}
+                                        {propOM.potencia_kwp ? `(${propOM.potencia_kwp} kWp)` : ''}
+                                      </span>
+                                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
+                                        {propOM.status || 'Emitida'}
+                                      </span>
+                                    </div>
+                                    <div className="text-[11px] text-gray-500 font-medium">
+                                      {formatDate(propOM.data_proposta || propOM.created)}
+                                    </div>
+                                  </div>
+
+                                  <div className="flex items-baseline justify-between text-xs text-gray-700 pt-0.5">
+                                    <div>
+                                      Plano oferecido:{' '}
+                                      <span className="font-bold text-gray-900">
+                                        {propOM.plano_recomendado ||
+                                          (propOM.potencia_kwp
+                                            ? `${propOM.potencia_kwp} kWp`
+                                            : 'Essencial / Prevenção / Completo')}
+                                      </span>
+                                    </div>
+                                    <div className="font-bold text-emerald-800 text-sm">
+                                      {propOM.valor_mensal_plano
+                                        ? `${formatCurrency(propOM.valor_mensal_plano)}/mês`
+                                        : propOM.valor_ativo_protegido
+                                          ? `${formatCurrency(propOM.valor_ativo_protegido)}/mês (ativo)`
+                                          : 'Consulte opções'}
+                                    </div>
+                                  </div>
+
+                                  <div className="flex items-center justify-between pt-2 border-t border-emerald-100/70 text-[11px]">
+                                    <span className="text-gray-400">
+                                      Emitido por: {propOM.autor || 'Equipe O&M Delfos'}
+                                    </span>
+                                    <div className="flex items-center gap-2">
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setPropostaVisualizar(propOM)
+                                          setIsModalPropostaOpen(true)
+                                        }}
+                                        className="text-emerald-700 hover:text-emerald-900 font-semibold inline-flex items-center gap-1 hover:underline"
+                                      >
+                                        <ExternalLink className="w-3 h-3" />
+                                        <span>Editar</span>
+                                      </button>
+
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          const calc = calcularPropostaOM({
+                                            geracaoMensalKwh: propOM.geracao_mensal_kwh,
+                                            valorKwh: propOM.valor_kwh,
+                                          })
+                                          abrirPropostaEmNovaAba({
+                                            cliente: {
+                                              nome: selectedCliente.nome,
+                                              cpfOuCnpj:
+                                                selectedCliente.cnpj || selectedCliente.cpf,
+                                              endereco: selectedCliente.endereco,
+                                              municipio: selectedCliente.cidade,
+                                              email: selectedCliente.email,
+                                              telefone: selectedCliente.telefone,
+                                            },
+                                            tecnico: {
+                                              potenciaKwp: propOM.potencia_kwp,
+                                              geracaoMediaKwh: propOM.geracao_mensal_kwh,
+                                              marcaInversores: propOM.marca_inversores,
+                                              tipoInstalacao: propOM.tipo_instalacao,
+                                              numeroModulos: propOM.numero_modulos,
+                                            },
+                                            parametros: {
+                                              valorKwh: propOM.valor_kwh,
+                                              distanciaKm: propOM.distancia_km,
+                                              valorKm: propOM.valor_km,
+                                            },
+                                            calculos: calc,
+                                            dataEmissao: propOM.data_proposta || propOM.created,
+                                            autor: propOM.autor,
+                                          })
+                                        }}
+                                        className="inline-flex items-center gap-1 px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg shadow-2xs transition-colors"
+                                      >
+                                        <FileText className="w-3 h-3" />
+                                        <span>Ver Proposta</span>
+                                      </button>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            )
+                          }
+
+                          return (
+                            <AtividadeItem
+                              key={atv.id}
+                              atividade={atv}
+                              onDelete={removeAtividade}
+                              onToggleStatus={async (id, current) => {
+                                const next = current === 'concluida' ? 'pendente' : 'concluida'
+                                await updateAtividadeStatus(id, next)
+                              }}
+                            />
+                          )
+                        })}
                       </div>
                     )}
                   </div>
