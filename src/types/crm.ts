@@ -141,6 +141,9 @@ export interface WhatsAppMensagem extends RecordModel {
   agendado_para?: string
   enviado_em?: string
   tipo_disparo?: WhatsAppTipoDisparo | string
+  tipo_mensagem?: 'texto' | 'documento' | string
+  nome_arquivo?: string
+  documento_url?: string
   referencia_id?: string
   id_externo_gateway?: string
   log_erro?: string

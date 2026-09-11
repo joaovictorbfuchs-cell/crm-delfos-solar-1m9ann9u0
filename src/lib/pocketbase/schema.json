@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-11T17:40:09.410Z",
+  "generatedAt": "2026-09-11T20:11:02.756Z",
   "collections": [
     {
       "name": "users",
@@ -1989,6 +1989,24 @@
           "required": false,
           "system": false,
           "autodateTriggers": ["onCreate", "onUpdate"]
+        },
+        {
+          "name": "tipo_mensagem",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "nome_arquivo",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "documento_url",
+          "type": "text",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": [

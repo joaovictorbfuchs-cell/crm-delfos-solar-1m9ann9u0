@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react'
-import { X, FileCheck, Download, ExternalLink, Sparkles, Info } from 'lucide-react'
+import { X, FileCheck, Download, ExternalLink, Sparkles, Info, Send } from 'lucide-react'
 import { useClientes } from '@/contexts/ClientesContext'
+import { ModalEnviarDocumentoWhatsApp } from './ModalEnviarDocumentoWhatsApp'
 import { useAuth } from '@/contexts/AuthContext'
 import { formatCurrency, getTelhadoLabel } from '@/lib/formatters'
 import type { PropostaOM } from '@/types/crm'
@@ -37,6 +38,7 @@ export const ModalNovaPropostaOM: React.FC<ModalNovaPropostaOMProps> = ({
   const [valorKm, setValorKm] = useState<number>(2.5)
   const [observacoes, setObservacoes] = useState<string>('')
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false)
+  const [modalWhatsAppOpen, setModalWhatsAppOpen] = useState<boolean>(false)
 
   // Cliente atual selecionado
   useEffect(() => {
@@ -655,6 +657,23 @@ export const ModalNovaPropostaOM: React.FC<ModalNovaPropostaOMProps> = ({
 
             <button
               type="button"
+              disabled={
+                isSubmitting || !clienteAtual || (!clienteAtual.whatsapp && !clienteAtual.telefone)
+              }
+              onClick={() => setModalWhatsAppOpen(true)}
+              title={
+                !clienteAtual?.whatsapp && !clienteAtual?.telefone
+                  ? 'Cadastre o WhatsApp do cliente para enviar'
+                  : 'Enviar proposta O&M por WhatsApp'
+              }
+              className="px-3.5 py-2 text-xs font-bold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 rounded-xl transition-colors flex items-center gap-1.5 disabled:opacity-40"
+            >
+              <Send className="w-3.5 h-3.5 text-emerald-600" />
+              <span>WhatsApp</span>
+            </button>
+
+            <button
+              type="button"
               disabled={isSubmitting || !clienteAtual}
               onClick={() => handleGerarEGravarProposta('baixar')}
               className="px-4 py-2 text-xs font-semibold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-xl transition-colors flex items-center gap-1.5 disabled:opacity-50"
@@ -675,6 +694,18 @@ export const ModalNovaPropostaOM: React.FC<ModalNovaPropostaOMProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Modal de envio direto por WhatsApp */}
+      {clienteAtual && propostaPDFData && (
+        <ModalEnviarDocumentoWhatsApp
+          isOpen={modalWhatsAppOpen}
+          onClose={() => setModalWhatsAppOpen(false)}
+          cliente={clienteAtual}
+          tipo="proposta_om"
+          referenciaId={initialProposta?.id}
+          dadosOM={propostaPDFData}
+        />
+      )}
     </div>
   )
 }

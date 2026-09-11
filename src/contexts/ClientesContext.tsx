@@ -68,6 +68,7 @@ import {
   deleteWhatsAppTemplate as apiDeleteWhatsAppTemplate,
   fetchWhatsAppMensagens,
   sendWhatsAppMensagem as apiSendWhatsAppMensagem,
+  sendWhatsAppDocumento as apiSendWhatsAppDocumento,
   fetchWhatsAppConfigStatus,
 } from '@/services/crmService'
 import type {
@@ -213,6 +214,22 @@ interface ClientesContextType {
   }) => Promise<{
     ok: boolean
     scheduled?: boolean
+    sent?: boolean
+    gatewayConfigured?: boolean
+    status?: string
+    message: string
+    data?: WhatsAppMensagem
+  }>
+  sendWhatsAppDocument: (data: {
+    cliente_id: string
+    telefone_destino: string
+    tipo: 'orcamento_solar' | 'proposta_om' | 'documento'
+    referencia_id?: string
+    legenda?: string
+    nome_arquivo?: string
+    base64?: string
+  }) => Promise<{
+    ok: boolean
     sent?: boolean
     gatewayConfigured?: boolean
     status?: string
@@ -1070,6 +1087,28 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     return res
   }
 
+  const sendWhatsAppDocument = async (data: {
+    cliente_id: string
+    telefone_destino: string
+    tipo: 'orcamento_solar' | 'proposta_om' | 'documento'
+    referencia_id?: string
+    legenda?: string
+    nome_arquivo?: string
+    base64?: string
+  }) => {
+    const res = await apiSendWhatsAppDocumento(data)
+    // Atualiza mensagens e atividades da timeline
+    const refreshed = await fetchWhatsAppMensagens()
+    setWhatsAppMensagens(refreshed)
+    try {
+      const atvs = await fetchAtividades()
+      setAtividades(atvs)
+    } catch {
+      /* intentionally ignored */
+    }
+    return res
+  }
+
   const refreshWhatsAppConfig = async () => {
     const cfg = await fetchWhatsAppConfigStatus()
     setWhatsAppConfig(cfg)
@@ -1151,6 +1190,7 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         updateWhatsAppTemplate,
         removeWhatsAppTemplate,
         sendWhatsAppMessage,
+        sendWhatsAppDocument,
         refreshWhatsAppConfig,
         refreshData: loadAllData,
       }}

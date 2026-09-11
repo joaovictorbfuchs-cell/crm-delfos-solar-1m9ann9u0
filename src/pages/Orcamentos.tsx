@@ -30,6 +30,7 @@ import {
   baixarPropostaSolarHTML,
   type PropostaSolarPDFInput,
 } from '@/lib/propostaSolarGenerator'
+import { ModalEnviarDocumentoWhatsApp } from '@/components/ModalEnviarDocumentoWhatsApp'
 import { calcularOrcamentoSolar } from '@/lib/energiaSolar'
 
 export const Orcamentos: React.FC = () => {
@@ -46,6 +47,12 @@ export const Orcamentos: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingOrcamento, setEditingOrcamento] = useState<OrcamentoSolar | null>(null)
   const [clienteParaNovoOrcamento, setClienteParaNovoOrcamento] = useState<string>('')
+  const [modalWhatsAppOpen, setModalWhatsAppOpen] = useState<boolean>(false)
+  const [orcamentoParaWhatsApp, setOrcamentoParaWhatsApp] = useState<{
+    cliente: Cliente
+    orc: OrcamentoSolar
+    payload: PropostaSolarPDFInput
+  } | null>(null)
 
   // Métricas agregadas
   const metricas = useMemo(() => {
@@ -472,6 +479,83 @@ export const Orcamentos: React.FC = () => {
                             <Printer className="w-4 h-4" />
                           </button>
 
+                          {/* Enviar Proposta por WhatsApp */}
+                          <button
+                            disabled={!cliente || (!cliente.whatsapp && !cliente.telefone)}
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              if (!cliente) return
+
+                              const calculos = calcularOrcamentoSolar({
+                                consumoKwhMes: orc.consumo_kwh_mes,
+                                tipoCliente: orc.tipo_cliente || 'residencial',
+                                tarifaKwh: orc.tarifa_kwh,
+                                potenciaKwp: orc.potencia_kwp,
+                                orientacaoTelhado: orc.orientacao_telhado,
+                                custos: {
+                                  maoDeObra: orc.custo_mao_de_obra || 0,
+                                  materiaisExtras: orc.custo_materiais_extras || 0,
+                                  freteGuincho: orc.custo_frete_guincho || 0,
+                                  subestacao: orc.custo_subestacao || 0,
+                                  terceirizacao: orc.custo_terceirizacao || 0,
+                                  administracao: orc.custo_administracao || 0,
+                                  marketingCombustivel: orc.custo_marketing_combustivel || 0,
+                                  riscoEngenharia: orc.custo_risco_engenharia || 0,
+                                  comissaoComercial: orc.custo_comissao_comercial || 0,
+                                  indicacao: orc.custo_indicacao || 0,
+                                  impostos: orc.custo_impostos || 0,
+                                },
+                                valorInvestimentoInformado: orc.valor_investimento,
+                              })
+
+                              const payload: PropostaSolarPDFInput = {
+                                cliente: {
+                                  nome: cliente.nome_fantasia
+                                    ? `${cliente.nome} (${cliente.nome_fantasia})`
+                                    : cliente.nome,
+                                  cpfOuCnpj: cliente.cnpj || cliente.cpf || '',
+                                  endereco: [cliente.endereco, cliente.numero, cliente.bairro]
+                                    .filter(Boolean)
+                                    .join(', '),
+                                  municipio: cliente.cidade || 'Erechim / RS',
+                                  email: cliente.email || '',
+                                  telefone: cliente.telefone || '',
+                                  tipoCliente: orc.tipo_cliente,
+                                },
+                                representanteComercial: orc.autor || 'Delfos Solar',
+                                sistema: {
+                                  potenciaKwp: orc.potencia_kwp,
+                                  consumoKwhMes: orc.consumo_kwh_mes,
+                                  numeroPlacas: orc.numero_placas,
+                                  potenciaPlacaWp: orc.potencia_placa_wp,
+                                  marcaPlacas: orc.marca_painel,
+                                  marcaInversor: orc.marca_inversor,
+                                  quantidadeInversores: orc.quantidade_inversores,
+                                  tipoEstrutura: orc.tipo_estrutura,
+                                  orientacaoTelhado: orc.orientacao_telhado,
+                                  areaNecessariaM2: orc.area_necessaria_m2,
+                                  codigoFiname: orc.codigo_finame,
+                                  prazoEntregaDias: 30,
+                                },
+                                calculos,
+                                dataEmissao: orc.data_orcamento || orc.created,
+                                validadeDias: orc.validade_dias || 5,
+                                observacoes: orc.observacoes,
+                              }
+
+                              setOrcamentoParaWhatsApp({ cliente, orc, payload })
+                              setModalWhatsAppOpen(true)
+                            }}
+                            className="p-1.5 rounded-lg text-emerald-800 hover:text-emerald-950 bg-emerald-50 hover:bg-emerald-100 transition-colors border border-emerald-200 disabled:opacity-40"
+                            title={
+                              !cliente?.whatsapp && !cliente?.telefone
+                                ? 'Cadastre o WhatsApp do cliente para enviar'
+                                : 'Enviar orçamento PDF por WhatsApp'
+                            }
+                          >
+                            <Send className="w-3.5 h-3.5 text-emerald-600" />
+                          </button>
+
                           {/* Baixar HTML */}
                           <button
                             onClick={() => gerarPDFParaRegistro(orc, 'baixar')}
@@ -530,6 +614,21 @@ export const Orcamentos: React.FC = () => {
         initialClienteId={clienteParaNovoOrcamento}
         initialOrcamento={editingOrcamento}
       />
+
+      {/* Modal Enviar Orçamento por WhatsApp */}
+      {orcamentoParaWhatsApp && (
+        <ModalEnviarDocumentoWhatsApp
+          isOpen={modalWhatsAppOpen}
+          onClose={() => {
+            setModalWhatsAppOpen(false)
+            setOrcamentoParaWhatsApp(null)
+          }}
+          cliente={orcamentoParaWhatsApp.cliente}
+          tipo="orcamento_solar"
+          referenciaId={orcamentoParaWhatsApp.orc.id}
+          dadosSolar={orcamentoParaWhatsApp.payload}
+        />
+      )}
     </div>
   )
 }

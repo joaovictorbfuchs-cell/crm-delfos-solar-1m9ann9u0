@@ -662,6 +662,28 @@ export async function sendWhatsAppMensagem(data: {
   })
 }
 
+export async function sendWhatsAppDocumento(data: {
+  cliente_id: string
+  telefone_destino: string
+  tipo: 'orcamento_solar' | 'proposta_om' | 'documento'
+  referencia_id?: string
+  legenda?: string
+  nome_arquivo?: string
+  base64?: string
+}): Promise<{
+  ok: boolean
+  sent?: boolean
+  gatewayConfigured?: boolean
+  status?: string
+  message: string
+  data?: import('@/types/crm').WhatsAppMensagem
+}> {
+  return pb.send('/backend/v1/whatsapp/enviar-documento', {
+    method: 'POST',
+    body: data,
+  })
+}
+
 export async function fetchWhatsAppConfigStatus(): Promise<
   import('@/types/crm').WhatsAppConfigStatus
 > {

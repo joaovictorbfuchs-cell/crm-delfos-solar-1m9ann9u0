@@ -15,6 +15,7 @@ import {
   RefreshCw,
   Settings,
   MessageSquare,
+  FileCheck,
 } from 'lucide-react'
 import { useClientes } from '@/contexts/ClientesContext'
 import type { Cliente, WhatsAppTemplate } from '@/types/crm'
@@ -582,18 +583,25 @@ export const FichaClienteWhatsApp: React.FC<FichaClienteWhatsAppProps> = ({
                     <div className="flex items-center gap-2">
                       {renderStatusBadge(msg.status, msg.agendado_para)}
 
-                      {msg.tipo_disparo && (
-                        <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 border border-gray-200">
-                          {msg.tipo_disparo === 'manual'
-                            ? 'Envio Manual'
-                            : msg.tipo_disparo === 'proposta_aprovada'
-                              ? 'Automático: Proposta Aprovada'
-                              : msg.tipo_disparo === 'lembrete_visita'
-                                ? 'Automático: Lembrete de Visita'
-                                : msg.tipo_disparo === 'followup_posvenda'
-                                  ? 'Automático: Follow-up Pós-Venda'
-                                  : msg.tipo_disparo}
+                      {msg.tipo_mensagem === 'documento' ? (
+                        <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200 flex items-center gap-1">
+                          <FileText className="w-3 h-3 text-emerald-700" />
+                          <span>Documento PDF</span>
                         </span>
+                      ) : (
+                        msg.tipo_disparo && (
+                          <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 border border-gray-200">
+                            {msg.tipo_disparo === 'manual'
+                              ? 'Envio Manual'
+                              : msg.tipo_disparo === 'proposta_aprovada'
+                                ? 'Automático: Proposta Aprovada'
+                                : msg.tipo_disparo === 'lembrete_visita'
+                                  ? 'Automático: Lembrete de Visita'
+                                  : msg.tipo_disparo === 'followup_posvenda'
+                                    ? 'Automático: Follow-up Pós-Venda'
+                                    : msg.tipo_disparo}
+                          </span>
+                        )
                       )}
 
                       {tplUtilizado && (
@@ -610,9 +618,32 @@ export const FichaClienteWhatsApp: React.FC<FichaClienteWhatsAppProps> = ({
                   </div>
 
                   {/* Conteúdo da Mensagem em estilo balão WhatsApp */}
-                  <div className="p-3 bg-emerald-50/40 border border-emerald-100 rounded-xl text-xs text-gray-800 whitespace-pre-wrap leading-relaxed font-sans">
-                    {msg.conteudo_final}
-                  </div>
+                  {msg.tipo_mensagem === 'documento' ? (
+                    <div className="space-y-2">
+                      <div className="p-3 bg-emerald-50/80 border border-emerald-200 rounded-xl flex items-center gap-3">
+                        <div className="p-2 bg-emerald-600 text-white rounded-lg shrink-0 shadow-2xs">
+                          <FileCheck className="w-5 h-5 text-white" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="text-xs font-bold text-gray-900 truncate">
+                            {msg.nome_arquivo || 'Documento Oficial Delfos Solar.pdf'}
+                          </div>
+                          <div className="text-[10px] text-emerald-700 font-semibold uppercase tracking-wider">
+                            Arquivo PDF • Enviado via Z-API
+                          </div>
+                        </div>
+                      </div>
+                      {msg.conteudo_final && (
+                        <div className="p-3 bg-gray-50 border border-gray-100 rounded-xl text-xs text-gray-800 whitespace-pre-wrap leading-relaxed font-sans">
+                          {msg.conteudo_final}
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="p-3 bg-emerald-50/40 border border-emerald-100 rounded-xl text-xs text-gray-800 whitespace-pre-wrap leading-relaxed font-sans">
+                      {msg.conteudo_final}
+                    </div>
+                  )}
 
                   {/* Metadados e Log de Erro (se houver) */}
                   <div className="flex items-center justify-between flex-wrap gap-2 text-[11px] text-gray-400 pt-1 border-t border-gray-100">

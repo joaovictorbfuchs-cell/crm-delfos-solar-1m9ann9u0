@@ -21,7 +21,9 @@ import {
   Home,
   Factory,
   Tractor,
+  Send,
 } from 'lucide-react'
+import { ModalEnviarDocumentoWhatsApp } from './ModalEnviarDocumentoWhatsApp'
 import { useClientes } from '@/contexts/ClientesContext'
 import { useAuth } from '@/contexts/AuthContext'
 import { ClienteAutocomplete } from '@/components/ClienteAutocomplete'
@@ -94,6 +96,7 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
   const [valorInvestimentoManual, setValorInvestimentoManual] = useState<number>(0)
   const [observacoes, setObservacoes] = useState<string>('')
   const [prazoEntregaDias, setPrazoEntregaDias] = useState<number>(30)
+  const [modalWhatsAppOpen, setModalWhatsAppOpen] = useState<boolean>(false)
 
   // Custos do projeto (aba de custos com soma automática)
   const [custos, setCustos] = useState<DadosCustosSolar>({ ...CUSTOS_SOLAR_PADRAO })
@@ -1645,6 +1648,24 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
               <span>Gerar Proposta (PDF)</span>
             </button>
 
+            {/* Botão Enviar por WhatsApp direto da proposta */}
+            <button
+              type="button"
+              disabled={
+                isSubmitting || !clienteAtual || (!clienteAtual.whatsapp && !clienteAtual.telefone)
+              }
+              onClick={() => setModalWhatsAppOpen(true)}
+              title={
+                !clienteAtual?.whatsapp && !clienteAtual?.telefone
+                  ? 'Cadastre o WhatsApp do cliente para enviar'
+                  : 'Enviar orçamento solar por WhatsApp'
+              }
+              className="px-3.5 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 text-xs font-bold rounded-xl transition-all inline-flex items-center gap-1.5 disabled:opacity-40"
+            >
+              <Send className="w-3.5 h-3.5 text-emerald-600" />
+              <span>WhatsApp</span>
+            </button>
+
             <button
               type="button"
               onClick={() => handleSalvar('baixar_pdf')}
@@ -1669,6 +1690,18 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Modal Enviar Orçamento por WhatsApp */}
+      {clienteAtual && propostaPDFData && (
+        <ModalEnviarDocumentoWhatsApp
+          isOpen={modalWhatsAppOpen}
+          onClose={() => setModalWhatsAppOpen(false)}
+          cliente={clienteAtual}
+          tipo="orcamento_solar"
+          referenciaId={initialOrcamento?.id}
+          dadosSolar={propostaPDFData}
+        />
+      )}
     </div>
   )
 }

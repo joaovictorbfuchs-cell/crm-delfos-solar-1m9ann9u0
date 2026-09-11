@@ -50,9 +50,10 @@ import { FichaClienteWhatsApp } from './FichaClienteWhatsApp'
 import { ModalGerenciarWhatsAppTemplates } from './ModalGerenciarWhatsAppTemplates'
 import { ModalNovaPropostaOM } from './ModalNovaPropostaOM'
 import { ModalOrcamentoSolar } from './ModalOrcamentoSolar'
+import { ModalEnviarDocumentoWhatsApp } from './ModalEnviarDocumentoWhatsApp'
 import { ImportarDadosDocumento } from './ImportarDadosDocumento'
 import type { OrcamentoSolar } from '@/types/crm'
-import { ShieldCheck, FileCheck, ExternalLink, Download, UploadCloud } from 'lucide-react'
+import { ShieldCheck, FileCheck, ExternalLink, Download, UploadCloud, Send } from 'lucide-react'
 import {
   abrirPropostaEmNovaAba,
   baixarPropostaHTML,
@@ -141,6 +142,15 @@ export const FichaClienteDrawer: React.FC = () => {
     null,
   )
   const [modalWhatsAppTemplatesOpen, setModalWhatsAppTemplatesOpen] = useState(false)
+
+  // Modal para envio de Documento (Orçamento Solar / Proposta O&M) por WhatsApp
+  const [modalEnviarDocWhatsAppOpen, setModalEnviarDocWhatsAppOpen] = useState(false)
+  const [docParaEnviarWhatsApp, setDocParaEnviarWhatsApp] = useState<{
+    tipo: 'orcamento_solar' | 'proposta_om'
+    referenciaId?: string
+    dadosSolar?: any
+    dadosOM?: any
+  } | null>(null)
 
   // Seção expansível de detalhes cadastrais/técnicos dentro do painel esquerdo
   const [detalhesOpen, setDetalhesOpen] = useState(false)
@@ -2067,7 +2077,87 @@ export const FichaClienteDrawer: React.FC = () => {
                                   className="text-[10px] font-bold text-emerald-800 hover:underline flex items-center gap-0.5"
                                 >
                                   <span>Ver Proposta PDF</span>
-                                </button>{' '}
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={!selectedCliente.whatsapp && !selectedCliente.telefone}
+                                  title={
+                                    !selectedCliente.whatsapp && !selectedCliente.telefone
+                                      ? 'Cadastre o WhatsApp do cliente para enviar'
+                                      : 'Enviar orçamento solar por WhatsApp'
+                                  }
+                                  onClick={async () => {
+                                    const { calcularOrcamentoSolar } =
+                                      await import('@/lib/energiaSolar')
+                                    const calc = calcularOrcamentoSolar({
+                                      consumoKwhMes: o.consumo_kwh_mes,
+                                      tipoCliente: o.tipo_cliente || 'residencial',
+                                      tarifaKwh: o.tarifa_kwh,
+                                      potenciaKwp: o.potencia_kwp,
+                                      orientacaoTelhado: o.orientacao_telhado,
+                                      valorInvestimentoInformado: o.valor_investimento,
+                                      custos: {
+                                        maoDeObra: o.custo_mao_de_obra || 0,
+                                        materiaisExtras: o.custo_materiais_extras || 0,
+                                        freteGuincho: o.custo_frete_guincho || 0,
+                                        subestacao: o.custo_subestacao || 0,
+                                        terceirizacao: o.custo_terceirizacao || 0,
+                                        administracao: o.custo_administracao || 0,
+                                        marketingCombustivel: o.custo_marketing_combustivel || 0,
+                                        riscoEngenharia: o.custo_risco_engenharia || 0,
+                                        comissaoComercial: o.custo_comissao_comercial || 0,
+                                        indicacao: o.custo_indicacao || 0,
+                                        impostos: o.custo_impostos || 0,
+                                      },
+                                    })
+                                    setDocParaEnviarWhatsApp({
+                                      tipo: 'orcamento_solar',
+                                      referenciaId: o.id,
+                                      dadosSolar: {
+                                        cliente: {
+                                          nome: selectedCliente.nome,
+                                          cpfOuCnpj:
+                                            selectedCliente.cnpj || selectedCliente.cpf || '',
+                                          endereco: [
+                                            selectedCliente.endereco,
+                                            selectedCliente.numero,
+                                            selectedCliente.bairro,
+                                          ]
+                                            .filter(Boolean)
+                                            .join(', '),
+                                          municipio: selectedCliente.cidade || 'Erechim / RS',
+                                          email: selectedCliente.email || '',
+                                          telefone: selectedCliente.telefone || '',
+                                          tipoCliente: o.tipo_cliente,
+                                        },
+                                        representanteComercial: o.autor || 'Delfos Solar',
+                                        sistema: {
+                                          potenciaKwp: o.potencia_kwp,
+                                          consumoKwhMes: o.consumo_kwh_mes,
+                                          numeroPlacas: o.numero_placas,
+                                          potenciaPlacaWp: o.potencia_placa_wp,
+                                          marcaPlacas: o.marca_painel,
+                                          marcaInversor: o.marca_inversor,
+                                          quantidadeInversores: o.quantidade_inversores,
+                                          tipoEstrutura: o.tipo_estrutura,
+                                          orientacaoTelhado: o.orientacao_telhado,
+                                          areaNecessariaM2: o.area_necessaria_m2,
+                                          codigoFiname: o.codigo_finame,
+                                          prazoEntregaDias: 30,
+                                        },
+                                        calculos: calc,
+                                        dataEmissao: o.data_orcamento || o.created,
+                                        validadeDias: o.validade_dias || 5,
+                                        observacoes: o.observacoes,
+                                      },
+                                    })
+                                    setModalEnviarDocWhatsAppOpen(true)
+                                  }}
+                                  className="text-[10px] font-bold text-emerald-700 hover:text-emerald-900 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-2 py-0.5 rounded flex items-center gap-1 disabled:opacity-40 disabled:cursor-not-allowed"
+                                >
+                                  <Send className="w-3 h-3 text-emerald-600" />
+                                  <span>Enviar WhatsApp</span>
+                                </button>
                               </div>
                             </div>
                           </div>
@@ -2175,6 +2265,57 @@ export const FichaClienteDrawer: React.FC = () => {
                                     className="text-[10px] font-bold text-emerald-800 hover:underline flex items-center gap-0.5"
                                   >
                                     <span>Ver PDF</span>
+                                  </button>
+                                  <button
+                                    type="button"
+                                    disabled={
+                                      !selectedCliente.whatsapp && !selectedCliente.telefone
+                                    }
+                                    title={
+                                      !selectedCliente.whatsapp && !selectedCliente.telefone
+                                        ? 'Cadastre o WhatsApp do cliente para enviar'
+                                        : 'Enviar proposta O&M por WhatsApp'
+                                    }
+                                    onClick={() => {
+                                      const calc = calcularPropostaOM({
+                                        geracaoMensalKwh: p.geracao_mensal_kwh,
+                                        valorKwh: p.valor_kwh,
+                                      })
+                                      setDocParaEnviarWhatsApp({
+                                        tipo: 'proposta_om',
+                                        referenciaId: p.id,
+                                        dadosOM: {
+                                          cliente: {
+                                            nome: selectedCliente.nome,
+                                            cpfOuCnpj: selectedCliente.cnpj || selectedCliente.cpf,
+                                            endereco: selectedCliente.endereco,
+                                            municipio: selectedCliente.cidade,
+                                            email: selectedCliente.email,
+                                            telefone: selectedCliente.telefone,
+                                          },
+                                          tecnico: {
+                                            potenciaKwp: p.potencia_kwp,
+                                            geracaoMediaKwh: p.geracao_mensal_kwh,
+                                            marcaInversores: p.marca_inversores,
+                                            tipoInstalacao: p.tipo_instalacao,
+                                            numeroModulos: p.numero_modulos,
+                                          },
+                                          parametros: {
+                                            valorKwh: p.valor_kwh,
+                                            distanciaKm: p.distancia_km,
+                                            valorKm: p.valor_km,
+                                          },
+                                          calculos: calc,
+                                          dataEmissao: p.data_proposta || p.created,
+                                          autor: p.autor,
+                                        },
+                                      })
+                                      setModalEnviarDocWhatsAppOpen(true)
+                                    }}
+                                    className="text-[10px] font-bold text-emerald-700 hover:text-emerald-900 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-2 py-0.5 rounded flex items-center gap-1 disabled:opacity-40 disabled:cursor-not-allowed"
+                                  >
+                                    <Send className="w-3 h-3 text-emerald-600" />
+                                    <span>WhatsApp</span>
                                   </button>
                                 </div>
                               </div>
@@ -2331,6 +2472,59 @@ export const FichaClienteDrawer: React.FC = () => {
                                       >
                                         <FileText className="w-3 h-3" />
                                         <span>Ver Proposta</span>
+                                      </button>
+
+                                      <button
+                                        type="button"
+                                        disabled={
+                                          !selectedCliente.whatsapp && !selectedCliente.telefone
+                                        }
+                                        title={
+                                          !selectedCliente.whatsapp && !selectedCliente.telefone
+                                            ? 'Cadastre o WhatsApp do cliente para enviar'
+                                            : 'Enviar proposta O&M por WhatsApp'
+                                        }
+                                        onClick={() => {
+                                          const calc = calcularPropostaOM({
+                                            geracaoMensalKwh: propOM.geracao_mensal_kwh,
+                                            valorKwh: propOM.valor_kwh,
+                                          })
+                                          setDocParaEnviarWhatsApp({
+                                            tipo: 'proposta_om',
+                                            referenciaId: propOM.id,
+                                            dadosOM: {
+                                              cliente: {
+                                                nome: selectedCliente.nome,
+                                                cpfOuCnpj:
+                                                  selectedCliente.cnpj || selectedCliente.cpf,
+                                                endereco: selectedCliente.endereco,
+                                                municipio: selectedCliente.cidade,
+                                                email: selectedCliente.email,
+                                                telefone: selectedCliente.telefone,
+                                              },
+                                              tecnico: {
+                                                potenciaKwp: propOM.potencia_kwp,
+                                                geracaoMediaKwh: propOM.geracao_mensal_kwh,
+                                                marcaInversores: propOM.marca_inversores,
+                                                tipoInstalacao: propOM.tipo_instalacao,
+                                                numeroModulos: propOM.numero_modulos,
+                                              },
+                                              parametros: {
+                                                valorKwh: propOM.valor_kwh,
+                                                distanciaKm: propOM.distancia_km,
+                                                valorKm: propOM.valor_km,
+                                              },
+                                              calculos: calc,
+                                              dataEmissao: propOM.data_proposta || propOM.created,
+                                              autor: propOM.autor,
+                                            },
+                                          })
+                                          setModalEnviarDocWhatsAppOpen(true)
+                                        }}
+                                        className="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 font-bold rounded-lg shadow-2xs transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                                      >
+                                        <Send className="w-3 h-3 text-emerald-600" />
+                                        <span>Enviar WhatsApp</span>
                                       </button>
                                     </div>
                                   </div>
@@ -2632,6 +2826,22 @@ export const FichaClienteDrawer: React.FC = () => {
         isOpen={modalWhatsAppTemplatesOpen}
         onClose={() => setModalWhatsAppTemplatesOpen(false)}
       />
+
+      {/* Modal Enviar Orçamento Solar ou Proposta O&M por WhatsApp */}
+      {selectedCliente && docParaEnviarWhatsApp && (
+        <ModalEnviarDocumentoWhatsApp
+          isOpen={modalEnviarDocWhatsAppOpen}
+          onClose={() => {
+            setModalEnviarDocWhatsAppOpen(false)
+            setDocParaEnviarWhatsApp(null)
+          }}
+          cliente={selectedCliente}
+          tipo={docParaEnviarWhatsApp.tipo}
+          referenciaId={docParaEnviarWhatsApp.referenciaId}
+          dadosSolar={docParaEnviarWhatsApp.dadosSolar}
+          dadosOM={docParaEnviarWhatsApp.dadosOM}
+        />
+      )}
     </div>
   )
 }
