@@ -221,6 +221,29 @@ interface ClientesContextType {
     atendenteId?: string,
   ) => Promise<WhatsAppConversa>
   finalizarAtendimento: (conversaId: string) => Promise<WhatsAppConversa>
+  cadastrarLeadDeConversa: (
+    conversaId: string,
+    leadData: {
+      nome: string
+      telefone: string
+      email?: string
+      cpf?: string
+      endereco?: string
+      produto?: import('@/types/crm').ProdutoTipo
+      origem_lead?: import('@/types/crm').OrigemLeadTipo
+    },
+    atendenteNome?: string,
+    atendenteId?: string,
+  ) => Promise<{ cliente: Cliente; conversa: WhatsAppConversa }>
+  cadastrarOutroContatoDeConversa: (
+    conversaId: string,
+    contatoData: {
+      nome: string
+      telefone: string
+      tipo_contato: import('@/types/crm').OutroContatoTipo
+      observacao?: string
+    },
+  ) => Promise<{ contato: import('@/types/crm').OutroContato; conversa: WhatsAppConversa }>
   refreshConversas: () => Promise<WhatsAppConversa[]>
   sendWhatsAppMessage: (data: {
     cliente_id?: string
@@ -1141,6 +1164,87 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     return updated
   }
 
+  const cadastrarLeadDeConversa = async (
+    conversaId: string,
+    leadData: {
+      nome: string
+      telefone: string
+      email?: string
+      cpf?: string
+      endereco?: string
+      produto?: import('@/types/crm').ProdutoTipo
+      origem_lead?: import('@/types/crm').OrigemLeadTipo
+    },
+    atendenteNome?: string,
+    atendenteId?: string,
+  ) => {
+    // 1. Criar novo cliente
+    const novoCliente = await apiCreateCliente({
+      nome: leadData.nome,
+      telefone: leadData.telefone,
+      whatsapp: leadData.telefone,
+      email: leadData.email || '',
+      cpf: leadData.cpf || '',
+      endereco: leadData.endereco || '',
+      usina_endereco: leadData.endereco || '',
+      produto: leadData.produto || 'residencial',
+      origem_lead: leadData.origem_lead || 'WhatsApp',
+      status: 'Novo Lead',
+    })
+
+    // 2. Vincular conversa ao novo cliente e passar para em_atendimento
+    const updatedConversa = await apiVincularConversaCliente(
+      conversaId,
+      novoCliente.id,
+      atendenteNome,
+    )
+
+    // Se tiver atendenteId ou quiser assegurar atendente_id
+    if (atendenteId) {
+      await apiUpdateWhatsAppConversa(conversaId, {
+        atendente_id: atendenteId,
+      })
+      updatedConversa.atendente_id = atendenteId
+    }
+
+    // 3. Atualizar estados locais e recarregar
+    setClientes((prev) => [novoCliente, ...prev.filter((c) => c.id !== novoCliente.id)])
+    setWhatsAppConversas((prev) => prev.map((c) => (c.id === conversaId ? updatedConversa : c)))
+    const [cList, mList] = await Promise.all([fetchClientes(), fetchWhatsAppMensagens()])
+    setClientes(cList)
+    setWhatsAppMensagens(mList)
+
+    return { cliente: novoCliente, conversa: updatedConversa }
+  }
+
+  const cadastrarOutroContatoDeConversa = async (
+    conversaId: string,
+    contatoData: {
+      nome: string
+      telefone: string
+      tipo_contato: import('@/types/crm').OutroContatoTipo
+      observacao?: string
+    },
+  ) => {
+    // 1. Criar registro na collection outros_contatos
+    const { createOutroContato } = await import('@/services/crmService')
+    const novoContato = await createOutroContato({
+      nome: contatoData.nome,
+      telefone: contatoData.telefone,
+      tipo_contato: contatoData.tipo_contato,
+      observacao: contatoData.observacao || '',
+      conversa_id: conversaId,
+    })
+
+    // 2. Finalizar/resolver conversa para remover da fila de novos
+    const updatedConversa = await apiFinalizarConversa(conversaId)
+
+    // 3. Atualizar estado local
+    setWhatsAppConversas((prev) => prev.map((c) => (c.id === conversaId ? updatedConversa : c)))
+
+    return { contato: novoContato, conversa: updatedConversa }
+  }
+
   const sendWhatsAppMessage = async (data: {
     cliente_id?: string
     conversa_id?: string
@@ -1269,6 +1373,8 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         vincularConversa,
         assumirAtendimento,
         finalizarAtendimento,
+        cadastrarLeadDeConversa,
+        cadastrarOutroContatoDeConversa,
         refreshConversas,
         sendWhatsAppMessage,
         sendWhatsAppDocument,

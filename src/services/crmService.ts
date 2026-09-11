@@ -814,3 +814,38 @@ export async function fetchWhatsAppConfigStatus(): Promise<
     }
   }
 }
+
+// -------------------------------------------------------------
+// Outros Contatos Services
+// -------------------------------------------------------------
+
+export async function createOutroContato(data: {
+  nome: string
+  telefone: string
+  tipo_contato: import('@/types/crm').OutroContatoTipo
+  observacao?: string
+  conversa_id?: string
+}): Promise<import('@/types/crm').OutroContato> {
+  return pb.collection('outros_contatos').create<import('@/types/crm').OutroContato>(data)
+}
+
+export async function fetchOutrosContatos(): Promise<import('@/types/crm').OutroContato[]> {
+  try {
+    return await pb.collection('outros_contatos').getFullList<import('@/types/crm').OutroContato>({
+      sort: '-created',
+    })
+  } catch (err) {
+    console.error('Erro ao buscar outros contatos:', err)
+    return []
+  }
+}
+
+export async function arquivarConversaComoOutroContato(
+  conversaId: string,
+): Promise<import('@/types/crm').WhatsAppConversa> {
+  return updateWhatsAppConversa(conversaId, {
+    status: 'resolvido',
+    resolvida_em: new Date().toISOString(),
+    nao_lidas: 0,
+  })
+}

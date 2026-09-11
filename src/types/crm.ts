@@ -14,8 +14,13 @@ export type ProdutoTipo =
   | 'Plano de O&M'
   | 'Sistemas Híbridos'
   | 'Carregadores veiculares'
+  | 'residencial'
+  | 'comercial'
+  | 'industrial'
+  | 'rural'
+  | 'investidor'
 
-export type OrigemLeadTipo = 'Facebook' | 'Instagram' | 'Indicação' | 'Site' | 'Outro'
+export type OrigemLeadTipo = 'Facebook' | 'Instagram' | 'Indicação' | 'Site' | 'WhatsApp' | 'Outro'
 
 export type TelhadoTipo = 'ceramico' | 'metalico' | 'laje' | 'fibrocimento'
 
@@ -206,6 +211,25 @@ export interface WhatsAppConfigStatus {
   webhookUrl?: string
   webhookStatusUrl?: string
   secretsRequired: string[]
+}
+
+// -------------------------------------------------------------
+// Outros Contatos (fornecedor, instalador, parceiro, outro)
+// -------------------------------------------------------------
+
+export type OutroContatoTipo = 'fornecedor' | 'instalador' | 'parceiro' | 'outro'
+
+export interface OutroContato extends RecordModel {
+  id: string
+  collectionId: string
+  collectionName: string
+  nome: string
+  telefone: string
+  tipo_contato: OutroContatoTipo
+  observacao?: string
+  conversa_id?: string
+  created: string
+  updated: string
 }
 
 export interface Sistema extends RecordModel {

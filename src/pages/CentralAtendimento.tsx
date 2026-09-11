@@ -15,8 +15,18 @@ import { useClientes } from '@/contexts/ClientesContext'
 import { useAuth } from '@/contexts/AuthContext'
 import { ModalVincularCliente } from '@/components/ModalVincularCliente'
 import { ModalGerenciarWhatsAppTemplates } from '@/components/ModalGerenciarWhatsAppTemplates'
+import { ModalCadastrarLeadWhatsApp } from '@/components/ModalCadastrarLeadWhatsApp'
+import { ModalCadastrarOutroContatoWhatsApp } from '@/components/ModalCadastrarOutroContatoWhatsApp'
 import { ConversaChatView } from '@/components/ConversaChatView'
-import type { WhatsAppConversa } from '@/types/crm'
+import { useToast } from '@/hooks/use-toast'
+import type { WhatsAppConversa, OutroContatoTipo, ProdutoTipo } from '@/types/crm'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import { MoreVertical, UserCheck, Building2 } from 'lucide-react'
 import { formatWhatsAppPhone } from '@/lib/formatters'
 import {
   playWhatsAppNotificationSound,
@@ -27,10 +37,18 @@ import {
 } from '@/lib/whatsappAudioNotification'
 
 export const CentralAtendimento: React.FC = () => {
-  const { whatsAppConversas, whatsAppMensagens, clientes, refreshConversas, vincularConversa } =
-    useClientes()
+  const {
+    whatsAppConversas,
+    whatsAppMensagens,
+    clientes,
+    refreshConversas,
+    vincularConversa,
+    cadastrarLeadDeConversa,
+    cadastrarOutroContatoDeConversa,
+  } = useClientes()
 
   const { user } = useAuth()
+  const { toast } = useToast()
 
   // Polling automático a cada 15 segundos conforme solicitado
   useEffect(() => {
@@ -44,6 +62,10 @@ export const CentralAtendimento: React.FC = () => {
 
   const [selectedConversaId, setSelectedConversaId] = useState<string | null>(null)
   const [conversaParaVincular, setConversaParaVincular] = useState<WhatsAppConversa | null>(null)
+  const [conversaParaNovoLead, setConversaParaNovoLead] = useState<WhatsAppConversa | null>(null)
+  const [conversaParaOutroContato, setConversaParaOutroContato] = useState<WhatsAppConversa | null>(
+    null,
+  )
   const [searchTerm, setSearchTerm] = useState('')
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [modalTemplatesOpen, setModalTemplatesOpen] = useState(false)
@@ -294,10 +316,88 @@ export const CentralAtendimento: React.FC = () => {
   // Vincular ação
   const handleVincularCliente = async (clienteId: string) => {
     if (!conversaParaVincular) return
-    const atendenteNome = user?.name || user?.email || 'Atendente'
-    await vincularConversa(conversaParaVincular.id, clienteId, atendenteNome)
-    setSelectedConversaId(conversaParaVincular.id)
-    setConversaParaVincular(null)
+    try {
+      const atendenteNome = user?.name || user?.email || 'João Silva'
+      await vincularConversa(conversaParaVincular.id, clienteId, atendenteNome)
+      setSelectedConversaId(conversaParaVincular.id)
+      setConversaParaVincular(null)
+      toast({
+        title: 'Conversa vinculada com sucesso',
+        description: 'A conversa foi associada ao cliente e movida para "Em Atendimento".',
+      })
+    } catch (err: unknown) {
+      console.error('Erro ao vincular conversa:', err)
+      toast({
+        title: 'Erro ao vincular conversa',
+        description: err instanceof Error ? err.message : 'Não foi possível vincular a conversa.',
+        variant: 'destructive',
+      })
+    }
+  }
+
+  // Cadastrar Novo Lead a partir de conversa da fila de novos
+  const handleCadastrarNovoLead = async (data: {
+    nome: string
+    telefone: string
+    email?: string
+    cpf?: string
+    endereco?: string
+    produto: ProdutoTipo
+    origem_lead: import('@/types/crm').OrigemLeadTipo
+  }) => {
+    if (!conversaParaNovoLead) return
+    try {
+      const atendenteNome = user?.name || user?.email || 'João Silva'
+      const res = await cadastrarLeadDeConversa(
+        conversaParaNovoLead.id,
+        data,
+        atendenteNome,
+        user?.id,
+      )
+      setSelectedConversaId(res.conversa.id)
+      setConversaParaNovoLead(null)
+      toast({
+        title: 'Lead cadastrado com sucesso!',
+        description: `${data.nome} foi cadastrado como cliente e o atendimento foi iniciado.`,
+      })
+    } catch (err: unknown) {
+      console.error('Erro ao cadastrar lead a partir do WhatsApp:', err)
+      toast({
+        title: 'Erro ao cadastrar lead',
+        description: err instanceof Error ? err.message : 'Falha ao cadastrar o novo lead.',
+        variant: 'destructive',
+      })
+      throw err
+    }
+  }
+
+  // Cadastrar Outro Contato a partir de conversa da fila de novos
+  const handleCadastrarOutroContato = async (data: {
+    nome: string
+    telefone: string
+    tipo_contato: OutroContatoTipo
+    observacao?: string
+  }) => {
+    if (!conversaParaOutroContato) return
+    try {
+      await cadastrarOutroContatoDeConversa(conversaParaOutroContato.id, data)
+      if (selectedConversaId === conversaParaOutroContato.id) {
+        setSelectedConversaId(null)
+      }
+      setConversaParaOutroContato(null)
+      toast({
+        title: 'Contato registrado com sucesso',
+        description: `Contato "${data.nome}" (${data.tipo_contato}) salvo. A conversa foi removida da Fila de Novos.`,
+      })
+    } catch (err: unknown) {
+      console.error('Erro ao cadastrar outro contato:', err)
+      toast({
+        title: 'Erro ao cadastrar contato',
+        description: err instanceof Error ? err.message : 'Falha ao salvar contato.',
+        variant: 'destructive',
+      })
+      throw err
+    }
   }
 
   return (
@@ -490,17 +590,70 @@ export const CentralAtendimento: React.FC = () => {
                             Número Não Vinculado
                           </span>
 
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              setConversaParaVincular(conv)
-                            }}
-                            className="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[11px] font-bold transition-colors shadow-2xs"
-                          >
-                            <UserPlus className="w-3 h-3" />
-                            <span>Vincular a cliente</span>
-                          </button>
+                          <div className="flex items-center gap-1">
+                            {/* Menu de 3 pontos no card da Fila de Novos */}
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <button
+                                  type="button"
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="p-1 rounded-md text-gray-500 hover:text-gray-800 hover:bg-gray-100 transition-colors"
+                                  title="Opções do contato"
+                                >
+                                  <MoreVertical className="w-3.5 h-3.5" />
+                                </button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end" className="w-56 text-xs">
+                                <DropdownMenuItem
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    setSelectedConversaId(conv.id)
+                                    setConversaParaNovoLead(conv)
+                                  }}
+                                  className="flex items-center gap-2 cursor-pointer text-amber-800 font-medium hover:bg-amber-50"
+                                >
+                                  <UserPlus className="w-3.5 h-3.5 text-amber-600" />
+                                  <span>Cadastrar como novo lead</span>
+                                </DropdownMenuItem>
+
+                                <DropdownMenuItem
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    setSelectedConversaId(conv.id)
+                                    setConversaParaOutroContato(conv)
+                                  }}
+                                  className="flex items-center gap-2 cursor-pointer text-blue-800 font-medium hover:bg-blue-50"
+                                >
+                                  <Building2 className="w-3.5 h-3.5 text-blue-600" />
+                                  <span>Cadastrar como outro contato</span>
+                                </DropdownMenuItem>
+
+                                <DropdownMenuItem
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    setConversaParaVincular(conv)
+                                  }}
+                                  className="flex items-center gap-2 cursor-pointer text-gray-700 hover:bg-gray-100"
+                                >
+                                  <UserCheck className="w-3.5 h-3.5 text-emerald-600" />
+                                  <span>Vincular a cliente existente</span>
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                setConversaParaVincular(conv)
+                              }}
+                              className="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[11px] font-bold transition-colors shadow-2xs"
+                              title="Vincular a cliente existente"
+                            >
+                              <UserCheck className="w-3 h-3" />
+                              <span>Vincular</span>
+                            </button>
+                          </div>
                         </div>
                       </div>
                     )
@@ -678,6 +831,8 @@ export const CentralAtendimento: React.FC = () => {
               cliente={selectedCliente}
               onBack={() => setSelectedConversaId(null)}
               onOpenVincularModal={() => setConversaParaVincular(selectedConversa)}
+              onOpenCadastrarLeadModal={() => setConversaParaNovoLead(selectedConversa)}
+              onOpenCadastrarOutroContatoModal={() => setConversaParaOutroContato(selectedConversa)}
             />
           ) : (
             <div className="h-full bg-white rounded-2xl border border-gray-200 shadow-xs flex flex-col items-center justify-center p-8 text-center">
@@ -702,6 +857,28 @@ export const CentralAtendimento: React.FC = () => {
         clientes={clientes}
         onVincular={handleVincularCliente}
       />
+
+      {/* Modal para Cadastrar como Novo Lead a partir do WhatsApp */}
+      {conversaParaNovoLead && (
+        <ModalCadastrarLeadWhatsApp
+          open={Boolean(conversaParaNovoLead)}
+          onOpenChange={(open) => !open && setConversaParaNovoLead(null)}
+          conversaNumero={conversaParaNovoLead.numero}
+          conversaNome={conversaParaNovoLead.numero}
+          onSubmit={handleCadastrarNovoLead}
+        />
+      )}
+
+      {/* Modal para Cadastrar como Outro Contato a partir do WhatsApp */}
+      {conversaParaOutroContato && (
+        <ModalCadastrarOutroContatoWhatsApp
+          open={Boolean(conversaParaOutroContato)}
+          onOpenChange={(open) => !open && setConversaParaOutroContato(null)}
+          conversaNumero={conversaParaOutroContato.numero}
+          conversaNome={conversaParaOutroContato.numero}
+          onSubmit={handleCadastrarOutroContato}
+        />
+      )}
 
       {/* Modal Global de Templates e Gateway WhatsApp */}
       <ModalGerenciarWhatsAppTemplates

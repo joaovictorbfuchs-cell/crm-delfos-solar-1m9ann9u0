@@ -18,6 +18,7 @@ import {
   Smile,
   ChevronRight,
   UserCheck,
+  UserPlus,
   Building2,
   Calendar,
   AlertCircle,
@@ -137,6 +138,8 @@ interface ConversaChatViewProps {
   cliente?: Cliente | null
   onBack?: () => void
   onOpenVincularModal?: () => void
+  onOpenCadastrarLeadModal?: () => void
+  onOpenCadastrarOutroContatoModal?: () => void
 }
 
 export const ConversaChatView: React.FC<ConversaChatViewProps> = ({
@@ -144,6 +147,8 @@ export const ConversaChatView: React.FC<ConversaChatViewProps> = ({
   cliente,
   onBack,
   onOpenVincularModal,
+  onOpenCadastrarLeadModal,
+  onOpenCadastrarOutroContatoModal,
 }) => {
   const {
     whatsAppTemplates,
@@ -465,18 +470,50 @@ export const ConversaChatView: React.FC<ConversaChatViewProps> = ({
                     <span>Ver ficha completa do cliente</span>
                   </button>
                 ) : (
-                  onOpenVincularModal && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setShowOptionsMenu(false)
-                        onOpenVincularModal()
-                      }}
-                      className="w-full text-left px-3.5 py-2 hover:bg-gray-100 flex items-center gap-2.5 text-gray-800 font-medium"
-                    >
-                      <UserCheck className="w-4 h-4 text-emerald-600" />
-                      <span>Vincular a um cliente</span>
-                    </button>
+                  !conversa.cliente_id && (
+                    <>
+                      {onOpenCadastrarLeadModal && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowOptionsMenu(false)
+                            onOpenCadastrarLeadModal()
+                          }}
+                          className="w-full text-left px-3.5 py-2 hover:bg-amber-50 flex items-center gap-2.5 text-amber-800 font-medium"
+                        >
+                          <UserPlus className="w-4 h-4 text-amber-600" />
+                          <span>Cadastrar como novo lead</span>
+                        </button>
+                      )}
+
+                      {onOpenCadastrarOutroContatoModal && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowOptionsMenu(false)
+                            onOpenCadastrarOutroContatoModal()
+                          }}
+                          className="w-full text-left px-3.5 py-2 hover:bg-blue-50 flex items-center gap-2.5 text-blue-800 font-medium"
+                        >
+                          <Building2 className="w-4 h-4 text-blue-600" />
+                          <span>Cadastrar como outro contato</span>
+                        </button>
+                      )}
+
+                      {onOpenVincularModal && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowOptionsMenu(false)
+                            onOpenVincularModal()
+                          }}
+                          className="w-full text-left px-3.5 py-2 hover:bg-gray-100 flex items-center gap-2.5 text-gray-800 font-medium"
+                        >
+                          <UserCheck className="w-4 h-4 text-emerald-600" />
+                          <span>Vincular a cliente existente</span>
+                        </button>
+                      )}
+                    </>
                   )
                 )}
 
