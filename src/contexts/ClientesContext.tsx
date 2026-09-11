@@ -228,6 +228,7 @@ interface ClientesContextType {
     legenda?: string
     nome_arquivo?: string
     base64?: string
+    documento_url?: string
   }) => Promise<{
     ok: boolean
     sent?: boolean
@@ -1095,6 +1096,7 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     legenda?: string
     nome_arquivo?: string
     base64?: string
+    documento_url?: string
   }) => {
     const res = await apiSendWhatsAppDocumento(data)
     // Atualiza mensagens e atividades da timeline

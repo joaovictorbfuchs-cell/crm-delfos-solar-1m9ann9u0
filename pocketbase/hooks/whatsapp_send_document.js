@@ -14,6 +14,7 @@ routerAdd('POST', '/backend/v1/whatsapp/enviar-documento', (e) => {
     const legenda = (body.legenda || body.mensagem || '').trim()
     const nomeArquivo = (body.nome_arquivo || body.fileName || 'documento.pdf').trim()
     const base64Data = (body.base64 || body.document || '').trim()
+    const documentoUrl = (body.documento_url || body.documentUrl || '').trim()
 
     if (!clienteId) {
       return e.json(400, { error: 'cliente_id é obrigatório', ok: false })
@@ -45,6 +46,7 @@ routerAdd('POST', '/backend/v1/whatsapp/enviar-documento', (e) => {
     msgRecord.set('tipo_disparo', 'manual')
     msgRecord.set('tipo_mensagem', 'documento')
     msgRecord.set('nome_arquivo', nomeArquivo)
+    if (documentoUrl) msgRecord.set('documento_url', documentoUrl)
     if (referenciaId) msgRecord.set('referencia_id', referenciaId)
 
     // Ler secrets do Gateway

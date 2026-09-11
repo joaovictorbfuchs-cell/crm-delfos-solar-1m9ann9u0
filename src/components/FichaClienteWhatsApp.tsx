@@ -16,6 +16,7 @@ import {
   Settings,
   MessageSquare,
   FileCheck,
+  ExternalLink,
 } from 'lucide-react'
 import { useClientes } from '@/contexts/ClientesContext'
 import type { Cliente, WhatsAppTemplate } from '@/types/crm'
@@ -620,18 +621,57 @@ export const FichaClienteWhatsApp: React.FC<FichaClienteWhatsAppProps> = ({
                   {/* Conteúdo da Mensagem em estilo balão WhatsApp */}
                   {msg.tipo_mensagem === 'documento' ? (
                     <div className="space-y-2">
-                      <div className="p-3 bg-emerald-50/80 border border-emerald-200 rounded-xl flex items-center gap-3">
-                        <div className="p-2 bg-emerald-600 text-white rounded-lg shrink-0 shadow-2xs">
-                          <FileCheck className="w-5 h-5 text-white" />
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <div className="text-xs font-bold text-gray-900 truncate">
-                            {msg.nome_arquivo || 'Documento Oficial Delfos Solar.pdf'}
+                      <div className="p-3 bg-emerald-50/80 border border-emerald-200 rounded-xl flex items-center justify-between gap-3 shadow-2xs hover:border-emerald-300 transition-colors">
+                        <div className="flex items-center gap-3 min-w-0 flex-1">
+                          {/* Ícone de PDF */}
+                          <div className="p-2.5 bg-rose-500 text-white rounded-xl shrink-0 shadow-2xs flex items-center justify-center">
+                            <FileText className="w-5 h-5 text-white" />
                           </div>
-                          <div className="text-[10px] text-emerald-700 font-semibold uppercase tracking-wider">
-                            Arquivo PDF • Enviado via Z-API
+                          <div className="min-w-0 flex-1">
+                            {msg.documento_url ? (
+                              <a
+                                href={msg.documento_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-xs font-bold text-emerald-900 hover:text-emerald-700 hover:underline flex items-center gap-1.5 truncate group"
+                                title="Abrir PDF em nova aba"
+                              >
+                                <span className="truncate">
+                                  {msg.nome_arquivo || 'Documento Oficial Delfos Solar.pdf'}
+                                </span>
+                                <ExternalLink className="w-3.5 h-3.5 text-emerald-600 shrink-0 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+                              </a>
+                            ) : (
+                              <div
+                                className="text-xs font-bold text-gray-900 truncate"
+                                title={msg.nome_arquivo || 'Documento Oficial Delfos Solar.pdf'}
+                              >
+                                {msg.nome_arquivo || 'Documento Oficial Delfos Solar.pdf'}
+                              </div>
+                            )}
+                            <div className="text-[10px] text-emerald-700 font-semibold uppercase tracking-wider flex items-center gap-1.5 mt-0.5">
+                              <span className="px-1.5 py-0.2 rounded bg-rose-100 text-rose-700 font-bold">
+                                PDF
+                              </span>
+                              <span>•</span>
+                              <span>Documento enviado via WhatsApp</span>
+                            </div>
                           </div>
                         </div>
+
+                        {/* Ação rápida para abrir se houver documento_url */}
+                        {msg.documento_url && (
+                          <a
+                            href={msg.documento_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-white border border-emerald-200 text-emerald-800 hover:bg-emerald-50 hover:text-emerald-900 text-xs font-bold shadow-2xs transition-colors shrink-0"
+                            title="Abrir PDF em nova aba"
+                          >
+                            <span>Abrir</span>
+                            <ExternalLink className="w-3 h-3 text-emerald-600" />
+                          </a>
+                        )}
                       </div>
                       {msg.conteudo_final && (
                         <div className="p-3 bg-gray-50 border border-gray-100 rounded-xl text-xs text-gray-800 whitespace-pre-wrap leading-relaxed font-sans">

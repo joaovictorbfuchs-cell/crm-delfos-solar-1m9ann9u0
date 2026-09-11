@@ -670,6 +670,7 @@ export async function sendWhatsAppDocumento(data: {
   legenda?: string
   nome_arquivo?: string
   base64?: string
+  documento_url?: string
 }): Promise<{
   ok: boolean
   sent?: boolean

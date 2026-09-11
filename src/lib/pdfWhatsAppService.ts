@@ -264,7 +264,7 @@ export async function gerarBase64OrcamentoSolar(
     color: [0.086, 0.639, 0.29],
   })
   lines.push({
-    text: `Investimento Total Turnkey: ${formatCurrency(dados.calculos.valorInvestimentoFinal)}`,
+    text: `Investimento Total Turnkey: ${formatCurrency(dados.calculos.valorInvestimento)}`,
     size: 11,
     bold: true,
     color: [0.086, 0.5, 0.2],
@@ -292,15 +292,15 @@ export async function gerarBase64OrcamentoSolar(
     color: [0.086, 0.639, 0.29],
   })
   lines.push({
-    text: `A vista com desconto: ${formatCurrency(dados.calculos.parcelas.aVista)}`,
+    text: `A vista com desconto: ${formatCurrency(dados.calculos.parcelamentos.aVista.valorParcela)}`,
     size: 9,
   })
   lines.push({
-    text: `Cartao de credito (18x): 18x de ${formatCurrency(dados.calculos.parcelas.cartaoCredito18x)}`,
+    text: `Cartao de credito (18x): 18x de ${formatCurrency(dados.calculos.parcelamentos.cartao18x.valorParcela)}`,
     size: 9,
   })
   lines.push({
-    text: `Financiamento Bancario (BV/Santander 60x): 60x de ${formatCurrency(dados.calculos.parcelas.financiamentoBv60x)}`,
+    text: `Financiamento Bancario (BV/Santander 60x): 60x de ${formatCurrency(dados.calculos.parcelamentos.financiamentoBanco1.valorParcela)}`,
     size: 9,
   })
 
@@ -319,7 +319,7 @@ Cliente: ${dados.cliente.nome}
 Potência: ${dados.sistema.potenciaKwp.toFixed(2)} kWp (${dados.sistema.numeroPlacas} placas)
 Geração média: ${dados.calculos.geracaoMediaMensalKwh.toLocaleString('pt-BR')} kWh/mês
 Economia estimada: ${formatCurrency(dados.calculos.economia1Mes)}/mês (${formatCurrency(dados.calculos.economia1Ano)}/ano)
-Investimento Turnkey: ${formatCurrency(dados.calculos.valorInvestimentoFinal)}
+Investimento Turnkey: ${formatCurrency(dados.calculos.valorInvestimento)}
 Payback estimado: ~${dados.calculos.paybackMeses} meses
 Validade da proposta: ${dados.validadeDias || 5} dias corridos.
 Responsável Técnico: João Victor Bagetti Fuchs (CREA RS151894).`

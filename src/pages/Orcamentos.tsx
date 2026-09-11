@@ -24,7 +24,7 @@ import {
 import { useClientes } from '@/contexts/ClientesContext'
 import { ModalOrcamentoSolar } from '@/components/ModalOrcamentoSolar'
 import { formatCurrency, formatDate } from '@/lib/formatters'
-import type { OrcamentoSolar, OrcamentoSolarStatus } from '@/types/crm'
+import type { Cliente, OrcamentoSolar, OrcamentoSolarStatus } from '@/types/crm'
 import {
   abrirPropostaSolarEmNovaAba,
   baixarPropostaSolarHTML,
