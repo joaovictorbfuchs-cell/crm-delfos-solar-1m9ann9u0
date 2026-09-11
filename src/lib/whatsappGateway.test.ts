@@ -1,6 +1,7 @@
 import {
   normalizeWhatsAppDestinationPhone,
   isZApiGatewayUrl,
+  isValidZApiInstanceUrl,
   formatZApiEndpoint,
   maskGatewayUrl,
   buildWhatsAppSendPayload,
@@ -59,13 +60,18 @@ export function runWhatsAppGatewayTests(): { passed: number; total: number; erro
       },
     },
     {
-      name: 'Detecção de provedor Z-API por domínio',
+      name: 'Detecção de provedor Z-API por domínio (.com e .io)',
       fn: () => {
         assert(
           isZApiGatewayUrl('https://api.z-api.com/instances/MY_INST/token/MY_TOK'),
           'z-api.com maiúsculo/minúsculo',
         )
-        assert(isZApiGatewayUrl('https://api.z-api.io/instances/ABC/token/XYZ'), 'z-api.io aceito')
+        assert(
+          isZApiGatewayUrl(
+            'https://api.z-api.io/instances/3F902C5C5FE301D4EDF15EAA8B6A85A3/token/BA07F078D0E16FA524C1886E/send-text',
+          ),
+          'z-api.io aceito no caso real do usuário',
+        )
         assert(
           !isZApiGatewayUrl('https://api.evolution.solar.com.br/message/sendText/delfos'),
           'Outro gateway não é Z-API',
@@ -73,62 +79,113 @@ export function runWhatsAppGatewayTests(): { passed: number; total: number; erro
       },
     },
     {
-      name: 'Formatação de endpoint Z-API (/send-text)',
+      name: 'Validação de estrutura canônica da Z-API',
       fn: () => {
-        const base = 'https://api.z-api.com/instances/INST_123/token/TOK_456'
-        assertEquals(
-          formatZApiEndpoint(base, 'send-text'),
-          'https://api.z-api.com/instances/INST_123/token/TOK_456/send-text',
-          'Adição do sufixo /send-text',
+        assert(
+          isValidZApiInstanceUrl(
+            'https://api.z-api.io/instances/3F902C5C5FE301D4EDF15EAA8B6A85A3/token/BA07F078D0E16FA524C1886E',
+          ),
+          'Válida sem /send-text',
         )
-        assertEquals(
-          formatZApiEndpoint(base + '/send-text', 'send-text'),
-          'https://api.z-api.com/instances/INST_123/token/TOK_456/send-text',
-          'Não duplicar sufixo /send-text',
+        assert(
+          isValidZApiInstanceUrl(
+            'https://api.z-api.io/instances/3F902C5C5FE301D4EDF15EAA8B6A85A3/token/BA07F078D0E16FA524C1886E/send-text',
+          ),
+          'Válida com /send-text',
         )
-        assertEquals(
-          formatZApiEndpoint(base + '/', 'send-text'),
-          'https://api.z-api.com/instances/INST_123/token/TOK_456/send-text',
-          'Remover barra trailing antes do append',
+        assert(
+          isValidZApiInstanceUrl('https://api.z-api.com/instances/INST_123/token/TOK_456/'),
+          'Válida com barra no final',
+        )
+        assert(
+          !isValidZApiInstanceUrl(
+            'https://api.z-api.io/instances/3F902C5C5FE301D4EDF15EAA8B6A85A3',
+          ),
+          'Inválida se faltar /token/...',
         )
       },
     },
     {
-      name: 'Mascaramento seguro de token na URL Z-API',
+      name: 'Formatação de endpoint Z-API (/send-text) para múltiplos formatos colados',
       fn: () => {
-        const url = 'https://api.z-api.com/instances/3C829910292/token/992A8849FBB22019'
-        const masked = maskGatewayUrl(url)
+        const baseCom = 'https://api.z-api.com/instances/INST_123/token/TOK_456'
+        const baseIoComSufixo =
+          'https://api.z-api.io/instances/3F902C5C5FE301D4EDF15EAA8B6A85A3/token/BA07F078D0E16FA524C1886E/send-text'
+
         assertEquals(
-          masked,
-          'https://api.z-api.com/instances/3C829910292/token/••••22019',
-          'Token da Z-API deve ser mascarado',
+          formatZApiEndpoint(baseCom, 'send-text'),
+          'https://api.z-api.com/instances/INST_123/token/TOK_456/send-text',
+          'Adição do sufixo /send-text a partir da base sem sufixo',
+        )
+        assertEquals(
+          formatZApiEndpoint(baseIoComSufixo, 'send-text'),
+          'https://api.z-api.io/instances/3F902C5C5FE301D4EDF15EAA8B6A85A3/token/BA07F078D0E16FA524C1886E/send-text',
+          'Não duplicar sufixo /send-text quando usuário colou com ele',
+        )
+        assertEquals(
+          formatZApiEndpoint(baseIoComSufixo + '/', 'send-text'),
+          'https://api.z-api.io/instances/3F902C5C5FE301D4EDF15EAA8B6A85A3/token/BA07F078D0E16FA524C1886E/send-text',
+          'Não duplicar sufixo mesmo com barra final',
+        )
+        assertEquals(
+          formatZApiEndpoint('  ' + baseCom + '/SEND-TEXT  ', 'send-text'),
+          'https://api.z-api.com/instances/INST_123/token/TOK_456/send-text',
+          'Tratar espaços e maiúsculas no sufixo',
         )
       },
     },
     {
-      name: 'Montagem de payload para Z-API (phone, message, Client-Token)',
+      name: 'Mascaramento seguro de token na URL Z-API (.com e .io)',
+      fn: () => {
+        const urlCom = 'https://api.z-api.com/instances/3C829910292/token/992A8849FBB22019'
+        const maskedCom = maskGatewayUrl(urlCom)
+        assertEquals(
+          maskedCom,
+          'https://api.z-api.com/instances/3C829910292/token/••••2019',
+          'Token da Z-API .com deve ser mascarado',
+        )
+
+        const urlIo =
+          'https://api.z-api.io/instances/3F902C5C5FE301D4EDF15EAA8B6A85A3/token/BA07F078D0E16FA524C1886E/send-text'
+        const maskedIo = maskGatewayUrl(urlIo)
+        assertEquals(
+          maskedIo,
+          'https://api.z-api.io/instances/3F902C5C5FE301D4EDF15EAA8B6A85A3/token/••••886E/send-text',
+          'Token da Z-API .io com sufixo deve ser mascarado preservando formato',
+        )
+      },
+    },
+    {
+      name: 'Montagem de payload para Z-API (caso real do usuário com api.z-api.io e /send-text)',
       fn: () => {
         const config = buildWhatsAppSendPayload({
-          apiUrl: 'https://api.z-api.com/instances/INST123/token/TOK456',
-          apiKey: 'CLIENT_TOKEN_SECRET_999',
-          phone: '(54) 99129-2121',
-          message: 'Olá, proposta pronta!',
+          apiUrl:
+            'https://api.z-api.io/instances/3F902C5C5FE301D4EDF15EAA8B6A85A3/token/BA07F078D0E16FA524C1886E/send-text\n',
+          apiKey: 'CLIENT_TOKEN_SECRET_999\n',
+          phone: '(54) 98110-8228',
+          message: 'teste skip',
         })
 
-        assert(config.isZApi, 'Deve detectar Z-API')
+        assert(config.isZApi, 'Deve detectar Z-API no host api.z-api.io')
+        assert(Boolean(config.isWellFormedZApi), 'Estrutura deve ser válida')
         assertEquals(
           config.targetUrl,
-          'https://api.z-api.com/instances/INST123/token/TOK456/send-text',
-          'URL final deve ter /send-text',
+          'https://api.z-api.io/instances/3F902C5C5FE301D4EDF15EAA8B6A85A3/token/BA07F078D0E16FA524C1886E/send-text',
+          'URL final formatada perfeitamente',
         )
         assertEquals(
           config.headers['Client-Token'],
           'CLIENT_TOKEN_SECRET_999',
-          'Header Client-Token',
+          'Header Client-Token sem quebra de linha',
         )
-        assertEquals(config.payload.phone, '5554991292121', 'Telefone normalizado no body')
-        assertEquals(config.payload.message, 'Olá, proposta pronta!', 'Texto no body')
+        assertEquals(config.payload.phone, '5554981108228', 'Telefone com 55')
+        assertEquals(config.payload.message, 'teste skip', 'Mensagem preservada')
         assert(!('number' in config.payload), 'Não deve enviar campo redundante "number" na Z-API')
+        assertEquals(
+          config.maskedTargetUrl,
+          'https://api.z-api.io/instances/3F902C5C5FE301D4EDF15EAA8B6A85A3/token/••••886E/send-text',
+          'Target URL mascarada com segurança para log',
+        )
       },
     },
     {

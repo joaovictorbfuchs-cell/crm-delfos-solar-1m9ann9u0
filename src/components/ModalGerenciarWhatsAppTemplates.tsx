@@ -393,18 +393,25 @@ export const ModalGerenciarWhatsAppTemplates: React.FC<ModalGerenciarWhatsAppTem
                         </span>
                       </div>
                       <p className="text-gray-500 text-[11px]">
-                        URL do endpoint do gateway. Para a Z-API, use:{' '}
-                        <code className="bg-gray-100 px-1 py-0.5 rounded text-[10px] text-gray-800">
-                          https://api.z-api.com/instances/{'{instanceId}'}/token/{'{token}'}
-                        </code>{' '}
-                        (o CRM adiciona automaticamente{' '}
+                        URL do endpoint do gateway. Para a Z-API, aceita formatos com ou sem{' '}
                         <code className="bg-gray-100 px-1 py-0.5 rounded text-[10px] text-gray-800">
                           /send-text
+                        </code>{' '}
+                        em hosts{' '}
+                        <code className="bg-gray-100 px-1 py-0.5 rounded text-[10px] text-gray-800">
+                          api.z-api.io
+                        </code>{' '}
+                        ou{' '}
+                        <code className="bg-gray-100 px-1 py-0.5 rounded text-[10px] text-gray-800">
+                          api.z-api.com
                         </code>
-                        ).
+                        :{' '}
+                        <code className="bg-gray-100 px-1 py-0.5 rounded text-[10px] text-gray-800">
+                          https://api.z-api.io/instances/{'{instanceId}'}/token/{'{token}'}
+                        </code>
                       </p>
                       {whatsAppConfig?.formatHint && (
-                        <p className="text-amber-700 font-semibold text-[10px]">
+                        <p className="text-amber-700 font-semibold text-[10px] bg-amber-50 p-1.5 rounded border border-amber-200 mt-1">
                           {whatsAppConfig.formatHint}
                         </p>
                       )}

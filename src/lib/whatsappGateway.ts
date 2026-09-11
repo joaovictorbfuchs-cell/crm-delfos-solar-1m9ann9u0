@@ -9,6 +9,8 @@ export interface WhatsAppGatewayRequestConfig {
   payload: Record<string, unknown>
   isZApi: boolean
   cleanPhone: string
+  isWellFormedZApi?: boolean
+  maskedTargetUrl?: string
 }
 
 /**
@@ -38,45 +40,82 @@ export function isZApiGatewayUrl(url: string | undefined | null): boolean {
 }
 
 /**
+ * Valida se a URL da Z-API segue o padrão canônico /instances/{id}/token/{token} (com ou sem /send-text).
+ */
+export function isValidZApiInstanceUrl(url: string | undefined | null): boolean {
+  if (!url) return false
+  let clean = url
+    .trim()
+    .replace(/[\r\n\t]/g, '')
+    .replace(/\/+$/, '')
+  if (!clean.startsWith('http://') && !clean.startsWith('https://')) {
+    clean = 'https://' + clean
+  }
+  const baseWithoutSuffix = clean.replace(/\/+send-text\/?$/i, '').replace(/\/+$/, '')
+  return /^(https?:\/\/[^/]+)\/instances\/([^/]+)\/token\/([^/?#]+)$/i.test(baseWithoutSuffix)
+}
+
+/**
  * Valida e formata a URL base para envio de mensagens na Z-API.
- * Z-API espera POST /send-text na URL da instância: https://api.z-api.com/instances/{instanceId}/token/{token}/send-text
+ * Aceita múltiplos formatos colados pelo usuário:
+ * - https://api.z-api.io/instances/{id}/token/{token}
+ * - https://api.z-api.io/instances/{id}/token/{token}/send-text
+ * - https://api.z-api.com/... (ambos os domínios .io e .com)
+ * - Com ou sem barra final, com ou sem maiúsculas/minúsculas no sufixo /send-text
+ * Garante sempre {base}/send-text sem duplicação de sufixo ou barras duplas.
  */
 export function formatZApiEndpoint(url: string | undefined | null, endpoint = 'send-text'): string {
   if (!url) return ''
-  let clean = url.trim().replace(/\/+$/, '')
+  let clean = url
+    .trim()
+    .replace(/[\r\n\t]/g, '')
+    .replace(/\/+$/, '')
   if (!clean.startsWith('http://') && !clean.startsWith('https://')) {
     clean = 'https://' + clean
   }
 
   const endpointSlug = endpoint.startsWith('/') ? endpoint.slice(1) : endpoint
-  if (clean.toLowerCase().endsWith('/' + endpointSlug.toLowerCase())) {
-    return clean
-  }
 
-  return clean + '/' + endpointSlug
+  // Remover qualquer sufixo existente (/send-text, /send-text/, etc.) de forma insensível a maiúsculas
+  const suffixPattern = new RegExp(`(/+${endpointSlug}/?$)|(/+$)`, 'i')
+  const base = clean.replace(suffixPattern, '').replace(/\/+$/, '')
+
+  return `${base}/${endpointSlug}`
 }
 
 /**
- * Mascara de forma segura a URL da Z-API para exibição na interface,
+ * Mascara de forma segura a URL do gateway para exibição na interface e logs,
  * ocultando o token secreto da instância.
  */
 export function maskGatewayUrl(url: string | undefined | null): string {
   if (!url) return ''
-  const trimmed = url.trim()
-
-  if (isZApiGatewayUrl(trimmed)) {
-    const zapiRegex = /(https?:\/\/[^/]+\/instances\/)([^/]+)(\/token\/)([^/?#]+)/i
-    const match = trimmed.match(zapiRegex)
-    if (match) {
-      const prefix = match[1]
-      const instanceId = match[2]
-      const token = match[4]
-      const maskedToken = token.length > 4 ? '••••' + token.slice(-4) : '••••'
-      return `${prefix}${instanceId}/token/${maskedToken}`
-    }
-    return trimmed.replace(/\/token\/[^/?#]+/i, '/token/••••••••')
+  let clean = url
+    .trim()
+    .replace(/[\r\n\t]/g, '')
+    .replace(/\/+$/, '')
+  if (!clean.startsWith('http://') && !clean.startsWith('https://')) {
+    clean = 'https://' + clean
   }
-  return trimmed.length > 35 ? trimmed.substring(0, 35) + '...' : trimmed
+
+  if (isZApiGatewayUrl(clean)) {
+    const hasSendTextSuffix = /\/+send-text\/?$/i.test(clean)
+    const baseWithoutSuffix = clean.replace(/\/+send-text\/?$/i, '').replace(/\/+$/, '')
+
+    const zapiRegex = /^(https?:\/\/[^/]+)\/instances\/([^/]+)\/token\/([^/?#]+)$/i
+    const match = baseWithoutSuffix.match(zapiRegex)
+    if (match) {
+      const hostPrefix = match[1]
+      const instanceId = match[2]
+      const token = match[3]
+      const maskedToken = token.length > 4 ? '••••' + token.slice(-4) : '••••'
+      const maskedBase = `${hostPrefix}/instances/${instanceId}/token/${maskedToken}`
+      return hasSendTextSuffix ? `${maskedBase}/send-text` : maskedBase
+    }
+
+    return clean.replace(/\/token\/[^/?#]+/i, '/token/••••••••')
+  }
+
+  return clean.length > 35 ? clean.substring(0, 35) + '...' : clean
 }
 
 /**
@@ -91,10 +130,15 @@ export function buildWhatsAppSendPayload(params: {
   message: string
 }): WhatsAppGatewayRequestConfig {
   const { apiUrl, apiKey, originNumber, phone, message } = params
-  const isZApi = isZApiGatewayUrl(apiUrl)
+  const cleanApiUrl = (apiUrl || '').trim().replace(/[\r\n\t]/g, '')
+  const cleanApiKey = (apiKey || '').trim().replace(/[\r\n\t]/g, '')
+  const cleanOrigin = (originNumber || '').trim().replace(/[\r\n\t]/g, '')
+
+  const isZApi = isZApiGatewayUrl(cleanApiUrl)
+  const isWellFormedZApi = isZApi ? isValidZApiInstanceUrl(cleanApiUrl) : undefined
   const cleanPhone = normalizeWhatsAppDestinationPhone(phone)
 
-  let cleanBaseUrl = apiUrl.trim().replace(/\/+$/, '')
+  let cleanBaseUrl = cleanApiUrl.replace(/\/+$/, '')
   if (!cleanBaseUrl.startsWith('http://') && !cleanBaseUrl.startsWith('https://')) {
     cleanBaseUrl = 'https://' + cleanBaseUrl
   }
@@ -105,8 +149,8 @@ export function buildWhatsAppSendPayload(params: {
 
   if (isZApi) {
     const targetUrl = formatZApiEndpoint(cleanBaseUrl, 'send-text')
-    if (apiKey) {
-      headers['Client-Token'] = apiKey.trim()
+    if (cleanApiKey) {
+      headers['Client-Token'] = cleanApiKey
     }
     const payload = {
       phone: cleanPhone,
@@ -118,14 +162,16 @@ export function buildWhatsAppSendPayload(params: {
       payload,
       isZApi: true,
       cleanPhone,
+      isWellFormedZApi,
+      maskedTargetUrl: maskGatewayUrl(targetUrl),
     }
   }
 
   // Gateway Genérico / Evolution API
-  if (apiKey) {
-    headers['apikey'] = apiKey.trim()
-    headers['Authorization'] = 'Bearer ' + apiKey.trim()
-    headers['X-Api-Key'] = apiKey.trim()
+  if (cleanApiKey) {
+    headers['apikey'] = cleanApiKey
+    headers['Authorization'] = 'Bearer ' + cleanApiKey
+    headers['X-Api-Key'] = cleanApiKey
   }
 
   const payload: Record<string, unknown> = {
@@ -133,7 +179,7 @@ export function buildWhatsAppSendPayload(params: {
     phone: cleanPhone,
     message,
     text: message,
-    sender: (originNumber || '').trim(),
+    sender: cleanOrigin,
   }
 
   return {
@@ -142,6 +188,7 @@ export function buildWhatsAppSendPayload(params: {
     payload,
     isZApi: false,
     cleanPhone,
+    maskedTargetUrl: maskGatewayUrl(cleanBaseUrl),
   }
 }
 

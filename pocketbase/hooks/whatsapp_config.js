@@ -6,9 +6,14 @@ routerAdd('GET', '/backend/v1/whatsapp/config-status', (e) => {
       return e.json(401, { error: 'Autenticação necessária', ok: false })
     }
 
-    const rawApiUrl = ($os.getenv('WHATSAPP_API_URL') || '').trim()
-    const apiKey = ($os.getenv('WHATSAPP_API_KEY') || '').trim()
-    const originNumber = ($os.getenv('WHATSAPP_ORIGIN_NUMBER') || '').trim()
+    let rawApiUrl = ($os.getenv('WHATSAPP_API_URL') || '').trim()
+    rawApiUrl = rawApiUrl.replace(/[\r\n\t]/g, '').trim()
+
+    let apiKey = ($os.getenv('WHATSAPP_API_KEY') || '').trim()
+    apiKey = apiKey.replace(/[\r\n\t]/g, '').trim()
+
+    let originNumber = ($os.getenv('WHATSAPP_ORIGIN_NUMBER') || '').trim()
+    originNumber = originNumber.replace(/[\r\n\t]/g, '').trim()
 
     let gatewayProvider = 'desconhecido'
     let isZApi = false
@@ -18,30 +23,43 @@ routerAdd('GET', '/backend/v1/whatsapp/config-status', (e) => {
     let formatHint = ''
 
     if (rawApiUrl) {
-      const lowerUrl = rawApiUrl.toLowerCase()
+      let cleanUrl = rawApiUrl.replace(/\/+$/, '')
+      if (!cleanUrl.startsWith('http://') && !cleanUrl.startsWith('https://')) {
+        cleanUrl = 'https://' + cleanUrl
+      }
+
+      const lowerUrl = cleanUrl.toLowerCase()
       if (lowerUrl.indexOf('z-api.com') !== -1 || lowerUrl.indexOf('z-api.io') !== -1) {
         gatewayProvider = 'z-api'
         isZApi = true
 
-        const match = rawApiUrl.match(/(https?:\/\/[^/]+\/instances\/)([^/]+)(\/token\/)([^/?#]+)/i)
+        // Normalizar removendo qualquer /send-text do final
+        const baseWithoutSuffix = cleanUrl.replace(/\/+send-text\/?$/i, '').replace(/\/+$/, '')
+
+        // Validar formato canônico: https://api.z-api.io/instances/{id}/token/{token}
+        const match = baseWithoutSuffix.match(
+          /^(https?:\/\/[^/]+)\/instances\/([^/]+)\/token\/([^/?#]+)$/i,
+        )
+
         if (match) {
           isUrlWellFormed = true
           const prefix = match[1]
           const instId = match[2]
-          const tokenStr = match[4]
+          const tokenStr = match[3]
           const tokenMasked = tokenStr.length > 4 ? '••••' + tokenStr.slice(-4) : '••••'
-          apiUrlMasked = prefix + instId + '/token/' + tokenMasked
+          // Mostra a URL base e informa que o CRM anexa /send-text
+          apiUrlMasked = `${prefix}/instances/${instId}/token/${tokenMasked}`
         } else {
           isUrlWellFormed = false
-          apiUrlMasked = rawApiUrl.replace(/\/token\/[^/?#]+/i, '/token/••••••••')
+          apiUrlMasked = baseWithoutSuffix.replace(/\/token\/[^/?#]+/i, '/token/••••••••')
           formatHint =
-            'Aviso: Formato recomendado da Z-API: https://api.z-api.com/instances/{instanceId}/token/{token}'
+            'Aviso: A URL configurada não segue o formato padrão da Z-API: https://api.z-api.io/instances/{instanceId}/token/{token}. Verifique o Secret WHATSAPP_API_URL.'
         }
       } else {
         gatewayProvider = 'evolution_ou_generico'
         isEvolution = true
         isUrlWellFormed = true
-        apiUrlMasked = rawApiUrl.substring(0, 35) + (rawApiUrl.length > 35 ? '...' : '')
+        apiUrlMasked = cleanUrl.substring(0, 35) + (cleanUrl.length > 35 ? '...' : '')
       }
     }
 

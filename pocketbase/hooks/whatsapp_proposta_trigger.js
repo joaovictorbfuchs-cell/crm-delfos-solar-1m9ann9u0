@@ -95,9 +95,14 @@ onRecordAfterUpdateSuccess((e) => {
       novaMsg.set('tipo_disparo', 'proposta_aprovada')
       novaMsg.set('referencia_id', refKey)
 
-      const rawApiUrl = ($os.getenv('WHATSAPP_API_URL') || '').trim()
-      const apiKey = ($os.getenv('WHATSAPP_API_KEY') || '').trim()
-      const originNumber = ($os.getenv('WHATSAPP_ORIGIN_NUMBER') || '').trim()
+      let rawApiUrl = ($os.getenv('WHATSAPP_API_URL') || '').trim()
+      rawApiUrl = rawApiUrl.replace(/[\r\n\t]/g, '').trim()
+
+      let apiKey = ($os.getenv('WHATSAPP_API_KEY') || '').trim()
+      apiKey = apiKey.replace(/[\r\n\t]/g, '').trim()
+
+      let originNumber = ($os.getenv('WHATSAPP_ORIGIN_NUMBER') || '').trim()
+      originNumber = originNumber.replace(/[\r\n\t]/g, '').trim()
 
       if (!rawApiUrl) {
         novaMsg.set('status', 'falha')
@@ -112,24 +117,28 @@ onRecordAfterUpdateSuccess((e) => {
       }
 
       try {
-        let baseUrl = rawApiUrl.replace(/\/+$/, '')
-        if (!baseUrl.startsWith('http://') && !baseUrl.startsWith('https://')) {
-          baseUrl = 'https://' + baseUrl
+        let cleanUrl = rawApiUrl.replace(/\/+$/, '')
+        if (!cleanUrl.startsWith('http://') && !cleanUrl.startsWith('https://')) {
+          cleanUrl = 'https://' + cleanUrl
         }
 
-        const isZApi =
-          baseUrl.toLowerCase().indexOf('z-api.com') !== -1 ||
-          baseUrl.toLowerCase().indexOf('z-api.io') !== -1
-        let targetUrl = baseUrl
+        const lowerUrl = cleanUrl.toLowerCase()
+        const isZApi = lowerUrl.indexOf('z-api.com') !== -1 || lowerUrl.indexOf('z-api.io') !== -1
+        let targetUrl = cleanUrl
         let payloadGateway = {}
         const headers = { 'Content-Type': 'application/json' }
 
         if (isZApi) {
-          if (targetUrl.toLowerCase().endsWith('/send-text')) {
-            // OK
+          let baseWithoutSuffix = cleanUrl.replace(/\/+send-text\/?$/i, '').replace(/\/+$/, '')
+          const zapiMatch = baseWithoutSuffix.match(
+            /^(https?:\/\/[^/]+)\/instances\/([^/]+)\/token\/([^/?#]+)$/i,
+          )
+          if (zapiMatch) {
+            targetUrl = `${zapiMatch[1]}/instances/${zapiMatch[2]}/token/${zapiMatch[3]}/send-text`
           } else {
-            targetUrl = targetUrl + '/send-text'
+            targetUrl = baseWithoutSuffix + '/send-text'
           }
+
           if (apiKey) {
             headers['Client-Token'] = apiKey
           }

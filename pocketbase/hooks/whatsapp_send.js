@@ -57,9 +57,15 @@ routerAdd('POST', '/backend/v1/whatsapp/send', (e) => {
     }
 
     // Envio imediato via Gateway HTTP configurável através de Secrets
-    const rawApiUrl = ($os.getenv('WHATSAPP_API_URL') || '').trim()
-    const apiKey = ($os.getenv('WHATSAPP_API_KEY') || '').trim()
-    const originNumber = ($os.getenv('WHATSAPP_ORIGIN_NUMBER') || '').trim()
+    let rawApiUrl = ($os.getenv('WHATSAPP_API_URL') || '').trim()
+    // Remover quebras de linha acidentais ou espaços
+    rawApiUrl = rawApiUrl.replace(/[\r\n\t]/g, '').trim()
+
+    let apiKey = ($os.getenv('WHATSAPP_API_KEY') || '').trim()
+    apiKey = apiKey.replace(/[\r\n\t]/g, '').trim()
+
+    let originNumber = ($os.getenv('WHATSAPP_ORIGIN_NUMBER') || '').trim()
+    originNumber = originNumber.replace(/[\r\n\t]/g, '').trim()
 
     // Normalizar número de destino (apenas dígitos, garantindo prefixo 55 se BR)
     let cleanPhone = telefoneDestino.replace(/\D/g, '')
@@ -89,26 +95,50 @@ routerAdd('POST', '/backend/v1/whatsapp/send', (e) => {
 
     // Chamar gateway configurado
     try {
-      let baseUrl = rawApiUrl.replace(/\/+$/, '')
-      if (!baseUrl.startsWith('http://') && !baseUrl.startsWith('https://')) {
-        baseUrl = 'https://' + baseUrl
+      let cleanUrl = rawApiUrl.replace(/\/+$/, '')
+      if (!cleanUrl.startsWith('http://') && !cleanUrl.startsWith('https://')) {
+        cleanUrl = 'https://' + cleanUrl
       }
 
-      const isZApi =
-        baseUrl.toLowerCase().indexOf('z-api.com') !== -1 ||
-        baseUrl.toLowerCase().indexOf('z-api.io') !== -1
-      let targetUrl = baseUrl
+      const lowerUrl = cleanUrl.toLowerCase()
+      const isZApi = lowerUrl.indexOf('z-api.com') !== -1 || lowerUrl.indexOf('z-api.io') !== -1
+
+      let targetUrl = cleanUrl
       let payloadGateway = {}
       const headers = {
         'Content-Type': 'application/json',
       }
 
+      let maskedTargetUrl = ''
+      let isWellFormedZApi = true
+
       if (isZApi) {
-        // Formato oficial Z-API
-        if (targetUrl.toLowerCase().endsWith('/send-text')) {
-          // Já inclui o path
+        // Remover qualquer sufixo /send-text (case-insensitive, com barras redundantes)
+        let baseWithoutSuffix = cleanUrl.replace(/\/+send-text\/?$/i, '').replace(/\/+$/, '')
+
+        // Verificar estrutura canônica /instances/{id}/token/{token}
+        const zapiMatch = baseWithoutSuffix.match(
+          /^(https?:\/\/[^/]+)\/instances\/([^/]+)\/token\/([^/?#]+)$/i,
+        )
+
+        if (zapiMatch) {
+          const hostPrefix = zapiMatch[1]
+          const instanceId = zapiMatch[2]
+          const token = zapiMatch[3]
+          targetUrl = hostPrefix + '/instances/' + instanceId + '/token/' + token + '/send-text'
+
+          const tokenMasked = token.length > 4 ? '••••' + token.slice(-4) : '••••'
+          maskedTargetUrl =
+            hostPrefix + '/instances/' + instanceId + '/token/' + tokenMasked + '/send-text'
         } else {
-          targetUrl = targetUrl + '/send-text'
+          isWellFormedZApi = false
+          // Tentar normalizar mesmo se houver paths extras ou barra
+          targetUrl = baseWithoutSuffix + '/send-text'
+          maskedTargetUrl = targetUrl.replace(/\/token\/[^/?#]+/i, '/token/••••••••')
+          console.log(
+            '[Z-API AVISO] Formato de WHATSAPP_API_URL não possui padrão exato /instances/{id}/token/{token}. URL mascarada:',
+            maskedTargetUrl,
+          )
         }
 
         // A Z-API requer Client-Token no header quando a conta exigir ou se fornecido no apiKey
@@ -122,6 +152,7 @@ routerAdd('POST', '/backend/v1/whatsapp/send', (e) => {
         }
       } else {
         // Formato Genérico / Evolution API
+        maskedTargetUrl = cleanUrl.length > 45 ? cleanUrl.substring(0, 40) + '...' : cleanUrl
         if (apiKey) {
           headers['apikey'] = apiKey
           headers['Authorization'] = 'Bearer ' + apiKey
@@ -137,6 +168,18 @@ routerAdd('POST', '/backend/v1/whatsapp/send', (e) => {
         }
       }
 
+      console.log(
+        '[WHATSAPP SEND INICIADO]',
+        JSON.stringify({
+          provider: isZApi ? 'z-api' : 'generico',
+          targetUrlMasked: maskedTargetUrl,
+          isWellFormedZApi: isWellFormedZApi,
+          hasClientTokenHeader: Boolean(headers['Client-Token']),
+          cleanPhone: cleanPhone,
+          tipoDisparo: tipoDisparo,
+        }),
+      )
+
       const res = $http.send({
         url: targetUrl,
         method: 'POST',
@@ -144,6 +187,15 @@ routerAdd('POST', '/backend/v1/whatsapp/send', (e) => {
         body: JSON.stringify(payloadGateway),
         timeout: 15,
       })
+
+      console.log(
+        '[WHATSAPP SEND RESPOSTA]',
+        JSON.stringify({
+          statusCode: res.statusCode,
+          targetUrlMasked: maskedTargetUrl,
+          hasRaw: Boolean(res.raw),
+        }),
+      )
 
       if (res.statusCode >= 200 && res.statusCode < 300) {
         let externalId = ''
@@ -176,13 +228,15 @@ routerAdd('POST', '/backend/v1/whatsapp/send', (e) => {
 
         if (res.statusCode === 404 && errorText.indexOf('Instance not found') !== -1) {
           contextualHint =
-            ' (Instância não encontrada na Z-API: verifique se a WHATSAPP_API_URL está no formato https://api.z-api.com/instances/{instanceId}/token/{token} e se a instância está ativa no painel)'
+            ' (Instância não encontrada na Z-API: verifique se a WHATSAPP_API_URL está no formato https://api.z-api.io/instances/{instanceId}/token/{token} ou se a instância está ativa no painel)'
         } else if (res.statusCode === 400 && errorText.indexOf('client-token') !== -1) {
           contextualHint =
             ' (Client-Token ausente ou inválido: configure WHATSAPP_API_KEY com o seu Client-Token de segurança da Z-API)'
         }
 
         const logMsg = `Gateway retornou erro HTTP ${res.statusCode}: ${errorText}${contextualHint}`
+        console.log('[WHATSAPP SEND FALHA HTTP]', logMsg)
+
         msgRecord.set('status', 'falha')
         msgRecord.set('log_erro', logMsg)
         $app.save(msgRecord)
@@ -198,6 +252,8 @@ routerAdd('POST', '/backend/v1/whatsapp/send', (e) => {
       }
     } catch (httpErr) {
       const errMsg = httpErr && httpErr.message ? httpErr.message : String(httpErr)
+      console.log('[WHATSAPP SEND EXCECAO HTTP]', errMsg)
+
       msgRecord.set('status', 'falha')
       msgRecord.set('log_erro', `Erro de conexão com gateway: ${errMsg}`)
       $app.save(msgRecord)
@@ -214,6 +270,7 @@ routerAdd('POST', '/backend/v1/whatsapp/send', (e) => {
   } catch (err) {
     let msg = 'Erro interno ao processar mensagem'
     if (err && err.message) msg = err.message
+    console.log('[WHATSAPP SEND ERRO INTERNO]', msg)
     return e.json(500, { error: msg, ok: false })
   }
 })
