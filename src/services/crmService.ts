@@ -577,3 +577,105 @@ export async function deleteOrcamentoSolar(id: string): Promise<boolean> {
   await pb.collection('orcamentos_solar').delete(id)
   return true
 }
+
+// -------------------------------------------------------------
+// WhatsApp Services (Templates, Mensagens, Disparo e Config)
+// -------------------------------------------------------------
+
+export async function fetchWhatsAppTemplates(): Promise<import('@/types/crm').WhatsAppTemplate[]> {
+  try {
+    const records = await pb
+      .collection('whatsapp_templates')
+      .getFullList<import('@/types/crm').WhatsAppTemplate>({
+        sort: 'titulo',
+      })
+    return records
+  } catch (err) {
+    console.error('Erro ao buscar templates WhatsApp:', err)
+    return []
+  }
+}
+
+export async function createWhatsAppTemplate(
+  data: Partial<import('@/types/crm').WhatsAppTemplate>,
+): Promise<import('@/types/crm').WhatsAppTemplate> {
+  const record = await pb
+    .collection('whatsapp_templates')
+    .create<import('@/types/crm').WhatsAppTemplate>(data)
+  return record
+}
+
+export async function updateWhatsAppTemplate(
+  id: string,
+  data: Partial<import('@/types/crm').WhatsAppTemplate>,
+): Promise<import('@/types/crm').WhatsAppTemplate> {
+  const record = await pb
+    .collection('whatsapp_templates')
+    .update<import('@/types/crm').WhatsAppTemplate>(id, data)
+  return record
+}
+
+export async function deleteWhatsAppTemplate(id: string): Promise<boolean> {
+  await pb.collection('whatsapp_templates').delete(id)
+  return true
+}
+
+export async function fetchWhatsAppMensagens(
+  clienteId?: string,
+): Promise<import('@/types/crm').WhatsAppMensagem[]> {
+  try {
+    const filter = clienteId ? `cliente_id='${clienteId}'` : ''
+    const records = await pb
+      .collection('whatsapp_mensagens')
+      .getFullList<import('@/types/crm').WhatsAppMensagem>({
+        filter,
+        sort: '-created',
+        expand: 'cliente_id,template_id',
+      })
+    return records
+  } catch (err) {
+    console.error('Erro ao buscar mensagens WhatsApp:', err)
+    return []
+  }
+}
+
+export async function sendWhatsAppMensagem(data: {
+  cliente_id: string
+  telefone_destino: string
+  conteudo_final: string
+  template_id?: string
+  agendado_para?: string | null
+  tipo_disparo?: string
+  referencia_id?: string
+}): Promise<{
+  ok: boolean
+  scheduled?: boolean
+  sent?: boolean
+  gatewayConfigured?: boolean
+  status?: string
+  message: string
+  data?: import('@/types/crm').WhatsAppMensagem
+}> {
+  return pb.send('/backend/v1/whatsapp/send', {
+    method: 'POST',
+    body: data,
+  })
+}
+
+export async function fetchWhatsAppConfigStatus(): Promise<
+  import('@/types/crm').WhatsAppConfigStatus
+> {
+  try {
+    return await pb.send('/backend/v1/whatsapp/config-status', {
+      method: 'GET',
+    })
+  } catch (_) {
+    return {
+      ok: false,
+      configured: false,
+      hasApiUrl: false,
+      hasApiKey: false,
+      secretsRequired: ['WHATSAPP_API_URL', 'WHATSAPP_API_KEY', 'WHATSAPP_ORIGIN_NUMBER'],
+    }
+  }
+}

@@ -31,14 +31,23 @@ import {
   HardHat,
   UserCheck,
   Plus,
+  MessageSquare,
 } from 'lucide-react'
 import { useClientes } from '@/contexts/ClientesContext'
-import { formatCurrency, formatDate, formatDateTime, getTelhadoLabel } from '@/lib/formatters'
+import {
+  formatCurrency,
+  formatDate,
+  formatDateTime,
+  getTelhadoLabel,
+  formatWhatsAppPhone,
+} from '@/lib/formatters'
 import { StatusBadge, ProductBadge } from './StatusBadge'
 import { InlineEditField } from './InlineEditField'
 import { AtividadeItem } from './AtividadeItem'
 import { QuickAddAtividade } from './QuickAddAtividade'
 import { FichaClienteOM } from './FichaClienteOM'
+import { FichaClienteWhatsApp } from './FichaClienteWhatsApp'
+import { ModalGerenciarWhatsAppTemplates } from './ModalGerenciarWhatsAppTemplates'
 import { ModalNovaPropostaOM } from './ModalNovaPropostaOM'
 import { ModalOrcamentoSolar } from './ModalOrcamentoSolar'
 import { ImportarDadosDocumento } from './ImportarDadosDocumento'
@@ -121,6 +130,7 @@ export const FichaClienteDrawer: React.FC = () => {
     assignProjetoProfissional,
     propostasOM,
     orcamentosSolar,
+    whatsAppMensagens,
   } = useClientes()
 
   // Modal de Proposta O&M
@@ -130,6 +140,7 @@ export const FichaClienteDrawer: React.FC = () => {
   const [orcamentoSolarVisualizar, setOrcamentoSolarVisualizar] = useState<OrcamentoSolar | null>(
     null,
   )
+  const [modalWhatsAppTemplatesOpen, setModalWhatsAppTemplatesOpen] = useState(false)
 
   // Seção expansível de detalhes cadastrais/técnicos dentro do painel esquerdo
   const [detalhesOpen, setDetalhesOpen] = useState(false)
@@ -526,6 +537,24 @@ export const FichaClienteDrawer: React.FC = () => {
                   <ShieldCheck className="w-4 h-4 text-emerald-600" />
                   <span>O&M (Manutenção)</span>
                 </button>
+
+                <button
+                  type="button"
+                  onClick={() => setActiveClientTab('whatsapp')}
+                  className={`px-4 py-2 text-xs font-bold border-b-2 rounded-t-md flex items-center gap-2 transition-colors ${
+                    activeClientTab === 'whatsapp'
+                      ? 'border-[#16A34A] text-[#166534] bg-emerald-50/60'
+                      : 'border-transparent text-gray-500 hover:text-gray-800 hover:bg-gray-50'
+                  }`}
+                >
+                  <MessageSquare className="w-4 h-4 text-emerald-600" />
+                  <span>WhatsApp</span>
+                  {selectedCliente && (
+                    <span className="px-2 py-0.5 rounded-full text-[10px] bg-emerald-100 text-emerald-800 font-bold">
+                      {whatsAppMensagens.filter((m) => m.cliente_id === selectedCliente.id).length}
+                    </span>
+                  )}
+                </button>
               </div>
 
               {/* Botão de alternar visualização dos Dados Completos / Técnicos */}
@@ -608,6 +637,16 @@ export const FichaClienteDrawer: React.FC = () => {
                 <FichaClienteOM
                   clienteId={selectedCliente.id}
                   onNavigateToTab={(tab) => setActiveClientTab(tab)}
+                />
+              )}
+
+              {/* ======================================================== */}
+              {/* ABA WHATSAPP: Mensagens, Envio Manual, Templates, Fila   */}
+              {/* ======================================================== */}
+              {activeClientTab === 'whatsapp' && (
+                <FichaClienteWhatsApp
+                  cliente={selectedCliente}
+                  onOpenTemplatesModal={() => setModalWhatsAppTemplatesOpen(true)}
                 />
               )}
 
@@ -1141,7 +1180,35 @@ export const FichaClienteDrawer: React.FC = () => {
                               type="text"
                               placeholder="(00) 00000-0000"
                               onSave={async (val) =>
-                                handleUpdateClienteField('telefone', String(val))
+                                handleUpdateClienteField(
+                                  'telefone',
+                                  formatWhatsAppPhone(String(val)),
+                                )
+                              }
+                            />
+                          </div>
+
+                          <div className="flex items-center gap-2 bg-emerald-50/50 p-1.5 rounded-lg border border-emerald-100">
+                            <MessageSquare className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                            <span className="text-emerald-900 font-semibold w-24 shrink-0">
+                              WhatsApp:
+                            </span>
+                            <InlineEditField
+                              value={selectedCliente.whatsapp || selectedCliente.telefone || ''}
+                              displayValue={
+                                <span className="font-bold text-emerald-700">
+                                  {selectedCliente.whatsapp ||
+                                    selectedCliente.telefone ||
+                                    'Não informado'}
+                                </span>
+                              }
+                              type="text"
+                              placeholder="(00) 00000-0000"
+                              onSave={async (val) =>
+                                handleUpdateClienteField(
+                                  'whatsapp',
+                                  formatWhatsAppPhone(String(val)),
+                                )
                               }
                             />
                           </div>
@@ -2458,7 +2525,39 @@ export const FichaClienteDrawer: React.FC = () => {
                   }
                   type="text"
                   placeholder="(00) 00000-0000"
-                  onSave={async (val) => handleUpdateClienteField('telefone', String(val))}
+                  onSave={async (val) =>
+                    handleUpdateClienteField('telefone', formatWhatsAppPhone(String(val)))
+                  }
+                />
+              </div>
+
+              {/* WhatsApp */}
+              <div className="space-y-0.5 bg-emerald-50/70 p-2 rounded-lg border border-emerald-200">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-bold text-emerald-900">WhatsApp Oficial:</span>
+                  <button
+                    type="button"
+                    onClick={() => setActiveClientTab('whatsapp')}
+                    className="text-[10px] text-emerald-700 hover:text-emerald-900 font-semibold underline"
+                  >
+                    Abrir conversa
+                  </button>
+                </div>
+                <InlineEditField
+                  value={selectedCliente.whatsapp || selectedCliente.telefone || ''}
+                  displayValue={
+                    <div className="flex items-center gap-1 font-bold text-emerald-800">
+                      <MessageSquare className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                      <span>
+                        {selectedCliente.whatsapp || selectedCliente.telefone || 'Definir WhatsApp'}
+                      </span>
+                    </div>
+                  }
+                  type="text"
+                  placeholder="(00) 00000-0000"
+                  onSave={async (val) =>
+                    handleUpdateClienteField('whatsapp', formatWhatsAppPhone(String(val)))
+                  }
                 />
               </div>
 
@@ -2526,6 +2625,12 @@ export const FichaClienteDrawer: React.FC = () => {
         }}
         initialClienteId={selectedCliente?.id}
         initialOrcamento={orcamentoSolarVisualizar}
+      />
+
+      {/* Modal Gerenciar Templates & Configuração do Gateway WhatsApp */}
+      <ModalGerenciarWhatsAppTemplates
+        isOpen={modalWhatsAppTemplatesOpen}
+        onClose={() => setModalWhatsAppTemplatesOpen(false)}
       />
     </div>
   )

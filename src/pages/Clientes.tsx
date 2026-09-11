@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react'
-import { Search, Eye, MapPin, Zap, Users, Loader2 } from 'lucide-react'
+import { Search, Eye, MapPin, Zap, Users, Loader2, MessageSquare } from 'lucide-react'
 import { useClientes } from '@/contexts/ClientesContext'
 import { StatusBadge, ProductBadge } from '@/components/StatusBadge'
 import { formatCurrency } from '@/lib/formatters'
@@ -89,8 +89,16 @@ export default function Clientes() {
                       <div className="font-semibold text-gray-900 group-hover:text-emerald-700 transition-colors">
                         {c.nome}
                       </div>
-                      <div className="text-xs text-gray-400 font-mono">
-                        {c.telefone ? `${c.telefone} • ` : ''}UC: {c.uc || '-'}
+                      <div className="text-xs text-gray-400 font-mono flex items-center gap-1.5 flex-wrap">
+                        {c.whatsapp ? (
+                          <span className="text-emerald-700 font-semibold flex items-center gap-0.5">
+                            <MessageSquare className="w-3 h-3 text-emerald-600" />
+                            {c.whatsapp}
+                          </span>
+                        ) : c.telefone ? (
+                          <span>{c.telefone}</span>
+                        ) : null}
+                        <span>• UC: {c.uc || '-'}</span>
                       </div>
                     </td>
                     <td className="py-3.5 px-4 whitespace-nowrap">
@@ -115,17 +123,30 @@ export default function Clientes() {
                       <StatusBadge status={c.status} />
                     </td>
                     <td className="py-3.5 px-4 text-right">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          openFichaCliente(c.id)
-                        }}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-lg transition-colors border border-emerald-200"
-                        title="Ver Ficha Técnica Completa"
-                      >
-                        <Eye className="w-3.5 h-3.5" />
-                        Ver Ficha
-                      </button>
+                      <div className="inline-flex items-center gap-1.5">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            openFichaCliente(c.id, 'whatsapp')
+                          }}
+                          className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold text-emerald-800 bg-emerald-100/70 hover:bg-emerald-200 rounded-lg transition-colors border border-emerald-300"
+                          title="Abrir WhatsApp do cliente"
+                        >
+                          <MessageSquare className="w-3.5 h-3.5 text-emerald-700" />
+                          <span className="hidden sm:inline">WhatsApp</span>
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            openFichaCliente(c.id)
+                          }}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-lg transition-colors border border-emerald-200"
+                          title="Ver Ficha Técnica Completa"
+                        >
+                          <Eye className="w-3.5 h-3.5" />
+                          Ver Ficha
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}

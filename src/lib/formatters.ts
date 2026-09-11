@@ -38,6 +38,23 @@ export function formatDateTime(dateString: string | undefined | null): string {
   }
 }
 
+export function formatWhatsAppPhone(phone: string | undefined | null): string {
+  if (!phone) return ''
+  const digits = phone.replace(/\D/g, '')
+  if (digits.length === 0) return ''
+  if (digits.length <= 2) return `(${digits}`
+  if (digits.length <= 7) return `(${digits.slice(0, 2)}) ${digits.slice(2)}`
+  if (digits.length <= 10) {
+    return `(${digits.slice(0, 2)}) ${digits.slice(2, 6)}-${digits.slice(6)}`
+  }
+  return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7, 11)}`
+}
+
+export function cleanPhoneDigits(phone: string | undefined | null): string {
+  if (!phone) return ''
+  return phone.replace(/\D/g, '')
+}
+
 export function getTelhadoLabel(tipo: string | undefined): string {
   switch (tipo) {
     case 'ceramico':

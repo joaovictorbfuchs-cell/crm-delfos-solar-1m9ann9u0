@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-11T13:48:20.436Z",
+  "generatedAt": "2026-09-11T16:44:47.794Z",
   "collections": [
     {
       "name": "users",
@@ -286,6 +286,12 @@
         },
         {
           "name": "concessionaria",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "whatsapp",
           "type": "text",
           "required": false,
           "system": false
@@ -1824,6 +1830,172 @@
         "CREATE INDEX idx_orcamentos_solar_cliente ON orcamentos_solar (cliente_id)",
         "CREATE INDEX idx_orcamentos_solar_status ON orcamentos_solar (status)",
         "CREATE INDEX idx_orcamentos_solar_data ON orcamentos_solar (data_orcamento)"
+      ]
+    },
+    {
+      "name": "whatsapp_templates",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "titulo",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "slug",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "conteudo",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "tipo_gatilho",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "variaveis_disponiveis",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "ativo",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": ["CREATE UNIQUE INDEX idx_whatsapp_templates_slug ON whatsapp_templates (slug)"]
+    },
+    {
+      "name": "whatsapp_mensagens",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "cliente_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "clientes"
+        },
+        {
+          "name": "template_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "whatsapp_templates"
+        },
+        {
+          "name": "telefone_destino",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "conteudo_final",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "status",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["pendente", "agendada", "enviada", "entregue", "falha"]
+        },
+        {
+          "name": "agendado_para",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "enviado_em",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "tipo_disparo",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "referencia_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "id_externo_gateway",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "log_erro",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_whatsapp_mensagens_cliente ON whatsapp_mensagens (cliente_id)",
+        "CREATE INDEX idx_whatsapp_mensagens_status ON whatsapp_mensagens (status)",
+        "CREATE INDEX idx_whatsapp_mensagens_agendado ON whatsapp_mensagens (agendado_para)",
+        "CREATE INDEX idx_whatsapp_mensagens_ref ON whatsapp_mensagens (referencia_id)"
       ]
     }
   ]

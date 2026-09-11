@@ -15,8 +15,10 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Sun,
+  MessageSquare,
 } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
+import { ModalGerenciarWhatsAppTemplates } from '@/components/ModalGerenciarWhatsAppTemplates'
 import { FichaClienteDrawer } from '@/components/FichaClienteDrawer'
 import { DelfosLogo } from '@/components/DelfosLogo'
 import { NotificacoesBell } from '@/components/NotificacoesBell'
@@ -26,6 +28,7 @@ export default function Layout() {
   const location = useLocation()
   const navigate = useNavigate()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [modalWhatsAppTemplatesOpen, setModalWhatsAppTemplatesOpen] = useState(false)
 
   // Estado da sidebar colapsada para desktop, com persistência em localStorage
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(() => {
@@ -320,6 +323,17 @@ export default function Layout() {
           </div>
 
           <div className="flex items-center gap-2 sm:gap-3">
+            {/* Botão de Atalho Rápido para Templates & Gateway WhatsApp */}
+            <button
+              type="button"
+              onClick={() => setModalWhatsAppTemplatesOpen(true)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-[#166534] border border-emerald-200 text-xs font-bold rounded-lg shadow-2xs transition-all hover:scale-[1.02]"
+              title="Gerenciar Templates e Configurações de WhatsApp"
+            >
+              <MessageSquare className="w-4 h-4 text-[#16A34A]" />
+              <span className="hidden md:inline">WhatsApp</span>
+            </button>
+
             {/* Sino de Notificações / Lembretes de Hoje */}
             <NotificacoesBell />
 
@@ -343,6 +357,12 @@ export default function Layout() {
 
       {/* Universal Ficha do Cliente Drawer */}
       <FichaClienteDrawer />
+
+      {/* Modal Global de Templates e Gateway WhatsApp */}
+      <ModalGerenciarWhatsAppTemplates
+        isOpen={modalWhatsAppTemplatesOpen}
+        onClose={() => setModalWhatsAppTemplatesOpen(false)}
+      />
     </div>
   )
 }

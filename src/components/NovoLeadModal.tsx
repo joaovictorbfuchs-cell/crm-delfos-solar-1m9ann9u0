@@ -3,6 +3,7 @@ import { X, UserPlus, AlertCircle, Loader2, Sparkles } from 'lucide-react'
 import { useClientes } from '@/contexts/ClientesContext'
 import { useToast } from '@/hooks/use-toast'
 import type { OrigemLeadTipo, ProdutoTipo } from '@/types/crm'
+import { formatWhatsAppPhone } from '@/lib/formatters'
 
 interface NovoLeadModalProps {
   isOpen: boolean
@@ -25,6 +26,7 @@ export const NovoLeadModal: React.FC<NovoLeadModalProps> = ({ isOpen, onClose })
 
   const [nome, setNome] = useState('')
   const [telefone, setTelefone] = useState('')
+  const [whatsapp, setWhatsapp] = useState('')
   const [consumoKwhMes, setConsumoKwhMes] = useState<string>('')
   const [origem, setOrigem] = useState<OrigemLeadTipo>('Indicação')
   const [produto, setProduto] = useState<ProdutoTipo>('Energia Solar')
@@ -39,8 +41,8 @@ export const NovoLeadModal: React.FC<NovoLeadModalProps> = ({ isOpen, onClose })
     if (!nome.trim()) {
       newErrors.nome = 'Informe o nome do lead'
     }
-    if (!telefone.trim()) {
-      newErrors.telefone = 'Informe o telefone de contato'
+    if (!telefone.trim() && !whatsapp.trim()) {
+      newErrors.telefone = 'Informe o telefone ou WhatsApp de contato'
     }
     if (!origem) {
       newErrors.origem = 'Selecione a origem do lead'
@@ -55,6 +57,7 @@ export const NovoLeadModal: React.FC<NovoLeadModalProps> = ({ isOpen, onClose })
   const resetForm = () => {
     setNome('')
     setTelefone('')
+    setWhatsapp('')
     setConsumoKwhMes('')
     setOrigem('Indicação')
     setProduto('Energia Solar')
@@ -80,9 +83,13 @@ export const NovoLeadModal: React.FC<NovoLeadModalProps> = ({ isOpen, onClose })
       const potenciaEstimada = consumoNum > 0 ? Number((consumoNum / 120).toFixed(1)) : 0
       const valorEstimado = potenciaEstimada > 0 ? Math.round(potenciaEstimada * 3500) : 0
 
+      const telFinal = telefone.trim() || whatsapp.trim()
+      const whatsFinal = whatsapp.trim() || telefone.trim()
+
       await addCliente({
         nome: nome.trim(),
-        telefone: telefone.trim(),
+        telefone: telFinal,
+        whatsapp: whatsFinal,
         consumo_kwh_mes: consumoNum,
         origem_lead: origem,
         produto,
@@ -169,17 +176,34 @@ export const NovoLeadModal: React.FC<NovoLeadModalProps> = ({ isOpen, onClose })
             )}
           </div>
 
-          {/* Telefone e Consumo */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {/* Telefone, WhatsApp e Consumo */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
               <label className="block text-xs font-semibold uppercase tracking-wider text-gray-600 mb-1.5">
-                Telefone / WhatsApp <span className="text-red-500">*</span>
+                WhatsApp <span className="text-emerald-600 font-bold">(XX) XXXXX-XXXX</span>
               </label>
               <input
                 type="text"
-                placeholder="Ex: (54) 99876-5432"
+                placeholder="(54) 99876-5432"
+                value={whatsapp}
+                onChange={(e) => {
+                  const formatted = formatWhatsAppPhone(e.target.value)
+                  setWhatsapp(formatted)
+                  if (!telefone) setTelefone(formatted)
+                }}
+                className="w-full px-3.5 py-2.5 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-colors"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-gray-600 mb-1.5">
+                Telefone <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                placeholder="(54) 3522-1234"
                 value={telefone}
-                onChange={(e) => setTelefone(e.target.value)}
+                onChange={(e) => setTelefone(formatWhatsAppPhone(e.target.value))}
                 className={`w-full px-3.5 py-2.5 text-sm bg-gray-50 border rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-colors ${
                   errors.telefone ? 'border-red-500 bg-red-50/20' : 'border-gray-200'
                 }`}
@@ -194,7 +218,7 @@ export const NovoLeadModal: React.FC<NovoLeadModalProps> = ({ isOpen, onClose })
 
             <div>
               <label className="block text-xs font-semibold uppercase tracking-wider text-gray-600 mb-1.5">
-                Média de consumo (kWh/mês)
+                Consumo (kWh/mês)
               </label>
               <input
                 type="number"

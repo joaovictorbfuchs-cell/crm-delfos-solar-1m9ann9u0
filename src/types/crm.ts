@@ -99,8 +99,68 @@ export interface Cliente extends RecordModel {
   tarifa?: number
   classe_consumo?: string
   concessionaria?: string
+  whatsapp?: string
   created: string
   updated: string
+}
+
+// -------------------------------------------------------------
+// Tipos para Integração com WhatsApp
+// -------------------------------------------------------------
+
+export type WhatsAppMensagemStatus = 'pendente' | 'agendada' | 'enviada' | 'entregue' | 'falha'
+export type WhatsAppTipoDisparo =
+  | 'manual'
+  | 'proposta_aprovada'
+  | 'lembrete_visita'
+  | 'followup_posvenda'
+
+export interface WhatsAppTemplate extends RecordModel {
+  id: string
+  collectionId: string
+  collectionName: string
+  titulo: string
+  slug: string
+  conteudo: string
+  tipo_gatilho?: string
+  variaveis_disponiveis?: string[] | string
+  ativo?: boolean
+  created: string
+  updated: string
+}
+
+export interface WhatsAppMensagem extends RecordModel {
+  id: string
+  collectionId: string
+  collectionName: string
+  cliente_id: string
+  template_id?: string
+  telefone_destino: string
+  conteudo_final: string
+  status: WhatsAppMensagemStatus
+  agendado_para?: string
+  enviado_em?: string
+  tipo_disparo?: WhatsAppTipoDisparo | string
+  referencia_id?: string
+  id_externo_gateway?: string
+  log_erro?: string
+  created: string
+  updated: string
+  expand?: {
+    cliente_id?: Cliente
+    template_id?: WhatsAppTemplate
+  }
+}
+
+export interface WhatsAppConfigStatus {
+  ok: boolean
+  configured: boolean
+  hasApiUrl: boolean
+  apiUrlPreview?: string
+  hasApiKey: boolean
+  apiKeyMasked?: string
+  originNumber?: string
+  secretsRequired: string[]
 }
 
 export interface Sistema extends RecordModel {

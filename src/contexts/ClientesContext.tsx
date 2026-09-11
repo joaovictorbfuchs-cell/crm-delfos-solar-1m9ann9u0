@@ -62,9 +62,21 @@ import {
   createOrcamentoSolar as apiCreateOrcamentoSolar,
   updateOrcamentoSolar as apiUpdateOrcamentoSolar,
   deleteOrcamentoSolar as apiDeleteOrcamentoSolar,
+  fetchWhatsAppTemplates,
+  createWhatsAppTemplate as apiCreateWhatsAppTemplate,
+  updateWhatsAppTemplate as apiUpdateWhatsAppTemplate,
+  deleteWhatsAppTemplate as apiDeleteWhatsAppTemplate,
+  fetchWhatsAppMensagens,
+  sendWhatsAppMensagem as apiSendWhatsAppMensagem,
+  fetchWhatsAppConfigStatus,
 } from '@/services/crmService'
-import type { OrcamentoSolar } from '@/types/crm'
-import type { PropostaOM } from '@/types/crm'
+import type {
+  OrcamentoSolar,
+  PropostaOM,
+  WhatsAppTemplate,
+  WhatsAppMensagem,
+  WhatsAppConfigStatus,
+} from '@/types/crm'
 import { useRealtime } from '@/hooks/use-realtime'
 import { useAuth } from '@/contexts/AuthContext'
 
@@ -83,6 +95,9 @@ interface ClientesContextType {
   timelineOM: TimelineOM[]
   propostasOM: PropostaOM[]
   orcamentosSolar: OrcamentoSolar[]
+  whatsAppTemplates: WhatsAppTemplate[]
+  whatsAppMensagens: WhatsAppMensagem[]
+  whatsAppConfig: WhatsAppConfigStatus | null
   isLoading: boolean
   error: string | null
   selectedClienteId: string | null
@@ -90,12 +105,12 @@ interface ClientesContextType {
   selectedSistema: Sistema | null
   selectedClienteProjeto: Projeto | null
   selectedContratoOM: ContratoOM | null
-  activeClientTab: 'historico' | 'projeto' | 'om'
+  activeClientTab: 'historico' | 'projeto' | 'om' | 'whatsapp'
   selectedOMClienteId: string | null
   openFichaOM: (clienteId: string) => void
   closeFichaOM: () => void
-  setActiveClientTab: (tab: 'historico' | 'projeto' | 'om') => void
-  openFichaCliente: (id: string, initialTab?: 'historico' | 'projeto' | 'om') => void
+  setActiveClientTab: (tab: 'historico' | 'projeto' | 'om' | 'whatsapp') => void
+  openFichaCliente: (id: string, initialTab?: 'historico' | 'projeto' | 'om' | 'whatsapp') => void
   closeFichaCliente: () => void
   addCliente: (data: Partial<Cliente> & { nome: string }) => Promise<Cliente>
   addManutencao: (data: {
@@ -183,6 +198,28 @@ interface ClientesContextType {
   addOrcamentoSolar: (data: Partial<OrcamentoSolar>) => Promise<OrcamentoSolar>
   updateOrcamentoSolar: (id: string, data: Partial<OrcamentoSolar>) => Promise<OrcamentoSolar>
   removeOrcamentoSolar: (id: string) => Promise<void>
+  // WhatsApp
+  addWhatsAppTemplate: (data: Partial<WhatsAppTemplate>) => Promise<WhatsAppTemplate>
+  updateWhatsAppTemplate: (id: string, data: Partial<WhatsAppTemplate>) => Promise<WhatsAppTemplate>
+  removeWhatsAppTemplate: (id: string) => Promise<void>
+  sendWhatsAppMessage: (data: {
+    cliente_id: string
+    telefone_destino: string
+    conteudo_final: string
+    template_id?: string
+    agendado_para?: string | null
+    tipo_disparo?: string
+    referencia_id?: string
+  }) => Promise<{
+    ok: boolean
+    scheduled?: boolean
+    sent?: boolean
+    gatewayConfigured?: boolean
+    status?: string
+    message: string
+    data?: WhatsAppMensagem
+  }>
+  refreshWhatsAppConfig: () => Promise<void>
   refreshData: () => Promise<void>
 }
 
@@ -204,13 +241,16 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [timelineOM, setTimelineOM] = useState<TimelineOM[]>([])
   const [propostasOM, setPropostasOM] = useState<PropostaOM[]>([])
   const [orcamentosSolar, setOrcamentosSolar] = useState<OrcamentoSolar[]>([])
+  const [whatsAppTemplates, setWhatsAppTemplates] = useState<WhatsAppTemplate[]>([])
+  const [whatsAppMensagens, setWhatsAppMensagens] = useState<WhatsAppMensagem[]>([])
+  const [whatsAppConfig, setWhatsAppConfig] = useState<WhatsAppConfigStatus | null>(null)
   const [isLoading, setIsLoading] = useState<boolean>(true)
   const [error, setError] = useState<string | null>(null)
   const [selectedClienteId, setSelectedClienteId] = useState<string | null>(null)
   const [selectedOMClienteId, setSelectedOMClienteId] = useState<string | null>(null)
-  const [activeClientTab, setActiveClientTab] = useState<'historico' | 'projeto' | 'om'>(
-    'historico',
-  )
+  const [activeClientTab, setActiveClientTab] = useState<
+    'historico' | 'projeto' | 'om' | 'whatsapp'
+  >('historico')
 
   const loadAllData = useCallback(async () => {
     if (!isAuthenticated) {
@@ -235,6 +275,9 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         timeList,
         propList,
         orcList,
+        tplList,
+        msgList,
+        cfgStatus,
       ] = await Promise.all([
         fetchClientes(),
         fetchSistemas(),
@@ -250,6 +293,9 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         fetchTimelineOM(),
         fetchPropostasOM(),
         fetchOrcamentosSolar(),
+        fetchWhatsAppTemplates(),
+        fetchWhatsAppMensagens(),
+        fetchWhatsAppConfigStatus(),
       ])
       setClientes(cList)
       setSistemas(sList)
@@ -265,6 +311,9 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       setTimelineOM(timeList)
       setPropostasOM(propList)
       setOrcamentosSolar(orcList)
+      setWhatsAppTemplates(tplList)
+      setWhatsAppMensagens(msgList)
+      setWhatsAppConfig(cfgStatus)
     } catch (err: unknown) {
       console.error('Error loading CRM data:', err)
       setError(err instanceof Error ? err.message : 'Erro ao carregar dados do CRM')
@@ -407,6 +456,24 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     isAuthenticated,
   )
 
+  // Realtime updates for whatsapp_templates
+  useRealtime<WhatsAppTemplate>(
+    'whatsapp_templates',
+    () => {
+      fetchWhatsAppTemplates().then(setWhatsAppTemplates).catch(console.error)
+    },
+    isAuthenticated,
+  )
+
+  // Realtime updates for whatsapp_mensagens
+  useRealtime<WhatsAppMensagem>(
+    'whatsapp_mensagens',
+    () => {
+      fetchWhatsAppMensagens().then(setWhatsAppMensagens).catch(console.error)
+    },
+    isAuthenticated,
+  )
+
   const addCliente = async (data: Partial<Cliente> & { nome: string }) => {
     const created = await apiCreateCliente(data)
     // Atualiza estado local imediatamente caso o realtime demore
@@ -419,7 +486,7 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   const openFichaCliente = (
     id: string,
-    initialTab: 'historico' | 'projeto' | 'om' = 'historico',
+    initialTab: 'historico' | 'projeto' | 'om' | 'whatsapp' = 'historico',
   ) => {
     setSelectedClienteId(id)
     setActiveClientTab(initialTab)
@@ -964,6 +1031,50 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     await apiDeleteOrcamentoSolar(id)
     setOrcamentosSolar((prev) => prev.filter((o) => o.id !== id))
   }
+
+  const addWhatsAppTemplate = async (
+    data: Partial<WhatsAppTemplate>,
+  ): Promise<WhatsAppTemplate> => {
+    const created = await apiCreateWhatsAppTemplate(data)
+    setWhatsAppTemplates((prev) => [...prev, created])
+    return created
+  }
+
+  const updateWhatsAppTemplate = async (
+    id: string,
+    data: Partial<WhatsAppTemplate>,
+  ): Promise<WhatsAppTemplate> => {
+    const updated = await apiUpdateWhatsAppTemplate(id, data)
+    setWhatsAppTemplates((prev) => prev.map((t) => (t.id === id ? updated : t)))
+    return updated
+  }
+
+  const removeWhatsAppTemplate = async (id: string): Promise<void> => {
+    await apiDeleteWhatsAppTemplate(id)
+    setWhatsAppTemplates((prev) => prev.filter((t) => t.id !== id))
+  }
+
+  const sendWhatsAppMessage = async (data: {
+    cliente_id: string
+    telefone_destino: string
+    conteudo_final: string
+    template_id?: string
+    agendado_para?: string | null
+    tipo_disparo?: string
+    referencia_id?: string
+  }) => {
+    const res = await apiSendWhatsAppMensagem(data)
+    // Atualiza mensagens
+    const refreshed = await fetchWhatsAppMensagens()
+    setWhatsAppMensagens(refreshed)
+    return res
+  }
+
+  const refreshWhatsAppConfig = async () => {
+    const cfg = await fetchWhatsAppConfigStatus()
+    setWhatsAppConfig(cfg)
+  }
+
   const selectedCliente = clientes.find((c) => c.id === selectedClienteId) || null
   const selectedSistema = sistemas.find((s) => s.cliente_id === selectedClienteId) || null
   const selectedClienteProjeto = projetos.find((p) => p.cliente_id === selectedClienteId) || null
@@ -1033,6 +1144,14 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         addOrcamentoSolar,
         updateOrcamentoSolar,
         removeOrcamentoSolar,
+        whatsAppTemplates,
+        whatsAppMensagens,
+        whatsAppConfig,
+        addWhatsAppTemplate,
+        updateWhatsAppTemplate,
+        removeWhatsAppTemplate,
+        sendWhatsAppMessage,
+        refreshWhatsAppConfig,
         refreshData: loadAllData,
       }}
     >
