@@ -302,14 +302,28 @@ export const FichaClienteWhatsApp: React.FC<FichaClienteWhatsAppProps> = ({
                     : 'bg-amber-200 text-amber-900'
                 }`}
               >
-                {whatsAppConfig?.hasApiUrl ? 'Conectado' : 'Secrets Pendentes'}
+                {whatsAppConfig?.hasApiUrl
+                  ? whatsAppConfig.isZApi
+                    ? 'Z-API Conectada'
+                    : 'Gateway Conectado'
+                  : 'Secrets Pendentes'}
               </span>
+              {whatsAppConfig?.isZApi && (
+                <span className="px-1.5 py-0.2 rounded text-[10px] font-semibold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                  Modo Z-API
+                </span>
+              )}
             </div>
             <p className="text-[11px] opacity-85 mt-0.5">
               {whatsAppConfig?.hasApiUrl
-                ? `Gateway configurado (${whatsAppConfig.apiUrlPreview}). Disparos e respostas ativas.`
+                ? `Gateway configurado (${whatsAppConfig.apiUrlPreview || whatsAppConfig.apiUrlMasked}). Disparos ativos.`
                 : 'Defina WHATSAPP_API_URL e WHATSAPP_API_KEY nos Secrets para envio real via HTTP.'}
             </p>
+            {whatsAppConfig?.formatHint && (
+              <p className="text-[10px] font-semibold text-amber-800 mt-1">
+                {whatsAppConfig.formatHint}
+              </p>
+            )}
           </div>
         </div>
 

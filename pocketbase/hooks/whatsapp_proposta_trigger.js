@@ -95,11 +95,11 @@ onRecordAfterUpdateSuccess((e) => {
       novaMsg.set('tipo_disparo', 'proposta_aprovada')
       novaMsg.set('referencia_id', refKey)
 
-      const apiUrl = $os.getenv('WHATSAPP_API_URL') || ''
-      const apiKey = $os.getenv('WHATSAPP_API_KEY') || ''
-      const originNumber = $os.getenv('WHATSAPP_ORIGIN_NUMBER') || ''
+      const rawApiUrl = ($os.getenv('WHATSAPP_API_URL') || '').trim()
+      const apiKey = ($os.getenv('WHATSAPP_API_KEY') || '').trim()
+      const originNumber = ($os.getenv('WHATSAPP_ORIGIN_NUMBER') || '').trim()
 
-      if (!apiUrl) {
+      if (!rawApiUrl) {
         novaMsg.set('status', 'falha')
         novaMsg.set('log_erro', 'Gateway não configurado nos Secrets do backend')
         $app.save(novaMsg)
@@ -107,47 +107,77 @@ onRecordAfterUpdateSuccess((e) => {
       }
 
       let cleanPhone = telCliente.replace(/\D/g, '')
-      if (cleanPhone.length >= 10 && !cleanPhone.startsWith('55')) {
+      if (cleanPhone.length >= 10 && cleanPhone.length <= 11 && !cleanPhone.startsWith('55')) {
         cleanPhone = '55' + cleanPhone
       }
 
       try {
+        let baseUrl = rawApiUrl.replace(/\/+$/, '')
+        if (!baseUrl.startsWith('http://') && !baseUrl.startsWith('https://')) {
+          baseUrl = 'https://' + baseUrl
+        }
+
+        const isZApi =
+          baseUrl.toLowerCase().indexOf('z-api.com') !== -1 ||
+          baseUrl.toLowerCase().indexOf('z-api.io') !== -1
+        let targetUrl = baseUrl
+        let payloadGateway = {}
         const headers = { 'Content-Type': 'application/json' }
-        if (apiKey) {
-          headers['apikey'] = apiKey
-          headers['Authorization'] = 'Bearer ' + apiKey
-          headers['X-Api-Key'] = apiKey
-        }
-        let targetUrl = apiUrl
-        if (!targetUrl.startsWith('http://') && !targetUrl.startsWith('https://')) {
-          targetUrl = 'https://' + targetUrl
-        }
-        const res = $http.send({
-          url: targetUrl,
-          method: 'POST',
-          headers: headers,
-          body: JSON.stringify({
+
+        if (isZApi) {
+          if (targetUrl.toLowerCase().endsWith('/send-text')) {
+            // OK
+          } else {
+            targetUrl = targetUrl + '/send-text'
+          }
+          if (apiKey) {
+            headers['Client-Token'] = apiKey
+          }
+          payloadGateway = {
+            phone: cleanPhone,
+            message: conteudo,
+          }
+        } else {
+          if (apiKey) {
+            headers['apikey'] = apiKey
+            headers['Authorization'] = 'Bearer ' + apiKey
+            headers['X-Api-Key'] = apiKey
+          }
+          payloadGateway = {
             number: cleanPhone,
             phone: cleanPhone,
             message: conteudo,
             text: conteudo,
             sender: originNumber,
-          }),
+          }
+        }
+
+        const res = $http.send({
+          url: targetUrl,
+          method: 'POST',
+          headers: headers,
+          body: JSON.stringify(payloadGateway),
           timeout: 15,
         })
 
         if (res.statusCode >= 200 && res.statusCode < 300) {
           let extId = ''
           try {
-            if (res.json && res.json.id) extId = String(res.json.id)
+            if (res.json) {
+              if (res.json.messageId) extId = String(res.json.messageId)
+              else if (res.json.id) extId = String(res.json.id)
+              else if (res.json.zaapId) extId = String(res.json.zaapId)
+              else if (res.json.key && res.json.key.id) extId = String(res.json.key.id)
+            }
           } catch (_) {}
           novaMsg.set('status', 'enviada')
           novaMsg.set('enviado_em', new Date().toISOString())
           if (extId) novaMsg.set('id_externo_gateway', extId)
           novaMsg.set('log_erro', '')
         } else {
+          const errStr = res.raw ? res.raw.substring(0, 300) : `HTTP ${res.statusCode}`
           novaMsg.set('status', 'falha')
-          novaMsg.set('log_erro', `Gateway HTTP ${res.statusCode}`)
+          novaMsg.set('log_erro', `Gateway HTTP ${res.statusCode}: ${errStr}`)
         }
       } catch (sendErr) {
         novaMsg.set('status', 'falha')

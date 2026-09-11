@@ -393,18 +393,35 @@ export const ModalGerenciarWhatsAppTemplates: React.FC<ModalGerenciarWhatsAppTem
                         </span>
                       </div>
                       <p className="text-gray-500 text-[11px]">
-                        URL do endpoint da API de gateway de WhatsApp (ex.: Evolution API, Z-API,
-                        Baileys HTTP, WppConnect).
+                        URL do endpoint do gateway. Para a Z-API, use:{' '}
+                        <code className="bg-gray-100 px-1 py-0.5 rounded text-[10px] text-gray-800">
+                          https://api.z-api.com/instances/{'{instanceId}'}/token/{'{token}'}
+                        </code>{' '}
+                        (o CRM adiciona automaticamente{' '}
+                        <code className="bg-gray-100 px-1 py-0.5 rounded text-[10px] text-gray-800">
+                          /send-text
+                        </code>
+                        ).
                       </p>
+                      {whatsAppConfig?.formatHint && (
+                        <p className="text-amber-700 font-semibold text-[10px]">
+                          {whatsAppConfig.formatHint}
+                        </p>
+                      )}
                     </div>
                     <div className="text-right">
                       {whatsAppConfig?.hasApiUrl ? (
-                        <span className="text-emerald-700 font-bold font-mono text-[11px] bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
-                          {whatsAppConfig.apiUrlPreview}
+                        <span className="text-emerald-700 font-bold font-mono text-[11px] bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 block">
+                          {whatsAppConfig.apiUrlPreview || whatsAppConfig.apiUrlMasked}
                         </span>
                       ) : (
                         <span className="text-amber-700 font-bold text-[11px] bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
                           Não preenchido
+                        </span>
+                      )}
+                      {whatsAppConfig?.isZApi && (
+                        <span className="mt-1 inline-block text-[10px] font-bold text-emerald-700 bg-emerald-100/80 px-2 py-0.5 rounded-full border border-emerald-300">
+                          Z-API detectada
                         </span>
                       )}
                     </div>
@@ -417,11 +434,15 @@ export const ModalGerenciarWhatsAppTemplates: React.FC<ModalGerenciarWhatsAppTem
                         <Key className="w-4 h-4 text-emerald-600 shrink-0" />
                         <span className="font-mono font-bold text-gray-900">WHATSAPP_API_KEY</span>
                         <span className="text-[10px] bg-gray-100 text-gray-700 font-bold px-1.5 py-0.2 rounded">
-                          Token / Bearer
+                          Client-Token / API Key
                         </span>
                       </div>
                       <p className="text-gray-500 text-[11px]">
-                        Chave de API / Token Bearer para autenticação no gateway.
+                        Na Z-API, representa o header{' '}
+                        <code className="bg-gray-100 px-1 py-0.5 rounded text-[10px] text-gray-800">
+                          Client-Token
+                        </code>{' '}
+                        exigido para autenticar e proteger requisições da instância.
                       </p>
                     </div>
                     <div className="text-right">

@@ -6,12 +6,11 @@ cronAdd('whatsapp_worker', '*/2 * * * *', () => {
   try {
     const now = new Date()
     const nowIso = now.toISOString()
-    const apiUrl = $os.getenv('WHATSAPP_API_URL') || ''
-    const apiKey = $os.getenv('WHATSAPP_API_KEY') || ''
-    const originNumber = $os.getenv('WHATSAPP_ORIGIN_NUMBER') || ''
+    const rawApiUrl = ($os.getenv('WHATSAPP_API_URL') || '').trim()
+    const apiKey = ($os.getenv('WHATSAPP_API_KEY') || '').trim()
+    const originNumber = ($os.getenv('WHATSAPP_ORIGIN_NUMBER') || '').trim()
 
     const msgsCol = $app.findCollectionByNameOrId('whatsapp_mensagens')
-    const tplsCol = $app.findCollectionByNameOrId('whatsapp_templates')
 
     // -------------------------------------------------------------
     // PARTE 1: PROCESSAR FILA DE MENSAGENS AGENDADAS
@@ -39,7 +38,7 @@ cronAdd('whatsapp_worker', '*/2 * * * *', () => {
           continue
         }
 
-        if (!apiUrl) {
+        if (!rawApiUrl) {
           msg.set('status', 'falha')
           msg.set(
             'log_erro',
@@ -50,43 +49,68 @@ cronAdd('whatsapp_worker', '*/2 * * * *', () => {
         }
 
         let cleanPhone = dest.replace(/\D/g, '')
-        if (cleanPhone.length >= 10 && !cleanPhone.startsWith('55')) {
+        if (cleanPhone.length >= 10 && cleanPhone.length <= 11 && !cleanPhone.startsWith('55')) {
           cleanPhone = '55' + cleanPhone
         }
 
         try {
-          const headers = { 'Content-Type': 'application/json' }
-          if (apiKey) {
-            headers['apikey'] = apiKey
-            headers['Authorization'] = 'Bearer ' + apiKey
-            headers['X-Api-Key'] = apiKey
+          let baseUrl = rawApiUrl.replace(/\/+$/, '')
+          if (!baseUrl.startsWith('http://') && !baseUrl.startsWith('https://')) {
+            baseUrl = 'https://' + baseUrl
           }
 
-          let targetUrl = apiUrl
-          if (!targetUrl.startsWith('http://') && !targetUrl.startsWith('https://')) {
-            targetUrl = 'https://' + targetUrl
+          const isZApi =
+            baseUrl.toLowerCase().indexOf('z-api.com') !== -1 ||
+            baseUrl.toLowerCase().indexOf('z-api.io') !== -1
+          let targetUrl = baseUrl
+          let payloadGateway = {}
+          const headers = { 'Content-Type': 'application/json' }
+
+          if (isZApi) {
+            if (targetUrl.toLowerCase().endsWith('/send-text')) {
+              // OK
+            } else {
+              targetUrl = targetUrl + '/send-text'
+            }
+            if (apiKey) {
+              headers['Client-Token'] = apiKey
+            }
+            payloadGateway = {
+              phone: cleanPhone,
+              message: texto,
+            }
+          } else {
+            if (apiKey) {
+              headers['apikey'] = apiKey
+              headers['Authorization'] = 'Bearer ' + apiKey
+              headers['X-Api-Key'] = apiKey
+            }
+            payloadGateway = {
+              number: cleanPhone,
+              phone: cleanPhone,
+              message: texto,
+              text: texto,
+              sender: originNumber,
+            }
           }
 
           const res = $http.send({
             url: targetUrl,
             method: 'POST',
             headers: headers,
-            body: JSON.stringify({
-              number: cleanPhone,
-              phone: cleanPhone,
-              message: texto,
-              text: texto,
-              sender: originNumber,
-            }),
+            body: JSON.stringify(payloadGateway),
             timeout: 15,
           })
 
           if (res.statusCode >= 200 && res.statusCode < 300) {
             let externalId = ''
             try {
-              if (res.json && res.json.id) externalId = String(res.json.id)
-              else if (res.json && res.json.key && res.json.key.id)
-                externalId = String(res.json.key.id)
+              if (res.json) {
+                if (res.json.messageId) externalId = String(res.json.messageId)
+                else if (res.json.id) externalId = String(res.json.id)
+                else if (res.json.zaapId) externalId = String(res.json.zaapId)
+                else if (res.json.key && res.json.key.id) externalId = String(res.json.key.id)
+              }
             } catch (_) {}
 
             msg.set('status', 'enviada')
@@ -95,9 +119,14 @@ cronAdd('whatsapp_worker', '*/2 * * * *', () => {
             msg.set('log_erro', '')
             $app.save(msg)
           } else {
-            const errStr = res.raw ? res.raw.substring(0, 200) : `HTTP ${res.statusCode}`
+            const errStr = res.raw ? res.raw.substring(0, 300) : `HTTP ${res.statusCode}`
+            let hint = ''
+            if (res.statusCode === 404 && errStr.indexOf('Instance not found') !== -1) {
+              hint =
+                ' (Instância não encontrada na Z-API: verifique a URL da instância em WHATSAPP_API_URL)'
+            }
             msg.set('status', 'falha')
-            msg.set('log_erro', `Gateway erro HTTP ${res.statusCode}: ${errStr}`)
+            msg.set('log_erro', `Gateway erro HTTP ${res.statusCode}: ${errStr}${hint}`)
             $app.save(msg)
           }
         } catch (httpErr) {
@@ -155,7 +184,6 @@ cronAdd('whatsapp_worker', '*/2 * * * *', () => {
 
           let clienteRec = null
           try {
-            clienteRec = $app.findCollectionByNameOrId('clientes')
             clienteRec = $app.findRecordsByFilter('clientes', `id = '${clienteId}'`, '', 1, 0)[0]
           } catch (_) {}
 
@@ -203,7 +231,7 @@ cronAdd('whatsapp_worker', '*/2 * * * *', () => {
           novaMsg.set('tipo_disparo', 'lembrete_visita')
           novaMsg.set('referencia_id', refKey)
 
-          if (!apiUrl) {
+          if (!rawApiUrl) {
             novaMsg.set('status', 'falha')
             novaMsg.set('log_erro', 'Gateway não configurado nos Secrets do backend')
             $app.save(novaMsg)
@@ -212,47 +240,77 @@ cronAdd('whatsapp_worker', '*/2 * * * *', () => {
 
           // Enviar via HTTP
           let cleanPhone = telCliente.replace(/\D/g, '')
-          if (cleanPhone.length >= 10 && !cleanPhone.startsWith('55')) {
+          if (cleanPhone.length >= 10 && cleanPhone.length <= 11 && !cleanPhone.startsWith('55')) {
             cleanPhone = '55' + cleanPhone
           }
 
           try {
+            let baseUrl = rawApiUrl.replace(/\/+$/, '')
+            if (!baseUrl.startsWith('http://') && !baseUrl.startsWith('https://')) {
+              baseUrl = 'https://' + baseUrl
+            }
+
+            const isZApi =
+              baseUrl.toLowerCase().indexOf('z-api.com') !== -1 ||
+              baseUrl.toLowerCase().indexOf('z-api.io') !== -1
+            let targetUrl = baseUrl
+            let payloadGateway = {}
             const headers = { 'Content-Type': 'application/json' }
-            if (apiKey) {
-              headers['apikey'] = apiKey
-              headers['Authorization'] = 'Bearer ' + apiKey
-              headers['X-Api-Key'] = apiKey
-            }
-            let targetUrl = apiUrl
-            if (!targetUrl.startsWith('http://') && !targetUrl.startsWith('https://')) {
-              targetUrl = 'https://' + targetUrl
-            }
-            const res = $http.send({
-              url: targetUrl,
-              method: 'POST',
-              headers: headers,
-              body: JSON.stringify({
+
+            if (isZApi) {
+              if (targetUrl.toLowerCase().endsWith('/send-text')) {
+                // OK
+              } else {
+                targetUrl = targetUrl + '/send-text'
+              }
+              if (apiKey) {
+                headers['Client-Token'] = apiKey
+              }
+              payloadGateway = {
+                phone: cleanPhone,
+                message: tplTexto,
+              }
+            } else {
+              if (apiKey) {
+                headers['apikey'] = apiKey
+                headers['Authorization'] = 'Bearer ' + apiKey
+                headers['X-Api-Key'] = apiKey
+              }
+              payloadGateway = {
                 number: cleanPhone,
                 phone: cleanPhone,
                 message: tplTexto,
                 text: tplTexto,
                 sender: originNumber,
-              }),
+              }
+            }
+
+            const res = $http.send({
+              url: targetUrl,
+              method: 'POST',
+              headers: headers,
+              body: JSON.stringify(payloadGateway),
               timeout: 15,
             })
 
             if (res.statusCode >= 200 && res.statusCode < 300) {
               let extId = ''
               try {
-                if (res.json && res.json.id) extId = String(res.json.id)
+                if (res.json) {
+                  if (res.json.messageId) extId = String(res.json.messageId)
+                  else if (res.json.id) extId = String(res.json.id)
+                  else if (res.json.zaapId) extId = String(res.json.zaapId)
+                  else if (res.json.key && res.json.key.id) extId = String(res.json.key.id)
+                }
               } catch (_) {}
               novaMsg.set('status', 'enviada')
               novaMsg.set('enviado_em', new Date().toISOString())
               if (extId) novaMsg.set('id_externo_gateway', extId)
               novaMsg.set('log_erro', '')
             } else {
+              const errStr = res.raw ? res.raw.substring(0, 300) : `HTTP ${res.statusCode}`
               novaMsg.set('status', 'falha')
-              novaMsg.set('log_erro', `Gateway HTTP ${res.statusCode}`)
+              novaMsg.set('log_erro', `Gateway HTTP ${res.statusCode}: ${errStr}`)
             }
           } catch (sendErr) {
             novaMsg.set('status', 'falha')
@@ -339,7 +397,7 @@ cronAdd('whatsapp_worker', '*/2 * * * *', () => {
           novaMsg.set('tipo_disparo', 'followup_posvenda')
           novaMsg.set('referencia_id', refKey)
 
-          if (!apiUrl) {
+          if (!rawApiUrl) {
             novaMsg.set('status', 'falha')
             novaMsg.set('log_erro', 'Gateway não configurado nos Secrets do backend')
             $app.save(novaMsg)
@@ -347,47 +405,77 @@ cronAdd('whatsapp_worker', '*/2 * * * *', () => {
           }
 
           let cleanPhone = telCliente.replace(/\D/g, '')
-          if (cleanPhone.length >= 10 && !cleanPhone.startsWith('55')) {
+          if (cleanPhone.length >= 10 && cleanPhone.length <= 11 && !cleanPhone.startsWith('55')) {
             cleanPhone = '55' + cleanPhone
           }
 
           try {
+            let baseUrl = rawApiUrl.replace(/\/+$/, '')
+            if (!baseUrl.startsWith('http://') && !baseUrl.startsWith('https://')) {
+              baseUrl = 'https://' + baseUrl
+            }
+
+            const isZApi =
+              baseUrl.toLowerCase().indexOf('z-api.com') !== -1 ||
+              baseUrl.toLowerCase().indexOf('z-api.io') !== -1
+            let targetUrl = baseUrl
+            let payloadGateway = {}
             const headers = { 'Content-Type': 'application/json' }
-            if (apiKey) {
-              headers['apikey'] = apiKey
-              headers['Authorization'] = 'Bearer ' + apiKey
-              headers['X-Api-Key'] = apiKey
-            }
-            let targetUrl = apiUrl
-            if (!targetUrl.startsWith('http://') && !targetUrl.startsWith('https://')) {
-              targetUrl = 'https://' + targetUrl
-            }
-            const res = $http.send({
-              url: targetUrl,
-              method: 'POST',
-              headers: headers,
-              body: JSON.stringify({
+
+            if (isZApi) {
+              if (targetUrl.toLowerCase().endsWith('/send-text')) {
+                // OK
+              } else {
+                targetUrl = targetUrl + '/send-text'
+              }
+              if (apiKey) {
+                headers['Client-Token'] = apiKey
+              }
+              payloadGateway = {
+                phone: cleanPhone,
+                message: tplTexto,
+              }
+            } else {
+              if (apiKey) {
+                headers['apikey'] = apiKey
+                headers['Authorization'] = 'Bearer ' + apiKey
+                headers['X-Api-Key'] = apiKey
+              }
+              payloadGateway = {
                 number: cleanPhone,
                 phone: cleanPhone,
                 message: tplTexto,
                 text: tplTexto,
                 sender: originNumber,
-              }),
+              }
+            }
+
+            const res = $http.send({
+              url: targetUrl,
+              method: 'POST',
+              headers: headers,
+              body: JSON.stringify(payloadGateway),
               timeout: 15,
             })
 
             if (res.statusCode >= 200 && res.statusCode < 300) {
               let extId = ''
               try {
-                if (res.json && res.json.id) extId = String(res.json.id)
+                if (res.json) {
+                  if (res.json.messageId) extId = String(res.json.messageId)
+                  else if (res.json.id) extId = String(res.json.id)
+                  else if (res.json.zaapId) extId = String(res.json.zaapId)
+                  else if (res.json.key && res.json.key.id) extId = String(res.json.key.id)
+                }
               } catch (_) {}
               novaMsg.set('status', 'enviada')
               novaMsg.set('enviado_em', new Date().toISOString())
               if (extId) novaMsg.set('id_externo_gateway', extId)
               novaMsg.set('log_erro', '')
             } else {
+              const errStr = res.raw ? res.raw.substring(0, 300) : `HTTP ${res.statusCode}`
               novaMsg.set('status', 'falha')
-              novaMsg.set('log_erro', `Gateway HTTP ${res.statusCode}`)
+              novaMsg.set('log_erro', `Gateway HTTP ${res.statusCode}: ${errStr}`)
             }
           } catch (sendErr) {
             novaMsg.set('status', 'falha')

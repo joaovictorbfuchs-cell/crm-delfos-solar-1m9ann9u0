@@ -157,6 +157,12 @@ export interface WhatsAppConfigStatus {
   configured: boolean
   hasApiUrl: boolean
   apiUrlPreview?: string
+  apiUrlMasked?: string
+  isZApi?: boolean
+  isEvolution?: boolean
+  isUrlWellFormed?: boolean
+  formatHint?: string
+  provider?: string
   hasApiKey: boolean
   apiKeyMasked?: string
   originNumber?: string
