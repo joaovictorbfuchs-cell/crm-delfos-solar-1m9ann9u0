@@ -108,7 +108,13 @@ export interface Cliente extends RecordModel {
 // Tipos para Integração com WhatsApp
 // -------------------------------------------------------------
 
-export type WhatsAppMensagemStatus = 'pendente' | 'agendada' | 'enviada' | 'entregue' | 'falha'
+export type WhatsAppMensagemStatus =
+  | 'pendente'
+  | 'agendada'
+  | 'enviada'
+  | 'entregue'
+  | 'lida'
+  | 'falha'
 export type WhatsAppTipoDisparo =
   | 'manual'
   | 'proposta_aprovada'

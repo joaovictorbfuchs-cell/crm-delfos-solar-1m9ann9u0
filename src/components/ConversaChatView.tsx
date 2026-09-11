@@ -3,22 +3,23 @@ import {
   Send,
   User,
   Phone,
-  MapPin,
-  FileText,
+  Video,
+  MoreVertical,
   CheckCircle,
   Clock,
   Sparkles,
   CheckCheck,
   Check,
-  AlertCircle,
-  Building2,
-  Calendar,
-  ExternalLink,
-  ChevronRight,
   ArrowLeft,
   X,
   FileDown,
   Paperclip,
+  Smile,
+  ChevronRight,
+  UserCheck,
+  Building2,
+  Calendar,
+  AlertCircle,
 } from 'lucide-react'
 import type { WhatsAppConversa, WhatsAppMensagem, Cliente, WhatsAppTemplate } from '@/types/crm'
 import { useClientes } from '@/contexts/ClientesContext'
@@ -53,6 +54,34 @@ function formatHorarioMensagem(dateString?: string | null): string {
   }
 }
 
+// Lista de emojis populares para o mini-picker rápido
+const EMOJIS_POPULARES = [
+  '👍',
+  '👋',
+  '☀️',
+  '⚡',
+  '🤝',
+  '😊',
+  '✅',
+  '📋',
+  '📄',
+  '💡',
+  '💰',
+  '📅',
+  '📞',
+  '🙏',
+  '🚀',
+  '⭐',
+  '🙌',
+  '💬',
+  '🔧',
+  '🏠',
+  '📍',
+  '🎉',
+  '⏳',
+  '🔍',
+]
+
 interface ConversaChatViewProps {
   conversa: WhatsAppConversa
   cliente?: Cliente | null
@@ -84,11 +113,36 @@ export const ConversaChatView: React.FC<ConversaChatViewProps> = ({
     null,
   )
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>('')
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false)
+  const [showOptionsMenu, setShowOptionsMenu] = useState(false)
+  const [showTemplatesDropdown, setShowTemplatesDropdown] = useState(false)
+  const [callNotice, setCallNotice] = useState(false)
 
   const chatScrollContainerRef = useRef<HTMLDivElement | null>(null)
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null)
+  const optionsMenuRef = useRef<HTMLDivElement | null>(null)
+  const emojiPickerRef = useRef<HTMLDivElement | null>(null)
+  const templatesRef = useRef<HTMLDivElement | null>(null)
+
+  // Fechar menus ao clicar fora
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (optionsMenuRef.current && !optionsMenuRef.current.contains(event.target as Node)) {
+        setShowOptionsMenu(false)
+      }
+      if (emojiPickerRef.current && !emojiPickerRef.current.contains(event.target as Node)) {
+        setShowEmojiPicker(false)
+      }
+      if (templatesRef.current && !templatesRef.current.contains(event.target as Node)) {
+        setShowTemplatesDropdown(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
 
   // Mensagens filtradas desta conversa (ou número/cliente correspondente)
-  // Ordenadas da mais nova para a mais antiga (mais novas no topo)
+  // Ordenadas da mais nova para a mais antiga (mais novas no topo) conforme decisão de projeto
   const mensagensConversa = useMemo(() => {
     return whatsAppMensagens
       .filter((m) => {
@@ -147,10 +201,23 @@ export const ConversaChatView: React.FC<ConversaChatViewProps> = ({
 
     setMensagemTexto(texto)
     setSelectedTemplateId(tpl.id)
+    setShowTemplatesDropdown(false)
+    if (textareaRef.current) {
+      textareaRef.current.focus()
+    }
+  }
+
+  // Inserir emoji no campo
+  const handleInsertEmoji = (emoji: string) => {
+    setMensagemTexto((prev) => prev + emoji)
+    if (textareaRef.current) {
+      textareaRef.current.focus()
+    }
   }
 
   // Ação: Assumir Atendimento
   const handleAssumir = async () => {
+    setShowOptionsMenu(false)
     setStatusActionLoading(true)
     try {
       const atendenteNome = user?.name || user?.email || 'Atendente'
@@ -164,6 +231,7 @@ export const ConversaChatView: React.FC<ConversaChatViewProps> = ({
 
   // Ação: Finalizar Atendimento
   const handleFinalizar = async () => {
+    setShowOptionsMenu(false)
     if (
       !window.confirm(
         'Deseja realmente finalizar este atendimento? A conversa será movida para Resolvidos.',
@@ -182,8 +250,8 @@ export const ConversaChatView: React.FC<ConversaChatViewProps> = ({
   }
 
   // Enviar Mensagem Manual
-  const handleEnviar = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const handleEnviar = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault()
     const msg = mensagemTexto.trim()
     if (!msg || isSending) return
 
@@ -203,6 +271,7 @@ export const ConversaChatView: React.FC<ConversaChatViewProps> = ({
       if (res.ok) {
         setMensagemTexto('')
         setSelectedTemplateId('')
+        setShowEmojiPicker(false)
       } else {
         setFeedback({
           tipo: 'error',
@@ -220,319 +289,480 @@ export const ConversaChatView: React.FC<ConversaChatViewProps> = ({
     }
   }
 
-  // Render da badge de status da conversa
-  const renderStatusBadge = () => {
-    switch (conversa.status) {
-      case 'novo':
-        return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-800 border border-amber-200">
-            <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
-            Fila de Novos
-          </span>
-        )
-      case 'em_atendimento':
-        return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
-            <span className="w-2 h-2 rounded-full bg-emerald-500" />
-            Em Atendimento {conversa.reaberta_em ? '(Nova Mensagem)' : ''}
-          </span>
-        )
-      case 'aguardando_cliente':
-        return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-sky-50 text-sky-800 border border-sky-200">
-            <Clock className="w-3 h-3 text-sky-600" />
-            Aguardando Cliente
-          </span>
-        )
-      case 'resolvido':
-        return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-gray-100 text-gray-700 border border-gray-200">
-            <CheckCircle className="w-3 h-3 text-gray-500" />
-            Resolvido
-          </span>
-        )
-      default:
-        return null
+  // Status visual / online do cabeçalho WhatsApp
+  const contatoSubtitulo = useMemo(() => {
+    if (conversa.status === 'em_atendimento') {
+      return conversa.atendente ? `online • Atendente: ${conversa.atendente}` : 'online'
     }
-  }
+    if (conversa.status === 'novo') {
+      return 'online • Nova mensagem'
+    }
+    if (conversa.ultima_mensagem_em) {
+      return `visto por último ${formatHorarioMensagem(conversa.ultima_mensagem_em)}`
+    }
+    return 'disponível no WhatsApp'
+  }, [conversa])
+
+  // Identificação do contato para o avatar
+  const contatoIniciais = useMemo(() => {
+    if (cliente?.nome) {
+      const parts = cliente.nome.trim().split(/\s+/)
+      if (parts.length >= 2) {
+        return (parts[0][0] + parts[1][0]).toUpperCase()
+      }
+      return cliente.nome.substring(0, 2).toUpperCase()
+    }
+    return 'WA'
+  }, [cliente])
 
   return (
-    <div className="flex flex-col h-full bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-      {/* Top Header: Informações do Cliente e Ações da Conversa */}
-      <div className="p-4 sm:p-5 border-b border-gray-100 bg-white">
-        <div className="flex items-start justify-between gap-4 flex-wrap">
-          <div className="flex items-start gap-3 min-w-0">
-            {onBack && (
-              <button
-                type="button"
-                onClick={onBack}
-                className="lg:hidden p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-xl transition-colors"
-                title="Voltar para lista"
-              >
-                <ArrowLeft className="w-5 h-5" />
-              </button>
-            )}
+    <div className="flex flex-col h-full bg-[#f0f2f5] rounded-2xl border border-gray-200 shadow-sm overflow-hidden select-none">
+      {/* 1. CABEÇALHO DA CONVERSA (Estilo WhatsApp Web) */}
+      <div className="h-16 px-4 py-2.5 bg-[#f0f2f5] border-b border-gray-200/80 flex items-center justify-between shrink-0 select-text">
+        <div className="flex items-center gap-3 min-w-0">
+          {onBack && (
+            <button
+              type="button"
+              onClick={onBack}
+              className="lg:hidden p-1.5 -ml-1 text-[#54656f] hover:text-[#111b21] hover:bg-black/5 rounded-full transition-colors"
+              title="Voltar para lista"
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </button>
+          )}
 
-            <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-700 text-white flex items-center justify-center font-bold text-base shrink-0 shadow-xs">
-              {cliente?.nome ? (
-                cliente.nome.substring(0, 2).toUpperCase()
-              ) : (
-                <Phone className="w-5 h-5" />
-              )}
-            </div>
-
-            <div className="min-w-0">
-              <div className="flex items-center gap-2 flex-wrap">
-                <h2 className="text-base font-bold text-gray-900 truncate">
-                  {cliente?.nome || `Número Não Vinculado: ${formatWhatsAppPhone(conversa.numero)}`}
-                </h2>
-                {renderStatusBadge()}
-              </div>
-
-              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-500 mt-1">
-                <span className="flex items-center gap-1 font-mono font-medium text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
-                  <Phone className="w-3 h-3 text-emerald-600" />
-                  {formatWhatsAppPhone(conversa.numero)}
-                </span>
-
-                {conversa.atendente && (
-                  <span className="flex items-center gap-1 text-gray-600">
-                    <User className="w-3 h-3 text-gray-400" />
-                    Atendente: <strong>{conversa.atendente}</strong>
-                  </span>
-                )}
-
-                {cliente?.usina_endereco && (
-                  <span className="flex items-center gap-1 text-gray-600 truncate max-w-xs">
-                    <MapPin className="w-3 h-3 text-emerald-600 shrink-0" />
-                    Usina: {cliente.usina_endereco}
-                  </span>
-                )}
-              </div>
-            </div>
+          {/* Avatar com inicial / foto */}
+          <div
+            className="w-10 h-10 rounded-full bg-[#00a884] text-white flex items-center justify-center font-bold text-sm shrink-0 shadow-2xs cursor-pointer select-none"
+            onClick={() => cliente && openFichaCliente(cliente.id, 'historico')}
+            title={cliente ? `Abrir ficha de ${cliente.nome}` : undefined}
+          >
+            {contatoIniciais}
           </div>
 
-          {/* Botões de Ação no Topo */}
-          <div className="flex items-center gap-2 shrink-0">
-            {!cliente && onOpenVincularModal && (
-              <button
-                type="button"
-                onClick={onOpenVincularModal}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-colors shadow-2xs"
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2">
+              <h2
+                className="text-sm font-semibold text-[#111b21] truncate cursor-pointer hover:underline"
+                onClick={() => cliente && openFichaCliente(cliente.id, 'historico')}
+                title={cliente?.nome || conversa.numero}
               >
-                <User className="w-3.5 h-3.5" />
-                <span>Vincular a Cliente</span>
-              </button>
-            )}
-
-            {cliente && (
-              <button
-                type="button"
-                onClick={() => openFichaCliente(cliente.id, 'historico')}
-                className="inline-flex items-center gap-1 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-xl text-xs font-semibold transition-colors"
-                title="Abrir ficha completa do cliente"
-              >
-                <span>Ficha do Cliente</span>
-                <ChevronRight className="w-3.5 h-3.5 text-gray-500" />
-              </button>
-            )}
-
-            {conversa.status === 'novo' && (
-              <button
-                type="button"
-                disabled={statusActionLoading}
-                onClick={handleAssumir}
-                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-colors shadow-2xs disabled:opacity-50"
-              >
-                <Check className="w-3.5 h-3.5" />
-                <span>Assumir Atendimento</span>
-              </button>
-            )}
-
-            {conversa.status !== 'resolvido' && (
-              <button
-                type="button"
-                disabled={statusActionLoading}
-                onClick={handleFinalizar}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-gray-50 text-gray-700 border border-gray-300 rounded-xl text-xs font-bold transition-colors shadow-2xs disabled:opacity-50"
-              >
-                <CheckCircle className="w-3.5 h-3.5 text-emerald-600" />
-                <span>Finalizar</span>
-              </button>
-            )}
+                {cliente?.nome || formatWhatsAppPhone(conversa.numero)}
+              </h2>
+            </div>
+            <p className="text-[12px] text-[#667781] truncate leading-tight">{contatoSubtitulo}</p>
           </div>
         </div>
 
-        {/* Mini barra de contexto do Cliente (quando vinculado) */}
-        {cliente && (
-          <div className="mt-3 pt-3 border-t border-gray-100 grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px] text-gray-600 bg-gray-50/70 p-2.5 rounded-xl">
-            <div>
-              <span className="text-gray-400 block text-[10px] uppercase font-bold">
-                Status CRM
-              </span>
-              <span className="font-semibold text-gray-800 capitalize">
-                {cliente.status || 'Lead'}
-              </span>
-            </div>
-            <div>
-              <span className="text-gray-400 block text-[10px] uppercase font-bold">
-                Local / Cidade
-              </span>
-              <span className="font-semibold text-gray-800 truncate block">
-                {cliente.cidade ? `${cliente.cidade} - ${cliente.estado || 'RS'}` : 'Não informado'}
-              </span>
-            </div>
-            <div>
-              <span className="text-gray-400 block text-[10px] uppercase font-bold">
-                Proposta Solar
-              </span>
-              <span className="font-semibold text-gray-800 truncate block">
-                {ultimoOrcamento
-                  ? `${formatCurrency(ultimoOrcamento.valor_investimento)} (${ultimoOrcamento.potencia_pico_kwp || 0} kWp)`
-                  : 'Sem orçamento'}
-              </span>
-            </div>
-            <div>
-              <span className="text-gray-400 block text-[10px] uppercase font-bold">
-                Próximo Passo
-              </span>
-              <span className="font-semibold text-emerald-800 truncate block">
-                {cliente.proximo_passo || 'Acompanhar negociação'}
-              </span>
-            </div>
+        {/* Ícones do Cabeçalho: Ligação e Mais Opções */}
+        <div className="flex items-center gap-1 shrink-0 text-[#54656f]">
+          {/* Botão de Chamada de Vídeo (decorativo/informativo) */}
+          <button
+            type="button"
+            onClick={() => {
+              setCallNotice(true)
+              setTimeout(() => setCallNotice(false), 3000)
+            }}
+            className="p-2 text-[#54656f] hover:text-[#111b21] hover:bg-black/5 rounded-full transition-colors"
+            title="Chamada de vídeo (WhatsApp)"
+          >
+            <Video className="w-5 h-5" />
+          </button>
+
+          {/* Botão de Ligação por Voz (decorativo/informativo) */}
+          <button
+            type="button"
+            onClick={() => {
+              setCallNotice(true)
+              setTimeout(() => setCallNotice(false), 3000)
+            }}
+            className="p-2 text-[#54656f] hover:text-[#111b21] hover:bg-black/5 rounded-full transition-colors"
+            title="Chamada de voz (WhatsApp)"
+          >
+            <Phone className="w-4.5 h-4.5" />
+          </button>
+
+          <div className="h-5 w-px bg-gray-300 mx-1 hidden sm:block" />
+
+          {/* Menu Mais Opções (ações da conversa e CRM) */}
+          <div className="relative" ref={optionsMenuRef}>
+            <button
+              type="button"
+              onClick={() => setShowOptionsMenu((prev) => !prev)}
+              className={`p-2 rounded-full transition-colors ${
+                showOptionsMenu
+                  ? 'bg-black/10 text-[#111b21]'
+                  : 'text-[#54656f] hover:text-[#111b21] hover:bg-black/5'
+              }`}
+              title="Mais opções da conversa"
+            >
+              <MoreVertical className="w-5 h-5" />
+            </button>
+
+            {/* Dropdown de opções */}
+            {showOptionsMenu && (
+              <div className="absolute right-0 top-full mt-1.5 w-60 bg-white rounded-xl shadow-lg border border-gray-100 py-1.5 z-50 text-xs">
+                {cliente ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowOptionsMenu(false)
+                      openFichaCliente(cliente.id, 'historico')
+                    }}
+                    className="w-full text-left px-3.5 py-2 hover:bg-gray-100 flex items-center gap-2.5 text-gray-800 font-medium"
+                  >
+                    <User className="w-4 h-4 text-emerald-600" />
+                    <span>Ver ficha completa do cliente</span>
+                  </button>
+                ) : (
+                  onOpenVincularModal && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowOptionsMenu(false)
+                        onOpenVincularModal()
+                      }}
+                      className="w-full text-left px-3.5 py-2 hover:bg-gray-100 flex items-center gap-2.5 text-gray-800 font-medium"
+                    >
+                      <UserCheck className="w-4 h-4 text-emerald-600" />
+                      <span>Vincular a um cliente</span>
+                    </button>
+                  )
+                )}
+
+                {conversa.status === 'novo' && (
+                  <button
+                    type="button"
+                    disabled={statusActionLoading}
+                    onClick={handleAssumir}
+                    className="w-full text-left px-3.5 py-2 hover:bg-gray-100 flex items-center gap-2.5 text-emerald-700 font-medium"
+                  >
+                    <Check className="w-4 h-4" />
+                    <span>Assumir atendimento</span>
+                  </button>
+                )}
+
+                {conversa.status !== 'resolvido' && (
+                  <button
+                    type="button"
+                    disabled={statusActionLoading}
+                    onClick={handleFinalizar}
+                    className="w-full text-left px-3.5 py-2 hover:bg-gray-100 flex items-center gap-2.5 text-gray-700 font-medium"
+                  >
+                    <CheckCircle className="w-4 h-4 text-emerald-600" />
+                    <span>Finalizar atendimento</span>
+                  </button>
+                )}
+
+                <div className="my-1 border-t border-gray-100" />
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowOptionsMenu(false)
+                    setShowTemplatesDropdown(true)
+                  }}
+                  className="w-full text-left px-3.5 py-2 hover:bg-gray-100 flex items-center gap-2.5 text-gray-700"
+                >
+                  <Sparkles className="w-4 h-4 text-amber-500" />
+                  <span>Templates de resposta rápida</span>
+                </button>
+
+                <div className="px-3.5 py-1.5 text-[11px] text-gray-400 border-t border-gray-100 mt-1">
+                  Número: {formatWhatsAppPhone(conversa.numero)}
+                </div>
+              </div>
+            )}
           </div>
-        )}
+        </div>
       </div>
 
-      {/* Histórico de Mensagens (Chat Scrollable) */}
+      {/* Notificação temporária de chamadas */}
+      {callNotice && (
+        <div className="bg-[#e7f8f5] border-b border-[#00a884]/20 px-4 py-2 text-xs text-[#00a884] flex items-center justify-between animate-in fade-in">
+          <span>
+            Chamadas de voz e vídeo são realizadas diretamente pelo aplicativo oficial WhatsApp no
+            celular do atendente.
+          </span>
+          <button
+            type="button"
+            onClick={() => setCallNotice(false)}
+            className="p-0.5 hover:opacity-75 text-[#00a884]"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
+
+      {/* Mini banner de cliente vinculado com atalho */}
+      {cliente && (
+        <div className="bg-[#f7f8fa] border-b border-gray-200/60 px-4 py-1.5 flex items-center justify-between text-[11px] text-[#667781] select-text">
+          <div className="flex items-center gap-3 truncate">
+            <span className="font-semibold text-gray-800">{cliente.nome}</span>
+            {cliente.cidade && (
+              <span className="truncate">
+                • {cliente.cidade} - {cliente.estado || 'RS'}
+              </span>
+            )}
+            {ultimoOrcamento && (
+              <span className="text-emerald-700 font-medium hidden sm:inline">
+                • Proposta: {formatCurrency(ultimoOrcamento.valor_investimento)}
+              </span>
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={() => openFichaCliente(cliente.id, 'historico')}
+            className="text-[#00a884] hover:underline font-medium shrink-0 ml-2"
+          >
+            Ver Ficha
+          </button>
+        </div>
+      )}
+
+      {/* 2. ÁREA DE MENSAGENS (Fundo com textura WhatsApp Web) */}
       <div
         ref={chatScrollContainerRef}
-        className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-2 bg-slate-50/60"
+        className="flex-1 overflow-y-auto p-4 sm:p-5 select-text relative"
+        style={{
+          backgroundColor: '#efeae2',
+          backgroundImage: `url("data:image/svg+xml,%3Csvg width='240' height='240' viewBox='0 0 240 240' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M20 20h20v20H20zm40 60h15v15H60zm80-40h20v20h-20zm60 40h15v15h-15zM40 160h20v20H40zm80 20h15v15h-15zm60-20h20v20h-20zm-60-80h20v20h-20zM30 90a10 10 0 1 0 20 0 10 10 0 1 0-20 0zm140 0a10 10 0 1 0 20 0 10 10 0 1 0-20 0zm-70 70a10 10 0 1 0 20 0 10 10 0 1 0-20 0z' fill='%23000000' fill-opacity='0.035' fill-rule='evenodd'/%3E%3C/svg%3E")`,
+        }}
       >
         {mensagensConversa.length === 0 ? (
-          <div className="h-full flex flex-col items-center justify-center text-center p-8 text-gray-400">
-            <div className="w-12 h-12 rounded-2xl bg-white border border-gray-200 flex items-center justify-center text-gray-400 mb-2 shadow-2xs">
-              <Sparkles className="w-6 h-6 text-emerald-500" />
+          <div className="h-full flex flex-col items-center justify-center text-center p-8 text-gray-500">
+            <div className="w-12 h-12 rounded-2xl bg-white/80 border border-black/5 flex items-center justify-center text-[#00a884] mb-2 shadow-2xs">
+              <Sparkles className="w-6 h-6" />
             </div>
-            <p className="text-sm font-semibold text-gray-600">
+            <p className="text-sm font-semibold text-[#111b21]">
               Nenhuma mensagem registrada ainda nesta conversa.
             </p>
-            <p className="text-xs text-gray-400 max-w-sm mt-1">
+            <p className="text-xs text-[#667781] max-w-sm mt-1">
               Envie uma mensagem abaixo usando a integração com a Z-API ou aguarde o contato do
               cliente.
             </p>
           </div>
         ) : (
-          mensagensConversa.map((msg) => {
-            const isRecebida = msg.direcao === 'recebida' || msg.tipo_disparo === 'webhook'
-            const horaFormatada = formatHorarioMensagem(msg.enviado_em || msg.created)
-            const dataHoraCompleta = formatDateTime(msg.enviado_em || msg.created)
+          <div className="flex flex-col">
+            {mensagensConversa.map((msg, idx) => {
+              const isRecebida = msg.direcao === 'recebida' || msg.tipo_disparo === 'webhook'
+              const horaFormatada = formatHorarioMensagem(msg.enviado_em || msg.created)
+              const dataHoraCompleta = formatDateTime(msg.enviado_em || msg.created)
 
-            // Texto em uma única linha (sem quebra de linha interna)
-            const textoUmaLinha = (msg.conteudo_final || '').replace(/\r?\n+/g, ' ').trim()
+              // Texto em uma única linha com rolagem horizontal (preservado conforme decisão de projeto)
+              const textoUmaLinha = (msg.conteudo_final || '').replace(/\r?\n+/g, ' ').trim()
 
-            return (
-              <div
-                key={msg.id}
-                className={`flex w-full ${isRecebida ? 'justify-start' : 'justify-end'}`}
-              >
+              // Determinar se esta mensagem é a PRIMEIRA mensagem visível de um bloco de remetente (topo do bloco visual)
+              // Como a lista tem mensagens mais novas no topo (idx 0 é a mais nova):
+              // msg anterior na lista = idx - 1. Se idx === 0 ou o remetente de idx - 1 for diferente, esta é o topo de um bloco!
+              const msgAcima = idx > 0 ? mensagensConversa[idx - 1] : null
+              const isAcimaRecebida = msgAcima
+                ? msgAcima.direcao === 'recebida' || msgAcima.tipo_disparo === 'webhook'
+                : null
+              const isPrimeiraDoBloco = idx === 0 || isAcimaRecebida !== isRecebida
+
+              // Espaçamento entre mensagens:
+              // Menor entre mensagens consecutivas do mesmo remetente (mt-1)
+              // Maior ao trocar de remetente (mt-3)
+              const margemTopo = idx === 0 ? 'mt-1' : isPrimeiraDoBloco ? 'mt-3' : 'mt-1'
+
+              // Identificação do remetente (ex.: quando necessário ou atendente diferente)
+              const nomeRemetente = isRecebida
+                ? cliente?.nome || 'Cliente'
+                : conversa.atendente || user?.name || 'Delfos Solar'
+
+              return (
                 <div
-                  className={`max-w-[92%] sm:max-w-[85%] rounded-xl px-3 py-2 shadow-2xs text-xs relative group flex items-center gap-2.5 min-w-0 ${
-                    isRecebida
-                      ? 'bg-white text-gray-900 border border-gray-200 rounded-tl-xs'
-                      : 'bg-emerald-600 text-white rounded-tr-xs'
-                  }`}
-                  title={dataHoraCompleta ? `Data e hora: ${dataHoraCompleta}` : undefined}
+                  key={msg.id}
+                  className={`flex w-full ${isRecebida ? 'justify-start' : 'justify-end'} ${margemTopo}`}
                 >
-                  {/* Tag / Ação de documento em linha única caso enviado via anexo */}
-                  {msg.tipo_mensagem === 'documento' && (
-                    <div
-                      className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg text-[11px] font-semibold shrink-0 ${
-                        isRecebida ? 'bg-gray-100 text-gray-800' : 'bg-emerald-700 text-white'
-                      }`}
-                    >
-                      <FileDown className="w-3.5 h-3.5 shrink-0" />
-                      <span className="max-w-[140px] truncate">
-                        {msg.nome_arquivo || 'Documento'}
-                      </span>
-                      {msg.documento_url && (
-                        <a
-                          href={msg.documento_url}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="underline text-[10px] ml-0.5 shrink-0"
-                          title="Abrir anexo"
+                  <div className="relative max-w-[92%] sm:max-w-[85%] min-w-0">
+                    {/* Seta / Cauda do balão no estilo WhatsApp (apenas na primeira do bloco) */}
+                    {isPrimeiraDoBloco &&
+                      (isRecebida ? (
+                        <svg
+                          className="absolute -left-[8px] top-0 text-white fill-current pointer-events-none drop-shadow-[0_1px_0.5px_rgba(11,20,26,0.13)]"
+                          width="8"
+                          height="13"
+                          viewBox="0 0 8 13"
                         >
-                          Abrir
-                        </a>
+                          <path d="M1.533 3.568L8 12.001V0H0c.535 1.05 1.052 2.378 1.533 3.568z" />
+                        </svg>
+                      ) : (
+                        <svg
+                          className="absolute -right-[8px] top-0 text-[#d9fdd3] fill-current pointer-events-none drop-shadow-[0_1px_0.5px_rgba(11,20,26,0.13)]"
+                          width="8"
+                          height="13"
+                          viewBox="0 0 8 13"
+                        >
+                          <path d="M6.467 3.568L0 12.001V0h8c-.535 1.05-1.052 2.378-1.533 3.568z" />
+                        </svg>
+                      ))}
+
+                    {/* Balão de Mensagem */}
+                    <div
+                      className={`px-3 py-1.5 text-xs relative rounded-lg flex items-center gap-2.5 min-w-0 shadow-[0_1px_0.5px_rgba(11,20,26,0.13)] ${
+                        isRecebida
+                          ? `bg-white text-[#111b21] ${isPrimeiraDoBloco ? 'rounded-tl-none' : ''}`
+                          : `bg-[#d9fdd3] text-[#111b21] ${isPrimeiraDoBloco ? 'rounded-tr-none' : ''}`
+                      }`}
+                      title={
+                        msg.status === 'falha' && msg.log_erro
+                          ? `Falha no envio: ${msg.log_erro}`
+                          : dataHoraCompleta
+                            ? `Data e hora: ${dataHoraCompleta}`
+                            : undefined
+                      }
+                    >
+                      {/* Identificação de remetente na primeira mensagem do bloco */}
+                      {isPrimeiraDoBloco && (
+                        <span
+                          className={`font-semibold text-[11px] shrink-0 ${
+                            isRecebida ? 'text-[#1fa855]' : 'text-[#027eb5]'
+                          }`}
+                        >
+                          {nomeRemetente}:
+                        </span>
                       )}
-                    </div>
-                  )}
 
-                  {/* Texto principal em linha única com scroll horizontal sem quebra */}
-                  <div
-                    tabIndex={0}
-                    className="flex-1 min-w-0 overflow-x-auto whitespace-nowrap scrollbar-thin text-xs leading-normal select-text focus:outline-hidden py-0.5"
-                    title={msg.conteudo_final || ''}
-                  >
-                    <span>{textoUmaLinha || (msg.tipo_mensagem === 'documento' ? '' : '—')}</span>
-                  </div>
+                      {/* Tag de documento caso enviado via anexo */}
+                      {msg.tipo_mensagem === 'documento' && (
+                        <div
+                          className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-semibold shrink-0 ${
+                            isRecebida
+                              ? 'bg-[#f0f2f5] text-[#111b21]'
+                              : 'bg-[#c3f2bc] text-[#111b21]'
+                          }`}
+                        >
+                          <FileDown className="w-3.5 h-3.5 text-[#54656f] shrink-0" />
+                          <span className="max-w-[140px] truncate">
+                            {msg.nome_arquivo || 'Documento'}
+                          </span>
+                          {msg.documento_url && (
+                            <a
+                              href={msg.documento_url}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-[#027eb5] underline text-[10px] ml-0.5 shrink-0"
+                              title="Abrir anexo"
+                            >
+                              Abrir
+                            </a>
+                          )}
+                        </div>
+                      )}
 
-                  {/* Registro de horário + status na mesma linha */}
-                  <div
-                    className={`shrink-0 flex items-center gap-1.5 text-[11px] font-mono font-medium pl-1.5 border-l ${
-                      isRecebida
-                        ? 'text-gray-500 border-gray-200'
-                        : 'text-emerald-100 border-emerald-500/50'
-                    }`}
-                  >
-                    <span className="whitespace-nowrap">{horaFormatada}</span>
-                    {!isRecebida && (
-                      <span
-                        className="inline-flex items-center shrink-0"
-                        title={
-                          msg.status === 'entregue'
-                            ? 'Entregue'
-                            : msg.status === 'enviada'
-                              ? 'Enviada'
-                              : msg.status === 'falha'
-                                ? 'Falha no envio'
-                                : 'Pendente / Enviando'
-                        }
+                      {/* Texto principal em linha única com scroll horizontal sem quebra */}
+                      <div
+                        tabIndex={0}
+                        className="flex-1 min-w-0 overflow-x-auto whitespace-nowrap scrollbar-thin text-xs leading-normal select-text focus:outline-hidden py-0.5"
+                        title={msg.conteudo_final || ''}
                       >
-                        {msg.status === 'entregue' ? (
-                          <CheckCheck className="w-3.5 h-3.5 text-emerald-200" />
-                        ) : msg.status === 'enviada' ? (
-                          <Check className="w-3.5 h-3.5 text-emerald-200" />
-                        ) : msg.status === 'falha' ? (
-                          <AlertCircle className="w-3.5 h-3.5 text-rose-300" />
-                        ) : (
-                          <Clock className="w-3.5 h-3.5 text-emerald-200" />
+                        <span className="text-[#111b21]">
+                          {textoUmaLinha || (msg.tipo_mensagem === 'documento' ? '' : '—')}
+                        </span>
+                      </div>
+
+                      {/* Horário + Ícones de Status WhatsApp */}
+                      <div className="shrink-0 flex items-center gap-1 text-[11px] font-sans pl-1 select-none">
+                        <span className="text-[#667781] text-[11px] whitespace-nowrap">
+                          {horaFormatada}
+                        </span>
+
+                        {!isRecebida && (
+                          <span
+                            className="inline-flex items-center shrink-0 ml-0.5"
+                            title={
+                              msg.status === 'lida'
+                                ? 'Lida'
+                                : msg.status === 'entregue'
+                                  ? 'Entregue'
+                                  : msg.status === 'enviada'
+                                    ? 'Enviada'
+                                    : msg.status === 'falha'
+                                      ? msg.log_erro
+                                        ? `Falha no envio: ${msg.log_erro}`
+                                        : 'Enviada'
+                                      : msg.status === 'agendada'
+                                        ? 'Agendada'
+                                        : 'Enviando'
+                            }
+                          >
+                            {/* Padrão WhatsApp Web:
+                                - lida: 2 checks azuis (#53bdeb)
+                                - entregue: 2 checks cinzas (#8696a0)
+                                - enviada: 1 check cinza (#8696a0)
+                                - falha: 1 check cinza (#8696a0) com motivo no tooltip (SEM exclamação)
+                                - agendada / pendente: relógio discreto */}
+                            {msg.status === 'lida' ? (
+                              <CheckCheck className="w-3.5 h-3.5 text-[#53bdeb]" />
+                            ) : msg.status === 'entregue' ? (
+                              <CheckCheck className="w-3.5 h-3.5 text-[#8696a0]" />
+                            ) : msg.status === 'enviada' || msg.status === 'falha' ? (
+                              <Check className="w-3.5 h-3.5 text-[#8696a0]" />
+                            ) : msg.status === 'agendada' ? (
+                              <Clock className="w-3 h-3 text-[#8696a0]" />
+                            ) : (
+                              <Clock className="w-3 h-3 text-[#8696a0]" />
+                            )}
+                          </span>
                         )}
-                      </span>
-                    )}
+                      </div>
+                    </div>
                   </div>
                 </div>
-              </div>
-            )
-          })
+              )
+            })}
+          </div>
         )}
       </div>
 
-      {/* Barra de Templates Rápidos */}
-      {whatsAppTemplates.length > 0 && (
-        <div className="px-4 py-2 border-t border-gray-100 bg-gray-50 flex items-center gap-2 overflow-x-auto text-xs">
-          <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wider shrink-0 flex items-center gap-1">
-            <Sparkles className="w-3 h-3 text-emerald-600" />
-            Templates rápidos:
-          </span>
-          <div className="flex items-center gap-1.5 overflow-x-auto py-0.5">
+      {/* Mini-picker simples de emojis comuns */}
+      {showEmojiPicker && (
+        <div
+          ref={emojiPickerRef}
+          className="bg-white border-t border-gray-200 p-2.5 shadow-md flex flex-wrap gap-1.5 max-h-36 overflow-y-auto"
+        >
+          {EMOJIS_POPULARES.map((emoji) => (
+            <button
+              key={emoji}
+              type="button"
+              onClick={() => handleInsertEmoji(emoji)}
+              className="w-8 h-8 rounded-lg hover:bg-[#f0f2f5] text-lg flex items-center justify-center transition-transform active:scale-90"
+              title={`Inserir ${emoji}`}
+            >
+              {emoji}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Dropdown de Templates Rápidos */}
+      {showTemplatesDropdown && whatsAppTemplates.length > 0 && (
+        <div
+          ref={templatesRef}
+          className="bg-white border-t border-gray-200 p-3 shadow-md space-y-2 max-h-48 overflow-y-auto"
+        >
+          <div className="flex items-center justify-between text-xs font-semibold text-gray-700">
+            <span className="flex items-center gap-1 text-emerald-700">
+              <Sparkles className="w-3.5 h-3.5" />
+              Templates de Resposta Rápida
+            </span>
+            <button
+              type="button"
+              onClick={() => setShowTemplatesDropdown(false)}
+              className="text-gray-400 hover:text-gray-600"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+          <div className="flex flex-wrap gap-1.5">
             {whatsAppTemplates.map((tpl) => (
               <button
                 key={tpl.id}
                 type="button"
                 onClick={() => handleAplicarTemplate(tpl)}
-                className="px-2.5 py-1 bg-white hover:bg-emerald-50 text-gray-700 hover:text-emerald-800 border border-gray-200 hover:border-emerald-300 rounded-lg text-xs font-medium whitespace-nowrap transition-colors shadow-2xs shrink-0"
+                className="px-2.5 py-1.5 bg-[#f0f2f5] hover:bg-emerald-50 text-gray-700 hover:text-emerald-800 border border-gray-200 hover:border-emerald-300 rounded-lg text-xs font-medium whitespace-nowrap transition-colors"
               >
                 {tpl.titulo}
               </button>
@@ -560,41 +790,73 @@ export const ConversaChatView: React.FC<ConversaChatViewProps> = ({
         </div>
       )}
 
-      {/* Caixa de Digitação e Envio */}
-      <form onSubmit={handleEnviar} className="p-3 sm:p-4 bg-white border-t border-gray-200">
-        <div className="flex items-end gap-2">
-          <div className="flex-1 relative bg-gray-50 rounded-2xl border border-gray-200 focus-within:border-emerald-500 focus-within:bg-white focus-within:ring-2 focus-within:ring-emerald-500/20 transition-all">
-            <textarea
-              rows={2}
-              value={mensagemTexto}
-              onChange={(e) => setMensagemTexto(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault()
-                  handleEnviar(e)
-                }
-              }}
-              placeholder={`Responder para ${cliente?.nome || formatWhatsAppPhone(conversa.numero)}... (Enter envia, Shift+Enter pula linha)`}
-              className="w-full bg-transparent px-3.5 py-2.5 text-sm text-gray-900 placeholder-gray-400 resize-none outline-none"
-            />
-          </div>
+      {/* 3. BARRA DE DIGITAÇÃO FULL-WIDTH (Estilo WhatsApp Web) */}
+      <form
+        onSubmit={handleEnviar}
+        className="w-full bg-[#f0f2f5] px-3 py-2 border-t border-gray-200/80 flex items-center gap-2 shrink-0 select-text"
+      >
+        {/* Ícone de Emoji à esquerda */}
+        <button
+          type="button"
+          onClick={() => setShowEmojiPicker((prev) => !prev)}
+          className={`p-2 rounded-full transition-colors ${
+            showEmojiPicker
+              ? 'bg-black/10 text-[#00a884]'
+              : 'text-[#54656f] hover:text-[#111b21] hover:bg-black/5'
+          }`}
+          title="Inserir emoji"
+        >
+          <Smile className="w-5 h-5" />
+        </button>
 
-          <button
-            type="submit"
-            disabled={!mensagemTexto.trim() || isSending}
-            className="h-11 px-5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-2xl font-bold flex items-center justify-center gap-1.5 transition-colors shadow-xs shrink-0"
-            title="Enviar mensagem pelo WhatsApp via Z-API"
-          >
-            {isSending ? (
-              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-            ) : (
-              <>
-                <Send className="w-4 h-4" />
-                <span className="hidden sm:inline text-xs">Enviar</span>
-              </>
-            )}
-          </button>
+        {/* Ícone de Anexo à esquerda */}
+        <button
+          type="button"
+          onClick={() => {
+            // Se houver templates, dá atalho também
+            setShowTemplatesDropdown((prev) => !prev)
+          }}
+          className={`p-2 rounded-full transition-colors ${
+            showTemplatesDropdown
+              ? 'bg-black/10 text-[#00a884]'
+              : 'text-[#54656f] hover:text-[#111b21] hover:bg-black/5'
+          }`}
+          title="Anexar arquivo ou usar template rápido"
+        >
+          <Paperclip className="w-5 h-5" />
+        </button>
+
+        {/* Campo de Texto centralizado */}
+        <div className="flex-1 min-w-0 bg-white rounded-lg border border-transparent focus-within:border-transparent shadow-2xs px-3 py-2 flex items-center">
+          <textarea
+            ref={textareaRef}
+            rows={1}
+            value={mensagemTexto}
+            onChange={(e) => setMensagemTexto(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault()
+                handleEnviar()
+              }
+            }}
+            placeholder="Mensagem"
+            className="w-full bg-transparent text-sm text-[#111b21] placeholder-[#8696a0] resize-none outline-none max-h-24 leading-normal"
+          />
         </div>
+
+        {/* Botão de Enviar (Avião de Papel / lucide-send) à direita */}
+        <button
+          type="submit"
+          disabled={!mensagemTexto.trim() || isSending}
+          className="p-2.5 bg-[#00a884] hover:bg-[#008f6f] disabled:opacity-40 disabled:hover:bg-[#00a884] disabled:cursor-not-allowed text-white rounded-full flex items-center justify-center transition-colors shadow-2xs shrink-0"
+          title="Enviar mensagem (Enter)"
+        >
+          {isSending ? (
+            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+          ) : (
+            <Send className="w-4 h-4" />
+          )}
+        </button>
       </form>
     </div>
   )
