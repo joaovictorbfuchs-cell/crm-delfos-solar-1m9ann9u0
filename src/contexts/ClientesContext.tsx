@@ -230,6 +230,7 @@ interface ClientesContextType {
       cpf?: string
       endereco?: string
       produto?: import('@/types/crm').ProdutoTipo
+      tipo_cliente?: import('@/types/crm').ClienteTipo
       origem_lead?: import('@/types/crm').OrigemLeadTipo
     },
     atendenteNome?: string,
@@ -1173,21 +1174,33 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       cpf?: string
       endereco?: string
       produto?: import('@/types/crm').ProdutoTipo
+      tipo_cliente?: import('@/types/crm').ClienteTipo
       origem_lead?: import('@/types/crm').OrigemLeadTipo
     },
     atendenteNome?: string,
     atendenteId?: string,
   ) => {
     // 1. Criar novo cliente
+    const rawTelefone = leadData.telefone.trim()
+    const tipoClienteFinal: import('@/types/crm').ClienteTipo =
+      leadData.tipo_cliente ||
+      ((leadData.produto &&
+      ['residencial', 'comercial', 'industrial', 'rural', 'investidor'].includes(
+        leadData.produto as string,
+      )
+        ? leadData.produto
+        : 'residencial') as import('@/types/crm').ClienteTipo)
+
     const novoCliente = await apiCreateCliente({
-      nome: leadData.nome,
-      telefone: leadData.telefone,
-      whatsapp: leadData.telefone,
-      email: leadData.email || '',
-      cpf: leadData.cpf || '',
-      endereco: leadData.endereco || '',
-      usina_endereco: leadData.endereco || '',
-      produto: leadData.produto || 'residencial',
+      nome: leadData.nome.trim(),
+      telefone: rawTelefone,
+      whatsapp: rawTelefone,
+      email: leadData.email?.trim() || '',
+      cpf: leadData.cpf?.trim() || '',
+      endereco: leadData.endereco?.trim() || '',
+      usina_endereco: leadData.endereco?.trim() || '',
+      tipo_cliente: tipoClienteFinal,
+      produto: leadData.produto || tipoClienteFinal,
       origem_lead: leadData.origem_lead || 'WhatsApp',
       status: 'Novo Lead',
     })

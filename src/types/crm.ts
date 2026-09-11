@@ -62,6 +62,8 @@ export interface SistemaUsuario {
   avatar?: string
 }
 
+export type ClienteTipo = 'residencial' | 'comercial' | 'industrial' | 'rural' | 'investidor'
+
 export interface Cliente extends RecordModel {
   id: string
   collectionId: string
@@ -83,6 +85,8 @@ export interface Cliente extends RecordModel {
   produto?: ProdutoTipo
   consumo_kwh_mes?: number
   origem_lead?: OrigemLeadTipo
+  tipo_cliente?: ClienteTipo
+  usina_endereco?: string
   // Proposta O&M ID
   proposta_om_id?: string
   // Novos campos cadastrais

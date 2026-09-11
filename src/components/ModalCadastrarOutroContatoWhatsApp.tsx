@@ -87,7 +87,16 @@ export const ModalCadastrarOutroContatoWhatsApp: React.FC<
       onOpenChange(false)
     } catch (err) {
       console.error('Erro ao cadastrar contato:', err)
-      setErrorMsg(err instanceof Error ? err.message : 'Falha ao salvar contato.')
+      const rawMsg = err instanceof Error ? err.message : String(err || '')
+      if (
+        !rawMsg ||
+        rawMsg.toLowerCase().includes('failed to create record') ||
+        rawMsg.toLowerCase().includes('an unexpected error occurred')
+      ) {
+        setErrorMsg('Não foi possível salvar o contato. Verifique os campos e tente novamente.')
+      } else {
+        setErrorMsg(rawMsg)
+      }
     } finally {
       setIsSubmitting(false)
     }

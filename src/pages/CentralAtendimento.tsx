@@ -343,6 +343,7 @@ export const CentralAtendimento: React.FC = () => {
     cpf?: string
     endereco?: string
     produto: ProdutoTipo
+    tipo_cliente?: import('@/types/crm').ClienteTipo
     origem_lead: import('@/types/crm').OrigemLeadTipo
   }) => {
     if (!conversaParaNovoLead) return
@@ -364,7 +365,10 @@ export const CentralAtendimento: React.FC = () => {
       console.error('Erro ao cadastrar lead a partir do WhatsApp:', err)
       toast({
         title: 'Erro ao cadastrar lead',
-        description: err instanceof Error ? err.message : 'Falha ao cadastrar o novo lead.',
+        description:
+          err instanceof Error
+            ? err.message
+            : 'Não foi possível salvar o cadastro. Verifique os campos e tente novamente.',
         variant: 'destructive',
       })
       throw err

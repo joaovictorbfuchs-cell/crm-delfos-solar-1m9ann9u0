@@ -19,7 +19,8 @@ import {
 } from '@/components/ui/select'
 import { formatWhatsAppPhone } from '@/lib/formatters'
 import { UserPlus, Loader2, Sparkles, AlertCircle } from 'lucide-react'
-import { ProdutoTipo } from '@/types/crm'
+import { ClienteTipo, ProdutoTipo, OrigemLeadTipo } from '@/types/crm'
+import { getErrorMessage } from '@/lib/pocketbase/errors'
 
 interface ModalCadastrarLeadWhatsAppProps {
   open: boolean
@@ -33,7 +34,8 @@ interface ModalCadastrarLeadWhatsAppProps {
     cpf?: string
     endereco?: string
     produto: ProdutoTipo
-    origem_lead: import('@/types/crm').OrigemLeadTipo
+    tipo_cliente?: ClienteTipo
+    origem_lead: OrigemLeadTipo
   }) => Promise<void>
 }
 
@@ -49,8 +51,8 @@ export const ModalCadastrarLeadWhatsApp: React.FC<ModalCadastrarLeadWhatsAppProp
   const [email, setEmail] = useState('')
   const [cpf, setCpf] = useState('')
   const [endereco, setEndereco] = useState('')
-  const [produto, setProduto] = useState<ProdutoTipo>('residencial')
-  const [origemLead, setOrigemLead] = useState('WhatsApp')
+  const [tipoCliente, setTipoCliente] = useState<ClienteTipo>('residencial')
+  const [origemLead, setOrigemLead] = useState<OrigemLeadTipo>('WhatsApp')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
 
@@ -58,14 +60,23 @@ export const ModalCadastrarLeadWhatsApp: React.FC<ModalCadastrarLeadWhatsAppProp
   useEffect(() => {
     if (open) {
       // Se conversaNome for diferente do número ou não parecer apenas dígitos, usar como sugestão
+      // Não sobrescrever o formulário caso o usuário já tenha digitado dados
       const nomeSugerido =
         conversaNome && conversaNome.trim() && conversaNome !== conversaNumero ? conversaNome : ''
-      setNome(nomeSugerido)
-      setTelefone(formatWhatsAppPhone(conversaNumero) || conversaNumero)
+      setNome((prev) => (prev.trim() ? prev : nomeSugerido))
+      setTelefone((prev) =>
+        prev.trim() ? prev : formatWhatsAppPhone(conversaNumero) || conversaNumero,
+      )
+      setOrigemLead('WhatsApp')
+      setErrorMsg(null)
+    } else {
+      // Limpar formulário apenas quando fechar o modal
+      setNome('')
+      setTelefone('')
       setEmail('')
       setCpf('')
       setEndereco('')
-      setProduto('residencial')
+      setTipoCliente('residencial')
       setOrigemLead('WhatsApp')
       setErrorMsg(null)
     }
@@ -126,13 +137,23 @@ export const ModalCadastrarLeadWhatsApp: React.FC<ModalCadastrarLeadWhatsAppProp
         email: email.trim() || undefined,
         cpf: cpf.trim() || undefined,
         endereco: endereco.trim() || undefined,
-        produto,
-        origem_lead: (origemLead.trim() || 'WhatsApp') as import('@/types/crm').OrigemLeadTipo,
+        tipo_cliente: tipoCliente,
+        produto: tipoCliente as ProdutoTipo,
+        origem_lead: origemLead,
       })
       onOpenChange(false)
     } catch (err) {
       console.error('Erro ao cadastrar lead:', err)
-      setErrorMsg(err instanceof Error ? err.message : 'Falha ao cadastrar lead.')
+      const rawMsg = getErrorMessage(err)
+      if (
+        !rawMsg ||
+        rawMsg.toLowerCase().includes('failed to create record') ||
+        rawMsg.toLowerCase().includes('an unexpected error occurred')
+      ) {
+        setErrorMsg('Não foi possível salvar o cadastro. Verifique os campos e tente novamente.')
+      } else {
+        setErrorMsg(rawMsg)
+      }
     } finally {
       setIsSubmitting(false)
     }
@@ -227,7 +248,10 @@ export const ModalCadastrarLeadWhatsApp: React.FC<ModalCadastrarLeadWhatsAppProp
               <Label htmlFor="lead-tipo" className="text-xs font-medium">
                 Tipo de Cliente
               </Label>
-              <Select value={produto} onValueChange={(val) => setProduto(val as ProdutoTipo)}>
+              <Select
+                value={tipoCliente}
+                onValueChange={(val) => setTipoCliente(val as ClienteTipo)}
+              >
                 <SelectTrigger id="lead-tipo" className="h-9 text-sm">
                   <SelectValue placeholder="Selecione o tipo" />
                 </SelectTrigger>
@@ -262,9 +286,8 @@ export const ModalCadastrarLeadWhatsApp: React.FC<ModalCadastrarLeadWhatsAppProp
             <Input
               id="lead-origem"
               value={origemLead}
-              onChange={(e) => setOrigemLead(e.target.value)}
-              className="h-9 text-sm bg-muted/50"
               readOnly
+              className="h-9 text-sm bg-muted/50 cursor-not-allowed"
             />
           </div>
 
