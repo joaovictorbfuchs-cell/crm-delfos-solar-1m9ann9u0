@@ -7,6 +7,7 @@ import {
   buildWhatsAppSendPayload,
   extractGatewayExternalId,
 } from './whatsappGateway'
+import { formatWhatsAppPhone } from './formatters'
 
 function assert(condition: boolean, message: string) {
   if (!condition) {
@@ -221,6 +222,48 @@ export function runWhatsAppGatewayTests(): { passed: number; total: number; erro
           'EVOLUTION_KEY_123',
           'Evolution key.id',
         )
+      },
+    },
+    {
+      name: 'Formatação de telefone WhatsApp (formatWhatsAppPhone): remoção de DDI 55 e formatação correta',
+      fn: () => {
+        // Casos descritos na tarefa:
+        // "5554981108228" → "(54) 98110-8228"
+        // "555433214567" → "(54) 3321-4567"
+        // "+55 (54) 98110-8228" → "(54) 98110-8228"
+        // "54981108228" → "(54) 98110-8228"
+        assertEquals(
+          formatWhatsAppPhone('5554981108228'),
+          '(54) 98110-8228',
+          '13 dígitos começando com 55 (celular)',
+        )
+        assertEquals(
+          formatWhatsAppPhone('555433214567'),
+          '(54) 3321-4567',
+          '12 dígitos começando com 55 (fixo)',
+        )
+        assertEquals(
+          formatWhatsAppPhone('+55 (54) 98110-8228'),
+          '(54) 98110-8228',
+          'Formatado com +55',
+        )
+        assertEquals(
+          formatWhatsAppPhone('54981108228'),
+          '(54) 98110-8228',
+          '11 dígitos sem 55 (celular)',
+        )
+        assertEquals(
+          formatWhatsAppPhone('5433214567'),
+          '(54) 3321-4567',
+          '10 dígitos sem 55 (fixo)',
+        )
+        assertEquals(formatWhatsAppPhone(''), '', 'String vazia')
+        assertEquals(formatWhatsAppPhone(null), '', 'Valor nulo')
+        assertEquals(formatWhatsAppPhone(undefined), '', 'Valor indefinido')
+        assertEquals(formatWhatsAppPhone('54'), '(54', 'Parcial: 2 dígitos')
+        assertEquals(formatWhatsAppPhone('549'), '(54) 9', 'Parcial: 3 dígitos')
+        assertEquals(formatWhatsAppPhone('549811'), '(54) 9811', 'Parcial: 6 dígitos')
+        assertEquals(formatWhatsAppPhone('5498110'), '(54) 9811-0', 'Parcial: 7 dígitos')
       },
     },
   ]
