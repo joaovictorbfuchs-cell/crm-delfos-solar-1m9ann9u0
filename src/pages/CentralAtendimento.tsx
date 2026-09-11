@@ -70,16 +70,69 @@ export const CentralAtendimento: React.FC = () => {
   // 2. Em Atendimento: status === 'em_atendimento' || status === 'aguardando_cliente'
   // 3. Resolvidos: status === 'resolvido' (finalizadas nas últimas 24 horas, ou resolvidas recentemente)
   const conversasClassificadas = useMemo(() => {
-    const term = searchTerm.trim().toLowerCase()
+    const rawTerm = searchTerm.trim().toLowerCase()
+    const digitsTerm = rawTerm.replace(/\D/g, '')
 
     const filterFn = (conv: WhatsAppConversa) => {
-      if (!term) return true
+      if (!rawTerm) return true
       const cli = conv.cliente_id ? clientesMap.get(conv.cliente_id) : null
-      const matchNumero = conv.numero.includes(term.replace(/\D/g, ''))
-      const matchNome = cli?.nome.toLowerCase().includes(term) || false
-      const matchPreview = (conv.ultima_mensagem_preview || '').toLowerCase().includes(term)
-      const matchAtendente = (conv.atendente || '').toLowerCase().includes(term)
-      return matchNumero || matchNome || matchPreview || matchAtendente
+
+      // Busca por telefone (suporta com/sem DDI 55, formatado com máscara e somente dígitos)
+      const rawNumero = conv.numero || ''
+      const numDigits = rawNumero.replace(/\D/g, '')
+      const numWithout55 =
+        numDigits.startsWith('55') && (numDigits.length === 12 || numDigits.length === 13)
+          ? numDigits.slice(2)
+          : numDigits
+      const formattedNumero = formatWhatsAppPhone(rawNumero).toLowerCase()
+
+      let matchNumero = false
+      if (digitsTerm) {
+        matchNumero =
+          numDigits.includes(digitsTerm) ||
+          numWithout55.includes(digitsTerm) ||
+          (digitsTerm.startsWith('55') && numDigits.includes(digitsTerm.slice(2)))
+      }
+      if (!matchNumero) {
+        matchNumero = formattedNumero.includes(rawTerm) || rawNumero.toLowerCase().includes(rawTerm)
+      }
+
+      // Busca por nome do cliente ou razão social
+      const matchNome = Boolean(
+        (cli?.nome && cli.nome.toLowerCase().includes(rawTerm)) ||
+        (cli?.razao_social && cli.razao_social.toLowerCase().includes(rawTerm)) ||
+        (cli?.nome_fantasia && cli.nome_fantasia.toLowerCase().includes(rawTerm)) ||
+        (cli?.contato && cli.contato.toLowerCase().includes(rawTerm)),
+      )
+
+      // Se o cliente tem telefone cadastrado no perfil, verificar também
+      let matchTelefoneCliente = false
+      if (cli?.telefone || cli?.whatsapp) {
+        const cliTelDigits = (cli.telefone || '').replace(/\D/g, '')
+        const cliWhatsDigits = (cli.whatsapp || '').replace(/\D/g, '')
+        if (digitsTerm) {
+          matchTelefoneCliente =
+            cliTelDigits.includes(digitsTerm) || cliWhatsDigits.includes(digitsTerm)
+        }
+        if (!matchTelefoneCliente) {
+          matchTelefoneCliente =
+            (cli.telefone || '').toLowerCase().includes(rawTerm) ||
+            (cli.whatsapp || '').toLowerCase().includes(rawTerm)
+        }
+      }
+
+      // Busca por preview da última mensagem
+      const matchPreview = Boolean(
+        conv.ultima_mensagem_preview &&
+        conv.ultima_mensagem_preview.toLowerCase().includes(rawTerm),
+      )
+
+      // Busca por nome do atendente
+      const matchAtendente = Boolean(
+        conv.atendente && conv.atendente.toLowerCase().includes(rawTerm),
+      )
+
+      return matchNumero || matchNome || matchTelefoneCliente || matchPreview || matchAtendente
     }
 
     const agora = Date.now()
@@ -151,50 +204,32 @@ export const CentralAtendimento: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Top Header */}
-      <div className="flex items-center justify-between flex-wrap gap-4 bg-white p-5 rounded-2xl border border-gray-200 shadow-xs">
-        <div className="flex items-center gap-3">
-          <div className="p-3 bg-gradient-to-br from-emerald-500 to-teal-700 text-white rounded-2xl shadow-xs">
-            <MessageSquare className="w-6 h-6" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-xl font-bold text-gray-900 tracking-tight">
-                Central de Atendimento WhatsApp
-              </h1>
-              <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
-                Ao Vivo
-              </span>
-            </div>
-            <p className="text-xs text-gray-500 mt-0.5">
-              Gestão de mensagens e conversas via Z-API com vinculação rápida de novos contatos a
-              clientes.
-            </p>
-          </div>
+      {/* Barra de Ferramentas Compacta */}
+      <div className="flex items-center justify-between flex-wrap gap-2.5 bg-white px-3.5 py-2.5 rounded-xl border border-gray-200 shadow-2xs">
+        {/* Campo de Busca */}
+        <div className="relative flex-1 min-w-[200px] max-w-xs sm:w-56">
+          <Search className="w-3.5 h-3.5 text-gray-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+          <input
+            type="text"
+            placeholder="Buscar por telefone, cliente ou mensagem..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-8 pr-3 py-1.5 text-xs bg-gray-50 focus:bg-white border border-gray-200 rounded-lg focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all outline-none"
+          />
         </div>
 
-        <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
-          {/* Busca */}
-          <div className="relative">
-            <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
-            <input
-              type="text"
-              placeholder="Buscar por telefone, cliente ou mensagem..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-9 pr-3 py-2 text-xs bg-gray-50 focus:bg-white border border-gray-200 rounded-xl focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all outline-none w-56 sm:w-64"
-            />
-          </div>
-
+        {/* Ações da Barra de Ferramentas */}
+        <div className="flex items-center gap-2">
           <button
             type="button"
             onClick={handleManualRefresh}
             disabled={isRefreshing}
-            className="p-2.5 bg-gray-50 hover:bg-gray-100 text-gray-700 border border-gray-200 rounded-xl transition-colors shadow-2xs"
+            className="p-1.5 bg-gray-50 hover:bg-gray-100 text-gray-700 border border-gray-200 rounded-lg transition-colors shadow-2xs"
             title="Atualizar lista de conversas agora"
+            aria-label="Atualizar lista de conversas"
           >
             <RefreshCw
-              className={`w-4 h-4 ${isRefreshing ? 'animate-spin text-emerald-600' : ''}`}
+              className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin text-emerald-600' : ''}`}
             />
           </button>
 
@@ -202,10 +237,10 @@ export const CentralAtendimento: React.FC = () => {
           <button
             type="button"
             onClick={() => setModalTemplatesOpen(true)}
-            className="inline-flex items-center gap-1.5 px-3 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 rounded-xl text-xs font-bold transition-all shadow-2xs"
+            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 rounded-lg text-xs font-semibold transition-all shadow-2xs"
             title="Gerenciar templates e credenciais de integração"
           >
-            <Settings className="w-4 h-4 text-emerald-700" />
+            <Settings className="w-3.5 h-3.5 text-emerald-700" />
             <span className="hidden sm:inline">Templates & Gateway</span>
           </button>
         </div>
