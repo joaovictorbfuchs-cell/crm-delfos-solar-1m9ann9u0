@@ -8,6 +8,7 @@ import {
   extractGatewayExternalId,
 } from './whatsappGateway'
 import { formatWhatsAppPhone } from './formatters'
+import { getWhatsAppStatusIconConfig } from '@/components/ConversaChatView'
 
 function assert(condition: boolean, message: string) {
   if (!condition) {
@@ -264,6 +265,47 @@ export function runWhatsAppGatewayTests(): { passed: number; total: number; erro
         assertEquals(formatWhatsAppPhone('549'), '(54) 9', 'Parcial: 3 dígitos')
         assertEquals(formatWhatsAppPhone('549811'), '(54) 9811', 'Parcial: 6 dígitos')
         assertEquals(formatWhatsAppPhone('5498110'), '(54) 9811-0', 'Parcial: 7 dígitos')
+      },
+    },
+    {
+      name: 'Status WhatsApp no visual web: duplo-check cinza para enviada e entregue, duplo azul para lida',
+      fn: () => {
+        // Mensagens enviadas com sucesso exibem dois checks cinzas (#8696a0) por padrão (entregue)
+        const cfgEnviada = getWhatsAppStatusIconConfig('enviada')
+        assertEquals(cfgEnviada.iconType, 'double-check', 'Enviada deve ter duplo check')
+        assertEquals(cfgEnviada.color, '#8696a0', 'Enviada deve ser cinza')
+        assertEquals(cfgEnviada.tooltip, 'Entregue', 'Enviada tooltip Entregue')
+
+        const cfgEntregue = getWhatsAppStatusIconConfig('entregue')
+        assertEquals(cfgEntregue.iconType, 'double-check', 'Entregue deve ter duplo check')
+        assertEquals(cfgEntregue.color, '#8696a0', 'Entregue deve ser cinza')
+        assertEquals(cfgEntregue.tooltip, 'Entregue', 'Entregue tooltip Entregue')
+
+        // Mensagens com confirmação de leitura exibem duplo check azul (#53bdeb)
+        const cfgLida = getWhatsAppStatusIconConfig('lida')
+        assertEquals(cfgLida.iconType, 'double-check', 'Lida deve ter duplo check')
+        assertEquals(cfgLida.color, '#53bdeb', 'Lida deve ser azul #53bdeb')
+        assertEquals(cfgLida.tooltip, 'Lida', 'Lida tooltip Lida')
+
+        // Mensagens com falha exibem check simples cinza discreto + tooltip do motivo (sem círculo vermelho)
+        const cfgFalha = getWhatsAppStatusIconConfig('falha', 'Instância desconectada')
+        assertEquals(cfgFalha.iconType, 'single-check', 'Falha deve ter check simples')
+        assertEquals(cfgFalha.color, '#8696a0', 'Falha deve ser cinza discreto')
+        assertEquals(
+          cfgFalha.tooltip,
+          'Falha no envio: Instância desconectada',
+          'Falha tooltip com motivo',
+        )
+
+        // Mensagens agendadas exibem relógio
+        const cfgAgendada = getWhatsAppStatusIconConfig('agendada')
+        assertEquals(cfgAgendada.iconType, 'clock', 'Agendada deve ter relógio')
+        assertEquals(cfgAgendada.tooltip, 'Agendada', 'Agendada tooltip')
+
+        // Mensagens pendentes/enviando exibem relógio
+        const cfgPendente = getWhatsAppStatusIconConfig('pendente')
+        assertEquals(cfgPendente.iconType, 'clock', 'Pendente deve ter relógio')
+        assertEquals(cfgPendente.tooltip, 'Enviando', 'Pendente tooltip')
       },
     },
   ]

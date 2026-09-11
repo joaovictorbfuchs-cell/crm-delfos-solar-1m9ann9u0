@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react'
+import type { WhatsAppMensagemStatus } from '@/types/crm'
 import {
   Send,
   User,
@@ -51,6 +52,55 @@ function formatHorarioMensagem(dateString?: string | null): string {
     return `${day}/${month} ${horaFormatada}`
   } catch {
     return ''
+  }
+}
+
+// Configuração do ícone e tooltip de status no estilo WhatsApp Web:
+// - lida: duplo check azul (#53bdeb) com tooltip "Lida"
+// - enviada / entregue: duplo check cinza (#8696a0) com tooltip "Entregue" (padrão WhatsApp)
+// - falha: check simples cinza (#8696a0) com tooltip discreto da falha (sem círculo vermelho)
+// - agendada: relógio com tooltip "Agendada"
+// - pendente/enviando: relógio com tooltip "Enviando"
+export function getWhatsAppStatusIconConfig(
+  status: WhatsAppMensagemStatus | string | undefined,
+  logErro?: string | null,
+): {
+  iconType: 'double-check' | 'single-check' | 'clock'
+  color: string
+  tooltip: string
+} {
+  if (status === 'lida') {
+    return {
+      iconType: 'double-check',
+      color: '#53bdeb',
+      tooltip: 'Lida',
+    }
+  }
+  if (status === 'entregue' || status === 'enviada') {
+    return {
+      iconType: 'double-check',
+      color: '#8696a0',
+      tooltip: 'Entregue',
+    }
+  }
+  if (status === 'falha') {
+    return {
+      iconType: 'single-check',
+      color: '#8696a0',
+      tooltip: logErro ? `Falha no envio: ${logErro}` : 'Falha no envio',
+    }
+  }
+  if (status === 'agendada') {
+    return {
+      iconType: 'clock',
+      color: '#8696a0',
+      tooltip: 'Agendada',
+    }
+  }
+  return {
+    iconType: 'clock',
+    color: '#8696a0',
+    tooltip: 'Enviando',
   }
 }
 
@@ -549,8 +599,7 @@ export const ConversaChatView: React.FC<ConversaChatViewProps> = ({
               const horaFormatada = formatHorarioMensagem(msg.enviado_em || msg.created)
               const dataHoraCompleta = formatDateTime(msg.enviado_em || msg.created)
 
-              // Texto em uma única linha com rolagem horizontal (preservado conforme decisão de projeto)
-              const textoUmaLinha = (msg.conteudo_final || '').replace(/\r?\n+/g, ' ').trim()
+              const conteudoMensagem = msg.conteudo_final || ''
 
               // Determinar se esta mensagem é a PRIMEIRA mensagem visível de um bloco de remetente (topo do bloco visual)
               // Como a lista tem mensagens mais novas no topo (idx 0 é a mais nova):
@@ -601,7 +650,7 @@ export const ConversaChatView: React.FC<ConversaChatViewProps> = ({
 
                     {/* Balão de Mensagem */}
                     <div
-                      className={`px-3 py-1.5 text-xs relative rounded-lg flex items-center gap-2.5 min-w-0 shadow-[0_1px_0.5px_rgba(11,20,26,0.13)] ${
+                      className={`px-3 py-1.5 text-xs relative rounded-lg min-w-0 max-h-[500px] overflow-y-auto scrollbar-thin shadow-[0_1px_0.5px_rgba(11,20,26,0.13)] ${
                         isRecebida
                           ? `bg-white text-[#111b21] ${isPrimeiraDoBloco ? 'rounded-tl-none' : ''}`
                           : `bg-[#d9fdd3] text-[#111b21] ${isPrimeiraDoBloco ? 'rounded-tr-none' : ''}`
@@ -616,26 +665,26 @@ export const ConversaChatView: React.FC<ConversaChatViewProps> = ({
                     >
                       {/* Identificação de remetente na primeira mensagem do bloco */}
                       {isPrimeiraDoBloco && (
-                        <span
-                          className={`font-semibold text-[11px] shrink-0 ${
+                        <div
+                          className={`font-semibold text-[11px] mb-0.5 select-none ${
                             isRecebida ? 'text-[#1fa855]' : 'text-[#027eb5]'
                           }`}
                         >
-                          {nomeRemetente}:
-                        </span>
+                          {nomeRemetente}
+                        </div>
                       )}
 
                       {/* Tag de documento caso enviado via anexo */}
                       {msg.tipo_mensagem === 'documento' && (
                         <div
-                          className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-semibold shrink-0 ${
+                          className={`inline-flex items-center gap-1.5 px-2 py-1 rounded text-[11px] font-semibold mb-1 mr-2 ${
                             isRecebida
                               ? 'bg-[#f0f2f5] text-[#111b21]'
                               : 'bg-[#c3f2bc] text-[#111b21]'
                           }`}
                         >
                           <FileDown className="w-3.5 h-3.5 text-[#54656f] shrink-0" />
-                          <span className="max-w-[140px] truncate">
+                          <span className="max-w-[180px] truncate">
                             {msg.nome_arquivo || 'Documento'}
                           </span>
                           {msg.documento_url && (
@@ -652,61 +701,49 @@ export const ConversaChatView: React.FC<ConversaChatViewProps> = ({
                         </div>
                       )}
 
-                      {/* Texto principal em linha única com scroll horizontal sem quebra */}
-                      <div
-                        tabIndex={0}
-                        className="flex-1 min-w-0 overflow-x-auto whitespace-nowrap scrollbar-thin text-xs leading-normal select-text focus:outline-hidden py-0.5"
-                        title={msg.conteudo_final || ''}
-                      >
-                        <span className="text-[#111b21]">
-                          {textoUmaLinha || (msg.tipo_mensagem === 'documento' ? '' : '—')}
-                        </span>
-                      </div>
-
-                      {/* Horário + Ícones de Status WhatsApp */}
-                      <div className="shrink-0 flex items-center gap-1 text-[11px] font-sans pl-1 select-none">
-                        <span className="text-[#667781] text-[11px] whitespace-nowrap">
-                          {horaFormatada}
+                      {/* Conteúdo da mensagem com quebra natural de linha e horário compacto ao final */}
+                      <div className="text-xs leading-relaxed select-text">
+                        <span className="text-[#111b21] whitespace-pre-wrap break-words">
+                          {conteudoMensagem || (msg.tipo_mensagem === 'documento' ? '' : '—')}
                         </span>
 
-                        {!isRecebida && (
-                          <span
-                            className="inline-flex items-center shrink-0 ml-0.5"
-                            title={
-                              msg.status === 'lida'
-                                ? 'Lida'
-                                : msg.status === 'entregue'
-                                  ? 'Entregue'
-                                  : msg.status === 'enviada'
-                                    ? 'Enviada'
-                                    : msg.status === 'falha'
-                                      ? msg.log_erro
-                                        ? `Falha no envio: ${msg.log_erro}`
-                                        : 'Enviada'
-                                      : msg.status === 'agendada'
-                                        ? 'Agendada'
-                                        : 'Enviando'
-                            }
-                          >
-                            {/* Padrão WhatsApp Web:
-                                - lida: 2 checks azuis (#53bdeb)
-                                - entregue: 2 checks cinzas (#8696a0)
-                                - enviada: 1 check cinza (#8696a0)
-                                - falha: 1 check cinza (#8696a0) com motivo no tooltip (SEM exclamação)
-                                - agendada / pendente: relógio discreto */}
-                            {msg.status === 'lida' ? (
-                              <CheckCheck className="w-3.5 h-3.5 text-[#53bdeb]" />
-                            ) : msg.status === 'entregue' ? (
-                              <CheckCheck className="w-3.5 h-3.5 text-[#8696a0]" />
-                            ) : msg.status === 'enviada' || msg.status === 'falha' ? (
-                              <Check className="w-3.5 h-3.5 text-[#8696a0]" />
-                            ) : msg.status === 'agendada' ? (
-                              <Clock className="w-3 h-3 text-[#8696a0]" />
-                            ) : (
-                              <Clock className="w-3 h-3 text-[#8696a0]" />
-                            )}
+                        {/* Horário + Ícones de Status WhatsApp inline ao final do texto (mesma linha) */}
+                        <span className="inline-flex items-center gap-1 text-[11px] font-sans pl-2 float-right align-bottom select-none translate-y-0.5 ml-1">
+                          <span className="text-[#667781] text-[11px] whitespace-nowrap">
+                            {horaFormatada}
                           </span>
-                        )}
+
+                          {!isRecebida &&
+                            (() => {
+                              const statusConfig = getWhatsAppStatusIconConfig(
+                                msg.status,
+                                msg.log_erro,
+                              )
+                              return (
+                                <span
+                                  className="inline-flex items-center shrink-0 ml-0.5"
+                                  title={statusConfig.tooltip}
+                                >
+                                  {statusConfig.iconType === 'double-check' ? (
+                                    <CheckCheck
+                                      className="w-3.5 h-3.5"
+                                      style={{ color: statusConfig.color }}
+                                    />
+                                  ) : statusConfig.iconType === 'single-check' ? (
+                                    <Check
+                                      className="w-3.5 h-3.5"
+                                      style={{ color: statusConfig.color }}
+                                    />
+                                  ) : (
+                                    <Clock
+                                      className="w-3 h-3"
+                                      style={{ color: statusConfig.color }}
+                                    />
+                                  )}
+                                </span>
+                              )
+                            })()}
+                        </span>
                       </div>
                     </div>
                   </div>
