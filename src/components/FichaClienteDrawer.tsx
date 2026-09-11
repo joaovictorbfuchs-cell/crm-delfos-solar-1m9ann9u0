@@ -442,20 +442,23 @@ export const FichaClienteDrawer: React.FC = () => {
               {/* Botão de alternar visualização dos Dados Completos / Técnicos */}
               <button
                 type="button"
-                onClick={() => setDetalhesOpen((prev) => !prev)}
+                onClick={() => {
+                  setActiveClientTab('historico')
+                  setDetalhesOpen(true)
+                }}
                 className={`text-xs font-semibold px-3 py-1.5 rounded-lg border transition-all flex items-center gap-1.5 ${
-                  detalhesOpen
+                  detalhesOpen && activeClientTab === 'historico'
                     ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
                     : 'bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100'
                 }`}
               >
                 <FileText className="w-3.5 h-3.5 text-emerald-600" />
                 <span>
-                  {detalhesOpen
+                  {detalhesOpen && activeClientTab === 'historico'
                     ? 'Ocultar Detalhes Cadastrais'
                     : 'Ver Detalhes Cadastrais & Técnicos'}
                 </span>
-                {detalhesOpen ? (
+                {detalhesOpen && activeClientTab === 'historico' ? (
                   <ChevronUp className="w-3.5 h-3.5 text-emerald-700" />
                 ) : (
                   <ChevronDown className="w-3.5 h-3.5 text-gray-500" />
