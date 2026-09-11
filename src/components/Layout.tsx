@@ -16,6 +16,7 @@ import {
   PanelLeftOpen,
   Sun,
   MessageSquare,
+  Settings,
 } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { useClientes } from '@/contexts/ClientesContext'
@@ -101,12 +102,6 @@ export default function Layout() {
   }> = [
     { name: 'Dashboard', path: '/', icon: LayoutDashboard },
     { name: 'Comercial', path: '/comercial', icon: KanbanSquare },
-    {
-      name: 'Central de Atendimento',
-      path: '/central-atendimento',
-      icon: MessageSquare,
-      badge: pendentesWhatsAppCount,
-    },
     { name: 'Orçamentos', path: '/orcamentos', icon: Sun },
     { name: 'Projetos', path: '/projetos', icon: FolderKanban },
     { name: 'Atividades', path: '/atividades', icon: CalendarCheck },
@@ -364,15 +359,50 @@ export default function Layout() {
           </div>
 
           <div className="flex items-center gap-2 sm:gap-3">
-            {/* Botão de Atalho Rápido para Templates & Gateway WhatsApp */}
+            {/* Botão da Central de Atendimento WhatsApp com Badge de Mensagens Pendentes */}
+            <button
+              type="button"
+              onClick={() => navigate('/central-atendimento')}
+              className={`relative inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg border text-xs font-bold transition-all hover:scale-[1.02] shadow-2xs ${
+                location.pathname === '/central-atendimento'
+                  ? 'bg-emerald-600 text-white border-emerald-700 shadow-xs'
+                  : 'bg-emerald-50 hover:bg-emerald-100 text-[#166534] border-emerald-200'
+              }`}
+              title="Central de Atendimento WhatsApp"
+              aria-label={`Central de Atendimento WhatsApp${pendentesWhatsAppCount > 0 ? ` (${pendentesWhatsAppCount} mensagens pendentes)` : ''}`}
+            >
+              <div className="relative flex items-center justify-center">
+                <MessageSquare
+                  className={`w-4 h-4 ${
+                    location.pathname === '/central-atendimento' ? 'text-white' : 'text-[#16A34A]'
+                  }`}
+                />
+                {/* Badge bolha no canto superior direito do ícone */}
+                {pendentesWhatsAppCount > 0 && (
+                  <span
+                    className={`absolute -top-2 -right-2.5 min-w-[18px] h-[18px] px-1 flex items-center justify-center text-[10px] font-black rounded-full ring-2 shadow-xs ${
+                      location.pathname === '/central-atendimento'
+                        ? 'bg-white text-emerald-700 ring-emerald-600'
+                        : 'bg-emerald-600 text-white ring-white'
+                    }`}
+                  >
+                    {pendentesWhatsAppCount > 99 ? '99+' : pendentesWhatsAppCount}
+                  </span>
+                )}
+              </div>
+              <span className="hidden md:inline">WhatsApp</span>
+            </button>
+
+            {/* Botão para Configurações & Templates de WhatsApp */}
             <button
               type="button"
               onClick={() => setModalWhatsAppTemplatesOpen(true)}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-[#166534] border border-emerald-200 text-xs font-bold rounded-lg shadow-2xs transition-all hover:scale-[1.02]"
-              title="Gerenciar Templates e Configurações de WhatsApp"
+              className="p-1.5 sm:px-2.5 sm:py-1.5 inline-flex items-center gap-1 text-gray-500 hover:text-emerald-700 bg-gray-50 hover:bg-emerald-50 border border-gray-200 hover:border-emerald-200 rounded-lg text-xs font-medium transition-colors shadow-2xs"
+              title="Templates e Configurações de WhatsApp"
+              aria-label="Templates e Configurações de WhatsApp"
             >
-              <MessageSquare className="w-4 h-4 text-[#16A34A]" />
-              <span className="hidden md:inline">WhatsApp</span>
+              <Settings className="w-4 h-4 text-gray-500" />
+              <span className="hidden xl:inline text-[11px]">Templates</span>
             </button>
 
             {/* Sino de Notificações / Lembretes de Hoje */}
