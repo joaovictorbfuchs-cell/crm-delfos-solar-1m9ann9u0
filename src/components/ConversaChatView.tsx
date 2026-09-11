@@ -25,6 +25,34 @@ import { useClientes } from '@/contexts/ClientesContext'
 import { useAuth } from '@/contexts/AuthContext'
 import { formatDateTime, formatCurrency, formatWhatsAppPhone } from '@/lib/formatters'
 
+// Formata data e horário para exibição compacta na mesma linha:
+// "14:32" se hoje, ou "11/09 14:32" se em data anterior
+function formatHorarioMensagem(dateString?: string | null): string {
+  if (!dateString) return ''
+  try {
+    const d = new Date(dateString)
+    if (isNaN(d.getTime())) return ''
+    const now = new Date()
+    const isToday =
+      d.getDate() === now.getDate() &&
+      d.getMonth() === now.getMonth() &&
+      d.getFullYear() === now.getFullYear()
+
+    const hours = String(d.getHours()).padStart(2, '0')
+    const minutes = String(d.getMinutes()).padStart(2, '0')
+    const horaFormatada = `${hours}:${minutes}`
+
+    if (isToday) {
+      return horaFormatada
+    }
+    const day = String(d.getDate()).padStart(2, '0')
+    const month = String(d.getMonth() + 1).padStart(2, '0')
+    return `${day}/${month} ${horaFormatada}`
+  } catch {
+    return ''
+  }
+}
+
 interface ConversaChatViewProps {
   conversa: WhatsAppConversa
   cliente?: Cliente | null
@@ -57,9 +85,10 @@ export const ConversaChatView: React.FC<ConversaChatViewProps> = ({
   )
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>('')
 
-  const messagesEndRef = useRef<HTMLDivElement | null>(null)
+  const chatScrollContainerRef = useRef<HTMLDivElement | null>(null)
 
   // Mensagens filtradas desta conversa (ou número/cliente correspondente)
+  // Ordenadas da mais nova para a mais antiga (mais novas no topo)
   const mensagensConversa = useMemo(() => {
     return whatsAppMensagens
       .filter((m) => {
@@ -76,13 +105,19 @@ export const ConversaChatView: React.FC<ConversaChatViewProps> = ({
         }
         return false
       })
-      .sort((a, b) => new Date(a.created).getTime() - new Date(b.created).getTime())
+      .sort((a, b) => {
+        const timeA = new Date(a.enviado_em || a.created).getTime()
+        const timeB = new Date(b.enviado_em || b.created).getTime()
+        return timeB - timeA // Mais novas primeiro (topo)
+      })
   }, [whatsAppMensagens, conversa.id, conversa.numero, cliente])
 
-  // Scroll automático para a última mensagem
+  // Ao trocar de conversa ou receber/enviar nova mensagem, garantir visualização no topo
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [mensagensConversa.length])
+    if (chatScrollContainerRef.current) {
+      chatScrollContainerRef.current.scrollTop = 0
+    }
+  }, [conversa.id, mensagensConversa.length])
 
   // Obter último orçamento do cliente para preencher variáveis de template
   const ultimoOrcamento = useMemo(() => {
@@ -370,7 +405,10 @@ export const ConversaChatView: React.FC<ConversaChatViewProps> = ({
       </div>
 
       {/* Histórico de Mensagens (Chat Scrollable) */}
-      <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 bg-slate-50/60">
+      <div
+        ref={chatScrollContainerRef}
+        className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-2 bg-slate-50/60"
+      >
         {mensagensConversa.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center text-center p-8 text-gray-400">
             <div className="w-12 h-12 rounded-2xl bg-white border border-gray-200 flex items-center justify-center text-gray-400 mb-2 shadow-2xs">
@@ -387,35 +425,43 @@ export const ConversaChatView: React.FC<ConversaChatViewProps> = ({
         ) : (
           mensagensConversa.map((msg) => {
             const isRecebida = msg.direcao === 'recebida' || msg.tipo_disparo === 'webhook'
-            const dataHora = formatDateTime(msg.enviado_em || msg.created)
+            const horaFormatada = formatHorarioMensagem(msg.enviado_em || msg.created)
+            const dataHoraCompleta = formatDateTime(msg.enviado_em || msg.created)
+
+            // Texto em uma única linha (sem quebra de linha interna)
+            const textoUmaLinha = (msg.conteudo_final || '').replace(/\r?\n+/g, ' ').trim()
 
             return (
               <div
                 key={msg.id}
-                className={`flex flex-col ${isRecebida ? 'items-start' : 'items-end'}`}
+                className={`flex w-full ${isRecebida ? 'justify-start' : 'justify-end'}`}
               >
                 <div
-                  className={`max-w-[85%] sm:max-w-[70%] rounded-2xl p-3.5 shadow-2xs text-sm relative group ${
+                  className={`max-w-[92%] sm:max-w-[85%] rounded-xl px-3 py-2 shadow-2xs text-xs relative group flex items-center gap-2.5 min-w-0 ${
                     isRecebida
                       ? 'bg-white text-gray-900 border border-gray-200 rounded-tl-xs'
                       : 'bg-emerald-600 text-white rounded-tr-xs'
                   }`}
+                  title={dataHoraCompleta ? `Data e hora: ${dataHoraCompleta}` : undefined}
                 >
-                  {/* Tag de documento caso enviado via anexo */}
+                  {/* Tag / Ação de documento em linha única caso enviado via anexo */}
                   {msg.tipo_mensagem === 'documento' && (
                     <div
-                      className={`mb-2 p-2 rounded-xl flex items-center gap-2 text-xs font-semibold ${
-                        isRecebida ? 'bg-gray-100 text-gray-800' : 'bg-emerald-700/60 text-white'
+                      className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg text-[11px] font-semibold shrink-0 ${
+                        isRecebida ? 'bg-gray-100 text-gray-800' : 'bg-emerald-700 text-white'
                       }`}
                     >
-                      <FileDown className="w-4 h-4 shrink-0" />
-                      <span className="truncate">{msg.nome_arquivo || 'Documento PDF'}</span>
+                      <FileDown className="w-3.5 h-3.5 shrink-0" />
+                      <span className="max-w-[140px] truncate">
+                        {msg.nome_arquivo || 'Documento'}
+                      </span>
                       {msg.documento_url && (
                         <a
                           href={msg.documento_url}
                           target="_blank"
                           rel="noreferrer"
-                          className="ml-auto underline text-[11px] shrink-0"
+                          className="underline text-[10px] ml-0.5 shrink-0"
+                          title="Abrir anexo"
                         >
                           Abrir
                         </a>
@@ -423,28 +469,45 @@ export const ConversaChatView: React.FC<ConversaChatViewProps> = ({
                     </div>
                   )}
 
-                  {/* Texto principal da mensagem */}
-                  <div className="whitespace-pre-wrap break-words leading-relaxed font-normal">
-                    {msg.conteudo_final}
+                  {/* Texto principal em linha única com scroll horizontal sem quebra */}
+                  <div
+                    tabIndex={0}
+                    className="flex-1 min-w-0 overflow-x-auto whitespace-nowrap scrollbar-thin text-xs leading-normal select-text focus:outline-hidden py-0.5"
+                    title={msg.conteudo_final || ''}
+                  >
+                    <span>{textoUmaLinha || (msg.tipo_mensagem === 'documento' ? '' : '—')}</span>
                   </div>
 
-                  {/* Rodapé da Mensagem (Horário + Ícone de Status) */}
+                  {/* Registro de horário + status na mesma linha */}
                   <div
-                    className={`flex items-center justify-end gap-1.5 text-[10px] mt-1.5 font-medium ${
-                      isRecebida ? 'text-gray-400' : 'text-emerald-100'
+                    className={`shrink-0 flex items-center gap-1.5 text-[11px] font-mono font-medium pl-1.5 border-l ${
+                      isRecebida
+                        ? 'text-gray-500 border-gray-200'
+                        : 'text-emerald-100 border-emerald-500/50'
                     }`}
                   >
-                    <span>{dataHora}</span>
+                    <span className="whitespace-nowrap">{horaFormatada}</span>
                     {!isRecebida && (
-                      <span>
+                      <span
+                        className="inline-flex items-center shrink-0"
+                        title={
+                          msg.status === 'entregue'
+                            ? 'Entregue'
+                            : msg.status === 'enviada'
+                              ? 'Enviada'
+                              : msg.status === 'falha'
+                                ? 'Falha no envio'
+                                : 'Pendente / Enviando'
+                        }
+                      >
                         {msg.status === 'entregue' ? (
-                          <CheckCheck className="w-3.5 h-3.5 text-emerald-200 inline" />
+                          <CheckCheck className="w-3.5 h-3.5 text-emerald-200" />
                         ) : msg.status === 'enviada' ? (
-                          <Check className="w-3.5 h-3.5 text-emerald-200 inline" />
+                          <Check className="w-3.5 h-3.5 text-emerald-200" />
                         ) : msg.status === 'falha' ? (
-                          <AlertCircle className="w-3.5 h-3.5 text-rose-300 inline" />
+                          <AlertCircle className="w-3.5 h-3.5 text-rose-300" />
                         ) : (
-                          <Clock className="w-3 h-3 text-emerald-200 inline" />
+                          <Clock className="w-3.5 h-3.5 text-emerald-200" />
                         )}
                       </span>
                     )}
@@ -454,7 +517,6 @@ export const ConversaChatView: React.FC<ConversaChatViewProps> = ({
             )
           })
         )}
-        <div ref={messagesEndRef} />
       </div>
 
       {/* Barra de Templates Rápidos */}
