@@ -114,6 +114,31 @@ export type WhatsAppTipoDisparo =
   | 'proposta_aprovada'
   | 'lembrete_visita'
   | 'followup_posvenda'
+  | 'webhook'
+
+export type WhatsAppConversaStatus = 'novo' | 'em_atendimento' | 'aguardando_cliente' | 'resolvido'
+
+export interface WhatsAppConversa extends RecordModel {
+  id: string
+  collectionId: string
+  collectionName: string
+  numero: string
+  cliente_id?: string
+  status: WhatsAppConversaStatus
+  atendente?: string
+  atendente_id?: string
+  ultima_mensagem_preview?: string
+  ultima_mensagem_em?: string
+  nao_lidas?: number
+  vinculada_em?: string
+  resolvida_em?: string
+  reaberta_em?: string
+  created: string
+  updated: string
+  expand?: {
+    cliente_id?: Cliente
+  }
+}
 
 export interface WhatsAppTemplate extends RecordModel {
   id: string
@@ -133,15 +158,17 @@ export interface WhatsAppMensagem extends RecordModel {
   id: string
   collectionId: string
   collectionName: string
-  cliente_id: string
+  cliente_id?: string
+  conversa_id?: string
   template_id?: string
   telefone_destino: string
   conteudo_final: string
   status: WhatsAppMensagemStatus
+  direcao?: 'enviada' | 'recebida'
   agendado_para?: string
   enviado_em?: string
   tipo_disparo?: WhatsAppTipoDisparo | string
-  tipo_mensagem?: 'texto' | 'documento' | string
+  tipo_mensagem?: 'texto' | 'documento' | 'imagem' | 'audio' | string
   nome_arquivo?: string
   documento_url?: string
   referencia_id?: string
@@ -151,6 +178,7 @@ export interface WhatsAppMensagem extends RecordModel {
   updated: string
   expand?: {
     cliente_id?: Cliente
+    conversa_id?: WhatsAppConversa
     template_id?: WhatsAppTemplate
   }
 }
@@ -169,6 +197,7 @@ export interface WhatsAppConfigStatus {
   hasApiKey: boolean
   apiKeyMasked?: string
   originNumber?: string
+  webhookUrl?: string
   secretsRequired: string[]
 }
 

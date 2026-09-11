@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-11T20:11:02.756Z",
+  "generatedAt": "2026-09-11T20:29:26.459Z",
   "collections": [
     {
       "name": "users",
@@ -1910,7 +1910,7 @@
         {
           "name": "cliente_id",
           "type": "relation",
-          "required": true,
+          "required": false,
           "system": false,
           "collectionRef": "clientes"
         },
@@ -2007,13 +2007,130 @@
           "type": "text",
           "required": false,
           "system": false
+        },
+        {
+          "name": "conversa_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "whatsapp_conversas"
+        },
+        {
+          "name": "direcao",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["enviada", "recebida"]
         }
       ],
       "indexes": [
         "CREATE INDEX idx_whatsapp_mensagens_cliente ON whatsapp_mensagens (cliente_id)",
         "CREATE INDEX idx_whatsapp_mensagens_status ON whatsapp_mensagens (status)",
         "CREATE INDEX idx_whatsapp_mensagens_agendado ON whatsapp_mensagens (agendado_para)",
-        "CREATE INDEX idx_whatsapp_mensagens_ref ON whatsapp_mensagens (referencia_id)"
+        "CREATE INDEX idx_whatsapp_mensagens_ref ON whatsapp_mensagens (referencia_id)",
+        "CREATE INDEX `idx_whatsapp_mensagens_conversa` ON `whatsapp_mensagens` (conversa_id)",
+        "CREATE INDEX `idx_whatsapp_mensagens_direcao` ON `whatsapp_mensagens` (direcao)"
+      ]
+    },
+    {
+      "name": "whatsapp_conversas",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "numero",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "cliente_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "clientes"
+        },
+        {
+          "name": "status",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["novo", "em_atendimento", "aguardando_cliente", "resolvido"]
+        },
+        {
+          "name": "atendente",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "atendente_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "ultima_mensagem_preview",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "ultima_mensagem_em",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "nao_lidas",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "vinculada_em",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "resolvida_em",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "reaberta_em",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_conversas_numero ON whatsapp_conversas (numero)",
+        "CREATE INDEX idx_conversas_status ON whatsapp_conversas (status)",
+        "CREATE INDEX idx_conversas_cliente ON whatsapp_conversas (cliente_id)",
+        "CREATE INDEX idx_conversas_ultima_msg ON whatsapp_conversas (ultima_mensagem_em DESC)"
       ]
     }
   ]

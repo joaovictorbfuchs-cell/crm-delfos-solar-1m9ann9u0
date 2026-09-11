@@ -620,17 +620,128 @@ export async function deleteWhatsAppTemplate(id: string): Promise<boolean> {
   return true
 }
 
-export async function fetchWhatsAppMensagens(
-  clienteId?: string,
-): Promise<import('@/types/crm').WhatsAppMensagem[]> {
+// -------------------------------------------------------------
+// WhatsApp Conversas (Central de Atendimento)
+// -------------------------------------------------------------
+
+export async function fetchWhatsAppConversas(): Promise<import('@/types/crm').WhatsAppConversa[]> {
   try {
-    const filter = clienteId ? `cliente_id='${clienteId}'` : ''
+    return await pb
+      .collection('whatsapp_conversas')
+      .getFullList<import('@/types/crm').WhatsAppConversa>({
+        sort: '-ultima_mensagem_em,-updated',
+        expand: 'cliente_id',
+      })
+  } catch (err) {
+    console.error('Erro ao buscar conversas WhatsApp:', err)
+    return []
+  }
+}
+
+export async function createWhatsAppConversa(
+  data: Partial<import('@/types/crm').WhatsAppConversa>,
+): Promise<import('@/types/crm').WhatsAppConversa> {
+  return pb.collection('whatsapp_conversas').create<import('@/types/crm').WhatsAppConversa>(data)
+}
+
+export async function updateWhatsAppConversa(
+  id: string,
+  data: Partial<import('@/types/crm').WhatsAppConversa>,
+): Promise<import('@/types/crm').WhatsAppConversa> {
+  return pb
+    .collection('whatsapp_conversas')
+    .update<import('@/types/crm').WhatsAppConversa>(id, data, {
+      expand: 'cliente_id',
+    })
+}
+
+export async function deleteWhatsAppConversa(id: string): Promise<boolean> {
+  await pb.collection('whatsapp_conversas').delete(id)
+  return true
+}
+
+export async function vincularConversaCliente(
+  conversaId: string,
+  clienteId: string,
+  atendenteNome?: string,
+): Promise<import('@/types/crm').WhatsAppConversa> {
+  const cliente = await pb.collection('clientes').getOne<Cliente>(clienteId)
+  const conversa = await pb
+    .collection('whatsapp_conversas')
+    .getOne<import('@/types/crm').WhatsAppConversa>(conversaId)
+
+  // Se o cliente não tiver whatsapp preenchido ou for diferente, atualizar
+  const clienteWhats = cliente.whatsapp || cliente.telefone || ''
+  if (!clienteWhats || !cliente.whatsapp) {
+    try {
+      await pb.collection('clientes').update(clienteId, {
+        whatsapp: conversa.numero,
+      })
+    } catch {
+      /* intentionally ignored */
+    }
+  }
+
+  // Atualizar todas as mensagens dessa conversa para vincular ao cliente
+  try {
+    const msgs = await pb
+      .collection('whatsapp_mensagens')
+      .getFullList<import('@/types/crm').WhatsAppMensagem>({
+        filter: `conversa_id = '${conversaId}' && (cliente_id = '' || cliente_id = null)`,
+      })
+    for (const m of msgs) {
+      await pb.collection('whatsapp_mensagens').update(m.id, { cliente_id: clienteId })
+    }
+  } catch {
+    /* intentionally ignored */
+  }
+
+  return updateWhatsAppConversa(conversaId, {
+    cliente_id: clienteId,
+    status: 'em_atendimento',
+    vinculada_em: new Date().toISOString(),
+    ...(atendenteNome ? { atendente: atendenteNome } : {}),
+  })
+}
+
+export async function assumirConversa(
+  conversaId: string,
+  atendenteNome: string,
+  atendenteId?: string,
+): Promise<import('@/types/crm').WhatsAppConversa> {
+  return updateWhatsAppConversa(conversaId, {
+    status: 'em_atendimento',
+    atendente: atendenteNome,
+    atendente_id: atendenteId || '',
+  })
+}
+
+export async function finalizarConversa(
+  conversaId: string,
+): Promise<import('@/types/crm').WhatsAppConversa> {
+  return updateWhatsAppConversa(conversaId, {
+    status: 'resolvido',
+    resolvida_em: new Date().toISOString(),
+    nao_lidas: 0,
+  })
+}
+
+export async function fetchWhatsAppMensagens(options?: {
+  clienteId?: string
+  conversaId?: string
+}): Promise<import('@/types/crm').WhatsAppMensagem[]> {
+  try {
+    const filters: string[] = []
+    if (options?.clienteId) filters.push(`cliente_id='${options.clienteId}'`)
+    if (options?.conversaId) filters.push(`conversa_id='${options.conversaId}'`)
+    const filter = filters.join(' && ')
+
     const records = await pb
       .collection('whatsapp_mensagens')
       .getFullList<import('@/types/crm').WhatsAppMensagem>({
-        filter,
-        sort: '-created',
-        expand: 'cliente_id,template_id',
+        filter: filter || undefined,
+        sort: 'created',
+        expand: 'cliente_id,template_id,conversa_id',
       })
     return records
   } catch (err) {
@@ -640,7 +751,8 @@ export async function fetchWhatsAppMensagens(
 }
 
 export async function sendWhatsAppMensagem(data: {
-  cliente_id: string
+  cliente_id?: string
+  conversa_id?: string
   telefone_destino: string
   conteudo_final: string
   template_id?: string

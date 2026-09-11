@@ -13,6 +13,7 @@ import {
   Phone,
   Info,
   ShieldCheck,
+  ExternalLink,
 } from 'lucide-react'
 import { useClientes } from '@/contexts/ClientesContext'
 import type { WhatsAppTemplate } from '@/types/crm'
@@ -487,6 +488,44 @@ export const ModalGerenciarWhatsAppTemplates: React.FC<ModalGerenciarWhatsAppTem
                       </span>
                     </div>
                   </div>
+                </div>
+              </div>
+
+              {/* Box de URL do Webhook Z-API para Recebimento */}
+              <div className="bg-emerald-50/70 border border-emerald-200 rounded-2xl p-4 text-xs space-y-2 text-emerald-950">
+                <div className="font-bold text-emerald-900 flex items-center gap-1.5">
+                  <ExternalLink className="w-4 h-4 text-emerald-700" />
+                  Webhook de Recebimento Z-API (Central de Atendimento)
+                </div>
+                <p className="text-[12px] text-emerald-800">
+                  Para receber mensagens dos clientes em tempo real na{' '}
+                  <strong>Central de Atendimento</strong>, copie a URL do Webhook abaixo e configure
+                  no painel da Z-API no campo{' '}
+                  <strong>Webhooks &gt; Ao receber mensagem (On-Message-Received)</strong>:
+                </p>
+                <div className="flex items-center gap-2 mt-2">
+                  <input
+                    type="text"
+                    readOnly
+                    value={
+                      whatsAppConfig?.webhookUrl ||
+                      `${window.location.origin}/backend/v1/whatsapp/webhook`
+                    }
+                    className="flex-1 font-mono text-[11px] bg-white border border-emerald-300 rounded-lg px-3 py-2 text-gray-800 shadow-2xs select-all focus:outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const url =
+                        whatsAppConfig?.webhookUrl ||
+                        `${window.location.origin}/backend/v1/whatsapp/webhook`
+                      navigator.clipboard.writeText(url)
+                      alert('URL do Webhook copiada com sucesso!')
+                    }}
+                    className="px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg text-xs transition-colors shrink-0 shadow-2xs"
+                  >
+                    Copiar URL
+                  </button>
                 </div>
               </div>
 

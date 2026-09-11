@@ -15,6 +15,19 @@ routerAdd('GET', '/backend/v1/whatsapp/config-status', (e) => {
     let originNumber = ($os.getenv('WHATSAPP_ORIGIN_NUMBER') || '').trim()
     originNumber = originNumber.replace(/[\r\n\t]/g, '').trim()
 
+    let siteUrl = ($os.getenv('SITE_URL') || '').trim().replace(/\/+$/, '')
+    let pbUrl = ($os.getenv('PB_INSTANCE_URL') || '').trim().replace(/\/+$/, '')
+
+    let webhookUrl = ''
+    if (pbUrl) {
+      webhookUrl = pbUrl + '/backend/v1/whatsapp/webhook'
+    } else if (siteUrl) {
+      webhookUrl = siteUrl + '/backend/v1/whatsapp/webhook'
+    } else {
+      webhookUrl =
+        'https://crm-delfos-solar-72b9e.shrd00.internal.goskip.dev/backend/v1/whatsapp/webhook'
+    }
+
     let gatewayProvider = 'desconhecido'
     let isZApi = false
     let isEvolution = false
@@ -77,6 +90,7 @@ routerAdd('GET', '/backend/v1/whatsapp/config-status', (e) => {
       hasApiKey: Boolean(apiKey),
       apiKeyMasked: apiKey ? '••••••••' + apiKey.slice(-4) : '',
       originNumber: originNumber || '',
+      webhookUrl: webhookUrl,
       secretsRequired: ['WHATSAPP_API_URL', 'WHATSAPP_API_KEY', 'WHATSAPP_ORIGIN_NUMBER'],
     })
   } catch (err) {

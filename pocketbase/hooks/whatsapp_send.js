@@ -7,7 +7,8 @@ routerAdd('POST', '/backend/v1/whatsapp/send', (e) => {
     }
 
     const body = e.requestInfo().body || {}
-    const clienteId = body.cliente_id
+    const clienteId = (body.cliente_id || '').trim()
+    const conversaId = (body.conversa_id || '').trim()
     const templateId = body.template_id || ''
     const telefoneDestino = (body.telefone_destino || '').trim()
     const conteudoFinal = (body.conteudo_final || '').trim()
@@ -15,8 +16,8 @@ routerAdd('POST', '/backend/v1/whatsapp/send', (e) => {
     const tipoDisparo = body.tipo_disparo || 'manual'
     const referenciaId = body.referencia_id || ''
 
-    if (!clienteId) {
-      return e.json(400, { error: 'cliente_id é obrigatório', ok: false })
+    if (!clienteId && !conversaId) {
+      return e.json(400, { error: 'cliente_id ou conversa_id é obrigatório', ok: false })
     }
     if (!telefoneDestino) {
       return e.json(400, { error: 'Telefone de destino é obrigatório', ok: false })
@@ -27,11 +28,13 @@ routerAdd('POST', '/backend/v1/whatsapp/send', (e) => {
 
     const msgsCol = $app.findCollectionByNameOrId('whatsapp_mensagens')
     const msgRecord = new Record(msgsCol)
-    msgRecord.set('cliente_id', clienteId)
+    if (clienteId) msgRecord.set('cliente_id', clienteId)
+    if (conversaId) msgRecord.set('conversa_id', conversaId)
     if (templateId) msgRecord.set('template_id', templateId)
     msgRecord.set('telefone_destino', telefoneDestino)
     msgRecord.set('conteudo_final', conteudoFinal)
     msgRecord.set('tipo_disparo', tipoDisparo)
+    msgRecord.set('direcao', 'enviada')
     if (referenciaId) msgRecord.set('referencia_id', referenciaId)
 
     // Se tiver agendamento futuro (> agora + 1 min), grava status 'agendada'
@@ -213,6 +216,33 @@ routerAdd('POST', '/backend/v1/whatsapp/send', (e) => {
         if (externalId) msgRecord.set('id_externo_gateway', externalId)
         msgRecord.set('log_erro', '')
         $app.save(msgRecord)
+
+        // Se houver conversa associada, atualizar conversa: status 'aguardando_cliente'
+        if (conversaId) {
+          try {
+            const convCol = $app.findCollectionByNameOrId('whatsapp_conversas')
+            const convRec = $app.findRecordsByFilter(
+              convCol.id,
+              `id = '${conversaId}'`,
+              '',
+              1,
+              0,
+            )[0]
+            if (convRec) {
+              convRec.set('status', 'aguardando_cliente')
+              convRec.set('ultima_mensagem_preview', conteudoFinal.substring(0, 100))
+              convRec.set('ultima_mensagem_em', new Date().toISOString())
+              convRec.set('nao_lidas', 0)
+              if (authUser && !convRec.getString('atendente')) {
+                convRec.set('atendente', authUser.getString('name') || 'Atendente')
+                convRec.set('atendente_id', authUser.id)
+              }
+              $app.save(convRec)
+            }
+          } catch (errConv) {
+            console.log('[CONV UPDATE AVISO]', errConv)
+          }
+        }
 
         return e.json(200, {
           ok: true,

@@ -14,6 +14,7 @@ import Manutencoes from './pages/Manutencoes'
 import Clientes from './pages/Clientes'
 import Orcamentos from './pages/Orcamentos'
 import Atividades from './pages/Atividades'
+import { CentralAtendimento } from './pages/CentralAtendimento'
 import Login from './pages/Login'
 import NotFound from './pages/NotFound'
 
@@ -35,6 +36,7 @@ const App = () => (
             >
               <Route path="/" element={<Index />} />
               <Route path="/comercial" element={<Comercial />} />
+              <Route path="/central-atendimento" element={<CentralAtendimento />} />
               <Route path="/orcamentos" element={<Orcamentos />} />
               <Route path="/projetos" element={<Projetos />} />
               <Route path="/atividades" element={<Atividades />} />

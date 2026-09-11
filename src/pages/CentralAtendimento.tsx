@@ -1,0 +1,534 @@
+import React, { useState, useEffect, useMemo } from 'react'
+import {
+  MessageSquare,
+  Users,
+  Clock,
+  CheckCircle2,
+  AlertCircle,
+  Search,
+  Filter,
+  UserPlus,
+  RefreshCw,
+  Sparkles,
+  Phone,
+  MessageCircle,
+  Calendar,
+  Send,
+  ArrowRight,
+} from 'lucide-react'
+import { useClientes } from '@/contexts/ClientesContext'
+import { useAuth } from '@/contexts/AuthContext'
+import { ModalVincularCliente } from '@/components/ModalVincularCliente'
+import { ConversaChatView } from '@/components/ConversaChatView'
+import type { WhatsAppConversa } from '@/types/crm'
+import { formatDateTime, formatWhatsAppPhone } from '@/lib/formatters'
+
+export const CentralAtendimento: React.FC = () => {
+  const {
+    whatsAppConversas,
+    clientes,
+    refreshConversas,
+    vincularConversa,
+    assumirAtendimento,
+    finalizarAtendimento,
+    whatsAppConfig,
+  } = useClientes()
+
+  const { user } = useAuth()
+
+  // Polling automático a cada 15 segundos conforme solicitado
+  useEffect(() => {
+    const interval = setInterval(() => {
+      refreshConversas().catch((err) =>
+        console.warn('Falha no polling da central de atendimento:', err),
+      )
+    }, 15000)
+    return () => clearInterval(interval)
+  }, [refreshConversas])
+
+  const [selectedConversaId, setSelectedConversaId] = useState<string | null>(null)
+  const [conversaParaVincular, setConversaParaVincular] = useState<WhatsAppConversa | null>(null)
+  const [searchTerm, setSearchTerm] = useState('')
+  const [isRefreshing, setIsRefreshing] = useState(false)
+  const [activeMobileTab, setActiveMobileTab] = useState<'novos' | 'atendimento' | 'resolvidos'>(
+    'novos',
+  )
+
+  const handleManualRefresh = async () => {
+    setIsRefreshing(true)
+    try {
+      await refreshConversas()
+    } finally {
+      setIsRefreshing(false)
+    }
+  }
+
+  // Mapa de clientes para lookup rápido por ID
+  const clientesMap = useMemo(() => {
+    const map = new Map<string, (typeof clientes)[0]>()
+    clientes.forEach((c) => map.set(c.id, c))
+    return map
+  }, [clientes])
+
+  // Separar conversas nas 3 colunas especificadas
+  // 1. Fila de Novos: status === 'novo' (mensagens recebidas ainda não vinculadas a cliente ou pendentes de atendimento)
+  // 2. Em Atendimento: status === 'em_atendimento' || status === 'aguardando_cliente'
+  // 3. Resolvidos: status === 'resolvido' (finalizadas nas últimas 24 horas, ou resolvidas recentemente)
+  const conversasClassificadas = useMemo(() => {
+    const term = searchTerm.trim().toLowerCase()
+
+    const filterFn = (conv: WhatsAppConversa) => {
+      if (!term) return true
+      const cli = conv.cliente_id ? clientesMap.get(conv.cliente_id) : null
+      const matchNumero = conv.numero.includes(term.replace(/\D/g, ''))
+      const matchNome = cli?.nome.toLowerCase().includes(term) || false
+      const matchPreview = (conv.ultima_mensagem_preview || '').toLowerCase().includes(term)
+      const matchAtendente = (conv.atendente || '').toLowerCase().includes(term)
+      return matchNumero || matchNome || matchPreview || matchAtendente
+    }
+
+    const agora = Date.now()
+    const limite24h = agora - 24 * 60 * 60 * 1000
+
+    const novos = whatsAppConversas
+      .filter((c) => c.status === 'novo' && filterFn(c))
+      .sort(
+        (a, b) =>
+          new Date(b.updated || b.created).getTime() - new Date(a.updated || a.created).getTime(),
+      )
+
+    const emAtendimento = whatsAppConversas
+      .filter(
+        (c) => (c.status === 'em_atendimento' || c.status === 'aguardando_cliente') && filterFn(c),
+      )
+      .sort(
+        (a, b) =>
+          new Date(b.updated || b.created).getTime() - new Date(a.updated || a.created).getTime(),
+      )
+
+    const resolvidos = whatsAppConversas
+      .filter((c) => {
+        if (c.status !== 'resolvido') return false
+        if (!filterFn(c)) return false
+        if (c.resolvida_em) {
+          return new Date(c.resolvida_em).getTime() >= limite24h
+        }
+        return new Date(c.updated || c.created).getTime() >= limite24h
+      })
+      .sort(
+        (a, b) =>
+          new Date(b.resolvida_em || b.updated).getTime() -
+          new Date(a.resolvida_em || a.updated).getTime(),
+      )
+
+    return { novos, emAtendimento, resolvidos }
+  }, [whatsAppConversas, searchTerm, clientesMap])
+
+  // Conversa ativa selecionada
+  const selectedConversa = useMemo(() => {
+    if (!selectedConversaId) return null
+    return whatsAppConversas.find((c) => c.id === selectedConversaId) || null
+  }, [whatsAppConversas, selectedConversaId])
+
+  const selectedCliente = useMemo(() => {
+    if (!selectedConversa?.cliente_id) return null
+    return clientesMap.get(selectedConversa.cliente_id) || null
+  }, [selectedConversa, clientesMap])
+
+  // Tempo relativo desde a última resposta
+  const formatTimeAgo = (dateStr?: string) => {
+    if (!dateStr) return 'Recente'
+    const diff = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000)
+    if (diff < 60) return 'Agora mesmo'
+    if (diff < 3600) return `${Math.floor(diff / 60)} min atrás`
+    if (diff < 86400) return `${Math.floor(diff / 3600)} h atrás`
+    return `${Math.floor(diff / 86400)} d atrás`
+  }
+
+  // Vincular ação
+  const handleVincularCliente = async (clienteId: string) => {
+    if (!conversaParaVincular) return
+    const atendenteNome = user?.name || user?.email || 'Atendente'
+    await vincularConversa(conversaParaVincular.id, clienteId, atendenteNome)
+    setSelectedConversaId(conversaParaVincular.id)
+    setConversaParaVincular(null)
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Top Header */}
+      <div className="flex items-center justify-between flex-wrap gap-4 bg-white p-5 rounded-2xl border border-gray-200 shadow-xs">
+        <div className="flex items-center gap-3">
+          <div className="p-3 bg-gradient-to-br from-emerald-500 to-teal-700 text-white rounded-2xl shadow-xs">
+            <MessageSquare className="w-6 h-6" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <h1 className="text-xl font-bold text-gray-900 tracking-tight">
+                Central de Atendimento WhatsApp
+              </h1>
+              <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                Ao Vivo
+              </span>
+            </div>
+            <p className="text-xs text-gray-500 mt-0.5">
+              Gestão de mensagens e conversas via Z-API com vinculação rápida de novos contatos a
+              clientes.
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3">
+          {/* Busca */}
+          <div className="relative">
+            <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              placeholder="Buscar por telefone, cliente ou mensagem..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-9 pr-3 py-2 text-xs bg-gray-50 focus:bg-white border border-gray-200 rounded-xl focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all outline-none w-64"
+            />
+          </div>
+
+          <button
+            type="button"
+            onClick={handleManualRefresh}
+            disabled={isRefreshing}
+            className="p-2.5 bg-gray-50 hover:bg-gray-100 text-gray-700 border border-gray-200 rounded-xl transition-colors shadow-2xs"
+            title="Atualizar lista de conversas agora"
+          >
+            <RefreshCw
+              className={`w-4 h-4 ${isRefreshing ? 'animate-spin text-emerald-600' : ''}`}
+            />
+          </button>
+        </div>
+      </div>
+
+      {/* Main Grid: Navegação por 3 colunas e Área de Chat */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 min-h-[640px]">
+        {/* Coluna de Atendimentos / Listas */}
+        <div
+          className={`${selectedConversa ? 'hidden lg:block lg:col-span-5 xl:col-span-4' : 'col-span-12 lg:col-span-5 xl:col-span-4'} flex flex-col space-y-4`}
+        >
+          {/* Tabs Mobile */}
+          <div className="flex items-center gap-1 p-1 bg-gray-100 rounded-xl lg:hidden">
+            <button
+              type="button"
+              onClick={() => setActiveMobileTab('novos')}
+              className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${
+                activeMobileTab === 'novos'
+                  ? 'bg-white text-emerald-800 shadow-2xs'
+                  : 'text-gray-600'
+              }`}
+            >
+              Fila de Novos ({conversasClassificadas.novos.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveMobileTab('atendimento')}
+              className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${
+                activeMobileTab === 'atendimento'
+                  ? 'bg-white text-emerald-800 shadow-2xs'
+                  : 'text-gray-600'
+              }`}
+            >
+              Em Atendimento ({conversasClassificadas.emAtendimento.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveMobileTab('resolvidos')}
+              className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${
+                activeMobileTab === 'resolvidos'
+                  ? 'bg-white text-emerald-800 shadow-2xs'
+                  : 'text-gray-600'
+              }`}
+            >
+              Resolvidos ({conversasClassificadas.resolvidos.length})
+            </button>
+          </div>
+
+          {/* Desktop: Visualizador em Abas / 3 Grupos de Conversas */}
+          <div className="space-y-4">
+            {/* 1. FILA DE NOVOS */}
+            <div className={`space-y-2.5 ${activeMobileTab !== 'novos' ? 'hidden lg:block' : ''}`}>
+              <div className="flex items-center justify-between px-1">
+                <div className="flex items-center gap-2">
+                  <div className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse" />
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-gray-700">
+                    Fila de Novos
+                  </h3>
+                  <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-100 text-amber-800">
+                    {conversasClassificadas.novos.length}
+                  </span>
+                </div>
+                <span className="text-[11px] text-gray-400">Aguardando vinculação/atendimento</span>
+              </div>
+
+              {conversasClassificadas.novos.length === 0 ? (
+                <div className="p-4 bg-white rounded-2xl border border-dashed border-gray-200 text-center text-xs text-gray-400">
+                  Nenhuma mensagem nova pendente na fila.
+                </div>
+              ) : (
+                <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
+                  {conversasClassificadas.novos.map((conv) => {
+                    const isSelected = selectedConversaId === conv.id
+                    const cli = conv.cliente_id ? clientesMap.get(conv.cliente_id) : null
+
+                    return (
+                      <div
+                        key={conv.id}
+                        onClick={() => setSelectedConversaId(conv.id)}
+                        className={`p-3.5 rounded-2xl border transition-all cursor-pointer relative ${
+                          isSelected
+                            ? 'bg-amber-50/90 border-amber-400 ring-2 ring-amber-500/20 shadow-xs'
+                            : 'bg-white hover:bg-gray-50 border-gray-200 shadow-2xs'
+                        }`}
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <div className="w-8 h-8 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center font-bold text-xs shrink-0">
+                              <Phone className="w-4 h-4" />
+                            </div>
+                            <div className="min-w-0">
+                              <div className="font-bold text-xs text-gray-900 truncate">
+                                {cli ? cli.nome : formatWhatsAppPhone(conv.numero)}
+                              </div>
+                              <div className="text-[10px] text-gray-500 font-mono">
+                                {formatWhatsAppPhone(conv.numero)}
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="text-right shrink-0">
+                            <span className="text-[10px] text-gray-400">
+                              {formatTimeAgo(conv.ultima_mensagem_em || conv.updated)}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Preview da Mensagem */}
+                        <p className="mt-2 text-xs text-gray-600 line-clamp-2 leading-relaxed bg-gray-50 p-2 rounded-xl border border-gray-100 italic">
+                          "{conv.ultima_mensagem_preview || 'Nova mensagem recebida'}"
+                        </p>
+
+                        <div className="mt-2.5 pt-2 border-t border-gray-100 flex items-center justify-between">
+                          <span className="text-[10px] font-bold text-amber-700 bg-amber-100/70 px-2 py-0.5 rounded">
+                            Número Não Vinculado
+                          </span>
+
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setConversaParaVincular(conv)
+                            }}
+                            className="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[11px] font-bold transition-colors shadow-2xs"
+                          >
+                            <UserPlus className="w-3 h-3" />
+                            <span>Vincular a cliente</span>
+                          </button>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* 2. EM ATENDIMENTO */}
+            <div
+              className={`space-y-2.5 ${activeMobileTab !== 'atendimento' ? 'hidden lg:block' : ''}`}
+            >
+              <div className="flex items-center justify-between px-1">
+                <div className="flex items-center gap-2">
+                  <div className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-gray-700">
+                    Em Atendimento
+                  </h3>
+                  <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800">
+                    {conversasClassificadas.emAtendimento.length}
+                  </span>
+                </div>
+                <span className="text-[11px] text-gray-400">Conversas ativas</span>
+              </div>
+
+              {conversasClassificadas.emAtendimento.length === 0 ? (
+                <div className="p-4 bg-white rounded-2xl border border-dashed border-gray-200 text-center text-xs text-gray-400">
+                  Nenhum atendimento em andamento no momento.
+                </div>
+              ) : (
+                <div className="space-y-2 max-h-[360px] overflow-y-auto pr-1">
+                  {conversasClassificadas.emAtendimento.map((conv) => {
+                    const isSelected = selectedConversaId === conv.id
+                    const cli = conv.cliente_id ? clientesMap.get(conv.cliente_id) : null
+                    const hasNovaMensagem = Boolean(
+                      conv.reaberta_em || (conv.nao_lidas && conv.nao_lidas > 0),
+                    )
+
+                    return (
+                      <div
+                        key={conv.id}
+                        onClick={() => setSelectedConversaId(conv.id)}
+                        className={`p-3.5 rounded-2xl border transition-all cursor-pointer relative ${
+                          isSelected
+                            ? 'bg-emerald-50/90 border-emerald-400 ring-2 ring-emerald-500/20 shadow-xs'
+                            : 'bg-white hover:bg-gray-50 border-gray-200 shadow-2xs'
+                        }`}
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <div className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold text-xs shrink-0">
+                              {cli?.nome ? (
+                                cli.nome.substring(0, 2).toUpperCase()
+                              ) : (
+                                <Users className="w-4 h-4" />
+                              )}
+                            </div>
+                            <div className="min-w-0">
+                              <div className="font-bold text-xs text-gray-900 truncate flex items-center gap-1.5">
+                                <span>{cli?.nome || formatWhatsAppPhone(conv.numero)}</span>
+                                {hasNovaMensagem && (
+                                  <span className="px-1.5 py-0.2 rounded text-[9px] font-black uppercase bg-emerald-600 text-white">
+                                    Nova mensagem
+                                  </span>
+                                )}
+                              </div>
+                              <div className="text-[10px] text-gray-500">
+                                {conv.atendente ? `Atendendo: ${conv.atendente}` : 'Sem atendente'}
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="text-right shrink-0">
+                            <span className="text-[10px] text-gray-400">
+                              {formatTimeAgo(conv.ultima_mensagem_em || conv.updated)}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Preview */}
+                        <p className="mt-2 text-xs text-gray-600 line-clamp-2 leading-relaxed bg-gray-50 p-2 rounded-xl border border-gray-100">
+                          {conv.ultima_mensagem_preview || 'Atendimento em andamento'}
+                        </p>
+
+                        <div className="mt-2 pt-2 border-t border-gray-100 flex items-center justify-between text-[11px] text-gray-500">
+                          <span className="font-mono text-[10px] text-emerald-800">
+                            {formatWhatsAppPhone(conv.numero)}
+                          </span>
+
+                          <span className="capitalize text-[10px] font-semibold text-emerald-700">
+                            {conv.status === 'aguardando_cliente'
+                              ? 'Aguardando cliente'
+                              : 'Em atendimento'}
+                          </span>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* 3. RESOLVIDOS (ÚLTIMAS 24H) */}
+            <div
+              className={`space-y-2.5 ${activeMobileTab !== 'resolvidos' ? 'hidden lg:block' : ''}`}
+            >
+              <div className="flex items-center justify-between px-1">
+                <div className="flex items-center gap-2">
+                  <div className="w-2.5 h-2.5 rounded-full bg-gray-400" />
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-gray-600">
+                    Resolvidos (24h)
+                  </h3>
+                  <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-gray-100 text-gray-700">
+                    {conversasClassificadas.resolvidos.length}
+                  </span>
+                </div>
+                <span className="text-[11px] text-gray-400">Finalizadas recentemente</span>
+              </div>
+
+              {conversasClassificadas.resolvidos.length === 0 ? (
+                <div className="p-4 bg-white rounded-2xl border border-dashed border-gray-200 text-center text-xs text-gray-400">
+                  Nenhuma conversa finalizada nas últimas 24 horas.
+                </div>
+              ) : (
+                <div className="space-y-2 max-h-[260px] overflow-y-auto pr-1">
+                  {conversasClassificadas.resolvidos.map((conv) => {
+                    const isSelected = selectedConversaId === conv.id
+                    const cli = conv.cliente_id ? clientesMap.get(conv.cliente_id) : null
+
+                    return (
+                      <div
+                        key={conv.id}
+                        onClick={() => setSelectedConversaId(conv.id)}
+                        className={`p-3 rounded-2xl border transition-all cursor-pointer opacity-85 hover:opacity-100 ${
+                          isSelected
+                            ? 'bg-gray-100 border-gray-400 ring-2 ring-gray-400/20 shadow-xs'
+                            : 'bg-white hover:bg-gray-50 border-gray-200 shadow-2xs'
+                        }`}
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <div className="font-bold text-xs text-gray-900 truncate">
+                              {cli?.nome || formatWhatsAppPhone(conv.numero)}
+                            </div>
+                            <div className="text-[10px] text-gray-500 font-mono">
+                              {formatWhatsAppPhone(conv.numero)}
+                            </div>
+                          </div>
+
+                          <span className="inline-flex items-center gap-1 text-[10px] font-bold text-gray-600 bg-gray-100 px-2 py-0.5 rounded-full">
+                            <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                            Resolvido
+                          </span>
+                        </div>
+
+                        <p className="mt-1.5 text-xs text-gray-500 line-clamp-1 italic">
+                          "{conv.ultima_mensagem_preview || 'Atendimento concluído'}"
+                        </p>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Coluna Principal: Tela de Chat da Conversa */}
+        <div
+          className={`${!selectedConversa ? 'hidden lg:flex lg:col-span-7 xl:col-span-8' : 'col-span-12 lg:col-span-7 xl:col-span-8'} flex-col h-[700px]`}
+        >
+          {selectedConversa ? (
+            <ConversaChatView
+              conversa={selectedConversa}
+              cliente={selectedCliente}
+              onBack={() => setSelectedConversaId(null)}
+              onOpenVincularModal={() => setConversaParaVincular(selectedConversa)}
+            />
+          ) : (
+            <div className="h-full bg-white rounded-2xl border border-gray-200 shadow-xs flex flex-col items-center justify-center p-8 text-center">
+              <div className="w-16 h-16 rounded-3xl bg-emerald-50 text-emerald-700 flex items-center justify-center mb-3 border border-emerald-100">
+                <MessageSquare className="w-8 h-8" />
+              </div>
+              <h3 className="text-base font-bold text-gray-900">Selecione uma conversa ao lado</h3>
+              <p className="text-xs text-gray-500 max-w-sm mt-1 leading-relaxed">
+                Clique em qualquer atendimento na Fila de Novos, Em Atendimento ou Resolvidos para
+                ver o histórico completo, responder via Z-API e aplicar templates rápidos.
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Modal para Vincular Cliente a Conversa Desconhecida */}
+      <ModalVincularCliente
+        isOpen={Boolean(conversaParaVincular)}
+        onClose={() => setConversaParaVincular(null)}
+        conversa={conversaParaVincular}
+        clientes={clientes}
+        onVincular={handleVincularCliente}
+      />
+    </div>
+  )
+}

@@ -18,6 +18,7 @@ import {
   MessageSquare,
 } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
+import { useClientes } from '@/contexts/ClientesContext'
 import { ModalGerenciarWhatsAppTemplates } from '@/components/ModalGerenciarWhatsAppTemplates'
 import { FichaClienteDrawer } from '@/components/FichaClienteDrawer'
 import { DelfosLogo } from '@/components/DelfosLogo'
@@ -25,10 +26,22 @@ import { NotificacoesBell } from '@/components/NotificacoesBell'
 
 export default function Layout() {
   const { user, logout } = useAuth()
+  const { whatsAppConversas } = useClientes()
   const location = useLocation()
   const navigate = useNavigate()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [modalWhatsAppTemplatesOpen, setModalWhatsAppTemplatesOpen] = useState(false)
+
+  // Contagem de atendimentos pendentes: Fila de Novos + conversas Em Atendimento com novas mensagens não lidas
+  const pendentesWhatsAppCount = React.useMemo(() => {
+    return whatsAppConversas.filter((c) => {
+      if (c.status === 'novo') return true
+      if (c.status === 'em_atendimento' && (c.reaberta_em || (c.nao_lidas && c.nao_lidas > 0))) {
+        return true
+      }
+      return false
+    }).length
+  }, [whatsAppConversas])
 
   // Estado da sidebar colapsada para desktop, com persistência em localStorage
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(() => {
@@ -71,6 +84,8 @@ export default function Layout() {
         return 'Atividades & Calendário'
       case '/manutencoes':
         return 'Contratos & Manutenções (O&M)'
+      case '/central-atendimento':
+        return 'Central de Atendimento WhatsApp'
       case '/clientes':
         return 'Gestão de Clientes'
       default:
@@ -78,9 +93,20 @@ export default function Layout() {
     }
   }
 
-  const navItems = [
+  const navItems: Array<{
+    name: string
+    path: string
+    icon: React.ElementType
+    badge?: number
+  }> = [
     { name: 'Dashboard', path: '/', icon: LayoutDashboard },
     { name: 'Comercial', path: '/comercial', icon: KanbanSquare },
+    {
+      name: 'Central de Atendimento',
+      path: '/central-atendimento',
+      icon: MessageSquare,
+      badge: pendentesWhatsAppCount,
+    },
     { name: 'Orçamentos', path: '/orcamentos', icon: Sun },
     { name: 'Projetos', path: '/projetos', icon: FolderKanban },
     { name: 'Atividades', path: '/atividades', icon: CalendarCheck },
@@ -168,15 +194,25 @@ export default function Layout() {
                 {!isSidebarCollapsed && (
                   <>
                     <span className="truncate">{item.name}</span>
-                    {isActive && (
+                    {item.badge !== undefined && item.badge > 0 && (
+                      <span className="ml-auto px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-600 text-white shadow-2xs">
+                        {item.badge}
+                      </span>
+                    )}
+                    {isActive && !item.badge && (
                       <ChevronRight className="w-4 h-4 ml-auto text-[#16A34A] shrink-0" />
                     )}
                   </>
                 )}
+                {/* Badge no modo colapsado */}
+                {isSidebarCollapsed && item.badge !== undefined && item.badge > 0 && (
+                  <span className="absolute top-2 right-2 w-2.5 h-2.5 rounded-full bg-emerald-600 ring-2 ring-white" />
+                )}
                 {/* Tooltip no modo colapsado para hover */}
                 {isSidebarCollapsed && (
                   <span className="absolute left-full ml-2.5 px-2.5 py-1 bg-gray-900 text-white text-xs font-semibold rounded-md shadow-lg whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-50">
-                    {item.name}
+                    {item.name}{' '}
+                    {item.badge !== undefined && item.badge > 0 ? `(${item.badge})` : ''}
                   </span>
                 )}
               </NavLink>
@@ -278,6 +314,11 @@ export default function Layout() {
                   >
                     <Icon className={`w-5 h-5 ${isActive ? 'text-[#16A34A]' : 'text-gray-400'}`} />
                     <span>{item.name}</span>
+                    {item.badge !== undefined && item.badge > 0 && (
+                      <span className="ml-auto px-2 py-0.5 rounded-full text-xs font-black bg-emerald-600 text-white">
+                        {item.badge}
+                      </span>
+                    )}
                   </NavLink>
                 )
               })}

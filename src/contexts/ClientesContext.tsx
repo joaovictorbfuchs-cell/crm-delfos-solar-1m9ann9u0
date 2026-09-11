@@ -70,12 +70,18 @@ import {
   sendWhatsAppMensagem as apiSendWhatsAppMensagem,
   sendWhatsAppDocumento as apiSendWhatsAppDocumento,
   fetchWhatsAppConfigStatus,
+  fetchWhatsAppConversas,
+  vincularConversaCliente as apiVincularConversaCliente,
+  assumirConversa as apiAssumirConversa,
+  finalizarConversa as apiFinalizarConversa,
+  updateWhatsAppConversa as apiUpdateWhatsAppConversa,
 } from '@/services/crmService'
 import type {
   OrcamentoSolar,
   PropostaOM,
   WhatsAppTemplate,
   WhatsAppMensagem,
+  WhatsAppConversa,
   WhatsAppConfigStatus,
 } from '@/types/crm'
 import { useRealtime } from '@/hooks/use-realtime'
@@ -98,6 +104,7 @@ interface ClientesContextType {
   orcamentosSolar: OrcamentoSolar[]
   whatsAppTemplates: WhatsAppTemplate[]
   whatsAppMensagens: WhatsAppMensagem[]
+  whatsAppConversas: WhatsAppConversa[]
   whatsAppConfig: WhatsAppConfigStatus | null
   isLoading: boolean
   error: string | null
@@ -203,8 +210,21 @@ interface ClientesContextType {
   addWhatsAppTemplate: (data: Partial<WhatsAppTemplate>) => Promise<WhatsAppTemplate>
   updateWhatsAppTemplate: (id: string, data: Partial<WhatsAppTemplate>) => Promise<WhatsAppTemplate>
   removeWhatsAppTemplate: (id: string) => Promise<void>
+  vincularConversa: (
+    conversaId: string,
+    clienteId: string,
+    atendenteNome?: string,
+  ) => Promise<WhatsAppConversa>
+  assumirAtendimento: (
+    conversaId: string,
+    atendenteNome: string,
+    atendenteId?: string,
+  ) => Promise<WhatsAppConversa>
+  finalizarAtendimento: (conversaId: string) => Promise<WhatsAppConversa>
+  refreshConversas: () => Promise<WhatsAppConversa[]>
   sendWhatsAppMessage: (data: {
-    cliente_id: string
+    cliente_id?: string
+    conversa_id?: string
     telefone_destino: string
     conteudo_final: string
     template_id?: string
@@ -261,6 +281,7 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [orcamentosSolar, setOrcamentosSolar] = useState<OrcamentoSolar[]>([])
   const [whatsAppTemplates, setWhatsAppTemplates] = useState<WhatsAppTemplate[]>([])
   const [whatsAppMensagens, setWhatsAppMensagens] = useState<WhatsAppMensagem[]>([])
+  const [whatsAppConversas, setWhatsAppConversas] = useState<WhatsAppConversa[]>([])
   const [whatsAppConfig, setWhatsAppConfig] = useState<WhatsAppConfigStatus | null>(null)
   const [isLoading, setIsLoading] = useState<boolean>(true)
   const [error, setError] = useState<string | null>(null)
@@ -296,6 +317,7 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         tplList,
         msgList,
         cfgStatus,
+        convList,
       ] = await Promise.all([
         fetchClientes(),
         fetchSistemas(),
@@ -314,6 +336,7 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         fetchWhatsAppTemplates(),
         fetchWhatsAppMensagens(),
         fetchWhatsAppConfigStatus(),
+        fetchWhatsAppConversas(),
       ])
       setClientes(cList)
       setSistemas(sList)
@@ -331,6 +354,7 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       setOrcamentosSolar(orcList)
       setWhatsAppTemplates(tplList)
       setWhatsAppMensagens(msgList)
+      setWhatsAppConversas(convList)
       setWhatsAppConfig(cfgStatus)
     } catch (err: unknown) {
       console.error('Error loading CRM data:', err)
@@ -488,6 +512,16 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     'whatsapp_mensagens',
     () => {
       fetchWhatsAppMensagens().then(setWhatsAppMensagens).catch(console.error)
+      fetchWhatsAppConversas().then(setWhatsAppConversas).catch(console.error)
+    },
+    isAuthenticated,
+  )
+
+  // Realtime updates for whatsapp_conversas
+  useRealtime<WhatsAppConversa>(
+    'whatsapp_conversas',
+    () => {
+      fetchWhatsAppConversas().then(setWhatsAppConversas).catch(console.error)
     },
     isAuthenticated,
   )
@@ -1072,8 +1106,44 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     setWhatsAppTemplates((prev) => prev.filter((t) => t.id !== id))
   }
 
+  const refreshConversas = async () => {
+    const refreshed = await fetchWhatsAppConversas()
+    setWhatsAppConversas(refreshed)
+    return refreshed
+  }
+
+  const vincularConversa = async (
+    conversaId: string,
+    clienteId: string,
+    atendenteNome?: string,
+  ) => {
+    const updated = await apiVincularConversaCliente(conversaId, clienteId, atendenteNome)
+    setWhatsAppConversas((prev) => prev.map((c) => (c.id === conversaId ? updated : c)))
+    const [cList, mList] = await Promise.all([fetchClientes(), fetchWhatsAppMensagens()])
+    setClientes(cList)
+    setWhatsAppMensagens(mList)
+    return updated
+  }
+
+  const assumirAtendimento = async (
+    conversaId: string,
+    atendenteNome: string,
+    atendenteId?: string,
+  ) => {
+    const updated = await apiAssumirConversa(conversaId, atendenteNome, atendenteId)
+    setWhatsAppConversas((prev) => prev.map((c) => (c.id === conversaId ? updated : c)))
+    return updated
+  }
+
+  const finalizarAtendimento = async (conversaId: string) => {
+    const updated = await apiFinalizarConversa(conversaId)
+    setWhatsAppConversas((prev) => prev.map((c) => (c.id === conversaId ? updated : c)))
+    return updated
+  }
+
   const sendWhatsAppMessage = async (data: {
-    cliente_id: string
+    cliente_id?: string
+    conversa_id?: string
     telefone_destino: string
     conteudo_final: string
     template_id?: string
@@ -1082,9 +1152,13 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     referencia_id?: string
   }) => {
     const res = await apiSendWhatsAppMensagem(data)
-    // Atualiza mensagens
-    const refreshed = await fetchWhatsAppMensagens()
-    setWhatsAppMensagens(refreshed)
+    // Atualiza mensagens e conversas
+    const [refreshedMsgs, refreshedConvs] = await Promise.all([
+      fetchWhatsAppMensagens(),
+      fetchWhatsAppConversas(),
+    ])
+    setWhatsAppMensagens(refreshedMsgs)
+    setWhatsAppConversas(refreshedConvs)
     return res
   }
 
@@ -1187,10 +1261,15 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         removeOrcamentoSolar,
         whatsAppTemplates,
         whatsAppMensagens,
+        whatsAppConversas,
         whatsAppConfig,
         addWhatsAppTemplate,
         updateWhatsAppTemplate,
         removeWhatsAppTemplate,
+        vincularConversa,
+        assumirAtendimento,
+        finalizarAtendimento,
+        refreshConversas,
         sendWhatsAppMessage,
         sendWhatsAppDocument,
         refreshWhatsAppConfig,
