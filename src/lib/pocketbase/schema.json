@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-12T20:03:43.669Z",
+  "generatedAt": "2026-09-12T20:16:48.630Z",
   "collections": [
     {
       "name": "users",
@@ -2813,6 +2813,103 @@
         "CREATE INDEX idx_transf_cred_origem ON transferencias_creditos (cliente_origem_id)",
         "CREATE INDEX idx_transf_cred_status ON transferencias_creditos (status)",
         "CREATE INDEX idx_transf_cred_data ON transferencias_creditos (data_solicitacao)"
+      ]
+    },
+    {
+      "name": "documentos_cliente",
+      "type": "base",
+      "apiRules": {
+        "list": "",
+        "view": "",
+        "create": "",
+        "update": "",
+        "delete": ""
+      },
+      "fields": [
+        {
+          "name": "cliente_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "clientes"
+        },
+        {
+          "name": "tipo",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": [
+            "procuracao",
+            "contrato",
+            "anexo_e",
+            "anexo_f",
+            "anexo_g",
+            "troca_titularidade"
+          ]
+        },
+        {
+          "name": "status_assinatura",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["aguardando_assinatura", "assinado"]
+        },
+        {
+          "name": "data_envio",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "data_assinatura",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "canal_envio",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "telefone_envio",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "observacoes",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "autor",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_docs_cli_cliente ON documentos_cliente (cliente_id)",
+        "CREATE INDEX idx_docs_cli_tipo ON documentos_cliente (tipo)",
+        "CREATE INDEX idx_docs_cli_status ON documentos_cliente (status_assinatura)",
+        "CREATE INDEX idx_docs_cli_cliente_tipo ON documentos_cliente (cliente_id, tipo)"
       ]
     }
   ]
