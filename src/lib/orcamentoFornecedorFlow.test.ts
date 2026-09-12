@@ -1,4 +1,10 @@
 import { extrairOrcamentoFotovoltaicoPDF } from './orcamentoParser'
+import {
+  parsearTextoOCR,
+  extrairQuantidadeDaLinha,
+  extrairPotenciaWpDaLinha,
+  detectarMarca,
+} from '@/services/ocrImagemService'
 import type { Fornecedor, FornecedorItemOrcamento, FornecedorOrcamento } from '@/types/crm'
 
 function assert(condition: boolean, message: string) {
@@ -164,6 +170,99 @@ export function runOrcamentoFornecedorFlowTests(): {
         assertEquals(payloadManual.modulos?.length, 1, 'módulos presentes')
         assertEquals(payloadManual.inversores?.length, 1, 'inversores presentes')
         assertEquals(payloadManual.acessorios?.length, 1, 'acessórios presentes')
+      },
+    },
+    {
+      name: 'OCR Parser: Detecção de quantidades em formatos brasileiros (10x, Qtd: 12, 52 un)',
+      fn: () => {
+        assertEquals(extrairQuantidadeDaLinha('10x 550W Canadian Solar'), 10, 'Formato 10x')
+        assertEquals(
+          extrairQuantidadeDaLinha('Modulo Solar JA 550W Qtd: 12'),
+          12,
+          'Formato Qtd: 12',
+        )
+        assertEquals(extrairQuantidadeDaLinha('Estrutura de fixacao 52 un'), 52, 'Formato 52 un')
+        assertEquals(extrairQuantidadeDaLinha('Inversor Growatt MAX 30KTL3-X'), 1, 'Default 1')
+      },
+    },
+    {
+      name: 'OCR Parser: Detecção de potência Wp em linhas de texto',
+      fn: () => {
+        assertEquals(extrairPotenciaWpDaLinha('Placa Solar Canadian 550W BiHiKu'), 550, '550W')
+        assertEquals(extrairPotenciaWpDaLinha('Painel JA Solar 600 Wp Mono'), 600, '600 Wp')
+        assertEquals(extrairPotenciaWpDaLinha('Inversor Deye sem potencia'), undefined, 'Sem Wp')
+      },
+    },
+    {
+      name: 'OCR Parser: Identificação de marcas conhecidas solares brasileiras',
+      fn: () => {
+        const marcasModulos = ['Canadian Solar', 'JA Solar', 'WEG']
+        const marcasInversores = ['Growatt', 'Deye', 'Huawei']
+
+        assertEquals(
+          detectarMarca('Item 1: Canadian Solar 550W CS7L-550MS', marcasModulos),
+          'Canadian Solar',
+          'Canadian Solar',
+        )
+        assertEquals(
+          detectarMarca('Inversor trifasico GROWATT 30kW', marcasInversores),
+          'Growatt',
+          'Growatt',
+        )
+      },
+    },
+    {
+      name: 'OCR Parser: Análise de texto completo e classificação heurística em 4 perguntas',
+      fn: () => {
+        const textoOCRSimulado = `
+          SOL TECNO DISTRIBUIDORA DE EQUIPAMENTOS FOTOVOLTAICOS
+          CNPJ: 14.285.923/0001-80
+          Proposta Nº: ST-2026-REV01
+          Cliente: João Silva da Silva
+
+          ITENS DA PROPOSTA:
+          1. 52x Modulo Solar Canadian Solar 550W Monocristalino
+          2. 1x Inversor Growatt MAX 30KTL3-X LV Trifasico
+          3. 1x String Box CC 1000V 2 entradas 2 saidas
+          4. 200m Cabo Solar 6mm Preto e Vermelho
+          5. 6x Par de Conectores MC4
+
+          VALOR TOTAL DA PROPOSTA: R$ 48.650,00
+        `
+
+        const resultado = parsearTextoOCR(textoOCRSimulado, 'orcamento_scan.jpg', mockFornecedores)
+
+        assert(Boolean(resultado), 'Resultado gerado')
+        assertEquals(
+          resultado.fornecedorDetectado,
+          'Sol tecno Distribuidora',
+          'Fornecedor detectado',
+        )
+        assertEquals(resultado.numeroRevisaoDetectado, 'ST-2026-REV01', 'Revisão detectada')
+        assertEquals(resultado.valorTotalSugerido, 48650, 'Valor total sugerido R$ 48.650,00')
+        assert(resultado.linhas.length > 0, 'Linhas detectadas')
+
+        // Checar se módulos foram identificados
+        const moduloEncontrado = resultado.linhas.find((l) => l.tipoDetectado === 'modulo')
+        assert(Boolean(moduloEncontrado), 'Módulo solar identificado')
+        if (moduloEncontrado) {
+          assertEquals(moduloEncontrado.quantidadeSugerida, 52, 'Qtd módulo 52')
+          assertEquals(moduloEncontrado.potenciaWpSugerida, 550, 'Wp módulo 550')
+        }
+
+        // Checar se inversor foi identificado
+        const inversorEncontrado = resultado.linhas.find((l) => l.tipoDetectado === 'inversor')
+        assert(Boolean(inversorEncontrado), 'Inversor identificado')
+        if (inversorEncontrado) {
+          assertEquals(inversorEncontrado.quantidadeSugerida, 1, 'Qtd inversor 1')
+          assertEquals(inversorEncontrado.marcaSugerida, 'Growatt', 'Marca inversor Growatt')
+        }
+
+        // Checar se acessórios foram identificados
+        const acessoriosEncontrados = resultado.linhas.filter(
+          (l) => l.tipoDetectado === 'acessorio',
+        )
+        assert(acessoriosEncontrados.length >= 2, 'Pelo menos 2 acessórios identificados')
       },
     },
   ]

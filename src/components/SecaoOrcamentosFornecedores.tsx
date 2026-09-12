@@ -14,8 +14,10 @@ import {
   ChevronUp,
   Columns3,
   Check,
+  Image as ImageIcon,
 } from 'lucide-react'
 import { ModalCompararFornecedores } from './ModalCompararFornecedores'
+import { ModalClassificacaoOrcamentoImagem } from './ModalClassificacaoOrcamentoImagem'
 import { useClientes } from '@/contexts/ClientesContext'
 import {
   FornecedorOrcamentoExtraido,
@@ -23,6 +25,7 @@ import {
   FornecedorOrcamento,
 } from '@/types/crm'
 import { extrairOrcamentoFotovoltaicoPDF } from '@/lib/orcamentoParser'
+import { analisarImagemOrcamento, AnaliseImagemResultado } from '@/services/ocrImagemService'
 import { formatCurrency, formatDate } from '@/lib/formatters'
 import { toast } from 'sonner'
 import pb from '@/lib/pocketbase/client'
@@ -54,13 +57,25 @@ export function SecaoOrcamentosFornecedores({
   } = useClientes()
 
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const imageInputRef = useRef<HTMLInputElement>(null)
   const [isAnalyzing, setIsAnalyzing] = useState(false)
+  const [analyzingMessage, setAnalyzingMessage] = useState('Analisando arquivo PDF...')
   const [analyzedFile, setAnalyzedFile] = useState<File | null>(null)
   const [tabelaRevisaoAberta, setTabelaRevisaoAberta] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [isModalCompararOpen, setIsModalCompararOpen] = useState(false)
   const [isModalFormOpen, setIsModalFormOpen] = useState(false)
   const [motivoModalForm, setMotivoModalForm] = useState<string>('')
+
+  // Estados específicos para o upload por imagem e OCR
+  const [isAnalyzingImage, setIsAnalyzingImage] = useState(false)
+  const [imageOcrProgress, setImageOcrProgress] = useState<{ status: string; percent: number }>({
+    status: 'Iniciando análise visual...',
+    percent: 0,
+  })
+  const [imageFileSelected, setImageFileSelected] = useState<File | null>(null)
+  const [ocrResultado, setOcrResultado] = useState<AnaliseImagemResultado | null>(null)
+  const [isModalClassificacaoOpen, setIsModalClassificacaoOpen] = useState(false)
 
   // Estado editável da tabela de revisão
   const [revisaoDados, setRevisaoDados] = useState<FornecedorOrcamentoExtraido | null>(null)
@@ -86,6 +101,7 @@ export function SecaoOrcamentosFornecedores({
 
     setAnalyzedFile(file)
     setIsAnalyzing(true)
+    setAnalyzingMessage('Lendo e analisando arquivo PDF...')
 
     try {
       const extraido = await extrairOrcamentoFotovoltaicoPDF(file, fornecedores)
@@ -144,6 +160,90 @@ export function SecaoOrcamentosFornecedores({
       setIsAnalyzing(false)
       if (fileInputRef.current) {
         fileInputRef.current.value = ''
+      }
+    }
+  }
+
+  // Lidar com seleção e upload de IMAGEM (JPG, PNG, WEBP)
+  const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    const validExtensions = ['.jpg', '.jpeg', '.png', '.webp']
+    const nameLower = file.name.toLowerCase()
+    const isValidExt = validExtensions.some((ext) => nameLower.endsWith(ext))
+    const isValidMime =
+      file.type.startsWith('image/jpeg') ||
+      file.type.startsWith('image/png') ||
+      file.type.startsWith('image/webp')
+
+    if (!isValidExt && !isValidMime) {
+      toast.error('Por favor, selecione uma imagem válida (JPG, PNG ou WEBP).')
+      return
+    }
+
+    setImageFileSelected(file)
+    setIsAnalyzingImage(true)
+    setImageOcrProgress({ status: 'Preparando imagem para OCR...', percent: 5 })
+
+    try {
+      const resultado = await analisarImagemOrcamento(file, fornecedores, (p) => {
+        setImageOcrProgress(p)
+      })
+
+      // Verificar se o OCR detectou algo utilizável
+      const semItens =
+        resultado.modulosSugeridos.length === 0 &&
+        resultado.inversoresSugeridos.length === 0 &&
+        resultado.acessoriosSugeridos.length === 0
+      const semLinhasRelevantes = resultado.linhas.length === 0
+      const semValor = resultado.valorTotalSugerido === 0
+
+      if (semItens && semLinhasRelevantes && semValor) {
+        // Fallback: abrir formulário vazio com banner explicativo
+        setMotivoModalForm(
+          'Não foi possível extrair textos utilizáveis da imagem (baixa nitidez, reflexo ou iluminação insuficiente). Preencha as informações abaixo para registrar a cotação.',
+        )
+        setAnalyzedFile(file)
+        setRevisaoDados({
+          nome_fornecedor: '',
+          numero_revisao: 'REV-01',
+          data: new Date().toISOString(),
+          valor_total: 0,
+          modulos: [],
+          inversores: [],
+          acessorios: [],
+          observacoes: `Imagem anexada: ${file.name}`,
+        })
+        setIsModalFormOpen(true)
+      } else {
+        setOcrResultado(resultado)
+        setIsModalClassificacaoOpen(true)
+        toast.success('Imagem analisada! Classifique os itens detectados.')
+      }
+    } catch (err) {
+      console.error('Erro na análise OCR da imagem:', err)
+      toast.error('Falha ao processar imagem via OCR.')
+      // Fallback gracioso: formulário manual
+      setMotivoModalForm(
+        'Ocorreu uma falha ao rodar o OCR na imagem. Você pode registrar o orçamento preenchendo os dados abaixo.',
+      )
+      setAnalyzedFile(file)
+      setRevisaoDados({
+        nome_fornecedor: '',
+        numero_revisao: 'REV-01',
+        data: new Date().toISOString(),
+        valor_total: 0,
+        modulos: [],
+        inversores: [],
+        acessorios: [],
+        observacoes: `Imagem anexada: ${file.name}`,
+      })
+      setIsModalFormOpen(true)
+    } finally {
+      setIsAnalyzingImage(false)
+      if (imageInputRef.current) {
+        imageInputRef.current.value = ''
       }
     }
   }
@@ -296,6 +396,7 @@ export function SecaoOrcamentosFornecedores({
             </button>
           )}
 
+          {/* 1. Upload de PDF */}
           <input
             ref={fileInputRef}
             id="input-orcamento-fornecedor-pdf"
@@ -308,13 +409,14 @@ export function SecaoOrcamentosFornecedores({
             htmlFor="input-orcamento-fornecedor-pdf"
             onClick={() => {
               // Fallback para assegurar que o clique funcione mesmo em cenários de overlay
-              if (fileInputRef.current && !isAnalyzing) {
+              if (fileInputRef.current && !isAnalyzing && !isAnalyzingImage) {
                 fileInputRef.current.click()
               }
             }}
             className={`inline-flex items-center gap-1.5 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold shadow-2xs transition-all hover:scale-[1.01] cursor-pointer select-none ${
-              isAnalyzing ? 'opacity-60 pointer-events-none' : ''
+              isAnalyzing || isAnalyzingImage ? 'opacity-60 pointer-events-none' : ''
             }`}
+            title="Upload de cotação em PDF"
           >
             {isAnalyzing ? (
               <>
@@ -323,14 +425,47 @@ export function SecaoOrcamentosFornecedores({
               </>
             ) : (
               <>
-                <Plus className="w-4 h-4" />
                 <UploadCloud className="w-4 h-4" />
-                <span>Adicionar Orçamento</span>
+                <span>Adicionar Orçamento (PDF)</span>
               </>
             )}
           </label>
 
-          {/* Opção para abrir diretamente o formulário rápido de digitação */}
+          {/* 2. Upload por Imagem (Foto / Scan / Print) */}
+          <input
+            ref={imageInputRef}
+            id="input-orcamento-fornecedor-imagem"
+            type="file"
+            accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
+            onChange={handleImageChange}
+            className="sr-only"
+          />
+          <label
+            htmlFor="input-orcamento-fornecedor-imagem"
+            onClick={() => {
+              if (imageInputRef.current && !isAnalyzing && !isAnalyzingImage) {
+                imageInputRef.current.click()
+              }
+            }}
+            className={`inline-flex items-center gap-1.5 px-3.5 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg text-xs font-bold shadow-2xs transition-all hover:scale-[1.01] cursor-pointer select-none ${
+              isAnalyzing || isAnalyzingImage ? 'opacity-60 pointer-events-none' : ''
+            }`}
+            title="Upload de foto, scan ou print do orçamento (JPG, PNG, WEBP)"
+          >
+            {isAnalyzingImage ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin text-white" />
+                <span>Analisando imagem...</span>
+              </>
+            ) : (
+              <>
+                <ImageIcon className="w-4 h-4" />
+                <span>Upload por Imagem</span>
+              </>
+            )}
+          </label>
+
+          {/* 3. Preenchimento Manual */}
           <button
             type="button"
             onClick={() => {
@@ -340,7 +475,7 @@ export function SecaoOrcamentosFornecedores({
               setIsModalFormOpen(true)
             }}
             className="inline-flex items-center gap-1.5 px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-xs font-semibold shadow-2xs transition-all"
-            title="Preencher manualmente sem enviar PDF"
+            title="Preencher manualmente sem enviar arquivo"
           >
             <FileText className="w-3.5 h-3.5 text-gray-600" />
             <span>Preenchimento Manual</span>
@@ -348,16 +483,40 @@ export function SecaoOrcamentosFornecedores({
         </div>
       </div>
 
-      {/* Banner de carregamento ativo */}
+      {/* Banner de carregamento ativo para PDF */}
       {isAnalyzing && (
         <div className="p-4 bg-emerald-50 rounded-xl border border-emerald-200 flex items-center gap-3 animate-pulse">
           <Loader2 className="w-5 h-5 text-emerald-700 animate-spin shrink-0" />
           <div className="text-xs text-emerald-900">
-            <strong>Lendo e analisando arquivo PDF...</strong>
+            <strong>{analyzingMessage}</strong>
             <p className="text-[11px] text-emerald-700">
               Identificando fornecedor, quantidade e descrição de módulos solares, inversores, lista
               de acessórios e valor total.
             </p>
+          </div>
+        </div>
+      )}
+
+      {/* Banner de carregamento ativo para Imagem (OCR) */}
+      {isAnalyzingImage && (
+        <div className="p-4 bg-teal-50 rounded-xl border border-teal-200 flex items-center gap-3 animate-pulse">
+          <Loader2 className="w-5 h-5 text-teal-700 animate-spin shrink-0" />
+          <div className="text-xs text-teal-950 flex-1">
+            <div className="flex items-center justify-between">
+              <strong>Analisando imagem...</strong>
+              <span className="font-bold text-teal-700">{imageOcrProgress.percent}%</span>
+            </div>
+            <p className="text-[11px] text-teal-700 mt-0.5">
+              {imageOcrProgress.status ||
+                'Processando OCR com Tesseract.js (português + inglês)...'}
+            </p>
+            {/* Barra de progresso visual */}
+            <div className="w-full bg-teal-200/60 rounded-full h-1.5 mt-2 overflow-hidden">
+              <div
+                className="bg-teal-600 h-1.5 rounded-full transition-all duration-300"
+                style={{ width: `${Math.max(10, imageOcrProgress.percent)}%` }}
+              />
+            </div>
           </div>
         </div>
       )}
@@ -670,33 +829,40 @@ export function SecaoOrcamentosFornecedores({
         {orcamentosVinculados.length === 0 ? (
           <div className="p-5 text-center rounded-xl bg-gray-50/70 border border-dashed border-gray-200 text-xs text-gray-500 space-y-3">
             <p>
-              Nenhum orçamento de fornecedor anexado ainda. Faça upload de um PDF de cotação para
-              extrair módulos, inversores, acessórios e valores automaticamente.
+              Nenhum orçamento de fornecedor anexado ainda. Faça upload do PDF ou de uma imagem
+              (foto/scan/print) da cotação para extrair módulos, inversores, acessórios e valores.
             </p>
-            <label
-              htmlFor="input-orcamento-fornecedor-pdf"
-              onClick={() => {
-                if (fileInputRef.current && !isAnalyzing) {
-                  fileInputRef.current.click()
-                }
-              }}
-              className={`inline-flex items-center gap-1.5 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold shadow-2xs transition-all hover:scale-[1.01] cursor-pointer select-none ${
-                isAnalyzing ? 'opacity-60 pointer-events-none' : ''
-              }`}
-            >
-              {isAnalyzing ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin text-white" />
-                  <span>Analisando PDF...</span>
-                </>
-              ) : (
-                <>
-                  <Plus className="w-4 h-4" />
-                  <UploadCloud className="w-4 h-4" />
-                  <span>Adicionar Orçamento</span>
-                </>
-              )}
-            </label>
+            <div className="flex items-center justify-center gap-2 flex-wrap">
+              <label
+                htmlFor="input-orcamento-fornecedor-pdf"
+                onClick={() => {
+                  if (fileInputRef.current && !isAnalyzing && !isAnalyzingImage) {
+                    fileInputRef.current.click()
+                  }
+                }}
+                className={`inline-flex items-center gap-1.5 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold shadow-2xs transition-all hover:scale-[1.01] cursor-pointer select-none ${
+                  isAnalyzing || isAnalyzingImage ? 'opacity-60 pointer-events-none' : ''
+                }`}
+              >
+                <UploadCloud className="w-4 h-4" />
+                <span>Adicionar Orçamento (PDF)</span>
+              </label>
+
+              <label
+                htmlFor="input-orcamento-fornecedor-imagem"
+                onClick={() => {
+                  if (imageInputRef.current && !isAnalyzing && !isAnalyzingImage) {
+                    imageInputRef.current.click()
+                  }
+                }}
+                className={`inline-flex items-center gap-1.5 px-3.5 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg text-xs font-bold shadow-2xs transition-all hover:scale-[1.01] cursor-pointer select-none ${
+                  isAnalyzing || isAnalyzingImage ? 'opacity-60 pointer-events-none' : ''
+                }`}
+              >
+                <ImageIcon className="w-4 h-4" />
+                <span>Upload por Imagem</span>
+              </label>
+            </div>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -837,6 +1003,38 @@ export function SecaoOrcamentosFornecedores({
         onSalvar={executarSalvarOrcamento}
         isSaving={isSaving}
         motivoAberturaAutomatica={motivoModalForm}
+      />
+
+      {/* Modal de Seleção e Classificação Guiada por Imagem (OCR) */}
+      <ModalClassificacaoOrcamentoImagem
+        isOpen={isModalClassificacaoOpen}
+        onClose={() => {
+          setIsModalClassificacaoOpen(false)
+          setOcrResultado(null)
+          setImageFileSelected(null)
+        }}
+        resultadoAnalise={ocrResultado}
+        imagemFile={imageFileSelected}
+        fornecedores={fornecedores}
+        onConfirmarClassificacao={async (dadosProntos) => {
+          setIsModalClassificacaoOpen(false)
+          // Preencher diretamente os dados no formulário ModalOrcamentoFornecedorForm
+          setRevisaoDados({
+            nome_fornecedor: dadosProntos.nome_fornecedor,
+            fornecedor_id: dadosProntos.fornecedor_id,
+            numero_revisao: dadosProntos.numero_revisao,
+            valor_total: dadosProntos.valor_total,
+            modulos: dadosProntos.modulos,
+            inversores: dadosProntos.inversores,
+            acessorios: dadosProntos.acessorios,
+            observacoes: dadosProntos.observacoes,
+            data: new Date().toISOString(),
+          })
+          setAnalyzedFile(dadosProntos.arquivoOriginal)
+          setMotivoModalForm('')
+          // Abre o ModalOrcamentoFornecedorForm já 100% preenchido para revisão final rápida e salvar
+          setIsModalFormOpen(true)
+        }}
       />
 
       {/* Modal de Comparação Lado a Lado */}
