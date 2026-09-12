@@ -30,6 +30,7 @@ import {
   baixarPropostaSolarHTML,
   type PropostaSolarPDFInput,
 } from '@/lib/propostaSolarGenerator'
+import { baixarPropostaSolarDocx } from '@/lib/propostaSolarDocxGenerator'
 import { ModalEnviarDocumentoWhatsApp } from '@/components/ModalEnviarDocumentoWhatsApp'
 import { calcularOrcamentoSolar } from '@/lib/energiaSolar'
 
@@ -482,6 +483,74 @@ export const Orcamentos: React.FC = () => {
                             title="Visualizar e Imprimir Proposta (PDF)"
                           >
                             <Printer className="w-4 h-4" />
+                          </button>
+
+                          {/* Gerar e Baixar Proposta em Word (.docx) */}
+                          <button
+                            onClick={async () => {
+                              const calculos = calcularOrcamentoSolar({
+                                consumoKwhMes: orc.consumo_kwh_mes,
+                                tipoCliente: orc.tipo_cliente || 'residencial',
+                                tarifaKwh: orc.tarifa_kwh,
+                                potenciaKwp: orc.potencia_kwp,
+                                orientacaoTelhado: orc.orientacao_telhado,
+                                custos: {
+                                  maoDeObra: orc.custo_mao_de_obra || 0,
+                                  materiaisExtras: orc.custo_materiais_extras || 0,
+                                  freteGuincho: orc.custo_frete_guincho || 0,
+                                  subestacao: orc.custo_subestacao || 0,
+                                  terceirizacao: orc.custo_terceirizacao || 0,
+                                  administracao: orc.custo_administracao || 0,
+                                  marketingCombustivel: orc.custo_marketing_combustivel || 0,
+                                  riscoEngenharia: orc.custo_risco_engenharia || 0,
+                                  comissaoComercial: orc.custo_comissao_comercial || 0,
+                                  indicacao: orc.custo_indicacao || 0,
+                                  impostos: orc.custo_impostos || 0,
+                                },
+                                valorInvestimentoInformado: orc.valor_investimento,
+                              })
+
+                              const docxInput: PropostaSolarPDFInput = {
+                                cliente: {
+                                  nome: cliente?.nome_fantasia
+                                    ? `${cliente.nome} (${cliente.nome_fantasia})`
+                                    : cliente?.nome || 'Cliente',
+                                  cpfOuCnpj: cliente?.cnpj || cliente?.cpf || '',
+                                  endereco: [cliente?.endereco, cliente?.numero, cliente?.bairro]
+                                    .filter(Boolean)
+                                    .join(', '),
+                                  municipio: cliente?.cidade || 'Erechim / RS',
+                                  email: cliente?.email || '',
+                                  telefone: cliente?.telefone || '',
+                                  tipoCliente: orc.tipo_cliente,
+                                },
+                                representanteComercial: orc.autor || 'Delfos Solar',
+                                sistema: {
+                                  potenciaKwp: orc.potencia_kwp,
+                                  consumoKwhMes: orc.consumo_kwh_mes,
+                                  numeroPlacas: orc.numero_placas,
+                                  potenciaPlacaWp: orc.potencia_placa_wp,
+                                  marcaPlacas: orc.marca_painel,
+                                  marcaInversor: orc.marca_inversor,
+                                  quantidadeInversores: orc.quantidade_inversores,
+                                  tipoEstrutura: orc.tipo_estrutura,
+                                  orientacaoTelhado: orc.orientacao_telhado,
+                                  areaNecessariaM2: orc.area_necessaria_m2,
+                                  codigoFiname: orc.codigo_finame,
+                                  prazoEntregaDias: 30,
+                                },
+                                calculos,
+                                dataEmissao: orc.data_orcamento || orc.created,
+                                validadeDias: orc.validade_dias || 5,
+                                observacoes: orc.observacoes,
+                              }
+
+                              await baixarPropostaSolarDocx(docxInput)
+                            }}
+                            className="p-1.5 rounded-lg text-blue-700 hover:text-blue-900 hover:bg-blue-100 transition-colors"
+                            title="Gerar Proposta em Word (.docx)"
+                          >
+                            <FileText className="w-4 h-4 text-blue-600" />
                           </button>
 
                           {/* Enviar Proposta por WhatsApp */}

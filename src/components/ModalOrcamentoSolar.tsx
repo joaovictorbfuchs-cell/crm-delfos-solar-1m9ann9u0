@@ -22,6 +22,8 @@ import {
   Factory,
   Tractor,
   Send,
+  FileDown,
+  Download,
 } from 'lucide-react'
 import { ModalEnviarDocumentoWhatsApp } from './ModalEnviarDocumentoWhatsApp'
 import { SecaoOrcamentosFornecedores } from './SecaoOrcamentosFornecedores'
@@ -45,6 +47,10 @@ import {
   baixarPropostaSolarHTML,
   type PropostaSolarPDFInput,
 } from '@/lib/propostaSolarGenerator'
+import {
+  gerarBlobPropostaSolarDocx,
+  baixarPropostaSolarDocx,
+} from '@/lib/propostaSolarDocxGenerator'
 
 interface ModalOrcamentoSolarProps {
   isOpen: boolean
@@ -99,6 +105,8 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
   const [observacoes, setObservacoes] = useState<string>('')
   const [prazoEntregaDias, setPrazoEntregaDias] = useState<number>(30)
   const [modalWhatsAppOpen, setModalWhatsAppOpen] = useState<boolean>(false)
+  const [isGeneratingWord, setIsGeneratingWord] = useState<boolean>(false)
+  const [wordDocxBlob, setWordDocxBlob] = useState<Blob | null>(null)
 
   // Custos do projeto (aba de custos com soma automática)
   const [custos, setCustos] = useState<DadosCustosSolar>({ ...CUSTOS_SOLAR_PADRAO })
@@ -142,6 +150,7 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
     } else if (clientes.length > 0 && !selectedClienteId) {
       setSelectedClienteId(clientes[0].id)
     }
+    setWordDocxBlob(null)
   }, [initialOrcamento, initialClienteId, clientes])
 
   // Quando o cliente selecionado mudar (e não for edição de orçamento existente), buscar dados automáticos do cliente/sistema
@@ -484,6 +493,41 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
       ...prev,
       [campo]: Math.max(0, valor || 0),
     }))
+  }
+
+  // Gera o documento .docx formatado da proposta solar
+  const handleGerarPropostaWord = async () => {
+    if (!propostaPDFData) {
+      alert('Selecione um cliente para gerar a proposta em Word.')
+      return
+    }
+
+    try {
+      setIsGeneratingWord(true)
+      const blob = await gerarBlobPropostaSolarDocx(propostaPDFData)
+      setWordDocxBlob(blob)
+      // Baixar automaticamente logo após gerar
+      await baixarPropostaSolarDocx(propostaPDFData, blob)
+    } catch (err) {
+      console.error('Erro ao gerar proposta Word:', err)
+      alert('Ocorreu um erro ao gerar o documento Word. Tente novamente.')
+    } finally {
+      setIsGeneratingWord(false)
+    }
+  }
+
+  // Baixa o documento Word já gerado (ou gera e baixa se não tiver em memória)
+  const handleBaixarWord = async () => {
+    if (!propostaPDFData) return
+    try {
+      setIsGeneratingWord(true)
+      await baixarPropostaSolarDocx(propostaPDFData, wordDocxBlob || undefined)
+    } catch (err) {
+      console.error('Erro ao baixar documento Word:', err)
+      alert('Não foi possível baixar o documento Word.')
+    } finally {
+      setIsGeneratingWord(false)
+    }
   }
 
   return (
@@ -1562,9 +1606,32 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                     </div>
                   </div>
 
-                  <span className="text-xs font-semibold text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200">
-                    Validade: 5 dias
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={handleGerarPropostaWord}
+                      disabled={isGeneratingWord || !clienteAtual}
+                      className="text-xs font-bold px-3 py-1.5 rounded-lg bg-blue-50 text-blue-800 hover:bg-blue-100 border border-blue-200 flex items-center gap-1.5 transition-colors shadow-2xs"
+                      title="Gerar proposta em arquivo Word (.docx)"
+                    >
+                      <FileDown className="w-3.5 h-3.5 text-blue-600" />
+                      <span>{isGeneratingWord ? 'Gerando...' : 'Gerar Proposta em Word'}</span>
+                    </button>
+                    {wordDocxBlob && (
+                      <button
+                        type="button"
+                        onClick={handleBaixarWord}
+                        className="text-xs font-bold px-3 py-1.5 rounded-lg bg-blue-600 text-white hover:bg-blue-700 border border-blue-700 flex items-center gap-1.5 transition-colors shadow-2xs"
+                        title="Baixar arquivo Word gerado"
+                      >
+                        <Download className="w-3.5 h-3.5" />
+                        <span>Baixar Word</span>
+                      </button>
+                    )}
+                    <span className="text-xs font-semibold text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200">
+                      Validade: 5 dias
+                    </span>
+                  </div>
                 </div>
 
                 {/* Grade de Desperdício x Economia */}
@@ -1700,12 +1767,40 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
             <button
               type="button"
               onClick={() => handleSalvar('abrir_pdf')}
-              disabled={isSubmitting || !clienteAtual}
-              className="px-4 py-2 bg-emerald-100 hover:bg-emerald-200 text-emerald-900 text-xs font-bold rounded-xl transition-all inline-flex items-center gap-1.5 shadow-2xs border border-emerald-300"
+              disabled={isSubmitting || isGeneratingWord || !clienteAtual}
+              className="px-3.5 py-2 bg-emerald-100 hover:bg-emerald-200 text-emerald-900 text-xs font-bold rounded-xl transition-all inline-flex items-center gap-1.5 shadow-2xs border border-emerald-300"
               title="Salvar orçamento e abrir PDF completo para impressão"
             >
               <Printer className="w-4 h-4 text-emerald-700" />
               <span>Gerar Proposta (PDF)</span>
+            </button>
+
+            {/* Botão Gerar Proposta em Word (.docx) */}
+            <button
+              type="button"
+              onClick={handleGerarPropostaWord}
+              disabled={isSubmitting || isGeneratingWord || !clienteAtual}
+              className="px-3.5 py-2 bg-blue-50 hover:bg-blue-100 text-blue-900 text-xs font-bold rounded-xl transition-all inline-flex items-center gap-1.5 shadow-2xs border border-blue-300 disabled:opacity-50"
+              title="Criar documento Word (.docx) profissional e editável"
+            >
+              <FileDown className="w-4 h-4 text-blue-700" />
+              <span>{isGeneratingWord ? 'Gerando Word...' : 'Gerar Proposta em Word'}</span>
+            </button>
+
+            {/* Botão Baixar Word (disponível ou para download direto do .docx) */}
+            <button
+              type="button"
+              onClick={handleBaixarWord}
+              disabled={isSubmitting || isGeneratingWord || !clienteAtual}
+              className={`px-3 py-2 text-xs font-bold rounded-xl transition-all inline-flex items-center gap-1.5 border shadow-2xs ${
+                wordDocxBlob
+                  ? 'bg-blue-600 hover:bg-blue-700 text-white border-blue-700 animate-pulse'
+                  : 'bg-white hover:bg-gray-50 text-blue-800 border-blue-200'
+              } disabled:opacity-40`}
+              title="Baixar arquivo Word (.docx) no computador"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span>Baixar Word</span>
             </button>
 
             {/* Botão Enviar por WhatsApp direto da proposta */}
