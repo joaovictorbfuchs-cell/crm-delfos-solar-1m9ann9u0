@@ -849,3 +849,130 @@ export async function arquivarConversaComoOutroContato(
     nao_lidas: 0,
   })
 }
+
+// -------------------------------------------------------------
+// Fornecedores & Orçamentos de Fornecedores
+// -------------------------------------------------------------
+
+export async function fetchFornecedores(): Promise<import('@/types/crm').Fornecedor[]> {
+  try {
+    const records = await pb
+      .collection('fornecedores')
+      .getFullList<import('@/types/crm').Fornecedor>({
+        sort: 'nome_empresa',
+      })
+    return records
+  } catch (err) {
+    console.error('Erro ao buscar fornecedores:', err)
+    return []
+  }
+}
+
+export async function createFornecedor(
+  data: Partial<import('@/types/crm').Fornecedor>,
+): Promise<import('@/types/crm').Fornecedor> {
+  return pb.collection('fornecedores').create<import('@/types/crm').Fornecedor>(data)
+}
+
+export async function updateFornecedor(
+  id: string,
+  data: Partial<import('@/types/crm').Fornecedor>,
+): Promise<import('@/types/crm').Fornecedor> {
+  return pb.collection('fornecedores').update<import('@/types/crm').Fornecedor>(id, data)
+}
+
+export async function deleteFornecedor(id: string): Promise<boolean> {
+  await pb.collection('fornecedores').delete(id)
+  return true
+}
+
+export async function fetchFornecedoresOrcamentos(options?: {
+  fornecedorId?: string
+  clienteId?: string
+  orcamentoSolarId?: string
+}): Promise<import('@/types/crm').FornecedorOrcamento[]> {
+  try {
+    const filters: string[] = []
+    if (options?.fornecedorId) filters.push(`fornecedor_id = '${options.fornecedorId}'`)
+    if (options?.clienteId) filters.push(`cliente_id = '${options.clienteId}'`)
+    if (options?.orcamentoSolarId)
+      filters.push(`orcamento_solar_id = '${options.orcamentoSolarId}'`)
+    const filter = filters.join(' && ')
+
+    const records = await pb
+      .collection('fornecedores_orcamentos')
+      .getFullList<import('@/types/crm').FornecedorOrcamento>({
+        filter: filter || undefined,
+        sort: '-data,-created',
+        expand: 'fornecedor_id,cliente_id,orcamento_solar_id',
+      })
+    return records
+  } catch (err) {
+    console.error('Erro ao buscar orçamentos de fornecedores:', err)
+    return []
+  }
+}
+
+export async function createFornecedorOrcamento(
+  data: Partial<import('@/types/crm').FornecedorOrcamento>,
+  file?: File,
+): Promise<import('@/types/crm').FornecedorOrcamento> {
+  if (file) {
+    const formData = new FormData()
+    formData.append('arquivo', file)
+    Object.entries(data).forEach(([key, val]) => {
+      if (val !== undefined && val !== null) {
+        if (typeof val === 'object') {
+          formData.append(key, JSON.stringify(val))
+        } else {
+          formData.append(key, String(val))
+        }
+      }
+    })
+    return pb
+      .collection('fornecedores_orcamentos')
+      .create<import('@/types/crm').FornecedorOrcamento>(formData, {
+        expand: 'fornecedor_id,cliente_id,orcamento_solar_id',
+      })
+  }
+  return pb
+    .collection('fornecedores_orcamentos')
+    .create<import('@/types/crm').FornecedorOrcamento>(data, {
+      expand: 'fornecedor_id,cliente_id,orcamento_solar_id',
+    })
+}
+
+export async function updateFornecedorOrcamento(
+  id: string,
+  data: Partial<import('@/types/crm').FornecedorOrcamento>,
+  file?: File,
+): Promise<import('@/types/crm').FornecedorOrcamento> {
+  if (file) {
+    const formData = new FormData()
+    formData.append('arquivo', file)
+    Object.entries(data).forEach(([key, val]) => {
+      if (val !== undefined && val !== null) {
+        if (typeof val === 'object') {
+          formData.append(key, JSON.stringify(val))
+        } else {
+          formData.append(key, String(val))
+        }
+      }
+    })
+    return pb
+      .collection('fornecedores_orcamentos')
+      .update<import('@/types/crm').FornecedorOrcamento>(id, formData, {
+        expand: 'fornecedor_id,cliente_id,orcamento_solar_id',
+      })
+  }
+  return pb
+    .collection('fornecedores_orcamentos')
+    .update<import('@/types/crm').FornecedorOrcamento>(id, data, {
+      expand: 'fornecedor_id,cliente_id,orcamento_solar_id',
+    })
+}
+
+export async function deleteFornecedorOrcamento(id: string): Promise<boolean> {
+  await pb.collection('fornecedores_orcamentos').delete(id)
+  return true
+}

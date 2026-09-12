@@ -24,6 +24,7 @@ import {
   Send,
 } from 'lucide-react'
 import { ModalEnviarDocumentoWhatsApp } from './ModalEnviarDocumentoWhatsApp'
+import { SecaoOrcamentosFornecedores } from './SecaoOrcamentosFornecedores'
 import { useClientes } from '@/contexts/ClientesContext'
 import { useAuth } from '@/contexts/AuthContext'
 import { ClienteAutocomplete } from '@/components/ClienteAutocomplete'
@@ -974,6 +975,25 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                   </div>
                 </div>
               </div>
+
+              {/* Seção Orçamentos de Fornecedores com Upload de PDF e Tabela de Revisão */}
+              <SecaoOrcamentosFornecedores
+                clienteId={selectedClienteId}
+                orcamentoSolarId={initialOrcamento?.id}
+                onUsarEquipamentos={(equip) => {
+                  if (equip.marcaPainel) setMarcaPainel(equip.marcaPainel)
+                  if (equip.numeroPlacas && equip.numeroPlacas > 0) {
+                    handleNumeroPlacasChange(equip.numeroPlacas)
+                  }
+                  if (equip.marcaInversor) setMarcaInversor(equip.marcaInversor)
+                  if (equip.quantidadeInversores && equip.quantidadeInversores > 0) {
+                    setQuantidadeInversores(equip.quantidadeInversores)
+                  }
+                  if (equip.valorTotal && equip.valorTotal > 0) {
+                    setValorInvestimentoManual(equip.valorTotal)
+                  }
+                }}
+              />
 
               {/* Tabela de Geração Mensal Sazonal (Janeiro a Dezembro) */}
               <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-xs space-y-3">

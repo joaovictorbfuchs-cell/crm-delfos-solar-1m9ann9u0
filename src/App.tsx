@@ -12,6 +12,7 @@ import Comercial from './pages/Comercial'
 import Projetos from './pages/Projetos'
 import Manutencoes from './pages/Manutencoes'
 import Clientes from './pages/Clientes'
+import Fornecedores from './pages/Fornecedores'
 import Orcamentos from './pages/Orcamentos'
 import Atividades from './pages/Atividades'
 import { CentralAtendimento } from './pages/CentralAtendimento'
@@ -42,6 +43,7 @@ const App = () => (
               <Route path="/atividades" element={<Atividades />} />
               <Route path="/manutencoes" element={<Manutencoes />} />
               <Route path="/clientes" element={<Clientes />} />
+              <Route path="/fornecedores" element={<Fornecedores />} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>

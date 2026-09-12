@@ -7,6 +7,7 @@ import {
   CalendarCheck,
   Wrench,
   Users,
+  Truck,
   Menu,
   X,
   LogOut,
@@ -89,6 +90,8 @@ export default function Layout() {
         return 'Central de Atendimento WhatsApp'
       case '/clientes':
         return 'Gestão de Clientes'
+      case '/fornecedores':
+        return 'Fornecedores de Equipamentos'
       default:
         return 'Delfos Solar CRM'
     }
@@ -107,6 +110,7 @@ export default function Layout() {
     { name: 'Atividades', path: '/atividades', icon: CalendarCheck },
     { name: 'O&M / Manutenções', path: '/manutencoes', icon: Wrench },
     { name: 'Clientes', path: '/clientes', icon: Users },
+    { name: 'Fornecedores', path: '/fornecedores', icon: Truck },
   ]
   const userInitial = user?.name ? user.name.charAt(0).toUpperCase() : 'J'
 

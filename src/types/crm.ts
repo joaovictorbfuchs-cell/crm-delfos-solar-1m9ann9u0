@@ -155,6 +155,79 @@ export interface WhatsAppConversa extends RecordModel {
   }
 }
 
+// -------------------------------------------------------------
+// Tipos para Gestão de Fornecedores e Orçamentos de Fornecedores
+// -------------------------------------------------------------
+
+export type FornecedorEspecialidade =
+  | 'paineis'
+  | 'inversores'
+  | 'estruturas'
+  | 'acessorios'
+  | 'completo'
+
+export interface FornecedorItemOrcamento {
+  descricao: string
+  quantidade: number
+  valor_unitario?: number
+}
+
+export interface Fornecedor extends RecordModel {
+  id: string
+  collectionId: string
+  collectionName: string
+  nome_empresa: string
+  cnpj?: string
+  contato_nome?: string
+  telefone?: string
+  email?: string
+  endereco?: string
+  especialidade: FornecedorEspecialidade
+  observacoes?: string
+  created: string
+  updated: string
+  expand?: {
+    'fornecedores_orcamentos(fornecedor_id)'?: FornecedorOrcamento[]
+  }
+}
+
+export interface FornecedorOrcamento extends RecordModel {
+  id: string
+  collectionId: string
+  collectionName: string
+  fornecedor_id?: string
+  cliente_id?: string
+  orcamento_solar_id?: string
+  nome_fornecedor: string
+  data: string
+  numero_revisao?: string
+  valor_total: number
+  modulos?: FornecedorItemOrcamento[]
+  inversores?: FornecedorItemOrcamento[]
+  acessorios?: FornecedorItemOrcamento[]
+  arquivo?: string
+  observacoes?: string
+  created: string
+  updated: string
+  expand?: {
+    fornecedor_id?: Fornecedor
+    cliente_id?: Cliente
+    orcamento_solar_id?: OrcamentoSolar
+  }
+}
+
+export interface FornecedorOrcamentoExtraido {
+  nome_fornecedor: string
+  fornecedor_id?: string
+  numero_revisao?: string
+  data?: string
+  valor_total: number
+  modulos: FornecedorItemOrcamento[]
+  inversores: FornecedorItemOrcamento[]
+  acessorios: FornecedorItemOrcamento[]
+  observacoes?: string
+}
+
 export interface WhatsAppTemplate extends RecordModel {
   id: string
   collectionId: string

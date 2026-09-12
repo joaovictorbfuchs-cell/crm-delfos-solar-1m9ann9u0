@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-11T22:19:21.120Z",
+  "generatedAt": "2026-09-12T15:46:00.707Z",
   "collections": [
     {
       "name": "users",
@@ -2212,6 +2212,190 @@
         "CREATE INDEX idx_outros_contatos_telefone ON outros_contatos (telefone)",
         "CREATE INDEX idx_outros_contatos_tipo ON outros_contatos (tipo_contato)"
       ]
+    },
+    {
+      "name": "fornecedores",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "nome_empresa",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "cnpj",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "contato_nome",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "telefone",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "email",
+          "type": "email",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "endereco",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "especialidade",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["paineis", "inversores", "estruturas", "acessorios", "completo"]
+        },
+        {
+          "name": "observacoes",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_fornecedores_nome ON fornecedores (nome_empresa)",
+        "CREATE INDEX idx_fornecedores_cnpj ON fornecedores (cnpj)",
+        "CREATE INDEX idx_fornecedores_especialidade ON fornecedores (especialidade)"
+      ]
+    },
+    {
+      "name": "fornecedores_orcamentos",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "fornecedor_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "fornecedores"
+        },
+        {
+          "name": "cliente_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "clientes"
+        },
+        {
+          "name": "orcamento_solar_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "orcamentos_solar"
+        },
+        {
+          "name": "nome_fornecedor",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "data",
+          "type": "date",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "numero_revisao",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "valor_total",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "modulos",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "inversores",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "acessorios",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "arquivo",
+          "type": "file",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "observacoes",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": []
     }
   ]
 }

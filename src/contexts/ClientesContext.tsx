@@ -102,6 +102,8 @@ interface ClientesContextType {
   timelineOM: TimelineOM[]
   propostasOM: PropostaOM[]
   orcamentosSolar: OrcamentoSolar[]
+  fornecedores: import('@/types/crm').Fornecedor[]
+  fornecedoresOrcamentos: import('@/types/crm').FornecedorOrcamento[]
   whatsAppTemplates: WhatsAppTemplate[]
   whatsAppMensagens: WhatsAppMensagem[]
   whatsAppConversas: WhatsAppConversa[]
@@ -206,6 +208,26 @@ interface ClientesContextType {
   addOrcamentoSolar: (data: Partial<OrcamentoSolar>) => Promise<OrcamentoSolar>
   updateOrcamentoSolar: (id: string, data: Partial<OrcamentoSolar>) => Promise<OrcamentoSolar>
   removeOrcamentoSolar: (id: string) => Promise<void>
+  // Fornecedores
+  addFornecedor: (
+    data: Partial<import('@/types/crm').Fornecedor>,
+  ) => Promise<import('@/types/crm').Fornecedor>
+  updateFornecedor: (
+    id: string,
+    data: Partial<import('@/types/crm').Fornecedor>,
+  ) => Promise<import('@/types/crm').Fornecedor>
+  removeFornecedor: (id: string) => Promise<void>
+  addFornecedorOrcamento: (
+    data: Partial<import('@/types/crm').FornecedorOrcamento>,
+    file?: File,
+  ) => Promise<import('@/types/crm').FornecedorOrcamento>
+  updateFornecedorOrcamento: (
+    id: string,
+    data: Partial<import('@/types/crm').FornecedorOrcamento>,
+    file?: File,
+  ) => Promise<import('@/types/crm').FornecedorOrcamento>
+  removeFornecedorOrcamento: (id: string) => Promise<void>
+  refreshFornecedores: () => Promise<void>
   // WhatsApp
   addWhatsAppTemplate: (data: Partial<WhatsAppTemplate>) => Promise<WhatsAppTemplate>
   updateWhatsAppTemplate: (id: string, data: Partial<WhatsAppTemplate>) => Promise<WhatsAppTemplate>
@@ -303,6 +325,10 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [timelineOM, setTimelineOM] = useState<TimelineOM[]>([])
   const [propostasOM, setPropostasOM] = useState<PropostaOM[]>([])
   const [orcamentosSolar, setOrcamentosSolar] = useState<OrcamentoSolar[]>([])
+  const [fornecedores, setFornecedores] = useState<import('@/types/crm').Fornecedor[]>([])
+  const [fornecedoresOrcamentos, setFornecedoresOrcamentos] = useState<
+    import('@/types/crm').FornecedorOrcamento[]
+  >([])
   const [whatsAppTemplates, setWhatsAppTemplates] = useState<WhatsAppTemplate[]>([])
   const [whatsAppMensagens, setWhatsAppMensagens] = useState<WhatsAppMensagem[]>([])
   const [whatsAppConversas, setWhatsAppConversas] = useState<WhatsAppConversa[]>([])
@@ -342,6 +368,8 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         msgList,
         cfgStatus,
         convList,
+        fornList,
+        fornOrcList,
       ] = await Promise.all([
         fetchClientes(),
         fetchSistemas(),
@@ -361,6 +389,8 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         fetchWhatsAppMensagens(),
         fetchWhatsAppConfigStatus(),
         fetchWhatsAppConversas(),
+        import('@/services/crmService').then((s) => s.fetchFornecedores()),
+        import('@/services/crmService').then((s) => s.fetchFornecedoresOrcamentos()),
       ])
       setClientes(cList)
       setSistemas(sList)
@@ -380,6 +410,8 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       setWhatsAppMensagens(msgList)
       setWhatsAppConversas(convList)
       setWhatsAppConfig(cfgStatus)
+      setFornecedores(fornList)
+      setFornecedoresOrcamentos(fornOrcList)
     } catch (err: unknown) {
       console.error('Error loading CRM data:', err)
       setError(err instanceof Error ? err.message : 'Erro ao carregar dados do CRM')
@@ -518,6 +550,28 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     'orcamentos_solar',
     () => {
       fetchOrcamentosSolar().then(setOrcamentosSolar).catch(console.error)
+    },
+    isAuthenticated,
+  )
+
+  // Realtime updates for fornecedores
+  useRealtime<import('@/types/crm').Fornecedor>(
+    'fornecedores',
+    () => {
+      import('@/services/crmService')
+        .then((s) => s.fetchFornecedores().then(setFornecedores))
+        .catch(console.error)
+    },
+    isAuthenticated,
+  )
+
+  // Realtime updates for fornecedores_orcamentos
+  useRealtime<import('@/types/crm').FornecedorOrcamento>(
+    'fornecedores_orcamentos',
+    () => {
+      import('@/services/crmService')
+        .then((s) => s.fetchFornecedoresOrcamentos().then(setFornecedoresOrcamentos))
+        .catch(console.error)
     },
     isAuthenticated,
   )
@@ -1376,6 +1430,51 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         addOrcamentoSolar,
         updateOrcamentoSolar,
         removeOrcamentoSolar,
+        fornecedores,
+        fornecedoresOrcamentos,
+        addFornecedor: async (data) => {
+          const s = await import('@/services/crmService')
+          const created = await s.createFornecedor(data)
+          setFornecedores((prev) => [...prev, created])
+          return created
+        },
+        updateFornecedor: async (id, data) => {
+          const s = await import('@/services/crmService')
+          const updated = await s.updateFornecedor(id, data)
+          setFornecedores((prev) => prev.map((f) => (f.id === id ? updated : f)))
+          return updated
+        },
+        removeFornecedor: async (id) => {
+          const s = await import('@/services/crmService')
+          await s.deleteFornecedor(id)
+          setFornecedores((prev) => prev.filter((f) => f.id !== id))
+        },
+        addFornecedorOrcamento: async (data, file) => {
+          const s = await import('@/services/crmService')
+          const created = await s.createFornecedorOrcamento(data, file)
+          setFornecedoresOrcamentos((prev) => [created, ...prev])
+          return created
+        },
+        updateFornecedorOrcamento: async (id, data, file) => {
+          const s = await import('@/services/crmService')
+          const updated = await s.updateFornecedorOrcamento(id, data, file)
+          setFornecedoresOrcamentos((prev) => prev.map((o) => (o.id === id ? updated : o)))
+          return updated
+        },
+        removeFornecedorOrcamento: async (id) => {
+          const s = await import('@/services/crmService')
+          await s.deleteFornecedorOrcamento(id)
+          setFornecedoresOrcamentos((prev) => prev.filter((o) => o.id !== id))
+        },
+        refreshFornecedores: async () => {
+          const s = await import('@/services/crmService')
+          const [fList, foList] = await Promise.all([
+            s.fetchFornecedores(),
+            s.fetchFornecedoresOrcamentos(),
+          ])
+          setFornecedores(fList)
+          setFornecedoresOrcamentos(foList)
+        },
         whatsAppTemplates,
         whatsAppMensagens,
         whatsAppConversas,
