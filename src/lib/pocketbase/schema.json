@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-12T17:30:12.197Z",
+  "generatedAt": "2026-09-12T18:01:33.459Z",
   "collections": [
     {
       "name": "users",
@@ -310,6 +310,18 @@
         },
         {
           "name": "usina_endereco",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "cnae_principal",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "situacao_cadastral",
           "type": "text",
           "required": false,
           "system": false
@@ -2306,6 +2318,72 @@
           "required": false,
           "system": false,
           "autodateTriggers": ["onCreate", "onUpdate"]
+        },
+        {
+          "name": "cnae_principal",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "situacao_cadastral",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "razao_social",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "nome_fantasia",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "cep",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "cidade",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "estado",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "bairro",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "numero",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "complemento",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "data_abertura",
+          "type": "text",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": [

@@ -21,6 +21,13 @@ import { formatWhatsAppPhone } from '@/lib/formatters'
 import { UserPlus, Loader2, Sparkles, AlertCircle } from 'lucide-react'
 import { ClienteTipo, ProdutoTipo, OrigemLeadTipo } from '@/types/crm'
 import { getErrorMessage } from '@/lib/pocketbase/errors'
+import { useCnpjLookup } from '@/hooks/useCnpjLookup'
+import {
+  CnpjInputWithLookup,
+  CnpjConflictBanner,
+  CnpjConflictField,
+} from '@/components/CnpjInputWithLookup'
+import { CnpjDataNormalized } from '@/services/cnpjLookupService'
 
 interface ModalCadastrarLeadWhatsAppProps {
   open: boolean
@@ -46,7 +53,9 @@ export const ModalCadastrarLeadWhatsApp: React.FC<ModalCadastrarLeadWhatsAppProp
   conversaNome,
   onSubmit,
 }) => {
+  const [cnpj, setCnpj] = useState('')
   const [nome, setNome] = useState('')
+  const [razaoSocial, setRazaoSocial] = useState('')
   const [telefone, setTelefone] = useState('')
   const [email, setEmail] = useState('')
   const [cpf, setCpf] = useState('')
@@ -55,6 +64,16 @@ export const ModalCadastrarLeadWhatsApp: React.FC<ModalCadastrarLeadWhatsAppProp
   const [origemLead, setOrigemLead] = useState<OrigemLeadTipo>('WhatsApp')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
+  const [conflitosCnpj, setConflitosCnpj] = useState<CnpjConflictField[]>([])
+  const [pendenteDadosReceita, setPendenteDadosReceita] = useState<CnpjDataNormalized | null>(null)
+
+  const {
+    status: cnpjStatus,
+    errorMessage: cnpjErrorMessage,
+    isLoading: isCnpjLoading,
+    lookup: lookupCnpj,
+    reset: resetCnpjLookup,
+  } = useCnpjLookup()
 
   // Atualizar valores padrão quando o modal abrir ou a conversa mudar
   useEffect(() => {
@@ -71,7 +90,9 @@ export const ModalCadastrarLeadWhatsApp: React.FC<ModalCadastrarLeadWhatsAppProp
       setErrorMsg(null)
     } else {
       // Limpar formulário apenas quando fechar o modal
+      setCnpj('')
       setNome('')
+      setRazaoSocial('')
       setTelefone('')
       setEmail('')
       setCpf('')
@@ -79,8 +100,73 @@ export const ModalCadastrarLeadWhatsApp: React.FC<ModalCadastrarLeadWhatsAppProp
       setTipoCliente('residencial')
       setOrigemLead('WhatsApp')
       setErrorMsg(null)
+      setConflitosCnpj([])
+      setPendenteDadosReceita(null)
+      resetCnpjLookup()
     }
-  }, [open, conversaNumero, conversaNome])
+  }, [open, conversaNumero, conversaNome, resetCnpjLookup])
+
+  const aplicarDadosReceita = (d: CnpjDataNormalized, sobrescrever = true) => {
+    const nomePrincipal = d.nome_fantasia || d.razao_social
+    if (sobrescrever || !nome) setNome(nomePrincipal || nome)
+    if (sobrescrever || !razaoSocial) setRazaoSocial(d.razao_social || razaoSocial)
+    if (d.logradouro && (sobrescrever || !endereco)) {
+      const endComp = [
+        d.logradouro,
+        d.numero ? `nº ${d.numero}` : '',
+        d.bairro ? `- ${d.bairro}` : '',
+        d.municipio ? `${d.municipio}/${d.uf}` : '',
+      ]
+        .filter(Boolean)
+        .join(' ')
+      setEndereco(endComp)
+    }
+    if (d.telefone && (sobrescrever || !telefone)) setTelefone(d.telefone)
+    if (d.email && (sobrescrever || !email)) setEmail(d.email)
+    setTipoCliente('comercial')
+    setConflitosCnpj([])
+    setPendenteDadosReceita(null)
+  }
+
+  const handleCnpjBlur = async () => {
+    const raw = cnpj.replace(/\D/g, '')
+    if (raw.length !== 14) return
+
+    const result = await lookupCnpj(raw)
+    if (!result) return
+
+    const conflitos: CnpjConflictField[] = []
+    const nomePrincipal = result.nome_fantasia || result.razao_social
+
+    if (nome.trim() && nome.trim().toLowerCase() !== nomePrincipal.toLowerCase()) {
+      conflitos.push({
+        campo: 'nome',
+        label: 'Nome da Empresa',
+        valorAtual: nome,
+        valorReceita: nomePrincipal,
+      })
+    }
+    if (
+      endereco.trim() &&
+      result.logradouro &&
+      !endereco.toLowerCase().includes(result.logradouro.toLowerCase())
+    ) {
+      conflitos.push({
+        campo: 'endereco',
+        label: 'Endereço',
+        valorAtual: endereco,
+        valorReceita: result.logradouro,
+      })
+    }
+
+    if (conflitos.length > 0) {
+      setConflitosCnpj(conflitos)
+      setPendenteDadosReceita(result)
+      aplicarDadosReceita(result, false)
+    } else {
+      aplicarDadosReceita(result, true)
+    }
+  }
 
   const formatCpf = (val: string) => {
     const raw = val.replace(/\D/g, '').slice(0, 11)
@@ -177,13 +263,44 @@ export const ModalCadastrarLeadWhatsApp: React.FC<ModalCadastrarLeadWhatsAppProp
           </div>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4 py-2">
+        <form onSubmit={handleSubmit} className="space-y-4 py-2 max-h-[75vh] overflow-y-auto pr-1">
           {errorMsg && (
             <div className="flex items-center gap-2 p-3 bg-red-500/10 text-red-500 text-xs rounded-md border border-red-500/20">
               <AlertCircle className="h-4 w-4 shrink-0" />
               <span>{errorMsg}</span>
             </div>
           )}
+
+          {/* Consulta de CNPJ da Empresa */}
+          <div className="p-3 bg-muted/40 rounded-xl border border-border space-y-2">
+            <CnpjInputWithLookup
+              value={cnpj}
+              onChange={(val) => {
+                setCnpj(val)
+                if (conflitosCnpj.length > 0) setConflitosCnpj([])
+              }}
+              onBlur={handleCnpjBlur}
+              onLookupClick={() =>
+                lookupCnpj(cnpj, true).then((r) => r && aplicarDadosReceita(r, true))
+              }
+              status={cnpjStatus}
+              errorMessage={cnpjErrorMessage}
+              isLoading={isCnpjLoading}
+              label="CNPJ (Empresa) - Consulta Receita Federal"
+              helperText="Preencha os 14 dígitos e saia do campo para buscar razão social e endereço"
+            />
+
+            <CnpjConflictBanner
+              conflitos={conflitosCnpj}
+              onManterMeusDados={() => {
+                setConflitosCnpj([])
+                setPendenteDadosReceita(null)
+              }}
+              onUsarDadosReceita={() => {
+                if (pendenteDadosReceita) aplicarDadosReceita(pendenteDadosReceita, true)
+              }}
+            />
+          </div>
 
           <div className="space-y-1.5">
             <Label htmlFor="lead-nome" className="text-xs font-medium">

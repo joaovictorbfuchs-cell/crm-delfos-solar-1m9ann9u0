@@ -104,6 +104,9 @@ export interface Cliente extends RecordModel {
   contato?: string
   data_nascimento_fundacao?: string
   rg?: string
+  // Campos de consulta CNPJ / Receita Federal
+  cnae_principal?: string
+  situacao_cadastral?: string
   // Campos de consumo / concessionária adicionados
   tarifa?: number
   classe_consumo?: string
@@ -177,11 +180,22 @@ export interface Fornecedor extends RecordModel {
   collectionId: string
   collectionName: string
   nome_empresa: string
+  razao_social?: string
+  nome_fantasia?: string
   cnpj?: string
   contato_nome?: string
   telefone?: string
   email?: string
   endereco?: string
+  numero?: string
+  complemento?: string
+  bairro?: string
+  cidade?: string
+  estado?: string
+  cep?: string
+  cnae_principal?: string
+  situacao_cadastral?: string
+  data_abertura?: string
   especialidade: FornecedorEspecialidade
   observacoes?: string
   created: string

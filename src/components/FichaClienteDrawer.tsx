@@ -53,7 +53,17 @@ import { ModalOrcamentoSolar } from './ModalOrcamentoSolar'
 import { ModalEnviarDocumentoWhatsApp } from './ModalEnviarDocumentoWhatsApp'
 import { ImportarDadosDocumento } from './ImportarDadosDocumento'
 import type { OrcamentoSolar } from '@/types/crm'
-import { ShieldCheck, FileCheck, ExternalLink, Download, UploadCloud, Send } from 'lucide-react'
+import {
+  ShieldCheck,
+  FileCheck,
+  ExternalLink,
+  Download,
+  UploadCloud,
+  Send,
+  AlertCircle,
+  Loader2,
+} from 'lucide-react'
+import { formatarCNPJ } from '@/lib/orcamentoParser'
 import {
   abrirPropostaEmNovaAba,
   baixarPropostaHTML,
@@ -157,6 +167,18 @@ export const FichaClienteDrawer: React.FC = () => {
   // Seção de Importar dados por documento
   const [importDocOpen, setImportDocOpen] = useState(false)
   const [isCreatingProjeto, setIsCreatingProjeto] = useState(false)
+
+  // Consulta de CNPJ na Ficha do Cliente
+  const [isCnpjBuscandoReceita, setIsCnpjBuscandoReceita] = useState(false)
+  const [conflitosCnpjCliente, setConflitosCnpjCliente] = useState<
+    {
+      campo: string
+      label: string
+      valorAtual: string
+      valorReceita: string
+    }[]
+  >([])
+  const [pendenteDadosReceitaCliente, setPendenteDadosReceitaCliente] = useState<any | null>(null)
 
   // Ref para o container com scroll da coluna esquerda
   const scrollContainerRef = useRef<HTMLDivElement>(null)
@@ -1054,23 +1076,199 @@ export const FichaClienteDrawer: React.FC = () => {
                             />
                           </div>
 
+                          {/* Banner de conflito se a consulta via Ficha encontrar divergências */}
+                          {conflitosCnpjCliente.length > 0 && (
+                            <div className="p-3 bg-amber-50 border border-amber-300 rounded-xl space-y-2 text-xs text-amber-900 my-2">
+                              <div className="flex items-center gap-2">
+                                <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+                                <span className="font-bold">
+                                  A Receita Federal retornou dados diferentes dos atuais (
+                                  {conflitosCnpjCliente.length} campos):
+                                </span>
+                              </div>
+                              <div className="bg-white/80 rounded-lg p-2 border border-amber-200 divide-y divide-amber-100 max-h-36 overflow-y-auto">
+                                {conflitosCnpjCliente.map((c) => (
+                                  <div
+                                    key={c.campo}
+                                    className="py-1 text-[11px] grid grid-cols-1 sm:grid-cols-3 gap-1"
+                                  >
+                                    <span className="font-semibold text-gray-700">{c.label}:</span>
+                                    <span className="text-gray-500 line-through truncate">
+                                      Atual: {c.valorAtual || '(vazio)'}
+                                    </span>
+                                    <span className="text-emerald-800 font-medium truncate sm:text-right">
+                                      Receita: {c.valorReceita}
+                                    </span>
+                                  </div>
+                                ))}
+                              </div>
+                              <div className="flex items-center justify-end gap-2 pt-1">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setConflitosCnpjCliente([])
+                                    setPendenteDadosReceitaCliente(null)
+                                  }}
+                                  className="px-2.5 py-1 bg-white hover:bg-gray-100 text-gray-700 border border-gray-300 rounded-lg font-semibold text-[11px]"
+                                >
+                                  Manter meus dados
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={async () => {
+                                    if (pendenteDadosReceitaCliente) {
+                                      const d = pendenteDadosReceitaCliente
+                                      const payload: any = {}
+                                      if (d.razao_social) payload.razao_social = d.razao_social
+                                      if (d.nome_fantasia) payload.nome_fantasia = d.nome_fantasia
+                                      if (d.logradouro) payload.endereco = d.logradouro
+                                      if (d.numero) payload.numero = d.numero
+                                      if (d.complemento) payload.complemento = d.complemento
+                                      if (d.bairro) payload.bairro = d.bairro
+                                      if (d.municipio) payload.cidade = d.municipio
+                                      if (d.uf) payload.estado = d.uf
+                                      if (d.cep) payload.cep = d.cep
+                                      if (d.telefone) payload.telefone = d.telefone
+                                      if (d.email) payload.email = d.email
+                                      if (d.situacao_cadastral)
+                                        payload.situacao_cadastral = d.situacao_cadastral
+                                      if (d.cnae_principal)
+                                        payload.cnae_principal = d.cnae_principal
+                                      if (d.data_abertura)
+                                        payload.data_nascimento_fundacao = d.data_abertura
+                                      await updateCliente(selectedCliente.id, payload)
+                                      setConflitosCnpjCliente([])
+                                      setPendenteDadosReceitaCliente(null)
+                                      alert(
+                                        'Dados atualizados com sucesso a partir da Receita Federal!',
+                                      )
+                                    }
+                                  }}
+                                  className="px-3 py-1 bg-[#16A34A] hover:bg-[#15803D] text-white rounded-lg font-bold text-[11px] shadow-xs"
+                                >
+                                  Usar dados da Receita
+                                </button>
+                              </div>
+                            </div>
+                          )}
+
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 border-t border-gray-100">
                             <div className="flex items-center gap-2">
                               <Hash className="w-3.5 h-3.5 text-gray-400 shrink-0" />
                               <span className="text-gray-500 w-16 shrink-0">CNPJ:</span>
-                              <InlineEditField
-                                value={selectedCliente.cnpj}
-                                displayValue={
-                                  <span className="font-mono text-gray-800 text-[11px] bg-gray-50 px-1.5 py-0.5 rounded border border-gray-200">
-                                    {selectedCliente.cnpj || 'Não inf.'}
+                              <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                                <InlineEditField
+                                  value={selectedCliente.cnpj}
+                                  displayValue={
+                                    <span className="font-mono text-gray-800 text-[11px] bg-gray-50 px-1.5 py-0.5 rounded border border-gray-200">
+                                      {selectedCliente.cnpj || 'Não inf.'}
+                                    </span>
+                                  }
+                                  type="text"
+                                  placeholder="00.000.000/0000-00"
+                                  onSave={async (val) => {
+                                    const rawVal = String(val)
+                                    const digits = rawVal.replace(/\D/g, '')
+                                    const formatted = formatarCNPJ(rawVal)
+                                    await handleUpdateClienteField('cnpj', formatted)
+
+                                    if (digits.length === 14) {
+                                      setIsCnpjBuscandoReceita(true)
+                                      try {
+                                        const { consultarCNPJReceita } =
+                                          await import('@/services/cnpjLookupService')
+                                        const res = await consultarCNPJReceita(digits)
+                                        if (res.success && res.data) {
+                                          const d = res.data
+                                          const conflitos: any[] = []
+                                          if (
+                                            selectedCliente.razao_social &&
+                                            selectedCliente.razao_social.trim().toLowerCase() !==
+                                              d.razao_social.toLowerCase()
+                                          ) {
+                                            conflitos.push({
+                                              campo: 'razao_social',
+                                              label: 'Razão Social',
+                                              valorAtual: selectedCliente.razao_social,
+                                              valorReceita: d.razao_social,
+                                            })
+                                          }
+                                          if (
+                                            selectedCliente.endereco &&
+                                            selectedCliente.endereco.trim().toLowerCase() !==
+                                              d.logradouro.toLowerCase()
+                                          ) {
+                                            conflitos.push({
+                                              campo: 'endereco',
+                                              label: 'Logradouro',
+                                              valorAtual: selectedCliente.endereco,
+                                              valorReceita: d.logradouro,
+                                            })
+                                          }
+                                          if (
+                                            selectedCliente.cidade &&
+                                            selectedCliente.cidade.trim().toLowerCase() !==
+                                              d.municipio.toLowerCase()
+                                          ) {
+                                            conflitos.push({
+                                              campo: 'cidade',
+                                              label: 'Cidade',
+                                              valorAtual: selectedCliente.cidade,
+                                              valorReceita: d.municipio,
+                                            })
+                                          }
+                                          if (conflitos.length > 0) {
+                                            setConflitosCnpjCliente(conflitos)
+                                            setPendenteDadosReceitaCliente(d)
+                                          } else {
+                                            const payload: any = {}
+                                            if (!selectedCliente.razao_social && d.razao_social)
+                                              payload.razao_social = d.razao_social
+                                            if (!selectedCliente.nome_fantasia && d.nome_fantasia)
+                                              payload.nome_fantasia = d.nome_fantasia
+                                            if (!selectedCliente.endereco && d.logradouro)
+                                              payload.endereco = d.logradouro
+                                            if (!selectedCliente.numero && d.numero)
+                                              payload.numero = d.numero
+                                            if (!selectedCliente.complemento && d.complemento)
+                                              payload.complemento = d.complemento
+                                            if (!selectedCliente.bairro && d.bairro)
+                                              payload.bairro = d.bairro
+                                            if (!selectedCliente.cidade && d.municipio)
+                                              payload.cidade = d.municipio
+                                            if (!selectedCliente.estado && d.uf)
+                                              payload.estado = d.uf
+                                            if (!selectedCliente.cep && d.cep) payload.cep = d.cep
+                                            if (!selectedCliente.telefone && d.telefone)
+                                              payload.telefone = d.telefone
+                                            if (!selectedCliente.email && d.email)
+                                              payload.email = d.email
+                                            if (d.situacao_cadastral)
+                                              payload.situacao_cadastral = d.situacao_cadastral
+                                            if (d.cnae_principal)
+                                              payload.cnae_principal = d.cnae_principal
+                                            if (
+                                              !selectedCliente.data_nascimento_fundacao &&
+                                              d.data_abertura
+                                            )
+                                              payload.data_nascimento_fundacao = d.data_abertura
+                                            await updateCliente(selectedCliente.id, payload)
+                                          }
+                                        }
+                                      } catch (e) {
+                                        console.error('Erro na busca CNPJ:', e)
+                                      } finally {
+                                        setIsCnpjBuscandoReceita(false)
+                                      }
+                                    }
+                                  }}
+                                />
+                                {isCnpjBuscandoReceita && (
+                                  <span title="Buscando na Receita Federal...">
+                                    <Loader2 className="w-3.5 h-3.5 text-emerald-600 animate-spin shrink-0" />
                                   </span>
-                                }
-                                type="text"
-                                placeholder="00.000.000/0000-00"
-                                onSave={async (val) =>
-                                  handleUpdateClienteField('cnpj', String(val))
-                                }
-                              />
+                                )}
+                              </div>
                             </div>
                             <div className="flex items-center gap-2">
                               <Hash className="w-3.5 h-3.5 text-gray-400 shrink-0" />
@@ -1085,6 +1283,47 @@ export const FichaClienteDrawer: React.FC = () => {
                                 type="text"
                                 placeholder="000.000.000-00"
                                 onSave={async (val) => handleUpdateClienteField('cpf', String(val))}
+                              />
+                            </div>
+                          </div>
+
+                          {/* Situação Cadastral e CNAE */}
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            <div className="flex items-center gap-2">
+                              <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                              <span className="text-gray-500 w-16 shrink-0">Situação:</span>
+                              <InlineEditField
+                                value={selectedCliente.situacao_cadastral}
+                                displayValue={
+                                  <span className="font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded text-[11px] border border-emerald-200">
+                                    {selectedCliente.situacao_cadastral || 'Não inf.'}
+                                  </span>
+                                }
+                                type="text"
+                                placeholder="Ex: ATIVA"
+                                onSave={async (val) =>
+                                  handleUpdateClienteField('situacao_cadastral', String(val))
+                                }
+                              />
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Layers className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                              <span className="text-gray-500 w-12 shrink-0">CNAE:</span>
+                              <InlineEditField
+                                value={selectedCliente.cnae_principal}
+                                displayValue={
+                                  <span
+                                    className="text-gray-800 text-[11px] truncate block max-w-[180px]"
+                                    title={selectedCliente.cnae_principal}
+                                  >
+                                    {selectedCliente.cnae_principal || 'Não inf.'}
+                                  </span>
+                                }
+                                type="text"
+                                placeholder="CNAE Principal"
+                                onSave={async (val) =>
+                                  handleUpdateClienteField('cnae_principal', String(val))
+                                }
                               />
                             </div>
                           </div>

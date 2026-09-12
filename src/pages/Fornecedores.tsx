@@ -29,6 +29,13 @@ import { validarCNPJ, formatarCNPJ } from '@/lib/orcamentoParser'
 import { formatCurrency, formatDate } from '@/lib/formatters'
 import { toast } from 'sonner'
 import pb from '@/lib/pocketbase/client'
+import { useCnpjLookup } from '@/hooks/useCnpjLookup'
+import {
+  CnpjInputWithLookup,
+  CnpjConflictBanner,
+  CnpjConflictField,
+} from '@/components/CnpjInputWithLookup'
+import { CnpjDataNormalized } from '@/services/cnpjLookupService'
 
 const ESPECIALIDADES_CONFIG: Record<
   FornecedorEspecialidade,
@@ -92,28 +99,62 @@ export function Fornecedores() {
 
   // Formulário State
   const [nomeEmpresa, setNomeEmpresa] = useState('')
+  const [razaoSocial, setRazaoSocial] = useState('')
+  const [nomeFantasia, setNomeFantasia] = useState('')
   const [cnpj, setCnpj] = useState('')
-  const [cnpjError, setCnpjError] = useState<string | null>(null)
   const [contatoNome, setContatoNome] = useState('')
   const [telefone, setTelefone] = useState('')
   const [email, setEmail] = useState('')
   const [endereco, setEndereco] = useState('')
+  const [numero, setNumero] = useState('')
+  const [complemento, setComplemento] = useState('')
+  const [bairro, setBairro] = useState('')
+  const [cidade, setCidade] = useState('')
+  const [estado, setEstado] = useState('')
+  const [cep, setCep] = useState('')
+  const [cnaePrincipal, setCnaePrincipal] = useState('')
+  const [situacaoCadastral, setSituacaoCadastral] = useState('')
+  const [dataAbertura, setDataAbertura] = useState('')
   const [especialidade, setEspecialidade] = useState<FornecedorEspecialidade>('completo')
   const [observacoes, setObservacoes] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [conflitosCnpj, setConflitosCnpj] = useState<CnpjConflictField[]>([])
+  const [pendenteDadosReceita, setPendenteDadosReceita] = useState<CnpjDataNormalized | null>(null)
+
+  // Hook de consulta de CNPJ
+  const {
+    status: cnpjStatus,
+    errorMessage: cnpjErrorMessage,
+    isLoading: isCnpjLoading,
+    lookup: lookupCnpj,
+    reset: resetCnpjLookup,
+  } = useCnpjLookup()
 
   // Resetar formulário
   const resetForm = () => {
     setNomeEmpresa('')
+    setRazaoSocial('')
+    setNomeFantasia('')
     setCnpj('')
-    setCnpjError(null)
     setContatoNome('')
     setTelefone('')
     setEmail('')
     setEndereco('')
+    setNumero('')
+    setComplemento('')
+    setBairro('')
+    setCidade('')
+    setEstado('')
+    setCep('')
+    setCnaePrincipal('')
+    setSituacaoCadastral('')
+    setDataAbertura('')
     setEspecialidade('completo')
     setObservacoes('')
     setEditingFornecedor(null)
+    setConflitosCnpj([])
+    setPendenteDadosReceita(null)
+    resetCnpjLookup()
   }
 
   const handleOpenCreateModal = () => {
@@ -122,33 +163,138 @@ export function Fornecedores() {
   }
 
   const handleOpenEditModal = (f: Fornecedor) => {
+    resetForm()
     setEditingFornecedor(f)
-    setNomeEmpresa(f.nome_empresa)
+    setNomeEmpresa(f.nome_empresa || '')
+    setRazaoSocial(f.razao_social || f.nome_empresa || '')
+    setNomeFantasia(f.nome_fantasia || '')
     setCnpj(f.cnpj || '')
-    setCnpjError(null)
     setContatoNome(f.contato_nome || '')
     setTelefone(f.telefone || '')
     setEmail(f.email || '')
     setEndereco(f.endereco || '')
+    setNumero(f.numero || '')
+    setComplemento(f.complemento || '')
+    setBairro(f.bairro || '')
+    setCidade(f.cidade || '')
+    setEstado(f.estado || '')
+    setCep(f.cep || '')
+    setCnaePrincipal(f.cnae_principal || '')
+    setSituacaoCadastral(f.situacao_cadastral || '')
+    setDataAbertura(f.data_abertura || '')
     setEspecialidade(f.especialidade || 'completo')
     setObservacoes(f.observacoes || '')
     setModalCadastroOpen(true)
   }
 
-  const handleCnpjChange = (val: string) => {
-    const formatted = formatarCNPJ(val)
-    setCnpj(formatted)
-    const raw = val.replace(/\D/g, '')
-    if (raw.length === 14) {
-      if (!validarCNPJ(raw)) {
-        setCnpjError('CNPJ inválido (dígitos verificadores incorretos)')
-      } else {
-        setCnpjError(null)
-      }
-    } else if (raw.length > 0 && raw.length < 14) {
-      setCnpjError('CNPJ incompleto (14 dígitos)')
+  const aplicarDadosReceita = (d: CnpjDataNormalized, sobrescrever = true) => {
+    const nomePrincipal = d.nome_fantasia || d.razao_social
+    if (sobrescrever || !nomeEmpresa) setNomeEmpresa(nomePrincipal || nomeEmpresa)
+    if (sobrescrever || !razaoSocial) setRazaoSocial(d.razao_social || razaoSocial)
+    if (sobrescrever || !nomeFantasia) setNomeFantasia(d.nome_fantasia || nomeFantasia)
+    if (sobrescrever || !endereco) setEndereco(d.logradouro || endereco)
+    if (sobrescrever || !numero) setNumero(d.numero || numero)
+    if (sobrescrever || !complemento) setComplemento(d.complemento || complemento)
+    if (sobrescrever || !bairro) setBairro(d.bairro || bairro)
+    if (sobrescrever || !cidade) setCidade(d.municipio || cidade)
+    if (sobrescrever || !estado) setEstado(d.uf || estado)
+    if (sobrescrever || !cep) setCep(d.cep || cep)
+    if (d.telefone && (sobrescrever || !telefone)) setTelefone(d.telefone)
+    if (d.email && (sobrescrever || !email)) setEmail(d.email)
+    if (d.situacao_cadastral && (sobrescrever || !situacaoCadastral))
+      setSituacaoCadastral(d.situacao_cadastral)
+    if (d.cnae_principal && (sobrescrever || !cnaePrincipal)) setCnaePrincipal(d.cnae_principal)
+    if (d.data_abertura && (sobrescrever || !dataAbertura)) setDataAbertura(d.data_abertura)
+
+    toast.success('Dados preenchidos via Receita Federal!')
+    setConflitosCnpj([])
+    setPendenteDadosReceita(null)
+  }
+
+  const handleCnpjBlur = async () => {
+    const raw = cnpj.replace(/\D/g, '')
+    if (raw.length !== 14) return
+
+    const result = await lookupCnpj(raw)
+    if (!result) return
+
+    // Verifica campos preenchidos manualmente pelo usuário com valores diferentes
+    const conflitos: CnpjConflictField[] = []
+
+    const nomePrincipal = result.nome_fantasia || result.razao_social
+    if (nomeEmpresa.trim() && nomeEmpresa.trim().toLowerCase() !== nomePrincipal.toLowerCase()) {
+      conflitos.push({
+        campo: 'nome_empresa',
+        label: 'Nome da Empresa',
+        valorAtual: nomeEmpresa,
+        valorReceita: nomePrincipal,
+      })
+    }
+    if (
+      telefone.trim() &&
+      result.telefone &&
+      telefone.replace(/\D/g, '') !== result.telefone.replace(/\D/g, '')
+    ) {
+      conflitos.push({
+        campo: 'telefone',
+        label: 'Telefone',
+        valorAtual: telefone,
+        valorReceita: result.telefone,
+      })
+    }
+    if (email.trim() && result.email && email.trim().toLowerCase() !== result.email.toLowerCase()) {
+      conflitos.push({
+        campo: 'email',
+        label: 'E-mail',
+        valorAtual: email,
+        valorReceita: result.email,
+      })
+    }
+    if (
+      endereco.trim() &&
+      result.logradouro &&
+      endereco.trim().toLowerCase() !== result.logradouro.toLowerCase()
+    ) {
+      conflitos.push({
+        campo: 'endereco',
+        label: 'Logradouro',
+        valorAtual: endereco,
+        valorReceita: result.logradouro,
+      })
+    }
+    if (
+      cidade.trim() &&
+      result.municipio &&
+      cidade.trim().toLowerCase() !== result.municipio.toLowerCase()
+    ) {
+      conflitos.push({
+        campo: 'cidade',
+        label: 'Cidade',
+        valorAtual: cidade,
+        valorReceita: result.municipio,
+      })
+    }
+
+    if (conflitos.length > 0) {
+      setConflitosCnpj(conflitos)
+      setPendenteDadosReceita(result)
+      // Preenche os campos que estavam vazios automaticamente
+      aplicarDadosReceita(result, false)
     } else {
-      setCnpjError(null)
+      // Nenhum conflito, preenche diretamente
+      aplicarDadosReceita(result, true)
+    }
+  }
+
+  const handleManterMeusDados = () => {
+    setConflitosCnpj([])
+    setPendenteDadosReceita(null)
+    toast.info('Seus dados manuais foram mantidos.')
+  }
+
+  const handleUsarDadosReceita = () => {
+    if (pendenteDadosReceita) {
+      aplicarDadosReceita(pendenteDadosReceita, true)
     }
   }
 
@@ -162,7 +308,6 @@ export function Fornecedores() {
     if (cnpj.trim()) {
       const raw = cnpj.replace(/\D/g, '')
       if (raw.length > 0 && !validarCNPJ(raw)) {
-        setCnpjError('CNPJ inválido')
         toast.error('Por favor, informe um CNPJ válido.')
         return
       }
@@ -170,13 +315,36 @@ export function Fornecedores() {
 
     setIsSubmitting(true)
     try {
+      const enderecoCompleto = [
+        endereco.trim(),
+        numero.trim() ? `nº ${numero.trim()}` : '',
+        complemento.trim(),
+        bairro.trim() ? `- ${bairro.trim()}` : '',
+        cidade.trim()
+          ? `${cidade.trim()}${estado.trim() ? `/${estado.trim().toUpperCase()}` : ''}`
+          : '',
+      ]
+        .filter(Boolean)
+        .join(' ')
+
       const payload: Partial<Fornecedor> = {
         nome_empresa: nomeEmpresa.trim(),
+        razao_social: razaoSocial.trim() || undefined,
+        nome_fantasia: nomeFantasia.trim() || undefined,
         cnpj: cnpj.trim() || undefined,
         contato_nome: contatoNome.trim() || undefined,
         telefone: telefone.trim() || undefined,
         email: email.trim() || undefined,
-        endereco: endereco.trim() || undefined,
+        endereco: enderecoCompleto.trim() || endereco.trim() || undefined,
+        numero: numero.trim() || undefined,
+        complemento: complemento.trim() || undefined,
+        bairro: bairro.trim() || undefined,
+        cidade: cidade.trim() || undefined,
+        estado: estado.trim() || undefined,
+        cep: cep.trim() || undefined,
+        cnae_principal: cnaePrincipal.trim() || undefined,
+        situacao_cadastral: situacaoCadastral.trim() || undefined,
+        data_abertura: dataAbertura.trim() || undefined,
         especialidade,
         observacoes: observacoes.trim() || undefined,
       }
@@ -452,17 +620,28 @@ export function Fornecedores() {
             {/* Header do Drawer */}
             <div className="p-5 border-b border-gray-200 flex items-center justify-between bg-gray-50/70">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold">
+                <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold shrink-0">
                   <Building2 className="w-5 h-5 text-emerald-700" />
                 </div>
-                <div>
-                  <h3 className="text-base font-bold text-gray-900">
+                <div className="min-w-0">
+                  <h3 className="text-base font-bold text-gray-900 truncate">
                     {drawerFornecedor.nome_empresa}
                   </h3>
-                  <div className="flex items-center gap-2 mt-0.5">
+                  {drawerFornecedor.razao_social &&
+                    drawerFornecedor.razao_social !== drawerFornecedor.nome_empresa && (
+                      <p className="text-xs text-gray-500 truncate">
+                        Razão Social: {drawerFornecedor.razao_social}
+                      </p>
+                    )}
+                  <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                     {drawerFornecedor.cnpj && (
                       <span className="text-xs text-gray-500 font-mono">
                         CNPJ: {drawerFornecedor.cnpj}
+                      </span>
+                    )}
+                    {drawerFornecedor.situacao_cadastral && (
+                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200">
+                        {drawerFornecedor.situacao_cadastral}
                       </span>
                     )}
                     <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-800 border border-emerald-200">
@@ -522,9 +701,30 @@ export function Fornecedores() {
                   <div>
                     <span className="text-gray-400 block text-[10px] uppercase">Endereço</span>
                     <span className="font-semibold truncate block">
-                      {drawerFornecedor.endereco || 'Não informado'}
+                      {drawerFornecedor.endereco ||
+                        (drawerFornecedor.cidade
+                          ? `${drawerFornecedor.cidade} - ${drawerFornecedor.estado || ''}`
+                          : 'Não informado')}
                     </span>
                   </div>
+                  {drawerFornecedor.cnae_principal && (
+                    <div className="sm:col-span-2 pt-1 border-t border-gray-200/60">
+                      <span className="text-gray-400 block text-[10px] uppercase">
+                        CNAE Principal
+                      </span>
+                      <span className="font-medium text-gray-800">
+                        {drawerFornecedor.cnae_principal}
+                      </span>
+                    </div>
+                  )}
+                  {drawerFornecedor.data_abertura && (
+                    <div>
+                      <span className="text-gray-400 block text-[10px] uppercase">
+                        Data de Abertura
+                      </span>
+                      <span className="font-semibold">{drawerFornecedor.data_abertura}</span>
+                    </div>
+                  )}
                 </div>
                 {drawerFornecedor.observacoes && (
                   <div className="pt-2 border-t border-gray-200 text-gray-600 italic">
@@ -835,48 +1035,66 @@ export function Fornecedores() {
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="p-5 space-y-4 text-xs">
-              {/* Razão social / Nome */}
-              <div>
-                <label className="font-semibold text-gray-700 block mb-1">
-                  Nome da Empresa / Razão Social *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={nomeEmpresa}
-                  onChange={(e) => setNomeEmpresa(e.target.value)}
-                  placeholder="Ex: Sol tecno Distribuidora"
-                  className="w-full px-3 py-2 text-xs rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                />
-              </div>
+            <form
+              onSubmit={handleSubmit}
+              className="p-5 space-y-4 text-xs max-h-[85vh] overflow-y-auto"
+            >
+              {/* Campo CNPJ com consulta automática na Receita Federal */}
+              <CnpjInputWithLookup
+                value={cnpj}
+                onChange={(val) => {
+                  setCnpj(val)
+                  if (conflitosCnpj.length > 0) setConflitosCnpj([])
+                }}
+                onBlur={handleCnpjBlur}
+                onLookupClick={() =>
+                  lookupCnpj(cnpj, true).then((r) => r && aplicarDadosReceita(r, true))
+                }
+                status={cnpjStatus}
+                errorMessage={cnpjErrorMessage}
+                isLoading={isCnpjLoading}
+                helperText="Digite os 14 dígitos do CNPJ para buscar os dados automaticamente na Receita Federal"
+              />
 
-              {/* CNPJ e Especialidade */}
+              {/* Banner de conflitos se o usuário já preencheu campos manualmente */}
+              <CnpjConflictBanner
+                conflitos={conflitosCnpj}
+                onManterMeusDados={handleManterMeusDados}
+                onUsarDadosReceita={handleUsarDadosReceita}
+              />
+
+              {/* Dados Principais: Razão Social e Nome Fantasia */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="font-semibold text-gray-700 block mb-1">
-                    CNPJ (com validação)
+                    Nome Comercial / Empresa *
                   </label>
                   <input
                     type="text"
-                    value={cnpj}
-                    onChange={(e) => handleCnpjChange(e.target.value)}
-                    placeholder="00.000.000/0000-00"
-                    maxLength={18}
-                    className={`w-full px-3 py-2 text-xs font-mono rounded-lg border ${
-                      cnpjError
-                        ? 'border-red-400 focus:ring-red-400 bg-red-50/30'
-                        : 'border-gray-300 focus:ring-emerald-500'
-                    }`}
+                    required
+                    value={nomeEmpresa}
+                    onChange={(e) => setNomeEmpresa(e.target.value)}
+                    placeholder="Ex: Sol Tecno Distribuidora"
+                    className="w-full px-3 py-2 text-xs rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-emerald-500"
                   />
-                  {cnpjError && (
-                    <span className="text-[10px] text-red-600 flex items-center gap-1 mt-1">
-                      <AlertCircle className="w-3 h-3" />
-                      {cnpjError}
-                    </span>
-                  )}
                 </div>
 
+                <div>
+                  <label className="font-semibold text-gray-700 block mb-1">
+                    Razão Social Completa
+                  </label>
+                  <input
+                    type="text"
+                    value={razaoSocial}
+                    onChange={(e) => setRazaoSocial(e.target.value)}
+                    placeholder="Ex: Sol Tecno Comércio LTDA"
+                    className="w-full px-3 py-2 text-xs rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                </div>
+              </div>
+
+              {/* Especialidade e Situação Cadastral */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="font-semibold text-gray-700 block mb-1">
                     Especialidade Principal *
@@ -892,6 +1110,19 @@ export function Fornecedores() {
                     <option value="estruturas">Estruturas de Fixação</option>
                     <option value="acessorios">Acessórios & Proteções</option>
                   </select>
+                </div>
+
+                <div>
+                  <label className="font-semibold text-gray-700 block mb-1">
+                    Situação na Receita
+                  </label>
+                  <input
+                    type="text"
+                    value={situacaoCadastral}
+                    onChange={(e) => setSituacaoCadastral(e.target.value)}
+                    placeholder="Ex: ATIVA"
+                    className="w-full px-3 py-2 text-xs rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-medium"
+                  />
                 </div>
               </div>
 
@@ -924,30 +1155,127 @@ export function Fornecedores() {
                 </div>
               </div>
 
-              {/* Email e Endereço */}
-              <div>
-                <label className="font-semibold text-gray-700 block mb-1">Email</label>
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="comercial@fornecedor.com.br"
-                  className="w-full px-3 py-2 text-xs rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                />
+              {/* Email e CNAE */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="font-semibold text-gray-700 block mb-1">Email</label>
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="comercial@fornecedor.com.br"
+                    className="w-full px-3 py-2 text-xs rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="font-semibold text-gray-700 block mb-1">
+                    Data de Abertura / Fundação
+                  </label>
+                  <input
+                    type="date"
+                    value={dataAbertura}
+                    onChange={(e) => setDataAbertura(e.target.value)}
+                    className="w-full px-3 py-2 text-xs rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                </div>
               </div>
 
-              <div>
-                <label className="font-semibold text-gray-700 block mb-1">
-                  Endereço / Cidade / UF
-                </label>
-                <input
-                  type="text"
-                  value={endereco}
-                  onChange={(e) => setEndereco(e.target.value)}
-                  placeholder="Ex: Rodovia RS-135, Km 72, Erechim - RS"
-                  className="w-full px-3 py-2 text-xs rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                />
+              {/* Endereço Detalhado */}
+              <div className="p-3 bg-gray-50/80 rounded-xl border border-gray-200/80 space-y-2.5">
+                <span className="font-bold text-gray-700 block text-[11px] uppercase tracking-wider">
+                  Endereço & Localização
+                </span>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  <div className="sm:col-span-2">
+                    <label className="text-[11px] text-gray-500 block mb-0.5">Logradouro</label>
+                    <input
+                      type="text"
+                      value={endereco}
+                      onChange={(e) => setEndereco(e.target.value)}
+                      placeholder="Rua / Avenida"
+                      className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[11px] text-gray-500 block mb-0.5">Número</label>
+                    <input
+                      type="text"
+                      value={numero}
+                      onChange={(e) => setNumero(e.target.value)}
+                      placeholder="Nº"
+                      className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  <div>
+                    <label className="text-[11px] text-gray-500 block mb-0.5">Bairro</label>
+                    <input
+                      type="text"
+                      value={bairro}
+                      onChange={(e) => setBairro(e.target.value)}
+                      placeholder="Bairro"
+                      className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[11px] text-gray-500 block mb-0.5">Cidade</label>
+                    <input
+                      type="text"
+                      value={cidade}
+                      onChange={(e) => setCidade(e.target.value)}
+                      placeholder="Cidade"
+                      className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-1.5">
+                    <div>
+                      <label className="text-[11px] text-gray-500 block mb-0.5">UF</label>
+                      <input
+                        type="text"
+                        maxLength={2}
+                        value={estado}
+                        onChange={(e) => setEstado(e.target.value.toUpperCase())}
+                        placeholder="RS"
+                        className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white text-center font-bold uppercase"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[11px] text-gray-500 block mb-0.5">CEP</label>
+                      <input
+                        type="text"
+                        value={cep}
+                        onChange={(e) => setCep(e.target.value)}
+                        placeholder="00000-000"
+                        className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white font-mono text-[11px]"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-[11px] text-gray-500 block mb-0.5">Complemento</label>
+                  <input
+                    type="text"
+                    value={complemento}
+                    onChange={(e) => setComplemento(e.target.value)}
+                    placeholder="Sala, galpão, bloco..."
+                    className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
+                  />
+                </div>
               </div>
+
+              {/* CNAE Principal */}
+              {cnaePrincipal && (
+                <div className="p-2.5 bg-emerald-50/60 rounded-lg border border-emerald-100 text-xs text-emerald-900">
+                  <span className="font-bold block text-[10px] uppercase text-emerald-700">
+                    Atividade Econômica Principal (CNAE)
+                  </span>
+                  <span className="text-gray-700">{cnaePrincipal}</span>
+                </div>
+              )}
 
               <div>
                 <label className="font-semibold text-gray-700 block mb-1">
@@ -962,7 +1290,7 @@ export function Fornecedores() {
                 />
               </div>
 
-              <div className="pt-3 border-t border-gray-200 flex items-center justify-end gap-2">
+              <div className="pt-3 border-t border-gray-200 flex items-center justify-end gap-2 sticky bottom-0 bg-white py-2">
                 <button
                   type="button"
                   onClick={() => setModalCadastroOpen(false)}
@@ -972,8 +1300,8 @@ export function Fornecedores() {
                 </button>
                 <button
                   type="submit"
-                  disabled={isSubmitting || !!cnpjError}
-                  className="px-5 py-2 bg-[#16A34A] hover:bg-[#15803D] disabled:opacity-50 text-white text-xs font-bold rounded-xl shadow-xs transition-all"
+                  disabled={isSubmitting}
+                  className="px-5 py-2 bg-[#16A34A] hover:bg-[#15803D] disabled:opacity-50 text-white text-xs font-bold rounded-xl shadow-xs transition-all flex items-center gap-1.5"
                 >
                   {isSubmitting
                     ? 'Salvando...'

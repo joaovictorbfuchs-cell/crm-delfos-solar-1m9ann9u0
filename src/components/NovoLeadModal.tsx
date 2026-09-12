@@ -4,6 +4,13 @@ import { useClientes } from '@/contexts/ClientesContext'
 import { useToast } from '@/hooks/use-toast'
 import type { OrigemLeadTipo, ProdutoTipo } from '@/types/crm'
 import { formatWhatsAppPhone } from '@/lib/formatters'
+import { useCnpjLookup } from '@/hooks/useCnpjLookup'
+import {
+  CnpjInputWithLookup,
+  CnpjConflictBanner,
+  CnpjConflictField,
+} from '@/components/CnpjInputWithLookup'
+import { CnpjDataNormalized } from '@/services/cnpjLookupService'
 
 interface NovoLeadModalProps {
   isOpen: boolean
@@ -24,15 +31,38 @@ export const NovoLeadModal: React.FC<NovoLeadModalProps> = ({ isOpen, onClose })
   const { addCliente } = useClientes()
   const { toast } = useToast()
 
+  const [cnpj, setCnpj] = useState('')
   const [nome, setNome] = useState('')
+  const [razaoSocial, setRazaoSocial] = useState('')
+  const [nomeFantasia, setNomeFantasia] = useState('')
   const [telefone, setTelefone] = useState('')
   const [whatsapp, setWhatsapp] = useState('')
+  const [email, setEmail] = useState('')
+  const [endereco, setEndereco] = useState('')
+  const [numero, setNumero] = useState('')
+  const [complemento, setComplemento] = useState('')
+  const [bairro, setBairro] = useState('')
+  const [estado, setEstado] = useState('RS')
+  const [cep, setCep] = useState('')
+  const [cnaePrincipal, setCnaePrincipal] = useState('')
+  const [situacaoCadastral, setSituacaoCadastral] = useState('')
+  const [dataAbertura, setDataAbertura] = useState('')
   const [consumoKwhMes, setConsumoKwhMes] = useState<string>('')
   const [origem, setOrigem] = useState<OrigemLeadTipo>('Indicação')
   const [produto, setProduto] = useState<ProdutoTipo>('Energia Solar')
   const [cidade, setCidade] = useState('Erechim/RS')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [errors, setErrors] = useState<{ [key: string]: string }>({})
+  const [conflitosCnpj, setConflitosCnpj] = useState<CnpjConflictField[]>([])
+  const [pendenteDadosReceita, setPendenteDadosReceita] = useState<CnpjDataNormalized | null>(null)
+
+  const {
+    status: cnpjStatus,
+    errorMessage: cnpjErrorMessage,
+    isLoading: isCnpjLoading,
+    lookup: lookupCnpj,
+    reset: resetCnpjLookup,
+  } = useCnpjLookup()
 
   if (!isOpen) return null
 
@@ -55,14 +85,115 @@ export const NovoLeadModal: React.FC<NovoLeadModalProps> = ({ isOpen, onClose })
   }
 
   const resetForm = () => {
+    setCnpj('')
     setNome('')
+    setRazaoSocial('')
+    setNomeFantasia('')
     setTelefone('')
     setWhatsapp('')
+    setEmail('')
+    setEndereco('')
+    setNumero('')
+    setComplemento('')
+    setBairro('')
+    setEstado('RS')
+    setCep('')
+    setCnaePrincipal('')
+    setSituacaoCadastral('')
+    setDataAbertura('')
     setConsumoKwhMes('')
     setOrigem('Indicação')
     setProduto('Energia Solar')
     setCidade('Erechim/RS')
     setErrors({})
+    setConflitosCnpj([])
+    setPendenteDadosReceita(null)
+    resetCnpjLookup()
+  }
+
+  const aplicarDadosReceita = (d: CnpjDataNormalized, sobrescrever = true) => {
+    const nomePrincipal = d.nome_fantasia || d.razao_social
+    if (sobrescrever || !nome) setNome(nomePrincipal || nome)
+    if (sobrescrever || !razaoSocial) setRazaoSocial(d.razao_social || razaoSocial)
+    if (sobrescrever || !nomeFantasia) setNomeFantasia(d.nome_fantasia || nomeFantasia)
+    if (sobrescrever || !cidade) {
+      setCidade(d.municipio ? `${d.municipio}/${d.uf}` : cidade)
+    }
+    if (sobrescrever || !estado) setEstado(d.uf || estado)
+    if (sobrescrever || !endereco) setEndereco(d.logradouro || endereco)
+    if (sobrescrever || !numero) setNumero(d.numero || numero)
+    if (sobrescrever || !complemento) setComplemento(d.complemento || complemento)
+    if (sobrescrever || !bairro) setBairro(d.bairro || bairro)
+    if (sobrescrever || !cep) setCep(d.cep || cep)
+    if (d.telefone && (sobrescrever || !telefone)) {
+      setTelefone(d.telefone)
+      if (!whatsapp || sobrescrever) setWhatsapp(d.telefone)
+    }
+    if (d.email && (sobrescrever || !email)) setEmail(d.email)
+    if (d.cnae_principal && (sobrescrever || !cnaePrincipal)) setCnaePrincipal(d.cnae_principal)
+    if (d.situacao_cadastral && (sobrescrever || !situacaoCadastral))
+      setSituacaoCadastral(d.situacao_cadastral)
+    if (d.data_abertura && (sobrescrever || !dataAbertura)) setDataAbertura(d.data_abertura)
+
+    toast({
+      title: 'Dados preenchidos pela Receita Federal!',
+      description: `${d.razao_social || nomePrincipal} localizado com sucesso.`,
+    })
+    setConflitosCnpj([])
+    setPendenteDadosReceita(null)
+  }
+
+  const handleCnpjBlur = async () => {
+    const raw = cnpj.replace(/\D/g, '')
+    if (raw.length !== 14) return
+
+    const result = await lookupCnpj(raw)
+    if (!result) return
+
+    const conflitos: CnpjConflictField[] = []
+    const nomePrincipal = result.nome_fantasia || result.razao_social
+
+    if (nome.trim() && nome.trim().toLowerCase() !== nomePrincipal.toLowerCase()) {
+      conflitos.push({
+        campo: 'nome',
+        label: 'Nome do Lead',
+        valorAtual: nome,
+        valorReceita: nomePrincipal,
+      })
+    }
+    if (
+      telefone.trim() &&
+      result.telefone &&
+      telefone.replace(/\D/g, '') !== result.telefone.replace(/\D/g, '')
+    ) {
+      conflitos.push({
+        campo: 'telefone',
+        label: 'Telefone',
+        valorAtual: telefone,
+        valorReceita: result.telefone,
+      })
+    }
+    const cidadeFormatada = result.municipio ? `${result.municipio}/${result.uf}` : ''
+    if (
+      cidade.trim() &&
+      cidadeFormatada &&
+      cidade.trim().toLowerCase() !== cidadeFormatada.toLowerCase()
+    ) {
+      conflitos.push({
+        campo: 'cidade',
+        label: 'Cidade',
+        valorAtual: cidade,
+        valorReceita: cidadeFormatada,
+      })
+    }
+
+    if (conflitos.length > 0) {
+      setConflitosCnpj(conflitos)
+      setPendenteDadosReceita(result)
+      aplicarDadosReceita(result, false)
+    } else {
+      aplicarDadosReceita(result, true)
+    }
   }
 
   const handleClose = () => {
@@ -88,8 +219,22 @@ export const NovoLeadModal: React.FC<NovoLeadModalProps> = ({ isOpen, onClose })
 
       await addCliente({
         nome: nome.trim(),
+        razao_social: razaoSocial.trim() || undefined,
+        nome_fantasia: nomeFantasia.trim() || undefined,
+        cnpj: cnpj.trim() || undefined,
         telefone: telFinal,
         whatsapp: whatsFinal,
+        email: email.trim() || undefined,
+        endereco: endereco.trim() || undefined,
+        numero: numero.trim() || undefined,
+        complemento: complemento.trim() || undefined,
+        bairro: bairro.trim() || undefined,
+        estado: estado.trim() || undefined,
+        cep: cep.trim() || undefined,
+        cnae_principal: cnaePrincipal.trim() || undefined,
+        situacao_cadastral: situacaoCadastral.trim() || undefined,
+        data_nascimento_fundacao: dataAbertura.trim() || undefined,
+        tipo_cliente: cnpj.replace(/\D/g, '').length === 14 ? 'comercial' : 'residencial',
         consumo_kwh_mes: consumoNum,
         origem_lead: origem,
         produto,
@@ -152,15 +297,59 @@ export const NovoLeadModal: React.FC<NovoLeadModalProps> = ({ isOpen, onClose })
         </div>
 
         {/* Form Body */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+        <form onSubmit={handleSubmit} className="p-6 space-y-4 max-h-[80vh] overflow-y-auto">
+          {/* Campo CNPJ opcional com consulta automática */}
+          <div className="p-3.5 bg-gray-50 rounded-xl border border-gray-200/80 space-y-2">
+            <CnpjInputWithLookup
+              value={cnpj}
+              onChange={(val) => {
+                setCnpj(val)
+                if (conflitosCnpj.length > 0) setConflitosCnpj([])
+              }}
+              onBlur={handleCnpjBlur}
+              onLookupClick={() =>
+                lookupCnpj(cnpj, true).then((r) => r && aplicarDadosReceita(r, true))
+              }
+              status={cnpjStatus}
+              errorMessage={cnpjErrorMessage}
+              isLoading={isCnpjLoading}
+              label="CNPJ (Empresa / PJ) - Consulta Automática"
+              helperText="Preencha os 14 dígitos e saia do campo para buscar dados da Receita Federal"
+            />
+
+            <CnpjConflictBanner
+              conflitos={conflitosCnpj}
+              onManterMeusDados={() => {
+                setConflitosCnpj([])
+                setPendenteDadosReceita(null)
+              }}
+              onUsarDadosReceita={() => {
+                if (pendenteDadosReceita) aplicarDadosReceita(pendenteDadosReceita, true)
+              }}
+            />
+
+            {situacaoCadastral && (
+              <div className="flex items-center gap-2 pt-1 text-xs text-gray-600 flex-wrap">
+                <span className="font-semibold text-gray-700">Situação:</span>
+                <span className="px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 font-bold text-[10px]">
+                  {situacaoCadastral}
+                </span>
+                {cnaePrincipal && (
+                  <span className="text-[11px] text-gray-500 truncate" title={cnaePrincipal}>
+                    • CNAE: {cnaePrincipal}
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
+
           {/* Nome */}
           <div>
             <label className="block text-xs font-semibold uppercase tracking-wider text-gray-600 mb-1.5">
-              Nome do Lead <span className="text-red-500">*</span>
+              Nome do Lead / Razão Social <span className="text-red-500">*</span>
             </label>
             <input
               type="text"
-              autoFocus
               placeholder="Ex: João da Silva ou Fazenda Esperança"
               value={nome}
               onChange={(e) => setNome(e.target.value)}
