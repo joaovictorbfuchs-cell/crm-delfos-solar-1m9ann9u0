@@ -130,6 +130,11 @@ export interface Cliente extends RecordModel {
   classe_consumo?: string
   concessionaria?: string
   whatsapp?: string
+  // Dados do Titular / Responsável pela Unidade Consumidora (UC)
+  titular_nome?: string
+  titular_cpf?: string
+  titular_telefone?: string
+  titular_email?: string
   created: string
   updated: string
 }
@@ -307,6 +312,34 @@ export interface WhatsAppMensagem extends RecordModel {
     cliente_id?: Cliente
     conversa_id?: WhatsAppConversa
     template_id?: WhatsAppTemplate
+  }
+}
+
+// -------------------------------------------------------------
+// Tipos para Transferência de Créditos de Energia
+// -------------------------------------------------------------
+
+export type TransferenciaCreditoStatus = 'Pendente' | 'Em análise' | 'Homologada' | 'Rejeitada'
+
+export interface TransferenciaCredito extends RecordModel {
+  id: string
+  collectionId: string
+  collectionName: string
+  cliente_origem_id: string
+  cliente_origem_nome?: string
+  cliente_destino_id?: string
+  cliente_destino_nome: string
+  uc_destino?: string
+  quantidade_creditos: number
+  data_solicitacao: string
+  status: TransferenciaCreditoStatus
+  observacoes?: string
+  protocolo_concessionaria?: string
+  created: string
+  updated: string
+  expand?: {
+    cliente_origem_id?: Cliente
+    cliente_destino_id?: Cliente
   }
 }
 

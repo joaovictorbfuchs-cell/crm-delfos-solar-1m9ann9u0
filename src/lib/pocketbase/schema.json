@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-12T19:35:45.078Z",
+  "generatedAt": "2026-09-12T20:03:43.669Z",
   "collections": [
     {
       "name": "users",
@@ -364,6 +364,30 @@
         },
         {
           "name": "data_abertura",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "titular_nome",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "titular_cpf",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "titular_telefone",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "titular_email",
           "type": "text",
           "required": false,
           "system": false
@@ -2694,6 +2718,101 @@
         "CREATE INDEX idx_servicos_avulsos_cliente ON servicos_avulsos (cliente_id)",
         "CREATE INDEX idx_servicos_avulsos_status ON servicos_avulsos (status)",
         "CREATE INDEX idx_servicos_avulsos_data ON servicos_avulsos (data_servico DESC)"
+      ]
+    },
+    {
+      "name": "transferencias_creditos",
+      "type": "base",
+      "apiRules": {
+        "list": "",
+        "view": "",
+        "create": "",
+        "update": "",
+        "delete": ""
+      },
+      "fields": [
+        {
+          "name": "cliente_origem_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "clientes"
+        },
+        {
+          "name": "cliente_origem_nome",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "cliente_destino_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "clientes"
+        },
+        {
+          "name": "cliente_destino_nome",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "uc_destino",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "quantidade_creditos",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "data_solicitacao",
+          "type": "date",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "status",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["Pendente", "Em análise", "Homologada", "Rejeitada"]
+        },
+        {
+          "name": "observacoes",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "protocolo_concessionaria",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_transf_cred_origem ON transferencias_creditos (cliente_origem_id)",
+        "CREATE INDEX idx_transf_cred_status ON transferencias_creditos (status)",
+        "CREATE INDEX idx_transf_cred_data ON transferencias_creditos (data_solicitacao)"
       ]
     }
   ]

@@ -106,6 +106,16 @@ interface ClientesContextType {
   anomaliasOM: AnomaliaOM[]
   servicosAdicionaisOM: ServicoAdicionalOM[]
   servicosAvulsos: ServicoAvulso[]
+  transferenciasCreditos: import('@/types/crm').TransferenciaCredito[]
+  addTransferenciaCredito: (
+    data: Parameters<typeof import('@/services/crmService').createTransferenciaCredito>[0],
+  ) => Promise<import('@/types/crm').TransferenciaCredito>
+  updateTransferenciaCredito: (
+    id: string,
+    data: Partial<import('@/types/crm').TransferenciaCredito>,
+  ) => Promise<import('@/types/crm').TransferenciaCredito>
+  removeTransferenciaCredito: (id: string) => Promise<void>
+  refreshTransferenciasCreditos: () => Promise<void>
   timelineOM: TimelineOM[]
   propostasOM: PropostaOM[]
   orcamentosSolar: OrcamentoSolar[]
@@ -338,6 +348,9 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [anomaliasOM, setAnomaliasOM] = useState<AnomaliaOM[]>([])
   const [servicosAdicionaisOM, setServicosAdicionaisOM] = useState<ServicoAdicionalOM[]>([])
   const [servicosAvulsos, setServicosAvulsos] = useState<ServicoAvulso[]>([])
+  const [transferenciasCreditos, setTransferenciasCreditos] = useState<
+    import('@/types/crm').TransferenciaCredito[]
+  >([])
   const [timelineOM, setTimelineOM] = useState<TimelineOM[]>([])
   const [propostasOM, setPropostasOM] = useState<PropostaOM[]>([])
   const [orcamentosSolar, setOrcamentosSolar] = useState<OrcamentoSolar[]>([])
@@ -387,6 +400,7 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         fornList,
         fornOrcList,
         avulsosList,
+        transfList,
       ] = await Promise.all([
         fetchClientes(),
         fetchSistemas(),
@@ -409,6 +423,7 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         import('@/services/crmService').then((s) => s.fetchFornecedores()),
         import('@/services/crmService').then((s) => s.fetchFornecedoresOrcamentos()),
         fetchServicosAvulsos(),
+        import('@/services/crmService').then((s) => s.fetchTransferenciasCreditos()),
       ])
       setClientes(cList)
       setSistemas(sList)
@@ -422,6 +437,7 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       setAnomaliasOM(anomList)
       setServicosAdicionaisOM(adicList)
       setServicosAvulsos(avulsosList)
+      setTransferenciasCreditos(transfList)
       setTimelineOM(timeList)
       setPropostasOM(propList)
       setOrcamentosSolar(orcList)
@@ -1194,6 +1210,37 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     setServicosAvulsos((prev) => prev.filter((s) => s.id !== id))
   }
 
+  const addTransferenciaCredito = async (
+    data: Parameters<typeof import('@/services/crmService').createTransferenciaCredito>[0],
+  ) => {
+    const s = await import('@/services/crmService')
+    const created = await s.createTransferenciaCredito(data)
+    setTransferenciasCreditos((prev) => [created, ...prev.filter((t) => t.id !== created.id)])
+    return created
+  }
+
+  const updateTransferenciaCredito = async (
+    id: string,
+    data: Partial<import('@/types/crm').TransferenciaCredito>,
+  ) => {
+    const s = await import('@/services/crmService')
+    const updated = await s.updateTransferenciaCredito(id, data)
+    setTransferenciasCreditos((prev) => prev.map((t) => (t.id === id ? updated : t)))
+    return updated
+  }
+
+  const removeTransferenciaCredito = async (id: string) => {
+    const s = await import('@/services/crmService')
+    await s.deleteTransferenciaCredito(id)
+    setTransferenciasCreditos((prev) => prev.filter((t) => t.id !== id))
+  }
+
+  const refreshTransferenciasCreditos = async () => {
+    const s = await import('@/services/crmService')
+    const list = await s.fetchTransferenciasCreditos()
+    setTransferenciasCreditos(list)
+  }
+
   const addTimelineOM = async (data: Parameters<typeof apiCreateTimelineOM>[0]) => {
     const created = await apiCreateTimelineOM(data)
     setTimelineOM((prev) => [created, ...prev])
@@ -1460,6 +1507,11 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         addServicoAvulso,
         updateServicoAvulso,
         removeServicoAvulso,
+        transferenciasCreditos,
+        addTransferenciaCredito,
+        updateTransferenciaCredito,
+        removeTransferenciaCredito,
+        refreshTransferenciasCreditos,
         timelineOM,
         isLoading,
         error,

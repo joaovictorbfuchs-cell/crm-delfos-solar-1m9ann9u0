@@ -1119,3 +1119,65 @@ export async function selecionarFornecedorOrcamento(
     },
   )
 }
+
+// -------------------------------------------------------------
+// Transferências de Créditos Services
+// -------------------------------------------------------------
+
+export async function fetchTransferenciasCreditos(
+  clienteId?: string,
+): Promise<import('@/types/crm').TransferenciaCredito[]> {
+  try {
+    const filter = clienteId
+      ? `cliente_origem_id='${clienteId}' || cliente_destino_id='${clienteId}'`
+      : ''
+    const records = await pb
+      .collection('transferencias_creditos')
+      .getFullList<import('@/types/crm').TransferenciaCredito>({
+        filter: filter || undefined,
+        sort: '-data_solicitacao,-created',
+        expand: 'cliente_origem_id,cliente_destino_id',
+      })
+    return records
+  } catch (err) {
+    console.error('Erro ao buscar transferências de créditos:', err)
+    return []
+  }
+}
+
+export async function createTransferenciaCredito(data: {
+  cliente_origem_id: string
+  cliente_origem_nome?: string
+  cliente_destino_id?: string
+  cliente_destino_nome: string
+  uc_destino?: string
+  quantidade_creditos: number
+  data_solicitacao: string
+  status: import('@/types/crm').TransferenciaCreditoStatus
+  observacoes?: string
+  protocolo_concessionaria?: string
+}): Promise<import('@/types/crm').TransferenciaCredito> {
+  const record = await pb
+    .collection('transferencias_creditos')
+    .create<import('@/types/crm').TransferenciaCredito>(data, {
+      expand: 'cliente_origem_id,cliente_destino_id',
+    })
+  return record
+}
+
+export async function updateTransferenciaCredito(
+  id: string,
+  data: Partial<import('@/types/crm').TransferenciaCredito>,
+): Promise<import('@/types/crm').TransferenciaCredito> {
+  const record = await pb
+    .collection('transferencias_creditos')
+    .update<import('@/types/crm').TransferenciaCredito>(id, data, {
+      expand: 'cliente_origem_id,cliente_destino_id',
+    })
+  return record
+}
+
+export async function deleteTransferenciaCredito(id: string): Promise<boolean> {
+  await pb.collection('transferencias_creditos').delete(id)
+  return true
+}
