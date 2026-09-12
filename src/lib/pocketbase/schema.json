@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-12T19:13:13.203Z",
+  "generatedAt": "2026-09-12T19:35:45.078Z",
   "collections": [
     {
       "name": "users",
@@ -2612,6 +2612,89 @@
         }
       ],
       "indexes": []
+    },
+    {
+      "name": "servicos_avulsos",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "cliente_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "clientes"
+        },
+        {
+          "name": "data_servico",
+          "type": "date",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "tipo_servico",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["limpeza", "troca_equipamento", "visita_tecnica", "reaperto", "outro"]
+        },
+        {
+          "name": "valor_cobrado",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "observacoes_tecnicas",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "status",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["agendado", "em_andamento", "concluido"]
+        },
+        {
+          "name": "observacoes_equipe",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "fotos",
+          "type": "file",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_servicos_avulsos_cliente ON servicos_avulsos (cliente_id)",
+        "CREATE INDEX idx_servicos_avulsos_status ON servicos_avulsos (status)",
+        "CREATE INDEX idx_servicos_avulsos_data ON servicos_avulsos (data_servico DESC)"
+      ]
     }
   ]
 }

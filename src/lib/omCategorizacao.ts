@@ -1,7 +1,14 @@
-import type { Cliente, ContratoOM, ServicoAdicionalOM, AnomaliaOM } from '@/types/crm'
+import type {
+  Cliente,
+  ContratoOM,
+  ServicoAdicionalOM,
+  AnomaliaOM,
+  ServicoAvulso,
+} from '@/types/crm'
 
 export type CategoriaClienteOM =
   | 'plano_ativo'
+  | 'pos_vendas'
   | 'sem_plano'
   | 'servico_avulso'
   | 'anomalia_aberta'
@@ -10,11 +17,12 @@ export type CategoriaClienteOM =
 export interface ContagensOM {
   totalClientes: number
   planosAtivos: number
+  posVendas: number
+  oportunidadesOM: number
   semPlano: number
   servicosAvulsos: number
   anomaliasAbertas: number
   planosVencidos: number
-  // Contagens secundárias de ocorrências globais (para badges informativos)
   totalAnomaliasAbertasOcorrencias: number
   totalServicosAvulsosOcorrencias: number
 }
@@ -33,14 +41,17 @@ export interface ContagensOM {
 export function categorizarClienteOM(
   clienteId: string,
   contratosOM: ContratoOM[],
-  servicosAdicionaisOM: ServicoAdicionalOM[],
-  anomaliasOM: AnomaliaOM[],
+  servicosAdicionaisOM: ServicoAdicionalOM[] = [],
+  anomaliasOM: AnomaliaOM[] = [],
+  servicosAvulsos: ServicoAvulso[] = [],
 ): {
   categoria: CategoriaClienteOM
   contratoAtivo?: ContratoOM
   contratoVencido?: ContratoOM
   temAnomaliaAberta: boolean
   temServicoAvulsoEmAndamento: boolean
+  temServicoAvulsoHistorico: boolean
+  ultimoServicoAvulso?: ServicoAvulso
 } {
   // Contratos do cliente
   const contratos = contratosOM.filter((c) => c.cliente_id === clienteId)
@@ -76,10 +87,17 @@ export function categorizarClienteOM(
     (a) => a.cliente_id === clienteId && a.status !== 'Resolvido' && a.status !== 'Cancelado',
   )
 
-  // Serviço avulso / adicional em andamento deste cliente
-  const temServicoAvulsoEmAndamento = servicosAdicionaisOM.some(
-    (s) => s.cliente_id === clienteId && (s.status === 'em execução' || s.status === 'pendente'),
-  )
+  // Serviço avulso da coleção servicos_avulsos e servicos_adicionais_om
+  const avulsosCliente = servicosAvulsos.filter((s) => s.cliente_id === clienteId)
+  const temServicoAvulsoHistorico =
+    avulsosCliente.length > 0 || servicosAdicionaisOM.some((s) => s.cliente_id === clienteId)
+  const ultimoServicoAvulso = avulsosCliente[0] // já ordenado por data_servico desc
+
+  const temServicoAvulsoEmAndamento =
+    avulsosCliente.some((s) => s.status === 'agendado' || s.status === 'em_andamento') ||
+    servicosAdicionaisOM.some(
+      (s) => s.cliente_id === clienteId && (s.status === 'em execução' || s.status === 'pendente'),
+    )
 
   let categoria: CategoriaClienteOM
 
@@ -101,37 +119,58 @@ export function categorizarClienteOM(
     contratoVencido,
     temAnomaliaAberta,
     temServicoAvulsoEmAndamento,
+    temServicoAvulsoHistorico,
+    ultimoServicoAvulso,
   }
 }
 
 /**
  * Calcula os totais exatos por cliente para alimentar cards de resumo e botões de filtro.
- * A soma das categorias exclusivas de clientes é exatamente igual ao número de clientes.
  */
 export function calcularContagensOM(
   clientes: Cliente[],
   contratosOM: ContratoOM[],
-  servicosAdicionaisOM: ServicoAdicionalOM[],
-  anomaliasOM: AnomaliaOM[],
+  servicosAdicionaisOM: ServicoAdicionalOM[] = [],
+  anomaliasOM: AnomaliaOM[] = [],
+  servicosAvulsos: ServicoAvulso[] = [],
+  sistemas: { cliente_id?: string; potencia_total_kwp?: number }[] = [],
 ): ContagensOM {
   let planosAtivos = 0
+  let posVendas = 0
+  let oportunidadesOM = 0
   let semPlano = 0
-  let servicosAvulsos = 0
+  let servicosAvulsosCount = 0
   let anomaliasAbertas = 0
   let planosVencidos = 0
 
   for (const cliente of clientes) {
-    const { categoria } = categorizarClienteOM(
+    const { categoria, temServicoAvulsoHistorico } = categorizarClienteOM(
       cliente.id,
       contratosOM,
       servicosAdicionaisOM,
       anomaliasOM,
+      servicosAvulsos,
     )
 
+    const sistema = sistemas.find((s) => s.cliente_id === cliente.id)
+    const potencia = sistema?.potencia_total_kwp ?? cliente.potencia_kwp ?? 0
+    const instalouSolar =
+      potencia > 0 ||
+      Boolean(cliente.data_instalacao) ||
+      cliente.status === 'Fechado' ||
+      cliente.produto === 'Energia Solar'
+
+    if (categoria === 'plano_ativo') {
+      planosAtivos++
+    } else {
+      // É Pós-Vendas (não tem plano ativo)
+      posVendas++
+      if (instalouSolar) {
+        oportunidadesOM++
+      }
+    }
+
     switch (categoria) {
-      case 'plano_ativo':
-        planosAtivos++
-        break
       case 'plano_vencido':
         planosVencidos++
         break
@@ -139,7 +178,7 @@ export function calcularContagensOM(
         anomaliasAbertas++
         break
       case 'servico_avulso':
-        servicosAvulsos++
+        servicosAvulsosCount++
         break
       case 'sem_plano':
         semPlano++
@@ -147,20 +186,22 @@ export function calcularContagensOM(
     }
   }
 
-  // Contadores secundários informativos (número absoluto de tickets/serviços não resolvidos)
   const totalAnomaliasAbertasOcorrencias = anomaliasOM.filter(
     (a) => a.status !== 'Resolvido' && a.status !== 'Cancelado',
   ).length
 
-  const totalServicosAvulsosOcorrencias = servicosAdicionaisOM.filter(
-    (s) => s.status === 'em execução' || s.status === 'pendente',
-  ).length
+  const totalServicosAvulsosOcorrencias =
+    servicosAdicionaisOM.filter((s) => s.status === 'em execução' || s.status === 'pendente')
+      .length +
+    servicosAvulsos.filter((s) => s.status === 'agendado' || s.status === 'em_andamento').length
 
   return {
     totalClientes: clientes.length,
     planosAtivos,
+    posVendas,
+    oportunidadesOM,
     semPlano,
-    servicosAvulsos,
+    servicosAvulsos: servicosAvulsosCount,
     anomaliasAbertas,
     planosVencidos,
     totalAnomaliasAbertasOcorrencias,

@@ -30,6 +30,10 @@ import {
   fetchAnomaliasOM,
   fetchServicosAdicionaisOM,
   fetchTimelineOM,
+  fetchServicosAvulsos,
+  createServicoAvulso as apiCreateServicoAvulso,
+  updateServicoAvulso as apiUpdateServicoAvulso,
+  deleteServicoAvulso as apiDeleteServicoAvulso,
   createAtividade as apiCreateAtividade,
   updateAtividade as apiUpdateAtividade,
   deleteAtividade as apiDeleteAtividade,
@@ -80,6 +84,7 @@ import {
 import type {
   OrcamentoSolar,
   PropostaOM,
+  ServicoAvulso,
   WhatsAppTemplate,
   WhatsAppMensagem,
   WhatsAppConversa,
@@ -100,6 +105,7 @@ interface ClientesContextType {
   contratosOM: ContratoOM[]
   anomaliasOM: AnomaliaOM[]
   servicosAdicionaisOM: ServicoAdicionalOM[]
+  servicosAvulsos: ServicoAvulso[]
   timelineOM: TimelineOM[]
   propostasOM: PropostaOM[]
   orcamentosSolar: OrcamentoSolar[]
@@ -202,6 +208,9 @@ interface ClientesContextType {
     data: Partial<ServicoAdicionalOM>,
   ) => Promise<ServicoAdicionalOM>
   removeServicoAdicionalOM: (id: string) => Promise<void>
+  addServicoAvulso: (data: Parameters<typeof apiCreateServicoAvulso>[0]) => Promise<ServicoAvulso>
+  updateServicoAvulso: (id: string, data: Partial<ServicoAvulso>) => Promise<ServicoAvulso>
+  removeServicoAvulso: (id: string) => Promise<void>
   addTimelineOM: (data: Parameters<typeof apiCreateTimelineOM>[0]) => Promise<TimelineOM>
   addPropostaOM: (data: Parameters<typeof apiCreatePropostaOM>[0]) => Promise<PropostaOM>
   updatePropostaOM: (id: string, data: Partial<PropostaOM>) => Promise<PropostaOM>
@@ -328,6 +337,7 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [contratosOM, setContratosOM] = useState<ContratoOM[]>([])
   const [anomaliasOM, setAnomaliasOM] = useState<AnomaliaOM[]>([])
   const [servicosAdicionaisOM, setServicosAdicionaisOM] = useState<ServicoAdicionalOM[]>([])
+  const [servicosAvulsos, setServicosAvulsos] = useState<ServicoAvulso[]>([])
   const [timelineOM, setTimelineOM] = useState<TimelineOM[]>([])
   const [propostasOM, setPropostasOM] = useState<PropostaOM[]>([])
   const [orcamentosSolar, setOrcamentosSolar] = useState<OrcamentoSolar[]>([])
@@ -376,6 +386,7 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         convList,
         fornList,
         fornOrcList,
+        avulsosList,
       ] = await Promise.all([
         fetchClientes(),
         fetchSistemas(),
@@ -397,6 +408,7 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         fetchWhatsAppConversas(),
         import('@/services/crmService').then((s) => s.fetchFornecedores()),
         import('@/services/crmService').then((s) => s.fetchFornecedoresOrcamentos()),
+        fetchServicosAvulsos(),
       ])
       setClientes(cList)
       setSistemas(sList)
@@ -409,6 +421,7 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       setContratosOM(contList)
       setAnomaliasOM(anomList)
       setServicosAdicionaisOM(adicList)
+      setServicosAvulsos(avulsosList)
       setTimelineOM(timeList)
       setPropostasOM(propList)
       setOrcamentosSolar(orcList)
@@ -466,6 +479,15 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     () => {
       // Refresh to ensure expand relation is populated
       fetchManutencoes().then(setManutencoes).catch(console.error)
+    },
+    isAuthenticated,
+  )
+
+  // Realtime updates for servicos_avulsos
+  useRealtime<ServicoAvulso>(
+    'servicos_avulsos',
+    () => {
+      fetchServicosAvulsos().then(setServicosAvulsos).catch(console.error)
     },
     isAuthenticated,
   )
@@ -1131,6 +1153,47 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     setServicosAdicionaisOM((prev) => prev.filter((s) => s.id !== id))
   }
 
+  const addServicoAvulso = async (data: Parameters<typeof apiCreateServicoAvulso>[0]) => {
+    const created = await apiCreateServicoAvulso(data)
+    setServicosAvulsos((prev) => [created, ...prev.filter((s) => s.id !== created.id)])
+    // Log na timeline
+    try {
+      const tipoLabels: Record<string, string> = {
+        limpeza: 'Limpeza dos módulos',
+        troca_equipamento: 'Troca de equipamento',
+        visita_tecnica: 'Visita técnica',
+        reaperto: 'Reaperto conexões/fixações',
+        outro: 'Serviço técnico avulso',
+      }
+      const label = tipoLabels[data.tipo_servico] || data.tipo_servico
+      const timeEv = await apiCreateTimelineOM({
+        cliente_id: data.cliente_id,
+        tipo: 'servico_adicional',
+        titulo: `Serviço Avulso: ${label}`,
+        descricao: `Valor: R$ ${(data.valor_cobrado || 0).toFixed(2)} | Status: ${data.status}${data.observacoes_tecnicas ? ` | Obs: ${data.observacoes_tecnicas}` : ''}`,
+        data: data.data_servico || new Date().toISOString(),
+        autor: 'Equipe Delfos Solar',
+        status_tag: data.status,
+      })
+      setTimelineOM((prev) => [timeEv, ...prev])
+    } catch (e) {
+      console.warn('Erro ao registrar timeline para servico avulso:', e)
+    }
+    return created
+  }
+
+  const updateServicoAvulso = async (id: string, data: Partial<ServicoAvulso>) => {
+    setServicosAvulsos((prev) => prev.map((s) => (s.id === id ? { ...s, ...data } : s)))
+    const updated = await apiUpdateServicoAvulso(id, data)
+    setServicosAvulsos((prev) => prev.map((s) => (s.id === id ? updated : s)))
+    return updated
+  }
+
+  const removeServicoAvulso = async (id: string) => {
+    await apiDeleteServicoAvulso(id)
+    setServicosAvulsos((prev) => prev.filter((s) => s.id !== id))
+  }
+
   const addTimelineOM = async (data: Parameters<typeof apiCreateTimelineOM>[0]) => {
     const created = await apiCreateTimelineOM(data)
     setTimelineOM((prev) => [created, ...prev])
@@ -1393,6 +1456,10 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         contratosOM,
         anomaliasOM,
         servicosAdicionaisOM,
+        servicosAvulsos,
+        addServicoAvulso,
+        updateServicoAvulso,
+        removeServicoAvulso,
         timelineOM,
         isLoading,
         error,

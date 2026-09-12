@@ -623,6 +623,38 @@ export interface TimelineOM extends RecordModel {
 // Tipos para Propostas de O&M
 // -------------------------------------------------------------
 
+// -------------------------------------------------------------
+// Tipos para Serviços Avulsos
+// -------------------------------------------------------------
+
+export type ServicoAvulsoTipo =
+  | 'limpeza'
+  | 'troca_equipamento'
+  | 'visita_tecnica'
+  | 'reaperto'
+  | 'outro'
+
+export type ServicoAvulsoStatus = 'agendado' | 'em_andamento' | 'concluido'
+
+export interface ServicoAvulso extends RecordModel {
+  id: string
+  collectionId: string
+  collectionName: string
+  cliente_id: string
+  data_servico: string
+  tipo_servico: ServicoAvulsoTipo
+  valor_cobrado?: number
+  observacoes_tecnicas?: string
+  status: ServicoAvulsoStatus
+  observacoes_equipe?: string
+  fotos?: string[]
+  created: string
+  updated: string
+  expand?: {
+    cliente_id?: Cliente
+  }
+}
+
 export interface PropostaOM extends RecordModel {
   id: string
   collectionId: string

@@ -120,6 +120,103 @@ export async function createManutencao(data: {
   return record
 }
 
+// -------------------------------------------------------------
+// Serviços Avulsos Services
+// -------------------------------------------------------------
+
+export async function fetchServicosAvulsos(
+  clienteId?: string,
+): Promise<import('@/types/crm').ServicoAvulso[]> {
+  try {
+    const filter = clienteId ? `cliente_id='${clienteId}'` : ''
+    const records = await pb
+      .collection('servicos_avulsos')
+      .getFullList<import('@/types/crm').ServicoAvulso>({
+        filter: filter || undefined,
+        sort: '-data_servico,-created',
+        expand: 'cliente_id',
+      })
+    return records
+  } catch (err) {
+    console.error('Erro ao buscar serviços avulsos:', err)
+    return []
+  }
+}
+
+export async function createServicoAvulso(data: {
+  cliente_id: string
+  data_servico: string
+  tipo_servico: import('@/types/crm').ServicoAvulsoTipo
+  valor_cobrado?: number
+  observacoes_tecnicas?: string
+  status: import('@/types/crm').ServicoAvulsoStatus
+  observacoes_equipe?: string
+  fotos?: File[] | string[]
+}): Promise<import('@/types/crm').ServicoAvulso> {
+  const hasFiles = Array.isArray(data.fotos) && data.fotos.some((f) => f instanceof File)
+  if (hasFiles) {
+    const formData = new FormData()
+    formData.append('cliente_id', data.cliente_id)
+    formData.append('data_servico', data.data_servico)
+    formData.append('tipo_servico', data.tipo_servico)
+    if (data.valor_cobrado !== undefined && data.valor_cobrado !== null) {
+      formData.append('valor_cobrado', String(data.valor_cobrado))
+    }
+    if (data.observacoes_tecnicas) {
+      formData.append('observacoes_tecnicas', data.observacoes_tecnicas)
+    }
+    formData.append('status', data.status)
+    if (data.observacoes_equipe) {
+      formData.append('observacoes_equipe', data.observacoes_equipe)
+    }
+    for (const foto of data.fotos || []) {
+      if (foto instanceof File) {
+        formData.append('fotos', foto)
+      }
+    }
+    const record = await pb
+      .collection('servicos_avulsos')
+      .create<import('@/types/crm').ServicoAvulso>(formData, {
+        expand: 'cliente_id',
+      })
+    return record
+  }
+
+  const payload = {
+    cliente_id: data.cliente_id,
+    data_servico: data.data_servico,
+    tipo_servico: data.tipo_servico,
+    valor_cobrado: data.valor_cobrado || 0,
+    observacoes_tecnicas: data.observacoes_tecnicas || '',
+    status: data.status,
+    observacoes_equipe: data.observacoes_equipe || '',
+  }
+
+  const record = await pb
+    .collection('servicos_avulsos')
+    .create<import('@/types/crm').ServicoAvulso>(payload, {
+      expand: 'cliente_id',
+    })
+  return record
+}
+
+export async function updateServicoAvulso(
+  id: string,
+  data: Partial<import('@/types/crm').ServicoAvulso>,
+): Promise<import('@/types/crm').ServicoAvulso> {
+  const record = await pb
+    .collection('servicos_avulsos')
+    .update<import('@/types/crm').ServicoAvulso>(id, data, {
+      expand: 'cliente_id',
+    })
+  return record
+}
+
+export async function deleteServicoAvulso(id: string): Promise<boolean> {
+  await pb.collection('servicos_avulsos').delete(id)
+  return true
+}
+
 export async function createCliente(data: Partial<Cliente> & { nome: string }): Promise<Cliente> {
   const record = await pb.collection('clientes').create<Cliente>(data)
   return record

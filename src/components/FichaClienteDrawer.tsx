@@ -53,6 +53,7 @@ import { FichaClienteWhatsApp } from './FichaClienteWhatsApp'
 import { ModalGerenciarWhatsAppTemplates } from './ModalGerenciarWhatsAppTemplates'
 import { ModalNovaPropostaOM } from './ModalNovaPropostaOM'
 import { ModalOrcamentoSolar } from './ModalOrcamentoSolar'
+import { ModalRegistrarServicoAvulso } from './ModalRegistrarServicoAvulso'
 import { ModalEnviarDocumentoWhatsApp } from './ModalEnviarDocumentoWhatsApp'
 import { ImportarDadosDocumento } from './ImportarDadosDocumento'
 import type { OrcamentoSolar } from '@/types/crm'
@@ -152,6 +153,9 @@ export const FichaClienteDrawer: React.FC = () => {
 
   // Estado para Modal de Detalhes / Edição Inline da Linha do Tempo Unificada
   const [timelineItemDetalhes, setTimelineItemDetalhes] = useState<TimelineUnifiedItem | null>(null)
+
+  // Modal de Serviço Avulso
+  const [modalServicoAvulsoOpen, setModalServicoAvulsoOpen] = useState(false)
 
   // Modal de Proposta O&M
   const [isModalPropostaOpen, setIsModalPropostaOpen] = useState(false)
@@ -489,6 +493,17 @@ export const FichaClienteDrawer: React.FC = () => {
               <Sun className="w-4 h-4" />
               <span className="hidden sm:inline">Gerar Orçamento Solar</span>
               <span className="sm:hidden">Orçamento</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setModalServicoAvulsoOpen(true)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 text-xs font-bold rounded-lg shadow-xs transition-all hover:scale-[1.02]"
+              title="Oferecer serviço técnico avulso (limpeza, reparo, visita) e adicionar cliente ao Pós-Vendas O&M"
+            >
+              <Wrench className="w-4 h-4 text-amber-600" />
+              <span className="hidden sm:inline">Oferecer Serviço Avulso</span>
+              <span className="sm:hidden">Serviço Avulso</span>
             </button>
 
             <button
@@ -2470,6 +2485,15 @@ export const FichaClienteDrawer: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Modal Oferecer Serviço Avulso */}
+      {selectedCliente && (
+        <ModalRegistrarServicoAvulso
+          open={modalServicoAvulsoOpen}
+          onOpenChange={setModalServicoAvulsoOpen}
+          cliente={selectedCliente}
+        />
+      )}
 
       {/* Modal Nova Proposta O&M */}
       <ModalNovaPropostaOM
