@@ -2187,341 +2187,6 @@ export const FichaClienteDrawer: React.FC = () => {
                   )}
 
                   {/* ======================================================== */}
-                  {/* SEÇÃO: HISTÓRICO DE PROPOSTAS & CONTROLE DE REVISÕES      */}
-                  {/* ======================================================== */}
-                  {clientOrcamentosSolar.length > 0 && (
-                    <div className="bg-gradient-to-r from-emerald-50/80 via-white to-amber-50/40 rounded-xl p-3.5 border border-emerald-200/90 shadow-2xs space-y-3">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-950 uppercase tracking-wider">
-                          <Sun className="w-4 h-4 text-emerald-600" />
-                          <span>Propostas Solares & Revisões ({clientOrcamentosSolar.length})</span>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setOrcamentoSolarVisualizar(null)
-                            setIsModalOrcamentoSolarOpen(true)
-                          }}
-                          className="text-[11px] font-bold text-emerald-700 hover:text-emerald-800 bg-white px-2 py-0.5 rounded border border-emerald-300 hover:bg-emerald-50 transition-colors"
-                        >
-                          + Novo Orçamento
-                        </button>
-                      </div>
-
-                      <div className="space-y-2">
-                        {clientOrcamentosSolar.map((o) => {
-                          const revNumero = o.numero_revisao || 1
-                          const revStatus = o.status_revisao || 'em análise'
-
-                          // Estilo de status colorido conforme especificação:
-                          // em análise: cinza/âmbar, enviada ao cliente: azul, aprovada: verde, rejeitada: vermelha
-                          let statusClasses = 'bg-amber-100 text-amber-800 border-amber-200'
-                          if (revStatus === 'aprovada') {
-                            statusClasses = 'bg-emerald-100 text-emerald-800 border-emerald-300'
-                          } else if (revStatus === 'enviada ao cliente') {
-                            statusClasses = 'bg-blue-100 text-blue-800 border-blue-300'
-                          } else if (revStatus === 'rejeitada') {
-                            statusClasses = 'bg-red-100 text-red-800 border-red-300'
-                          }
-
-                          return (
-                            <div
-                              key={o.id}
-                              className="bg-white p-3 rounded-xl border border-gray-200 hover:border-emerald-300 shadow-2xs transition-all text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3"
-                            >
-                              <div className="flex items-start sm:items-center gap-3">
-                                {/* Badge de Revisão */}
-                                <div className="px-2.5 py-1 rounded-lg bg-emerald-700 text-white font-black text-xs shrink-0 shadow-2xs">
-                                  Revisão {revNumero}
-                                </div>
-
-                                <div className="space-y-0.5">
-                                  <div className="flex items-center gap-2 flex-wrap">
-                                    <span className="font-extrabold text-gray-900 text-sm">
-                                      {formatCurrency(o.valor_investimento)}
-                                    </span>
-                                    {/* Status Colorido */}
-                                    <span
-                                      className={`text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full border ${statusClasses}`}
-                                    >
-                                      {revStatus}
-                                    </span>
-                                    {o.revisao_de && (
-                                      <span className="text-[10px] text-gray-400">(derivada)</span>
-                                    )}
-                                  </div>
-
-                                  <div className="text-[11px] text-gray-500 flex items-center gap-2 flex-wrap">
-                                    <span>
-                                      <strong>Data de emissão:</strong>{' '}
-                                      {formatDate(o.data_orcamento || o.created)}
-                                    </span>
-                                    <span>•</span>
-                                    <span>
-                                      {o.potencia_kwp.toFixed(2)} kWp ({o.numero_placas} placas)
-                                    </span>
-                                    {o.geracao_mensal_kwh ? (
-                                      <>
-                                        <span>•</span>
-                                        <span className="text-emerald-700 font-semibold">
-                                          {o.geracao_mensal_kwh} kWh/mês
-                                        </span>
-                                      </>
-                                    ) : null}
-                                  </div>
-                                </div>
-                              </div>
-
-                              {/* Ações: Visualizar Documento (reutiliza gerador), Editar/Gerar Revisão, WhatsApp */}
-                              <div className="flex items-center gap-1.5 self-end sm:self-center shrink-0">
-                                <button
-                                  type="button"
-                                  onClick={async () => {
-                                    const { abrirOrcamentoEmNovaAba } =
-                                      await import('@/lib/orcamentoGenerator')
-                                    const { calcularOrcamentoSolar } =
-                                      await import('@/lib/energiaSolar')
-                                    const calc = calcularOrcamentoSolar({
-                                      consumoKwhMes: o.consumo_kwh_mes,
-                                      tipoCliente: o.tipo_cliente || 'residencial',
-                                      tarifaKwh: o.tarifa_kwh,
-                                      potenciaKwp: o.potencia_kwp,
-                                      orientacaoTelhado: o.orientacao_telhado,
-                                      valorInvestimentoInformado: o.valor_investimento,
-                                      custos: {
-                                        maoDeObra: o.custo_mao_de_obra || 0,
-                                        materiaisExtras: o.custo_materiais_extras || 0,
-                                        freteGuincho: o.custo_frete_guincho || 0,
-                                        subestacao: o.custo_subestacao || 0,
-                                        terceirizacao: o.custo_terceirizacao || 0,
-                                        administracao: o.custo_administracao || 0,
-                                        marketingCombustivel: o.custo_marketing_combustivel || 0,
-                                        riscoEngenharia: o.custo_risco_engenharia || 0,
-                                        comissaoComercial: o.custo_comissao_comercial || 0,
-                                        indicacao: o.custo_indicacao || 0,
-                                        impostos: o.custo_impostos || 0,
-                                      },
-                                    })
-                                    abrirOrcamentoEmNovaAba({
-                                      cliente: {
-                                        nome: selectedCliente.nome,
-                                        cpfOuCnpj:
-                                          selectedCliente.cnpj || selectedCliente.cpf || '',
-                                        endereco: [
-                                          selectedCliente.endereco,
-                                          selectedCliente.numero,
-                                          selectedCliente.bairro,
-                                        ]
-                                          .filter(Boolean)
-                                          .join(', '),
-                                        municipio: selectedCliente.cidade || 'Erechim / RS',
-                                        email: selectedCliente.email || '',
-                                        telefone: selectedCliente.telefone || '',
-                                        tipoCliente: o.tipo_cliente,
-                                      },
-                                      representanteComercial: o.autor || 'Delfos Solar',
-                                      sistema: {
-                                        potenciaKwp: o.potencia_kwp,
-                                        consumoKwhMes: o.consumo_kwh_mes,
-                                        numeroPlacas: o.numero_placas,
-                                        potenciaPlacaWp: o.potencia_placa_wp,
-                                        marcaPlacas: o.marca_painel,
-                                        marcaInversor: o.marca_inversor,
-                                        quantidadeInversores: o.quantidade_inversores,
-                                        tipoEstrutura: o.tipo_estrutura,
-                                        orientacaoTelhado: o.orientacao_telhado,
-                                        areaNecessariaM2: o.area_necessaria_m2,
-                                        codigoFiname: o.codigo_finame,
-                                        prazoEntregaDias: 30,
-                                      },
-                                      calculos: calc,
-                                      dataEmissao: o.data_orcamento || o.created,
-                                      validadeDias: o.validade_dias || 5,
-                                      observacoes: o.observacoes,
-                                    })
-                                  }}
-                                  className="text-[11px] font-bold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 px-2.5 py-1 rounded-lg flex items-center gap-1 transition-colors"
-                                  title={`Visualizar Proposta (Revisão ${revNumero})`}
-                                >
-                                  <FileText className="w-3.5 h-3.5 text-emerald-700" />
-                                  <span>Visualizar Proposta</span>
-                                </button>
-
-                                {/* Botão Gerar / Baixar Proposta em Word (.docx) desta Revisão */}
-                                <button
-                                  type="button"
-                                  onClick={async () => {
-                                    const { calcularOrcamentoSolar } =
-                                      await import('@/lib/energiaSolar')
-                                    const { baixarPropostaSolarDocx } =
-                                      await import('@/lib/propostaSolarDocxGenerator')
-                                    const calc = calcularOrcamentoSolar({
-                                      consumoKwhMes: o.consumo_kwh_mes,
-                                      tipoCliente: o.tipo_cliente || 'residencial',
-                                      tarifaKwh: o.tarifa_kwh,
-                                      potenciaKwp: o.potencia_kwp,
-                                      orientacaoTelhado: o.orientacao_telhado,
-                                      valorInvestimentoInformado: o.valor_investimento,
-                                      custos: {
-                                        maoDeObra: o.custo_mao_de_obra || 0,
-                                        materiaisExtras: o.custo_materiais_extras || 0,
-                                        freteGuincho: o.custo_frete_guincho || 0,
-                                        subestacao: o.custo_subestacao || 0,
-                                        terceirizacao: o.custo_terceirizacao || 0,
-                                        administracao: o.custo_administracao || 0,
-                                        marketingCombustivel: o.custo_marketing_combustivel || 0,
-                                        riscoEngenharia: o.custo_risco_engenharia || 0,
-                                        comissaoComercial: o.custo_comissao_comercial || 0,
-                                        indicacao: o.custo_indicacao || 0,
-                                        impostos: o.custo_impostos || 0,
-                                      },
-                                    })
-                                    await baixarPropostaSolarDocx({
-                                      cliente: {
-                                        nome: selectedCliente.nome,
-                                        cpfOuCnpj:
-                                          selectedCliente.cnpj || selectedCliente.cpf || '',
-                                        endereco: [
-                                          selectedCliente.endereco,
-                                          selectedCliente.numero,
-                                          selectedCliente.bairro,
-                                        ]
-                                          .filter(Boolean)
-                                          .join(', '),
-                                        municipio: selectedCliente.cidade || 'Erechim / RS',
-                                        email: selectedCliente.email || '',
-                                        telefone: selectedCliente.telefone || '',
-                                        tipoCliente: o.tipo_cliente,
-                                      },
-                                      representanteComercial: o.autor || 'Delfos Solar',
-                                      sistema: {
-                                        potenciaKwp: o.potencia_kwp,
-                                        consumoKwhMes: o.consumo_kwh_mes,
-                                        numeroPlacas: o.numero_placas,
-                                        potenciaPlacaWp: o.potencia_placa_wp,
-                                        marcaPlacas: o.marca_painel,
-                                        marcaInversor: o.marca_inversor,
-                                        quantidadeInversores: o.quantidade_inversores,
-                                        tipoEstrutura: o.tipo_estrutura,
-                                        orientacaoTelhado: o.orientacao_telhado,
-                                        areaNecessariaM2: o.area_necessaria_m2,
-                                        codigoFiname: o.codigo_finame,
-                                        prazoEntregaDias: 30,
-                                      },
-                                      calculos: calc,
-                                      dataEmissao: o.data_orcamento || o.created,
-                                      validadeDias: o.validade_dias || 5,
-                                      observacoes: o.observacoes,
-                                    })
-                                  }}
-                                  className="text-[11px] font-bold text-blue-800 bg-blue-50 hover:bg-blue-100 border border-blue-300 px-2 py-1 rounded-lg flex items-center gap-1 transition-colors"
-                                  title={`Baixar Proposta em Word (.docx) — Revisão ${revNumero}`}
-                                >
-                                  <FileText className="w-3.5 h-3.5 text-blue-700" />
-                                  <span>Gerar Word</span>
-                                </button>
-
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setOrcamentoSolarVisualizar(o)
-                                    setIsModalOrcamentoSolarOpen(true)
-                                  }}
-                                  className="text-[11px] font-bold text-gray-700 hover:text-emerald-800 hover:bg-gray-100 px-2 py-1 rounded-lg border border-gray-200 transition-colors"
-                                  title="Editar parâmetros e gerar nova revisão"
-                                >
-                                  Alterar / Nova Rev.
-                                </button>
-
-                                <button
-                                  type="button"
-                                  disabled={!selectedCliente.whatsapp && !selectedCliente.telefone}
-                                  title={
-                                    !selectedCliente.whatsapp && !selectedCliente.telefone
-                                      ? 'Cadastre o WhatsApp do cliente para enviar'
-                                      : 'Enviar orçamento solar por WhatsApp'
-                                  }
-                                  onClick={async () => {
-                                    const { calcularOrcamentoSolar } =
-                                      await import('@/lib/energiaSolar')
-                                    const calc = calcularOrcamentoSolar({
-                                      consumoKwhMes: o.consumo_kwh_mes,
-                                      tipoCliente: o.tipo_cliente || 'residencial',
-                                      tarifaKwh: o.tarifa_kwh,
-                                      potenciaKwp: o.potencia_kwp,
-                                      orientacaoTelhado: o.orientacao_telhado,
-                                      valorInvestimentoInformado: o.valor_investimento,
-                                      custos: {
-                                        maoDeObra: o.custo_mao_de_obra || 0,
-                                        materiaisExtras: o.custo_materiais_extras || 0,
-                                        freteGuincho: o.custo_frete_guincho || 0,
-                                        subestacao: o.custo_subestacao || 0,
-                                        terceirizacao: o.custo_terceirizacao || 0,
-                                        administracao: o.custo_administracao || 0,
-                                        marketingCombustivel: o.custo_marketing_combustivel || 0,
-                                        riscoEngenharia: o.custo_risco_engenharia || 0,
-                                        comissaoComercial: o.custo_comissao_comercial || 0,
-                                        indicacao: o.custo_indicacao || 0,
-                                        impostos: o.custo_impostos || 0,
-                                      },
-                                    })
-                                    setDocParaEnviarWhatsApp({
-                                      tipo: 'orcamento_solar',
-                                      referenciaId: o.id,
-                                      dadosSolar: {
-                                        cliente: {
-                                          nome: selectedCliente.nome,
-                                          cpfOuCnpj:
-                                            selectedCliente.cnpj || selectedCliente.cpf || '',
-                                          endereco: [
-                                            selectedCliente.endereco,
-                                            selectedCliente.numero,
-                                            selectedCliente.bairro,
-                                          ]
-                                            .filter(Boolean)
-                                            .join(', '),
-                                          municipio: selectedCliente.cidade || 'Erechim / RS',
-                                          email: selectedCliente.email || '',
-                                          telefone: selectedCliente.telefone || '',
-                                          tipoCliente: o.tipo_cliente,
-                                        },
-                                        representanteComercial: o.autor || 'Delfos Solar',
-                                        sistema: {
-                                          potenciaKwp: o.potencia_kwp,
-                                          consumoKwhMes: o.consumo_kwh_mes,
-                                          numeroPlacas: o.numero_placas,
-                                          potenciaPlacaWp: o.potencia_placa_wp,
-                                          marcaPlacas: o.marca_painel,
-                                          marcaInversor: o.marca_inversor,
-                                          quantidadeInversores: o.quantidade_inversores,
-                                          tipoEstrutura: o.tipo_estrutura,
-                                          orientacaoTelhado: o.orientacao_telhado,
-                                          areaNecessariaM2: o.area_necessaria_m2,
-                                          codigoFiname: o.codigo_finame,
-                                          prazoEntregaDias: 30,
-                                        },
-                                        calculos: calc,
-                                        dataEmissao: o.data_orcamento || o.created,
-                                        validadeDias: o.validade_dias || 5,
-                                        observacoes: o.observacoes,
-                                      },
-                                    })
-                                    setModalEnviarDocWhatsAppOpen(true)
-                                  }}
-                                  className="text-[11px] font-bold text-emerald-700 hover:text-emerald-900 bg-white hover:bg-emerald-50 border border-emerald-200 px-2 py-1 rounded-lg flex items-center gap-1 disabled:opacity-40 disabled:cursor-not-allowed"
-                                >
-                                  <Send className="w-3 h-3 text-emerald-600" />
-                                  <span className="hidden sm:inline">WhatsApp</span>
-                                </button>
-                              </div>
-                            </div>
-                          )
-                        })}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* ======================================================== */}
                   {/* SEÇÃO: PROPOSTAS O&M GERADAS DO CLIENTE                   */}
                   {/* Lista propostas anteriores com opção de abrir/regenerar   */}
                   {/* ======================================================== */}
@@ -2705,6 +2370,14 @@ export const FichaClienteDrawer: React.FC = () => {
                     onToggleAtividadeStatus={async (id, current) => {
                       const next = current === 'concluida' ? 'pendente' : 'concluida'
                       await updateAtividadeStatus(id, next as any)
+                    }}
+                    onNovoOrcamentoSolarClick={() => {
+                      setOrcamentoSolarVisualizar(null)
+                      setIsModalOrcamentoSolarOpen(true)
+                    }}
+                    onNovaPropostaOMClick={() => {
+                      setPropostaVisualizar(null)
+                      setIsModalPropostaOpen(true)
                     }}
                   />
                 </>
@@ -3046,6 +2719,68 @@ export const FichaClienteDrawer: React.FC = () => {
               validadeDias: o.validade_dias || 5,
               observacoes: o.observacoes,
             })
+          }}
+          onGerarWordPropostaSolar={async (o) => {
+            const { calcularOrcamentoSolar } = await import('@/lib/energiaSolar')
+            const { baixarPropostaSolarDocx } = await import('@/lib/propostaSolarDocxGenerator')
+            const calc = calcularOrcamentoSolar({
+              consumoKwhMes: o.consumo_kwh_mes,
+              tipoCliente: o.tipo_cliente || 'residencial',
+              tarifaKwh: o.tarifa_kwh,
+              potenciaKwp: o.potencia_kwp,
+              orientacaoTelhado: o.orientacao_telhado,
+              valorInvestimentoInformado: o.valor_investimento,
+              custos: {
+                maoDeObra: o.custo_mao_de_obra || 0,
+                materiaisExtras: o.custo_materiais_extras || 0,
+                freteGuincho: o.custo_frete_guincho || 0,
+                subestacao: o.custo_subestacao || 0,
+                terceirizacao: o.custo_terceirizacao || 0,
+                administracao: o.custo_administracao || 0,
+                marketingCombustivel: o.custo_marketing_combustivel || 0,
+                riscoEngenharia: o.custo_risco_engenharia || 0,
+                comissaoComercial: o.custo_comissao_comercial || 0,
+                indicacao: o.custo_indicacao || 0,
+                impostos: o.custo_impostos || 0,
+              },
+            })
+            await baixarPropostaSolarDocx({
+              cliente: {
+                nome: selectedCliente.nome,
+                cpfOuCnpj: selectedCliente.cnpj || selectedCliente.cpf || '',
+                endereco: [selectedCliente.endereco, selectedCliente.numero, selectedCliente.bairro]
+                  .filter(Boolean)
+                  .join(', '),
+                municipio: selectedCliente.cidade || 'Erechim / RS',
+                email: selectedCliente.email || '',
+                telefone: selectedCliente.telefone || '',
+                tipoCliente: o.tipo_cliente,
+              },
+              representanteComercial: o.autor || 'Delfos Solar',
+              sistema: {
+                potenciaKwp: o.potencia_kwp,
+                consumoKwhMes: o.consumo_kwh_mes,
+                numeroPlacas: o.numero_placas,
+                potenciaPlacaWp: o.potencia_placa_wp,
+                marcaPlacas: o.marca_painel,
+                marcaInversor: o.marca_inversor,
+                quantidadeInversores: o.quantidade_inversores,
+                tipoEstrutura: o.tipo_estrutura,
+                orientacaoTelhado: o.orientacao_telhado,
+                areaNecessariaM2: o.area_necessaria_m2,
+                codigoFiname: o.codigo_finame,
+                prazoEntregaDias: 30,
+              },
+              calculos: calc,
+              dataEmissao: o.data_orcamento || o.created,
+              validadeDias: o.validade_dias || 5,
+              observacoes: o.observacoes,
+            })
+          }}
+          onAlterarNovaRevisaoSolar={(o) => {
+            setTimelineItemDetalhes(null)
+            setOrcamentoSolarVisualizar(o)
+            setIsModalOrcamentoSolarOpen(true)
           }}
           onVisualizarPropostaOM={(p) => {
             const calc = calcularPropostaOM({

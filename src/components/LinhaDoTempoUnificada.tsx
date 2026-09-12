@@ -31,6 +31,9 @@ interface LinhaDoTempoUnificadaProps {
   propostasOM: PropostaOM[]
   onItemClick: (item: TimelineUnifiedItem) => void
   onToggleAtividadeStatus?: (id: string, current: string) => Promise<void>
+  onNovaAtividadeClick?: () => void
+  onNovoOrcamentoSolarClick?: () => void
+  onNovaPropostaOMClick?: () => void
 }
 
 export const LinhaDoTempoUnificada: React.FC<LinhaDoTempoUnificadaProps> = ({
@@ -40,6 +43,9 @@ export const LinhaDoTempoUnificada: React.FC<LinhaDoTempoUnificadaProps> = ({
   propostasOM,
   onItemClick,
   onToggleAtividadeStatus,
+  onNovaAtividadeClick,
+  onNovoOrcamentoSolarClick,
+  onNovaPropostaOMClick,
 }) => {
   const [activeFilter, setActiveFilter] = useState<TimelineFilterTipo>('todas')
 
@@ -59,24 +65,24 @@ export const LinhaDoTempoUnificada: React.FC<LinhaDoTempoUnificadaProps> = ({
       else if (revStatus === 'rejeitada') statusVar = 'danger'
       else if (revStatus === 'enviada ao cliente') statusVar = 'info'
 
-      const equipDesc = [
-        orc.potencia_kwp ? `${orc.potencia_kwp.toFixed(2)} kWp` : '',
-        orc.numero_placas ? `${orc.numero_placas} placas` : '',
-        orc.marca_painel ? `Módulos ${orc.marca_painel}` : '',
-        orc.marca_inversor ? `Inversor ${orc.marca_inversor}` : '',
-      ]
-        .filter(Boolean)
-        .join(' • ')
+      const equipParts: string[] = []
+      if (orc.potencia_kwp) equipParts.push(`${orc.potencia_kwp.toFixed(2)} kWp`)
+      if (orc.numero_placas) equipParts.push(`${orc.numero_placas} placas`)
+      if (orc.geracao_mensal_kwh) equipParts.push(`${orc.geracao_mensal_kwh} kWh/mês`)
+      if (orc.marca_painel) equipParts.push(`Módulos ${orc.marca_painel}`)
+      if (orc.marca_inversor) equipParts.push(`Inv: ${orc.marca_inversor}`)
+
+      const equipDesc = equipParts.join(' • ')
 
       items.push({
         id: `solar-${orc.id}`,
         categoria: 'proposta_solar',
         tipoFiltro: 'propostas',
-        titulo: `Proposta Solar Fotovoltaica (Revisão ${revNum})`,
+        titulo: `Proposta Solar Fotovoltaica — Revisão ${revNum}`,
         subtitulo: equipDesc || 'Dimensionamento Fotovoltaico',
         descricao:
           orc.observacoes ||
-          `Orçamento solar elaborado para ${cliente.nome}. Potência calculada de ${orc.potencia_kwp?.toFixed(2)} kWp com geração estimada de ${orc.geracao_mensal_kwh ? `${orc.geracao_mensal_kwh} kWh/mês` : 'alto rendimento'}.`,
+          `Orçamento solar elaborado para ${cliente.nome}. Potência calculada de ${orc.potencia_kwp?.toFixed(2)} kWp (${orc.numero_placas || 0} placas) com geração estimada de ${orc.geracao_mensal_kwh ? `${orc.geracao_mensal_kwh} kWh/mês` : 'alto rendimento'}.`,
         data: dataIso,
         autor: orc.autor || 'Delfos Solar',
         responsavelNome: orc.autor || 'Engenharia Solar Delfos',
@@ -315,10 +321,82 @@ export const LinhaDoTempoUnificada: React.FC<LinhaDoTempoUnificadaProps> = ({
               </p>
             </div>
           </div>
-          <span className="text-[10px] font-medium text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
-            Clique no item para detalhes e edição
-          </span>
+
+          <div className="flex items-center gap-1.5 flex-wrap">
+            {onNovoOrcamentoSolarClick && (
+              <button
+                type="button"
+                onClick={onNovoOrcamentoSolarClick}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-xs font-bold shadow-xs transition-colors"
+                title="Criar novo orçamento solar ou nova revisão"
+              >
+                <Sun className="w-3.5 h-3.5 text-white" />
+                <span>+ Novo Orçamento</span>
+              </button>
+            )}
+
+            {onNovaPropostaOMClick && (
+              <button
+                type="button"
+                onClick={onNovaPropostaOMClick}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-xs font-bold shadow-xs transition-colors"
+                title="Criar nova proposta de O&M"
+              >
+                <FileCheck className="w-3.5 h-3.5 text-white" />
+                <span>+ Proposta O&M</span>
+              </button>
+            )}
+
+            {onNovaAtividadeClick && (
+              <button
+                type="button"
+                onClick={onNovaAtividadeClick}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-lg text-xs font-bold transition-colors"
+                title="Registrar nova atividade ou follow-up"
+              >
+                <Calendar className="w-3.5 h-3.5 text-gray-600" />
+                <span>+ Atividade</span>
+              </button>
+            )}
+          </div>
         </div>
+
+        {/* Resumo rápido de propostas solares quando houver */}
+        {counts.propostas > 0 && (
+          <div className="flex items-center gap-2 pt-1 border-t border-gray-100 text-[11px] text-gray-600 flex-wrap">
+            <span className="font-semibold text-gray-700 flex items-center gap-1">
+              <Sun className="w-3.5 h-3.5 text-amber-500" />
+              Revisões de Proposta Solar:
+            </span>
+            {todosEventos
+              .filter((ev) => ev.categoria === 'proposta_solar')
+              .map((ev) => (
+                <button
+                  key={ev.id}
+                  type="button"
+                  onClick={() => onItemClick(ev)}
+                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-900 font-semibold transition-colors text-[11px]"
+                  title={`Ver detalhes da Revisão ${ev.dadosTecnicos?.revisaoNumero || 1}`}
+                >
+                  <span className="font-bold">Rev. {ev.dadosTecnicos?.revisaoNumero || 1}:</span>
+                  <span>{formatCurrency(ev.valorPrincipal || 0)}</span>
+                  <span
+                    className={`text-[9px] uppercase px-1.5 py-0.2 rounded font-bold ${
+                      ev.statusVariant === 'success'
+                        ? 'bg-emerald-100 text-emerald-800'
+                        : ev.statusVariant === 'danger'
+                          ? 'bg-red-100 text-red-800'
+                          : ev.statusVariant === 'warning'
+                            ? 'bg-amber-200 text-amber-900'
+                            : 'bg-blue-100 text-blue-800'
+                    }`}
+                  >
+                    {ev.status}
+                  </span>
+                </button>
+              ))}
+          </div>
+        )}
 
         {/* Chips de Filtro */}
         <div className="flex items-center gap-1.5 flex-wrap pt-1 border-t border-gray-100">

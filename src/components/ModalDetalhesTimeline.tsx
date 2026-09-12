@@ -40,6 +40,8 @@ interface ModalDetalhesTimelineProps {
   onUpdatePropostaOM: (id: string, data: any) => Promise<any>
   onVisualizarPropostaSolar?: (orc: any) => void
   onVisualizarPropostaOM?: (prop: any) => void
+  onGerarWordPropostaSolar?: (orc: any) => void
+  onAlterarNovaRevisaoSolar?: (orc: any) => void
   onEnviarWhatsAppSolar?: (orc: any) => void
   onEnviarWhatsAppOM?: (prop: any) => void
 }
@@ -54,6 +56,8 @@ export const ModalDetalhesTimeline: React.FC<ModalDetalhesTimelineProps> = ({
   onUpdatePropostaOM,
   onVisualizarPropostaSolar,
   onVisualizarPropostaOM,
+  onGerarWordPropostaSolar,
+  onAlterarNovaRevisaoSolar,
   onEnviarWhatsAppSolar,
   onEnviarWhatsAppOM,
 }) => {
@@ -455,21 +459,47 @@ export const ModalDetalhesTimeline: React.FC<ModalDetalhesTimelineProps> = ({
                     <button
                       type="button"
                       onClick={() => onVisualizarPropostaSolar(item.rawOrcamentoSolar)}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 font-bold text-xs rounded-lg transition-colors"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 font-bold text-xs rounded-lg transition-colors shadow-2xs"
+                      title="Visualizar proposta fotovoltaica"
                     >
-                      <ExternalLink className="w-3.5 h-3.5 text-emerald-700" />
-                      <span>Abrir Documento Oficial</span>
+                      <FileText className="w-3.5 h-3.5 text-emerald-700" />
+                      <span>Visualizar Proposta</span>
                     </button>
                   )}
+
+                  {onGerarWordPropostaSolar && (
+                    <button
+                      type="button"
+                      onClick={() => onGerarWordPropostaSolar(item.rawOrcamentoSolar)}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-800 border border-blue-300 font-bold text-xs rounded-lg transition-colors shadow-2xs"
+                      title="Gerar e baixar proposta em Word (.docx)"
+                    >
+                      <FileText className="w-3.5 h-3.5 text-blue-700" />
+                      <span>Gerar Word</span>
+                    </button>
+                  )}
+
+                  {onAlterarNovaRevisaoSolar && (
+                    <button
+                      type="button"
+                      onClick={() => onAlterarNovaRevisaoSolar(item.rawOrcamentoSolar)}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-50 hover:bg-emerald-50 text-gray-800 hover:text-emerald-900 border border-gray-300 hover:border-emerald-300 font-bold text-xs rounded-lg transition-colors shadow-2xs"
+                      title="Abrir no editor de orçamento e gerar nova revisão"
+                    >
+                      <Pencil className="w-3.5 h-3.5 text-gray-600" />
+                      <span>Alterar / Nova Rev.</span>
+                    </button>
+                  )}
+
                   {onEnviarWhatsAppSolar && (
                     <button
                       type="button"
                       disabled={!cliente.whatsapp && !cliente.telefone}
                       onClick={() => onEnviarWhatsAppSolar(item.rawOrcamentoSolar)}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-lg transition-colors shadow-2xs disabled:opacity-40"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-lg transition-colors shadow-2xs disabled:opacity-40 disabled:cursor-not-allowed"
                     >
                       <Send className="w-3.5 h-3.5" />
-                      <span>Enviar por WhatsApp</span>
+                      <span>WhatsApp</span>
                     </button>
                   )}
                 </div>
