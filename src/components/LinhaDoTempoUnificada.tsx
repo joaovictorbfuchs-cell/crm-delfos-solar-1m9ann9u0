@@ -23,6 +23,7 @@ import type { TimelineUnifiedItem, TimelineFilterTipo } from '@/types/timelineUn
 import type { Cliente, Atividade, OrcamentoSolar, PropostaOM } from '@/types/crm'
 import { formatCurrency, formatDate, formatDateTime } from '@/lib/formatters'
 import { getTipoAtividadeConfig } from '@/constants/atividadesTipos'
+import { calcularPropostaOM, PLANOS_OM_VALORES } from '@/lib/propostaOMGenerator'
 
 interface LinhaDoTempoUnificadaProps {
   cliente: Cliente
@@ -112,9 +113,39 @@ export const LinhaDoTempoUnificada: React.FC<LinhaDoTempoUnificadaProps> = ({
       const dataIso = prop.data_proposta || prop.created
       const planoNome = prop.plano_escolhido || prop.plano_recomendado || 'Completo'
 
+      // Se valor mensal ou ativo protegido não estiverem gravados diretamente no registro, calcula a partir dos dados técnicos
+      let valorMensal = prop.valor_mensal_plano || 0
+      let valorAnual = prop.valor_anual_plano || (valorMensal ? valorMensal * 12 : 0)
+      let ativoProtegido = prop.valor_ativo_protegido || 0
+
+      // Se ativoProtegido ou valorMensal estiver zerado mas há geracao e tarifa, calcula via calcularPropostaOM
+      if ((!ativoProtegido || !valorMensal) && prop.geracao_mensal_kwh && prop.valor_kwh) {
+        const calc = calcularPropostaOM({
+          geracaoMensalKwh: prop.geracao_mensal_kwh,
+          valorKwh: prop.valor_kwh,
+          planoEscolhido: planoNome as any,
+        })
+        if (!ativoProtegido && calc.valorAtivoProtegido) {
+          ativoProtegido = calc.valorAtivoProtegido
+        }
+        if (!valorMensal && calc.valorMensalEscolhido) {
+          valorMensal = calc.valorMensalEscolhido
+          valorAnual = calc.valorAnualEscolhido || valorMensal * 12
+        }
+      }
+
+      // Se valorMensal ainda for 0, usa o valor padrão do catálogo para o plano
+      if (!valorMensal && PLANOS_OM_VALORES[planoNome as keyof typeof PLANOS_OM_VALORES]) {
+        valorMensal = PLANOS_OM_VALORES[planoNome as keyof typeof PLANOS_OM_VALORES].mensal
+        valorAnual = PLANOS_OM_VALORES[planoNome as keyof typeof PLANOS_OM_VALORES].anual
+      }
+
       let statusVar: TimelineUnifiedItem['statusVariant'] = 'info'
-      if (prop.status === 'Aceita' || prop.status === 'Fechado') statusVar = 'success'
-      else if (prop.status === 'Recusada') statusVar = 'danger'
+      if (prop.status === 'Aceita' || prop.status === 'Fechado' || prop.status === 'Aprovado') {
+        statusVar = 'success'
+      } else if (prop.status === 'Recusada' || prop.status === 'Rejeitado') {
+        statusVar = 'danger'
+      }
 
       const equipDesc = [
         prop.potencia_kwp ? `${prop.potencia_kwp} kWp` : '',
@@ -128,20 +159,19 @@ export const LinhaDoTempoUnificada: React.FC<LinhaDoTempoUnificadaProps> = ({
         id: `om-${prop.id}`,
         categoria: 'proposta_om',
         tipoFiltro: 'propostas',
-        titulo: `Proposta O&M: Plano ${planoNome}`,
-        subtitulo: equipDesc || 'Operação & Manutenção Preventiva',
+        titulo: `Proposta O&M: Plano ${planoNome}${prop.potencia_kwp ? ` (${prop.potencia_kwp} kWp)` : ''}`,
+        subtitulo: equipDesc || 'Operação & Manutenção Preventiva • 3 Planos Comparados',
         descricao:
           prop.observacoes ||
-          `Proposta formal de gestão e manutenção continuada para sistema solar de ${prop.potencia_kwp || 0} kWp. Inclui vistorias técnicas periódicas e lavagem de módulos.`,
+          `Proposta formal de gestão e manutenção continuada para sistema solar de ${prop.potencia_kwp || 0} kWp. Inclui vistorias técnicas periódicas, ativo protegido de ${formatCurrency(ativoProtegido)}/mês e comparativo dos planos Essencial, Prevenção e Completo.`,
         data: dataIso,
         autor: prop.autor || 'Equipe O&M Delfos',
         responsavelNome: prop.autor || 'Equipe O&M Delfos',
         status: prop.status || 'Proposta Enviada',
         statusVariant: statusVar,
-        valorPrincipal: prop.valor_mensal_plano,
-        valorSecundario: prop.valor_ativo_protegido
-          ? `Ativo protegido: ${formatCurrency(prop.valor_ativo_protegido)}/mês`
-          : undefined,
+        valorPrincipal: valorMensal,
+        valorSecundario:
+          ativoProtegido > 0 ? `Ativo protegido: ${formatCurrency(ativoProtegido)}/mês` : undefined,
         dadosTecnicos: {
           potenciaKwp: prop.potencia_kwp,
           numeroPlacas: prop.numero_modulos,
@@ -149,6 +179,10 @@ export const LinhaDoTempoUnificada: React.FC<LinhaDoTempoUnificadaProps> = ({
           inversorMarca: prop.marca_inversores,
           geracaoMensalKwh: prop.geracao_mensal_kwh,
           tipoEstrutura: prop.tipo_instalacao,
+          valorMensal,
+          valorAnual,
+          valorAtivoProtegido: ativoProtegido,
+          valorKwh: prop.valor_kwh,
         },
         rawPropostaOM: prop,
       })
@@ -361,40 +395,88 @@ export const LinhaDoTempoUnificada: React.FC<LinhaDoTempoUnificadaProps> = ({
           </div>
         </div>
 
-        {/* Resumo rápido de propostas solares quando houver */}
+        {/* Resumo rápido de propostas solares e O&M quando houver */}
         {counts.propostas > 0 && (
-          <div className="flex items-center gap-2 pt-1 border-t border-gray-100 text-[11px] text-gray-600 flex-wrap">
-            <span className="font-semibold text-gray-700 flex items-center gap-1">
-              <Sun className="w-3.5 h-3.5 text-amber-500" />
-              Revisões de Proposta Solar:
-            </span>
-            {todosEventos
-              .filter((ev) => ev.categoria === 'proposta_solar')
-              .map((ev) => (
-                <button
-                  key={ev.id}
-                  type="button"
-                  onClick={() => onItemClick(ev)}
-                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-900 font-semibold transition-colors text-[11px]"
-                  title={`Ver detalhes da Revisão ${ev.dadosTecnicos?.revisaoNumero || 1}`}
-                >
-                  <span className="font-bold">Rev. {ev.dadosTecnicos?.revisaoNumero || 1}:</span>
-                  <span>{formatCurrency(ev.valorPrincipal || 0)}</span>
-                  <span
-                    className={`text-[9px] uppercase px-1.5 py-0.2 rounded font-bold ${
-                      ev.statusVariant === 'success'
-                        ? 'bg-emerald-100 text-emerald-800'
-                        : ev.statusVariant === 'danger'
-                          ? 'bg-red-100 text-red-800'
-                          : ev.statusVariant === 'warning'
-                            ? 'bg-amber-200 text-amber-900'
-                            : 'bg-blue-100 text-blue-800'
-                    }`}
-                  >
-                    {ev.status}
-                  </span>
-                </button>
-              ))}
+          <div className="space-y-1 pt-1 border-t border-gray-100 text-[11px] text-gray-600">
+            {todosEventos.some((ev) => ev.categoria === 'proposta_solar') && (
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="font-semibold text-gray-700 flex items-center gap-1">
+                  <Sun className="w-3.5 h-3.5 text-amber-500" />
+                  Proposta Solar:
+                </span>
+                {todosEventos
+                  .filter((ev) => ev.categoria === 'proposta_solar')
+                  .map((ev) => (
+                    <button
+                      key={ev.id}
+                      type="button"
+                      onClick={() => onItemClick(ev)}
+                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-900 font-semibold transition-colors text-[11px]"
+                      title={`Ver detalhes da Revisão ${ev.dadosTecnicos?.revisaoNumero || 1}`}
+                    >
+                      <span className="font-bold">
+                        Rev. {ev.dadosTecnicos?.revisaoNumero || 1}:
+                      </span>
+                      <span>{formatCurrency(ev.valorPrincipal || 0)}</span>
+                      <span
+                        className={`text-[9px] uppercase px-1.5 py-0.2 rounded font-bold ${
+                          ev.statusVariant === 'success'
+                            ? 'bg-emerald-100 text-emerald-800'
+                            : ev.statusVariant === 'danger'
+                              ? 'bg-red-100 text-red-800'
+                              : ev.statusVariant === 'warning'
+                                ? 'bg-amber-200 text-amber-900'
+                                : 'bg-blue-100 text-blue-800'
+                        }`}
+                      >
+                        {ev.status}
+                      </span>
+                    </button>
+                  ))}
+              </div>
+            )}
+
+            {todosEventos.some((ev) => ev.categoria === 'proposta_om') && (
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="font-semibold text-gray-700 flex items-center gap-1">
+                  <FileCheck className="w-3.5 h-3.5 text-emerald-600" />
+                  Propostas O&M (
+                  {todosEventos.filter((ev) => ev.categoria === 'proposta_om').length}):
+                </span>
+                {todosEventos
+                  .filter((ev) => ev.categoria === 'proposta_om')
+                  .map((ev) => (
+                    <button
+                      key={ev.id}
+                      type="button"
+                      onClick={() => onItemClick(ev)}
+                      className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-900 font-semibold transition-colors text-[11px]"
+                      title={`Ver proposta O&M - Plano ${ev.dadosTecnicos?.planoEscolhido || 'Completo'}`}
+                    >
+                      <span className="font-bold">
+                        {ev.dadosTecnicos?.planoEscolhido || 'O&M'}:
+                      </span>
+                      <span>{formatCurrency(ev.valorPrincipal || 0)}/mês</span>
+                      {ev.dadosTecnicos?.valorAtivoProtegido ? (
+                        <span className="text-[10px] text-gray-500 font-normal">
+                          (Protegido: {formatCurrency(ev.dadosTecnicos.valorAtivoProtegido)}/mês)
+                        </span>
+                      ) : null}
+                      <span
+                        className={`text-[9px] uppercase px-1.5 py-0.2 rounded font-bold ${
+                          ev.statusVariant === 'success'
+                            ? 'bg-emerald-100 text-emerald-800'
+                            : ev.statusVariant === 'danger'
+                              ? 'bg-red-100 text-red-800'
+                              : 'bg-emerald-200 text-emerald-900'
+                        }`}
+                      >
+                        {ev.status}
+                      </span>
+                    </button>
+                  ))}
+              </div>
+            )}
           </div>
         )}
 
@@ -574,6 +656,36 @@ export const LinhaDoTempoUnificada: React.FC<LinhaDoTempoUnificadaProps> = ({
                     <p className="text-gray-600 text-xs line-clamp-2 leading-relaxed pt-0.5">
                       {item.descricao}
                     </p>
+                  )}
+
+                  {/* Pílulas de resumo detalhado para O&M */}
+                  {item.categoria === 'proposta_om' && (
+                    <div className="flex items-center gap-2 flex-wrap pt-1 text-[11px]">
+                      {item.dadosTecnicos?.planoEscolhido && (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-900 border border-emerald-200 font-semibold">
+                          Plano: <strong>{item.dadosTecnicos.planoEscolhido}</strong>
+                        </span>
+                      )}
+                      {item.dadosTecnicos?.valorAtivoProtegido !== undefined &&
+                        item.dadosTecnicos.valorAtivoProtegido > 0 && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-50/70 text-emerald-800 border border-emerald-200 font-medium">
+                            Ativo Protegido:{' '}
+                            <strong>
+                              {formatCurrency(item.dadosTecnicos.valorAtivoProtegido)}/mês
+                            </strong>
+                          </span>
+                        )}
+                      {item.dadosTecnicos?.valorAnual !== undefined &&
+                        item.dadosTecnicos.valorAnual > 0 && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-gray-50 text-gray-700 border border-gray-200 font-medium">
+                            Anual:{' '}
+                            <strong>{formatCurrency(item.dadosTecnicos.valorAnual)}/ano</strong>
+                          </span>
+                        )}
+                      <span className="text-[10px] text-gray-400 font-medium">
+                        • 3 Planos Comparados
+                      </span>
+                    </div>
                   )}
 
                   {/* Rodapé do card: autor, valor financeiro e botão de detalhes */}

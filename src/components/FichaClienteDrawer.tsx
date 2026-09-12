@@ -2187,166 +2187,6 @@ export const FichaClienteDrawer: React.FC = () => {
                   )}
 
                   {/* ======================================================== */}
-                  {/* SEÇÃO: PROPOSTAS O&M GERADAS DO CLIENTE                   */}
-                  {/* Lista propostas anteriores com opção de abrir/regenerar   */}
-                  {/* ======================================================== */}
-                  {clientPropostasOM.length > 0 && (
-                    <div className="bg-gradient-to-r from-emerald-50/70 via-white to-emerald-50/40 rounded-xl p-3.5 border border-emerald-200/90 shadow-2xs space-y-2.5">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-900 uppercase tracking-wider">
-                          <FileCheck className="w-4 h-4 text-emerald-600" />
-                          <span>Propostas O&M Geradas ({clientPropostasOM.length})</span>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setPropostaVisualizar(null)
-                            setIsModalPropostaOpen(true)
-                          }}
-                          className="text-[11px] font-bold text-emerald-700 hover:text-emerald-800 bg-white px-2 py-0.5 rounded border border-emerald-300 hover:bg-emerald-50 transition-colors"
-                        >
-                          + Nova Proposta
-                        </button>
-                      </div>
-
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                        {clientPropostasOM.map((p) => {
-                          return (
-                            <div
-                              key={p.id}
-                              className="bg-white p-3 rounded-lg border border-emerald-100 hover:border-emerald-300 shadow-2xs space-y-1.5 transition-all text-xs"
-                            >
-                              <div className="flex items-center justify-between">
-                                <span className="font-extrabold text-emerald-800">
-                                  Proposta O&M {p.potencia_kwp ? `(${p.potencia_kwp} kWp)` : ''}
-                                </span>
-                                <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-1.5 py-0.2 rounded">
-                                  {p.status || 'Proposta Enviada'}
-                                </span>
-                              </div>
-
-                              <div className="flex items-baseline justify-between text-[11px]">
-                                <span className="text-gray-500">
-                                  Ativo Protegido: {formatCurrency(p.valor_ativo_protegido || 0)}
-                                  /mês
-                                </span>
-                                <span className="font-semibold text-emerald-700">
-                                  3 Planos Comparados
-                                </span>
-                              </div>
-
-                              <div className="text-[10px] text-gray-400 flex items-center justify-between pt-1 border-t border-gray-100">
-                                <span>{formatDate(p.data_proposta || p.created)}</span>
-                                <div className="flex items-center gap-1">
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setPropostaVisualizar(p)
-                                      setIsModalPropostaOpen(true)
-                                    }}
-                                    className="p-1 text-emerald-700 hover:text-emerald-900 hover:bg-emerald-50 rounded"
-                                    title="Visualizar parâmetros e regenerar"
-                                  >
-                                    <ExternalLink className="w-3.5 h-3.5" />
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      const calc = calcularPropostaOM({
-                                        geracaoMensalKwh: p.geracao_mensal_kwh,
-                                        valorKwh: p.valor_kwh,
-                                      })
-                                      abrirPropostaEmNovaAba({
-                                        cliente: {
-                                          nome: selectedCliente.nome,
-                                          cpfOuCnpj: selectedCliente.cnpj || selectedCliente.cpf,
-                                          endereco: selectedCliente.endereco,
-                                          municipio: selectedCliente.cidade,
-                                          email: selectedCliente.email,
-                                          telefone: selectedCliente.telefone,
-                                        },
-                                        tecnico: {
-                                          potenciaKwp: p.potencia_kwp,
-                                          geracaoMediaKwh: p.geracao_mensal_kwh,
-                                          marcaInversores: p.marca_inversores,
-                                          tipoInstalacao: p.tipo_instalacao,
-                                          numeroModulos: p.numero_modulos,
-                                        },
-                                        parametros: {
-                                          valorKwh: p.valor_kwh,
-                                          distanciaKm: p.distancia_km,
-                                          valorKm: p.valor_km,
-                                        },
-                                        calculos: calc,
-                                        dataEmissao: p.data_proposta || p.created,
-                                        autor: p.autor,
-                                      })
-                                    }}
-                                    className="text-[10px] font-bold text-emerald-800 hover:underline flex items-center gap-0.5"
-                                  >
-                                    <span>Ver PDF</span>
-                                  </button>
-                                  <button
-                                    type="button"
-                                    disabled={
-                                      !selectedCliente.whatsapp && !selectedCliente.telefone
-                                    }
-                                    title={
-                                      !selectedCliente.whatsapp && !selectedCliente.telefone
-                                        ? 'Cadastre o WhatsApp do cliente para enviar'
-                                        : 'Enviar proposta O&M por WhatsApp'
-                                    }
-                                    onClick={() => {
-                                      const calc = calcularPropostaOM({
-                                        geracaoMensalKwh: p.geracao_mensal_kwh,
-                                        valorKwh: p.valor_kwh,
-                                      })
-                                      setDocParaEnviarWhatsApp({
-                                        tipo: 'proposta_om',
-                                        referenciaId: p.id,
-                                        dadosOM: {
-                                          cliente: {
-                                            nome: selectedCliente.nome,
-                                            cpfOuCnpj: selectedCliente.cnpj || selectedCliente.cpf,
-                                            endereco: selectedCliente.endereco,
-                                            municipio: selectedCliente.cidade,
-                                            email: selectedCliente.email,
-                                            telefone: selectedCliente.telefone,
-                                          },
-                                          tecnico: {
-                                            potenciaKwp: p.potencia_kwp,
-                                            geracaoMediaKwh: p.geracao_mensal_kwh,
-                                            marcaInversores: p.marca_inversores,
-                                            tipoInstalacao: p.tipo_instalacao,
-                                            numeroModulos: p.numero_modulos,
-                                          },
-                                          parametros: {
-                                            valorKwh: p.valor_kwh,
-                                            distanciaKm: p.distancia_km,
-                                            valorKm: p.valor_km,
-                                          },
-                                          calculos: calc,
-                                          dataEmissao: p.data_proposta || p.created,
-                                          autor: p.autor,
-                                        },
-                                      })
-                                      setModalEnviarDocWhatsAppOpen(true)
-                                    }}
-                                    className="text-[10px] font-bold text-emerald-700 hover:text-emerald-900 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-2 py-0.5 rounded flex items-center gap-1 disabled:opacity-40 disabled:cursor-not-allowed"
-                                  >
-                                    <Send className="w-3 h-3 text-emerald-600" />
-                                    <span>WhatsApp</span>
-                                  </button>
-                                </div>
-                              </div>
-                            </div>
-                          )
-                        })}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* ======================================================== */}
                   {/* TOPO DA ABA HISTÓRICO: ÁREA RÁPIDA DE NOVA ENTRADA       */}
                   {/* Alterna Anotação vs Agendar Atividade (12 tipos)         */}
                   {/* ======================================================== */}
@@ -2781,6 +2621,11 @@ export const FichaClienteDrawer: React.FC = () => {
             setTimelineItemDetalhes(null)
             setOrcamentoSolarVisualizar(o)
             setIsModalOrcamentoSolarOpen(true)
+          }}
+          onAlterarRegenerarOM={(p) => {
+            setTimelineItemDetalhes(null)
+            setPropostaVisualizar(p)
+            setIsModalPropostaOpen(true)
           }}
           onVisualizarPropostaOM={(p) => {
             const calc = calcularPropostaOM({

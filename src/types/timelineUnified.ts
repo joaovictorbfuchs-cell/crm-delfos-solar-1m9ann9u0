@@ -33,6 +33,10 @@ export interface TimelineUnifiedItem {
     tipoEstrutura?: string
     revisaoNumero?: number
     planoEscolhido?: string
+    valorMensal?: number
+    valorAnual?: number
+    valorAtivoProtegido?: number
+    valorKwh?: number
   }
   // Referências aos dados originais
   rawAtividade?: Atividade

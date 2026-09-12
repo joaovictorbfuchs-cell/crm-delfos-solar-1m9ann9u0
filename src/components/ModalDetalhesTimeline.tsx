@@ -40,6 +40,7 @@ interface ModalDetalhesTimelineProps {
   onUpdatePropostaOM: (id: string, data: any) => Promise<any>
   onVisualizarPropostaSolar?: (orc: any) => void
   onVisualizarPropostaOM?: (prop: any) => void
+  onAlterarRegenerarOM?: (prop: any) => void
   onGerarWordPropostaSolar?: (orc: any) => void
   onAlterarNovaRevisaoSolar?: (orc: any) => void
   onEnviarWhatsAppSolar?: (orc: any) => void
@@ -56,6 +57,7 @@ export const ModalDetalhesTimeline: React.FC<ModalDetalhesTimelineProps> = ({
   onUpdatePropostaOM,
   onVisualizarPropostaSolar,
   onVisualizarPropostaOM,
+  onAlterarRegenerarOM,
   onGerarWordPropostaSolar,
   onAlterarNovaRevisaoSolar,
   onEnviarWhatsAppSolar,
@@ -411,6 +413,24 @@ export const ModalDetalhesTimeline: React.FC<ModalDetalhesTimelineProps> = ({
                         </span>
                       </div>
                     )}
+                    {item.dadosTecnicos.valorAtivoProtegido !== undefined &&
+                      item.dadosTecnicos.valorAtivoProtegido > 0 && (
+                        <div className="p-2.5 rounded-lg bg-white border border-gray-200 shadow-2xs">
+                          <span className="text-[11px] text-gray-400 block">Ativo Protegido</span>
+                          <span className="font-bold text-emerald-700 text-sm">
+                            {formatCurrency(item.dadosTecnicos.valorAtivoProtegido)}/mês
+                          </span>
+                        </div>
+                      )}
+                    {item.dadosTecnicos.valorAnual !== undefined &&
+                      item.dadosTecnicos.valorAnual > 0 && (
+                        <div className="p-2.5 rounded-lg bg-white border border-gray-200 shadow-2xs">
+                          <span className="text-[11px] text-gray-400 block">Valor Anual</span>
+                          <span className="font-bold text-gray-900 text-sm">
+                            {formatCurrency(item.dadosTecnicos.valorAnual)}/ano
+                          </span>
+                        </div>
+                      )}
                   </div>
 
                   {(item.dadosTecnicos.placasMarca || item.dadosTecnicos.inversorMarca) && (
@@ -507,25 +527,42 @@ export const ModalDetalhesTimeline: React.FC<ModalDetalhesTimelineProps> = ({
 
               {item.categoria === 'proposta_om' && item.rawPropostaOM && (
                 <div className="flex items-center justify-end gap-2 pt-2 border-t border-gray-100 flex-wrap">
+                  {onAlterarRegenerarOM && (
+                    <button
+                      type="button"
+                      onClick={() => onAlterarRegenerarOM(item.rawPropostaOM)}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-50 hover:bg-emerald-50 text-gray-800 hover:text-emerald-900 border border-gray-300 hover:border-emerald-300 font-bold text-xs rounded-lg transition-colors shadow-2xs"
+                      title="Abrir no gerador O&M para visualizar parâmetros e recalcular"
+                    >
+                      <Pencil className="w-3.5 h-3.5 text-gray-600" />
+                      <span>Parâmetros / Regenerar</span>
+                    </button>
+                  )}
                   {onVisualizarPropostaOM && (
                     <button
                       type="button"
                       onClick={() => onVisualizarPropostaOM(item.rawPropostaOM)}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 font-bold text-xs rounded-lg transition-colors"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 font-bold text-xs rounded-lg transition-colors shadow-2xs"
+                      title="Ver proposta formal O&M formatada para impressão/PDF"
                     >
                       <ExternalLink className="w-3.5 h-3.5 text-emerald-700" />
-                      <span>Ver Proposta O&M (HTML)</span>
+                      <span>Ver PDF / Proposta</span>
                     </button>
                   )}
                   {onEnviarWhatsAppOM && (
                     <button
                       type="button"
                       disabled={!cliente.whatsapp && !cliente.telefone}
+                      title={
+                        !cliente.whatsapp && !cliente.telefone
+                          ? 'Cadastre o WhatsApp do cliente para enviar'
+                          : 'Enviar proposta O&M por WhatsApp'
+                      }
                       onClick={() => onEnviarWhatsAppOM(item.rawPropostaOM)}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-lg transition-colors shadow-2xs disabled:opacity-40"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-lg transition-colors shadow-2xs disabled:opacity-40 disabled:cursor-not-allowed"
                     >
                       <Send className="w-3.5 h-3.5" />
-                      <span>Enviar por WhatsApp</span>
+                      <span>WhatsApp</span>
                     </button>
                   )}
                 </div>
