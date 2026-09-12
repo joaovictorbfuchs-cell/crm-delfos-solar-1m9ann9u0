@@ -32,6 +32,8 @@ import {
   UserCheck,
   Plus,
   MessageSquare,
+  Copy,
+  ArrowRightLeft,
 } from 'lucide-react'
 import { useClientes } from '@/contexts/ClientesContext'
 import {
@@ -56,6 +58,12 @@ import { ModalOrcamentoSolar } from './ModalOrcamentoSolar'
 import { ModalRegistrarServicoAvulso } from './ModalRegistrarServicoAvulso'
 import { ModalEnviarDocumentoWhatsApp } from './ModalEnviarDocumentoWhatsApp'
 import { ImportarDadosDocumento } from './ImportarDadosDocumento'
+import { ModalConfirmarDocumentoProjeto } from './ModalConfirmarDocumentoProjeto'
+import { ModalTransferenciaCreditos } from './ModalTransferenciaCreditos'
+import type {
+  TipoDocumentoProjeto,
+  DadosDocumentoProjetoInput,
+} from '@/lib/documentosProjetosSolarGenerator'
 import type { OrcamentoSolar } from '@/types/crm'
 import {
   ShieldCheck,
@@ -68,6 +76,7 @@ import {
   Loader2,
 } from 'lucide-react'
 import { formatarCNPJ } from '@/lib/orcamentoParser'
+import { formatarCPF } from '@/lib/cpfValidator'
 import {
   abrirPropostaEmNovaAba,
   baixarPropostaHTML,
@@ -174,6 +183,14 @@ export const FichaClienteDrawer: React.FC = () => {
     dadosSolar?: any
     dadosOM?: any
   } | null>(null)
+
+  // Modais de Documentos de Projetos / Pós-Venda e Transferência de Créditos
+  const [modalDocProjetoOpen, setModalDocProjetoOpen] = useState(false)
+  const [modalDocProjetoTipo, setModalDocProjetoTipo] = useState<TipoDocumentoProjeto>('procuracao')
+  const [modalDocProjetoDados, setModalDocProjetoDados] = useState<
+    Partial<DadosDocumentoProjetoInput>
+  >({})
+  const [modalTransferenciaCreditosOpen, setModalTransferenciaCreditosOpen] = useState(false)
 
   // Seção expansível de detalhes cadastrais/técnicos dentro do painel esquerdo
   const [detalhesOpen, setDetalhesOpen] = useState(false)
@@ -358,6 +375,91 @@ export const FichaClienteDrawer: React.FC = () => {
           new Date(a.data_proposta || a.created).getTime(),
       )
   }, [propostasOM, selectedCliente])
+
+  // Proposta solar aprovada mais recente (status 'Aprovada' ou 'aprovada' ou 'Aprovado')
+  const propostaAprovada = useMemo<OrcamentoSolar | null>(() => {
+    if (!selectedCliente) return null
+    return (
+      clientOrcamentosSolar.find(
+        (o) =>
+          o.status?.toLowerCase() === 'aprovado' ||
+          o.status?.toLowerCase() === 'aprovada' ||
+          o.status_revisao?.toLowerCase() === 'aprovada' ||
+          o.status_revisao?.toLowerCase() === 'aprovado',
+      ) || null
+    )
+  }, [clientOrcamentosSolar, selectedCliente])
+
+  // Abrir Modal de Confirmação de Documento pré-preenchido
+  const handleAbrirDocumentoProjeto = (
+    tipo: TipoDocumentoProjeto,
+    proposta?: OrcamentoSolar | null,
+  ) => {
+    if (!selectedCliente) return
+    const p = proposta || propostaAprovada
+
+    const dadosIniciais: Partial<DadosDocumentoProjetoInput> = {
+      tipo,
+      clienteNome: selectedCliente.nome || '',
+      clienteCpfCnpj: selectedCliente.cpf || selectedCliente.cnpj || '',
+      clienteEndereco: [selectedCliente.endereco, selectedCliente.numero, selectedCliente.bairro]
+        .filter(Boolean)
+        .join(', '),
+      clienteTelefone: selectedCliente.telefone || selectedCliente.whatsapp || '',
+      clienteEmail: selectedCliente.email || '',
+      titularNome: selectedCliente.titular_nome || selectedCliente.nome || '',
+      titularCpf: selectedCliente.titular_cpf || selectedCliente.cpf || selectedCliente.cnpj || '',
+      titularTelefone:
+        selectedCliente.titular_telefone ||
+        selectedCliente.telefone ||
+        selectedCliente.whatsapp ||
+        '',
+      titularEmail: selectedCliente.titular_email || selectedCliente.email || '',
+      numeroUC:
+        selectedSistema?.numero_uc ||
+        selectedCliente.uc ||
+        selectedCliente.numero_uc ||
+        '4091823719',
+      concessionaria:
+        selectedCliente.concessionaria ||
+        selectedSistema?.concessionaria ||
+        'RGE (Rio Grande Energia)',
+      potenciaKwp:
+        p?.potencia_kwp ||
+        selectedSistema?.potencia_total_kwp ||
+        selectedCliente.potencia_kwp ||
+        28.5,
+      quantidadeModulos:
+        p?.numero_placas ||
+        selectedSistema?.quantidade_modulos ||
+        selectedSistema?.quantidade_placas ||
+        selectedCliente.placas_qtd ||
+        50,
+      marcaModeloModulos:
+        p?.marca_painel ||
+        selectedSistema?.fabricante_modulos ||
+        selectedSistema?.modelo_modulos ||
+        selectedSistema?.marca_placas ||
+        selectedCliente.placas_marca ||
+        'Canadian Solar 570W TOPCon',
+      marcaModeloInversor:
+        p?.marca_inversor ||
+        selectedSistema?.fabricante_inversores ||
+        selectedSistema?.modelo_inversores ||
+        selectedCliente.inversor_marca ||
+        'Growatt MAC 25KTL3-XL',
+      potenciaInversorKw:
+        selectedSistema?.potencia_pico_inversores_kwp ||
+        (p?.potencia_kwp ? Math.round(p.potencia_kwp * 0.9) : 25.0),
+      valorTotal: p?.valor_investimento || selectedCliente.valor_estimado || 78500,
+      condicoesPagamento: 'Entrada de 30% + Saldo financiado ou na homologação',
+      cidade: selectedCliente.cidade || 'Passo Fundo / RS',
+    }
+
+    setModalDocProjetoTipo(tipo)
+    setModalDocProjetoDados(dadosIniciais)
+    setModalDocProjetoOpen(true)
+  }
 
   if (!selectedClienteId || !selectedCliente) {
     return null
@@ -884,6 +986,131 @@ export const FichaClienteDrawer: React.FC = () => {
                           </div>
                         )}
                       </div>
+
+                      {/* Documentos do Projeto Fotovoltaico (quando houver proposta com status Aprovada) */}
+                      {propostaAprovada && (
+                        <div className="p-4 rounded-2xl border border-emerald-300 bg-gradient-to-r from-emerald-50/80 via-white to-teal-50/60 shadow-xs space-y-3">
+                          <div className="flex items-center justify-between flex-wrap gap-2 pb-2 border-b border-emerald-100">
+                            <div className="flex items-center gap-2">
+                              <FileCheck className="w-4 h-4 text-emerald-700" />
+                              <div>
+                                <h4 className="text-xs font-bold uppercase tracking-wider text-emerald-950 flex items-center gap-1.5">
+                                  <span>Documentação Técnica & Contratual do Projeto</span>
+                                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300 normal-case">
+                                    Proposta Solar Aprovada
+                                  </span>
+                                </h4>
+                                <p className="text-[11px] text-gray-600">
+                                  Gere os documentos oficiais revisando os dados da proposta
+                                  aprovada e do titular antes do download.
+                                </p>
+                              </div>
+                            </div>
+                            <span className="text-xs font-bold text-emerald-800 bg-white px-2.5 py-1 rounded-lg border border-emerald-200 shadow-2xs">
+                              {propostaAprovada.potencia_kwp} kWp •{' '}
+                              {formatCurrency(propostaAprovada.valor_investimento)}
+                            </span>
+                          </div>
+
+                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 pt-1">
+                            {/* 1. Procuração */}
+                            <button
+                              type="button"
+                              onClick={() =>
+                                handleAbrirDocumentoProjeto('procuracao', propostaAprovada)
+                              }
+                              className="flex flex-col items-start p-3 rounded-xl bg-white hover:bg-emerald-50/70 border border-emerald-200/90 shadow-2xs transition-all hover:scale-[1.01] hover:border-emerald-400 text-left group"
+                            >
+                              <div className="flex items-center justify-between w-full mb-1">
+                                <span className="p-1.5 rounded-lg bg-emerald-100 text-emerald-800 group-hover:bg-emerald-600 group-hover:text-white transition-colors">
+                                  <FileText className="w-4 h-4" />
+                                </span>
+                                <span className="text-[10px] font-bold uppercase text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded">
+                                  Word / PDF
+                                </span>
+                              </div>
+                              <span className="text-xs font-bold text-gray-900 group-hover:text-emerald-800">
+                                Elaborar Procuração
+                              </span>
+                              <span className="text-[11px] text-gray-500 mt-0.5">
+                                Concessionária e homologação
+                              </span>
+                            </button>
+
+                            {/* 2. Contrato */}
+                            <button
+                              type="button"
+                              onClick={() =>
+                                handleAbrirDocumentoProjeto('contrato', propostaAprovada)
+                              }
+                              className="flex flex-col items-start p-3 rounded-xl bg-white hover:bg-emerald-50/70 border border-emerald-200/90 shadow-2xs transition-all hover:scale-[1.01] hover:border-emerald-400 text-left group"
+                            >
+                              <div className="flex items-center justify-between w-full mb-1">
+                                <span className="p-1.5 rounded-lg bg-emerald-100 text-emerald-800 group-hover:bg-emerald-600 group-hover:text-white transition-colors">
+                                  <ShieldCheck className="w-4 h-4" />
+                                </span>
+                                <span className="text-[10px] font-bold uppercase text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded">
+                                  Word / PDF
+                                </span>
+                              </div>
+                              <span className="text-xs font-bold text-gray-900 group-hover:text-emerald-800">
+                                Elaborar Contrato
+                              </span>
+                              <span className="text-[11px] text-gray-500 mt-0.5">
+                                Fornecimento e instalação Delfos
+                              </span>
+                            </button>
+
+                            {/* 3. Anexo E */}
+                            <button
+                              type="button"
+                              onClick={() =>
+                                handleAbrirDocumentoProjeto('anexo_e', propostaAprovada)
+                              }
+                              className="flex flex-col items-start p-3 rounded-xl bg-white hover:bg-emerald-50/70 border border-emerald-200/90 shadow-2xs transition-all hover:scale-[1.01] hover:border-emerald-400 text-left group"
+                            >
+                              <div className="flex items-center justify-between w-full mb-1">
+                                <span className="p-1.5 rounded-lg bg-emerald-100 text-emerald-800 group-hover:bg-emerald-600 group-hover:text-white transition-colors">
+                                  <FileCheck className="w-4 h-4" />
+                                </span>
+                                <span className="text-[10px] font-bold uppercase text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded">
+                                  Word / PDF
+                                </span>
+                              </div>
+                              <span className="text-xs font-bold text-gray-900 group-hover:text-emerald-800">
+                                Elaborar Anexo E
+                              </span>
+                              <span className="text-[11px] text-gray-500 mt-0.5">
+                                Formulário de Acesso Micro/Mini
+                              </span>
+                            </button>
+
+                            {/* 4. Anexo F */}
+                            <button
+                              type="button"
+                              onClick={() =>
+                                handleAbrirDocumentoProjeto('anexo_f', propostaAprovada)
+                              }
+                              className="flex flex-col items-start p-3 rounded-xl bg-white hover:bg-emerald-50/70 border border-emerald-200/90 shadow-2xs transition-all hover:scale-[1.01] hover:border-emerald-400 text-left group"
+                            >
+                              <div className="flex items-center justify-between w-full mb-1">
+                                <span className="p-1.5 rounded-lg bg-emerald-100 text-emerald-800 group-hover:bg-emerald-600 group-hover:text-white transition-colors">
+                                  <FileText className="w-4 h-4" />
+                                </span>
+                                <span className="text-[10px] font-bold uppercase text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded">
+                                  Word / PDF
+                                </span>
+                              </div>
+                              <span className="text-xs font-bold text-gray-900 group-hover:text-emerald-800">
+                                Elaborar Anexo F
+                              </span>
+                              <span className="text-[11px] text-gray-500 mt-0.5">
+                                Memorial descritivo da usina
+                              </span>
+                            </button>
+                          </div>
+                        </div>
+                      )}
 
                       {/* Histórico de Mudanças de Etapa com Datas */}
                       <div className="space-y-3">
@@ -1676,6 +1903,132 @@ export const FichaClienteDrawer: React.FC = () => {
                         </div>
                       </div>
 
+                      {/* SEÇÃO: Titular / Responsável pela Unidade Consumidora */}
+                      <div className="bg-white rounded-xl p-4 border border-emerald-200/90 shadow-xs space-y-3">
+                        <div className="flex items-center justify-between border-b border-gray-100 pb-2">
+                          <div className="flex items-center gap-2">
+                            <UserCheck className="w-4 h-4 text-emerald-600 shrink-0" />
+                            <div>
+                              <h4 className="text-xs font-bold uppercase tracking-wider text-gray-800">
+                                Titular / Responsável pela Unidade Consumidora
+                              </h4>
+                              <p className="text-[10px] text-gray-500">
+                                Utilizado na elaboração de Procuração, Contratos e Anexos da
+                                Concessionária.
+                              </p>
+                            </div>
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              const updates: Partial<Cliente> = {
+                                titular_nome: selectedCliente.nome || '',
+                                titular_cpf: selectedCliente.cpf || selectedCliente.cnpj || '',
+                                titular_telefone:
+                                  selectedCliente.telefone || selectedCliente.whatsapp || '',
+                                titular_email: selectedCliente.email || '',
+                              }
+                              await updateCliente(selectedCliente.id, updates)
+                            }}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-bold rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-300 transition-colors shadow-2xs"
+                            title="Copiar nome, CPF, telefone e email do cadastro principal do cliente para os dados do titular"
+                          >
+                            <Copy className="w-3.5 h-3.5 text-emerald-600" />
+                            <span>Usar dados do cliente</span>
+                          </button>
+                        </div>
+
+                        <div className="space-y-2 text-xs">
+                          {/* Nome Completo do Titular */}
+                          <div className="flex items-center gap-2">
+                            <User className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                            <span className="text-gray-500 w-24 shrink-0">Nome completo:</span>
+                            <InlineEditField
+                              value={selectedCliente.titular_nome || ''}
+                              displayValue={
+                                <span className="font-semibold text-gray-800">
+                                  {selectedCliente.titular_nome || (
+                                    <span className="text-gray-400 italic">Não informado</span>
+                                  )}
+                                </span>
+                              }
+                              type="text"
+                              placeholder="Nome completo do titular na fatura de energia"
+                              onSave={async (val) =>
+                                handleUpdateClienteField('titular_nome', String(val).trim())
+                              }
+                            />
+                          </div>
+
+                          {/* CPF do Titular com máscara */}
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            <div className="flex items-center gap-2">
+                              <Hash className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                              <span className="text-gray-500 w-24 shrink-0">CPF:</span>
+                              <InlineEditField
+                                value={selectedCliente.titular_cpf || ''}
+                                displayValue={
+                                  <span className="font-mono text-gray-800 text-[11px] bg-gray-50 px-1.5 py-0.5 rounded border border-gray-200">
+                                    {selectedCliente.titular_cpf
+                                      ? formatarCPF(selectedCliente.titular_cpf)
+                                      : '000.000.000-00'}
+                                  </span>
+                                }
+                                type="text"
+                                placeholder="000.000.000-00"
+                                onSave={async (val) => {
+                                  const raw = String(val)
+                                  const formatted = formatarCPF(raw)
+                                  await handleUpdateClienteField('titular_cpf', formatted)
+                                }}
+                              />
+                            </div>
+
+                            {/* Telefone do Titular com máscara */}
+                            <div className="flex items-center gap-2">
+                              <Phone className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                              <span className="text-gray-500 w-16 shrink-0">Telefone:</span>
+                              <InlineEditField
+                                value={selectedCliente.titular_telefone || ''}
+                                displayValue={
+                                  <span className="font-medium text-gray-800">
+                                    {selectedCliente.titular_telefone || 'Não informado'}
+                                  </span>
+                                }
+                                type="text"
+                                placeholder="(00) 00000-0000"
+                                onSave={async (val) =>
+                                  handleUpdateClienteField(
+                                    'titular_telefone',
+                                    formatWhatsAppPhone(String(val)),
+                                  )
+                                }
+                              />
+                            </div>
+                          </div>
+
+                          {/* Email do Titular */}
+                          <div className="flex items-center gap-2">
+                            <Mail className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                            <span className="text-gray-500 w-24 shrink-0">Email:</span>
+                            <InlineEditField
+                              value={selectedCliente.titular_email || ''}
+                              displayValue={
+                                <span className="text-emerald-700 font-medium">
+                                  {selectedCliente.titular_email || 'Não informado'}
+                                </span>
+                              }
+                              type="text"
+                              placeholder="email@exemplo.com.br"
+                              onSave={async (val) =>
+                                handleUpdateClienteField('titular_email', String(val).trim())
+                              }
+                            />
+                          </div>
+                        </div>
+                      </div>
+
                       {/* Concessionária de Energia */}
                       <div className="bg-white rounded-xl p-4 border border-gray-200/80 shadow-xs space-y-2.5">
                         <div className="text-[11px] uppercase font-bold text-gray-500 tracking-wider flex items-center gap-1.5">
@@ -2200,6 +2553,80 @@ export const FichaClienteDrawer: React.FC = () => {
                       )}
                     </div>
                   )}
+
+                  {/* ======================================================== */}
+                  {/* SEÇÃO: ATIVIDADES DE PÓS-VENDA                           */}
+                  {/* Itens rápidos: Anexo G, Transferência de Créditos, Troca Titularidade */}
+                  {/* ======================================================== */}
+                  <div className="p-3.5 bg-gradient-to-r from-emerald-50/90 via-teal-50/40 to-white rounded-xl border border-emerald-200 shadow-2xs space-y-2.5">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-emerald-950">
+                        <Sparkles className="w-4 h-4 text-emerald-600" />
+                        <span>Atividades de Pós-Venda</span>
+                      </div>
+                      <span className="text-[10px] text-emerald-700 bg-white px-2 py-0.5 rounded-full border border-emerald-200 font-semibold">
+                        Ações & Documentação
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                      {/* 1. Anexo G */}
+                      <button
+                        type="button"
+                        onClick={() => handleAbrirDocumentoProjeto('anexo_g')}
+                        className="flex items-center gap-2.5 p-2.5 rounded-lg bg-white hover:bg-emerald-50 text-gray-800 hover:text-emerald-900 border border-emerald-100 hover:border-emerald-300 shadow-2xs transition-all hover:scale-[1.01] text-left group"
+                        title="Elaborar Anexo G (Formulário de Solicitação de Aumento de Carga / Pós-Venda)"
+                      >
+                        <div className="p-2 rounded-lg bg-emerald-100 text-emerald-800 group-hover:bg-emerald-600 group-hover:text-white transition-colors shrink-0">
+                          <FileText className="w-4 h-4" />
+                        </div>
+                        <div className="min-w-0">
+                          <div className="text-xs font-bold truncate">Anexo G</div>
+                          <div className="text-[10px] text-gray-500 truncate">
+                            Aumento de carga / revisão
+                          </div>
+                        </div>
+                      </button>
+
+                      {/* 2. Transferência de Créditos */}
+                      <button
+                        type="button"
+                        onClick={() => setModalTransferenciaCreditosOpen(true)}
+                        className="flex items-center gap-2.5 p-2.5 rounded-lg bg-white hover:bg-emerald-50 text-gray-800 hover:text-emerald-900 border border-emerald-100 hover:border-emerald-300 shadow-2xs transition-all hover:scale-[1.01] text-left group"
+                        title="Registrar Transferência de Créditos de Energia Solar entre UCs"
+                      >
+                        <div className="p-2 rounded-lg bg-emerald-100 text-emerald-800 group-hover:bg-emerald-600 group-hover:text-white transition-colors shrink-0">
+                          <ArrowRightLeft className="w-4 h-4" />
+                        </div>
+                        <div className="min-w-0">
+                          <div className="text-xs font-bold truncate">
+                            Transferência de Créditos
+                          </div>
+                          <div className="text-[10px] text-gray-500 truncate">
+                            Rateio entre UCs consumidoras
+                          </div>
+                        </div>
+                      </button>
+
+                      {/* 3. Troca de Titularidade */}
+                      <button
+                        type="button"
+                        onClick={() => handleAbrirDocumentoProjeto('troca_titularidade')}
+                        className="flex items-center gap-2.5 p-2.5 rounded-lg bg-white hover:bg-emerald-50 text-gray-800 hover:text-emerald-900 border border-emerald-100 hover:border-emerald-300 shadow-2xs transition-all hover:scale-[1.01] text-left group"
+                        title="Elaborar Formulário e Termo de Troca de Titularidade da Unidade Consumidora"
+                      >
+                        <div className="p-2 rounded-lg bg-emerald-100 text-emerald-800 group-hover:bg-emerald-600 group-hover:text-white transition-colors shrink-0">
+                          <UserCheck className="w-4 h-4" />
+                        </div>
+                        <div className="min-w-0">
+                          <div className="text-xs font-bold truncate">Troca de Titularidade</div>
+                          <div className="text-[10px] text-gray-500 truncate">
+                            Formulário da concessionária
+                          </div>
+                        </div>
+                      </button>
+                    </div>
+                  </div>
 
                   {/* ======================================================== */}
                   {/* TOPO DA ABA HISTÓRICO: ÁREA RÁPIDA DE NOVA ENTRADA       */}
@@ -2805,6 +3232,23 @@ export const FichaClienteDrawer: React.FC = () => {
           referenciaId={docParaEnviarWhatsApp.referenciaId}
           dadosSolar={docParaEnviarWhatsApp.dadosSolar}
           dadosOM={docParaEnviarWhatsApp.dadosOM}
+        />
+      )}
+
+      {/* Modal Confirmar Documento do Projeto Solar (Procuração, Contrato, Anexo E, Anexo F, Anexo G, Troca Titularidade) */}
+      <ModalConfirmarDocumentoProjeto
+        open={modalDocProjetoOpen}
+        onOpenChange={setModalDocProjetoOpen}
+        tipo={modalDocProjetoTipo}
+        dadosIniciais={modalDocProjetoDados}
+      />
+
+      {/* Modal Transferência de Créditos Solares */}
+      {selectedCliente && (
+        <ModalTransferenciaCreditos
+          open={modalTransferenciaCreditosOpen}
+          onOpenChange={setModalTransferenciaCreditosOpen}
+          clienteOrigem={selectedCliente}
         />
       )}
     </div>
