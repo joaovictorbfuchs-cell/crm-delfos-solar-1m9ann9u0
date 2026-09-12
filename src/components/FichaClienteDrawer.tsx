@@ -74,6 +74,7 @@ import {
   Send,
   AlertCircle,
   Loader2,
+  CheckCircle2,
 } from 'lucide-react'
 import { formatarCNPJ } from '@/lib/orcamentoParser'
 import { formatarCPF } from '@/lib/cpfValidator'
@@ -92,6 +93,7 @@ import type {
   TipoAtendimento,
   NumeroFases,
   Atividade,
+  AtividadeTipo,
   ProjetoEtapa,
 } from '@/types/crm'
 
@@ -423,7 +425,7 @@ export const FichaClienteDrawer: React.FC = () => {
       // Linha do Tempo Unificada
       await addAtividade({
         cliente_id: selectedCliente.id,
-        tipo: 'outro',
+        tipo: 'outro' as AtividadeTipo,
         titulo: `Documento Assinado: ${docNomeCurto}`,
         descricao: `${docNomeCurto} de microgeração solar foi conferido e marcado como assinado com sucesso.`,
         data: agoraIso,
@@ -443,7 +445,7 @@ export const FichaClienteDrawer: React.FC = () => {
       // Registrar na Linha do Tempo Unificada
       await addAtividade({
         cliente_id: selectedCliente.id,
-        tipo: 'outro',
+        tipo: 'outro' as AtividadeTipo,
         titulo: `Documento Assinado: ${docNomeCurto}`,
         descricao: `${docNomeCurto} de microgeração solar foi recebido e marcado como assinado.`,
         data: agoraIso,
@@ -496,7 +498,7 @@ export const FichaClienteDrawer: React.FC = () => {
     // 2. Registra na Linha do Tempo Unificada
     await addAtividade({
       cliente_id: selectedCliente.id,
-      tipo: 'whatsapp',
+      tipo: 'whatsapp' as AtividadeTipo,
       titulo: `Envio de ${docNomeCurto} pelo WhatsApp`,
       descricao: `Documento "${docNomeCurto}" enviado para ${telefone}. Status atual: ${
         novoStatus === 'assinado' ? 'Assinado' : 'Aguardando Assinatura'
