@@ -26,6 +26,7 @@ import { extrairOrcamentoFotovoltaicoPDF } from '@/lib/orcamentoParser'
 import { formatCurrency, formatDate } from '@/lib/formatters'
 import { toast } from 'sonner'
 import pb from '@/lib/pocketbase/client'
+import { ModalOrcamentoFornecedorForm } from './ModalOrcamentoFornecedorForm'
 
 interface SecaoOrcamentosFornecedoresProps {
   clienteId?: string
@@ -58,6 +59,8 @@ export function SecaoOrcamentosFornecedores({
   const [tabelaRevisaoAberta, setTabelaRevisaoAberta] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [isModalCompararOpen, setIsModalCompararOpen] = useState(false)
+  const [isModalFormOpen, setIsModalFormOpen] = useState(false)
+  const [motivoModalForm, setMotivoModalForm] = useState<string>('')
 
   // Estado editável da tabela de revisão
   const [revisaoDados, setRevisaoDados] = useState<FornecedorOrcamentoExtraido | null>(null)
@@ -98,20 +101,13 @@ export function SecaoOrcamentosFornecedores({
         extraido.nome_fornecedor === file.name.replace(/\.pdf$/i, '').replace(/[-_]/g, ' ')
 
       if (semItens && extraido.valor_total === 0 && semNomeReal) {
-        toast.warning(
-          'PDF sem texto legível detectado (pode ser imagem escaneada). Os campos foram abertos para preenchimento manual na tabela de revisão.',
-          { duration: 6000 },
+        // Extração vazia / escaneada: abrir automaticamente o formulário de preenchimento rápido
+        setMotivoModalForm(
+          'Não foi possível extrair os dados automaticamente do PDF (documento sem texto legível ou escaneado). Preencha as informações abaixo para registrar o orçamento.',
         )
-        // Garante ao menos 1 linha para preenchimento de módulos e inversores
-        setRevisaoDados({
-          ...extraido,
-          modulos:
-            extraido.modulos.length > 0 ? extraido.modulos : [{ descricao: '', quantidade: 1 }],
-          inversores:
-            extraido.inversores.length > 0
-              ? extraido.inversores
-              : [{ descricao: '', quantidade: 1 }],
-        })
+        setRevisaoDados(extraido)
+        setIsModalFormOpen(true)
+        setTabelaRevisaoAberta(false)
       } else {
         toast.success('PDF analisado com sucesso! Revise os dados na tabela antes de confirmar.')
         // Garantir que haja pelo menos um campo para preenchimento fácil se vazio
@@ -124,26 +120,26 @@ export function SecaoOrcamentosFornecedores({
               ? extraido.inversores
               : [{ descricao: '', quantidade: 1 }],
         })
+        setTabelaRevisaoAberta(true)
       }
-
-      setTabelaRevisaoAberta(true)
     } catch (err) {
       console.error('Erro ao analisar PDF de orçamento:', err)
-      toast.warning(
-        'PDF sem texto legível detectado (pode ser imagem escaneada). Os campos foram abertos para preenchimento manual na tabela de revisão.',
-        { duration: 6000 },
+      // Em caso de falha / erro no parser: abrir automaticamente o formulário de preenchimento rápido
+      setMotivoModalForm(
+        'Não foi possível extrair os dados automaticamente do PDF. Preencha o formulário abaixo para registrar o orçamento.',
       )
       setRevisaoDados({
-        nome_fornecedor: file.name.replace(/\.pdf$/i, '').replace(/[-_]/g, ' '),
+        nome_fornecedor: '',
         numero_revisao: 'REV-01',
         data: new Date().toISOString(),
         valor_total: 0,
-        modulos: [{ descricao: '', quantidade: 1 }],
-        inversores: [{ descricao: '', quantidade: 1 }],
+        modulos: [],
+        inversores: [],
         acessorios: [],
         observacoes: `Arquivo: ${file.name}`,
       })
-      setTabelaRevisaoAberta(true)
+      setIsModalFormOpen(true)
+      setTabelaRevisaoAberta(false)
     } finally {
       setIsAnalyzing(false)
       if (fileInputRef.current) {
@@ -181,10 +177,19 @@ export function SecaoOrcamentosFornecedores({
     setRevisaoDados({ ...revisaoDados, [tipo]: list })
   }
 
-  // Confirmar e salvar orçamento de fornecedor
-  const handleSalvarOrcamento = async () => {
-    if (!revisaoDados) return
-    if (!revisaoDados.nome_fornecedor.trim()) {
+  // Confirmar e salvar orçamento de fornecedor (comum para tabela de revisão e formulário manual)
+  const executarSalvarOrcamento = async (dados: {
+    nome_fornecedor: string
+    fornecedor_id?: string
+    numero_revisao?: string
+    valor_total: number
+    modulos: FornecedorItemOrcamento[]
+    inversores: FornecedorItemOrcamento[]
+    acessorios: FornecedorItemOrcamento[]
+    observacoes?: string
+    arquivo?: File | null
+  }) => {
+    if (!dados.nome_fornecedor.trim()) {
       toast.error('Informe o nome do fornecedor.')
       return
     }
@@ -192,46 +197,51 @@ export function SecaoOrcamentosFornecedores({
     setIsSaving(true)
     try {
       // Procurar id de fornecedor pelo nome caso não esteja associado
-      let fornId = revisaoDados.fornecedor_id
+      let fornId = dados.fornecedor_id
       if (!fornId) {
         const matching = fornecedores.find(
-          (f) => f.nome_empresa.toLowerCase() === revisaoDados.nome_fornecedor.toLowerCase(),
+          (f) => f.nome_empresa.toLowerCase() === dados.nome_fornecedor.toLowerCase(),
         )
         if (matching) fornId = matching.id
       }
 
       const payload: Partial<FornecedorOrcamento> = {
-        nome_fornecedor: revisaoDados.nome_fornecedor,
+        nome_fornecedor: dados.nome_fornecedor,
         fornecedor_id: fornId,
         cliente_id: clienteId || undefined,
         orcamento_solar_id: orcamentoSolarId || undefined,
-        data: revisaoDados.data || new Date().toISOString(),
-        numero_revisao: revisaoDados.numero_revisao || 'REV-01',
-        valor_total: revisaoDados.valor_total || 0,
-        modulos: revisaoDados.modulos.filter((m) => m.descricao.trim().length > 0),
-        inversores: revisaoDados.inversores.filter((inv) => inv.descricao.trim().length > 0),
-        acessorios: revisaoDados.acessorios.filter((a) => a.descricao.trim().length > 0),
-        observacoes: revisaoDados.observacoes || undefined,
+        data: new Date().toISOString(),
+        numero_revisao: dados.numero_revisao || 'REV-01',
+        valor_total: dados.valor_total || 0,
+        modulos: dados.modulos.filter((m) => m.descricao && m.descricao.trim().length > 0),
+        inversores: dados.inversores.filter(
+          (inv) => inv.descricao && inv.descricao.trim().length > 0,
+        ),
+        acessorios: dados.acessorios.filter((a) => a.descricao && a.descricao.trim().length > 0),
+        observacoes: dados.observacoes || undefined,
       }
 
-      await addFornecedorOrcamento(payload, analyzedFile || undefined)
+      const arquivoParaGravar = dados.arquivo !== undefined ? dados.arquivo : analyzedFile
+
+      await addFornecedorOrcamento(payload, arquivoParaGravar || undefined)
       toast.success('Orçamento de fornecedor salvo com sucesso!')
 
       // Se tiver callback para preencher a proposta técnica
       if (onUsarEquipamentos) {
-        const primeiroModulo = revisaoDados.modulos[0]
-        const primeiroInversor = revisaoDados.inversores[0]
+        const primeiroModulo = payload.modulos?.[0]
+        const primeiroInversor = payload.inversores?.[0]
         onUsarEquipamentos({
           marcaPainel: primeiroModulo?.descricao,
           numeroPlacas: primeiroModulo?.quantidade,
           marcaInversor: primeiroInversor?.descricao,
           quantidadeInversores: primeiroInversor?.quantidade,
-          valorTotal: revisaoDados.valor_total,
+          valorTotal: payload.valor_total,
         })
       }
 
-      // Fechar tabela de revisão e limpar arquivo
+      // Fechar modal, tabela de revisão e limpar arquivo
       setTabelaRevisaoAberta(false)
+      setIsModalFormOpen(false)
       setRevisaoDados(null)
       setAnalyzedFile(null)
     } catch (err) {
@@ -240,6 +250,22 @@ export function SecaoOrcamentosFornecedores({
     } finally {
       setIsSaving(false)
     }
+  }
+
+  // Confirmar e salvar da tabela de revisão
+  const handleSalvarOrcamento = async () => {
+    if (!revisaoDados) return
+    await executarSalvarOrcamento({
+      nome_fornecedor: revisaoDados.nome_fornecedor,
+      fornecedor_id: revisaoDados.fornecedor_id,
+      numero_revisao: revisaoDados.numero_revisao,
+      valor_total: revisaoDados.valor_total,
+      modulos: revisaoDados.modulos,
+      inversores: revisaoDados.inversores,
+      acessorios: revisaoDados.acessorios,
+      observacoes: revisaoDados.observacoes,
+      arquivo: analyzedFile,
+    })
   }
 
   return (
@@ -258,7 +284,7 @@ export function SecaoOrcamentosFornecedores({
         </div>
 
         {/* Botão de Comparação e Botão de Upload com Input Oculto */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           {orcamentosVinculados.length >= 2 && (
             <button
               type="button"
@@ -303,6 +329,22 @@ export function SecaoOrcamentosFornecedores({
               </>
             )}
           </label>
+
+          {/* Opção para abrir diretamente o formulário rápido de digitação */}
+          <button
+            type="button"
+            onClick={() => {
+              setMotivoModalForm('')
+              setRevisaoDados(null)
+              setAnalyzedFile(null)
+              setIsModalFormOpen(true)
+            }}
+            className="inline-flex items-center gap-1.5 px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-xs font-semibold shadow-2xs transition-all"
+            title="Preencher manualmente sem enviar PDF"
+          >
+            <FileText className="w-3.5 h-3.5 text-gray-600" />
+            <span>Preenchimento Manual</span>
+          </button>
         </div>
       </div>
 
@@ -781,6 +823,21 @@ export function SecaoOrcamentosFornecedores({
           </div>
         )}
       </div>
+
+      {/* Modal de Preenchimento Rápido (Aberto automaticamente quando extração falhar/retornar vazio) */}
+      <ModalOrcamentoFornecedorForm
+        isOpen={isModalFormOpen}
+        onClose={() => {
+          setIsModalFormOpen(false)
+          setMotivoModalForm('')
+        }}
+        fornecedores={fornecedores}
+        initialData={revisaoDados}
+        arquivoOriginal={analyzedFile}
+        onSalvar={executarSalvarOrcamento}
+        isSaving={isSaving}
+        motivoAberturaAutomatica={motivoModalForm}
+      />
 
       {/* Modal de Comparação Lado a Lado */}
       <ModalCompararFornecedores
