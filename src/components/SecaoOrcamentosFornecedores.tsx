@@ -81,14 +81,55 @@ export function SecaoOrcamentosFornecedores({
 
     try {
       const extraido = await extrairOrcamentoFotovoltaicoPDF(file, fornecedores)
-      setRevisaoDados(extraido)
+
+      // Verificar se o PDF tinha texto legível ou se foi escaneado/sem texto
+      const semItens =
+        extraido.modulos.length === 0 &&
+        extraido.inversores.length === 0 &&
+        extraido.acessorios.length === 0
+      const semNomeReal =
+        !extraido.nome_fornecedor ||
+        extraido.nome_fornecedor === 'Fornecedor Solar' ||
+        extraido.nome_fornecedor === file.name.replace(/\.pdf$/i, '').replace(/[-_]/g, ' ')
+
+      if (semItens && extraido.valor_total === 0 && semNomeReal) {
+        toast.warning(
+          'PDF sem texto legível detectado (pode ser imagem escaneada). Os campos foram abertos para preenchimento manual na tabela de revisão.',
+          { duration: 6000 },
+        )
+        // Garante ao menos 1 linha para preenchimento de módulos e inversores
+        setRevisaoDados({
+          ...extraido,
+          modulos:
+            extraido.modulos.length > 0 ? extraido.modulos : [{ descricao: '', quantidade: 1 }],
+          inversores:
+            extraido.inversores.length > 0
+              ? extraido.inversores
+              : [{ descricao: '', quantidade: 1 }],
+        })
+      } else {
+        toast.success('PDF analisado com sucesso! Revise os dados na tabela antes de confirmar.')
+        // Garantir que haja pelo menos um campo para preenchimento fácil se vazio
+        setRevisaoDados({
+          ...extraido,
+          modulos:
+            extraido.modulos.length > 0 ? extraido.modulos : [{ descricao: '', quantidade: 1 }],
+          inversores:
+            extraido.inversores.length > 0
+              ? extraido.inversores
+              : [{ descricao: '', quantidade: 1 }],
+        })
+      }
+
       setTabelaRevisaoAberta(true)
-      toast.success('PDF analisado com sucesso! Revise os dados na tabela antes de confirmar.')
     } catch (err) {
       console.error('Erro ao analisar PDF de orçamento:', err)
-      toast.error('Falha ao analisar o PDF. Você pode preencher manualmente na tabela de revisão.')
+      toast.warning(
+        'PDF sem texto legível detectado (pode ser imagem escaneada). Os campos foram abertos para preenchimento manual na tabela de revisão.',
+        { duration: 6000 },
+      )
       setRevisaoDados({
-        nome_fornecedor: file.name.replace(/\.pdf$/i, ''),
+        nome_fornecedor: file.name.replace(/\.pdf$/i, '').replace(/[-_]/g, ' '),
         numero_revisao: 'REV-01',
         data: new Date().toISOString(),
         valor_total: 0,
@@ -100,7 +141,9 @@ export function SecaoOrcamentosFornecedores({
       setTabelaRevisaoAberta(true)
     } finally {
       setIsAnalyzing(false)
-      if (fileInputRef.current) fileInputRef.current.value = ''
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ''
+      }
     }
   }
 
@@ -213,16 +256,23 @@ export function SecaoOrcamentosFornecedores({
         <div>
           <input
             ref={fileInputRef}
+            id="input-orcamento-fornecedor-pdf"
             type="file"
-            accept=".pdf,application/pdf"
+            accept="application/pdf,.pdf"
             onChange={handleFileChange}
-            className="hidden"
+            className="sr-only"
           />
-          <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-            disabled={isAnalyzing}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white rounded-lg text-xs font-bold shadow-2xs transition-all hover:scale-[1.01]"
+          <label
+            htmlFor="input-orcamento-fornecedor-pdf"
+            onClick={() => {
+              // Fallback para assegurar que o clique funcione mesmo em cenários de overlay
+              if (fileInputRef.current && !isAnalyzing) {
+                fileInputRef.current.click()
+              }
+            }}
+            className={`inline-flex items-center gap-1.5 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold shadow-2xs transition-all hover:scale-[1.01] cursor-pointer select-none ${
+              isAnalyzing ? 'opacity-60 pointer-events-none' : ''
+            }`}
           >
             {isAnalyzing ? (
               <>
@@ -231,11 +281,12 @@ export function SecaoOrcamentosFornecedores({
               </>
             ) : (
               <>
+                <Plus className="w-4 h-4" />
                 <UploadCloud className="w-4 h-4" />
-                <span>Upload PDF Fornecedor</span>
+                <span>Adicionar Orçamento</span>
               </>
             )}
-          </button>
+          </label>
         </div>
       </div>
 
@@ -559,9 +610,35 @@ export function SecaoOrcamentosFornecedores({
         </h4>
 
         {orcamentosVinculados.length === 0 ? (
-          <div className="p-3 text-center rounded-lg bg-gray-50/70 border border-dashed border-gray-200 text-xs text-gray-500">
-            Nenhum orçamento de fornecedor anexado ainda. Faça upload de um PDF acima para analisar
-            e comparar cotações.
+          <div className="p-5 text-center rounded-xl bg-gray-50/70 border border-dashed border-gray-200 text-xs text-gray-500 space-y-3">
+            <p>
+              Nenhum orçamento de fornecedor anexado ainda. Faça upload de um PDF de cotação para
+              extrair módulos, inversores, acessórios e valores automaticamente.
+            </p>
+            <label
+              htmlFor="input-orcamento-fornecedor-pdf"
+              onClick={() => {
+                if (fileInputRef.current && !isAnalyzing) {
+                  fileInputRef.current.click()
+                }
+              }}
+              className={`inline-flex items-center gap-1.5 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold shadow-2xs transition-all hover:scale-[1.01] cursor-pointer select-none ${
+                isAnalyzing ? 'opacity-60 pointer-events-none' : ''
+              }`}
+            >
+              {isAnalyzing ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin text-white" />
+                  <span>Analisando PDF...</span>
+                </>
+              ) : (
+                <>
+                  <Plus className="w-4 h-4" />
+                  <UploadCloud className="w-4 h-4" />
+                  <span>Adicionar Orçamento</span>
+                </>
+              )}
+            </label>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
