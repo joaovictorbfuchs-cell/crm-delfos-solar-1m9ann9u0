@@ -25,17 +25,13 @@ import {
 } from 'lucide-react'
 import { useClientes } from '@/contexts/ClientesContext'
 import { Fornecedor, FornecedorEspecialidade, FornecedorOrcamento } from '@/types/crm'
-import { validarCNPJ, formatarCNPJ } from '@/lib/orcamentoParser'
 import { formatCurrency, formatDate } from '@/lib/formatters'
 import { toast } from 'sonner'
 import pb from '@/lib/pocketbase/client'
-import { useCnpjLookup } from '@/hooks/useCnpjLookup'
 import {
-  CnpjInputWithLookup,
-  CnpjConflictBanner,
-  CnpjConflictField,
-} from '@/components/CnpjInputWithLookup'
-import { CnpjDataNormalized } from '@/services/cnpjLookupService'
+  ModalCadastroClienteFornecedor,
+  DadosCadastroForm,
+} from '@/components/ModalCadastroClienteFornecedor'
 
 const ESPECIALIDADES_CONFIG: Record<
   FornecedorEspecialidade,
@@ -97,275 +93,64 @@ export function Fornecedores() {
     null,
   )
 
-  // Formulário State
-  const [nomeEmpresa, setNomeEmpresa] = useState('')
-  const [razaoSocial, setRazaoSocial] = useState('')
-  const [nomeFantasia, setNomeFantasia] = useState('')
-  const [cnpj, setCnpj] = useState('')
-  const [contatoNome, setContatoNome] = useState('')
-  const [telefone, setTelefone] = useState('')
-  const [email, setEmail] = useState('')
-  const [endereco, setEndereco] = useState('')
-  const [numero, setNumero] = useState('')
-  const [complemento, setComplemento] = useState('')
-  const [bairro, setBairro] = useState('')
-  const [cidade, setCidade] = useState('')
-  const [estado, setEstado] = useState('')
-  const [cep, setCep] = useState('')
-  const [cnaePrincipal, setCnaePrincipal] = useState('')
-  const [situacaoCadastral, setSituacaoCadastral] = useState('')
-  const [dataAbertura, setDataAbertura] = useState('')
-  const [especialidade, setEspecialidade] = useState<FornecedorEspecialidade>('completo')
-  const [observacoes, setObservacoes] = useState('')
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [conflitosCnpj, setConflitosCnpj] = useState<CnpjConflictField[]>([])
-  const [pendenteDadosReceita, setPendenteDadosReceita] = useState<CnpjDataNormalized | null>(null)
-
-  // Hook de consulta de CNPJ
-  const {
-    status: cnpjStatus,
-    errorMessage: cnpjErrorMessage,
-    isLoading: isCnpjLoading,
-    lookup: lookupCnpj,
-    reset: resetCnpjLookup,
-  } = useCnpjLookup()
-
-  // Resetar formulário
-  const resetForm = () => {
-    setNomeEmpresa('')
-    setRazaoSocial('')
-    setNomeFantasia('')
-    setCnpj('')
-    setContatoNome('')
-    setTelefone('')
-    setEmail('')
-    setEndereco('')
-    setNumero('')
-    setComplemento('')
-    setBairro('')
-    setCidade('')
-    setEstado('')
-    setCep('')
-    setCnaePrincipal('')
-    setSituacaoCadastral('')
-    setDataAbertura('')
-    setEspecialidade('completo')
-    setObservacoes('')
-    setEditingFornecedor(null)
-    setConflitosCnpj([])
-    setPendenteDadosReceita(null)
-    resetCnpjLookup()
-  }
-
   const handleOpenCreateModal = () => {
-    resetForm()
+    setEditingFornecedor(null)
     setModalCadastroOpen(true)
   }
 
   const handleOpenEditModal = (f: Fornecedor) => {
-    resetForm()
     setEditingFornecedor(f)
-    setNomeEmpresa(f.nome_empresa || '')
-    setRazaoSocial(f.razao_social || f.nome_empresa || '')
-    setNomeFantasia(f.nome_fantasia || '')
-    setCnpj(f.cnpj || '')
-    setContatoNome(f.contato_nome || '')
-    setTelefone(f.telefone || '')
-    setEmail(f.email || '')
-    setEndereco(f.endereco || '')
-    setNumero(f.numero || '')
-    setComplemento(f.complemento || '')
-    setBairro(f.bairro || '')
-    setCidade(f.cidade || '')
-    setEstado(f.estado || '')
-    setCep(f.cep || '')
-    setCnaePrincipal(f.cnae_principal || '')
-    setSituacaoCadastral(f.situacao_cadastral || '')
-    setDataAbertura(f.data_abertura || '')
-    setEspecialidade(f.especialidade || 'completo')
-    setObservacoes(f.observacoes || '')
     setModalCadastroOpen(true)
   }
 
-  const aplicarDadosReceita = (d: CnpjDataNormalized, sobrescrever = true) => {
-    const nomePrincipal = d.nome_fantasia || d.razao_social
-    if (sobrescrever || !nomeEmpresa) setNomeEmpresa(nomePrincipal || nomeEmpresa)
-    if (sobrescrever || !razaoSocial) setRazaoSocial(d.razao_social || razaoSocial)
-    if (sobrescrever || !nomeFantasia) setNomeFantasia(d.nome_fantasia || nomeFantasia)
-    if (sobrescrever || !endereco) setEndereco(d.logradouro || endereco)
-    if (sobrescrever || !numero) setNumero(d.numero || numero)
-    if (sobrescrever || !complemento) setComplemento(d.complemento || complemento)
-    if (sobrescrever || !bairro) setBairro(d.bairro || bairro)
-    if (sobrescrever || !cidade) setCidade(d.municipio || cidade)
-    if (sobrescrever || !estado) setEstado(d.uf || estado)
-    if (sobrescrever || !cep) setCep(d.cep || cep)
-    if (d.telefone && (sobrescrever || !telefone)) setTelefone(d.telefone)
-    if (d.email && (sobrescrever || !email)) setEmail(d.email)
-    if (d.situacao_cadastral && (sobrescrever || !situacaoCadastral))
-      setSituacaoCadastral(d.situacao_cadastral)
-    if (d.cnae_principal && (sobrescrever || !cnaePrincipal)) setCnaePrincipal(d.cnae_principal)
-    if (d.data_abertura && (sobrescrever || !dataAbertura)) setDataAbertura(d.data_abertura)
+  const handleSalvarFornecedor = async (dados: DadosCadastroForm) => {
+    const enderecoCompleto = [
+      dados.endereco?.trim(),
+      dados.numero?.trim() ? `nº ${dados.numero.trim()}` : '',
+      dados.complemento?.trim(),
+      dados.bairro?.trim() ? `- ${dados.bairro.trim()}` : '',
+      dados.cidade?.trim()
+        ? `${dados.cidade.trim()}${dados.estado?.trim() ? `/${dados.estado.trim().toUpperCase()}` : ''}`
+        : '',
+    ]
+      .filter(Boolean)
+      .join(' ')
 
-    toast.success('Dados preenchidos via Receita Federal!')
-    setConflitosCnpj([])
-    setPendenteDadosReceita(null)
-  }
-
-  const handleCnpjBlur = async () => {
-    const raw = cnpj.replace(/\D/g, '')
-    if (raw.length !== 14) return
-
-    const result = await lookupCnpj(raw)
-    if (!result) return
-
-    // Verifica campos preenchidos manualmente pelo usuário com valores diferentes
-    const conflitos: CnpjConflictField[] = []
-
-    const nomePrincipal = result.nome_fantasia || result.razao_social
-    if (nomeEmpresa.trim() && nomeEmpresa.trim().toLowerCase() !== nomePrincipal.toLowerCase()) {
-      conflitos.push({
-        campo: 'nome_empresa',
-        label: 'Nome da Empresa',
-        valorAtual: nomeEmpresa,
-        valorReceita: nomePrincipal,
-      })
-    }
-    if (
-      telefone.trim() &&
-      result.telefone &&
-      telefone.replace(/\D/g, '') !== result.telefone.replace(/\D/g, '')
-    ) {
-      conflitos.push({
-        campo: 'telefone',
-        label: 'Telefone',
-        valorAtual: telefone,
-        valorReceita: result.telefone,
-      })
-    }
-    if (email.trim() && result.email && email.trim().toLowerCase() !== result.email.toLowerCase()) {
-      conflitos.push({
-        campo: 'email',
-        label: 'E-mail',
-        valorAtual: email,
-        valorReceita: result.email,
-      })
-    }
-    if (
-      endereco.trim() &&
-      result.logradouro &&
-      endereco.trim().toLowerCase() !== result.logradouro.toLowerCase()
-    ) {
-      conflitos.push({
-        campo: 'endereco',
-        label: 'Logradouro',
-        valorAtual: endereco,
-        valorReceita: result.logradouro,
-      })
-    }
-    if (
-      cidade.trim() &&
-      result.municipio &&
-      cidade.trim().toLowerCase() !== result.municipio.toLowerCase()
-    ) {
-      conflitos.push({
-        campo: 'cidade',
-        label: 'Cidade',
-        valorAtual: cidade,
-        valorReceita: result.municipio,
-      })
+    const payload: Partial<Fornecedor> = {
+      tipo_pessoa: dados.tipo_pessoa,
+      nome_empresa: dados.nome,
+      razao_social: dados.razao_social || dados.nome,
+      nome_fantasia: dados.nome_fantasia,
+      cnpj: dados.cnpj,
+      cpf: dados.cpf,
+      contato_nome: dados.contato_principal,
+      contato_principal: dados.contato_principal,
+      telefone: dados.telefone,
+      telefone_secundario: dados.telefone_secundario,
+      email: dados.email,
+      atividade_principal: dados.atividade_principal,
+      como_conheceu: dados.como_conheceu,
+      endereco: enderecoCompleto.trim() || dados.endereco?.trim() || undefined,
+      numero: dados.numero,
+      complemento: dados.complemento,
+      bairro: dados.bairro,
+      cidade: dados.cidade,
+      estado: dados.estado,
+      cep: dados.cep,
+      cnae_principal: dados.cnae_principal,
+      situacao_cadastral: dados.situacao_cadastral,
+      data_abertura: dados.data_abertura,
+      especialidade: dados.especialidade || 'completo',
+      observacoes: dados.observacoes,
     }
 
-    if (conflitos.length > 0) {
-      setConflitosCnpj(conflitos)
-      setPendenteDadosReceita(result)
-      // Preenche os campos que estavam vazios automaticamente
-      aplicarDadosReceita(result, false)
+    if (editingFornecedor) {
+      await updateFornecedor(editingFornecedor.id, payload)
+      if (drawerFornecedor?.id === editingFornecedor.id) {
+        setDrawerFornecedor({ ...drawerFornecedor, ...payload } as Fornecedor)
+      }
     } else {
-      // Nenhum conflito, preenche diretamente
-      aplicarDadosReceita(result, true)
-    }
-  }
-
-  const handleManterMeusDados = () => {
-    setConflitosCnpj([])
-    setPendenteDadosReceita(null)
-    toast.info('Seus dados manuais foram mantidos.')
-  }
-
-  const handleUsarDadosReceita = () => {
-    if (pendenteDadosReceita) {
-      aplicarDadosReceita(pendenteDadosReceita, true)
-    }
-  }
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!nomeEmpresa.trim()) {
-      toast.error('Informe a razão social ou nome da empresa')
-      return
-    }
-
-    if (cnpj.trim()) {
-      const raw = cnpj.replace(/\D/g, '')
-      if (raw.length > 0 && !validarCNPJ(raw)) {
-        toast.error('Por favor, informe um CNPJ válido.')
-        return
-      }
-    }
-
-    setIsSubmitting(true)
-    try {
-      const enderecoCompleto = [
-        endereco.trim(),
-        numero.trim() ? `nº ${numero.trim()}` : '',
-        complemento.trim(),
-        bairro.trim() ? `- ${bairro.trim()}` : '',
-        cidade.trim()
-          ? `${cidade.trim()}${estado.trim() ? `/${estado.trim().toUpperCase()}` : ''}`
-          : '',
-      ]
-        .filter(Boolean)
-        .join(' ')
-
-      const payload: Partial<Fornecedor> = {
-        nome_empresa: nomeEmpresa.trim(),
-        razao_social: razaoSocial.trim() || undefined,
-        nome_fantasia: nomeFantasia.trim() || undefined,
-        cnpj: cnpj.trim() || undefined,
-        contato_nome: contatoNome.trim() || undefined,
-        telefone: telefone.trim() || undefined,
-        email: email.trim() || undefined,
-        endereco: enderecoCompleto.trim() || endereco.trim() || undefined,
-        numero: numero.trim() || undefined,
-        complemento: complemento.trim() || undefined,
-        bairro: bairro.trim() || undefined,
-        cidade: cidade.trim() || undefined,
-        estado: estado.trim() || undefined,
-        cep: cep.trim() || undefined,
-        cnae_principal: cnaePrincipal.trim() || undefined,
-        situacao_cadastral: situacaoCadastral.trim() || undefined,
-        data_abertura: dataAbertura.trim() || undefined,
-        especialidade,
-        observacoes: observacoes.trim() || undefined,
-      }
-
-      if (editingFornecedor) {
-        await updateFornecedor(editingFornecedor.id, payload)
-        toast.success('Fornecedor atualizado com sucesso!')
-        if (drawerFornecedor?.id === editingFornecedor.id) {
-          setDrawerFornecedor({ ...drawerFornecedor, ...payload } as Fornecedor)
-        }
-      } else {
-        await addFornecedor(payload)
-        toast.success('Fornecedor cadastrado com sucesso!')
-      }
-      setModalCadastroOpen(false)
-      resetForm()
-    } catch (err) {
-      console.error('Erro ao salvar fornecedor:', err)
-      toast.error('Erro ao salvar fornecedor. Verifique os dados.')
-    } finally {
-      setIsSubmitting(false)
+      await addFornecedor(payload)
     }
   }
 
@@ -387,12 +172,17 @@ export function Fornecedores() {
   // Filtragem
   const fornecedoresFiltrados = useMemo(() => {
     return fornecedores.filter((f) => {
+      const lower = searchTerm.toLowerCase()
       const matchSearch =
-        f.nome_empresa.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        f.nome_empresa.toLowerCase().includes(lower) ||
+        (f.razao_social && f.razao_social.toLowerCase().includes(lower)) ||
+        (f.nome_fantasia && f.nome_fantasia.toLowerCase().includes(lower)) ||
         (f.cnpj && f.cnpj.includes(searchTerm)) ||
-        (f.contato_nome && f.contato_nome.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (f.cpf && f.cpf.includes(searchTerm)) ||
+        (f.contato_nome && f.contato_nome.toLowerCase().includes(lower)) ||
+        (f.contato_principal && f.contato_principal.toLowerCase().includes(lower)) ||
         (f.telefone && f.telefone.includes(searchTerm)) ||
-        (f.email && f.email.toLowerCase().includes(searchTerm.toLowerCase()))
+        (f.email && f.email.toLowerCase().includes(lower))
 
       const matchEspecialidade =
         filtroEspecialidade === 'todos' || f.especialidade === filtroEspecialidade
@@ -414,25 +204,31 @@ export function Fornecedores() {
 
   return (
     <div className="space-y-6">
-      {/* Top Header / Ações */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+      {/* Top Header / Ações com Botão 'Adicionar Novo' em Destaque */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-gray-200 shadow-xs">
         <div>
-          <h2 className="text-xl sm:text-2xl font-bold text-gray-900 tracking-tight flex items-center gap-2">
-            <Building2 className="w-6 h-6 text-emerald-600" />
-            Fornecedores de Equipamentos Fotovoltaicos
-          </h2>
+          <div className="flex items-center gap-2.5">
+            <h2 className="text-xl sm:text-2xl font-bold text-gray-900 tracking-tight flex items-center gap-2">
+              <Building2 className="w-6 h-6 text-emerald-600" />
+              Fornecedores de Equipamentos Fotovoltaicos
+            </h2>
+            <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
+              {fornecedoresFiltrados.length} cadastrados
+            </span>
+          </div>
           <p className="text-xs sm:text-sm text-gray-500 mt-1">
-            Gestão de distribuidores, importadores e cotações de módulos, inversores e estruturas.
+            Gestão de distribuidores, importadores e cotações de módulos, inversores e estruturas
+            (PF e PJ).
           </p>
         </div>
 
         <button
           type="button"
           onClick={handleOpenCreateModal}
-          className="inline-flex items-center gap-2 px-4 py-2.5 bg-[#16A34A] hover:bg-[#15803D] text-white font-semibold text-xs sm:text-sm rounded-xl shadow-xs transition-all hover:scale-[1.01]"
+          className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-[#16A34A] hover:bg-[#15803D] active:scale-[0.98] text-white font-bold text-sm rounded-xl shadow-md hover:shadow-lg transition-all shrink-0 cursor-pointer"
         >
-          <Plus className="w-4 h-4" />
-          <span>Novo Fornecedor</span>
+          <Plus className="w-4 h-4 stroke-[2.5]" />
+          <span>Adicionar Novo</span>
         </button>
       </div>
 
@@ -522,11 +318,25 @@ export function Fornecedores() {
                         <Tag className="w-3 h-3" />
                         {espConfig.label}
                       </span>
-                      <h3 className="text-base font-bold text-gray-900 group-hover:text-emerald-700 transition-colors truncate">
-                        {f.nome_empresa}
-                      </h3>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <h3 className="text-base font-bold text-gray-900 group-hover:text-emerald-700 transition-colors truncate">
+                          {f.nome_empresa}
+                        </h3>
+                        {f.tipo_pessoa === 'fisica' || f.cpf ? (
+                          <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-amber-50 text-amber-800 border border-amber-200">
+                            PF
+                          </span>
+                        ) : (
+                          <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-blue-50 text-blue-700 border border-blue-200">
+                            PJ
+                          </span>
+                        )}
+                      </div>
                       {f.cnpj && (
                         <p className="text-xs text-gray-500 font-mono mt-0.5">CNPJ: {f.cnpj}</p>
+                      )}
+                      {f.cpf && (
+                        <p className="text-xs text-gray-500 font-mono mt-0.5">CPF: {f.cpf}</p>
                       )}
                     </div>
 
@@ -1011,309 +821,50 @@ export function Fornecedores() {
       )}
 
       {/* ========================================================================= */}
-      {/* MODAL DE CADASTRO / EDIÇÃO DE FORNECEDOR                                  */}
+      {/* MODAL DE CADASTRO / EDIÇÃO UNIFICADO PF / PJ                              */}
       {/* ========================================================================= */}
-      {modalCadastroOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div
-            className="fixed inset-0 bg-black/50 backdrop-blur-[2px]"
-            onClick={() => setModalCadastroOpen(false)}
-          />
-
-          <div className="relative z-10 w-full max-w-lg bg-white rounded-2xl shadow-2xl border border-gray-200 overflow-hidden flex flex-col">
-            <div className="p-5 border-b border-gray-200 flex items-center justify-between bg-gray-50/70">
-              <h3 className="text-base font-bold text-gray-900 flex items-center gap-2">
-                <Building2 className="w-5 h-5 text-emerald-600" />
-                {editingFornecedor ? 'Editar Fornecedor' : 'Cadastrar Novo Fornecedor'}
-              </h3>
-              <button
-                type="button"
-                onClick={() => setModalCadastroOpen(false)}
-                className="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <form
-              onSubmit={handleSubmit}
-              className="p-5 space-y-4 text-xs max-h-[85vh] overflow-y-auto"
-            >
-              {/* Campo CNPJ com consulta automática na Receita Federal */}
-              <CnpjInputWithLookup
-                value={cnpj}
-                onChange={(val) => {
-                  setCnpj(val)
-                  if (conflitosCnpj.length > 0) setConflitosCnpj([])
-                }}
-                onBlur={handleCnpjBlur}
-                onLookupClick={() =>
-                  lookupCnpj(cnpj, true).then((r) => r && aplicarDadosReceita(r, true))
-                }
-                status={cnpjStatus}
-                errorMessage={cnpjErrorMessage}
-                isLoading={isCnpjLoading}
-                helperText="Digite os 14 dígitos do CNPJ para buscar os dados automaticamente na Receita Federal"
-              />
-
-              {/* Banner de conflitos se o usuário já preencheu campos manualmente */}
-              <CnpjConflictBanner
-                conflitos={conflitosCnpj}
-                onManterMeusDados={handleManterMeusDados}
-                onUsarDadosReceita={handleUsarDadosReceita}
-              />
-
-              {/* Dados Principais: Razão Social e Nome Fantasia */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="font-semibold text-gray-700 block mb-1">
-                    Nome Comercial / Empresa *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={nomeEmpresa}
-                    onChange={(e) => setNomeEmpresa(e.target.value)}
-                    placeholder="Ex: Sol Tecno Distribuidora"
-                    className="w-full px-3 py-2 text-xs rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="font-semibold text-gray-700 block mb-1">
-                    Razão Social Completa
-                  </label>
-                  <input
-                    type="text"
-                    value={razaoSocial}
-                    onChange={(e) => setRazaoSocial(e.target.value)}
-                    placeholder="Ex: Sol Tecno Comércio LTDA"
-                    className="w-full px-3 py-2 text-xs rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                  />
-                </div>
-              </div>
-
-              {/* Especialidade e Situação Cadastral */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="font-semibold text-gray-700 block mb-1">
-                    Especialidade Principal *
-                  </label>
-                  <select
-                    value={especialidade}
-                    onChange={(e) => setEspecialidade(e.target.value as FornecedorEspecialidade)}
-                    className="w-full px-3 py-2 text-xs rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                  >
-                    <option value="completo">Completo (Kit Solar)</option>
-                    <option value="paineis">Painéis Fotovoltaicos</option>
-                    <option value="inversores">Inversores</option>
-                    <option value="estruturas">Estruturas de Fixação</option>
-                    <option value="acessorios">Acessórios & Proteções</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="font-semibold text-gray-700 block mb-1">
-                    Situação na Receita
-                  </label>
-                  <input
-                    type="text"
-                    value={situacaoCadastral}
-                    onChange={(e) => setSituacaoCadastral(e.target.value)}
-                    placeholder="Ex: ATIVA"
-                    className="w-full px-3 py-2 text-xs rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-medium"
-                  />
-                </div>
-              </div>
-
-              {/* Contato e Telefone */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="font-semibold text-gray-700 block mb-1">
-                    Nome do Contato / Representante
-                  </label>
-                  <input
-                    type="text"
-                    value={contatoNome}
-                    onChange={(e) => setContatoNome(e.target.value)}
-                    placeholder="Ex: Ricardo Mendes"
-                    className="w-full px-3 py-2 text-xs rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="font-semibold text-gray-700 block mb-1">
-                    Telefone / WhatsApp
-                  </label>
-                  <input
-                    type="text"
-                    value={telefone}
-                    onChange={(e) => setTelefone(e.target.value)}
-                    placeholder="(54) 99999-9999"
-                    className="w-full px-3 py-2 text-xs rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                  />
-                </div>
-              </div>
-
-              {/* Email e CNAE */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="font-semibold text-gray-700 block mb-1">Email</label>
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="comercial@fornecedor.com.br"
-                    className="w-full px-3 py-2 text-xs rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="font-semibold text-gray-700 block mb-1">
-                    Data de Abertura / Fundação
-                  </label>
-                  <input
-                    type="date"
-                    value={dataAbertura}
-                    onChange={(e) => setDataAbertura(e.target.value)}
-                    className="w-full px-3 py-2 text-xs rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                  />
-                </div>
-              </div>
-
-              {/* Endereço Detalhado */}
-              <div className="p-3 bg-gray-50/80 rounded-xl border border-gray-200/80 space-y-2.5">
-                <span className="font-bold text-gray-700 block text-[11px] uppercase tracking-wider">
-                  Endereço & Localização
-                </span>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                  <div className="sm:col-span-2">
-                    <label className="text-[11px] text-gray-500 block mb-0.5">Logradouro</label>
-                    <input
-                      type="text"
-                      value={endereco}
-                      onChange={(e) => setEndereco(e.target.value)}
-                      placeholder="Rua / Avenida"
-                      className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-[11px] text-gray-500 block mb-0.5">Número</label>
-                    <input
-                      type="text"
-                      value={numero}
-                      onChange={(e) => setNumero(e.target.value)}
-                      placeholder="Nº"
-                      className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                  <div>
-                    <label className="text-[11px] text-gray-500 block mb-0.5">Bairro</label>
-                    <input
-                      type="text"
-                      value={bairro}
-                      onChange={(e) => setBairro(e.target.value)}
-                      placeholder="Bairro"
-                      className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-[11px] text-gray-500 block mb-0.5">Cidade</label>
-                    <input
-                      type="text"
-                      value={cidade}
-                      onChange={(e) => setCidade(e.target.value)}
-                      placeholder="Cidade"
-                      className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
-                    />
-                  </div>
-                  <div className="grid grid-cols-2 gap-1.5">
-                    <div>
-                      <label className="text-[11px] text-gray-500 block mb-0.5">UF</label>
-                      <input
-                        type="text"
-                        maxLength={2}
-                        value={estado}
-                        onChange={(e) => setEstado(e.target.value.toUpperCase())}
-                        placeholder="RS"
-                        className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white text-center font-bold uppercase"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-[11px] text-gray-500 block mb-0.5">CEP</label>
-                      <input
-                        type="text"
-                        value={cep}
-                        onChange={(e) => setCep(e.target.value)}
-                        placeholder="00000-000"
-                        className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white font-mono text-[11px]"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="text-[11px] text-gray-500 block mb-0.5">Complemento</label>
-                  <input
-                    type="text"
-                    value={complemento}
-                    onChange={(e) => setComplemento(e.target.value)}
-                    placeholder="Sala, galpão, bloco..."
-                    className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
-                  />
-                </div>
-              </div>
-
-              {/* CNAE Principal */}
-              {cnaePrincipal && (
-                <div className="p-2.5 bg-emerald-50/60 rounded-lg border border-emerald-100 text-xs text-emerald-900">
-                  <span className="font-bold block text-[10px] uppercase text-emerald-700">
-                    Atividade Econômica Principal (CNAE)
-                  </span>
-                  <span className="text-gray-700">{cnaePrincipal}</span>
-                </div>
-              )}
-
-              <div>
-                <label className="font-semibold text-gray-700 block mb-1">
-                  Observações Internas
-                </label>
-                <textarea
-                  rows={2}
-                  value={observacoes}
-                  onChange={(e) => setObservacoes(e.target.value)}
-                  placeholder="Prazos de entrega médios, condições de frete, garantias, etc."
-                  className="w-full px-3 py-2 text-xs rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                />
-              </div>
-
-              <div className="pt-3 border-t border-gray-200 flex items-center justify-end gap-2 sticky bottom-0 bg-white py-2">
-                <button
-                  type="button"
-                  onClick={() => setModalCadastroOpen(false)}
-                  className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold rounded-xl transition-colors"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="px-5 py-2 bg-[#16A34A] hover:bg-[#15803D] disabled:opacity-50 text-white text-xs font-bold rounded-xl shadow-xs transition-all flex items-center gap-1.5"
-                >
-                  {isSubmitting
-                    ? 'Salvando...'
-                    : editingFornecedor
-                      ? 'Atualizar Fornecedor'
-                      : 'Cadastrar Fornecedor'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      <ModalCadastroClienteFornecedor
+        isOpen={modalCadastroOpen}
+        onClose={() => {
+          setModalCadastroOpen(false)
+          setEditingFornecedor(null)
+        }}
+        tipoEntidade="fornecedor"
+        onSubmit={handleSalvarFornecedor}
+        dadosIniciais={
+          editingFornecedor
+            ? {
+                tipo_pessoa:
+                  editingFornecedor.tipo_pessoa || (editingFornecedor.cpf ? 'fisica' : 'juridica'),
+                nome: editingFornecedor.nome_empresa,
+                razao_social: editingFornecedor.razao_social,
+                nome_fantasia: editingFornecedor.nome_fantasia,
+                cnpj: editingFornecedor.cnpj,
+                cpf: editingFornecedor.cpf,
+                contato_principal:
+                  editingFornecedor.contato_principal || editingFornecedor.contato_nome,
+                telefone: editingFornecedor.telefone || '',
+                telefone_secundario: editingFornecedor.telefone_secundario,
+                email: editingFornecedor.email,
+                atividade_principal:
+                  editingFornecedor.atividade_principal || 'Fornecedor de Equipamentos',
+                como_conheceu: editingFornecedor.como_conheceu || 'Indicação',
+                endereco: editingFornecedor.endereco,
+                numero: editingFornecedor.numero,
+                complemento: editingFornecedor.complemento,
+                bairro: editingFornecedor.bairro,
+                cidade: editingFornecedor.cidade,
+                estado: editingFornecedor.estado,
+                cep: editingFornecedor.cep,
+                cnae_principal: editingFornecedor.cnae_principal,
+                situacao_cadastral: editingFornecedor.situacao_cadastral,
+                data_abertura: editingFornecedor.data_abertura,
+                especialidade: editingFornecedor.especialidade,
+                observacoes: editingFornecedor.observacoes,
+              }
+            : undefined
+        }
+      />
 
       {/* ========================================================================= */}
       {/* MODAL DE CONFIRMAÇÃO DE EXCLUSÃO                                         */}

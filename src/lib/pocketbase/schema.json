@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-12T18:01:33.459Z",
+  "generatedAt": "2026-09-12T18:27:17.827Z",
   "collections": [
     {
       "name": "users",
@@ -322,6 +322,48 @@
         },
         {
           "name": "situacao_cadastral",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "tipo_pessoa",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "telefone_secundario",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "contato_principal",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "atividade_principal",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "observacoes",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "como_conheceu",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "data_abertura",
           "type": "text",
           "required": false,
           "system": false
@@ -2384,6 +2426,42 @@
           "type": "text",
           "required": false,
           "system": false
+        },
+        {
+          "name": "tipo_pessoa",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "cpf",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "telefone_secundario",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "contato_principal",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "atividade_principal",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "como_conheceu",
+          "type": "text",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": [
@@ -2497,6 +2575,40 @@
           "type": "bool",
           "required": false,
           "system": false
+        }
+      ],
+      "indexes": []
+    },
+    {
+      "name": "atividades_setor",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "nome",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
         }
       ],
       "indexes": []

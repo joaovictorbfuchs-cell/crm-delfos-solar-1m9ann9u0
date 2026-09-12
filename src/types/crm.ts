@@ -64,6 +64,17 @@ export interface SistemaUsuario {
 
 export type ClienteTipo = 'residencial' | 'comercial' | 'industrial' | 'rural' | 'investidor'
 
+export type TipoPessoa = 'fisica' | 'juridica'
+
+export interface AtividadeSetorItem extends RecordModel {
+  id: string
+  collectionId: string
+  collectionName: string
+  nome: string
+  created: string
+  updated: string
+}
+
 export interface Cliente extends RecordModel {
   id: string
   collectionId: string
@@ -90,12 +101,19 @@ export interface Cliente extends RecordModel {
   // Proposta O&M ID
   proposta_om_id?: string
   // Novos campos cadastrais
+  tipo_pessoa?: TipoPessoa
   nome_fantasia?: string
   razao_social?: string
   cnpj?: string
   cpf?: string
   inscricao_estadual?: string
   email?: string
+  telefone_secundario?: string
+  contato_principal?: string
+  atividade_principal?: string
+  observacoes?: string
+  como_conheceu?: string
+  data_abertura?: string
   cep?: string
   estado?: string
   bairro?: string
@@ -180,12 +198,18 @@ export interface Fornecedor extends RecordModel {
   collectionId: string
   collectionName: string
   nome_empresa: string
+  tipo_pessoa?: TipoPessoa
   razao_social?: string
   nome_fantasia?: string
   cnpj?: string
+  cpf?: string
   contato_nome?: string
+  contato_principal?: string
   telefone?: string
+  telefone_secundario?: string
   email?: string
+  atividade_principal?: string
+  como_conheceu?: string
   endereco?: string
   numero?: string
   complemento?: string
