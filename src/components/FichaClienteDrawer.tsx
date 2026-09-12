@@ -45,6 +45,9 @@ import { StatusBadge, ProductBadge } from './StatusBadge'
 import { InlineEditField } from './InlineEditField'
 import { AtividadeItem } from './AtividadeItem'
 import { QuickAddAtividade } from './QuickAddAtividade'
+import { LinhaDoTempoUnificada } from './LinhaDoTempoUnificada'
+import { ModalDetalhesTimeline } from './ModalDetalhesTimeline'
+import type { TimelineUnifiedItem } from '@/types/timelineUnified'
 import { FichaClienteOM } from './FichaClienteOM'
 import { FichaClienteWhatsApp } from './FichaClienteWhatsApp'
 import { ModalGerenciarWhatsAppTemplates } from './ModalGerenciarWhatsAppTemplates'
@@ -140,9 +143,15 @@ export const FichaClienteDrawer: React.FC = () => {
     updateProjetoEtapa,
     assignProjetoProfissional,
     propostasOM,
+    updatePropostaOM,
     orcamentosSolar,
+    updateOrcamentoSolar,
+    updateAtividade,
     whatsAppMensagens,
   } = useClientes()
+
+  // Estado para Modal de Detalhes / Edição Inline da Linha do Tempo Unificada
+  const [timelineItemDetalhes, setTimelineItemDetalhes] = useState<TimelineUnifiedItem | null>(null)
 
   // Modal de Proposta O&M
   const [isModalPropostaOpen, setIsModalPropostaOpen] = useState(false)
@@ -2683,217 +2692,21 @@ export const FichaClienteDrawer: React.FC = () => {
                   />
 
                   {/* ======================================================== */}
-                  {/* LINHA DO TEMPO CRONOLÓGICA ÚNICA (SEM SEPARAÇÃO POR TIPO)*/}
-                  {/* Anotações, Atividades, Ligações, Reuniões, Estágios...   */}
+                  {/* LINHA DO TEMPO CRONOLÓGICA UNIFICADA                      */}
+                  {/* Propostas solares com revisões, O&M, atividades,         */}
+                  {/* anotações e outras ações com filtros e modal de detalhes */}
                   {/* ======================================================== */}
-                  <div className="space-y-2 pt-2">
-                    <div className="flex items-center justify-between border-b border-gray-100 pb-2">
-                      <div className="flex items-center gap-1.5 text-xs font-bold text-gray-700 uppercase tracking-wider">
-                        <Clock className="w-3.5 h-3.5 text-[#16A34A]" />
-                        <span>Linha do Tempo Unificada</span>
-                        <span className="text-[11px] font-normal text-gray-400 capitalize">
-                          ({timelineAtividades.length}{' '}
-                          {timelineAtividades.length === 1 ? 'registro' : 'registros'})
-                        </span>
-                      </div>
-                      <span className="text-[10px] text-gray-400">
-                        Do mais recente para o mais antigo
-                      </span>
-                    </div>
-
-                    {timelineAtividades.length === 0 ? (
-                      <div className="text-center py-12 px-4 bg-gray-50/60 rounded-2xl border border-dashed border-gray-200">
-                        <Clock className="w-8 h-8 text-gray-300 mx-auto mb-2" />
-                        <p className="text-xs font-semibold text-gray-700">
-                          Nenhum registro no histórico deste cliente
-                        </p>
-                        <p className="text-[11px] text-gray-400 mt-1 max-w-sm mx-auto">
-                          Use a área rápida acima para registrar anotações ou agendar ligações,
-                          reuniões, propostas e tarefas.
-                        </p>
-                      </div>
-                    ) : (
-                      <div className="pt-2">
-                        {timelineAtividades.map((atv) => {
-                          const propOM = (atv as any)._propostaOM as PropostaOM | undefined
-
-                          if (propOM) {
-                            return (
-                              <div
-                                key={atv.id}
-                                className="group relative flex items-start gap-3 p-3.5 rounded-xl border border-emerald-200/90 bg-gradient-to-r from-emerald-50/70 via-white to-emerald-50/30 hover:border-emerald-400 hover:shadow-xs transition-all my-2 text-xs"
-                              >
-                                {/* Ícone próprio de Proposta O&M */}
-                                <div className="p-2 rounded-xl bg-emerald-100 text-emerald-800 shrink-0 mt-0.5 border border-emerald-200">
-                                  <FileCheck className="w-4 h-4 text-emerald-700" />
-                                </div>
-
-                                <div className="flex-1 min-w-0 space-y-1">
-                                  <div className="flex items-center justify-between flex-wrap gap-1">
-                                    <div className="flex items-center gap-2">
-                                      <span className="font-bold text-emerald-950 text-sm">
-                                        Proposta O&M{' '}
-                                        {propOM.potencia_kwp ? `(${propOM.potencia_kwp} kWp)` : ''}
-                                      </span>
-                                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
-                                        {propOM.status || 'Emitida'}
-                                      </span>
-                                    </div>
-                                    <div className="text-[11px] text-gray-500 font-medium">
-                                      {formatDate(propOM.data_proposta || propOM.created)}
-                                    </div>
-                                  </div>
-
-                                  <div className="flex items-baseline justify-between text-xs text-gray-700 pt-0.5">
-                                    <div>
-                                      Plano oferecido:{' '}
-                                      <span className="font-bold text-gray-900">
-                                        {propOM.plano_recomendado ||
-                                          (propOM.potencia_kwp
-                                            ? `${propOM.potencia_kwp} kWp`
-                                            : 'Essencial / Prevenção / Completo')}
-                                      </span>
-                                    </div>
-                                    <div className="font-bold text-emerald-800 text-sm">
-                                      {propOM.valor_mensal_plano
-                                        ? `${formatCurrency(propOM.valor_mensal_plano)}/mês`
-                                        : propOM.valor_ativo_protegido
-                                          ? `${formatCurrency(propOM.valor_ativo_protegido)}/mês (ativo)`
-                                          : 'Consulte opções'}
-                                    </div>
-                                  </div>
-
-                                  <div className="flex items-center justify-between pt-2 border-t border-emerald-100/70 text-[11px]">
-                                    <span className="text-gray-400">
-                                      Emitido por: {propOM.autor || 'Equipe O&M Delfos'}
-                                    </span>
-                                    <div className="flex items-center gap-2">
-                                      <button
-                                        type="button"
-                                        onClick={() => {
-                                          setPropostaVisualizar(propOM)
-                                          setIsModalPropostaOpen(true)
-                                        }}
-                                        className="text-emerald-700 hover:text-emerald-900 font-semibold inline-flex items-center gap-1 hover:underline"
-                                      >
-                                        <ExternalLink className="w-3 h-3" />
-                                        <span>Editar</span>
-                                      </button>
-
-                                      <button
-                                        type="button"
-                                        onClick={() => {
-                                          const calc = calcularPropostaOM({
-                                            geracaoMensalKwh: propOM.geracao_mensal_kwh,
-                                            valorKwh: propOM.valor_kwh,
-                                          })
-                                          abrirPropostaEmNovaAba({
-                                            cliente: {
-                                              nome: selectedCliente.nome,
-                                              cpfOuCnpj:
-                                                selectedCliente.cnpj || selectedCliente.cpf,
-                                              endereco: selectedCliente.endereco,
-                                              municipio: selectedCliente.cidade,
-                                              email: selectedCliente.email,
-                                              telefone: selectedCliente.telefone,
-                                            },
-                                            tecnico: {
-                                              potenciaKwp: propOM.potencia_kwp,
-                                              geracaoMediaKwh: propOM.geracao_mensal_kwh,
-                                              marcaInversores: propOM.marca_inversores,
-                                              tipoInstalacao: propOM.tipo_instalacao,
-                                              numeroModulos: propOM.numero_modulos,
-                                            },
-                                            parametros: {
-                                              valorKwh: propOM.valor_kwh,
-                                              distanciaKm: propOM.distancia_km,
-                                              valorKm: propOM.valor_km,
-                                            },
-                                            calculos: calc,
-                                            dataEmissao: propOM.data_proposta || propOM.created,
-                                            autor: propOM.autor,
-                                          })
-                                        }}
-                                        className="inline-flex items-center gap-1 px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg shadow-2xs transition-colors"
-                                      >
-                                        <FileText className="w-3 h-3" />
-                                        <span>Ver Proposta</span>
-                                      </button>
-
-                                      <button
-                                        type="button"
-                                        disabled={
-                                          !selectedCliente.whatsapp && !selectedCliente.telefone
-                                        }
-                                        title={
-                                          !selectedCliente.whatsapp && !selectedCliente.telefone
-                                            ? 'Cadastre o WhatsApp do cliente para enviar'
-                                            : 'Enviar proposta O&M por WhatsApp'
-                                        }
-                                        onClick={() => {
-                                          const calc = calcularPropostaOM({
-                                            geracaoMensalKwh: propOM.geracao_mensal_kwh,
-                                            valorKwh: propOM.valor_kwh,
-                                          })
-                                          setDocParaEnviarWhatsApp({
-                                            tipo: 'proposta_om',
-                                            referenciaId: propOM.id,
-                                            dadosOM: {
-                                              cliente: {
-                                                nome: selectedCliente.nome,
-                                                cpfOuCnpj:
-                                                  selectedCliente.cnpj || selectedCliente.cpf,
-                                                endereco: selectedCliente.endereco,
-                                                municipio: selectedCliente.cidade,
-                                                email: selectedCliente.email,
-                                                telefone: selectedCliente.telefone,
-                                              },
-                                              tecnico: {
-                                                potenciaKwp: propOM.potencia_kwp,
-                                                geracaoMediaKwh: propOM.geracao_mensal_kwh,
-                                                marcaInversores: propOM.marca_inversores,
-                                                tipoInstalacao: propOM.tipo_instalacao,
-                                                numeroModulos: propOM.numero_modulos,
-                                              },
-                                              parametros: {
-                                                valorKwh: propOM.valor_kwh,
-                                                distanciaKm: propOM.distancia_km,
-                                                valorKm: propOM.valor_km,
-                                              },
-                                              calculos: calc,
-                                              dataEmissao: propOM.data_proposta || propOM.created,
-                                              autor: propOM.autor,
-                                            },
-                                          })
-                                          setModalEnviarDocWhatsAppOpen(true)
-                                        }}
-                                        className="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 font-bold rounded-lg shadow-2xs transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                                      >
-                                        <Send className="w-3 h-3 text-emerald-600" />
-                                        <span>Enviar WhatsApp</span>
-                                      </button>
-                                    </div>
-                                  </div>
-                                </div>
-                              </div>
-                            )
-                          }
-
-                          return (
-                            <AtividadeItem
-                              key={atv.id}
-                              atividade={atv}
-                              onDelete={removeAtividade}
-                              onToggleStatus={async (id, current) => {
-                                const next = current === 'concluida' ? 'pendente' : 'concluida'
-                                await updateAtividadeStatus(id, next)
-                              }}
-                            />
-                          )
-                        })}
-                      </div>
-                    )}
-                  </div>
+                  <LinhaDoTempoUnificada
+                    cliente={selectedCliente}
+                    atividades={atividades}
+                    orcamentosSolar={orcamentosSolar}
+                    propostasOM={propostasOM}
+                    onItemClick={(item) => setTimelineItemDetalhes(item)}
+                    onToggleAtividadeStatus={async (id, current) => {
+                      const next = current === 'concluida' ? 'pendente' : 'concluida'
+                      await updateAtividadeStatus(id, next as any)
+                    }}
+                  />
                 </>
               )}
             </div>
@@ -3166,6 +2979,208 @@ export const FichaClienteDrawer: React.FC = () => {
         initialClienteId={selectedCliente?.id}
         initialOrcamento={orcamentoSolarVisualizar}
       />
+
+      {/* Modal Detalhes e Edição Inline da Linha do Tempo Unificada */}
+      {selectedCliente && (
+        <ModalDetalhesTimeline
+          open={Boolean(timelineItemDetalhes)}
+          onClose={() => setTimelineItemDetalhes(null)}
+          item={timelineItemDetalhes}
+          cliente={selectedCliente}
+          onUpdateAtividade={async (id, data) => updateAtividade(id, data)}
+          onUpdateOrcamentoSolar={async (id, data) => updateOrcamentoSolar(id, data)}
+          onUpdatePropostaOM={async (id, data) => updatePropostaOM(id, data)}
+          onVisualizarPropostaSolar={async (o) => {
+            const { abrirOrcamentoEmNovaAba } = await import('@/lib/orcamentoGenerator')
+            const { calcularOrcamentoSolar } = await import('@/lib/energiaSolar')
+            const calc = calcularOrcamentoSolar({
+              consumoKwhMes: o.consumo_kwh_mes,
+              tipoCliente: o.tipo_cliente || 'residencial',
+              tarifaKwh: o.tarifa_kwh,
+              potenciaKwp: o.potencia_kwp,
+              orientacaoTelhado: o.orientacao_telhado,
+              valorInvestimentoInformado: o.valor_investimento,
+              custos: {
+                maoDeObra: o.custo_mao_de_obra || 0,
+                materiaisExtras: o.custo_materiais_extras || 0,
+                freteGuincho: o.custo_frete_guincho || 0,
+                subestacao: o.custo_subestacao || 0,
+                terceirizacao: o.custo_terceirizacao || 0,
+                administracao: o.custo_administracao || 0,
+                marketingCombustivel: o.custo_marketing_combustivel || 0,
+                riscoEngenharia: o.custo_risco_engenharia || 0,
+                comissaoComercial: o.custo_comissao_comercial || 0,
+                indicacao: o.custo_indicacao || 0,
+                impostos: o.custo_impostos || 0,
+              },
+            })
+            abrirOrcamentoEmNovaAba({
+              cliente: {
+                nome: selectedCliente.nome,
+                cpfOuCnpj: selectedCliente.cnpj || selectedCliente.cpf || '',
+                endereco: [selectedCliente.endereco, selectedCliente.numero, selectedCliente.bairro]
+                  .filter(Boolean)
+                  .join(', '),
+                municipio: selectedCliente.cidade || 'Erechim / RS',
+                email: selectedCliente.email || '',
+                telefone: selectedCliente.telefone || '',
+                tipoCliente: o.tipo_cliente,
+              },
+              representanteComercial: o.autor || 'Delfos Solar',
+              sistema: {
+                potenciaKwp: o.potencia_kwp,
+                consumoKwhMes: o.consumo_kwh_mes,
+                numeroPlacas: o.numero_placas,
+                potenciaPlacaWp: o.potencia_placa_wp,
+                marcaPlacas: o.marca_painel,
+                marcaInversor: o.marca_inversor,
+                quantidadeInversores: o.quantidade_inversores,
+                tipoEstrutura: o.tipo_estrutura,
+                orientacaoTelhado: o.orientacao_telhado,
+                areaNecessariaM2: o.area_necessaria_m2,
+                codigoFiname: o.codigo_finame,
+                prazoEntregaDias: 30,
+              },
+              calculos: calc,
+              dataEmissao: o.data_orcamento || o.created,
+              validadeDias: o.validade_dias || 5,
+              observacoes: o.observacoes,
+            })
+          }}
+          onVisualizarPropostaOM={(p) => {
+            const calc = calcularPropostaOM({
+              geracaoMensalKwh: p.geracao_mensal_kwh,
+              valorKwh: p.valor_kwh,
+            })
+            abrirPropostaEmNovaAba({
+              cliente: {
+                nome: selectedCliente.nome,
+                cpfOuCnpj: selectedCliente.cnpj || selectedCliente.cpf,
+                endereco: selectedCliente.endereco,
+                municipio: selectedCliente.cidade,
+                email: selectedCliente.email,
+                telefone: selectedCliente.telefone,
+              },
+              tecnico: {
+                potenciaKwp: p.potencia_kwp,
+                geracaoMediaKwh: p.geracao_mensal_kwh,
+                marcaInversores: p.marca_inversores,
+                tipoInstalacao: p.tipo_instalacao,
+                numeroModulos: p.numero_modulos,
+              },
+              parametros: {
+                valorKwh: p.valor_kwh,
+                distanciaKm: p.distancia_km,
+                valorKm: p.valor_km,
+              },
+              calculos: calc,
+              dataEmissao: p.data_proposta || p.created,
+              autor: p.autor,
+            })
+          }}
+          onEnviarWhatsAppSolar={async (o) => {
+            const { calcularOrcamentoSolar } = await import('@/lib/energiaSolar')
+            const calc = calcularOrcamentoSolar({
+              consumoKwhMes: o.consumo_kwh_mes,
+              tipoCliente: o.tipo_cliente || 'residencial',
+              tarifaKwh: o.tarifa_kwh,
+              potenciaKwp: o.potencia_kwp,
+              orientacaoTelhado: o.orientacao_telhado,
+              valorInvestimentoInformado: o.valor_investimento,
+              custos: {
+                maoDeObra: o.custo_mao_de_obra || 0,
+                materiaisExtras: o.custo_materiais_extras || 0,
+                freteGuincho: o.custo_frete_guincho || 0,
+                subestacao: o.custo_subestacao || 0,
+                terceirizacao: o.custo_terceirizacao || 0,
+                administracao: o.custo_administracao || 0,
+                marketingCombustivel: o.custo_marketing_combustivel || 0,
+                riscoEngenharia: o.custo_risco_engenharia || 0,
+                comissaoComercial: o.custo_comissao_comercial || 0,
+                indicacao: o.custo_indicacao || 0,
+                impostos: o.custo_impostos || 0,
+              },
+            })
+            setDocParaEnviarWhatsApp({
+              tipo: 'orcamento_solar',
+              referenciaId: o.id,
+              dadosSolar: {
+                cliente: {
+                  nome: selectedCliente.nome,
+                  cpfOuCnpj: selectedCliente.cnpj || selectedCliente.cpf || '',
+                  endereco: [
+                    selectedCliente.endereco,
+                    selectedCliente.numero,
+                    selectedCliente.bairro,
+                  ]
+                    .filter(Boolean)
+                    .join(', '),
+                  municipio: selectedCliente.cidade || 'Erechim / RS',
+                  email: selectedCliente.email || '',
+                  telefone: selectedCliente.telefone || '',
+                  tipoCliente: o.tipo_cliente,
+                },
+                representanteComercial: o.autor || 'Delfos Solar',
+                sistema: {
+                  potenciaKwp: o.potencia_kwp,
+                  consumoKwhMes: o.consumo_kwh_mes,
+                  numeroPlacas: o.numero_placas,
+                  potenciaPlacaWp: o.potencia_placa_wp,
+                  marcaPlacas: o.marca_painel,
+                  marcaInversor: o.marca_inversor,
+                  quantidadeInversores: o.quantidade_inversores,
+                  tipoEstrutura: o.tipo_estrutura,
+                  orientacaoTelhado: o.orientacao_telhado,
+                  areaNecessariaM2: o.area_necessaria_m2,
+                  codigoFiname: o.codigo_finame,
+                  prazoEntregaDias: 30,
+                },
+                calculos: calc,
+                dataEmissao: o.data_orcamento || o.created,
+                validadeDias: o.validade_dias || 5,
+                observacoes: o.observacoes,
+              },
+            })
+            setModalEnviarDocWhatsAppOpen(true)
+          }}
+          onEnviarWhatsAppOM={(p) => {
+            const calc = calcularPropostaOM({
+              geracaoMensalKwh: p.geracao_mensal_kwh,
+              valorKwh: p.valor_kwh,
+            })
+            setDocParaEnviarWhatsApp({
+              tipo: 'proposta_om',
+              referenciaId: p.id,
+              dadosOM: {
+                cliente: {
+                  nome: selectedCliente.nome,
+                  cpfOuCnpj: selectedCliente.cnpj || selectedCliente.cpf,
+                  endereco: selectedCliente.endereco,
+                  municipio: selectedCliente.cidade,
+                  email: selectedCliente.email,
+                  telefone: selectedCliente.telefone,
+                },
+                tecnico: {
+                  potenciaKwp: p.potencia_kwp,
+                  geracaoMediaKwh: p.geracao_mensal_kwh,
+                  marcaInversores: p.marca_inversores,
+                  tipoInstalacao: p.tipo_instalacao,
+                  numeroModulos: p.numero_modulos,
+                },
+                parametros: {
+                  valorKwh: p.valor_kwh,
+                  distanciaKm: p.distancia_km,
+                  valorKm: p.valor_km,
+                },
+                calculos: calc,
+                dataEmissao: p.data_proposta || p.created,
+                autor: p.autor,
+              },
+            })
+            setModalEnviarDocWhatsAppOpen(true)
+          }}
+        />
+      )}
 
       {/* Modal Gerenciar Templates & Configuração do Gateway WhatsApp */}
       <ModalGerenciarWhatsAppTemplates

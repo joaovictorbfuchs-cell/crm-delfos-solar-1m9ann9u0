@@ -57,6 +57,7 @@ import {
   createTimelineOM as apiCreateTimelineOM,
   fetchPropostasOM,
   createPropostaOM as apiCreatePropostaOM,
+  updatePropostaOM as apiUpdatePropostaOM,
   deletePropostaOM as apiDeletePropostaOM,
   fetchOrcamentosSolar,
   createOrcamentoSolar as apiCreateOrcamentoSolar,
@@ -203,6 +204,7 @@ interface ClientesContextType {
   removeServicoAdicionalOM: (id: string) => Promise<void>
   addTimelineOM: (data: Parameters<typeof apiCreateTimelineOM>[0]) => Promise<TimelineOM>
   addPropostaOM: (data: Parameters<typeof apiCreatePropostaOM>[0]) => Promise<PropostaOM>
+  updatePropostaOM: (id: string, data: Partial<PropostaOM>) => Promise<PropostaOM>
   removePropostaOM: (id: string) => Promise<void>
   // Orçamentos Solares
   addOrcamentoSolar: (data: Partial<OrcamentoSolar>) => Promise<OrcamentoSolar>
@@ -1141,6 +1143,12 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     return created
   }
 
+  const updatePropostaOM = async (id: string, data: Partial<PropostaOM>): Promise<PropostaOM> => {
+    const updated = await apiUpdatePropostaOM(id, data)
+    setPropostasOM((prev) => prev.map((p) => (p.id === id ? updated : p)))
+    return updated
+  }
+
   const removePropostaOM = async (id: string) => {
     await apiDeletePropostaOM(id)
     setPropostasOM((prev) => prev.filter((p) => p.id !== id))
@@ -1429,6 +1437,7 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         addTimelineOM,
         propostasOM,
         addPropostaOM,
+        updatePropostaOM,
         removePropostaOM,
         orcamentosSolar,
         addOrcamentoSolar,

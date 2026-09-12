@@ -524,6 +524,18 @@ export async function createPropostaOM(data: {
   return record
 }
 
+export async function updatePropostaOM(
+  id: string,
+  data: Partial<import('@/types/crm').PropostaOM>,
+): Promise<import('@/types/crm').PropostaOM> {
+  const record = await pb
+    .collection('propostas_om')
+    .update<import('@/types/crm').PropostaOM>(id, data, {
+      expand: 'cliente_id',
+    })
+  return record
+}
+
 export async function deletePropostaOM(id: string): Promise<boolean> {
   await pb.collection('propostas_om').delete(id)
   return true
