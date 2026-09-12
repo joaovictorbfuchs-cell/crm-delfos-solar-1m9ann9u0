@@ -976,3 +976,37 @@ export async function deleteFornecedorOrcamento(id: string): Promise<boolean> {
   await pb.collection('fornecedores_orcamentos').delete(id)
   return true
 }
+
+export async function selecionarFornecedorOrcamento(
+  id: string,
+  options?: { orcamentoSolarId?: string; clienteId?: string },
+): Promise<import('@/types/crm').FornecedorOrcamento> {
+  // Desmarcar outros orçamentos deste mesmo projeto/cliente para garantir único selecionado por projeto
+  try {
+    const filters: string[] = [`id != '${id}'`, `selecionado = true`]
+    if (options?.orcamentoSolarId) {
+      filters.push(`orcamento_solar_id = '${options.orcamentoSolarId}'`)
+    } else if (options?.clienteId) {
+      filters.push(`cliente_id = '${options.clienteId}'`)
+    }
+    const outrosAtivos = await pb
+      .collection('fornecedores_orcamentos')
+      .getFullList<import('@/types/crm').FornecedorOrcamento>({
+        filter: filters.join(' && '),
+      })
+    for (const outro of outrosAtivos) {
+      await pb.collection('fornecedores_orcamentos').update(outro.id, { selecionado: false })
+    }
+  } catch (err) {
+    console.error('Erro ao desmarcar outros orçamentos ativos:', err)
+  }
+
+  // Marcar o orçamento indicado como selecionado: true
+  return pb.collection('fornecedores_orcamentos').update<import('@/types/crm').FornecedorOrcamento>(
+    id,
+    { selecionado: true },
+    {
+      expand: 'fornecedor_id,cliente_id,orcamento_solar_id',
+    },
+  )
+}

@@ -299,15 +299,16 @@ export const FichaClienteDrawer: React.FC = () => {
       .sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime())
   }, [projetoEventos, selectedClienteProjeto])
 
-  // Orçamentos Solares do cliente
+  // Orçamentos Solares do cliente (ordenados cronologicamente / por número de revisão)
   const clientOrcamentosSolar = useMemo(() => {
     if (!selectedCliente) return []
     return orcamentosSolar
       .filter((o) => o.cliente_id === selectedCliente.id)
       .sort(
         (a, b) =>
+          (b.numero_revisao || 1) - (a.numero_revisao || 1) ||
           new Date(b.data_orcamento || b.created).getTime() -
-          new Date(a.data_orcamento || a.created).getTime(),
+            new Date(a.data_orcamento || a.created).getTime(),
       )
   }, [orcamentosSolar, selectedCliente])
 
@@ -1938,14 +1939,14 @@ export const FichaClienteDrawer: React.FC = () => {
                   )}
 
                   {/* ======================================================== */}
-                  {/* SEÇÃO: ORÇAMENTOS DE ENERGIA SOLAR GERADOS DO CLIENTE    */}
+                  {/* SEÇÃO: HISTÓRICO DE PROPOSTAS & CONTROLE DE REVISÕES      */}
                   {/* ======================================================== */}
                   {clientOrcamentosSolar.length > 0 && (
-                    <div className="bg-gradient-to-r from-emerald-50/80 via-white to-amber-50/40 rounded-xl p-3.5 border border-emerald-200/90 shadow-2xs space-y-2.5">
+                    <div className="bg-gradient-to-r from-emerald-50/80 via-white to-amber-50/40 rounded-xl p-3.5 border border-emerald-200/90 shadow-2xs space-y-3">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-950 uppercase tracking-wider">
                           <Sun className="w-4 h-4 text-emerald-600" />
-                          <span>Orçamentos de Energia Solar ({clientOrcamentosSolar.length})</span>
+                          <span>Propostas Solares & Revisões ({clientOrcamentosSolar.length})</span>
                         </div>
                         <button
                           type="button"
@@ -1959,55 +1960,72 @@ export const FichaClienteDrawer: React.FC = () => {
                         </button>
                       </div>
 
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                        {clientOrcamentosSolar.map((o) => (
-                          <div
-                            key={o.id}
-                            className="bg-white p-3 rounded-lg border border-emerald-100 hover:border-emerald-300 shadow-2xs space-y-1.5 transition-all text-xs"
-                          >
-                            <div className="flex items-center justify-between">
-                              <span className="font-extrabold text-gray-900">
-                                {o.potencia_kwp.toFixed(2)} kWp •{' '}
-                                {formatCurrency(o.valor_investimento)}
-                              </span>
-                              <span
-                                className={`text-[10px] font-bold px-1.5 py-0.2 rounded ${
-                                  o.status === 'Aprovado'
-                                    ? 'bg-emerald-100 text-emerald-800'
-                                    : o.status === 'Enviado ao cliente'
-                                      ? 'bg-blue-100 text-blue-800'
-                                      : o.status === 'Rejeitado'
-                                        ? 'bg-red-100 text-red-800'
-                                        : 'bg-amber-100 text-amber-800'
-                                }`}
-                              >
-                                {o.status}
-                              </span>
-                            </div>
+                      <div className="space-y-2">
+                        {clientOrcamentosSolar.map((o) => {
+                          const revNumero = o.numero_revisao || 1
+                          const revStatus = o.status_revisao || 'em análise'
 
-                            <div className="flex items-baseline justify-between text-[11px]">
-                              <span className="text-gray-500">
-                                {o.numero_placas} placas ({o.potencia_placa_wp}W)
-                              </span>
-                              <span className="font-semibold text-emerald-700">
-                                {o.geracao_mensal_kwh ? `${o.geracao_mensal_kwh} kWh/mês` : ''}
-                              </span>
-                            </div>
+                          // Estilo de status colorido conforme especificação:
+                          // em análise: cinza/âmbar, enviada ao cliente: azul, aprovada: verde, rejeitada: vermelha
+                          let statusClasses = 'bg-amber-100 text-amber-800 border-amber-200'
+                          if (revStatus === 'aprovada') {
+                            statusClasses = 'bg-emerald-100 text-emerald-800 border-emerald-300'
+                          } else if (revStatus === 'enviada ao cliente') {
+                            statusClasses = 'bg-blue-100 text-blue-800 border-blue-300'
+                          } else if (revStatus === 'rejeitada') {
+                            statusClasses = 'bg-red-100 text-red-800 border-red-300'
+                          }
 
-                            <div className="text-[10px] text-gray-400 flex items-center justify-between pt-1 border-t border-gray-100">
-                              <span>{formatDate(o.data_orcamento || o.created)}</span>
-                              <div className="flex items-center gap-1.5">
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setOrcamentoSolarVisualizar(o)
-                                    setIsModalOrcamentoSolarOpen(true)
-                                  }}
-                                  className="text-[10px] font-bold text-gray-600 hover:text-emerald-700 hover:bg-gray-50 px-1.5 py-0.5 rounded border border-gray-200"
-                                  title="Editar Orçamento"
-                                >
-                                  Editar
-                                </button>
+                          return (
+                            <div
+                              key={o.id}
+                              className="bg-white p-3 rounded-xl border border-gray-200 hover:border-emerald-300 shadow-2xs transition-all text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                            >
+                              <div className="flex items-start sm:items-center gap-3">
+                                {/* Badge de Revisão */}
+                                <div className="px-2.5 py-1 rounded-lg bg-emerald-700 text-white font-black text-xs shrink-0 shadow-2xs">
+                                  Revisão {revNumero}
+                                </div>
+
+                                <div className="space-y-0.5">
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <span className="font-extrabold text-gray-900 text-sm">
+                                      {formatCurrency(o.valor_investimento)}
+                                    </span>
+                                    {/* Status Colorido */}
+                                    <span
+                                      className={`text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full border ${statusClasses}`}
+                                    >
+                                      {revStatus}
+                                    </span>
+                                    {o.revisao_de && (
+                                      <span className="text-[10px] text-gray-400">(derivada)</span>
+                                    )}
+                                  </div>
+
+                                  <div className="text-[11px] text-gray-500 flex items-center gap-2 flex-wrap">
+                                    <span>
+                                      <strong>Data de emissão:</strong>{' '}
+                                      {formatDate(o.data_orcamento || o.created)}
+                                    </span>
+                                    <span>•</span>
+                                    <span>
+                                      {o.potencia_kwp.toFixed(2)} kWp ({o.numero_placas} placas)
+                                    </span>
+                                    {o.geracao_mensal_kwh ? (
+                                      <>
+                                        <span>•</span>
+                                        <span className="text-emerald-700 font-semibold">
+                                          {o.geracao_mensal_kwh} kWh/mês
+                                        </span>
+                                      </>
+                                    ) : null}
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Ações: Visualizar Documento (reutiliza gerador), Editar/Gerar Revisão, WhatsApp */}
+                              <div className="flex items-center gap-1.5 self-end sm:self-center shrink-0">
                                 <button
                                   type="button"
                                   onClick={async () => {
@@ -2074,10 +2092,25 @@ export const FichaClienteDrawer: React.FC = () => {
                                       observacoes: o.observacoes,
                                     })
                                   }}
-                                  className="text-[10px] font-bold text-emerald-800 hover:underline flex items-center gap-0.5"
+                                  className="text-[11px] font-bold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 px-2.5 py-1 rounded-lg flex items-center gap-1 transition-colors"
+                                  title={`Visualizar Proposta (Revisão ${revNumero})`}
                                 >
-                                  <span>Ver Proposta PDF</span>
+                                  <FileText className="w-3.5 h-3.5 text-emerald-700" />
+                                  <span>Visualizar Proposta</span>
                                 </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setOrcamentoSolarVisualizar(o)
+                                    setIsModalOrcamentoSolarOpen(true)
+                                  }}
+                                  className="text-[11px] font-bold text-gray-700 hover:text-emerald-800 hover:bg-gray-100 px-2 py-1 rounded-lg border border-gray-200 transition-colors"
+                                  title="Editar parâmetros e gerar nova revisão"
+                                >
+                                  Alterar / Nova Rev.
+                                </button>
+
                                 <button
                                   type="button"
                                   disabled={!selectedCliente.whatsapp && !selectedCliente.telefone}
@@ -2153,15 +2186,15 @@ export const FichaClienteDrawer: React.FC = () => {
                                     })
                                     setModalEnviarDocWhatsAppOpen(true)
                                   }}
-                                  className="text-[10px] font-bold text-emerald-700 hover:text-emerald-900 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-2 py-0.5 rounded flex items-center gap-1 disabled:opacity-40 disabled:cursor-not-allowed"
+                                  className="text-[11px] font-bold text-emerald-700 hover:text-emerald-900 bg-white hover:bg-emerald-50 border border-emerald-200 px-2 py-1 rounded-lg flex items-center gap-1 disabled:opacity-40 disabled:cursor-not-allowed"
                                 >
                                   <Send className="w-3 h-3 text-emerald-600" />
-                                  <span>Enviar WhatsApp</span>
+                                  <span className="hidden sm:inline">WhatsApp</span>
                                 </button>
                               </div>
                             </div>
-                          </div>
-                        ))}
+                          )
+                        })}
                       </div>
                     </div>
                   )}

@@ -395,8 +395,13 @@ export const Orcamentos: React.FC = () => {
                     >
                       {/* Cliente */}
                       <td className="py-3 px-4">
-                        <div className="font-bold text-gray-900 group-hover:text-emerald-700 transition-colors">
-                          {cliente?.nome || 'Cliente não identificado'}
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-gray-900 group-hover:text-emerald-700 transition-colors">
+                            {cliente?.nome || 'Cliente não identificado'}
+                          </span>
+                          <span className="px-1.5 py-0.5 rounded text-[10px] font-black bg-emerald-100 text-emerald-800 border border-emerald-200 shrink-0">
+                            Rev. {orc.numero_revisao || 1}
+                          </span>
                         </div>
                         <div className="flex items-center gap-1 text-[11px] text-gray-500 mt-0.5">
                           <MapPin className="w-3 h-3 text-gray-400" />

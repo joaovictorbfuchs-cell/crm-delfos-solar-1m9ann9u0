@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-12T16:13:21.666Z",
+  "generatedAt": "2026-09-12T16:30:05.421Z",
   "collections": [
     {
       "name": "users",
@@ -1842,6 +1842,26 @@
           "required": false,
           "system": false,
           "autodateTriggers": ["onCreate", "onUpdate"]
+        },
+        {
+          "name": "numero_revisao",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "revisao_de",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "orcamentos_solar"
+        },
+        {
+          "name": "status_revisao",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["em análise", "enviada ao cliente", "aprovada", "rejeitada"]
         }
       ],
       "indexes": [
@@ -2393,6 +2413,12 @@
           "required": false,
           "system": false,
           "autodateTriggers": ["onCreate", "onUpdate"]
+        },
+        {
+          "name": "selecionado",
+          "type": "bool",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": []

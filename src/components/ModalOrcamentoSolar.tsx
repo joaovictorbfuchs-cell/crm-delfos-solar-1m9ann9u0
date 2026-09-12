@@ -64,6 +64,7 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
   const {
     clientes,
     sistemas,
+    orcamentosSolar,
     addOrcamentoSolar,
     updateOrcamentoSolar,
     addAtividade,
@@ -317,7 +318,7 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
 
   if (!isOpen) return null
 
-  // Salvar no PocketBase
+  // Salvar no PocketBase com controle de revisões
   const handleSalvar = async (proximaAcao?: 'abrir_pdf' | 'baixar_pdf') => {
     if (!clienteAtual) {
       alert('Selecione um cliente para vincular o orçamento.')
@@ -326,9 +327,40 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
 
     setIsSubmitting(true)
     try {
+      // Mapear status geral para status_revisao
+      let statusRevisao: 'em análise' | 'enviada ao cliente' | 'aprovada' | 'rejeitada' =
+        'em análise'
+      if (status === 'Aprovado') statusRevisao = 'aprovada'
+      else if (status === 'Rejeitado') statusRevisao = 'rejeitada'
+      else if (status === 'Enviado ao cliente') statusRevisao = 'enviada ao cliente'
+
+      // Se initialOrcamento existe, calcular próxima revisão
+      let numeroRevisao = 1
+      let revisaoDeId: string | undefined = undefined
+
+      if (initialOrcamento?.id) {
+        // Encontrar a proposta raiz (se ela já for revisão_de, usa revisao_de, senão usa o próprio id)
+        const raizId = initialOrcamento.revisao_de || initialOrcamento.id
+        revisaoDeId = raizId
+
+        // Buscar todas as revisões deste projeto para descobrir a maior revisão
+        const revisoesDoGrupo = orcamentosSolar.filter(
+          (o) => o.id === raizId || o.revisao_de === raizId,
+        )
+        const maxRevisao = revisoesDoGrupo.reduce((max, cur) => {
+          const revNum = cur.numero_revisao || 1
+          return revNum > max ? revNum : max
+        }, initialOrcamento.numero_revisao || 1)
+
+        numeroRevisao = maxRevisao + 1
+      }
+
       const payload: Partial<OrcamentoSolar> = {
         cliente_id: clienteAtual.id,
         status,
+        numero_revisao: numeroRevisao,
+        revisao_de: revisaoDeId,
+        status_revisao: statusRevisao,
         tipo_cliente: tipoCliente,
         consumo_kwh_mes: consumoKwhMes,
         tarifa_kwh: tarifaKwh,
@@ -391,8 +423,11 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
 
       let orcamentoSalvoId = ''
       if (initialOrcamento?.id) {
-        await updateOrcamentoSolar(initialOrcamento.id, payload)
-        orcamentoSalvoId = initialOrcamento.id
+        // Ao gerar/salvar alterações de um orçamento existente, cria a nova Revisão N para manter o histórico
+        const novaRevisao = await addOrcamentoSolar(payload)
+        orcamentoSalvoId = novaRevisao.id
+        const { toast } = await import('sonner')
+        toast.success(`Nova versão salva com sucesso: Revisão ${numeroRevisao}`)
       } else {
         const created = await addOrcamentoSolar(payload)
         orcamentoSalvoId = created.id
@@ -403,12 +438,12 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
         await addAtividade({
           cliente_id: clienteAtual.id,
           tipo: 'proposta',
-          titulo: `Orçamento Solar Fotovoltaico: ${potenciaKwp} kWp (${status})`,
-          descricao: `Orçamento de ${potenciaKwp} kWp com ${numeroPlacas} placas (${potenciaPlacaWp}W) e inversor ${marcaInversor}.\nInvestimento total: ${formatCurrency(
+          titulo: `Proposta Solar (Revisão ${numeroRevisao}): ${potenciaKwp} kWp (${status})`,
+          descricao: `Proposta Solar (Revisão ${numeroRevisao}) de ${potenciaKwp} kWp com ${numeroPlacas} placas (${potenciaPlacaWp}W) e inversor ${marcaInversor}.\nInvestimento total: ${formatCurrency(
             valorInvestimentoFinal,
           )} | Geração média: ${calculos.geracaoMediaMensalKwh} kWh/mês | Payback: ${
             calculos.paybackMeses
-          } meses.\nStatus: ${status}.`,
+          } meses.\nStatus: ${status} (${statusRevisao}).`,
           data: new Date().toISOString(),
           status: status === 'Aprovado' ? 'concluida' : 'pendente',
           autor: user?.name || 'Equipe Delfos Solar',
@@ -464,9 +499,14 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
               <div className="flex items-center gap-2">
                 <h2 className="text-base sm:text-lg font-bold text-gray-900 tracking-tight">
                   {initialOrcamento
-                    ? 'Editar Orçamento de Energia Solar'
+                    ? `Editar Orçamento / Gerar Nova Revisão`
                     : 'Novo Orçamento de Energia Solar Fotovoltaica'}
                 </h2>
+                {initialOrcamento?.numero_revisao && (
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-blue-100 text-blue-800 border border-blue-200">
+                    Revisão Atual: {initialOrcamento.numero_revisao}
+                  </span>
+                )}
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-100 text-emerald-800">
                   Delfos Solar
                 </span>
@@ -1705,7 +1745,13 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
               className="px-5 py-2 bg-[#16A34A] hover:bg-[#15803D] text-white text-xs font-bold rounded-xl transition-all shadow-xs inline-flex items-center gap-1.5"
             >
               <Save className="w-4 h-4" />
-              <span>{isSubmitting ? 'Salvando...' : 'Salvar Orçamento'}</span>
+              <span>
+                {isSubmitting
+                  ? 'Salvando...'
+                  : initialOrcamento?.id
+                    ? `Salvar como Revisão ${(initialOrcamento.numero_revisao || 1) + 1}`
+                    : 'Salvar Orçamento'}
+              </span>
             </button>
           </div>
         </div>

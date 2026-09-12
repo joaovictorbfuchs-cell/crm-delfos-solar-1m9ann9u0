@@ -12,7 +12,10 @@ import {
   ExternalLink,
   ChevronDown,
   ChevronUp,
+  Columns3,
+  Check,
 } from 'lucide-react'
+import { ModalCompararFornecedores } from './ModalCompararFornecedores'
 import { useClientes } from '@/contexts/ClientesContext'
 import {
   FornecedorOrcamentoExtraido,
@@ -46,6 +49,7 @@ export function SecaoOrcamentosFornecedores({
     fornecedoresOrcamentos,
     addFornecedorOrcamento,
     removeFornecedorOrcamento,
+    selecionarFornecedorOrcamento,
   } = useClientes()
 
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -53,6 +57,7 @@ export function SecaoOrcamentosFornecedores({
   const [analyzedFile, setAnalyzedFile] = useState<File | null>(null)
   const [tabelaRevisaoAberta, setTabelaRevisaoAberta] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
+  const [isModalCompararOpen, setIsModalCompararOpen] = useState(false)
 
   // Estado editável da tabela de revisão
   const [revisaoDados, setRevisaoDados] = useState<FornecedorOrcamentoExtraido | null>(null)
@@ -252,8 +257,19 @@ export function SecaoOrcamentosFornecedores({
           </p>
         </div>
 
-        {/* Botão de Upload com Input Oculto */}
-        <div>
+        {/* Botão de Comparação e Botão de Upload com Input Oculto */}
+        <div className="flex items-center gap-2">
+          {orcamentosVinculados.length >= 2 && (
+            <button
+              type="button"
+              onClick={() => setIsModalCompararOpen(true)}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 rounded-lg text-xs font-bold shadow-2xs transition-all hover:scale-[1.01]"
+            >
+              <Columns3 className="w-4 h-4 text-emerald-700" />
+              <span>Comparar Orçamentos ({orcamentosVinculados.length})</span>
+            </button>
+          )}
+
           <input
             ref={fileInputRef}
             id="input-orcamento-fornecedor-pdf"
@@ -645,11 +661,26 @@ export function SecaoOrcamentosFornecedores({
             {orcamentosVinculados.map((orc) => (
               <div
                 key={orc.id}
-                className="p-3 rounded-xl border border-gray-200 bg-white hover:border-emerald-300 transition-colors shadow-2xs space-y-2 text-xs"
+                className={`p-3 rounded-xl border transition-all shadow-2xs space-y-2 text-xs relative ${
+                  orc.selecionado
+                    ? 'border-2 border-emerald-600 bg-emerald-50/20 ring-2 ring-emerald-500/10'
+                    : 'border-gray-200 bg-white hover:border-emerald-300'
+                }`}
               >
+                {orc.selecionado && (
+                  <div className="absolute -top-2.5 right-3">
+                    <span className="inline-flex items-center gap-1 text-[10px] font-extrabold uppercase bg-emerald-600 text-white px-2 py-0.5 rounded-full shadow-xs">
+                      <Check className="w-3 h-3" />
+                      Fornecedor Ativo
+                    </span>
+                  </div>
+                )}
+
                 <div className="flex items-start justify-between">
                   <div>
-                    <h5 className="font-bold text-gray-900">{orc.nome_fornecedor}</h5>
+                    <h5 className="font-bold text-gray-900 flex items-center gap-1.5">
+                      {orc.nome_fornecedor}
+                    </h5>
                     <span className="text-[10px] text-gray-500">
                       Revisão: <strong>{orc.numero_revisao || 'REV-01'}</strong> •{' '}
                       {formatDate(orc.data)}
@@ -675,18 +706,39 @@ export function SecaoOrcamentosFornecedores({
                   )}
                 </div>
 
-                <div className="pt-2 border-t border-gray-100 flex items-center justify-between text-[11px]">
-                  {orc.arquivo && (
-                    <a
-                      href={pb.files.getURL(orc, orc.arquivo)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-blue-600 hover:underline inline-flex items-center gap-1"
+                <div className="pt-2 border-t border-gray-100 flex items-center justify-between text-[11px] flex-wrap gap-2">
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        await selecionarFornecedorOrcamento(orc.id, {
+                          orcamentoSolarId,
+                          clienteId,
+                        })
+                        toast.success(`${orc.nome_fornecedor} marcado como ativo!`)
+                      }}
+                      className={`text-[11px] font-bold px-2 py-0.5 rounded border transition-colors inline-flex items-center gap-1 ${
+                        orc.selecionado
+                          ? 'bg-emerald-600 text-white border-emerald-700'
+                          : 'bg-white hover:bg-emerald-50 text-emerald-800 border-emerald-300'
+                      }`}
                     >
-                      <ExternalLink className="w-3 h-3" />
-                      <span>Ver PDF</span>
-                    </a>
-                  )}
+                      <Check className="w-3 h-3" />
+                      <span>{orc.selecionado ? 'Fornecedor Ativo' : 'Tornar Ativo'}</span>
+                    </button>
+
+                    {orc.arquivo && (
+                      <a
+                        href={pb.files.getURL(orc, orc.arquivo)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-600 hover:underline inline-flex items-center gap-1"
+                      >
+                        <ExternalLink className="w-3 h-3" />
+                        <span>PDF</span>
+                      </a>
+                    )}
+                  </div>
 
                   <div className="flex items-center gap-2 ml-auto">
                     {onUsarEquipamentos && (
@@ -718,6 +770,7 @@ export function SecaoOrcamentosFornecedores({
                         }
                       }}
                       className="text-gray-400 hover:text-red-600 p-1"
+                      title="Excluir Cotação"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
@@ -728,6 +781,26 @@ export function SecaoOrcamentosFornecedores({
           </div>
         )}
       </div>
+
+      {/* Modal de Comparação Lado a Lado */}
+      <ModalCompararFornecedores
+        isOpen={isModalCompararOpen}
+        onClose={() => setIsModalCompararOpen(false)}
+        orcamentos={orcamentosVinculados}
+        orcamentoSolarId={orcamentoSolarId}
+        clienteId={clienteId}
+        onSelecionarFornecedor={async (orcId) => {
+          await selecionarFornecedorOrcamento(orcId, {
+            orcamentoSolarId,
+            clienteId,
+          })
+        }}
+        onAplicarAoProjeto={(dados) => {
+          if (onUsarEquipamentos) {
+            onUsarEquipamentos(dados)
+          }
+        }}
+      />
     </div>
   )
 }

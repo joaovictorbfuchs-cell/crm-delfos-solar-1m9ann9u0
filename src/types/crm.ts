@@ -207,6 +207,7 @@ export interface FornecedorOrcamento extends RecordModel {
   acessorios?: FornecedorItemOrcamento[]
   arquivo?: string
   observacoes?: string
+  selecionado?: boolean
   created: string
   updated: string
   expand?: {
@@ -621,6 +622,7 @@ export interface PropostaOM extends RecordModel {
 // -------------------------------------------------------------
 
 export type OrcamentoSolarStatus = 'Em elaboração' | 'Enviado ao cliente' | 'Aprovado' | 'Rejeitado'
+export type PropostaRevisaoStatus = 'em análise' | 'enviada ao cliente' | 'aprovada' | 'rejeitada'
 export type OrcamentoTipoCliente = 'residencial' | 'comercial' | 'industrial' | 'rural'
 export type OrcamentoTipoEstrutura = 'ceramico' | 'metalico' | 'laje' | 'fibrocimento' | 'solo'
 export type OrcamentoOrientacaoTelhado = 'leste' | 'oeste' | 'norte' | 'sul'
@@ -631,6 +633,9 @@ export interface OrcamentoSolar extends RecordModel {
   collectionName: string
   cliente_id: string
   status: OrcamentoSolarStatus
+  numero_revisao?: number
+  revisao_de?: string
+  status_revisao?: PropostaRevisaoStatus
   tipo_cliente: OrcamentoTipoCliente
   consumo_kwh_mes: number
   tarifa_kwh: number
@@ -690,5 +695,6 @@ export interface OrcamentoSolar extends RecordModel {
   updated: string
   expand?: {
     cliente_id?: Cliente
+    revisao_de?: OrcamentoSolar
   }
 }

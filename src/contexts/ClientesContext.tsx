@@ -226,6 +226,10 @@ interface ClientesContextType {
     data: Partial<import('@/types/crm').FornecedorOrcamento>,
     file?: File,
   ) => Promise<import('@/types/crm').FornecedorOrcamento>
+  selecionarFornecedorOrcamento: (
+    id: string,
+    options?: { orcamentoSolarId?: string; clienteId?: string },
+  ) => Promise<import('@/types/crm').FornecedorOrcamento>
   removeFornecedorOrcamento: (id: string) => Promise<void>
   refreshFornecedores: () => Promise<void>
   // WhatsApp
@@ -1459,6 +1463,24 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           const s = await import('@/services/crmService')
           const updated = await s.updateFornecedorOrcamento(id, data, file)
           setFornecedoresOrcamentos((prev) => prev.map((o) => (o.id === id ? updated : o)))
+          return updated
+        },
+        selecionarFornecedorOrcamento: async (id, options) => {
+          const s = await import('@/services/crmService')
+          const updated = await s.selecionarFornecedorOrcamento(id, options)
+          setFornecedoresOrcamentos((prev) =>
+            prev.map((o) => {
+              if (o.id === id) return updated
+              // Se pertencer ao mesmo projeto/cliente, desmarcar selecionado
+              const mesmoProjeto =
+                (options?.orcamentoSolarId && o.orcamento_solar_id === options.orcamentoSolarId) ||
+                (options?.clienteId && o.cliente_id === options.clienteId)
+              if (mesmoProjeto && o.selecionado) {
+                return { ...o, selecionado: false }
+              }
+              return o
+            }),
+          )
           return updated
         },
         removeFornecedorOrcamento: async (id) => {
