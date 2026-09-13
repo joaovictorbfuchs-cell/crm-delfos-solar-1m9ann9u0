@@ -23,12 +23,40 @@ import {
   Check,
   DollarSign,
   FileCheck,
+  Settings,
+  RefreshCcw,
+  XCircle,
+  FileText,
+  AlertCircle,
+  ExternalLink,
 } from 'lucide-react'
 import { useClientes } from '@/contexts/ClientesContext'
 import { formatCurrency, formatDate } from '@/lib/formatters'
-import type { OMPlanoTipo, Cliente, ServicoAvulso } from '@/types/crm'
-import { categorizarClienteOM } from '@/lib/omCategorizacao'
+import type {
+  OMPlanoTipo,
+  Cliente,
+  ServicoAvulso,
+  ContratoOM,
+  OMMotivoEncerramento,
+} from '@/types/crm'
+import { categorizarClienteOM, calcularDiasRestantesDefensivo } from '@/lib/omCategorizacao'
 import { ModalRegistrarServicoAvulso } from '@/components/ModalRegistrarServicoAvulso'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { toast } from 'sonner'
 
 export type SituacaoOM =
   | 'com_plano_ativo'
@@ -60,6 +88,8 @@ export const ListaOM: React.FC<ListaOMProps> = ({
     servicosAvulsos,
     anomaliasOM,
     openFichaCliente,
+    encerrarContratoOM,
+    renovarContratoOM,
   } = useClientes()
 
   const [internalSubTab, setInternalSubTab] = useState<AbaPrincipalOM>('com_plano')
@@ -81,6 +111,31 @@ export const ListaOM: React.FC<ListaOMProps> = ({
 
   // Estado para abrir modal de registrar serviço avulso diretamente da lista
   const [clienteParaServicoAvulso, setClienteParaServicoAvulso] = useState<Cliente | null>(null)
+
+  // Estados para Gestão de Contrato (Renovar, Encerrar, Ver Detalhes)
+  const [contratoParaRenovar, setContratoParaRenovar] = useState<{
+    contrato: ContratoOM
+    cliente: Cliente
+  } | null>(null)
+  const [isRenovando, setIsRenovando] = useState(false)
+
+  const [contratoParaEncerrar, setContratoParaEncerrar] = useState<{
+    contrato: ContratoOM
+    cliente: Cliente
+  } | null>(null)
+  const [isEncerrando, setIsEncerrando] = useState(false)
+  const [motivoEncerramento, setMotivoEncerramento] =
+    useState<OMMotivoEncerramento>('Não renovação')
+  const [dataEncerramento, setDataEncerramento] = useState<string>(
+    () => new Date().toISOString().split('T')[0],
+  )
+  const [obsEncerramento, setObsEncerramento] = useState('')
+
+  const [contratoParaDetalhes, setContratoParaDetalhes] = useState<{
+    contrato: ContratoOM
+    cliente: Cliente
+    potenciaKwp: number
+  } | null>(null)
 
   // Fallbacks seguros para coleções do ClientesContext
   const safeClientes = useMemo(() => (Array.isArray(clientes) ? clientes : []), [clientes])
@@ -120,14 +175,19 @@ export const ListaOM: React.FC<ListaOMProps> = ({
 
         if (categoria !== 'plano_ativo' || !contratoAtivo) return null
 
+        const diasRestantes = calcularDiasRestantesDefensivo(contratoAtivo.data_vencimento)
+        const isVencendo30Dias = diasRestantes !== null && diasRestantes >= 0 && diasRestantes <= 30
+
         return {
           cliente,
           contrato: contratoAtivo,
           potenciaKwp: potencia,
           valorMensal: Number(contratoAtivo.valor_mensal) || 0,
-          statusPlano: contratoAtivo.status || 'Ativo',
+          statusPlano: isVencendo30Dias ? 'Vencendo em 30 dias' : contratoAtivo.status || 'Ativo',
           plano: contratoAtivo.plano || 'Essencial',
           dataVencimento: contratoAtivo.data_vencimento || '',
+          diasRestantes,
+          isVencendo30Dias,
           proximaVisitaData: contratoAtivo.proxima_atividade_data,
           proximaVisitaTitulo: contratoAtivo.proxima_atividade_titulo,
         }
@@ -140,6 +200,8 @@ export const ListaOM: React.FC<ListaOMProps> = ({
       statusPlano: string
       plano: OMPlanoTipo
       dataVencimento: string
+      diasRestantes: number | null
+      isVencendo30Dias: boolean
       proximaVisitaData?: string
       proximaVisitaTitulo?: string
     }[]
@@ -309,6 +371,51 @@ export const ListaOM: React.FC<ListaOMProps> = ({
         return 0
       })
   }, [clientesPosVendas, busca, filtroPosVendas, ordenacao])
+
+  const handleConfirmarRenovacao = async () => {
+    if (!contratoParaRenovar) return
+    try {
+      setIsRenovando(true)
+      await renovarContratoOM(contratoParaRenovar.contrato.id, 12)
+      toast.success(
+        `Contrato de ${contratoParaRenovar.cliente.nome} renovado com sucesso por +12 meses!`,
+      )
+      setContratoParaRenovar(null)
+    } catch (err) {
+      console.error(err)
+      toast.error('Erro ao renovar contrato. Tente novamente.')
+    } finally {
+      setIsRenovando(false)
+    }
+  }
+
+  const handleAbrirModalEncerramento = (item: { contrato: ContratoOM; cliente: Cliente }) => {
+    setContratoParaEncerrar(item)
+    setMotivoEncerramento('Não renovação')
+    setDataEncerramento(new Date().toISOString().split('T')[0])
+    setObsEncerramento('')
+  }
+
+  const handleConfirmarEncerramento = async () => {
+    if (!contratoParaEncerrar) return
+    try {
+      setIsEncerrando(true)
+      await encerrarContratoOM(contratoParaEncerrar.contrato.id, {
+        motivo_encerramento: motivoEncerramento,
+        data_encerramento: new Date(dataEncerramento).toISOString(),
+        observacoes_encerramento: obsEncerramento.trim(),
+      })
+      toast.success(
+        `Contrato encerrado. ${contratoParaEncerrar.cliente.nome} foi movido para Clientes Pós-Vendas.`,
+      )
+      setContratoParaEncerrar(null)
+    } catch (err) {
+      console.error(err)
+      toast.error('Erro ao encerrar contrato. Tente novamente.')
+    } finally {
+      setIsEncerrando(false)
+    }
+  }
 
   const renderPlanoBadge = (plano: OMPlanoTipo) => {
     switch (plano) {
@@ -594,8 +701,19 @@ export const ListaOM: React.FC<ListaOMProps> = ({
                         >
                           {/* Cliente & Local */}
                           <td className="py-3.5 px-4">
-                            <div className="font-bold text-gray-900 group-hover:text-emerald-700 transition-colors">
-                              {item.cliente.nome}
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="font-bold text-gray-900 group-hover:text-emerald-700 transition-colors">
+                                {item.cliente.nome}
+                              </span>
+                              {item.isVencendo30Dias && (
+                                <span
+                                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-100 text-amber-900 border border-amber-300 shadow-2xs animate-pulse"
+                                  title={`Contrato vence em ${item.diasRestantes} dia(s). Oferta proativa de renovação recomendada.`}
+                                >
+                                  <AlertCircle className="w-3 h-3 text-amber-700" />
+                                  <span>Renovação em 30 dias</span>
+                                </span>
+                              )}
                             </div>
                             <div className="text-[11px] text-gray-400 flex items-center gap-1 mt-0.5">
                               <MapPin className="w-3 h-3 text-gray-400" />
@@ -657,11 +775,79 @@ export const ListaOM: React.FC<ListaOMProps> = ({
                           </td>
 
                           {/* Ação */}
-                          <td className="py-3.5 px-4 text-right whitespace-nowrap">
-                            <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-700 group-hover:text-emerald-900 group-hover:underline">
-                              Gerenciar O&M
-                              <ChevronRight className="w-3.5 h-3.5" />
-                            </span>
+                          <td
+                            className="py-3.5 px-4 text-right whitespace-nowrap"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <div className="flex items-center justify-end gap-1.5">
+                              {/* Botão Dropdown "Gerenciar Contrato" */}
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <button
+                                    type="button"
+                                    className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white hover:bg-emerald-50 text-emerald-800 border border-emerald-300 text-xs font-bold transition-all shadow-2xs hover:scale-[1.02]"
+                                    title="Gerenciar contrato O&M"
+                                  >
+                                    <Settings className="w-3.5 h-3.5 text-emerald-700" />
+                                    <span>Gerenciar Contrato</span>
+                                  </button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end" className="w-52">
+                                  <DropdownMenuItem
+                                    onClick={() =>
+                                      setContratoParaRenovar({
+                                        contrato: item.contrato,
+                                        cliente: item.cliente,
+                                      })
+                                    }
+                                    className="cursor-pointer gap-2 text-xs font-medium text-emerald-800 focus:text-emerald-900 focus:bg-emerald-50"
+                                  >
+                                    <RefreshCcw className="w-3.5 h-3.5 text-emerald-600" />
+                                    <span>Renovar Contrato</span>
+                                  </DropdownMenuItem>
+
+                                  <DropdownMenuItem
+                                    onClick={() =>
+                                      handleAbrirModalEncerramento({
+                                        contrato: item.contrato,
+                                        cliente: item.cliente,
+                                      })
+                                    }
+                                    className="cursor-pointer gap-2 text-xs font-medium text-rose-700 focus:text-rose-900 focus:bg-rose-50"
+                                  >
+                                    <XCircle className="w-3.5 h-3.5 text-rose-600" />
+                                    <span>Encerrar Contrato</span>
+                                  </DropdownMenuItem>
+
+                                  <DropdownMenuSeparator />
+
+                                  <DropdownMenuItem
+                                    onClick={() =>
+                                      setContratoParaDetalhes({
+                                        contrato: item.contrato,
+                                        cliente: item.cliente,
+                                        potenciaKwp: item.potenciaKwp,
+                                      })
+                                    }
+                                    className="cursor-pointer gap-2 text-xs font-medium text-gray-700 focus:text-gray-900"
+                                  >
+                                    <FileText className="w-3.5 h-3.5 text-gray-500" />
+                                    <span>Ver Detalhes</span>
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+
+                              {/* Acesso rápido Ficha O&M */}
+                              <button
+                                type="button"
+                                onClick={() => onOpenFichaOM(item.cliente.id)}
+                                className="inline-flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-bold text-gray-600 hover:text-emerald-700 hover:bg-emerald-50 transition-colors"
+                                title="Abrir Ficha O&M completa"
+                              >
+                                <span>Ficha</span>
+                                <ChevronRight className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       )
@@ -680,7 +866,18 @@ export const ListaOM: React.FC<ListaOMProps> = ({
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div>
-                        <h4 className="font-bold text-gray-900 text-sm">{item.cliente.nome}</h4>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <h4 className="font-bold text-gray-900 text-sm">{item.cliente.nome}</h4>
+                          {item.isVencendo30Dias && (
+                            <span
+                              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300"
+                              title={`Contrato vence em ${item.diasRestantes} dia(s)`}
+                            >
+                              <AlertCircle className="w-3 h-3 text-amber-700" />
+                              <span>Renovação em 30 dias</span>
+                            </span>
+                          )}
+                        </div>
                         <p className="text-xs text-gray-400 flex items-center gap-1 mt-0.5">
                           <MapPin className="w-3 h-3" />
                           {item.cliente.cidade || 'Erechim/RS'}
@@ -720,14 +917,75 @@ export const ListaOM: React.FC<ListaOMProps> = ({
                       </div>
                     )}
 
-                    <div className="flex items-center justify-between pt-1 border-t border-gray-100 text-xs">
+                    <div
+                      className="flex items-center justify-between pt-1 border-t border-gray-100 text-xs"
+                      onClick={(e) => e.stopPropagation()}
+                    >
                       <span className="text-gray-400 text-[11px]">
                         Vigência até {formatDate(item.dataVencimento)}
                       </span>
-                      <span className="font-bold text-emerald-700 flex items-center gap-1">
-                        Gerenciar O&M
-                        <ChevronRight className="w-3.5 h-3.5" />
-                      </span>
+                      <div className="flex items-center gap-1.5">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <button
+                              type="button"
+                              className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-300 text-[11px] font-bold"
+                            >
+                              <Settings className="w-3 h-3" />
+                              <span>Gerenciar</span>
+                            </button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-48">
+                            <DropdownMenuItem
+                              onClick={() =>
+                                setContratoParaRenovar({
+                                  contrato: item.contrato,
+                                  cliente: item.cliente,
+                                })
+                              }
+                              className="cursor-pointer gap-2 text-xs font-medium text-emerald-800"
+                            >
+                              <RefreshCcw className="w-3.5 h-3.5 text-emerald-600" />
+                              <span>Renovar Contrato</span>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() =>
+                                handleAbrirModalEncerramento({
+                                  contrato: item.contrato,
+                                  cliente: item.cliente,
+                                })
+                              }
+                              className="cursor-pointer gap-2 text-xs font-medium text-rose-700"
+                            >
+                              <XCircle className="w-3.5 h-3.5 text-rose-600" />
+                              <span>Encerrar Contrato</span>
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              onClick={() =>
+                                setContratoParaDetalhes({
+                                  contrato: item.contrato,
+                                  cliente: item.cliente,
+                                  potenciaKwp: item.potenciaKwp,
+                                })
+                              }
+                              className="cursor-pointer gap-2 text-xs font-medium text-gray-700"
+                            >
+                              <FileText className="w-3.5 h-3.5 text-gray-500" />
+                              <span>Ver Detalhes</span>
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+
+                        <button
+                          type="button"
+                          onClick={() => onOpenFichaOM(item.cliente.id)}
+                          className="font-bold text-emerald-700 flex items-center gap-1 text-[11px]"
+                        >
+                          <span>Ficha</span>
+                          <ChevronRight className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -1055,6 +1313,353 @@ export const ListaOM: React.FC<ListaOMProps> = ({
           cliente={clienteParaServicoAvulso}
         />
       )}
+
+      {/* ========================================================================= */}
+      {/* MODAL 1: RENOVAR CONTRATO O&M                                             */}
+      {/* ========================================================================= */}
+      <Dialog
+        open={Boolean(contratoParaRenovar)}
+        onOpenChange={(open) => !open && setContratoParaRenovar(null)}
+      >
+        <DialogContent className="sm:max-w-[480px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-base text-emerald-900">
+              <RefreshCcw className="w-5 h-5 text-emerald-600" />
+              <span>Renovar Contrato O&M</span>
+            </DialogTitle>
+            <DialogDescription className="text-xs text-gray-500">
+              Estender a vigência do contrato O&M ativo e atualizar o cronograma preventivo.
+            </DialogDescription>
+          </DialogHeader>
+
+          {contratoParaRenovar && (
+            <div className="space-y-3 py-2 text-xs">
+              <div className="bg-emerald-50/70 p-3 rounded-xl border border-emerald-200/80 space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-gray-900 text-sm">
+                    {contratoParaRenovar.cliente.nome}
+                  </span>
+                  {renderPlanoBadge(contratoParaRenovar.contrato.plano)}
+                </div>
+                <div className="text-gray-600 flex items-center justify-between">
+                  <span>Valor Mensal:</span>
+                  <strong className="text-emerald-700">
+                    {formatCurrency(contratoParaRenovar.contrato.valor_mensal)}/mês
+                  </strong>
+                </div>
+                <div className="text-gray-600 flex items-center justify-between">
+                  <span>Vencimento Atual:</span>
+                  <span className="font-medium">
+                    {formatDate(contratoParaRenovar.contrato.data_vencimento)}
+                  </span>
+                </div>
+              </div>
+
+              <div className="bg-white p-3 rounded-xl border border-gray-200 space-y-1">
+                <span className="font-bold text-gray-800 text-xs block">O que será realizado:</span>
+                <ul className="list-disc list-inside space-y-0.5 text-gray-600 text-[11px]">
+                  <li>
+                    Acréscimo de <strong>+12 meses de vigência</strong> a partir da data de
+                    vencimento.
+                  </li>
+                  <li>Limpeza do alerta de renovação em 30 dias.</li>
+                  <li>Reagendamento das próximas visitas técnicas preventivas do plano.</li>
+                  <li>Registro da renovação na linha do tempo do cliente.</li>
+                </ul>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter className="gap-2 sm:gap-0">
+            <button
+              type="button"
+              disabled={isRenovando}
+              onClick={() => setContratoParaRenovar(null)}
+              className="px-3 py-2 rounded-lg border border-gray-300 text-gray-700 text-xs font-semibold hover:bg-gray-50 transition-colors"
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              disabled={isRenovando}
+              onClick={handleConfirmarRenovacao}
+              className="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 disabled:opacity-50"
+            >
+              <RefreshCcw className={`w-3.5 h-3.5 ${isRenovando ? 'animate-spin' : ''}`} />
+              <span>{isRenovando ? 'Renovando...' : 'Confirmar Renovação (+12 meses)'}</span>
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ========================================================================= */}
+      {/* MODAL 2: ENCERRAR CONTRATO O&M (COM FORMULÁRIO DE MOTIVO/DATA/OBS)        */}
+      {/* ========================================================================= */}
+      <Dialog
+        open={Boolean(contratoParaEncerrar)}
+        onOpenChange={(open) => !open && setContratoParaEncerrar(null)}
+      >
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-base text-rose-900">
+              <XCircle className="w-5 h-5 text-rose-600" />
+              <span>Encerrar Contrato O&M</span>
+            </DialogTitle>
+            <DialogDescription className="text-xs text-gray-500">
+              Preencha os dados do encerramento. O cliente sairá da lista de contratos ativos e
+              passará automaticamente para a lista <strong>Clientes Pós-Vendas</strong> com todo o
+              histórico preservado.
+            </DialogDescription>
+          </DialogHeader>
+
+          {contratoParaEncerrar && (
+            <div className="space-y-4 py-2 text-xs">
+              {/* Resumo do Cliente e Plano */}
+              <div className="bg-rose-50/70 p-3 rounded-xl border border-rose-200/80 space-y-1">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-gray-900 text-sm">
+                    {contratoParaEncerrar.cliente.nome}
+                  </span>
+                  {renderPlanoBadge(contratoParaEncerrar.contrato.plano)}
+                </div>
+                <p className="text-[11px] text-rose-800">
+                  O contrato antigo continuará acessível para consulta na ficha do cliente e na
+                  timeline.
+                </p>
+              </div>
+
+              {/* Formulário de Encerramento */}
+              <div className="space-y-3">
+                {/* Motivo do Encerramento */}
+                <div className="space-y-1">
+                  <label className="font-bold text-gray-700 block">
+                    Motivo do Encerramento <span className="text-rose-500">*</span>
+                  </label>
+                  <select
+                    value={motivoEncerramento}
+                    onChange={(e) => setMotivoEncerramento(e.target.value as OMMotivoEncerramento)}
+                    className="w-full px-3 py-2 rounded-lg border border-gray-300 bg-white font-medium text-gray-800 text-xs focus:ring-1 focus:ring-rose-500 focus:border-rose-500"
+                  >
+                    <option value="Não renovação">Não renovação</option>
+                    <option value="Rescisão por inadimplemento">Rescisão por inadimplemento</option>
+                    <option value="Encerramento por conveniência">
+                      Encerramento por conveniência
+                    </option>
+                  </select>
+                </div>
+
+                {/* Data de Encerramento */}
+                <div className="space-y-1">
+                  <label className="font-bold text-gray-700 block">
+                    Data de Encerramento <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="date"
+                    value={dataEncerramento}
+                    onChange={(e) => setDataEncerramento(e.target.value)}
+                    required
+                    className="w-full px-3 py-2 rounded-lg border border-gray-300 bg-white font-medium text-gray-800 text-xs focus:ring-1 focus:ring-rose-500 focus:border-rose-500"
+                  />
+                </div>
+
+                {/* Observações */}
+                <div className="space-y-1">
+                  <label className="font-bold text-gray-700 block">
+                    Observações do Encerramento
+                  </label>
+                  <textarea
+                    rows={3}
+                    value={obsEncerramento}
+                    onChange={(e) => setObsEncerramento(e.target.value)}
+                    placeholder="Descreva detalhes adicionais, feedback do cliente ou justificativa..."
+                    className="w-full px-3 py-2 rounded-lg border border-gray-300 bg-white text-gray-800 text-xs focus:ring-1 focus:ring-rose-500 focus:border-rose-500"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter className="gap-2 sm:gap-0">
+            <button
+              type="button"
+              disabled={isEncerrando}
+              onClick={() => setContratoParaEncerrar(null)}
+              className="px-3 py-2 rounded-lg border border-gray-300 text-gray-700 text-xs font-semibold hover:bg-gray-50 transition-colors"
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              disabled={isEncerrando || !dataEncerramento}
+              onClick={handleConfirmarEncerramento}
+              className="px-4 py-2 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 disabled:opacity-50"
+            >
+              <XCircle className="w-3.5 h-3.5" />
+              <span>{isEncerrando ? 'Encerrando...' : 'Confirmar Encerramento'}</span>
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ========================================================================= */}
+      {/* MODAL 3: VER DETALHES DO CONTRATO                                         */}
+      {/* ========================================================================= */}
+      <Dialog
+        open={Boolean(contratoParaDetalhes)}
+        onOpenChange={(open) => !open && setContratoParaDetalhes(null)}
+      >
+        <DialogContent className="sm:max-w-[540px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-base text-gray-900">
+              <FileText className="w-5 h-5 text-emerald-600" />
+              <span>Detalhes do Contrato O&M</span>
+            </DialogTitle>
+            <DialogDescription className="text-xs text-gray-500">
+              Visão completa das condições, valores, vigência e serviços do plano contratado.
+            </DialogDescription>
+          </DialogHeader>
+
+          {contratoParaDetalhes && (
+            <div className="space-y-4 py-2 text-xs">
+              {/* Header do Cliente */}
+              <div className="p-3.5 rounded-xl bg-[#F8FAF9] border border-gray-200 flex items-start justify-between gap-3">
+                <div>
+                  <h4 className="font-bold text-gray-900 text-sm">
+                    {contratoParaDetalhes.cliente.nome}
+                  </h4>
+                  <p className="text-gray-500 text-[11px] flex items-center gap-1 mt-0.5">
+                    <MapPin className="w-3 h-3 text-gray-400" />
+                    {contratoParaDetalhes.cliente.cidade || 'Erechim/RS'}
+                    {contratoParaDetalhes.cliente.telefone &&
+                      ` • ${contratoParaDetalhes.cliente.telefone}`}
+                  </p>
+                </div>
+                <div className="flex flex-col items-end gap-1">
+                  {renderPlanoBadge(contratoParaDetalhes.contrato.plano)}
+                  {renderStatusPlanoBadge(contratoParaDetalhes.contrato.status)}
+                </div>
+              </div>
+
+              {/* Grid com Dados do Contrato */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+                <div className="p-2.5 bg-white rounded-xl border border-gray-200">
+                  <span className="text-[10px] text-gray-400 uppercase font-semibold block">
+                    Valor Mensal
+                  </span>
+                  <span className="text-sm font-extrabold text-emerald-700">
+                    {formatCurrency(contratoParaDetalhes.contrato.valor_mensal)}
+                  </span>
+                </div>
+
+                <div className="p-2.5 bg-white rounded-xl border border-gray-200">
+                  <span className="text-[10px] text-gray-400 uppercase font-semibold block">
+                    Valor Anual
+                  </span>
+                  <span className="text-sm font-extrabold text-gray-800">
+                    {formatCurrency(contratoParaDetalhes.contrato.valor_anual)}
+                  </span>
+                </div>
+
+                <div className="p-2.5 bg-white rounded-xl border border-gray-200">
+                  <span className="text-[10px] text-gray-400 uppercase font-semibold block">
+                    Potência da Usina
+                  </span>
+                  <span className="text-sm font-extrabold text-amber-600 flex items-center gap-1">
+                    <Zap className="w-3.5 h-3.5 fill-amber-500" />
+                    {contratoParaDetalhes.potenciaKwp > 0
+                      ? `${contratoParaDetalhes.potenciaKwp} kWp`
+                      : '—'}
+                  </span>
+                </div>
+
+                <div className="p-2.5 bg-white rounded-xl border border-gray-200">
+                  <span className="text-[10px] text-gray-400 uppercase font-semibold block">
+                    Início da Vigência
+                  </span>
+                  <span className="font-semibold text-gray-800">
+                    {formatDate(contratoParaDetalhes.contrato.data_inicio)}
+                  </span>
+                </div>
+
+                <div className="p-2.5 bg-white rounded-xl border border-gray-200">
+                  <span className="text-[10px] text-gray-400 uppercase font-semibold block">
+                    Data de Vencimento
+                  </span>
+                  <span className="font-semibold text-gray-800">
+                    {formatDate(contratoParaDetalhes.contrato.data_vencimento)}
+                  </span>
+                </div>
+
+                <div className="p-2.5 bg-white rounded-xl border border-gray-200">
+                  <span className="text-[10px] text-gray-400 uppercase font-semibold block">
+                    Dias Restantes
+                  </span>
+                  <span className="font-bold text-gray-800">
+                    {calcularDiasRestantesDefensivo(
+                      contratoParaDetalhes.contrato.data_vencimento,
+                    ) !== null
+                      ? `${calcularDiasRestantesDefensivo(contratoParaDetalhes.contrato.data_vencimento)} dias`
+                      : '—'}
+                  </span>
+                </div>
+              </div>
+
+              {/* Próxima Visita / Atividade */}
+              {contratoParaDetalhes.contrato.proxima_atividade_titulo && (
+                <div className="p-3 bg-blue-50/70 rounded-xl border border-blue-200 space-y-1">
+                  <span className="text-[10px] font-bold text-blue-900 uppercase tracking-wider flex items-center gap-1">
+                    <Calendar className="w-3.5 h-3.5 text-blue-700" />
+                    Próxima Atividade Técnica Agendada
+                  </span>
+                  <p className="font-semibold text-gray-900">
+                    {contratoParaDetalhes.contrato.proxima_atividade_titulo}
+                  </p>
+                  {contratoParaDetalhes.contrato.proxima_atividade_data && (
+                    <span className="text-[11px] text-blue-700 font-medium block">
+                      Data prevista:{' '}
+                      {formatDate(contratoParaDetalhes.contrato.proxima_atividade_data)}
+                    </span>
+                  )}
+                </div>
+              )}
+
+              {/* Observações */}
+              {contratoParaDetalhes.contrato.observacoes && (
+                <div className="p-3 bg-gray-50 rounded-xl border border-gray-200 space-y-0.5">
+                  <span className="text-[10px] font-bold text-gray-400 uppercase block">
+                    Observações Gerais
+                  </span>
+                  <p className="text-gray-700 italic">
+                    "{contratoParaDetalhes.contrato.observacoes}"
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+
+          <DialogFooter className="gap-2 sm:gap-0">
+            <button
+              type="button"
+              onClick={() => {
+                const clienteId = contratoParaDetalhes?.cliente.id
+                setContratoParaDetalhes(null)
+                if (clienteId) onOpenFichaOM(clienteId)
+              }}
+              className="px-3.5 py-2 rounded-lg bg-emerald-50 text-emerald-800 hover:bg-emerald-100 border border-emerald-300 text-xs font-bold flex items-center gap-1.5 transition-colors"
+            >
+              <ExternalLink className="w-3.5 h-3.5 text-emerald-700" />
+              <span>Abrir Ficha Completa O&M</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setContratoParaDetalhes(null)}
+              className="px-4 py-2 rounded-lg bg-gray-900 text-white text-xs font-bold hover:bg-gray-800 transition-colors"
+            >
+              Fechar
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

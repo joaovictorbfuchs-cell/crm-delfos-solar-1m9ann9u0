@@ -43,7 +43,7 @@ export interface ContagensOM {
  * Calcula os dias restantes de forma defensiva até uma data de vencimento.
  * Retorna null se a data for nula, indefinida ou inválida, evitando NaN.
  */
-function calcularDiasRestantesDefensivo(dataVencimento?: string | null): number | null {
+export function calcularDiasRestantesDefensivo(dataVencimento?: string | null): number | null {
   if (!dataVencimento || typeof dataVencimento !== 'string') return null
   const timestamp = new Date(dataVencimento).getTime()
   if (isNaN(timestamp)) return null
@@ -73,10 +73,11 @@ export function categorizarClienteOM(
   // Contratos do cliente
   const contratos = safeContratos.filter((c) => c?.cliente_id === clienteId)
 
-  // Contrato ativo (status Ativo ou Vencendo em 30 dias e data de vencimento não expirada com status Vencido)
+  // Contrato ativo (status Ativo ou Vencendo em 30 dias, sem encerramento, e data de vencimento não expirada com status Vencido)
   const contratoAtivo = contratos.find((c) => {
     if (!c) return false
-    if (c.status === 'Vencido') return false
+    if (c.status === 'Vencido' || c.status === 'Cancelado' || c.status === 'Encerrado') return false
+    if (c.status_encerramento === 'encerrado') return false
     const diasRestantes = calcularDiasRestantesDefensivo(c.data_vencimento)
     if (diasRestantes !== null && diasRestantes < 0) return false
     return c.status === 'Ativo' || c.status === 'Vencendo em 30 dias'
@@ -86,6 +87,7 @@ export function categorizarClienteOM(
   const contratoVencido = !contratoAtivo
     ? contratos.find((c) => {
         if (!c) return false
+        if (c.status_encerramento === 'encerrado' || c.status === 'Encerrado') return false
         if (c.status === 'Vencido') return true
         const diasRestantes = calcularDiasRestantesDefensivo(c.data_vencimento)
         if (diasRestantes !== null && diasRestantes < 0) return true

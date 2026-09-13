@@ -36,9 +36,24 @@ export const FichaClienteOM: React.FC<FichaClienteOMProps> = ({ clienteId, onNav
     return sistemas.find((s) => s.cliente_id === clienteId) || null
   }, [sistemas, clienteId])
 
-  const contrato = useMemo(() => {
-    return contratosOM.find((c) => c.cliente_id === clienteId) || null
+  const todosContratosCliente = useMemo(() => {
+    return contratosOM.filter((c) => c.cliente_id === clienteId)
   }, [contratosOM, clienteId])
+
+  const contrato = useMemo(() => {
+    return (
+      todosContratosCliente.find(
+        (c) =>
+          c.status !== 'Encerrado' &&
+          c.status !== 'Cancelado' &&
+          c.status_encerramento !== 'encerrado',
+      ) || null
+    )
+  }, [todosContratosCliente])
+
+  const contratosHistorico = useMemo(() => {
+    return todosContratosCliente.filter((c) => c.id !== contrato?.id)
+  }, [todosContratosCliente, contrato?.id])
 
   if (!cliente) return null
 
@@ -376,6 +391,78 @@ export const FichaClienteOM: React.FC<FichaClienteOMProps> = ({ clienteId, onNav
                 </span>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* 2.1 HISTÓRICO DE CONTRATOS ANTERIORES / ENCERRADOS */}
+      {contratosHistorico.length > 0 && (
+        <div className="p-4 sm:p-5 rounded-2xl border border-gray-200 bg-gray-50/60 space-y-3">
+          <div className="flex items-center justify-between pb-2 border-b border-gray-200/80">
+            <span className="text-xs font-bold text-gray-800 uppercase tracking-wider flex items-center gap-2">
+              <FileText className="w-4 h-4 text-gray-500" />
+              <span>Histórico de Contratos O&M ({contratosHistorico.length})</span>
+            </span>
+            <span className="text-[11px] text-gray-500 font-medium">
+              Contratos anteriores e encerrados
+            </span>
+          </div>
+
+          <div className="space-y-2.5">
+            {contratosHistorico.map((cAntigo) => (
+              <div
+                key={cAntigo.id}
+                className="p-3.5 bg-white rounded-xl border border-gray-200 shadow-2xs space-y-2"
+              >
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-gray-900 text-xs">Plano {cAntigo.plano}</span>
+                    <span
+                      className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                        cAntigo.status_encerramento === 'encerrado' ||
+                        cAntigo.status === 'Encerrado'
+                          ? 'bg-rose-100 text-rose-800 border border-rose-200'
+                          : 'bg-gray-100 text-gray-700'
+                      }`}
+                    >
+                      {cAntigo.status_encerramento === 'encerrado' || cAntigo.status === 'Encerrado'
+                        ? 'Encerrado'
+                        : cAntigo.status}
+                    </span>
+                  </div>
+                  <div className="text-xs text-gray-500">
+                    {formatCurrency(cAntigo.valor_mensal)}/mês • Vigência:{' '}
+                    {formatDate(cAntigo.data_inicio)} até {formatDate(cAntigo.data_vencimento)}
+                  </div>
+                </div>
+
+                {/* Detalhes do Encerramento se houver */}
+                {(cAntigo.status_encerramento === 'encerrado' ||
+                  cAntigo.motivo_encerramento ||
+                  cAntigo.data_encerramento) && (
+                  <div className="p-2.5 bg-rose-50/60 rounded-lg border border-rose-200/70 text-xs space-y-1">
+                    <div className="flex items-center justify-between flex-wrap gap-1 text-[11px]">
+                      <span className="font-bold text-rose-900">
+                        Motivo:{' '}
+                        <span className="font-normal">
+                          {cAntigo.motivo_encerramento || 'Não informado'}
+                        </span>
+                      </span>
+                      {cAntigo.data_encerramento && (
+                        <span className="text-rose-700 font-medium">
+                          Data do encerramento: {formatDate(cAntigo.data_encerramento)}
+                        </span>
+                      )}
+                    </div>
+                    {cAntigo.observacoes_encerramento && (
+                      <p className="text-[11px] text-gray-700 italic">
+                        "{cAntigo.observacoes_encerramento}"
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+            ))}
           </div>
         </div>
       )}

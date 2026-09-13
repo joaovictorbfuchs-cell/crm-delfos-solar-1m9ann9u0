@@ -587,7 +587,14 @@ export interface ProjetoEvento extends RecordModel {
 
 export type OMPlanoTipo = 'Essencial' | 'Prevenção' | 'Completo'
 
-export type OMStatusPlano = 'Ativo' | 'Vencendo em 30 dias' | 'Vencido' | 'Cancelado'
+export type OMStatusPlano = 'Ativo' | 'Vencendo em 30 dias' | 'Vencido' | 'Cancelado' | 'Encerrado'
+
+export type OMMotivoEncerramento =
+  | 'Não renovação'
+  | 'Rescisão por inadimplemento'
+  | 'Encerramento por conveniência'
+
+export type OMStatusEncerramento = 'vigente' | 'encerrado'
 
 export type OMAnomaliaEtapa =
   | 'Detecção'
@@ -640,6 +647,10 @@ export interface ContratoOM extends RecordModel {
   servicos_realizados?: string[]
   servicos_agendados?: string[]
   observacoes?: string
+  status_encerramento?: OMStatusEncerramento
+  motivo_encerramento?: OMMotivoEncerramento
+  data_encerramento?: string
+  observacoes_encerramento?: string
   created: string
   updated: string
   expand?: {

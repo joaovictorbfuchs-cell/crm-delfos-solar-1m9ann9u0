@@ -233,6 +233,15 @@ interface ClientesContextType {
   addContratoOM: (data: Parameters<typeof apiCreateContratoOM>[0]) => Promise<ContratoOM>
   updateContratoOM: (id: string, data: Partial<ContratoOM>) => Promise<ContratoOM>
   removeContratoOM: (id: string) => Promise<void>
+  encerrarContratoOM: (
+    contratoId: string,
+    dadosEncerramento: {
+      motivo_encerramento: import('@/types/crm').OMMotivoEncerramento
+      data_encerramento: string
+      observacoes_encerramento?: string
+    },
+  ) => Promise<ContratoOM>
+  renovarContratoOM: (contratoId: string, mesesAdicionais?: number) => Promise<ContratoOM>
   addAnomaliaOM: (data: Parameters<typeof apiCreateAnomaliaOM>[0]) => Promise<AnomaliaOM>
   updateAnomaliaOM: (id: string, data: Partial<AnomaliaOM>) => Promise<AnomaliaOM>
   removeAnomaliaOM: (id: string) => Promise<void>
@@ -1214,6 +1223,104 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     setContratosOM((prev) => prev.filter((c) => c.id !== id))
   }
 
+  const encerrarContratoOM = async (
+    contratoId: string,
+    dadosEncerramento: {
+      motivo_encerramento: import('@/types/crm').OMMotivoEncerramento
+      data_encerramento: string
+      observacoes_encerramento?: string
+    },
+  ) => {
+    const contratoAtual = contratosOM.find((c) => c.id === contratoId)
+    const updatePayload: Partial<ContratoOM> = {
+      status: 'Encerrado',
+      status_encerramento: 'encerrado',
+      motivo_encerramento: dadosEncerramento.motivo_encerramento,
+      data_encerramento: dadosEncerramento.data_encerramento,
+      observacoes_encerramento: dadosEncerramento.observacoes_encerramento || '',
+    }
+
+    const updated = await updateContratoOM(contratoId, updatePayload)
+
+    // Registrar na timeline do cliente e O&M para manter histórico auditável
+    if (contratoAtual?.cliente_id) {
+      try {
+        const obsFormatada = dadosEncerramento.observacoes_encerramento
+          ? ` Obs: ${dadosEncerramento.observacoes_encerramento}`
+          : ''
+        const timeEv = await apiCreateTimelineOM({
+          cliente_id: contratoAtual.cliente_id,
+          contrato_id: contratoId,
+          tipo: 'interacao',
+          titulo: `Encerramento de Contrato O&M (${contratoAtual.plano})`,
+          descricao: `Motivo: ${dadosEncerramento.motivo_encerramento}. Data: ${new Date(dadosEncerramento.data_encerramento).toLocaleDateString('pt-BR')}.${obsFormatada}`,
+          data: dadosEncerramento.data_encerramento || new Date().toISOString(),
+          autor: 'Equipe Delfos Solar',
+          status_tag: 'Encerrado',
+        })
+        setTimelineOM((prev) => [timeEv, ...prev])
+      } catch (e) {
+        console.warn('Erro ao registrar encerramento na timeline:', e)
+      }
+    }
+
+    return updated
+  }
+
+  const renovarContratoOM = async (contratoId: string, mesesAdicionais = 12) => {
+    const contratoAtual = contratosOM.find((c) => c.id === contratoId)
+    if (!contratoAtual) {
+      throw new Error('Contrato não encontrado')
+    }
+
+    // Calcular nova data de vencimento a partir da data de vencimento atual ou de hoje
+    let baseDate = new Date()
+    if (contratoAtual.data_vencimento) {
+      const parsed = new Date(contratoAtual.data_vencimento)
+      if (!isNaN(parsed.getTime())) {
+        // Se a data de vencimento ainda for futura, prorroga a partir dela. Se já venceu, a partir de hoje
+        baseDate = parsed.getTime() > Date.now() ? parsed : new Date()
+      }
+    }
+
+    const novoVencimento = new Date(baseDate)
+    novoVencimento.setMonth(novoVencimento.getMonth() + mesesAdicionais)
+
+    const updatePayload: Partial<ContratoOM> = {
+      status: 'Ativo',
+      status_encerramento: 'vigente',
+      motivo_encerramento: undefined,
+      data_encerramento: undefined,
+      observacoes_encerramento: undefined,
+      data_vencimento: novoVencimento.toISOString(),
+      proxima_atividade_titulo: `Revisão preventiva semestral - Renovação Plano ${contratoAtual.plano}`,
+      proxima_atividade_data: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+    }
+
+    const updated = await updateContratoOM(contratoId, updatePayload)
+
+    // Registrar na timeline do cliente
+    if (contratoAtual.cliente_id) {
+      try {
+        const timeEv = await apiCreateTimelineOM({
+          cliente_id: contratoAtual.cliente_id,
+          contrato_id: contratoId,
+          tipo: 'interacao',
+          titulo: `Renovação de Contrato O&M (${contratoAtual.plano})`,
+          descricao: `Contrato renovado por mais ${mesesAdicionais} meses. Nova vigência até ${novoVencimento.toLocaleDateString('pt-BR')}. Alerta de vencimento limpo.`,
+          data: new Date().toISOString(),
+          autor: 'Equipe Delfos Solar',
+          status_tag: 'Ativo',
+        })
+        setTimelineOM((prev) => [timeEv, ...prev])
+      } catch (e) {
+        console.warn('Erro ao registrar renovação na timeline:', e)
+      }
+    }
+
+    return updated
+  }
+
   const addAnomaliaOM = async (data: Parameters<typeof apiCreateAnomaliaOM>[0]) => {
     const created = await apiCreateAnomaliaOM(data)
     setAnomaliasOM((prev) => [created, ...prev.filter((a) => a.id !== created.id)])
@@ -1721,6 +1828,8 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         addContratoOM,
         updateContratoOM,
         removeContratoOM,
+        encerrarContratoOM,
+        renovarContratoOM,
         addAnomaliaOM,
         updateAnomaliaOM,
         removeAnomaliaOM,

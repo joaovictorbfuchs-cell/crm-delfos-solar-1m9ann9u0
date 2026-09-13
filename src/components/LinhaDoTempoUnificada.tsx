@@ -61,7 +61,7 @@ export const LinhaDoTempoUnificada: React.FC<LinhaDoTempoUnificadaProps> = ({
   onNovoOrcamentoSolarClick,
   onNovaPropostaOMClick,
 }) => {
-  const { tiposAtividadesCustom, removeAtividade } = useClientes()
+  const { tiposAtividadesCustom, removeAtividade, contratosOM } = useClientes()
   const [activeFilter, setActiveFilter] = useState<TimelineFilterTipo>('todas')
   const [atividadeParaExcluir, setAtividadeParaExcluir] = useState<{
     id: string
@@ -211,6 +211,44 @@ export const LinhaDoTempoUnificada: React.FC<LinhaDoTempoUnificadaProps> = ({
       })
     }
 
+    // 2.5 Contratos O&M (vigentes e histórico/encerrados)
+    for (const cont of contratosOM) {
+      if (cont.cliente_id !== cliente.id) continue
+      const isEncerrado = cont.status_encerramento === 'encerrado' || cont.status === 'Encerrado'
+      const dataIso = cont.data_encerramento || cont.updated || cont.created
+
+      let statusVar: TimelineUnifiedItem['statusVariant'] = 'info'
+      if (isEncerrado) {
+        statusVar = 'danger'
+      } else if (cont.status === 'Ativo') {
+        statusVar = 'success'
+      } else if (cont.status === 'Vencendo em 30 dias') {
+        statusVar = 'warning'
+      }
+
+      const descEncerramento = isEncerrado
+        ? `Contrato encerrado. Motivo: ${cont.motivo_encerramento || 'Não informado'}.${cont.observacoes_encerramento ? ` Obs: ${cont.observacoes_encerramento}` : ''}`
+        : `Contrato O&M em vigência (até ${formatDate(cont.data_vencimento)}). ${cont.observacoes || ''}`
+
+      items.push({
+        id: `contrato-${cont.id}`,
+        categoria: 'proposta_om',
+        tipoFiltro: 'outras',
+        titulo: isEncerrado
+          ? `Contrato O&M Encerrado: Plano ${cont.plano}`
+          : `Contrato O&M Ativo: Plano ${cont.plano}`,
+        subtitulo: `Vigência: ${formatDate(cont.data_inicio)} até ${formatDate(cont.data_vencimento)}`,
+        descricao: descEncerramento,
+        data: dataIso,
+        autor: 'Equipe Delfos Solar',
+        responsavelNome: 'Equipe Delfos Solar',
+        status: isEncerrado ? 'Encerrado' : cont.status,
+        statusVariant: statusVar,
+        valorPrincipal: cont.valor_mensal,
+        valorSecundario: `Total anual: ${formatCurrency(cont.valor_anual)}`,
+      })
+    }
+
     // 3. Atividades & Anotações
     for (const atv of atividades) {
       if (atv.cliente_id !== cliente.id) continue
@@ -258,7 +296,7 @@ export const LinhaDoTempoUnificada: React.FC<LinhaDoTempoUnificadaProps> = ({
       const timeB = new Date(b.data).getTime()
       return timeB - timeA
     })
-  }, [cliente.id, cliente.nome, orcamentosSolar, propostasOM, atividades, customDefs])
+  }, [cliente.id, cliente.nome, orcamentosSolar, propostasOM, contratosOM, atividades, customDefs])
 
   // Contagens para os chips de filtro
   const counts = useMemo(() => {

@@ -260,6 +260,34 @@ export function runOmCategorizacaoTests(): {
       },
     },
     {
+      name: 'Contrato com status Encerrado ou status_encerramento encerrado move cliente para pós-vendas',
+      fn: () => {
+        const cliEncerrado = mockCliente({
+          id: 'cli_encerrado_1',
+          nome: 'Cliente Contrato Encerrado',
+        })
+        const contratoEncerrado = mockContrato({
+          id: 'ct_enc_1',
+          cliente_id: 'cli_encerrado_1',
+          status: 'Encerrado',
+          status_encerramento: 'encerrado',
+          motivo_encerramento: 'Não renovação',
+          data_encerramento: new Date().toISOString(),
+        })
+
+        const res = categorizarClienteOM(cliEncerrado.id, [contratoEncerrado])
+        assertEquals(
+          res.categoria,
+          'sem_plano',
+          'cliente com contrato encerrado não deve ficar em plano_ativo',
+        )
+
+        const contagens = calcularContagensOM([cliEncerrado], [contratoEncerrado])
+        assertEquals(contagens.planosAtivos, 0, 'planos ativos deve ser zero')
+        assertEquals(contagens.posVendas, 1, 'posVendas deve contabilizar o cliente')
+      },
+    },
+    {
       name: 'Defensivo com fallbacks vazios ou nulos não lança erro',
       fn: () => {
         const res = categorizarClienteOM(

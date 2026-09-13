@@ -502,6 +502,10 @@ export async function createContratoOM(data: {
   servicos_realizados?: string[]
   servicos_agendados?: string[]
   observacoes?: string
+  status_encerramento?: ContratoOM['status_encerramento']
+  motivo_encerramento?: ContratoOM['motivo_encerramento']
+  data_encerramento?: string
+  observacoes_encerramento?: string
 }): Promise<ContratoOM> {
   const record = await pb.collection('contratos_om').create<ContratoOM>(data, {
     expand: 'cliente_id',

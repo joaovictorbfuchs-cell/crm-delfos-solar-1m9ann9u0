@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-13T20:40:28.177Z",
+  "generatedAt": "2026-09-13T20:56:08.659Z",
   "collections": [
     {
       "name": "users",
@@ -1021,7 +1021,7 @@
           "type": "select",
           "required": true,
           "system": false,
-          "selectValues": ["Ativo", "Vencendo em 30 dias", "Vencido", "Cancelado"]
+          "selectValues": ["Ativo", "Vencendo em 30 dias", "Vencido", "Cancelado", "Encerrado"]
         },
         {
           "name": "valor_mensal",
@@ -1090,6 +1090,36 @@
           "required": false,
           "system": false,
           "autodateTriggers": ["onCreate", "onUpdate"]
+        },
+        {
+          "name": "status_encerramento",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["vigente", "encerrado"]
+        },
+        {
+          "name": "motivo_encerramento",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": [
+            "Não renovação",
+            "Rescisão por inadimplemento",
+            "Encerramento por conveniência"
+          ]
+        },
+        {
+          "name": "data_encerramento",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "observacoes_encerramento",
+          "type": "text",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": [
