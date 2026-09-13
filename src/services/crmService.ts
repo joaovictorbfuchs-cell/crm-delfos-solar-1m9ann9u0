@@ -1181,3 +1181,91 @@ export async function deleteTransferenciaCredito(id: string): Promise<boolean> {
   await pb.collection('transferencias_creditos').delete(id)
   return true
 }
+
+// -------------------------------------------------------------
+// Documentos do Cliente & Controle de Assinatura Services
+// -------------------------------------------------------------
+
+export async function fetchDocumentosCliente(
+  clienteId?: string,
+): Promise<import('@/types/crm').DocumentoCliente[]> {
+  try {
+    const filter = clienteId ? `cliente_id='${clienteId}'` : ''
+    const records = await pb
+      .collection('documentos_cliente')
+      .getFullList<import('@/types/crm').DocumentoCliente>({
+        filter: filter || undefined,
+        sort: '-updated,-created',
+        expand: 'cliente_id',
+      })
+    return records
+  } catch (err) {
+    console.error('Erro ao buscar documentos do cliente:', err)
+    return []
+  }
+}
+
+export async function upsertDocumentoCliente(data: {
+  cliente_id: string
+  tipo: import('@/types/crm').DocumentoClienteTipo
+  status_assinatura: import('@/types/crm').DocumentoClienteStatusAssinatura
+  data_envio?: string
+  data_assinatura?: string
+  canal_envio?: string
+  telefone_envio?: string
+  observacoes?: string
+  autor?: string
+}): Promise<import('@/types/crm').DocumentoCliente> {
+  // Procura se já existe um registro deste tipo para este cliente
+  try {
+    const existing = await pb
+      .collection('documentos_cliente')
+      .getFirstListItem<import('@/types/crm').DocumentoCliente>(
+        `cliente_id='${data.cliente_id}' && tipo='${data.tipo}'`,
+      )
+    if (existing) {
+      const updated = await pb
+        .collection('documentos_cliente')
+        .update<import('@/types/crm').DocumentoCliente>(existing.id, data, {
+          expand: 'cliente_id',
+        })
+      return updated
+    }
+  } catch {
+    // Se não encontrou, prossegue para criar novo
+  }
+
+  const created = await pb
+    .collection('documentos_cliente')
+    .create<import('@/types/crm').DocumentoCliente>(data, {
+      expand: 'cliente_id',
+    })
+  return created
+}
+
+export async function updateDocumentoClienteStatus(
+  id: string,
+  status_assinatura: import('@/types/crm').DocumentoClienteStatusAssinatura,
+  data_assinatura?: string,
+): Promise<import('@/types/crm').DocumentoCliente> {
+  const payload: Partial<import('@/types/crm').DocumentoCliente> = {
+    status_assinatura,
+  }
+  if (status_assinatura === 'assinado') {
+    payload.data_assinatura = data_assinatura || new Date().toISOString()
+  } else {
+    payload.data_assinatura = ''
+  }
+
+  const updated = await pb
+    .collection('documentos_cliente')
+    .update<import('@/types/crm').DocumentoCliente>(id, payload, {
+      expand: 'cliente_id',
+    })
+  return updated
+}
+
+export async function deleteDocumentoCliente(id: string): Promise<boolean> {
+  await pb.collection('documentos_cliente').delete(id)
+  return true
+}

@@ -116,6 +116,17 @@ interface ClientesContextType {
   ) => Promise<import('@/types/crm').TransferenciaCredito>
   removeTransferenciaCredito: (id: string) => Promise<void>
   refreshTransferenciasCreditos: () => Promise<void>
+  documentosCliente: import('@/types/crm').DocumentoCliente[]
+  addOrUpdateDocumentoCliente: (
+    data: Parameters<typeof import('@/services/crmService').upsertDocumentoCliente>[0],
+  ) => Promise<import('@/types/crm').DocumentoCliente>
+  updateDocumentoClienteStatus: (
+    id: string,
+    status: import('@/types/crm').DocumentoClienteStatusAssinatura,
+    dataAssinatura?: string,
+  ) => Promise<import('@/types/crm').DocumentoCliente>
+  removeDocumentoCliente: (id: string) => Promise<void>
+  refreshDocumentosCliente: () => Promise<void>
   timelineOM: TimelineOM[]
   propostasOM: PropostaOM[]
   orcamentosSolar: OrcamentoSolar[]
@@ -351,6 +362,9 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [transferenciasCreditos, setTransferenciasCreditos] = useState<
     import('@/types/crm').TransferenciaCredito[]
   >([])
+  const [documentosCliente, setDocumentosCliente] = useState<
+    import('@/types/crm').DocumentoCliente[]
+  >([])
   const [timelineOM, setTimelineOM] = useState<TimelineOM[]>([])
   const [propostasOM, setPropostasOM] = useState<PropostaOM[]>([])
   const [orcamentosSolar, setOrcamentosSolar] = useState<OrcamentoSolar[]>([])
@@ -401,6 +415,7 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         fornOrcList,
         avulsosList,
         transfList,
+        docsList,
       ] = await Promise.all([
         fetchClientes(),
         fetchSistemas(),
@@ -424,6 +439,7 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         import('@/services/crmService').then((s) => s.fetchFornecedoresOrcamentos()),
         fetchServicosAvulsos(),
         import('@/services/crmService').then((s) => s.fetchTransferenciasCreditos()),
+        import('@/services/crmService').then((s) => s.fetchDocumentosCliente()),
       ])
       setClientes(cList)
       setSistemas(sList)
@@ -438,6 +454,7 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       setServicosAdicionaisOM(adicList)
       setServicosAvulsos(avulsosList)
       setTransferenciasCreditos(transfList)
+      setDocumentosCliente(docsList)
       setTimelineOM(timeList)
       setPropostasOM(propList)
       setOrcamentosSolar(orcList)
@@ -1241,6 +1258,38 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     setTransferenciasCreditos(list)
   }
 
+  const addOrUpdateDocumentoCliente = async (
+    data: Parameters<typeof import('@/services/crmService').upsertDocumentoCliente>[0],
+  ) => {
+    const s = await import('@/services/crmService')
+    const saved = await s.upsertDocumentoCliente(data)
+    setDocumentosCliente((prev) => [saved, ...prev.filter((d) => d.id !== saved.id)])
+    return saved
+  }
+
+  const updateDocumentoClienteStatus = async (
+    id: string,
+    status: import('@/types/crm').DocumentoClienteStatusAssinatura,
+    dataAssinatura?: string,
+  ) => {
+    const s = await import('@/services/crmService')
+    const updated = await s.updateDocumentoClienteStatus(id, status, dataAssinatura)
+    setDocumentosCliente((prev) => prev.map((d) => (d.id === id ? updated : d)))
+    return updated
+  }
+
+  const removeDocumentoCliente = async (id: string) => {
+    const s = await import('@/services/crmService')
+    await s.deleteDocumentoCliente(id)
+    setDocumentosCliente((prev) => prev.filter((d) => d.id !== id))
+  }
+
+  const refreshDocumentosCliente = async () => {
+    const s = await import('@/services/crmService')
+    const list = await s.fetchDocumentosCliente()
+    setDocumentosCliente(list)
+  }
+
   const addTimelineOM = async (data: Parameters<typeof apiCreateTimelineOM>[0]) => {
     const created = await apiCreateTimelineOM(data)
     setTimelineOM((prev) => [created, ...prev])
@@ -1512,6 +1561,11 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         updateTransferenciaCredito,
         removeTransferenciaCredito,
         refreshTransferenciasCreditos,
+        documentosCliente,
+        addOrUpdateDocumentoCliente,
+        updateDocumentoClienteStatus,
+        removeDocumentoCliente,
+        refreshDocumentosCliente,
         timelineOM,
         isLoading,
         error,

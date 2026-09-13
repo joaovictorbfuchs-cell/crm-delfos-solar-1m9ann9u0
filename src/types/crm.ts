@@ -319,6 +319,40 @@ export interface WhatsAppMensagem extends RecordModel {
 // Tipos para Transferência de Créditos de Energia
 // -------------------------------------------------------------
 
+// -------------------------------------------------------------
+// Tipos para Documentos do Cliente e Controle de Assinatura
+// -------------------------------------------------------------
+
+export type DocumentoClienteTipo =
+  | 'procuracao'
+  | 'contrato'
+  | 'anexo_e'
+  | 'anexo_f'
+  | 'anexo_g'
+  | 'troca_titularidade'
+
+export type DocumentoClienteStatusAssinatura = 'aguardando_assinatura' | 'assinado'
+
+export interface DocumentoCliente extends RecordModel {
+  id: string
+  collectionId: string
+  collectionName: string
+  cliente_id: string
+  tipo: DocumentoClienteTipo
+  status_assinatura: DocumentoClienteStatusAssinatura
+  data_envio?: string
+  data_assinatura?: string
+  canal_envio?: string
+  telefone_envio?: string
+  observacoes?: string
+  autor?: string
+  created: string
+  updated: string
+  expand?: {
+    cliente_id?: Cliente
+  }
+}
+
 export type TransferenciaCreditoStatus = 'Pendente' | 'Em análise' | 'Homologada' | 'Rejeitada'
 
 export interface TransferenciaCredito extends RecordModel {

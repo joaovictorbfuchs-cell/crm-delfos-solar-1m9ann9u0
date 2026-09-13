@@ -1,29 +1,19 @@
-/**
- * Gerador de Documentos Operacionais e Regulatórios de Energia Solar Delfos:
- * - Procuração para Homologação junto à Concessionária
- * - Contrato de Prestação de Serviços e Fornecimento de Sistema Fotovoltaico
- * - Anexo E: Formulário de Solicitação de Acesso / Parecer (Microgeração Distribuída)
- * - Anexo F: Termo de Responsabilidade Técnica e Dados do Ponto de Conexão
- * - Anexo G: Termo de Adesão ao Sistema de Compensação de Energia Elétrica
- * - Troca de Titularidade: Termo de Solicitação de Troca de Titularidade da UC
- */
-
 import {
   Document,
-  Packer,
   Paragraph,
   TextRun,
   Table,
   TableRow,
   TableCell,
-  Header,
-  Footer,
+  WidthType,
   AlignmentType,
   BorderStyle,
-  WidthType,
-  ShadingType,
-  PageNumber,
   HeadingLevel,
+  Header,
+  Footer,
+  PageNumber,
+  ShadingType,
+  Packer,
 } from 'docx'
 import { DADOS_EMPRESA_DELFOS_SOLAR } from '@/lib/propostaSolarGenerator'
 
@@ -37,30 +27,31 @@ export type TipoDocumentoProjeto =
 
 export interface DadosDocumentoProjetoInput {
   tipo: TipoDocumentoProjeto
+  // Dados do Cliente Contratante
   clienteNome: string
   clienteCpfCnpj: string
   clienteEndereco: string
   clienteTelefone: string
   clienteEmail: string
-  // Dados do Titular (quando aplicável)
-  titularNome?: string
-  titularCpf?: string
-  titularTelefone?: string
-  titularEmail?: string
-  numeroUC?: string
-  concessionaria?: string
+  // Dados do Titular da Conta de Luz (pode coincidir com o cliente)
+  titularNome: string
+  titularCpf: string
+  titularTelefone: string
+  titularEmail: string
+  // Dados da Concessionária e UC
+  numeroUC: string
+  concessionaria: string
   // Dados Técnicos do Sistema
   potenciaKwp: number
   quantidadeModulos: number
   marcaModeloModulos: string
   marcaModeloInversor: string
   potenciaInversorKw: number
-  // Dados Comerciais
   valorTotal: number
-  condicoesPagamento?: string
-  dataDocumento?: string
-  cidade?: string
-  // Dados específicos pós-venda (se aplicável)
+  condicoesPagamento: string
+  cidade: string
+  dataDocumento?: string // ISO string
+  // Campos específicos
   ucDestino?: string
   percentualRateio?: string
   novoTitularNome?: string
@@ -68,15 +59,15 @@ export interface DadosDocumentoProjetoInput {
 }
 
 export const TITULOS_DOCUMENTOS: Record<TipoDocumentoProjeto, string> = {
-  procuracao: 'PROCURAÇÃO ESPECÍFICA — HOMOLOGAÇÃO DE ENERGIA SOLAR',
-  contrato: 'CONTRATO DE FORNECIMENTO E INSTALAÇÃO DE SISTEMA FOTOVOLTAICO',
-  anexo_e: 'ANEXO E — SOLICITAÇÃO DE ACESSO PARA MICROGERAÇÃO DISTRIBUÍDA',
-  anexo_f: 'ANEXO F — TERMO DE RESPONSABILIDADE TÉCNICA E DADOS DA CONEXÃO',
-  anexo_g: 'ANEXO G — ADESÃO AO SISTEMA DE COMPENSAÇÃO DE ENERGIA (CRÉDITOS)',
-  troca_titularidade: 'TERMO DE SOLICITAÇÃO DE TROCA DE TITULARIDADE DA UNIDADE CONSUMIDORA',
+  procuracao: 'Procuração Específica para Concessionária de Energia',
+  contrato: 'Contrato de Prestação de Serviços e Fornecimento de Usina Solar',
+  anexo_e: 'Anexo E — Solicitação de Acesso para Microgeração Distribuída',
+  anexo_f: 'Anexo F — Termo de Responsabilidade Técnica e Padrão de Entrada',
+  anexo_g: 'Anexo G — Termo de Adesão ao Sistema de Compensação de Créditos (SCEE)',
+  troca_titularidade: 'Solicitação de Troca de Titularidade da Unidade Consumidora',
 }
 
-const COLOR_PRIMARY = '166534' // Verde Delfos (#166534)
+const COLOR_PRIMARY = '166534'
 const COLOR_ACCENT = '16A34A'
 const COLOR_LIGHT_BG = 'F0FDF4'
 const COLOR_GRAY_BG = 'F9FAFB'
@@ -686,7 +677,7 @@ export async function baixarDocumentoProjetoDocx(dados: DadosDocumentoProjetoInp
 /**
  * Gera versão HTML completa e pronta para impressão ou exportação em PDF pelo navegador.
  */
-export function abrirDocumentoProjetoEmNovaAba(dados: DadosDocumentoProjetoInput): void {
+export function gerarHTMLDocumentoProjeto(dados: DadosDocumentoProjetoInput): string {
   const dataHoje = formatDateBR(dados.dataDocumento)
   const titularEfetivoNome = dados.titularNome || dados.clienteNome
   const titularEfetivoCpf = dados.titularCpf || dados.clienteCpfCnpj
@@ -754,7 +745,7 @@ export function abrirDocumentoProjetoEmNovaAba(dados: DadosDocumentoProjetoInput
     `
   }
 
-  const html = `<!DOCTYPE html>
+  return `<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
@@ -848,10 +839,28 @@ export function abrirDocumentoProjetoEmNovaAba(dados: DadosDocumentoProjetoInput
   </div>
 </body>
 </html>`
+}
 
-  const win = window.open('', '_blank')
-  if (win) {
-    win.document.write(html)
-    win.document.close()
-  }
+export function baixarDocumentoProjetoHTML(dados: DadosDocumentoProjetoInput): void {
+  const html = gerarHTMLDocumentoProjeto(dados)
+  const blob = new Blob([html], { type: 'text/html;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const safeCliente = (dados.clienteNome || 'Cliente').replace(/[^a-zA-Z0-9]/g, '_')
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `${dados.tipo.toUpperCase()}_Delfos_${safeCliente}.html`
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  URL.revokeObjectURL(url)
+}
+
+/**
+ * Abre versão para visualização e impressão nativa em PDF pelo navegador.
+ */
+export function abrirDocumentoProjetoEmNovaAba(dados: DadosDocumentoProjetoInput): void {
+  const html = gerarHTMLDocumentoProjeto(dados)
+  const blob = new Blob([html], { type: 'text/html;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  window.open(url, '_blank')
 }
