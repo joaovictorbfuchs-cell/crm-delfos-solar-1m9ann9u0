@@ -15,6 +15,7 @@ import Clientes from './pages/Clientes'
 import Fornecedores from './pages/Fornecedores'
 import Orcamentos from './pages/Orcamentos'
 import Atividades from './pages/Atividades'
+import ExecucaoOS from './pages/ExecucaoOS'
 import { CentralAtendimento } from './pages/CentralAtendimento'
 import ImportarClientes from './pages/ImportarClientes'
 import Login from './pages/Login'
@@ -42,6 +43,7 @@ const App = () => (
               <Route path="/orcamentos" element={<Orcamentos />} />
               <Route path="/projetos" element={<Projetos />} />
               <Route path="/atividades" element={<Atividades />} />
+              <Route path="/execucao-os" element={<ExecucaoOS />} />
               <Route path="/manutencoes" element={<Manutencoes />} />
               <Route path="/clientes" element={<Clientes />} />
               <Route path="/importar-clientes" element={<ImportarClientes />} />

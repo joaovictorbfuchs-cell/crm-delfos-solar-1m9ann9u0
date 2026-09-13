@@ -760,6 +760,59 @@ export interface ServicoAvulso extends RecordModel {
   }
 }
 
+// -------------------------------------------------------------
+// Tipos para Execução de Ordens de Serviço (OS) e Templates
+// -------------------------------------------------------------
+
+export type OSTipoServico =
+  | 'Limpeza'
+  | 'Manutenção'
+  | 'Instalação'
+  | 'Garantia'
+  | 'Configuração de Datalogger'
+
+export type OSStatus = 'pendente' | 'concluida' | 'cancelada'
+
+export interface OSChecklistItem {
+  id: string
+  item: string
+  concluido: boolean
+}
+
+export interface OSTemplate extends RecordModel {
+  id: string
+  collectionId: string
+  collectionName: string
+  tipo_servico: OSTipoServico
+  instrucoes?: string
+  created: string
+  updated: string
+}
+
+export interface OrdemServico extends RecordModel {
+  id: string
+  collectionId: string
+  collectionName: string
+  cliente_id: string
+  tipo_servico: OSTipoServico
+  endereco?: string
+  data_agendada: string
+  status: OSStatus
+  atribuida_a?: string
+  profissional_id?: string
+  instrucoes?: string
+  checklist?: OSChecklistItem[]
+  detalhes_execucao?: string
+  fotos?: string[]
+  concluida_em?: string
+  created: string
+  updated: string
+  expand?: {
+    cliente_id?: Cliente
+    profissional_id?: Profissional
+  }
+}
+
 export interface PropostaOM extends RecordModel {
   id: string
   collectionId: string

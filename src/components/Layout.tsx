@@ -85,6 +85,8 @@ export default function Layout() {
         return 'Projetos & Pós-Venda'
       case '/atividades':
         return 'Atividades & Calendário'
+      case '/execucao-os':
+        return 'Execução de OS'
       case '/manutencoes':
         return 'Contratos & Manutenções (O&M)'
       case '/central-atendimento':
@@ -111,6 +113,7 @@ export default function Layout() {
     { name: 'Orçamentos', path: '/orcamentos', icon: Sun },
     { name: 'Projetos', path: '/projetos', icon: FolderKanban },
     { name: 'Atividades', path: '/atividades', icon: CalendarCheck },
+    { name: 'Execução de OS', path: '/execucao-os', icon: Wrench },
     { name: 'O&M / Manutenções', path: '/manutencoes', icon: Wrench },
     { name: 'Clientes', path: '/clientes', icon: Users },
     { name: 'Importar Clientes', path: '/importar-clientes', icon: FileSpreadsheet },

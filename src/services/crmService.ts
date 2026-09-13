@@ -1413,3 +1413,193 @@ export async function deleteTipoAtividadeCustom(id: string): Promise<boolean> {
   await pb.collection('tipos_atividades_custom').delete(id)
   return true
 }
+
+// -------------------------------------------------------------
+// Ordens de Serviço (OS) & Templates de Execução Services
+// -------------------------------------------------------------
+
+export async function fetchOSTemplates(): Promise<import('@/types/crm').OSTemplate[]> {
+  try {
+    const records = await pb
+      .collection('os_templates')
+      .getFullList<import('@/types/crm').OSTemplate>({
+        sort: 'tipo_servico',
+      })
+    return records
+  } catch (err) {
+    console.error('Erro ao buscar templates de OS:', err)
+    return []
+  }
+}
+
+export async function saveOSTemplate(
+  tipo_servico: import('@/types/crm').OSTipoServico,
+  instrucoes: string,
+): Promise<import('@/types/crm').OSTemplate> {
+  try {
+    const existing = await pb
+      .collection('os_templates')
+      .getFirstListItem<import('@/types/crm').OSTemplate>(`tipo_servico='${tipo_servico}'`)
+    return await pb
+      .collection('os_templates')
+      .update<import('@/types/crm').OSTemplate>(existing.id, {
+        instrucoes,
+      })
+  } catch (_) {
+    return await pb.collection('os_templates').create<import('@/types/crm').OSTemplate>({
+      tipo_servico,
+      instrucoes,
+    })
+  }
+}
+
+export async function fetchOrdensServico(
+  filterStatus?: import('@/types/crm').OSStatus,
+): Promise<import('@/types/crm').OrdemServico[]> {
+  try {
+    const filter = filterStatus ? `status='${filterStatus}'` : ''
+    const records = await pb
+      .collection('ordens_servico')
+      .getFullList<import('@/types/crm').OrdemServico>({
+        filter: filter || undefined,
+        sort: 'data_agendada,-created',
+        expand: 'cliente_id,profissional_id',
+      })
+    return records
+  } catch (err) {
+    console.error('Erro ao buscar ordens de serviço:', err)
+    return []
+  }
+}
+
+export async function fetchOrdemServicoById(
+  id: string,
+): Promise<import('@/types/crm').OrdemServico | null> {
+  try {
+    const record = await pb
+      .collection('ordens_servico')
+      .getOne<import('@/types/crm').OrdemServico>(id, {
+        expand: 'cliente_id,profissional_id',
+      })
+    return record
+  } catch (err) {
+    console.error('Erro ao obter ordem de serviço:', err)
+    return null
+  }
+}
+
+export async function createOrdemServico(data: {
+  cliente_id: string
+  tipo_servico: import('@/types/crm').OSTipoServico
+  endereco?: string
+  data_agendada: string
+  status?: import('@/types/crm').OSStatus
+  atribuida_a?: string
+  profissional_id?: string
+  instrucoes?: string
+  checklist?: import('@/types/crm').OSChecklistItem[]
+  detalhes_execucao?: string
+}): Promise<import('@/types/crm').OrdemServico> {
+  const payload = {
+    ...data,
+    status: data.status || 'pendente',
+    checklist: data.checklist || [],
+    detalhes_execucao: data.detalhes_execucao || '',
+  }
+  const record = await pb
+    .collection('ordens_servico')
+    .create<import('@/types/crm').OrdemServico>(payload, {
+      expand: 'cliente_id,profissional_id',
+    })
+  return record
+}
+
+export async function updateOrdemServico(
+  id: string,
+  data: Partial<import('@/types/crm').OrdemServico>,
+  newPhotos?: File[],
+): Promise<import('@/types/crm').OrdemServico> {
+  if (newPhotos && newPhotos.length > 0) {
+    const formData = new FormData()
+    Object.entries(data).forEach(([key, val]) => {
+      if (val !== undefined && val !== null && key !== 'fotos') {
+        if (typeof val === 'object') {
+          formData.append(key, JSON.stringify(val))
+        } else {
+          formData.append(key, String(val))
+        }
+      }
+    })
+    for (const file of newPhotos) {
+      formData.append('fotos', file)
+    }
+    const record = await pb
+      .collection('ordens_servico')
+      .update<import('@/types/crm').OrdemServico>(id, formData, {
+        expand: 'cliente_id,profissional_id',
+      })
+    return record
+  }
+
+  const record = await pb
+    .collection('ordens_servico')
+    .update<import('@/types/crm').OrdemServico>(id, data, {
+      expand: 'cliente_id,profissional_id',
+    })
+  return record
+}
+
+export async function finalizarOrdemServico(
+  id: string,
+  dadosFinalizacao: {
+    checklist?: import('@/types/crm').OSChecklistItem[]
+    detalhes_execucao: string
+    newPhotos?: File[]
+    cliente_id?: string
+    tipo_servico?: string
+    tecnico_nome?: string
+  },
+): Promise<import('@/types/crm').OrdemServico> {
+  const concluida_em = new Date().toISOString()
+  const payload: Partial<import('@/types/crm').OrdemServico> = {
+    status: 'concluida',
+    concluida_em,
+    detalhes_execucao: dadosFinalizacao.detalhes_execucao,
+  }
+  if (dadosFinalizacao.checklist) {
+    payload.checklist = dadosFinalizacao.checklist
+  }
+
+  const updatedOS = await updateOrdemServico(id, payload, dadosFinalizacao.newPhotos)
+
+  // Registrar atividade na timeline/histórico do cliente
+  if (dadosFinalizacao.cliente_id) {
+    try {
+      const tipoAtividade =
+        dadosFinalizacao.tipo_servico === 'Instalação'
+          ? 'instalacao'
+          : dadosFinalizacao.tipo_servico === 'Configuração de Datalogger'
+            ? 'configuracao_datalogger'
+            : dadosFinalizacao.tipo_servico === 'Garantia'
+              ? 'garantia_equipamento'
+              : 'limpeza_manutencao'
+
+      await createAtividade({
+        cliente_id: dadosFinalizacao.cliente_id,
+        tipo: tipoAtividade,
+        titulo: `OS Finalizada: ${dadosFinalizacao.tipo_servico || 'Serviço em Campo'}`,
+        descricao:
+          `Ordem de Serviço #${id} finalizada com sucesso.\n` +
+          `Técnico / Instalador: ${dadosFinalizacao.tecnico_nome || updatedOS.atribuida_a || 'Instalador em campo'}\n` +
+          `Observações e detalhes técnicos:\n${dadosFinalizacao.detalhes_execucao || 'Nenhum detalhe adicional informado.'}`,
+        status: 'concluida',
+        data: concluida_em,
+        autor: dadosFinalizacao.tecnico_nome || updatedOS.atribuida_a || 'Instalador Campo',
+      })
+    } catch (ativErr) {
+      console.warn('Não foi possível registrar atividade de conclusão da OS:', ativErr)
+    }
+  }
+
+  return updatedOS
+}
