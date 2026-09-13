@@ -696,7 +696,13 @@ export const ListaOM: React.FC<ListaOMProps> = ({
                       return (
                         <tr
                           key={item.cliente.id}
-                          onClick={() => onOpenFichaOM(item.cliente.id)}
+                          onClick={() => {
+                            if (openFichaCliente) {
+                              openFichaCliente(item.cliente.id, 'om')
+                            } else {
+                              onOpenFichaOM(item.cliente.id)
+                            }
+                          }}
                           className="hover:bg-emerald-50/40 transition-colors cursor-pointer group"
                         >
                           {/* Cliente & Local */}
@@ -840,9 +846,15 @@ export const ListaOM: React.FC<ListaOMProps> = ({
                               {/* Acesso rápido Ficha O&M */}
                               <button
                                 type="button"
-                                onClick={() => onOpenFichaOM(item.cliente.id)}
+                                onClick={() => {
+                                  if (openFichaCliente) {
+                                    openFichaCliente(item.cliente.id, 'om')
+                                  } else {
+                                    onOpenFichaOM(item.cliente.id)
+                                  }
+                                }}
                                 className="inline-flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-bold text-gray-600 hover:text-emerald-700 hover:bg-emerald-50 transition-colors"
-                                title="Abrir Ficha O&M completa"
+                                title="Abrir Ficha do cliente na aba O&M"
                               >
                                 <span>Ficha</span>
                                 <ChevronRight className="w-3.5 h-3.5" />
@@ -861,7 +873,13 @@ export const ListaOM: React.FC<ListaOMProps> = ({
                 {itensPlanoFiltrados.map((item) => (
                   <div
                     key={item.cliente.id}
-                    onClick={() => onOpenFichaOM(item.cliente.id)}
+                    onClick={() => {
+                      if (openFichaCliente) {
+                        openFichaCliente(item.cliente.id, 'om')
+                      } else {
+                        onOpenFichaOM(item.cliente.id)
+                      }
+                    }}
                     className="bg-white rounded-xl border border-emerald-200/90 p-4 shadow-xs hover:border-emerald-400 transition-colors cursor-pointer space-y-3"
                   >
                     <div className="flex items-start justify-between gap-2">
@@ -979,7 +997,13 @@ export const ListaOM: React.FC<ListaOMProps> = ({
 
                         <button
                           type="button"
-                          onClick={() => onOpenFichaOM(item.cliente.id)}
+                          onClick={() => {
+                            if (openFichaCliente) {
+                              openFichaCliente(item.cliente.id, 'om')
+                            } else {
+                              onOpenFichaOM(item.cliente.id)
+                            }
+                          }}
                           className="font-bold text-emerald-700 flex items-center gap-1 text-[11px]"
                         >
                           <span>Ficha</span>

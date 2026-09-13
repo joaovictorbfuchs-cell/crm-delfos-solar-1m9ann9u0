@@ -12,7 +12,9 @@ import {
 } from 'lucide-react'
 import { useClientes } from '@/contexts/ClientesContext'
 import { formatCurrency, formatDate } from '@/lib/formatters'
-import type { OMPlanoTipo, OMStatusPlano } from '@/types/crm'
+import type { OMPlanoTipo, OMStatusPlano, PropostaOM } from '@/types/crm'
+import { ModalGerarProcuracaoOM } from './ModalGerarProcuracaoOM'
+import { toast } from 'sonner'
 
 interface FichaClienteOMProps {
   clienteId: string
@@ -20,7 +22,11 @@ interface FichaClienteOMProps {
 }
 
 export const FichaClienteOM: React.FC<FichaClienteOMProps> = ({ clienteId, onNavigateToTab }) => {
-  const { clientes, sistemas, contratosOM, addContratoOM, addAtividade } = useClientes()
+  const { clientes, sistemas, contratosOM, propostasOM, addContratoOM, addAtividade } =
+    useClientes()
+
+  // Modais de Procuração e Contrato O&M
+  const [modalProcuracaoOpen, setModalProcuracaoOpen] = useState(false)
 
   // Modal Oferecer / Criar Contrato de Plano
   const [modalOferecerPlano, setModalOferecerPlano] = useState(false)
@@ -39,6 +45,27 @@ export const FichaClienteOM: React.FC<FichaClienteOMProps> = ({ clienteId, onNav
   const todosContratosCliente = useMemo(() => {
     return contratosOM.filter((c) => c.cliente_id === clienteId)
   }, [contratosOM, clienteId])
+
+  // Propostas O&M do cliente
+  const propostasCliente = useMemo(() => {
+    return (propostasOM || [])
+      .filter((p) => p.cliente_id === clienteId)
+      .sort(
+        (a, b) =>
+          new Date(b.data_proposta || b.created).getTime() -
+          new Date(a.data_proposta || a.created).getTime(),
+      )
+  }, [propostasOM, clienteId])
+
+  // Proposta O&M aprovada / fechada
+  const propostaAprovada = useMemo<PropostaOM | null>(() => {
+    return (
+      propostasCliente.find((p) => {
+        const s = (p.status || '').toLowerCase().trim()
+        return s === 'aprovado' || s === 'aprovada' || s === 'fechado' || s === 'fechada'
+      }) || null
+    )
+  }, [propostasCliente])
 
   const contrato = useMemo(() => {
     return (
@@ -246,6 +273,65 @@ export const FichaClienteOM: React.FC<FichaClienteOMProps> = ({ clienteId, onNav
           </div>
         </div>
       </div>
+
+      {/* 1.1 BLOCO DE DOCUMENTAÇÃO O&M (PROCURAÇÃO E CONTRATO) QUANDO HOUVER PROPOSTA FECHADA/APROVADA */}
+      {propostaAprovada && (
+        <div className="p-4 sm:p-5 rounded-2xl border-2 border-emerald-300 bg-gradient-to-br from-emerald-50/90 via-white to-teal-50/70 shadow-xs space-y-4">
+          <div className="flex items-start sm:items-center justify-between flex-wrap gap-2 pb-3 border-b border-emerald-200">
+            <div className="flex items-center gap-2.5">
+              <div className="p-2.5 bg-emerald-600 text-white rounded-xl shadow-xs">
+                <FileText className="w-5 h-5" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h4 className="text-sm sm:text-base font-bold text-gray-900">
+                    Documentos O&M — Proposta Fechada
+                  </h4>
+                  <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300">
+                    Status: {propostaAprovada.status || 'Aprovado'}
+                  </span>
+                </div>
+                <p className="text-xs text-gray-600 mt-0.5">
+                  Proposta O&M Plano {propostaAprovada.plano_escolhido || 'Padrão'} (
+                  {propostaAprovada.potencia_kwp} kWp) aprovada. Gere a procuração e o contrato com
+                  os dados do cliente.
+                </p>
+              </div>
+            </div>
+
+            <span className="text-xs font-bold text-emerald-800 bg-white px-3 py-1.5 rounded-xl border border-emerald-200 shadow-2xs">
+              {formatCurrency(propostaAprovada.valor_mensal_plano || 0)}/mês •{' '}
+              {formatCurrency(propostaAprovada.valor_anual_plano || 0)}/ano
+            </span>
+          </div>
+
+          {/* Botões de Ação Solicitados: Gerar Procuração e Gerar Contrato */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
+            <button
+              type="button"
+              onClick={() => setModalProcuracaoOpen(true)}
+              className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-[#16A34A] hover:bg-[#15803D] active:bg-[#166534] text-white text-xs sm:text-sm font-bold rounded-xl shadow-xs transition-all hover:scale-[1.01]"
+            >
+              <FileText className="w-4 h-4" />
+              <span>Gerar Procuração</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                toast.info('Geração de contrato estará disponível em breve.', {
+                  description:
+                    'O modelo de contrato de prestação de serviços O&M está em fase final de homologação.',
+                })
+              }}
+              className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-white hover:bg-emerald-50/60 active:bg-emerald-100/60 text-emerald-800 border-2 border-emerald-300 text-xs sm:text-sm font-bold rounded-xl shadow-2xs transition-all hover:scale-[1.01]"
+            >
+              <ShieldCheck className="w-4 h-4 text-emerald-600" />
+              <span>Gerar Contrato</span>
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* 2. CONTRATO VIGENTE E STATUS DO PLANO O&M */}
       {!contrato ? (
@@ -548,6 +634,32 @@ export const FichaClienteOM: React.FC<FichaClienteOMProps> = ({ clienteId, onNav
             </div>
           </form>
         </div>
+      )}
+
+      {/* Modal / Tela de Pré-Revisão e Pré-Visualização da Procuração Particular */}
+      {cliente && (
+        <ModalGerarProcuracaoOM
+          open={modalProcuracaoOpen}
+          onOpenChange={setModalProcuracaoOpen}
+          cliente={cliente}
+          propostaOM={propostaAprovada}
+          onDocumentoGerado={async (dados) => {
+            // Registra a atividade da procuração na linha do tempo
+            try {
+              await addAtividade({
+                cliente_id: cliente.id,
+                tipo: 'outro',
+                titulo: 'Procuração Particular O&M Gerada',
+                descricao: `Procuração gerada para ${dados.nome} (CPF ${dados.cpf}) para atos junto à concessionária de energia.`,
+                data: new Date().toISOString(),
+                status: 'concluida',
+                autor: 'CRM Delfos Solar',
+              })
+            } catch {
+              /* intentionally ignored */
+            }
+          }}
+        />
       )}
     </div>
   )
