@@ -34,7 +34,7 @@ export type SortDirection = 'asc' | 'desc'
 
 export default function Clientes() {
   const navigate = useNavigate()
-  const { clientes, isLoading, openFichaCliente, addCliente } = useClientes()
+  const { clientes, isLoading, openFichaCliente, addCliente, updateClienteStatus } = useClientes()
   const [searchTerm, setSearchTerm] = useState('')
   const [isModalNovoOpen, setIsModalNovoOpen] = useState(false)
 
@@ -877,6 +877,24 @@ export default function Clientes() {
                     {/* Ações */}
                     <td className="py-3 px-4 text-right">
                       <div className="inline-flex items-center gap-1.5">
+                        {c.status === 'Perdido' && (
+                          <button
+                            onClick={async (e) => {
+                              e.stopPropagation()
+                              const confirmou = window.confirm(
+                                `Deseja reativar o cliente "${c.nome}" e devolver ao funil como Novo Lead?`,
+                              )
+                              if (confirmou) {
+                                await updateClienteStatus(c.id, 'Novo Lead')
+                              }
+                            }}
+                            className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-colors shadow-2xs"
+                            title="Reativar cliente como Novo Lead"
+                          >
+                            <RotateCcw className="w-3.5 h-3.5" />
+                            <span>Reativar</span>
+                          </button>
+                        )}
                         <button
                           onClick={(e) => {
                             e.stopPropagation()
@@ -960,6 +978,24 @@ export default function Clientes() {
                     {formatCurrency(c.valor_estimado)}
                   </span>
                   <div className="flex items-center gap-1.5">
+                    {c.status === 'Perdido' && (
+                      <button
+                        onClick={async (e) => {
+                          e.stopPropagation()
+                          const confirmou = window.confirm(
+                            `Deseja reativar o cliente "${c.nome}" e devolver ao funil como Novo Lead?`,
+                          )
+                          if (confirmou) {
+                            await updateClienteStatus(c.id, 'Novo Lead')
+                          }
+                        }}
+                        className="inline-flex items-center gap-1 text-xs font-bold text-white bg-emerald-600 px-2.5 py-1 rounded-md shadow-2xs"
+                        title="Reativar cliente"
+                      >
+                        <RotateCcw className="w-3.5 h-3.5" />
+                        Reativar
+                      </button>
+                    )}
                     <button
                       onClick={(e) => {
                         e.stopPropagation()

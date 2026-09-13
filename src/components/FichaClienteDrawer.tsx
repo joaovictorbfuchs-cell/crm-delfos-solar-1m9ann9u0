@@ -34,6 +34,7 @@ import {
   MessageSquare,
   Copy,
   XCircle,
+  RotateCcw,
 } from 'lucide-react'
 import { useClientes } from '@/contexts/ClientesContext'
 import {
@@ -697,7 +698,86 @@ export const FichaClienteDrawer: React.FC = () => {
                 await handleUpdateClienteField('nome', str)
               }}
             />
-            <StatusBadge status={selectedCliente.status} />
+            <InlineEditField
+              value={selectedCliente.status}
+              displayValue={<StatusBadge status={selectedCliente.status} />}
+              type="select"
+              options={ETAPAS_STATUS.map((e) => ({ value: e.value, label: e.label }))}
+              onSave={async (val) => {
+                const novoStatus = val as ClienteStatus
+                if (novoStatus === selectedCliente.status) return
+                if (novoStatus === 'Perdido') {
+                  const confirmou = window.confirm(
+                    `Deseja marcar "${selectedCliente.nome}" como Perdido?\n\nO cliente sairá do funil de vendas comercial e ficará registrado como Perdido apenas na gestão de clientes.`,
+                  )
+                  if (!confirmou) {
+                    return
+                  }
+                }
+                await updateClienteStatus(selectedCliente.id, novoStatus)
+              }}
+            />
+            {selectedCliente.status === 'Perdido' && (
+              <>
+                <span className="text-[10px] font-semibold text-rose-600 bg-rose-50 px-2 py-0.5 rounded-md border border-rose-200">
+                  Fora do funil
+                </span>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    const confirmou = window.confirm(
+                      `Deseja reativar o cliente "${selectedCliente.nome}" e devolvê-lo ao funil de vendas?`,
+                    )
+                    if (!confirmou) return
+
+                    // Descobrir estágio anterior a partir do histórico de atividades
+                    const statusValidos: ClienteStatus[] = [
+                      'Novo Lead',
+                      'Levantamento',
+                      'Orçamento',
+                      'Negociação',
+                      'Fechado',
+                      'Contato Futuro',
+                    ]
+                    let estagioDestino: ClienteStatus = 'Novo Lead'
+
+                    // Procura a última atividade de mudança de estágio para Perdido
+                    const atvsCliente = atividades
+                      .filter((a) => a.cliente_id === selectedCliente.id)
+                      .sort(
+                        (a, b) =>
+                          new Date(b.data || b.created).getTime() -
+                          new Date(a.data || a.created).getTime(),
+                      )
+
+                    for (const atv of atvsCliente) {
+                      const titulo = atv.titulo || ''
+                      // Formato: "Mudança de estágio: {anterior} → Perdido"
+                      const match = titulo.match(
+                        /Mudança de estágio:\s*([^\s→]+(?:\s+[^\s→]+)*)\s*→\s*Perdido/i,
+                      )
+                      if (match && match[1]) {
+                        const anteriorCandidato = match[1].trim() as ClienteStatus
+                        if (
+                          statusValidos.includes(anteriorCandidato) &&
+                          anteriorCandidato !== 'Perdido'
+                        ) {
+                          estagioDestino = anteriorCandidato
+                          break
+                        }
+                      }
+                    }
+
+                    await updateClienteStatus(selectedCliente.id, estagioDestino)
+                  }}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 rounded-lg shadow-xs transition-all hover:scale-[1.02]"
+                  title="Reativar cliente e devolver ao funil de vendas"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  <span>Reativar cliente</span>
+                </button>
+              </>
+            )}
             <OrigemClienteBadge cliente={selectedCliente} showSublabel />
             <InlineEditField
               value={selectedCliente.produto || 'Energia Solar'}
@@ -3068,65 +3148,6 @@ export const FichaClienteDrawer: React.FC = () => {
                   </p>
                 </div>
               )}
-            </div>
-
-            {/* Card 2: Estágio Atual no Funil (com seletor rápido) */}
-            <div className="bg-white rounded-xl p-3.5 border border-gray-200 shadow-xs space-y-2">
-              <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider block">
-                Estágio / Status
-              </span>
-              <div className="flex items-center justify-between gap-2">
-                <StatusBadge status={selectedCliente.status} />
-                {selectedCliente.status === 'Perdido' && (
-                  <span className="text-[10px] font-medium text-rose-600 bg-rose-50 px-2 py-0.5 rounded-md border border-rose-200">
-                    Fora do funil
-                  </span>
-                )}
-              </div>
-              <div className="pt-1 border-t border-gray-100">
-                <label className="text-[10px] text-gray-400 block mb-1 font-semibold uppercase">
-                  Mudar estágio rapidamente:
-                </label>
-                <select
-                  value={selectedCliente.status}
-                  onChange={async (e) => {
-                    const novoStatus = e.target.value as ClienteStatus
-                    await updateClienteStatus(selectedCliente.id, novoStatus)
-                  }}
-                  className="w-full text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-gray-200 bg-white text-gray-800 focus:outline-none focus:ring-1 focus:ring-emerald-500 cursor-pointer shadow-2xs"
-                >
-                  {ETAPAS_STATUS.map((e) => (
-                    <option key={e.value} value={e.value}>
-                      {e.label}
-                    </option>
-                  ))}
-                </select>
-                {selectedCliente.status === 'Perdido' ? (
-                  <p className="text-[11px] text-rose-600 mt-1.5 leading-snug">
-                    Este cliente está como <strong>Perdido</strong>. Ele permanece na gestão de
-                    clientes (/clientes), mas não aparece no funil de vendas Kanban.
-                  </p>
-                ) : (
-                  <div className="mt-2 pt-2 border-t border-dashed border-gray-200 flex justify-end">
-                    <button
-                      type="button"
-                      onClick={async () => {
-                        const confirmou = window.confirm(
-                          `Deseja marcar "${selectedCliente.nome}" como Perdido?\n\nO cliente sairá do funil de vendas comercial e ficará registrado como Perdido apenas na gestão de clientes.`,
-                        )
-                        if (confirmou) {
-                          await updateClienteStatus(selectedCliente.id, 'Perdido')
-                        }
-                      }}
-                      className="text-[11px] font-medium text-rose-600 hover:text-rose-800 hover:underline inline-flex items-center gap-1 transition-colors"
-                      title="Marcar cliente como negócio perdido e remover do funil"
-                    >
-                      <XCircle className="w-3 h-3 text-rose-500" />
-                      Marcar como Perdido
-                    </button>
-                  </div>
-                )}
-              </div>
             </div>
 
             {/* Card 3: Valor Estimado */}
