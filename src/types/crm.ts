@@ -166,6 +166,12 @@ export interface Cliente extends RecordModel {
   monitoramento_login?: string
   monitoramento_senha?: string
   monitoramento_datalogger_url?: string
+  // Dados de Acesso ao App Solarview
+  solarview_login?: string
+  solarview_senha?: string
+  solarview_link_ios?: string
+  solarview_link_android?: string
+  solarview_link_texto?: string
   created: string
   updated: string
 }
@@ -504,6 +510,12 @@ export interface Sistema extends RecordModel {
   monitoramento_login?: string
   monitoramento_senha?: string
   monitoramento_datalogger_url?: string
+  // Dados de Acesso ao App Solarview
+  solarview_login?: string
+  solarview_senha?: string
+  solarview_link_ios?: string
+  solarview_link_android?: string
+  solarview_link_texto?: string
   created: string
   updated: string
   expand?: {

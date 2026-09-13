@@ -13,10 +13,13 @@ import {
   Save,
   CheckCircle2,
   Info,
+  Send,
+  AlertCircle,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import type { Cliente, Sistema, MonitoramentoMarca } from '@/types/crm'
 import { fetchMonitoramentoMarcas, saveOrUpdateMonitoramentoMarca } from '@/services/crmService'
+import { cleanPhoneDigits } from '@/lib/formatters'
 
 interface SecaoMonitoramentoInversorProps {
   cliente: Cliente
@@ -224,6 +227,39 @@ export const SecaoMonitoramentoInversor: React.FC<SecaoMonitoramentoInversorProp
   }
 
   const linkHref = getHrefDatalogger(dataloggerUrl)
+
+  // Validação de telefone para envio pelo WhatsApp
+  const telefoneCru = cliente.whatsapp || cliente.telefone || ''
+  const telefoneDigitos = cleanPhoneDigits(telefoneCru)
+  const temTelefoneValido = telefoneDigitos.length >= 10
+
+  // Disparo de credenciais pelo WhatsApp (wa.me)
+  const handleEnviarWhatsApp = () => {
+    if (!temTelefoneValido) {
+      toast.error('O cliente não possui telefone de contato cadastrado na ficha.')
+      return
+    }
+
+    const ddiNumero = telefoneDigitos.startsWith('55') ? telefoneDigitos : `55${telefoneDigitos}`
+    const primeiroNome = (cliente.nome || 'Cliente').split(' ')[0]
+
+    const linhasMensagem = [
+      `Olá ${primeiroNome}! Seguem seus dados de acesso ao monitoramento do inversor:`,
+      '',
+      appNome ? `📱 *Aplicativo:* ${appNome}` : null,
+      login ? `👤 *Login:* ${login}` : null,
+      senha ? `🔒 *Senha:* ${senha}` : null,
+      dataloggerUrl ? `📶 *Link do Datalogger:* ${dataloggerUrl}` : null,
+      marcaAtual ? `⚡ *Inversor:* ${marcaAtual}` : null,
+      '',
+      'Qualquer dúvida sobre a configuração ou primeiro acesso, estamos à disposição!',
+    ].filter((l) => l !== null)
+
+    const textoFormatado = linhasMensagem.join('\n')
+    const url = `https://wa.me/${ddiNumero}?text=${encodeURIComponent(textoFormatado)}`
+    window.open(url, '_blank')
+    toast.success('WhatsApp aberto com os dados de acesso ao monitoramento!')
+  }
 
   return (
     <div className="p-3.5 bg-gradient-to-br from-purple-50/70 via-indigo-50/40 to-blue-50/50 rounded-xl border border-purple-200/80 shadow-xs space-y-3.5">
@@ -464,6 +500,26 @@ export const SecaoMonitoramentoInversor: React.FC<SecaoMonitoramentoInversorProp
         </div>
 
         <div className="flex items-center gap-2">
+          {/* Botão de Enviar Credenciais de Monitoramento pelo WhatsApp */}
+          <button
+            type="button"
+            onClick={handleEnviarWhatsApp}
+            disabled={!temTelefoneValido}
+            title={
+              temTelefoneValido
+                ? `Enviar credenciais via WhatsApp para ${telefoneCru}`
+                : 'Cliente sem telefone de contato cadastrado na ficha'
+            }
+            className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg transition-all shadow-2xs ${
+              temTelefoneValido
+                ? 'bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white cursor-pointer hover:scale-[1.01]'
+                : 'bg-gray-100 text-gray-400 border border-gray-200 cursor-not-allowed opacity-70'
+            }`}
+          >
+            <Send className="w-3.5 h-3.5" />
+            <span>Enviar credenciais pelo WhatsApp</span>
+          </button>
+
           {marcaAtual && (
             <button
               type="button"
@@ -487,6 +543,17 @@ export const SecaoMonitoramentoInversor: React.FC<SecaoMonitoramentoInversorProp
           </button>
         </div>
       </div>
+
+      {/* Aviso caso cliente não tenha telefone */}
+      {!temTelefoneValido && (
+        <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-amber-50/80 border border-amber-200 text-[11px] text-amber-800">
+          <AlertCircle className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+          <span>
+            Cliente sem telefone/WhatsApp válido cadastrado. Cadastre o telefone na coluna da
+            direita para habilitar o envio por WhatsApp com um clique.
+          </span>
+        </div>
+      )}
     </div>
   )
 }

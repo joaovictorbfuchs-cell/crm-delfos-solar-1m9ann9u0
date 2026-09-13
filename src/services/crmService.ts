@@ -1689,3 +1689,15 @@ export async function saveOrUpdateMonitoramentoMarca(data: {
     return created
   }
 }
+
+// -------------------------------------------------------------
+// Helpers para Links e Acesso Solarview
+// -------------------------------------------------------------
+
+export const DEFAULT_SOLARVIEW_CONFIG = {
+  nome: 'Solarview',
+  link_ios: 'https://apps.apple.com/br/app/solarview/id1453416568',
+  link_android: 'https://play.google.com/store/apps/details?id=com.solarview.smartview',
+  link_texto:
+    'Baixe o app Solarview para acompanhar a geração do seu sistema em tempo real na palma da mão!',
+}

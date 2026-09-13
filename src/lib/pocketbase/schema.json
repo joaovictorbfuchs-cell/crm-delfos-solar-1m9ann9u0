@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-13T23:17:35.155Z",
+  "generatedAt": "2026-09-13T23:26:08.239Z",
   "collections": [
     {
       "name": "users",
@@ -422,6 +422,36 @@
           "type": "text",
           "required": false,
           "system": false
+        },
+        {
+          "name": "solarview_login",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "solarview_senha",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "solarview_link_ios",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "solarview_link_android",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "solarview_link_texto",
+          "type": "text",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": [
@@ -818,6 +848,36 @@
         },
         {
           "name": "monitoramento_datalogger_url",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "solarview_login",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "solarview_senha",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "solarview_link_ios",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "solarview_link_android",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "solarview_link_texto",
           "type": "text",
           "required": false,
           "system": false

@@ -66,6 +66,7 @@ import { ModalGerenciarAtividades } from './ModalGerenciarAtividades'
 import { ModalGerarProcuracaoOM } from './ModalGerarProcuracaoOM'
 import { ModalGerarContratoOM } from './ModalGerarContratoOM'
 import { SecaoMonitoramentoInversor } from './SecaoMonitoramentoInversor'
+import { SecaoAcessoSolarview } from './SecaoAcessoSolarview'
 import { toast } from 'sonner'
 import type {
   TipoDocumentoProjeto,
@@ -2954,6 +2955,14 @@ export const FichaClienteDrawer: React.FC = () => {
 
                         {/* Monitoramento do Inversor (App, Login, Senha, Link Datalogger & Padrões por Marca) */}
                         <SecaoMonitoramentoInversor
+                          cliente={selectedCliente}
+                          sistema={selectedSistema}
+                          onUpdateClienteField={handleUpdateClienteField}
+                          onUpdateSistemaField={handleUpdateSistemaField}
+                        />
+
+                        {/* Acesso ao Aplicativo Solarview (Login, Senha, Links iOS/Android & Envio WhatsApp) */}
+                        <SecaoAcessoSolarview
                           cliente={selectedCliente}
                           sistema={selectedSistema}
                           onUpdateClienteField={handleUpdateClienteField}
