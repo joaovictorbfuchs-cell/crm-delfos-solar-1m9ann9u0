@@ -477,7 +477,11 @@ export const FichaClienteDrawer: React.FC = () => {
             ? 'Anexo E'
             : tipo === 'anexo_f'
               ? 'Anexo F'
-              : 'Documento'
+              : tipo === 'anexo_g'
+                ? 'Anexo G'
+                : tipo === 'troca_titularidade'
+                  ? 'Troca de Titularidade'
+                  : 'Documento'
 
     // 1. Persiste o status como aguardando_assinatura (ou mantém assinado se já estava)
     const docAtual = getDocumentoCliente(tipo)
@@ -2879,6 +2883,15 @@ export const FichaClienteDrawer: React.FC = () => {
                   <QuickAddAtividade
                     clienteId={selectedCliente.id}
                     onOpenGerenciar={() => setModalGerenciarAtividadesOpen(true)}
+                    onSelectTipoEspecial={(tipoId) => {
+                      if (tipoId === 'anexo_g') {
+                        handleAbrirDocumentoProjeto('anexo_g', propostaAprovada)
+                      } else if (tipoId === 'troca_titularidade') {
+                        handleAbrirDocumentoProjeto('troca_titularidade', propostaAprovada)
+                      } else if (tipoId === 'transferencia_creditos') {
+                        setModalTransferenciaCreditosOpen(true)
+                      }
+                    }}
                   />
 
                   {/* ======================================================== */}
@@ -3488,14 +3501,38 @@ export const FichaClienteDrawer: React.FC = () => {
         onConfirmado={async (dados) => {
           // Registra ou atualiza status inicial do documento
           if (selectedCliente) {
+            const agoraIso = new Date().toISOString()
             const docExistente = getDocumentoCliente(dados.tipo)
             if (!docExistente) {
               await addOrUpdateDocumentoCliente({
                 cliente_id: selectedCliente.id,
                 tipo: dados.tipo,
                 status_assinatura: 'aguardando_assinatura',
-                data_envio: new Date().toISOString(),
+                data_envio: agoraIso,
                 autor: 'CRM Delfos Solar',
+              })
+            }
+
+            // Registra atividade correspondente na Linha do Tempo se for anexo_g ou troca_titularidade
+            if (dados.tipo === 'anexo_g') {
+              await addAtividade({
+                cliente_id: selectedCliente.id,
+                tipo: 'anexo_g' as AtividadeTipo,
+                titulo: 'Anexo G — Rateio / Compensação',
+                descricao: `Formulário do Anexo G (SCEE) elaborado para a UC ${dados.numeroUC || selectedCliente.numero_uc || 'N/I'}${dados.ucDestino ? ` com destino à UC ${dados.ucDestino}` : ''}${dados.percentualRateio ? ` (${dados.percentualRateio})` : ''}.`,
+                data: agoraIso,
+                status: 'concluida',
+                autor: 'Pós-Venda Delfos',
+              })
+            } else if (dados.tipo === 'troca_titularidade') {
+              await addAtividade({
+                cliente_id: selectedCliente.id,
+                tipo: 'troca_titularidade' as AtividadeTipo,
+                titulo: 'Troca de Titularidade Solicitada',
+                descricao: `Termo de Troca de Titularidade formulado para a UC ${dados.numeroUC || selectedCliente.numero_uc || 'N/I'}${dados.novoTitularNome ? ` em nome de ${dados.novoTitularNome}` : ''}.`,
+                data: agoraIso,
+                status: 'concluida',
+                autor: 'Pós-Venda Delfos',
               })
             }
           }

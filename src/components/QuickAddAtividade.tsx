@@ -24,12 +24,14 @@ interface QuickAddAtividadeProps {
   clienteId: string
   onSuccess?: () => void
   onOpenGerenciar?: () => void
+  onSelectTipoEspecial?: (tipoId: string) => void
 }
 
 export const QuickAddAtividade: React.FC<QuickAddAtividadeProps> = ({
   clienteId,
   onSuccess,
   onOpenGerenciar,
+  onSelectTipoEspecial,
 }) => {
   const { addAtividade, usuarios, tiposAtividadesCustom } = useClientes()
   const { user } = useAuth()
@@ -79,6 +81,14 @@ export const QuickAddAtividade: React.FC<QuickAddAtividadeProps> = ({
     if (firstOfCat) {
       setSubTipo(firstOfCat.id)
       setTitulo(firstOfCat.tituloPadrao)
+      if (
+        onSelectTipoEspecial &&
+        (firstOfCat.id === 'anexo_g' ||
+          firstOfCat.id === 'troca_titularidade' ||
+          firstOfCat.id === 'transferencia_creditos')
+      ) {
+        onSelectTipoEspecial(firstOfCat.id)
+      }
     }
   }
 
@@ -86,6 +96,14 @@ export const QuickAddAtividade: React.FC<QuickAddAtividadeProps> = ({
   const handleSelectTipo = (item: TipoAtividadeDef) => {
     setSubTipo(item.id)
     setTitulo(item.tituloPadrao)
+    if (
+      onSelectTipoEspecial &&
+      (item.id === 'anexo_g' ||
+        item.id === 'troca_titularidade' ||
+        item.id === 'transferencia_creditos')
+    ) {
+      onSelectTipoEspecial(item.id)
+    }
   }
 
   const handleModeChange = (newMode: 'atividade' | 'anotacao') => {
@@ -302,7 +320,7 @@ export const QuickAddAtividade: React.FC<QuickAddAtividadeProps> = ({
                       <span className="truncate text-[11px] leading-tight block">
                         {item.tituloPadrao}
                       </span>
-                      {!item.isPadrao && (
+                      {!item.isPadrao ? (
                         <span
                           className={`text-[9px] font-normal block ${
                             isSelected ? 'text-emerald-100' : 'text-amber-600'
@@ -310,7 +328,17 @@ export const QuickAddAtividade: React.FC<QuickAddAtividadeProps> = ({
                         >
                           personalizada
                         </span>
-                      )}
+                      ) : item.id === 'anexo_g' ||
+                        item.id === 'troca_titularidade' ||
+                        item.id === 'transferencia_creditos' ? (
+                        <span
+                          className={`text-[9px] font-semibold block ${
+                            isSelected ? 'text-emerald-100' : 'text-emerald-700'
+                          }`}
+                        >
+                          fluxo dedicado ↗
+                        </span>
+                      ) : null}
                     </div>
                   </button>
                 )
