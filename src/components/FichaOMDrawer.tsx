@@ -33,6 +33,7 @@ import type {
   OMStatusPlano,
 } from '@/types/crm'
 import { ModalGerarProcuracaoOM } from './ModalGerarProcuracaoOM'
+import { ModalGerarContratoOM } from './ModalGerarContratoOM'
 import { toast } from 'sonner'
 
 export const SERVICOS_CATALOGO_OM = [
@@ -111,6 +112,7 @@ export const FichaOMDrawer: React.FC = () => {
   } = useClientes()
 
   const [modalProcuracaoOpen, setModalProcuracaoOpen] = useState(false)
+  const [modalContratoOpen, setModalContratoOpen] = useState(false)
 
   const [activeTab, setActiveTab] = useState<
     'contrato' | 'servicos' | 'anomalias' | 'adicionais' | 'historico'
@@ -496,12 +498,7 @@ export const FichaOMDrawer: React.FC = () => {
                   {propostaAprovada && (
                     <button
                       type="button"
-                      onClick={() => {
-                        toast.info('Geração de contrato estará disponível em breve.', {
-                          description:
-                            'O modelo de contrato de prestação de serviços O&M está em fase final de homologação.',
-                        })
-                      }}
+                      onClick={() => setModalContratoOpen(true)}
                       className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-white hover:bg-emerald-50/60 active:bg-emerald-100/60 text-emerald-800 border-2 border-emerald-300 text-xs sm:text-sm font-bold rounded-xl shadow-2xs transition-all hover:scale-[1.01]"
                     >
                       <ShieldCheck className="w-4 h-4 text-emerald-600" />
@@ -1341,6 +1338,48 @@ export const FichaOMDrawer: React.FC = () => {
                 tipo: 'gerar_procuracao',
                 titulo: 'Procuração Particular O&M Gerada',
                 descricao: `Procuração gerada para ${dados.nome} (CPF ${dados.cpf}) para atos perante a concessionária de energia.`,
+                data: new Date().toISOString(),
+                status: 'concluida',
+                autor: 'CRM Delfos Solar',
+              })
+            } catch {
+              /* intentionally ignored */
+            }
+          }}
+        />
+      )}
+
+      {/* Modal / Tela de Pré-Revisão e Pré-Visualização do Contrato O&M */}
+      {cliente && (
+        <ModalGerarContratoOM
+          open={modalContratoOpen}
+          onOpenChange={setModalContratoOpen}
+          cliente={cliente}
+          propostaOM={propostaAprovada}
+          onDocumentoGerado={async (dados) => {
+            try {
+              const { upsertDocumentoCliente } = await import('@/services/crmService')
+              await upsertDocumentoCliente({
+                cliente_id: cliente.id,
+                tipo: 'contrato',
+                status_assinatura: 'aguardando_assinatura',
+                data_envio: new Date().toISOString(),
+                telefone_envio: dados.telefone || cliente.telefone || cliente.whatsapp,
+                canal_envio: 'sistema',
+                autor: 'CRM Delfos Solar',
+                observacoes: `Contrato de Prestação de Serviços O&M (Plano ${dados.planoSelecionado}) emitido para ${dados.nomeRazaoSocial} (${dados.cpfCnpj}). Valor: ${formatCurrency(dados.valorMensal)}/mês.`,
+                dados_documento: dados as any,
+              })
+            } catch (err) {
+              console.error('Erro ao salvar documento contrato:', err)
+            }
+
+            try {
+              await addAtividade({
+                cliente_id: cliente.id,
+                tipo: 'gerar_contrato',
+                titulo: 'Contrato de Prestação de Serviços O&M Gerado',
+                descricao: `Contrato O&M gerado no Plano ${dados.planoSelecionado} (${formatCurrency(dados.valorMensal)}/mês - total ${formatCurrency(dados.valorTotal)}) para ${dados.nomeRazaoSocial}.`,
                 data: new Date().toISOString(),
                 status: 'concluida',
                 autor: 'CRM Delfos Solar',

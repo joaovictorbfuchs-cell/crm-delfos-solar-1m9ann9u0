@@ -23,7 +23,9 @@ import {
   Download,
 } from 'lucide-react'
 import { ModalGerarProcuracaoOM } from '@/components/ModalGerarProcuracaoOM'
+import { ModalGerarContratoOM } from '@/components/ModalGerarContratoOM'
 import type { DadosProcuracaoOM } from '@/lib/procuracaoGenerator'
+import type { DadosContratoOM } from '@/lib/contratoGenerator'
 import type { TimelineUnifiedItem, TimelineFilterTipo } from '@/types/timelineUnified'
 import type { Cliente, Atividade, OrcamentoSolar, PropostaOM } from '@/types/crm'
 import { formatCurrency, formatDate, formatDateTime } from '@/lib/formatters'
@@ -75,6 +77,8 @@ export const LinhaDoTempoUnificada: React.FC<LinhaDoTempoUnificadaProps> = ({
   const [procuracaoViewDados, setProcuracaoViewDados] = useState<Partial<DadosProcuracaoOM> | null>(
     null,
   )
+  const [modalContratoViewOpen, setModalContratoViewOpen] = useState(false)
+  const [contratoViewDados, setContratoViewDados] = useState<Partial<DadosContratoOM> | null>(null)
 
   const customDefs = useMemo(() => {
     return (tiposAtividadesCustom || []).map((t) => buildCustomTipoDef(t))
@@ -828,6 +832,46 @@ export const LinhaDoTempoUnificada: React.FC<LinhaDoTempoUnificadaProps> = ({
                         </button>
                       )}
 
+                      {/* Botão Ver PDF com Download para Contrato de Prestação de Serviços O&M */}
+                      {(item.titulo === 'Contrato de Prestação de Serviços O&M Gerado' ||
+                        item.rawAtividade?.tipo === 'gerar_contrato' ||
+                        item.subtitulo === 'Gerar Contrato O&M' ||
+                        item.titulo?.startsWith('Contrato de Prestação de Serviços O&M')) && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            const docContrato = documentosCliente.find(
+                              (d) => d.cliente_id === cliente.id && d.tipo === 'contrato',
+                            )
+                            const dadosSalvos =
+                              (docContrato?.dados_documento as DadosContratoOM) || {
+                                nomeRazaoSocial:
+                                  cliente.razao_social ||
+                                  cliente.nome ||
+                                  cliente.titular_nome ||
+                                  '',
+                                cpfCnpj: cliente.cnpj || cliente.cpf || cliente.titular_cpf || '',
+                                enderecoInstalacao: cliente.endereco || '',
+                                municipio: cliente.cidade || 'Erechim/RS',
+                                telefone:
+                                  cliente.titular_telefone ||
+                                  cliente.telefone ||
+                                  cliente.whatsapp ||
+                                  '',
+                                email: cliente.email || '',
+                              }
+                            setContratoViewDados(dadosSalvos)
+                            setModalContratoViewOpen(true)
+                          }}
+                          className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-bold text-white bg-[#16A34A] hover:bg-[#15803D] rounded-lg transition-colors shadow-2xs"
+                          title="Visualizar Contrato A4 e Rebaixar PDF"
+                        >
+                          <Download className="w-3 h-3 text-white" />
+                          <span>Ver PDF</span>
+                        </button>
+                      )}
+
                       {/* Botão de excluir para itens que são atividades */}
                       {item.rawAtividade && (
                         <button
@@ -862,6 +906,17 @@ export const LinhaDoTempoUnificada: React.FC<LinhaDoTempoUnificadaProps> = ({
           onOpenChange={setModalProcuracaoViewOpen}
           cliente={cliente}
           initialDados={procuracaoViewDados}
+          modoVisualizacaoDireta={true}
+        />
+      )}
+
+      {/* Modal de Visualização do Contrato com rebaixar PDF */}
+      {cliente && modalContratoViewOpen && (
+        <ModalGerarContratoOM
+          open={modalContratoViewOpen}
+          onOpenChange={setModalContratoViewOpen}
+          cliente={cliente}
+          initialDados={contratoViewDados}
           modoVisualizacaoDireta={true}
         />
       )}

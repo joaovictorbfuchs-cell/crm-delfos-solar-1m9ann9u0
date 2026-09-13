@@ -27,7 +27,9 @@ import {
   Download,
 } from 'lucide-react'
 import { ModalGerarProcuracaoOM } from '@/components/ModalGerarProcuracaoOM'
+import { ModalGerarContratoOM } from '@/components/ModalGerarContratoOM'
 import { baixarProcuracaoPDF, type DadosProcuracaoOM } from '@/lib/procuracaoGenerator'
+import { baixarContratoPDF, type DadosContratoOM } from '@/lib/contratoGenerator'
 import { useClientes } from '@/contexts/ClientesContext'
 import type { TimelineUnifiedItem } from '@/types/timelineUnified'
 import type { Cliente, AtividadeTipo, AtividadeStatus } from '@/types/crm'
@@ -100,6 +102,8 @@ export const ModalDetalhesTimeline: React.FC<ModalDetalhesTimelineProps> = ({
   const [procuracaoViewDados, setProcuracaoViewDados] = useState<Partial<DadosProcuracaoOM> | null>(
     null,
   )
+  const [modalContratoViewOpen, setModalContratoViewOpen] = useState(false)
+  const [contratoViewDados, setContratoViewDados] = useState<Partial<DadosContratoOM> | null>(null)
 
   // Sincronizar form ao abrir / trocar de item
   useEffect(() => {
@@ -587,6 +591,65 @@ export const ModalDetalhesTimeline: React.FC<ModalDetalhesTimelineProps> = ({
                 </div>
               )}
 
+              {/* Ação especial para Contrato de Prestação de Serviços O&M */}
+              {(item.titulo === 'Contrato de Prestação de Serviços O&M Gerado' ||
+                item.rawAtividade?.tipo === 'gerar_contrato' ||
+                item.subtitulo === 'Gerar Contrato O&M' ||
+                item.titulo?.startsWith('Contrato de Prestação de Serviços O&M')) && (
+                <div className="flex items-center justify-end gap-2 pt-2 border-t border-gray-100 flex-wrap">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const docContrato = documentosCliente.find(
+                        (d) => d.cliente_id === cliente.id && d.tipo === 'contrato',
+                      )
+                      const dadosSalvos = (docContrato?.dados_documento as DadosContratoOM) || {
+                        nomeRazaoSocial:
+                          cliente.razao_social || cliente.nome || cliente.titular_nome || '',
+                        cpfCnpj: cliente.cnpj || cliente.cpf || cliente.titular_cpf || '',
+                        enderecoInstalacao: cliente.endereco || '',
+                        municipio: cliente.cidade || 'Erechim/RS',
+                        telefone:
+                          cliente.titular_telefone || cliente.telefone || cliente.whatsapp || '',
+                        email: cliente.email || '',
+                      }
+                      setContratoViewDados(dadosSalvos)
+                      setModalContratoViewOpen(true)
+                    }}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 font-bold text-xs rounded-lg transition-colors shadow-2xs"
+                    title="Visualizar Contrato A4 oficial e gerenciar envio WhatsApp"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5 text-emerald-700" />
+                    <span>Visualizar Contrato A4</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const docContrato = documentosCliente.find(
+                        (d) => d.cliente_id === cliente.id && d.tipo === 'contrato',
+                      )
+                      const dadosSalvos = (docContrato?.dados_documento as DadosContratoOM) || {
+                        nomeRazaoSocial:
+                          cliente.razao_social || cliente.nome || cliente.titular_nome || '',
+                        cpfCnpj: cliente.cnpj || cliente.cpf || cliente.titular_cpf || '',
+                        enderecoInstalacao: cliente.endereco || '',
+                        municipio: cliente.cidade || 'Erechim/RS',
+                        telefone:
+                          cliente.titular_telefone || cliente.telefone || cliente.whatsapp || '',
+                        email: cliente.email || '',
+                      }
+                      baixarContratoPDF(dadosSalvos)
+                    }}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#16A34A] hover:bg-[#15803D] text-white font-bold text-xs rounded-lg transition-colors shadow-2xs"
+                    title="Baixar diretamente o arquivo PDF oficial do contrato"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    <span>Baixar PDF</span>
+                  </button>
+                </div>
+              )}
+
               {item.categoria === 'proposta_om' && item.rawPropostaOM && (
                 <div className="flex items-center justify-end gap-2 pt-2 border-t border-gray-100 flex-wrap">
                   {onAlterarRegenerarOM && (
@@ -906,6 +969,17 @@ export const ModalDetalhesTimeline: React.FC<ModalDetalhesTimelineProps> = ({
             onOpenChange={setModalProcuracaoViewOpen}
             cliente={cliente}
             initialDados={procuracaoViewDados}
+            modoVisualizacaoDireta={true}
+          />
+        )}
+
+        {/* Modal de Pré-Visualização / Download A4 do Contrato */}
+        {cliente && modalContratoViewOpen && (
+          <ModalGerarContratoOM
+            open={modalContratoViewOpen}
+            onOpenChange={setModalContratoViewOpen}
+            cliente={cliente}
+            initialDados={contratoViewDados}
             modoVisualizacaoDireta={true}
           />
         )}

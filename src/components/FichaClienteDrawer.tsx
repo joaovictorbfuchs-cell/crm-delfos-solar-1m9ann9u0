@@ -64,6 +64,7 @@ import { ModalConfirmarDocumentoProjeto } from './ModalConfirmarDocumentoProjeto
 import { ModalTransferenciaCreditos } from './ModalTransferenciaCreditos'
 import { ModalGerenciarAtividades } from './ModalGerenciarAtividades'
 import { ModalGerarProcuracaoOM } from './ModalGerarProcuracaoOM'
+import { ModalGerarContratoOM } from './ModalGerarContratoOM'
 import { toast } from 'sonner'
 import type {
   TipoDocumentoProjeto,
@@ -204,6 +205,7 @@ export const FichaClienteDrawer: React.FC = () => {
   const [modalTransferenciaCreditosOpen, setModalTransferenciaCreditosOpen] = useState(false)
   const [modalGerenciarAtividadesOpen, setModalGerenciarAtividadesOpen] = useState(false)
   const [modalProcuracaoOMOpen, setModalProcuracaoOMOpen] = useState(false)
+  const [modalContratoOMOpen, setModalContratoOMOpen] = useState(false)
 
   // Seção expansível de detalhes cadastrais/técnicos dentro do painel esquerdo
   const [detalhesOpen, setDetalhesOpen] = useState(false)
@@ -402,6 +404,11 @@ export const FichaClienteDrawer: React.FC = () => {
   // Handler para acionar o fluxo Gerar Procuração O&M
   const handleDispararGerarProcuracao = () => {
     setModalProcuracaoOMOpen(true)
+  }
+
+  // Handler para acionar o fluxo Gerar Contrato O&M
+  const handleDispararGerarContrato = () => {
+    setModalContratoOMOpen(true)
   }
 
   // Documentos cadastrados/enviados do cliente selecionado
@@ -3076,6 +3083,8 @@ export const FichaClienteDrawer: React.FC = () => {
                         setModalTransferenciaCreditosOpen(true)
                       } else if (tipoId === 'gerar_procuracao') {
                         handleDispararGerarProcuracao()
+                      } else if (tipoId === 'gerar_contrato') {
+                        handleDispararGerarContrato()
                       }
                     }}
                   />
@@ -3746,6 +3755,50 @@ export const FichaClienteDrawer: React.FC = () => {
                 tipo: 'gerar_procuracao',
                 titulo: 'Procuração Particular O&M Gerada',
                 descricao: `Procuração gerada para ${dados.nome} (CPF ${dados.cpf}) para atos junto à concessionária de energia.`,
+                data: new Date().toISOString(),
+                status: 'concluida',
+                autor: 'CRM Delfos Solar',
+              })
+            } catch {
+              /* intentionally ignored */
+            }
+          }}
+        />
+      )}
+
+      {/* Modal Gerar Contrato O&M a partir da Linha do Tempo / Histórico */}
+      {selectedCliente && (
+        <ModalGerarContratoOM
+          open={modalContratoOMOpen}
+          onOpenChange={setModalContratoOMOpen}
+          cliente={selectedCliente}
+          propostaOM={propostaOMAprovada}
+          onDocumentoGerado={async (dados) => {
+            try {
+              // 1. Salva na coleção documentos_cliente com os dados completos do documento em JSON
+              await addOrUpdateDocumentoCliente({
+                cliente_id: selectedCliente.id,
+                tipo: 'contrato',
+                status_assinatura: 'aguardando_assinatura',
+                data_envio: new Date().toISOString(),
+                telefone_envio:
+                  dados.telefone || selectedCliente.telefone || selectedCliente.whatsapp,
+                canal_envio: 'sistema',
+                autor: 'CRM Delfos Solar',
+                observacoes: `Contrato de Prestação de Serviços O&M (Plano ${dados.planoSelecionado}) emitido para ${dados.nomeRazaoSocial} (${dados.cpfCnpj}). Valor: ${formatCurrency(dados.valorMensal)}/mês.`,
+                dados_documento: dados as any,
+              })
+            } catch (err) {
+              console.error('Erro ao salvar documento contrato:', err)
+            }
+
+            try {
+              // 2. Registra na timeline / atividades
+              await addAtividade({
+                cliente_id: selectedCliente.id,
+                tipo: 'gerar_contrato',
+                titulo: 'Contrato de Prestação de Serviços O&M Gerado',
+                descricao: `Contrato O&M gerado no Plano ${dados.planoSelecionado} (${formatCurrency(dados.valorMensal)}/mês - total ${formatCurrency(dados.valorTotal)}) para ${dados.nomeRazaoSocial}.`,
                 data: new Date().toISOString(),
                 status: 'concluida',
                 autor: 'CRM Delfos Solar',

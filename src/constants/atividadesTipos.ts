@@ -297,6 +297,20 @@ export const ATIVIDADES_PADRAO: TipoAtividadeDef[] = [
     icon: FileText,
     isPadrao: true,
   },
+  {
+    id: 'gerar_contrato',
+    categoria: 'administrativo_pos_venda',
+    tituloPadrao: 'Gerar Contrato O&M',
+    descricaoAjuda:
+      'Emissão, conferência e assinatura do Contrato de Prestação de Serviços O&M com Anexos I e II',
+    corHex: '#15803D',
+    badgeClass: 'bg-emerald-50 text-emerald-800 border-emerald-200',
+    iconBg: 'bg-emerald-100 text-emerald-800 border-emerald-200',
+    iconText: 'text-emerald-700',
+    borderClass: 'border-emerald-500',
+    icon: FileText,
+    isPadrao: true,
+  },
 ]
 
 // Mantemos o alias ATIVIDADES_12_TIPOS para garantir retrocompatibilidade com consumidores existentes
