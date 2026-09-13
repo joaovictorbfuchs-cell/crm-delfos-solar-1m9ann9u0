@@ -68,14 +68,19 @@ export const ModalGerarProcuracaoOM: React.FC<ModalGerarProcuracaoOMProps> = ({
   // Ao abrir o modal, pré-carrega os dados da ficha do cliente
   useEffect(() => {
     if (open && cliente) {
+      setAtividadeRegistrada(false)
       const nomeEfetivo = cliente.titular_nome || cliente.nome || ''
       const cpfEfetivo = cliente.titular_cpf || cliente.cpf || ''
 
-      const enderecoPartes = [cliente.endereco, cliente.numero, cliente.bairro].filter(Boolean)
+      const enderecoPartes = [
+        cliente.endereco,
+        cliente.numero && cliente.numero !== 'S/N' ? `nº ${cliente.numero}` : cliente.numero,
+        cliente.bairro,
+      ].filter(Boolean)
       const enderecoEfetivo =
         enderecoPartes.length > 0 ? enderecoPartes.join(', ') : cliente.endereco || ''
 
-      const municipioEfetivo = cliente.cidade || 'Erechim/RS'
+      const municipioEfetivo = cliente.cidade || 'Passo Fundo/RS'
       const telefoneEfetivo = cliente.titular_telefone || cliente.telefone || cliente.whatsapp || ''
 
       setFormNome(nomeEfetivo)
@@ -119,6 +124,16 @@ export const ModalGerarProcuracaoOM: React.FC<ModalGerarProcuracaoOMProps> = ({
     setFormTelefone(formatWhatsAppPhone(val))
   }
 
+  // Estado para garantir que a atividade é registrada uma única vez por emissão
+  const [atividadeRegistrada, setAtividadeRegistrada] = useState(false)
+
+  const registrarAtividadeEmissao = (dados: DadosProcuracaoOM) => {
+    if (!atividadeRegistrada) {
+      setAtividadeRegistrada(true)
+      onDocumentoGerado?.(dados)
+    }
+  }
+
   // Avançar para tela de pré-visualização A4
   const handleConfirmarRevisao = () => {
     if (!formNome.trim()) {
@@ -126,18 +141,20 @@ export const ModalGerarProcuracaoOM: React.FC<ModalGerarProcuracaoOMProps> = ({
       return
     }
     setEtapa('previsualizacao')
-    onDocumentoGerado?.(dadosConsolidados)
+    registrarAtividadeEmissao(dadosConsolidados)
   }
 
   // 1. Baixar Documento (PDF binário direto)
   const handleBaixarPDF = () => {
     try {
       baixarProcuracaoPDF(dadosConsolidados)
+      registrarAtividadeEmissao(dadosConsolidados)
       toast.success('Download do PDF da procuração iniciado com sucesso!')
     } catch (err) {
       console.error('Erro ao baixar PDF:', err)
       // Fallback abre tela de impressão nativa
       abrirProcuracaoImpressao(dadosConsolidados, true)
+      registrarAtividadeEmissao(dadosConsolidados)
     }
   }
 
@@ -164,6 +181,7 @@ export const ModalGerarProcuracaoOM: React.FC<ModalGerarProcuracaoOMProps> = ({
 
     const url = `https://wa.me/${ddiNumero}?text=${encodeURIComponent(mensagemTexto)}`
     window.open(url, '_blank')
+    registrarAtividadeEmissao(dadosConsolidados)
     toast.success('PDF baixado e WhatsApp aberto com mensagem pronta!')
   }
 
@@ -496,8 +514,7 @@ export const ModalGerarProcuracaoOM: React.FC<ModalGerarProcuracaoOMProps> = ({
                   no CPF sob nº. <strong>047.838.700-80</strong>, RG sob nº 1131962548;{' '}
                   <strong>João Victor Bagetti Fuchs</strong>, brasileiro, inscrito no CPF sob nº{' '}
                   <strong>811.562.780-15</strong>, RG sob nº 5073762014.; Todos com domicílio
-                  profissional na Rua Espírito Santo, 275 Bairro Fátima, Erechim – RS, CEP
-                  99.709-296
+                  profissional na Rua Espírito Santo, 275, Bairro Fátima, Erechim/RS, CEP 99.709-296
                 </p>
 
                 {/* Parágrafo PODERES */}

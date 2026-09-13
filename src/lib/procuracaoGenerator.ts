@@ -36,7 +36,7 @@ export const DADOS_FIXOS_CONTRATADA_PROCURACAO = {
       rg: '5073762014',
     },
   ],
-  enderecoProfissional: 'Rua Espírito Santo, 275 Bairro Fátima, Erechim – RS, CEP 99.709-296',
+  enderecoProfissional: 'Rua Espírito Santo, 275, Bairro Fátima, Erechim/RS, CEP 99.709-296',
   concessionariaPadrao: 'Concessionária de Energia RGE',
 }
 
@@ -231,7 +231,7 @@ export function gerarHTMLProcuracao(dadosInput: Partial<DadosProcuracaoOM>): str
     </p>
 
     <p>
-      <strong>OUTORGADOS</strong>: <strong>Daniel Rotava</strong>, brasileiro, inscrito no CPF sob nº. <strong>047.838.700-80</strong>, RG sob nº 1131962548; <strong>João Victor Bagetti Fuchs</strong>, brasileiro, inscrito no CPF sob nº <strong>811.562.780-15</strong>, RG sob nº 5073762014.; Todos com domicílio profissional na Rua Espírito Santo, 275 Bairro Fátima, Erechim – RS, CEP 99.709-296
+      <strong>OUTORGADOS</strong>: <strong>Daniel Rotava</strong>, brasileiro, inscrito no CPF sob nº. <strong>047.838.700-80</strong>, RG sob nº 1131962548; <strong>João Victor Bagetti Fuchs</strong>, brasileiro, inscrito no CPF sob nº <strong>811.562.780-15</strong>, RG sob nº 5073762014.; Todos com domicílio profissional na Rua Espírito Santo, 275, Bairro Fátima, Erechim/RS, CEP 99.709-296
     </p>
 
     <p>
@@ -375,7 +375,7 @@ export function gerarPDFBinarioProcuracao(dadosInput: Partial<DadosProcuracaoOM>
   // OUTORGADOS
   writeParagraph(
     'OUTORGADOS:',
-    'Daniel Rotava, brasileiro, inscrito no CPF sob no. 047.838.700-80, RG sob no 1131962548; Joao Victor Bagetti Fuchs, brasileiro, inscrito no CPF sob no 811.562.780-15, RG sob no 5073762014.; Todos com domicilio profissional na Rua Espirito Santo, 275 Bairro Fatima, Erechim - RS, CEP 99.709-296',
+    'Daniel Rotava, brasileiro, inscrito no CPF sob no. 047.838.700-80, RG sob no 1131962548; Joao Victor Bagetti Fuchs, brasileiro, inscrito no CPF sob no 811.562.780-15, RG sob no 5073762014.; Todos com domicilio profissional na Rua Espirito Santo, 275, Bairro Fatima, Erechim/RS, CEP 99.709-296',
   )
 
   // PODERES
@@ -468,7 +468,7 @@ export function gerarPDFBinarioProcuracao(dadosInput: Partial<DadosProcuracaoOM>
 export function baixarProcuracaoPDF(dadosInput: Partial<DadosProcuracaoOM>): void {
   const dados = normalizarDadosProcuracao(dadosInput)
   const bytes = gerarPDFBinarioProcuracao(dados)
-  const blob = new Blob([bytes], { type: 'application/pdf' })
+  const blob = new Blob([bytes.buffer as ArrayBuffer], { type: 'application/pdf' })
   const url = URL.createObjectURL(blob)
   const safeName = dados.nome.replace(/[^a-zA-Z0-9]/g, '_')
   const a = document.createElement('a')
