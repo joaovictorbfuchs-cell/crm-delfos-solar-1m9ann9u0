@@ -68,6 +68,7 @@ export type AtividadeTipo =
   | 'anexo_g'
   | 'troca_titularidade'
   | 'transferencia_creditos'
+  | 'gerar_procuracao'
   // Tipos legados mantidos para retrocompatibilidade
   | 'anotacao'
   | 'ligacao'

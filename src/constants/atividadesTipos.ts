@@ -283,6 +283,20 @@ export const ATIVIDADES_PADRAO: TipoAtividadeDef[] = [
     icon: ArrowRightLeft,
     isPadrao: true,
   },
+  {
+    id: 'gerar_procuracao',
+    categoria: 'administrativo_pos_venda',
+    tituloPadrao: 'Gerar Procuração O&M',
+    descricaoAjuda:
+      'Emissão e conferência da procuração particular para atos junto à concessionária',
+    corHex: '#16A34A',
+    badgeClass: 'bg-emerald-50 text-emerald-800 border-emerald-200',
+    iconBg: 'bg-emerald-100 text-emerald-800 border-emerald-200',
+    iconText: 'text-emerald-600',
+    borderClass: 'border-emerald-400',
+    icon: FileText,
+    isPadrao: true,
+  },
 ]
 
 // Mantemos o alias ATIVIDADES_12_TIPOS para garantir retrocompatibilidade com consumidores existentes

@@ -63,6 +63,8 @@ import { ImportarDadosDocumento } from './ImportarDadosDocumento'
 import { ModalConfirmarDocumentoProjeto } from './ModalConfirmarDocumentoProjeto'
 import { ModalTransferenciaCreditos } from './ModalTransferenciaCreditos'
 import { ModalGerenciarAtividades } from './ModalGerenciarAtividades'
+import { ModalGerarProcuracaoOM } from './ModalGerarProcuracaoOM'
+import { toast } from 'sonner'
 import type {
   TipoDocumentoProjeto,
   DadosDocumentoProjetoInput,
@@ -201,6 +203,7 @@ export const FichaClienteDrawer: React.FC = () => {
   >({})
   const [modalTransferenciaCreditosOpen, setModalTransferenciaCreditosOpen] = useState(false)
   const [modalGerenciarAtividadesOpen, setModalGerenciarAtividadesOpen] = useState(false)
+  const [modalProcuracaoOMOpen, setModalProcuracaoOMOpen] = useState(false)
 
   // Seção expansível de detalhes cadastrais/técnicos dentro do painel esquerdo
   const [detalhesOpen, setDetalhesOpen] = useState(false)
@@ -385,6 +388,27 @@ export const FichaClienteDrawer: React.FC = () => {
           new Date(a.data_proposta || a.created).getTime(),
       )
   }, [propostasOM, selectedCliente])
+
+  // Proposta O&M aprovada / fechada do cliente selecionado
+  const propostaOMAprovada = useMemo<PropostaOM | null>(() => {
+    return (
+      clientPropostasOM.find((p) => {
+        const s = (p.status || '').toLowerCase().trim()
+        return s === 'aprovado' || s === 'aprovada' || s === 'fechado' || s === 'fechada'
+      }) || null
+    )
+  }, [clientPropostasOM])
+
+  // Handler para acionar o fluxo Gerar Procuração O&M
+  const handleDispararGerarProcuracao = () => {
+    if (!propostaOMAprovada) {
+      toast.info(
+        'Este cliente não possui proposta de O&M aprovada — gere e aprove a proposta antes de emitir a procuração.',
+      )
+      return
+    }
+    setModalProcuracaoOMOpen(true)
+  }
 
   // Documentos cadastrados/enviados do cliente selecionado
   const clientDocumentos = useMemo(() => {
@@ -3056,6 +3080,8 @@ export const FichaClienteDrawer: React.FC = () => {
                         handleAbrirDocumentoProjeto('troca_titularidade', propostaAprovada)
                       } else if (tipoId === 'transferencia_creditos') {
                         setModalTransferenciaCreditosOpen(true)
+                      } else if (tipoId === 'gerar_procuracao') {
+                        handleDispararGerarProcuracao()
                       }
                     }}
                   />
@@ -3692,6 +3718,31 @@ export const FichaClienteDrawer: React.FC = () => {
         open={modalGerenciarAtividadesOpen}
         onOpenChange={setModalGerenciarAtividadesOpen}
       />
+
+      {/* Modal Gerar Procuração O&M a partir da Linha do Tempo / Histórico */}
+      {selectedCliente && (
+        <ModalGerarProcuracaoOM
+          open={modalProcuracaoOMOpen}
+          onOpenChange={setModalProcuracaoOMOpen}
+          cliente={selectedCliente}
+          propostaOM={propostaOMAprovada}
+          onDocumentoGerado={async (dados) => {
+            try {
+              await addAtividade({
+                cliente_id: selectedCliente.id,
+                tipo: 'outro',
+                titulo: 'Procuração Particular O&M Gerada',
+                descricao: `Procuração gerada para ${dados.nome} (CPF ${dados.cpf}) para atos junto à concessionária de energia.`,
+                data: new Date().toISOString(),
+                status: 'concluida',
+                autor: 'CRM Delfos Solar',
+              })
+            } catch {
+              /* intentionally ignored */
+            }
+          }}
+        />
+      )}
     </div>
   )
 }

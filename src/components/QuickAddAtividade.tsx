@@ -85,7 +85,8 @@ export const QuickAddAtividade: React.FC<QuickAddAtividadeProps> = ({
         onSelectTipoEspecial &&
         (firstOfCat.id === 'anexo_g' ||
           firstOfCat.id === 'troca_titularidade' ||
-          firstOfCat.id === 'transferencia_creditos')
+          firstOfCat.id === 'transferencia_creditos' ||
+          firstOfCat.id === 'gerar_procuracao')
       ) {
         onSelectTipoEspecial(firstOfCat.id)
       }
@@ -100,7 +101,8 @@ export const QuickAddAtividade: React.FC<QuickAddAtividadeProps> = ({
       onSelectTipoEspecial &&
       (item.id === 'anexo_g' ||
         item.id === 'troca_titularidade' ||
-        item.id === 'transferencia_creditos')
+        item.id === 'transferencia_creditos' ||
+        item.id === 'gerar_procuracao')
     ) {
       onSelectTipoEspecial(item.id)
     }
@@ -330,7 +332,8 @@ export const QuickAddAtividade: React.FC<QuickAddAtividadeProps> = ({
                         </span>
                       ) : item.id === 'anexo_g' ||
                         item.id === 'troca_titularidade' ||
-                        item.id === 'transferencia_creditos' ? (
+                        item.id === 'transferencia_creditos' ||
+                        item.id === 'gerar_procuracao' ? (
                         <span
                           className={`text-[9px] font-semibold block ${
                             isSelected ? 'text-emerald-100' : 'text-emerald-700'
