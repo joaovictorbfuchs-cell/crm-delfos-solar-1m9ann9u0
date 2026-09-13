@@ -120,6 +120,11 @@ export async function createManutencao(data: {
   return record
 }
 
+export async function deleteManutencao(id: string): Promise<boolean> {
+  await pb.collection('manutencoes').delete(id)
+  return true
+}
+
 // -------------------------------------------------------------
 // Serviços Avulsos Services
 // -------------------------------------------------------------

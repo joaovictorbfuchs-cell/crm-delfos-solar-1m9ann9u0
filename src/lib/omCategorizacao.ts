@@ -39,9 +39,20 @@ export interface ContagensOM {
  * 4. Serviço avulso em andamento (se o cliente NÃO tiver plano/anomalia mas tiver serviço adicional 'em execução' ou 'pendente')
  * 5. Sem plano (oportunidade pura)
  */
+/**
+ * Calcula os dias restantes de forma defensiva até uma data de vencimento.
+ * Retorna null se a data for nula, indefinida ou inválida, evitando NaN.
+ */
+function calcularDiasRestantesDefensivo(dataVencimento?: string | null): number | null {
+  if (!dataVencimento || typeof dataVencimento !== 'string') return null
+  const timestamp = new Date(dataVencimento).getTime()
+  if (isNaN(timestamp)) return null
+  return Math.ceil((timestamp - Date.now()) / (1000 * 60 * 60 * 24))
+}
+
 export function categorizarClienteOM(
   clienteId: string,
-  contratosOM: ContratoOM[],
+  contratosOM: ContratoOM[] = [],
   servicosAdicionaisOM: ServicoAdicionalOM[] = [],
   anomaliasOM: AnomaliaOM[] = [],
   servicosAvulsos: ServicoAvulso[] = [],
@@ -54,50 +65,50 @@ export function categorizarClienteOM(
   temServicoAvulsoHistorico: boolean
   ultimoServicoAvulso?: ServicoAvulso
 } {
+  const safeContratos = Array.isArray(contratosOM) ? contratosOM : []
+  const safeServicosAdicionais = Array.isArray(servicosAdicionaisOM) ? servicosAdicionaisOM : []
+  const safeAnomalias = Array.isArray(anomaliasOM) ? anomaliasOM : []
+  const safeServicosAvulsos = Array.isArray(servicosAvulsos) ? servicosAvulsos : []
+
   // Contratos do cliente
-  const contratos = contratosOM.filter((c) => c.cliente_id === clienteId)
+  const contratos = safeContratos.filter((c) => c?.cliente_id === clienteId)
 
   // Contrato ativo (status Ativo ou Vencendo em 30 dias e data de vencimento não expirada com status Vencido)
   const contratoAtivo = contratos.find((c) => {
+    if (!c) return false
     if (c.status === 'Vencido') return false
-    if (c.data_vencimento) {
-      const diasRestantes = Math.ceil(
-        (new Date(c.data_vencimento).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24),
-      )
-      if (diasRestantes < 0) return false
-    }
+    const diasRestantes = calcularDiasRestantesDefensivo(c.data_vencimento)
+    if (diasRestantes !== null && diasRestantes < 0) return false
     return c.status === 'Ativo' || c.status === 'Vencendo em 30 dias'
   })
 
   // Contrato vencido
   const contratoVencido = !contratoAtivo
     ? contratos.find((c) => {
+        if (!c) return false
         if (c.status === 'Vencido') return true
-        if (c.data_vencimento) {
-          const diasRestantes = Math.ceil(
-            (new Date(c.data_vencimento).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24),
-          )
-          return diasRestantes < 0
-        }
+        const diasRestantes = calcularDiasRestantesDefensivo(c.data_vencimento)
+        if (diasRestantes !== null && diasRestantes < 0) return true
         return false
       })
     : undefined
 
   // Anomalia aberta deste cliente
-  const temAnomaliaAberta = anomaliasOM.some(
-    (a) => a.cliente_id === clienteId && a.status !== 'Resolvido' && a.status !== 'Cancelado',
+  const temAnomaliaAberta = safeAnomalias.some(
+    (a) => a?.cliente_id === clienteId && a?.status !== 'Resolvido' && a?.status !== 'Cancelado',
   )
 
   // Serviço avulso da coleção servicos_avulsos e servicos_adicionais_om
-  const avulsosCliente = servicosAvulsos.filter((s) => s.cliente_id === clienteId)
+  const avulsosCliente = safeServicosAvulsos.filter((s) => s?.cliente_id === clienteId)
   const temServicoAvulsoHistorico =
-    avulsosCliente.length > 0 || servicosAdicionaisOM.some((s) => s.cliente_id === clienteId)
+    avulsosCliente.length > 0 || safeServicosAdicionais.some((s) => s?.cliente_id === clienteId)
   const ultimoServicoAvulso = avulsosCliente[0] // já ordenado por data_servico desc
 
   const temServicoAvulsoEmAndamento =
-    avulsosCliente.some((s) => s.status === 'agendado' || s.status === 'em_andamento') ||
-    servicosAdicionaisOM.some(
-      (s) => s.cliente_id === clienteId && (s.status === 'em execução' || s.status === 'pendente'),
+    avulsosCliente.some((s) => s?.status === 'agendado' || s?.status === 'em_andamento') ||
+    safeServicosAdicionais.some(
+      (s) =>
+        s?.cliente_id === clienteId && (s?.status === 'em execução' || s?.status === 'pendente'),
     )
 
   let categoria: CategoriaClienteOM
@@ -129,13 +140,20 @@ export function categorizarClienteOM(
  * Calcula os totais exatos por cliente para alimentar cards de resumo e botões de filtro.
  */
 export function calcularContagensOM(
-  clientes: Cliente[],
-  contratosOM: ContratoOM[],
+  clientes: Cliente[] = [],
+  contratosOM: ContratoOM[] = [],
   servicosAdicionaisOM: ServicoAdicionalOM[] = [],
   anomaliasOM: AnomaliaOM[] = [],
   servicosAvulsos: ServicoAvulso[] = [],
   sistemas: { cliente_id?: string; potencia_total_kwp?: number }[] = [],
 ): ContagensOM {
+  const safeClientes = Array.isArray(clientes) ? clientes : []
+  const safeContratos = Array.isArray(contratosOM) ? contratosOM : []
+  const safeServicosAdicionais = Array.isArray(servicosAdicionaisOM) ? servicosAdicionaisOM : []
+  const safeAnomalias = Array.isArray(anomaliasOM) ? anomaliasOM : []
+  const safeServicosAvulsos = Array.isArray(servicosAvulsos) ? servicosAvulsos : []
+  const safeSistemas = Array.isArray(sistemas) ? sistemas : []
+
   let planosAtivos = 0
   let posVendas = 0
   let oportunidadesOM = 0
@@ -145,17 +163,19 @@ export function calcularContagensOM(
   let planosVencidos = 0
   let clientesSemPlano = 0
 
-  for (const cliente of clientes) {
+  for (const cliente of safeClientes) {
+    if (!cliente?.id) continue
+
     const { categoria, temServicoAvulsoHistorico } = categorizarClienteOM(
       cliente.id,
-      contratosOM,
-      servicosAdicionaisOM,
-      anomaliasOM,
-      servicosAvulsos,
+      safeContratos,
+      safeServicosAdicionais,
+      safeAnomalias,
+      safeServicosAvulsos,
     )
 
-    const sistema = sistemas.find((s) => s.cliente_id === cliente.id)
-    const potencia = sistema?.potencia_total_kwp ?? cliente.potencia_kwp ?? 0
+    const sistema = safeSistemas.find((s) => s?.cliente_id === cliente.id)
+    const potencia = Number(sistema?.potencia_total_kwp ?? cliente?.potencia_kwp) || 0
     const instalouSolar =
       potencia > 0 ||
       Boolean(cliente.data_instalacao) ||
@@ -194,17 +214,19 @@ export function calcularContagensOM(
     }
   }
 
-  const totalAnomaliasAbertasOcorrencias = anomaliasOM.filter(
-    (a) => a.status !== 'Resolvido' && a.status !== 'Cancelado',
+  const totalAnomaliasAbertasOcorrencias = safeAnomalias.filter(
+    (a) => a && a.status !== 'Resolvido' && a.status !== 'Cancelado',
   ).length
 
   const totalServicosAvulsosOcorrencias =
-    servicosAdicionaisOM.filter((s) => s.status === 'em execução' || s.status === 'pendente')
-      .length +
-    servicosAvulsos.filter((s) => s.status === 'agendado' || s.status === 'em_andamento').length
+    safeServicosAdicionais.filter(
+      (s) => s && (s.status === 'em execução' || s.status === 'pendente'),
+    ).length +
+    safeServicosAvulsos.filter((s) => s && (s.status === 'agendado' || s.status === 'em_andamento'))
+      .length
 
   return {
-    totalClientes: clientes.length,
+    totalClientes: safeClientes.length,
     planosAtivos,
     posVendas,
     oportunidadesOM,

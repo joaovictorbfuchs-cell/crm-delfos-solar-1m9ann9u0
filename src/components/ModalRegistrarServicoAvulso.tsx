@@ -35,7 +35,7 @@ import {
 export interface ModalRegistrarServicoAvulsoProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  cliente: Cliente
+  cliente?: Cliente | null
   onSuccess?: () => void
 }
 
@@ -136,6 +136,15 @@ export const ModalRegistrarServicoAvulso: React.FC<ModalRegistrarServicoAvulsoPr
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!cliente?.id) {
+      toast({
+        title: 'Cliente inválido',
+        description: 'Selecione um cliente válido para registrar o serviço avulso.',
+        variant: 'destructive',
+      })
+      return
+    }
+
     if (!dataServico) {
       toast({
         title: 'Data obrigatória',
@@ -160,9 +169,10 @@ export const ModalRegistrarServicoAvulso: React.FC<ModalRegistrarServicoAvulsoPr
         fotos,
       })
 
+      const nomeCliente = cliente?.nome || 'Cliente'
       toast({
         title: 'Serviço avulso registrado!',
-        description: `${cliente.nome} agora faz parte da lista de Clientes Pós-Vendas da aba O&M.`,
+        description: `${nomeCliente} agora faz parte da lista de Clientes Pós-Vendas da aba O&M.`,
       })
 
       resetForm()
@@ -181,6 +191,9 @@ export const ModalRegistrarServicoAvulso: React.FC<ModalRegistrarServicoAvulsoPr
     }
   }
 
+  const nomeExibicao = cliente?.nome || 'Cliente'
+  const cidadeExibicao = cliente?.cidade ? ` • ${cliente.cidade}` : ''
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -194,8 +207,8 @@ export const ModalRegistrarServicoAvulso: React.FC<ModalRegistrarServicoAvulsoPr
                 Oferecer Serviço Avulso
               </DialogTitle>
               <DialogDescription className="text-sm text-slate-500">
-                Cliente: <span className="font-semibold text-slate-700">{cliente.nome}</span>
-                {cliente.cidade ? ` • ${cliente.cidade}` : ''}
+                Cliente: <span className="font-semibold text-slate-700">{nomeExibicao}</span>
+                {cidadeExibicao}
               </DialogDescription>
             </div>
           </div>

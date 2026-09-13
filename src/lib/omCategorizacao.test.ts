@@ -232,6 +232,57 @@ export function runOmCategorizacaoTests(): {
         assertEquals(depois.posVendas, 0, 'depois: pós vendas 0')
       },
     },
+    {
+      name: 'Defensivo com datas inválidas ou nulas não gera NaN e mantém integridade',
+      fn: () => {
+        const clienteComDataInvalida = mockCliente({
+          id: 'cli_data_inv',
+          nome: 'Cliente Data Inválida',
+        })
+        const contratoDataInvalida = mockContrato({
+          id: 'ct_inv',
+          cliente_id: 'cli_data_inv',
+          status: 'Ativo',
+          data_vencimento: 'data_invalida_nao_parseavel',
+        })
+
+        const res = categorizarClienteOM(clienteComDataInvalida.id, [contratoDataInvalida])
+        assertEquals(
+          res.categoria,
+          'plano_ativo',
+          'deve se manter ativo sem quebrar por data inválida',
+        )
+
+        const contagens = calcularContagensOM([clienteComDataInvalida], [contratoDataInvalida])
+        assertEquals(contagens.planosAtivos, 1, 'planos ativos com data inválida')
+        assert(!isNaN(contagens.planosAtivos), 'planosAtivos não pode ser NaN')
+        assert(!isNaN(contagens.posVendas), 'posVendas não pode ser NaN')
+      },
+    },
+    {
+      name: 'Defensivo com fallbacks vazios ou nulos não lança erro',
+      fn: () => {
+        const res = categorizarClienteOM(
+          'cli_teste_vazio',
+          undefined,
+          undefined,
+          undefined,
+          undefined,
+        )
+        assertEquals(res.categoria, 'sem_plano', 'categoria default sem_plano')
+
+        const contagens = calcularContagensOM(
+          undefined,
+          undefined,
+          undefined,
+          undefined,
+          undefined,
+          undefined,
+        )
+        assertEquals(contagens.totalClientes, 0, 'total clientes zero')
+        assertEquals(contagens.planosAtivos, 0, 'planos ativos zero')
+      },
+    },
   ]
 
   let passed = 0

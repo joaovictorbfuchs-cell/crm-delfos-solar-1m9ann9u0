@@ -44,10 +44,10 @@ export const ModalNovaPropostaOM: React.FC<ModalNovaPropostaOMProps> = ({
   useEffect(() => {
     if (initialClienteId) {
       setSelectedId(initialClienteId)
-    } else if (clientes.length > 0 && !selectedId) {
+    } else if (clientes.length > 0 && (!selectedId || !clientes.some((c) => c.id === selectedId))) {
       setSelectedId(clientes[0].id)
     }
-  }, [initialClienteId, clientes])
+  }, [initialClienteId, clientes, selectedId])
 
   // Se veio uma proposta para visualizar/regenerar
   useEffect(() => {
@@ -312,7 +312,7 @@ export const ModalNovaPropostaOM: React.FC<ModalNovaPropostaOMProps> = ({
               </label>
               {clienteAtual && (
                 <span className="text-xs text-emerald-700 font-semibold bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
-                  Status: {clienteAtual.status}
+                  Status: {clienteAtual.status || 'Ativo'}
                 </span>
               )}
             </div>
@@ -328,15 +328,20 @@ export const ModalNovaPropostaOM: React.FC<ModalNovaPropostaOMProps> = ({
                   disabled={!!initialClienteId || !!initialProposta}
                   className="w-full text-xs font-medium px-3 py-2 rounded-lg border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 >
-                  {clientes.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.nome} {c.cidade ? `— ${c.cidade}` : ''} ({c.potencia_kwp || 0} kWp)
-                    </option>
-                  ))}
+                  {clientes.length === 0 ? (
+                    <option value="">Nenhum cliente cadastrado</option>
+                  ) : (
+                    clientes.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.nome || 'Cliente'} {c.cidade ? `— ${c.cidade}` : ''} (
+                        {c.potencia_kwp || 0} kWp)
+                      </option>
+                    ))
+                  )}
                 </select>
               </div>
 
-              {clienteAtual && (
+              {clienteAtual ? (
                 <div className="bg-gray-50 p-2.5 rounded-lg border border-gray-200/80 text-xs space-y-1">
                   <div className="flex justify-between">
                     <span className="text-gray-500">Documento:</span>
@@ -356,6 +361,10 @@ export const ModalNovaPropostaOM: React.FC<ModalNovaPropostaOMProps> = ({
                       {clienteAtual.telefone || clienteAtual.email || 'Não informado'}
                     </span>
                   </div>
+                </div>
+              ) : (
+                <div className="bg-amber-50 p-2.5 rounded-lg border border-amber-200 text-xs text-amber-800 flex items-center">
+                  <span>Nenhum cliente selecionado ou disponível.</span>
                 </div>
               )}
             </div>

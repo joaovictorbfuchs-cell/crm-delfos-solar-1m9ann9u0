@@ -38,6 +38,7 @@ import {
   updateAtividade as apiUpdateAtividade,
   deleteAtividade as apiDeleteAtividade,
   createManutencao as apiCreateManutencao,
+  deleteManutencao as apiDeleteManutencao,
   createCliente as apiCreateCliente,
   updateCliente as apiUpdateCliente,
   updateClienteStatus as apiUpdateClienteStatus,
@@ -161,6 +162,7 @@ interface ClientesContextType {
     tecnico?: string
     descricao?: string
   }) => Promise<Manutencao>
+  removeManutencao: (id: string) => Promise<void>
   addAtividade: (data: {
     cliente_id: string
     tipo: import('@/types/crm').AtividadeTipo
@@ -742,6 +744,15 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     id: string,
     initialTab: 'historico' | 'projeto' | 'om' | 'whatsapp' = 'historico',
   ) => {
+    const existe = clientes.some((c) => c.id === id)
+    if (!existe) {
+      import('sonner').then(({ toast }) => {
+        toast.error('Cliente não encontrado', {
+          description: 'Este registro pertence a um cliente que não consta na base de dados.',
+        })
+      })
+      return
+    }
     setSelectedClienteId(id)
     setActiveClientTab(initialTab)
   }
@@ -762,6 +773,18 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     const updated = await fetchManutencoes()
     setManutencoes(updated)
     return created
+  }
+
+  const removeManutencao = async (id: string) => {
+    setManutencoes((prev) => prev.filter((m) => m.id !== id))
+    try {
+      await apiDeleteManutencao(id)
+    } catch (err) {
+      console.error('Erro ao excluir manutenção:', err)
+      const updated = await fetchManutencoes()
+      setManutencoes(updated)
+      throw err
+    }
   }
 
   const addAtividade = async (data: {
@@ -1675,6 +1698,7 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         addCliente,
         removeCliente,
         addManutencao,
+        removeManutencao,
         addAtividade,
         updateAtividade,
         updateAtividadeStatus,

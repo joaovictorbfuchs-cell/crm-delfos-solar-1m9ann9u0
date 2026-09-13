@@ -82,20 +82,40 @@ export const ListaOM: React.FC<ListaOMProps> = ({
   // Estado para abrir modal de registrar serviço avulso diretamente da lista
   const [clienteParaServicoAvulso, setClienteParaServicoAvulso] = useState<Cliente | null>(null)
 
+  // Fallbacks seguros para coleções do ClientesContext
+  const safeClientes = useMemo(() => (Array.isArray(clientes) ? clientes : []), [clientes])
+  const safeContratosOM = useMemo(
+    () => (Array.isArray(contratosOM) ? contratosOM : []),
+    [contratosOM],
+  )
+  const safeSistemas = useMemo(() => (Array.isArray(sistemas) ? sistemas : []), [sistemas])
+  const safeServicosAdicionais = useMemo(
+    () => (Array.isArray(servicosAdicionaisOM) ? servicosAdicionaisOM : []),
+    [servicosAdicionaisOM],
+  )
+  const safeServicosAvulsos = useMemo(
+    () => (Array.isArray(servicosAvulsos) ? servicosAvulsos : []),
+    [servicosAvulsos],
+  )
+  const safeAnomalias = useMemo(
+    () => (Array.isArray(anomaliasOM) ? anomaliasOM : []),
+    [anomaliasOM],
+  )
+
   // 1. Clientes com Plano de Manutenção
-  // Clientes que têm contrato de O&M ativo, com dados do contrato, potência do sistema, valor mensal, próxima visita agendada e status do plano
   const clientesComPlano = useMemo(() => {
-    return clientes
+    return safeClientes
       .map((cliente) => {
-        const sistema = sistemas.find((s) => s.cliente_id === cliente.id)
-        const potencia = sistema?.potencia_total_kwp ?? cliente.potencia_kwp ?? 0
+        if (!cliente?.id) return null
+        const sistema = safeSistemas.find((s) => s?.cliente_id === cliente.id)
+        const potencia = Number(sistema?.potencia_total_kwp ?? cliente?.potencia_kwp) || 0
 
         const { categoria, contratoAtivo } = categorizarClienteOM(
           cliente.id,
-          contratosOM,
-          servicosAdicionaisOM,
-          anomaliasOM,
-          servicosAvulsos,
+          safeContratosOM,
+          safeServicosAdicionais,
+          safeAnomalias,
+          safeServicosAvulsos,
         )
 
         if (categoria !== 'plano_ativo' || !contratoAtivo) return null
@@ -104,10 +124,10 @@ export const ListaOM: React.FC<ListaOMProps> = ({
           cliente,
           contrato: contratoAtivo,
           potenciaKwp: potencia,
-          valorMensal: contratoAtivo.valor_mensal || 0,
-          statusPlano: contratoAtivo.status,
-          plano: contratoAtivo.plano,
-          dataVencimento: contratoAtivo.data_vencimento,
+          valorMensal: Number(contratoAtivo.valor_mensal) || 0,
+          statusPlano: contratoAtivo.status || 'Ativo',
+          plano: contratoAtivo.plano || 'Essencial',
+          dataVencimento: contratoAtivo.data_vencimento || '',
           proximaVisitaData: contratoAtivo.proxima_atividade_data,
           proximaVisitaTitulo: contratoAtivo.proxima_atividade_titulo,
         }
@@ -123,53 +143,51 @@ export const ListaOM: React.FC<ListaOMProps> = ({
       proximaVisitaData?: string
       proximaVisitaTitulo?: string
     }[]
-  }, [clientes, contratosOM, sistemas, servicosAdicionaisOM, anomaliasOM, servicosAvulsos])
+  }, [
+    safeClientes,
+    safeContratosOM,
+    safeSistemas,
+    safeServicosAdicionais,
+    safeAnomalias,
+    safeServicosAvulsos,
+  ])
 
   // 2. Clientes Pós-Vendas
-  // Todos os clientes que têm relacionamento com a Delfos (inclusive clientes importados do Conta Azul
-  // ou Pipedrive e qualquer cliente cadastrado no CRM) mas não têm plano de manutenção ativo.
-  // Dentro dessa lista, marque com destaque especial (badge "Oportunidade de O&M") quem instalou solar
-  // ou tem usina e ainda não tem plano contratado.
   const clientesPosVendas = useMemo(() => {
-    return clientes
+    return safeClientes
       .map((cliente) => {
-        const sistema = sistemas.find((s) => s.cliente_id === cliente.id)
-        const potencia = sistema?.potencia_total_kwp ?? cliente.potencia_kwp ?? 0
+        if (!cliente?.id) return null
+        const sistema = safeSistemas.find((s) => s?.cliente_id === cliente.id)
+        const potencia = Number(sistema?.potencia_total_kwp ?? cliente?.potencia_kwp) || 0
 
-        const { categoria, temServicoAvulsoHistorico, ultimoServicoAvulso } = categorizarClienteOM(
+        const { categoria, ultimoServicoAvulso } = categorizarClienteOM(
           cliente.id,
-          contratosOM,
-          servicosAdicionaisOM,
-          anomaliasOM,
-          servicosAvulsos,
+          safeContratosOM,
+          safeServicosAdicionais,
+          safeAnomalias,
+          safeServicosAvulsos,
         )
 
         // Se tem plano ativo, NÃO entra no Pós-Vendas (vai para a Lista 1: Clientes com Plano de Manutenção)
         if (categoria === 'plano_ativo') return null
 
-        const avulsosDoCliente = servicosAvulsos.filter((s) => s.cliente_id === cliente.id)
-        const adicionaisDoCliente = servicosAdicionaisOM.filter((s) => s.cliente_id === cliente.id)
+        const avulsosDoCliente = safeServicosAvulsos.filter((s) => s?.cliente_id === cliente.id)
+        const adicionaisDoCliente = safeServicosAdicionais.filter(
+          (s) => s?.cliente_id === cliente.id,
+        )
         const totalServicosAvulsos = avulsosDoCliente.length + adicionaisDoCliente.length
 
-        // Critério para instalou solar:
-        // - Potência cadastrada no sistema ou cliente > 0
-        // - Possui data de instalação
-        // - Status Fechado
-        // - Produto é Energia Solar ou usina cadastrada
         const instalouSolar =
           potencia > 0 ||
           Boolean(cliente.data_instalacao) ||
           cliente.status === 'Fechado' ||
           cliente.produto === 'Energia Solar'
 
-        // É uma oportunidade de O&M automática com destaque visual se instalou solar mas não tem plano O&M contratado
         const isOportunidadeOM = instalouSolar
 
-        // Próximo agendamento / último serviço avulso
-        const proximoServicoAgendado = avulsosDoCliente.find((s) => s.status === 'agendado')
+        const proximoServicoAgendado = avulsosDoCliente.find((s) => s?.status === 'agendado')
         const servicoMaisRecente = ultimoServicoAvulso || avulsosDoCliente[0]
 
-        // Identifica origem do cliente (ex.: Conta Azul, Pipedrive, etc.)
         const isContaAzul =
           Boolean(cliente.dados_importados?.['Razão Social / Nome']) ||
           Boolean(cliente.dados_importados?.['Data do Cadastro']) ||
@@ -205,7 +223,14 @@ export const ListaOM: React.FC<ListaOMProps> = ({
       isContaAzul: boolean
       isImportado: boolean
     }[]
-  }, [clientes, contratosOM, sistemas, servicosAdicionaisOM, anomaliasOM, servicosAvulsos])
+  }, [
+    safeClientes,
+    safeContratosOM,
+    safeSistemas,
+    safeServicosAdicionais,
+    safeAnomalias,
+    safeServicosAvulsos,
+  ])
 
   // Contagens
   const countComPlano = clientesComPlano.length
@@ -218,22 +243,32 @@ export const ListaOM: React.FC<ListaOMProps> = ({
 
   // Filtragem da lista 1 (Com Plano)
   const itensPlanoFiltrados = useMemo(() => {
+    const safeParseTime = (dateStr?: string | null) => {
+      if (!dateStr) return 0
+      const t = new Date(dateStr).getTime()
+      return isNaN(t) ? 0 : t
+    }
+
     return clientesComPlano
       .filter((item) => {
+        const nomeCliente = item.cliente?.nome || 'Cliente'
+        const cidadeCliente = item.cliente?.cidade || ''
         const matchBusca =
           !busca.trim() ||
-          item.cliente.nome.toLowerCase().includes(busca.toLowerCase()) ||
-          (item.cliente.cidade || '').toLowerCase().includes(busca.toLowerCase())
+          nomeCliente.toLowerCase().includes(busca.toLowerCase()) ||
+          cidadeCliente.toLowerCase().includes(busca.toLowerCase())
         const matchPlano = filtroPlano === 'todos' || item.plano === filtroPlano
         return matchBusca && matchPlano
       })
       .sort((a, b) => {
-        if (ordenacao === 'nome') return a.cliente.nome.localeCompare(b.cliente.nome)
-        if (ordenacao === 'potencia') return b.potenciaKwp - a.potenciaKwp
-        if (ordenacao === 'valor') return b.valorMensal - a.valorMensal
+        const nomeA = a.cliente?.nome || ''
+        const nomeB = b.cliente?.nome || ''
+        if (ordenacao === 'nome') return nomeA.localeCompare(nomeB)
+        if (ordenacao === 'potencia') return (b.potenciaKwp || 0) - (a.potenciaKwp || 0)
+        if (ordenacao === 'valor') return (b.valorMensal || 0) - (a.valorMensal || 0)
         if (ordenacao === 'proxima_visita') {
-          const tA = a.proximaVisitaData ? new Date(a.proximaVisitaData).getTime() : 0
-          const tB = b.proximaVisitaData ? new Date(b.proximaVisitaData).getTime() : 0
+          const tA = safeParseTime(a.proximaVisitaData)
+          const tB = safeParseTime(b.proximaVisitaData)
           return tA - tB
         }
         return 0
@@ -244,10 +279,12 @@ export const ListaOM: React.FC<ListaOMProps> = ({
   const itensPosVendasFiltrados = useMemo(() => {
     return clientesPosVendas
       .filter((item) => {
+        const nomeCliente = item.cliente?.nome || 'Cliente'
+        const cidadeCliente = item.cliente?.cidade || ''
         const matchBusca =
           !busca.trim() ||
-          item.cliente.nome.toLowerCase().includes(busca.toLowerCase()) ||
-          (item.cliente.cidade || '').toLowerCase().includes(busca.toLowerCase())
+          nomeCliente.toLowerCase().includes(busca.toLowerCase()) ||
+          cidadeCliente.toLowerCase().includes(busca.toLowerCase())
 
         if (filtroPosVendas === 'oportunidades') {
           return matchBusca && item.isOportunidadeOM
@@ -265,8 +302,10 @@ export const ListaOM: React.FC<ListaOMProps> = ({
         if (a.isOportunidadeOM !== b.isOportunidadeOM) {
           return a.isOportunidadeOM ? -1 : 1
         }
-        if (ordenacao === 'nome') return a.cliente.nome.localeCompare(b.cliente.nome)
-        if (ordenacao === 'potencia') return b.potenciaKwp - a.potenciaKwp
+        const nomeA = a.cliente?.nome || ''
+        const nomeB = b.cliente?.nome || ''
+        if (ordenacao === 'nome') return nomeA.localeCompare(nomeB)
+        if (ordenacao === 'potencia') return (b.potenciaKwp || 0) - (a.potenciaKwp || 0)
         return 0
       })
   }, [clientesPosVendas, busca, filtroPosVendas, ordenacao])
@@ -731,8 +770,23 @@ export const ListaOM: React.FC<ListaOMProps> = ({
                 Nenhum cliente pós-vendas encontrado
               </h4>
               <p className="text-xs text-gray-500 max-w-sm mx-auto mt-1">
-                Tente ajustar os termos de busca ou o filtro de oportunidades.
+                {busca
+                  ? 'Nenhum resultado corresponde à sua pesquisa. Tente limpar os filtros.'
+                  : 'Sua base de pós-vendas será listada aqui para oferta de planos O&M, limpezas e suporte preventivo.'}
               </p>
+              {busca && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setBusca('')
+                    setFiltroPosVendas('todos')
+                  }}
+                  className="mt-4 inline-flex items-center gap-1.5 px-3.5 py-2 bg-emerald-600 text-white rounded-lg text-xs font-bold hover:bg-emerald-700 transition-colors"
+                >
+                  <RefreshCw className="w-3.5 h-3.5" />
+                  Limpar busca e filtros
+                </button>
+              )}
             </div>
           ) : (
             <>
