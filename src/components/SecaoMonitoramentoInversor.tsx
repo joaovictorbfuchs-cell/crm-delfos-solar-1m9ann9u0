@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import {
   Smartphone,
   User,
@@ -15,11 +15,34 @@ import {
   Info,
   Send,
   AlertCircle,
+  Plus,
+  Trash2,
+  Cpu,
+  Layers,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react'
 import { toast } from 'sonner'
-import type { Cliente, Sistema, MonitoramentoMarca } from '@/types/crm'
-import { fetchMonitoramentoMarcas, saveOrUpdateMonitoramentoMarca } from '@/services/crmService'
+import type { Cliente, Sistema, MonitoramentoMarca, ClienteInversor } from '@/types/crm'
+import {
+  fetchMonitoramentoMarcas,
+  saveOrUpdateMonitoramentoMarca,
+  fetchInversoresByClienteId,
+  createClienteInversor,
+  updateClienteInversor,
+  deleteClienteInversor,
+} from '@/services/crmService'
 import { cleanPhoneDigits } from '@/lib/formatters'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 
 interface SecaoMonitoramentoInversorProps {
   cliente: Cliente
@@ -28,58 +51,43 @@ interface SecaoMonitoramentoInversorProps {
   onUpdateSistemaField?: (field: keyof Sistema, value: any) => Promise<void>
 }
 
+// Representação de trabalho para cada inversor
+interface InversorFormItem {
+  id?: string // se já existe no banco
+  tempId: string // chave estável de renderização
+  marca_inversor: string
+  modelo_inversor: string
+  potencia_kwp?: number
+  numero_serie?: string
+  app_nome: string
+  login: string
+  senha: string
+  datalogger_url: string
+  observacoes?: string
+  ordem: number
+  // Estado local de UI
+  showPassword?: boolean
+  copiedField?: string | null
+  expanded?: boolean
+}
+
 export const SecaoMonitoramentoInversor: React.FC<SecaoMonitoramentoInversorProps> = ({
   cliente,
   sistema,
   onUpdateClienteField,
   onUpdateSistemaField,
 }) => {
-  // Estado local para os campos de monitoramento
-  const [appNome, setAppNome] = useState(
-    cliente.monitoramento_app_nome || sistema?.monitoramento_app_nome || '',
-  )
-  const [login, setLogin] = useState(
-    cliente.monitoramento_login || sistema?.monitoramento_login || '',
-  )
-  const [senha, setSenha] = useState(
-    cliente.monitoramento_senha || sistema?.monitoramento_senha || '',
-  )
-  const [dataloggerUrl, setDataloggerUrl] = useState(
-    cliente.monitoramento_datalogger_url || sistema?.monitoramento_datalogger_url || '',
-  )
-
-  // Controle de exibição da senha e cópia
-  const [showPassword, setShowPassword] = useState(false)
-  const [copiedField, setCopiedField] = useState<string | null>(null)
+  // Lista de inversores em edição
+  const [inversores, setInversores] = useState<InversorFormItem[]>([])
+  const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
   const [saveSuccess, setSaveSuccess] = useState(false)
 
+  // Diálogo de confirmação para exclusão
+  const [inversorParaExcluir, setInversorParaExcluir] = useState<InversorFormItem | null>(null)
+
   // Padrões cadastrados por marca
   const [marcasCadastradas, setMarcasCadastradas] = useState<MonitoramentoMarca[]>([])
-  const [padraoAplicavel, setPadraoAplicavel] = useState<MonitoramentoMarca | null>(null)
-
-  // Marca ativa do inversor
-  const marcaAtual = (sistema?.fabricante_inversores || cliente.inversor_marca || '').trim()
-
-  // Sincroniza estado inicial quando cliente mudar
-  useEffect(() => {
-    setAppNome(cliente.monitoramento_app_nome || sistema?.monitoramento_app_nome || '')
-    setLogin(cliente.monitoramento_login || sistema?.monitoramento_login || '')
-    setSenha(cliente.monitoramento_senha || sistema?.monitoramento_senha || '')
-    setDataloggerUrl(
-      cliente.monitoramento_datalogger_url || sistema?.monitoramento_datalogger_url || '',
-    )
-  }, [
-    cliente.id,
-    cliente.monitoramento_app_nome,
-    cliente.monitoramento_login,
-    cliente.monitoramento_senha,
-    cliente.monitoramento_datalogger_url,
-    sistema?.monitoramento_app_nome,
-    sistema?.monitoramento_login,
-    sistema?.monitoramento_senha,
-    sistema?.monitoramento_datalogger_url,
-  ])
 
   // Carrega catálogo de marcas
   useEffect(() => {
@@ -92,133 +100,344 @@ export const SecaoMonitoramentoInversor: React.FC<SecaoMonitoramentoInversorProp
     }
   }, [])
 
-  // Identifica se há padrão para a marca atual
+  // Helper para buscar padrão correspondente por marca
+  const encontrarPadraoMarca = useCallback(
+    (marcaNome: string): MonitoramentoMarca | null => {
+      if (!marcaNome || marcasCadastradas.length === 0) return null
+      const mLower = marcaNome.trim().toLowerCase()
+      return (
+        marcasCadastradas.find((m) => {
+          const dbLower = m.marca.toLowerCase()
+          return mLower.includes(dbLower) || dbLower.includes(mLower)
+        }) || null
+      )
+    },
+    [marcasCadastradas],
+  )
+
+  // Carrega inversores do cliente da coleção cliente_inversores
+  const carregarInversores = useCallback(async () => {
+    if (!cliente.id) return
+    setIsLoading(true)
+    try {
+      const records = await fetchInversoresByClienteId(cliente.id)
+      if (records && records.length > 0) {
+        setInversores(
+          records.map((r, idx) => ({
+            id: r.id,
+            tempId: r.id,
+            marca_inversor: r.marca_inversor || '',
+            modelo_inversor: r.modelo_inversor || '',
+            potencia_kwp: r.potencia_kwp,
+            numero_serie: r.numero_serie || '',
+            app_nome: r.app_nome || '',
+            login: r.login || '',
+            senha: r.senha || '',
+            datalogger_url: r.datalogger_url || '',
+            observacoes: r.observacoes || '',
+            ordem: r.ordem ?? idx + 1,
+            showPassword: false,
+            copiedField: null,
+            expanded: true,
+          })),
+        )
+      } else {
+        // Fallback: se o cliente ainda não tiver nenhum registro em cliente_inversores,
+        // inicializa com os dados legados da ficha do cliente/sistema
+        const marcaInicial = sistema?.fabricante_inversores || cliente.inversor_marca || 'SolarEdge'
+        const modeloInicial = sistema?.modelo_inversores || cliente.inversor_modelo || ''
+        const appInicial = cliente.monitoramento_app_nome || sistema?.monitoramento_app_nome || ''
+        const loginInicial = cliente.monitoramento_login || sistema?.monitoramento_login || ''
+        const senhaInicial = cliente.monitoramento_senha || sistema?.monitoramento_senha || ''
+        const dataloggerInicial =
+          cliente.monitoramento_datalogger_url || sistema?.monitoramento_datalogger_url || ''
+
+        // Procura padrão da marca se os dados estiverem vazios
+        const padrao = encontrarPadraoMarca(marcaInicial)
+
+        setInversores([
+          {
+            tempId: 'temp-1',
+            marca_inversor: marcaInicial,
+            modelo_inversor: modeloInicial,
+            app_nome: appInicial || padrao?.app_nome || '',
+            login: loginInicial || padrao?.login_padrao || '',
+            senha: senhaInicial || padrao?.senha_padrao || '',
+            datalogger_url: dataloggerInicial || padrao?.datalogger_url || '',
+            ordem: 1,
+            showPassword: false,
+            copiedField: null,
+            expanded: true,
+          },
+        ])
+      }
+    } catch (err) {
+      console.warn('Erro ao carregar inversores:', err)
+    } finally {
+      setIsLoading(false)
+    }
+  }, [
+    cliente.id,
+    cliente.inversor_marca,
+    cliente.inversor_modelo,
+    cliente.monitoramento_app_nome,
+    cliente.monitoramento_login,
+    cliente.monitoramento_senha,
+    cliente.monitoramento_datalogger_url,
+    sistema?.fabricante_inversores,
+    sistema?.modelo_inversores,
+    sistema?.monitoramento_app_nome,
+    sistema?.monitoramento_login,
+    sistema?.monitoramento_senha,
+    sistema?.monitoramento_datalogger_url,
+    encontrarPadraoMarca,
+  ])
+
   useEffect(() => {
-    if (!marcaAtual || marcasCadastradas.length === 0) {
-      setPadraoAplicavel(null)
+    carregarInversores()
+  }, [carregarInversores])
+
+  // Atualizar campo de um inversor específico
+  const handleUpdateInversorField = (index: number, field: keyof InversorFormItem, value: any) => {
+    setInversores((prev) => {
+      const next = [...prev]
+      const item = { ...next[index], [field]: value }
+
+      // Se alterou a marca e os dados de monitoramento estão vazios, auto-preencher com padrão
+      if (field === 'marca_inversor' && typeof value === 'string') {
+        const padrao = encontrarPadraoMarca(value)
+        if (padrao) {
+          if (!item.app_nome && padrao.app_nome) item.app_nome = padrao.app_nome
+          if (!item.login && padrao.login_padrao) item.login = padrao.login_padrao
+          if (!item.senha && padrao.senha_padrao) item.senha = padrao.senha_padrao
+          if (!item.datalogger_url && padrao.datalogger_url)
+            item.datalogger_url = padrao.datalogger_url
+        }
+      }
+
+      next[index] = item
+      return next
+    })
+  }
+
+  // Aplicar explicitamente padrão da marca no inversor específico
+  const handleAplicarPadrao = (index: number) => {
+    const item = inversores[index]
+    if (!item) return
+    const padrao = encontrarPadraoMarca(item.marca_inversor)
+    if (!padrao) {
+      toast.info(`Nenhum padrão cadastrado para a marca "${item.marca_inversor || 'vazia'}".`)
       return
     }
 
-    const mLower = marcaAtual.toLowerCase()
-    const encontrada = marcasCadastradas.find((m) => {
-      const dbLower = m.marca.toLowerCase()
-      return mLower.includes(dbLower) || dbLower.includes(mLower)
+    setInversores((prev) => {
+      const next = [...prev]
+      next[index] = {
+        ...next[index],
+        app_nome: padrao.app_nome || next[index].app_nome,
+        login: padrao.login_padrao || next[index].login,
+        senha: padrao.senha_padrao || next[index].senha,
+        datalogger_url: padrao.datalogger_url || next[index].datalogger_url,
+      }
+      return next
     })
 
-    setPadraoAplicavel(encontrada || null)
-  }, [marcaAtual, marcasCadastradas])
-
-  // Preenchimento automático com padrão da marca se os campos estiverem vazios
-  useEffect(() => {
-    if (!padraoAplicavel) return
-
-    // Se todos ou a maioria estiver vazia no cliente, pré-popula automaticamente
-    const clienteTemDados =
-      Boolean(cliente.monitoramento_app_nome) ||
-      Boolean(cliente.monitoramento_login) ||
-      Boolean(cliente.monitoramento_senha) ||
-      Boolean(cliente.monitoramento_datalogger_url)
-
-    if (!clienteTemDados) {
-      if (padraoAplicavel.app_nome && !appNome) {
-        setAppNome(padraoAplicavel.app_nome)
-      }
-      if (padraoAplicavel.login_padrao && !login) {
-        setLogin(padraoAplicavel.login_padrao)
-      }
-      if (padraoAplicavel.senha_padrao && !senha) {
-        setSenha(padraoAplicavel.senha_padrao)
-      }
-      if (padraoAplicavel.datalogger_url && !dataloggerUrl) {
-        setDataloggerUrl(padraoAplicavel.datalogger_url)
-      }
-    }
-  }, [padraoAplicavel, cliente.id])
-
-  // Aplicar padrão da marca explicitamente
-  const handleAplicarPadrao = () => {
-    if (!padraoAplicavel) return
-    if (padraoAplicavel.app_nome) setAppNome(padraoAplicavel.app_nome)
-    if (padraoAplicavel.login_padrao) setLogin(padraoAplicavel.login_padrao)
-    if (padraoAplicavel.senha_padrao) setSenha(padraoAplicavel.senha_padrao)
-    if (padraoAplicavel.datalogger_url) setDataloggerUrl(padraoAplicavel.datalogger_url)
-    toast.success(
-      `Valores padrão da marca ${padraoAplicavel.marca} preenchidos! Clique em salvar para confirmar.`,
-    )
+    toast.success(`Padrão da marca "${padrao.marca}" aplicado no Inversor #${index + 1}!`)
   }
 
-  // Copiar valor para área de transferência
-  const handleCopy = async (field: string, text: string) => {
+  // Copiar valor de campo para clipboard
+  const handleCopy = async (index: number, field: string, text: string) => {
     if (!text) return
     try {
       await navigator.clipboard.writeText(text)
-      setCopiedField(field)
+      setInversores((prev) => {
+        const next = [...prev]
+        next[index] = { ...next[index], copiedField: field }
+        return next
+      })
       toast.success('Copiado para a área de transferência!')
-      setTimeout(() => setCopiedField(null), 2000)
+      setTimeout(() => {
+        setInversores((prev) => {
+          const next = [...prev]
+          if (next[index]) next[index] = { ...next[index], copiedField: null }
+          return next
+        })
+      }, 2000)
     } catch (_) {
       toast.error('Não foi possível copiar.')
     }
   }
 
-  // Salvar no cliente (e sistema) + memorizar como padrão da marca
-  const handleSalvar = async (salvarTambemPadraoMarca = true) => {
+  // Alternar visualização da senha
+  const handleToggleSenha = (index: number) => {
+    setInversores((prev) => {
+      const next = [...prev]
+      next[index] = { ...next[index], showPassword: !next[index].showPassword }
+      return next
+    })
+  }
+
+  // Adicionar novo inversor
+  const handleAdicionarInversor = () => {
+    const novaOrdem = inversores.length + 1
+    // Sugestão padrão de nova marca comum (ex: SolarEdge ou Growatt se ainda não estiver na lista)
+    const marcasEmUso = inversores.map((inv) => (inv.marca_inversor || '').toLowerCase())
+    let marcaSugerida = 'SolarEdge'
+    if (marcasEmUso.includes('solaredge')) {
+      marcaSugerida = 'Growatt'
+    } else if (marcasEmUso.includes('growatt')) {
+      marcaSugerida = 'SolarEdge'
+    }
+
+    const padrao = encontrarPadraoMarca(marcaSugerida)
+
+    const novoInversor: InversorFormItem = {
+      tempId: `temp-${Date.now()}`,
+      marca_inversor: marcaSugerida,
+      modelo_inversor: '',
+      app_nome: padrao?.app_nome || '',
+      login: padrao?.login_padrao || '',
+      senha: padrao?.senha_padrao || '',
+      datalogger_url: padrao?.datalogger_url || '',
+      ordem: novaOrdem,
+      showPassword: false,
+      copiedField: null,
+      expanded: true,
+    }
+
+    setInversores((prev) => [...prev, novoInversor])
+    toast.success(`Inversor #${novaOrdem} adicionado! Preencha a marca e dados de acesso.`)
+  }
+
+  // Solicitar remoção de inversor
+  const handleConfirmarRemocao = (item: InversorFormItem) => {
+    setInversorParaExcluir(item)
+  }
+
+  // Executar remoção
+  const handleRemoverInversorExecutar = async () => {
+    if (!inversorParaExcluir) return
+    const { id, tempId } = inversorParaExcluir
+
+    try {
+      if (id) {
+        await deleteClienteInversor(id)
+      }
+      setInversores((prev) => {
+        const filtrados = prev.filter((inv) => (id ? inv.id !== id : inv.tempId !== tempId))
+        // Reordenar ordem 1, 2, 3...
+        return filtrados.map((inv, idx) => ({ ...inv, ordem: idx + 1 }))
+      })
+      toast.success('Inversor removido com sucesso!')
+    } catch (err: any) {
+      console.error(err)
+      toast.error('Erro ao excluir inversor: ' + (err?.message || 'Tente novamente'))
+    } finally {
+      setInversorParaExcluir(null)
+    }
+  }
+
+  // Salvar todos os inversores e sincronizar campos principais com a ficha do cliente
+  const handleSalvarTodos = async (memorizarMarcas = true) => {
+    if (inversores.length === 0) {
+      toast.error('Cadastre ao menos um inversor.')
+      return
+    }
+
     setIsSaving(true)
     setSaveSuccess(false)
-    try {
-      // 1. Atualizar cliente
-      await onUpdateClienteField('monitoramento_app_nome', appNome.trim())
-      await onUpdateClienteField('monitoramento_login', login.trim())
-      await onUpdateClienteField('monitoramento_senha', senha.trim())
-      await onUpdateClienteField('monitoramento_datalogger_url', dataloggerUrl.trim())
 
-      // 2. Atualizar sistema se houver
-      if (onUpdateSistemaField && sistema) {
-        await onUpdateSistemaField('monitoramento_app_nome', appNome.trim())
-        await onUpdateSistemaField('monitoramento_login', login.trim())
-        await onUpdateSistemaField('monitoramento_senha', senha.trim())
-        await onUpdateSistemaField('monitoramento_datalogger_url', dataloggerUrl.trim())
+    try {
+      const novosSalvos: InversorFormItem[] = []
+
+      for (let i = 0; i < inversores.length; i++) {
+        const item = inversores[i]
+        const payload: Partial<ClienteInversor> & { cliente_id: string } = {
+          cliente_id: cliente.id,
+          marca_inversor: (item.marca_inversor || '').trim(),
+          modelo_inversor: (item.modelo_inversor || '').trim(),
+          potencia_kwp: item.potencia_kwp ? Number(item.potencia_kwp) : undefined,
+          numero_serie: (item.numero_serie || '').trim(),
+          app_nome: (item.app_nome || '').trim(),
+          login: (item.login || '').trim(),
+          senha: (item.senha || '').trim(),
+          datalogger_url: (item.datalogger_url || '').trim(),
+          observacoes: (item.observacoes || '').trim(),
+          ordem: i + 1,
+        }
+
+        let salvo: ClienteInversor
+        if (item.id) {
+          salvo = await updateClienteInversor(item.id, payload)
+        } else {
+          salvo = await createClienteInversor(payload)
+        }
+
+        novosSalvos.push({
+          ...item,
+          id: salvo.id,
+          tempId: salvo.id,
+          ordem: i + 1,
+        })
+
+        // Memorizar como padrão da marca se solicitado e se houver marca preenchida
+        if (memorizarMarcas && item.marca_inversor?.trim()) {
+          try {
+            await saveOrUpdateMonitoramentoMarca({
+              marca: item.marca_inversor.trim(),
+              app_nome: item.app_nome?.trim() || '',
+              login_padrao: item.login?.trim() || '',
+              senha_padrao: item.senha?.trim() || '',
+              datalogger_url: item.datalogger_url?.trim() || '',
+            })
+          } catch (mErr) {
+            console.warn('Erro ao memorizar padrão da marca:', mErr)
+          }
+        }
       }
 
-      // 3. Memorizar como padrão para a marca do inversor (quando houver marca preenchida)
-      if (salvarTambemPadraoMarca && marcaAtual) {
-        try {
-          const salvoMarca = await saveOrUpdateMonitoramentoMarca({
-            marca: marcaAtual,
-            app_nome: appNome.trim(),
-            login_padrao: login.trim(),
-            senha_padrao: senha.trim(),
-            datalogger_url: dataloggerUrl.trim(),
-          })
-          setPadraoAplicavel(salvoMarca)
-          // Atualiza lista em memória
-          setMarcasCadastradas((prev) => {
-            const semEsta = prev.filter(
-              (m) =>
-                m.id !== salvoMarca.id && m.marca.toLowerCase() !== salvoMarca.marca.toLowerCase(),
-            )
-            return [...semEsta, salvoMarca]
-          })
-        } catch (err) {
-          console.warn('Erro ao salvar padrão da marca:', err)
+      setInversores(novosSalvos)
+
+      // Sincronizar o primeiro inversor com os campos legados do cliente/sistema para retrocompatibilidade
+      const primeiro = novosSalvos[0]
+      if (primeiro) {
+        if (primeiro.marca_inversor) {
+          await onUpdateClienteField('inversor_marca', primeiro.marca_inversor)
+        }
+        if (primeiro.modelo_inversor) {
+          await onUpdateClienteField('inversor_modelo', primeiro.modelo_inversor)
+        }
+        await onUpdateClienteField('monitoramento_app_nome', primeiro.app_nome)
+        await onUpdateClienteField('monitoramento_login', primeiro.login)
+        await onUpdateClienteField('monitoramento_senha', primeiro.senha)
+        await onUpdateClienteField('monitoramento_datalogger_url', primeiro.datalogger_url)
+
+        if (onUpdateSistemaField && sistema) {
+          if (primeiro.marca_inversor) {
+            await onUpdateSistemaField('fabricante_inversores', primeiro.marca_inversor)
+          }
+          if (primeiro.modelo_inversor) {
+            await onUpdateSistemaField('modelo_inversores', primeiro.modelo_inversor)
+          }
+          await onUpdateSistemaField('monitoramento_app_nome', primeiro.app_nome)
+          await onUpdateSistemaField('monitoramento_login', primeiro.login)
+          await onUpdateSistemaField('monitoramento_senha', primeiro.senha)
+          await onUpdateSistemaField('monitoramento_datalogger_url', primeiro.datalogger_url)
         }
       }
 
       setSaveSuccess(true)
-      toast.success(
-        salvarTambemPadraoMarca && marcaAtual
-          ? `Dados de monitoramento salvos no cliente e definidos como padrão para "${marcaAtual}"!`
-          : 'Dados de monitoramento do cliente atualizados com sucesso!',
-      )
+      toast.success(`Todos os ${novosSalvos.length} inversores foram salvos com sucesso!`)
       setTimeout(() => setSaveSuccess(false), 3000)
     } catch (err: any) {
       console.error(err)
-      toast.error('Erro ao salvar dados de monitoramento: ' + (err?.message || 'Tente novamente'))
+      toast.error('Erro ao salvar inversores: ' + (err?.message || 'Tente novamente'))
     } finally {
       setIsSaving(false)
     }
   }
 
-  // Tratar URL do datalogger para link seguro (adiciona http:// se necessário)
+  // Helper para URL do link do datalogger
   const getHrefDatalogger = (url: string) => {
     const trimmed = url.trim()
     if (!trimmed) return ''
@@ -226,14 +445,12 @@ export const SecaoMonitoramentoInversor: React.FC<SecaoMonitoramentoInversorProp
     return `http://${trimmed}`
   }
 
-  const linkHref = getHrefDatalogger(dataloggerUrl)
-
   // Validação de telefone para envio pelo WhatsApp
   const telefoneCru = cliente.whatsapp || cliente.telefone || ''
   const telefoneDigitos = cleanPhoneDigits(telefoneCru)
   const temTelefoneValido = telefoneDigitos.length >= 10
 
-  // Disparo de credenciais pelo WhatsApp (wa.me)
+  // Disparo de credenciais pelo WhatsApp listando TODOS os inversores
   const handleEnviarWhatsApp = () => {
     if (!temTelefoneValido) {
       toast.error('O cliente não possui telefone de contato cadastrado na ficha.')
@@ -243,22 +460,32 @@ export const SecaoMonitoramentoInversor: React.FC<SecaoMonitoramentoInversorProp
     const ddiNumero = telefoneDigitos.startsWith('55') ? telefoneDigitos : `55${telefoneDigitos}`
     const primeiroNome = (cliente.nome || 'Cliente').split(' ')[0]
 
-    const linhasMensagem = [
-      `Olá ${primeiroNome}! Seguem seus dados de acesso ao monitoramento do inversor:`,
+    const linhasMensagem: (string | null)[] = [
+      `Olá ${primeiroNome}! Seguem seus dados de acesso ao monitoramento do(s) seu(s) inversor(es) solar:`,
       '',
-      appNome ? `📱 *Aplicativo:* ${appNome}` : null,
-      login ? `👤 *Login:* ${login}` : null,
-      senha ? `🔒 *Senha:* ${senha}` : null,
-      dataloggerUrl ? `📶 *Link do Datalogger:* ${dataloggerUrl}` : null,
-      marcaAtual ? `⚡ *Inversor:* ${marcaAtual}` : null,
-      '',
-      'Qualquer dúvida sobre a configuração ou primeiro acesso, estamos à disposição!',
-    ].filter((l) => l !== null)
+    ]
 
-    const textoFormatado = linhasMensagem.join('\n')
+    inversores.forEach((inv, idx) => {
+      const numLabel = inversores.length > 1 ? ` (Inversor #${idx + 1})` : ''
+      linhasMensagem.push(
+        `⚡ *INVERSOR${numLabel}:* ${inv.marca_inversor || 'Não informada'}${inv.modelo_inversor ? ` - ${inv.modelo_inversor}` : ''}`,
+      )
+      if (inv.app_nome) linhasMensagem.push(`📱 *Aplicativo:* ${inv.app_nome}`)
+      if (inv.login) linhasMensagem.push(`👤 *Login:* ${inv.login}`)
+      if (inv.senha) linhasMensagem.push(`🔒 *Senha:* ${inv.senha}`)
+      if (inv.datalogger_url) linhasMensagem.push(`📶 *Link do Datalogger:* ${inv.datalogger_url}`)
+      if (inv.observacoes) linhasMensagem.push(`ℹ️ *Obs:* ${inv.observacoes}`)
+      linhasMensagem.push('')
+    })
+
+    linhasMensagem.push(
+      'Qualquer dúvida sobre a configuração ou primeiro acesso, estamos à inteira disposição!',
+    )
+
+    const textoFormatado = linhasMensagem.filter((l) => l !== null).join('\n')
     const url = `https://wa.me/${ddiNumero}?text=${encodeURIComponent(textoFormatado)}`
     window.open(url, '_blank')
-    toast.success('WhatsApp aberto com os dados de acesso ao monitoramento!')
+    toast.success('WhatsApp aberto com os dados de acesso de todos os inversores!')
   }
 
   return (
@@ -267,234 +494,383 @@ export const SecaoMonitoramentoInversor: React.FC<SecaoMonitoramentoInversorProp
       <div className="flex items-center justify-between flex-wrap gap-2 border-b border-purple-200/70 pb-2.5">
         <div className="flex items-center gap-2">
           <div className="w-7 h-7 rounded-lg bg-purple-600 flex items-center justify-center text-white shadow-xs">
-            <Smartphone className="w-4 h-4" />
+            <Cpu className="w-4 h-4" />
           </div>
           <div>
-            <h4 className="text-xs font-bold uppercase tracking-wider text-purple-950 flex items-center gap-1.5">
-              Aplicativo & Monitoramento do Inversor
-            </h4>
+            <div className="flex items-center gap-2">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-purple-950 flex items-center gap-1.5">
+                Inversores & Monitoramento do Cliente
+              </h4>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-100 text-purple-800 border border-purple-200">
+                {inversores.length} {inversores.length === 1 ? 'inversor' : 'inversores'}
+              </span>
+            </div>
             <p className="text-[11px] text-purple-800/80">
-              Credenciais de acesso e configuração do datalogger Wi-Fi/4G
+              Gerencie múltiplos inversores, marcas diferentes e credenciais de monitoramento
             </p>
           </div>
         </div>
 
-        {/* Badge da Marca & Botão de Aplicar Padrão */}
+        {/* Botão para Adicionar Inversor */}
         <div className="flex items-center gap-2">
-          {marcaAtual ? (
-            <div className="flex items-center gap-1.5">
-              <span className="text-[10px] font-semibold text-purple-700 bg-purple-100/80 border border-purple-200 px-2 py-0.5 rounded-full">
-                Marca: <strong className="font-bold">{marcaAtual}</strong>
-              </span>
-
-              {padraoAplicavel && (
-                <button
-                  type="button"
-                  onClick={handleAplicarPadrao}
-                  title={`Preencher campos com o padrão memorizado para "${padraoAplicavel.marca}"`}
-                  className="inline-flex items-center gap-1 text-[10px] font-bold text-indigo-700 bg-white hover:bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-full transition-colors shadow-2xs"
-                >
-                  <Sparkles className="w-3 h-3 text-indigo-600" />
-                  Padrão {padraoAplicavel.marca}
-                </button>
-              )}
-            </div>
-          ) : (
-            <span className="text-[10px] text-gray-500 italic">
-              Defina o fabricante acima para carregar padrões
-            </span>
-          )}
+          <button
+            type="button"
+            onClick={handleAdicionarInversor}
+            className="inline-flex items-center gap-1.5 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 px-3 py-1.5 rounded-lg transition-colors shadow-2xs hover:scale-[1.01]"
+          >
+            <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
+            <span>+ Adicionar Inversor</span>
+          </button>
         </div>
       </div>
 
-      {/* Grid de Campos Editáveis */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
-        {/* Campo 1: Nome do Aplicativo (App Store / Google Play) */}
-        <div className="space-y-1">
-          <label className="text-[11px] font-semibold text-gray-700 flex items-center justify-between">
-            <span className="flex items-center gap-1.5 text-purple-900">
-              <Smartphone className="w-3.5 h-3.5 text-purple-600 shrink-0" />
-              Nome do Aplicativo
-            </span>
-            <span className="text-[10px] text-gray-400 font-normal">App Store / Google Play</span>
-          </label>
-          <div className="relative flex items-center">
-            <input
-              type="text"
-              value={appNome}
-              onChange={(e) => setAppNome(e.target.value)}
-              placeholder="Ex.: mySolarEdge, ShinePhone, Solar.web"
-              className="w-full bg-white border border-gray-300 rounded-lg pl-3 pr-8 py-1.5 text-xs text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500/40 focus:border-purple-500 transition-all shadow-2xs"
-            />
-            {appNome && (
-              <button
-                type="button"
-                onClick={() => handleCopy('app', appNome)}
-                title="Copiar nome do aplicativo"
-                className="absolute right-2 p-1 text-gray-400 hover:text-purple-600 transition-colors"
-              >
-                {copiedField === 'app' ? (
-                  <Check className="w-3.5 h-3.5 text-emerald-600" />
-                ) : (
-                  <Copy className="w-3.5 h-3.5" />
-                )}
-              </button>
-            )}
-          </div>
+      {isLoading ? (
+        <div className="py-6 text-center text-xs text-purple-700 font-medium">
+          Carregando inversores do cliente...
         </div>
+      ) : (
+        /* Lista de Inversores como Cartões Empilhados */
+        <div className="space-y-3">
+          {inversores.map((inv, index) => {
+            const padrao = encontrarPadraoMarca(inv.marca_inversor)
+            const linkHref = getHrefDatalogger(inv.datalogger_url || '')
 
-        {/* Campo 2: Login do Aplicativo */}
-        <div className="space-y-1">
-          <label className="text-[11px] font-semibold text-gray-700 flex items-center justify-between">
-            <span className="flex items-center gap-1.5 text-indigo-900">
-              <User className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
-              Login do Aplicativo
-            </span>
-            <span className="text-[10px] text-gray-400 font-normal">E-mail ou Usuário</span>
-          </label>
-          <div className="relative flex items-center">
-            <input
-              type="text"
-              value={login}
-              onChange={(e) => setLogin(e.target.value)}
-              placeholder="Ex.: cliente@email.com ou usuario_solaredge"
-              className="w-full bg-white border border-gray-300 rounded-lg pl-3 pr-8 py-1.5 text-xs text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-500 transition-all shadow-2xs font-mono"
-            />
-            {login && (
-              <button
-                type="button"
-                onClick={() => handleCopy('login', login)}
-                title="Copiar login"
-                className="absolute right-2 p-1 text-gray-400 hover:text-indigo-600 transition-colors"
+            return (
+              <div
+                key={inv.id || inv.tempId}
+                className="bg-white rounded-xl border border-purple-200/90 shadow-2xs overflow-hidden transition-all"
               >
-                {copiedField === 'login' ? (
-                  <Check className="w-3.5 h-3.5 text-emerald-600" />
-                ) : (
-                  <Copy className="w-3.5 h-3.5" />
-                )}
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* Campo 3: Senha do Aplicativo (com Toggle de Visualização e Botão Copiar) */}
-        <div className="space-y-1">
-          <label className="text-[11px] font-semibold text-gray-700 flex items-center justify-between">
-            <span className="flex items-center gap-1.5 text-amber-900">
-              <Lock className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-              Senha do Aplicativo
-            </span>
-            <span className="text-[10px] text-gray-400 font-normal">Acesso do cliente/suporte</span>
-          </label>
-          <div className="relative flex items-center">
-            <input
-              type={showPassword ? 'text' : 'password'}
-              value={senha}
-              onChange={(e) => setSenha(e.target.value)}
-              placeholder="••••••••••••"
-              className="w-full bg-white border border-gray-300 rounded-lg pl-3 pr-16 py-1.5 text-xs text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500 transition-all shadow-2xs font-mono"
-            />
-            <div className="absolute right-1.5 flex items-center gap-0.5">
-              <button
-                type="button"
-                onClick={() => setShowPassword((prev) => !prev)}
-                title={showPassword ? 'Ocultar senha' : 'Ver senha'}
-                className="p-1 text-gray-400 hover:text-gray-700 transition-colors"
-              >
-                {showPassword ? (
-                  <EyeOff className="w-3.5 h-3.5 text-amber-700" />
-                ) : (
-                  <Eye className="w-3.5 h-3.5" />
-                )}
-              </button>
-              {senha && (
-                <button
-                  type="button"
-                  onClick={() => handleCopy('senha', senha)}
-                  title="Copiar senha"
-                  className="p-1 text-gray-400 hover:text-amber-600 transition-colors"
-                >
-                  {copiedField === 'senha' ? (
-                    <Check className="w-3.5 h-3.5 text-emerald-600" />
-                  ) : (
-                    <Copy className="w-3.5 h-3.5" />
-                  )}
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Campo 4: Link de Configuração do Datalogger (com Botão Abrir em Nova Aba) */}
-        <div className="space-y-1">
-          <label className="text-[11px] font-semibold text-gray-700 flex items-center justify-between">
-            <span className="flex items-center gap-1.5 text-blue-900">
-              <Wifi className="w-3.5 h-3.5 text-blue-600 shrink-0" />
-              Configurar Datalogger / IP Wi-Fi
-            </span>
-            <span className="text-[10px] text-gray-400 font-normal">Portal ou IP local</span>
-          </label>
-          <div className="relative flex items-center">
-            <input
-              type="text"
-              value={dataloggerUrl}
-              onChange={(e) => setDataloggerUrl(e.target.value)}
-              placeholder="Ex.: http://192.168.10.100 ou https://solaredge.com/setapp-help"
-              className="w-full bg-white border border-gray-300 rounded-lg pl-3 pr-16 py-1.5 text-xs text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500 transition-all shadow-2xs font-mono"
-            />
-            <div className="absolute right-1.5 flex items-center gap-0.5">
-              {dataloggerUrl && (
-                <>
-                  <button
-                    type="button"
-                    onClick={() => handleCopy('datalogger', dataloggerUrl)}
-                    title="Copiar link"
-                    className="p-1 text-gray-400 hover:text-blue-600 transition-colors"
-                  >
-                    {copiedField === 'datalogger' ? (
-                      <Check className="w-3.5 h-3.5 text-emerald-600" />
-                    ) : (
-                      <Copy className="w-3.5 h-3.5" />
+                {/* Cabeçalho do Cartão do Inversor */}
+                <div className="bg-gradient-to-r from-purple-100/70 via-indigo-50/60 to-purple-50/40 p-2.5 px-3 border-b border-purple-200/70 flex items-center justify-between flex-wrap gap-2">
+                  <div className="flex items-center gap-2">
+                    <span className="w-5 h-5 rounded-full bg-purple-700 text-white font-bold text-[11px] flex items-center justify-center shadow-2xs">
+                      {index + 1}
+                    </span>
+                    <span className="text-xs font-bold text-purple-950 flex items-center gap-1.5">
+                      <Cpu className="w-3.5 h-3.5 text-purple-700" />
+                      Inversor #{index + 1}
+                      {inv.marca_inversor && (
+                        <span className="text-purple-700 font-extrabold">
+                          — {inv.marca_inversor}
+                        </span>
+                      )}
+                    </span>
+                    {inv.modelo_inversor && (
+                      <span className="text-[11px] text-gray-500 hidden sm:inline truncate max-w-[200px]">
+                        ({inv.modelo_inversor})
+                      </span>
                     )}
-                  </button>
-                  <a
-                    href={linkHref}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    title={`Abrir ${linkHref} em nova aba`}
-                    className="p-1 text-blue-600 hover:text-blue-800 transition-colors inline-flex items-center"
-                  >
-                    <ExternalLink className="w-3.5 h-3.5" />
-                  </a>
-                </>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
+                  </div>
 
-      {/* Nota informativa sobre padrões memorizados */}
-      <div className="flex items-start gap-2 p-2 rounded-lg bg-white/70 border border-purple-100 text-[11px] text-gray-600">
+                  <div className="flex items-center gap-1.5">
+                    {/* Botão de Aplicar Padrão da Marca se houver */}
+                    {padrao && (
+                      <button
+                        type="button"
+                        onClick={() => handleAplicarPadrao(index)}
+                        title={`Preencher credenciais com o padrão da marca "${padrao.marca}"`}
+                        className="inline-flex items-center gap-1 text-[10px] font-bold text-indigo-700 bg-white hover:bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-full transition-colors shadow-2xs"
+                      >
+                        <Sparkles className="w-3 h-3 text-indigo-600" />
+                        Padrão {padrao.marca}
+                      </button>
+                    )}
+
+                    {/* Botão Remover Inversor */}
+                    {inversores.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => handleConfirmarRemocao(inv)}
+                        title={`Remover Inversor #${index + 1}`}
+                        className="p-1 rounded text-red-500 hover:text-red-700 hover:bg-red-50 transition-colors"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Conteúdo do Cartão */}
+                <div className="p-3 space-y-3">
+                  {/* Linha 1: Marca, Modelo e Potência do Inversor */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                    {/* Marca do Inversor (com lista de sugestões das marcas cadastradas) */}
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-semibold text-gray-700 flex items-center justify-between">
+                        <span className="text-purple-900 font-bold">Marca / Fabricante</span>
+                        {padrao && (
+                          <span className="text-[10px] text-indigo-600 font-medium">
+                            Padrão ativo
+                          </span>
+                        )}
+                      </label>
+                      <div className="relative">
+                        <input
+                          type="text"
+                          list={`datalist-marcas-${index}`}
+                          value={inv.marca_inversor}
+                          onChange={(e) =>
+                            handleUpdateInversorField(index, 'marca_inversor', e.target.value)
+                          }
+                          placeholder="Ex.: SolarEdge, Growatt, Fronius..."
+                          className="w-full bg-white border border-gray-300 rounded-lg px-3 py-1.5 text-xs text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500/40 focus:border-purple-500 transition-all shadow-2xs font-semibold"
+                        />
+                        <datalist id={`datalist-marcas-${index}`}>
+                          {marcasCadastradas.map((m) => (
+                            <option key={m.id} value={m.marca}>
+                              {m.marca} ({m.app_nome || 'App'})
+                            </option>
+                          ))}
+                        </datalist>
+                      </div>
+                    </div>
+
+                    {/* Modelo do Inversor */}
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-semibold text-gray-700">
+                        Modelo do Inversor
+                      </label>
+                      <input
+                        type="text"
+                        value={inv.modelo_inversor}
+                        onChange={(e) =>
+                          handleUpdateInversorField(index, 'modelo_inversor', e.target.value)
+                        }
+                        placeholder="Ex.: MAX 30KTL3-X LV"
+                        className="w-full bg-white border border-gray-300 rounded-lg px-3 py-1.5 text-xs text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500/40 focus:border-purple-500 transition-all shadow-2xs"
+                      />
+                    </div>
+
+                    {/* Potência ou Observação rápida */}
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-semibold text-gray-700 flex items-center justify-between">
+                        <span>Potência (kWp)</span>
+                        <span className="text-[10px] text-gray-400 font-normal">Opcional</span>
+                      </label>
+                      <input
+                        type="number"
+                        step="0.1"
+                        value={inv.potencia_kwp ?? ''}
+                        onChange={(e) =>
+                          handleUpdateInversorField(
+                            index,
+                            'potencia_kwp',
+                            e.target.value ? Number(e.target.value) : undefined,
+                          )
+                        }
+                        placeholder="Ex.: 15.0"
+                        className="w-full bg-white border border-gray-300 rounded-lg px-3 py-1.5 text-xs text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500/40 focus:border-purple-500 transition-all shadow-2xs font-mono"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Linha 2: Os 4 Dados de Monitoramento (App, Login, Senha, Datalogger) */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1 border-t border-gray-100">
+                    {/* Campo 1: Nome do Aplicativo */}
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-semibold text-gray-700 flex items-center justify-between">
+                        <span className="flex items-center gap-1.5 text-purple-900">
+                          <Smartphone className="w-3.5 h-3.5 text-purple-600 shrink-0" />
+                          Nome do Aplicativo
+                        </span>
+                        <span className="text-[10px] text-gray-400 font-normal">
+                          App Store / Google Play
+                        </span>
+                      </label>
+                      <div className="relative flex items-center">
+                        <input
+                          type="text"
+                          value={inv.app_nome}
+                          onChange={(e) =>
+                            handleUpdateInversorField(index, 'app_nome', e.target.value)
+                          }
+                          placeholder="Ex.: mySolarEdge, ShinePhone, Solar.web"
+                          className="w-full bg-white border border-gray-300 rounded-lg pl-3 pr-8 py-1.5 text-xs text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500/40 focus:border-purple-500 transition-all shadow-2xs"
+                        />
+                        {inv.app_nome && (
+                          <button
+                            type="button"
+                            onClick={() => handleCopy(index, 'app', inv.app_nome)}
+                            title="Copiar nome do aplicativo"
+                            className="absolute right-2 p-1 text-gray-400 hover:text-purple-600 transition-colors"
+                          >
+                            {inv.copiedField === 'app' ? (
+                              <Check className="w-3.5 h-3.5 text-emerald-600" />
+                            ) : (
+                              <Copy className="w-3.5 h-3.5" />
+                            )}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Campo 2: Login do Aplicativo */}
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-semibold text-gray-700 flex items-center justify-between">
+                        <span className="flex items-center gap-1.5 text-indigo-900">
+                          <User className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+                          Login do Aplicativo
+                        </span>
+                        <span className="text-[10px] text-gray-400 font-normal">
+                          E-mail ou Usuário
+                        </span>
+                      </label>
+                      <div className="relative flex items-center">
+                        <input
+                          type="text"
+                          value={inv.login}
+                          onChange={(e) =>
+                            handleUpdateInversorField(index, 'login', e.target.value)
+                          }
+                          placeholder="Ex.: cliente@email.com ou usuario_inversor"
+                          className="w-full bg-white border border-gray-300 rounded-lg pl-3 pr-8 py-1.5 text-xs text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-500 transition-all shadow-2xs font-mono"
+                        />
+                        {inv.login && (
+                          <button
+                            type="button"
+                            onClick={() => handleCopy(index, 'login', inv.login)}
+                            title="Copiar login"
+                            className="absolute right-2 p-1 text-gray-400 hover:text-indigo-600 transition-colors"
+                          >
+                            {inv.copiedField === 'login' ? (
+                              <Check className="w-3.5 h-3.5 text-emerald-600" />
+                            ) : (
+                              <Copy className="w-3.5 h-3.5" />
+                            )}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Campo 3: Senha do Aplicativo */}
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-semibold text-gray-700 flex items-center justify-between">
+                        <span className="flex items-center gap-1.5 text-amber-900">
+                          <Lock className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                          Senha do Aplicativo
+                        </span>
+                        <span className="text-[10px] text-gray-400 font-normal">
+                          Acesso cliente/suporte
+                        </span>
+                      </label>
+                      <div className="relative flex items-center">
+                        <input
+                          type={inv.showPassword ? 'text' : 'password'}
+                          value={inv.senha}
+                          onChange={(e) =>
+                            handleUpdateInversorField(index, 'senha', e.target.value)
+                          }
+                          placeholder="••••••••••••"
+                          className="w-full bg-white border border-gray-300 rounded-lg pl-3 pr-16 py-1.5 text-xs text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500 transition-all shadow-2xs font-mono"
+                        />
+                        <div className="absolute right-1.5 flex items-center gap-0.5">
+                          <button
+                            type="button"
+                            onClick={() => handleToggleSenha(index)}
+                            title={inv.showPassword ? 'Ocultar senha' : 'Ver senha'}
+                            className="p-1 text-gray-400 hover:text-gray-700 transition-colors"
+                          >
+                            {inv.showPassword ? (
+                              <EyeOff className="w-3.5 h-3.5 text-amber-700" />
+                            ) : (
+                              <Eye className="w-3.5 h-3.5" />
+                            )}
+                          </button>
+                          {inv.senha && (
+                            <button
+                              type="button"
+                              onClick={() => handleCopy(index, 'senha', inv.senha)}
+                              title="Copiar senha"
+                              className="p-1 text-gray-400 hover:text-amber-600 transition-colors"
+                            >
+                              {inv.copiedField === 'senha' ? (
+                                <Check className="w-3.5 h-3.5 text-emerald-600" />
+                              ) : (
+                                <Copy className="w-3.5 h-3.5" />
+                              )}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Campo 4: Link do Datalogger / IP Wi-Fi */}
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-semibold text-gray-700 flex items-center justify-between">
+                        <span className="flex items-center gap-1.5 text-blue-900">
+                          <Wifi className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                          Configurar Datalogger / IP Wi-Fi
+                        </span>
+                        <span className="text-[10px] text-gray-400 font-normal">
+                          Portal ou IP local
+                        </span>
+                      </label>
+                      <div className="relative flex items-center">
+                        <input
+                          type="text"
+                          value={inv.datalogger_url}
+                          onChange={(e) =>
+                            handleUpdateInversorField(index, 'datalogger_url', e.target.value)
+                          }
+                          placeholder="Ex.: http://192.168.10.100 ou https://solaredge.com/setapp-help"
+                          className="w-full bg-white border border-gray-300 rounded-lg pl-3 pr-16 py-1.5 text-xs text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500 transition-all shadow-2xs font-mono"
+                        />
+                        <div className="absolute right-1.5 flex items-center gap-0.5">
+                          {inv.datalogger_url && (
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => handleCopy(index, 'datalogger', inv.datalogger_url)}
+                                title="Copiar link"
+                                className="p-1 text-gray-400 hover:text-blue-600 transition-colors"
+                              >
+                                {inv.copiedField === 'datalogger' ? (
+                                  <Check className="w-3.5 h-3.5 text-emerald-600" />
+                                ) : (
+                                  <Copy className="w-3.5 h-3.5" />
+                                )}
+                              </button>
+                              <a
+                                href={linkHref}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                title={`Abrir ${linkHref} em nova aba`}
+                                className="p-1 text-blue-600 hover:text-blue-800 transition-colors inline-flex items-center"
+                              >
+                                <ExternalLink className="w-3.5 h-3.5" />
+                              </a>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      {/* Nota informativa */}
+      <div className="flex items-start gap-2 p-2.5 rounded-lg bg-white/70 border border-purple-100 text-[11px] text-gray-600">
         <Info className="w-3.5 h-3.5 text-purple-600 shrink-0 mt-0.5" />
         <div className="leading-snug">
           <span>
-            Ao salvar, estes dados são gravados no cliente e também memorizados como{' '}
-            <strong className="text-purple-900 font-semibold">
-              padrão de acesso para a marca "{marcaAtual || 'do inversor'}"
-            </strong>
-            . Ao abrir qualquer outro cliente com inversor desta mesma marca, os campos virão
-            pré-preenchidos automaticamente.
+            Cada inversor possui sua própria marca e dados de monitoramento. Ao salvar, os dados são
+            armazenados individualmente na ficha do cliente e o botão WhatsApp abaixo envia a lista
+            completa com todos os inversores e seus respectivos logins.
           </span>
         </div>
       </div>
 
-      {/* Barra de Ações: Salvar no Cliente e Como Padrão */}
+      {/* Barra de Ações: Salvar Inversores e Enviar pelo WhatsApp */}
       <div className="flex items-center justify-between flex-wrap gap-2 pt-1 border-t border-purple-100">
         <div className="flex items-center gap-1.5 text-[11px]">
           {saveSuccess && (
             <span className="inline-flex items-center gap-1 text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 animate-in fade-in">
               <CheckCircle2 className="w-3.5 h-3.5" />
-              Salvo com sucesso!
+              Inversores salvos com sucesso!
             </span>
           )}
         </div>
@@ -507,7 +883,7 @@ export const SecaoMonitoramentoInversor: React.FC<SecaoMonitoramentoInversorProp
             disabled={!temTelefoneValido}
             title={
               temTelefoneValido
-                ? `Enviar credenciais via WhatsApp para ${telefoneCru}`
+                ? `Enviar credenciais dos ${inversores.length} inversor(es) via WhatsApp para ${telefoneCru}`
                 : 'Cliente sem telefone de contato cadastrado na ficha'
             }
             className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg transition-all shadow-2xs ${
@@ -520,26 +896,14 @@ export const SecaoMonitoramentoInversor: React.FC<SecaoMonitoramentoInversorProp
             <span>Enviar credenciais pelo WhatsApp</span>
           </button>
 
-          {marcaAtual && (
-            <button
-              type="button"
-              disabled={isSaving}
-              onClick={() => handleSalvar(false)}
-              title="Salva apenas no cliente atual sem sobrescrever o padrão geral da marca"
-              className="px-2.5 py-1 text-[11px] font-medium text-gray-700 hover:text-gray-900 bg-white hover:bg-gray-50 border border-gray-300 rounded-lg transition-colors"
-            >
-              Salvar só neste cliente
-            </button>
-          )}
-
           <button
             type="button"
             disabled={isSaving}
-            onClick={() => handleSalvar(true)}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-white bg-purple-700 hover:bg-purple-800 active:bg-purple-900 rounded-lg transition-colors shadow-2xs disabled:opacity-50"
+            onClick={() => handleSalvarTodos(true)}
+            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold text-white bg-purple-700 hover:bg-purple-800 active:bg-purple-900 rounded-lg transition-colors shadow-2xs disabled:opacity-50 hover:scale-[1.01]"
           >
             <Save className="w-3.5 h-3.5" />
-            {isSaving ? 'Salvando...' : 'Salvar e Memorizar para Marca'}
+            {isSaving ? 'Salvando...' : 'Salvar Inversores'}
           </button>
         </div>
       </div>
@@ -550,10 +914,41 @@ export const SecaoMonitoramentoInversor: React.FC<SecaoMonitoramentoInversorProp
           <AlertCircle className="w-3.5 h-3.5 text-amber-600 shrink-0" />
           <span>
             Cliente sem telefone/WhatsApp válido cadastrado. Cadastre o telefone na coluna da
-            direita para habilitar o envio por WhatsApp com um clique.
+            direita para habilitar o envio das credenciais com um clique.
           </span>
         </div>
       )}
+
+      {/* Diálogo de Confirmação para Remover Inversor */}
+      <AlertDialog
+        open={Boolean(inversorParaExcluir)}
+        onOpenChange={(open) => !open && setInversorParaExcluir(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-base font-bold text-gray-900">
+              Remover este Inversor?
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-xs text-gray-600">
+              Tem certeza que deseja remover o Inversor #{inversorParaExcluir?.ordem} (
+              {inversorParaExcluir?.marca_inversor || 'Sem marca'}
+              {inversorParaExcluir?.modelo_inversor
+                ? ` - ${inversorParaExcluir.modelo_inversor}`
+                : ''}
+              )? Os dados de acesso deste equipamento serão excluídos.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="text-xs">Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleRemoverInversorExecutar}
+              className="bg-red-600 hover:bg-red-700 text-white text-xs font-bold"
+            >
+              Sim, Remover
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

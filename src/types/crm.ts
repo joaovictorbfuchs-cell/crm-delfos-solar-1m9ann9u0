@@ -194,6 +194,28 @@ export interface MonitoramentoMarca extends RecordModel {
   updated: string
 }
 
+export interface ClienteInversor extends RecordModel {
+  id: string
+  collectionId: string
+  collectionName: string
+  cliente_id: string
+  marca_inversor?: string
+  modelo_inversor?: string
+  potencia_kwp?: number
+  numero_serie?: string
+  app_nome?: string
+  login?: string
+  senha?: string
+  datalogger_url?: string
+  observacoes?: string
+  ordem?: number
+  created: string
+  updated: string
+  expand?: {
+    cliente_id?: Cliente
+  }
+}
+
 // -------------------------------------------------------------
 // Tipos para Integração com WhatsApp
 // -------------------------------------------------------------

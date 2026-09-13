@@ -149,6 +149,9 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
   const cliente: Cliente | undefined = os.expand?.cliente_id
   const [sistema, setSistema] = useState<Sistema | null>(null)
   const [loadingSistema, setLoadingSistema] = useState(false)
+  const [inversoresLista, setInversoresLista] = useState<import('@/types/crm').ClienteInversor[]>(
+    [],
+  )
 
   // 2. Instruções do serviço: pré-preenchido automaticamente com template
   const [instrucoesTexto, setInstrucoesTexto] = useState<string>(() => {
@@ -186,6 +189,13 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
         .then((sist) => setSistema(sist))
         .catch((e) => console.error('Erro ao carregar sistema:', e))
         .finally(() => setLoadingSistema(false))
+
+      // Carrega lista de inversores caso o cliente tenha mais de um
+      import('@/services/crmService').then(({ fetchInversoresByClienteId }) => {
+        fetchInversoresByClienteId(os.cliente_id)
+          .then((invs) => setInversoresLista(invs))
+          .catch((e) => console.warn('Erro ao carregar inversores da OS:', e))
+      })
     }
   }, [os.cliente_id])
 
@@ -442,17 +452,38 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
             </div>
 
             <div className="bg-white rounded-lg p-2.5 border border-amber-100">
-              <span className="text-[10px] text-gray-500 font-semibold block uppercase">
-                Inversor
+              <span className="text-[10px] text-gray-500 font-semibold flex items-center justify-between uppercase">
+                <span>
+                  {inversoresLista.length > 1
+                    ? `Inversores (${inversoresLista.length})`
+                    : 'Inversor'}
+                </span>
               </span>
               <span
                 className="text-xs sm:text-sm font-bold text-gray-900 block truncate"
-                title={sistema?.fabricante_inversores || cliente?.inversor_marca}
+                title={
+                  inversoresLista.length > 0
+                    ? inversoresLista
+                        .map((i) => i.marca_inversor)
+                        .filter(Boolean)
+                        .join(', ')
+                    : sistema?.fabricante_inversores || cliente?.inversor_marca
+                }
               >
-                {sistema?.fabricante_inversores || cliente?.inversor_marca || '—'}
+                {inversoresLista.length > 0
+                  ? inversoresLista
+                      .map((i) => i.marca_inversor)
+                      .filter(Boolean)
+                      .join(' + ')
+                  : sistema?.fabricante_inversores || cliente?.inversor_marca || '—'}
               </span>
               <span className="text-[10px] text-gray-500 truncate block">
-                {sistema?.modelo_inversores || cliente?.inversor_modelo || ''}
+                {inversoresLista.length > 0
+                  ? inversoresLista
+                      .map((i) => i.modelo_inversor)
+                      .filter(Boolean)
+                      .join(' / ') || (inversoresLista.length > 1 ? 'Múltiplos inversores' : '')
+                  : sistema?.modelo_inversores || cliente?.inversor_modelo || ''}
               </span>
             </div>
 

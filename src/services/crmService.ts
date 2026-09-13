@@ -1694,6 +1694,57 @@ export async function saveOrUpdateMonitoramentoMarca(data: {
 // Helpers para Links e Acesso Solarview
 // -------------------------------------------------------------
 
+// -------------------------------------------------------------
+// Inversores do Cliente (Múltiplos Inversores & Monitoramento)
+// -------------------------------------------------------------
+
+export async function fetchInversoresByClienteId(
+  clienteId: string,
+): Promise<import('@/types/crm').ClienteInversor[]> {
+  if (!clienteId) return []
+  try {
+    const list = await pb
+      .collection('cliente_inversores')
+      .getFullList<import('@/types/crm').ClienteInversor>({
+        filter: `cliente_id = '${clienteId}'`,
+        sort: 'ordem,created',
+      })
+    return list
+  } catch (err) {
+    console.warn(`Erro ao buscar cliente_inversores do cliente ${clienteId}:`, err)
+    return []
+  }
+}
+
+export async function createClienteInversor(
+  data: Partial<import('@/types/crm').ClienteInversor> & { cliente_id: string },
+): Promise<import('@/types/crm').ClienteInversor> {
+  const created = await pb
+    .collection('cliente_inversores')
+    .create<import('@/types/crm').ClienteInversor>(data)
+  return created
+}
+
+export async function updateClienteInversor(
+  id: string,
+  data: Partial<import('@/types/crm').ClienteInversor>,
+): Promise<import('@/types/crm').ClienteInversor> {
+  const updated = await pb
+    .collection('cliente_inversores')
+    .update<import('@/types/crm').ClienteInversor>(id, data)
+  return updated
+}
+
+export async function deleteClienteInversor(id: string): Promise<boolean> {
+  try {
+    await pb.collection('cliente_inversores').delete(id)
+    return true
+  } catch (err) {
+    console.error(`Erro ao excluir inversor ${id}:`, err)
+    throw err
+  }
+}
+
 export const DEFAULT_SOLARVIEW_CONFIG = {
   nome: 'Solarview',
   link_ios: 'https://apps.apple.com/br/app/solarview/id1453416568',

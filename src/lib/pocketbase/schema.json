@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-13T23:26:08.239Z",
+  "generatedAt": "2026-09-13T23:31:05.827Z",
   "collections": [
     {
       "name": "users",
@@ -3356,6 +3356,104 @@
       ],
       "indexes": [
         "CREATE UNIQUE INDEX idx_monitoramento_marcas_marca ON monitoramento_marcas (marca)"
+      ]
+    },
+    {
+      "name": "cliente_inversores",
+      "type": "base",
+      "apiRules": {
+        "list": "",
+        "view": "",
+        "create": "",
+        "update": "",
+        "delete": ""
+      },
+      "fields": [
+        {
+          "name": "cliente_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "clientes"
+        },
+        {
+          "name": "marca_inversor",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "modelo_inversor",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "potencia_kwp",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "numero_serie",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "app_nome",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "login",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "senha",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "datalogger_url",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "observacoes",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "ordem",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_cliente_inversores_cliente ON cliente_inversores (cliente_id)",
+        "CREATE INDEX idx_cliente_inversores_ordem ON cliente_inversores (cliente_id, ordem)"
       ]
     }
   ]
