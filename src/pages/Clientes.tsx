@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
   Search,
   Eye,
@@ -10,6 +11,7 @@ import {
   Plus,
   Building2,
   User,
+  Upload,
 } from 'lucide-react'
 import { useClientes } from '@/contexts/ClientesContext'
 import { StatusBadge, ProductBadge } from '@/components/StatusBadge'
@@ -20,6 +22,7 @@ import {
 } from '@/components/ModalCadastroClienteFornecedor'
 
 export default function Clientes() {
+  const navigate = useNavigate()
   const { clientes, isLoading, openFichaCliente, addCliente } = useClientes()
   const [searchTerm, setSearchTerm] = useState('')
   const [isModalNovoOpen, setIsModalNovoOpen] = useState(false)
@@ -127,6 +130,17 @@ export default function Clientes() {
               className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white transition-all"
             />
           </div>
+
+          {/* Botão Importar Planilha e Adicionar Novo */}
+          <button
+            type="button"
+            onClick={() => navigate('/importar-clientes')}
+            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 text-sm font-bold rounded-xl transition-all shrink-0 cursor-pointer"
+            title="Importar do Pipedrive ou Conta Azul"
+          >
+            <Upload className="w-4 h-4 text-emerald-700" />
+            <span>Importar Planilha</span>
+          </button>
 
           {/* Botão Adicionar Novo em Destaque no Topo */}
           <button

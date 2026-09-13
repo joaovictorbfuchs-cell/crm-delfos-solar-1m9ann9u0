@@ -7,6 +7,7 @@ import {
   CalendarCheck,
   Wrench,
   Users,
+  FileSpreadsheet,
   Truck,
   Menu,
   X,
@@ -90,6 +91,8 @@ export default function Layout() {
         return 'Central de Atendimento WhatsApp'
       case '/clientes':
         return 'Gestão de Clientes'
+      case '/importar-clientes':
+        return 'Importar Clientes (Pipedrive / Conta Azul)'
       case '/fornecedores':
         return 'Fornecedores de Equipamentos'
       default:
@@ -110,6 +113,7 @@ export default function Layout() {
     { name: 'Atividades', path: '/atividades', icon: CalendarCheck },
     { name: 'O&M / Manutenções', path: '/manutencoes', icon: Wrench },
     { name: 'Clientes', path: '/clientes', icon: Users },
+    { name: 'Importar Clientes', path: '/importar-clientes', icon: FileSpreadsheet },
     { name: 'Fornecedores', path: '/fornecedores', icon: Truck },
   ]
   const userInitial = user?.name ? user.name.charAt(0).toUpperCase() : 'J'

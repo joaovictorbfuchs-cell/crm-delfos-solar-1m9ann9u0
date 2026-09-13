@@ -16,6 +16,7 @@ import Fornecedores from './pages/Fornecedores'
 import Orcamentos from './pages/Orcamentos'
 import Atividades from './pages/Atividades'
 import { CentralAtendimento } from './pages/CentralAtendimento'
+import ImportarClientes from './pages/ImportarClientes'
 import Login from './pages/Login'
 import NotFound from './pages/NotFound'
 
@@ -43,6 +44,7 @@ const App = () => (
               <Route path="/atividades" element={<Atividades />} />
               <Route path="/manutencoes" element={<Manutencoes />} />
               <Route path="/clientes" element={<Clientes />} />
+              <Route path="/importar-clientes" element={<ImportarClientes />} />
               <Route path="/fornecedores" element={<Fornecedores />} />
             </Route>
             <Route path="*" element={<NotFound />} />
