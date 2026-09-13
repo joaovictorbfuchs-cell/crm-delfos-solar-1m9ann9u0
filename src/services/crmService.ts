@@ -1603,3 +1603,89 @@ export async function finalizarOrdemServico(
 
   return updatedOS
 }
+
+// -------------------------------------------------------------
+// Monitoramento & Padrões por Marca de Inversor
+// -------------------------------------------------------------
+
+export async function fetchMonitoramentoMarcas(): Promise<
+  import('@/types/crm').MonitoramentoMarca[]
+> {
+  try {
+    const records = await pb
+      .collection('monitoramento_marcas')
+      .getFullList<import('@/types/crm').MonitoramentoMarca>({
+        sort: 'marca',
+      })
+    return records
+  } catch (err) {
+    console.warn('Erro ao consultar monitoramento_marcas:', err)
+    return []
+  }
+}
+
+export async function fetchMonitoramentoMarcaByNome(
+  marcaNome: string,
+): Promise<import('@/types/crm').MonitoramentoMarca | null> {
+  if (!marcaNome || !marcaNome.trim()) return null
+  const trimmed = marcaNome.trim()
+  try {
+    const list = await pb
+      .collection('monitoramento_marcas')
+      .getFullList<import('@/types/crm').MonitoramentoMarca>({
+        filter: `marca ~ '${trimmed}' || marca = '${trimmed}'`,
+        limit: 1,
+      })
+    if (list.length > 0) return list[0]
+  } catch (err) {
+    console.warn(`Erro ao buscar monitoramento_marcas para marca "${marcaNome}":`, err)
+  }
+  return null
+}
+
+export async function saveOrUpdateMonitoramentoMarca(data: {
+  marca: string
+  app_nome?: string
+  login_padrao?: string
+  senha_padrao?: string
+  datalogger_url?: string
+  instrucoes?: string
+}): Promise<import('@/types/crm').MonitoramentoMarca> {
+  const marcaKey = data.marca.trim()
+  let existing: import('@/types/crm').MonitoramentoMarca | null = null
+
+  try {
+    const records = await pb
+      .collection('monitoramento_marcas')
+      .getFullList<import('@/types/crm').MonitoramentoMarca>({
+        filter: `marca ~ '${marcaKey}'`,
+      })
+    existing =
+      records.find((r) => r.marca.trim().toLowerCase() === marcaKey.toLowerCase()) ||
+      records[0] ||
+      null
+  } catch (_) {
+    existing = null
+  }
+
+  const payload = {
+    marca: marcaKey,
+    app_nome: data.app_nome ?? '',
+    login_padrao: data.login_padrao ?? '',
+    senha_padrao: data.senha_padrao ?? '',
+    datalogger_url: data.datalogger_url ?? '',
+    instrucoes: data.instrucoes ?? '',
+  }
+
+  if (existing) {
+    const updated = await pb
+      .collection('monitoramento_marcas')
+      .update<import('@/types/crm').MonitoramentoMarca>(existing.id, payload)
+    return updated
+  } else {
+    const created = await pb
+      .collection('monitoramento_marcas')
+      .create<import('@/types/crm').MonitoramentoMarca>(payload)
+    return created
+  }
+}

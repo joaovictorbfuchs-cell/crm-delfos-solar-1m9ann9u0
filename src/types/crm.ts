@@ -161,6 +161,29 @@ export interface Cliente extends RecordModel {
   titular_telefone?: string
   titular_email?: string
   dados_importados?: Record<string, string | number | boolean | null> | null
+  // Dados de Acesso ao Monitoramento do Inversor
+  monitoramento_app_nome?: string
+  monitoramento_login?: string
+  monitoramento_senha?: string
+  monitoramento_datalogger_url?: string
+  created: string
+  updated: string
+}
+
+// -------------------------------------------------------------
+// Tipos para Monitoramento & Padrões por Marca de Inversor
+// -------------------------------------------------------------
+
+export interface MonitoramentoMarca extends RecordModel {
+  id: string
+  collectionId: string
+  collectionName: string
+  marca: string
+  app_nome?: string
+  login_padrao?: string
+  senha_padrao?: string
+  datalogger_url?: string
+  instrucoes?: string
   created: string
   updated: string
 }
@@ -477,6 +500,10 @@ export interface Sistema extends RecordModel {
   modelo_inversores?: string
   potencia_pico_modulos_kwp?: number
   potencia_pico_inversores_kwp?: number
+  monitoramento_app_nome?: string
+  monitoramento_login?: string
+  monitoramento_senha?: string
+  monitoramento_datalogger_url?: string
   created: string
   updated: string
   expand?: {
