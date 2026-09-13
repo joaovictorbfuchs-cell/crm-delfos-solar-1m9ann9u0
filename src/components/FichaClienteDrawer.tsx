@@ -60,6 +60,7 @@ import { ModalEnviarDocumentoWhatsApp } from './ModalEnviarDocumentoWhatsApp'
 import { ImportarDadosDocumento } from './ImportarDadosDocumento'
 import { ModalConfirmarDocumentoProjeto } from './ModalConfirmarDocumentoProjeto'
 import { ModalTransferenciaCreditos } from './ModalTransferenciaCreditos'
+import { ModalGerenciarAtividades } from './ModalGerenciarAtividades'
 import type {
   TipoDocumentoProjeto,
   DadosDocumentoProjetoInput,
@@ -196,6 +197,7 @@ export const FichaClienteDrawer: React.FC = () => {
     Partial<DadosDocumentoProjetoInput>
   >({})
   const [modalTransferenciaCreditosOpen, setModalTransferenciaCreditosOpen] = useState(false)
+  const [modalGerenciarAtividadesOpen, setModalGerenciarAtividadesOpen] = useState(false)
 
   // Seção expansível de detalhes cadastrais/técnicos dentro do painel esquerdo
   const [detalhesOpen, setDetalhesOpen] = useState(false)
@@ -2947,12 +2949,11 @@ export const FichaClienteDrawer: React.FC = () => {
 
                   {/* ======================================================== */}
                   {/* TOPO DA ABA HISTÓRICO: ÁREA RÁPIDA DE NOVA ENTRADA       */}
-                  {/* Alterna Anotação vs Agendar Atividade (12 tipos)         */}
+                  {/* Alterna Anotação vs Agendar Atividade (Seleção 2 etapas) */}
                   {/* ======================================================== */}
                   <QuickAddAtividade
                     clienteId={selectedCliente.id}
-                    onAdd={addAtividade}
-                    defaultMode="atividade"
+                    onOpenGerenciar={() => setModalGerenciarAtividadesOpen(true)}
                   />
 
                   {/* ======================================================== */}
@@ -3585,6 +3586,12 @@ export const FichaClienteDrawer: React.FC = () => {
           clienteOrigem={selectedCliente}
         />
       )}
+
+      {/* Modal Gerenciar Tipos de Atividades (Padrão e Personalizadas) */}
+      <ModalGerenciarAtividades
+        open={modalGerenciarAtividadesOpen}
+        onOpenChange={setModalGerenciarAtividadesOpen}
+      />
     </div>
   )
 }

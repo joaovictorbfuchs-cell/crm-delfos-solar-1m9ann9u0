@@ -173,6 +173,17 @@ interface ClientesContextType {
   updateAtividade: (id: string, data: Partial<Atividade>) => Promise<Atividade>
   updateAtividadeStatus: (id: string, status: AtividadeStatus) => Promise<void>
   removeAtividade: (id: string) => Promise<void>
+  // Tipos de atividades personalizados
+  tiposAtividadesCustom: import('@/types/crm').TipoAtividadeCustomItem[]
+  addTipoAtividadeCustom: (data: {
+    nome: string
+    categoria: import('@/types/crm').AtividadeCategoriaId
+    cor?: string
+    icone?: string
+    descricao?: string
+  }) => Promise<import('@/types/crm').TipoAtividadeCustomItem>
+  removeTipoAtividadeCustom: (id: string) => Promise<void>
+  refreshTiposAtividadesCustom: () => Promise<void>
   updateCliente: (id: string, data: Partial<Cliente>) => Promise<Cliente>
   updateClienteStatus: (
     id: string,
@@ -365,6 +376,9 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [documentosCliente, setDocumentosCliente] = useState<
     import('@/types/crm').DocumentoCliente[]
   >([])
+  const [tiposAtividadesCustom, setTiposAtividadesCustom] = useState<
+    import('@/types/crm').TipoAtividadeCustomItem[]
+  >([])
   const [timelineOM, setTimelineOM] = useState<TimelineOM[]>([])
   const [propostasOM, setPropostasOM] = useState<PropostaOM[]>([])
   const [orcamentosSolar, setOrcamentosSolar] = useState<OrcamentoSolar[]>([])
@@ -416,6 +430,7 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         avulsosList,
         transfList,
         docsList,
+        customAtivList,
       ] = await Promise.all([
         fetchClientes(),
         fetchSistemas(),
@@ -440,6 +455,7 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         fetchServicosAvulsos(),
         import('@/services/crmService').then((s) => s.fetchTransferenciasCreditos()),
         import('@/services/crmService').then((s) => s.fetchDocumentosCliente()),
+        import('@/services/crmService').then((s) => s.fetchTiposAtividadesCustom()),
       ])
       setClientes(cList)
       setSistemas(sList)
@@ -455,6 +471,7 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       setServicosAvulsos(avulsosList)
       setTransferenciasCreditos(transfList)
       setDocumentosCliente(docsList)
+      setTiposAtividadesCustom(customAtivList)
       setTimelineOM(timeList)
       setPropostasOM(propList)
       setOrcamentosSolar(orcList)
@@ -530,6 +547,17 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     'atividades',
     () => {
       fetchAtividades().then(setAtividades).catch(console.error)
+    },
+    isAuthenticated,
+  )
+
+  // Realtime updates for tipos_atividades_custom
+  useRealtime<import('@/types/crm').TipoAtividadeCustomItem>(
+    'tipos_atividades_custom',
+    () => {
+      import('@/services/crmService')
+        .then((s) => s.fetchTiposAtividadesCustom().then(setTiposAtividadesCustom))
+        .catch(console.error)
     },
     isAuthenticated,
   )
@@ -778,6 +806,34 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       fetchAtividades().then(setAtividades).catch(console.error)
       throw err
     }
+  }
+
+  const addTipoAtividadeCustom = async (data: {
+    nome: string
+    categoria: import('@/types/crm').AtividadeCategoriaId
+    cor?: string
+    icone?: string
+    descricao?: string
+  }) => {
+    const s = await import('@/services/crmService')
+    const created = await s.createTipoAtividadeCustom(data)
+    setTiposAtividadesCustom((prev) => {
+      if (prev.some((item) => item.id === created.id)) return prev
+      return [...prev, created]
+    })
+    return created
+  }
+
+  const removeTipoAtividadeCustom = async (id: string) => {
+    setTiposAtividadesCustom((prev) => prev.filter((t) => t.id !== id))
+    const s = await import('@/services/crmService')
+    await s.deleteTipoAtividadeCustom(id)
+  }
+
+  const refreshTiposAtividadesCustom = async () => {
+    const s = await import('@/services/crmService')
+    const list = await s.fetchTiposAtividadesCustom()
+    setTiposAtividadesCustom(list)
   }
 
   const updateCliente = async (id: string, data: Partial<Cliente>): Promise<Cliente> => {
@@ -1587,6 +1643,10 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         updateAtividade,
         updateAtividadeStatus,
         removeAtividade,
+        tiposAtividadesCustom,
+        addTipoAtividadeCustom,
+        removeTipoAtividadeCustom,
+        refreshTiposAtividadesCustom,
         updateCliente,
         updateClienteStatus,
         updateSistema,

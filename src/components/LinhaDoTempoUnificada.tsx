@@ -22,7 +22,8 @@ import {
 import type { TimelineUnifiedItem, TimelineFilterTipo } from '@/types/timelineUnified'
 import type { Cliente, Atividade, OrcamentoSolar, PropostaOM } from '@/types/crm'
 import { formatCurrency, formatDate, formatDateTime } from '@/lib/formatters'
-import { getTipoAtividadeConfig } from '@/constants/atividadesTipos'
+import { getTipoAtividadeConfig, buildCustomTipoDef } from '@/constants/atividadesTipos'
+import { useClientes } from '@/contexts/ClientesContext'
 import { calcularPropostaOM, PLANOS_OM_VALORES } from '@/lib/propostaOMGenerator'
 
 interface LinhaDoTempoUnificadaProps {
@@ -48,7 +49,12 @@ export const LinhaDoTempoUnificada: React.FC<LinhaDoTempoUnificadaProps> = ({
   onNovoOrcamentoSolarClick,
   onNovaPropostaOMClick,
 }) => {
+  const { tiposAtividadesCustom } = useClientes()
   const [activeFilter, setActiveFilter] = useState<TimelineFilterTipo>('todas')
+
+  const customDefs = useMemo(() => {
+    return (tiposAtividadesCustom || []).map((t) => buildCustomTipoDef(t))
+  }, [tiposAtividadesCustom])
 
   // Agrega todos os eventos das coleções existentes em uma única linha cronológica
   const todosEventos = useMemo<TimelineUnifiedItem[]>(() => {
@@ -211,7 +217,7 @@ export const LinhaDoTempoUnificada: React.FC<LinhaDoTempoUnificadaProps> = ({
       else if (atv.status === 'cancelada') statusVar = 'danger'
       else if (atv.status === 'pendente') statusVar = 'warning'
 
-      const configTipo = getTipoAtividadeConfig(atv.tipo)
+      const configTipo = getTipoAtividadeConfig(atv.tipo, customDefs)
 
       items.push({
         id: `atv-${atv.id}`,
@@ -235,7 +241,7 @@ export const LinhaDoTempoUnificada: React.FC<LinhaDoTempoUnificadaProps> = ({
       const timeB = new Date(b.data).getTime()
       return timeB - timeA
     })
-  }, [cliente.id, cliente.nome, orcamentosSolar, propostasOM, atividades])
+  }, [cliente.id, cliente.nome, orcamentosSolar, propostasOM, atividades, customDefs])
 
   // Contagens para os chips de filtro
   const counts = useMemo(() => {

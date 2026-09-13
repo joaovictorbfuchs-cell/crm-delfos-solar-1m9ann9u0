@@ -1,121 +1,149 @@
-import React, { useState } from 'react'
-import { FileText, Calendar, Loader2, User, ChevronDown } from 'lucide-react'
-import type { AtividadeTipo, AtividadeStatus } from '@/types/crm'
+import React, { useState, useMemo } from 'react'
 import {
-  ATIVIDADES_12_TIPOS,
+  Calendar,
+  FileText,
+  User,
+  Loader2,
+  Briefcase,
+  Wrench,
+  FileSpreadsheet,
+  Settings2,
+} from 'lucide-react'
+import {
+  CATEGORIAS_ATIVIDADES,
+  ATIVIDADES_PADRAO,
+  buildCustomTipoDef,
   getTipoAtividadeConfig,
   type TipoAtividadeDef,
 } from '@/constants/atividadesTipos'
 import { useClientes } from '@/contexts/ClientesContext'
 import { useAuth } from '@/contexts/AuthContext'
+import type { AtividadeTipo, AtividadeCategoriaId } from '@/types/crm'
 
 interface QuickAddAtividadeProps {
   clienteId: string
-  onAdd: (data: {
-    cliente_id: string
-    tipo: AtividadeTipo
-    titulo?: string
-    descricao?: string
-    data?: string
-    autor?: string
-    status?: AtividadeStatus
-    responsavel_id?: string
-    responsavel_nome?: string
-  }) => Promise<unknown>
-  defaultMode?: 'anotacao' | 'atividade'
   onSuccess?: () => void
+  onOpenGerenciar?: () => void
 }
 
 export const QuickAddAtividade: React.FC<QuickAddAtividadeProps> = ({
   clienteId,
-  onAdd,
-  defaultMode = 'atividade',
   onSuccess,
+  onOpenGerenciar,
 }) => {
-  const { usuarios } = useClientes()
+  const { addAtividade, usuarios, tiposAtividadesCustom } = useClientes()
   const { user } = useAuth()
 
-  const [mode, setMode] = useState<'anotacao' | 'atividade'>(defaultMode)
+  // Alternador de modo: 'atividade' (duas etapas) vs 'anotacao'
+  const [mode, setMode] = useState<'atividade' | 'anotacao'>('atividade')
+
+  // Etapa 1: Categoria ativa
+  const [selectedCategoria, setSelectedCategoria] = useState<AtividadeCategoriaId>('comercial')
+
+  // Etapa 2: Sub-tipo selecionado dentro da categoria
   const [subTipo, setSubTipo] = useState<AtividadeTipo>('contato_ligacao')
-  const [titulo, setTitulo] = useState(() => {
-    return defaultMode === 'anotacao'
-      ? 'Anotação interna'
-      : getTipoAtividadeConfig('contato_ligacao').tituloPadrao
-  })
+
+  // Form states
+  const [titulo, setTitulo] = useState('Entrar em contato')
   const [descricao, setDescricao] = useState('')
-  const [responsavelId, setResponsavelId] = useState<string>(() => {
-    return user?.id || (usuarios.length > 0 ? usuarios[0].id : '')
-  })
   const [dataHora, setDataHora] = useState(() => {
     const now = new Date()
-    now.setMinutes(now.getMinutes() - now.getTimezoneOffset())
-    return now.toISOString().slice(0, 16)
+    now.setHours(now.getHours() + 1, 0, 0, 0)
+    return new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 16)
   })
+  const [responsavelId, setResponsavelId] = useState<string>(user?.id || '')
+
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
 
-  // Atualiza responsavelId quando user ou usuarios carregarem se estiver vazio
-  React.useEffect(() => {
-    if (!responsavelId) {
-      if (user?.id) {
-        setResponsavelId(user.id)
-      } else if (usuarios.length > 0) {
-        setResponsavelId(usuarios[0].id)
-      }
-    }
-  }, [user, usuarios, responsavelId])
+  // Montar lista de tipos customizados convertidos em TipoAtividadeDef
+  const customDefs = useMemo(() => {
+    return (tiposAtividadesCustom || []).map((t) => buildCustomTipoDef(t))
+  }, [tiposAtividadesCustom])
 
-  // Ao alternar para Anotação ou Atividade, ou ao mudar de subtipo:
-  // "o nome do tipo escolhido também deve virar o título automaticamente. Descrição continua opcional. Substituir os 4 tipos antigos do quick add pelos mesmos 12 tipos (com ícones)"
-  const handleSelectTipo = (tipoItem: TipoAtividadeDef) => {
-    setSubTipo(tipoItem.id)
-    setTitulo(tipoItem.tituloPadrao)
+  // Tipos da categoria selecionada (padrão + customizados)
+  const tiposDaCategoria = useMemo(() => {
+    const padroes = ATIVIDADES_PADRAO.filter((t) => t.categoria === selectedCategoria)
+    const customs = customDefs.filter((t) => t.categoria === selectedCategoria)
+    return [...padroes, ...customs]
+  }, [selectedCategoria, customDefs])
+
+  // Troca de categoria (Etapa 1)
+  const handleSelectCategoria = (catId: AtividadeCategoriaId) => {
+    setSelectedCategoria(catId)
+    // Seleciona automaticamente o primeiro tipo da nova categoria
+    const firstOfCat =
+      ATIVIDADES_PADRAO.find((t) => t.categoria === catId) ||
+      customDefs.find((t) => t.categoria === catId)
+    if (firstOfCat) {
+      setSubTipo(firstOfCat.id)
+      setTitulo(firstOfCat.tituloPadrao)
+    }
   }
 
-  const handleModeChange = (newMode: 'anotacao' | 'atividade') => {
+  // Seleção de tipo específico (Etapa 2)
+  const handleSelectTipo = (item: TipoAtividadeDef) => {
+    setSubTipo(item.id)
+    setTitulo(item.tituloPadrao)
+  }
+
+  const handleModeChange = (newMode: 'atividade' | 'anotacao') => {
     setMode(newMode)
+    setError(null)
     if (newMode === 'anotacao') {
-      setTitulo('Anotação interna')
+      setTitulo('Anotação')
+      setDescricao('')
     } else {
-      const conf = getTipoAtividadeConfig(subTipo)
-      setTitulo(conf.tituloPadrao)
+      const cfg = getTipoAtividadeConfig(subTipo, customDefs)
+      setTitulo(cfg.tituloPadrao)
     }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    setError(null)
+    setIsLoading(true)
 
     try {
-      setIsLoading(true)
-      setError(null)
+      const respUser = usuarios.find((u) => u.id === responsavelId)
+      const responsavelNome = respUser?.name || user?.name || 'Usuário Delfos'
 
-      const finalTipo: AtividadeTipo = mode === 'anotacao' ? 'anotacao' : subTipo
-      const conf = getTipoAtividadeConfig(finalTipo)
-      const finalTitulo =
-        titulo.trim() || (mode === 'anotacao' ? 'Anotação de cliente' : conf.tituloPadrao)
-
-      const selectedUser = usuarios.find((u) => u.id === responsavelId)
-      const responsavelNome = selectedUser?.name || user?.name || 'João Delfos'
-
-      await onAdd({
-        cliente_id: clienteId,
-        tipo: finalTipo,
-        titulo: finalTitulo,
-        descricao: descricao.trim(), // Descrição opcional
-        data: dataHora ? new Date(dataHora).toISOString() : new Date().toISOString(),
-        responsavel_id: responsavelId || undefined,
-        responsavel_nome: responsavelNome,
-        status: 'pendente',
-        autor: user?.name || 'João Delfos',
-      })
-
-      // Limpar formulário mantendo o título coerente com o subtipo atual
-      setDescricao('')
       if (mode === 'anotacao') {
-        setTitulo('Anotação interna')
+        if (!descricao.trim()) {
+          setError('Por favor, digite o conteúdo da anotação.')
+          setIsLoading(false)
+          return
+        }
+
+        await addAtividade({
+          cliente_id: clienteId,
+          tipo: 'anotacao',
+          titulo: 'Anotação',
+          descricao: descricao.trim(),
+          data: new Date().toISOString(),
+          autor: user?.name || 'Usuário Delfos',
+          responsavel_id: responsavelId || user?.id,
+          responsavel_nome: responsavelNome,
+          status: 'concluida',
+        })
+        setDescricao('')
       } else {
-        setTitulo(conf.tituloPadrao)
+        const finalTitulo =
+          titulo.trim() || getTipoAtividadeConfig(subTipo, customDefs).tituloPadrao
+
+        await addAtividade({
+          cliente_id: clienteId,
+          tipo: subTipo,
+          titulo: finalTitulo,
+          descricao: descricao.trim(),
+          data: dataHora ? new Date(dataHora).toISOString() : new Date().toISOString(),
+          autor: user?.name || 'Usuário Delfos',
+          responsavel_id: responsavelId || user?.id,
+          responsavel_nome: responsavelNome,
+          status: 'pendente',
+        })
+        setDescricao('')
       }
 
       setSuccess(true)
@@ -129,9 +157,11 @@ export const QuickAddAtividade: React.FC<QuickAddAtividadeProps> = ({
     }
   }
 
+  const currentTipoConfig = getTipoAtividadeConfig(subTipo, customDefs)
+
   return (
     <div className="bg-white rounded-2xl border border-gray-200/90 shadow-xs p-4 space-y-3.5">
-      {/* Botões alternadores de modo: Anotação vs Atividade */}
+      {/* Botões alternadores de modo: Anotação vs Atividade + Gerenciar */}
       <div className="flex items-center justify-between border-b border-gray-100 pb-3 gap-2 flex-wrap">
         <div className="flex items-center p-1 bg-gray-100 rounded-xl text-xs font-semibold">
           <button
@@ -144,7 +174,7 @@ export const QuickAddAtividade: React.FC<QuickAddAtividadeProps> = ({
             }`}
           >
             <Calendar className="w-3.5 h-3.5 text-emerald-600" />
-            Agendar Atividade (12 Tipos)
+            Agendar Atividade
           </button>
 
           <button
@@ -161,52 +191,136 @@ export const QuickAddAtividade: React.FC<QuickAddAtividadeProps> = ({
           </button>
         </div>
 
-        <span className="text-[11px] text-gray-400 font-medium">
-          {mode === 'atividade' ? '12 tipos de atividade Pipedrive' : 'Nota interna rápida'}
-        </span>
+        <div className="flex items-center gap-2">
+          {onOpenGerenciar && (
+            <button
+              type="button"
+              onClick={onOpenGerenciar}
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold text-gray-700 bg-gray-50 hover:bg-gray-100 hover:text-gray-900 rounded-lg border border-gray-200 transition-colors"
+              title="Gerenciar tipos de atividades padrão e personalizadas"
+            >
+              <Settings2 className="w-3.5 h-3.5 text-amber-600" />
+              <span>Gerenciar Atividades</span>
+            </button>
+          )}
+
+          <span className="text-[11px] text-gray-400 font-medium hidden sm:inline">
+            {mode === 'atividade' ? 'Seleção em 2 etapas' : 'Nota interna rápida'}
+          </span>
+        </div>
       </div>
-      {/* Grid de seleção dos 12 tipos como ícones com título atualizado automaticamente ao clicar */}
+
+      {/* Seleção em 2 etapas para Atividades */}
       {mode === 'atividade' && (
-        <div className="space-y-1.5">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-semibold text-gray-600">
-              Escolha o tipo da atividade (define o título):
-            </span>
-            <span className="text-[10px] text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
-              {getTipoAtividadeConfig(subTipo).tituloPadrao}
-            </span>
-          </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-1.5 p-1 bg-gray-50/70 rounded-xl border border-gray-100">
-            {ATIVIDADES_12_TIPOS.map((item) => {
-              const ItemIcon = item.icon
-              const isSelected = subTipo === item.id
-              return (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => handleSelectTipo(item)}
-                  className={`flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-left text-xs transition-all ${
-                    isSelected
-                      ? 'bg-[#16A34A] text-white font-bold shadow-2xs ring-1 ring-[#16A34A]'
-                      : 'bg-white text-gray-700 hover:bg-emerald-50/50 hover:text-emerald-900 border border-gray-200/70'
-                  }`}
-                  title={`${item.tituloPadrao} — ${item.descricaoAjuda}`}
-                >
-                  <div
-                    className={`p-1 rounded-md shrink-0 ${
-                      isSelected ? 'bg-white/20 text-white' : `${item.iconBg} ${item.iconText}`
+        <div className="space-y-3 bg-slate-50/70 p-3 rounded-xl border border-slate-200/80">
+          {/* ETAPA 1: Escolha da Categoria */}
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-bold text-gray-700 uppercase tracking-wide flex items-center gap-1.5">
+                <span className="flex items-center justify-center w-4 h-4 rounded-full bg-emerald-600 text-[10px] text-white font-bold">
+                  1
+                </span>
+                Passo 1: Selecione a Categoria
+              </span>
+              <span className="text-[10px] text-gray-400">
+                {CATEGORIAS_ATIVIDADES.find((c) => c.id === selectedCategoria)?.nome}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-1.5">
+              {CATEGORIAS_ATIVIDADES.map((cat) => {
+                const isCatSelected = selectedCategoria === cat.id
+                const IconComponent =
+                  cat.id === 'comercial'
+                    ? Briefcase
+                    : cat.id === 'manutencao'
+                      ? Wrench
+                      : FileSpreadsheet
+
+                return (
+                  <button
+                    key={cat.id}
+                    type="button"
+                    onClick={() => handleSelectCategoria(cat.id)}
+                    className={`flex items-center gap-2 px-2.5 py-2 rounded-lg text-left text-xs font-semibold transition-all border ${
+                      isCatSelected
+                        ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
+                        : 'bg-white text-gray-700 border-gray-200 hover:bg-emerald-50/50 hover:text-emerald-900'
                     }`}
                   >
-                    <ItemIcon className="w-3.5 h-3.5" />
-                  </div>
-                  <span className="truncate text-[11px] leading-tight">{item.tituloPadrao}</span>
-                </button>
-              )
-            })}
+                    <IconComponent
+                      className={`w-4 h-4 shrink-0 ${
+                        isCatSelected ? 'text-white' : 'text-gray-500'
+                      }`}
+                    />
+                    <span className="truncate leading-tight text-[11px]">{cat.nome}</span>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
+          {/* ETAPA 2: Escolha do Tipo específico da categoria */}
+          <div className="space-y-1.5 pt-1 border-t border-slate-200/80">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-bold text-gray-700 uppercase tracking-wide flex items-center gap-1.5">
+                <span className="flex items-center justify-center w-4 h-4 rounded-full bg-emerald-600 text-[10px] text-white font-bold">
+                  2
+                </span>
+                Passo 2: Tipo de Atividade ({tiposDaCategoria.length})
+              </span>
+              <span className="text-[10px] text-emerald-800 font-bold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 truncate max-w-[200px]">
+                {currentTipoConfig.tituloPadrao}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 gap-1.5">
+              {tiposDaCategoria.map((item) => {
+                const ItemIcon = item.icon
+                const isSelected = subTipo === item.id
+
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => handleSelectTipo(item)}
+                    className={`flex items-center gap-1.5 px-2.5 py-2 rounded-lg text-left text-xs transition-all border ${
+                      isSelected
+                        ? 'bg-[#16A34A] text-white font-bold shadow-2xs ring-1 ring-[#16A34A] border-transparent'
+                        : 'bg-white text-gray-700 hover:bg-emerald-50/60 hover:text-emerald-900 border-gray-200/80'
+                    }`}
+                    title={`${item.tituloPadrao} — ${item.descricaoAjuda}`}
+                  >
+                    <div
+                      className={`p-1 rounded-md shrink-0 ${
+                        isSelected ? 'bg-white/20 text-white' : `${item.iconBg} ${item.iconText}`
+                      }`}
+                    >
+                      <ItemIcon className="w-3.5 h-3.5" />
+                    </div>
+                    <div className="truncate min-w-0">
+                      <span className="truncate text-[11px] leading-tight block">
+                        {item.tituloPadrao}
+                      </span>
+                      {!item.isPadrao && (
+                        <span
+                          className={`text-[9px] font-normal block ${
+                            isSelected ? 'text-emerald-100' : 'text-amber-600'
+                          }`}
+                        >
+                          personalizada
+                        </span>
+                      )}
+                    </div>
+                  </button>
+                )
+              })}
+            </div>
           </div>
         </div>
       )}
-      {/* Formulário: se Anotação, campo de texto simples e direto; se Atividade, título + data/hora + responsável + descrição opcional */}
+
+      {/* Formulário: Anotação rápida ou Atividade agendada */}
       <form onSubmit={handleSubmit} className="space-y-3">
         {mode === 'anotacao' ? (
           <div className="space-y-2">
@@ -225,7 +339,7 @@ export const QuickAddAtividade: React.FC<QuickAddAtividadeProps> = ({
         ) : (
           <div className="space-y-3">
             <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5">
-              {/* Título (preenchido automaticamente ao clicar no ícone) */}
+              {/* Título (preenchido automaticamente ao clicar no tipo) */}
               <div className="sm:col-span-6">
                 <label className="text-[11px] font-semibold text-gray-600 block mb-1">
                   Título da Atividade
@@ -324,7 +438,7 @@ export const QuickAddAtividade: React.FC<QuickAddAtividadeProps> = ({
             )}
           </button>
         </div>
-      </form>{' '}
+      </form>
     </div>
   )
 }

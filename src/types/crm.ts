@@ -32,26 +32,49 @@ export type ManutencaoTipo = 'Limpeza' | 'Revisão Elétrica' | 'Troca de Invers
 
 export type ManutencaoStatus = 'Agendado' | 'Em andamento' | 'Concluído'
 
+export type AtividadeCategoriaId = 'comercial' | 'manutencao' | 'administrativo_pos_venda'
+
+export interface TipoAtividadeCustomItem extends RecordModel {
+  id: string
+  collectionId: string
+  collectionName: string
+  nome: string
+  categoria: AtividadeCategoriaId
+  cor?: string
+  icone?: string
+  descricao?: string
+  is_padrao?: boolean
+  created: string
+  updated: string
+}
+
 export type AtividadeTipo =
-  // Os 12 tipos oficiais solicitados:
+  // 1. Atividades Comerciais:
   | 'contato_ligacao'
   | 'reuniao_presencial'
   | 'follow_up'
-  | 'instalacao'
   | 'proposta'
-  | 'limpeza_manutencao'
-  | 'auto_leitura_rge'
   | 'ligar_indicacao'
+  | 'contato_reativacao'
+  // 2. Atividades de Manutenção:
+  | 'instalacao'
+  | 'limpeza_manutencao'
   | 'configuracao_datalogger'
   | 'garantia_equipamento'
+  // 3. Atividades Administrativas / RGE / Pós-Venda:
+  | 'auto_leitura_rge'
   | 'relatorio_solarview'
-  | 'contato_reativacao'
+  | 'anexo_g'
+  | 'troca_titularidade'
+  | 'transferencia_creditos'
   // Tipos legados mantidos para retrocompatibilidade
   | 'anotacao'
   | 'ligacao'
   | 'reuniao'
   | 'visita_tecnica'
   | 'mudanca_estagio'
+  // Tipos dinâmicos / personalizados adicionados pelo usuário
+  | (string & {})
 
 export type AtividadeStatus = 'pendente' | 'concluida' | 'cancelada'
 

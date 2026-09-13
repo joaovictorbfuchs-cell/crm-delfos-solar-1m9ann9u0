@@ -1269,3 +1269,50 @@ export async function deleteDocumentoCliente(id: string): Promise<boolean> {
   await pb.collection('documentos_cliente').delete(id)
   return true
 }
+
+// -------------------------------------------------------------
+// Tipos de Atividades Customizadas Services
+// -------------------------------------------------------------
+
+export async function fetchTiposAtividadesCustom(): Promise<
+  import('@/types/crm').TipoAtividadeCustomItem[]
+> {
+  try {
+    const records = await pb
+      .collection('tipos_atividades_custom')
+      .getFullList<import('@/types/crm').TipoAtividadeCustomItem>({
+        sort: 'nome',
+      })
+    return records
+  } catch (err) {
+    console.error('Erro ao buscar tipos de atividades customizados:', err)
+    return []
+  }
+}
+
+export async function createTipoAtividadeCustom(data: {
+  nome: string
+  categoria: import('@/types/crm').AtividadeCategoriaId
+  cor?: string
+  icone?: string
+  descricao?: string
+  is_padrao?: boolean
+}): Promise<import('@/types/crm').TipoAtividadeCustomItem> {
+  const payload = {
+    nome: data.nome.trim(),
+    categoria: data.categoria,
+    cor: data.cor || '',
+    icone: data.icone || '',
+    descricao: data.descricao || '',
+    is_padrao: Boolean(data.is_padrao),
+  }
+  const record = await pb
+    .collection('tipos_atividades_custom')
+    .create<import('@/types/crm').TipoAtividadeCustomItem>(payload)
+  return record
+}
+
+export async function deleteTipoAtividadeCustom(id: string): Promise<boolean> {
+  await pb.collection('tipos_atividades_custom').delete(id)
+  return true
+}

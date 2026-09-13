@@ -12,10 +12,13 @@ import { useClientes } from '@/contexts/ClientesContext'
 import { useAuth } from '@/contexts/AuthContext'
 import { ClienteAutocomplete } from '@/components/ClienteAutocomplete'
 import {
-  ATIVIDADES_12_TIPOS,
+  CATEGORIAS_ATIVIDADES,
+  ATIVIDADES_PADRAO,
   getTipoAtividadeConfig,
+  buildCustomTipoDef,
   type TipoAtividadeDef,
 } from '@/constants/atividadesTipos'
+import type { AtividadeCategoriaId } from '@/types/crm'
 import type { AtividadeTipo } from '@/types/crm'
 
 interface ModalNovaAtividadeProps {
@@ -31,9 +34,10 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
   initialTipo,
   initialClienteId,
 }) => {
-  const { clientes, usuarios, addAtividade } = useClientes()
+  const { clientes, usuarios, addAtividade, tiposAtividadesCustom } = useClientes()
   const { user } = useAuth()
 
+  const [selectedCategoria, setSelectedCategoria] = useState<AtividadeCategoriaId>('comercial')
   const [selectedTipo, setSelectedTipo] = useState<AtividadeTipo>(initialTipo || 'contato_ligacao')
   const [titulo, setTitulo] = useState('')
   const [clienteId, setClienteId] = useState(initialClienteId || '')
@@ -54,6 +58,7 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
       const tipoParaUsar = initialTipo || 'contato_ligacao'
       setSelectedTipo(tipoParaUsar)
       const conf = getTipoAtividadeConfig(tipoParaUsar)
+      setSelectedCategoria(conf.categoria || 'comercial')
       setTitulo(conf.tituloPadrao)
       if (initialClienteId) {
         setClienteId(initialClienteId)
@@ -78,9 +83,30 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
 
   if (!isOpen) return null
 
+  const customDefs = React.useMemo(() => {
+    return (tiposAtividadesCustom || []).map((t) => buildCustomTipoDef(t))
+  }, [tiposAtividadesCustom])
+
+  const tiposDaCategoria = React.useMemo(() => {
+    const padroes = ATIVIDADES_PADRAO.filter((t) => t.categoria === selectedCategoria)
+    const customs = customDefs.filter((t) => t.categoria === selectedCategoria)
+    return [...padroes, ...customs]
+  }, [selectedCategoria, customDefs])
+
+  const handleCategoriaChange = (catId: AtividadeCategoriaId) => {
+    setSelectedCategoria(catId)
+    const firstOfCat =
+      ATIVIDADES_PADRAO.find((t) => t.categoria === catId) ||
+      customDefs.find((t) => t.categoria === catId)
+    if (firstOfCat) {
+      setSelectedTipo(firstOfCat.id)
+      setTitulo(firstOfCat.tituloPadrao)
+    }
+  }
+
   const handleTipoChange = (novoTipo: AtividadeTipo) => {
     setSelectedTipo(novoTipo)
-    const conf = getTipoAtividadeConfig(novoTipo)
+    const conf = getTipoAtividadeConfig(novoTipo, customDefs)
     // Regra do usuário: O nome do tipo clicado deve virar AUTOMATICAMENTE o título da atividade
     setTitulo(conf.tituloPadrao)
   }
@@ -97,7 +123,7 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
       setIsSubmitting(true)
       setFormError(null)
 
-      const conf = getTipoAtividadeConfig(selectedTipo)
+      const conf = getTipoAtividadeConfig(selectedTipo, customDefs)
       const finalTitulo = titulo.trim() || conf.tituloPadrao
 
       const selectedUser = usuarios.find((u) => u.id === responsavelId)
@@ -128,7 +154,7 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
     }
   }
 
-  const configAtual = getTipoAtividadeConfig(selectedTipo)
+  const configAtual = getTipoAtividadeConfig(selectedTipo, customDefs)
   const IconAtual = configAtual.icon
 
   return (
@@ -173,35 +199,65 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
 
         {/* Formulário */}
         <form onSubmit={handleSubmit} className="p-5 space-y-4 max-h-[82vh] overflow-y-auto">
-          {/* Seletor rápido dos 12 tipos com badges */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-gray-700 block">
-              Tipo de Atividade (selecione para preencher o título)
-            </label>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 max-h-36 overflow-y-auto p-1 bg-gray-50/80 rounded-xl border border-gray-200">
-              {ATIVIDADES_12_TIPOS.map((item) => {
-                const ItemIcon = item.icon
-                const isSelected = selectedTipo === item.id
-                return (
-                  <button
-                    key={item.id}
-                    type="button"
-                    onClick={() => handleTipoChange(item.id)}
-                    className={`flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-left text-xs transition-all ${
-                      isSelected
-                        ? 'bg-emerald-600 text-white font-bold shadow-2xs ring-1 ring-emerald-600'
-                        : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-100'
-                    }`}
-                  >
-                    <ItemIcon
-                      className={`w-3.5 h-3.5 shrink-0 ${
-                        isSelected ? 'text-white' : 'text-gray-500'
+          {/* Seleção em 2 etapas: Categoria e Tipo */}
+          <div className="space-y-2 p-3 bg-gray-50/80 rounded-xl border border-gray-200">
+            {/* Etapa 1: Categoria */}
+            <div>
+              <label className="text-[11px] font-bold text-gray-700 uppercase tracking-wide block mb-1">
+                1. Selecione a Categoria
+              </label>
+              <div className="grid grid-cols-3 gap-1.5">
+                {CATEGORIAS_ATIVIDADES.map((cat) => {
+                  const isCatSelected = selectedCategoria === cat.id
+                  return (
+                    <button
+                      key={cat.id}
+                      type="button"
+                      onClick={() => handleCategoriaChange(cat.id)}
+                      className={`px-2 py-1.5 rounded-lg text-xs font-semibold truncate transition-all border ${
+                        isCatSelected
+                          ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
+                          : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-100'
                       }`}
-                    />
-                    <span className="truncate text-[11px]">{item.tituloPadrao}</span>
-                  </button>
-                )
-              })}
+                    >
+                      {cat.nome.replace('Atividades ', '')}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+
+            {/* Etapa 2: Tipos da Categoria */}
+            <div>
+              <label className="text-[11px] font-bold text-gray-700 uppercase tracking-wide block mb-1">
+                2. Tipo de Atividade
+              </label>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 max-h-36 overflow-y-auto p-1 bg-white rounded-lg border border-gray-200">
+                {tiposDaCategoria.map((item) => {
+                  const ItemIcon = item.icon
+                  const isSelected = selectedTipo === item.id
+                  return (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => handleTipoChange(item.id)}
+                      className={`flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-left text-xs transition-all ${
+                        isSelected
+                          ? 'bg-emerald-600 text-white font-bold shadow-2xs ring-1 ring-emerald-600'
+                          : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-100'
+                      }`}
+                      title={`${item.tituloPadrao} — ${item.descricaoAjuda}`}
+                    >
+                      <ItemIcon
+                        className={`w-3.5 h-3.5 shrink-0 ${
+                          isSelected ? 'text-white' : 'text-gray-500'
+                        }`}
+                      />
+                      <span className="truncate text-[11px]">{item.tituloPadrao}</span>
+                    </button>
+                  )
+                })}
+              </div>
             </div>
           </div>
 
