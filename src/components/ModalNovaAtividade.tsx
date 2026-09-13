@@ -81,8 +81,6 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
     }
   }, [isOpen, initialTipo, initialClienteId, clientes, usuarios, user])
 
-  if (!isOpen) return null
-
   const customDefs = React.useMemo(() => {
     return (tiposAtividadesCustom || []).map((t) => buildCustomTipoDef(t))
   }, [tiposAtividadesCustom])
@@ -92,6 +90,8 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
     const customs = customDefs.filter((t) => t.categoria === selectedCategoria)
     return [...padroes, ...customs]
   }, [selectedCategoria, customDefs])
+
+  if (!isOpen) return null
 
   const handleCategoriaChange = (catId: AtividadeCategoriaId) => {
     setSelectedCategoria(catId)

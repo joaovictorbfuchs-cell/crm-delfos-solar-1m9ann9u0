@@ -33,7 +33,6 @@ import {
   Plus,
   MessageSquare,
   Copy,
-  ArrowRightLeft,
 } from 'lucide-react'
 import { useClientes } from '@/contexts/ClientesContext'
 import {
@@ -2872,80 +2871,6 @@ export const FichaClienteDrawer: React.FC = () => {
                       )}
                     </div>
                   )}
-
-                  {/* ======================================================== */}
-                  {/* SEÇÃO: ATIVIDADES DE PÓS-VENDA                           */}
-                  {/* Itens rápidos: Anexo G, Transferência de Créditos, Troca Titularidade */}
-                  {/* ======================================================== */}
-                  <div className="p-3.5 bg-gradient-to-r from-emerald-50/90 via-teal-50/40 to-white rounded-xl border border-emerald-200 shadow-2xs space-y-2.5">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-emerald-950">
-                        <Sparkles className="w-4 h-4 text-emerald-600" />
-                        <span>Atividades de Pós-Venda</span>
-                      </div>
-                      <span className="text-[10px] text-emerald-700 bg-white px-2 py-0.5 rounded-full border border-emerald-200 font-semibold">
-                        Ações & Documentação
-                      </span>
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                      {/* 1. Anexo G */}
-                      <button
-                        type="button"
-                        onClick={() => handleAbrirDocumentoProjeto('anexo_g')}
-                        className="flex items-center gap-2.5 p-2.5 rounded-lg bg-white hover:bg-emerald-50 text-gray-800 hover:text-emerald-900 border border-emerald-100 hover:border-emerald-300 shadow-2xs transition-all hover:scale-[1.01] text-left group"
-                        title="Elaborar Anexo G (Formulário de Solicitação de Aumento de Carga / Pós-Venda)"
-                      >
-                        <div className="p-2 rounded-lg bg-emerald-100 text-emerald-800 group-hover:bg-emerald-600 group-hover:text-white transition-colors shrink-0">
-                          <FileText className="w-4 h-4" />
-                        </div>
-                        <div className="min-w-0">
-                          <div className="text-xs font-bold truncate">Anexo G</div>
-                          <div className="text-[10px] text-gray-500 truncate">
-                            Aumento de carga / revisão
-                          </div>
-                        </div>
-                      </button>
-
-                      {/* 2. Transferência de Créditos */}
-                      <button
-                        type="button"
-                        onClick={() => setModalTransferenciaCreditosOpen(true)}
-                        className="flex items-center gap-2.5 p-2.5 rounded-lg bg-white hover:bg-emerald-50 text-gray-800 hover:text-emerald-900 border border-emerald-100 hover:border-emerald-300 shadow-2xs transition-all hover:scale-[1.01] text-left group"
-                        title="Registrar Transferência de Créditos de Energia Solar entre UCs"
-                      >
-                        <div className="p-2 rounded-lg bg-emerald-100 text-emerald-800 group-hover:bg-emerald-600 group-hover:text-white transition-colors shrink-0">
-                          <ArrowRightLeft className="w-4 h-4" />
-                        </div>
-                        <div className="min-w-0">
-                          <div className="text-xs font-bold truncate">
-                            Transferência de Créditos
-                          </div>
-                          <div className="text-[10px] text-gray-500 truncate">
-                            Rateio entre UCs consumidoras
-                          </div>
-                        </div>
-                      </button>
-
-                      {/* 3. Troca de Titularidade */}
-                      <button
-                        type="button"
-                        onClick={() => handleAbrirDocumentoProjeto('troca_titularidade')}
-                        className="flex items-center gap-2.5 p-2.5 rounded-lg bg-white hover:bg-emerald-50 text-gray-800 hover:text-emerald-900 border border-emerald-100 hover:border-emerald-300 shadow-2xs transition-all hover:scale-[1.01] text-left group"
-                        title="Elaborar Formulário e Termo de Troca de Titularidade da Unidade Consumidora"
-                      >
-                        <div className="p-2 rounded-lg bg-emerald-100 text-emerald-800 group-hover:bg-emerald-600 group-hover:text-white transition-colors shrink-0">
-                          <UserCheck className="w-4 h-4" />
-                        </div>
-                        <div className="min-w-0">
-                          <div className="text-xs font-bold truncate">Troca de Titularidade</div>
-                          <div className="text-[10px] text-gray-500 truncate">
-                            Formulário da concessionária
-                          </div>
-                        </div>
-                      </button>
-                    </div>
-                  </div>
 
                   {/* ======================================================== */}
                   {/* TOPO DA ABA HISTÓRICO: ÁREA RÁPIDA DE NOVA ENTRADA       */}
