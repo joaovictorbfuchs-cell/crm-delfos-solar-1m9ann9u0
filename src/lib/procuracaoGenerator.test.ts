@@ -87,4 +87,21 @@ describe('procuracaoGenerator - Procuração Particular Delfos Solar O&M', () =>
     expect(url).toContain('Marcelo')
     expect(url).toContain('concession%C3%A1ria')
   })
+
+  it('deve permitir emitir procuração para cliente sem proposta O&M cadastrada (ex: PATRICK RECH RAMOS)', () => {
+    const dadosPatrick = {
+      nome: 'PATRICK RECH RAMOS',
+      cpf: '',
+      endereco: '',
+      municipio: 'Erechim',
+      telefone: '',
+    }
+    const normalizados = normalizarDadosProcuracao(dadosPatrick)
+    expect(normalizados.nome).toBe('PATRICK RECH RAMOS')
+    expect(normalizados.municipio).toBe('Erechim')
+
+    const pdfBytes = gerarPDFBinarioProcuracao(normalizados)
+    expect(pdfBytes).toBeInstanceOf(Uint8Array)
+    expect(pdfBytes.length).toBeGreaterThan(500)
+  })
 })

@@ -274,48 +274,54 @@ export const FichaClienteOM: React.FC<FichaClienteOMProps> = ({ clienteId, onNav
         </div>
       </div>
 
-      {/* 1.1 BLOCO DE DOCUMENTAÇÃO O&M (PROCURAÇÃO E CONTRATO) QUANDO HOUVER PROPOSTA FECHADA/APROVADA */}
-      {propostaAprovada && (
-        <div className="p-4 sm:p-5 rounded-2xl border-2 border-emerald-300 bg-gradient-to-br from-emerald-50/90 via-white to-teal-50/70 shadow-xs space-y-4">
-          <div className="flex items-start sm:items-center justify-between flex-wrap gap-2 pb-3 border-b border-emerald-200">
-            <div className="flex items-center gap-2.5">
-              <div className="p-2.5 bg-emerald-600 text-white rounded-xl shadow-xs">
-                <FileText className="w-5 h-5" />
-              </div>
-              <div>
-                <div className="flex items-center gap-2 flex-wrap">
-                  <h4 className="text-sm sm:text-base font-bold text-gray-900">
-                    Documentos O&M — Proposta Fechada
-                  </h4>
+      {/* 1.1 BLOCO DE DOCUMENTAÇÃO O&M (PROCURAÇÃO E CONTRATO) */}
+      <div className="p-4 sm:p-5 rounded-2xl border-2 border-emerald-300 bg-gradient-to-br from-emerald-50/90 via-white to-teal-50/70 shadow-xs space-y-4">
+        <div className="flex items-start sm:items-center justify-between flex-wrap gap-2 pb-3 border-b border-emerald-200">
+          <div className="flex items-center gap-2.5">
+            <div className="p-2.5 bg-emerald-600 text-white rounded-xl shadow-xs">
+              <FileText className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h4 className="text-sm sm:text-base font-bold text-gray-900">
+                  {propostaAprovada
+                    ? 'Documentos O&M — Proposta Fechada'
+                    : 'Documentação O&M — Procuração'}
+                </h4>
+                {propostaAprovada && (
                   <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300">
                     Status: {propostaAprovada.status || 'Aprovado'}
                   </span>
-                </div>
-                <p className="text-xs text-gray-600 mt-0.5">
-                  Proposta O&M Plano {propostaAprovada.plano_escolhido || 'Padrão'} (
-                  {propostaAprovada.potencia_kwp} kWp) aprovada. Gere a procuração e o contrato com
-                  os dados do cliente.
-                </p>
+                )}
               </div>
+              <p className="text-xs text-gray-600 mt-0.5">
+                {propostaAprovada
+                  ? `Proposta O&M Plano ${propostaAprovada.plano_escolhido || 'Padrão'} (${propostaAprovada.potencia_kwp} kWp) aprovada. Gere a procuração e o contrato com os dados do cliente.`
+                  : 'Emita a Procuração Particular para representação perante a concessionária de energia.'}
+              </p>
             </div>
+          </div>
 
+          {propostaAprovada && (
             <span className="text-xs font-bold text-emerald-800 bg-white px-3 py-1.5 rounded-xl border border-emerald-200 shadow-2xs">
               {formatCurrency(propostaAprovada.valor_mensal_plano || 0)}/mês •{' '}
               {formatCurrency(propostaAprovada.valor_anual_plano || 0)}/ano
             </span>
-          </div>
+          )}
+        </div>
 
-          {/* Botões de Ação Solicitados: Gerar Procuração e Gerar Contrato */}
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
-            <button
-              type="button"
-              onClick={() => setModalProcuracaoOpen(true)}
-              className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-[#16A34A] hover:bg-[#15803D] active:bg-[#166534] text-white text-xs sm:text-sm font-bold rounded-xl shadow-xs transition-all hover:scale-[1.01]"
-            >
-              <FileText className="w-4 h-4" />
-              <span>Gerar Procuração</span>
-            </button>
+        {/* Botões de Ação: Gerar Procuração (sempre disponível) e Gerar Contrato */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
+          <button
+            type="button"
+            onClick={() => setModalProcuracaoOpen(true)}
+            className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-[#16A34A] hover:bg-[#15803D] active:bg-[#166534] text-white text-xs sm:text-sm font-bold rounded-xl shadow-xs transition-all hover:scale-[1.01]"
+          >
+            <FileText className="w-4 h-4" />
+            <span>Gerar Procuração</span>
+          </button>
 
+          {propostaAprovada && (
             <button
               type="button"
               onClick={() => {
@@ -329,9 +335,9 @@ export const FichaClienteOM: React.FC<FichaClienteOMProps> = ({ clienteId, onNav
               <ShieldCheck className="w-4 h-4 text-emerald-600" />
               <span>Gerar Contrato</span>
             </button>
-          </div>
+          )}
         </div>
-      )}
+      </div>
 
       {/* 2. CONTRATO VIGENTE E STATUS DO PLANO O&M */}
       {!contrato ? (
@@ -644,11 +650,28 @@ export const FichaClienteOM: React.FC<FichaClienteOMProps> = ({ clienteId, onNav
           cliente={cliente}
           propostaOM={propostaAprovada}
           onDocumentoGerado={async (dados) => {
+            try {
+              const { upsertDocumentoCliente } = await import('@/services/crmService')
+              await upsertDocumentoCliente({
+                cliente_id: cliente.id,
+                tipo: 'procuracao',
+                status_assinatura: 'aguardando_assinatura',
+                data_envio: new Date().toISOString(),
+                telefone_envio: dados.telefone || cliente.telefone || cliente.whatsapp,
+                canal_envio: 'sistema',
+                autor: 'CRM Delfos Solar',
+                observacoes: `Procuração Particular O&M emitida para ${dados.nome} (CPF ${dados.cpf}).`,
+                dados_documento: dados as any,
+              })
+            } catch (err) {
+              console.error('Erro ao salvar documento procuracao:', err)
+            }
+
             // Registra a atividade da procuração na linha do tempo
             try {
               await addAtividade({
                 cliente_id: cliente.id,
-                tipo: 'outro',
+                tipo: 'gerar_procuracao',
                 titulo: 'Procuração Particular O&M Gerada',
                 descricao: `Procuração gerada para ${dados.nome} (CPF ${dados.cpf}) para atos junto à concessionária de energia.`,
                 data: new Date().toISOString(),

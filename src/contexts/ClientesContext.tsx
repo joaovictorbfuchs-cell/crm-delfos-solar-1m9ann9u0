@@ -122,6 +122,10 @@ interface ClientesContextType {
   addOrUpdateDocumentoCliente: (
     data: Parameters<typeof import('@/services/crmService').upsertDocumentoCliente>[0],
   ) => Promise<import('@/types/crm').DocumentoCliente>
+  getDocumentoCliente: (
+    clienteId: string,
+    tipo: import('@/types/crm').DocumentoClienteTipo,
+  ) => import('@/types/crm').DocumentoCliente | undefined
   updateDocumentoClienteStatus: (
     id: string,
     status: import('@/types/crm').DocumentoClienteStatusAssinatura,
@@ -1511,6 +1515,13 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     setDocumentosCliente(list)
   }
 
+  const getDocumentoCliente = (
+    clienteId: string,
+    tipo: import('@/types/crm').DocumentoClienteTipo,
+  ) => {
+    return documentosCliente.find((d) => d.cliente_id === clienteId && d.tipo === tipo)
+  }
+
   const addTimelineOM = async (data: Parameters<typeof apiCreateTimelineOM>[0]) => {
     const created = await apiCreateTimelineOM(data)
     setTimelineOM((prev) => [created, ...prev])
@@ -1787,6 +1798,7 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         updateDocumentoClienteStatus,
         removeDocumentoCliente,
         refreshDocumentosCliente,
+        getDocumentoCliente,
         timelineOM,
         isLoading,
         error,

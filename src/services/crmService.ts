@@ -1311,6 +1311,7 @@ export async function upsertDocumentoCliente(data: {
   telefone_envio?: string
   observacoes?: string
   autor?: string
+  dados_documento?: Record<string, any> | null
 }): Promise<import('@/types/crm').DocumentoCliente> {
   // Procura se já existe um registro deste tipo para este cliente
   try {

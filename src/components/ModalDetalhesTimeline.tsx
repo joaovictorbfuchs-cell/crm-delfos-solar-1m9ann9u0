@@ -24,7 +24,11 @@ import {
   DollarSign,
   Sun,
   ShieldCheck,
+  Download,
 } from 'lucide-react'
+import { ModalGerarProcuracaoOM } from '@/components/ModalGerarProcuracaoOM'
+import { baixarProcuracaoPDF, type DadosProcuracaoOM } from '@/lib/procuracaoGenerator'
+import { useClientes } from '@/contexts/ClientesContext'
 import type { TimelineUnifiedItem } from '@/types/timelineUnified'
 import type { Cliente, AtividadeTipo, AtividadeStatus } from '@/types/crm'
 import { formatCurrency, formatDate, formatDateTime } from '@/lib/formatters'
@@ -90,6 +94,12 @@ export const ModalDetalhesTimeline: React.FC<ModalDetalhesTimelineProps> = ({
   const [formOMValorMensal, setFormOMValorMensal] = useState<number>(0)
   const [formOMValorAnual, setFormOMValorAnual] = useState<number>(0)
   const [formOMObs, setFormOMObs] = useState('')
+
+  const { documentosCliente } = useClientes()
+  const [modalProcuracaoViewOpen, setModalProcuracaoViewOpen] = useState(false)
+  const [procuracaoViewDados, setProcuracaoViewDados] = useState<Partial<DadosProcuracaoOM> | null>(
+    null,
+  )
 
   // Sincronizar form ao abrir / trocar de item
   useEffect(() => {
@@ -525,6 +535,58 @@ export const ModalDetalhesTimeline: React.FC<ModalDetalhesTimelineProps> = ({
                 </div>
               )}
 
+              {/* Ação especial para Procuração Particular O&M */}
+              {(item.titulo === 'Procuração Particular O&M Gerada' ||
+                item.rawAtividade?.tipo === 'gerar_procuracao' ||
+                item.subtitulo === 'Gerar Procuração O&M') && (
+                <div className="flex items-center justify-end gap-2 pt-2 border-t border-gray-100 flex-wrap">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const docProcuracao = documentosCliente.find(
+                        (d) => d.cliente_id === cliente.id && d.tipo === 'procuracao',
+                      )
+                      const dadosSalvos = (docProcuracao?.dados_documento as DadosProcuracaoOM) || {
+                        nome: cliente.titular_nome || cliente.nome,
+                        cpf: cliente.titular_cpf || cliente.cpf,
+                        endereco: cliente.endereco,
+                        municipio: cliente.cidade,
+                        telefone: cliente.titular_telefone || cliente.telefone || cliente.whatsapp,
+                      }
+                      setProcuracaoViewDados(dadosSalvos)
+                      setModalProcuracaoViewOpen(true)
+                    }}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 font-bold text-xs rounded-lg transition-colors shadow-2xs"
+                    title="Visualizar Procuração A4 oficial"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5 text-emerald-700" />
+                    <span>Visualizar Procuração A4</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const docProcuracao = documentosCliente.find(
+                        (d) => d.cliente_id === cliente.id && d.tipo === 'procuracao',
+                      )
+                      const dadosSalvos = (docProcuracao?.dados_documento as DadosProcuracaoOM) || {
+                        nome: cliente.titular_nome || cliente.nome,
+                        cpf: cliente.titular_cpf || cliente.cpf,
+                        endereco: cliente.endereco,
+                        municipio: cliente.cidade,
+                        telefone: cliente.titular_telefone || cliente.telefone || cliente.whatsapp,
+                      }
+                      baixarProcuracaoPDF(dadosSalvos)
+                    }}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#16A34A] hover:bg-[#15803D] text-white font-bold text-xs rounded-lg transition-colors shadow-2xs"
+                    title="Baixar diretamente o arquivo PDF oficial da procuração"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    <span>Baixar PDF</span>
+                  </button>
+                </div>
+              )}
+
               {item.categoria === 'proposta_om' && item.rawPropostaOM && (
                 <div className="flex items-center justify-end gap-2 pt-2 border-t border-gray-100 flex-wrap">
                   {onAlterarRegenerarOM && (
@@ -836,6 +898,17 @@ export const ModalDetalhesTimeline: React.FC<ModalDetalhesTimelineProps> = ({
             </div>
           )}
         </div>
+
+        {/* Modal de Pré-Visualização / Download A4 da Procuração */}
+        {cliente && modalProcuracaoViewOpen && (
+          <ModalGerarProcuracaoOM
+            open={modalProcuracaoViewOpen}
+            onOpenChange={setModalProcuracaoViewOpen}
+            cliente={cliente}
+            initialDados={procuracaoViewDados}
+            modoVisualizacaoDireta={true}
+          />
+        )}
 
         {/* Footer com botões */}
         <DialogFooter className="p-4 bg-gray-50 border-t border-gray-100 flex items-center justify-between sm:justify-between">

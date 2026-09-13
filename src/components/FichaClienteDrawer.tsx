@@ -401,12 +401,6 @@ export const FichaClienteDrawer: React.FC = () => {
 
   // Handler para acionar o fluxo Gerar Procuração O&M
   const handleDispararGerarProcuracao = () => {
-    if (!propostaOMAprovada) {
-      toast.info(
-        'Este cliente não possui proposta de O&M aprovada — gere e aprove a proposta antes de emitir a procuração.',
-      )
-      return
-    }
     setModalProcuracaoOMOpen(true)
   }
 
@@ -3728,9 +3722,28 @@ export const FichaClienteDrawer: React.FC = () => {
           propostaOM={propostaOMAprovada}
           onDocumentoGerado={async (dados) => {
             try {
+              // 1. Salva na coleção documentos_cliente com os dados completos do documento em JSON
+              await addOrUpdateDocumentoCliente({
+                cliente_id: selectedCliente.id,
+                tipo: 'procuracao',
+                status_assinatura: 'aguardando_assinatura',
+                data_envio: new Date().toISOString(),
+                telefone_envio:
+                  dados.telefone || selectedCliente.telefone || selectedCliente.whatsapp,
+                canal_envio: 'sistema',
+                autor: 'CRM Delfos Solar',
+                observacoes: `Procuração Particular O&M emitida para ${dados.nome} (CPF ${dados.cpf}).`,
+                dados_documento: dados as any,
+              })
+            } catch (err) {
+              console.error('Erro ao salvar documento procuracao:', err)
+            }
+
+            try {
+              // 2. Registra na timeline / atividades
               await addAtividade({
                 cliente_id: selectedCliente.id,
-                tipo: 'outro',
+                tipo: 'gerar_procuracao',
                 titulo: 'Procuração Particular O&M Gerada',
                 descricao: `Procuração gerada para ${dados.nome} (CPF ${dados.cpf}) para atos junto à concessionária de energia.`,
                 data: new Date().toISOString(),

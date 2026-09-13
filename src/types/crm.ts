@@ -372,6 +372,7 @@ export interface DocumentoCliente extends RecordModel {
   telefone_envio?: string
   observacoes?: string
   autor?: string
+  dados_documento?: Record<string, any> | null
   created: string
   updated: string
   expand?: {

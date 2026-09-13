@@ -43,6 +43,8 @@ export interface ModalGerarProcuracaoOMProps {
   onOpenChange: (open: boolean) => void
   cliente: Cliente
   propostaOM?: PropostaOM | null
+  initialDados?: Partial<DadosProcuracaoOM> | null
+  modoVisualizacaoDireta?: boolean
   onDocumentoGerado?: (dados: DadosProcuracaoOM) => void
 }
 
@@ -51,6 +53,8 @@ export const ModalGerarProcuracaoOM: React.FC<ModalGerarProcuracaoOMProps> = ({
   onOpenChange,
   cliente,
   propostaOM,
+  initialDados,
+  modoVisualizacaoDireta = false,
   onDocumentoGerado,
 }) => {
   // Etapa 1: 'revisao' (formulário com dados pré-preenchidos e editáveis)
@@ -65,10 +69,28 @@ export const ModalGerarProcuracaoOM: React.FC<ModalGerarProcuracaoOMProps> = ({
   const [formDataExtenso, setFormDataExtenso] = useState('')
   const [formTelefone, setFormTelefone] = useState('')
 
-  // Ao abrir o modal, pré-carrega os dados da ficha do cliente
+  // Ao abrir o modal, pré-carrega os dados da ficha do cliente ou initialDados
   useEffect(() => {
     if (open && cliente) {
       setAtividadeRegistrada(false)
+
+      if (initialDados) {
+        setFormNome(initialDados.nome || cliente.titular_nome || cliente.nome || '')
+        setFormCpf(initialDados.cpf || cliente.titular_cpf || cliente.cpf || '')
+        setFormEndereco(initialDados.endereco || cliente.endereco || '')
+        setFormMunicipio(initialDados.municipio || cliente.cidade || 'Passo Fundo/RS')
+        setFormDataExtenso(initialDados.dataPorExtenso || formatarDataExtenso(new Date()))
+        setFormTelefone(
+          initialDados.telefone ||
+            cliente.titular_telefone ||
+            cliente.telefone ||
+            cliente.whatsapp ||
+            '',
+        )
+        setEtapa(modoVisualizacaoDireta ? 'previsualizacao' : 'revisao')
+        return
+      }
+
       const nomeEfetivo = cliente.titular_nome || cliente.nome || ''
       const cpfEfetivo = cliente.titular_cpf || cliente.cpf || ''
 
@@ -89,9 +111,9 @@ export const ModalGerarProcuracaoOM: React.FC<ModalGerarProcuracaoOMProps> = ({
       setFormMunicipio(municipioEfetivo)
       setFormDataExtenso(formatarDataExtenso(new Date()))
       setFormTelefone(telefoneEfetivo ? formatWhatsAppPhone(telefoneEfetivo) : '')
-      setEtapa('revisao')
+      setEtapa(modoVisualizacaoDireta ? 'previsualizacao' : 'revisao')
     }
-  }, [open, cliente])
+  }, [open, cliente, initialDados, modoVisualizacaoDireta])
 
   const dadosConsolidados: DadosProcuracaoOM = useMemo(() => {
     return normalizarDadosProcuracao({
@@ -212,8 +234,8 @@ export const ModalGerarProcuracaoOM: React.FC<ModalGerarProcuracaoOMProps> = ({
             <div className="flex items-center gap-2">
               <Badge className="bg-emerald-50 text-emerald-800 border-emerald-300 font-semibold text-xs">
                 {propostaOM?.plano_escolhido
-                  ? `Plano O&M ${propostaOM.plano_escolhido} (Aprovado)`
-                  : 'Proposta O&M Aprovada'}
+                  ? `Plano O&M ${propostaOM.plano_escolhido}`
+                  : 'Procuração O&M'}
               </Badge>
               {etapa === 'previsualizacao' && (
                 <Badge className="bg-emerald-600 text-white font-medium text-xs">

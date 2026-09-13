@@ -20,7 +20,10 @@ import {
   Sparkles,
   Trash2,
   Loader2,
+  Download,
 } from 'lucide-react'
+import { ModalGerarProcuracaoOM } from '@/components/ModalGerarProcuracaoOM'
+import type { DadosProcuracaoOM } from '@/lib/procuracaoGenerator'
 import type { TimelineUnifiedItem, TimelineFilterTipo } from '@/types/timelineUnified'
 import type { Cliente, Atividade, OrcamentoSolar, PropostaOM } from '@/types/crm'
 import { formatCurrency, formatDate, formatDateTime } from '@/lib/formatters'
@@ -61,13 +64,17 @@ export const LinhaDoTempoUnificada: React.FC<LinhaDoTempoUnificadaProps> = ({
   onNovoOrcamentoSolarClick,
   onNovaPropostaOMClick,
 }) => {
-  const { tiposAtividadesCustom, removeAtividade, contratosOM } = useClientes()
+  const { tiposAtividadesCustom, removeAtividade, contratosOM, documentosCliente } = useClientes()
   const [activeFilter, setActiveFilter] = useState<TimelineFilterTipo>('todas')
   const [atividadeParaExcluir, setAtividadeParaExcluir] = useState<{
     id: string
     titulo: string
   } | null>(null)
   const [isDeletingAtividade, setIsDeletingAtividade] = useState(false)
+  const [modalProcuracaoViewOpen, setModalProcuracaoViewOpen] = useState(false)
+  const [procuracaoViewDados, setProcuracaoViewDados] = useState<Partial<DadosProcuracaoOM> | null>(
+    null,
+  )
 
   const customDefs = useMemo(() => {
     return (tiposAtividadesCustom || []).map((t) => buildCustomTipoDef(t))
@@ -790,6 +797,37 @@ export const LinhaDoTempoUnificada: React.FC<LinhaDoTempoUnificadaProps> = ({
                         <ChevronRight className="w-3 h-3 ml-0.5" />
                       </button>
 
+                      {/* Botão Ver PDF com Download para Procuração Particular O&M */}
+                      {(item.titulo === 'Procuração Particular O&M Gerada' ||
+                        item.rawAtividade?.tipo === 'gerar_procuracao' ||
+                        item.subtitulo === 'Gerar Procuração O&M') && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            const docProcuracao = documentosCliente.find(
+                              (d) => d.cliente_id === cliente.id && d.tipo === 'procuracao',
+                            )
+                            const dadosSalvos =
+                              (docProcuracao?.dados_documento as DadosProcuracaoOM) || {
+                                nome: cliente.titular_nome || cliente.nome,
+                                cpf: cliente.titular_cpf || cliente.cpf,
+                                endereco: cliente.endereco,
+                                municipio: cliente.cidade,
+                                telefone:
+                                  cliente.titular_telefone || cliente.telefone || cliente.whatsapp,
+                              }
+                            setProcuracaoViewDados(dadosSalvos)
+                            setModalProcuracaoViewOpen(true)
+                          }}
+                          className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-bold text-white bg-[#16A34A] hover:bg-[#15803D] rounded-lg transition-colors shadow-2xs"
+                          title="Visualizar Procuração A4 e Rebaixar PDF"
+                        >
+                          <Download className="w-3 h-3 text-white" />
+                          <span>Ver PDF</span>
+                        </button>
+                      )}
+
                       {/* Botão de excluir para itens que são atividades */}
                       {item.rawAtividade && (
                         <button
@@ -815,6 +853,17 @@ export const LinhaDoTempoUnificada: React.FC<LinhaDoTempoUnificadaProps> = ({
             )
           })}
         </div>
+      )}
+
+      {/* Modal de Visualização da Procuração com rebaixar PDF */}
+      {cliente && modalProcuracaoViewOpen && (
+        <ModalGerarProcuracaoOM
+          open={modalProcuracaoViewOpen}
+          onOpenChange={setModalProcuracaoViewOpen}
+          cliente={cliente}
+          initialDados={procuracaoViewDados}
+          modoVisualizacaoDireta={true}
+        />
       )}
 
       {/* Confirmação Segura de Exclusão de Atividade */}
