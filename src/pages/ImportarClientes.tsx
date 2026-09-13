@@ -20,6 +20,12 @@ import {
   HelpCircle,
   FileText,
   RotateCcw,
+  ShieldCheck,
+  ArrowLeftRight,
+  GitMerge,
+  EyeOff,
+  UserCheck,
+  Layers,
 } from 'lucide-react'
 import { useClientes } from '@/contexts/ClientesContext'
 import { StatusBadge } from '@/components/StatusBadge'
@@ -32,6 +38,12 @@ import {
   ClienteImportadoNormalizado,
   limparDocumento,
 } from '@/services/importacaoClientesService'
+import {
+  ItemRevisaoPipedrive,
+  encontrarCorrespondenciaCliente,
+  mesclarDadosPipedriveNoCadastro,
+  DecisaoRevisaoItem,
+} from '@/lib/deduplicacaoPipedrive'
 import { EXEMPLO_PIPEDRIVE, EXEMPLO_CONTA_AZUL } from '@/data/exemplosImportacao'
 import { formatCurrency } from '@/lib/formatters'
 import { toast } from 'sonner'
@@ -52,7 +64,14 @@ export default function ImportarClientes() {
   const [isProcessandoArquivo, setIsProcessandoArquivo] = useState<boolean>(false)
   const [mostrarMapeamentoAvancado, setMostrarMapeamentoAvancado] = useState<boolean>(false)
 
-  // Resolução de Duplicados
+  // Etapa ativa para o Pipedrive: 'upload' | 'revisao'
+  const [etapaPipedrive, setEtapaPipedrive] = useState<'upload' | 'revisao'>('upload')
+
+  // Estado da Revisão e Deduplicação do Pipedrive (persistido durante a revisão)
+  const [itensRevisao, setItensRevisao] = useState<ItemRevisaoPipedrive[]>([])
+  const [filtroRevisao, setFiltroRevisao] = useState<'todos' | 'duplicados' | 'leads'>('todos')
+
+  // Resolução de Duplicados tradicional (para Conta Azul)
   const [decisaoDuplicados, setDecisaoDuplicados] = useState<Record<string, AcaoDuplicado>>({})
   const [acaoDuplicadosGlobal, setAcaoDuplicadosGlobal] = useState<AcaoDuplicado | null>(null)
 
@@ -81,6 +100,89 @@ export default function ImportarClientes() {
     setAcaoDuplicadosGlobal(null)
     setResultadoFinal(null)
     setMostrarMapeamentoAvancado(false)
+    setEtapaPipedrive('upload')
+    setItensRevisao([])
+  }
+
+  // Gera a lista de revisão para o Pipedrive comparando com clientes existentes do sistema
+  const inicializarRevisaoPipedrive = (
+    parsed: ParsedTableData,
+    mapping: Record<string, string>,
+  ) => {
+    const revisao: ItemRevisaoPipedrive[] = parsed.rows.map((row, index) => {
+      const normalizado = normalizarLinhaParaCliente(
+        row,
+        mapping,
+        'pipedrive',
+        index,
+        parsed.headers,
+      )
+
+      // Comparação inteligente com a base de clientes (Conta Azul e cadastros prévios)
+      const correspondencia = encontrarCorrespondenciaCliente(
+        {
+          nome: normalizado.nome,
+          cpf: normalizado.cpf,
+          cnpj: normalizado.cnpj,
+          telefone: normalizado.telefone,
+          whatsapp: normalizado.whatsapp,
+          email: normalizado.email,
+        },
+        clientes,
+      )
+
+      if (correspondencia) {
+        return {
+          idTemp: normalizado.idTemp,
+          nome: normalizado.nome,
+          telefone: normalizado.telefone,
+          whatsapp: normalizado.whatsapp,
+          email: normalizado.email,
+          cpf: normalizado.cpf,
+          cnpj: normalizado.cnpj,
+          cidade: normalizado.cidade,
+          estado: normalizado.estado,
+          endereco: normalizado.endereco,
+          // Requisito: "Nestes casos, o status deve ser automaticamente 'Cliente' (já fechou negócio)"
+          statusSugerido: 'Fechado',
+          tipo_pessoa: normalizado.tipo_pessoa,
+          valor_estimado: normalizado.valor_estimado,
+          data_ultimo_contato: normalizado.data_ultimo_contato,
+          dados_importados: normalizado.dados_importados,
+          isDuplicadoContaAzul: true,
+          correspondencia,
+          acaoDuplicado: 'atualizar', // Padrão: atualizar dados
+          aprovadoParaImportar: true,
+        }
+      }
+
+      // Requisito: "Para os registros do Pipedrive que não encontraram correspondência no Conta Azul,
+      // classifique automaticamente como 'Possível Cliente / Lead' (ainda não fechou negócio).
+      // Estes devem aparecer na lista para revisão com um check de confirmação antes de serem importados."
+      return {
+        idTemp: normalizado.idTemp,
+        nome: normalizado.nome,
+        telefone: normalizado.telefone,
+        whatsapp: normalizado.whatsapp,
+        email: normalizado.email,
+        cpf: normalizado.cpf,
+        cnpj: normalizado.cnpj,
+        cidade: normalizado.cidade,
+        estado: normalizado.estado,
+        endereco: normalizado.endereco,
+        statusSugerido: 'Novo Lead',
+        tipo_pessoa: normalizado.tipo_pessoa,
+        valor_estimado: normalizado.valor_estimado,
+        data_ultimo_contato: normalizado.data_ultimo_contato,
+        dados_importados: normalizado.dados_importados,
+        isDuplicadoContaAzul: false,
+        acaoDuplicado: 'atualizar',
+        aprovadoParaImportar: true, // Marcado por padrão
+      }
+    })
+
+    setItensRevisao(revisao)
+    setEtapaPipedrive('revisao')
   }
 
   // Carregar dados de arquivo real (XLSX ou CSV)
@@ -104,9 +206,16 @@ export default function ImportarClientes() {
       setDecisaoDuplicados({})
       setAcaoDuplicadosGlobal(null)
 
-      toast.success(
-        `Planilha processada! ${parsed.rows.length} clientes encontrados com colunas auto-identificadas.`,
-      )
+      if (fonteAtiva === 'pipedrive') {
+        inicializarRevisaoPipedrive(parsed, autoMap)
+        toast.success(
+          `Planilha processada! ${parsed.rows.length} registros prontos para revisão e deduplicação.`,
+        )
+      } else {
+        toast.success(
+          `Planilha processada! ${parsed.rows.length} clientes encontrados com colunas auto-identificadas.`,
+        )
+      }
     } catch (err: any) {
       console.error('Erro ao ler planilha:', err)
       toast.error(
@@ -135,53 +244,69 @@ export default function ImportarClientes() {
       setMapeamentoColunas(autoMap)
       setDecisaoDuplicados({})
       setAcaoDuplicadosGlobal(null)
-      setIsProcessandoArquivo(false)
 
-      toast.success(
-        `Exemplo do ${fonte === 'pipedrive' ? 'Pipedrive' : 'Conta Azul'} carregado com sucesso (${dadosExemplo.rows.length} clientes simulados)!`,
-      )
+      if (fonte === 'pipedrive') {
+        inicializarRevisaoPipedrive(dadosExemplo, autoMap)
+        toast.success(
+          `Planilha de exemplo do Pipedrive carregada: 2 duplicados do Conta Azul e 3 leads novos prontos para revisão!`,
+        )
+      } else {
+        toast.success(
+          `Exemplo do Conta Azul carregado com sucesso (${dadosExemplo.rows.length} clientes simulados)!`,
+        )
+      }
+      setIsProcessandoArquivo(false)
     }, 200)
   }
 
   // Alterar mapeamento manual de um campo de destino
   const handleAlterarMapeamento = (campoKey: string, colunaSelecionada: string) => {
-    setMapeamentoColunas((prev) => {
-      const updated = { ...prev }
-      if (!colunaSelecionada) {
-        delete updated[campoKey]
-      } else {
-        updated[campoKey] = colunaSelecionada
-      }
-      return updated
-    })
+    const updated = { ...mapeamentoColunas }
+    if (!colunaSelecionada) {
+      delete updated[campoKey]
+    } else {
+      updated[campoKey] = colunaSelecionada
+    }
+    setMapeamentoColunas(updated)
+
+    // Se estiver no Pipedrive, recalcular a revisão com o novo mapeamento
+    if (fonteAtiva === 'pipedrive' && dadosTabela) {
+      inicializarRevisaoPipedrive(dadosTabela, updated)
+    }
   }
 
-  // Normalização e verificação de duplicidade com a base atual de clientes
-  const clientesNormalizados = useMemo<ClienteImportadoNormalizado[]>(() => {
-    if (!dadosTabela) return []
+  // Redefinir detecção automática
+  const handleRedefinirMapeamento = () => {
+    if (!dadosTabela) return
+    const autoMap = autoDetectarMapeamento(dadosTabela.headers, fonteAtiva)
+    setMapeamentoColunas(autoMap)
+    if (fonteAtiva === 'pipedrive') {
+      inicializarRevisaoPipedrive(dadosTabela, autoMap)
+    }
+    toast.info('Mapeamento redefinido para a detecção automática padrão.')
+  }
+
+  // Normalização tradicional (para Conta Azul)
+  const clientesNormalizadosContaAzul = useMemo<ClienteImportadoNormalizado[]>(() => {
+    if (!dadosTabela || fonteAtiva !== 'conta_azul') return []
 
     return dadosTabela.rows.map((row, index) => {
       const normalizado = normalizarLinhaParaCliente(
         row,
         mapeamentoColunas,
-        fonteAtiva,
+        'conta_azul',
         index,
         dadosTabela.headers,
       )
 
-      // Verificar duplicidade no banco por CPF, CNPJ ou e-mail
       const docClean = limparDocumento(normalizado.cpf || normalizado.cnpj)
       const emailLower = (normalizado.email || '').toLowerCase().trim()
 
       const duplicado = clientes.find((existente) => {
-        // Checagem por documento (CPF ou CNPJ)
         if (docClean && docClean.length >= 11) {
           const docExistente = limparDocumento(existente.cpf || existente.cnpj || '')
-          if (docExistente && docExistente === docClean) {
-            return true
-          }
+          if (docExistente && docExistente === docClean) return true
         }
-        // Checagem por e-mail
         if (emailLower && existente.email && existente.email.toLowerCase().trim() === emailLower) {
           return true
         }
@@ -217,40 +342,186 @@ export default function ImportarClientes() {
     })
   }, [dadosTabela, mapeamentoColunas, fonteAtiva, clientes])
 
-  // Contagem de duplicados
-  const duplicadosList = useMemo(() => {
-    return clientesNormalizados.filter((c) => c.isDuplicado)
-  }, [clientesNormalizados])
+  // Contadores para o Pipedrive
+  const contadoresPipedrive = useMemo(() => {
+    const duplicadosEncontrados = itensRevisao.filter((i) => i.isDuplicadoContaAzul).length
+    const duplicadosAtualizar = itensRevisao.filter(
+      (i) => i.isDuplicadoContaAzul && i.acaoDuplicado === 'atualizar',
+    ).length
+    const duplicadosIgnorados = itensRevisao.filter(
+      (i) => i.isDuplicadoContaAzul && i.acaoDuplicado === 'ignorar',
+    ).length
 
-  // Aplicação da regra de duplicidade (individual ou global)
-  const getDecisaoDuplicado = (idTemp: string): AcaoDuplicado => {
-    if (acaoDuplicadosGlobal) return acaoDuplicadosGlobal
-    return decisaoDuplicados[idTemp] || 'atualizar'
-  }
+    const leadsNovosTotal = itensRevisao.filter((i) => !i.isDuplicadoContaAzul).length
+    const leadsNovosImportar = itensRevisao.filter(
+      (i) => !i.isDuplicadoContaAzul && i.aprovadoParaImportar,
+    ).length
+    const leadsNovosDesmarcados = leadsNovosTotal - leadsNovosImportar
 
-  const handleDefinirAcaoGlobal = (acao: AcaoDuplicado) => {
-    setAcaoDuplicadosGlobal(acao)
-    const novasDecisoes: Record<string, AcaoDuplicado> = {}
-    duplicadosList.forEach((c) => {
-      novasDecisoes[c.idTemp] = acao
-    })
-    setDecisaoDuplicados(novasDecisoes)
-    toast.info(
-      `Regra aplicada a todos os duplicados: ${acao === 'atualizar' ? 'Atualizar Dados' : 'Ignorar'}`,
+    const totalIgnorados = duplicadosIgnorados + leadsNovosDesmarcados
+    const totalAprovados = duplicadosAtualizar + leadsNovosImportar
+
+    return {
+      total: itensRevisao.length,
+      duplicadosEncontrados,
+      duplicadosAtualizar,
+      duplicadosIgnorados,
+      leadsNovosTotal,
+      leadsNovosImportar,
+      leadsNovosDesmarcados,
+      totalIgnorados,
+      totalAprovados,
+    }
+  }, [itensRevisao])
+
+  // Ações de alteração na revisão do Pipedrive
+  const handleDefinirAcaoDuplicadoPipedrive = (idTemp: string, acao: DecisaoRevisaoItem) => {
+    setItensRevisao((prev) =>
+      prev.map((item) => (item.idTemp === idTemp ? { ...item, acaoDuplicado: acao } : item)),
     )
   }
 
-  const handleDefinirAcaoIndividual = (idTemp: string, acao: AcaoDuplicado) => {
-    setAcaoDuplicadosGlobal(null)
-    setDecisaoDuplicados((prev) => ({
-      ...prev,
-      [idTemp]: acao,
-    }))
+  const handleToggleLeadAprovado = (idTemp: string) => {
+    setItensRevisao((prev) =>
+      prev.map((item) =>
+        item.idTemp === idTemp
+          ? { ...item, aprovadoParaImportar: !item.aprovadoParaImportar }
+          : item,
+      ),
+    )
   }
 
-  // Executar a importação para o banco de dados PocketBase
-  const handleExecutarImportacao = async () => {
-    if (clientesNormalizados.length === 0) {
+  const handleMarcarTodosLeads = (aprovado: boolean) => {
+    setItensRevisao((prev) =>
+      prev.map((item) =>
+        !item.isDuplicadoContaAzul ? { ...item, aprovadoParaImportar: aprovado } : item,
+      ),
+    )
+  }
+
+  const handleDefinirAcaoTodosDuplicados = (acao: DecisaoRevisaoItem) => {
+    setItensRevisao((prev) =>
+      prev.map((item) => (item.isDuplicadoContaAzul ? { ...item, acaoDuplicado: acao } : item)),
+    )
+    toast.info(
+      `Todos os duplicados foram definidos para: ${acao === 'atualizar' ? 'Atualizar Dados' : 'Ignorar'}`,
+    )
+  }
+
+  // Itens filtrados para exibição na lista de revisão
+  const itensRevisaoFiltrados = useMemo(() => {
+    if (filtroRevisao === 'duplicados') {
+      return itensRevisao.filter((i) => i.isDuplicadoContaAzul)
+    }
+    if (filtroRevisao === 'leads') {
+      return itensRevisao.filter((i) => !i.isDuplicadoContaAzul)
+    }
+    return itensRevisao
+  }, [itensRevisao, filtroRevisao])
+
+  // Execução da Importação para o Pipedrive (Revisão & Deduplicação)
+  const handleExecutarImportacaoPipedrive = async () => {
+    if (itensRevisao.length === 0) {
+      toast.error('Nenhum cliente para importar.')
+      return
+    }
+
+    if (contadoresPipedrive.totalAprovados === 0) {
+      toast.error('Nenhum registro foi aprovado para importação.')
+      return
+    }
+
+    setIsImportando(true)
+    setProgressoImportacao(0)
+
+    let inseridos = 0
+    let atualizados = 0
+    let ignorados = 0
+    let erros = 0
+
+    const total = itensRevisao.length
+
+    for (let i = 0; i < total; i++) {
+      const item = itensRevisao[i]
+
+      try {
+        if (item.isDuplicadoContaAzul) {
+          if (item.acaoDuplicado === 'ignorar') {
+            ignorados++
+          } else if (item.correspondencia?.clienteContaAzul) {
+            // Requisito: Atualizar dados (mescla informações novas do Pipedrive no cadastro existente)
+            const dadosMesclados = mesclarDadosPipedriveNoCadastro(
+              item.correspondencia.clienteContaAzul,
+              item,
+            )
+            await updateCliente(item.correspondencia.clienteContaAzul.id, dadosMesclados)
+            atualizados++
+          }
+        } else {
+          // Lead novo do Pipedrive
+          if (!item.aprovadoParaImportar) {
+            ignorados++
+          } else {
+            // Requisito: "Para os registros do Pipedrive que não encontraram correspondência no Conta Azul,
+            // classifique automaticamente como 'Possível Cliente / Lead' (ainda não fechou negócio)."
+            await addCliente({
+              nome: item.nome,
+              tipo_pessoa: item.tipo_pessoa,
+              cpf: item.cpf || undefined,
+              cnpj: item.cnpj || undefined,
+              telefone: item.telefone,
+              whatsapp: item.whatsapp || item.telefone,
+              email: item.email,
+              cidade: item.cidade || 'Erechim',
+              estado: item.estado || 'RS',
+              endereco: item.endereco,
+              // Status Lead para quem não fechou negócio
+              status: 'Novo Lead',
+              valor_estimado: item.valor_estimado || 25000,
+              potencia_kwp: item.valor_estimado
+                ? Math.round((item.valor_estimado / 3600) * 10) / 10
+                : 5.5,
+              produto: 'Energia Solar',
+              origem_lead: 'Outro',
+              como_conheceu: 'Pipedrive',
+              observacoes: `Importado do Pipedrive CRM como Possível Cliente / Lead em ${new Date().toLocaleDateString('pt-BR')}`,
+              dados_importados: item.dados_importados || undefined,
+              uc: '',
+              data_instalacao: '',
+              inversor_marca: 'Deye',
+              inversor_modelo: '',
+              placas_marca: 'Canadian Solar',
+              placas_qtd: 0,
+              telhado_tipo: 'ceramico',
+            })
+            inseridos++
+          }
+        }
+      } catch (err) {
+        console.error(`Erro ao importar ${item.nome}:`, err)
+        erros++
+      }
+
+      setProgressoImportacao(Math.round(((i + 1) / total) * 100))
+    }
+
+    setIsImportando(false)
+    setResultadoFinal({
+      total,
+      inseridos,
+      atualizados,
+      ignorados,
+      erros,
+    })
+
+    toast.success(
+      `Importação do Pipedrive concluída! ${inseridos} leads novos criados, ${atualizados} cadastros atualizados e ${ignorados} ignorados.`,
+    )
+  }
+
+  // Execução tradicional para Conta Azul
+  const handleExecutarImportacaoContaAzul = async () => {
+    if (clientesNormalizadosContaAzul.length === 0) {
       toast.error('Nenhum cliente para importar.')
       return
     }
@@ -263,19 +534,18 @@ export default function ImportarClientes() {
     let ignorados = 0
     let erros = 0
 
-    const total = clientesNormalizados.length
+    const total = clientesNormalizadosContaAzul.length
 
     for (let i = 0; i < total; i++) {
-      const item = clientesNormalizados[i]
+      const item = clientesNormalizadosContaAzul[i]
 
       try {
         if (item.isDuplicado && item.clienteExistenteId) {
-          const acao = getDecisaoDuplicado(item.idTemp)
+          const acao = decisaoDuplicados[item.idTemp] || acaoDuplicadosGlobal || 'atualizar'
 
           if (acao === 'ignorar') {
             ignorados++
           } else {
-            // Atualizar cliente existente com os dados novos da planilha
             await updateCliente(item.clienteExistenteId, {
               telefone: item.telefone || undefined,
               whatsapp: item.whatsapp || undefined,
@@ -290,7 +560,6 @@ export default function ImportarClientes() {
             atualizados++
           }
         } else {
-          // Criar novo cliente
           await addCliente({
             nome: item.nome,
             tipo_pessoa: item.tipo_pessoa,
@@ -352,6 +621,8 @@ export default function ImportarClientes() {
     setDecisaoDuplicados({})
     setAcaoDuplicadosGlobal(null)
     setResultadoFinal(null)
+    setEtapaPipedrive('upload')
+    setItensRevisao([])
     if (fileInputRef.current) {
       fileInputRef.current.value = ''
     }
@@ -373,8 +644,8 @@ export default function ImportarClientes() {
             <p className="text-sm text-gray-500">
               Faça a migração ou sincronização rápida de clientes e negócios a partir do{' '}
               <strong className="text-gray-700">Pipedrive</strong> ou{' '}
-              <strong className="text-gray-700">Conta Azul</strong>. O sistema identifica as colunas
-              automaticamente e previne duplicidades.
+              <strong className="text-gray-700">Conta Azul</strong>. O sistema realiza detecção e
+              deduplicação inteligente contra a base de clientes já cadastrados.
             </p>
           </div>
 
@@ -409,13 +680,18 @@ export default function ImportarClientes() {
               PD
             </div>
             <div className="text-left">
-              <div className="leading-tight">1. Importar do Pipedrive</div>
+              <div className="leading-tight flex items-center gap-2">
+                <span>1. Importar do Pipedrive</span>
+                <span className="text-[10px] px-1.5 py-0.2 rounded bg-emerald-500/20 border border-emerald-400/40 text-emerald-100">
+                  Deduplicação Ativa
+                </span>
+              </div>
               <div
                 className={`text-[11px] font-normal ${
                   fonteAtiva === 'pipedrive' ? 'text-emerald-100' : 'text-gray-400'
                 }`}
               >
-                Funil comercial, deals e pessoas
+                Revisão lado a lado vs. Conta Azul
               </div>
             </div>
             {fonteAtiva === 'pipedrive' && <Check className="w-4 h-4 ml-2" />}
@@ -454,7 +730,7 @@ export default function ImportarClientes() {
         </div>
       </div>
 
-      {/* Seção Principal de Upload e Simulação */}
+      {/* Seção Principal de Upload e Simulação (quando não há arquivo carregado) */}
       {!dadosTabela && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Caixa de Upload Drag & Drop */}
@@ -480,9 +756,9 @@ export default function ImportarClientes() {
                 {fonteAtiva === 'pipedrive' ? 'Pipedrive' : 'Conta Azul'}
               </h3>
               <p className="text-xs text-gray-500">
-                Suporta planilhas exportadas em formato <strong>.xlsx</strong> ou{' '}
-                <strong>.csv</strong>. O CRM identifica automaticamente nomes, telefones, e-mails,
-                cidades, documentos e status.
+                {fonteAtiva === 'pipedrive'
+                  ? 'Após o upload, cada linha será comparada automaticamente com clientes do Conta Azul (CPF/CNPJ, nome parecido, telefone ou email) com etapa de revisão e deduplicação lado a lado.'
+                  : 'Suporta planilhas exportadas em formato .xlsx ou .csv com auto-identificação de colunas e prevenção de duplicidades.'}
               </p>
             </div>
 
@@ -498,13 +774,17 @@ export default function ImportarClientes() {
               </button>
             </div>
 
-            <div className="pt-4 flex items-center gap-6 text-[11px] text-gray-400">
+            <div className="pt-4 flex flex-wrap items-center justify-center gap-6 text-[11px] text-gray-400">
               <span className="flex items-center gap-1">
                 <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> Detecção inteligente de
                 colunas
               </span>
               <span className="flex items-center gap-1">
-                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> Verificação de duplicados
+                <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" /> Deduplicação contra Conta
+                Azul
+              </span>
+              <span className="flex items-center gap-1">
+                <ArrowLeftRight className="w-3.5 h-3.5 text-emerald-600" /> Comparação lado a lado
               </span>
             </div>
           </div>
@@ -515,30 +795,49 @@ export default function ImportarClientes() {
               <div className="flex items-center justify-between">
                 <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-100/70 text-emerald-900 text-xs font-bold">
                   <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
-                  <span>Ambiente de Teste</span>
+                  <span>Ambiente de Demonstração</span>
                 </div>
-                <span className="text-xs text-gray-400 font-mono">6 clientes</span>
+                <span className="text-xs text-gray-500 font-mono">
+                  {fonteAtiva === 'pipedrive' ? '5 registros' : '6 clientes'}
+                </span>
               </div>
 
               <h4 className="text-base font-bold text-gray-900">
-                Ainda não tem o arquivo real em mãos?
+                {fonteAtiva === 'pipedrive'
+                  ? 'Testar Etapa de Revisão e Deduplicação'
+                  : 'Ainda não tem o arquivo real em mãos?'}
               </h4>
               <p className="text-xs text-gray-600 leading-relaxed">
-                Carregue uma planilha de exemplo autêntica do{' '}
-                <strong>{fonteAtiva === 'pipedrive' ? 'Pipedrive' : 'Conta Azul'}</strong> com
-                empresas e pessoas reais da região de Erechim e Passo Fundo para testar toda a
-                prévia, o mapeamento e a resolução de duplicados.
+                {fonteAtiva === 'pipedrive'
+                  ? 'Carregue a planilha demo contendo exatamente 2 clientes duplicados já cadastrados do Conta Azul e 3 leads novos do Pipedrive para validar o fluxo de revisão lado a lado e resumo final.'
+                  : 'Carregue uma planilha de exemplo autêntica do Conta Azul para testar a prévia, o mapeamento e a resolução de duplicados.'}
               </p>
 
               <div className="bg-white/80 rounded-xl p-3 border border-emerald-100 text-xs space-y-1.5 text-gray-600">
                 <div className="font-semibold text-emerald-900 text-[11px] uppercase tracking-wider">
-                  O que está incluído no exemplo:
+                  {fonteAtiva === 'pipedrive'
+                    ? 'Cenário configurado para teste:'
+                    : 'O que está incluído no exemplo:'}
                 </div>
-                <ul className="list-disc list-inside space-y-0.5 text-[11px] text-gray-600">
-                  <li>6 clientes fictícios detalhados (PF e PJ)</li>
-                  <li>Mapeamento de valores, telefones e status</li>
-                  <li>1 cliente intencionalmente duplicado para teste</li>
-                </ul>
+                {fonteAtiva === 'pipedrive' ? (
+                  <ul className="list-disc list-inside space-y-1 text-[11px] text-gray-600">
+                    <li>
+                      <strong className="text-amber-800">2 Duplicados do Conta Azul:</strong> Ademar
+                      Fiorini (CPF/tel/email) e Ademar Emilio Berlanda (nome parecido/CPF)
+                    </li>
+                    <li>
+                      <strong className="text-emerald-800">3 Leads Novos do Pipedrive:</strong>{' '}
+                      Coop. Alfa RS, Dr. Eduardo Fontana e Lucas Menegat
+                    </li>
+                    <li>Classificação automática: Status "Cliente" vs "Possível Cliente / Lead"</li>
+                  </ul>
+                ) : (
+                  <ul className="list-disc list-inside space-y-0.5 text-[11px] text-gray-600">
+                    <li>6 clientes fictícios detalhados (PF e PJ)</li>
+                    <li>Mapeamento de valores, telefones e status</li>
+                    <li>1 cliente intencionalmente duplicado para teste</li>
+                  </ul>
+                )}
               </div>
             </div>
 
@@ -549,7 +848,11 @@ export default function ImportarClientes() {
               className="mt-6 w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-white hover:bg-emerald-50 text-emerald-800 border-2 border-emerald-600 text-xs font-bold rounded-xl shadow-xs transition-all cursor-pointer hover:shadow"
             >
               <Sparkles className="w-4 h-4 text-emerald-600" />
-              <span>Simular Prévia com Dados de Exemplo</span>
+              <span>
+                {fonteAtiva === 'pipedrive'
+                  ? 'Carregar Planilha de Exemplo (2 Dup + 3 Leads)'
+                  : 'Simular Prévia com Dados de Exemplo'}
+              </span>
             </button>
           </div>
         </div>
@@ -568,10 +871,17 @@ export default function ImportarClientes() {
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
                   Fonte: {fonteAtiva === 'pipedrive' ? 'Pipedrive' : 'Conta Azul'}
                 </span>
+                {fonteAtiva === 'pipedrive' && (
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-50 text-purple-700 border border-purple-200">
+                    Etapa: Revisão & Deduplicação
+                  </span>
+                )}
               </div>
               <p className="text-xs text-gray-500">
                 {dadosTabela.rows.length} registros detectados •{' '}
                 {Object.keys(mapeamentoColunas).length} colunas mapeadas
+                {fonteAtiva === 'pipedrive' &&
+                  ` • ${contadoresPipedrive.duplicadosEncontrados} duplicata(s) e ${contadoresPipedrive.leadsNovosTotal} lead(s) novo(s)`}
               </p>
             </div>
           </div>
@@ -616,17 +926,13 @@ export default function ImportarClientes() {
                 Mapeamento de Colunas (De-Para)
               </h3>
               <p className="text-xs text-gray-500">
-                Se alguma coluna não foi identificada corretamente, escolha a coluna correspondente
-                da sua planilha abaixo.
+                Se alguma coluna não foi identificada automaticamente, selecione a coluna
+                correspondente abaixo.
               </p>
             </div>
             <button
               type="button"
-              onClick={() => {
-                const autoMap = autoDetectarMapeamento(dadosTabela.headers, fonteAtiva)
-                setMapeamentoColunas(autoMap)
-                toast.info('Mapeamento redefinido para a detecção automática padrão.')
-              }}
+              onClick={handleRedefinirMapeamento}
               className="text-xs text-emerald-700 hover:text-emerald-800 font-semibold underline flex items-center gap-1"
             >
               <RefreshCw className="w-3 h-3" /> Redefinir Detecção Automática
@@ -678,7 +984,7 @@ export default function ImportarClientes() {
               </div>
             </div>
 
-            {/* Seção de Colunas Adicionais da Planilha (Campos Extras / Novos) */}
+            {/* Seção de Colunas Adicionais da Planilha */}
             {(() => {
               const colunasMapeadasPadrao = new Set(
                 CAMPOS_DESTINO_IMPORTACAO.map((c) => mapeamentoColunas[c.key]).filter(Boolean),
@@ -694,9 +1000,8 @@ export default function ImportarClientes() {
                         <span>Colunas Extras da Planilha (Salvas em Dados da Importação)</span>
                       </div>
                       <p className="text-[11px] text-gray-500">
-                        "Se não tem o campo específico neste CRM, precisa criar": Todas as colunas
-                        abaixo são salvas no cadastro do cliente e visíveis na Ficha cadastral para
-                        que nenhuma informação se perca.
+                        Todas as colunas abaixo são salvas no cadastro do cliente em{' '}
+                        <code>dados_importados</code> para que nenhuma informação se perca.
                       </p>
                     </div>
                     <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
@@ -714,7 +1019,7 @@ export default function ImportarClientes() {
                           <CheckCircle2 className="w-3.5 h-3.5 text-blue-600 shrink-0" />
                           <span className="font-semibold">{header}</span>
                           <span className="text-[10px] text-blue-500 bg-white/80 px-1 py-0.2 rounded border border-blue-100">
-                            Auto-criado
+                            Auto-salvo
                           </span>
                         </div>
                       ))}
@@ -732,119 +1037,613 @@ export default function ImportarClientes() {
         </div>
       )}
 
-      {/* Painel de Alerta e Resolução de Clientes Duplicados */}
-      {dadosTabela && duplicadosList.length > 0 && !resultadoFinal && (
-        <div className="bg-amber-50/70 rounded-2xl border-2 border-amber-200 p-5 shadow-xs space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center shrink-0">
-                <AlertTriangle className="w-5 h-5 text-amber-600" />
+      {/* ============================================================== */}
+      {/* FLUXO 1: PIPEDRIVE - ETAPA DE REVISÃO E DEDUPLICAÇÃO */}
+      {/* ============================================================== */}
+      {fonteAtiva === 'pipedrive' && dadosTabela && !resultadoFinal && (
+        <div className="space-y-6">
+          {/* Banner Explicativo da Etapa de Deduplicação */}
+          <div className="bg-gradient-to-r from-emerald-50 via-teal-50 to-blue-50 rounded-2xl border border-emerald-200/90 p-5 shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            <div className="flex items-start gap-3.5">
+              <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-sm mt-0.5">
+                <ShieldCheck className="w-5 h-5" />
               </div>
-              <div>
-                <h3 className="text-sm font-bold text-amber-950">
-                  {duplicadosList.length} cliente{duplicadosList.length > 1 ? 's' : ''} já existe
-                  {duplicadosList.length > 1 ? 'm' : ''} no CRM Delfos Solar
+              <div className="space-y-1">
+                <h3 className="text-base font-bold text-gray-900 flex items-center gap-2">
+                  <span>Etapa de Revisão e Deduplicação Inteligente</span>
+                  <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-semibold border border-emerald-200">
+                    Critérios: CPF/CNPJ, Nome similar, Telefone e E-mail
+                  </span>
                 </h3>
-                <p className="text-xs text-amber-800/90">
-                  Detectamos registros com o mesmo <strong>CPF, CNPJ ou E-mail</strong> já
-                  cadastrados na base de clientes. Escolha se deseja atualizar os dados existentes
-                  ou ignorar a linha da planilha.
+                <p className="text-xs text-gray-600 max-w-3xl leading-relaxed">
+                  Cada linha do Pipedrive foi comparada com os clientes já cadastrados (Conta Azul).
+                  Registros correspondentes estão marcados como{' '}
+                  <strong className="text-amber-800">"Cliente já cadastrado — Duplicata"</strong>{' '}
+                  com os dados lado a lado e status automático <strong>"Cliente"</strong>. Registros
+                  sem correspondência foram classificados como{' '}
+                  <strong className="text-emerald-800">"Possível Cliente / Lead"</strong> com check
+                  de confirmação.
                 </p>
               </div>
             </div>
 
-            {/* Ações Globais */}
-            <div className="flex items-center gap-2 shrink-0">
-              <span className="text-xs font-semibold text-amber-900">Aplicar a todos:</span>
+            {/* Filtros rápidos da revisão */}
+            <div className="flex items-center gap-1.5 p-1 bg-white rounded-xl border border-gray-200 shadow-2xs shrink-0 self-stretch md:self-auto justify-center">
               <button
                 type="button"
-                onClick={() => handleDefinirAcaoGlobal('atualizar')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors ${
-                  acaoDuplicadosGlobal === 'atualizar'
-                    ? 'bg-amber-700 text-white border-amber-800'
-                    : 'bg-white text-amber-900 border-amber-300 hover:bg-amber-100/50'
+                onClick={() => setFiltroRevisao('todos')}
+                className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors ${
+                  filtroRevisao === 'todos'
+                    ? 'bg-emerald-600 text-white shadow-xs'
+                    : 'text-gray-600 hover:bg-gray-100'
                 }`}
               >
-                Atualizar Todos
+                Todos ({itensRevisao.length})
               </button>
               <button
                 type="button"
-                onClick={() => handleDefinirAcaoGlobal('ignorar')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors ${
-                  acaoDuplicadosGlobal === 'ignorar'
-                    ? 'bg-gray-800 text-white border-gray-900'
-                    : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-100'
+                onClick={() => setFiltroRevisao('duplicados')}
+                className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors flex items-center gap-1.5 ${
+                  filtroRevisao === 'duplicados'
+                    ? 'bg-amber-600 text-white shadow-xs'
+                    : 'text-amber-800 hover:bg-amber-50'
                 }`}
               >
-                Ignorar Todos
+                <span>Duplicatas</span>
+                <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-amber-100 text-amber-900 font-bold">
+                  {contadoresPipedrive.duplicadosEncontrados}
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setFiltroRevisao('leads')}
+                className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors flex items-center gap-1.5 ${
+                  filtroRevisao === 'leads'
+                    ? 'bg-blue-600 text-white shadow-xs'
+                    : 'text-blue-800 hover:bg-blue-50'
+                }`}
+              >
+                <span>Leads Novos</span>
+                <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-blue-100 text-blue-900 font-bold">
+                  {contadoresPipedrive.leadsNovosTotal}
+                </span>
               </button>
             </div>
           </div>
 
-          {/* Lista detalhada dos duplicados */}
-          <div className="bg-white rounded-xl border border-amber-200/90 overflow-hidden text-xs">
-            <div className="p-3 bg-amber-100/40 border-b border-amber-200 font-bold text-amber-950 text-xs flex items-center justify-between">
-              <span>Clientes com duplicidade identificada:</span>
-              <span className="text-[11px] font-normal text-amber-800">
-                {duplicadosList.length} registro(s) requerem sua atenção
-              </span>
+          {/* Ações em Lote para a Revisão */}
+          <div className="bg-white rounded-2xl border border-gray-200/80 p-4 shadow-xs flex flex-wrap items-center justify-between gap-3 text-xs">
+            <div className="flex items-center gap-3">
+              <span className="font-bold text-gray-700">Ações em lote para revisão:</span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => handleDefinirAcaoTodosDuplicados('atualizar')}
+                  className="px-2.5 py-1 rounded-lg border border-emerald-300 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 font-semibold transition-colors flex items-center gap-1"
+                >
+                  <GitMerge className="w-3.5 h-3.5" />
+                  <span>Atualizar Todas as Duplicatas</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleDefinirAcaoTodosDuplicados('ignorar')}
+                  className="px-2.5 py-1 rounded-lg border border-gray-300 bg-gray-50 text-gray-700 hover:bg-gray-100 font-semibold transition-colors flex items-center gap-1"
+                >
+                  <EyeOff className="w-3.5 h-3.5" />
+                  <span>Ignorar Todas as Duplicatas</span>
+                </button>
+              </div>
             </div>
-            <div className="divide-y divide-gray-100 max-h-60 overflow-y-auto">
-              {duplicadosList.map((c) => {
-                const decisao = getDecisaoDuplicado(c.idTemp)
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => handleMarcarTodosLeads(true)}
+                className="px-2.5 py-1 rounded-lg border border-blue-200 bg-blue-50 text-blue-800 hover:bg-blue-100 font-semibold transition-colors flex items-center gap-1"
+              >
+                <Check className="w-3.5 h-3.5" />
+                <span>Marcar Todos os Leads</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => handleMarcarTodosLeads(false)}
+                className="px-2.5 py-1 rounded-lg border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 font-semibold transition-colors"
+              >
+                Desmarcar Todos os Leads
+              </button>
+            </div>
+          </div>
+
+          {/* Lista de Cards da Revisão */}
+          <div className="space-y-4">
+            {itensRevisaoFiltrados.map((item, index) => {
+              // ==========================================================
+              // CARD DE CORRESPONDÊNCIA / DUPLICATA (Lado a Lado)
+              // ==========================================================
+              if (item.isDuplicadoContaAzul && item.correspondencia) {
+                const cAzul = item.correspondencia.clienteContaAzul
+
                 return (
                   <div
-                    key={c.idTemp}
-                    className="p-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 hover:bg-amber-50/30 transition-colors"
+                    key={item.idTemp}
+                    className={`rounded-2xl border-2 transition-all p-5 shadow-xs ${
+                      item.acaoDuplicado === 'atualizar'
+                        ? 'bg-amber-50/40 border-amber-300'
+                        : 'bg-gray-50/80 border-gray-300 opacity-75'
+                    }`}
                   >
-                    <div className="space-y-0.5">
-                      <div className="flex items-center gap-2">
-                        <span className="font-bold text-gray-900">{c.nome}</span>
-                        <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-amber-100 text-amber-900 border border-amber-300">
-                          Duplicado por {c.duplicadoPor?.toUpperCase()}
+                    {/* Cabeçalho do Card de Duplicata */}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-amber-200/80">
+                      <div className="flex items-center gap-2.5 flex-wrap">
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-500 text-white shadow-xs">
+                          <AlertTriangle className="w-3.5 h-3.5" />
+                          <span>Cliente já cadastrado — Duplicata</span>
+                        </span>
+
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                          <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                          Status Automático: Cliente (Fechado)
+                        </span>
+
+                        <span className="text-xs text-amber-900 bg-amber-100/80 px-2 py-0.5 rounded-md border border-amber-200 font-mono">
+                          Critério: {item.correspondencia.detalhe}
                         </span>
                       </div>
-                      <div className="text-[11px] text-gray-500 flex items-center gap-2">
-                        {c.cpf && <span>CPF: {c.cpf}</span>}
-                        {c.cnpj && <span>CNPJ: {c.cnpj}</span>}
-                        {c.email && <span>E-mail: {c.email}</span>}
-                        <span>• Registro existente: "{c.clienteExistenteNome}"</span>
+
+                      {/* Botões de Ação para o Duplicado */}
+                      <div className="flex items-center gap-2 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            handleDefinirAcaoDuplicadoPipedrive(item.idTemp, 'atualizar')
+                          }
+                          className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
+                            item.acaoDuplicado === 'atualizar'
+                              ? 'bg-emerald-600 text-white border-emerald-700 shadow-xs'
+                              : 'bg-white text-gray-700 border-gray-300 hover:bg-emerald-50'
+                          }`}
+                        >
+                          <GitMerge className="w-3.5 h-3.5" />
+                          <span>Atualizar Dados</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() =>
+                            handleDefinirAcaoDuplicadoPipedrive(item.idTemp, 'ignorar')
+                          }
+                          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
+                            item.acaoDuplicado === 'ignorar'
+                              ? 'bg-gray-800 text-white border-gray-900 shadow-xs'
+                              : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-100'
+                          }`}
+                        >
+                          <EyeOff className="w-3.5 h-3.5" />
+                          <span>Ignorar Linha</span>
+                        </button>
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2 shrink-0">
-                      <button
-                        type="button"
-                        onClick={() => handleDefinirAcaoIndividual(c.idTemp, 'atualizar')}
-                        className={`px-3 py-1 rounded-lg text-xs font-semibold border transition-colors ${
-                          decisao === 'atualizar'
-                            ? 'bg-emerald-600 text-white border-emerald-700'
-                            : 'bg-white text-gray-700 border-gray-200 hover:bg-emerald-50'
-                        }`}
-                      >
-                        Atualizar dados
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleDefinirAcaoIndividual(c.idTemp, 'ignorar')}
-                        className={`px-3 py-1 rounded-lg text-xs font-semibold border transition-colors ${
-                          decisao === 'ignorar'
-                            ? 'bg-gray-700 text-white border-gray-800'
-                            : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-100'
-                        }`}
-                      >
-                        Ignorar
-                      </button>
+                    {/* Comparação Lado a Lado: Pipedrive vs Conta Azul */}
+                    <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {/* Lado Esquerdo: Registro do Pipedrive (Importado) */}
+                      <div className="bg-white rounded-xl border border-gray-200 p-4 space-y-3">
+                        <div className="flex items-center justify-between pb-2 border-b border-gray-100">
+                          <div className="flex items-center gap-2">
+                            <div className="w-6 h-6 rounded-md bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold text-[10px]">
+                              PD
+                            </div>
+                            <span className="text-xs font-bold text-gray-900 uppercase tracking-wider">
+                              Registro do Pipedrive (Planilha)
+                            </span>
+                          </div>
+                          <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200">
+                            Novos Dados
+                          </span>
+                        </div>
+
+                        <div className="space-y-2 text-xs">
+                          <div>
+                            <span className="text-gray-400 block text-[11px]">Nome / Empresa:</span>
+                            <span className="font-bold text-gray-900 text-sm">{item.nome}</span>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <span className="text-gray-400 block text-[11px]">CPF / CNPJ:</span>
+                              <span className="font-mono text-gray-800">
+                                {item.cpf || item.cnpj || '-'}
+                              </span>
+                            </div>
+                            <div>
+                              <span className="text-gray-400 block text-[11px]">
+                                Telefone / Celular:
+                              </span>
+                              <span className="text-gray-800">{item.telefone || '-'}</span>
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <span className="text-gray-400 block text-[11px]">E-mail:</span>
+                              <span className="text-gray-800 truncate block" title={item.email}>
+                                {item.email || '-'}
+                              </span>
+                            </div>
+                            <div>
+                              <span className="text-gray-400 block text-[11px]">Cidade / UF:</span>
+                              <span className="text-gray-800">
+                                {item.cidade || 'Erechim'} / {item.estado || 'RS'}
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className="pt-1 flex items-center justify-between text-[11px]">
+                            <span className="text-gray-500">Valor Estimado do Deal:</span>
+                            <span className="font-bold text-emerald-700">
+                              {formatCurrency(item.valor_estimado)}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Lado Direito: Cadastro Existente no Conta Azul */}
+                      <div className="bg-emerald-50/50 rounded-xl border border-emerald-200/80 p-4 space-y-3">
+                        <div className="flex items-center justify-between pb-2 border-b border-emerald-200/60">
+                          <div className="flex items-center gap-2">
+                            <div className="w-6 h-6 rounded-md bg-blue-100 text-blue-800 flex items-center justify-center font-bold text-[10px]">
+                              CA
+                            </div>
+                            <span className="text-xs font-bold text-emerald-950 uppercase tracking-wider">
+                              Cadastro Existente no CRM (Conta Azul)
+                            </span>
+                          </div>
+                          <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 border border-emerald-200">
+                            Base Atual
+                          </span>
+                        </div>
+
+                        <div className="space-y-2 text-xs">
+                          <div>
+                            <span className="text-gray-400 block text-[11px]">Nome Atual:</span>
+                            <span className="font-bold text-gray-900 text-sm">{cAzul.nome}</span>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <span className="text-gray-400 block text-[11px]">
+                                CPF / CNPJ Atual:
+                              </span>
+                              <span className="font-mono text-gray-800">
+                                {cAzul.cpf || cAzul.cnpj || '-'}
+                              </span>
+                            </div>
+                            <div>
+                              <span className="text-gray-400 block text-[11px]">
+                                Telefone Atual:
+                              </span>
+                              <span className="text-gray-800">
+                                {cAzul.telefone || cAzul.whatsapp || '-'}
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <span className="text-gray-400 block text-[11px]">E-mail Atual:</span>
+                              <span className="text-gray-800 truncate block" title={cAzul.email}>
+                                {cAzul.email || '-'}
+                              </span>
+                            </div>
+                            <div>
+                              <span className="text-gray-400 block text-[11px]">
+                                Cidade / UF Atual:
+                              </span>
+                              <span className="text-gray-800">
+                                {cAzul.cidade || '-'} / {cAzul.estado || 'RS'}
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className="pt-1 flex items-center justify-between text-[11px]">
+                            <span className="text-gray-500">Status Atual:</span>
+                            <StatusBadge status={cAzul.status} />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Rodapé com Informação da Ação Escolhida */}
+                    <div className="mt-3 pt-2 text-xs flex items-center justify-between text-gray-600">
+                      <div className="flex items-center gap-1.5">
+                        <Info className="w-3.5 h-3.5 text-gray-400" />
+                        <span>
+                          {item.acaoDuplicado === 'atualizar'
+                            ? 'Ação: As informações novas do Pipedrive serão mescladas no cadastro existente, preservando campos do Conta Azul e atualizando o status para Cliente.'
+                            : 'Ação: Esta linha será ignorada e nenhuma alteração será feita no cadastro existente.'}
+                        </span>
+                      </div>
+                      <span className="font-bold">
+                        {item.acaoDuplicado === 'atualizar' ? (
+                          <span className="text-emerald-700">✓ Aprovado para Mesclagem</span>
+                        ) : (
+                          <span className="text-gray-500">✕ Marcado para Ignorar</span>
+                        )}
+                      </span>
                     </div>
                   </div>
                 )
-              })}
+              }
+
+              // ==========================================================
+              // CARD DE LEAD NOVO (Sem Correspondência)
+              // ==========================================================
+              return (
+                <div
+                  key={item.idTemp}
+                  className={`rounded-2xl border-2 transition-all p-5 shadow-xs ${
+                    item.aprovadoParaImportar
+                      ? 'bg-white border-emerald-200 hover:border-emerald-300'
+                      : 'bg-gray-50/90 border-gray-200 opacity-60'
+                  }`}
+                >
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-gray-100">
+                    <div className="flex items-center gap-3">
+                      <label className="flex items-center gap-2 cursor-pointer select-none">
+                        <input
+                          type="checkbox"
+                          checked={item.aprovadoParaImportar}
+                          onChange={() => handleToggleLeadAprovado(item.idTemp)}
+                          className="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 border-gray-300 cursor-pointer"
+                        />
+                        <span className="font-bold text-sm text-gray-900">{item.nome}</span>
+                      </label>
+
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-50 text-blue-800 border border-blue-200">
+                        <UserCheck className="w-3 h-3 text-blue-600" />
+                        Possível Cliente / Lead
+                      </span>
+
+                      <span className="text-[11px] text-gray-400">
+                        (Sem correspondência no Conta Azul)
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                      <div className="text-right">
+                        <span className="text-[10px] text-gray-400 block uppercase">
+                          Status ao Importar:
+                        </span>
+                        <StatusBadge status="Novo Lead" />
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => handleToggleLeadAprovado(item.idTemp)}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-colors cursor-pointer ${
+                          item.aprovadoParaImportar
+                            ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
+                            : 'bg-gray-100 text-gray-600 border-gray-200'
+                        }`}
+                      >
+                        {item.aprovadoParaImportar ? '✓ Selecionado' : '+ Selecionar para Importar'}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Detalhes do Lead Novo */}
+                  <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+                    <div>
+                      <span className="text-gray-400 block text-[11px]">Telefone / Celular:</span>
+                      <span className="text-gray-800">{item.telefone || '-'}</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-400 block text-[11px]">E-mail:</span>
+                      <span className="text-gray-800 truncate block" title={item.email}>
+                        {item.email || '-'}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-gray-400 block text-[11px]">CPF / CNPJ:</span>
+                      <span className="font-mono text-gray-800">
+                        {item.cpf || item.cnpj || '-'}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-gray-400 block text-[11px]">Cidade / UF:</span>
+                      <span className="text-gray-800">
+                        {item.cidade || 'Erechim'} / {item.estado || 'RS'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {item.valor_estimado > 0 && (
+                    <div className="mt-2 pt-2 border-t border-gray-100 flex items-center justify-between text-xs text-gray-500">
+                      <span>Valor Estimado do Deal (Pipedrive):</span>
+                      <span className="font-bold text-gray-900">
+                        {formatCurrency(item.valor_estimado)}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+
+          {/* ============================================================== */}
+          {/* RESUMO FINAL E CONFIRMAÇÃO DA IMPORTAÇÃO */}
+          {/* ============================================================== */}
+          <div className="bg-white rounded-2xl border-2 border-emerald-500 p-6 shadow-md space-y-5">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold">
+                    <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+                  </div>
+                  <h3 className="text-lg font-bold text-gray-900">
+                    Resumo Final da Revisão do Pipedrive
+                  </h3>
+                </div>
+                <p className="text-xs text-gray-500">
+                  Revise o balanço final antes de gravar os dados no CRM Delfos Solar. O botão
+                  "Confirmar Importação" salvará apenas os registros aprovados.
+                </p>
+              </div>
+
+              {/* Botão Principal de Confirmação */}
+              <button
+                type="button"
+                disabled={isImportando || contadoresPipedrive.totalAprovados === 0}
+                onClick={handleExecutarImportacaoPipedrive}
+                className="inline-flex items-center justify-center gap-2 px-8 py-3.5 bg-[#16A34A] hover:bg-[#15803D] active:scale-[0.98] text-white text-base font-bold rounded-xl shadow-lg hover:shadow-xl transition-all cursor-pointer disabled:opacity-50 shrink-0"
+              >
+                {isImportando ? (
+                  <>
+                    <RefreshCw className="w-5 h-5 animate-spin" />
+                    <span>Processando ({progressoImportacao}%)...</span>
+                  </>
+                ) : (
+                  <>
+                    <Database className="w-5 h-5 stroke-[2.2]" />
+                    <span>
+                      Confirmar Importação ({contadoresPipedrive.totalAprovados} aprovados)
+                    </span>
+                  </>
+                )}
+              </button>
+            </div>
+
+            {/* Os 3 Contadores Obrigatórios conforme Especificação:
+                1. Quantos clientes duplicados foram encontrados
+                2. Quantos leads novos serão importados
+                3. Quantos foram ignorados */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
+              {/* Contador 1: Duplicados Encontrados */}
+              <div className="bg-amber-50/80 border-2 border-amber-200 rounded-xl p-4 text-center space-y-1 shadow-2xs">
+                <div className="text-3xl font-black text-amber-800">
+                  {contadoresPipedrive.duplicadosEncontrados}
+                </div>
+                <div className="text-xs font-bold text-amber-950 uppercase tracking-wide">
+                  Clientes Duplicados Encontrados
+                </div>
+                <p className="text-[11px] text-amber-700">
+                  {contadoresPipedrive.duplicadosAtualizar} com "Atualizar Dados" •{' '}
+                  {contadoresPipedrive.duplicadosIgnorados} ignorado(s)
+                </p>
+              </div>
+
+              {/* Contador 2: Leads Novos a Importar */}
+              <div className="bg-emerald-50/80 border-2 border-emerald-200 rounded-xl p-4 text-center space-y-1 shadow-2xs">
+                <div className="text-3xl font-black text-emerald-800">
+                  {contadoresPipedrive.leadsNovosImportar}
+                </div>
+                <div className="text-xs font-bold text-emerald-950 uppercase tracking-wide">
+                  Leads Novos a Importar
+                </div>
+                <p className="text-[11px] text-emerald-700">
+                  Classificados como Possível Cliente / Lead (com confirmação)
+                </p>
+              </div>
+
+              {/* Contador 3: Registros Ignorados */}
+              <div className="bg-gray-50 border-2 border-gray-200 rounded-xl p-4 text-center space-y-1 shadow-2xs">
+                <div className="text-3xl font-black text-gray-700">
+                  {contadoresPipedrive.totalIgnorados}
+                </div>
+                <div className="text-xs font-bold text-gray-800 uppercase tracking-wide">
+                  Registros Ignorados
+                </div>
+                <p className="text-[11px] text-gray-500">
+                  {contadoresPipedrive.duplicadosIgnorados} duplicata(s) +{' '}
+                  {contadoresPipedrive.leadsNovosDesmarcados} lead(s) desmarcado(s)
+                </p>
+              </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* Relatório de Resultado Pós-Importação */}
+      {/* ============================================================== */}
+      {/* FLUXO 2: CONTA AZUL (Tabela Tradicional de Importação) */}
+      {/* ============================================================== */}
+      {fonteAtiva === 'conta_azul' && dadosTabela && !resultadoFinal && (
+        <div className="space-y-4">
+          <div className="bg-white rounded-2xl border border-gray-200/80 shadow-xs overflow-hidden space-y-4">
+            <div className="p-5 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-gray-50/50">
+              <div>
+                <div className="flex items-center gap-2">
+                  <TableIcon className="w-4 h-4 text-emerald-600" />
+                  <h3 className="font-bold text-gray-900 text-sm">
+                    Prévia dos Dados do Conta Azul ({clientesNormalizadosContaAzul.length} clientes)
+                  </h3>
+                </div>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  Revise os dados fiscais e cadastrais mapeados antes de confirmar.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                disabled={isImportando}
+                onClick={handleExecutarImportacaoContaAzul}
+                className="inline-flex items-center justify-center gap-2 px-6 py-2.5 bg-[#16A34A] hover:bg-[#15803D] active:scale-[0.98] text-white text-sm font-bold rounded-xl shadow-md hover:shadow-lg transition-all cursor-pointer disabled:opacity-50 shrink-0"
+              >
+                {isImportando ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                    <span>Importando ({progressoImportacao}%)...</span>
+                  </>
+                ) : (
+                  <>
+                    <Database className="w-4 h-4 stroke-[2.2]" />
+                    <span>Confirmar Importação do Conta Azul</span>
+                  </>
+                )}
+              </button>
+            </div>
+
+            {/* Tabela do Conta Azul */}
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-[#F8FAF9] border-y border-gray-200 text-gray-600 uppercase font-semibold text-[11px] tracking-wider">
+                  <tr>
+                    <th className="py-3 px-4">#</th>
+                    <th className="py-3 px-4">Razão Social / Nome</th>
+                    <th className="py-3 px-4">Telefone</th>
+                    <th className="py-3 px-4">E-mail</th>
+                    <th className="py-3 px-4">CPF / CNPJ</th>
+                    <th className="py-3 px-4">Cidade / UF</th>
+                    <th className="py-3 px-4">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {clientesNormalizadosContaAzul.map((c, idx) => (
+                    <tr key={c.idTemp} className="hover:bg-gray-50/80 transition-colors">
+                      <td className="py-3 px-4 font-mono text-gray-400">{idx + 1}</td>
+                      <td className="py-3 px-4 font-bold text-gray-900">{c.nome}</td>
+                      <td className="py-3 px-4 text-gray-700">{c.telefone || '-'}</td>
+                      <td className="py-3 px-4 text-gray-700">{c.email || '-'}</td>
+                      <td className="py-3 px-4 font-mono text-gray-600">
+                        {c.cnpj || c.cpf || '-'}
+                      </td>
+                      <td className="py-3 px-4 text-gray-700">
+                        {c.cidade} / {c.estado}
+                      </td>
+                      <td className="py-3 px-4">
+                        <StatusBadge status={c.status} />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ============================================================== */}
+      {/* RELATÓRIO PÓS-IMPORTAÇÃO (Sucesso) */}
+      {/* ============================================================== */}
       {resultadoFinal && (
         <div className="bg-white rounded-2xl border-2 border-emerald-500 p-6 shadow-md space-y-4">
           <div className="flex items-center gap-3">
@@ -854,8 +1653,8 @@ export default function ImportarClientes() {
             <div>
               <h3 className="text-lg font-bold text-gray-900">Importação Executada com Sucesso!</h3>
               <p className="text-xs text-gray-500">
-                Os dados foram processados e já estão disponíveis no Funil Comercial e na lista
-                geral de Clientes.
+                Os dados aprovados foram processados e já estão disponíveis no Funil Comercial e na
+                lista de Clientes.
               </p>
             </div>
           </div>
@@ -863,19 +1662,19 @@ export default function ImportarClientes() {
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
             <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 text-center">
               <div className="text-2xl font-black text-emerald-800">{resultadoFinal.inseridos}</div>
-              <div className="text-xs font-semibold text-emerald-900">Novos Inseridos</div>
+              <div className="text-xs font-semibold text-emerald-900">Novos Leads Inseridos</div>
             </div>
             <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-center">
               <div className="text-2xl font-black text-blue-800">{resultadoFinal.atualizados}</div>
-              <div className="text-xs font-semibold text-blue-900">Atualizados</div>
+              <div className="text-xs font-semibold text-blue-900">Cadastros Atualizados</div>
             </div>
             <div className="bg-gray-50 border border-gray-200 rounded-xl p-3 text-center">
               <div className="text-2xl font-black text-gray-700">{resultadoFinal.ignorados}</div>
-              <div className="text-xs font-semibold text-gray-800">Ignorados</div>
+              <div className="text-xs font-semibold text-gray-800">Registros Ignorados</div>
             </div>
             <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-center">
               <div className="text-2xl font-black text-red-700">{resultadoFinal.erros}</div>
-              <div className="text-xs font-semibold text-red-800">Erros / Falhas</div>
+              <div className="text-xs font-semibold text-red-800">Falhas / Erros</div>
             </div>
           </div>
 
@@ -896,198 +1695,6 @@ export default function ImportarClientes() {
               <ArrowRight className="w-4 h-4" />
             </button>
           </div>
-        </div>
-      )}
-
-      {/* Tabela de Prévia dos Dados */}
-      {dadosTabela && (
-        <div className="bg-white rounded-2xl border border-gray-200/80 shadow-xs overflow-hidden space-y-4">
-          <div className="p-5 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-gray-50/50">
-            <div>
-              <div className="flex items-center gap-2">
-                <TableIcon className="w-4 h-4 text-emerald-600" />
-                <h3 className="font-bold text-gray-900 text-sm">
-                  Prévia dos Dados a Importar ({clientesNormalizados.length} clientes detectados)
-                </h3>
-              </div>
-              <p className="text-xs text-gray-500 mt-0.5">
-                Revise os dados mapeados antes de confirmar a gravação no banco de dados do CRM.
-              </p>
-            </div>
-
-            {/* Botão de Confirmação no Topo da Tabela */}
-            {!resultadoFinal && (
-              <button
-                type="button"
-                disabled={isImportando}
-                onClick={handleExecutarImportacao}
-                className="inline-flex items-center justify-center gap-2 px-6 py-2.5 bg-[#16A34A] hover:bg-[#15803D] active:scale-[0.98] text-white text-sm font-bold rounded-xl shadow-md hover:shadow-lg transition-all cursor-pointer disabled:opacity-50 shrink-0"
-              >
-                {isImportando ? (
-                  <>
-                    <RefreshCw className="w-4 h-4 animate-spin" />
-                    <span>Importando ({progressoImportacao}%)...</span>
-                  </>
-                ) : (
-                  <>
-                    <Database className="w-4 h-4 stroke-[2.2]" />
-                    <span>Confirmar e Importar Clientes</span>
-                  </>
-                )}
-              </button>
-            )}
-          </div>
-
-          {/* Tabela Responsiva */}
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-[#F8FAF9] border-y border-gray-200 text-gray-600 uppercase font-semibold text-[11px] tracking-wider">
-                <tr>
-                  <th className="py-3 px-4">#</th>
-                  <th className="py-3 px-4">Nome / Empresa</th>
-                  <th className="py-3 px-4">Telefone / WhatsApp</th>
-                  <th className="py-3 px-4">E-mail</th>
-                  <th className="py-3 px-4">CPF / CNPJ</th>
-                  <th className="py-3 px-4">Cidade / UF</th>
-                  <th className="py-3 px-4">Status no Funil</th>
-                  <th className="py-3 px-4">Valor Estimado</th>
-                  <th className="py-3 px-4">Campos Extras</th>
-                  <th className="py-3 px-4">Ação / Status</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {clientesNormalizados.map((c, idx) => {
-                  const decisao = getDecisaoDuplicado(c.idTemp)
-                  const extrasEntries = c.dados_importados ? Object.entries(c.dados_importados) : []
-                  return (
-                    <tr
-                      key={c.idTemp}
-                      className={`hover:bg-gray-50/80 transition-colors ${
-                        c.isDuplicado ? 'bg-amber-50/40' : ''
-                      }`}
-                    >
-                      <td className="py-3 px-4 font-mono text-gray-400">{idx + 1}</td>
-                      <td className="py-3 px-4">
-                        <div className="flex items-center gap-1.5">
-                          <span className="font-bold text-gray-900">{c.nome}</span>
-                          {c.tipo_pessoa === 'juridica' ? (
-                            <span className="inline-flex items-center gap-0.5 text-[9px] font-bold px-1.5 py-0.2 rounded bg-blue-50 text-blue-700 border border-blue-200">
-                              <Building2 className="w-2.5 h-2.5" /> PJ
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center gap-0.5 text-[9px] font-bold px-1.5 py-0.2 rounded bg-amber-50 text-amber-800 border border-amber-200">
-                              <User className="w-2.5 h-2.5" /> PF
-                            </span>
-                          )}
-                        </div>
-                        {c.data_ultimo_contato && (
-                          <div className="text-[10px] text-gray-400">
-                            Último contato: {c.data_ultimo_contato}
-                          </div>
-                        )}
-                      </td>
-                      <td className="py-3 px-4 text-gray-700 whitespace-nowrap">
-                        {c.telefone || <span className="text-gray-300">-</span>}
-                      </td>
-                      <td className="py-3 px-4 text-gray-700">
-                        {c.email ? (
-                          <span className="truncate max-w-[180px] block" title={c.email}>
-                            {c.email}
-                          </span>
-                        ) : (
-                          <span className="text-gray-300">-</span>
-                        )}
-                      </td>
-                      <td className="py-3 px-4 font-mono text-gray-600 whitespace-nowrap">
-                        {c.cnpj || c.cpf || <span className="text-gray-300">-</span>}
-                      </td>
-                      <td className="py-3 px-4 text-gray-700 whitespace-nowrap">
-                        {c.cidade} / {c.estado}
-                      </td>
-                      <td className="py-3 px-4 whitespace-nowrap">
-                        <StatusBadge status={c.status} />
-                      </td>
-                      <td className="py-3 px-4 font-semibold text-gray-800 whitespace-nowrap">
-                        {formatCurrency(c.valor_estimado)}
-                      </td>
-                      <td className="py-3 px-4 max-w-[200px]">
-                        {extrasEntries.length > 0 ? (
-                          <div className="flex flex-wrap gap-1">
-                            {extrasEntries.slice(0, 2).map(([k, v]) => (
-                              <span
-                                key={k}
-                                className="inline-block max-w-[120px] truncate text-[10px] bg-blue-50 text-blue-800 px-1.5 py-0.5 rounded border border-blue-200"
-                                title={`${k}: ${v}`}
-                              >
-                                <strong>{k}:</strong> {v}
-                              </span>
-                            ))}
-                            {extrasEntries.length > 2 && (
-                              <span className="text-[10px] font-bold text-blue-600 bg-blue-100/70 px-1 py-0.5 rounded">
-                                +{extrasEntries.length - 2}
-                              </span>
-                            )}
-                          </div>
-                        ) : (
-                          <span className="text-gray-300">-</span>
-                        )}
-                      </td>
-                      <td className="py-3 px-4 whitespace-nowrap">
-                        {c.isDuplicado ? (
-                          <span
-                            className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                              decisao === 'atualizar'
-                                ? 'bg-amber-100 text-amber-900 border border-amber-300'
-                                : 'bg-gray-200 text-gray-700'
-                            }`}
-                          >
-                            <AlertTriangle className="w-3 h-3 text-amber-600" />
-                            {decisao === 'atualizar' ? 'Vai Atualizar' : 'Vai Ignorar'}
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200">
-                            <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                            Novo Cliente
-                          </span>
-                        )}
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Rodapé da Tabela com Confirmação Inferior */}
-          {!resultadoFinal && (
-            <div className="p-4 bg-gray-50 border-t border-gray-100 flex flex-col sm:flex-row items-center justify-between gap-3">
-              <div className="text-xs text-gray-500">
-                Total:{' '}
-                <strong className="text-gray-800">{clientesNormalizados.length} registros</strong> (
-                {clientesNormalizados.length - duplicadosList.length} novos e{' '}
-                {duplicadosList.length} duplicados)
-              </div>
-
-              <button
-                type="button"
-                disabled={isImportando}
-                onClick={handleExecutarImportacao}
-                className="inline-flex items-center justify-center gap-2 px-6 py-2.5 bg-[#16A34A] hover:bg-[#15803D] text-white text-sm font-bold rounded-xl shadow-md hover:shadow-lg transition-all cursor-pointer disabled:opacity-50"
-              >
-                {isImportando ? (
-                  <>
-                    <RefreshCw className="w-4 h-4 animate-spin" />
-                    <span>Importando...</span>
-                  </>
-                ) : (
-                  <>
-                    <Check className="w-4 h-4" />
-                    <span>Confirmar Importação de Todos</span>
-                  </>
-                )}
-              </button>
-            </div>
-          )}
         </div>
       )}
     </div>

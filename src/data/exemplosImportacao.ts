@@ -3,7 +3,15 @@ import { ParsedTableData } from '@/lib/spreadsheetParser'
 /**
  * Dados de exemplo realistas de exportação do Pipedrive (deal / person export)
  * Contém colunas comumente exportadas em inglês ou português pelo Pipedrive.
- * Inclui intencionalmente um cliente com email/CPF já existente no banco para demonstrar a detecção de duplicados!
+ *
+ * Contém exatamente:
+ * - 2 Clientes Duplicados do Conta Azul (com CPF/CNPJ, nome muito parecido, telefone ou email de clientes importados do Conta Azul já existentes no banco):
+ *   1) "Ademar Fiorini" (CPF 727.971.770-53, Telefone 54999242399, Email fioriniademar@gmail.com, Severiano de Almeida - RS)
+ *   2) "Ademar Emilio Berlanda" (CPF 371.942.080-91, Telefone 54991268473, Email ademarberlanda@gmail.com, Erechim - RS)
+ * - 3 Leads Novos do Pipedrive sem correspondência na base:
+ *   3) "Cooperativa Agroindustrial Alfa RS" (CNPJ 02.455.981/0001-44, Erechim - RS)
+ *   4) "Dr. Eduardo Fontana Cardiologia" (CPF 714.283.910-44, Passo Fundo - RS)
+ *   5) "Lucas Gabriel Menegat (Residencial)" (CPF 034.881.990-25, Marau - RS)
  */
 export const EXEMPLO_PIPEDRIVE: ParsedTableData = {
   headers: [
@@ -29,6 +37,31 @@ export const EXEMPLO_PIPEDRIVE: ParsedTableData = {
       'Deal - Value (BRL)',
       'CPF / CNPJ',
     ],
+    // 1. DUPLICADO DO CONTA AZUL #1 (CPF exato, nome idêntico, telefone e email iguais ao cadastro Conta Azul)
+    [
+      'Ademar Fiorini',
+      '(54) 99924-2399',
+      'fioriniademar@gmail.com',
+      'Severiano de Almeida',
+      'RS',
+      'Fechado / Ganho',
+      '18/03/2026',
+      '48.500,00',
+      '727.971.770-53',
+    ],
+    // 2. DUPLICADO DO CONTA AZUL #2 (Nome parecido "Ademar Emilio Berlanda" vs "Ademar Emílio Berlanda", CPF exato, telefone e email iguais)
+    [
+      'Ademar Emilio Berlanda',
+      '(54) 99126-8473',
+      'ademarberlanda@gmail.com',
+      'Erechim',
+      'RS',
+      'Negociação',
+      '16/03/2026',
+      '34.000,00',
+      '371.942.080-91',
+    ],
+    // 3. LEAD NOVO DO PIPEDRIVE #1
     [
       'Cooperativa Agroindustrial Alfa RS',
       '(54) 99182-3344',
@@ -40,6 +73,7 @@ export const EXEMPLO_PIPEDRIVE: ParsedTableData = {
       '148.000,00',
       '02.455.981/0001-44',
     ],
+    // 4. LEAD NOVO DO PIPEDRIVE #2
     [
       'Dr. Eduardo Fontana Cardiologia',
       '(54) 99641-7722',
@@ -51,39 +85,7 @@ export const EXEMPLO_PIPEDRIVE: ParsedTableData = {
       '42.500,00',
       '714.283.910-44',
     ],
-    [
-      'Posto e Churrascaria Trevo Norte LTDA',
-      '(54) 3522-8900',
-      'financeiro@postotrevo.com.br',
-      'Getúlio Vargas',
-      'RS',
-      'Fechado / Ganho',
-      '10/03/2026',
-      '215.000,00',
-      '18.922.341/0001-88',
-    ],
-    [
-      'Mariana de Oliveira Silveira', // Cliente duplicado para testar detecção de duplicado!
-      '(54) 99654-8833',
-      'mariana.silveira@gmail.com',
-      'Passo Fundo',
-      'RS',
-      'Levantamento Técnico',
-      '19/03/2026',
-      '28.900,00',
-      '812.934.509-02',
-    ],
-    [
-      'Fazenda São Valentin Agropecuária',
-      '(49) 98822-1100',
-      'contato@saovalentinagro.com.br',
-      'Chapecó',
-      'SC',
-      'Orçamento',
-      '12/03/2026',
-      '380.000,00',
-      '09.112.445/0001-33',
-    ],
+    // 5. LEAD NOVO DO PIPEDRIVE #3
     [
       'Lucas Gabriel Menegat (Residencial)',
       '(54) 99933-4411',
@@ -97,6 +99,28 @@ export const EXEMPLO_PIPEDRIVE: ParsedTableData = {
     ],
   ],
   rows: [
+    {
+      'Organization - Name': 'Ademar Fiorini',
+      'Contact Person - Phone': '(54) 99924-2399',
+      'Contact Person - Email': 'fioriniademar@gmail.com',
+      'Address - City': 'Severiano de Almeida',
+      'Address - State': 'RS',
+      'Stage / Status': 'Fechado / Ganho',
+      'Last Activity Date': '18/03/2026',
+      'Deal - Value (BRL)': '48.500,00',
+      'CPF / CNPJ': '727.971.770-53',
+    },
+    {
+      'Organization - Name': 'Ademar Emilio Berlanda',
+      'Contact Person - Phone': '(54) 99126-8473',
+      'Contact Person - Email': 'ademarberlanda@gmail.com',
+      'Address - City': 'Erechim',
+      'Address - State': 'RS',
+      'Stage / Status': 'Negociação',
+      'Last Activity Date': '16/03/2026',
+      'Deal - Value (BRL)': '34.000,00',
+      'CPF / CNPJ': '371.942.080-91',
+    },
     {
       'Organization - Name': 'Cooperativa Agroindustrial Alfa RS',
       'Contact Person - Phone': '(54) 99182-3344',
@@ -118,39 +142,6 @@ export const EXEMPLO_PIPEDRIVE: ParsedTableData = {
       'Last Activity Date': '15/03/2026',
       'Deal - Value (BRL)': '42.500,00',
       'CPF / CNPJ': '714.283.910-44',
-    },
-    {
-      'Organization - Name': 'Posto e Churrascaria Trevo Norte LTDA',
-      'Contact Person - Phone': '(54) 3522-8900',
-      'Contact Person - Email': 'financeiro@postotrevo.com.br',
-      'Address - City': 'Getúlio Vargas',
-      'Address - State': 'RS',
-      'Stage / Status': 'Fechado / Ganho',
-      'Last Activity Date': '10/03/2026',
-      'Deal - Value (BRL)': '215.000,00',
-      'CPF / CNPJ': '18.922.341/0001-88',
-    },
-    {
-      'Organization - Name': 'Mariana de Oliveira Silveira',
-      'Contact Person - Phone': '(54) 99654-8833',
-      'Contact Person - Email': 'mariana.silveira@gmail.com',
-      'Address - City': 'Passo Fundo',
-      'Address - State': 'RS',
-      'Stage / Status': 'Levantamento Técnico',
-      'Last Activity Date': '19/03/2026',
-      'Deal - Value (BRL)': '28.900,00',
-      'CPF / CNPJ': '812.934.509-02',
-    },
-    {
-      'Organization - Name': 'Fazenda São Valentin Agropecuária',
-      'Contact Person - Phone': '(49) 98822-1100',
-      'Contact Person - Email': 'contato@saovalentinagro.com.br',
-      'Address - City': 'Chapecó',
-      'Address - State': 'SC',
-      'Stage / Status': 'Orçamento',
-      'Last Activity Date': '12/03/2026',
-      'Deal - Value (BRL)': '380.000,00',
-      'CPF / CNPJ': '09.112.445/0001-33',
     },
     {
       'Organization - Name': 'Lucas Gabriel Menegat (Residencial)',
@@ -206,7 +197,7 @@ export const EXEMPLO_CONTA_AZUL: ParsedTableData = {
       'Av. Sete de Setembro, 1500 - Distrito Industrial',
     ],
     [
-      'Solar do Alto Vale Engenharia LTDA', // Cliente duplicado para demonstrar detecção no Conta Azul!
+      'Solar do Alto Vale Engenharia LTDA',
       '33.000.167/0001-01',
       '(54) 3522-7711',
       'contato@solardoaltovale.com.br',
