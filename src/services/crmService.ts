@@ -1698,6 +1698,20 @@ export async function saveOrUpdateMonitoramentoMarca(data: {
 // Inversores do Cliente (Múltiplos Inversores & Monitoramento)
 // -------------------------------------------------------------
 
+export async function fetchAllInversores(): Promise<import('@/types/crm').ClienteInversor[]> {
+  try {
+    const list = await pb
+      .collection('cliente_inversores')
+      .getFullList<import('@/types/crm').ClienteInversor>({
+        sort: 'cliente_id,ordem,created',
+      })
+    return list
+  } catch (err) {
+    console.warn('Erro ao buscar todos cliente_inversores:', err)
+    return []
+  }
+}
+
 export async function fetchInversoresByClienteId(
   clienteId: string,
 ): Promise<import('@/types/crm').ClienteInversor[]> {

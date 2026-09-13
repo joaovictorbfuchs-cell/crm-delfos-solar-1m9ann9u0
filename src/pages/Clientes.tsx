@@ -372,6 +372,17 @@ export default function Clientes() {
             )}
           </div>
 
+          {/* Botão Importar Acessos (Apps Inversores) */}
+          <button
+            type="button"
+            onClick={() => navigate('/importar-acessos')}
+            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white text-sm font-bold rounded-xl shadow-xs transition-all shrink-0 cursor-pointer"
+            title="Importar acessos e senhas aos apps de monitoramento (Growatt, Solarman, Solis, etc.)"
+          >
+            <Zap className="w-4 h-4" />
+            <span>Importar Acessos</span>
+          </button>
+
           {/* Botão Importar Planilha e Adicionar Novo */}
           <button
             type="button"
@@ -380,7 +391,7 @@ export default function Clientes() {
             title="Importar do Pipedrive ou Conta Azul"
           >
             <Upload className="w-4 h-4 text-emerald-700" />
-            <span>Importar Planilha</span>
+            <span>Importar Clientes</span>
           </button>
 
           {/* Botão Adicionar Novo em Destaque no Topo */}
