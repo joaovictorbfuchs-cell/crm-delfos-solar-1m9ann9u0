@@ -62,8 +62,11 @@ export const KANBAN_COLUMNS: KanbanColumnDef[] = [
   },
 ]
 
-export const KanbanBoard: React.FC<KanbanBoardProps> = ({ clientes }) => {
+export const KanbanBoard: React.FC<KanbanBoardProps> = ({ clientes: clientesProp }) => {
   const { openFichaCliente, updateClienteStatus } = useClientes()
+
+  // O funil de vendas Kanban exibe apenas etapas ativas do negócio — negócios Perdidos saem do funil
+  const clientes = clientesProp.filter((c) => (c.status as string) !== 'Perdido')
 
   // Estado para drag and drop
   const [draggedClientId, setDraggedClientId] = useState<string | null>(null)

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-13T18:38:24.914Z",
+  "generatedAt": "2026-09-13T18:48:55.650Z",
   "collections": [
     {
       "name": "users",
@@ -108,7 +108,8 @@
             "Orçamento",
             "Negociação",
             "Fechado",
-            "Contato Futuro"
+            "Contato Futuro",
+            "Perdido"
           ]
         },
         {

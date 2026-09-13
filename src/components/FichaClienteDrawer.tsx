@@ -33,6 +33,7 @@ import {
   Plus,
   MessageSquare,
   Copy,
+  XCircle,
 } from 'lucide-react'
 import { useClientes } from '@/contexts/ClientesContext'
 import {
@@ -113,6 +114,7 @@ const ETAPAS_STATUS: { value: ClienteStatus; label: string }[] = [
   { value: 'Negociação', label: '4 - Negociação' },
   { value: 'Fechado', label: '5 - Fechado' },
   { value: 'Contato Futuro', label: '6 - Contato Futuro' },
+  { value: 'Perdido', label: 'Perdido (Sai do funil)' },
 ]
 
 const TELHADOS: { value: TelhadoTipo; label: string }[] = [
@@ -3071,10 +3073,15 @@ export const FichaClienteDrawer: React.FC = () => {
             {/* Card 2: Estágio Atual no Funil (com seletor rápido) */}
             <div className="bg-white rounded-xl p-3.5 border border-gray-200 shadow-xs space-y-2">
               <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider block">
-                Estágio Atual no Funil
+                Estágio / Status
               </span>
               <div className="flex items-center justify-between gap-2">
                 <StatusBadge status={selectedCliente.status} />
+                {selectedCliente.status === 'Perdido' && (
+                  <span className="text-[10px] font-medium text-rose-600 bg-rose-50 px-2 py-0.5 rounded-md border border-rose-200">
+                    Fora do funil
+                  </span>
+                )}
               </div>
               <div className="pt-1 border-t border-gray-100">
                 <label className="text-[10px] text-gray-400 block mb-1 font-semibold uppercase">
@@ -3082,9 +3089,10 @@ export const FichaClienteDrawer: React.FC = () => {
                 </label>
                 <select
                   value={selectedCliente.status}
-                  onChange={async (e) =>
-                    updateClienteStatus(selectedCliente.id, e.target.value as ClienteStatus)
-                  }
+                  onChange={async (e) => {
+                    const novoStatus = e.target.value as ClienteStatus
+                    await updateClienteStatus(selectedCliente.id, novoStatus)
+                  }}
                   className="w-full text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-gray-200 bg-white text-gray-800 focus:outline-none focus:ring-1 focus:ring-emerald-500 cursor-pointer shadow-2xs"
                 >
                   {ETAPAS_STATUS.map((e) => (
@@ -3093,6 +3101,31 @@ export const FichaClienteDrawer: React.FC = () => {
                     </option>
                   ))}
                 </select>
+                {selectedCliente.status === 'Perdido' ? (
+                  <p className="text-[11px] text-rose-600 mt-1.5 leading-snug">
+                    Este cliente está como <strong>Perdido</strong>. Ele permanece na gestão de
+                    clientes (/clientes), mas não aparece no funil de vendas Kanban.
+                  </p>
+                ) : (
+                  <div className="mt-2 pt-2 border-t border-dashed border-gray-200 flex justify-end">
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        const confirmou = window.confirm(
+                          `Deseja marcar "${selectedCliente.nome}" como Perdido?\n\nO cliente sairá do funil de vendas comercial e ficará registrado como Perdido apenas na gestão de clientes.`,
+                        )
+                        if (confirmou) {
+                          await updateClienteStatus(selectedCliente.id, 'Perdido')
+                        }
+                      }}
+                      className="text-[11px] font-medium text-rose-600 hover:text-rose-800 hover:underline inline-flex items-center gap-1 transition-colors"
+                      title="Marcar cliente como negócio perdido e remover do funil"
+                    >
+                      <XCircle className="w-3 h-3 text-rose-500" />
+                      Marcar como Perdido
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
 

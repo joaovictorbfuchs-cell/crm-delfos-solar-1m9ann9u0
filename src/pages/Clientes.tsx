@@ -86,6 +86,18 @@ export default function Clientes() {
 
   const distinctStatuses = useMemo(() => {
     const map = new Map<string, number>()
+    // Garantir que todos os status cadastrais padrão estejam mapeados mesmo se contagem for 0
+    const padroes = [
+      'Novo Lead',
+      'Levantamento',
+      'Orçamento',
+      'Negociação',
+      'Fechado',
+      'Contato Futuro',
+      'Perdido',
+    ]
+    padroes.forEach((p) => map.set(p, 0))
+
     clientesComOrigem.forEach((c) => {
       const status = (c.status || '').trim() || 'Outro'
       map.set(status, (map.get(status) || 0) + 1)

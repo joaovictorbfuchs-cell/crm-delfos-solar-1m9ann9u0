@@ -6,6 +6,7 @@ import {
   Handshake,
   CheckCircle2,
   Clock,
+  XCircle,
   type LucideIcon,
 } from 'lucide-react'
 
@@ -218,9 +219,9 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({
     case 'Perdido':
       return (
         <span
-          className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700 border border-gray-200 ${className}`}
+          className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-rose-50 text-rose-700 border border-rose-200 ${className}`}
         >
-          {showIcon && <Clock className="w-3.5 h-3.5 shrink-0 text-gray-400" />}
+          {showIcon && <XCircle className="w-3.5 h-3.5 shrink-0 text-rose-500" />}
           <span>Perdido</span>
         </span>
       )

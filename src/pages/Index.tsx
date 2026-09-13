@@ -15,9 +15,13 @@ export default function Index() {
   // Top metric calculations
   const totalClientes = clientes.length
 
-  // Negócios em Aberto: Novo Lead, Levantamento, Orçamento, Negociação
-  const negociosEmAberto = clientes.filter((c) =>
-    ['Novo Lead', 'Levantamento', 'Orçamento', 'Negociação'].includes(c.status),
+  // Negócios em Aberto: etapas ativas do funil (exclui Fechado, Contato Futuro e Perdido)
+  const STATUS_EM_ABERTO = ['Novo Lead', 'Levantamento', 'Orçamento', 'Negociação']
+  const negociosEmAberto = clientes.filter(
+    (c) =>
+      STATUS_EM_ABERTO.includes(c.status) &&
+      (c.status as string) !== 'Perdido' &&
+      (c.status as string) !== 'Fechado',
   )
 
   const valorTotalFunil = negociosEmAberto.reduce((sum, c) => sum + (c.valor_estimado || 0), 0)

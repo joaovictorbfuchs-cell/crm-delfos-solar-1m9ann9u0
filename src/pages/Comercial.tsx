@@ -10,7 +10,12 @@ export default function Comercial() {
   const [isNovoLeadOpen, setIsNovoLeadOpen] = useState(false)
 
   const totalPotencial = clientes
-    .filter((c) => c.status !== 'Contato Futuro' && (c.status as string) !== 'Perdido')
+    .filter(
+      (c) =>
+        c.status !== 'Contato Futuro' &&
+        (c.status as string) !== 'Perdido' &&
+        (c.status as string) !== 'Fechado',
+    )
     .reduce((sum, c) => sum + (c.valor_estimado || 0), 0)
 
   const fechados = clientes.filter((c) => c.status === 'Fechado')

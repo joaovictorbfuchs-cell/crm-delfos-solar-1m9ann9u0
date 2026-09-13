@@ -7,6 +7,7 @@ export type ClienteStatus =
   | 'Negociação'
   | 'Fechado'
   | 'Contato Futuro'
+  | 'Perdido'
 
 export type ProdutoTipo =
   | 'Energia Solar'
