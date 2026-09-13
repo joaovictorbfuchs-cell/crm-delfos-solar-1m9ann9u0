@@ -18,10 +18,22 @@ import {
   Pencil,
   ChevronRight,
   Sparkles,
+  Trash2,
+  Loader2,
 } from 'lucide-react'
 import type { TimelineUnifiedItem, TimelineFilterTipo } from '@/types/timelineUnified'
 import type { Cliente, Atividade, OrcamentoSolar, PropostaOM } from '@/types/crm'
 import { formatCurrency, formatDate, formatDateTime } from '@/lib/formatters'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { getTipoAtividadeConfig, buildCustomTipoDef } from '@/constants/atividadesTipos'
 import { useClientes } from '@/contexts/ClientesContext'
 import { calcularPropostaOM, PLANOS_OM_VALORES } from '@/lib/propostaOMGenerator'
@@ -49,8 +61,13 @@ export const LinhaDoTempoUnificada: React.FC<LinhaDoTempoUnificadaProps> = ({
   onNovoOrcamentoSolarClick,
   onNovaPropostaOMClick,
 }) => {
-  const { tiposAtividadesCustom } = useClientes()
+  const { tiposAtividadesCustom, removeAtividade } = useClientes()
   const [activeFilter, setActiveFilter] = useState<TimelineFilterTipo>('todas')
+  const [atividadeParaExcluir, setAtividadeParaExcluir] = useState<{
+    id: string
+    titulo: string
+  } | null>(null)
+  const [isDeletingAtividade, setIsDeletingAtividade] = useState(false)
 
   const customDefs = useMemo(() => {
     return (tiposAtividadesCustom || []).map((t) => buildCustomTipoDef(t))
@@ -734,6 +751,25 @@ export const LinhaDoTempoUnificada: React.FC<LinhaDoTempoUnificadaProps> = ({
                         <span>Detalhes / Editar</span>
                         <ChevronRight className="w-3 h-3 ml-0.5" />
                       </button>
+
+                      {/* Botão de excluir para itens que são atividades */}
+                      {item.rawAtividade && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setAtividadeParaExcluir({
+                              id: item.rawAtividade!.id,
+                              titulo: item.titulo || item.rawAtividade!.titulo || 'Atividade',
+                            })
+                          }}
+                          className="inline-flex items-center p-1.5 text-xs font-semibold text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors border border-red-200 hover:text-red-700"
+                          title={`Excluir atividade ${item.titulo}`}
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          <span className="sr-only">Excluir atividade</span>
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -742,6 +778,59 @@ export const LinhaDoTempoUnificada: React.FC<LinhaDoTempoUnificadaProps> = ({
           })}
         </div>
       )}
+
+      {/* Confirmação Segura de Exclusão de Atividade */}
+      <AlertDialog
+        open={Boolean(atividadeParaExcluir)}
+        onOpenChange={(open) => {
+          if (!open && !isDeletingAtividade) {
+            setAtividadeParaExcluir(null)
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir Atividade</AlertDialogTitle>
+            <AlertDialogDescription>
+              Deseja realmente excluir a atividade{' '}
+              <strong className="text-gray-900 font-semibold">
+                {atividadeParaExcluir?.titulo}
+              </strong>
+              ? Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeletingAtividade}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={isDeletingAtividade}
+              onClick={async (e) => {
+                e.preventDefault()
+                if (!atividadeParaExcluir) return
+                try {
+                  setIsDeletingAtividade(true)
+                  await removeAtividade(atividadeParaExcluir.id)
+                  setAtividadeParaExcluir(null)
+                } catch (err) {
+                  console.error('Erro ao excluir atividade:', err)
+                  alert('Ocorreu um erro ao excluir a atividade. Tente novamente.')
+                } finally {
+                  setIsDeletingAtividade(false)
+                }
+              }}
+              className="bg-red-600 hover:bg-red-700 text-white focus:ring-red-600"
+            >
+              {isDeletingAtividade ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                  Excluindo...
+                </>
+              ) : (
+                'Confirmar Exclusão'
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

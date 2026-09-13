@@ -13,6 +13,16 @@ import { useAuth } from '@/contexts/AuthContext'
 import { AtividadeItem } from '@/components/AtividadeItem'
 import { AtividadesGridIcones } from '@/components/AtividadesGridIcones'
 import { ModalNovaAtividade } from '@/components/ModalNovaAtividade'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { AtividadesCalendario } from '@/components/AtividadesCalendario'
 import { AtividadesPendentesList } from '@/components/AtividadesPendentesList'
 import type { TipoAtividadeDef } from '@/constants/atividadesTipos'
@@ -35,6 +45,11 @@ export const Atividades: React.FC = () => {
   // Controle do modal de agendamento acionado pelo grid de 12 ícones ou botão novo
   const [modalOpen, setModalOpen] = useState(false)
   const [modalInitialTipo, setModalInitialTipo] = useState<AtividadeTipo | null>(null)
+  const [atividadeParaExcluir, setAtividadeParaExcluir] = useState<{
+    id: string
+    titulo: string
+  } | null>(null)
+  const [isDeletingAtividade, setIsDeletingAtividade] = useState(false)
 
   // Modo de exibição: Calendário vs Fila de Pendentes vs Timeline Geral
   const [activeView, setActiveView] = useState<'calendario' | 'pendentes' | 'timeline'>(
@@ -345,7 +360,13 @@ export const Atividades: React.FC = () => {
                   <div key={atv.id} className="relative">
                     <AtividadeItem
                       atividade={atv}
-                      onDelete={removeAtividade}
+                      onDelete={(id) => {
+                        const target = atividades.find((a) => a.id === id)
+                        setAtividadeParaExcluir({
+                          id,
+                          titulo: target?.titulo || atv.titulo || 'Atividade',
+                        })
+                      }}
                       onToggleStatus={handleToggleStatus}
                       showClienteName={true}
                     />
@@ -375,6 +396,52 @@ export const Atividades: React.FC = () => {
         onClose={() => setModalOpen(false)}
         initialTipo={modalInitialTipo}
       />
+
+      {/* Confirmação Segura de Exclusão de Atividade */}
+      <AlertDialog
+        open={Boolean(atividadeParaExcluir)}
+        onOpenChange={(open) => {
+          if (!open && !isDeletingAtividade) {
+            setAtividadeParaExcluir(null)
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir Atividade</AlertDialogTitle>
+            <AlertDialogDescription>
+              Deseja realmente excluir a atividade{' '}
+              <strong className="text-gray-900 font-semibold">
+                {atividadeParaExcluir?.titulo}
+              </strong>
+              ? Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeletingAtividade}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={isDeletingAtividade}
+              onClick={async (e) => {
+                e.preventDefault()
+                if (!atividadeParaExcluir) return
+                try {
+                  setIsDeletingAtividade(true)
+                  await removeAtividade(atividadeParaExcluir.id)
+                  setAtividadeParaExcluir(null)
+                } catch (err) {
+                  console.error('Erro ao excluir atividade:', err)
+                  alert('Ocorreu um erro ao excluir a atividade. Tente novamente.')
+                } finally {
+                  setIsDeletingAtividade(false)
+                }
+              }}
+              className="bg-red-600 hover:bg-red-700 text-white focus:ring-red-600"
+            >
+              {isDeletingAtividade ? 'Excluindo...' : 'Confirmar Exclusão'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

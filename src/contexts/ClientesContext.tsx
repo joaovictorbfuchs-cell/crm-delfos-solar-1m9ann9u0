@@ -41,6 +41,7 @@ import {
   createCliente as apiCreateCliente,
   updateCliente as apiUpdateCliente,
   updateClienteStatus as apiUpdateClienteStatus,
+  deleteCliente as apiDeleteCliente,
   upsertSistemaForCliente,
   createProfissional as apiCreateProfissional,
   updateProfissional as apiUpdateProfissional,
@@ -151,6 +152,7 @@ interface ClientesContextType {
   openFichaCliente: (id: string, initialTab?: 'historico' | 'projeto' | 'om' | 'whatsapp') => void
   closeFichaCliente: () => void
   addCliente: (data: Partial<Cliente> & { nome: string }) => Promise<Cliente>
+  removeCliente: (id: string) => Promise<void>
   addManutencao: (data: {
     cliente_id: string
     data: string
@@ -701,6 +703,39 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       return [created, ...prev]
     })
     return created
+  }
+
+  const removeCliente = async (id: string) => {
+    // Se o cliente a ser removido for o atualmente aberto na ficha, fecha a ficha
+    if (selectedClienteId === id) {
+      setSelectedClienteId(null)
+    }
+    if (selectedOMClienteId === id) {
+      setSelectedOMClienteId(null)
+    }
+
+    // Optimistic update para lista de clientes e dados diretamente associados em tela
+    setClientes((prev) => prev.filter((c) => c.id !== id))
+    setAtividades((prev) => prev.filter((a) => a.cliente_id !== id))
+    setSistemas((prev) => prev.filter((s) => s.cliente_id !== id))
+    setManutencoes((prev) => prev.filter((m) => m.cliente_id !== id))
+    setProjetos((prev) => prev.filter((p) => p.cliente_id !== id))
+    setContratosOM((prev) => prev.filter((c) => c.cliente_id !== id))
+    setAnomaliasOM((prev) => prev.filter((a) => a.cliente_id !== id))
+    setServicosAdicionaisOM((prev) => prev.filter((s) => s.cliente_id !== id))
+    setTimelineOM((prev) => prev.filter((t) => t.cliente_id !== id))
+    setPropostasOM((prev) => prev.filter((p) => p.cliente_id !== id))
+    setOrcamentosSolar((prev) => prev.filter((o) => o.cliente_id !== id))
+    setServicosAvulsos((prev) => prev.filter((s) => s.cliente_id !== id))
+    setDocumentosCliente((prev) => prev.filter((d) => d.cliente_id !== id))
+
+    try {
+      await apiDeleteCliente(id)
+    } catch (err) {
+      console.error('Erro ao excluir cliente:', err)
+      await loadAllData()
+      throw err
+    }
   }
 
   const openFichaCliente = (
@@ -1638,6 +1673,7 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         openFichaCliente,
         closeFichaCliente,
         addCliente,
+        removeCliente,
         addManutencao,
         addAtividade,
         updateAtividade,

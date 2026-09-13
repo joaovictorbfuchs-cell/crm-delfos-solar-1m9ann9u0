@@ -18,8 +18,19 @@ import {
   Filter,
   X,
   RotateCcw,
+  Trash2,
 } from 'lucide-react'
 import { useClientes } from '@/contexts/ClientesContext'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { StatusBadge, ProductBadge } from '@/components/StatusBadge'
 import { OrigemClienteBadge } from '@/components/OrigemClienteBadge'
 import { identificarOrigemCliente } from '@/lib/origemCliente'
@@ -34,9 +45,14 @@ export type SortDirection = 'asc' | 'desc'
 
 export default function Clientes() {
   const navigate = useNavigate()
-  const { clientes, isLoading, openFichaCliente, addCliente, updateClienteStatus } = useClientes()
+  const { clientes, isLoading, openFichaCliente, addCliente, updateClienteStatus, removeCliente } =
+    useClientes()
   const [searchTerm, setSearchTerm] = useState('')
   const [isModalNovoOpen, setIsModalNovoOpen] = useState(false)
+  const [clienteParaExcluir, setClienteParaExcluir] = useState<{ id: string; nome: string } | null>(
+    null,
+  )
+  const [isDeletingCliente, setIsDeletingCliente] = useState(false)
 
   // Requisito 2: Ordenação alfabética por padrão (A-Z respeitando pt-BR)
   const [sortField, setSortField] = useState<SortField>('nome')
@@ -917,6 +933,17 @@ export default function Clientes() {
                           <Eye className="w-3.5 h-3.5" />
                           Ver Ficha
                         </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setClienteParaExcluir({ id: c.id, nome: c.nome })
+                          }}
+                          className="inline-flex items-center p-1.5 text-xs font-semibold text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors border border-red-200 hover:text-red-700"
+                          title={`Excluir cliente ${c.nome}`}
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          <span className="sr-only">Excluir</span>
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -1016,6 +1043,17 @@ export default function Clientes() {
                       <Eye className="w-3.5 h-3.5" />
                       Ficha
                     </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setClienteParaExcluir({ id: c.id, nome: c.nome })
+                      }}
+                      className="inline-flex items-center p-1.5 text-xs font-semibold text-red-600 bg-red-50 hover:bg-red-100 rounded-md border border-red-200 hover:text-red-700"
+                      title={`Excluir cliente ${c.nome}`}
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span className="sr-only">Excluir</span>
+                    </button>
                   </div>
                 </div>
               </div>
@@ -1031,6 +1069,58 @@ export default function Clientes() {
         tipoEntidade="cliente"
         onSubmit={handleSalvarCliente}
       />
+
+      {/* Confirmação Segura de Exclusão de Cliente */}
+      <AlertDialog
+        open={Boolean(clienteParaExcluir)}
+        onOpenChange={(open) => {
+          if (!open && !isDeletingCliente) {
+            setClienteParaExcluir(null)
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar Exclusão de Cliente</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir o cliente{' '}
+              <strong className="text-gray-900 font-semibold">{clienteParaExcluir?.nome}</strong>?
+              Esta ação é irreversível e excluirá todas as atividades, propostas, orçamentos e
+              registros vinculados a ele.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeletingCliente}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={isDeletingCliente}
+              onClick={async (e) => {
+                e.preventDefault()
+                if (!clienteParaExcluir) return
+                try {
+                  setIsDeletingCliente(true)
+                  await removeCliente(clienteParaExcluir.id)
+                  setClienteParaExcluir(null)
+                } catch (err) {
+                  console.error('Erro ao excluir cliente:', err)
+                  alert('Ocorreu um erro ao excluir o cliente. Tente novamente.')
+                } finally {
+                  setIsDeletingCliente(false)
+                }
+              }}
+              className="bg-red-600 hover:bg-red-700 text-white focus:ring-red-600"
+            >
+              {isDeletingCliente ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                  Excluindo...
+                </>
+              ) : (
+                'Confirmar Exclusão'
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

@@ -231,6 +231,93 @@ export async function updateClienteStatus(id: string, status: Cliente['status'])
   return updateCliente(id, { status })
 }
 
+export async function deleteCliente(id: string): Promise<boolean> {
+  // Cascata defensiva de registros vinculados ao cliente
+  const collectionsWithClienteId = [
+    'atividades',
+    'propostas_om',
+    'orcamentos_solar',
+    'manutencoes',
+    'sistemas',
+    'contratos_om',
+    'anomalias_om',
+    'servicos_adicionais_om',
+    'timeline_om',
+    'servicos_avulsos',
+    'documentos_cliente',
+    'fornecedores_orcamentos',
+    'whatsapp_mensagens',
+  ]
+
+  for (const colName of collectionsWithClienteId) {
+    try {
+      const records = await pb.collection(colName).getFullList({
+        filter: `cliente_id = '${id}'`,
+        fields: 'id',
+      })
+      for (const rec of records) {
+        try {
+          await pb.collection(colName).delete(rec.id)
+        } catch (delErr) {
+          console.warn(`Falha ao excluir registro ${rec.id} em ${colName}:`, delErr)
+        }
+      }
+    } catch (err) {
+      // Ignora erro se a coleção não existir ou não tiver registros
+      console.warn(`Erro ao consultar ${colName} para exclusão em cascata:`, err)
+    }
+  }
+
+  // Projetos vinculados (e seus projeto_eventos)
+  try {
+    const projetos = await pb.collection('projetos').getFullList({
+      filter: `cliente_id = '${id}'`,
+      fields: 'id',
+    })
+    for (const proj of projetos) {
+      try {
+        const eventos = await pb.collection('projeto_eventos').getFullList({
+          filter: `projeto_id = '${proj.id}'`,
+          fields: 'id',
+        })
+        for (const ev of eventos) {
+          try {
+            await pb.collection('projeto_eventos').delete(ev.id)
+          } catch {
+            /* ignore */
+          }
+        }
+        await pb.collection('projetos').delete(proj.id)
+      } catch (projErr) {
+        console.warn(`Falha ao excluir projeto ${proj.id}:`, projErr)
+      }
+    }
+  } catch (err) {
+    console.warn('Erro ao consultar projetos para cascata:', err)
+  }
+
+  // Transferências de créditos (origem ou destino)
+  try {
+    const transferencias = await pb.collection('transferencias_creditos').getFullList({
+      filter: `cliente_origem_id = '${id}' || cliente_destino_id = '${id}'`,
+      fields: 'id',
+    })
+    for (const t of transferencias) {
+      try {
+        await pb.collection('transferencias_creditos').delete(t.id)
+      } catch {
+        /* ignore */
+      }
+    }
+  } catch (err) {
+    console.warn('Erro ao consultar transferencias_creditos para cascata:', err)
+  }
+
+  // Exclui o registro principal da collection clientes
+  await pb.collection('clientes').delete(id)
+  return true
+}
+
 export async function createSistema(
   data: Partial<Sistema> & { cliente_id: string },
 ): Promise<Sistema> {
