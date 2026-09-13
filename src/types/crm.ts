@@ -158,6 +158,7 @@ export interface Cliente extends RecordModel {
   titular_cpf?: string
   titular_telefone?: string
   titular_email?: string
+  dados_importados?: Record<string, string | number | boolean | null> | null
   created: string
   updated: string
 }

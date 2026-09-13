@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-13T16:19:06.501Z",
+  "generatedAt": "2026-09-13T16:35:39.628Z",
   "collections": [
     {
       "name": "users",
@@ -389,6 +389,12 @@
         {
           "name": "titular_email",
           "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "dados_importados",
+          "type": "json",
           "required": false,
           "system": false
         }

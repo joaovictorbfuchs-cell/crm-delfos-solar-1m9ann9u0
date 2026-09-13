@@ -333,6 +333,8 @@ export interface ClienteImportadoNormalizado {
   produto: 'Energia Solar'
   como_conheceu: string
   observacoes: string
+  // Campos extras mapeados e dados não mapeados da planilha
+  dados_importados?: Record<string, string>
   // Flag de duplicidade
   isDuplicado?: boolean
   duplicadoPor?: 'cpf' | 'cnpj' | 'email'
@@ -341,18 +343,50 @@ export interface ClienteImportadoNormalizado {
 }
 
 /**
- * Converte linha crua mapeada para o modelo ClienteImportadoNormalizado
+ * Converte linha crua mapeada para o modelo ClienteImportadoNormalizado.
+ * Preserva qualquer coluna que não corresponda aos campos fixos padrão do CRM
+ * ou colunas extras selecionadas pelo usuário dentro de `dados_importados`.
  */
 export function normalizarLinhaParaCliente(
   row: Record<string, string>,
   mapeamento: Record<string, string>,
   fonte: ImportFonte,
   index: number,
+  allHeaders?: string[],
 ): ClienteImportadoNormalizado {
   const getValor = (key: string): string => {
     const colHeader = mapeamento[key]
     if (!colHeader) return ''
     return (row[colHeader] || '').trim()
+  }
+
+  // Identificar quais colunas da planilha foram usadas em campos conhecidos do CRM
+  const colunasUsadasEmCamposPadrao = new Set(
+    CAMPOS_DESTINO_IMPORTACAO.map((c) => mapeamento[c.key]).filter(Boolean),
+  )
+
+  const dadosImportados: Record<string, string> = {}
+
+  // 1. Coletar colunas explicitamente mapeadas como 'extra_*'
+  Object.entries(mapeamento).forEach(([key, colHeader]) => {
+    if (key.startsWith('extra_') && colHeader && row[colHeader] !== undefined) {
+      const extraLabel = key.replace(/^extra_/, '').trim()
+      const val = (row[colHeader] || '').trim()
+      if (val) {
+        dadosImportados[extraLabel] = val
+      }
+    }
+  })
+
+  // 2. Colunas da planilha que não foram mapeadas para nenhum campo conhecido
+  const headers = allHeaders || Object.keys(row)
+  for (const h of headers) {
+    if (!colunasUsadasEmCamposPadrao.has(h)) {
+      const val = (row[h] || '').trim()
+      if (val && !dadosImportados[h]) {
+        dadosImportados[h] = val
+      }
+    }
   }
 
   const nome = getValor('nome') || `Cliente Importado ${index + 1}`
@@ -408,5 +442,6 @@ export function normalizarLinhaParaCliente(
     produto: 'Energia Solar',
     como_conheceu: fonte === 'pipedrive' ? 'Pipedrive' : 'Conta Azul',
     observacoes,
+    dados_importados: Object.keys(dadosImportados).length > 0 ? dadosImportados : undefined,
   }
 }

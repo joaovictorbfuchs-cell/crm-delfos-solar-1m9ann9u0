@@ -161,7 +161,13 @@ export default function ImportarClientes() {
     if (!dadosTabela) return []
 
     return dadosTabela.rows.map((row, index) => {
-      const normalizado = normalizarLinhaParaCliente(row, mapeamentoColunas, fonteAtiva, index)
+      const normalizado = normalizarLinhaParaCliente(
+        row,
+        mapeamentoColunas,
+        fonteAtiva,
+        index,
+        dadosTabela.headers,
+      )
 
       // Verificar duplicidade no banco por CPF, CNPJ ou e-mail
       const docClean = limparDocumento(normalizado.cpf || normalizado.cnpj)
@@ -279,6 +285,7 @@ export default function ImportarClientes() {
               status: item.status,
               valor_estimado: item.valor_estimado || undefined,
               observacoes: item.observacoes,
+              dados_importados: item.dados_importados || undefined,
             })
             atualizados++
           }
@@ -304,6 +311,7 @@ export default function ImportarClientes() {
             origem_lead: item.origem_lead,
             como_conheceu: item.como_conheceu,
             observacoes: item.observacoes,
+            dados_importados: item.dados_importados || undefined,
             uc: '',
             data_instalacao: '',
             inversor_marca: 'Deye',
@@ -625,43 +633,101 @@ export default function ImportarClientes() {
             </button>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {CAMPOS_DESTINO_IMPORTACAO.map((campo) => {
-              const valorAtual = mapeamentoColunas[campo.key] || ''
+          <div className="space-y-4">
+            <div>
+              <div className="text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">
+                Campos Padrão do CRM Delfos Solar
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {CAMPOS_DESTINO_IMPORTACAO.map((campo) => {
+                  const valorAtual = mapeamentoColunas[campo.key] || ''
+                  return (
+                    <div
+                      key={campo.key}
+                      className="space-y-1.5 p-3 rounded-xl bg-gray-50/70 border border-gray-200"
+                    >
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-bold text-gray-800 flex items-center gap-1">
+                          {campo.label}
+                          {campo.required && <span className="text-red-500">*</span>}
+                        </label>
+                        {valorAtual ? (
+                          <span className="text-[10px] text-emerald-700 font-semibold bg-emerald-100 px-1.5 py-0.2 rounded">
+                            Detectado
+                          </span>
+                        ) : (
+                          <span className="text-[10px] text-gray-400 font-mono">Não mapeado</span>
+                        )}
+                      </div>
+                      <select
+                        value={valorAtual}
+                        onChange={(e) => handleAlterarMapeamento(campo.key, e.target.value)}
+                        className="w-full text-xs bg-white border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                      >
+                        <option value="">-- Ignorar ou Não Mapear --</option>
+                        {dadosTabela.headers.map((h) => (
+                          <option key={h} value={h}>
+                            {h}
+                          </option>
+                        ))}
+                      </select>
+                      <p className="text-[10px] text-gray-400 leading-tight">{campo.description}</p>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+
+            {/* Seção de Colunas Adicionais da Planilha (Campos Extras / Novos) */}
+            {(() => {
+              const colunasMapeadasPadrao = new Set(
+                CAMPOS_DESTINO_IMPORTACAO.map((c) => mapeamentoColunas[c.key]).filter(Boolean),
+              )
+              const colunasExtras = dadosTabela.headers.filter((h) => !colunasMapeadasPadrao.has(h))
+
               return (
-                <div
-                  key={campo.key}
-                  className="space-y-1.5 p-3 rounded-xl bg-gray-50/70 border border-gray-200"
-                >
+                <div className="pt-3 border-t border-gray-100 space-y-2">
                   <div className="flex items-center justify-between">
-                    <label className="text-xs font-bold text-gray-800 flex items-center gap-1">
-                      {campo.label}
-                      {campo.required && <span className="text-red-500">*</span>}
-                    </label>
-                    {valorAtual ? (
-                      <span className="text-[10px] text-emerald-700 font-semibold bg-emerald-100 px-1.5 py-0.2 rounded">
-                        Detectado
-                      </span>
-                    ) : (
-                      <span className="text-[10px] text-gray-400 font-mono">Não mapeado</span>
-                    )}
+                    <div>
+                      <div className="text-xs font-bold text-gray-800 flex items-center gap-1.5">
+                        <Sparkles className="w-3.5 h-3.5 text-blue-600" />
+                        <span>Colunas Extras da Planilha (Salvas em Dados da Importação)</span>
+                      </div>
+                      <p className="text-[11px] text-gray-500">
+                        "Se não tem o campo específico neste CRM, precisa criar": Todas as colunas
+                        abaixo são salvas no cadastro do cliente e visíveis na Ficha cadastral para
+                        que nenhuma informação se perca.
+                      </p>
+                    </div>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
+                      {colunasExtras.length} campo(s) extra(s)
+                    </span>
                   </div>
-                  <select
-                    value={valorAtual}
-                    onChange={(e) => handleAlterarMapeamento(campo.key, e.target.value)}
-                    className="w-full text-xs bg-white border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
-                  >
-                    <option value="">-- Ignorar ou Não Mapear --</option>
-                    {dadosTabela.headers.map((h) => (
-                      <option key={h} value={h}>
-                        {h}
-                      </option>
-                    ))}
-                  </select>
-                  <p className="text-[10px] text-gray-400 leading-tight">{campo.description}</p>
+
+                  {colunasExtras.length > 0 ? (
+                    <div className="flex flex-wrap gap-2 pt-1">
+                      {colunasExtras.map((header) => (
+                        <div
+                          key={header}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-50/70 border border-blue-200 text-xs text-blue-900"
+                        >
+                          <CheckCircle2 className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                          <span className="font-semibold">{header}</span>
+                          <span className="text-[10px] text-blue-500 bg-white/80 px-1 py-0.2 rounded border border-blue-100">
+                            Auto-criado
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-gray-400 italic">
+                      Todas as colunas da planilha estão mapeadas diretamente nos campos padrão do
+                      CRM.
+                    </p>
+                  )}
                 </div>
               )
-            })}
+            })()}
           </div>
         </div>
       )}
@@ -885,12 +951,14 @@ export default function ImportarClientes() {
                   <th className="py-3 px-4">Cidade / UF</th>
                   <th className="py-3 px-4">Status no Funil</th>
                   <th className="py-3 px-4">Valor Estimado</th>
+                  <th className="py-3 px-4">Campos Extras</th>
                   <th className="py-3 px-4">Ação / Status</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {clientesNormalizados.map((c, idx) => {
                   const decisao = getDecisaoDuplicado(c.idTemp)
+                  const extrasEntries = c.dados_importados ? Object.entries(c.dados_importados) : []
                   return (
                     <tr
                       key={c.idTemp}
@@ -941,6 +1009,28 @@ export default function ImportarClientes() {
                       </td>
                       <td className="py-3 px-4 font-semibold text-gray-800 whitespace-nowrap">
                         {formatCurrency(c.valor_estimado)}
+                      </td>
+                      <td className="py-3 px-4 max-w-[200px]">
+                        {extrasEntries.length > 0 ? (
+                          <div className="flex flex-wrap gap-1">
+                            {extrasEntries.slice(0, 2).map(([k, v]) => (
+                              <span
+                                key={k}
+                                className="inline-block max-w-[120px] truncate text-[10px] bg-blue-50 text-blue-800 px-1.5 py-0.5 rounded border border-blue-200"
+                                title={`${k}: ${v}`}
+                              >
+                                <strong>{k}:</strong> {v}
+                              </span>
+                            ))}
+                            {extrasEntries.length > 2 && (
+                              <span className="text-[10px] font-bold text-blue-600 bg-blue-100/70 px-1 py-0.5 rounded">
+                                +{extrasEntries.length - 2}
+                              </span>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-gray-300">-</span>
+                        )}
                       </td>
                       <td className="py-3 px-4 whitespace-nowrap">
                         {c.isDuplicado ? (

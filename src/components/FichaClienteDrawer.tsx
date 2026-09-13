@@ -2843,6 +2843,55 @@ export const FichaClienteDrawer: React.FC = () => {
                         </div>
                       </div>
 
+                      {/* Dados da Importação / Campos Extras da Planilha */}
+                      {selectedCliente.dados_importados &&
+                        typeof selectedCliente.dados_importados === 'object' &&
+                        Object.keys(selectedCliente.dados_importados).length > 0 && (
+                          <div className="bg-white rounded-xl p-4 border border-blue-200 shadow-xs space-y-3">
+                            <div className="flex items-center justify-between border-b border-blue-100 pb-2">
+                              <div className="flex items-center gap-1.5">
+                                <Sparkles className="w-3.5 h-3.5 text-blue-600" />
+                                <h4 className="text-xs font-bold uppercase tracking-wider text-blue-900">
+                                  Dados da Importação (Campos Extras da Planilha)
+                                </h4>
+                              </div>
+                              <span className="text-[10px] uppercase font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
+                                {Object.keys(selectedCliente.dados_importados).length} campo(s)
+                              </span>
+                            </div>
+
+                            <p className="text-[11px] text-gray-500">
+                              Campos e colunas que vieram da planilha e foram preservados
+                              integralmente neste cliente:
+                            </p>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                              {Object.entries(selectedCliente.dados_importados).map(
+                                ([chave, valor]) => (
+                                  <div
+                                    key={chave}
+                                    className="p-2.5 rounded-lg bg-gray-50/70 border border-gray-200 space-y-1"
+                                  >
+                                    <div
+                                      className="text-[10px] font-bold text-gray-500 uppercase tracking-wider truncate"
+                                      title={chave}
+                                    >
+                                      {chave}
+                                    </div>
+                                    <div className="font-semibold text-gray-800 break-words text-xs">
+                                      {valor !== null && valor !== undefined && valor !== '' ? (
+                                        String(valor)
+                                      ) : (
+                                        <span className="text-gray-400 italic">Vazio</span>
+                                      )}
+                                    </div>
+                                  </div>
+                                ),
+                              )}
+                            </div>
+                          </div>
+                        )}
+
                       {/* Histórico de Manutenções na seção de Detalhes */}
                       {clientManutencoes.length > 0 && (
                         <div className="bg-white rounded-xl p-4 border border-gray-200/80 shadow-xs space-y-3">
