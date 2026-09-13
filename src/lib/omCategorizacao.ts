@@ -25,6 +25,7 @@ export interface ContagensOM {
   planosVencidos: number
   totalAnomaliasAbertasOcorrencias: number
   totalServicosAvulsosOcorrencias: number
+  clientesSemPlano: number
 }
 
 /**
@@ -142,6 +143,7 @@ export function calcularContagensOM(
   let servicosAvulsosCount = 0
   let anomaliasAbertas = 0
   let planosVencidos = 0
+  let clientesSemPlano = 0
 
   for (const cliente of clientes) {
     const { categoria, temServicoAvulsoHistorico } = categorizarClienteOM(
@@ -163,10 +165,16 @@ export function calcularContagensOM(
     if (categoria === 'plano_ativo') {
       planosAtivos++
     } else {
-      // É Pós-Vendas (não tem plano ativo)
+      // Todo cliente cadastrado no CRM sem plano ativo de O&M entra na lista de Pós-Vendas
+      // (inclusive clientes importados do Conta Azul ou Pipedrive).
       posVendas++
+
       if (instalouSolar) {
         oportunidadesOM++
+      }
+
+      if (!instalouSolar && !temServicoAvulsoHistorico) {
+        clientesSemPlano++
       }
     }
 
@@ -206,5 +214,6 @@ export function calcularContagensOM(
     planosVencidos,
     totalAnomaliasAbertasOcorrencias,
     totalServicosAvulsosOcorrencias,
+    clientesSemPlano,
   }
 }

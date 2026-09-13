@@ -73,7 +73,7 @@ export const ListaOM: React.FC<ListaOMProps> = ({
   const [busca, setBusca] = useState('')
   const [filtroPlano, setFiltroPlano] = useState<string>('todos')
   const [filtroPosVendas, setFiltroPosVendas] = useState<
-    'todos' | 'oportunidades' | 'servico_avulso'
+    'todos' | 'oportunidades' | 'servico_avulso' | 'sem_plano'
   >('todos')
   const [ordenacao, setOrdenacao] = useState<'nome' | 'potencia' | 'valor' | 'proxima_visita'>(
     'nome',
@@ -126,9 +126,10 @@ export const ListaOM: React.FC<ListaOMProps> = ({
   }, [clientes, contratosOM, sistemas, servicosAdicionaisOM, anomaliasOM, servicosAvulsos])
 
   // 2. Clientes Pós-Vendas
-  // Todos os clientes que têm relacionamento com a Delfos mas não têm plano de manutenção.
-  // Isso inclui clientes que instalaram energia solar e clientes que já fizeram serviços avulsos.
-  // Dentro dessa lista, marque automaticamente como Oportunidade de O&M os clientes que instalaram solar mas ainda não contrataram manutenção.
+  // Todos os clientes que têm relacionamento com a Delfos (inclusive clientes importados do Conta Azul
+  // ou Pipedrive e qualquer cliente cadastrado no CRM) mas não têm plano de manutenção ativo.
+  // Dentro dessa lista, marque com destaque especial (badge "Oportunidade de O&M") quem instalou solar
+  // ou tem usina e ainda não tem plano contratado.
   const clientesPosVendas = useMemo(() => {
     return clientes
       .map((cliente) => {
@@ -143,7 +144,7 @@ export const ListaOM: React.FC<ListaOMProps> = ({
           servicosAvulsos,
         )
 
-        // Se tem plano ativo, NÃO entra no Pós-Vendas
+        // Se tem plano ativo, NÃO entra no Pós-Vendas (vai para a Lista 1: Clientes com Plano de Manutenção)
         if (categoria === 'plano_ativo') return null
 
         const avulsosDoCliente = servicosAvulsos.filter((s) => s.cliente_id === cliente.id)
@@ -153,19 +154,29 @@ export const ListaOM: React.FC<ListaOMProps> = ({
         // Critério para instalou solar:
         // - Potência cadastrada no sistema ou cliente > 0
         // - Possui data de instalação
-        // - Produto é Energia Solar ou status Fechado
+        // - Status Fechado
+        // - Produto é Energia Solar ou usina cadastrada
         const instalouSolar =
           potencia > 0 ||
           Boolean(cliente.data_instalacao) ||
           cliente.status === 'Fechado' ||
           cliente.produto === 'Energia Solar'
 
-        // É uma oportunidade de O&M automática se instalou solar mas não tem plano O&M contratado
+        // É uma oportunidade de O&M automática com destaque visual se instalou solar mas não tem plano O&M contratado
         const isOportunidadeOM = instalouSolar
 
         // Próximo agendamento / último serviço avulso
         const proximoServicoAgendado = avulsosDoCliente.find((s) => s.status === 'agendado')
         const servicoMaisRecente = ultimoServicoAvulso || avulsosDoCliente[0]
+
+        // Identifica origem do cliente (ex.: Conta Azul, Pipedrive, etc.)
+        const isContaAzul =
+          Boolean(cliente.dados_importados?.['Razão Social / Nome']) ||
+          Boolean(cliente.dados_importados?.['Data do Cadastro']) ||
+          cliente.origem_lead === 'Outro'
+        const isImportado = Boolean(
+          cliente.dados_importados && Object.keys(cliente.dados_importados).length > 0,
+        )
 
         return {
           cliente,
@@ -177,6 +188,8 @@ export const ListaOM: React.FC<ListaOMProps> = ({
           ultimoServicoAvulso: servicoMaisRecente,
           proximoServicoAgendado,
           dataInstalacao: sistema?.data_instalacao || cliente.data_instalacao,
+          isContaAzul,
+          isImportado,
         }
       })
       .filter(Boolean) as {
@@ -189,6 +202,8 @@ export const ListaOM: React.FC<ListaOMProps> = ({
       ultimoServicoAvulso?: ServicoAvulso
       proximoServicoAgendado?: ServicoAvulso
       dataInstalacao?: string
+      isContaAzul: boolean
+      isImportado: boolean
     }[]
   }, [clientes, contratosOM, sistemas, servicosAdicionaisOM, anomaliasOM, servicosAvulsos])
 
@@ -197,6 +212,9 @@ export const ListaOM: React.FC<ListaOMProps> = ({
   const countPosVendas = clientesPosVendas.length
   const countOportunidadesOM = clientesPosVendas.filter((p) => p.isOportunidadeOM).length
   const countComServicoAvulso = clientesPosVendas.filter((p) => p.temServicoAvulso).length
+  const countSemPlano = clientesPosVendas.filter(
+    (p) => !p.isOportunidadeOM && !p.temServicoAvulso,
+  ).length
 
   // Filtragem da lista 1 (Com Plano)
   const itensPlanoFiltrados = useMemo(() => {
@@ -236,6 +254,9 @@ export const ListaOM: React.FC<ListaOMProps> = ({
         }
         if (filtroPosVendas === 'servico_avulso') {
           return matchBusca && item.temServicoAvulso
+        }
+        if (filtroPosVendas === 'sem_plano') {
+          return matchBusca && !item.isOportunidadeOM && !item.temServicoAvulso
         }
         return matchBusca
       })
@@ -459,6 +480,7 @@ export const ListaOM: React.FC<ListaOMProps> = ({
                   <option value="oportunidades">
                     ⭐ Oportunidades de O&M (Solar instalado) ({countOportunidadesOM})
                   </option>
+                  <option value="sem_plano">Clientes sem plano ativo ({countSemPlano})</option>
                   <option value="servico_avulso">
                     Com serviço avulso realizado ({countComServicoAvulso})
                   </option>
@@ -691,11 +713,12 @@ export const ListaOM: React.FC<ListaOMProps> = ({
                 <p className="font-bold text-slate-900 text-sm">
                   Base de Relacionamento Pós-Vendas (Clientes sem Plano O&M)
                 </p>
-                <p className="mt-0.5">
-                  Reúne todos os clientes que já instalaram usinas solares ou contrataram serviços
-                  avulsos da Delfos. Clientes com usina solar instalada são marcados automaticamente
-                  como <strong className="text-amber-800 font-bold">Oportunidade de O&M</strong>{' '}
-                  para oferta de planos preventivos ou limpezas periódicas.
+                <p className="mt-0.5 leading-relaxed">
+                  Reúne todos os clientes cadastrados no CRM da Delfos (incluindo clientes
+                  importados do Conta Azul e Pipedrive) que ainda não possuem um plano de manutenção
+                  ativo. Clientes com energia solar instalada têm o destaque especial{' '}
+                  <strong className="text-amber-800 font-bold">⭐ Oportunidade de O&M</strong> para
+                  oferta de planos preventivos, monitoramento e limpezas periódicas.
                 </p>
               </div>
             </div>
@@ -769,7 +792,7 @@ export const ListaOM: React.FC<ListaOMProps> = ({
                             )}
                           </td>
 
-                          {/* Classificação: Badge automático "Oportunidade de O&M" */}
+                          {/* Classificação: Badge automático "Oportunidade de O&M" ou "Cliente Pós-Vendas" */}
                           <td className="py-3.5 px-4 whitespace-nowrap">
                             {item.isOportunidadeOM ? (
                               <div className="flex flex-col gap-1 items-start">
@@ -781,11 +804,28 @@ export const ListaOM: React.FC<ListaOMProps> = ({
                                   Instalou solar sem plano O&M
                                 </span>
                               </div>
+                            ) : item.temServicoAvulso ? (
+                              <div className="flex flex-col gap-1 items-start">
+                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-800 border border-blue-200">
+                                  <Wrench className="w-3 h-3 text-blue-600" />
+                                  Serviço Avulso Realizado
+                                </span>
+                                <span className="text-[10px] text-blue-700 font-medium pl-1">
+                                  Cliente Delfos sem plano fixo
+                                </span>
+                              </div>
                             ) : (
-                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-200">
-                                <Wrench className="w-3 h-3 text-slate-500" />
-                                Cliente de Serviço Avulso
-                              </span>
+                              <div className="flex flex-col gap-1 items-start">
+                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-200">
+                                  <User className="w-3 h-3 text-slate-500" />
+                                  Cliente sem Plano
+                                </span>
+                                <span className="text-[10px] text-slate-500 font-medium pl-1">
+                                  {item.isImportado
+                                    ? 'Importado Conta Azul / CRM'
+                                    : 'Base de clientes Delfos'}
+                                </span>
+                              </div>
                             )}
                           </td>
 
@@ -838,7 +878,7 @@ export const ListaOM: React.FC<ListaOMProps> = ({
                                 </span>
                               </div>
                             ) : (
-                              <span className="text-[11px] text-amber-700 font-medium">
+                              <span className="text-[11px] text-slate-600 font-medium">
                                 Pronto para contato O&M
                               </span>
                             )}
@@ -897,10 +937,14 @@ export const ListaOM: React.FC<ListaOMProps> = ({
                           {item.cliente.cidade || 'Erechim/RS'}
                         </p>
                       </div>
-                      {item.isOportunidadeOM && (
+                      {item.isOportunidadeOM ? (
                         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-100 text-amber-900 border border-amber-300 shrink-0">
                           <Sparkles className="w-3 h-3 text-amber-600" />
                           Oportunidade O&M
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-slate-100 text-slate-700 border border-slate-200 shrink-0">
+                          Pós-Vendas
                         </span>
                       )}
                     </div>

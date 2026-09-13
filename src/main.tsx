@@ -4,6 +4,7 @@ import App from './App.tsx'
 import './main.css'
 import { runWhatsAppGatewayTests } from './lib/whatsappGateway.test.ts'
 import { runOrcamentoFornecedorFlowTests } from './lib/orcamentoFornecedorFlow.test.ts'
+import { runOmCategorizacaoTests } from './lib/omCategorizacao.test.ts'
 
 if (import.meta.env.DEV) {
   const testResults = runWhatsAppGatewayTests()
@@ -14,6 +15,11 @@ if (import.meta.env.DEV) {
   const orcamentoTests = runOrcamentoFornecedorFlowTests()
   if (orcamentoTests.errors.length > 0) {
     console.error('[OrcamentoFornecedor Tests Failed]', orcamentoTests.errors)
+  }
+
+  const omTests = runOmCategorizacaoTests()
+  if (omTests.errors.length > 0) {
+    console.error('[OmCategorizacao Tests Failed]', omTests.errors)
   }
 }
 
