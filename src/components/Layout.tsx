@@ -30,6 +30,7 @@ import { ModalGerenciarWhatsAppTemplates } from '@/components/ModalGerenciarWhat
 import { FichaClienteDrawer } from '@/components/FichaClienteDrawer'
 import { DelfosLogo } from '@/components/DelfosLogo'
 import { NotificacoesBell } from '@/components/NotificacoesBell'
+import { BarraBuscaGlobal } from '@/components/BarraBuscaGlobal'
 
 export default function Layout() {
   const { user, userProfile, isAdmin, isInstalador, logout } = useAuth()
@@ -385,18 +386,21 @@ export default function Layout() {
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Top Header */}
-        <header className="h-16 bg-white border-b border-[#E5E7EB] px-4 sm:px-6 lg:px-8 flex items-center justify-between sticky top-0 z-20">
-          <div className="flex items-center gap-3">
+        <header className="h-16 bg-white border-b border-[#E5E7EB] px-3 sm:px-6 lg:px-8 flex items-center justify-between gap-3 sticky top-0 z-20">
+          {/* Lado Esquerdo: Hambúrguer em Mobile + Barra de Busca Central Estilo Pipedrive */}
+          <div className="flex items-center gap-2 sm:gap-3 flex-1 max-w-2xl min-w-0">
             <button
               onClick={() => setMobileMenuOpen(true)}
-              className="lg:hidden p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+              className="lg:hidden p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors shrink-0"
               aria-label="Abrir menu"
             >
               <Menu className="w-5 h-5" />
             </button>
-            <h1 className="text-xl sm:text-2xl font-bold text-[#1F2937] tracking-tight">
-              {getPageTitle()}
-            </h1>
+
+            {/* Barra de Busca Proeminente ocupando o espaço onde ficava o título repetido */}
+            <div className="flex-1 min-w-0">
+              <BarraBuscaGlobal />
+            </div>
           </div>
 
           <div className="flex items-center gap-2 sm:gap-3">
