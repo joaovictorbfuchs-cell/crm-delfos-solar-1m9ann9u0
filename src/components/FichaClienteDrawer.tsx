@@ -7,7 +7,6 @@ import {
   FileText,
   Calendar,
   Zap,
-  Cpu,
   Layers,
   Clock,
   Wrench,
@@ -567,6 +566,25 @@ export const FichaClienteDrawer: React.FC = () => {
     if (!selectedCliente) return
     const p = proposta || propostaAprovada
 
+    const marcaModeloInversorEfetiva =
+      p?.marca_inversor ||
+      (selectedSistema?.fabricante_inversores && selectedSistema?.modelo_inversores
+        ? `${selectedSistema.fabricante_inversores} ${selectedSistema.modelo_inversores}`.trim()
+        : selectedSistema?.fabricante_inversores ||
+          selectedSistema?.modelo_inversores ||
+          (selectedCliente.inversor_marca && selectedCliente.inversor_modelo
+            ? `${selectedCliente.inversor_marca} ${selectedCliente.inversor_modelo}`.trim()
+            : selectedCliente.inversor_marca ||
+              selectedCliente.inversor_modelo ||
+              'Growatt MAC 25KTL3-XL'))
+
+    const potenciaInversorKwEfetiva =
+      selectedSistema?.potencia_pico_inversores_kwp ||
+      (p?.potencia_kwp ? Math.round(p.potencia_kwp * 0.9) : undefined) ||
+      selectedSistema?.potencia_total_kwp ||
+      selectedCliente.potencia_kwp ||
+      25.0
+
     const dadosIniciais: Partial<DadosDocumentoProjetoInput> = {
       tipo,
       clienteNome: selectedCliente.nome || '',
@@ -611,15 +629,8 @@ export const FichaClienteDrawer: React.FC = () => {
         selectedSistema?.marca_placas ||
         selectedCliente.placas_marca ||
         'Canadian Solar 570W TOPCon',
-      marcaModeloInversor:
-        p?.marca_inversor ||
-        selectedSistema?.fabricante_inversores ||
-        selectedSistema?.modelo_inversores ||
-        selectedCliente.inversor_marca ||
-        'Growatt MAC 25KTL3-XL',
-      potenciaInversorKw:
-        selectedSistema?.potencia_pico_inversores_kwp ||
-        (p?.potencia_kwp ? Math.round(p.potencia_kwp * 0.9) : 25.0),
+      marcaModeloInversor: marcaModeloInversorEfetiva,
+      potenciaInversorKw: potenciaInversorKwEfetiva,
       valorTotal: p?.valor_investimento || selectedCliente.valor_estimado || 78500,
       condicoesPagamento: 'Entrada de 30% + Saldo financiado ou na homologação',
       cidade: selectedCliente.cidade || 'Passo Fundo / RS',
@@ -2862,98 +2873,7 @@ export const FichaClienteDrawer: React.FC = () => {
                           </div>
                         </div>
 
-                        {/* Inversores */}
-                        <div className="p-3 bg-gray-50/50 rounded-lg border border-gray-200 space-y-2 text-xs">
-                          <div className="flex items-center justify-between border-b border-gray-200/70 pb-1.5">
-                            <span className="font-bold text-gray-800 flex items-center gap-1.5">
-                              <Cpu className="w-3.5 h-3.5 text-purple-600" />
-                              Inversor Solar
-                            </span>
-                            <div className="flex items-center gap-1">
-                              <span className="text-[10px] text-gray-400 uppercase font-semibold">
-                                Potência:
-                              </span>
-                              <InlineEditField
-                                value={
-                                  selectedSistema?.potencia_pico_inversores_kwp ?? potenciaExibida
-                                }
-                                displayValue={
-                                  <span className="font-bold text-purple-800 bg-purple-50 px-2 py-0.5 rounded text-xs border border-purple-200">
-                                    {selectedSistema?.potencia_pico_inversores_kwp ??
-                                      potenciaExibida}{' '}
-                                    kWp
-                                  </span>
-                                }
-                                type="number"
-                                step="0.1"
-                                min={0}
-                                unit="kWp"
-                                placeholder="0"
-                                onSave={async (val) =>
-                                  handleUpdateSistemaField(
-                                    'potencia_pico_inversores_kwp',
-                                    Number(val),
-                                  )
-                                }
-                              />
-                            </div>
-                          </div>
-
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                            <div className="flex items-center gap-2">
-                              <span className="text-gray-500 w-16 shrink-0">Fabricante:</span>
-                              <InlineEditField
-                                value={
-                                  selectedSistema?.fabricante_inversores ||
-                                  selectedCliente.inversor_marca ||
-                                  'Fronius'
-                                }
-                                displayValue={
-                                  <span className="font-medium text-gray-800">
-                                    {selectedSistema?.fabricante_inversores ||
-                                      selectedCliente.inversor_marca ||
-                                      'Não informado'}
-                                  </span>
-                                }
-                                type="text"
-                                placeholder="Fronius, Huawei, Growatt"
-                                onSave={async (val) => {
-                                  const s = String(val)
-                                  await handleUpdateSistemaField('fabricante_inversores', s)
-                                  await handleUpdateClienteField('inversor_marca', s)
-                                }}
-                              />
-                            </div>
-
-                            <div className="flex items-center gap-2">
-                              <span className="text-gray-500 w-16 shrink-0">Modelo:</span>
-                              <InlineEditField
-                                value={
-                                  selectedSistema?.modelo_inversores ||
-                                  selectedCliente.inversor_modelo ||
-                                  'Fronius Symo 12.0-3-M'
-                                }
-                                displayValue={
-                                  <span className="font-semibold text-gray-800 truncate">
-                                    {selectedSistema?.modelo_inversores ||
-                                      selectedCliente.inversor_modelo ||
-                                      'Não informado'}
-                                  </span>
-                                }
-                                type="text"
-                                placeholder="Modelo do inversor"
-                                className="flex-1"
-                                onSave={async (val) => {
-                                  const s = String(val)
-                                  await handleUpdateSistemaField('modelo_inversores', s)
-                                  await handleUpdateClienteField('inversor_modelo', s)
-                                }}
-                              />
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Monitoramento do Inversor (App, Login, Senha, Link Datalogger & Padrões por Marca) */}
+                        {/* Monitoramento do Inversor (App, Login, Senha, Link Datalogger, Marca, Modelo, Potência & Padrões por Marca) */}
                         <SecaoMonitoramentoInversor
                           cliente={selectedCliente}
                           sistema={selectedSistema}

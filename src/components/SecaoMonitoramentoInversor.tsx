@@ -146,6 +146,14 @@ export const SecaoMonitoramentoInversor: React.FC<SecaoMonitoramentoInversorProp
         // inicializa com os dados legados da ficha do cliente/sistema
         const marcaInicial = sistema?.fabricante_inversores || cliente.inversor_marca || 'SolarEdge'
         const modeloInicial = sistema?.modelo_inversores || cliente.inversor_modelo || ''
+        const potInicial =
+          sistema?.potencia_pico_inversores_kwp && sistema.potencia_pico_inversores_kwp > 0
+            ? sistema.potencia_pico_inversores_kwp
+            : sistema?.potencia_total_kwp && sistema.potencia_total_kwp > 0
+              ? sistema.potencia_total_kwp
+              : cliente.potencia_kwp && cliente.potencia_kwp > 0
+                ? cliente.potencia_kwp
+                : undefined
         const appInicial = cliente.monitoramento_app_nome || sistema?.monitoramento_app_nome || ''
         const loginInicial = cliente.monitoramento_login || sistema?.monitoramento_login || ''
         const senhaInicial = cliente.monitoramento_senha || sistema?.monitoramento_senha || ''
@@ -160,6 +168,7 @@ export const SecaoMonitoramentoInversor: React.FC<SecaoMonitoramentoInversorProp
             tempId: 'temp-1',
             marca_inversor: marcaInicial,
             modelo_inversor: modeloInicial,
+            potencia_kwp: potInicial,
             app_nome: appInicial || padrao?.app_nome || '',
             login: loginInicial || padrao?.login_padrao || '',
             senha: senhaInicial || padrao?.senha_padrao || '',
@@ -401,28 +410,40 @@ export const SecaoMonitoramentoInversor: React.FC<SecaoMonitoramentoInversorProp
       // Sincronizar o primeiro inversor com os campos legados do cliente/sistema para retrocompatibilidade
       const primeiro = novosSalvos[0]
       if (primeiro) {
-        if (primeiro.marca_inversor) {
-          await onUpdateClienteField('inversor_marca', primeiro.marca_inversor)
+        await onUpdateClienteField('inversor_marca', primeiro.marca_inversor || '')
+        await onUpdateClienteField('inversor_modelo', primeiro.modelo_inversor || '')
+        await onUpdateClienteField('monitoramento_app_nome', primeiro.app_nome || '')
+        await onUpdateClienteField('monitoramento_login', primeiro.login || '')
+        await onUpdateClienteField('monitoramento_senha', primeiro.senha || '')
+        await onUpdateClienteField('monitoramento_datalogger_url', primeiro.datalogger_url || '')
+
+        // Se houver potência definida, sincronizar potência total / pico
+        const somaPotenciaInversores = novosSalvos.reduce(
+          (acc, inv) => acc + (Number(inv.potencia_kwp) || 0),
+          0,
+        )
+        const potParaSincronizar =
+          somaPotenciaInversores > 0
+            ? somaPotenciaInversores
+            : primeiro.potencia_kwp
+              ? Number(primeiro.potencia_kwp)
+              : undefined
+
+        if (potParaSincronizar !== undefined && potParaSincronizar > 0) {
+          await onUpdateClienteField('potencia_kwp', potParaSincronizar)
         }
-        if (primeiro.modelo_inversor) {
-          await onUpdateClienteField('inversor_modelo', primeiro.modelo_inversor)
-        }
-        await onUpdateClienteField('monitoramento_app_nome', primeiro.app_nome)
-        await onUpdateClienteField('monitoramento_login', primeiro.login)
-        await onUpdateClienteField('monitoramento_senha', primeiro.senha)
-        await onUpdateClienteField('monitoramento_datalogger_url', primeiro.datalogger_url)
 
         if (onUpdateSistemaField && sistema) {
-          if (primeiro.marca_inversor) {
-            await onUpdateSistemaField('fabricante_inversores', primeiro.marca_inversor)
+          await onUpdateSistemaField('fabricante_inversores', primeiro.marca_inversor || '')
+          await onUpdateSistemaField('modelo_inversores', primeiro.modelo_inversor || '')
+          await onUpdateSistemaField('monitoramento_app_nome', primeiro.app_nome || '')
+          await onUpdateSistemaField('monitoramento_login', primeiro.login || '')
+          await onUpdateSistemaField('monitoramento_senha', primeiro.senha || '')
+          await onUpdateSistemaField('monitoramento_datalogger_url', primeiro.datalogger_url || '')
+          if (potParaSincronizar !== undefined && potParaSincronizar > 0) {
+            await onUpdateSistemaField('potencia_pico_inversores_kwp', potParaSincronizar)
+            await onUpdateSistemaField('potencia_total_kwp', potParaSincronizar)
           }
-          if (primeiro.modelo_inversor) {
-            await onUpdateSistemaField('modelo_inversores', primeiro.modelo_inversor)
-          }
-          await onUpdateSistemaField('monitoramento_app_nome', primeiro.app_nome)
-          await onUpdateSistemaField('monitoramento_login', primeiro.login)
-          await onUpdateSistemaField('monitoramento_senha', primeiro.senha)
-          await onUpdateSistemaField('monitoramento_datalogger_url', primeiro.datalogger_url)
         }
       }
 
@@ -467,8 +488,9 @@ export const SecaoMonitoramentoInversor: React.FC<SecaoMonitoramentoInversorProp
 
     inversores.forEach((inv, idx) => {
       const numLabel = inversores.length > 1 ? ` (Inversor #${idx + 1})` : ''
+      const potenciaTexto = inv.potencia_kwp ? ` (${inv.potencia_kwp} kWp)` : ''
       linhasMensagem.push(
-        `⚡ *INVERSOR${numLabel}:* ${inv.marca_inversor || 'Não informada'}${inv.modelo_inversor ? ` - ${inv.modelo_inversor}` : ''}`,
+        `⚡ *INVERSOR${numLabel}:* ${inv.marca_inversor || 'Não informada'}${inv.modelo_inversor ? ` - ${inv.modelo_inversor}` : ''}${potenciaTexto}`,
       )
       if (inv.app_nome) linhasMensagem.push(`📱 *Aplicativo:* ${inv.app_nome}`)
       if (inv.login) linhasMensagem.push(`👤 *Login:* ${inv.login}`)
@@ -641,26 +663,36 @@ export const SecaoMonitoramentoInversor: React.FC<SecaoMonitoramentoInversorProp
                       />
                     </div>
 
-                    {/* Potência ou Observação rápida */}
+                    {/* Potência do Inversor (kWp) com destaque visual */}
                     <div className="space-y-1">
                       <label className="text-[11px] font-semibold text-gray-700 flex items-center justify-between">
-                        <span>Potência (kWp)</span>
-                        <span className="text-[10px] text-gray-400 font-normal">Opcional</span>
+                        <span className="text-purple-900 font-bold">Potência (kWp)</span>
+                        {inv.potencia_kwp !== undefined && inv.potencia_kwp > 0 && (
+                          <span className="text-[10px] font-bold text-purple-700 bg-purple-50 px-1.5 py-0.2 rounded border border-purple-200">
+                            {inv.potencia_kwp} kWp
+                          </span>
+                        )}
                       </label>
-                      <input
-                        type="number"
-                        step="0.1"
-                        value={inv.potencia_kwp ?? ''}
-                        onChange={(e) =>
-                          handleUpdateInversorField(
-                            index,
-                            'potencia_kwp',
-                            e.target.value ? Number(e.target.value) : undefined,
-                          )
-                        }
-                        placeholder="Ex.: 15.0"
-                        className="w-full bg-white border border-gray-300 rounded-lg px-3 py-1.5 text-xs text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500/40 focus:border-purple-500 transition-all shadow-2xs font-mono"
-                      />
+                      <div className="relative flex items-center">
+                        <input
+                          type="number"
+                          step="0.1"
+                          min={0}
+                          value={inv.potencia_kwp ?? ''}
+                          onChange={(e) =>
+                            handleUpdateInversorField(
+                              index,
+                              'potencia_kwp',
+                              e.target.value !== '' ? Number(e.target.value) : undefined,
+                            )
+                          }
+                          placeholder="Ex.: 17.6"
+                          className="w-full bg-white border border-gray-300 rounded-lg pl-3 pr-10 py-1.5 text-xs text-purple-950 font-bold placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500/40 focus:border-purple-500 transition-all shadow-2xs font-mono"
+                        />
+                        <span className="absolute right-2.5 text-[11px] font-bold text-gray-400 pointer-events-none">
+                          kWp
+                        </span>
+                      </div>
                     </div>
                   </div>
 
