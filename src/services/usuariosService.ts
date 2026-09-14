@@ -89,7 +89,7 @@ export async function createUsuarioSistema(data: NovoUsuarioInput): Promise<Sist
     }
 
     // 2. Não existe registro prévio: criar normalmente
-    const record = await pb.collection('users').create<any>({
+    const createPayload: Record<string, any> = {
       name: data.name.trim(),
       email: normalizedEmail,
       phone: data.phone?.trim() || '',
@@ -98,8 +98,28 @@ export async function createUsuarioSistema(data: NovoUsuarioInput): Promise<Sist
       emailVisibility: false,
       role: data.role,
       ativo: data.ativo ?? true,
-      verified: true,
-    })
+    }
+
+    let record: any
+    try {
+      // Tentar criação incluindo verified: true (se manageRule permitir)
+      record = await pb.collection('users').create<any>({
+        ...createPayload,
+        verified: true,
+      })
+    } catch (createErr: any) {
+      // Se falhar devido a validação de verified ou similar em cliente não-superuser,
+      // tentar sem a chave verified
+      const isVerifiedIssue =
+        createErr?.data?.data?.verified ||
+        createErr?.response?.data?.verified ||
+        createErr?.message?.includes('verified')
+      if (isVerifiedIssue) {
+        record = await pb.collection('users').create<any>(createPayload)
+      } else {
+        throw createErr
+      }
+    }
 
     return {
       id: record.id,

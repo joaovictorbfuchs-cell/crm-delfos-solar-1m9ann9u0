@@ -18,6 +18,8 @@ import {
   Mail,
   User,
   Power,
+  Eye,
+  EyeOff,
 } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import {
@@ -69,6 +71,12 @@ export default function GerenciarUsuarios() {
   const [usuarioParaEditar, setUsuarioParaEditar] = useState<SistemaUsuario | null>(null)
   const [usuarioParaExcluir, setUsuarioParaExcluir] = useState<SistemaUsuario | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
+
+  // Toggle de visualização de senha nos modais
+  const [showNovoPassword, setShowNovoPassword] = useState(false)
+  const [showNovoPasswordConfirm, setShowNovoPasswordConfirm] = useState(false)
+  const [showEditPassword, setShowEditPassword] = useState(false)
+  const [showEditPasswordConfirm, setShowEditPasswordConfirm] = useState(false)
 
   // Formulário Novo Usuário
   const [novoForm, setNovoForm] = useState<NovoUsuarioInput>({
@@ -152,9 +160,11 @@ export default function GerenciarUsuarios() {
       phone: '',
       password: '',
       passwordConfirm: '',
-      role: 'instalador',
+      role: 'admin',
       ativo: true,
     })
+    setShowNovoPassword(false)
+    setShowNovoPasswordConfirm(false)
     setModalNovoOpen(true)
   }
 
@@ -186,10 +196,43 @@ export default function GerenciarUsuarios() {
       setModalNovoOpen(false)
       toast.success(`Usuário "${created.name}" salvo com sucesso!`)
     } catch (err: any) {
-      console.error(err)
-      const msg =
-        err?.data?.data?.email?.message ||
-        'Erro ao cadastrar usuário. Verifique os dados informados.'
+      console.error('Erro ao cadastrar usuário:', err)
+
+      // Extração rica de mensagens de erro específicas do PocketBase
+      const errorData = err?.data?.data || err?.response?.data || {}
+      let msg = ''
+
+      if (errorData?.email?.message) {
+        const emailMsg = String(errorData.email.message)
+        if (
+          emailMsg.toLowerCase().includes('unique') ||
+          emailMsg.toLowerCase().includes('already')
+        ) {
+          msg = 'Este e-mail já está cadastrado no sistema Delfos.'
+        } else if (
+          emailMsg.toLowerCase().includes('valid') ||
+          emailMsg.toLowerCase().includes('format')
+        ) {
+          msg = 'Formato de e-mail inválido.'
+        } else {
+          msg = `E-mail: ${emailMsg}`
+        }
+      } else if (errorData?.password?.message) {
+        msg = `Senha: ${errorData.password.message}`
+      } else if (errorData?.passwordConfirm?.message) {
+        msg = `Confirmação de senha: ${errorData.passwordConfirm.message}`
+      } else if (errorData?.name?.message) {
+        msg = `Nome: ${errorData.name.message}`
+      } else if (errorData?.role?.message) {
+        msg = `Perfil: ${errorData.role.message}`
+      } else if (err?.message && !err.message.includes('ClientResponseError')) {
+        msg = err.message
+      }
+
+      if (!msg) {
+        msg = 'Erro ao cadastrar usuário. Verifique os dados informados ou tente novamente.'
+      }
+
       toast.error(msg)
     } finally {
       setIsSubmitting(false)
@@ -208,6 +251,8 @@ export default function GerenciarUsuarios() {
       newPassword: '',
       newPasswordConfirm: '',
     })
+    setShowEditPassword(false)
+    setShowEditPasswordConfirm(false)
     setModalEditarOpen(true)
   }
 
@@ -736,27 +781,57 @@ export default function GerenciarUsuarios() {
                 <label className="block text-xs font-bold text-gray-700 mb-1">
                   Senha Provisória *
                 </label>
-                <Input
-                  type="password"
-                  required
-                  placeholder="Mínimo 8 dígitos"
-                  value={novoForm.password}
-                  onChange={(e) => setNovoForm({ ...novoForm, password: e.target.value })}
-                  className="h-10 text-xs sm:text-sm rounded-xl"
-                />
+                <div className="relative">
+                  <Input
+                    type={showNovoPassword ? 'text' : 'password'}
+                    required
+                    placeholder="Mínimo 8 dígitos"
+                    value={novoForm.password}
+                    onChange={(e) => setNovoForm({ ...novoForm, password: e.target.value })}
+                    className="h-10 pr-10 text-xs sm:text-sm rounded-xl"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowNovoPassword(!showNovoPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 focus:outline-hidden p-0.5 rounded-md"
+                    title={showNovoPassword ? 'Ocultar senha' : 'Ver senha'}
+                    aria-label={showNovoPassword ? 'Ocultar senha' : 'Ver senha'}
+                  >
+                    {showNovoPassword ? (
+                      <EyeOff className="w-4 h-4" />
+                    ) : (
+                      <Eye className="w-4 h-4" />
+                    )}
+                  </button>
+                </div>
               </div>
               <div>
                 <label className="block text-xs font-bold text-gray-700 mb-1">
                   Confirmar Senha *
                 </label>
-                <Input
-                  type="password"
-                  required
-                  placeholder="Repita a senha"
-                  value={novoForm.passwordConfirm}
-                  onChange={(e) => setNovoForm({ ...novoForm, passwordConfirm: e.target.value })}
-                  className="h-10 text-xs sm:text-sm rounded-xl"
-                />
+                <div className="relative">
+                  <Input
+                    type={showNovoPasswordConfirm ? 'text' : 'password'}
+                    required
+                    placeholder="Repita a senha"
+                    value={novoForm.passwordConfirm}
+                    onChange={(e) => setNovoForm({ ...novoForm, passwordConfirm: e.target.value })}
+                    className="h-10 pr-10 text-xs sm:text-sm rounded-xl"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowNovoPasswordConfirm(!showNovoPasswordConfirm)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 focus:outline-hidden p-0.5 rounded-md"
+                    title={showNovoPasswordConfirm ? 'Ocultar senha' : 'Ver senha'}
+                    aria-label={showNovoPasswordConfirm ? 'Ocultar senha' : 'Ver senha'}
+                  >
+                    {showNovoPasswordConfirm ? (
+                      <EyeOff className="w-4 h-4" />
+                    ) : (
+                      <Eye className="w-4 h-4" />
+                    )}
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -915,20 +990,52 @@ export default function GerenciarUsuarios() {
               </p>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                <Input
-                  type="password"
-                  placeholder="Nova senha (min. 8)"
-                  value={editForm.newPassword}
-                  onChange={(e) => setEditForm({ ...editForm, newPassword: e.target.value })}
-                  className="h-9 text-xs rounded-xl"
-                />
-                <Input
-                  type="password"
-                  placeholder="Confirmar nova senha"
-                  value={editForm.newPasswordConfirm}
-                  onChange={(e) => setEditForm({ ...editForm, newPasswordConfirm: e.target.value })}
-                  className="h-9 text-xs rounded-xl"
-                />
+                <div className="relative">
+                  <Input
+                    type={showEditPassword ? 'text' : 'password'}
+                    placeholder="Nova senha (min. 8)"
+                    value={editForm.newPassword}
+                    onChange={(e) => setEditForm({ ...editForm, newPassword: e.target.value })}
+                    className="h-9 pr-9 text-xs rounded-xl"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowEditPassword(!showEditPassword)}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 focus:outline-hidden p-0.5"
+                    title={showEditPassword ? 'Ocultar senha' : 'Ver senha'}
+                    aria-label={showEditPassword ? 'Ocultar senha' : 'Ver senha'}
+                  >
+                    {showEditPassword ? (
+                      <EyeOff className="w-3.5 h-3.5" />
+                    ) : (
+                      <Eye className="w-3.5 h-3.5" />
+                    )}
+                  </button>
+                </div>
+                <div className="relative">
+                  <Input
+                    type={showEditPasswordConfirm ? 'text' : 'password'}
+                    placeholder="Confirmar nova senha"
+                    value={editForm.newPasswordConfirm}
+                    onChange={(e) =>
+                      setEditForm({ ...editForm, newPasswordConfirm: e.target.value })
+                    }
+                    className="h-9 pr-9 text-xs rounded-xl"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowEditPasswordConfirm(!showEditPasswordConfirm)}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 focus:outline-hidden p-0.5"
+                    title={showEditPasswordConfirm ? 'Ocultar senha' : 'Ver senha'}
+                    aria-label={showEditPasswordConfirm ? 'Ocultar senha' : 'Ver senha'}
+                  >
+                    {showEditPasswordConfirm ? (
+                      <EyeOff className="w-3.5 h-3.5" />
+                    ) : (
+                      <Eye className="w-3.5 h-3.5" />
+                    )}
+                  </button>
+                </div>
               </div>
             </div>
 
