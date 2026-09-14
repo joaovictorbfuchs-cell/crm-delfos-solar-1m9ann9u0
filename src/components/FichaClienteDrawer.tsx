@@ -616,12 +616,26 @@ export const FichaClienteDrawer: React.FC = () => {
               selectedCliente.inversor_modelo ||
               'Growatt MAC 25KTL3-XL'))
 
+    const potenciaProjetoEfetiva =
+      p?.potencia_kwp ||
+      selectedClienteProjeto?.potencia_kwp ||
+      selectedSistema?.potencia_total_kwp ||
+      selectedCliente.potencia_kwp ||
+      28.5
+
     const potenciaInversorKwEfetiva =
       selectedSistema?.potencia_pico_inversores_kwp ||
-      (p?.potencia_kwp ? Math.round(p.potencia_kwp * 0.9) : undefined) ||
+      (potenciaProjetoEfetiva ? Math.round(potenciaProjetoEfetiva * 0.9) : undefined) ||
       selectedSistema?.potencia_total_kwp ||
       selectedCliente.potencia_kwp ||
       25.0
+
+    const modulosQtdEfetiva =
+      p?.numero_placas ||
+      selectedSistema?.quantidade_modulos ||
+      selectedSistema?.quantidade_placas ||
+      selectedCliente.placas_qtd ||
+      (potenciaProjetoEfetiva > 0 ? Math.round((potenciaProjetoEfetiva * 1000) / 570) : 50)
 
     const dadosIniciais: Partial<DadosDocumentoProjetoInput> = {
       tipo,
@@ -649,17 +663,8 @@ export const FichaClienteDrawer: React.FC = () => {
         selectedCliente.concessionaria ||
         selectedSistema?.concessionaria ||
         'RGE (Rio Grande Energia)',
-      potenciaKwp:
-        p?.potencia_kwp ||
-        selectedSistema?.potencia_total_kwp ||
-        selectedCliente.potencia_kwp ||
-        28.5,
-      quantidadeModulos:
-        p?.numero_placas ||
-        selectedSistema?.quantidade_modulos ||
-        selectedSistema?.quantidade_placas ||
-        selectedCliente.placas_qtd ||
-        50,
+      potenciaKwp: potenciaProjetoEfetiva,
+      quantidadeModulos: modulosQtdEfetiva,
       marcaModeloModulos:
         p?.marca_painel ||
         selectedSistema?.fabricante_modulos ||
@@ -671,7 +676,7 @@ export const FichaClienteDrawer: React.FC = () => {
       potenciaInversorKw: potenciaInversorKwEfetiva,
       valorTotal: p?.valor_investimento || selectedCliente.valor_estimado || 78500,
       condicoesPagamento: 'Entrada de 30% + Saldo financiado ou na homologação',
-      cidade: selectedCliente.cidade || 'Passo Fundo / RS',
+      cidade: selectedClienteProjeto?.cidade || selectedCliente.cidade || 'Erechim / RS',
     }
 
     setModalDocProjetoTipo(tipo)
@@ -1436,383 +1441,401 @@ export const FichaClienteDrawer: React.FC = () => {
                         )}
                       </div>
 
-                      {/* Documentos do Projeto Fotovoltaico (quando houver proposta com status Aprovada) */}
-                      {propostaAprovada && (
-                        <div className="p-4 rounded-2xl border border-emerald-300 bg-gradient-to-r from-emerald-50/80 via-white to-teal-50/60 shadow-xs space-y-3">
-                          <div className="flex items-center justify-between flex-wrap gap-2 pb-2 border-b border-emerald-100">
-                            <div className="flex items-center gap-2">
-                              <FileCheck className="w-4 h-4 text-emerald-700" />
-                              <div>
-                                <h4 className="text-xs font-bold uppercase tracking-wider text-emerald-950 flex items-center gap-1.5">
-                                  <span>Documentação Técnica & Contratual do Projeto</span>
-                                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300 normal-case">
-                                    Proposta Solar Aprovada
-                                  </span>
-                                </h4>
-                                <p className="text-[11px] text-gray-600">
-                                  Gere os documentos oficiais revisando os dados da proposta
-                                  aprovada e do titular antes do download.
-                                </p>
+                      {/* Documentos do Projeto Fotovoltaico */}
+                      {(() => {
+                        // Se houver proposta aprovada usa ela, caso contrário usa dados do projeto/cliente/sistema
+                        const docPotencia =
+                          propostaAprovada?.potencia_kwp ||
+                          selectedClienteProjeto?.potencia_kwp ||
+                          potenciaExibida ||
+                          selectedCliente.potencia_kwp ||
+                          0
+                        const docValor =
+                          propostaAprovada?.valor_investimento ||
+                          selectedCliente.valor_estimado ||
+                          0
+
+                        return (
+                          <div className="p-4 rounded-2xl border border-emerald-300 bg-gradient-to-r from-emerald-50/80 via-white to-teal-50/60 shadow-xs space-y-3">
+                            <div className="flex items-center justify-between flex-wrap gap-2 pb-2 border-b border-emerald-100">
+                              <div className="flex items-center gap-2">
+                                <FileCheck className="w-4 h-4 text-emerald-700" />
+                                <div>
+                                  <h4 className="text-xs font-bold uppercase tracking-wider text-emerald-950 flex items-center gap-1.5">
+                                    <span>Documentação Técnica & Contratual do Projeto</span>
+                                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300 normal-case">
+                                      {propostaAprovada
+                                        ? 'Proposta Solar Aprovada'
+                                        : selectedClienteProjeto?.etapa || 'Projeto em Andamento'}
+                                    </span>
+                                  </h4>
+                                  <p className="text-[11px] text-gray-600">
+                                    Gere os documentos oficiais revisando os dados da proposta ou do
+                                    projeto e do titular antes do download.
+                                  </p>
+                                </div>
                               </div>
+                              <span className="text-xs font-bold text-emerald-800 bg-white px-2.5 py-1 rounded-lg border border-emerald-200 shadow-2xs">
+                                {docPotencia > 0 ? `${docPotencia} kWp` : 'Potência a definir'}{' '}
+                                {docValor > 0 ? `• ${formatCurrency(docValor)}` : ''}
+                              </span>
                             </div>
-                            <span className="text-xs font-bold text-emerald-800 bg-white px-2.5 py-1 rounded-lg border border-emerald-200 shadow-2xs">
-                              {propostaAprovada.potencia_kwp} kWp •{' '}
-                              {formatCurrency(propostaAprovada.valor_investimento)}
-                            </span>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-2.5 pt-1">
+                              {/* Card 1: Procuração (aciona o mesmo fluxo/modal de Procuração do O&M / Projetos) */}
+                              {(() => {
+                                const doc = getDocumentoCliente('procuracao')
+                                const isAssinado = doc?.status_assinatura === 'assinado'
+                                const isAguardando =
+                                  doc?.status_assinatura === 'aguardando_assinatura'
+
+                                return (
+                                  <div className="flex flex-col justify-between p-3 rounded-xl bg-white border border-emerald-200/90 shadow-2xs transition-all hover:border-emerald-400 group">
+                                    <div
+                                      onClick={() =>
+                                        handleAbrirDocumentoProjeto('procuracao', propostaAprovada)
+                                      }
+                                      className="cursor-pointer space-y-1.5"
+                                    >
+                                      <div className="flex items-center justify-between w-full mb-1">
+                                        <span className="p-1.5 rounded-lg bg-emerald-100 text-emerald-800 group-hover:bg-emerald-600 group-hover:text-white transition-colors">
+                                          <FileText className="w-4 h-4" />
+                                        </span>
+                                        <span className="text-[10px] font-bold uppercase text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded">
+                                          PDF / Whats
+                                        </span>
+                                      </div>
+                                      <span className="text-xs font-bold text-gray-900 group-hover:text-emerald-800 block">
+                                        Elaborar Procuração
+                                      </span>
+                                      <span className="text-[11px] text-gray-500 block leading-tight">
+                                        Concessionária e homologação
+                                      </span>
+                                    </div>
+
+                                    {/* Badge de Status de Assinatura + Ação manual de marcar como assinado */}
+                                    <div className="mt-3 pt-2 border-t border-slate-100 flex items-center justify-between gap-1 flex-wrap">
+                                      {isAssinado ? (
+                                        <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 border border-emerald-300">
+                                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                                          <span>Assinado</span>
+                                        </span>
+                                      ) : isAguardando ? (
+                                        <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-md bg-amber-100 text-amber-900 border border-amber-300">
+                                          <Clock className="w-3 h-3 text-amber-700" />
+                                          <span>Aguardando Assinatura</span>
+                                        </span>
+                                      ) : (
+                                        <span className="text-[10px] text-slate-400">
+                                          Não emitido
+                                        </span>
+                                      )}
+
+                                      <button
+                                        type="button"
+                                        onClick={(e) =>
+                                          handleAlternarStatusDocumento(e, 'procuracao')
+                                        }
+                                        className={`text-[10px] font-semibold underline transition-colors ${
+                                          isAssinado
+                                            ? 'text-slate-500 hover:text-amber-700'
+                                            : 'text-emerald-700 hover:text-emerald-900'
+                                        }`}
+                                        title={
+                                          isAssinado
+                                            ? 'Reabrir / Desmarcar como assinado'
+                                            : 'Marcar documento como assinado pelo cliente'
+                                        }
+                                      >
+                                        {isAssinado ? 'Reabrir' : 'Marcar assinado'}
+                                      </button>
+                                    </div>
+                                  </div>
+                                )
+                              })()}
+
+                              {/* Card 2: Contrato */}
+                              {(() => {
+                                const doc = getDocumentoCliente('contrato')
+                                const isAssinado = doc?.status_assinatura === 'assinado'
+                                const isAguardando =
+                                  doc?.status_assinatura === 'aguardando_assinatura'
+
+                                return (
+                                  <div className="flex flex-col justify-between p-3 rounded-xl bg-white border border-emerald-200/90 shadow-2xs transition-all hover:border-emerald-400 group">
+                                    <div
+                                      onClick={() =>
+                                        handleAbrirDocumentoProjeto('contrato', propostaAprovada)
+                                      }
+                                      className="cursor-pointer space-y-1.5"
+                                    >
+                                      <div className="flex items-center justify-between w-full mb-1">
+                                        <span className="p-1.5 rounded-lg bg-emerald-100 text-emerald-800 group-hover:bg-emerald-600 group-hover:text-white transition-colors">
+                                          <ShieldCheck className="w-4 h-4" />
+                                        </span>
+                                        <span className="text-[10px] font-bold uppercase text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded">
+                                          PDF / Whats
+                                        </span>
+                                      </div>
+                                      <span className="text-xs font-bold text-gray-900 group-hover:text-emerald-800 block">
+                                        Elaborar Contrato
+                                      </span>
+                                      <span className="text-[11px] text-gray-500 block leading-tight">
+                                        Fornecimento e instalação Delfos
+                                      </span>
+                                    </div>
+
+                                    {/* Badge de Status de Assinatura + Ação manual */}
+                                    <div className="mt-3 pt-2 border-t border-slate-100 flex items-center justify-between gap-1 flex-wrap">
+                                      {isAssinado ? (
+                                        <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 border border-emerald-300">
+                                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                                          <span>Assinado</span>
+                                        </span>
+                                      ) : isAguardando ? (
+                                        <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-md bg-amber-100 text-amber-900 border border-amber-300">
+                                          <Clock className="w-3 h-3 text-amber-700" />
+                                          <span>Aguardando Assinatura</span>
+                                        </span>
+                                      ) : (
+                                        <span className="text-[10px] text-slate-400">
+                                          Não emitido
+                                        </span>
+                                      )}
+
+                                      <button
+                                        type="button"
+                                        onClick={(e) =>
+                                          handleAlternarStatusDocumento(e, 'contrato')
+                                        }
+                                        className={`text-[10px] font-semibold underline transition-colors ${
+                                          isAssinado
+                                            ? 'text-slate-500 hover:text-amber-700'
+                                            : 'text-emerald-700 hover:text-emerald-900'
+                                        }`}
+                                        title={
+                                          isAssinado
+                                            ? 'Reabrir / Desmarcar como assinado'
+                                            : 'Marcar documento como assinado pelo cliente'
+                                        }
+                                      >
+                                        {isAssinado ? 'Reabrir' : 'Marcar assinado'}
+                                      </button>
+                                    </div>
+                                  </div>
+                                )
+                              })()}
+
+                              {/* Card 3: Anexo E */}
+                              {(() => {
+                                const doc = getDocumentoCliente('anexo_e')
+                                const isAssinado = doc?.status_assinatura === 'assinado'
+                                const isAguardando =
+                                  doc?.status_assinatura === 'aguardando_assinatura'
+
+                                return (
+                                  <div className="flex flex-col justify-between p-3 rounded-xl bg-white border border-emerald-200/90 shadow-2xs transition-all hover:border-emerald-400 group">
+                                    <div
+                                      onClick={() =>
+                                        handleAbrirDocumentoProjeto('anexo_e', propostaAprovada)
+                                      }
+                                      className="cursor-pointer space-y-1.5"
+                                    >
+                                      <div className="flex items-center justify-between w-full mb-1">
+                                        <span className="p-1.5 rounded-lg bg-emerald-100 text-emerald-800 group-hover:bg-emerald-600 group-hover:text-white transition-colors">
+                                          <FileCheck className="w-4 h-4" />
+                                        </span>
+                                        <span className="text-[10px] font-bold uppercase text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded">
+                                          PDF / Whats
+                                        </span>
+                                      </div>
+                                      <span className="text-xs font-bold text-gray-900 group-hover:text-emerald-800 block">
+                                        Elaborar Anexo E
+                                      </span>
+                                      <span className="text-[11px] text-gray-500 block leading-tight">
+                                        Formulário de Acesso Micro/Mini
+                                      </span>
+                                    </div>
+
+                                    <div className="mt-3 pt-2 border-t border-slate-100 flex items-center justify-between gap-1 flex-wrap">
+                                      {isAssinado ? (
+                                        <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 border border-emerald-300">
+                                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                                          <span>Assinado</span>
+                                        </span>
+                                      ) : isAguardando ? (
+                                        <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-md bg-amber-100 text-amber-900 border border-amber-300">
+                                          <Clock className="w-3 h-3 text-amber-700" />
+                                          <span>Aguardando Assinatura</span>
+                                        </span>
+                                      ) : (
+                                        <span className="text-[10px] text-slate-400">
+                                          Não emitido
+                                        </span>
+                                      )}
+
+                                      <button
+                                        type="button"
+                                        onClick={(e) => handleAlternarStatusDocumento(e, 'anexo_e')}
+                                        className={`text-[10px] font-semibold underline transition-colors ${
+                                          isAssinado
+                                            ? 'text-slate-500 hover:text-amber-700'
+                                            : 'text-emerald-700 hover:text-emerald-900'
+                                        }`}
+                                        title={
+                                          isAssinado
+                                            ? 'Reabrir / Desmarcar como assinado'
+                                            : 'Marcar documento como assinado pelo cliente'
+                                        }
+                                      >
+                                        {isAssinado ? 'Reabrir' : 'Marcar assinado'}
+                                      </button>
+                                    </div>
+                                  </div>
+                                )
+                              })()}
+
+                              {/* Card 4: Anexo F */}
+                              {(() => {
+                                const doc = getDocumentoCliente('anexo_f')
+                                const isAssinado = doc?.status_assinatura === 'assinado'
+                                const isAguardando =
+                                  doc?.status_assinatura === 'aguardando_assinatura'
+
+                                return (
+                                  <div className="flex flex-col justify-between p-3 rounded-xl bg-white border border-emerald-200/90 shadow-2xs transition-all hover:border-emerald-400 group">
+                                    <div
+                                      onClick={() =>
+                                        handleAbrirDocumentoProjeto('anexo_f', propostaAprovada)
+                                      }
+                                      className="cursor-pointer space-y-1.5"
+                                    >
+                                      <div className="flex items-center justify-between w-full mb-1">
+                                        <span className="p-1.5 rounded-lg bg-emerald-100 text-emerald-800 group-hover:bg-emerald-600 group-hover:text-white transition-colors">
+                                          <FileText className="w-4 h-4" />
+                                        </span>
+                                        <span className="text-[10px] font-bold uppercase text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded">
+                                          PDF / Whats
+                                        </span>
+                                      </div>
+                                      <span className="text-xs font-bold text-gray-900 group-hover:text-emerald-800 block">
+                                        Elaborar Anexo F
+                                      </span>
+                                      <span className="text-[11px] text-gray-500 block leading-tight">
+                                        Memorial descritivo da usina
+                                      </span>
+                                    </div>
+
+                                    <div className="mt-3 pt-2 border-t border-slate-100 flex items-center justify-between gap-1 flex-wrap">
+                                      {isAssinado ? (
+                                        <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 border border-emerald-300">
+                                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                                          <span>Assinado</span>
+                                        </span>
+                                      ) : isAguardando ? (
+                                        <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-md bg-amber-100 text-amber-900 border border-amber-300">
+                                          <Clock className="w-3 h-3 text-amber-700" />
+                                          <span>Aguardando Assinatura</span>
+                                        </span>
+                                      ) : (
+                                        <span className="text-[10px] text-slate-400">
+                                          Não emitido
+                                        </span>
+                                      )}
+
+                                      <button
+                                        type="button"
+                                        onClick={(e) => handleAlternarStatusDocumento(e, 'anexo_f')}
+                                        className={`text-[10px] font-semibold underline transition-colors ${
+                                          isAssinado
+                                            ? 'text-slate-500 hover:text-amber-700'
+                                            : 'text-emerald-700 hover:text-emerald-900'
+                                        }`}
+                                        title={
+                                          isAssinado
+                                            ? 'Reabrir / Desmarcar como assinado'
+                                            : 'Marcar documento como assinado pelo cliente'
+                                        }
+                                      >
+                                        {isAssinado ? 'Reabrir' : 'Marcar assinado'}
+                                      </button>
+                                    </div>
+                                  </div>
+                                )
+                              })()}
+
+                              {/* Card 5: Anexo G */}
+                              {(() => {
+                                const doc = getDocumentoCliente('anexo_g')
+                                const isAssinado = doc?.status_assinatura === 'assinado'
+                                const isAguardando =
+                                  doc?.status_assinatura === 'aguardando_assinatura'
+
+                                return (
+                                  <div className="flex flex-col justify-between p-3 rounded-xl bg-white border border-emerald-200/90 shadow-2xs transition-all hover:border-emerald-400 group">
+                                    <div
+                                      onClick={() =>
+                                        handleAbrirDocumentoProjeto('anexo_g', propostaAprovada)
+                                      }
+                                      className="cursor-pointer space-y-1.5"
+                                    >
+                                      <div className="flex items-center justify-between w-full mb-1">
+                                        <span className="p-1.5 rounded-lg bg-emerald-100 text-emerald-800 group-hover:bg-emerald-600 group-hover:text-white transition-colors">
+                                          <FileCheck className="w-4 h-4" />
+                                        </span>
+                                        <span className="text-[10px] font-bold uppercase text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded">
+                                          PDF / Whats
+                                        </span>
+                                      </div>
+                                      <span className="text-xs font-bold text-gray-900 group-hover:text-emerald-800 block">
+                                        Elaborar Anexo G
+                                      </span>
+                                      <span className="text-[11px] text-gray-500 block leading-tight">
+                                        Rateio e compensação (SCEE)
+                                      </span>
+                                    </div>
+
+                                    <div className="mt-3 pt-2 border-t border-slate-100 flex items-center justify-between gap-1 flex-wrap">
+                                      {isAssinado ? (
+                                        <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 border border-emerald-300">
+                                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                                          <span>Assinado</span>
+                                        </span>
+                                      ) : isAguardando ? (
+                                        <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-md bg-amber-100 text-amber-900 border border-amber-300">
+                                          <Clock className="w-3 h-3 text-amber-700" />
+                                          <span>Aguardando Assinatura</span>
+                                        </span>
+                                      ) : (
+                                        <span className="text-[10px] text-slate-400">
+                                          Não emitido
+                                        </span>
+                                      )}
+
+                                      <button
+                                        type="button"
+                                        onClick={(e) => handleAlternarStatusDocumento(e, 'anexo_g')}
+                                        className={`text-[10px] font-semibold underline transition-colors ${
+                                          isAssinado
+                                            ? 'text-slate-500 hover:text-amber-700'
+                                            : 'text-emerald-700 hover:text-emerald-900'
+                                        }`}
+                                        title={
+                                          isAssinado
+                                            ? 'Reabrir / Desmarcar como assinado'
+                                            : 'Marcar documento como assinado pelo cliente'
+                                        }
+                                      >
+                                        {isAssinado ? 'Reabrir' : 'Marcar assinado'}
+                                      </button>
+                                    </div>
+                                  </div>
+                                )
+                              })()}
+                            </div>
                           </div>
-
-                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-2.5 pt-1">
-                            {/* Card 1: Procuração */}
-                            {(() => {
-                              const doc = getDocumentoCliente('procuracao')
-                              const isAssinado = doc?.status_assinatura === 'assinado'
-                              const isAguardando =
-                                doc?.status_assinatura === 'aguardando_assinatura'
-
-                              return (
-                                <div className="flex flex-col justify-between p-3 rounded-xl bg-white border border-emerald-200/90 shadow-2xs transition-all hover:border-emerald-400 group">
-                                  <div
-                                    onClick={() =>
-                                      handleAbrirDocumentoProjeto('procuracao', propostaAprovada)
-                                    }
-                                    className="cursor-pointer space-y-1.5"
-                                  >
-                                    <div className="flex items-center justify-between w-full mb-1">
-                                      <span className="p-1.5 rounded-lg bg-emerald-100 text-emerald-800 group-hover:bg-emerald-600 group-hover:text-white transition-colors">
-                                        <FileText className="w-4 h-4" />
-                                      </span>
-                                      <span className="text-[10px] font-bold uppercase text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded">
-                                        PDF / Whats
-                                      </span>
-                                    </div>
-                                    <span className="text-xs font-bold text-gray-900 group-hover:text-emerald-800 block">
-                                      Elaborar Procuração
-                                    </span>
-                                    <span className="text-[11px] text-gray-500 block leading-tight">
-                                      Concessionária e homologação
-                                    </span>
-                                  </div>
-
-                                  {/* Badge de Status de Assinatura + Ação manual de marcar como assinado */}
-                                  <div className="mt-3 pt-2 border-t border-slate-100 flex items-center justify-between gap-1 flex-wrap">
-                                    {isAssinado ? (
-                                      <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 border border-emerald-300">
-                                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                                        <span>Assinado</span>
-                                      </span>
-                                    ) : isAguardando ? (
-                                      <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-md bg-amber-100 text-amber-900 border border-amber-300">
-                                        <Clock className="w-3 h-3 text-amber-700" />
-                                        <span>Aguardando Assinatura</span>
-                                      </span>
-                                    ) : (
-                                      <span className="text-[10px] text-slate-400">
-                                        Não emitido
-                                      </span>
-                                    )}
-
-                                    <button
-                                      type="button"
-                                      onClick={(e) =>
-                                        handleAlternarStatusDocumento(e, 'procuracao')
-                                      }
-                                      className={`text-[10px] font-semibold underline transition-colors ${
-                                        isAssinado
-                                          ? 'text-slate-500 hover:text-amber-700'
-                                          : 'text-emerald-700 hover:text-emerald-900'
-                                      }`}
-                                      title={
-                                        isAssinado
-                                          ? 'Reabrir / Desmarcar como assinado'
-                                          : 'Marcar documento como assinado pelo cliente'
-                                      }
-                                    >
-                                      {isAssinado ? 'Reabrir' : 'Marcar assinado'}
-                                    </button>
-                                  </div>
-                                </div>
-                              )
-                            })()}
-
-                            {/* Card 2: Contrato */}
-                            {(() => {
-                              const doc = getDocumentoCliente('contrato')
-                              const isAssinado = doc?.status_assinatura === 'assinado'
-                              const isAguardando =
-                                doc?.status_assinatura === 'aguardando_assinatura'
-
-                              return (
-                                <div className="flex flex-col justify-between p-3 rounded-xl bg-white border border-emerald-200/90 shadow-2xs transition-all hover:border-emerald-400 group">
-                                  <div
-                                    onClick={() =>
-                                      handleAbrirDocumentoProjeto('contrato', propostaAprovada)
-                                    }
-                                    className="cursor-pointer space-y-1.5"
-                                  >
-                                    <div className="flex items-center justify-between w-full mb-1">
-                                      <span className="p-1.5 rounded-lg bg-emerald-100 text-emerald-800 group-hover:bg-emerald-600 group-hover:text-white transition-colors">
-                                        <ShieldCheck className="w-4 h-4" />
-                                      </span>
-                                      <span className="text-[10px] font-bold uppercase text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded">
-                                        PDF / Whats
-                                      </span>
-                                    </div>
-                                    <span className="text-xs font-bold text-gray-900 group-hover:text-emerald-800 block">
-                                      Elaborar Contrato
-                                    </span>
-                                    <span className="text-[11px] text-gray-500 block leading-tight">
-                                      Fornecimento e instalação Delfos
-                                    </span>
-                                  </div>
-
-                                  {/* Badge de Status de Assinatura + Ação manual */}
-                                  <div className="mt-3 pt-2 border-t border-slate-100 flex items-center justify-between gap-1 flex-wrap">
-                                    {isAssinado ? (
-                                      <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 border border-emerald-300">
-                                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                                        <span>Assinado</span>
-                                      </span>
-                                    ) : isAguardando ? (
-                                      <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-md bg-amber-100 text-amber-900 border border-amber-300">
-                                        <Clock className="w-3 h-3 text-amber-700" />
-                                        <span>Aguardando Assinatura</span>
-                                      </span>
-                                    ) : (
-                                      <span className="text-[10px] text-slate-400">
-                                        Não emitido
-                                      </span>
-                                    )}
-
-                                    <button
-                                      type="button"
-                                      onClick={(e) => handleAlternarStatusDocumento(e, 'contrato')}
-                                      className={`text-[10px] font-semibold underline transition-colors ${
-                                        isAssinado
-                                          ? 'text-slate-500 hover:text-amber-700'
-                                          : 'text-emerald-700 hover:text-emerald-900'
-                                      }`}
-                                      title={
-                                        isAssinado
-                                          ? 'Reabrir / Desmarcar como assinado'
-                                          : 'Marcar documento como assinado pelo cliente'
-                                      }
-                                    >
-                                      {isAssinado ? 'Reabrir' : 'Marcar assinado'}
-                                    </button>
-                                  </div>
-                                </div>
-                              )
-                            })()}
-
-                            {/* Card 3: Anexo E */}
-                            {(() => {
-                              const doc = getDocumentoCliente('anexo_e')
-                              const isAssinado = doc?.status_assinatura === 'assinado'
-                              const isAguardando =
-                                doc?.status_assinatura === 'aguardando_assinatura'
-
-                              return (
-                                <div className="flex flex-col justify-between p-3 rounded-xl bg-white border border-emerald-200/90 shadow-2xs transition-all hover:border-emerald-400 group">
-                                  <div
-                                    onClick={() =>
-                                      handleAbrirDocumentoProjeto('anexo_e', propostaAprovada)
-                                    }
-                                    className="cursor-pointer space-y-1.5"
-                                  >
-                                    <div className="flex items-center justify-between w-full mb-1">
-                                      <span className="p-1.5 rounded-lg bg-emerald-100 text-emerald-800 group-hover:bg-emerald-600 group-hover:text-white transition-colors">
-                                        <FileCheck className="w-4 h-4" />
-                                      </span>
-                                      <span className="text-[10px] font-bold uppercase text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded">
-                                        PDF / Whats
-                                      </span>
-                                    </div>
-                                    <span className="text-xs font-bold text-gray-900 group-hover:text-emerald-800 block">
-                                      Elaborar Anexo E
-                                    </span>
-                                    <span className="text-[11px] text-gray-500 block leading-tight">
-                                      Formulário de Acesso Micro/Mini
-                                    </span>
-                                  </div>
-
-                                  <div className="mt-3 pt-2 border-t border-slate-100 flex items-center justify-between gap-1 flex-wrap">
-                                    {isAssinado ? (
-                                      <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 border border-emerald-300">
-                                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                                        <span>Assinado</span>
-                                      </span>
-                                    ) : isAguardando ? (
-                                      <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-md bg-amber-100 text-amber-900 border border-amber-300">
-                                        <Clock className="w-3 h-3 text-amber-700" />
-                                        <span>Aguardando Assinatura</span>
-                                      </span>
-                                    ) : (
-                                      <span className="text-[10px] text-slate-400">
-                                        Não emitido
-                                      </span>
-                                    )}
-
-                                    <button
-                                      type="button"
-                                      onClick={(e) => handleAlternarStatusDocumento(e, 'anexo_e')}
-                                      className={`text-[10px] font-semibold underline transition-colors ${
-                                        isAssinado
-                                          ? 'text-slate-500 hover:text-amber-700'
-                                          : 'text-emerald-700 hover:text-emerald-900'
-                                      }`}
-                                      title={
-                                        isAssinado
-                                          ? 'Reabrir / Desmarcar como assinado'
-                                          : 'Marcar documento como assinado pelo cliente'
-                                      }
-                                    >
-                                      {isAssinado ? 'Reabrir' : 'Marcar assinado'}
-                                    </button>
-                                  </div>
-                                </div>
-                              )
-                            })()}
-
-                            {/* Card 4: Anexo F */}
-                            {(() => {
-                              const doc = getDocumentoCliente('anexo_f')
-                              const isAssinado = doc?.status_assinatura === 'assinado'
-                              const isAguardando =
-                                doc?.status_assinatura === 'aguardando_assinatura'
-
-                              return (
-                                <div className="flex flex-col justify-between p-3 rounded-xl bg-white border border-emerald-200/90 shadow-2xs transition-all hover:border-emerald-400 group">
-                                  <div
-                                    onClick={() =>
-                                      handleAbrirDocumentoProjeto('anexo_f', propostaAprovada)
-                                    }
-                                    className="cursor-pointer space-y-1.5"
-                                  >
-                                    <div className="flex items-center justify-between w-full mb-1">
-                                      <span className="p-1.5 rounded-lg bg-emerald-100 text-emerald-800 group-hover:bg-emerald-600 group-hover:text-white transition-colors">
-                                        <FileText className="w-4 h-4" />
-                                      </span>
-                                      <span className="text-[10px] font-bold uppercase text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded">
-                                        PDF / Whats
-                                      </span>
-                                    </div>
-                                    <span className="text-xs font-bold text-gray-900 group-hover:text-emerald-800 block">
-                                      Elaborar Anexo F
-                                    </span>
-                                    <span className="text-[11px] text-gray-500 block leading-tight">
-                                      Memorial descritivo da usina
-                                    </span>
-                                  </div>
-
-                                  <div className="mt-3 pt-2 border-t border-slate-100 flex items-center justify-between gap-1 flex-wrap">
-                                    {isAssinado ? (
-                                      <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 border border-emerald-300">
-                                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                                        <span>Assinado</span>
-                                      </span>
-                                    ) : isAguardando ? (
-                                      <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-md bg-amber-100 text-amber-900 border border-amber-300">
-                                        <Clock className="w-3 h-3 text-amber-700" />
-                                        <span>Aguardando Assinatura</span>
-                                      </span>
-                                    ) : (
-                                      <span className="text-[10px] text-slate-400">
-                                        Não emitido
-                                      </span>
-                                    )}
-
-                                    <button
-                                      type="button"
-                                      onClick={(e) => handleAlternarStatusDocumento(e, 'anexo_f')}
-                                      className={`text-[10px] font-semibold underline transition-colors ${
-                                        isAssinado
-                                          ? 'text-slate-500 hover:text-amber-700'
-                                          : 'text-emerald-700 hover:text-emerald-900'
-                                      }`}
-                                      title={
-                                        isAssinado
-                                          ? 'Reabrir / Desmarcar como assinado'
-                                          : 'Marcar documento como assinado pelo cliente'
-                                      }
-                                    >
-                                      {isAssinado ? 'Reabrir' : 'Marcar assinado'}
-                                    </button>
-                                  </div>
-                                </div>
-                              )
-                            })()}
-
-                            {/* Card 5: Anexo G */}
-                            {(() => {
-                              const doc = getDocumentoCliente('anexo_g')
-                              const isAssinado = doc?.status_assinatura === 'assinado'
-                              const isAguardando =
-                                doc?.status_assinatura === 'aguardando_assinatura'
-
-                              return (
-                                <div className="flex flex-col justify-between p-3 rounded-xl bg-white border border-emerald-200/90 shadow-2xs transition-all hover:border-emerald-400 group">
-                                  <div
-                                    onClick={() =>
-                                      handleAbrirDocumentoProjeto('anexo_g', propostaAprovada)
-                                    }
-                                    className="cursor-pointer space-y-1.5"
-                                  >
-                                    <div className="flex items-center justify-between w-full mb-1">
-                                      <span className="p-1.5 rounded-lg bg-emerald-100 text-emerald-800 group-hover:bg-emerald-600 group-hover:text-white transition-colors">
-                                        <FileCheck className="w-4 h-4" />
-                                      </span>
-                                      <span className="text-[10px] font-bold uppercase text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded">
-                                        PDF / Whats
-                                      </span>
-                                    </div>
-                                    <span className="text-xs font-bold text-gray-900 group-hover:text-emerald-800 block">
-                                      Elaborar Anexo G
-                                    </span>
-                                    <span className="text-[11px] text-gray-500 block leading-tight">
-                                      Rateio e compensação (SCEE)
-                                    </span>
-                                  </div>
-
-                                  <div className="mt-3 pt-2 border-t border-slate-100 flex items-center justify-between gap-1 flex-wrap">
-                                    {isAssinado ? (
-                                      <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 border border-emerald-300">
-                                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                                        <span>Assinado</span>
-                                      </span>
-                                    ) : isAguardando ? (
-                                      <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-md bg-amber-100 text-amber-900 border border-amber-300">
-                                        <Clock className="w-3 h-3 text-amber-700" />
-                                        <span>Aguardando Assinatura</span>
-                                      </span>
-                                    ) : (
-                                      <span className="text-[10px] text-slate-400">
-                                        Não emitido
-                                      </span>
-                                    )}
-
-                                    <button
-                                      type="button"
-                                      onClick={(e) => handleAlternarStatusDocumento(e, 'anexo_g')}
-                                      className={`text-[10px] font-semibold underline transition-colors ${
-                                        isAssinado
-                                          ? 'text-slate-500 hover:text-amber-700'
-                                          : 'text-emerald-700 hover:text-emerald-900'
-                                      }`}
-                                      title={
-                                        isAssinado
-                                          ? 'Reabrir / Desmarcar como assinado'
-                                          : 'Marcar documento como assinado pelo cliente'
-                                      }
-                                    >
-                                      {isAssinado ? 'Reabrir' : 'Marcar assinado'}
-                                    </button>
-                                  </div>
-                                </div>
-                              )
-                            })()}
-                          </div>
-                        </div>
-                      )}
+                        )
+                      })()}
 
                       {/* Histórico de Mudanças de Etapa com Datas */}
                       <div className="space-y-3">
