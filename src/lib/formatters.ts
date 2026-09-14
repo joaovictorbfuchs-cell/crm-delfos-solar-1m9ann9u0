@@ -77,6 +77,54 @@ export function cleanPhoneDigits(phone: string | undefined | null): string {
   return phone.replace(/\D/g, '')
 }
 
+/**
+ * Converte valor numérico em string monetária formatada em Real (ex: 1198.8 -> "R$ 1.198,80").
+ * Sempre com 2 casas decimais e sem artefatos de ponto flutuante.
+ */
+export function formatCurrencyBRL(value: number | undefined | null): string {
+  if (value === undefined || value === null || isNaN(value)) {
+    return 'R$ 0,00'
+  }
+  const rounded = Math.round(Number(value) * 100) / 100
+  const parts = rounded.toFixed(2).split('.')
+  const integerPart = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, '.')
+  const decimalPart = parts[1]
+  return `R$ ${integerPart},${decimalPart}`
+}
+
+/**
+ * Converte qualquer entrada do usuário (com ou sem R$, pontos, vírgulas)
+ * para string com máscara monetária em Real brasileiro ("R$ 1.198,80").
+ * Interpreta os dígitos como centavos conforme o usuário digita.
+ */
+export function maskCurrencyBRL(input: string | number | undefined | null): string {
+  if (input === undefined || input === null) return 'R$ 0,00'
+  if (typeof input === 'number') {
+    return formatCurrencyBRL(input)
+  }
+  const digits = input.replace(/\D/g, '')
+  if (!digits || digits === '0') {
+    return 'R$ 0,00'
+  }
+  const numValue = parseInt(digits, 10) / 100
+  return formatCurrencyBRL(numValue)
+}
+
+/**
+ * Converte uma string digitada com ou sem máscara para um número float arredondado a 2 casas decimais.
+ * Ex: "R$ 1.198,80" -> 1198.8
+ */
+export function parseCurrencyBRL(val: string | number | undefined | null): number {
+  if (val === undefined || val === null) return 0
+  if (typeof val === 'number') {
+    return Math.round(val * 100) / 100
+  }
+  const digits = val.replace(/\D/g, '')
+  if (!digits) return 0
+  const cents = parseInt(digits, 10)
+  return Math.round(cents) / 100
+}
+
 export function getTelhadoLabel(tipo: string | undefined): string {
   switch (tipo) {
     case 'ceramico':

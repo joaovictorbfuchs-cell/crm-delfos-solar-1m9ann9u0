@@ -33,7 +33,14 @@ import { baixarContratoPDF, type DadosContratoOM } from '@/lib/contratoGenerator
 import { useClientes } from '@/contexts/ClientesContext'
 import type { TimelineUnifiedItem } from '@/types/timelineUnified'
 import type { Cliente, AtividadeTipo, AtividadeStatus } from '@/types/crm'
-import { formatCurrency, formatDate, formatDateTime } from '@/lib/formatters'
+import {
+  formatCurrency,
+  formatCurrencyBRL,
+  maskCurrencyBRL,
+  parseCurrencyBRL,
+  formatDate,
+  formatDateTime,
+} from '@/lib/formatters'
 import { ATIVIDADES_12_TIPOS, getTipoAtividadeConfig } from '@/constants/atividadesTipos'
 
 interface ModalDetalhesTimelineProps {
@@ -85,7 +92,7 @@ export const ModalDetalhesTimeline: React.FC<ModalDetalhesTimelineProps> = ({
   // Form states para Orçamento Solar
   const [formSolarStatus, setFormSolarStatus] = useState('Em elaboração')
   const [formSolarStatusRev, setFormSolarStatusRev] = useState('em análise')
-  const [formSolarValor, setFormSolarValor] = useState<number>(0)
+  const [formSolarValor, setFormSolarValor] = useState<string>('R$ 0,00')
   const [formSolarObs, setFormSolarObs] = useState('')
   const [formSolarPotencia, setFormSolarPotencia] = useState<number>(0)
   const [formSolarPlacas, setFormSolarPlacas] = useState<number>(0)
@@ -93,8 +100,8 @@ export const ModalDetalhesTimeline: React.FC<ModalDetalhesTimelineProps> = ({
   // Form states para Proposta O&M
   const [formOMStatus, setFormOMStatus] = useState('Proposta Enviada')
   const [formOMPlano, setFormOMPlano] = useState('Completo')
-  const [formOMValorMensal, setFormOMValorMensal] = useState<number>(0)
-  const [formOMValorAnual, setFormOMValorAnual] = useState<number>(0)
+  const [formOMValorMensal, setFormOMValorMensal] = useState<string>('R$ 0,00')
+  const [formOMValorAnual, setFormOMValorAnual] = useState<string>('R$ 0,00')
   const [formOMObs, setFormOMObs] = useState('')
 
   const { documentosCliente } = useClientes()
@@ -121,16 +128,21 @@ export const ModalDetalhesTimeline: React.FC<ModalDetalhesTimelineProps> = ({
       const o = item.rawOrcamentoSolar
       setFormSolarStatus(o.status || 'Em elaboração')
       setFormSolarStatusRev(o.status_revisao || 'em análise')
-      setFormSolarValor(o.valor_investimento || 0)
+      setFormSolarValor(formatCurrencyBRL(o.valor_investimento || 0))
       setFormSolarObs(o.observacoes || '')
       setFormSolarPotencia(o.potencia_kwp || 0)
       setFormSolarPlacas(o.numero_placas || 0)
     } else if (item.categoria === 'proposta_om' && item.rawPropostaOM) {
       const p = item.rawPropostaOM
+      const vMensal = p.valor_mensal_plano || 0
+      const vAnual =
+        p.valor_anual_plano !== undefined && p.valor_anual_plano > 0
+          ? p.valor_anual_plano
+          : Math.round(vMensal * 12 * 100) / 100
       setFormOMStatus(p.status || 'Proposta Enviada')
       setFormOMPlano(p.plano_escolhido || p.plano_recomendado || 'Completo')
-      setFormOMValorMensal(p.valor_mensal_plano || 0)
-      setFormOMValorAnual(p.valor_anual_plano || 0)
+      setFormOMValorMensal(formatCurrencyBRL(vMensal))
+      setFormOMValorAnual(formatCurrencyBRL(vAnual))
       setFormOMObs(p.observacoes || '')
     } else if (item.rawAtividade) {
       const a = item.rawAtividade
@@ -163,20 +175,24 @@ export const ModalDetalhesTimeline: React.FC<ModalDetalhesTimelineProps> = ({
         else if (formSolarStatusRev === 'rejeitada') stGeral = 'Rejeitado'
         else if (formSolarStatusRev === 'enviada ao cliente') stGeral = 'Enviado ao cliente'
 
+        const valorInvestimentoNum = parseCurrencyBRL(formSolarValor)
         await onUpdateOrcamentoSolar(item.rawOrcamentoSolar.id, {
           status: stGeral as any,
           status_revisao: formSolarStatusRev as any,
-          valor_investimento: Number(formSolarValor) || 0,
+          valor_investimento: valorInvestimentoNum,
           observacoes: formSolarObs,
           potencia_kwp: Number(formSolarPotencia) || item.rawOrcamentoSolar.potencia_kwp,
           numero_placas: Number(formSolarPlacas) || item.rawOrcamentoSolar.numero_placas,
         })
       } else if (item.categoria === 'proposta_om' && item.rawPropostaOM) {
+        const vMensalNum = parseCurrencyBRL(formOMValorMensal)
+        const vAnualNum =
+          parseCurrencyBRL(formOMValorAnual) || Math.round(vMensalNum * 12 * 100) / 100
         await onUpdatePropostaOM(item.rawPropostaOM.id, {
           status: formOMStatus,
           plano_escolhido: formOMPlano as any,
-          valor_mensal_plano: Number(formOMValorMensal) || 0,
-          valor_anual_plano: Number(formOMValorAnual) || (Number(formOMValorMensal) || 0) * 12,
+          valor_mensal_plano: vMensalNum,
+          valor_anual_plano: vAnualNum,
           observacoes: formOMObs,
         })
       } else if (item.rawAtividade) {
@@ -728,10 +744,11 @@ export const ModalDetalhesTimeline: React.FC<ModalDetalhesTimelineProps> = ({
                         Valor do Investimento (R$)
                       </label>
                       <input
-                        type="number"
-                        step="100"
+                        type="text"
+                        inputMode="numeric"
                         value={formSolarValor}
-                        onChange={(e) => setFormSolarValor(Number(e.target.value) || 0)}
+                        onChange={(e) => setFormSolarValor(maskCurrencyBRL(e.target.value))}
+                        placeholder="R$ 0,00"
                         className="w-full text-xs font-bold px-3 py-2 rounded-lg border border-gray-300 bg-white focus:outline-none focus:ring-1 focus:ring-emerald-500"
                       />
                     </div>
@@ -819,14 +836,17 @@ export const ModalDetalhesTimeline: React.FC<ModalDetalhesTimelineProps> = ({
                         Valor Mensal (R$/mês)
                       </label>
                       <input
-                        type="number"
-                        step="1"
+                        type="text"
+                        inputMode="numeric"
                         value={formOMValorMensal}
                         onChange={(e) => {
-                          const vm = Number(e.target.value) || 0
-                          setFormOMValorMensal(vm)
-                          setFormOMValorAnual(vm * 12)
+                          const masked = maskCurrencyBRL(e.target.value)
+                          const numMensal = parseCurrencyBRL(masked)
+                          const numAnual = Math.round(numMensal * 12 * 100) / 100
+                          setFormOMValorMensal(masked)
+                          setFormOMValorAnual(formatCurrencyBRL(numAnual))
                         }}
+                        placeholder="R$ 0,00"
                         className="w-full text-xs font-bold px-3 py-2 rounded-lg border border-gray-300 bg-white focus:outline-none focus:ring-1 focus:ring-emerald-500"
                       />
                     </div>
@@ -836,10 +856,11 @@ export const ModalDetalhesTimeline: React.FC<ModalDetalhesTimelineProps> = ({
                         Valor Anual (R$/ano)
                       </label>
                       <input
-                        type="number"
-                        step="10"
+                        type="text"
+                        inputMode="numeric"
                         value={formOMValorAnual}
-                        onChange={(e) => setFormOMValorAnual(Number(e.target.value) || 0)}
+                        onChange={(e) => setFormOMValorAnual(maskCurrencyBRL(e.target.value))}
+                        placeholder="R$ 0,00"
                         className="w-full text-xs font-bold px-3 py-2 rounded-lg border border-gray-300 bg-white focus:outline-none focus:ring-1 focus:ring-emerald-500"
                       />
                     </div>
