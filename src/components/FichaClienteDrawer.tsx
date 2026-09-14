@@ -3256,6 +3256,53 @@ export const FichaClienteDrawer: React.FC = () => {
               </span>
             </div>
 
+            {/* SEÇÃO MOTIVO DA PERDA (Exibida quando status for Perdido) */}
+            {selectedCliente.status === 'Perdido' && (
+              <div className="bg-rose-50/90 rounded-xl p-3.5 border border-rose-200 shadow-xs space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] uppercase font-bold text-rose-800 tracking-wider flex items-center gap-1.5">
+                    <XCircle className="w-3.5 h-3.5 text-rose-600" />
+                    Motivo da perda
+                  </span>
+                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-rose-200/80 text-rose-900 uppercase">
+                    Perdido
+                  </span>
+                </div>
+
+                <div className="space-y-1 text-xs">
+                  <div className="flex items-center gap-1.5 font-bold text-rose-950">
+                    <span className="capitalize">
+                      {selectedCliente.motivo_perda === 'preco'
+                        ? 'Preço (achou caro / fora do orçamento)'
+                        : selectedCliente.motivo_perda === 'concorrente'
+                          ? 'Concorrente (fechou com outra empresa)'
+                          : selectedCliente.motivo_perda === 'desistiu'
+                            ? 'Desistiu (não vai realizar o projeto)'
+                            : selectedCliente.motivo_perda === 'outro'
+                              ? 'Outro motivo'
+                              : selectedCliente.motivo_perda || 'Não especificado'}
+                    </span>
+                  </div>
+
+                  {(selectedCliente.updated || selectedCliente.created) && (
+                    <div className="text-[11px] text-rose-700 flex items-center gap-1">
+                      <Calendar className="w-3 h-3 text-rose-500 shrink-0" />
+                      <span>
+                        Registrado em{' '}
+                        {formatDateTime(selectedCliente.updated || selectedCliente.created)}
+                      </span>
+                    </div>
+                  )}
+
+                  {selectedCliente.observacoes && (
+                    <p className="text-[11px] text-rose-800 italic bg-white/70 p-2 rounded border border-rose-100 mt-1 leading-snug">
+                      "{selectedCliente.observacoes}"
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
+
             {/* Card 1: Próxima Atividade Agendada (NOVO REQUISITO) */}
             <div className="bg-white rounded-xl p-3.5 border border-emerald-200/80 shadow-xs space-y-2 relative overflow-hidden">
               <div className="flex items-center justify-between">

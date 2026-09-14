@@ -175,6 +175,8 @@ export interface Cliente extends RecordModel {
   transferido_pos_vendas?: boolean
   data_transferencia_pos_vendas?: string
   origem_pos_vendas?: string
+  area_destino?: 'projetos' | 'om' | string
+  motivo_perda?: 'preco' | 'concorrente' | 'desistiu' | 'outro' | string
   arquivado?: boolean
   dados_importados?: Record<string, string | number | boolean | null> | null
   // Dados de Acesso ao Monitoramento do Inversor

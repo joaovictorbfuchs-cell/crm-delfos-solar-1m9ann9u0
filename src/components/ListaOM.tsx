@@ -107,7 +107,7 @@ export const ListaOM: React.FC<ListaOMProps> = ({
   const [busca, setBusca] = useState('')
   const [filtroPlano, setFiltroPlano] = useState<string>('todos')
   const [filtroPosVendas, setFiltroPosVendas] = useState<
-    'todos' | 'oportunidades' | 'servico_avulso' | 'sem_plano'
+    'todos' | 'oportunidades' | 'servico_avulso' | 'sem_plano' | 'projetos' | 'om'
   >('todos')
   const [ordenacao, setOrdenacao] = useState<'nome' | 'potencia' | 'valor' | 'proxima_visita'>(
     'nome',
@@ -367,6 +367,12 @@ export const ListaOM: React.FC<ListaOMProps> = ({
           nomeCliente.toLowerCase().includes(busca.toLowerCase()) ||
           cidadeCliente.toLowerCase().includes(busca.toLowerCase())
 
+        if (filtroPosVendas === 'projetos') {
+          return matchBusca && item.cliente.area_destino === 'projetos'
+        }
+        if (filtroPosVendas === 'om') {
+          return matchBusca && item.cliente.area_destino === 'om'
+        }
         if (filtroPosVendas === 'oportunidades') {
           return matchBusca && item.isOportunidadeOM
         }
@@ -660,6 +666,8 @@ export const ListaOM: React.FC<ListaOMProps> = ({
                   className="px-2.5 py-2 rounded-lg border border-gray-300 bg-white font-medium text-gray-700 text-xs"
                 >
                   <option value="todos">Todos os Clientes Pós-Vendas ({countPosVendas})</option>
+                  <option value="projetos">📁 Área Projetos (Levantamento de Informações)</option>
+                  <option value="om">🔧 Área O&M (Planos de Manutenção)</option>
                   <option value="oportunidades">
                     ⭐ Oportunidades de O&M (Solar instalado) ({countOportunidadesOM})
                   </option>
@@ -1138,12 +1146,25 @@ export const ListaOM: React.FC<ListaOMProps> = ({
                               <span className="font-bold text-gray-900 group-hover:text-emerald-700 transition-colors">
                                 {item.cliente.nome}
                               </span>
-                              {isVindoDoFunilRecente(item.cliente) && (
+                              {item.cliente.area_destino === 'projetos' && (
                                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300 shadow-2xs">
-                                  <Send className="w-2.5 h-2.5 text-emerald-600" />
-                                  Vindo do funil
+                                  <FileSpreadsheet className="w-2.5 h-2.5 text-emerald-600" />
+                                  Projetos / Levantamento
                                 </span>
                               )}
+                              {item.cliente.area_destino === 'om' && (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-800 border border-blue-300 shadow-2xs">
+                                  <Wrench className="w-2.5 h-2.5 text-blue-600" />
+                                  O&M / Planos
+                                </span>
+                              )}
+                              {!item.cliente.area_destino &&
+                                isVindoDoFunilRecente(item.cliente) && (
+                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300 shadow-2xs">
+                                    <Send className="w-2.5 h-2.5 text-emerald-600" />
+                                    Vindo do funil
+                                  </span>
+                                )}
                             </div>
                             <div className="text-[11px] text-gray-400 flex items-center gap-1 mt-0.5">
                               <MapPin className="w-3 h-3 text-gray-400" />
@@ -1321,7 +1342,19 @@ export const ListaOM: React.FC<ListaOMProps> = ({
                       <div>
                         <div className="flex items-center gap-2 flex-wrap">
                           <h4 className="font-bold text-gray-900 text-sm">{item.cliente.nome}</h4>
-                          {isVindoDoFunilRecente(item.cliente) && (
+                          {item.cliente.area_destino === 'projetos' && (
+                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                              <FileSpreadsheet className="w-2.5 h-2.5 text-emerald-600" />
+                              Projetos / Levantamento
+                            </span>
+                          )}
+                          {item.cliente.area_destino === 'om' && (
+                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-800 border border-blue-300">
+                              <Wrench className="w-2.5 h-2.5 text-blue-600" />
+                              O&M / Planos
+                            </span>
+                          )}
+                          {!item.cliente.area_destino && isVindoDoFunilRecente(item.cliente) && (
                             <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
                               <Send className="w-2.5 h-2.5 text-emerald-600" />
                               Vindo do funil

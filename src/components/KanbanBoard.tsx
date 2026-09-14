@@ -1,9 +1,12 @@
 import React, { useState, useRef, useEffect } from 'react'
-import { MapPin, Zap, GripVertical, type LucideIcon } from 'lucide-react'
+import { MapPin, Zap, GripVertical, Trophy, XCircle, type LucideIcon } from 'lucide-react'
 import type { Cliente, ClienteStatus } from '@/types/crm'
 import { formatCurrency } from '@/lib/formatters'
 import { useClientes } from '@/contexts/ClientesContext'
 import { ProductBadge, FUNIL_ETAPAS_CONFIG } from '@/components/StatusBadge'
+import { ModalMarcarGanho } from '@/components/ModalMarcarGanho'
+import { ModalMarcarPerdido } from '@/components/ModalMarcarPerdido'
+import { useToast } from '@/hooks/use-toast'
 
 interface KanbanBoardProps {
   clientes: Cliente[]
@@ -56,7 +59,9 @@ export const KANBAN_COLUMNS: KanbanColumnDef[] = [
 ]
 
 export const KanbanBoard: React.FC<KanbanBoardProps> = ({ clientes: clientesProp }) => {
-  const { openFichaCliente, updateClienteStatus } = useClientes()
+  const { openFichaCliente, updateClienteStatus, marcarComoGanho, marcarComoPerdido } =
+    useClientes()
+  const { toast } = useToast()
 
   // O funil de vendas Kanban exibe apenas as etapas ativas do negócio:
   // Negócios 'Fechado', 'Perdido', 'Arquivado' e já transferidos não são exibidos no Kanban
@@ -67,6 +72,10 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ clientes: clientesProp
       !c.arquivado &&
       !c.transferido_pos_vendas,
   )
+
+  // Modais de ação rápida Ganho / Perdido
+  const [modalGanhoCliente, setModalGanhoCliente] = useState<Cliente | null>(null)
+  const [modalPerdidoCliente, setModalPerdidoCliente] = useState<Cliente | null>(null)
 
   // Estado para drag and drop
   const [draggedClientId, setDraggedClientId] = useState<string | null>(null)
@@ -362,6 +371,40 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ clientes: clientesProp
                             {formatCurrency(client.valor_estimado || 0)}
                           </span>
                         </div>
+
+                        {/* Botões de Ação Rápida: Marcar como Ganho / Marcar como Perdido */}
+                        <div
+                          className="mt-2.5 pt-2 border-t border-gray-100 grid grid-cols-2 gap-1.5"
+                          onClick={(e) => e.stopPropagation()}
+                          onMouseDown={(e) => e.stopPropagation()}
+                          onTouchStart={(e) => e.stopPropagation()}
+                        >
+                          <button
+                            type="button"
+                            title="Marcar como Ganho (enviar para Projetos ou O&M)"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setModalGanhoCliente(client)
+                            }}
+                            className="inline-flex items-center justify-center gap-1 py-1 px-1.5 rounded-md text-[11px] font-semibold bg-emerald-50 text-emerald-700 hover:bg-emerald-600 hover:text-white border border-emerald-200 transition-colors shadow-2xs active:scale-95"
+                          >
+                            <Trophy className="w-3 h-3 shrink-0" />
+                            <span className="truncate">Ganho</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            title="Marcar como Perdido (registrar motivo)"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setModalPerdidoCliente(client)
+                            }}
+                            className="inline-flex items-center justify-center gap-1 py-1 px-1.5 rounded-md text-[11px] font-semibold bg-gray-50 text-gray-600 hover:bg-rose-50 hover:text-rose-700 hover:border-rose-200 border border-gray-200 transition-colors shadow-2xs active:scale-95"
+                          >
+                            <XCircle className="w-3 h-3 shrink-0" />
+                            <span className="truncate">Perdido</span>
+                          </button>
+                        </div>
                       </div>
                     )
                   })
@@ -388,6 +431,72 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ clientes: clientesProp
           )
         })}
       </div>
+
+      {/* Modal Marcar Ganho */}
+      <ModalMarcarGanho
+        cliente={modalGanhoCliente}
+        open={Boolean(modalGanhoCliente)}
+        onOpenChange={(open) => {
+          if (!open) setModalGanhoCliente(null)
+        }}
+        onConfirm={async (area) => {
+          if (!modalGanhoCliente) return
+          const nomeCliente = modalGanhoCliente.nome
+          try {
+            await marcarComoGanho(modalGanhoCliente.id, area)
+            toast({
+              title: 'Negócio Ganho!',
+              description: `Cliente "${nomeCliente}" fechado e enviado com sucesso para ${
+                area === 'projetos'
+                  ? 'a área de Projetos (Levantamento de Informações)'
+                  : 'a área de O&M (Plano de Manutenção)'
+              }.`,
+            })
+            setModalGanhoCliente(null)
+          } catch (err) {
+            toast({
+              title: 'Erro ao marcar ganho',
+              description: 'Não foi possível registrar o negócio como ganho. Tente novamente.',
+              variant: 'destructive',
+            })
+            throw err
+          }
+        }}
+      />
+
+      {/* Modal Marcar Perdido */}
+      <ModalMarcarPerdido
+        cliente={modalPerdidoCliente}
+        open={Boolean(modalPerdidoCliente)}
+        onOpenChange={(open) => {
+          if (!open) setModalPerdidoCliente(null)
+        }}
+        onConfirm={async (motivo, observacao) => {
+          if (!modalPerdidoCliente) return
+          const nomeCliente = modalPerdidoCliente.nome
+          try {
+            await marcarComoPerdido(modalPerdidoCliente.id, motivo, observacao)
+            const rotulos: Record<string, string> = {
+              preco: 'Preço',
+              concorrente: 'Concorrente',
+              desistiu: 'Desistiu',
+              outro: 'Outro',
+            }
+            toast({
+              title: 'Negócio marcado como Perdido',
+              description: `Cliente "${nomeCliente}" atualizado. Motivo: ${rotulos[motivo] || motivo}.`,
+            })
+            setModalPerdidoCliente(null)
+          } catch (err) {
+            toast({
+              title: 'Erro ao registrar perda',
+              description: 'Não foi possível marcar o negócio como perdido. Tente novamente.',
+              variant: 'destructive',
+            })
+            throw err
+          }
+        }}
+      />
     </div>
   )
 }

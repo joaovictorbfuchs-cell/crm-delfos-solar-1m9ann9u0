@@ -220,6 +220,12 @@ interface ClientesContextType {
   bulkTransferirFechadosPosVendas: (
     clientesParaTransferir: { id: string; data_fechamento?: string }[],
   ) => Promise<Cliente[]>
+  marcarComoGanho: (clienteId: string, areaDestino: 'projetos' | 'om') => Promise<Cliente>
+  marcarComoPerdido: (
+    clienteId: string,
+    motivoPerda: 'preco' | 'concorrente' | 'desistiu' | 'outro' | string,
+    observacaoTexto?: string,
+  ) => Promise<Cliente>
   bulkArquivar: (ids: string[]) => Promise<void>
   updateSistema: (clienteId: string, data: Partial<Sistema>) => Promise<Sistema>
   // Profissionais
@@ -1081,6 +1087,85 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       return updatedList
     } catch (err) {
       console.error('Erro ao transferir fechados para pós-vendas em lote:', err)
+      await loadAllData()
+      throw err
+    }
+  }
+
+  const marcarComoGanho = async (
+    clienteId: string,
+    areaDestino: 'projetos' | 'om',
+  ): Promise<Cliente> => {
+    const agora = new Date().toISOString()
+
+    // Optimistic update no estado clientes
+    setClientes((prev) =>
+      prev.map((c) =>
+        c.id === clienteId
+          ? {
+              ...c,
+              status: 'Fechado',
+              transferido_pos_vendas: true,
+              data_transferencia_pos_vendas: agora,
+              origem_pos_vendas: 'funil_comercial',
+              data_fechamento: agora,
+              area_destino: areaDestino,
+            }
+          : c,
+      ),
+    )
+
+    try {
+      const s = await import('@/services/crmService')
+      const clienteAtualizado = await s.marcarClienteComoGanho(clienteId, areaDestino)
+      setClientes((prev) => prev.map((c) => (c.id === clienteId ? clienteAtualizado : c)))
+
+      // Se área de destino for projetos, recarregar projetos para atualizar Kanban de Projetos e abas
+      if (areaDestino === 'projetos') {
+        fetchProjetos().then(setProjetos).catch(console.error)
+      }
+      fetchAtividades().then(setAtividades).catch(console.error)
+
+      return clienteAtualizado
+    } catch (err) {
+      console.error('Erro ao marcar cliente como ganho:', err)
+      await loadAllData()
+      throw err
+    }
+  }
+
+  const marcarComoPerdido = async (
+    clienteId: string,
+    motivoPerda: 'preco' | 'concorrente' | 'desistiu' | 'outro' | string,
+    observacaoTexto?: string,
+  ): Promise<Cliente> => {
+    // Optimistic update no estado clientes
+    setClientes((prev) =>
+      prev.map((c) =>
+        c.id === clienteId
+          ? {
+              ...c,
+              status: 'Perdido',
+              motivo_perda: motivoPerda,
+              observacoes:
+                observacaoTexto && observacaoTexto.trim() ? observacaoTexto.trim() : c.observacoes,
+            }
+          : c,
+      ),
+    )
+
+    try {
+      const s = await import('@/services/crmService')
+      const clienteAtualizado = await s.marcarClienteComoPerdido(
+        clienteId,
+        motivoPerda,
+        observacaoTexto,
+      )
+      setClientes((prev) => prev.map((c) => (c.id === clienteId ? clienteAtualizado : c)))
+      fetchAtividades().then(setAtividades).catch(console.error)
+      return clienteAtualizado
+    } catch (err) {
+      console.error('Erro ao marcar cliente como perdido:', err)
       await loadAllData()
       throw err
     }
@@ -1970,6 +2055,8 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         bulkUpdateResponsavel,
         bulkMarcarFechado,
         bulkTransferirFechadosPosVendas,
+        marcarComoGanho,
+        marcarComoPerdido,
         bulkArquivar,
         updateSistema,
         addProfissional,

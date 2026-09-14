@@ -269,6 +269,101 @@ export async function bulkMarcarClientesFechado(ids: string[]): Promise<Cliente[
   return Promise.all(promises)
 }
 
+export async function marcarClienteComoGanho(
+  clienteId: string,
+  areaDestino: 'projetos' | 'om',
+): Promise<Cliente> {
+  const agora = new Date().toISOString()
+  const clienteAtualizado = await updateCliente(clienteId, {
+    status: 'Fechado',
+    transferido_pos_vendas: true,
+    data_transferencia_pos_vendas: agora,
+    origem_pos_vendas: 'funil_comercial',
+    data_fechamento: agora,
+    area_destino: areaDestino,
+  })
+
+  // Se a área escolhida for Projetos, garantir existência de Projeto na etapa 'Levantamento de Informações'
+  if (areaDestino === 'projetos') {
+    try {
+      const existing = await fetchProjetoByClienteId(clienteId)
+      if (!existing) {
+        await createProjeto({
+          cliente_id: clienteId,
+          etapa: 'Levantamento de Informações',
+          potencia_kwp: clienteAtualizado.potencia_kwp || 0,
+          cidade: clienteAtualizado.cidade || '',
+          observacoes:
+            'Negócio ganho no funil comercial enviado para Projetos (energia solar fotovoltaica).',
+        })
+      }
+    } catch (projErr) {
+      console.warn('Erro ao criar/verificar projeto para cliente ganho:', projErr)
+    }
+  }
+
+  // Registrar na timeline de atividades
+  try {
+    await createAtividade({
+      cliente_id: clienteId,
+      tipo: 'mudanca_estagio',
+      titulo: `Negócio Ganho (${areaDestino === 'projetos' ? 'Projetos / Levantamento' : 'O&M / Plano de Manutenção'})`,
+      descricao: `Negócio fechado e enviado para a área de ${
+        areaDestino === 'projetos'
+          ? 'Projetos (Levantamento de Informações)'
+          : 'O&M (Clientes com Plano de Manutenção)'
+      }.`,
+      data: agora,
+      status: 'concluida',
+      autor: 'CRM Delfos Solar',
+      responsavel_nome: 'CRM Delfos Solar',
+    })
+  } catch (ativErr) {
+    console.warn('Erro ao registrar atividade de ganho:', ativErr)
+  }
+
+  return clienteAtualizado
+}
+
+export async function marcarClienteComoPerdido(
+  clienteId: string,
+  motivoPerda: 'preco' | 'concorrente' | 'desistiu' | 'outro' | string,
+  observacaoTexto?: string,
+): Promise<Cliente> {
+  const agora = new Date().toISOString()
+  const payloadUpdate: Partial<Cliente> = {
+    status: 'Perdido',
+    motivo_perda: motivoPerda,
+  }
+  if (observacaoTexto && observacaoTexto.trim()) {
+    payloadUpdate.observacoes = observacaoTexto.trim()
+  }
+
+  const clienteAtualizado = await updateCliente(clienteId, payloadUpdate)
+
+  // Registrar atividade na timeline com motivo
+  try {
+    const textoMotivo =
+      motivoPerda === 'outro' && observacaoTexto ? `Outro: ${observacaoTexto}` : motivoPerda
+    await createAtividade({
+      cliente_id: clienteId,
+      tipo: 'mudanca_estagio',
+      titulo: 'Negócio marcado como Perdido',
+      descricao: `Negócio marcado como Perdido no funil comercial. Motivo informado: ${textoMotivo}.${
+        observacaoTexto && motivoPerda !== 'outro' ? ` Observações: ${observacaoTexto}` : ''
+      }`,
+      data: agora,
+      status: 'concluida',
+      autor: 'CRM Delfos Solar',
+      responsavel_nome: 'CRM Delfos Solar',
+    })
+  } catch (ativErr) {
+    console.warn('Erro ao registrar atividade de perda:', ativErr)
+  }
+
+  return clienteAtualizado
+}
+
 export async function bulkTransferirFechadosParaPosVendas(
   fechados: { id: string; data_fechamento?: string }[],
 ): Promise<Cliente[]> {

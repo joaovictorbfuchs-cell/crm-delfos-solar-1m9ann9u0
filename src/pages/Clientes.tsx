@@ -898,7 +898,36 @@ export default function Clientes() {
 
                     {/* Status Comercial */}
                     <td className="py-3 px-4 whitespace-nowrap">
-                      <StatusBadge status={c.status} />
+                      <div className="flex flex-col gap-1 items-start">
+                        <StatusBadge status={c.status} />
+                        {c.status === 'Perdido' && c.motivo_perda && (
+                          <span
+                            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200 capitalize"
+                            title={`Motivo da perda: ${c.motivo_perda}`}
+                          >
+                            Motivo:{' '}
+                            {c.motivo_perda === 'preco'
+                              ? 'Preço'
+                              : c.motivo_perda === 'concorrente'
+                                ? 'Concorrente'
+                                : c.motivo_perda === 'desistiu'
+                                  ? 'Desistiu'
+                                  : c.motivo_perda === 'outro'
+                                    ? 'Outro'
+                                    : c.motivo_perda}
+                          </span>
+                        )}
+                        {c.status === 'Fechado' && c.area_destino && (
+                          <span
+                            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200"
+                            title={`Área de destino: ${c.area_destino}`}
+                          >
+                            {c.area_destino === 'projetos'
+                              ? 'Projetos (Levantamento)'
+                              : 'O&M (Manutenção)'}
+                          </span>
+                        )}
+                      </div>
                     </td>
 
                     {/* Ações */}
@@ -989,7 +1018,28 @@ export default function Clientes() {
                       {c.cnpj ? `CNPJ: ${c.cnpj}` : c.cpf ? `CPF: ${c.cpf}` : `UC: ${c.uc || '-'}`}
                     </p>
                   </div>
-                  <StatusBadge status={c.status} />
+                  <div className="flex flex-col items-end gap-1">
+                    <StatusBadge status={c.status} />
+                    {c.status === 'Perdido' && c.motivo_perda && (
+                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200 capitalize">
+                        Motivo:{' '}
+                        {c.motivo_perda === 'preco'
+                          ? 'Preço'
+                          : c.motivo_perda === 'concorrente'
+                            ? 'Concorrente'
+                            : c.motivo_perda === 'desistiu'
+                              ? 'Desistiu'
+                              : c.motivo_perda === 'outro'
+                                ? 'Outro'
+                                : c.motivo_perda}
+                      </span>
+                    )}
+                    {c.status === 'Fechado' && c.area_destino && (
+                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                        {c.area_destino === 'projetos' ? 'Projetos' : 'O&M'}
+                      </span>
+                    )}
+                  </div>
                 </div>
 
                 {/* Badge de Origem no Mobile Card */}
