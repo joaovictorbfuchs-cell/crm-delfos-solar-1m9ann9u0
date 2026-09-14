@@ -178,6 +178,7 @@ export interface Cliente extends RecordModel {
   area_destino?: 'projetos' | 'om' | string
   motivo_perda?: 'preco' | 'concorrente' | 'desistiu' | 'outro' | string
   arquivado?: boolean
+  pendencias_informacoes?: string[] | null
   dados_importados?: Record<string, string | number | boolean | null> | null
   // Dados de Acesso ao Monitoramento do Inversor
   monitoramento_app_nome?: string

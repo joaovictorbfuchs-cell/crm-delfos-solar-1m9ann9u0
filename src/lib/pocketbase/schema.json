@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-14T15:04:16.345Z",
+  "generatedAt": "2026-09-14T15:20:17.837Z",
   "collections": [
     {
       "name": "users",
@@ -530,6 +530,12 @@
         {
           "name": "motivo_perda",
           "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "pendencias_informacoes",
+          "type": "json",
           "required": false,
           "system": false
         }

@@ -64,6 +64,7 @@ import { ModalTransferenciaCreditos } from './ModalTransferenciaCreditos'
 import { ModalGerenciarAtividades } from './ModalGerenciarAtividades'
 import { ModalGerarProcuracaoOM } from './ModalGerarProcuracaoOM'
 import { ModalGerarContratoOM } from './ModalGerarContratoOM'
+import { ModalSolicitacaoInformacoes } from './ModalSolicitacaoInformacoes'
 import { SecaoMonitoramentoInversor } from './SecaoMonitoramentoInversor'
 import { SecaoAcessoSolarview } from './SecaoAcessoSolarview'
 import { SecaoUsinasCliente } from './SecaoUsinasCliente'
@@ -91,6 +92,7 @@ import {
   AlertCircle,
   Loader2,
   CheckCircle2,
+  ClipboardList,
 } from 'lucide-react'
 import { formatarCNPJ } from '@/lib/orcamentoParser'
 import { formatarCPF } from '@/lib/cpfValidator'
@@ -228,6 +230,9 @@ export const FichaClienteDrawer: React.FC = () => {
     dadosSolar?: any
     dadosOM?: any
   } | null>(null)
+
+  // Modal de Solicitação de Informações do Cliente (Checklist e Mensagem)
+  const [modalSolicitacaoInfoOpen, setModalSolicitacaoInfoOpen] = useState(false)
 
   // Modais de Documentos de Projetos / Pós-Venda e Transferência de Créditos
   const [modalDocProjetoOpen, setModalDocProjetoOpen] = useState(false)
@@ -1481,7 +1486,63 @@ export const FichaClienteDrawer: React.FC = () => {
                               </span>
                             </div>
 
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-2.5 pt-1">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-2.5 pt-1">
+                              {/* Card 0: Solicitação de Informações (Checklist de documentos faltantes e gerador de mensagem) */}
+                              {(() => {
+                                const pendentesCount = Array.isArray(
+                                  selectedCliente.pendencias_informacoes,
+                                )
+                                  ? selectedCliente.pendencias_informacoes.length
+                                  : 0
+
+                                return (
+                                  <div className="flex flex-col justify-between p-3 rounded-xl bg-white border border-emerald-200/90 shadow-2xs transition-all hover:border-emerald-400 group">
+                                    <div
+                                      onClick={() => setModalSolicitacaoInfoOpen(true)}
+                                      className="cursor-pointer space-y-1.5"
+                                    >
+                                      <div className="flex items-center justify-between w-full mb-1">
+                                        <span className="p-1.5 rounded-lg bg-emerald-100 text-emerald-800 group-hover:bg-emerald-600 group-hover:text-white transition-colors">
+                                          <ClipboardList className="w-4 h-4" />
+                                        </span>
+                                        <span className="text-[10px] font-bold uppercase text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded">
+                                          Checklist
+                                        </span>
+                                      </div>
+                                      <span className="text-xs font-bold text-gray-900 group-hover:text-emerald-800 block">
+                                        Solicitação de Informações
+                                      </span>
+                                      <span className="text-[11px] text-gray-500 block leading-tight">
+                                        Documentos para projeto e contrato
+                                      </span>
+                                    </div>
+
+                                    <div className="mt-3 pt-2 border-t border-slate-100 flex items-center justify-between gap-1 flex-wrap">
+                                      {pendentesCount > 0 ? (
+                                        <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-md bg-amber-100 text-amber-900 border border-amber-300">
+                                          <Clock className="w-3 h-3 text-amber-700" />
+                                          <span>{pendentesCount} pendente(s)</span>
+                                        </span>
+                                      ) : (
+                                        <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 border border-emerald-300">
+                                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                                          <span>Em dia</span>
+                                        </span>
+                                      )}
+
+                                      <button
+                                        type="button"
+                                        onClick={() => setModalSolicitacaoInfoOpen(true)}
+                                        className="text-[10px] font-semibold text-emerald-700 hover:text-emerald-900 underline transition-colors"
+                                        title="Abrir checklist de documentos faltantes"
+                                      >
+                                        Gerar texto
+                                      </button>
+                                    </div>
+                                  </div>
+                                )
+                              })()}
+
                               {/* Card 1: Procuração (aciona o mesmo fluxo/modal de Procuração do O&M / Projetos) */}
                               {(() => {
                                 const doc = getDocumentoCliente('procuracao')
@@ -4027,6 +4088,24 @@ export const FichaClienteDrawer: React.FC = () => {
               })
             } catch {
               /* intentionally ignored */
+            }
+          }}
+        />
+      )}
+
+      {/* Modal Solicitação de Informações do Cliente (Checklist e Mensagem) */}
+      {selectedCliente && (
+        <ModalSolicitacaoInformacoes
+          open={modalSolicitacaoInfoOpen}
+          onOpenChange={setModalSolicitacaoInfoOpen}
+          cliente={selectedCliente}
+          onSalvarPendencias={async (novasPendencias) => {
+            try {
+              await updateCliente(selectedCliente.id, {
+                pendencias_informacoes: novasPendencias,
+              })
+            } catch (err) {
+              console.error('Erro ao salvar pendências de informações do cliente:', err)
             }
           }}
         />
