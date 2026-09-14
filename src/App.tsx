@@ -22,6 +22,7 @@ import ImportarAcessos from './pages/ImportarAcessos'
 import ImportarContratosOM from './pages/ImportarContratosOM'
 import GerenciarUsuarios from './pages/GerenciarUsuarios'
 import Login from './pages/Login'
+import RedefinirSenha from './pages/RedefinirSenha'
 import NotFound from './pages/NotFound'
 
 const App = () => (
@@ -33,6 +34,7 @@ const App = () => (
           <Sonner />
           <Routes>
             <Route path="/login" element={<Login />} />
+            <Route path="/redefinir-senha" element={<RedefinirSenha />} />
             <Route
               element={
                 <ProtectedRoute>

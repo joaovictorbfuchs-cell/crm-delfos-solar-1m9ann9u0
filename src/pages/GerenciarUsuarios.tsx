@@ -172,14 +172,20 @@ export default function GerenciarUsuarios() {
     setIsSubmitting(true)
     try {
       const created = await createUsuarioSistema(novoForm)
-      setUsuarios((prev) => [created, ...prev])
+      setUsuarios((prev) => {
+        const exists = prev.some((u) => u.id === created.id)
+        if (exists) {
+          return prev.map((u) => (u.id === created.id ? created : u))
+        }
+        return [created, ...prev]
+      })
       setModalNovoOpen(false)
-      toast.success(`Usuário "${created.name}" cadastrado com sucesso!`)
+      toast.success(`Usuário "${created.name}" salvo com sucesso!`)
     } catch (err: any) {
       console.error(err)
       const msg =
         err?.data?.data?.email?.message ||
-        'Erro ao cadastrar usuário. Verifique se o e-mail já existe.'
+        'Erro ao cadastrar usuário. Verifique os dados informados.'
       toast.error(msg)
     } finally {
       setIsSubmitting(false)

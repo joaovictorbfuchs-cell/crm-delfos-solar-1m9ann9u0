@@ -45,10 +45,48 @@ export async function fetchUsuariosSistema(): Promise<SistemaUsuario[]> {
  * Cria um novo usuário
  */
 export async function createUsuarioSistema(data: NovoUsuarioInput): Promise<SistemaUsuario> {
+  const normalizedEmail = data.email.trim().toLowerCase()
   try {
+    // 1. Verificar se já existe algum registro com este e-mail (por exemplo, inativo/desativado)
+    let existingRecord: any = null
+    try {
+      const existingList = await pb.collection('users').getList<any>(1, 1, {
+        filter: `email = "${normalizedEmail}"`,
+      })
+      if (existingList.items && existingList.items.length > 0) {
+        existingRecord = existingList.items[0]
+      }
+    } catch (_) {
+      // Se não conseguir filtrar ou der erro de RLS, prossegue para tentativa normal
+    }
+
+    if (existingRecord) {
+      // O registro já existe: reaproveitar e atualizar dados, reativando a conta
+      const updatePayload: any = {
+        name: data.name.trim(),
+        role: data.role,
+        ativo: data.ativo ?? true,
+      }
+      if (data.password) {
+        updatePayload.password = data.password
+        updatePayload.passwordConfirm = data.passwordConfirm
+      }
+
+      const updated = await pb.collection('users').update<any>(existingRecord.id, updatePayload)
+      return {
+        id: updated.id,
+        name: updated.name,
+        email: updated.email,
+        avatar: updated.avatar,
+        role: updated.role,
+        ativo: updated.ativo !== false,
+      }
+    }
+
+    // 2. Não existe registro prévio: criar normalmente
     const record = await pb.collection('users').create<any>({
-      name: data.name,
-      email: data.email,
+      name: data.name.trim(),
+      email: normalizedEmail,
       password: data.password,
       passwordConfirm: data.passwordConfirm,
       emailVisibility: false,
