@@ -1,6 +1,16 @@
 import React, { useState } from 'react'
-import { useNavigate, Navigate, Link } from 'react-router-dom'
-import { Lock, Mail, AlertCircle, Loader2, ArrowLeft, MailCheck, CheckCircle2 } from 'lucide-react'
+import { useNavigate, Navigate } from 'react-router-dom'
+import {
+  Lock,
+  Mail,
+  AlertCircle,
+  Loader2,
+  ArrowLeft,
+  MailCheck,
+  CheckCircle2,
+  Eye,
+  EyeOff,
+} from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import pb from '@/lib/pocketbase/client'
 import { DelfosLogo } from '@/components/DelfosLogo'
@@ -11,6 +21,7 @@ export default function Login() {
 
   const [email, setEmail] = useState('joao@delfosengenharia.com.br')
   const [password, setPassword] = useState('Skip@Pass')
+  const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
 
@@ -33,27 +44,36 @@ export default function Login() {
     e.preventDefault()
     setError(null)
 
-    if (!email || !password) {
+    const cleanEmail = email.trim().toLowerCase()
+    if (!cleanEmail || !password) {
       setError('Por favor preencha o e-mail e a senha.')
       return
     }
 
     try {
       setIsLoading(true)
-      const profile = await login(email, password)
+      const profile = await login(cleanEmail, password)
 
       // Redirecionamento por perfil
-      if (profile.role === 'instalador') {
-        navigate('/execucao-os')
+      if (profile?.role === 'instalador') {
+        navigate('/execucao-os', { replace: true })
       } else {
-        navigate('/')
+        navigate('/', { replace: true })
       }
     } catch (err: any) {
-      console.error(err)
+      console.error('Erro no login:', err)
       if (err?.message === 'USUARIO_DESATIVADO') {
         setError('Usuário desativado. Fale com o administrador do sistema.')
-      } else {
+      } else if (err?.data?.message || err?.message?.includes('Failed to authenticate')) {
         setError('Credenciais inválidas. Verifique seu e-mail e senha.')
+      } else if (err?.name === 'ClientResponseError' && err?.status === 400) {
+        setError('E-mail ou senha incorretos. Por favor, tente novamente.')
+      } else if (err?.name === 'ClientResponseError' && err?.status === 0) {
+        setError('Falha de conexão com o servidor. Verifique sua rede e tente novamente.')
+      } else {
+        setError(
+          err?.message || 'Erro ao realizar login. Verifique suas credenciais e tente novamente.',
+        )
       }
     } finally {
       setIsLoading(false)
@@ -112,13 +132,23 @@ export default function Login() {
                   <Lock className="w-4 h-4" />
                 </div>
                 <input
-                  type="password"
+                  type={showPassword ? 'text' : 'password'}
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white transition-all"
+                  className="w-full pl-10 pr-11 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white transition-all"
                 />
+                <button
+                  type="button"
+                  tabIndex={-1}
+                  onClick={() => setShowPassword((prev) => !prev)}
+                  title={showPassword ? 'Ocultar senha' : 'Ver senha'}
+                  aria-label={showPassword ? 'Ocultar senha' : 'Ver senha'}
+                  className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-gray-400 hover:text-gray-600 transition-colors focus:outline-none"
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
               </div>
             </div>
 
