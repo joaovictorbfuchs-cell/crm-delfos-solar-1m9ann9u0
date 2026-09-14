@@ -39,21 +39,25 @@ import { Label } from '@/components/ui/label'
 interface SecaoUsinasClienteProps {
   clienteId: string
   clienteNome: string
+  clienteDocumento?: string
+  isAdmin?: boolean
   usinas: UsinaCliente[]
   contratos: ContratoOM[]
-  onUpdateUsina: (usinaId: string, data: Partial<UsinaCliente>) => Promise<void>
-  onCreateUsina: (
+  onUpdateUsina?: (usinaId: string, data: Partial<UsinaCliente>) => Promise<void>
+  onCreateUsina?: (
     data: Partial<UsinaCliente> & { cliente_id: string; nome: string },
   ) => Promise<void>
-  onDeleteUsina: (usinaId: string) => Promise<void>
-  onVincularContrato: (usinaId: string, contratoId: string) => Promise<void>
-  onRenovarContrato: (contratoId: string) => Promise<void>
-  onVerDetalhesContrato: (contratoId: string) => void
+  onDeleteUsina?: (usinaId: string) => Promise<void>
+  onVincularContrato?: (usinaId: string, contratoId: string) => Promise<void>
+  onRenovarContrato?: (contratoId: string) => Promise<void>
+  onVerDetalhesContrato?: (contratoId: string) => void
 }
 
 export const SecaoUsinasCliente: React.FC<SecaoUsinasClienteProps> = ({
   clienteId,
   clienteNome,
+  clienteDocumento,
+  isAdmin = true,
   usinas,
   contratos,
   onUpdateUsina,
@@ -107,16 +111,18 @@ export const SecaoUsinasCliente: React.FC<SecaoUsinasClienteProps> = ({
     }
     setIsSavingNovaUsina(true)
     try {
-      await onCreateUsina({
-        cliente_id: clienteId,
-        nome: novaUsinaNome.trim(),
-        endereco: novaUsinaEndereco.trim(),
-        potencia_kwp: Number(novaUsinaPotencia) || 0,
-        qtd_modulos: Number(novaUsinaQtdModulos) || 0,
-        inversores_info: novaUsinaInversores.trim(),
-        tipo_estrutura: novaUsinaEstrutura,
-        contrato_id: novaUsinaContratoId || undefined,
-      })
+      if (onCreateUsina) {
+        await onCreateUsina({
+          cliente_id: clienteId,
+          nome: novaUsinaNome.trim(),
+          endereco: novaUsinaEndereco.trim(),
+          potencia_kwp: Number(novaUsinaPotencia) || 0,
+          qtd_modulos: Number(novaUsinaQtdModulos) || 0,
+          inversores_info: novaUsinaInversores.trim(),
+          tipo_estrutura: novaUsinaEstrutura,
+          contrato_id: novaUsinaContratoId || undefined,
+        })
+      }
       setModalNovaUsinaOpen(false)
     } catch (err) {
       console.error('Erro ao criar usina:', err)
@@ -139,7 +145,9 @@ export const SecaoUsinasCliente: React.FC<SecaoUsinasClienteProps> = ({
     }
     setIsVinculando(true)
     try {
-      await onVincularContrato(usinaSelecionadaParaVincular.id, contratoSelecionadoId)
+      if (onVincularContrato) {
+        await onVincularContrato(usinaSelecionadaParaVincular.id, contratoSelecionadoId)
+      }
       setModalVincularOpen(false)
       setUsinaSelecionadaParaVincular(null)
     } catch (err) {
@@ -154,7 +162,9 @@ export const SecaoUsinasCliente: React.FC<SecaoUsinasClienteProps> = ({
     if (!contratoParaRenovar) return
     setIsRenovando(true)
     try {
-      await onRenovarContrato(contratoParaRenovar.contrato.id)
+      if (onRenovarContrato) {
+        await onRenovarContrato(contratoParaRenovar.contrato.id)
+      }
       setModalRenovarOpen(false)
       setContratoParaRenovar(null)
     } catch (err) {
@@ -250,7 +260,7 @@ export const SecaoUsinasCliente: React.FC<SecaoUsinasClienteProps> = ({
                         onSave={async (val) => {
                           const str = String(val).trim()
                           if (!str) throw new Error('Nome da usina não pode ficar vazio')
-                          await onUpdateUsina(usina.id, { nome: str })
+                          if (onUpdateUsina) await onUpdateUsina(usina.id, { nome: str })
                         }}
                       />
                       <span
@@ -277,7 +287,8 @@ export const SecaoUsinasCliente: React.FC<SecaoUsinasClienteProps> = ({
                         type="text"
                         placeholder="Endereço de instalação da usina"
                         onSave={async (val) => {
-                          await onUpdateUsina(usina.id, { endereco: String(val).trim() })
+                          if (onUpdateUsina)
+                            await onUpdateUsina(usina.id, { endereco: String(val).trim() })
                         }}
                       />
                     </div>
@@ -291,7 +302,7 @@ export const SecaoUsinasCliente: React.FC<SecaoUsinasClienteProps> = ({
                         const confirmou = window.confirm(
                           `Deseja realmente excluir a usina "${usina.nome}"?`,
                         )
-                        if (confirmou) {
+                        if (confirmou && onDeleteUsina) {
                           onDeleteUsina(usina.id)
                         }
                       }}
@@ -324,7 +335,8 @@ export const SecaoUsinasCliente: React.FC<SecaoUsinasClienteProps> = ({
                       min={0}
                       unit="kWp"
                       onSave={async (val) => {
-                        await onUpdateUsina(usina.id, { potencia_kwp: Number(val) || 0 })
+                        if (onUpdateUsina)
+                          await onUpdateUsina(usina.id, { potencia_kwp: Number(val) || 0 })
                       }}
                     />
                   </div>
@@ -348,7 +360,8 @@ export const SecaoUsinasCliente: React.FC<SecaoUsinasClienteProps> = ({
                       min={0}
                       unit="un"
                       onSave={async (val) => {
-                        await onUpdateUsina(usina.id, { qtd_modulos: Number(val) || 0 })
+                        if (onUpdateUsina)
+                          await onUpdateUsina(usina.id, { qtd_modulos: Number(val) || 0 })
                       }}
                     />
                   </div>
@@ -372,7 +385,10 @@ export const SecaoUsinasCliente: React.FC<SecaoUsinasClienteProps> = ({
                         { value: 'solo', label: 'Solo' },
                       ]}
                       onSave={async (val) => {
-                        await onUpdateUsina(usina.id, { tipo_estrutura: val as 'solo' | 'telhado' })
+                        if (onUpdateUsina)
+                          await onUpdateUsina(usina.id, {
+                            tipo_estrutura: val as 'solo' | 'telhado',
+                          })
                       }}
                     />
                   </div>
@@ -396,7 +412,8 @@ export const SecaoUsinasCliente: React.FC<SecaoUsinasClienteProps> = ({
                       type="text"
                       placeholder="Marca e potência dos inversores"
                       onSave={async (val) => {
-                        await onUpdateUsina(usina.id, { inversores_info: String(val).trim() })
+                        if (onUpdateUsina)
+                          await onUpdateUsina(usina.id, { inversores_info: String(val).trim() })
                       }}
                     />
                   </div>
@@ -465,23 +482,36 @@ export const SecaoUsinasCliente: React.FC<SecaoUsinasClienteProps> = ({
                           </span>
                         </div>
 
-                        <div>
-                          <span className="text-[10px] text-gray-400 block uppercase font-medium">
-                            Valor Mensal:
-                          </span>
-                          <span className="font-bold text-emerald-700">
-                            {formatCurrency(contratoVinculado.valor_mensal)}/mês
-                          </span>
-                        </div>
+                        {isAdmin ? (
+                          <>
+                            <div>
+                              <span className="text-[10px] text-gray-400 block uppercase font-medium">
+                                Valor Mensal:
+                              </span>
+                              <span className="font-bold text-emerald-700">
+                                {formatCurrency(contratoVinculado.valor_mensal)}/mês
+                              </span>
+                            </div>
 
-                        <div>
-                          <span className="text-[10px] text-gray-400 block uppercase font-medium">
-                            Valor Anual:
-                          </span>
-                          <span className="font-semibold text-gray-700">
-                            {formatCurrency(contratoVinculado.valor_anual)}
-                          </span>
-                        </div>
+                            <div>
+                              <span className="text-[10px] text-gray-400 block uppercase font-medium">
+                                Valor Anual:
+                              </span>
+                              <span className="font-semibold text-gray-700">
+                                {formatCurrency(contratoVinculado.valor_anual)}
+                              </span>
+                            </div>
+                          </>
+                        ) : (
+                          <div className="col-span-2">
+                            <span className="text-[10px] text-gray-400 block uppercase font-medium">
+                              Valores Financeiros:
+                            </span>
+                            <span className="text-gray-500 italic font-medium">
+                              Visível apenas para administradores
+                            </span>
+                          </div>
+                        )}
                       </div>
 
                       {/* Botões de Ação do Contrato */}
@@ -512,7 +542,9 @@ export const SecaoUsinasCliente: React.FC<SecaoUsinasClienteProps> = ({
 
                         <button
                           type="button"
-                          onClick={() => onVerDetalhesContrato(contratoVinculado.id)}
+                          onClick={() =>
+                            onVerDetalhesContrato && onVerDetalhesContrato(contratoVinculado.id)
+                          }
                           className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 rounded-lg text-xs font-bold transition-colors"
                         >
                           <ExternalLink className="w-3.5 h-3.5 text-emerald-600" />
