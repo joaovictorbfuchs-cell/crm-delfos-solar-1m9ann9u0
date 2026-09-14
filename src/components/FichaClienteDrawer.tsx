@@ -473,7 +473,11 @@ export const FichaClienteDrawer: React.FC = () => {
           ? 'Contrato'
           : tipo === 'anexo_e'
             ? 'Anexo E'
-            : 'Anexo F'
+            : tipo === 'anexo_f'
+              ? 'Anexo F'
+              : tipo === 'anexo_g'
+                ? 'Anexo G'
+                : 'Documento'
 
     if (!docExistente) {
       // Se ainda não existia registro, cria como assinado diretamente
@@ -1457,7 +1461,7 @@ export const FichaClienteDrawer: React.FC = () => {
                             </span>
                           </div>
 
-                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 pt-1">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-2.5 pt-1">
                             {/* Card 1: Procuração */}
                             {(() => {
                               const doc = getDocumentoCliente('procuracao')
@@ -1720,6 +1724,75 @@ export const FichaClienteDrawer: React.FC = () => {
                                     <button
                                       type="button"
                                       onClick={(e) => handleAlternarStatusDocumento(e, 'anexo_f')}
+                                      className={`text-[10px] font-semibold underline transition-colors ${
+                                        isAssinado
+                                          ? 'text-slate-500 hover:text-amber-700'
+                                          : 'text-emerald-700 hover:text-emerald-900'
+                                      }`}
+                                      title={
+                                        isAssinado
+                                          ? 'Reabrir / Desmarcar como assinado'
+                                          : 'Marcar documento como assinado pelo cliente'
+                                      }
+                                    >
+                                      {isAssinado ? 'Reabrir' : 'Marcar assinado'}
+                                    </button>
+                                  </div>
+                                </div>
+                              )
+                            })()}
+
+                            {/* Card 5: Anexo G */}
+                            {(() => {
+                              const doc = getDocumentoCliente('anexo_g')
+                              const isAssinado = doc?.status_assinatura === 'assinado'
+                              const isAguardando =
+                                doc?.status_assinatura === 'aguardando_assinatura'
+
+                              return (
+                                <div className="flex flex-col justify-between p-3 rounded-xl bg-white border border-emerald-200/90 shadow-2xs transition-all hover:border-emerald-400 group">
+                                  <div
+                                    onClick={() =>
+                                      handleAbrirDocumentoProjeto('anexo_g', propostaAprovada)
+                                    }
+                                    className="cursor-pointer space-y-1.5"
+                                  >
+                                    <div className="flex items-center justify-between w-full mb-1">
+                                      <span className="p-1.5 rounded-lg bg-emerald-100 text-emerald-800 group-hover:bg-emerald-600 group-hover:text-white transition-colors">
+                                        <FileCheck className="w-4 h-4" />
+                                      </span>
+                                      <span className="text-[10px] font-bold uppercase text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded">
+                                        PDF / Whats
+                                      </span>
+                                    </div>
+                                    <span className="text-xs font-bold text-gray-900 group-hover:text-emerald-800 block">
+                                      Elaborar Anexo G
+                                    </span>
+                                    <span className="text-[11px] text-gray-500 block leading-tight">
+                                      Rateio e compensação (SCEE)
+                                    </span>
+                                  </div>
+
+                                  <div className="mt-3 pt-2 border-t border-slate-100 flex items-center justify-between gap-1 flex-wrap">
+                                    {isAssinado ? (
+                                      <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 border border-emerald-300">
+                                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                                        <span>Assinado</span>
+                                      </span>
+                                    ) : isAguardando ? (
+                                      <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-md bg-amber-100 text-amber-900 border border-amber-300">
+                                        <Clock className="w-3 h-3 text-amber-700" />
+                                        <span>Aguardando Assinatura</span>
+                                      </span>
+                                    ) : (
+                                      <span className="text-[10px] text-slate-400">
+                                        Não emitido
+                                      </span>
+                                    )}
+
+                                    <button
+                                      type="button"
+                                      onClick={(e) => handleAlternarStatusDocumento(e, 'anexo_g')}
                                       className={`text-[10px] font-semibold underline transition-colors ${
                                         isAssinado
                                           ? 'text-slate-500 hover:text-amber-700'
