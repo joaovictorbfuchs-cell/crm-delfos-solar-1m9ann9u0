@@ -6,8 +6,11 @@ import {
   casarClienteComBase,
   mapearTipoAcessoParaMarca,
   detectarCabecalhoAcessos,
+  clientePossuiCredenciaisCadastradas,
+  aplicarModoImportacao,
+  extrairLinhasAcessos,
 } from './importacaoAcessosService'
-import type { Cliente, MonitoramentoMarca } from '@/types/crm'
+import type { Cliente, ClienteInversor, MonitoramentoMarca } from '@/types/crm'
 
 // Dados 100% fictícios para testes unitários (REGRA: jamais dados reais da planilha)
 const mockClienteFicticio = (partial: Partial<Cliente> & { id: string; nome: string }): Cliente => {
@@ -248,5 +251,174 @@ describe('importacaoAcessosService - Detecção de Cabeçalho', () => {
     expect(detectado?.loginCol).toBe('Login')
     expect(detectado?.senhaCol).toBe('SENHA')
     expect(detectado?.linkCol).toBe('link de acesso')
+  })
+})
+
+describe('importacaoAcessosService - Modo "Somente os que faltam" e Detecção de Credenciais', () => {
+  const mockInversor = (
+    partial: Partial<ClienteInversor> & { cliente_id: string },
+  ): ClienteInversor => ({
+    id: `inv_${Math.random()}`,
+    collectionId: 'pbc_inversores',
+    collectionName: 'cliente_inversores',
+    marca_inversor: 'Growatt',
+    created: '2026-01-01',
+    updated: '2026-01-01',
+    ...partial,
+  })
+
+  it('deve identificar quando o cliente já possui inversor com login OU senha preenchidos', () => {
+    const mapaInversores = new Map<string, ClienteInversor[]>()
+    // Cliente 1: tem inversor com login preenchido
+    mapaInversores.set('cli_1', [
+      mockInversor({ cliente_id: 'cli_1', login: 'usuario_solar', senha: '' }),
+    ])
+    // Cliente 2: tem inversor com senha preenchida
+    mapaInversores.set('cli_2', [
+      mockInversor({ cliente_id: 'cli_2', login: '', senha: 'senha123' }),
+    ])
+    // Cliente 3: tem inversor, mas sem login e sem senha
+    mapaInversores.set('cli_3', [mockInversor({ cliente_id: 'cli_3', login: '', senha: '   ' })])
+    // Cliente 4: não tem nenhum inversor
+
+    expect(clientePossuiCredenciaisCadastradas('cli_1', mapaInversores).possui).toBe(true)
+    expect(clientePossuiCredenciaisCadastradas('cli_2', mapaInversores).possui).toBe(true)
+    expect(clientePossuiCredenciaisCadastradas('cli_3', mapaInversores).possui).toBe(false)
+    expect(clientePossuiCredenciaisCadastradas('cli_4', mapaInversores).possui).toBe(false)
+    expect(clientePossuiCredenciaisCadastradas(null, mapaInversores).possui).toBe(false)
+  })
+
+  it('deve ignorar automaticamente linhas no modo "somente_faltam" se o cliente já tem credenciais', () => {
+    const clientesBase: Cliente[] = [
+      mockClienteFicticio({ id: 'cli_existente', nome: 'Cliente Com Acesso' }),
+      mockClienteFicticio({ id: 'cli_faltante', nome: 'Cliente Sem Acesso' }),
+    ]
+
+    const mapaInversores = new Map<string, ClienteInversor[]>()
+    mapaInversores.set('cli_existente', [
+      mockInversor({ cliente_id: 'cli_existente', login: 'admin_solar', senha: '123' }),
+    ])
+
+    const colunas = {
+      clienteCol: 'Cliente',
+      tipoAcessoCol: 'Tipo',
+      loginCol: 'Login',
+      senhaCol: 'Senha',
+      linkCol: 'Link',
+    }
+
+    const rows = [
+      {
+        Cliente: 'Cliente Com Acesso',
+        Tipo: 'Growatt',
+        Login: 'admin_solar',
+        Senha: '123',
+        Link: 'server.growatt.com',
+      },
+      {
+        Cliente: 'Cliente Sem Acesso',
+        Tipo: 'Solis',
+        Login: 'solis_user',
+        Senha: '456',
+        Link: 'soliscloud.com',
+      },
+      {
+        Cliente: 'Cliente Desconhecido Na Base',
+        Tipo: 'Goodwe',
+        Login: 'goodwe_user',
+        Senha: '789',
+        Link: '',
+      },
+    ]
+
+    // 1. Testando no modo padrão 'atualizar_todos'
+    const itensAtualizarTodos = extrairLinhasAcessos(
+      rows,
+      colunas,
+      clientesBase,
+      [],
+      mapaInversores,
+      'atualizar_todos',
+    )
+    expect(itensAtualizarTodos[0].ignorado).toBe(false)
+    expect(itensAtualizarTodos[0].ignoradoPorJaCadastrado).toBe(false)
+    expect(itensAtualizarTodos[1].ignorado).toBe(false)
+
+    // 2. Testando no modo 'somente_faltam'
+    const itensSomenteFaltam = extrairLinhasAcessos(
+      rows,
+      colunas,
+      clientesBase,
+      [],
+      mapaInversores,
+      'somente_faltam',
+    )
+
+    // Linha 0 (cli_existente): DEVE estar ignorada com flag específica
+    expect(itensSomenteFaltam[0].ignorado).toBe(true)
+    expect(itensSomenteFaltam[0].ignoradoPorJaCadastrado).toBe(true)
+    expect(itensSomenteFaltam[0].clienteJaPossuiCredenciais).toBe(true)
+
+    // Linha 1 (cli_faltante): NÃO deve estar ignorada, segue para criação
+    expect(itensSomenteFaltam[1].ignorado).toBe(false)
+    expect(itensSomenteFaltam[1].ignoradoPorJaCadastrado).toBe(false)
+
+    // Linha 2 (sem cliente na base): NÃO deve ser ignorada automaticamente por já cadastrada
+    expect(itensSomenteFaltam[2].ignoradoPorJaCadastrado).toBe(false)
+  })
+
+  it('deve permitir alternar o modo dinamicamente através de aplicarModoImportacao', () => {
+    const clientesBase: Cliente[] = [
+      mockClienteFicticio({ id: 'cli_existente', nome: 'Cliente Com Acesso' }),
+    ]
+    const mapaInversores = new Map<string, ClienteInversor[]>()
+    mapaInversores.set('cli_existente', [
+      mockInversor({ cliente_id: 'cli_existente', login: 'user1', senha: 'pw1' }),
+    ])
+
+    const itensIniciais = extrairLinhasAcessos(
+      [
+        {
+          Cliente: 'Cliente Com Acesso',
+          Tipo: 'Growatt',
+          Login: 'user1',
+          Senha: 'pw1',
+          Link: '',
+        },
+      ],
+      {
+        clienteCol: 'Cliente',
+        tipoAcessoCol: 'Tipo',
+        loginCol: 'Login',
+        senhaCol: 'Senha',
+        linkCol: 'Link',
+      },
+      clientesBase,
+      [],
+      mapaInversores,
+      'atualizar_todos',
+    )
+
+    expect(itensIniciais[0].ignorado).toBe(false)
+
+    // Muda para somente_faltam
+    const modoFaltam = aplicarModoImportacao(
+      itensIniciais,
+      'somente_faltam',
+      mapaInversores,
+      clientesBase,
+    )
+    expect(modoFaltam[0].ignorado).toBe(true)
+    expect(modoFaltam[0].ignoradoPorJaCadastrado).toBe(true)
+
+    // Volta para atualizar_todos
+    const voltaAtualizar = aplicarModoImportacao(
+      modoFaltam,
+      'atualizar_todos',
+      mapaInversores,
+      clientesBase,
+    )
+    expect(voltaAtualizar[0].ignorado).toBe(false)
+    expect(voltaAtualizar[0].ignoradoPorJaCadastrado).toBe(false)
   })
 })

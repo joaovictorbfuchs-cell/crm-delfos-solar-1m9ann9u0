@@ -40,9 +40,11 @@ import { parseSpreadsheetFile, ParsedTableData } from '@/lib/spreadsheetParser'
 import {
   detectarCabecalhoAcessos,
   extrairLinhasAcessos,
+  aplicarModoImportacao,
   ItemImportacaoAcesso,
   ColunasDetectadasAcessos,
   RelatorioImportacaoAcessos,
+  ModoImportacaoAcessos,
 } from '@/services/importacaoAcessosService'
 import { Cliente, ClienteInversor, MonitoramentoMarca } from '@/types/crm'
 import { toast } from 'sonner'
@@ -63,13 +65,26 @@ export function ImportarAcessos() {
   const [colunasDetectadas, setColunasDetectadas] = useState<ColunasDetectadasAcessos | null>(null)
   const [mostrarMapeamentoColunas, setMostrarMapeamentoColunas] = useState<boolean>(false)
 
+  // Modo de importação (persistido na sessão do navegador)
+  const [modoImportacao, setModoImportacao] = useState<ModoImportacaoAcessos>(() => {
+    try {
+      const salvo = sessionStorage.getItem('delfos_importar_acessos_modo')
+      if (salvo === 'somente_faltam' || salvo === 'atualizar_todos') {
+        return salvo
+      }
+    } catch {
+      // Ignora falha de sessionStorage se desabilitado
+    }
+    return 'atualizar_todos'
+  })
+
   // Itens da Prévia
   const [itensAcesso, setItensAcesso] = useState<ItemImportacaoAcesso[]>([])
 
   // Filtros da Prévia
   const [buscaTexto, setBuscaTexto] = useState<string>('')
   const [filtroConfianca, setFiltroConfianca] = useState<
-    'todos' | 'alta' | 'media' | 'baixa' | 'sem_cliente'
+    'todos' | 'alta' | 'media' | 'baixa' | 'sem_cliente' | 'ignorados_ja_cadastrados'
   >('todos')
   const [mostrarSenhas, setMostrarSenhas] = useState<boolean>(false)
 
@@ -149,6 +164,7 @@ export function ImportarAcessos() {
         clientes,
         marcasCadastradas,
         inversoresPorClienteMap,
+        modoImportacao,
       )
 
       setItensAcesso(itens)
@@ -163,6 +179,26 @@ export function ImportarAcessos() {
       )
     } finally {
       setIsProcessandoArquivo(false)
+    }
+  }
+
+  // Alternar modo de importação e persistir na sessão
+  const handleMudarModoImportacao = (novoModo: ModoImportacaoAcessos) => {
+    setModoImportacao(novoModo)
+    try {
+      sessionStorage.setItem('delfos_importar_acessos_modo', novoModo)
+    } catch {
+      // Ignora erro de storage
+    }
+    setItensAcesso((prev) =>
+      aplicarModoImportacao(prev, novoModo, inversoresPorClienteMap, clientes),
+    )
+    if (novoModo === 'somente_faltam') {
+      toast.info(
+        'Modo "Somente os que faltam" ativado: clientes com acessos já cadastrados serão ignorados.',
+      )
+    } else {
+      toast.info('Modo "Atualizar todos" ativado: todas as linhas ativas serão processadas.')
     }
   }
 
@@ -181,6 +217,7 @@ export function ImportarAcessos() {
       clientes,
       marcasCadastradas,
       inversoresPorClienteMap,
+      modoImportacao,
     )
     setItensAcesso(itens)
   }
@@ -188,36 +225,51 @@ export function ImportarAcessos() {
   // Atualizar cliente selecionado manualmente na tabela de prévia
   const handleMudarClienteItem = (idTemp: string, novoClienteId: string) => {
     const clienteAlvo = clientes.find((c) => c.id === novoClienteId) || null
-    setItensAcesso((prev) =>
-      prev.map((item) => {
+    setItensAcesso((prev) => {
+      const atualizados = prev.map((item) => {
         if (item.idTemp !== idTemp) return item
         return {
           ...item,
           clienteSelecionadoId: clienteAlvo ? clienteAlvo.id : null,
           clienteSelecionadoNome: clienteAlvo ? clienteAlvo.nome : null,
-          confiancaMatch: clienteAlvo ? 'alta' : 'nenhuma',
+          confiancaMatch: clienteAlvo ? ('alta' as const) : ('nenhuma' as const),
           motivoMatch: clienteAlvo ? 'Vinculado manualmente pelo usuário' : 'Sem cliente vinculado',
           scoreMatch: clienteAlvo ? 1 : 0,
         }
-      }),
-    )
+      })
+      return aplicarModoImportacao(atualizados, modoImportacao, inversoresPorClienteMap, clientes)
+    })
   }
 
   // Alternar ignorar/incluir item na importação
   const handleToggleIgnorarItem = (idTemp: string) => {
     setItensAcesso((prev) =>
-      prev.map((item) => (item.idTemp === idTemp ? { ...item, ignorado: !item.ignorado } : item)),
+      prev.map((item) => {
+        if (item.idTemp !== idTemp) return item
+        const novoIgnorado = !item.ignorado
+        return {
+          ...item,
+          ignorado: novoIgnorado,
+          // Se o usuário desmarcou o checkbox (ou seja, quer incluir), removemos a trava automática de ignoradoPorJaCadastrado
+          ignoradoPorJaCadastrado: novoIgnorado ? item.ignoradoPorJaCadastrado : false,
+        }
+      }),
     )
   }
 
   // Alterar ação (criar novo vs atualizar existente)
   const handleMudarAcaoItem = (idTemp: string, novaAcao: 'criar' | 'atualizar' | 'ignorar') => {
     setItensAcesso((prev) =>
-      prev.map((item) =>
-        item.idTemp === idTemp
-          ? { ...item, acao: novaAcao, ignorado: novaAcao === 'ignorar' }
-          : item,
-      ),
+      prev.map((item) => {
+        if (item.idTemp !== idTemp) return item
+        const novoIgnorado = novaAcao === 'ignorar'
+        return {
+          ...item,
+          acao: novaAcao,
+          ignorado: novoIgnorado,
+          ignoradoPorJaCadastrado: novoIgnorado ? item.ignoradoPorJaCadastrado : false,
+        }
+      }),
     )
   }
 
@@ -240,6 +292,9 @@ export function ImportarAcessos() {
 
     const ativosParaGravar = itensAcesso.filter((i) => !i.ignorado && i.clienteSelecionadoId).length
     const marcadosIgnorados = itensAcesso.filter((i) => i.ignorado).length
+    const ignoradosJaCadastrados = itensAcesso.filter(
+      (i) => i.ignorado && (i.ignoradoPorJaCadastrado || i.clienteJaPossuiCredenciais),
+    ).length
     const sugeridosAtualizar = itensAcesso.filter(
       (i) => !i.ignorado && i.acao === 'atualizar',
     ).length
@@ -253,6 +308,7 @@ export function ImportarAcessos() {
       semCliente,
       ativosParaGravar,
       marcadosIgnorados,
+      ignoradosJaCadastrados,
       sugeridosAtualizar,
       sugeridosCriar,
     }
@@ -271,6 +327,11 @@ export function ImportarAcessos() {
         item.confiancaMatch !== 'nenhuma'
       )
         return false
+      if (filtroConfianca === 'ignorados_ja_cadastrados') {
+        const ehIgnoradoCadastrado =
+          item.ignorado && (item.ignoradoPorJaCadastrado || item.clienteJaPossuiCredenciais)
+        if (!ehIgnoradoCadastrado) return false
+      }
 
       // Busca por texto
       if (buscaTexto.trim()) {
@@ -305,8 +366,11 @@ export function ImportarAcessos() {
 
     let importadosCriados = 0
     let atualizados = 0
-    let ignorados = itensAcesso.length - itensValidos.length
-    let semCliente = itensAcesso.filter(
+    const ignorados = itensAcesso.length - itensValidos.length
+    const ignoradosJaCadastrados = itensAcesso.filter(
+      (i) => i.ignorado && (i.ignoradoPorJaCadastrado || i.clienteJaPossuiCredenciais),
+    ).length
+    const semCliente = itensAcesso.filter(
       (i) => !i.clienteSelecionadoId || i.confiancaMatch === 'nenhuma',
     ).length
     const erros: { linha: number; mensagem: string }[] = []
@@ -379,6 +443,7 @@ export function ImportarAcessos() {
       importadosCriados,
       atualizados,
       ignorados,
+      ignoradosJaCadastrados,
       semCliente,
       erros,
     })
@@ -477,7 +542,7 @@ export function ImportarAcessos() {
             </button>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 pt-2">
             <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3 text-center">
               <span className="text-xs text-emerald-700 font-semibold block">Novos Criados</span>
               <span className="text-xl font-bold text-emerald-900">
@@ -487,6 +552,14 @@ export function ImportarAcessos() {
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-center">
               <span className="text-xs text-blue-700 font-semibold block">Atualizados</span>
               <span className="text-xl font-bold text-blue-900">{relatorio.atualizados}</span>
+            </div>
+            <div className="bg-purple-50 border border-purple-200 rounded-lg p-3 text-center">
+              <span className="text-xs text-purple-700 font-semibold block">
+                Ignorados (Já Cadastrados)
+              </span>
+              <span className="text-xl font-bold text-purple-900">
+                {relatorio.ignoradosJaCadastrados}
+              </span>
             </div>
             <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-center">
               <span className="text-xs text-amber-700 font-semibold block">Sem Cliente Casado</span>
@@ -584,6 +657,12 @@ export function ImportarAcessos() {
                 <span className="text-xs bg-blue-50 text-blue-800 border border-blue-200 px-2 py-0.5 rounded-full font-semibold">
                   {estatisticas.ativosParaGravar} ativos para salvar
                 </span>
+                {estatisticas.ignoradosJaCadastrados > 0 && (
+                  <span className="text-xs bg-purple-50 text-purple-800 border border-purple-200 px-2 py-0.5 rounded-full font-semibold flex items-center gap-1">
+                    <UserCheck className="w-3 h-3 text-purple-600" />
+                    {estatisticas.ignoradosJaCadastrados} já cadastrados ignorados
+                  </span>
+                )}
               </div>
 
               <div className="flex items-center gap-2 flex-wrap">
@@ -610,6 +689,95 @@ export function ImportarAcessos() {
                   )}
                   <span>{mostrarSenhas ? 'Ocultar Senhas' : 'Exibir Senhas'}</span>
                 </button>
+              </div>
+            </div>
+
+            {/* Seletor de Modo de Importação */}
+            <div className="pt-3 border-t border-gray-100">
+              <div className="bg-gradient-to-r from-emerald-50/70 via-gray-50 to-blue-50/50 rounded-xl border border-emerald-200/80 p-3.5 sm:p-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-2.5">
+                  <div className="space-y-0.5">
+                    <div className="flex items-center gap-2">
+                      <Sparkles className="w-4 h-4 text-emerald-600 shrink-0" />
+                      <span className="text-xs font-bold text-gray-900 uppercase tracking-wide">
+                        Modo de Importação dos Acessos
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-gray-500">
+                      Escolha como tratar linhas cujos clientes já possuem credenciais de inversor
+                      cadastradas.
+                    </p>
+                  </div>
+
+                  <span className="text-[11px] font-semibold text-emerald-700 bg-white/90 border border-emerald-200 px-2.5 py-1 rounded-md shadow-2xs self-start sm:self-auto">
+                    {modoImportacao === 'somente_faltam'
+                      ? '⚡ Filtrando: apenas os que faltam'
+                      : '🔄 Modo padrão: sincronizar todos'}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+                  {/* Opção 1: Atualizar todos */}
+                  <label
+                    className={`relative flex items-start gap-3 p-3 rounded-lg border text-left cursor-pointer transition-all ${
+                      modoImportacao === 'atualizar_todos'
+                        ? 'bg-white border-emerald-500 shadow-xs ring-1 ring-emerald-500'
+                        : 'bg-white/60 border-gray-200 hover:bg-white hover:border-gray-300'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="modo-importacao"
+                      value="atualizar_todos"
+                      checked={modoImportacao === 'atualizar_todos'}
+                      onChange={() => handleMudarModoImportacao('atualizar_todos')}
+                      className="mt-0.5 text-emerald-600 focus:ring-emerald-500 w-4 h-4 cursor-pointer"
+                    />
+                    <div className="space-y-0.5 text-xs">
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-bold text-gray-900">Atualizar todos</span>
+                        <span className="text-[10px] font-medium text-gray-500 bg-gray-100 px-1.5 py-0.2 rounded">
+                          Padrão
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-gray-600 leading-snug">
+                        Cria novos inversores e atualiza existentes sem duplicar credenciais
+                        idênticas. Processa todas as linhas ativas.
+                      </p>
+                    </div>
+                  </label>
+
+                  {/* Opção 2: Somente os que faltam */}
+                  <label
+                    className={`relative flex items-start gap-3 p-3 rounded-lg border text-left cursor-pointer transition-all ${
+                      modoImportacao === 'somente_faltam'
+                        ? 'bg-white border-purple-500 shadow-xs ring-1 ring-purple-500'
+                        : 'bg-white/60 border-gray-200 hover:bg-white hover:border-gray-300'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="modo-importacao"
+                      value="somente_faltam"
+                      checked={modoImportacao === 'somente_faltam'}
+                      onChange={() => handleMudarModoImportacao('somente_faltam')}
+                      className="mt-0.5 text-purple-600 focus:ring-purple-500 w-4 h-4 cursor-pointer"
+                    />
+                    <div className="space-y-0.5 text-xs">
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-bold text-gray-900">Somente os que faltam</span>
+                        <span className="text-[10px] font-bold text-purple-700 bg-purple-100 border border-purple-200 px-1.5 py-0.2 rounded">
+                          Reimportação Segura
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-gray-600 leading-snug">
+                        Desconsidera automaticamente clientes que{' '}
+                        <strong>já possuem credenciais</strong> cadastradas no banco (login ou senha
+                        preenchidos). Ideal para completar linhas faltantes.
+                      </p>
+                    </div>
+                  </label>
+                </div>
               </div>
             </div>
 
@@ -695,8 +863,8 @@ export function ImportarAcessos() {
               </div>
             )}
 
-            {/* Badges de Confiança do Matching */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-2">
+            {/* Badges de Confiança do Matching e Filtros Rápidos */}
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5 pt-2">
               <button
                 type="button"
                 onClick={() => setFiltroConfianca(filtroConfianca === 'alta' ? 'todos' : 'alta')}
@@ -778,6 +946,32 @@ export function ImportarAcessos() {
                   Vincular cliente manualmente
                 </span>
               </button>
+
+              <button
+                type="button"
+                onClick={() =>
+                  setFiltroConfianca(
+                    filtroConfianca === 'ignorados_ja_cadastrados'
+                      ? 'todos'
+                      : 'ignorados_ja_cadastrados',
+                  )
+                }
+                className={`p-2.5 rounded-lg border text-left transition-all ${
+                  filtroConfianca === 'ignorados_ja_cadastrados'
+                    ? 'bg-purple-100 border-purple-400 ring-1 ring-purple-500'
+                    : 'bg-purple-50/50 border-purple-200 hover:bg-purple-50'
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-bold text-purple-800">Já Cadastrados</span>
+                  <span className="text-xs font-bold px-1.5 py-0.5 rounded bg-purple-200/80 text-purple-900">
+                    {estatisticas.ignoradosJaCadastrados}
+                  </span>
+                </div>
+                <span className="text-[10px] text-purple-700 block mt-0.5">
+                  Ignorados por dados existentes
+                </span>
+              </button>
             </div>
           </div>
 
@@ -843,15 +1037,21 @@ export function ImportarAcessos() {
                   {itensFiltrados.map((item) => {
                     const isBaixaOuSem =
                       item.confiancaMatch === 'baixa' || item.confiancaMatch === 'nenhuma'
+                    const isIgnoradoJaCadastrado =
+                      item.ignorado &&
+                      (item.ignoradoPorJaCadastrado || item.clienteJaPossuiCredenciais)
+
                     return (
                       <tr
                         key={item.idTemp}
                         className={`transition-colors ${
-                          item.ignorado
-                            ? 'bg-gray-100/70 text-gray-400 opacity-60'
-                            : isBaixaOuSem
-                              ? 'bg-amber-50/30 hover:bg-amber-50/60'
-                              : 'hover:bg-emerald-50/40'
+                          isIgnoradoJaCadastrado
+                            ? 'bg-purple-50/40 text-gray-500 hover:bg-purple-50/70'
+                            : item.ignorado
+                              ? 'bg-gray-100/70 text-gray-400 opacity-60'
+                              : isBaixaOuSem
+                                ? 'bg-amber-50/30 hover:bg-amber-50/60'
+                                : 'hover:bg-emerald-50/40'
                         }`}
                       >
                         {/* Linha / Ignorar Toggle */}
@@ -861,7 +1061,9 @@ export function ImportarAcessos() {
                             checked={!item.ignorado}
                             onChange={() => handleToggleIgnorarItem(item.idTemp)}
                             title={
-                              item.ignorado ? 'Incluir na importação' : 'Desmarcar / Ignorar linha'
+                              item.ignorado
+                                ? 'Incluir manualmente na importação'
+                                : 'Desmarcar / Ignorar linha'
                             }
                             className="w-3.5 h-3.5 rounded text-emerald-600 focus:ring-emerald-500 cursor-pointer"
                           />
@@ -999,9 +1201,25 @@ export function ImportarAcessos() {
                           )}
                         </td>
 
-                        {/* Ação: Criar Novo vs Atualizar */}
+                        {/* Ação: Criar Novo vs Atualizar ou Badge de Já Cadastrado */}
                         <td className="py-2 px-3 text-center whitespace-nowrap">
-                          {item.inversorExistenteId ? (
+                          {isIgnoradoJaCadastrado ? (
+                            <div className="flex flex-col items-center gap-0.5">
+                              <span
+                                className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-100 text-purple-900 border border-purple-300 cursor-help shadow-2xs"
+                                title={
+                                  item.motivoJaCadastrado ||
+                                  'Cliente já possui dados de acesso (login ou senha) cadastrados no banco de dados. Linha desconsiderada no modo "Somente os que faltam". Para forçar a importação, marque o checkbox da linha.'
+                                }
+                              >
+                                <UserCheck className="w-3 h-3 text-purple-700 shrink-0" />
+                                <span>Já cadastrado — ignorado</span>
+                              </span>
+                              <span className="text-[9px] text-purple-700/80 font-medium">
+                                Modo: somente faltantes
+                              </span>
+                            </div>
+                          ) : item.inversorExistenteId ? (
                             <select
                               value={item.acao}
                               onChange={(e) =>
@@ -1013,6 +1231,10 @@ export function ImportarAcessos() {
                               <option value="criar">Criar Novo Inversor</option>
                               <option value="ignorar">Ignorar Linha</option>
                             </select>
+                          ) : item.ignorado ? (
+                            <span className="inline-flex items-center gap-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded bg-gray-100 text-gray-700 border border-gray-300">
+                              Ignorado
+                            </span>
                           ) : (
                             <span className="inline-flex items-center gap-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-800 border border-emerald-200">
                               Novo Inversor
@@ -1030,13 +1252,19 @@ export function ImportarAcessos() {
           {/* Barra Inferior com Confirmação e Progresso */}
           <div className="bg-white rounded-xl border border-gray-200/90 p-4 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4 sticky bottom-4 z-20">
             <div className="space-y-0.5">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-sm font-bold text-gray-900">
                   Pronto para gravar {estatisticas.ativosParaGravar} inversor(es)
                 </span>
                 {estatisticas.sugeridosAtualizar > 0 && (
                   <span className="text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full font-semibold">
-                    {estatisticas.sugeridosAtualizar} atualizações idempotentes
+                    {estatisticas.sugeridosAtualizar} atualizações
+                  </span>
+                )}
+                {estatisticas.ignoradosJaCadastrados > 0 && (
+                  <span className="text-xs bg-purple-100 text-purple-900 px-2 py-0.5 rounded-full font-semibold flex items-center gap-1 border border-purple-200">
+                    <UserCheck className="w-3 h-3 text-purple-700" />
+                    {estatisticas.ignoradosJaCadastrados} já cadastrados ignorados
                   </span>
                 )}
                 {estatisticas.semCliente > 0 && (
@@ -1046,7 +1274,9 @@ export function ImportarAcessos() {
                 )}
               </div>
               <p className="text-xs text-gray-500">
-                Os dados só são gravados no banco de dados com a sua confirmação explícita.
+                {modoImportacao === 'somente_faltam'
+                  ? 'Modo ativo: "Somente os que faltam". Linhas de clientes que já possuem acessos cadastrados não serão modificadas.'
+                  : 'Modo ativo: "Atualizar todos". Linhas ativas serão salvas/atualizadas no CRM.'}
               </p>
             </div>
 

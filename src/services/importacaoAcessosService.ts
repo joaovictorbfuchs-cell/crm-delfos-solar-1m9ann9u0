@@ -41,6 +41,8 @@ export interface MarcaMapeadaResultado {
   ehDesconhecida: boolean
 }
 
+export type ModoImportacaoAcessos = 'atualizar_todos' | 'somente_faltam'
+
 export interface ItemImportacaoAcesso {
   idTemp: string
   linhaNum: number
@@ -61,8 +63,13 @@ export interface ItemImportacaoAcesso {
   motivoMatch: string
   scoreMatch: number
 
+  // Informações de credenciais já cadastradas no CRM
+  clienteJaPossuiCredenciais?: boolean
+  motivoJaCadastrado?: string
+
   // Decisão do Usuário na Prévia
   ignorado: boolean
+  ignoradoPorJaCadastrado?: boolean
   acao: 'criar' | 'atualizar' | 'ignorar'
   inversorExistenteId?: string
 }
@@ -72,6 +79,7 @@ export interface RelatorioImportacaoAcessos {
   importadosCriados: number
   atualizados: number
   ignorados: number
+  ignoradosJaCadastrados: number
   semCliente: number
   erros: { linha: number; mensagem: string }[]
 }
@@ -628,14 +636,121 @@ export function detectarCabecalhoAcessos(headers: string[]): ColunasDetectadasAc
 /**
  * Extrai e normaliza linhas brutas da planilha de acessos usando mapeamento de colunas
  */
+/**
+ * Verifica se um cliente casado já possui algum inversor cadastrado com credenciais
+ * preenchidas (login OU senha preenchidos).
+ * Também checa dados legados no registro do cliente se aplicável.
+ */
+export function clientePossuiCredenciaisCadastradas(
+  clienteId: string | null | undefined,
+  inversoresExistentesPorCliente: Map<string, ClienteInversor[]>,
+  clientesBase?: Cliente[],
+): { possui: boolean; motivo?: string } {
+  if (!clienteId) return { possui: false }
+
+  const inversores = inversoresExistentesPorCliente.get(clienteId) || []
+  const inversorComCredenciais = inversores.find((inv) =>
+    Boolean((inv.login && inv.login.trim()) || (inv.senha && inv.senha.trim())),
+  )
+
+  if (inversorComCredenciais) {
+    const marcaInfo = inversorComCredenciais.marca_inversor
+      ? ` (${inversorComCredenciais.marca_inversor})`
+      : ''
+    return {
+      possui: true,
+      motivo: `Já possui inversor${marcaInfo} com credenciais cadastradas no banco`,
+    }
+  }
+
+  // Checagem defensiva de campos legados no próprio cliente (ex.: monitoramento_login / monitoramento_senha)
+  if (clientesBase && clientesBase.length > 0) {
+    const clienteObj = clientesBase.find((c) => c.id === clienteId)
+    if (clienteObj) {
+      const loginLegado = (clienteObj as any).monitoramento_login?.trim()
+      const senhaLegada = (clienteObj as any).monitoramento_senha?.trim()
+      if (loginLegado || senhaLegada) {
+        return {
+          possui: true,
+          motivo: 'Já possui login/senha de monitoramento registrado no cadastro do cliente',
+        }
+      }
+    }
+  }
+
+  return { possui: false }
+}
+
+/**
+ * Aplica ou recalcula o modo de importação sobre uma lista de itens de importação.
+ * - 'atualizar_todos': comportamento padrão. Linhas mantêm sua ação original (criar/atualizar)
+ *    e só são ignoradas se estavam vazias ou o usuário marcou manualmente.
+ * - 'somente_faltam': linhas cujo cliente casado já tem credenciais cadastradas
+ *    são marcadas como ignoradas automaticamente (ignorado = true, ignoradoPorJaCadastrado = true).
+ *    Linhas sem cliente casado ou de clientes sem nenhum acesso continuam normalmente para criação.
+ */
+export function aplicarModoImportacao(
+  itens: ItemImportacaoAcesso[],
+  modo: ModoImportacaoAcessos,
+  inversoresExistentesPorCliente: Map<string, ClienteInversor[]>,
+  clientesBase?: Cliente[],
+): ItemImportacaoAcesso[] {
+  return itens.map((item) => {
+    const checagem = clientePossuiCredenciaisCadastradas(
+      item.clienteSelecionadoId,
+      inversoresExistentesPorCliente,
+      clientesBase,
+    )
+
+    const clienteJaPossuiCredenciais = checagem.possui
+    const motivoJaCadastrado = checagem.motivo
+
+    if (modo === 'somente_faltam') {
+      if (clienteJaPossuiCredenciais) {
+        return {
+          ...item,
+          clienteJaPossuiCredenciais,
+          motivoJaCadastrado,
+          ignorado: true,
+          ignoradoPorJaCadastrado: true,
+        }
+      } else {
+        // Se não possui credenciais, desfaz a marcação automática de "ignorado por já cadastrado"
+        const estavaIgnoradoSoPorJaCadastrado = item.ignoradoPorJaCadastrado
+        return {
+          ...item,
+          clienteJaPossuiCredenciais: false,
+          motivoJaCadastrado: undefined,
+          ignoradoPorJaCadastrado: false,
+          ignorado: estavaIgnoradoSoPorJaCadastrado ? false : item.ignorado,
+        }
+      }
+    } else {
+      // Modo 'atualizar_todos'
+      const estavaIgnoradoSoPorJaCadastrado = item.ignoradoPorJaCadastrado
+      return {
+        ...item,
+        clienteJaPossuiCredenciais,
+        motivoJaCadastrado,
+        ignoradoPorJaCadastrado: false,
+        ignorado: estavaIgnoradoSoPorJaCadastrado ? false : item.ignorado,
+      }
+    }
+  })
+}
+
+/**
+ * Extrai e normaliza linhas brutas da planilha de acessos usando mapeamento de colunas
+ */
 export function extrairLinhasAcessos(
   rows: Record<string, string>[],
   colunas: ColunasDetectadasAcessos,
   clientesBase: Cliente[],
   marcasCadastradas: MonitoramentoMarca[] = [],
   inversoresExistentesPorCliente: Map<string, ClienteInversor[]> = new Map(),
+  modoImportacao: ModoImportacaoAcessos = 'atualizar_todos',
 ): ItemImportacaoAcesso[] {
-  return rows.map((row, index) => {
+  const itensIniciais = rows.map((row, index) => {
     const rawCliente = (row[colunas.clienteCol] || '').trim()
     const rawTipoAcesso = (row[colunas.tipoAcessoCol] || '').trim()
 
@@ -677,7 +792,7 @@ export function extrairLinhasAcessos(
       })
 
       if (inversorMesmaMarca) {
-        // Se já existe e as credenciais são exatamente as mesmas -> ignorar para idempotência
+        // Se já existe e as credenciais são exatamente as mesmas -> atualizar
         const mesmoLogin = (inversorMesmaMarca.login || '').trim() === rawLogin
         const mesmaSenha = (inversorMesmaMarca.senha || '').trim() === rawSenha
         const mesmoLink = (inversorMesmaMarca.datalogger_url || '').trim() === rawLink
@@ -700,8 +815,10 @@ export function extrairLinhasAcessos(
       }
     }
 
+    const estaLinhaVazia = !rawCliente && !rawTipoAcesso && !rawLogin && !rawSenha
+
     return {
-      idTemp: `acesso-item-${index + 1}-${Date.now()}`,
+      idTemp: `acesso-item-${index + 1}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
       linhaNum: index + 2, // Considerando linha 1 como cabeçalho
       nomePlanilha: rawCliente,
       tipoAcessoPlanilha: rawTipoAcesso,
@@ -718,9 +835,17 @@ export function extrairLinhasAcessos(
       motivoMatch: match.motivoMatch,
       scoreMatch: match.scoreSimilaridade,
 
-      ignorado: !rawCliente && !rawTipoAcesso && !rawLogin && !rawSenha,
+      ignorado: estaLinhaVazia,
       acao: acaoSugerida,
       inversorExistenteId,
     }
   })
+
+  // Aplica a lógica do modo de importação (caso seja 'somente_faltam' ou 'atualizar_todos')
+  return aplicarModoImportacao(
+    itensIniciais,
+    modoImportacao,
+    inversoresExistentesPorCliente,
+    clientesBase,
+  )
 }
