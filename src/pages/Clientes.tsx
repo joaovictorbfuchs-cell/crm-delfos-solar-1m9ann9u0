@@ -300,7 +300,7 @@ export default function Clientes() {
       cep: dados.cep,
       uc: '',
       potencia_kwp: 5.5,
-      valor_estimado: 25000,
+      valor_estimado: 0,
       status: 'Novo Lead',
       produto: 'Energia Solar',
       telhado_tipo: 'ceramico',

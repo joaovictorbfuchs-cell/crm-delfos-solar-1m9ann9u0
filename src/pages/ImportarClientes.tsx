@@ -477,7 +477,7 @@ export default function ImportarClientes() {
               endereco: item.endereco,
               // Status Lead para quem não fechou negócio
               status: 'Novo Lead',
-              valor_estimado: item.valor_estimado || 25000,
+              valor_estimado: item.valor_estimado || 0,
               potencia_kwp: item.valor_estimado
                 ? Math.round((item.valor_estimado / 3600) * 10) / 10
                 : 5.5,

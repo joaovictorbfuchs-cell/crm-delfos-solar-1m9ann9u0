@@ -413,7 +413,7 @@ export function normalizarLinhaParaCliente(
   const rawValor = getValor('valor_estimado')
     .replace(/[^\d.,]/g, '')
     .replace(',', '.')
-  const valorEstimado = parseFloat(rawValor) || (status === 'Fechado' ? 32000 : 25000)
+  const valorEstimado = parseFloat(rawValor) || 0
 
   const observacoes = [
     `Importado de: ${fonte === 'pipedrive' ? 'Pipedrive CRM' : 'Conta Azul'} em ${new Date().toLocaleDateString('pt-BR')}`,

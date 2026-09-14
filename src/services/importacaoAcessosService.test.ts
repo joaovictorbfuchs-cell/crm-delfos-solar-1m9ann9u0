@@ -22,7 +22,7 @@ const mockClienteFicticio = (partial: Partial<Cliente> & { id: string; nome: str
     uc: '',
     cidade: 'Erechim',
     potencia_kwp: 5,
-    valor_estimado: 25000,
+    valor_estimado: 0,
     status: 'Fechado',
     data_instalacao: '',
     inversor_marca: '',

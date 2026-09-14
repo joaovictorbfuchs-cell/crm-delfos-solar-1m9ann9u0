@@ -32,7 +32,7 @@ function mockCliente(partial: Partial<Cliente> & { id: string; nome: string }): 
     uc: '',
     cidade: 'Erechim',
     potencia_kwp: 5,
-    valor_estimado: 25000,
+    valor_estimado: 0,
     status: 'Novo Lead',
     data_instalacao: '',
     inversor_marca: '',
