@@ -1106,12 +1106,16 @@ export async function fetchWhatsAppMensagens(options?: {
 
 export async function sendWhatsAppMensagem(data: {
   cliente_id?: string
+  clienteId?: string
   conversa_id?: string
-  telefone_destino: string
-  conteudo_final: string
+  telefone?: string
+  telefone_destino?: string
+  mensagem?: string
+  conteudo_final?: string
   template_id?: string
   agendado_para?: string | null
   tipo_disparo?: string
+  origem?: string
   referencia_id?: string
 }): Promise<{
   ok: boolean
@@ -1122,9 +1126,20 @@ export async function sendWhatsAppMensagem(data: {
   message: string
   data?: import('@/types/crm').WhatsAppMensagem
 }> {
+  const payload = {
+    cliente_id: data.cliente_id || data.clienteId,
+    conversa_id: data.conversa_id,
+    telefone_destino: data.telefone_destino || data.telefone || '',
+    conteudo_final: data.conteudo_final || data.mensagem || '',
+    template_id: data.template_id,
+    agendado_para: data.agendado_para,
+    tipo_disparo: data.tipo_disparo || data.origem || 'manual',
+    referencia_id: data.referencia_id,
+  }
+
   return pb.send('/backend/v1/whatsapp/send', {
     method: 'POST',
-    body: data,
+    body: payload,
   })
 }
 

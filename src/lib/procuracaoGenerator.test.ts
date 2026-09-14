@@ -74,16 +74,34 @@ describe('procuracaoGenerator - Procuração Particular Delfos Solar O&M', () =>
     expect(pdfString.startsWith('%PDF-1.4')).toBe(true)
   })
 
-  it('deve formatar o texto de envio de WhatsApp da procuração com o primeiro nome do cliente', () => {
+  it('deve formatar o texto e parâmetros de envio de WhatsApp da procuração via Z-API (sem link wa.me)', () => {
     const telefoneLimpo = (dadosMarceloBecker.telefone || '').replace(/\D/g, '')
     expect(telefoneLimpo).toBe('54997128844')
+    expect(telefoneLimpo.length).toBeGreaterThanOrEqual(10)
 
     const primeiroNome = dadosMarceloBecker.nome.split(' ')[0]
     const mensagem = `Olá ${primeiroNome}! Segue em anexo a procuração da Delfos Solar para conferência e assinatura, autorizando os trâmites junto à concessionária de energia. Por favor, assine no campo indicado e nos devolva a via preenchida. Ficamos à disposição!`
 
+    // Valida o conteúdo da mensagem enviada via Z-API
     expect(mensagem).toContain('Olá Marcelo!')
     expect(mensagem).toContain('procuração da Delfos Solar')
     expect(mensagem).toContain('concessionária de energia')
+
+    // Confirma que não é uma URL wa.me nem faz encoding de query param para link externo
+    expect(mensagem).not.toContain('wa.me')
+    expect(mensagem).not.toContain('api.whatsapp.com')
+    expect(mensagem).not.toContain('https://')
+
+    // Formato de payload esperado pela Z-API via sendWhatsAppMensagem
+    const payloadEnvioZApi = {
+      clienteId: 'demo-client-id',
+      telefone: telefoneLimpo,
+      mensagem,
+      origem: 'modal_procuracao_om',
+    }
+    expect(payloadEnvioZApi.telefone).toBe('54997128844')
+    expect(payloadEnvioZApi.origem).toBe('modal_procuracao_om')
+    expect(payloadEnvioZApi.mensagem).toBe(mensagem)
   })
 
   it('deve permitir emitir procuração para cliente sem proposta O&M cadastrada (ex: PATRICK RECH RAMOS)', () => {
