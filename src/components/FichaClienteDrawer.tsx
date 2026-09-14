@@ -907,7 +907,7 @@ export const FichaClienteDrawer: React.FC = () => {
                   }`}
                 >
                   <Clock className="w-4 h-4 text-[#16A34A]" />
-                  <span>Histórico</span>
+                  <span>Atividades</span>
                   {timelineAtividades.length > 0 && (
                     <span className="px-2 py-0.5 rounded-full text-[10px] bg-emerald-100 text-emerald-800 font-bold">
                       {timelineAtividades.length}
