@@ -29,6 +29,7 @@ import { Input } from '@/components/ui/input'
 
 import { useAuth } from '@/contexts/AuthContext'
 import { fetchInstaladoresAtivos } from '@/services/usuariosService'
+import { BotaoEnviarOSWhatsApp } from '@/components/BotaoEnviarOSWhatsApp'
 import type { SistemaUsuario } from '@/types/crm'
 import {
   Dialog,
@@ -468,9 +469,8 @@ export default function ExecucaoOS() {
                     )}
                   </div>
                 </div>
-
                 {/* Rodapé do Card com Progresso e Botão Grande */}
-                <div className="pt-3 border-t border-gray-100 flex items-center justify-between gap-2 mt-2">
+                <div className="pt-3 border-t border-gray-100 flex items-center justify-between gap-2 mt-2 flex-wrap">
                   <div className="flex items-center gap-2 text-[11px] text-gray-500">
                     {checklistTotal > 0 && (
                       <span className="bg-gray-100 px-2 py-0.5 rounded font-medium">
@@ -484,11 +484,24 @@ export default function ExecucaoOS() {
                     )}
                   </div>
 
-                  <div className="inline-flex items-center gap-1 text-xs font-bold text-emerald-700 group-hover:translate-x-0.5 transition-transform">
-                    <span>{os.status === 'concluida' ? 'Ver Ficha' : 'Executar OS'}</span>
-                    <ChevronRight className="w-4 h-4" />
+                  <div className="flex items-center gap-2">
+                    <div onClick={(e) => e.stopPropagation()}>
+                      <BotaoEnviarOSWhatsApp
+                        osId={os.id}
+                        responsavelNome={os.atribuida_a || os.expand?.responsavel_usuario_id?.name}
+                        responsavelTelefone={os.expand?.responsavel_usuario_id?.phone}
+                        responsavelId={os.responsavel_usuario_id}
+                        size="sm"
+                        label="Enviar OS"
+                      />
+                    </div>
+
+                    <div className="inline-flex items-center gap-1 text-xs font-bold text-emerald-700 group-hover:translate-x-0.5 transition-transform">
+                      <span>{os.status === 'concluida' ? 'Ver Ficha' : 'Executar OS'}</span>
+                      <ChevronRight className="w-4 h-4" />
+                    </div>
                   </div>
-                </div>
+                </div>{' '}
               </div>
             )
           })}

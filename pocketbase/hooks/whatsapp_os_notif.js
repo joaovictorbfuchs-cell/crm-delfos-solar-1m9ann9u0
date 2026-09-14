@@ -147,6 +147,7 @@ onRecordAfterCreateSuccess((e) => {
     novaMsg.set('tipo_disparo', 'os_atribuida')
     novaMsg.set('referencia_id', refKey)
     novaMsg.set('direcao', 'enviada')
+    novaMsg.set('origem_envio', 'automatico')
 
     let rawApiUrl = ($os.getenv('WHATSAPP_API_URL') || '').trim().replace(/[\r\n\t]/g, '')
     let apiKey = ($os.getenv('WHATSAPP_API_KEY') || '').trim().replace(/[\r\n\t]/g, '')
@@ -423,6 +424,7 @@ onRecordAfterUpdateSuccess((e) => {
     novaMsg.set('tipo_disparo', 'os_atribuida')
     novaMsg.set('referencia_id', refKey)
     novaMsg.set('direcao', 'enviada')
+    novaMsg.set('origem_envio', 'automatico')
 
     let rawApiUrl = ($os.getenv('WHATSAPP_API_URL') || '').trim().replace(/[\r\n\t]/g, '')
     let apiKey = ($os.getenv('WHATSAPP_API_KEY') || '').trim().replace(/[\r\n\t]/g, '')

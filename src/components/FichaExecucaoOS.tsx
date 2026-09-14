@@ -41,6 +41,7 @@ import { formatDateTime } from '@/lib/formatters'
 
 import { useAuth } from '@/contexts/AuthContext'
 import type { SistemaUsuario } from '@/types/crm'
+import { BotaoEnviarOSWhatsApp } from '@/components/BotaoEnviarOSWhatsApp'
 
 interface FichaExecucaoOSProps {
   os: OrdemServico
@@ -350,6 +351,16 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
               Pendente de Execução
             </Badge>
           )}
+
+          {/* Botão de Envio Manual da OS via WhatsApp */}
+          <BotaoEnviarOSWhatsApp
+            osId={os.id}
+            responsavelNome={os.atribuida_a || os.expand?.responsavel_usuario_id?.name}
+            responsavelTelefone={os.expand?.responsavel_usuario_id?.phone}
+            responsavelId={responsavelId || os.responsavel_usuario_id}
+            size="sm"
+            label="Enviar OS por WhatsApp"
+          />
         </div>
       </div>
 

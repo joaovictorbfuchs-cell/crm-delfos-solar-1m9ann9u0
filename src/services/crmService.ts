@@ -980,6 +980,26 @@ export async function sendWhatsAppMensagem(data: {
   })
 }
 
+export async function sendOSWhatsAppManual(osId: string): Promise<{
+  ok: boolean
+  sent?: boolean
+  gatewayConfigured?: boolean
+  status?: string
+  message: string
+  error?: string
+  code?: string
+  destinatario?: {
+    nome: string
+    telefone: string
+  }
+  data?: import('@/types/crm').WhatsAppMensagem
+}> {
+  return pb.send('/backend/v1/whatsapp/enviar-os', {
+    method: 'POST',
+    body: { os_id: osId },
+  })
+}
+
 export async function sendWhatsAppDocumento(data: {
   cliente_id: string
   telefone_destino: string
@@ -1413,6 +1433,33 @@ export async function createTipoAtividadeCustom(data: {
 export async function deleteTipoAtividadeCustom(id: string): Promise<boolean> {
   await pb.collection('tipos_atividades_custom').delete(id)
   return true
+}
+
+// -------------------------------------------------------------
+// Envio Manual de Notificação de OS via WhatsApp (Z-API)
+// -------------------------------------------------------------
+
+export interface EnviarNotificacaoOSManualResult {
+  ok: boolean
+  sent?: boolean
+  gatewayConfigured?: boolean
+  status?: string
+  message: string
+  code?: 'SEM_RESPONSAVEL' | 'SEM_TELEFONE' | 'USUARIO_NAO_ENCONTRADO' | string
+  destinatario?: {
+    nome: string
+    telefone: string
+  }
+  data?: import('@/types/crm').WhatsAppMensagem
+}
+
+export async function enviarNotificacaoOSManual(
+  osId: string,
+): Promise<EnviarNotificacaoOSManualResult> {
+  return pb.send('/backend/v1/whatsapp/enviar-os', {
+    method: 'POST',
+    body: { os_id: osId },
+  })
 }
 
 // -------------------------------------------------------------

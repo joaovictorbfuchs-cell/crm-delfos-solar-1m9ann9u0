@@ -17,6 +17,7 @@ import { ListaOM, type AbaPrincipalOM } from '@/components/ListaOM'
 import { calcularContagensOM } from '@/lib/omCategorizacao'
 import { ModalNovoContratoOM } from '@/components/ModalNovoContratoOM'
 import { ManutencoesList } from '@/components/ManutencoesList'
+import { GestaoOrdensServico } from '@/components/GestaoOrdensServico'
 import { NovaManutencaoModal } from '@/components/NovaManutencaoModal'
 import { ModalNovaPropostaOM } from '@/components/ModalNovaPropostaOM'
 import { FileCheck } from 'lucide-react'
@@ -34,7 +35,7 @@ export default function Manutencoes() {
     openFichaOM,
   } = useClientes()
 
-  const [viewMode, setViewMode] = useState<'om' | 'os_avulsa'>('om')
+  const [viewMode, setViewMode] = useState<'om' | 'ordens_servico' | 'os_avulsa'>('om')
   const [activeSubTab, setActiveSubTab] = useState<AbaPrincipalOM>('com_plano')
   const [isNovoContratoOpen, setIsNovoContratoOpen] = useState(false)
   const [isNovaManutencaoOpen, setIsNovaManutencaoOpen] = useState(false)
@@ -105,6 +106,17 @@ export default function Manutencoes() {
             </button>
             <button
               type="button"
+              onClick={() => setViewMode('ordens_servico')}
+              className={`px-3 py-1.5 rounded-lg transition-all ${
+                viewMode === 'ordens_servico'
+                  ? 'bg-white text-emerald-800 shadow-xs font-bold'
+                  : 'hover:text-gray-900'
+              }`}
+            >
+              Ordens de Serviço (Campo)
+            </button>
+            <button
+              type="button"
               onClick={() => setViewMode('os_avulsa')}
               className={`px-3 py-1.5 rounded-lg transition-all ${
                 viewMode === 'os_avulsa'
@@ -136,7 +148,7 @@ export default function Manutencoes() {
                 <span>Novo Contrato O&M</span>
               </button>
             </div>
-          ) : (
+          ) : viewMode === 'ordens_servico' ? null : (
             <button
               onClick={() => setIsNovaManutencaoOpen(true)}
               className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#16A34A] hover:bg-[#15803D] text-white text-xs font-bold rounded-xl shadow-xs transition-all hover:scale-[1.02]"
@@ -249,6 +261,10 @@ export default function Manutencoes() {
           activeSubTab={activeSubTab}
           onSubTabChange={setActiveSubTab}
         />
+      ) : viewMode === 'ordens_servico' ? (
+        <div className="bg-white rounded-2xl border border-gray-200/80 p-5 shadow-xs">
+          <GestaoOrdensServico />
+        </div>
       ) : (
         <div className="bg-white rounded-xl border border-gray-200/80 p-5 shadow-xs">
           <ManutencoesList onOpenNovaManutencao={() => setIsNovaManutencaoOpen(true)} />
