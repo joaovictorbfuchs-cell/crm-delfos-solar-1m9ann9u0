@@ -9,9 +9,19 @@ import {
   MapPin,
   CalendarClock,
   Sparkles,
+  Pencil,
+  Check,
+  X,
+  Loader2,
 } from 'lucide-react'
 import { useClientes } from '@/contexts/ClientesContext'
-import { formatCurrency, formatDate } from '@/lib/formatters'
+import {
+  formatCurrency,
+  formatDate,
+  maskCurrencyBRL,
+  parseCurrencyBRL,
+  formatCurrencyBRL,
+} from '@/lib/formatters'
 import type { OMPlanoTipo, OMStatusPlano, PropostaOM } from '@/types/crm'
 import { ModalGerarProcuracaoOM } from './ModalGerarProcuracaoOM'
 import { ModalGerarContratoOM } from './ModalGerarContratoOM'
@@ -23,12 +33,25 @@ interface FichaClienteOMProps {
 }
 
 export const FichaClienteOM: React.FC<FichaClienteOMProps> = ({ clienteId, onNavigateToTab }) => {
-  const { clientes, sistemas, contratosOM, propostasOM, addContratoOM, addAtividade } =
-    useClientes()
+  const {
+    clientes,
+    sistemas,
+    contratosOM,
+    propostasOM,
+    addContratoOM,
+    updateContratoOM,
+    updatePropostaOM,
+    addAtividade,
+  } = useClientes()
 
   // Modais de Procuração e Contrato O&M
   const [modalProcuracaoOpen, setModalProcuracaoOpen] = useState(false)
   const [modalContratoOpen, setModalContratoOpen] = useState(false)
+
+  // Edição inline do Valor Mensal
+  const [isEditingValorMensal, setIsEditingValorMensal] = useState(false)
+  const [editValorMensalInput, setEditValorMensalInput] = useState('')
+  const [isSavingValorMensal, setIsSavingValorMensal] = useState(false)
 
   // Modal Oferecer / Criar Contrato de Plano
   const [modalOferecerPlano, setModalOferecerPlano] = useState(false)
@@ -68,6 +91,11 @@ export const FichaClienteOM: React.FC<FichaClienteOMProps> = ({ clienteId, onNav
       }) || null
     )
   }, [propostasCliente])
+
+  // Proposta O&M ativa de referência (aprovada/fechada tem prioridade, com fallback para mais recente)
+  const propostaAtiva = useMemo<PropostaOM | null>(() => {
+    return propostaAprovada || propostasCliente[0] || null
+  }, [propostaAprovada, propostasCliente])
 
   const contrato = useMemo(() => {
     return (
@@ -155,6 +183,86 @@ export const FichaClienteOM: React.FC<FichaClienteOMProps> = ({ clienteId, onNav
 
   const potenciaExibida = sistema?.potencia_total_kwp ?? cliente.potencia_kwp ?? 0
   const dataInstalacaoExibida = sistema?.data_instalacao || cliente.data_instalacao || ''
+
+  // Valores financeiros sincronizados (Proposta O&M ativa com fallback para Contrato O&M)
+  const valorMensalExibido = propostaAtiva?.valor_mensal_plano ?? contrato?.valor_mensal ?? 0
+
+  const valorAnualExibido =
+    propostaAtiva?.valor_anual_plano ??
+    (propostaAtiva?.valor_mensal_plano
+      ? Math.round(propostaAtiva.valor_mensal_plano * 12 * 100) / 100
+      : (contrato?.valor_anual ?? 0))
+
+  // Iniciar edição inline do Valor Mensal
+  const handleStartEditValorMensal = (e?: React.MouseEvent) => {
+    if (e) e.stopPropagation()
+    setEditValorMensalInput(formatCurrencyBRL(valorMensalExibido))
+    setIsEditingValorMensal(true)
+  }
+
+  // Cancelar edição inline
+  const handleCancelEditValorMensal = (e?: React.MouseEvent) => {
+    if (e) e.stopPropagation()
+    setIsEditingValorMensal(false)
+    setEditValorMensalInput('')
+  }
+
+  // Salvar novo valor mensal com sincronização
+  const handleSaveValorMensal = async (e?: React.MouseEvent | React.FormEvent) => {
+    if (e) {
+      e.stopPropagation()
+      e.preventDefault()
+    }
+    if (isSavingValorMensal) return
+
+    const novoValor = parseCurrencyBRL(editValorMensalInput)
+    const novoValorAnual = Math.round(novoValor * 12 * 100) / 100
+
+    try {
+      setIsSavingValorMensal(true)
+
+      const promises: Promise<unknown>[] = []
+
+      // 1. Atualizar propostaAtiva se existir
+      if (propostaAtiva) {
+        promises.push(
+          updatePropostaOM(propostaAtiva.id, {
+            valor_mensal_plano: novoValor,
+            valor_anual_plano: novoValorAnual,
+          }),
+        )
+      }
+
+      // 2. Sincronizar contrato ativo se existir
+      if (contrato) {
+        promises.push(
+          updateContratoOM(contrato.id, {
+            valor_mensal: novoValor,
+            valor_anual: novoValorAnual,
+          }),
+        )
+      }
+
+      if (promises.length === 0) {
+        toast.info('Nenhuma proposta ou contrato ativo para atualizar.')
+        setIsEditingValorMensal(false)
+        return
+      }
+
+      await Promise.all(promises)
+      toast.success(
+        `Valor mensal atualizado para ${formatCurrencyBRL(novoValor)} (${formatCurrencyBRL(novoValorAnual)}/ano).`,
+      )
+      setIsEditingValorMensal(false)
+    } catch (err: unknown) {
+      console.error('Erro ao atualizar valor mensal O&M:', err)
+      toast.error(
+        err instanceof Error ? err.message : 'Erro ao salvar novo valor mensal do plano O&M.',
+      )
+    } finally {
+      setIsSavingValorMensal(false)
+    }
+  }
 
   // Determinar status do plano
   type StatusExibicao = OMStatusPlano | 'Sem contrato'
@@ -398,13 +506,87 @@ export const FichaClienteOM: React.FC<FichaClienteOMProps> = ({ clienteId, onNav
 
           {/* Métricas do Contrato: Plano, Início, Vencimento, Valor Mensal e Anual */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
-            <div className="p-3 bg-white rounded-xl border border-gray-200 shadow-2xs space-y-1">
-              <span className="text-[10px] text-gray-400 font-semibold uppercase block">
-                Valor Mensal
-              </span>
-              <span className="font-bold text-emerald-700 text-sm">
-                {formatCurrency(contrato.valor_mensal)}/mês
-              </span>
+            <div
+              className={`p-3 bg-white rounded-xl border border-gray-200 shadow-2xs space-y-1 group relative transition-colors ${
+                !isEditingValorMensal
+                  ? 'hover:border-emerald-300 hover:bg-emerald-50/20 cursor-pointer'
+                  : ''
+              }`}
+              onClick={() => {
+                if (!isEditingValorMensal) handleStartEditValorMensal()
+              }}
+              title={!isEditingValorMensal ? 'Clique para editar o valor mensal' : undefined}
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] text-gray-400 font-semibold uppercase block">
+                  Valor Mensal
+                </span>
+                {!isEditingValorMensal && (
+                  <button
+                    type="button"
+                    onClick={handleStartEditValorMensal}
+                    className="p-1 rounded text-gray-400 hover:text-emerald-700 hover:bg-emerald-100/60 opacity-60 group-hover:opacity-100 transition-opacity"
+                    title="Editar valor mensal"
+                    aria-label="Editar valor mensal"
+                  >
+                    <Pencil className="w-3 h-3" />
+                  </button>
+                )}
+              </div>
+
+              {isEditingValorMensal ? (
+                <div className="space-y-1.5 pt-0.5" onClick={(e) => e.stopPropagation()}>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    autoFocus
+                    disabled={isSavingValorMensal}
+                    value={editValorMensalInput}
+                    onChange={(e) => setEditValorMensalInput(maskCurrencyBRL(e.target.value))}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault()
+                        handleSaveValorMensal()
+                      } else if (e.key === 'Escape') {
+                        e.preventDefault()
+                        handleCancelEditValorMensal()
+                      }
+                    }}
+                    placeholder="R$ 0,00"
+                    className="w-full text-xs font-bold px-2 py-1 rounded border border-emerald-500 bg-white text-gray-900 focus:outline-none focus:ring-1 focus:ring-emerald-500 shadow-2xs"
+                  />
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={handleSaveValorMensal}
+                      disabled={isSavingValorMensal}
+                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-bold shadow-2xs transition-colors disabled:opacity-50"
+                      title="Confirmar (Enter)"
+                    >
+                      {isSavingValorMensal ? (
+                        <Loader2 className="w-3 h-3 animate-spin" />
+                      ) : (
+                        <Check className="w-3 h-3" />
+                      )}
+                      <span>Salvar</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleCancelEditValorMensal}
+                      disabled={isSavingValorMensal}
+                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-gray-100 hover:bg-gray-200 text-gray-600 text-[10px] font-semibold transition-colors disabled:opacity-50"
+                      title="Cancelar (Esc)"
+                    >
+                      <X className="w-3 h-3" />
+                      <span>Cancelar</span>
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <span className="font-bold text-emerald-700 text-sm block">
+                  {formatCurrency(valorMensalExibido)}/mês
+                </span>
+              )}
             </div>
 
             <div className="p-3 bg-white rounded-xl border border-gray-200 shadow-2xs space-y-1">
@@ -412,7 +594,7 @@ export const FichaClienteOM: React.FC<FichaClienteOMProps> = ({ clienteId, onNav
                 Valor Total Anual
               </span>
               <span className="font-bold text-gray-800 text-sm">
-                {formatCurrency(contrato.valor_anual)}
+                {formatCurrency(valorAnualExibido)}
               </span>
             </div>
 
