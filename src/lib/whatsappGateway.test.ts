@@ -5,8 +5,10 @@ import {
   formatZApiEndpoint,
   maskGatewayUrl,
   buildWhatsAppSendPayload,
+  buildWhatsAppAudioPayload,
   extractGatewayExternalId,
 } from './whatsappGateway'
+import { formatAudioDuration } from '@/components/GravadorAudioWhatsApp'
 import { formatWhatsAppPhone } from './formatters'
 import { getWhatsAppStatusIconConfig } from '@/components/ConversaChatView'
 
@@ -306,6 +308,43 @@ export function runWhatsAppGatewayTests(): { passed: number; total: number; erro
         const cfgPendente = getWhatsAppStatusIconConfig('pendente')
         assertEquals(cfgPendente.iconType, 'clock', 'Pendente deve ter relógio')
         assertEquals(cfgPendente.tooltip, 'Enviando', 'Pendente tooltip')
+      },
+    },
+    {
+      name: 'Envio de Áudio via Z-API: geração de endpoint /send-audio e payload waveform',
+      fn: () => {
+        const audioData = 'data:audio/ogg;codecs=opus;base64,GkXfo59ChoEBQveBAULygQ8='
+        const config = buildWhatsAppAudioPayload({
+          apiUrl:
+            'https://api.z-api.io/instances/3F902C5C5FE301D4EDF15EAA8B6A85A3/token/BA07F078D0E16FA524C1886E/send-text',
+          apiKey: 'TOKEN_CLIENT_123',
+          phone: '(54) 99129-2121',
+          audio: audioData,
+        })
+
+        assert(config.isZApi, 'Deve detectar Z-API')
+        assertEquals(
+          config.targetUrl,
+          'https://api.z-api.io/instances/3F902C5C5FE301D4EDF15EAA8B6A85A3/token/BA07F078D0E16FA524C1886E/send-audio',
+          'Deve trocar /send-text por /send-audio',
+        )
+        assertEquals(config.headers['Client-Token'], 'TOKEN_CLIENT_123', 'Client-Token presente')
+        assertEquals(config.payload.phone, '5554991292121', 'Telefone com 55')
+        assertEquals(config.payload.audio, audioData, 'Áudio base64 repassado')
+        assertEquals(
+          config.payload.waveform,
+          true,
+          'Waveform habilitado para player de voz no WhatsApp',
+        )
+      },
+    },
+    {
+      name: 'Formatador de duração de gravação de áudio (formatAudioDuration)',
+      fn: () => {
+        assertEquals(formatAudioDuration(0), '00:00', '0 segundos')
+        assertEquals(formatAudioDuration(5), '00:05', '5 segundos')
+        assertEquals(formatAudioDuration(65), '01:05', '65 segundos')
+        assertEquals(formatAudioDuration(135), '02:15', '135 segundos')
       },
     },
   ]

@@ -193,6 +193,80 @@ export function buildWhatsAppSendPayload(params: {
 }
 
 /**
+ * Constrói a configuração de requisição HTTP para envio de áudio (formato OGG/Opus ou URL),
+ * chaveando para endpoint /send-audio da Z-API.
+ */
+export function buildWhatsAppAudioPayload(params: {
+  apiUrl: string
+  apiKey?: string
+  originNumber?: string
+  phone: string
+  audio: string
+}): WhatsAppGatewayRequestConfig {
+  const { apiUrl, apiKey, originNumber, phone, audio } = params
+  const cleanApiUrl = (apiUrl || '').trim().replace(/[\r\n\t]/g, '')
+  const cleanApiKey = (apiKey || '').trim().replace(/[\r\n\t]/g, '')
+  const cleanOrigin = (originNumber || '').trim().replace(/[\r\n\t]/g, '')
+
+  const isZApi = isZApiGatewayUrl(cleanApiUrl)
+  const isWellFormedZApi = isZApi ? isValidZApiInstanceUrl(cleanApiUrl) : undefined
+  const cleanPhone = normalizeWhatsAppDestinationPhone(phone)
+
+  let cleanBaseUrl = cleanApiUrl.replace(/\/+$/, '')
+  if (!cleanBaseUrl.startsWith('http://') && !cleanBaseUrl.startsWith('https://')) {
+    cleanBaseUrl = 'https://' + cleanBaseUrl
+  }
+
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  }
+
+  if (isZApi) {
+    const targetUrl = formatZApiEndpoint(cleanBaseUrl, 'send-audio')
+    if (cleanApiKey) {
+      headers['Client-Token'] = cleanApiKey
+    }
+    const payload = {
+      phone: cleanPhone,
+      audio,
+      waveform: true,
+    }
+    return {
+      targetUrl,
+      headers,
+      payload,
+      isZApi: true,
+      cleanPhone,
+      isWellFormedZApi,
+      maskedTargetUrl: maskGatewayUrl(targetUrl),
+    }
+  }
+
+  // Gateway Genérico / Evolution API
+  if (cleanApiKey) {
+    headers['apikey'] = cleanApiKey
+    headers['Authorization'] = 'Bearer ' + cleanApiKey
+  }
+
+  const targetUrl = `${cleanBaseUrl}/send-audio`
+  const payload: Record<string, unknown> = {
+    number: cleanPhone,
+    phone: cleanPhone,
+    audio,
+    sender: cleanOrigin,
+  }
+
+  return {
+    targetUrl,
+    headers,
+    payload,
+    isZApi: false,
+    cleanPhone,
+    maskedTargetUrl: maskGatewayUrl(targetUrl),
+  }
+}
+
+/**
  * Extrai o ID externo retornado pelo gateway a partir do corpo JSON da resposta.
  */
 export function extractGatewayExternalId(resJson: unknown): string {

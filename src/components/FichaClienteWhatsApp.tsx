@@ -17,6 +17,7 @@ import {
   MessageSquare,
   FileCheck,
   ExternalLink,
+  Mic,
 } from 'lucide-react'
 import { useClientes } from '@/contexts/ClientesContext'
 import type { Cliente, WhatsAppTemplate } from '@/types/crm'
@@ -589,6 +590,11 @@ export const FichaClienteWhatsApp: React.FC<FichaClienteWhatsAppProps> = ({
                           <FileText className="w-3 h-3 text-emerald-700" />
                           <span>Documento PDF</span>
                         </span>
+                      ) : msg.tipo_mensagem === 'audio' ? (
+                        <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-purple-100 text-purple-800 border border-purple-200 flex items-center gap-1">
+                          <Mic className="w-3 h-3 text-purple-700" />
+                          <span>Mensagem de Voz</span>
+                        </span>
                       ) : (
                         msg.tipo_disparo && (
                           <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 border border-gray-200">
@@ -679,12 +685,26 @@ export const FichaClienteWhatsApp: React.FC<FichaClienteWhatsAppProps> = ({
                         </div>
                       )}
                     </div>
+                  ) : msg.tipo_mensagem === 'audio' ? (
+                    <div className="p-3 bg-purple-50/50 border border-purple-200 rounded-xl space-y-2">
+                      <div className="flex items-center gap-2 text-xs font-semibold text-purple-900">
+                        <Mic className="w-4 h-4 text-purple-600" />
+                        <span>{msg.conteudo_final || 'Áudio gravado no WhatsApp'}</span>
+                      </div>
+                      {msg.documento_url && (
+                        <audio
+                          controls
+                          src={msg.documento_url}
+                          className="h-8 w-full max-w-sm rounded"
+                          preload="metadata"
+                        />
+                      )}
+                    </div>
                   ) : (
                     <div className="p-3 bg-emerald-50/40 border border-emerald-100 rounded-xl text-xs text-gray-800 whitespace-pre-wrap leading-relaxed font-sans">
                       {msg.conteudo_final}
                     </div>
                   )}
-
                   {/* Metadados e Log de Erro (se houver) */}
                   <div className="flex items-center justify-between flex-wrap gap-2 text-[11px] text-gray-400 pt-1 border-t border-gray-100">
                     <div className="flex items-center gap-2">

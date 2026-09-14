@@ -1171,6 +1171,27 @@ export async function sendWhatsAppDocumento(data: {
   })
 }
 
+export async function sendWhatsAppAudio(data: {
+  cliente_id?: string
+  conversa_id?: string
+  telefone_destino: string
+  audio: string // base64 (data:audio/ogg;codecs=opus;base64,...) ou URL
+  duracao_segundos?: number
+  referencia_id?: string
+}): Promise<{
+  ok: boolean
+  sent?: boolean
+  gatewayConfigured?: boolean
+  status?: string
+  message: string
+  data?: import('@/types/crm').WhatsAppMensagem
+}> {
+  return pb.send('/backend/v1/whatsapp/enviar-audio', {
+    method: 'POST',
+    body: data,
+  })
+}
+
 export async function fetchWhatsAppConfigStatus(): Promise<
   import('@/types/crm').WhatsAppConfigStatus
 > {

@@ -81,6 +81,7 @@ import {
   fetchWhatsAppMensagens,
   sendWhatsAppMensagem as apiSendWhatsAppMensagem,
   sendWhatsAppDocumento as apiSendWhatsAppDocumento,
+  sendWhatsAppAudio as apiSendWhatsAppAudio,
   fetchWhatsAppConfigStatus,
   fetchWhatsAppConversas,
   vincularConversaCliente as apiVincularConversaCliente,
@@ -388,6 +389,21 @@ interface ClientesContextType {
     nome_arquivo?: string
     base64?: string
     documento_url?: string
+  }) => Promise<{
+    ok: boolean
+    sent?: boolean
+    gatewayConfigured?: boolean
+    status?: string
+    message: string
+    data?: WhatsAppMensagem
+  }>
+  sendWhatsAppAudioMessage: (data: {
+    cliente_id?: string
+    conversa_id?: string
+    telefone_destino: string
+    audio: string
+    duracao_segundos?: number
+    referencia_id?: string
   }) => Promise<{
     ok: boolean
     sent?: boolean
@@ -1982,6 +1998,31 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     return res
   }
 
+  const sendWhatsAppAudioMessage = async (data: {
+    cliente_id?: string
+    conversa_id?: string
+    telefone_destino: string
+    audio: string
+    duracao_segundos?: number
+    referencia_id?: string
+  }) => {
+    const res = await apiSendWhatsAppAudio(data)
+    // Atualiza mensagens, conversas e atividades do histórico
+    const [refreshedMsgs, refreshedConvs] = await Promise.all([
+      fetchWhatsAppMensagens(),
+      fetchWhatsAppConversas(),
+    ])
+    setWhatsAppMensagens(refreshedMsgs)
+    setWhatsAppConversas(refreshedConvs)
+    try {
+      const atvs = await fetchAtividades()
+      setAtividades(atvs)
+    } catch {
+      /* intentionally ignored */
+    }
+    return res
+  }
+
   const refreshWhatsAppConfig = async () => {
     const cfg = await fetchWhatsAppConfigStatus()
     setWhatsAppConfig(cfg)
@@ -2165,6 +2206,7 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         refreshConversas,
         sendWhatsAppMessage,
         sendWhatsAppDocument,
+        sendWhatsAppAudioMessage,
         refreshWhatsAppConfig,
         refreshData: loadAllData,
       }}

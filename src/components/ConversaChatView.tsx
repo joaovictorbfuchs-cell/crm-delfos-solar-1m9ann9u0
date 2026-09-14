@@ -27,6 +27,8 @@ import type { WhatsAppConversa, WhatsAppMensagem, Cliente, WhatsAppTemplate } fr
 import { useClientes } from '@/contexts/ClientesContext'
 import { useAuth } from '@/contexts/AuthContext'
 import { formatDateTime, formatCurrency, formatWhatsAppPhone } from '@/lib/formatters'
+import { GravadorAudioWhatsApp } from '@/components/GravadorAudioWhatsApp'
+import { useToast } from '@/hooks/use-toast'
 
 // Formata data e horário para exibição compacta na mesma linha:
 // "14:32" se hoje, ou "11/09 14:32" se em data anterior
@@ -154,12 +156,14 @@ export const ConversaChatView: React.FC<ConversaChatViewProps> = ({
     whatsAppTemplates,
     whatsAppMensagens,
     sendWhatsAppMessage,
+    sendWhatsAppAudioMessage,
     assumirAtendimento,
     finalizarAtendimento,
     orcamentosSolar,
     openFichaCliente,
   } = useClientes()
 
+  const { toast } = useToast()
   const { user } = useAuth()
   const [mensagemTexto, setMensagemTexto] = useState('')
   const [isSending, setIsSending] = useState(false)
@@ -304,7 +308,7 @@ export const ConversaChatView: React.FC<ConversaChatViewProps> = ({
     }
   }
 
-  // Enviar Mensagem Manual
+  // Enviar Mensagem Manual de Texto
   const handleEnviar = async (e?: React.FormEvent) => {
     if (e) e.preventDefault()
     const msg = mensagemTexto.trim()
@@ -341,6 +345,45 @@ export const ConversaChatView: React.FC<ConversaChatViewProps> = ({
       })
     } finally {
       setIsSending(false)
+    }
+  }
+
+  // Enviar Mensagem de Voz / Áudio gravado no navegador
+  const handleEnviarAudio = async (audioBase64: string, duracaoSegundos: number) => {
+    setFeedback(null)
+    try {
+      const res = await sendWhatsAppAudioMessage({
+        cliente_id: cliente?.id || undefined,
+        conversa_id: conversa.id,
+        telefone_destino: conversa.numero,
+        audio: audioBase64,
+        duracao_segundos: duracaoSegundos,
+      })
+
+      if (res.sent) {
+        toast({
+          title: 'Áudio enviado com sucesso!',
+          description: `Mensagem de voz (${Math.floor(duracaoSegundos / 60)}:${String(duracaoSegundos % 60).padStart(2, '0')}) entregue via Z-API.`,
+        })
+      } else {
+        // Envio falhou no gateway ou trial expirado, mas foi registrado no histórico
+        toast({
+          title: 'Registro de áudio salvo',
+          description:
+            res.message ||
+            'O áudio foi registrado no histórico, mas o envio pelo WhatsApp falhou no gateway.',
+          variant: 'destructive',
+        })
+      }
+    } catch (err: unknown) {
+      console.error('Erro ao enviar áudio:', err)
+      const errText = err instanceof Error ? err.message : 'Falha ao transmitir áudio para a Z-API'
+      toast({
+        title: 'Falha no envio de áudio',
+        description: errText,
+        variant: 'destructive',
+      })
+      throw err
     }
   }
 
@@ -738,18 +781,80 @@ export const ConversaChatView: React.FC<ConversaChatViewProps> = ({
                         </div>
                       )}
 
-                      {/* Conteúdo da mensagem com quebra natural de linha e horário compacto ao final */}
-                      <div className="text-xs leading-relaxed select-text">
-                        <span className="text-[#111b21] whitespace-pre-wrap break-words">
-                          {conteudoMensagem || (msg.tipo_mensagem === 'documento' ? '' : '—')}
-                        </span>
+                      {/* Player de áudio se for mensagem de voz */}
+                      {msg.tipo_mensagem === 'audio' && (
+                        <div className="py-1 mb-1">
+                          <div className="flex items-center gap-2 text-xs font-semibold mb-1 text-emerald-800">
+                            <span>🎤 Mensagem de voz</span>
+                          </div>
+                          {msg.documento_url ? (
+                            <audio
+                              controls
+                              src={msg.documento_url}
+                              className="h-8 max-w-[240px] sm:max-w-[280px] rounded-lg"
+                              preload="metadata"
+                            />
+                          ) : (
+                            <div className="text-[11px] text-gray-600 bg-black/5 px-2.5 py-1.5 rounded-lg flex items-center gap-1.5">
+                              <span>{msg.conteudo_final || 'Áudio enviado via Z-API'}</span>
+                            </div>
+                          )}
+                        </div>
+                      )}
 
-                        {/* Horário + Ícones de Status WhatsApp inline ao final do texto (mesma linha) */}
-                        <span className="inline-flex items-center gap-1 text-[11px] font-sans pl-2 float-right align-bottom select-none translate-y-0.5 ml-1">
+                      {/* Conteúdo da mensagem com quebra natural de linha e horário compacto ao final */}
+                      {msg.tipo_mensagem !== 'audio' && (
+                        <div className="text-xs leading-relaxed select-text">
+                          <span className="text-[#111b21] whitespace-pre-wrap break-words">
+                            {conteudoMensagem || (msg.tipo_mensagem === 'documento' ? '' : '—')}
+                          </span>
+
+                          {/* Horário + Ícones de Status WhatsApp inline ao final do texto (mesma linha) */}
+                          <span className="inline-flex items-center gap-1 text-[11px] font-sans pl-2 float-right align-bottom select-none translate-y-0.5 ml-1">
+                            <span className="text-[#667781] text-[11px] whitespace-nowrap">
+                              {horaFormatada}
+                            </span>
+
+                            {!isRecebida &&
+                              (() => {
+                                const statusConfig = getWhatsAppStatusIconConfig(
+                                  msg.status,
+                                  msg.log_erro,
+                                )
+                                return (
+                                  <span
+                                    className="inline-flex items-center shrink-0 ml-0.5"
+                                    title={statusConfig.tooltip}
+                                  >
+                                    {statusConfig.iconType === 'double-check' ? (
+                                      <CheckCheck
+                                        className="w-3.5 h-3.5"
+                                        style={{ color: statusConfig.color }}
+                                      />
+                                    ) : statusConfig.iconType === 'single-check' ? (
+                                      <Check
+                                        className="w-3.5 h-3.5"
+                                        style={{ color: statusConfig.color }}
+                                      />
+                                    ) : (
+                                      <Clock
+                                        className="w-3 h-3"
+                                        style={{ color: statusConfig.color }}
+                                      />
+                                    )}
+                                  </span>
+                                )
+                              })()}
+                          </span>
+                        </div>
+                      )}
+
+                      {/* Horário + Ícones de Status para Áudios (em linha própria discreta) */}
+                      {msg.tipo_mensagem === 'audio' && (
+                        <div className="flex items-center justify-end gap-1 text-[11px] font-sans select-none mt-1">
                           <span className="text-[#667781] text-[11px] whitespace-nowrap">
                             {horaFormatada}
                           </span>
-
                           {!isRecebida &&
                             (() => {
                               const statusConfig = getWhatsAppStatusIconConfig(
@@ -780,8 +885,8 @@ export const ConversaChatView: React.FC<ConversaChatViewProps> = ({
                                 </span>
                               )
                             })()}
-                        </span>
-                      </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -918,19 +1023,27 @@ export const ConversaChatView: React.FC<ConversaChatViewProps> = ({
           />
         </div>
 
-        {/* Botão de Enviar (Avião de Papel / lucide-send) à direita */}
-        <button
-          type="submit"
-          disabled={!mensagemTexto.trim() || isSending}
-          className="p-2.5 bg-[#00a884] hover:bg-[#008f6f] disabled:opacity-40 disabled:hover:bg-[#00a884] disabled:cursor-not-allowed text-white rounded-full flex items-center justify-center transition-colors shadow-2xs shrink-0"
-          title="Enviar mensagem (Enter)"
-        >
-          {isSending ? (
-            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-          ) : (
-            <Send className="w-4 h-4" />
-          )}
-        </button>
+        {/* Se houver texto digitado, mostra botão Enviar Texto. Se vazio, exibe o Gravador de Áudio WhatsApp */}
+        {mensagemTexto.trim() ? (
+          <button
+            type="submit"
+            disabled={isSending}
+            className="p-2.5 bg-[#00a884] hover:bg-[#008f6f] disabled:opacity-40 disabled:hover:bg-[#00a884] disabled:cursor-not-allowed text-white rounded-full flex items-center justify-center transition-colors shadow-2xs shrink-0"
+            title="Enviar mensagem (Enter)"
+          >
+            {isSending ? (
+              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+            ) : (
+              <Send className="w-4 h-4" />
+            )}
+          </button>
+        ) : (
+          <GravadorAudioWhatsApp
+            onSendAudio={handleEnviarAudio}
+            disabled={isSending}
+            className="shrink-0"
+          />
+        )}
       </form>
     </div>
   )
