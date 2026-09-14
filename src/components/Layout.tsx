@@ -8,6 +8,7 @@ import {
   ClipboardCheck,
   Wrench,
   Users,
+  UserCog,
   FileSpreadsheet,
   FileSignature,
   Truck,
@@ -21,6 +22,7 @@ import {
   Sun,
   MessageSquare,
   Settings,
+  Shield,
 } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { useClientes } from '@/contexts/ClientesContext'
@@ -30,7 +32,7 @@ import { DelfosLogo } from '@/components/DelfosLogo'
 import { NotificacoesBell } from '@/components/NotificacoesBell'
 
 export default function Layout() {
-  const { user, logout } = useAuth()
+  const { user, userProfile, isAdmin, isInstalador, logout } = useAuth()
   const { whatsAppConversas } = useClientes()
   const location = useLocation()
   const navigate = useNavigate()
@@ -103,30 +105,40 @@ export default function Layout() {
         return 'Importar Contratos O&M'
       case '/fornecedores':
         return 'Fornecedores de Equipamentos'
+      case '/gerenciar-usuarios':
+        return 'Gerenciar Usuários'
       default:
         return 'Delfos Solar CRM'
     }
   }
 
+  // Se o usuário for instalador, mostra APENAS "Execução de OS"
+  // Se for admin, mostra todos os itens incluindo Gerenciar Usuários
   const navItems: Array<{
     name: string
     path: string
     icon: React.ElementType
     badge?: number
-  }> = [
-    { name: 'Dashboard', path: '/', icon: LayoutDashboard },
-    { name: 'Comercial', path: '/comercial', icon: KanbanSquare },
-    { name: 'Orçamentos', path: '/orcamentos', icon: Sun },
-    { name: 'Projetos', path: '/projetos', icon: FolderKanban },
-    { name: 'Atividades', path: '/atividades', icon: CalendarCheck },
-    { name: 'Execução de OS', path: '/execucao-os', icon: ClipboardCheck },
-    { name: 'O&M / Manutenções', path: '/manutencoes', icon: Wrench },
-    { name: 'Clientes', path: '/clientes', icon: Users },
-    { name: 'Importar Clientes', path: '/importar-clientes', icon: FileSpreadsheet },
-    { name: 'Importar Contratos O&M', path: '/importar-contratos-om', icon: FileSignature },
-    { name: 'Fornecedores', path: '/fornecedores', icon: Truck },
-  ]
-  const userInitial = user?.name ? user.name.charAt(0).toUpperCase() : 'J'
+  }> = isInstalador
+    ? [{ name: 'Execução de OS', path: '/execucao-os', icon: ClipboardCheck }]
+    : [
+        { name: 'Dashboard', path: '/', icon: LayoutDashboard },
+        { name: 'Comercial', path: '/comercial', icon: KanbanSquare },
+        { name: 'Orçamentos', path: '/orcamentos', icon: Sun },
+        { name: 'Projetos', path: '/projetos', icon: FolderKanban },
+        { name: 'Atividades', path: '/atividades', icon: CalendarCheck },
+        { name: 'Execução de OS', path: '/execucao-os', icon: ClipboardCheck },
+        { name: 'O&M / Manutenções', path: '/manutencoes', icon: Wrench },
+        { name: 'Clientes', path: '/clientes', icon: Users },
+        { name: 'Gerenciar Usuários', path: '/gerenciar-usuarios', icon: UserCog },
+        { name: 'Importar Clientes', path: '/importar-clientes', icon: FileSpreadsheet },
+        { name: 'Importar Contratos O&M', path: '/importar-contratos-om', icon: FileSignature },
+        { name: 'Fornecedores', path: '/fornecedores', icon: Truck },
+      ]
+
+  const displayName = userProfile?.name || user?.name || 'Usuário'
+  const displayEmail = userProfile?.email || user?.email || 'usuario@delfosengenharia.com.br'
+  const userInitial = displayName ? displayName.charAt(0).toUpperCase() : 'U'
 
   return (
     <div className="min-h-screen flex bg-[#F8FAF9] text-[#1F2937]">
@@ -259,15 +271,26 @@ export default function Layout() {
           ) : (
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3 overflow-hidden">
-                <div className="w-9 h-9 rounded-full bg-[#16A34A] text-white flex items-center justify-center font-bold text-sm shrink-0 shadow-xs">
+                <div
+                  className={`w-9 h-9 rounded-full text-white flex items-center justify-center font-bold text-sm shrink-0 shadow-xs ${
+                    isAdmin ? 'bg-[#16A34A]' : 'bg-blue-600'
+                  }`}
+                >
                   {userInitial}
                 </div>
                 <div className="truncate">
-                  <div className="text-xs font-bold text-gray-900 truncate">
-                    {user?.name || 'João Silva'}
+                  <div className="text-xs font-bold text-gray-900 truncate flex items-center gap-1.5">
+                    <span>{displayName}</span>
                   </div>
-                  <div className="text-[11px] text-gray-500 truncate">
-                    {user?.email || 'joao@delfosengenharia.com.br'}
+                  <div className="flex items-center gap-1.5 mt-0.5">
+                    <span
+                      className={`text-[10px] font-extrabold px-1.5 py-0.2 rounded uppercase tracking-wider ${
+                        isAdmin ? 'bg-emerald-100 text-emerald-800' : 'bg-blue-100 text-blue-800'
+                      }`}
+                    >
+                      {isAdmin ? 'Admin' : 'Instalador'}
+                    </span>
+                    <span className="text-[10px] text-gray-400 truncate">{displayEmail}</span>
                   </div>
                 </div>
               </div>
@@ -377,63 +400,97 @@ export default function Layout() {
           </div>
 
           <div className="flex items-center gap-2 sm:gap-3">
-            {/* Botão da Central de Atendimento WhatsApp com Badge de Mensagens Pendentes */}
-            <button
-              type="button"
-              onClick={() => navigate('/central-atendimento')}
-              className={`relative inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg border text-xs font-bold transition-all hover:scale-[1.02] shadow-2xs ${
-                location.pathname === '/central-atendimento'
-                  ? 'bg-emerald-600 text-white border-emerald-700 shadow-xs'
-                  : 'bg-emerald-50 hover:bg-emerald-100 text-[#166534] border-emerald-200'
-              }`}
-              title="Central de Atendimento WhatsApp"
-              aria-label={`Central de Atendimento WhatsApp${pendentesWhatsAppCount > 0 ? ` (${pendentesWhatsAppCount} mensagens pendentes)` : ''}`}
-            >
-              <div className="relative flex items-center justify-center">
-                <MessageSquare
-                  className={`w-4 h-4 ${
-                    location.pathname === '/central-atendimento' ? 'text-white' : 'text-[#16A34A]'
+            {/* Botões do Topo para Admin (WhatsApp, Templates, Notificações) */}
+            {isAdmin && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => navigate('/central-atendimento')}
+                  className={`relative inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg border text-xs font-bold transition-all hover:scale-[1.02] shadow-2xs ${
+                    location.pathname === '/central-atendimento'
+                      ? 'bg-emerald-600 text-white border-emerald-700 shadow-xs'
+                      : 'bg-emerald-50 hover:bg-emerald-100 text-[#166534] border-emerald-200'
                   }`}
-                />
-                {/* Badge bolha no canto superior direito do ícone */}
-                {pendentesWhatsAppCount > 0 && (
+                  title="Central de Atendimento WhatsApp"
+                  aria-label={`Central de Atendimento WhatsApp${pendentesWhatsAppCount > 0 ? ` (${pendentesWhatsAppCount} mensagens pendentes)` : ''}`}
+                >
+                  <div className="relative flex items-center justify-center">
+                    <MessageSquare
+                      className={`w-4 h-4 ${
+                        location.pathname === '/central-atendimento'
+                          ? 'text-white'
+                          : 'text-[#16A34A]'
+                      }`}
+                    />
+                    {pendentesWhatsAppCount > 0 && (
+                      <span
+                        className={`absolute -top-2 -right-2.5 min-w-[18px] h-[18px] px-1 flex items-center justify-center text-[10px] font-black rounded-full ring-2 shadow-xs ${
+                          location.pathname === '/central-atendimento'
+                            ? 'bg-white text-emerald-700 ring-emerald-600'
+                            : 'bg-emerald-600 text-white ring-white'
+                        }`}
+                      >
+                        {pendentesWhatsAppCount > 99 ? '99+' : pendentesWhatsAppCount}
+                      </span>
+                    )}
+                  </div>
+                  <span className="hidden md:inline">WhatsApp</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setModalWhatsAppTemplatesOpen(true)}
+                  className="p-1.5 sm:px-2.5 sm:py-1.5 inline-flex items-center gap-1 text-gray-500 hover:text-emerald-700 bg-gray-50 hover:bg-emerald-50 border border-gray-200 hover:border-emerald-200 rounded-lg text-xs font-medium transition-colors shadow-2xs"
+                  title="Templates e Configurações de WhatsApp"
+                  aria-label="Templates e Configurações de WhatsApp"
+                >
+                  <Settings className="w-4 h-4 text-gray-500" />
+                  <span className="hidden xl:inline text-[11px]">Templates</span>
+                </button>
+
+                <NotificacoesBell />
+              </>
+            )}
+
+            {/* Informações do Usuário no Topo com Badge de Perfil */}
+            <div className="flex items-center gap-2 sm:gap-3 pl-2 sm:border-l border-gray-200">
+              <div className="hidden sm:flex flex-col text-right">
+                <span className="text-xs font-bold text-gray-800 flex items-center justify-end gap-1.5">
+                  {displayName}
                   <span
-                    className={`absolute -top-2 -right-2.5 min-w-[18px] h-[18px] px-1 flex items-center justify-center text-[10px] font-black rounded-full ring-2 shadow-xs ${
-                      location.pathname === '/central-atendimento'
-                        ? 'bg-white text-emerald-700 ring-emerald-600'
-                        : 'bg-emerald-600 text-white ring-white'
+                    className={`text-[10px] font-extrabold px-1.5 py-0.2 rounded uppercase tracking-wider ${
+                      isAdmin
+                        ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                        : 'bg-blue-100 text-blue-800 border border-blue-200'
                     }`}
                   >
-                    {pendentesWhatsAppCount > 99 ? '99+' : pendentesWhatsAppCount}
+                    {isAdmin ? 'Admin' : 'Instalador'}
                   </span>
-                )}
+                </span>
+                <span className="text-[11px] text-gray-400">
+                  {isAdmin ? 'Acesso Completo' : 'Operação em Campo'}
+                </span>
               </div>
-              <span className="hidden md:inline">WhatsApp</span>
-            </button>
+              <div
+                className={`w-9 h-9 rounded-full text-white flex items-center justify-center font-bold text-sm shadow-xs border border-white shrink-0 ${
+                  isAdmin
+                    ? 'bg-gradient-to-tr from-[#166534] to-[#16A34A]'
+                    : 'bg-gradient-to-tr from-blue-700 to-blue-500'
+                }`}
+                title={`${displayName} (${isAdmin ? 'Administrador' : 'Instalador'})`}
+              >
+                {userInitial}
+              </div>
 
-            {/* Botão para Configurações & Templates de WhatsApp */}
-            <button
-              type="button"
-              onClick={() => setModalWhatsAppTemplatesOpen(true)}
-              className="p-1.5 sm:px-2.5 sm:py-1.5 inline-flex items-center gap-1 text-gray-500 hover:text-emerald-700 bg-gray-50 hover:bg-emerald-50 border border-gray-200 hover:border-emerald-200 rounded-lg text-xs font-medium transition-colors shadow-2xs"
-              title="Templates e Configurações de WhatsApp"
-              aria-label="Templates e Configurações de WhatsApp"
-            >
-              <Settings className="w-4 h-4 text-gray-500" />
-              <span className="hidden xl:inline text-[11px]">Templates</span>
-            </button>
-
-            {/* Sino de Notificações / Lembretes de Hoje */}
-            <NotificacoesBell />
-
-            <div className="hidden sm:flex flex-col text-right">
-              <span className="text-xs font-semibold text-gray-800">
-                {user?.name || 'João Silva'}
-              </span>
-              <span className="text-[11px] text-gray-400">Erechim & Região</span>
-            </div>
-            <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-[#166534] to-[#16A34A] text-white flex items-center justify-center font-bold text-sm shadow-xs border border-white shrink-0">
-              {userInitial}
+              {/* Botão de Logout no Header em Telas Menores */}
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="lg:hidden p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                title="Sair do sistema"
+              >
+                <LogOut className="w-4 h-4" />
+              </button>
             </div>
           </div>
         </header>
@@ -444,14 +501,16 @@ export default function Layout() {
         </main>
       </div>
 
-      {/* Universal Ficha do Cliente Drawer */}
-      <FichaClienteDrawer />
+      {/* Universal Ficha do Cliente Drawer (Apenas para Admin) */}
+      {isAdmin && <FichaClienteDrawer />}
 
-      {/* Modal Global de Templates e Gateway WhatsApp */}
-      <ModalGerenciarWhatsAppTemplates
-        isOpen={modalWhatsAppTemplatesOpen}
-        onClose={() => setModalWhatsAppTemplatesOpen(false)}
-      />
+      {/* Modal Global de Templates e Gateway WhatsApp (Apenas para Admin) */}
+      {isAdmin && (
+        <ModalGerenciarWhatsAppTemplates
+          isOpen={modalWhatsAppTemplatesOpen}
+          onClose={() => setModalWhatsAppTemplatesOpen(false)}
+        />
+      )}
     </div>
   )
 }

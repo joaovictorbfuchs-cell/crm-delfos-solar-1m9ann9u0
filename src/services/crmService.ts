@@ -1456,15 +1456,24 @@ export async function saveOSTemplate(
 
 export async function fetchOrdensServico(
   filterStatus?: import('@/types/crm').OSStatus,
+  responsavelUsuarioId?: string,
 ): Promise<import('@/types/crm').OrdemServico[]> {
   try {
-    const filter = filterStatus ? `status='${filterStatus}'` : ''
+    const conditions: string[] = []
+    if (filterStatus) {
+      conditions.push(`status='${filterStatus}'`)
+    }
+    if (responsavelUsuarioId) {
+      conditions.push(`responsavel_usuario_id='${responsavelUsuarioId}'`)
+    }
+    const filter = conditions.join(' && ')
+
     const records = await pb
       .collection('ordens_servico')
       .getFullList<import('@/types/crm').OrdemServico>({
         filter: filter || undefined,
         sort: 'data_agendada,-created',
-        expand: 'cliente_id,profissional_id',
+        expand: 'cliente_id,profissional_id,responsavel_usuario_id',
       })
     return records
   } catch (err) {
@@ -1496,6 +1505,7 @@ export async function createOrdemServico(data: {
   data_agendada: string
   status?: import('@/types/crm').OSStatus
   atribuida_a?: string
+  responsavel_usuario_id?: string
   profissional_id?: string
   instrucoes?: string
   checklist?: import('@/types/crm').OSChecklistItem[]
@@ -1510,7 +1520,7 @@ export async function createOrdemServico(data: {
   const record = await pb
     .collection('ordens_servico')
     .create<import('@/types/crm').OrdemServico>(payload, {
-      expand: 'cliente_id,profissional_id',
+      expand: 'cliente_id,profissional_id,responsavel_usuario_id',
     })
   return record
 }
@@ -1537,7 +1547,7 @@ export async function updateOrdemServico(
     const record = await pb
       .collection('ordens_servico')
       .update<import('@/types/crm').OrdemServico>(id, formData, {
-        expand: 'cliente_id,profissional_id',
+        expand: 'cliente_id,profissional_id,responsavel_usuario_id',
       })
     return record
   }
@@ -1545,7 +1555,7 @@ export async function updateOrdemServico(
   const record = await pb
     .collection('ordens_servico')
     .update<import('@/types/crm').OrdemServico>(id, data, {
-      expand: 'cliente_id,profissional_id',
+      expand: 'cliente_id,profissional_id,responsavel_usuario_id',
     })
   return record
 }

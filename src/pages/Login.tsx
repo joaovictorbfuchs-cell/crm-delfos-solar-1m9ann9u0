@@ -1,11 +1,20 @@
 import React, { useState } from 'react'
 import { useNavigate, Navigate } from 'react-router-dom'
-import { Lock, Mail, AlertCircle, Loader2 } from 'lucide-react'
+import {
+  Lock,
+  Mail,
+  AlertCircle,
+  Loader2,
+  Shield,
+  Wrench,
+  Sparkles,
+  ArrowRight,
+} from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { DelfosLogo } from '@/components/DelfosLogo'
 
 export default function Login() {
-  const { login, isAuthenticated } = useAuth()
+  const { login, isAuthenticated, isAdmin, isInstalador } = useAuth()
   const navigate = useNavigate()
 
   const [email, setEmail] = useState('joao@delfosengenharia.com.br')
@@ -13,7 +22,11 @@ export default function Login() {
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
 
+  // Se já autenticado, redireciona conforme o perfil
   if (isAuthenticated) {
+    if (isInstalador) {
+      return <Navigate to="/execucao-os" replace />
+    }
     return <Navigate to="/" replace />
   }
 
@@ -28,14 +41,31 @@ export default function Login() {
 
     try {
       setIsLoading(true)
-      await login(email, password)
-      navigate('/')
-    } catch (err: unknown) {
+      const profile = await login(email, password)
+
+      // Redirecionamento por perfil
+      if (profile.role === 'instalador') {
+        navigate('/execucao-os')
+      } else {
+        navigate('/')
+      }
+    } catch (err: any) {
       console.error(err)
-      setError('Credenciais inválidas. Verifique seu e-mail e senha.')
+      if (err?.message === 'USUARIO_DESATIVADO') {
+        setError('Usuário desativado. Fale com o administrador do sistema.')
+      } else {
+        setError('Credenciais inválidas. Verifique seu e-mail e senha.')
+      }
     } finally {
       setIsLoading(false)
     }
+  }
+
+  // Preencher credenciais de demonstração com 1 clique
+  const setDemoCredentials = (demoEmail: string, demoPass: string) => {
+    setEmail(demoEmail)
+    setPassword(demoPass)
+    setError(null)
   }
 
   return (
@@ -115,8 +145,61 @@ export default function Login() {
           </button>
         </form>
 
-        <div className="mt-8 pt-6 border-t border-gray-100 text-center">
-          <p className="text-xs text-gray-400">
+        {/* Bloco Discreto de Acessos de Demonstração para Testar Ambos os Perfis */}
+        <div className="mt-6 pt-5 border-t border-gray-100 space-y-2.5">
+          <div className="flex items-center justify-between text-xs text-gray-500 font-semibold">
+            <span className="flex items-center gap-1 text-gray-700">
+              <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+              Acessos de demonstração:
+            </span>
+            <span className="text-[11px] text-gray-400">Clique para preencher</span>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            {/* Demonstração Admin */}
+            <button
+              type="button"
+              onClick={() => setDemoCredentials('joao@delfosengenharia.com.br', 'Skip@Pass')}
+              className="p-2.5 rounded-xl border border-emerald-200 bg-emerald-50/60 hover:bg-emerald-100/80 text-left transition-all group"
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-bold text-emerald-800 flex items-center gap-1">
+                  <Shield className="w-3.5 h-3.5 text-emerald-600" />
+                  Admin
+                </span>
+                <ArrowRight className="w-3 h-3 text-emerald-600 opacity-0 group-hover:opacity-100 transition-opacity" />
+              </div>
+              <p className="text-[10px] text-emerald-950 font-medium truncate mt-0.5">
+                João Victor (Admin)
+              </p>
+              <p className="text-[10px] text-gray-500 font-mono mt-0.5">Skip@Pass</p>
+            </button>
+
+            {/* Demonstração Instalador */}
+            <button
+              type="button"
+              onClick={() =>
+                setDemoCredentials('carlos.instalador@delfosengenharia.com.br', 'Delfos@123')
+              }
+              className="p-2.5 rounded-xl border border-blue-200 bg-blue-50/60 hover:bg-blue-100/80 text-left transition-all group"
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-bold text-blue-800 flex items-center gap-1">
+                  <Wrench className="w-3.5 h-3.5 text-blue-600" />
+                  Instalador
+                </span>
+                <ArrowRight className="w-3 h-3 text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity" />
+              </div>
+              <p className="text-[10px] text-blue-950 font-medium truncate mt-0.5">
+                Carlos Silva (Campo)
+              </p>
+              <p className="text-[10px] text-gray-500 font-mono mt-0.5">Delfos@123</p>
+            </button>
+          </div>
+        </div>
+
+        <div className="mt-4 pt-3 text-center">
+          <p className="text-[11px] text-gray-400">
             Acesso exclusivo para colaboradores da Delfos Solar (Erechim/RS)
           </p>
         </div>

@@ -80,12 +80,18 @@ export type AtividadeTipo =
 
 export type AtividadeStatus = 'pendente' | 'concluida' | 'cancelada'
 
+export type UserRole = 'admin' | 'instalador'
+
 export interface SistemaUsuario {
   id: string
   name: string
   email: string
   avatar?: string
+  role?: UserRole
+  ativo?: boolean
 }
+
+export type Usuario = SistemaUsuario
 
 export type ClienteTipo = 'residencial' | 'comercial' | 'industrial' | 'rural' | 'investidor'
 
@@ -623,9 +629,11 @@ export interface Projeto extends RecordModel {
   observacoes?: string
   created: string
   updated: string
+  responsavel_usuario_id?: string
   expand?: {
     cliente_id?: Cliente
     profissional_id?: Profissional
+    responsavel_usuario_id?: Usuario
   }
 }
 
@@ -861,6 +869,7 @@ export interface OrdemServico extends RecordModel {
   data_agendada: string
   status: OSStatus
   atribuida_a?: string
+  responsavel_usuario_id?: string
   profissional_id?: string
   instrucoes?: string
   checklist?: OSChecklistItem[]
@@ -872,6 +881,7 @@ export interface OrdemServico extends RecordModel {
   expand?: {
     cliente_id?: Cliente
     profissional_id?: Profissional
+    responsavel_usuario_id?: SistemaUsuario
   }
 }
 

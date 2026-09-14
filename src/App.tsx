@@ -20,6 +20,7 @@ import { CentralAtendimento } from './pages/CentralAtendimento'
 import ImportarClientes from './pages/ImportarClientes'
 import ImportarAcessos from './pages/ImportarAcessos'
 import ImportarContratosOM from './pages/ImportarContratosOM'
+import GerenciarUsuarios from './pages/GerenciarUsuarios'
 import Login from './pages/Login'
 import NotFound from './pages/NotFound'
 
@@ -39,19 +40,114 @@ const App = () => (
                 </ProtectedRoute>
               }
             >
-              <Route path="/" element={<Index />} />
-              <Route path="/comercial" element={<Comercial />} />
-              <Route path="/central-atendimento" element={<CentralAtendimento />} />
-              <Route path="/orcamentos" element={<Orcamentos />} />
-              <Route path="/projetos" element={<Projetos />} />
-              <Route path="/atividades" element={<Atividades />} />
+              {/* Rota comum ou permitida a ambos */}
               <Route path="/execucao-os" element={<ExecucaoOS />} />
-              <Route path="/manutencoes" element={<Manutencoes />} />
-              <Route path="/clientes" element={<Clientes />} />
-              <Route path="/importar-clientes" element={<ImportarClientes />} />
-              <Route path="/importar-acessos" element={<ImportarAcessos />} />
-              <Route path="/importar-contratos-om" element={<ImportarContratosOM />} />
-              <Route path="/fornecedores" element={<Fornecedores />} />
+
+              {/* Rotas restritas apenas para Administradores */}
+              <Route
+                path="/"
+                element={
+                  <ProtectedRoute requiredRole="admin">
+                    <Index />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/comercial"
+                element={
+                  <ProtectedRoute requiredRole="admin">
+                    <Comercial />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/central-atendimento"
+                element={
+                  <ProtectedRoute requiredRole="admin">
+                    <CentralAtendimento />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/orcamentos"
+                element={
+                  <ProtectedRoute requiredRole="admin">
+                    <Orcamentos />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/projetos"
+                element={
+                  <ProtectedRoute requiredRole="admin">
+                    <Projetos />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/atividades"
+                element={
+                  <ProtectedRoute requiredRole="admin">
+                    <Atividades />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/manutencoes"
+                element={
+                  <ProtectedRoute requiredRole="admin">
+                    <Manutencoes />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/clientes"
+                element={
+                  <ProtectedRoute requiredRole="admin">
+                    <Clientes />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/gerenciar-usuarios"
+                element={
+                  <ProtectedRoute requiredRole="admin">
+                    <GerenciarUsuarios />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/importar-clientes"
+                element={
+                  <ProtectedRoute requiredRole="admin">
+                    <ImportarClientes />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/importar-acessos"
+                element={
+                  <ProtectedRoute requiredRole="admin">
+                    <ImportarAcessos />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/importar-contratos-om"
+                element={
+                  <ProtectedRoute requiredRole="admin">
+                    <ImportarContratosOM />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/fornecedores"
+                element={
+                  <ProtectedRoute requiredRole="admin">
+                    <Fornecedores />
+                  </ProtectedRoute>
+                }
+              />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>

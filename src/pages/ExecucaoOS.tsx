@@ -27,12 +27,31 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 
+import { useAuth } from '@/contexts/AuthContext'
+import { fetchInstaladoresAtivos } from '@/services/usuariosService'
+import type { SistemaUsuario } from '@/types/crm'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+
 export default function ExecucaoOS() {
   const { toast } = useToast()
+  const { userProfile, isAdmin, isInstalador } = useAuth()
 
   const [ordens, setOrdens] = useState<OrdemServico[]>([])
   const [templates, setTemplates] = useState<OSTemplate[]>([])
+  const [instaladores, setInstaladores] = useState<SistemaUsuario[]>([])
   const [isLoading, setIsLoading] = useState(true)
+
+  // Modal para admin atribuir instalador a uma OS
+  const [osParaAtribuir, setOsParaAtribuir] = useState<OrdemServico | null>(null)
+  const [selectedInstaladorId, setSelectedInstaladorId] = useState<string>('')
+  const [isSavingAtribuicao, setIsSavingAtribuicao] = useState(false)
 
   // OS atualmente aberta na Ficha de Execução (null = tela inicial/lista)
   const [selectedOS, setSelectedOS] = useState<OrdemServico | null>(null)
@@ -51,9 +70,18 @@ export default function ExecucaoOS() {
   const carregarDados = async () => {
     setIsLoading(true)
     try {
-      const [osList, tmplList] = await Promise.all([fetchOrdensServico(), fetchOSTemplates()])
+      // Se for instalador, buscar apenas as OSs atribuídas a ele
+      const responsavelFiltro = isInstalador && userProfile?.id ? userProfile.id : undefined
+      const promises: [Promise<OrdemServico[]>, Promise<OSTemplate[]>, Promise<SistemaUsuario[]>] =
+        [
+          fetchOrdensServico(undefined, responsavelFiltro),
+          fetchOSTemplates(),
+          isAdmin ? fetchInstaladoresAtivos() : Promise.resolve([]),
+        ]
+      const [osList, tmplList, instList] = await Promise.all(promises)
       setOrdens(osList)
       setTemplates(tmplList)
+      setInstaladores(instList)
     } catch (err) {
       console.error('Erro ao carregar dados de OS:', err)
       toast({
@@ -68,7 +96,7 @@ export default function ExecucaoOS() {
 
   useEffect(() => {
     carregarDados()
-  }, [])
+  }, [isInstalador, userProfile?.id])
 
   // Callback de template atualizado no modal
   const handleTemplateSaved = (updatedTemplate: OSTemplate) => {
@@ -139,12 +167,54 @@ export default function ExecucaoOS() {
     })
   }, [listToDisplay, selectedTipoFilter, searchTerm])
 
+  // Salvar atribuição de instalador pela lista
+  const handleSalvarAtribuicao = async () => {
+    if (!osParaAtribuir) return
+    setIsSavingAtribuicao(true)
+    try {
+      const targetInstalador = instaladores.find((i) => i.id === selectedInstaladorId)
+      const { updateOrdemServico } = await import('@/services/crmService')
+      const updated = await updateOrdemServico(osParaAtribuir.id, {
+        responsavel_usuario_id: selectedInstaladorId || '',
+        atribuida_a: targetInstalador ? targetInstalador.name : '',
+      })
+
+      setOrdens((prev) =>
+        prev.map((item) =>
+          item.id === updated.id
+            ? {
+                ...item,
+                responsavel_usuario_id: updated.responsavel_usuario_id,
+                atribuida_a: updated.atribuida_a,
+              }
+            : item,
+        ),
+      )
+      toast({
+        title: 'Instalador atribuído!',
+        description: targetInstalador
+          ? `OS atribuída para ${targetInstalador.name}.`
+          : 'Atribuição removida.',
+      })
+      setOsParaAtribuir(null)
+    } catch (err) {
+      console.error(err)
+      toast({
+        variant: 'destructive',
+        title: 'Erro ao atribuir instalador',
+      })
+    } finally {
+      setIsSavingAtribuicao(false)
+    }
+  }
+
   // Se uma OS foi selecionada, exibe a Ficha de Execução
   if (selectedOS) {
     return (
       <FichaExecucaoOS
         os={selectedOS}
         templates={templates}
+        instaladores={instaladores}
         onBack={() => setSelectedOS(null)}
         onOSUpdated={handleOSUpdated}
         onOSFinalizada={handleOSFinalizada}
@@ -172,16 +242,18 @@ export default function ExecucaoOS() {
           </div>
         </div>
 
-        {/* Botão de Templates de Instruções */}
+        {/* Botão de Templates de Instruções (Apenas Admin) e Atualizar */}
         <div className="flex items-center gap-2">
-          <Button
-            type="button"
-            onClick={() => setIsTemplatesModalOpen(true)}
-            className="w-full sm:w-auto h-12 sm:h-11 px-4 rounded-xl bg-[#166534] hover:bg-[#14532d] text-white font-bold text-xs sm:text-sm shadow-sm flex items-center justify-center gap-2"
-          >
-            <FileText className="w-4 h-4" />
-            <span>Templates de Instruções</span>
-          </Button>
+          {isAdmin && (
+            <Button
+              type="button"
+              onClick={() => setIsTemplatesModalOpen(true)}
+              className="w-full sm:w-auto h-12 sm:h-11 px-4 rounded-xl bg-[#166534] hover:bg-[#14532d] text-white font-bold text-xs sm:text-sm shadow-sm flex items-center justify-center gap-2"
+            >
+              <FileText className="w-4 h-4" />
+              <span>Templates de Instruções</span>
+            </Button>
+          )}
 
           <Button
             type="button"
@@ -364,15 +436,32 @@ export default function ExecucaoOS() {
                     </span>
                   </div>
 
-                  {/* Técnico Atribuído */}
-                  {os.atribuida_a && (
-                    <div className="flex items-center gap-1.5 text-xs text-gray-500 mb-3">
-                      <User className="w-3.5 h-3.5 text-gray-400" />
-                      <span>
-                        Instalador: <strong className="text-gray-700">{os.atribuida_a}</strong>
+                  {/* Técnico Atribuído & Botão de Atribuir para Admin */}
+                  <div className="flex items-center justify-between gap-2 text-xs text-gray-500 mb-3">
+                    <div className="flex items-center gap-1.5 truncate">
+                      <User className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                      <span className="truncate">
+                        Instalador:{' '}
+                        <strong className="text-gray-700">
+                          {os.atribuida_a || 'Não atribuído'}
+                        </strong>
                       </span>
                     </div>
-                  )}
+
+                    {isAdmin && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setOsParaAtribuir(os)
+                          setSelectedInstaladorId(os.responsavel_usuario_id || '')
+                        }}
+                        className="text-[11px] font-bold text-emerald-700 hover:text-emerald-900 bg-emerald-50 hover:bg-emerald-100 px-2 py-0.5 rounded-md border border-emerald-200 transition-colors shrink-0"
+                      >
+                        Atribuir
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 {/* Rodapé do Card com Progresso e Botão Grande */}
@@ -401,13 +490,90 @@ export default function ExecucaoOS() {
         </div>
       )}
 
-      {/* Modal de Templates de Instruções */}
-      <ModalTemplatesOS
-        isOpen={isTemplatesModalOpen}
-        onClose={() => setIsTemplatesModalOpen(false)}
-        templates={templates}
-        onTemplateSaved={handleTemplateSaved}
-      />
+      {/* Modal de Templates de Instruções (Apenas Admin) */}
+      {isAdmin && (
+        <ModalTemplatesOS
+          isOpen={isTemplatesModalOpen}
+          onClose={() => setIsTemplatesModalOpen(false)}
+          templates={templates}
+          onTemplateSaved={handleTemplateSaved}
+        />
+      )}
+
+      {/* Modal de Atribuição de Instalador à OS (Apenas Admin) */}
+      {isAdmin && (
+        <Dialog
+          open={Boolean(osParaAtribuir)}
+          onOpenChange={(open) => !open && setOsParaAtribuir(null)}
+        >
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="text-gray-900 flex items-center gap-2">
+                <Wrench className="w-5 h-5 text-emerald-600" />
+                <span>Atribuir Instalador à OS</span>
+              </DialogTitle>
+              <DialogDescription className="text-xs text-gray-500">
+                Selecione o instalador responsável por executar esta ordem de serviço em campo.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-3 py-2">
+              <div className="bg-gray-50 p-3 rounded-xl border border-gray-200 text-xs">
+                <span className="font-bold text-gray-700 block">Cliente:</span>
+                <span className="text-gray-900 font-semibold">
+                  {osParaAtribuir?.expand?.cliente_id?.nome ||
+                    osParaAtribuir?.expand?.cliente_id?.razao_social ||
+                    'Cliente Solar'}
+                </span>
+                <span className="text-gray-500 block mt-1">
+                  Serviço: <strong>{osParaAtribuir?.tipo_servico}</strong>
+                </span>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1.5">
+                  Instalador Responsável
+                </label>
+                <select
+                  value={selectedInstaladorId}
+                  onChange={(e) => setSelectedInstaladorId(e.target.value)}
+                  className="w-full h-11 px-3 text-xs sm:text-sm font-medium rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-hidden focus:border-emerald-600"
+                >
+                  <option value="">-- Não atribuído / Remover atribuição --</option>
+                  {instaladores.map((inst) => (
+                    <option key={inst.id} value={inst.id}>
+                      {inst.name} ({inst.email})
+                    </option>
+                  ))}
+                </select>
+                <p className="text-[11px] text-gray-400 mt-1">
+                  Ao atribuir, a OS aparecerá imediatamente no login deste instalador.
+                </p>
+              </div>
+            </div>
+
+            <DialogFooter className="pt-2">
+              <Button
+                type="button"
+                variant="outline"
+                disabled={isSavingAtribuicao}
+                onClick={() => setOsParaAtribuir(null)}
+                className="rounded-xl h-10 text-xs"
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="button"
+                disabled={isSavingAtribuicao}
+                onClick={handleSalvarAtribuicao}
+                className="bg-[#16A34A] hover:bg-[#15803D] text-white font-bold rounded-xl h-10 text-xs"
+              >
+                {isSavingAtribuicao ? 'Salvando...' : 'Confirmar Atribuição'}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   )
 }

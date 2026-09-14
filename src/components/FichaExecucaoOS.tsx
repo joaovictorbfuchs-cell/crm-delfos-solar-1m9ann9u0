@@ -39,9 +39,13 @@ import {
 } from 'lucide-react'
 import { formatDateTime } from '@/lib/formatters'
 
+import { useAuth } from '@/contexts/AuthContext'
+import type { SistemaUsuario } from '@/types/crm'
+
 interface FichaExecucaoOSProps {
   os: OrdemServico
   templates: OSTemplate[]
+  instaladores?: SistemaUsuario[]
   onBack: () => void
   onOSUpdated: (updatedOS: OrdemServico) => void
   onOSFinalizada: (finalizedOS: OrdemServico) => void
@@ -138,13 +142,18 @@ export function getDefaultChecklist(tipo: OSTipoServico): OSChecklistItem[] {
 export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
   os,
   templates,
+  instaladores = [],
   onBack,
   onOSUpdated,
   onOSFinalizada,
 }) => {
   const { toast } = useToast()
+  const { isAdmin } = useAuth()
   const cameraInputRef = useRef<HTMLInputElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // Estado para admin reatribuir instalador direto na ficha
+  const [responsavelId, setResponsavelId] = useState<string>(os.responsavel_usuario_id || '')
 
   const cliente: Cliente | undefined = os.expand?.cliente_id
   const [sistema, setSistema] = useState<Sistema | null>(null)
@@ -244,13 +253,20 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
     setIsSavingDraft(true)
     try {
       const filesToUpload = novasFotos.map((nf) => nf.file)
+      const targetInstalador = instaladores.find((i) => i.id === responsavelId)
+      const payload: Partial<OrdemServico> = {
+        instrucoes: instrucoesTexto,
+        checklist,
+        detalhes_execucao: detalhesExecucao,
+      }
+      if (isAdmin && responsavelId !== os.responsavel_usuario_id) {
+        payload.responsavel_usuario_id = responsavelId
+        payload.atribuida_a = targetInstalador ? targetInstalador.name : ''
+      }
+
       const updated = await updateOrdemServico(
         os.id,
-        {
-          instrucoes: instrucoesTexto,
-          checklist,
-          detalhes_execucao: detalhesExecucao,
-        },
+        payload,
         filesToUpload.length > 0 ? filesToUpload : undefined,
       )
       setFotosSalvas(updated.fotos || [])
@@ -356,13 +372,35 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
             {cliente?.nome || cliente?.razao_social || 'Cliente Solar'}
           </h2>
 
-          {os.atribuida_a && (
-            <div className="flex items-center gap-1.5 text-xs text-emerald-200">
-              <User className="w-3.5 h-3.5" />
-              <span>
-                Instalador responsável: <strong>{os.atribuida_a}</strong>
-              </span>
+          {isAdmin ? (
+            <div className="flex items-center gap-2 text-xs text-emerald-200 bg-white/10 p-2 rounded-xl mt-1 max-w-md">
+              <User className="w-4 h-4 text-emerald-300 shrink-0" />
+              <div className="flex-1 flex items-center gap-2">
+                <span className="font-semibold text-emerald-100 shrink-0">Responsável:</span>
+                <select
+                  value={responsavelId}
+                  onChange={(e) => setResponsavelId(e.target.value)}
+                  disabled={os.status === 'concluida'}
+                  className="bg-emerald-950/80 border border-emerald-600 text-white text-xs rounded-lg px-2 py-1 w-full focus:outline-hidden"
+                >
+                  <option value="">-- Não atribuído --</option>
+                  {instaladores.map((inst) => (
+                    <option key={inst.id} value={inst.id}>
+                      {inst.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
+          ) : (
+            os.atribuida_a && (
+              <div className="flex items-center gap-1.5 text-xs text-emerald-200">
+                <User className="w-3.5 h-3.5" />
+                <span>
+                  Instalador responsável: <strong>{os.atribuida_a}</strong>
+                </span>
+              </div>
+            )
           )}
         </div>
       </div>

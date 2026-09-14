@@ -3,8 +3,13 @@ import { Navigate } from 'react-router-dom'
 import { useAuth } from '@/contexts/AuthContext'
 import { Loader2 } from 'lucide-react'
 
-export const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { isAuthenticated, isLoading } = useAuth()
+interface ProtectedRouteProps {
+  children: React.ReactNode
+  requiredRole?: 'admin' | 'instalador'
+}
+
+export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, requiredRole }) => {
+  const { isAuthenticated, isLoading, isAdmin, isInstalador } = useAuth()
 
   if (isLoading) {
     return (
@@ -16,6 +21,16 @@ export const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ childr
 
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />
+  }
+
+  // Se rota requer admin e usuário for instalador, redireciona para /execucao-os
+  if (requiredRole === 'admin' && !isAdmin) {
+    return <Navigate to="/execucao-os" replace />
+  }
+
+  // Se for instalador e não for uma rota permitida a instalador
+  if (isInstalador && requiredRole !== 'instalador' && requiredRole !== undefined) {
+    return <Navigate to="/execucao-os" replace />
   }
 
   return <>{children}</>
