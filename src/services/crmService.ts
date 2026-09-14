@@ -491,6 +491,7 @@ export async function fetchContratoOMByClienteId(clienteId: string): Promise<Con
 
 export async function createContratoOM(data: {
   cliente_id: string
+  numero_contrato?: string
   plano: ContratoOM['plano']
   status: ContratoOM['status']
   valor_mensal: number

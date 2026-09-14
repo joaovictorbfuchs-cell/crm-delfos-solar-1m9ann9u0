@@ -9,6 +9,7 @@ import {
   Wrench,
   Users,
   FileSpreadsheet,
+  FileSignature,
   Truck,
   Menu,
   X,
@@ -96,6 +97,10 @@ export default function Layout() {
         return 'Gestão de Clientes'
       case '/importar-clientes':
         return 'Importar Clientes (Pipedrive / Conta Azul)'
+      case '/importar-acessos':
+        return 'Importar Acessos & Monitoramento'
+      case '/importar-contratos-om':
+        return 'Importar Contratos O&M'
       case '/fornecedores':
         return 'Fornecedores de Equipamentos'
       default:
@@ -118,6 +123,7 @@ export default function Layout() {
     { name: 'O&M / Manutenções', path: '/manutencoes', icon: Wrench },
     { name: 'Clientes', path: '/clientes', icon: Users },
     { name: 'Importar Clientes', path: '/importar-clientes', icon: FileSpreadsheet },
+    { name: 'Importar Contratos O&M', path: '/importar-contratos-om', icon: FileSignature },
     { name: 'Fornecedores', path: '/fornecedores', icon: Truck },
   ]
   const userInitial = user?.name ? user.name.charAt(0).toUpperCase() : 'J'

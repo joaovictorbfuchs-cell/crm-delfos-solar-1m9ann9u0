@@ -699,6 +699,7 @@ export interface ContratoOM extends RecordModel {
   collectionId: string
   collectionName: string
   cliente_id: string
+  numero_contrato?: string
   plano: OMPlanoTipo
   status: OMStatusPlano
   valor_mensal: number

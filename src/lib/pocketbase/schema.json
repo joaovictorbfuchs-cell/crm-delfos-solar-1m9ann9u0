@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-14T00:28:59.150Z",
+  "generatedAt": "2026-09-14T00:45:49.737Z",
   "collections": [
     {
       "name": "users",
@@ -1228,12 +1228,19 @@
           "type": "text",
           "required": false,
           "system": false
+        },
+        {
+          "name": "numero_contrato",
+          "type": "text",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": [
         "CREATE INDEX idx_contratos_om_cliente ON contratos_om (cliente_id)",
         "CREATE INDEX idx_contratos_om_status ON contratos_om (status)",
-        "CREATE INDEX idx_contratos_om_plano ON contratos_om (plano)"
+        "CREATE INDEX idx_contratos_om_plano ON contratos_om (plano)",
+        "CREATE INDEX `idx_contratos_om_numero_contrato` ON `contratos_om` (numero_contrato)"
       ]
     },
     {

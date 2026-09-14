@@ -19,6 +19,7 @@ import ExecucaoOS from './pages/ExecucaoOS'
 import { CentralAtendimento } from './pages/CentralAtendimento'
 import ImportarClientes from './pages/ImportarClientes'
 import ImportarAcessos from './pages/ImportarAcessos'
+import ImportarContratosOM from './pages/ImportarContratosOM'
 import Login from './pages/Login'
 import NotFound from './pages/NotFound'
 
@@ -49,6 +50,7 @@ const App = () => (
               <Route path="/clientes" element={<Clientes />} />
               <Route path="/importar-clientes" element={<ImportarClientes />} />
               <Route path="/importar-acessos" element={<ImportarAcessos />} />
+              <Route path="/importar-contratos-om" element={<ImportarContratosOM />} />
               <Route path="/fornecedores" element={<Fornecedores />} />
             </Route>
             <Route path="*" element={<NotFound />} />
