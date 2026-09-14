@@ -21,9 +21,12 @@ import {
   PhoneOff,
   RotateCcw,
   Check,
+  Loader2,
 } from 'lucide-react'
 import { toast } from '@/hooks/use-toast'
 import { Cliente } from '@/types/crm'
+import { sendWhatsAppMensagem } from '@/services/crmService'
+import { getFriendlyWhatsAppErrorMessage } from '@/lib/whatsappGateway'
 
 export const ITENS_SOLICITACAO_INFORMACOES = [
   'Nome completo',
@@ -83,6 +86,7 @@ export const ModalSolicitacaoInformacoes: React.FC<ModalSolicitacaoInformacoesPr
   const [mensagemTentouGerar, setMensagemTentouGerar] = useState<boolean>(false)
   const [isCopiado, setIsCopiado] = useState<boolean>(false)
   const [isSalvando, setIsSalvando] = useState<boolean>(false)
+  const [isSendingWhatsApp, setIsSendingWhatsApp] = useState<boolean>(false)
 
   // Ao abrir o modal ou mudar o cliente, carrega as pendências salvas
   useEffect(() => {
@@ -210,15 +214,50 @@ export const ModalSolicitacaoInformacoes: React.FC<ModalSolicitacaoInformacoesPr
     }
   }
 
-  const handleEnviarWhatsApp = () => {
+  const handleEnviarWhatsApp = async () => {
     if (!temTelefoneValido) return
-    const phoneWithCountry = cleanPhoneDigits.startsWith('55')
-      ? cleanPhoneDigits
-      : `55${cleanPhoneDigits}`
     const textoAEnviar = mensagemGerada || gerarTextoMensagemSolicitacao(cliente.nome, pendentes)
-    const encoded = encodeURIComponent(textoAEnviar)
-    const url = `https://wa.me/${phoneWithCountry}?text=${encoded}`
-    window.open(url, '_blank')
+    if (!textoAEnviar.trim()) {
+      toast({
+        title: 'Mensagem vazia',
+        description: 'Gere a mensagem de solicitação antes de enviar.',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    setIsSendingWhatsApp(true)
+    try {
+      const res = await sendWhatsAppMensagem({
+        clienteId: cliente.id,
+        telefone: cleanPhoneDigits,
+        mensagem: textoAEnviar,
+        origem: 'modal_solicitacao_informacoes',
+      })
+
+      if (res.ok && res.sent) {
+        toast({
+          title: 'Mensagem enviada via WhatsApp!',
+          description: 'A solicitação de documentos foi disparada com sucesso.',
+        })
+      } else {
+        const errorMsg = getFriendlyWhatsAppErrorMessage(res)
+        toast({
+          title: 'Não foi possível enviar pelo WhatsApp',
+          description: errorMsg,
+          variant: 'destructive',
+        })
+      }
+    } catch (err: any) {
+      console.error('Erro ao enviar solicitação via WhatsApp:', err)
+      toast({
+        title: 'Erro ao enviar via WhatsApp',
+        description: err?.message || 'Falha de comunicação com o servidor.',
+        variant: 'destructive',
+      })
+    } finally {
+      setIsSendingWhatsApp(false)
+    }
   }
 
   const totalItens = ITENS_SOLICITACAO_INFORMACOES.length
@@ -484,20 +523,24 @@ export const ModalSolicitacaoInformacoes: React.FC<ModalSolicitacaoInformacoesPr
                       <span className="w-full block">
                         <Button
                           type="button"
-                          disabled={!mensagemGerada || !temTelefoneValido}
+                          disabled={!mensagemGerada || !temTelefoneValido || isSendingWhatsApp}
                           onClick={handleEnviarWhatsApp}
                           className={`w-full text-xs font-bold py-2.5 rounded-xl shadow-xs transition-all flex items-center justify-center gap-1.5 ${
-                            !temTelefoneValido
+                            !temTelefoneValido || isSendingWhatsApp
                               ? 'bg-gray-200 text-gray-400 cursor-not-allowed hover:bg-gray-200'
                               : 'bg-[#25D366] hover:bg-[#20bd5a] text-white hover:scale-[1.01]'
                           }`}
                         >
-                          {!temTelefoneValido ? (
+                          {isSendingWhatsApp ? (
+                            <Loader2 className="w-4 h-4 animate-spin text-gray-600" />
+                          ) : !temTelefoneValido ? (
                             <PhoneOff className="w-4 h-4" />
                           ) : (
                             <MessageCircle className="w-4 h-4" />
                           )}
-                          <span>Enviar pelo WhatsApp</span>
+                          <span>
+                            {isSendingWhatsApp ? 'Enviando WhatsApp...' : 'Enviar pelo WhatsApp'}
+                          </span>
                         </Button>
                       </span>
                     </TooltipTrigger>

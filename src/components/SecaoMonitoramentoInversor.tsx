@@ -21,6 +21,7 @@ import {
   Layers,
   ChevronDown,
   ChevronUp,
+  Loader2,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import type { Cliente, Sistema, MonitoramentoMarca, ClienteInversor } from '@/types/crm'
@@ -31,8 +32,10 @@ import {
   createClienteInversor,
   updateClienteInversor,
   deleteClienteInversor,
+  sendWhatsAppMensagem,
 } from '@/services/crmService'
 import { cleanPhoneDigits } from '@/lib/formatters'
+import { getFriendlyWhatsAppErrorMessage } from '@/lib/whatsappGateway'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -82,6 +85,7 @@ export const SecaoMonitoramentoInversor: React.FC<SecaoMonitoramentoInversorProp
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
   const [saveSuccess, setSaveSuccess] = useState(false)
+  const [isSendingWhatsApp, setIsSendingWhatsApp] = useState(false)
 
   // Diálogo de confirmação para exclusão
   const [inversorParaExcluir, setInversorParaExcluir] = useState<InversorFormItem | null>(null)
@@ -471,14 +475,13 @@ export const SecaoMonitoramentoInversor: React.FC<SecaoMonitoramentoInversorProp
   const telefoneDigitos = cleanPhoneDigits(telefoneCru)
   const temTelefoneValido = telefoneDigitos.length >= 10
 
-  // Disparo de credenciais pelo WhatsApp listando TODOS os inversores
-  const handleEnviarWhatsApp = () => {
+  // Disparo de credenciais pelo WhatsApp diretamente via Z-API listando TODOS os inversores
+  const handleEnviarWhatsApp = async () => {
     if (!temTelefoneValido) {
       toast.error('O cliente não possui telefone de contato cadastrado na ficha.')
       return
     }
 
-    const ddiNumero = telefoneDigitos.startsWith('55') ? telefoneDigitos : `55${telefoneDigitos}`
     const primeiroNome = (cliente.nome || 'Cliente').split(' ')[0]
 
     const linhasMensagem: (string | null)[] = [
@@ -505,9 +508,28 @@ export const SecaoMonitoramentoInversor: React.FC<SecaoMonitoramentoInversorProp
     )
 
     const textoFormatado = linhasMensagem.filter((l) => l !== null).join('\n')
-    const url = `https://wa.me/${ddiNumero}?text=${encodeURIComponent(textoFormatado)}`
-    window.open(url, '_blank')
-    toast.success('WhatsApp aberto com os dados de acesso de todos os inversores!')
+
+    setIsSendingWhatsApp(true)
+    try {
+      const res = await sendWhatsAppMensagem({
+        clienteId: cliente.id,
+        telefone: telefoneDigitos,
+        mensagem: textoFormatado,
+        origem: 'secao_monitoramento_inversor',
+      })
+
+      if (res.ok && res.sent) {
+        toast.success('Dados de acesso do(s) inversor(es) enviados via WhatsApp!')
+      } else {
+        const errorMsg = getFriendlyWhatsAppErrorMessage(res)
+        toast.error(errorMsg)
+      }
+    } catch (err: any) {
+      console.error('Erro ao enviar dados do inversor via WhatsApp:', err)
+      toast.error(err?.message || 'Falha de comunicação ao enviar dados do inversor via WhatsApp.')
+    } finally {
+      setIsSendingWhatsApp(false)
+    }
   }
 
   return (
@@ -912,20 +934,26 @@ export const SecaoMonitoramentoInversor: React.FC<SecaoMonitoramentoInversorProp
           <button
             type="button"
             onClick={handleEnviarWhatsApp}
-            disabled={!temTelefoneValido}
+            disabled={!temTelefoneValido || isSendingWhatsApp}
             title={
               temTelefoneValido
                 ? `Enviar credenciais dos ${inversores.length} inversor(es) via WhatsApp para ${telefoneCru}`
                 : 'Cliente sem telefone de contato cadastrado na ficha'
             }
             className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg transition-all shadow-2xs ${
-              temTelefoneValido
+              temTelefoneValido && !isSendingWhatsApp
                 ? 'bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white cursor-pointer hover:scale-[1.01]'
                 : 'bg-gray-100 text-gray-400 border border-gray-200 cursor-not-allowed opacity-70'
             }`}
           >
-            <Send className="w-3.5 h-3.5" />
-            <span>Enviar credenciais pelo WhatsApp</span>
+            {isSendingWhatsApp ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            ) : (
+              <Send className="w-3.5 h-3.5" />
+            )}
+            <span>
+              {isSendingWhatsApp ? 'Enviando WhatsApp...' : 'Enviar credenciais pelo WhatsApp'}
+            </span>
           </button>
 
           <button

@@ -269,6 +269,41 @@ export function buildWhatsAppAudioPayload(params: {
 /**
  * Extrai o ID externo retornado pelo gateway a partir do corpo JSON da resposta.
  */
+/**
+ * Extrai mensagem amigável de erro ou aviso a partir da resposta do endpoint /backend/v1/whatsapp/send
+ */
+export function getFriendlyWhatsAppErrorMessage(result: {
+  ok?: boolean
+  sent?: boolean
+  gatewayConfigured?: boolean
+  status?: string
+  message?: string
+  error?: string
+}): string {
+  if (result.gatewayConfigured === false) {
+    return 'Gateway não configurado: adicione WHATSAPP_API_URL e WHATSAPP_API_KEY aos Secrets do backend.'
+  }
+  const msg = result.error || result.message || ''
+  if (/instância não encontrada|instance not found/i.test(msg)) {
+    return 'Instância Z-API não encontrada. Verifique se a URL e a instância estão ativas no painel da Z-API.'
+  }
+  if (/client-token/i.test(msg)) {
+    return 'Client-Token ausente ou inválido na Z-API. Verifique WHATSAPP_API_KEY nos Secrets.'
+  }
+  if (/disconnected|desconectad/i.test(msg)) {
+    return 'Instância da Z-API está desconectada do WhatsApp. Conecte o QR Code no painel da Z-API.'
+  }
+  if (/expirad|trial/i.test(msg)) {
+    return 'Plano ou trial da Z-API expirado. Renove a assinatura no painel da Z-API.'
+  }
+  if (/telefone|phone|número inválido|invalid/i.test(msg)) {
+    return 'Número de telefone inválido para envio via WhatsApp.'
+  }
+  return (
+    msg || 'Falha ao enviar mensagem pelo WhatsApp. Verifique os Secrets e a conexão com a Z-API.'
+  )
+}
+
 export function extractGatewayExternalId(resJson: unknown): string {
   if (!resJson || typeof resJson !== 'object') return ''
   const rec = resJson as Record<string, unknown>

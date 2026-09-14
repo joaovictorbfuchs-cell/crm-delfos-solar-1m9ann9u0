@@ -26,6 +26,7 @@ import {
   Send,
   ArrowLeft,
   FileCheck,
+  Loader2,
 } from 'lucide-react'
 import type {
   TipoDocumentoProjeto,
@@ -39,6 +40,9 @@ import {
 } from '@/lib/documentosProjetosSolarGenerator'
 import { formatarCPF } from '@/lib/cpfValidator'
 import { formatWhatsAppPhone } from '@/lib/formatters'
+import { sendWhatsAppMensagem } from '@/services/crmService'
+import { getFriendlyWhatsAppErrorMessage } from '@/lib/whatsappGateway'
+import { toast } from '@/hooks/use-toast'
 
 interface ModalConfirmarDocumentoProjetoProps {
   open: boolean
@@ -98,6 +102,7 @@ export const ModalConfirmarDocumentoProjeto: React.FC<ModalConfirmarDocumentoPro
   const [whatsAppTelefone, setWhatsAppTelefone] = useState('')
   const [whatsAppMensagem, setWhatsAppMensagem] = useState('')
   const [pdfBaixado, setPdfBaixado] = useState(false)
+  const [isSendingWhatsApp, setIsSendingWhatsApp] = useState(false)
 
   useEffect(() => {
     if (open) {
@@ -197,28 +202,61 @@ export const ModalConfirmarDocumentoProjeto: React.FC<ModalConfirmarDocumentoPro
     setPdfBaixado(true)
   }
 
-  // 2. Enviar pelo WhatsApp
-  const handleEnviarWhatsApp = () => {
-    // Como o WhatsApp Web não aceita anexação programática de arquivos,
-    // baixamos o arquivo automaticamente e abrimos o wa.me com a mensagem editável
+  // 2. Enviar pelo WhatsApp diretamente via Z-API
+  const handleEnviarWhatsApp = async () => {
+    const cleanPhone = whatsAppTelefone.replace(/\D/g, '')
+    if (cleanPhone.length < 10) {
+      toast({
+        title: 'Telefone inválido',
+        description: 'Informe um número de telefone com DDD válido para envio.',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    // Baixa o arquivo automaticamente para cópia local
     if (!pdfBaixado) {
       baixarDocumentoProjetoHTML(formData)
       setPdfBaixado(true)
     }
 
-    const cleanPhone = whatsAppTelefone.replace(/\D/g, '')
-    const phoneWithCountry = cleanPhone.startsWith('55') ? cleanPhone : `55${cleanPhone}`
-    const encodedText = encodeURIComponent(whatsAppMensagem)
-    const url = `https://wa.me/${phoneWithCountry}?text=${encodedText}`
+    setIsSendingWhatsApp(true)
+    try {
+      const res = await sendWhatsAppMensagem({
+        clienteId: _clienteId,
+        telefone: cleanPhone,
+        mensagem: whatsAppMensagem,
+        origem: `modal_documento_projeto_${tipo}`,
+      })
 
-    window.open(url, '_blank')
-
-    // Dispara callback para registrar status e timeline
-    onDocumentoEnviadoWhatsApp?.({
-      tipo,
-      telefone: whatsAppTelefone,
-      mensagem: whatsAppMensagem,
-    })
+      if (res.ok && res.sent) {
+        toast({
+          title: 'Mensagem enviada via WhatsApp!',
+          description: 'O documento foi notificado com sucesso.',
+        })
+        onDocumentoEnviadoWhatsApp?.({
+          tipo,
+          telefone: whatsAppTelefone,
+          mensagem: whatsAppMensagem,
+        })
+      } else {
+        const errorMsg = getFriendlyWhatsAppErrorMessage(res)
+        toast({
+          title: 'Não foi possível enviar pelo WhatsApp',
+          description: errorMsg,
+          variant: 'destructive',
+        })
+      }
+    } catch (err: any) {
+      console.error('Erro ao enviar documento via WhatsApp:', err)
+      toast({
+        title: 'Erro ao enviar via WhatsApp',
+        description: err?.message || 'Falha de comunicação com o servidor.',
+        variant: 'destructive',
+      })
+    } finally {
+      setIsSendingWhatsApp(false)
+    }
   }
 
   const handleDownloadDocx = async () => {
@@ -607,7 +645,7 @@ export const ModalConfirmarDocumentoProjeto: React.FC<ModalConfirmarDocumentoPro
                   variant="outline"
                   className="bg-white text-emerald-800 border-emerald-300 text-[10px]"
                 >
-                  wa.me com anexo
+                  Disparo Direto Z-API
                 </Badge>
               </div>
 
@@ -745,11 +783,15 @@ export const ModalConfirmarDocumentoProjeto: React.FC<ModalConfirmarDocumentoPro
                   type="button"
                   size="sm"
                   onClick={handleEnviarWhatsApp}
-                  disabled={!whatsAppTelefone.replace(/\D/g, '')}
-                  className="bg-[#16A34A] hover:bg-[#15803D] text-white font-bold shadow-xs hover:scale-[1.02] transition-transform"
+                  disabled={!whatsAppTelefone.replace(/\D/g, '') || isSendingWhatsApp}
+                  className="bg-[#16A34A] hover:bg-[#15803D] text-white font-bold shadow-xs hover:scale-[1.02] transition-transform disabled:opacity-50"
                 >
-                  <Send className="h-4 w-4 mr-1.5" />
-                  <span>Enviar pelo WhatsApp</span>
+                  {isSendingWhatsApp ? (
+                    <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+                  ) : (
+                    <Send className="h-4 w-4 mr-1.5" />
+                  )}
+                  <span>{isSendingWhatsApp ? 'Enviando WhatsApp...' : 'Enviar pelo WhatsApp'}</span>
                 </Button>
               </div>
             </>

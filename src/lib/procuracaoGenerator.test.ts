@@ -74,18 +74,16 @@ describe('procuracaoGenerator - Procuração Particular Delfos Solar O&M', () =>
     expect(pdfString.startsWith('%PDF-1.4')).toBe(true)
   })
 
-  it('deve montar a URL do wa.me corretamente com DDI 55 e telefone do cliente', () => {
+  it('deve formatar o texto de envio de WhatsApp da procuração com o primeiro nome do cliente', () => {
     const telefoneLimpo = (dadosMarceloBecker.telefone || '').replace(/\D/g, '')
-    const ddiNumero = telefoneLimpo.startsWith('55') ? telefoneLimpo : `55${telefoneLimpo}`
-    expect(ddiNumero).toBe('5554997128844')
+    expect(telefoneLimpo).toBe('54997128844')
 
     const primeiroNome = dadosMarceloBecker.nome.split(' ')[0]
     const mensagem = `Olá ${primeiroNome}! Segue em anexo a procuração da Delfos Solar para conferência e assinatura, autorizando os trâmites junto à concessionária de energia. Por favor, assine no campo indicado e nos devolva a via preenchida. Ficamos à disposição!`
 
-    const url = `https://wa.me/${ddiNumero}?text=${encodeURIComponent(mensagem)}`
-    expect(url).toContain('https://wa.me/5554997128844?text=')
-    expect(url).toContain('Marcelo')
-    expect(url).toContain('concession%C3%A1ria')
+    expect(mensagem).toContain('Olá Marcelo!')
+    expect(mensagem).toContain('procuração da Delfos Solar')
+    expect(mensagem).toContain('concessionária de energia')
   })
 
   it('deve permitir emitir procuração para cliente sem proposta O&M cadastrada (ex: PATRICK RECH RAMOS)', () => {

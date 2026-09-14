@@ -24,6 +24,7 @@ import {
   ArrowLeft,
   ExternalLink,
   Info,
+  Loader2,
 } from 'lucide-react'
 import type { Cliente, PropostaOM } from '@/types/crm'
 import {
@@ -36,6 +37,8 @@ import {
 } from '@/lib/procuracaoGenerator'
 import { formatarCPF } from '@/lib/cpfValidator'
 import { formatWhatsAppPhone } from '@/lib/formatters'
+import { sendWhatsAppMensagem } from '@/services/crmService'
+import { getFriendlyWhatsAppErrorMessage } from '@/lib/whatsappGateway'
 import { toast } from 'sonner'
 
 export interface ModalGerarProcuracaoOMProps {
@@ -126,7 +129,7 @@ export const ModalGerarProcuracaoOM: React.FC<ModalGerarProcuracaoOMProps> = ({
     })
   }, [formNome, formCpf, formEndereco, formMunicipio, formDataExtenso, formTelefone])
 
-  // Apenas dígitos do telefone para checagem e link do wa.me
+  // Apenas dígitos do telefone para checagem e envio via Z-API
   const telefoneApenasDigitos = useMemo(() => {
     return (formTelefone || '').replace(/\D/g, '')
   }, [formTelefone])
@@ -148,6 +151,7 @@ export const ModalGerarProcuracaoOM: React.FC<ModalGerarProcuracaoOMProps> = ({
 
   // Estado para garantir que a atividade é registrada uma única vez por emissão
   const [atividadeRegistrada, setAtividadeRegistrada] = useState(false)
+  const [isSendingWhatsApp, setIsSendingWhatsApp] = useState(false)
 
   const registrarAtividadeEmissao = (dados: DadosProcuracaoOM) => {
     if (!atividadeRegistrada) {
@@ -180,8 +184,8 @@ export const ModalGerarProcuracaoOM: React.FC<ModalGerarProcuracaoOMProps> = ({
     }
   }
 
-  // 2. Enviar pelo WhatsApp
-  const handleEnviarWhatsApp = () => {
+  // 2. Enviar pelo WhatsApp diretamente via Z-API
+  const handleEnviarWhatsApp = async () => {
     if (!temTelefoneValido) {
       toast.error('O cliente não possui telefone de contato cadastrado para envio via WhatsApp.')
       return
@@ -194,17 +198,31 @@ export const ModalGerarProcuracaoOM: React.FC<ModalGerarProcuracaoOMProps> = ({
       /* intentionally ignored */
     }
 
-    const ddiNumero = telefoneApenasDigitos.startsWith('55')
-      ? telefoneApenasDigitos
-      : `55${telefoneApenasDigitos}`
-
     const primeiroNome = (dadosConsolidados.nome || 'Cliente').split(' ')[0]
     const mensagemTexto = `Olá ${primeiroNome}! Segue em anexo a procuração da Delfos Solar para conferência e assinatura, autorizando os trâmites junto à concessionária de energia. Por favor, assine no campo indicado e nos devolva a via preenchida. Ficamos à disposição!`
 
-    const url = `https://wa.me/${ddiNumero}?text=${encodeURIComponent(mensagemTexto)}`
-    window.open(url, '_blank')
-    registrarAtividadeEmissao(dadosConsolidados)
-    toast.success('PDF baixado e WhatsApp aberto com mensagem pronta!')
+    setIsSendingWhatsApp(true)
+    try {
+      const res = await sendWhatsAppMensagem({
+        clienteId: cliente.id,
+        telefone: telefoneApenasDigitos,
+        mensagem: mensagemTexto,
+        origem: 'modal_procuracao_om',
+      })
+
+      if (res.ok && res.sent) {
+        toast.success('Mensagem enviada via WhatsApp com sucesso!')
+        registrarAtividadeEmissao(dadosConsolidados)
+      } else {
+        const errorMsg = getFriendlyWhatsAppErrorMessage(res)
+        toast.error(errorMsg)
+      }
+    } catch (err: any) {
+      console.error('Erro ao disparar WhatsApp de procuração O&M:', err)
+      toast.error(err?.message || 'Falha na conexão ao enviar mensagem via WhatsApp.')
+    } finally {
+      setIsSendingWhatsApp(false)
+    }
   }
 
   return (
@@ -473,20 +491,24 @@ export const ModalGerarProcuracaoOM: React.FC<ModalGerarProcuracaoOMProps> = ({
                   type="button"
                   size="sm"
                   onClick={handleEnviarWhatsApp}
-                  disabled={!temTelefoneValido}
+                  disabled={!temTelefoneValido || isSendingWhatsApp}
                   className={`text-xs font-bold gap-1.5 shadow-xs transition-transform ${
-                    temTelefoneValido
+                    temTelefoneValido && !isSendingWhatsApp
                       ? 'bg-emerald-700 hover:bg-emerald-800 text-white hover:scale-[1.02]'
                       : 'bg-gray-200 text-gray-400 cursor-not-allowed'
                   }`}
                   title={
                     temTelefoneValido
-                      ? `Abrir conversa com ${dadosConsolidados.telefone || 'cliente'}`
+                      ? `Enviar direto via WhatsApp para ${dadosConsolidados.telefone || 'cliente'}`
                       : 'Cliente sem telefone de contato cadastrado na ficha'
                   }
                 >
-                  <Send className="w-4 h-4" />
-                  <span>Enviar pelo WhatsApp</span>
+                  {isSendingWhatsApp ? (
+                    <Loader2 className="w-4 h-4 animate-spin text-white" />
+                  ) : (
+                    <Send className="w-4 h-4" />
+                  )}
+                  <span>{isSendingWhatsApp ? 'Enviando WhatsApp...' : 'Enviar pelo WhatsApp'}</span>
                 </Button>
               </div>
             </div>
@@ -571,8 +593,8 @@ export const ModalGerarProcuracaoOM: React.FC<ModalGerarProcuracaoOMProps> = ({
             <div className="p-3 bg-gray-100 rounded-xl text-[11px] text-gray-600 flex items-center justify-between">
               <span className="flex items-center gap-1.5">
                 <Info className="w-3.5 h-3.5 text-gray-500" />
-                Ao clicar em "Enviar pelo WhatsApp", o PDF é baixado e a conversa é aberta no
-                WhatsApp Web.
+                Ao clicar em "Enviar pelo WhatsApp", o PDF é baixado e a mensagem é enviada
+                diretamente pela Z-API.
               </span>
               <button
                 type="button"

@@ -16,11 +16,13 @@ import {
   Apple,
   RotateCcw,
   Sparkles,
+  Loader2,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import type { Cliente, Sistema } from '@/types/crm'
-import { DEFAULT_SOLARVIEW_CONFIG } from '@/services/crmService'
+import { DEFAULT_SOLARVIEW_CONFIG, sendWhatsAppMensagem } from '@/services/crmService'
 import { cleanPhoneDigits } from '@/lib/formatters'
+import { getFriendlyWhatsAppErrorMessage } from '@/lib/whatsappGateway'
 
 interface SecaoAcessoSolarviewProps {
   cliente: Cliente
@@ -57,6 +59,7 @@ export const SecaoAcessoSolarview: React.FC<SecaoAcessoSolarviewProps> = ({
   const [copiedField, setCopiedField] = useState<string | null>(null)
   const [isSaving, setIsSaving] = useState(false)
   const [saveSuccess, setSaveSuccess] = useState(false)
+  const [isSendingWhatsApp, setIsSendingWhatsApp] = useState(false)
 
   // Sincroniza estado quando cliente mudar
   useEffect(() => {
@@ -157,14 +160,13 @@ export const SecaoAcessoSolarview: React.FC<SecaoAcessoSolarviewProps> = ({
   const telefoneDigitos = cleanPhoneDigits(telefoneCru)
   const temTelefoneValido = telefoneDigitos.length >= 10
 
-  // Disparo de credenciais Solarview pelo WhatsApp (wa.me)
-  const handleEnviarWhatsAppSolarview = () => {
+  // Disparo de credenciais Solarview pelo WhatsApp diretamente via Z-API
+  const handleEnviarWhatsAppSolarview = async () => {
     if (!temTelefoneValido) {
       toast.error('O cliente não possui telefone de contato cadastrado na ficha.')
       return
     }
 
-    const ddiNumero = telefoneDigitos.startsWith('55') ? telefoneDigitos : `55${telefoneDigitos}`
     const primeiroNome = (cliente.nome || 'Cliente').split(' ')[0]
 
     const linhasMensagem = [
@@ -181,9 +183,28 @@ export const SecaoAcessoSolarview: React.FC<SecaoAcessoSolarviewProps> = ({
     ].filter((l) => l !== null)
 
     const textoFormatado = linhasMensagem.join('\n')
-    const url = `https://wa.me/${ddiNumero}?text=${encodeURIComponent(textoFormatado)}`
-    window.open(url, '_blank')
-    toast.success('WhatsApp aberto com os dados de acesso ao Solarview!')
+
+    setIsSendingWhatsApp(true)
+    try {
+      const res = await sendWhatsAppMensagem({
+        clienteId: cliente.id,
+        telefone: telefoneDigitos,
+        mensagem: textoFormatado,
+        origem: 'secao_solarview',
+      })
+
+      if (res.ok && res.sent) {
+        toast.success('Dados de acesso ao Solarview enviados via WhatsApp!')
+      } else {
+        const errorMsg = getFriendlyWhatsAppErrorMessage(res)
+        toast.error(errorMsg)
+      }
+    } catch (err: any) {
+      console.error('Erro ao enviar credenciais Solarview via WhatsApp:', err)
+      toast.error(err?.message || 'Falha de comunicação ao disparar WhatsApp.')
+    } finally {
+      setIsSendingWhatsApp(false)
+    }
   }
 
   return (
@@ -464,20 +485,26 @@ export const SecaoAcessoSolarview: React.FC<SecaoAcessoSolarviewProps> = ({
           <button
             type="button"
             onClick={handleEnviarWhatsAppSolarview}
-            disabled={!temTelefoneValido}
+            disabled={!temTelefoneValido || isSendingWhatsApp}
             title={
               temTelefoneValido
                 ? `Enviar dados Solarview via WhatsApp para ${telefoneCru}`
                 : 'Cliente sem telefone de contato cadastrado na ficha'
             }
             className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg transition-all shadow-2xs ${
-              temTelefoneValido
+              temTelefoneValido && !isSendingWhatsApp
                 ? 'bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white cursor-pointer hover:scale-[1.01]'
                 : 'bg-gray-100 text-gray-400 border border-gray-200 cursor-not-allowed opacity-70'
             }`}
           >
-            <Send className="w-3.5 h-3.5" />
-            <span>Enviar dados Solarview pelo WhatsApp</span>
+            {isSendingWhatsApp ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            ) : (
+              <Send className="w-3.5 h-3.5" />
+            )}
+            <span>
+              {isSendingWhatsApp ? 'Enviando WhatsApp...' : 'Enviar dados Solarview pelo WhatsApp'}
+            </span>
           </button>
 
           <button

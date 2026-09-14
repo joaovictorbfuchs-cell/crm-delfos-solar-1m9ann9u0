@@ -28,6 +28,7 @@ import {
   ShieldCheck,
   ChevronDown,
   ChevronUp,
+  Loader2,
 } from 'lucide-react'
 import type { Cliente, PropostaOM } from '@/types/crm'
 import {
@@ -46,6 +47,8 @@ import {
 } from '@/lib/contratoGenerator'
 import { formatarCPF } from '@/lib/cpfValidator'
 import { formatCurrency, formatWhatsAppPhone } from '@/lib/formatters'
+import { sendWhatsAppMensagem } from '@/services/crmService'
+import { getFriendlyWhatsAppErrorMessage } from '@/lib/whatsappGateway'
 import { toast } from 'sonner'
 
 export interface ModalGerarContratoOMProps {
@@ -290,6 +293,7 @@ export const ModalGerarContratoOM: React.FC<ModalGerarContratoOMProps> = ({
   const temTelefoneValido = telefoneApenasDigitos.length >= 10
 
   const [atividadeRegistrada, setAtividadeRegistrada] = useState(false)
+  const [isSendingWhatsApp, setIsSendingWhatsApp] = useState(false)
 
   const registrarAtividadeEmissao = (dados: DadosContratoOM) => {
     if (!atividadeRegistrada) {
@@ -325,8 +329,8 @@ export const ModalGerarContratoOM: React.FC<ModalGerarContratoOMProps> = ({
     }
   }
 
-  // 2. Enviar pelo WhatsApp
-  const handleEnviarWhatsApp = () => {
+  // 2. Enviar pelo WhatsApp diretamente via Z-API
+  const handleEnviarWhatsApp = async () => {
     if (!temTelefoneValido) {
       toast.error(
         'O cliente não possui telefone de contato válido cadastrado para envio via WhatsApp.',
@@ -340,17 +344,31 @@ export const ModalGerarContratoOM: React.FC<ModalGerarContratoOMProps> = ({
       /* intentionally ignored */
     }
 
-    const ddiNumero = telefoneApenasDigitos.startsWith('55')
-      ? telefoneApenasDigitos
-      : `55${telefoneApenasDigitos}`
-
     const primeiroNome = (dadosConsolidados.nomeRazaoSocial || 'Cliente').split(' ')[0]
     const mensagemTexto = `Olá ${primeiroNome}! Segue em anexo o Contrato de Prestação de Serviços de Operação e Manutenção (O&M) da Delfos Solar no ${dadosConsolidados.planoSelecionado} para sua conferência e assinatura. O valor mensal é de ${formatCurrency(dadosConsolidados.valorMensal)} (${dadosConsolidados.valorEscritoMensal}). Ficamos à total disposição para qualquer dúvida!`
 
-    const url = `https://wa.me/${ddiNumero}?text=${encodeURIComponent(mensagemTexto)}`
-    window.open(url, '_blank')
-    registrarAtividadeEmissao(dadosConsolidados)
-    toast.success('PDF baixado e WhatsApp aberto com mensagem pronta!')
+    setIsSendingWhatsApp(true)
+    try {
+      const res = await sendWhatsAppMensagem({
+        clienteId: cliente.id,
+        telefone: telefoneApenasDigitos,
+        mensagem: mensagemTexto,
+        origem: 'modal_contrato_om',
+      })
+
+      if (res.ok && res.sent) {
+        toast.success('Mensagem enviada via WhatsApp com sucesso!')
+        registrarAtividadeEmissao(dadosConsolidados)
+      } else {
+        const errorMsg = getFriendlyWhatsAppErrorMessage(res)
+        toast.error(errorMsg)
+      }
+    } catch (err: any) {
+      console.error('Erro ao disparar WhatsApp de contrato O&M:', err)
+      toast.error(err?.message || 'Falha na conexão ao enviar mensagem via WhatsApp.')
+    } finally {
+      setIsSendingWhatsApp(false)
+    }
   }
 
   const anexoIConteudo = useMemo(() => {
@@ -1001,20 +1019,24 @@ export const ModalGerarContratoOM: React.FC<ModalGerarContratoOMProps> = ({
                   type="button"
                   size="sm"
                   onClick={handleEnviarWhatsApp}
-                  disabled={!temTelefoneValido}
+                  disabled={!temTelefoneValido || isSendingWhatsApp}
                   className={`text-xs font-bold gap-1.5 shadow-xs transition-transform ${
-                    temTelefoneValido
+                    temTelefoneValido && !isSendingWhatsApp
                       ? 'bg-emerald-700 hover:bg-emerald-800 text-white hover:scale-[1.02]'
                       : 'bg-gray-200 text-gray-400 cursor-not-allowed'
                   }`}
                   title={
                     temTelefoneValido
-                      ? `Abrir conversa com ${dadosConsolidados.telefone || 'cliente'}`
+                      ? `Enviar direto via WhatsApp para ${dadosConsolidados.telefone || 'cliente'}`
                       : 'Cliente sem telefone de contato cadastrado na ficha'
                   }
                 >
-                  <Send className="w-4 h-4" />
-                  <span>Enviar pelo WhatsApp</span>
+                  {isSendingWhatsApp ? (
+                    <Loader2 className="w-4 h-4 animate-spin text-white" />
+                  ) : (
+                    <Send className="w-4 h-4" />
+                  )}
+                  <span>{isSendingWhatsApp ? 'Enviando WhatsApp...' : 'Enviar pelo WhatsApp'}</span>
                 </Button>
               </div>
             </div>
