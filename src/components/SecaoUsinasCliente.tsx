@@ -6,24 +6,20 @@ import {
   Layers,
   Cpu,
   FileCheck2,
-  Calendar,
   AlertTriangle,
   CheckCircle2,
   Clock,
-  ArrowRight,
   ExternalLink,
   Plus,
   Edit2,
   Trash2,
-  Save,
-  X,
-  FileText,
   Building,
 } from 'lucide-react'
 import { UsinaCliente, ContratoOM } from '@/types/crm'
 import { formatCurrency, formatDate } from '@/lib/formatters'
 import { calcularStatusDinamicoContrato } from '@/lib/contratoStatusDinamico'
 import { InlineEditField } from '@/components/InlineEditField'
+import { useAuth } from '@/contexts/AuthContext'
 import {
   Dialog,
   DialogContent,
@@ -49,24 +45,31 @@ interface SecaoUsinasClienteProps {
   ) => Promise<void>
   onDeleteUsina?: (usinaId: string) => Promise<void>
   onVincularContrato?: (usinaId: string, contratoId: string) => Promise<void>
-  onRenovarContrato?: (contratoId: string) => Promise<void>
-  onVerDetalhesContrato?: (contratoId: string) => void
+  onAbrirModalNovoContrato?: (usina: UsinaCliente) => void
+  onRenovarContrato?: (usina: UsinaCliente, contrato: ContratoOM) => Promise<void> | void
+  onVerDetalhesContrato?: (contrato: ContratoOM, usina?: UsinaCliente) => void
 }
 
 export const SecaoUsinasCliente: React.FC<SecaoUsinasClienteProps> = ({
   clienteId,
   clienteNome,
-  clienteDocumento,
-  isAdmin = true,
+  clienteDocumento: _clienteDocumento,
+  isAdmin: isAdminProp,
   usinas,
   contratos,
   onUpdateUsina,
   onCreateUsina,
   onDeleteUsina,
   onVincularContrato,
+  onAbrirModalNovoContrato,
   onRenovarContrato,
   onVerDetalhesContrato,
 }) => {
+  const { isAdmin: authIsAdmin, isInstalador } = useAuth()
+  // Esconde valores financeiros se o usuário for instalador ou se não for admin
+  const podeVerValoresFinanceiros =
+    !isInstalador && (isAdminProp !== undefined ? isAdminProp : authIsAdmin)
+
   // Modal Nova Usina
   const [modalNovaUsinaOpen, setModalNovaUsinaOpen] = useState(false)
   const [novaUsinaNome, setNovaUsinaNome] = useState('')
@@ -163,7 +166,7 @@ export const SecaoUsinasCliente: React.FC<SecaoUsinasClienteProps> = ({
     setIsRenovando(true)
     try {
       if (onRenovarContrato) {
-        await onRenovarContrato(contratoParaRenovar.contrato.id)
+        await onRenovarContrato(contratoParaRenovar.usina, contratoParaRenovar.contrato)
       }
       setModalRenovarOpen(false)
       setContratoParaRenovar(null)
@@ -173,6 +176,25 @@ export const SecaoUsinasCliente: React.FC<SecaoUsinasClienteProps> = ({
     } finally {
       setIsRenovando(false)
     }
+  }
+
+  const handleAcionarRenovacao = (usina: UsinaCliente, contrato: ContratoOM) => {
+    if (onRenovarContrato) {
+      onRenovarContrato(usina, contrato)
+      return
+    }
+    setContratoParaRenovar({ usina, contrato })
+    setModalRenovarOpen(true)
+  }
+
+  const handleAcionarVincular = (usina: UsinaCliente) => {
+    // Se o cliente tem contratos disponíveis, abre modal de seleção de vínculo existente
+    // Se não tem nenhum contrato cadastrado e há callback para abrir o gerador de contrato, abre diretamente
+    if (contratos.length === 0 && onAbrirModalNovoContrato) {
+      onAbrirModalNovoContrato(usina)
+      return
+    }
+    handleOpenVincularContrato(usina)
   }
 
   return (
@@ -482,7 +504,7 @@ export const SecaoUsinasCliente: React.FC<SecaoUsinasClienteProps> = ({
                           </span>
                         </div>
 
-                        {isAdmin ? (
+                        {podeVerValoresFinanceiros ? (
                           <>
                             <div>
                               <span className="text-[10px] text-gray-400 block uppercase font-medium">
@@ -508,7 +530,7 @@ export const SecaoUsinasCliente: React.FC<SecaoUsinasClienteProps> = ({
                               Valores Financeiros:
                             </span>
                             <span className="text-gray-500 italic font-medium">
-                              Visível apenas para administradores
+                              Visível apenas para administradores / equipe comercial
                             </span>
                           </div>
                         )}
@@ -516,14 +538,13 @@ export const SecaoUsinasCliente: React.FC<SecaoUsinasClienteProps> = ({
 
                       {/* Botões de Ação do Contrato */}
                       <div className="flex items-center justify-end gap-2 pt-1 border-t border-gray-100 flex-wrap">
-                        {statusCalc.status === 'Encerrado' && (
+                        {(statusCalc.status === 'Encerrado' ||
+                          statusCalc.status === 'Próximo do vencimento') && (
                           <button
                             type="button"
-                            onClick={() => {
-                              setContratoParaRenovar({ usina, contrato: contratoVinculado })
-                              setModalRenovarOpen(true)
-                            }}
+                            onClick={() => handleAcionarRenovacao(usina, contratoVinculado)}
                             className="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-bold shadow-xs transition-colors"
+                            title="Renovar contrato O&M vinculado a esta usina"
                           >
                             <Clock className="w-3.5 h-3.5" />
                             <span>Renovar Contrato</span>
@@ -543,7 +564,7 @@ export const SecaoUsinasCliente: React.FC<SecaoUsinasClienteProps> = ({
                         <button
                           type="button"
                           onClick={() =>
-                            onVerDetalhesContrato && onVerDetalhesContrato(contratoVinculado.id)
+                            onVerDetalhesContrato && onVerDetalhesContrato(contratoVinculado, usina)
                           }
                           className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 rounded-lg text-xs font-bold transition-colors"
                         >
@@ -570,7 +591,7 @@ export const SecaoUsinasCliente: React.FC<SecaoUsinasClienteProps> = ({
 
                       <button
                         type="button"
-                        onClick={() => handleOpenVincularContrato(usina)}
+                        onClick={() => handleAcionarVincular(usina)}
                         className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#16A34A] hover:bg-[#15803D] text-white rounded-lg text-xs font-bold shadow-xs transition-colors"
                       >
                         <FileCheck2 className="w-3.5 h-3.5" />
@@ -736,11 +757,27 @@ export const SecaoUsinasCliente: React.FC<SecaoUsinasClienteProps> = ({
 
           <div className="py-2 space-y-3 text-xs">
             {contratos.length === 0 ? (
-              <div className="p-4 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 space-y-1">
+              <div className="p-4 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 space-y-2">
                 <p className="font-bold">Nenhum contrato O&M cadastrado para este cliente.</p>
                 <p className="text-[11px]">
-                  Gere uma Proposta O&M ou acesse a aba O&M para cadastrar um contrato.
+                  Gere um Contrato O&M oficial com os dados da usina para iniciar a cobertura
+                  técnica.
                 </p>
+                {onAbrirModalNovoContrato && usinaSelecionadaParaVincular && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={() => {
+                      const u = usinaSelecionadaParaVincular
+                      setModalVincularOpen(false)
+                      onAbrirModalNovoContrato(u)
+                    }}
+                    className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
+                  >
+                    <Plus className="w-3.5 h-3.5 mr-1" />
+                    Gerar Novo Contrato O&M para esta Usina
+                  </Button>
+                )}
               </div>
             ) : (
               <div className="space-y-2">
@@ -771,9 +808,13 @@ export const SecaoUsinasCliente: React.FC<SecaoUsinasClienteProps> = ({
                         </div>
                         <div className="flex items-center justify-between mt-1 text-[11px] text-gray-600">
                           <span>Plano {c.plano}</span>
-                          <span className="font-bold text-emerald-800">
-                            {formatCurrency(c.valor_mensal)}/mês
-                          </span>
+                          {podeVerValoresFinanceiros ? (
+                            <span className="font-bold text-emerald-800">
+                              {formatCurrency(c.valor_mensal)}/mês
+                            </span>
+                          ) : (
+                            <span className="italic text-gray-400">Valores restritos</span>
+                          )}
                         </div>
                         <div className="text-[10px] text-gray-400 mt-1">
                           Vigência: {formatDate(c.data_inicio)} até {formatDate(c.data_vencimento)}
@@ -832,8 +873,10 @@ export const SecaoUsinasCliente: React.FC<SecaoUsinasClienteProps> = ({
                     `#${contratoParaRenovar.contrato.id.slice(0, 8)}`}
                 </div>
                 <div>
-                  Plano: {contratoParaRenovar.contrato.plano} • Valor:{' '}
-                  {formatCurrency(contratoParaRenovar.contrato.valor_mensal)}/mês
+                  Plano: {contratoParaRenovar.contrato.plano}
+                  {podeVerValoresFinanceiros && (
+                    <> • Valor: {formatCurrency(contratoParaRenovar.contrato.valor_mensal)}/mês</>
+                  )}
                 </div>
                 <div className="text-[11px] text-amber-700 pt-1">
                   O contrato passará para status <strong>Ativo</strong> com término estendido por
