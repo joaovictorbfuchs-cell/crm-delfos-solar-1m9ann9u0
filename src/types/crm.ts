@@ -201,6 +201,28 @@ export interface MonitoramentoMarca extends RecordModel {
   updated: string
 }
 
+export type UsinaTipoEstrutura = 'solo' | 'telhado'
+
+export interface UsinaCliente extends RecordModel {
+  id: string
+  collectionId: string
+  collectionName: string
+  cliente_id: string
+  nome: string
+  endereco?: string
+  potencia_kwp?: number
+  qtd_modulos?: number
+  inversores_info?: string
+  tipo_estrutura?: UsinaTipoEstrutura
+  contrato_id?: string
+  created: string
+  updated: string
+  expand?: {
+    cliente_id?: Cliente
+    contrato_id?: ContratoOM
+  }
+}
+
 export interface ClienteInversor extends RecordModel {
   id: string
   collectionId: string

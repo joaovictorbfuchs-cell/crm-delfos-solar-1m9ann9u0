@@ -149,12 +149,15 @@ interface ClientesContextType {
   selectedSistema: Sistema | null
   selectedClienteProjeto: Projeto | null
   selectedContratoOM: ContratoOM | null
-  activeClientTab: 'historico' | 'projeto' | 'om' | 'whatsapp'
+  activeClientTab: 'historico' | 'projeto' | 'om' | 'whatsapp' | 'usinas'
   selectedOMClienteId: string | null
   openFichaOM: (clienteId: string) => void
   closeFichaOM: () => void
-  setActiveClientTab: (tab: 'historico' | 'projeto' | 'om' | 'whatsapp') => void
-  openFichaCliente: (id: string, initialTab?: 'historico' | 'projeto' | 'om' | 'whatsapp') => void
+  setActiveClientTab: (tab: 'historico' | 'projeto' | 'om' | 'whatsapp' | 'usinas') => void
+  openFichaCliente: (
+    id: string,
+    initialTab?: 'historico' | 'projeto' | 'om' | 'whatsapp' | 'usinas',
+  ) => void
   closeFichaCliente: () => void
   addCliente: (data: Partial<Cliente> & { nome: string }) => Promise<Cliente>
   removeCliente: (id: string) => Promise<void>
@@ -417,7 +420,7 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [selectedClienteId, setSelectedClienteId] = useState<string | null>(null)
   const [selectedOMClienteId, setSelectedOMClienteId] = useState<string | null>(null)
   const [activeClientTab, setActiveClientTab] = useState<
-    'historico' | 'projeto' | 'om' | 'whatsapp'
+    'historico' | 'projeto' | 'om' | 'whatsapp' | 'usinas'
   >('historico')
 
   const loadAllData = useCallback(async () => {

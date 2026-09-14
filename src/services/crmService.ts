@@ -1817,6 +1817,71 @@ export async function deleteClienteInversor(id: string): Promise<boolean> {
   }
 }
 
+// -------------------------------------------------------------
+// Usinas do Cliente (Múltiplas Usinas e Contratos O&M Vinculados)
+// -------------------------------------------------------------
+
+export async function fetchAllUsinas(): Promise<import('@/types/crm').UsinaCliente[]> {
+  try {
+    const list = await pb.collection('usinas').getFullList<import('@/types/crm').UsinaCliente>({
+      sort: 'cliente_id,created',
+      expand: 'contrato_id',
+    })
+    return list
+  } catch (err) {
+    console.warn('Erro ao buscar todas as usinas:', err)
+    return []
+  }
+}
+
+export async function fetchUsinasByClienteId(
+  clienteId: string,
+): Promise<import('@/types/crm').UsinaCliente[]> {
+  if (!clienteId) return []
+  try {
+    const list = await pb.collection('usinas').getFullList<import('@/types/crm').UsinaCliente>({
+      filter: `cliente_id = '${clienteId}'`,
+      sort: 'created',
+      expand: 'contrato_id',
+    })
+    return list
+  } catch (err) {
+    console.warn(`Erro ao buscar usinas do cliente ${clienteId}:`, err)
+    return []
+  }
+}
+
+export async function createUsina(
+  data: Partial<import('@/types/crm').UsinaCliente> & { cliente_id: string; nome: string },
+): Promise<import('@/types/crm').UsinaCliente> {
+  const created = await pb.collection('usinas').create<import('@/types/crm').UsinaCliente>(data, {
+    expand: 'contrato_id',
+  })
+  return created
+}
+
+export async function updateUsina(
+  id: string,
+  data: Partial<import('@/types/crm').UsinaCliente>,
+): Promise<import('@/types/crm').UsinaCliente> {
+  const updated = await pb
+    .collection('usinas')
+    .update<import('@/types/crm').UsinaCliente>(id, data, {
+      expand: 'contrato_id',
+    })
+  return updated
+}
+
+export async function deleteUsina(id: string): Promise<boolean> {
+  try {
+    await pb.collection('usinas').delete(id)
+    return true
+  } catch (err) {
+    console.error(`Erro ao excluir usina ${id}:`, err)
+    throw err
+  }
+}
+
 export const DEFAULT_SOLARVIEW_CONFIG = {
   nome: 'Solarview',
   link_ios: 'https://apps.apple.com/br/app/solarview/id1453416568',
