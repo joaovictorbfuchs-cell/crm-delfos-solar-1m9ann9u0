@@ -182,6 +182,7 @@ export const FichaClienteDrawer: React.FC = () => {
     addOrUpdateDocumentoCliente,
     updateDocumentoClienteStatus,
     contratosOM,
+    renovarContratoOM,
   } = useClientes()
 
   // Estado e carregamento de usinas do cliente selecionado
@@ -238,6 +239,8 @@ export const FichaClienteDrawer: React.FC = () => {
   const [modalGerenciarAtividadesOpen, setModalGerenciarAtividadesOpen] = useState(false)
   const [modalProcuracaoOMOpen, setModalProcuracaoOMOpen] = useState(false)
   const [modalContratoOMOpen, setModalContratoOMOpen] = useState(false)
+  const [contratoOMDetalhesDados, setContratoOMDetalhesDados] = useState<any>(null)
+  const [modoVisualizacaoContratoDireta, setModoVisualizacaoContratoDireta] = useState(false)
 
   // Seção expansível de detalhes cadastrais/técnicos dentro do painel esquerdo
   const [detalhesOpen, setDetalhesOpen] = useState(false)
@@ -1105,6 +1108,109 @@ export const FichaClienteDrawer: React.FC = () => {
                       onDeleteUsina={async (usinaId) => {
                         await deleteUsina(usinaId)
                         await recarregarUsinas()
+                      }}
+                      onVincularContrato={async (usinaId, contratoId) => {
+                        await updateUsina(usinaId, { contrato_id: contratoId })
+                        await recarregarUsinas()
+                        toast.success('Contrato O&M vinculado com sucesso!')
+                      }}
+                      onAbrirModalNovoContrato={(usina) => {
+                        setContratoOMDetalhesDados({
+                          nomeRazaoSocial:
+                            selectedCliente.razao_social ||
+                            selectedCliente.nome ||
+                            selectedCliente.titular_nome ||
+                            '',
+                          cpfCnpj:
+                            selectedCliente.cnpj ||
+                            selectedCliente.cpf ||
+                            selectedCliente.titular_cpf ||
+                            '',
+                          enderecoInstalacao: usina.endereco || selectedCliente.endereco || '',
+                          municipio: selectedCliente.cidade || 'Erechim/RS',
+                          telefone:
+                            selectedCliente.telefone ||
+                            selectedCliente.whatsapp ||
+                            selectedCliente.titular_telefone ||
+                            '',
+                          email: selectedCliente.email || selectedCliente.titular_email || '',
+                          numeroModulos: usina.qtd_modulos || selectedCliente.placas_qtd || '0',
+                          marcaInversores:
+                            usina.inversores_info ||
+                            selectedCliente.inversor_marca ||
+                            selectedCliente.inversor_modelo ||
+                            'Growatt',
+                          localInstalacao: usina.tipo_estrutura === 'solo' ? 'Solo' : 'Telhado',
+                          enderecoInstalacaoDiferente:
+                            usina.endereco || selectedCliente.usina_endereco || '',
+                        })
+                        setModoVisualizacaoContratoDireta(false)
+                        setModalContratoOMOpen(true)
+                      }}
+                      onRenovarContrato={async (_usina, contrato) => {
+                        try {
+                          await renovarContratoOM(contrato.id, 12)
+                          await recarregarUsinas()
+                          toast.success(
+                            `Contrato ${contrato.numero_contrato || `#${contrato.id.slice(0, 6)}`} renovado por +12 meses com sucesso!`,
+                          )
+                        } catch (err) {
+                          console.error('Erro ao renovar contrato O&M:', err)
+                          toast.error('Erro ao renovar contrato O&M. Tente novamente.')
+                        }
+                      }}
+                      onVerDetalhesContrato={(contrato, usina) => {
+                        const docContrato = documentosCliente.find(
+                          (d) => d.cliente_id === selectedCliente.id && d.tipo === 'contrato',
+                        )
+                        const dadosBase = (docContrato?.dados_documento as any) || {}
+                        setContratoOMDetalhesDados({
+                          ...dadosBase,
+                          nomeRazaoSocial:
+                            dadosBase.nomeRazaoSocial ||
+                            selectedCliente.razao_social ||
+                            selectedCliente.nome ||
+                            selectedCliente.titular_nome ||
+                            '',
+                          cpfCnpj:
+                            dadosBase.cpfCnpj ||
+                            selectedCliente.cnpj ||
+                            selectedCliente.cpf ||
+                            selectedCliente.titular_cpf ||
+                            '',
+                          enderecoInstalacao:
+                            usina?.endereco ||
+                            dadosBase.enderecoInstalacao ||
+                            selectedCliente.endereco ||
+                            '',
+                          municipio: dadosBase.municipio || selectedCliente.cidade || 'Erechim/RS',
+                          telefone:
+                            dadosBase.telefone ||
+                            selectedCliente.telefone ||
+                            selectedCliente.whatsapp ||
+                            '',
+                          email: dadosBase.email || selectedCliente.email || '',
+                          numeroModulos:
+                            usina?.qtd_modulos ||
+                            dadosBase.numeroModulos ||
+                            selectedCliente.placas_qtd ||
+                            '0',
+                          marcaInversores:
+                            usina?.inversores_info ||
+                            dadosBase.marcaInversores ||
+                            selectedCliente.inversor_marca ||
+                            '',
+                          localInstalacao:
+                            usina?.tipo_estrutura === 'solo'
+                              ? 'Solo'
+                              : dadosBase.localInstalacao || 'Telhado',
+                          planoSelecionado:
+                            contrato.plano || dadosBase.planoSelecionado || 'Essencial',
+                          valorMensal: contrato.valor_mensal || dadosBase.valorMensal || 190,
+                          valorTotal: contrato.valor_anual || dadosBase.valorTotal || 2280,
+                        })
+                        setModoVisualizacaoContratoDireta(true)
+                        setModalContratoOMOpen(true)
                       }}
                     />
                   </div>
@@ -3765,9 +3871,17 @@ export const FichaClienteDrawer: React.FC = () => {
       {selectedCliente && (
         <ModalGerarContratoOM
           open={modalContratoOMOpen}
-          onOpenChange={setModalContratoOMOpen}
+          onOpenChange={(open) => {
+            setModalContratoOMOpen(open)
+            if (!open) {
+              setContratoOMDetalhesDados(null)
+              setModoVisualizacaoContratoDireta(false)
+            }
+          }}
           cliente={selectedCliente}
           propostaOM={propostaOMAprovada}
+          initialDados={contratoOMDetalhesDados}
+          modoVisualizacaoDireta={modoVisualizacaoContratoDireta}
           onDocumentoGerado={async (dados) => {
             try {
               // 1. Salva na coleção documentos_cliente com os dados completos do documento em JSON
