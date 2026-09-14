@@ -259,7 +259,28 @@ export async function bulkUpdateClientesResponsavel(
 }
 
 export async function bulkMarcarClientesFechado(ids: string[]): Promise<Cliente[]> {
-  const promises = ids.map((id) => updateCliente(id, { status: 'Fechado' }))
+  const agora = new Date().toISOString()
+  const promises = ids.map((id) =>
+    updateCliente(id, {
+      status: 'Fechado',
+      data_fechamento: agora,
+    }),
+  )
+  return Promise.all(promises)
+}
+
+export async function bulkTransferirFechadosParaPosVendas(
+  fechados: { id: string; data_fechamento?: string }[],
+): Promise<Cliente[]> {
+  const agora = new Date().toISOString()
+  const promises = fechados.map((item) =>
+    updateCliente(item.id, {
+      transferido_pos_vendas: true,
+      data_transferencia_pos_vendas: agora,
+      origem_pos_vendas: 'funil_comercial',
+      data_fechamento: item.data_fechamento || agora,
+    }),
+  )
   return Promise.all(promises)
 }
 

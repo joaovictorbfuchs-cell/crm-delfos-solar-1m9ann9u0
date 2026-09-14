@@ -11,17 +11,8 @@ export default function Comercial() {
   const [isNovoLeadOpen, setIsNovoLeadOpen] = useState(false)
   const [viewMode, setViewMode] = useState<'kanban' | 'list'>('kanban')
 
-  // Clientes ativos no funil (desconsiderando arquivados)
-  const clientesAtivos = clientes.filter((c) => !c.arquivado)
-
-  const totalPotencial = clientesAtivos
-    .filter(
-      (c) =>
-        c.status !== 'Contato Futuro' &&
-        (c.status as string) !== 'Perdido' &&
-        (c.status as string) !== 'Fechado',
-    )
-    .reduce((sum, c) => sum + (c.valor_estimado || 0), 0)
+  // Clientes ativos no funil comercial: desconsidera arquivados e negócios já transferidos para Pós-Vendas
+  const clientesAtivos = clientes.filter((c) => !c.arquivado && !c.transferido_pos_vendas)
 
   const fechados = clientesAtivos.filter((c) => c.status === 'Fechado')
   const totalFechado = fechados.reduce((sum, c) => sum + (c.valor_estimado || 0), 0)

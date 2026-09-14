@@ -31,6 +31,7 @@ import {
   FileText,
   AlertCircle,
   ExternalLink,
+  Send,
 } from 'lucide-react'
 import { useClientes } from '@/contexts/ClientesContext'
 import { formatCurrency, formatDate } from '@/lib/formatters'
@@ -342,6 +343,19 @@ export const ListaOM: React.FC<ListaOMProps> = ({
       })
   }, [clientesComPlano, busca, filtroPlano, ordenacao])
 
+  // Função auxiliar para verificar se o cliente foi transferido do funil há 7 dias ou menos
+  const isVindoDoFunilRecente = (cliente: Cliente): boolean => {
+    if (!cliente.transferido_pos_vendas && cliente.origem_pos_vendas !== 'funil_comercial') {
+      return false
+    }
+    const dataRef = cliente.data_transferencia_pos_vendas || cliente.updated || cliente.created
+    if (!dataRef) return true // se foi marcado como transferido sem data, mostra o badge
+    const diffMs = Date.now() - new Date(dataRef).getTime()
+    if (isNaN(diffMs) || diffMs < 0) return true
+    const diffDias = diffMs / (1000 * 60 * 60 * 24)
+    return diffDias <= 7
+  }
+
   // Filtragem da lista 2 (Pós-Vendas)
   const itensPosVendasFiltrados = useMemo(() => {
     return clientesPosVendas
@@ -365,7 +379,13 @@ export const ListaOM: React.FC<ListaOMProps> = ({
         return matchBusca
       })
       .sort((a, b) => {
-        // No topo, quem é Oportunidade de O&M
+        // Priorizar no topo quem foi recém-transferido do funil comercial
+        const aFunil = isVindoDoFunilRecente(a.cliente)
+        const bFunil = isVindoDoFunilRecente(b.cliente)
+        if (aFunil !== bFunil) {
+          return aFunil ? -1 : 1
+        }
+        // Depois, quem é Oportunidade de O&M
         if (a.isOportunidadeOM !== b.isOportunidadeOM) {
           return a.isOportunidadeOM ? -1 : 1
         }
@@ -1114,14 +1134,29 @@ export const ListaOM: React.FC<ListaOMProps> = ({
                             className="py-3.5 px-4 cursor-pointer"
                             onClick={() => openFichaCliente(item.cliente.id)}
                           >
-                            <div className="font-bold text-gray-900 group-hover:text-emerald-700 transition-colors">
-                              {item.cliente.nome}
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="font-bold text-gray-900 group-hover:text-emerald-700 transition-colors">
+                                {item.cliente.nome}
+                              </span>
+                              {isVindoDoFunilRecente(item.cliente) && (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300 shadow-2xs">
+                                  <Send className="w-2.5 h-2.5 text-emerald-600" />
+                                  Vindo do funil
+                                </span>
+                              )}
                             </div>
                             <div className="text-[11px] text-gray-400 flex items-center gap-1 mt-0.5">
                               <MapPin className="w-3 h-3 text-gray-400" />
                               {item.cliente.cidade || 'Erechim/RS'}
                               {item.cliente.telefone && ` • ${item.cliente.telefone}`}
                             </div>
+                            {item.cliente.valor_estimado ? (
+                              <div className="text-[10px] text-gray-500 mt-0.5 font-medium">
+                                Projeto: {formatCurrency(item.cliente.valor_estimado)}
+                                {item.cliente.data_fechamento &&
+                                  ` • Fechado em: ${formatDate(item.cliente.data_fechamento)}`}
+                              </div>
+                            ) : null}
                           </td>
 
                           {/* Potência / Sistema */}
@@ -1284,11 +1319,27 @@ export const ListaOM: React.FC<ListaOMProps> = ({
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div>
-                        <h4 className="font-bold text-gray-900 text-sm">{item.cliente.nome}</h4>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h4 className="font-bold text-gray-900 text-sm">{item.cliente.nome}</h4>
+                          {isVindoDoFunilRecente(item.cliente) && (
+                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                              <Send className="w-2.5 h-2.5 text-emerald-600" />
+                              Vindo do funil
+                            </span>
+                          )}
+                        </div>
                         <p className="text-xs text-gray-400 flex items-center gap-1 mt-0.5">
                           <MapPin className="w-3 h-3" />
                           {item.cliente.cidade || 'Erechim/RS'}
+                          {item.cliente.telefone && ` • ${item.cliente.telefone}`}
                         </p>
+                        {item.cliente.valor_estimado ? (
+                          <p className="text-[10px] text-gray-500 mt-0.5 font-medium">
+                            Projeto: {formatCurrency(item.cliente.valor_estimado)}
+                            {item.cliente.data_fechamento &&
+                              ` • Fechado em: ${formatDate(item.cliente.data_fechamento)}`}
+                          </p>
+                        ) : null}
                       </div>
                       {item.isOportunidadeOM ? (
                         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-100 text-amber-900 border border-amber-300 shrink-0">

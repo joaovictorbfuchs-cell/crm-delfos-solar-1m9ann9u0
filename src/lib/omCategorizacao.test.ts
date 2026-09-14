@@ -347,6 +347,28 @@ export function runOmCategorizacaoTests(): {
         )
       },
     },
+    {
+      name: 'Cliente transferido do funil comercial com transferido_pos_vendas=true é categorizado em isPosVenda',
+      fn: () => {
+        const cliTransferido = mockCliente({
+          id: 'cli_transferido_1',
+          nome: 'Cliente Transferido Funil',
+          status: 'Fechado',
+          transferido_pos_vendas: true,
+          origem_pos_vendas: 'funil_comercial',
+          data_transferencia_pos_vendas: new Date().toISOString(),
+          data_fechamento: '2026-03-01T10:00:00.000Z',
+          valor_estimado: 45000,
+        })
+
+        const res = categorizarClienteOM(cliTransferido.id, [], [], [], [], cliTransferido)
+        assertEquals(res.isPosVenda, true, 'cliente transferido deve ter isPosVenda=true')
+
+        const contagens = calcularContagensOM([cliTransferido], [])
+        assertEquals(contagens.posVendas, 1, 'cliente transferido deve contar em posVendas')
+        assertEquals(contagens.oportunidadesOM, 1, 'fechado conta como oportunidade OM')
+      },
+    },
   ]
 
   let passed = 0

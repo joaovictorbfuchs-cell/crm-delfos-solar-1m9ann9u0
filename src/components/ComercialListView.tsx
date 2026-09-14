@@ -80,9 +80,9 @@ export const ComercialListView: React.FC<ComercialListViewProps> = ({
 
   const [modalConfirmarArquivarOpen, setModalConfirmarArquivarOpen] = useState(false)
 
-  // Excluir registros já arquivados por padrão para o funil comercial ativo
+  // Excluir registros já arquivados e negócios já transferidos para Pós-Vendas
   const clientesAtivos = useMemo(() => {
-    return clientesProp.filter((c) => !c.arquivado)
+    return clientesProp.filter((c) => !c.arquivado && !c.transferido_pos_vendas)
   }, [clientesProp])
 
   // Filtragem rápida pelo nome do cliente (e também por cidade ou responsável se pesquisado)

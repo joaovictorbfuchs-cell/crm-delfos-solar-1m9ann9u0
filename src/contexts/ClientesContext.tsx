@@ -45,6 +45,7 @@ import {
   bulkUpdateClientesEtapa as apiBulkUpdateClientesEtapa,
   bulkUpdateClientesResponsavel as apiBulkUpdateClientesResponsavel,
   bulkMarcarClientesFechado as apiBulkMarcarClientesFechado,
+  bulkTransferirFechadosParaPosVendas as apiBulkTransferirFechadosParaPosVendas,
   bulkArquivarClientes as apiBulkArquivarClientes,
   deleteCliente as apiDeleteCliente,
   upsertSistemaForCliente,
@@ -216,6 +217,9 @@ interface ClientesContextType {
     responsavelNome: string,
   ) => Promise<void>
   bulkMarcarFechado: (ids: string[]) => Promise<void>
+  bulkTransferirFechadosPosVendas: (
+    clientesParaTransferir: { id: string; data_fechamento?: string }[],
+  ) => Promise<Cliente[]>
   bulkArquivar: (ids: string[]) => Promise<void>
   updateSistema: (clienteId: string, data: Partial<Sistema>) => Promise<Sistema>
   // Profissionais
@@ -1030,13 +1034,53 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   }
 
   const bulkMarcarFechado = async (ids: string[]) => {
-    setClientes((prev) => prev.map((c) => (ids.includes(c.id) ? { ...c, status: 'Fechado' } : c)))
+    const agora = new Date().toISOString()
+    setClientes((prev) =>
+      prev.map((c) =>
+        ids.includes(c.id)
+          ? { ...c, status: 'Fechado', data_fechamento: c.data_fechamento || agora }
+          : c,
+      ),
+    )
     try {
       const updatedList = await apiBulkMarcarClientesFechado(ids)
       const mapUpdated = new Map(updatedList.map((u) => [u.id, u]))
       setClientes((prev) => prev.map((c) => mapUpdated.get(c.id) || c))
     } catch (err) {
       console.error('Erro ao marcar como fechado em lote:', err)
+      await loadAllData()
+      throw err
+    }
+  }
+
+  const bulkTransferirFechadosPosVendas = async (
+    clientesParaTransferir: { id: string; data_fechamento?: string }[],
+  ): Promise<Cliente[]> => {
+    const agora = new Date().toISOString()
+    const ids = clientesParaTransferir.map((c) => c.id)
+
+    // Optimistic update: marca transferido_pos_vendas e preserva todos os dados
+    setClientes((prev) =>
+      prev.map((c) => {
+        if (!ids.includes(c.id)) return c
+        const match = clientesParaTransferir.find((item) => item.id === c.id)
+        return {
+          ...c,
+          transferido_pos_vendas: true,
+          data_transferencia_pos_vendas: agora,
+          origem_pos_vendas: 'funil_comercial',
+          data_fechamento: match?.data_fechamento || c.data_fechamento || agora,
+        }
+      }),
+    )
+
+    try {
+      const updatedList = await apiBulkTransferirFechadosParaPosVendas(clientesParaTransferir)
+      const mapUpdated = new Map(updatedList.map((u) => [u.id, u]))
+      setClientes((prev) => prev.map((c) => mapUpdated.get(c.id) || c))
+      return updatedList
+    } catch (err) {
+      console.error('Erro ao transferir fechados para pós-vendas em lote:', err)
       await loadAllData()
       throw err
     }
@@ -1925,6 +1969,7 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         bulkUpdateEtapa,
         bulkUpdateResponsavel,
         bulkMarcarFechado,
+        bulkTransferirFechadosPosVendas,
         bulkArquivar,
         updateSistema,
         addProfissional,

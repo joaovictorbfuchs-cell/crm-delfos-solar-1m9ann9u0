@@ -129,9 +129,12 @@ export function categorizarClienteOM(
     categoria = 'sem_plano'
   }
 
-  // Critério de estágio comercial fechado no funil
+  // Critério de estágio comercial fechado no funil ou explicitamente transferido para pós-vendas
   const statusCliente = (clienteOuStatus as any)?.status
-  const isComercialFechado = statusCliente === 'Fechado' || statusCliente === 'Concluído'
+  const isComercialFechado =
+    statusCliente === 'Fechado' ||
+    statusCliente === 'Concluído' ||
+    Boolean((clienteOuStatus as any)?.transferido_pos_vendas)
 
   // Proposta O&M aprovada / fechada
   const propostaStatus = ((clienteOuStatus as any)?.proposta_om_status || '').toLowerCase().trim()

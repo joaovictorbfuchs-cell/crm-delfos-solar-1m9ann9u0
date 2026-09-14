@@ -171,6 +171,10 @@ export interface Cliente extends RecordModel {
   responsavel_id?: string
   responsavel_nome?: string
   data_previsao_fechamento?: string
+  data_fechamento?: string
+  transferido_pos_vendas?: boolean
+  data_transferencia_pos_vendas?: string
+  origem_pos_vendas?: string
   arquivado?: boolean
   dados_importados?: Record<string, string | number | boolean | null> | null
   // Dados de Acesso ao Monitoramento do Inversor
