@@ -485,16 +485,21 @@ export default function ExecucaoOS() {
                   </div>
 
                   <div className="flex items-center gap-2">
-                    <div onClick={(e) => e.stopPropagation()}>
-                      <BotaoEnviarOSWhatsApp
-                        osId={os.id}
-                        responsavelNome={os.atribuida_a || os.expand?.responsavel_usuario_id?.name}
-                        responsavelTelefone={os.expand?.responsavel_usuario_id?.phone}
-                        responsavelId={os.responsavel_usuario_id}
-                        size="sm"
-                        label="Enviar OS"
-                      />
-                    </div>
+                    {/* Botão de Envio Manual via WhatsApp: visível para Admin ou quando não for o próprio instalador logado */}
+                    {(!isInstalador || isAdmin) && (
+                      <div onClick={(e) => e.stopPropagation()}>
+                        <BotaoEnviarOSWhatsApp
+                          osId={os.id}
+                          responsavelNome={
+                            os.atribuida_a || os.expand?.responsavel_usuario_id?.name
+                          }
+                          responsavelTelefone={os.expand?.responsavel_usuario_id?.phone}
+                          responsavelId={os.responsavel_usuario_id}
+                          size="sm"
+                          label="Enviar OS por WhatsApp"
+                        />
+                      </div>
+                    )}
 
                     <div className="inline-flex items-center gap-1 text-xs font-bold text-emerald-700 group-hover:translate-x-0.5 transition-transform">
                       <span>{os.status === 'concluida' ? 'Ver Ficha' : 'Executar OS'}</span>

@@ -14,7 +14,7 @@ import {
   CheckCircle2,
 } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
-import { pb } from '@/lib/pocketbase/client'
+import pb from '@/lib/pocketbase/client'
 import { DelfosLogo } from '@/components/DelfosLogo'
 
 export default function Login() {

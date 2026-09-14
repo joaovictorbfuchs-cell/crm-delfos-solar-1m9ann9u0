@@ -149,7 +149,7 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
   onOSFinalizada,
 }) => {
   const { toast } = useToast()
-  const { isAdmin } = useAuth()
+  const { isAdmin, isInstalador } = useAuth()
   const cameraInputRef = useRef<HTMLInputElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -352,15 +352,17 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
             </Badge>
           )}
 
-          {/* Botão de Envio Manual da OS via WhatsApp */}
-          <BotaoEnviarOSWhatsApp
-            osId={os.id}
-            responsavelNome={os.atribuida_a || os.expand?.responsavel_usuario_id?.name}
-            responsavelTelefone={os.expand?.responsavel_usuario_id?.phone}
-            responsavelId={responsavelId || os.responsavel_usuario_id}
-            size="sm"
-            label="Enviar OS por WhatsApp"
-          />
+          {/* Botão de Envio Manual da OS via WhatsApp (visível para Admin ou quando não for o instalador logado) */}
+          {(!isInstalador || isAdmin) && (
+            <BotaoEnviarOSWhatsApp
+              osId={os.id}
+              responsavelNome={os.atribuida_a || os.expand?.responsavel_usuario_id?.name}
+              responsavelTelefone={os.expand?.responsavel_usuario_id?.phone}
+              responsavelId={responsavelId || os.responsavel_usuario_id}
+              size="sm"
+              label="Enviar OS por WhatsApp"
+            />
+          )}
         </div>
       </div>
 
