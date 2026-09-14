@@ -113,9 +113,9 @@ export function runOmCategorizacaoTests(): {
       },
     },
     {
-      name: 'Cliente importado do Conta Azul sem plano O&M entra automaticamente em Pós-Vendas',
+      name: 'Cliente importado sem fechar negócio e sem monitoramento NÃO entra em Pós-Vendas (vai apenas para Clientes)',
       fn: () => {
-        const clienteContaAzul = mockCliente({
+        const clienteContaAzulSemMonitoramento = mockCliente({
           id: 'cli_conta_azul_1',
           nome: 'Metalúrgica Alto Uruguai S/A',
           cnpj: '91.442.119/0001-52',
@@ -125,6 +125,7 @@ export function runOmCategorizacaoTests(): {
           status: 'Novo Lead',
           produto: 'Energia Solar',
           potencia_kwp: 5.5,
+          transferido_pos_vendas: false,
           dados_importados: {
             'Razão Social / Nome': 'Metalúrgica Alto Uruguai S/A',
             'Situação Cadastral': 'Ativo',
@@ -132,75 +133,90 @@ export function runOmCategorizacaoTests(): {
           },
         })
 
-        const res = categorizarClienteOM(clienteContaAzul.id, [])
+        const res = categorizarClienteOM(
+          clienteContaAzulSemMonitoramento.id,
+          [],
+          [],
+          [],
+          [],
+          clienteContaAzulSemMonitoramento,
+        )
         assertEquals(res.categoria, 'sem_plano', 'categoria deve ser sem_plano')
+        assertEquals(
+          res.isPosVenda,
+          false,
+          'não deve entrar em pós-vendas sem fechar ou sem credenciais',
+        )
 
-        const contagens = calcularContagensOM([clienteContaAzul], [])
+        const contagens = calcularContagensOM([clienteContaAzulSemMonitoramento], [])
         assertEquals(contagens.totalClientes, 1, 'total clientes')
         assertEquals(contagens.planosAtivos, 0, 'planos ativos')
-        assertEquals(contagens.posVendas, 1, 'cliente Conta Azul deve contar como posVendas')
+        assertEquals(contagens.posVendas, 0, 'não qualificado para posVendas')
         assertEquals(
           contagens.oportunidadesOM,
-          1,
-          'como tem potencia > 0 deve contar como oportunidade O&M',
+          0,
+          'não conta em oportunidades OM pois não está em pós-vendas',
         )
       },
     },
     {
-      name: 'Cliente com serviço avulso realizado sem plano O&M entra em Pós-Vendas',
+      name: 'Cliente importado antigo com credenciais de monitoramento ou transferido entra em Pós-Vendas',
       fn: () => {
-        const clienteServico = mockCliente({
-          id: 'cli_ricardo',
-          nome: 'Ricardo Alves',
-          telefone: '(54) 99188-4422',
-          cidade: 'Erechim/RS',
-          status: 'Contato Futuro',
+        const clienteComMonitoramento = mockCliente({
+          id: 'cli_antigo_monitorado',
+          nome: 'Adílio Paulo Follador',
+          cidade: 'Barão de Cotegipe/RS',
+          status: 'Novo Lead',
           produto: 'Energia Solar',
-          potencia_kwp: 10,
+          potencia_kwp: 6.9,
+          transferido_pos_vendas: true,
+          origem_pos_vendas: 'funil_comercial',
         })
 
-        const servicoAvulso = mockServicoAvulso({
-          id: 'serv_1',
-          cliente_id: 'cli_ricardo',
-          data_servico: '2026-03-24',
-          tipo_servico: 'limpeza',
-          valor_cobrado: 450,
-          status: 'concluido',
-        })
+        const res = categorizarClienteOM(
+          clienteComMonitoramento.id,
+          [],
+          [],
+          [],
+          [],
+          clienteComMonitoramento,
+        )
+        assertEquals(
+          res.isPosVenda,
+          true,
+          'deve ser pós-vendas por ter transferido_pos_vendas=true',
+        )
 
-        const res = categorizarClienteOM(clienteServico.id, [], [], [], [servicoAvulso])
-        assert(res.temServicoAvulsoHistorico, 'deve ter histórico de serviço avulso')
-        assertEquals(res.ultimoServicoAvulso?.id, 'serv_1', 'último serviço deve ser serv_1')
-
-        const contagens = calcularContagensOM([clienteServico], [], [], [], [servicoAvulso])
-        assertEquals(contagens.posVendas, 1, 'deve ser pós-vendas')
-        assertEquals(contagens.oportunidadesOM, 1, 'solar instalado deve contar como oportunidade')
+        const contagens = calcularContagensOM([clienteComMonitoramento], [])
+        assertEquals(contagens.posVendas, 1, 'deve contar em posVendas')
+        assertEquals(contagens.oportunidadesOM, 1, 'deve contar como oportunidade de O&M')
       },
     },
     {
-      name: 'Cliente sem energia solar e sem serviços avulsos (lead ou cadastro básico) entra em Pós-Vendas como cliente sem plano',
+      name: 'Cliente comum sem fechar negócio e sem credenciais NÃO entra em Pós-Vendas',
       fn: () => {
         const clienteBasico = mockCliente({
           id: 'cli_basico',
-          nome: 'Clanel',
+          nome: 'Lead em Prospecção',
           telefone: '54981108228',
           cidade: 'Erechim/RS',
           status: 'Novo Lead',
           potencia_kwp: 0,
+          transferido_pos_vendas: false,
         })
 
         const contagens = calcularContagensOM([clienteBasico], [])
         assertEquals(
           contagens.posVendas,
-          1,
-          'todos os clientes do CRM sem plano entram em pós-vendas',
-        )
-        assertEquals(
-          contagens.oportunidadesOM,
           0,
-          'não tem solar nem usina, então não é oportunidade de O&M',
+          'cliente não qualificado não deve entrar em pós-vendas',
         )
-        assertEquals(contagens.clientesSemPlano, 1, 'conta como clientesSemPlano')
+        assertEquals(contagens.oportunidadesOM, 0, 'oportunidades OM deve ser 0')
+        assertEquals(
+          contagens.clientesSemPlano,
+          0,
+          'clientesSemPlano dentro de pós-vendas deve ser 0',
+        )
       },
     },
     {
@@ -209,7 +225,8 @@ export function runOmCategorizacaoTests(): {
         const cliente = mockCliente({
           id: 'cli_transicao',
           nome: 'João Victor Ferreira',
-          status: 'Novo Lead',
+          status: 'Fechado',
+          transferido_pos_vendas: true,
           potencia_kwp: 7.1,
         })
 
@@ -238,6 +255,7 @@ export function runOmCategorizacaoTests(): {
         const clienteComDataInvalida = mockCliente({
           id: 'cli_data_inv',
           nome: 'Cliente Data Inválida',
+          transferido_pos_vendas: true,
         })
         const contratoDataInvalida = mockContrato({
           id: 'ct_inv',
@@ -260,11 +278,12 @@ export function runOmCategorizacaoTests(): {
       },
     },
     {
-      name: 'Contrato com status Encerrado ou status_encerramento encerrado move cliente para pós-vendas',
+      name: 'Contrato com status Encerrado ou status_encerramento encerrado de cliente transferido move cliente para pós-vendas',
       fn: () => {
         const cliEncerrado = mockCliente({
           id: 'cli_encerrado_1',
           nome: 'Cliente Contrato Encerrado',
+          transferido_pos_vendas: true,
         })
         const contratoEncerrado = mockContrato({
           id: 'ct_enc_1',
@@ -275,11 +294,23 @@ export function runOmCategorizacaoTests(): {
           data_encerramento: new Date().toISOString(),
         })
 
-        const res = categorizarClienteOM(cliEncerrado.id, [contratoEncerrado])
+        const res = categorizarClienteOM(
+          cliEncerrado.id,
+          [contratoEncerrado],
+          [],
+          [],
+          [],
+          cliEncerrado,
+        )
         assertEquals(
           res.categoria,
           'sem_plano',
           'cliente com contrato encerrado não deve ficar em plano_ativo',
+        )
+        assertEquals(
+          res.isPosVenda,
+          true,
+          'cliente com transferido_pos_vendas=true entra em pós-vendas',
         )
 
         const contagens = calcularContagensOM([cliEncerrado], [contratoEncerrado])

@@ -203,7 +203,7 @@ export default function Manutencoes() {
               </span>
               <div className="text-2xl font-extrabold text-slate-900 mt-0.5">{posVendasTotal}</div>
               <div className="text-[11px] text-slate-500 font-medium mt-0.5">
-                Toda base sem plano ativo
+                Fechados e monitoramento
               </div>
             </div>
             <div className="w-10 h-10 rounded-xl bg-slate-100 text-slate-700 flex items-center justify-center shrink-0">

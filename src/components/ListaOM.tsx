@@ -218,7 +218,7 @@ export const ListaOM: React.FC<ListaOMProps> = ({
     safeServicosAvulsos,
   ])
 
-  // 2. Clientes Pós-Vendas
+  // 2. Clientes Pós-Vendas (apenas clientes qualificados: transferido_pos_vendas = true ou status Fechado ou com credenciais de monitoramento)
   const clientesPosVendas = useMemo(() => {
     return safeClientes
       .map((cliente) => {
@@ -245,10 +245,12 @@ export const ListaOM: React.FC<ListaOMProps> = ({
         )
         const totalServicosAvulsos = avulsosDoCliente.length + adicionaisDoCliente.length
 
+        const statusVal = String(cliente.status || '')
         const instalouSolar =
           potencia > 0 ||
           Boolean(cliente.data_instalacao) ||
-          cliente.status === 'Fechado' ||
+          statusVal === 'Fechado' ||
+          statusVal === 'Concluído' ||
           cliente.produto === 'Energia Solar'
 
         const isOportunidadeOM = instalouSolar
@@ -1077,12 +1079,12 @@ export const ListaOM: React.FC<ListaOMProps> = ({
               </div>
               <div className="text-xs text-slate-700 leading-relaxed">
                 <p className="font-bold text-slate-900 text-sm">
-                  Base de Relacionamento Pós-Vendas (Clientes sem Plano O&M)
+                  Base de Relacionamento Pós-Vendas (Clientes Qualificados sem Plano O&M)
                 </p>
                 <p className="mt-0.5 leading-relaxed">
-                  Reúne todos os clientes cadastrados no CRM da Delfos (incluindo clientes
-                  importados do Conta Azul e Pipedrive) que ainda não possuem um plano de manutenção
-                  ativo. Clientes com energia solar instalada têm o destaque especial{' '}
+                  Reúne clientes fechados do funil comercial e clientes com credenciais de
+                  monitoramento importadas que ainda não possuem plano O&M ativo. Clientes com
+                  energia solar instalada têm o destaque especial{' '}
                   <strong className="text-amber-800 font-bold">⭐ Oportunidade de O&M</strong> para
                   oferta de planos preventivos, monitoramento e limpezas periódicas.
                 </p>

@@ -129,52 +129,29 @@ export function categorizarClienteOM(
     categoria = 'sem_plano'
   }
 
-  // Critério de estágio comercial fechado no funil ou explicitamente transferido para pós-vendas
+  // CRITÉRIO OFICIAL DE PÓS-VENDAS (Alinhado às migrações 0078/0080):
+  // Entram e permanecem na área de Pós-Vendas:
+  // 1. Clientes com transferido_pos_vendas = true (abrange clientes com status 'Fechado'
+  //    transferidos do funil comercial E clientes com credenciais de monitoramento importadas);
+  // 2. OU clientes com status 'Fechado' / 'Concluído' vindos do funil comercial;
+  // 3. OU clientes que possuem credenciais de monitoramento registradas diretamente no objeto do cliente.
+  // Quem NÃO fechou negócio E NÃO tem credenciais de monitoramento / transferido_pos_vendas NÃO entra em Pós-Vendas.
+  const isTransferidoPosVendas = Boolean((clienteOuStatus as any)?.transferido_pos_vendas)
   const statusCliente = (clienteOuStatus as any)?.status
-  const isComercialFechado =
-    statusCliente === 'Fechado' ||
-    statusCliente === 'Concluído' ||
-    Boolean((clienteOuStatus as any)?.transferido_pos_vendas)
+  const isFechadoFunil = statusCliente === 'Fechado' || statusCliente === 'Concluído'
 
-  // Proposta O&M aprovada / fechada
-  const propostaStatus = ((clienteOuStatus as any)?.proposta_om_status || '').toLowerCase().trim()
-  const temPropostaOMAprovada =
-    Boolean((clienteOuStatus as any)?.proposta_om_aprovada) ||
-    propostaStatus === 'aprovado' ||
-    propostaStatus === 'aprovada' ||
-    propostaStatus === 'fechado' ||
-    propostaStatus === 'fechada' ||
-    propostaStatus === 'aceita'
+  // Verificação direta de credenciais de monitoramento no próprio cliente
+  const monLogin = ((clienteOuStatus as any)?.monitoramento_login || '').trim()
+  const monSenha = ((clienteOuStatus as any)?.monitoramento_senha || '').trim()
+  const solLogin = ((clienteOuStatus as any)?.solarview_login || '').trim()
+  const solSenha = ((clienteOuStatus as any)?.solarview_senha || '').trim()
+  const temCredenciaisDiretas =
+    monLogin !== '' || monSenha !== '' || solLogin !== '' || solSenha !== ''
 
-  // Contrato O&M existente
-  const temContratoOM = contratos.length > 0
-
-  // Origem Conta Azul / importação
-  const dadosImportados = (clienteOuStatus as any)?.dados_importados
-  const isContaAzulOuImportado =
-    Boolean(dadosImportados?.['Razão Social / Nome']) ||
-    Boolean(dadosImportados?.['Data do Cadastro']) ||
-    (clienteOuStatus as any)?.origem_lead === 'Outro' ||
-    Boolean(dadosImportados && Object.keys(dadosImportados).length > 0)
-
-  // Cliente entra em Pós-Venda se NÃO tem plano ativo e atende aos critérios (comercial fechado, serviço avulso, contrato, proposta aprovada ou importado)
+  // Cliente entra em Pós-Vendas se NÃO tem plano ativo e foi qualificado para pós-vendas
   const isPosVenda =
     categoria !== 'plano_ativo' &&
-    (isComercialFechado ||
-      temPropostaOMAprovada ||
-      temContratoOM ||
-      temServicoAvulsoHistorico ||
-      temServicoAvulsoEmAndamento ||
-      isContaAzulOuImportado ||
-      Boolean(
-        (clienteOuStatus as any)?.potencia_kwp && (clienteOuStatus as any)?.potencia_kwp > 0,
-      ) ||
-      Boolean((clienteOuStatus as any)?.data_instalacao) ||
-      (clienteOuStatus as any)?.produto === 'Energia Solar' ||
-      categoria === 'sem_plano' ||
-      categoria === 'plano_vencido' ||
-      categoria === 'anomalia_aberta' ||
-      categoria === 'servico_avulso')
+    (isTransferidoPosVendas || isFechadoFunil || temCredenciaisDiretas)
 
   return {
     categoria,
