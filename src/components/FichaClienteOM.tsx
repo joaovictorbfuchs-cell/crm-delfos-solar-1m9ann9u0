@@ -29,7 +29,7 @@ import { toast } from 'sonner'
 
 interface FichaClienteOMProps {
   clienteId: string
-  onNavigateToTab?: (tab: 'historico' | 'projeto' | 'om') => void
+  onNavigateToTab?: (tab: 'historico' | 'projeto' | 'om' | 'usinas' | 'whatsapp') => void
 }
 
 export const FichaClienteOM: React.FC<FichaClienteOMProps> = ({ clienteId, onNavigateToTab }) => {
