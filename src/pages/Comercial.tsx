@@ -1,13 +1,23 @@
 import React, { useState } from 'react'
-import { KanbanSquare, List, Loader2, UserPlus, LayoutGrid } from 'lucide-react'
+import { KanbanSquare, List, Loader2, UserPlus, LayoutGrid, Send } from 'lucide-react'
 import { useClientes } from '@/contexts/ClientesContext'
 import { KanbanBoard } from '@/components/KanbanBoard'
 import { ComercialListView } from '@/components/ComercialListView'
 import { formatCurrency } from '@/lib/formatters'
 import { NovoLeadModal } from '@/components/NovoLeadModal'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { Button } from '@/components/ui/button'
+import { toast } from '@/hooks/use-toast'
 
 export default function Comercial() {
-  const { clientes, isLoading } = useClientes()
+  const { clientes, isLoading, bulkTransferirFechadosPosVendas } = useClientes()
   const [isNovoLeadOpen, setIsNovoLeadOpen] = useState(false)
   const [viewMode, setViewMode] = useState<'kanban' | 'list'>('kanban')
 
@@ -16,6 +26,37 @@ export default function Comercial() {
 
   const fechados = clientesAtivos.filter((c) => c.status === 'Fechado')
   const totalFechado = fechados.reduce((sum, c) => sum + (c.valor_estimado || 0), 0)
+
+  // Modal de transferência em lote dos Fechados para Pós-Vendas
+  const [isModalTransferenciaOpen, setIsModalTransferenciaOpen] = useState(false)
+  const [isTransferindo, setIsTransferindo] = useState(false)
+
+  const handleConfirmarTransferenciaPosVendas = async () => {
+    if (fechados.length === 0) return
+    setIsTransferindo(true)
+    try {
+      const payload = fechados.map((c) => ({
+        id: c.id,
+        data_fechamento:
+          c.data_fechamento || c.data_instalacao || c.created || new Date().toISOString(),
+      }))
+      await bulkTransferirFechadosPosVendas(payload)
+      toast({
+        title: 'Transferência concluída!',
+        description: `${payload.length} negócio(s) fechado(s) transferido(s) com sucesso para Clientes Pós-Vendas.`,
+      })
+      setIsModalTransferenciaOpen(false)
+    } catch (err) {
+      console.error('Falha ao transferir fechados:', err)
+      toast({
+        title: 'Erro na transferência',
+        description: 'Não foi possível transferir os negócios para Pós-Vendas. Tente novamente.',
+        variant: 'destructive',
+      })
+    } finally {
+      setIsTransferindo(false)
+    }
+  }
 
   if (isLoading) {
     return (
@@ -75,10 +116,31 @@ export default function Comercial() {
               </button>
             </div>
 
+            {/* Botão Enviar Fechados para Pós-Vendas */}
+            <button
+              type="button"
+              onClick={() => setIsModalTransferenciaOpen(true)}
+              disabled={fechados.length === 0}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-emerald-700 hover:bg-emerald-800 disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed text-white text-xs font-semibold rounded-xl shadow-xs transition-all hover:scale-[1.01] active:scale-[0.99]"
+              title={
+                fechados.length === 0
+                  ? 'Nenhum negócio fechado aguardando envio'
+                  : `Mover ${fechados.length} negócio(s) fechado(s) para a aba de Clientes Pós-Vendas`
+              }
+            >
+              <Send className="w-3.5 h-3.5 shrink-0" />
+              <span>Enviar Fechados para Pós-Vendas</span>
+              {fechados.length > 0 && (
+                <span className="ml-1 bg-emerald-900/60 text-white text-[11px] font-bold px-1.5 py-0.2 rounded-full border border-emerald-400/40">
+                  {fechados.length}
+                </span>
+              )}
+            </button>
+
             {/* Botão Novo Lead */}
             <button
               onClick={() => setIsNovoLeadOpen(true)}
-              className="inline-flex items-center gap-2 px-4 py-2.5 bg-[#16A34A] hover:bg-[#15803D] text-white text-sm font-semibold rounded-xl shadow-xs hover:shadow-md transition-all duration-150 hover:scale-[1.02]"
+              className="inline-flex items-center gap-2 px-4 py-2 bg-[#16A34A] hover:bg-[#15803D] text-white text-sm font-semibold rounded-xl shadow-xs hover:shadow-md transition-all duration-150 hover:scale-[1.02]"
             >
               <UserPlus className="w-4 h-4" />
               <span>+ Novo Lead</span>
@@ -99,6 +161,90 @@ export default function Comercial() {
 
       {/* Modal Novo Lead */}
       <NovoLeadModal isOpen={isNovoLeadOpen} onClose={() => setIsNovoLeadOpen(false)} />
+
+      {/* Modal de Confirmação de Transferência de Fechados para Pós-Vendas */}
+      <Dialog
+        open={isModalTransferenciaOpen}
+        onOpenChange={(open) => {
+          if (!isTransferindo) setIsModalTransferenciaOpen(open)
+        }}
+      >
+        <DialogContent className="sm:max-w-[480px]">
+          <DialogHeader>
+            <DialogTitle className="text-base font-bold text-gray-900 flex items-center gap-2">
+              <Send className="w-4 h-4 text-[#16A34A]" />
+              <span>Enviar Fechados para Pós-Vendas</span>
+            </DialogTitle>
+            <DialogDescription className="text-sm text-gray-600 pt-2 leading-relaxed">
+              Deseja mover todos os negócios fechados para a aba de Clientes Pós-Vendas? Eles sairão
+              do funil comercial.
+            </DialogDescription>
+          </DialogHeader>
+
+          {fechados.length > 0 && (
+            <div className="bg-emerald-50/70 rounded-xl p-3 border border-emerald-200/80 text-xs space-y-2 mt-1">
+              <div className="flex items-center justify-between text-emerald-900 font-semibold">
+                <span>Total de negócios a transferir:</span>
+                <span className="bg-emerald-600 text-white px-2 py-0.5 rounded-full text-[11px] font-bold">
+                  {fechados.length} clientes
+                </span>
+              </div>
+              <div className="max-h-36 overflow-y-auto space-y-1 pr-1 text-gray-700">
+                {fechados.map((c) => (
+                  <div
+                    key={c.id}
+                    className="flex items-center justify-between text-[11px] bg-white/80 p-1.5 rounded border border-emerald-100"
+                  >
+                    <span className="font-medium text-gray-900 truncate max-w-[220px]">
+                      {c.nome}
+                    </span>
+                    <span className="text-gray-600 font-semibold shrink-0">
+                      {formatCurrency(c.valor_estimado || 0)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+              {totalFechado > 0 && (
+                <div className="flex items-center justify-between pt-1 border-t border-emerald-200/60 font-semibold text-emerald-900 text-xs">
+                  <span>Valor total fechado:</span>
+                  <span>{formatCurrency(totalFechado)}</span>
+                </div>
+              )}
+              <p className="text-[11px] text-emerald-800 italic pt-1">
+                * Cada cliente manterá seus dados (nome, telefone, email, valor do projeto, data de
+                fechamento) e receberá o badge &quot;Vindo do funil&quot; nos primeiros 7 dias na
+                aba de Pós-Vendas.
+              </p>
+            </div>
+          )}
+
+          <DialogFooter className="gap-2 sm:gap-0 pt-2">
+            <Button
+              type="button"
+              variant="outline"
+              disabled={isTransferindo}
+              onClick={() => setIsModalTransferenciaOpen(false)}
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="button"
+              disabled={isTransferindo || fechados.length === 0}
+              onClick={handleConfirmarTransferenciaPosVendas}
+              className="bg-[#16A34A] hover:bg-[#15803D] text-white"
+            >
+              {isTransferindo ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Transferindo...
+                </>
+              ) : (
+                'Confirmar'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

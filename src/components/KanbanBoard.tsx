@@ -1,19 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react'
-import { MapPin, Zap, GripVertical, Send, Loader2, type LucideIcon } from 'lucide-react'
+import { MapPin, Zap, GripVertical, type LucideIcon } from 'lucide-react'
 import type { Cliente, ClienteStatus } from '@/types/crm'
 import { formatCurrency } from '@/lib/formatters'
 import { useClientes } from '@/contexts/ClientesContext'
 import { ProductBadge, FUNIL_ETAPAS_CONFIG } from '@/components/StatusBadge'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
-import { Button } from '@/components/ui/button'
-import { toast } from '@/hooks/use-toast'
 
 interface KanbanBoardProps {
   clientes: Cliente[]
@@ -57,15 +47,8 @@ export const KANBAN_COLUMNS: KanbanColumnDef[] = [
     iconColorClass: FUNIL_ETAPAS_CONFIG['Negociação'].iconColorClass,
   },
   {
-    id: 'Fechado',
-    title: '5 - Fechado',
-    borderClass: 'border-t-[#16A34A]',
-    icon: FUNIL_ETAPAS_CONFIG['Fechado'].icon,
-    iconColorClass: FUNIL_ETAPAS_CONFIG['Fechado'].iconColorClass,
-  },
-  {
     id: 'Contato Futuro',
-    title: '6 - Contato Futuro',
+    title: '5 - Contato Futuro',
     borderClass: 'border-t-gray-400',
     icon: FUNIL_ETAPAS_CONFIG['Contato Futuro'].icon,
     iconColorClass: FUNIL_ETAPAS_CONFIG['Contato Futuro'].iconColorClass,
@@ -73,46 +56,17 @@ export const KANBAN_COLUMNS: KanbanColumnDef[] = [
 ]
 
 export const KanbanBoard: React.FC<KanbanBoardProps> = ({ clientes: clientesProp }) => {
-  const { openFichaCliente, updateClienteStatus, bulkTransferirFechadosPosVendas } = useClientes()
+  const { openFichaCliente, updateClienteStatus } = useClientes()
 
-  // O funil de vendas Kanban exibe apenas etapas ativas do negócio — negócios Perdidos, Arquivados e já transferidos saem do funil
+  // O funil de vendas Kanban exibe apenas as etapas ativas do negócio:
+  // Negócios 'Fechado', 'Perdido', 'Arquivado' e já transferidos não são exibidos no Kanban
   const clientes = clientesProp.filter(
-    (c) => (c.status as string) !== 'Perdido' && !c.arquivado && !c.transferido_pos_vendas,
+    (c) =>
+      c.status !== 'Fechado' &&
+      (c.status as string) !== 'Perdido' &&
+      !c.arquivado &&
+      !c.transferido_pos_vendas,
   )
-
-  // Modal de transferência em lote dos Fechados para Pós-Vendas
-  const [isModalTransferenciaOpen, setIsModalTransferenciaOpen] = useState(false)
-  const [isTransferindo, setIsTransferindo] = useState(false)
-
-  // Negócios Fechados atualmente visíveis na coluna
-  const clientesFechados = clientes.filter((c) => c.status === 'Fechado')
-
-  const handleConfirmarTransferenciaPosVendas = async () => {
-    if (clientesFechados.length === 0) return
-    setIsTransferindo(true)
-    try {
-      const payload = clientesFechados.map((c) => ({
-        id: c.id,
-        data_fechamento:
-          c.data_fechamento || c.data_instalacao || c.created || new Date().toISOString(),
-      }))
-      await bulkTransferirFechadosPosVendas(payload)
-      toast({
-        title: 'Transferência concluída!',
-        description: `${payload.length} negócio(s) fechado(s) transferido(s) com sucesso para Clientes Pós-Vendas.`,
-      })
-      setIsModalTransferenciaOpen(false)
-    } catch (err) {
-      console.error('Falha ao transferir fechados:', err)
-      toast({
-        title: 'Erro na transferência',
-        description: 'Não foi possível transferir os negócios para Pós-Vendas. Tente novamente.',
-        variant: 'destructive',
-      })
-    } finally {
-      setIsTransferindo(false)
-    }
-  }
 
   // Estado para drag and drop
   const [draggedClientId, setDraggedClientId] = useState<string | null>(null)
@@ -290,7 +244,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ clientes: clientesProp
 
   return (
     <div className="w-full pb-4 pt-1 select-none overflow-hidden">
-      <div className="grid grid-cols-6 gap-2 sm:gap-2.5 lg:gap-3 items-start w-full">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-2.5 lg:gap-3 items-start w-full">
         {KANBAN_COLUMNS.map((col) => {
           const colClients = clientes.filter((c) => c.status === col.id)
           const totalColValue = colClients.reduce((sum, c) => sum + (c.valor_estimado || 0), 0)
@@ -332,26 +286,6 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ clientes: clientesProp
                   {colClients.length}
                 </span>
               </div>
-
-              {/* Botão de Ação Especial no Topo da Coluna Fechados */}
-              {col.id === 'Fechado' && (
-                <div className="mb-2">
-                  <button
-                    type="button"
-                    onClick={() => setIsModalTransferenciaOpen(true)}
-                    disabled={colClients.length === 0}
-                    className="w-full inline-flex items-center justify-center gap-1.5 px-2 py-1.5 bg-[#16A34A] hover:bg-[#15803D] disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed text-white text-[11px] sm:text-xs font-semibold rounded-lg shadow-xs transition-all hover:scale-[1.01] active:scale-[0.99] leading-tight text-center"
-                    title={
-                      colClients.length === 0
-                        ? 'Nenhum negócio fechado no momento'
-                        : 'Mover todos os negócios fechados para a aba de Clientes Pós-Vendas'
-                    }
-                  >
-                    <Send className="w-3 h-3 shrink-0" />
-                    <span className="truncate">Enviar Fechados para Pós-Vendas</span>
-                  </button>
-                </div>
-              )}
 
               {/* Cards List / Drop Zone */}
               <div className="space-y-2 flex-1 min-h-[300px] flex flex-col min-w-0">
@@ -454,84 +388,6 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ clientes: clientesProp
           )
         })}
       </div>
-
-      {/* Modal de Confirmação Exato */}
-      <Dialog
-        open={isModalTransferenciaOpen}
-        onOpenChange={(open) => {
-          if (!isTransferindo) setIsModalTransferenciaOpen(open)
-        }}
-      >
-        <DialogContent className="sm:max-w-[480px]">
-          <DialogHeader>
-            <DialogTitle className="text-base font-bold text-gray-900 flex items-center gap-2">
-              <Send className="w-4 h-4 text-[#16A34A]" />
-              <span>Enviar Fechados para Pós-Vendas</span>
-            </DialogTitle>
-            <DialogDescription className="text-sm text-gray-600 pt-2 leading-relaxed">
-              Deseja mover todos os negócios fechados para a aba de Clientes Pós-Vendas? Eles sairão
-              do funil comercial.
-            </DialogDescription>
-          </DialogHeader>
-
-          {clientesFechados.length > 0 && (
-            <div className="bg-emerald-50/70 rounded-xl p-3 border border-emerald-200/80 text-xs space-y-2 mt-1">
-              <div className="flex items-center justify-between text-emerald-900 font-semibold">
-                <span>Total de negócios a transferir:</span>
-                <span className="bg-emerald-600 text-white px-2 py-0.5 rounded-full text-[11px] font-bold">
-                  {clientesFechados.length} clientes
-                </span>
-              </div>
-              <div className="max-h-36 overflow-y-auto space-y-1 pr-1 text-gray-700">
-                {clientesFechados.map((c) => (
-                  <div
-                    key={c.id}
-                    className="flex items-center justify-between text-[11px] bg-white/80 p-1.5 rounded border border-emerald-100"
-                  >
-                    <span className="font-medium text-gray-900 truncate max-w-[220px]">
-                      {c.nome}
-                    </span>
-                    <span className="text-gray-600 font-semibold shrink-0">
-                      {formatCurrency(c.valor_estimado || 0)}
-                    </span>
-                  </div>
-                ))}
-              </div>
-              <p className="text-[11px] text-emerald-800 italic pt-1">
-                * Cada cliente manterá seus dados (nome, telefone, email, valor do projeto, data de
-                fechamento) e receberá o badge "Vindo do funil" nos primeiros 7 dias na aba de
-                Pós-Vendas.
-              </p>
-            </div>
-          )}
-
-          <DialogFooter className="gap-2 sm:gap-0 pt-2">
-            <Button
-              type="button"
-              variant="outline"
-              disabled={isTransferindo}
-              onClick={() => setIsModalTransferenciaOpen(false)}
-            >
-              Cancelar
-            </Button>
-            <Button
-              type="button"
-              disabled={isTransferindo || clientesFechados.length === 0}
-              onClick={handleConfirmarTransferenciaPosVendas}
-              className="bg-[#16A34A] hover:bg-[#15803D] text-white"
-            >
-              {isTransferindo ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Transferindo...
-                </>
-              ) : (
-                'Confirmar'
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   )
 }
