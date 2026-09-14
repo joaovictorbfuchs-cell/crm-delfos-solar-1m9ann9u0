@@ -1085,26 +1085,29 @@ export const FichaClienteDrawer: React.FC = () => {
               {/* ======================================================== */}
               {activeClientTab === 'om' && (
                 <div className="space-y-4">
-                  <SecaoUsinasCliente
-                    clienteId={selectedCliente.id}
-                    clienteNome={selectedCliente.nome}
-                    clienteDocumento={selectedCliente.cpf || selectedCliente.cnpj || ''}
-                    isAdmin={isAdmin}
-                    usinas={usinasDoCliente}
-                    contratos={contratosOM.filter((c) => c.cliente_id === selectedCliente.id)}
-                    onCreateUsina={async (data) => {
-                      await createUsina(data)
-                      await recarregarUsinas()
-                    }}
-                    onUpdateUsina={async (usinaId, data) => {
-                      await updateUsina(usinaId, data)
-                      await recarregarUsinas()
-                    }}
-                    onDeleteUsina={async (usinaId) => {
-                      await deleteUsina(usinaId)
-                      await recarregarUsinas()
-                    }}
-                  />
+                  <div>
+                    <h3 className="text-sm font-bold text-gray-900 mb-2">Usinas do Cliente</h3>
+                    <SecaoUsinasCliente
+                      clienteId={selectedCliente.id}
+                      clienteNome={selectedCliente.nome}
+                      clienteDocumento={selectedCliente.cpf || selectedCliente.cnpj || ''}
+                      isAdmin={isAdmin}
+                      usinas={usinasDoCliente}
+                      contratos={contratosOM.filter((c) => c.cliente_id === selectedCliente.id)}
+                      onCreateUsina={async (data) => {
+                        await createUsina(data)
+                        await recarregarUsinas()
+                      }}
+                      onUpdateUsina={async (usinaId, data) => {
+                        await updateUsina(usinaId, data)
+                        await recarregarUsinas()
+                      }}
+                      onDeleteUsina={async (usinaId) => {
+                        await deleteUsina(usinaId)
+                        await recarregarUsinas()
+                      }}
+                    />
+                  </div>
 
                   <FichaClienteOM
                     clienteId={selectedCliente.id}
