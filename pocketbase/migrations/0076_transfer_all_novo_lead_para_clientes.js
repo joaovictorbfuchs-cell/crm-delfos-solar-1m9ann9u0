@@ -7,7 +7,9 @@ migrate(
 
       // 1. Atualizar via SQL para garantir eficiência e consistência em todos os registros relevantes
       // Todos os que estão como 'Novo Lead' ou que tiveram origem_pos_vendas = 'funil_comercial'
-      app.db().newQuery(`
+      app
+        .db()
+        .newQuery(`
         UPDATE clientes
         SET 
           status = 'Cliente',
@@ -19,8 +21,8 @@ migrate(
             ELSE data_fechamento
           END
         WHERE status = 'Novo Lead' OR origem_pos_vendas = 'funil_comercial'
-      `).execute()
-
+      `)
+        .execute()
     } catch (err) {
       console.warn('Erro na migration 0076:', err)
       throw err
@@ -28,5 +30,5 @@ migrate(
   },
   (app) => {
     // Rollback não estritamente necessário
-  }
+  },
 )
