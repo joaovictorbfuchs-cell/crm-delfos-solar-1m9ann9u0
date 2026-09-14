@@ -167,6 +167,11 @@ export interface Cliente extends RecordModel {
   titular_cpf?: string
   titular_telefone?: string
   titular_email?: string
+  // Campos do Funil Comercial / Gestão de Oportunidades
+  responsavel_id?: string
+  responsavel_nome?: string
+  data_previsao_fechamento?: string
+  arquivado?: boolean
   dados_importados?: Record<string, string | number | boolean | null> | null
   // Dados de Acesso ao Monitoramento do Inversor
   monitoramento_app_nome?: string

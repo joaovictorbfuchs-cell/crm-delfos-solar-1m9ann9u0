@@ -42,6 +42,10 @@ import {
   createCliente as apiCreateCliente,
   updateCliente as apiUpdateCliente,
   updateClienteStatus as apiUpdateClienteStatus,
+  bulkUpdateClientesEtapa as apiBulkUpdateClientesEtapa,
+  bulkUpdateClientesResponsavel as apiBulkUpdateClientesResponsavel,
+  bulkMarcarClientesFechado as apiBulkMarcarClientesFechado,
+  bulkArquivarClientes as apiBulkArquivarClientes,
   deleteCliente as apiDeleteCliente,
   upsertSistemaForCliente,
   createProfissional as apiCreateProfissional,
@@ -205,6 +209,14 @@ interface ClientesContextType {
       customDescricao?: string
     },
   ) => Promise<void>
+  bulkUpdateEtapa: (ids: string[], status: Cliente['status']) => Promise<void>
+  bulkUpdateResponsavel: (
+    ids: string[],
+    responsavelId: string,
+    responsavelNome: string,
+  ) => Promise<void>
+  bulkMarcarFechado: (ids: string[]) => Promise<void>
+  bulkArquivar: (ids: string[]) => Promise<void>
   updateSistema: (clienteId: string, data: Partial<Sistema>) => Promise<Sistema>
   // Profissionais
   addProfissional: (data: {
@@ -972,6 +984,72 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     } catch (err) {
       console.error('Erro ao atualizar status do cliente:', err)
       // Reverter recarregando dados
+      await loadAllData()
+      throw err
+    }
+  }
+
+  const bulkUpdateEtapa = async (ids: string[], status: Cliente['status']) => {
+    setClientes((prev) => prev.map((c) => (ids.includes(c.id) ? { ...c, status } : c)))
+    try {
+      const updatedList = await apiBulkUpdateClientesEtapa(ids, status)
+      const mapUpdated = new Map(updatedList.map((u) => [u.id, u]))
+      setClientes((prev) => prev.map((c) => mapUpdated.get(c.id) || c))
+    } catch (err) {
+      console.error('Erro ao atualizar etapas em lote:', err)
+      await loadAllData()
+      throw err
+    }
+  }
+
+  const bulkUpdateResponsavel = async (
+    ids: string[],
+    responsavelId: string,
+    responsavelNome: string,
+  ) => {
+    setClientes((prev) =>
+      prev.map((c) =>
+        ids.includes(c.id)
+          ? { ...c, responsavel_id: responsavelId, responsavel_nome: responsavelNome }
+          : c,
+      ),
+    )
+    try {
+      const updatedList = await apiBulkUpdateClientesResponsavel(
+        ids,
+        responsavelId,
+        responsavelNome,
+      )
+      const mapUpdated = new Map(updatedList.map((u) => [u.id, u]))
+      setClientes((prev) => prev.map((c) => mapUpdated.get(c.id) || c))
+    } catch (err) {
+      console.error('Erro ao atribuir responsável em lote:', err)
+      await loadAllData()
+      throw err
+    }
+  }
+
+  const bulkMarcarFechado = async (ids: string[]) => {
+    setClientes((prev) => prev.map((c) => (ids.includes(c.id) ? { ...c, status: 'Fechado' } : c)))
+    try {
+      const updatedList = await apiBulkMarcarClientesFechado(ids)
+      const mapUpdated = new Map(updatedList.map((u) => [u.id, u]))
+      setClientes((prev) => prev.map((c) => mapUpdated.get(c.id) || c))
+    } catch (err) {
+      console.error('Erro ao marcar como fechado em lote:', err)
+      await loadAllData()
+      throw err
+    }
+  }
+
+  const bulkArquivar = async (ids: string[]) => {
+    setClientes((prev) => prev.map((c) => (ids.includes(c.id) ? { ...c, arquivado: true } : c)))
+    try {
+      const updatedList = await apiBulkArquivarClientes(ids)
+      const mapUpdated = new Map(updatedList.map((u) => [u.id, u]))
+      setClientes((prev) => prev.map((c) => mapUpdated.get(c.id) || c))
+    } catch (err) {
+      console.error('Erro ao arquivar clientes em lote:', err)
       await loadAllData()
       throw err
     }
@@ -1844,6 +1922,10 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         refreshTiposAtividadesCustom,
         updateCliente,
         updateClienteStatus,
+        bulkUpdateEtapa,
+        bulkUpdateResponsavel,
+        bulkMarcarFechado,
+        bulkArquivar,
         updateSistema,
         addProfissional,
         updateProfissional,

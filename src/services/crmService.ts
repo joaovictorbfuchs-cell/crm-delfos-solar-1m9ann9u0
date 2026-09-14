@@ -236,6 +236,38 @@ export async function updateClienteStatus(id: string, status: Cliente['status'])
   return updateCliente(id, { status })
 }
 
+export async function bulkUpdateClientesEtapa(
+  ids: string[],
+  status: Cliente['status'],
+): Promise<Cliente[]> {
+  const promises = ids.map((id) => updateCliente(id, { status }))
+  return Promise.all(promises)
+}
+
+export async function bulkUpdateClientesResponsavel(
+  ids: string[],
+  responsavelId: string,
+  responsavelNome: string,
+): Promise<Cliente[]> {
+  const promises = ids.map((id) =>
+    updateCliente(id, {
+      responsavel_id: responsavelId,
+      responsavel_nome: responsavelNome,
+    }),
+  )
+  return Promise.all(promises)
+}
+
+export async function bulkMarcarClientesFechado(ids: string[]): Promise<Cliente[]> {
+  const promises = ids.map((id) => updateCliente(id, { status: 'Fechado' }))
+  return Promise.all(promises)
+}
+
+export async function bulkArquivarClientes(ids: string[]): Promise<Cliente[]> {
+  const promises = ids.map((id) => updateCliente(id, { arquivado: true }))
+  return Promise.all(promises)
+}
+
 export async function deleteCliente(id: string): Promise<boolean> {
   // Cascata defensiva de registros vinculados ao cliente
   const collectionsWithClienteId = [
