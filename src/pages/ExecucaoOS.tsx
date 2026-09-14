@@ -3,6 +3,7 @@ import { OrdemServico, OSTemplate, OSTipoServico } from '@/types/crm'
 import { fetchOrdensServico, fetchOSTemplates } from '@/services/crmService'
 import { ModalTemplatesOS } from '@/components/ModalTemplatesOS'
 import { FichaExecucaoOS } from '@/components/FichaExecucaoOS'
+import { CalendarioExecucaoOS } from '@/components/CalendarioExecucaoOS'
 import { useToast } from '@/hooks/use-toast'
 import { formatDateTime } from '@/lib/formatters'
 import {
@@ -60,8 +61,8 @@ export default function ExecucaoOS() {
   // Modal de Templates de Instruções
   const [isTemplatesModalOpen, setIsTemplatesModalOpen] = useState(false)
 
-  // Aba / Filtro na Lista: 'pendentes' ou 'concluidas'
-  const [activeTab, setActiveTab] = useState<'pendentes' | 'concluidas'>('pendentes')
+  // Aba / Filtro na Lista: 'pendentes', 'concluidas' ou 'calendario'
+  const [activeTab, setActiveTab] = useState<'pendentes' | 'concluidas' | 'calendario'>('pendentes')
 
   // Filtros de busca e tipo
   const [searchTerm, setSearchTerm] = useState('')
@@ -269,12 +270,12 @@ export default function ExecucaoOS() {
         </div>
       </div>
 
-      {/* Tabs de Status: Pendentes vs Concluídas */}
-      <div className="grid grid-cols-2 gap-2 p-1.5 bg-gray-100/90 rounded-2xl border border-gray-200">
+      {/* Tabs de Navegação: Pendentes vs Calendário vs Concluídas */}
+      <div className="grid grid-cols-3 gap-2 p-1.5 bg-gray-100/90 rounded-2xl border border-gray-200">
         <button
           type="button"
           onClick={() => setActiveTab('pendentes')}
-          className={`h-12 sm:h-11 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-2 ${
+          className={`h-12 sm:h-11 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-1.5 sm:gap-2 ${
             activeTab === 'pendentes'
               ? 'bg-white text-emerald-800 shadow-xs border border-gray-200/80'
               : 'text-gray-600 hover:text-gray-900'
@@ -283,7 +284,7 @@ export default function ExecucaoOS() {
           <Clock className="w-4 h-4 text-amber-600" />
           <span>Pendentes</span>
           <span
-            className={`px-2 py-0.5 rounded-full text-[11px] font-black ${
+            className={`px-1.5 sm:px-2 py-0.5 rounded-full text-[10px] sm:text-[11px] font-black ${
               activeTab === 'pendentes'
                 ? 'bg-amber-100 text-amber-800'
                 : 'bg-gray-200 text-gray-700'
@@ -295,8 +296,30 @@ export default function ExecucaoOS() {
 
         <button
           type="button"
+          onClick={() => setActiveTab('calendario')}
+          className={`h-12 sm:h-11 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-1.5 sm:gap-2 ${
+            activeTab === 'calendario'
+              ? 'bg-white text-emerald-800 shadow-xs border border-gray-200/80'
+              : 'text-gray-600 hover:text-gray-900'
+          }`}
+        >
+          <Calendar className="w-4 h-4 text-emerald-600" />
+          <span>Calendário</span>
+          <span
+            className={`px-1.5 sm:px-2 py-0.5 rounded-full text-[10px] sm:text-[11px] font-black ${
+              activeTab === 'calendario'
+                ? 'bg-emerald-100 text-emerald-800'
+                : 'bg-gray-200 text-gray-700'
+            }`}
+          >
+            {ordens.length}
+          </span>
+        </button>
+
+        <button
+          type="button"
           onClick={() => setActiveTab('concluidas')}
-          className={`h-12 sm:h-11 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-2 ${
+          className={`h-12 sm:h-11 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-1.5 sm:gap-2 ${
             activeTab === 'concluidas'
               ? 'bg-white text-emerald-800 shadow-xs border border-gray-200/80'
               : 'text-gray-600 hover:text-gray-900'
@@ -305,7 +328,7 @@ export default function ExecucaoOS() {
           <CheckCheck className="w-4 h-4 text-emerald-600" />
           <span>Concluídas</span>
           <span
-            className={`px-2 py-0.5 rounded-full text-[11px] font-black ${
+            className={`px-1.5 sm:px-2 py-0.5 rounded-full text-[10px] sm:text-[11px] font-black ${
               activeTab === 'concluidas'
                 ? 'bg-emerald-100 text-emerald-800'
                 : 'bg-gray-200 text-gray-700'
@@ -316,203 +339,221 @@ export default function ExecucaoOS() {
         </button>
       </div>
 
-      {/* Barra de Filtros e Busca Rápida */}
-      <div className="bg-white rounded-2xl p-3 sm:p-4 border border-gray-200 shadow-2xs flex flex-col sm:flex-row gap-2.5">
-        <div className="relative flex-1">
-          <Search className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-          <Input
-            type="text"
-            placeholder="Buscar por cliente, endereço ou instalador..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-9 h-11 text-xs sm:text-sm rounded-xl border-gray-200 focus:border-emerald-600"
-          />
-        </div>
-
-        {/* Filtro por tipo de serviço */}
-        <select
-          value={selectedTipoFilter}
-          onChange={(e) => setSelectedTipoFilter(e.target.value)}
-          className="h-11 px-3 text-xs sm:text-sm font-medium rounded-xl border border-gray-200 bg-white text-gray-800 focus:outline-hidden focus:border-emerald-600"
-        >
-          <option value="todos">Todos os Serviços</option>
-          <option value="Limpeza">Limpeza</option>
-          <option value="Manutenção">Manutenção</option>
-          <option value="Instalação">Instalação</option>
-          <option value="Garantia">Garantia</option>
-          <option value="Configuração de Datalogger">Configuração de Datalogger</option>
-        </select>
-      </div>
-
-      {/* Lista de Cards de Ordens de Serviço */}
-      {isLoading ? (
-        <div className="py-16 flex flex-col items-center justify-center text-center">
-          <RefreshCw className="w-8 h-8 text-emerald-600 animate-spin mb-3" />
-          <p className="text-sm font-semibold text-gray-700">Carregando ordens de serviço...</p>
-        </div>
-      ) : filteredList.length === 0 ? (
-        <div className="bg-white rounded-2xl p-8 border border-gray-200 text-center flex flex-col items-center justify-center">
-          <div className="w-14 h-14 rounded-2xl bg-gray-100 flex items-center justify-center text-gray-400 mb-3">
-            {activeTab === 'pendentes' ? (
-              <CheckCircle2 className="w-8 h-8 text-emerald-600" />
-            ) : (
-              <FileText className="w-8 h-8 text-gray-400" />
-            )}
+      {/* Conteúdo da Aba Calendário */}
+      {activeTab === 'calendario' ? (
+        isLoading ? (
+          <div className="py-16 flex flex-col items-center justify-center text-center">
+            <RefreshCw className="w-8 h-8 text-emerald-600 animate-spin mb-3" />
+            <p className="text-sm font-semibold text-gray-700">Carregando calendário de OS...</p>
           </div>
-          <h3 className="text-base font-bold text-gray-900 mb-1">
-            {activeTab === 'pendentes'
-              ? 'Nenhuma OS pendente no momento'
-              : 'Nenhuma OS concluída encontrada'}
-          </h3>
-          <p className="text-xs text-gray-500 max-w-sm">
-            {activeTab === 'pendentes'
-              ? 'Todas as ordens de serviço agendadas foram executadas pela equipe.'
-              : 'As ordens finalizadas pelos instaladores em campo aparecerão nesta seção.'}
-          </p>
-        </div>
+        ) : (
+          <CalendarioExecucaoOS
+            ordens={ordens}
+            onSelectOS={(os) => setSelectedOS(os)}
+            isInstalador={isInstalador}
+            instaladorNome={userProfile?.name}
+          />
+        )
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-          {filteredList.map((os) => {
-            const cliente = os.expand?.cliente_id
-            const checklistTotal = os.checklist?.length || 0
-            const checklistFeitos = os.checklist?.filter((c) => c.concluido).length || 0
-            const fotosQtd = os.fotos?.length || 0
+        <>
+          {/* Barra de Filtros e Busca Rápida (para abas Pendentes e Concluídas) */}
+          <div className="bg-white rounded-2xl p-3 sm:p-4 border border-gray-200 shadow-2xs flex flex-col sm:flex-row gap-2.5">
+            <div className="relative flex-1">
+              <Search className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+              <Input
+                type="text"
+                placeholder="Buscar por cliente, endereço ou instalador..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-9 h-11 text-xs sm:text-sm rounded-xl border-gray-200 focus:border-emerald-600"
+              />
+            </div>
 
-            return (
-              <div
-                key={os.id}
-                onClick={() => setSelectedOS(os)}
-                role="button"
-                tabIndex={0}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    setSelectedOS(os)
-                  }
-                }}
-                className={`bg-white rounded-2xl p-4 sm:p-5 border transition-all text-left flex flex-col justify-between group cursor-pointer shadow-2xs hover:shadow-md hover:border-emerald-500 active:scale-[0.99] ${
-                  os.status === 'concluida'
-                    ? 'border-gray-200 bg-gray-50/50'
-                    : 'border-emerald-200 hover:border-emerald-500'
-                }`}
-              >
-                <div>
-                  {/* Topo do Card: Tipo do Serviço e Status */}
-                  <div className="flex items-center justify-between gap-2 mb-2.5">
-                    <span className="text-[11px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-200/80">
-                      {os.tipo_servico}
-                    </span>
+            {/* Filtro por tipo de serviço */}
+            <select
+              value={selectedTipoFilter}
+              onChange={(e) => setSelectedTipoFilter(e.target.value)}
+              className="h-11 px-3 text-xs sm:text-sm font-medium rounded-xl border border-gray-200 bg-white text-gray-800 focus:outline-hidden focus:border-emerald-600"
+            >
+              <option value="todos">Todos os Serviços</option>
+              <option value="Limpeza">Limpeza</option>
+              <option value="Manutenção">Manutenção</option>
+              <option value="Instalação">Instalação</option>
+              <option value="Garantia">Garantia</option>
+              <option value="Configuração de Datalogger">Configuração de Datalogger</option>
+            </select>
+          </div>
 
-                    {os.status === 'concluida' ? (
-                      <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-100/80 px-2 py-0.5 rounded-full">
-                        <CheckCircle2 className="w-3.5 h-3.5" />
-                        Concluída
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-700 bg-amber-100/80 px-2 py-0.5 rounded-full">
-                        <Clock className="w-3.5 h-3.5" />
-                        Pendente
-                      </span>
-                    )}
-                  </div>
+          {/* Lista de Cards de Ordens de Serviço */}
+          {isLoading ? (
+            <div className="py-16 flex flex-col items-center justify-center text-center">
+              <RefreshCw className="w-8 h-8 text-emerald-600 animate-spin mb-3" />
+              <p className="text-sm font-semibold text-gray-700">Carregando ordens de serviço...</p>
+            </div>
+          ) : filteredList.length === 0 ? (
+            <div className="bg-white rounded-2xl p-8 border border-gray-200 text-center flex flex-col items-center justify-center">
+              <div className="w-14 h-14 rounded-2xl bg-gray-100 flex items-center justify-center text-gray-400 mb-3">
+                {activeTab === 'pendentes' ? (
+                  <CheckCircle2 className="w-8 h-8 text-emerald-600" />
+                ) : (
+                  <FileText className="w-8 h-8 text-gray-400" />
+                )}
+              </div>
+              <h3 className="text-base font-bold text-gray-900 mb-1">
+                {activeTab === 'pendentes'
+                  ? 'Nenhuma OS pendente no momento'
+                  : 'Nenhuma OS concluída encontrada'}
+              </h3>
+              <p className="text-xs text-gray-500 max-w-sm">
+                {activeTab === 'pendentes'
+                  ? 'Todas as ordens de serviço agendadas foram executadas pela equipe.'
+                  : 'As ordens finalizadas pelos instaladores em campo aparecerão nesta seção.'}
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+              {filteredList.map((os) => {
+                const cliente = os.expand?.cliente_id
+                const checklistTotal = os.checklist?.length || 0
+                const checklistFeitos = os.checklist?.filter((c) => c.concluido).length || 0
+                const fotosQtd = os.fotos?.length || 0
 
-                  {/* Nome do Cliente */}
-                  <h3 className="text-base sm:text-lg font-bold text-gray-900 group-hover:text-emerald-700 transition-colors mb-2">
-                    {cliente?.nome || cliente?.razao_social || 'Cliente Solar'}
-                  </h3>
+                return (
+                  <div
+                    key={os.id}
+                    onClick={() => setSelectedOS(os)}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        setSelectedOS(os)
+                      }
+                    }}
+                    className={`bg-white rounded-2xl p-4 sm:p-5 border transition-all text-left flex flex-col justify-between group cursor-pointer shadow-2xs hover:shadow-md hover:border-emerald-500 active:scale-[0.99] ${
+                      os.status === 'concluida'
+                        ? 'border-gray-200 bg-gray-50/50'
+                        : 'border-emerald-200 hover:border-emerald-500'
+                    }`}
+                  >
+                    <div>
+                      {/* Topo do Card: Tipo do Serviço e Status */}
+                      <div className="flex items-center justify-between gap-2 mb-2.5">
+                        <span className="text-[11px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-200/80">
+                          {os.tipo_servico}
+                        </span>
 
-                  {/* Endereço de Execução */}
-                  <div className="flex items-start gap-2 text-xs text-gray-600 mb-2">
-                    <MapPin className="w-3.5 h-3.5 text-gray-400 shrink-0 mt-0.5" />
-                    <span className="line-clamp-2">
-                      {os.endereco || cliente?.endereco || 'Endereço não informado'}
-                      {cliente?.cidade ? ` • ${cliente.cidade}` : ''}
-                    </span>
-                  </div>
-
-                  {/* Data Agendada */}
-                  <div className="flex items-center gap-2 text-xs text-gray-600 mb-3">
-                    <Calendar className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                    <span>
-                      Data: <strong>{formatDateTime(os.data_agendada)}</strong>
-                    </span>
-                  </div>
-
-                  {/* Técnico Atribuído & Botão de Atribuir para Admin */}
-                  <div className="flex items-center justify-between gap-2 text-xs text-gray-500 mb-3">
-                    <div className="flex items-center gap-1.5 truncate">
-                      <User className="w-3.5 h-3.5 text-gray-400 shrink-0" />
-                      <span className="truncate">
-                        Instalador:{' '}
-                        <strong className="text-gray-700">
-                          {os.atribuida_a || 'Não atribuído'}
-                        </strong>
-                        {os.expand?.responsavel_usuario_id?.phone && (
-                          <span className="text-[11px] text-gray-400 font-normal ml-1">
-                            • {os.expand.responsavel_usuario_id.phone}
+                        {os.status === 'concluida' ? (
+                          <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-100/80 px-2 py-0.5 rounded-full">
+                            <CheckCircle2 className="w-3.5 h-3.5" />
+                            Concluída
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-700 bg-amber-100/80 px-2 py-0.5 rounded-full">
+                            <Clock className="w-3.5 h-3.5" />
+                            Pendente
                           </span>
                         )}
-                      </span>
-                    </div>
-
-                    {isAdmin && (
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          setOsParaAtribuir(os)
-                          setSelectedInstaladorId(os.responsavel_usuario_id || '')
-                        }}
-                        className="text-[11px] font-bold text-emerald-700 hover:text-emerald-900 bg-emerald-50 hover:bg-emerald-100 px-2 py-0.5 rounded-md border border-emerald-200 transition-colors shrink-0"
-                      >
-                        Atribuir
-                      </button>
-                    )}
-                  </div>
-                </div>
-                {/* Rodapé do Card com Progresso e Botão Grande */}
-                <div className="pt-3 border-t border-gray-100 flex items-center justify-between gap-2 mt-2 flex-wrap">
-                  <div className="flex items-center gap-2 text-[11px] text-gray-500">
-                    {checklistTotal > 0 && (
-                      <span className="bg-gray-100 px-2 py-0.5 rounded font-medium">
-                        Checklist: {checklistFeitos}/{checklistTotal}
-                      </span>
-                    )}
-                    {fotosQtd > 0 && (
-                      <span className="bg-gray-100 px-2 py-0.5 rounded font-medium">
-                        📷 {fotosQtd} foto(s)
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    {/* Botão de Envio Manual via WhatsApp: visível para Admin ou quando não for o próprio instalador logado */}
-                    {(!isInstalador || isAdmin) && (
-                      <div onClick={(e) => e.stopPropagation()}>
-                        <BotaoEnviarOSWhatsApp
-                          osId={os.id}
-                          responsavelNome={
-                            os.atribuida_a || os.expand?.responsavel_usuario_id?.name
-                          }
-                          responsavelTelefone={os.expand?.responsavel_usuario_id?.phone}
-                          responsavelId={os.responsavel_usuario_id}
-                          size="sm"
-                          label="Enviar OS por WhatsApp"
-                        />
                       </div>
-                    )}
 
-                    <div className="inline-flex items-center gap-1 text-xs font-bold text-emerald-700 group-hover:translate-x-0.5 transition-transform">
-                      <span>{os.status === 'concluida' ? 'Ver Ficha' : 'Executar OS'}</span>
-                      <ChevronRight className="w-4 h-4" />
+                      {/* Nome do Cliente */}
+                      <h3 className="text-base sm:text-lg font-bold text-gray-900 group-hover:text-emerald-700 transition-colors mb-2">
+                        {cliente?.nome || cliente?.razao_social || 'Cliente Solar'}
+                      </h3>
+
+                      {/* Endereço de Execução */}
+                      <div className="flex items-start gap-2 text-xs text-gray-600 mb-2">
+                        <MapPin className="w-3.5 h-3.5 text-gray-400 shrink-0 mt-0.5" />
+                        <span className="line-clamp-2">
+                          {os.endereco || cliente?.endereco || 'Endereço não informado'}
+                          {cliente?.cidade ? ` • ${cliente.cidade}` : ''}
+                        </span>
+                      </div>
+
+                      {/* Data Agendada */}
+                      <div className="flex items-center gap-2 text-xs text-gray-600 mb-3">
+                        <Calendar className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                        <span>
+                          Data: <strong>{formatDateTime(os.data_agendada)}</strong>
+                        </span>
+                      </div>
+
+                      {/* Técnico Atribuído & Botão de Atribuir para Admin */}
+                      <div className="flex items-center justify-between gap-2 text-xs text-gray-500 mb-3">
+                        <div className="flex items-center gap-1.5 truncate">
+                          <User className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                          <span className="truncate">
+                            Instalador:{' '}
+                            <strong className="text-gray-700">
+                              {os.atribuida_a || 'Não atribuído'}
+                            </strong>
+                            {os.expand?.responsavel_usuario_id?.phone && (
+                              <span className="text-[11px] text-gray-400 font-normal ml-1">
+                                • {os.expand.responsavel_usuario_id.phone}
+                              </span>
+                            )}
+                          </span>
+                        </div>
+
+                        {isAdmin && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setOsParaAtribuir(os)
+                              setSelectedInstaladorId(os.responsavel_usuario_id || '')
+                            }}
+                            className="text-[11px] font-bold text-emerald-700 hover:text-emerald-900 bg-emerald-50 hover:bg-emerald-100 px-2 py-0.5 rounded-md border border-emerald-200 transition-colors shrink-0"
+                          >
+                            Atribuir
+                          </button>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                </div>{' '}
-              </div>
-            )
-          })}
-        </div>
-      )}
+                    {/* Rodapé do Card com Progresso e Botão Grande */}
+                    <div className="pt-3 border-t border-gray-100 flex items-center justify-between gap-2 mt-2 flex-wrap">
+                      <div className="flex items-center gap-2 text-[11px] text-gray-500">
+                        {checklistTotal > 0 && (
+                          <span className="bg-gray-100 px-2 py-0.5 rounded font-medium">
+                            Checklist: {checklistFeitos}/{checklistTotal}
+                          </span>
+                        )}
+                        {fotosQtd > 0 && (
+                          <span className="bg-gray-100 px-2 py-0.5 rounded font-medium">
+                            📷 {fotosQtd} foto(s)
+                          </span>
+                        )}
+                      </div>
 
+                      <div className="flex items-center gap-2">
+                        {/* Botão de Envio Manual via WhatsApp: visível para Admin ou quando não for o próprio instalador logado */}
+                        {(!isInstalador || isAdmin) && (
+                          <div onClick={(e) => e.stopPropagation()}>
+                            <BotaoEnviarOSWhatsApp
+                              osId={os.id}
+                              responsavelNome={
+                                os.atribuida_a || os.expand?.responsavel_usuario_id?.name
+                              }
+                              responsavelTelefone={os.expand?.responsavel_usuario_id?.phone}
+                              responsavelId={os.responsavel_usuario_id}
+                              size="sm"
+                              label="Enviar OS por WhatsApp"
+                            />
+                          </div>
+                        )}
+
+                        <div className="inline-flex items-center gap-1 text-xs font-bold text-emerald-700 group-hover:translate-x-0.5 transition-transform">
+                          <span>{os.status === 'concluida' ? 'Ver Ficha' : 'Executar OS'}</span>
+                          <ChevronRight className="w-4 h-4" />
+                        </div>
+                      </div>
+                    </div>{' '}
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </>
+      )}
       {/* Modal de Templates de Instruções (Apenas Admin) */}
       {isAdmin && (
         <ModalTemplatesOS
