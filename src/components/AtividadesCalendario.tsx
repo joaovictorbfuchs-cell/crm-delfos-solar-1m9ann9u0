@@ -652,6 +652,185 @@ export const AtividadesCalendario: React.FC<AtividadesCalendarioProps> = ({
               Dica: clique em qualquer card para ver detalhes, concluir ou abrir a ficha do cliente.
             </span>
           </div>
+
+          {/* Painel de Tarefas do Dia (Visão Semanal) */}
+          <div className="mt-5 pt-4 border-t border-gray-200 bg-gray-50/50 -mx-3 sm:-mx-5 px-3 sm:px-5 pb-2 rounded-b-2xl">
+            <div className="flex items-center justify-between pb-3 border-b border-gray-200 mb-3">
+              <div className="flex items-center gap-2">
+                <span className="p-1.5 rounded-lg bg-emerald-100 text-emerald-800 inline-flex">
+                  <CalendarIcon className="w-4 h-4" />
+                </span>
+                <div>
+                  <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider block">
+                    Tarefas do Dia
+                  </span>
+                  <h4 className="text-sm sm:text-base font-bold text-gray-900">
+                    {selectedDia
+                      ? `${selectedDia.getDate()} de ${MESES[selectedDia.getMonth()]} de ${selectedDia.getFullYear()}`
+                      : 'Hoje'}
+                  </h4>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold text-emerald-800 bg-emerald-100 px-2.5 py-1 rounded-full">
+                  {atividadesDiaSelecionado.length}{' '}
+                  {atividadesDiaSelecionado.length === 1 ? 'tarefa' : 'tarefas'}
+                </span>
+              </div>
+            </div>
+
+            {atividadesDiaSelecionado.length === 0 ? (
+              <div className="py-8 text-center text-gray-400 space-y-1 bg-white rounded-xl border border-gray-200">
+                <Clock className="w-6 h-6 text-gray-300 mx-auto mb-1" />
+                <p className="text-xs font-semibold text-gray-700">Nenhuma tarefa para este dia.</p>
+                <p className="text-[11px] text-gray-400 max-w-xs mx-auto">
+                  Selecione outro dia na semana acima ou registre uma nova atividade pelos ícones no
+                  topo.
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                {atividadesDiaSelecionado.map((atv) => {
+                  const conf = getTipoAtividadeConfig(atv.tipo)
+                  const Icon = conf.icon
+                  const isConcluida = atv.status === 'concluida'
+                  const horaStr = atv.data ? atv.data.slice(11, 16) : ''
+
+                  return (
+                    <div
+                      key={atv.id}
+                      onClick={() => setModalAtividade(atv)}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          setModalAtividade(atv)
+                        }
+                      }}
+                      className={`p-3 rounded-xl border bg-white shadow-2xs space-y-2 transition-all cursor-pointer text-left hover:shadow-xs group flex flex-col justify-between ${
+                        isConcluida
+                          ? 'border-gray-200 opacity-75'
+                          : 'border-gray-200/90 hover:border-emerald-400'
+                      }`}
+                      style={{
+                        borderLeftWidth: '4px',
+                        borderLeftColor: isConcluida ? '#9CA3AF' : conf.corHex,
+                      }}
+                    >
+                      <div>
+                        {/* Topo do card: ícone + tipo + horário + status */}
+                        <div className="flex items-center justify-between gap-2 mb-1.5">
+                          <span
+                            className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md border truncate"
+                            style={{
+                              backgroundColor: isConcluida ? '#F3F4F6' : `${conf.corHex}15`,
+                              color: isConcluida ? '#6B7280' : conf.corHex,
+                              borderColor: isConcluida ? '#E5E7EB' : `${conf.corHex}40`,
+                            }}
+                          >
+                            {conf.tituloPadrao}
+                          </span>
+
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <span className="text-[11px] font-bold text-gray-700 flex items-center gap-1 bg-gray-100 px-2 py-0.5 rounded-md">
+                              <Clock className="w-3 h-3 text-gray-500" />
+                              {horaStr ? `${horaStr}h` : 'Livre'}
+                            </span>
+
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                onToggleStatus(atv.id, atv.status || 'pendente')
+                              }}
+                              className={`p-1 rounded-md transition-colors ${
+                                isConcluida
+                                  ? 'text-emerald-600 hover:bg-emerald-50'
+                                  : 'text-gray-400 hover:text-emerald-600 hover:bg-gray-100'
+                              }`}
+                              title={isConcluida ? 'Marcar como pendente' : 'Marcar como concluída'}
+                            >
+                              {isConcluida ? (
+                                <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                              ) : (
+                                <Circle className="w-4 h-4" />
+                              )}
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Título da tarefa */}
+                        <h5
+                          className={`text-xs sm:text-sm font-bold line-clamp-2 group-hover:text-emerald-700 transition-colors ${
+                            isConcluida ? 'text-gray-400 line-through' : 'text-gray-900'
+                          }`}
+                        >
+                          {atv.titulo || conf.tituloPadrao}
+                        </h5>
+
+                        {/* Status badge */}
+                        <div className="mt-1 flex items-center gap-1.5">
+                          <span
+                            className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                              isConcluida
+                                ? 'bg-emerald-100 text-emerald-800'
+                                : 'bg-amber-100 text-amber-800'
+                            }`}
+                          >
+                            {isConcluida ? (
+                              <>
+                                <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                                Concluída
+                              </>
+                            ) : (
+                              <>
+                                <Clock className="w-3 h-3 text-amber-600" />
+                                Pendente
+                              </>
+                            )}
+                          </span>
+                        </div>
+
+                        {/* Descrição se houver */}
+                        {atv.descricao && (
+                          <p className="text-[11px] text-gray-600 line-clamp-2 mt-1">
+                            {atv.descricao}
+                          </p>
+                        )}
+                      </div>
+
+                      {/* Rodapé: Responsável & Ficha */}
+                      <div className="flex items-center justify-between pt-2 border-t border-gray-100 text-[10px] text-gray-500 mt-2">
+                        <div className="flex items-center gap-1 text-gray-700 font-semibold truncate max-w-[140px]">
+                          <User className="w-3 h-3 text-gray-400 shrink-0" />
+                          <span className="truncate">
+                            {atv.responsavel_nome || atv.autor || 'João Delfos'}
+                          </span>
+                        </div>
+
+                        {atv.cliente_id ? (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              onOpenCliente(atv.cliente_id)
+                            }}
+                            className="text-emerald-700 hover:text-emerald-900 font-bold flex items-center gap-0.5 hover:underline"
+                          >
+                            <span>Ficha</span>
+                            <ArrowRight className="w-2.5 h-2.5" />
+                          </button>
+                        ) : (
+                          <span className="text-gray-400 text-[10px]">Sem cliente</span>
+                        )}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
         </div>
       )}
 
@@ -758,35 +937,41 @@ export const AtividadesCalendario: React.FC<AtividadesCalendarioProps> = ({
             </div>
           </div>
 
-          {/* PAINEL LATERAL: DETALHES DO DIA SELECIONADO (4 colunas) */}
+          {/* PAINEL LATERAL: TAREFAS DO DIA SELECIONADO (4 colunas) */}
           <div className="lg:col-span-4 p-4 sm:p-5 bg-gray-50/40 flex flex-col justify-between">
             <div>
               <div className="flex items-center justify-between pb-3 border-b border-gray-200/80 mb-3">
-                <div>
-                  <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider block">
-                    Dia Selecionado
+                <div className="flex items-center gap-2">
+                  <span className="p-1.5 rounded-lg bg-emerald-100 text-emerald-800 inline-flex">
+                    <CalendarIcon className="w-4 h-4" />
                   </span>
-                  <h4 className="text-sm font-bold text-gray-900">
-                    {selectedDia
-                      ? `${selectedDia.getDate()} de ${MESES[selectedDia.getMonth()]} de ${selectedDia.getFullYear()}`
-                      : 'Nenhum dia'}
-                  </h4>
+                  <div>
+                    <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider block">
+                      Tarefas do Dia
+                    </span>
+                    <h4 className="text-sm font-bold text-gray-900">
+                      {selectedDia
+                        ? `${selectedDia.getDate()} de ${MESES[selectedDia.getMonth()]} de ${selectedDia.getFullYear()}`
+                        : 'Hoje'}
+                    </h4>
+                  </div>
                 </div>
                 <span className="text-xs font-bold text-emerald-800 bg-emerald-100 px-2.5 py-0.5 rounded-full">
                   {atividadesDiaSelecionado.length}{' '}
-                  {atividadesDiaSelecionado.length === 1 ? 'atividade' : 'atividades'}
+                  {atividadesDiaSelecionado.length === 1 ? 'tarefa' : 'tarefas'}
                 </span>
               </div>
 
-              {/* Lista de atividades do dia selecionado */}
+              {/* Lista de tarefas do dia selecionado */}
               {atividadesDiaSelecionado.length === 0 ? (
-                <div className="py-8 text-center text-gray-400 space-y-2">
-                  <Clock className="w-8 h-8 text-gray-300 mx-auto" />
-                  <p className="text-xs font-medium text-gray-500">
-                    Nenhuma atividade agendada para este dia
+                <div className="py-8 text-center text-gray-400 space-y-2 bg-white rounded-xl border border-gray-200 p-4">
+                  <Clock className="w-7 h-7 text-gray-300 mx-auto" />
+                  <p className="text-xs font-semibold text-gray-700">
+                    Nenhuma tarefa para este dia.
                   </p>
                   <p className="text-[11px] text-gray-400 max-w-xs mx-auto">
-                    Clique nos 12 ícones no topo da página para agendar uma tarefa para esta data.
+                    Selecione outro dia no calendário ou clique nos 12 ícones no topo da página para
+                    agendar uma tarefa.
                   </p>
                 </div>
               ) : (
@@ -800,11 +985,23 @@ export const AtividadesCalendario: React.FC<AtividadesCalendarioProps> = ({
                     return (
                       <div
                         key={atv.id}
-                        className={`p-3 rounded-xl border bg-white shadow-2xs space-y-2 transition-all ${
+                        onClick={() => setModalAtividade(atv)}
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            setModalAtividade(atv)
+                          }
+                        }}
+                        className={`p-3 rounded-xl border bg-white shadow-2xs space-y-2 transition-all cursor-pointer text-left hover:shadow-xs group ${
                           isConcluida
                             ? 'border-gray-200 opacity-75'
                             : 'border-gray-200/90 hover:border-emerald-300'
                         }`}
+                        style={{
+                          borderLeftWidth: '3.5px',
+                          borderLeftColor: isConcluida ? '#9CA3AF' : conf.corHex,
+                        }}
                       >
                         <div className="flex items-start justify-between gap-2">
                           <div className="flex items-center gap-2 flex-1 min-w-0">
@@ -816,24 +1013,38 @@ export const AtividadesCalendario: React.FC<AtividadesCalendarioProps> = ({
                             </div>
                             <div className="min-w-0">
                               <h5
-                                className={`text-xs font-bold truncate ${
+                                className={`text-xs font-bold truncate group-hover:text-emerald-700 transition-colors ${
                                   isConcluida ? 'text-gray-500 line-through' : 'text-gray-900'
                                 }`}
                               >
                                 {atv.titulo || conf.tituloPadrao}
                               </h5>
-                              <span className="text-[10px] text-gray-400 flex items-center gap-1">
-                                <Clock className="w-3 h-3" />
-                                {horaStr ? `${horaStr}h` : 'Horário livre'}
-                              </span>
+                              <div className="flex items-center gap-1.5 mt-0.5">
+                                <span className="text-[10px] text-gray-500 flex items-center gap-0.5">
+                                  <Clock className="w-2.5 h-2.5 text-gray-400" />
+                                  {horaStr ? `${horaStr}h` : 'Livre'}
+                                </span>
+                                <span
+                                  className={`text-[9px] font-bold px-1.5 py-0.2 rounded-full ${
+                                    isConcluida
+                                      ? 'bg-emerald-50 text-emerald-700'
+                                      : 'bg-amber-50 text-amber-700'
+                                  }`}
+                                >
+                                  {isConcluida ? 'Concluída' : 'Pendente'}
+                                </span>
+                              </div>
                             </div>
                           </div>
 
                           {/* Botão de alternar status */}
                           <button
                             type="button"
-                            onClick={() => onToggleStatus(atv.id, atv.status || 'pendente')}
-                            className={`p-1 rounded-md transition-colors ${
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              onToggleStatus(atv.id, atv.status || 'pendente')
+                            }}
+                            className={`p-1 rounded-md transition-colors shrink-0 ${
                               isConcluida
                                 ? 'text-emerald-600 hover:bg-emerald-50'
                                 : 'text-gray-400 hover:text-emerald-600 hover:bg-gray-100'
@@ -865,7 +1076,10 @@ export const AtividadesCalendario: React.FC<AtividadesCalendarioProps> = ({
                           {atv.cliente_id && (
                             <button
                               type="button"
-                              onClick={() => onOpenCliente(atv.cliente_id)}
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                onOpenCliente(atv.cliente_id)
+                              }}
                               className="text-emerald-700 hover:text-emerald-900 font-bold flex items-center gap-0.5 hover:underline"
                             >
                               <span>Ficha</span>
