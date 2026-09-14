@@ -311,6 +311,42 @@ export function runOmCategorizacaoTests(): {
         assertEquals(contagens.planosAtivos, 0, 'planos ativos zero')
       },
     },
+    {
+      name: 'Cliente com status Fechado ou Concluído no comercial é categorizado como isPosVenda',
+      fn: () => {
+        const cliFechado = mockCliente({
+          id: 'cli_fechado_funil',
+          nome: 'Cliente Fechado Comercial',
+          status: 'Fechado',
+        })
+        const resFechado = categorizarClienteOM(cliFechado.id, [], [], [], [], cliFechado)
+        assertEquals(
+          resFechado.isPosVenda,
+          true,
+          'cliente com status Fechado deve ter isPosVenda=true',
+        )
+
+        const cliConcluido = mockCliente({
+          id: 'cli_concluido_funil',
+          nome: 'Cliente Concluído Comercial',
+          status: 'Concluído' as any,
+        })
+        const resConcluido = categorizarClienteOM(cliConcluido.id, [], [], [], [], cliConcluido)
+        assertEquals(
+          resConcluido.isPosVenda,
+          true,
+          'cliente com status Concluído deve ter isPosVenda=true',
+        )
+
+        const contagens = calcularContagensOM([cliFechado, cliConcluido], [])
+        assertEquals(contagens.posVendas, 2, 'ambos devem contar em posVendas')
+        assertEquals(
+          contagens.oportunidadesOM,
+          2,
+          'fechados/concluidos contam como oportunidades OM',
+        )
+      },
+    },
   ]
 
   let passed = 0

@@ -56,6 +56,7 @@ export function categorizarClienteOM(
   servicosAdicionaisOM: ServicoAdicionalOM[] = [],
   anomaliasOM: AnomaliaOM[] = [],
   servicosAvulsos: ServicoAvulso[] = [],
+  clienteOuStatus?: Cliente | { status?: string; [key: string]: any } | null,
 ): {
   categoria: CategoriaClienteOM
   contratoAtivo?: ContratoOM
@@ -64,6 +65,7 @@ export function categorizarClienteOM(
   temServicoAvulsoEmAndamento: boolean
   temServicoAvulsoHistorico: boolean
   ultimoServicoAvulso?: ServicoAvulso
+  isPosVenda: boolean
 } {
   const safeContratos = Array.isArray(contratosOM) ? contratosOM : []
   const safeServicosAdicionais = Array.isArray(servicosAdicionaisOM) ? servicosAdicionaisOM : []
@@ -127,6 +129,50 @@ export function categorizarClienteOM(
     categoria = 'sem_plano'
   }
 
+  // Critério de estágio comercial fechado no funil
+  const statusCliente = (clienteOuStatus as any)?.status
+  const isComercialFechado = statusCliente === 'Fechado' || statusCliente === 'Concluído'
+
+  // Proposta O&M aprovada / fechada
+  const propostaStatus = ((clienteOuStatus as any)?.proposta_om_status || '').toLowerCase().trim()
+  const temPropostaOMAprovada =
+    Boolean((clienteOuStatus as any)?.proposta_om_aprovada) ||
+    propostaStatus === 'aprovado' ||
+    propostaStatus === 'aprovada' ||
+    propostaStatus === 'fechado' ||
+    propostaStatus === 'fechada' ||
+    propostaStatus === 'aceita'
+
+  // Contrato O&M existente
+  const temContratoOM = contratos.length > 0
+
+  // Origem Conta Azul / importação
+  const dadosImportados = (clienteOuStatus as any)?.dados_importados
+  const isContaAzulOuImportado =
+    Boolean(dadosImportados?.['Razão Social / Nome']) ||
+    Boolean(dadosImportados?.['Data do Cadastro']) ||
+    (clienteOuStatus as any)?.origem_lead === 'Outro' ||
+    Boolean(dadosImportados && Object.keys(dadosImportados).length > 0)
+
+  // Cliente entra em Pós-Venda se NÃO tem plano ativo e atende aos critérios (comercial fechado, serviço avulso, contrato, proposta aprovada ou importado)
+  const isPosVenda =
+    categoria !== 'plano_ativo' &&
+    (isComercialFechado ||
+      temPropostaOMAprovada ||
+      temContratoOM ||
+      temServicoAvulsoHistorico ||
+      temServicoAvulsoEmAndamento ||
+      isContaAzulOuImportado ||
+      Boolean(
+        (clienteOuStatus as any)?.potencia_kwp && (clienteOuStatus as any)?.potencia_kwp > 0,
+      ) ||
+      Boolean((clienteOuStatus as any)?.data_instalacao) ||
+      (clienteOuStatus as any)?.produto === 'Energia Solar' ||
+      categoria === 'sem_plano' ||
+      categoria === 'plano_vencido' ||
+      categoria === 'anomalia_aberta' ||
+      categoria === 'servico_avulso')
+
   return {
     categoria,
     contratoAtivo,
@@ -135,6 +181,7 @@ export function categorizarClienteOM(
     temServicoAvulsoEmAndamento,
     temServicoAvulsoHistorico,
     ultimoServicoAvulso,
+    isPosVenda,
   }
 }
 
@@ -168,27 +215,28 @@ export function calcularContagensOM(
   for (const cliente of safeClientes) {
     if (!cliente?.id) continue
 
-    const { categoria, temServicoAvulsoHistorico } = categorizarClienteOM(
+    const { categoria, temServicoAvulsoHistorico, isPosVenda } = categorizarClienteOM(
       cliente.id,
       safeContratos,
       safeServicosAdicionais,
       safeAnomalias,
       safeServicosAvulsos,
+      cliente,
     )
 
     const sistema = safeSistemas.find((s) => s?.cliente_id === cliente.id)
     const potencia = Number(sistema?.potencia_total_kwp ?? cliente?.potencia_kwp) || 0
+    const statusVal = String(cliente?.status || '')
     const instalouSolar =
       potencia > 0 ||
-      Boolean(cliente.data_instalacao) ||
-      cliente.status === 'Fechado' ||
-      cliente.produto === 'Energia Solar'
+      Boolean(cliente?.data_instalacao) ||
+      statusVal === 'Fechado' ||
+      statusVal === 'Concluído' ||
+      cliente?.produto === 'Energia Solar'
 
     if (categoria === 'plano_ativo') {
       planosAtivos++
-    } else {
-      // Todo cliente cadastrado no CRM sem plano ativo de O&M entra na lista de Pós-Vendas
-      // (inclusive clientes importados do Conta Azul ou Pipedrive).
+    } else if (isPosVenda) {
       posVendas++
 
       if (instalouSolar) {

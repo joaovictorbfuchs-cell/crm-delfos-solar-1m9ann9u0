@@ -196,7 +196,12 @@ interface ClientesContextType {
   updateClienteStatus: (
     id: string,
     status: Cliente['status'],
-    options?: { skipActivityLog?: boolean },
+    options?: {
+      skipActivityLog?: boolean
+      autor?: string
+      customTitulo?: string
+      customDescricao?: string
+    },
   ) => Promise<void>
   updateSistema: (clienteId: string, data: Partial<Sistema>) => Promise<Sistema>
   // Profissionais
@@ -925,7 +930,12 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const updateClienteStatus = async (
     id: string,
     status: Cliente['status'],
-    options?: { skipActivityLog?: boolean },
+    options?: {
+      skipActivityLog?: boolean
+      autor?: string
+      customTitulo?: string
+      customDescricao?: string
+    },
   ) => {
     const previous = clientes.find((c) => c.id === id)
     const oldStatus = previous?.status
@@ -940,13 +950,22 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       // Se mudou de estágio, registrar evento automático na timeline de atividades
       if (!options?.skipActivityLog && oldStatus && oldStatus !== status) {
         try {
+          const autorNome = options?.autor || 'Administrador'
+          const tituloAtividade =
+            options?.customTitulo || `Mudança de estágio: ${oldStatus} → ${status}`
+          const descricaoAtividade =
+            options?.customDescricao ||
+            `Etapa alterada de "${oldStatus}" para "${status}" por ${autorNome}.`
+
           const act = await apiCreateAtividade({
             cliente_id: id,
             tipo: 'mudanca_estagio',
-            titulo: `Mudança de estágio: ${oldStatus} → ${status}`,
-            descricao: `O lead ${previous?.nome || ''} avançou no funil de vendas de "${oldStatus}" para "${status}".`,
+            titulo: tituloAtividade,
+            descricao: descricaoAtividade,
             data: new Date().toISOString(),
-            autor: 'João Silva',
+            status: 'concluida',
+            autor: autorNome,
+            responsavel_nome: autorNome,
           })
           setAtividades((prev) => [act, ...prev])
         } catch (actErr) {

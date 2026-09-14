@@ -225,16 +225,18 @@ export const ListaOM: React.FC<ListaOMProps> = ({
         const sistema = safeSistemas.find((s) => s?.cliente_id === cliente.id)
         const potencia = Number(sistema?.potencia_total_kwp ?? cliente?.potencia_kwp) || 0
 
-        const { categoria, ultimoServicoAvulso } = categorizarClienteOM(
+        const { categoria, ultimoServicoAvulso, isPosVenda } = categorizarClienteOM(
           cliente.id,
           safeContratosOM,
           safeServicosAdicionais,
           safeAnomalias,
           safeServicosAvulsos,
+          cliente,
         )
 
         // Se tem plano ativo, NÃO entra no Pós-Vendas (vai para a Lista 1: Clientes com Plano de Manutenção)
         if (categoria === 'plano_ativo') return null
+        if (!isPosVenda) return null
 
         const avulsosDoCliente = safeServicosAvulsos.filter((s) => s?.cliente_id === cliente.id)
         const adicionaisDoCliente = safeServicosAdicionais.filter(
