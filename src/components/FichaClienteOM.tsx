@@ -53,6 +53,11 @@ export const FichaClienteOM: React.FC<FichaClienteOMProps> = ({ clienteId, onNav
   const [editValorMensalInput, setEditValorMensalInput] = useState('')
   const [isSavingValorMensal, setIsSavingValorMensal] = useState(false)
 
+  // Edição inline do Plano
+  const [isEditingPlano, setIsEditingPlano] = useState(false)
+  const [editPlanoSelecionado, setEditPlanoSelecionado] = useState<OMPlanoTipo>('Essencial')
+  const [isSavingPlano, setIsSavingPlano] = useState(false)
+
   // Modal Oferecer / Criar Contrato de Plano
   const [modalOferecerPlano, setModalOferecerPlano] = useState(false)
   const [novoPlanoTipo, setNovoPlanoTipo] = useState<OMPlanoTipo>('Essencial')
@@ -192,6 +197,74 @@ export const FichaClienteOM: React.FC<FichaClienteOMProps> = ({ clienteId, onNav
     (propostaAtiva?.valor_mensal_plano
       ? Math.round(propostaAtiva.valor_mensal_plano * 12 * 100) / 100
       : (contrato?.valor_anual ?? 0))
+
+  // Plano atualmente exibido (Proposta O&M ativa com fallback para Contrato O&M)
+  const planoExibido: OMPlanoTipo =
+    (propostaAtiva?.plano_escolhido as OMPlanoTipo) || contrato?.plano || 'Essencial'
+
+  // Iniciar edição inline do Plano
+  const handleStartEditPlano = (e?: React.MouseEvent) => {
+    if (e) e.stopPropagation()
+    setEditPlanoSelecionado(planoExibido)
+    setIsEditingPlano(true)
+  }
+
+  // Cancelar edição inline do Plano
+  const handleCancelEditPlano = (e?: React.MouseEvent) => {
+    if (e) e.stopPropagation()
+    setIsEditingPlano(false)
+    setEditPlanoSelecionado(planoExibido)
+  }
+
+  // Salvar novo plano com sincronização entre proposta e contrato
+  const handleSavePlano = async (e?: React.MouseEvent | React.FormEvent) => {
+    if (e) {
+      e.stopPropagation()
+      e.preventDefault()
+    }
+    if (isSavingPlano) return
+
+    const novoPlano = editPlanoSelecionado
+
+    try {
+      setIsSavingPlano(true)
+
+      const promises: Promise<unknown>[] = []
+
+      // 1. Atualizar propostaAtiva se existir
+      if (propostaAtiva) {
+        promises.push(
+          updatePropostaOM(propostaAtiva.id, {
+            plano_escolhido: novoPlano,
+          }),
+        )
+      }
+
+      // 2. Sincronizar contrato ativo se existir
+      if (contrato) {
+        promises.push(
+          updateContratoOM(contrato.id, {
+            plano: novoPlano,
+          }),
+        )
+      }
+
+      if (promises.length === 0) {
+        toast.info('Nenhuma proposta ou contrato ativo para atualizar.')
+        setIsEditingPlano(false)
+        return
+      }
+
+      await Promise.all(promises)
+      toast.success(`Plano O&M atualizado para ${novoPlano}.`)
+      setIsEditingPlano(false)
+    } catch (err: unknown) {
+      console.error('Erro ao atualizar plano O&M:', err)
+      toast.error(err instanceof Error ? err.message : 'Erro ao salvar novo plano O&M.')
+    } finally {
+      setIsSavingPlano(false)
+    }
+  }
 
   // Iniciar edição inline do Valor Mensal
   const handleStartEditValorMensal = (e?: React.MouseEvent) => {
@@ -488,19 +561,78 @@ export const FichaClienteOM: React.FC<FichaClienteOMProps> = ({ clienteId, onNav
                 <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-800 block">
                   Contrato Vigente
                 </span>
-                <h4 className="text-base font-bold text-gray-900">Plano {contrato.plano}</h4>
+                <h4 className="text-base font-bold text-gray-900">Plano {planoExibido}</h4>
               </div>
             </div>
 
             <div className="flex items-center gap-2">
               {getStatusPlanoBadge(statusPlano)}
-              <span
-                className={`px-2.5 py-0.5 rounded-md text-xs font-bold border ${getPlanoColor(
-                  contrato.plano,
-                )}`}
-              >
-                {contrato.plano}
-              </span>
+
+              {isEditingPlano ? (
+                <div
+                  className="inline-flex items-center gap-1.5 p-1 bg-white rounded-lg border border-emerald-400 shadow-2xs"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <select
+                    autoFocus
+                    disabled={isSavingPlano}
+                    value={editPlanoSelecionado}
+                    onChange={(e) => setEditPlanoSelecionado(e.target.value as OMPlanoTipo)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault()
+                        handleSavePlano()
+                      } else if (e.key === 'Escape') {
+                        e.preventDefault()
+                        handleCancelEditPlano()
+                      }
+                    }}
+                    className="text-xs font-bold py-0.5 px-2 rounded border border-gray-300 bg-white text-gray-900 focus:outline-none focus:ring-1 focus:ring-emerald-500 shadow-2xs"
+                  >
+                    <option value="Essencial">Essencial</option>
+                    <option value="Prevenção">Prevenção</option>
+                    <option value="Completo">Completo</option>
+                  </select>
+
+                  <button
+                    type="button"
+                    onClick={handleSavePlano}
+                    disabled={isSavingPlano}
+                    className="p-1 rounded bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-bold shadow-2xs transition-colors disabled:opacity-50"
+                    title="Confirmar (Enter)"
+                    aria-label="Confirmar plano"
+                  >
+                    {isSavingPlano ? (
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                    ) : (
+                      <Check className="w-3 h-3" />
+                    )}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleCancelEditPlano}
+                    disabled={isSavingPlano}
+                    className="p-1 rounded bg-gray-100 hover:bg-gray-200 text-gray-600 text-[10px] font-semibold transition-colors disabled:opacity-50"
+                    title="Cancelar (Esc)"
+                    aria-label="Cancelar alteração de plano"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleStartEditPlano}
+                  className={`group inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-xs font-bold border transition-all cursor-pointer hover:shadow-2xs ${getPlanoColor(
+                    planoExibido,
+                  )} hover:scale-[1.02]`}
+                  title="Clique para editar o tipo de plano"
+                >
+                  <span>{planoExibido}</span>
+                  <Pencil className="w-3 h-3 opacity-60 group-hover:opacity-100 transition-opacity" />
+                </button>
+              )}
             </div>
           </div>
 
