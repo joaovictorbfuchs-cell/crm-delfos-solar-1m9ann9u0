@@ -445,6 +445,11 @@ export default function ExecucaoOS() {
                         <strong className="text-gray-700">
                           {os.atribuida_a || 'Não atribuído'}
                         </strong>
+                        {os.expand?.responsavel_usuario_id?.phone && (
+                          <span className="text-[11px] text-gray-400 font-normal ml-1">
+                            • {os.expand.responsavel_usuario_id.phone}
+                          </span>
+                        )}
                       </span>
                     </div>
 
@@ -542,12 +547,13 @@ export default function ExecucaoOS() {
                   <option value="">-- Não atribuído / Remover atribuição --</option>
                   {instaladores.map((inst) => (
                     <option key={inst.id} value={inst.id}>
-                      {inst.name} ({inst.email})
+                      {inst.name} {inst.phone ? `(${inst.phone})` : '(Sem WhatsApp)'}
                     </option>
                   ))}
                 </select>
                 <p className="text-[11px] text-gray-400 mt-1">
-                  Ao atribuir, a OS aparecerá imediatamente no login deste instalador.
+                  Ao atribuir ou alterar, o instalador receberá uma notificação automática via
+                  WhatsApp (Z-API).
                 </p>
               </div>
             </div>

@@ -4,6 +4,7 @@ import type { SistemaUsuario, UserRole } from '@/types/crm'
 export interface NovoUsuarioInput {
   name: string
   email: string
+  phone?: string
   password: string
   passwordConfirm: string
   role: UserRole
@@ -13,6 +14,7 @@ export interface NovoUsuarioInput {
 export interface EditarUsuarioInput {
   name?: string
   email?: string
+  phone?: string
   role?: UserRole
   ativo?: boolean
   password?: string
@@ -31,6 +33,7 @@ export async function fetchUsuariosSistema(): Promise<SistemaUsuario[]> {
       id: r.id,
       name: r.name || 'Sem Nome',
       email: r.email,
+      phone: r.phone || '',
       avatar: r.avatar,
       role: (r.role as UserRole) || 'admin',
       ativo: r.ativo !== false,
@@ -64,6 +67,7 @@ export async function createUsuarioSistema(data: NovoUsuarioInput): Promise<Sist
       // O registro já existe: reaproveitar e atualizar dados, reativando a conta
       const updatePayload: any = {
         name: data.name.trim(),
+        phone: data.phone?.trim() || '',
         role: data.role,
         ativo: data.ativo ?? true,
       }
@@ -77,6 +81,7 @@ export async function createUsuarioSistema(data: NovoUsuarioInput): Promise<Sist
         id: updated.id,
         name: updated.name,
         email: updated.email,
+        phone: updated.phone || '',
         avatar: updated.avatar,
         role: updated.role,
         ativo: updated.ativo !== false,
@@ -87,6 +92,7 @@ export async function createUsuarioSistema(data: NovoUsuarioInput): Promise<Sist
     const record = await pb.collection('users').create<any>({
       name: data.name.trim(),
       email: normalizedEmail,
+      phone: data.phone?.trim() || '',
       password: data.password,
       passwordConfirm: data.passwordConfirm,
       emailVisibility: false,
@@ -99,6 +105,7 @@ export async function createUsuarioSistema(data: NovoUsuarioInput): Promise<Sist
       id: record.id,
       name: record.name,
       email: record.email,
+      phone: record.phone || '',
       avatar: record.avatar,
       role: record.role,
       ativo: record.ativo !== false,
@@ -120,6 +127,7 @@ export async function updateUsuarioSistema(
     const payload: any = {}
     if (data.name !== undefined) payload.name = data.name
     if (data.email !== undefined) payload.email = data.email
+    if (data.phone !== undefined) payload.phone = data.phone
     if (data.role !== undefined) payload.role = data.role
     if (data.ativo !== undefined) payload.ativo = data.ativo
 
@@ -134,6 +142,7 @@ export async function updateUsuarioSistema(
       id: record.id,
       name: record.name,
       email: record.email,
+      phone: record.phone || '',
       avatar: record.avatar,
       role: record.role,
       ativo: record.ativo !== false,
@@ -177,6 +186,7 @@ export async function fetchInstaladoresAtivos(): Promise<SistemaUsuario[]> {
       id: r.id,
       name: r.name || 'Instalador',
       email: r.email,
+      phone: r.phone || '',
       avatar: r.avatar,
       role: 'instalador',
       ativo: true,

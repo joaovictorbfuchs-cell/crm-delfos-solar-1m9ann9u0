@@ -386,7 +386,7 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
                   <option value="">-- Não atribuído --</option>
                   {instaladores.map((inst) => (
                     <option key={inst.id} value={inst.id}>
-                      {inst.name}
+                      {inst.name} {inst.phone ? `(${inst.phone})` : '(Sem WhatsApp)'}
                     </option>
                   ))}
                 </select>
@@ -398,6 +398,11 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
                 <User className="w-3.5 h-3.5" />
                 <span>
                   Instalador responsável: <strong>{os.atribuida_a}</strong>
+                  {os.expand?.responsavel_usuario_id?.phone && (
+                    <span className="ml-1 opacity-80">
+                      ({os.expand.responsavel_usuario_id.phone})
+                    </span>
+                  )}
                 </span>
               </div>
             )

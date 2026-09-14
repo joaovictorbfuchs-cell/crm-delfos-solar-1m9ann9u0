@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-14T02:15:12.933Z",
+  "generatedAt": "2026-09-14T02:26:50.588Z",
   "collections": [
     {
       "name": "users",
@@ -48,6 +48,12 @@
         {
           "name": "ativo",
           "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "phone",
+          "type": "text",
           "required": false,
           "system": false
         }

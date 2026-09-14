@@ -74,6 +74,7 @@ export default function GerenciarUsuarios() {
   const [novoForm, setNovoForm] = useState<NovoUsuarioInput>({
     name: '',
     email: '',
+    phone: '',
     password: '',
     passwordConfirm: '',
     role: 'instalador',
@@ -84,6 +85,7 @@ export default function GerenciarUsuarios() {
   const [editForm, setEditForm] = useState<{
     name: string
     email: string
+    phone: string
     role: UserRole
     ativo: boolean
     newPassword: string
@@ -91,6 +93,7 @@ export default function GerenciarUsuarios() {
   }>({
     name: '',
     email: '',
+    phone: '',
     role: 'instalador',
     ativo: true,
     newPassword: '',
@@ -146,6 +149,7 @@ export default function GerenciarUsuarios() {
     setNovoForm({
       name: '',
       email: '',
+      phone: '',
       password: '',
       passwordConfirm: '',
       role: 'instalador',
@@ -198,6 +202,7 @@ export default function GerenciarUsuarios() {
     setEditForm({
       name: u.name,
       email: u.email,
+      phone: u.phone || '',
       role: u.role || 'instalador',
       ativo: u.ativo !== false,
       newPassword: '',
@@ -238,6 +243,7 @@ export default function GerenciarUsuarios() {
       const payload: EditarUsuarioInput = {
         name: editForm.name,
         email: editForm.email,
+        phone: editForm.phone,
         role: editForm.role,
         ativo: editForm.ativo,
       }
@@ -469,6 +475,7 @@ export default function GerenciarUsuarios() {
                 <tr>
                   <th className="py-3.5 px-4 sm:px-6">Usuário</th>
                   <th className="py-3.5 px-4">E-mail Corporativo</th>
+                  <th className="py-3.5 px-4">WhatsApp / Tel</th>
                   <th className="py-3.5 px-4">Perfil</th>
                   <th className="py-3.5 px-4">Status</th>
                   <th className="py-3.5 px-4 sm:px-6 text-right">Ações</th>
@@ -515,6 +522,17 @@ export default function GerenciarUsuarios() {
 
                       {/* E-mail */}
                       <td className="py-3.5 px-4 text-gray-600 font-mono text-xs">{u.email}</td>
+
+                      {/* WhatsApp / Telefone */}
+                      <td className="py-3.5 px-4 text-gray-700 text-xs">
+                        {u.phone ? (
+                          <span className="font-mono bg-gray-100 text-gray-800 px-2 py-0.5 rounded-md border border-gray-200 inline-block">
+                            {u.phone}
+                          </span>
+                        ) : (
+                          <span className="text-gray-400 italic text-[11px]">Não cadastrado</span>
+                        )}
+                      </td>
 
                       {/* Perfil */}
                       <td className="py-3.5 px-4">
@@ -635,18 +653,33 @@ export default function GerenciarUsuarios() {
               />
             </div>
 
-            <div>
-              <label className="block text-xs font-bold text-gray-700 mb-1">
-                E-mail Corporativo *
-              </label>
-              <Input
-                type="email"
-                required
-                placeholder="carlos.silva@delfosengenharia.com.br"
-                value={novoForm.email}
-                onChange={(e) => setNovoForm({ ...novoForm, email: e.target.value })}
-                className="h-10 text-xs sm:text-sm rounded-xl"
-              />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1">
+                  E-mail Corporativo *
+                </label>
+                <Input
+                  type="email"
+                  required
+                  placeholder="carlos.silva@delfosengenharia.com.br"
+                  value={novoForm.email}
+                  onChange={(e) => setNovoForm({ ...novoForm, email: e.target.value })}
+                  className="h-10 text-xs sm:text-sm rounded-xl"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1">
+                  WhatsApp / Celular
+                </label>
+                <Input
+                  type="text"
+                  placeholder="(54) 99999-0000"
+                  value={novoForm.phone || ''}
+                  onChange={(e) => setNovoForm({ ...novoForm, phone: e.target.value })}
+                  className="h-10 text-xs sm:text-sm rounded-xl"
+                />
+              </div>
             </div>
 
             <div>
@@ -774,15 +807,30 @@ export default function GerenciarUsuarios() {
               />
             </div>
 
-            <div>
-              <label className="block text-xs font-bold text-gray-700 mb-1">E-mail *</label>
-              <Input
-                type="email"
-                required
-                value={editForm.email}
-                onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
-                className="h-10 text-xs sm:text-sm rounded-xl"
-              />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1">E-mail *</label>
+                <Input
+                  type="email"
+                  required
+                  value={editForm.email}
+                  onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
+                  className="h-10 text-xs sm:text-sm rounded-xl"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1">
+                  WhatsApp / Celular
+                </label>
+                <Input
+                  type="text"
+                  placeholder="(54) 99999-0000"
+                  value={editForm.phone}
+                  onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
+                  className="h-10 text-xs sm:text-sm rounded-xl"
+                />
+              </div>
             </div>
 
             <div>
