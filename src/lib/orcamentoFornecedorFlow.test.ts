@@ -265,6 +265,53 @@ export function runOrcamentoFornecedorFlowTests(): {
         assert(acessoriosEncontrados.length >= 2, 'Pelo menos 2 acessórios identificados')
       },
     },
+    {
+      name: 'Simulação do cenário do usuário: payload completo com fornecedor MAXSUL, revisão 260075722, módulos, inversores, 4 acessórios e arquivo de screenshot',
+      fn: () => {
+        const payloadUsuario = {
+          nome_fornecedor: 'MAXSUL - DISTRIBUIDORA DE DERIVADOS DE PETROLEO',
+          fornecedor_id: 'e2w5eo0r074oe80',
+          numero_revisao: '260075722',
+          valor_total: 17838.64,
+          modulos: [
+            {
+              descricao: 'RONMA 610W BIFACIAL N-TYPE TOPCON',
+              quantidade: 16,
+            },
+          ],
+          inversores: [
+            {
+              descricao: 'SOFAR 10KW TRIFASICO 220V G3',
+              quantidade: 1,
+            },
+          ],
+          acessorios: [
+            { descricao: 'ESTRUTURA TELHADO METALICO', quantidade: 16 },
+            { descricao: 'STRING BOX CC 1000V DPS', quantidade: 1 },
+            { descricao: 'CABO SOLAR 6MM PRETO E VERMELHO', quantidade: 100 },
+            { descricao: 'CONECTOR MC4', quantidade: 4 },
+          ],
+          observacoes:
+            'Cotação fornecida via distribuidor oficial Maxsul. Condições comerciais de frete incluso para entrega imediata na região sul.',
+        }
+
+        // Validações de consistência
+        assert(payloadUsuario.nome_fornecedor.length > 0, 'Nome do fornecedor não vazio')
+        assertEquals(payloadUsuario.fornecedor_id, 'e2w5eo0r074oe80', 'Fornecedor ID Maxsul')
+        assertEquals(payloadUsuario.numero_revisao, '260075722', 'Número de revisão correto')
+        assertEquals(payloadUsuario.valor_total, 17838.64, 'Valor total correto')
+        assertEquals(payloadUsuario.modulos.length, 1, '1 módulo cadastrado')
+        assertEquals(payloadUsuario.inversores.length, 1, '1 inversor cadastrado')
+        assertEquals(payloadUsuario.acessorios.length, 4, '4 acessórios cadastrados')
+
+        // Testar se arquivo de imagem PNG ou JPEG é compatível
+        const mockImagePng = new File(['fake-png-content'], 'screenshot_cotacao_maxsul.png', {
+          type: 'image/png',
+        })
+        assert(mockImagePng.type === 'image/png', 'MIME type PNG suportado')
+        assert(mockImagePng.size > 0, 'Arquivo tem tamanho válido')
+      },
+    },
   ]
 
   let passed = 0

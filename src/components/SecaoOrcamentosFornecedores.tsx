@@ -27,6 +27,7 @@ import {
 import { extrairOrcamentoFotovoltaicoPDF } from '@/lib/orcamentoParser'
 import { analisarImagemOrcamento, AnaliseImagemResultado } from '@/services/ocrImagemService'
 import { formatCurrency, formatDate } from '@/lib/formatters'
+import { getErrorMessage } from '@/lib/pocketbase/errors'
 import { toast } from 'sonner'
 import pb from '@/lib/pocketbase/client'
 import { ModalOrcamentoFornecedorForm } from './ModalOrcamentoFornecedorForm'
@@ -346,7 +347,12 @@ export function SecaoOrcamentosFornecedores({
       setAnalyzedFile(null)
     } catch (err) {
       console.error('Erro ao salvar orçamento de fornecedor:', err)
-      toast.error('Erro ao salvar orçamento de fornecedor.')
+      const backendMotivo = getErrorMessage(err)
+      const motivoAmigavel =
+        backendMotivo && backendMotivo !== 'Failed to create record.'
+          ? `Erro ao salvar orçamento: ${backendMotivo}`
+          : 'Erro ao salvar orçamento de fornecedor. Verifique os dados informados e tente novamente.'
+      toast.error(motivoAmigavel)
     } finally {
       setIsSaving(false)
     }

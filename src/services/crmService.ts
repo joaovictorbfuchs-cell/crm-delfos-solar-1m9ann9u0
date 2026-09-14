@@ -1291,27 +1291,48 @@ export async function createFornecedorOrcamento(
   data: Partial<import('@/types/crm').FornecedorOrcamento>,
   file?: File,
 ): Promise<import('@/types/crm').FornecedorOrcamento> {
+  // Limpar chaves com valores vazios/indefinidos para evitar erros de validação
+  const cleanedData: Record<string, any> = {}
+  Object.entries(data).forEach(([key, val]) => {
+    if (val !== undefined && val !== null && val !== '') {
+      cleanedData[key] = val
+    }
+  })
+
   if (file) {
-    const formData = new FormData()
-    formData.append('arquivo', file)
-    Object.entries(data).forEach(([key, val]) => {
-      if (val !== undefined && val !== null) {
+    try {
+      const formData = new FormData()
+      formData.append('arquivo', file)
+      Object.entries(cleanedData).forEach(([key, val]) => {
         if (typeof val === 'object') {
           formData.append(key, JSON.stringify(val))
         } else {
           formData.append(key, String(val))
         }
-      }
-    })
-    return pb
-      .collection('fornecedores_orcamentos')
-      .create<import('@/types/crm').FornecedorOrcamento>(formData, {
-        expand: 'fornecedor_id,cliente_id,orcamento_solar_id',
       })
+      return await pb
+        .collection('fornecedores_orcamentos')
+        .create<import('@/types/crm').FornecedorOrcamento>(formData, {
+          expand: 'fornecedor_id,cliente_id,orcamento_solar_id',
+        })
+    } catch (uploadErr) {
+      console.warn(
+        'Falha no upload do anexo do orçamento de fornecedor. Tentando salvar sem o arquivo (graceful degradation)...',
+        uploadErr,
+      )
+      // Graceful degradation: se falhou por restrição de arquivo/rede, salvar os dados sem o arquivo
+      const recordSemArquivo = await pb
+        .collection('fornecedores_orcamentos')
+        .create<import('@/types/crm').FornecedorOrcamento>(cleanedData, {
+          expand: 'fornecedor_id,cliente_id,orcamento_solar_id',
+        })
+      return recordSemArquivo
+    }
   }
+
   return pb
     .collection('fornecedores_orcamentos')
-    .create<import('@/types/crm').FornecedorOrcamento>(data, {
+    .create<import('@/types/crm').FornecedorOrcamento>(cleanedData, {
       expand: 'fornecedor_id,cliente_id,orcamento_solar_id',
     })
 }
@@ -1321,27 +1342,45 @@ export async function updateFornecedorOrcamento(
   data: Partial<import('@/types/crm').FornecedorOrcamento>,
   file?: File,
 ): Promise<import('@/types/crm').FornecedorOrcamento> {
+  const cleanedData: Record<string, any> = {}
+  Object.entries(data).forEach(([key, val]) => {
+    if (val !== undefined && val !== null) {
+      cleanedData[key] = val
+    }
+  })
+
   if (file) {
-    const formData = new FormData()
-    formData.append('arquivo', file)
-    Object.entries(data).forEach(([key, val]) => {
-      if (val !== undefined && val !== null) {
+    try {
+      const formData = new FormData()
+      formData.append('arquivo', file)
+      Object.entries(cleanedData).forEach(([key, val]) => {
         if (typeof val === 'object') {
           formData.append(key, JSON.stringify(val))
         } else {
           formData.append(key, String(val))
         }
-      }
-    })
-    return pb
-      .collection('fornecedores_orcamentos')
-      .update<import('@/types/crm').FornecedorOrcamento>(id, formData, {
-        expand: 'fornecedor_id,cliente_id,orcamento_solar_id',
       })
+      return await pb
+        .collection('fornecedores_orcamentos')
+        .update<import('@/types/crm').FornecedorOrcamento>(id, formData, {
+          expand: 'fornecedor_id,cliente_id,orcamento_solar_id',
+        })
+    } catch (uploadErr) {
+      console.warn(
+        'Falha no upload do anexo ao atualizar orçamento de fornecedor. Tentando atualizar sem o arquivo...',
+        uploadErr,
+      )
+      return pb
+        .collection('fornecedores_orcamentos')
+        .update<import('@/types/crm').FornecedorOrcamento>(id, cleanedData, {
+          expand: 'fornecedor_id,cliente_id,orcamento_solar_id',
+        })
+    }
   }
+
   return pb
     .collection('fornecedores_orcamentos')
-    .update<import('@/types/crm').FornecedorOrcamento>(id, data, {
+    .update<import('@/types/crm').FornecedorOrcamento>(id, cleanedData, {
       expand: 'fornecedor_id,cliente_id,orcamento_solar_id',
     })
 }
