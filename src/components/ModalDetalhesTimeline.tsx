@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import {
   Dialog,
   DialogContent,
@@ -112,6 +112,33 @@ export const ModalDetalhesTimeline: React.FC<ModalDetalhesTimelineProps> = ({
   const [modalContratoViewOpen, setModalContratoViewOpen] = useState(false)
   const [contratoViewDados, setContratoViewDados] = useState<Partial<DadosContratoOM> | null>(null)
 
+  // Valor derivado reativo para o destaque do topo
+  const valorDestaqueAtual = useMemo(() => {
+    if (!item) return 0
+    if (item.categoria === 'proposta_om') {
+      const v = parseCurrencyBRL(formOMValorMensal)
+      if (v > 0) return v
+      return item.dadosTecnicos?.valorMensal ?? item.valorPrincipal ?? 0
+    }
+    if (item.categoria === 'proposta_solar') {
+      const v = parseCurrencyBRL(formSolarValor)
+      if (v > 0) return v
+      return item.valorPrincipal ?? 0
+    }
+    return item.valorPrincipal ?? 0
+  }, [item, formOMValorMensal, formSolarValor])
+
+  // Subtítulo derivado reativo para o destaque do topo
+  const valorSecundarioDestaque = useMemo(() => {
+    if (!item) return undefined
+    if (item.categoria === 'proposta_om') {
+      const numAnual =
+        parseCurrencyBRL(formOMValorAnual) || Math.round(valorDestaqueAtual * 12 * 100) / 100
+      return `Total anual: ${formatCurrencyBRL(numAnual)}`
+    }
+    return item.valorSecundario
+  }, [item, formOMValorAnual, valorDestaqueAtual])
+
   // Sincronizar form ao abrir / trocar de item
   useEffect(() => {
     if (!item) {
@@ -132,18 +159,26 @@ export const ModalDetalhesTimeline: React.FC<ModalDetalhesTimelineProps> = ({
       setFormSolarObs(o.observacoes || '')
       setFormSolarPotencia(o.potencia_kwp || 0)
       setFormSolarPlacas(o.numero_placas || 0)
-    } else if (item.categoria === 'proposta_om' && item.rawPropostaOM) {
+    } else if (item.categoria === 'proposta_om') {
       const p = item.rawPropostaOM
-      const vMensal = p.valor_mensal_plano || 0
+      const vMensal =
+        p?.valor_mensal_plano ?? item.dadosTecnicos?.valorMensal ?? item.valorPrincipal ?? 0
       const vAnual =
-        p.valor_anual_plano !== undefined && p.valor_anual_plano > 0
+        p?.valor_anual_plano && p.valor_anual_plano > 0
           ? p.valor_anual_plano
-          : Math.round(vMensal * 12 * 100) / 100
-      setFormOMStatus(p.status || 'Proposta Enviada')
-      setFormOMPlano(p.plano_escolhido || p.plano_recomendado || 'Completo')
+          : item.dadosTecnicos?.valorAnual && item.dadosTecnicos.valorAnual > 0
+            ? item.dadosTecnicos.valorAnual
+            : Math.round(vMensal * 12 * 100) / 100
+      setFormOMStatus(p?.status || item.status || 'Proposta Enviada')
+      setFormOMPlano(
+        p?.plano_escolhido ||
+          p?.plano_recomendado ||
+          item.dadosTecnicos?.planoEscolhido ||
+          'Completo',
+      )
       setFormOMValorMensal(formatCurrencyBRL(vMensal))
       setFormOMValorAnual(formatCurrencyBRL(vAnual))
-      setFormOMObs(p.observacoes || '')
+      setFormOMObs(p?.observacoes || item.descricao || '')
     } else if (item.rawAtividade) {
       const a = item.rawAtividade
       setFormTitulo(a.titulo || '')
@@ -184,6 +219,26 @@ export const ModalDetalhesTimeline: React.FC<ModalDetalhesTimelineProps> = ({
           potencia_kwp: Number(formSolarPotencia) || item.rawOrcamentoSolar.potencia_kwp,
           numero_placas: Number(formSolarPlacas) || item.rawOrcamentoSolar.numero_placas,
         })
+
+        // Sincronizar objeto local item e dadosTecnicos/rawOrcamentoSolar
+        item.valorPrincipal = valorInvestimentoNum
+        if (item.dadosTecnicos) {
+          item.dadosTecnicos.potenciaKwp =
+            Number(formSolarPotencia) || item.dadosTecnicos.potenciaKwp
+          item.dadosTecnicos.numeroPlacas =
+            Number(formSolarPlacas) || item.dadosTecnicos.numeroPlacas
+        }
+        if (item.rawOrcamentoSolar) {
+          item.rawOrcamentoSolar.status = stGeral as any
+          item.rawOrcamentoSolar.status_revisao = formSolarStatusRev as any
+          item.rawOrcamentoSolar.valor_investimento = valorInvestimentoNum
+          item.rawOrcamentoSolar.observacoes = formSolarObs
+          item.rawOrcamentoSolar.potencia_kwp =
+            Number(formSolarPotencia) || item.rawOrcamentoSolar.potencia_kwp
+          item.rawOrcamentoSolar.numero_placas =
+            Number(formSolarPlacas) || item.rawOrcamentoSolar.numero_placas
+        }
+        item.status = stGeral
       } else if (item.categoria === 'proposta_om' && item.rawPropostaOM) {
         const vMensalNum = parseCurrencyBRL(formOMValorMensal)
         const vAnualNum =
@@ -195,6 +250,23 @@ export const ModalDetalhesTimeline: React.FC<ModalDetalhesTimelineProps> = ({
           valor_anual_plano: vAnualNum,
           observacoes: formOMObs,
         })
+
+        // Sincronizar objeto local item e dadosTecnicos/rawPropostaOM
+        item.valorPrincipal = vMensalNum
+        if (item.dadosTecnicos) {
+          item.dadosTecnicos.valorMensal = vMensalNum
+          item.dadosTecnicos.valorAnual = vAnualNum
+          item.dadosTecnicos.planoEscolhido = formOMPlano
+        }
+        if (item.rawPropostaOM) {
+          item.rawPropostaOM.valor_mensal_plano = vMensalNum
+          item.rawPropostaOM.valor_anual_plano = vAnualNum
+          item.rawPropostaOM.plano_escolhido = formOMPlano as any
+          item.rawPropostaOM.status = formOMStatus
+          item.rawPropostaOM.observacoes = formOMObs
+        }
+        item.status = formOMStatus
+        item.valorSecundario = `Total anual: ${formatCurrencyBRL(vAnualNum)}`
       } else if (item.rawAtividade) {
         const isoDate = formData ? new Date(formData).toISOString() : new Date().toISOString()
         await onUpdateAtividade(item.rawAtividade.id, {
@@ -365,20 +437,20 @@ export const ModalDetalhesTimeline: React.FC<ModalDetalhesTimelineProps> = ({
             /* ================================================================ */
             <div className="space-y-4">
               {/* Card de Destaque Financeiro se houver valor */}
-              {item.valorPrincipal !== undefined && item.valorPrincipal > 0 && (
+              {valorDestaqueAtual > 0 && (
                 <div className="bg-gradient-to-r from-emerald-50 via-white to-emerald-50/50 p-4 rounded-xl border border-emerald-200 flex items-center justify-between">
                   <div>
                     <span className="text-[10px] uppercase font-bold text-emerald-800 tracking-wider block">
                       {item.categoria === 'proposta_om'
-                        ? 'Investimento do Plano'
+                        ? 'Plano Mensal O&M'
                         : 'Valor do Investimento'}
                     </span>
                     <span className="text-2xl font-black text-gray-900 tracking-tight">
-                      {formatCurrency(item.valorPrincipal)}
+                      {formatCurrencyBRL(valorDestaqueAtual)}
                     </span>
-                    {item.valorSecundario && (
+                    {valorSecundarioDestaque && (
                       <span className="text-xs text-gray-500 block font-medium">
-                        {item.valorSecundario}
+                        {valorSecundarioDestaque}
                       </span>
                     )}
                   </div>
@@ -452,15 +524,25 @@ export const ModalDetalhesTimeline: React.FC<ModalDetalhesTimelineProps> = ({
                           </span>
                         </div>
                       )}
-                    {item.dadosTecnicos.valorAnual !== undefined &&
-                      item.dadosTecnicos.valorAnual > 0 && (
-                        <div className="p-2.5 rounded-lg bg-white border border-gray-200 shadow-2xs">
-                          <span className="text-[11px] text-gray-400 block">Valor Anual</span>
-                          <span className="font-bold text-gray-900 text-sm">
-                            {formatCurrency(item.dadosTecnicos.valorAnual)}/ano
-                          </span>
-                        </div>
-                      )}
+                    {(item.categoria === 'proposta_om'
+                      ? parseCurrencyBRL(formOMValorAnual) ||
+                        (item.dadosTecnicos.valorAnual !== undefined &&
+                          item.dadosTecnicos.valorAnual > 0)
+                      : item.dadosTecnicos.valorAnual !== undefined &&
+                        item.dadosTecnicos.valorAnual > 0) && (
+                      <div className="p-2.5 rounded-lg bg-white border border-gray-200 shadow-2xs">
+                        <span className="text-[11px] text-gray-400 block">Valor Anual</span>
+                        <span className="font-bold text-gray-900 text-sm">
+                          {formatCurrencyBRL(
+                            item.categoria === 'proposta_om'
+                              ? parseCurrencyBRL(formOMValorAnual) ||
+                                  Math.round(valorDestaqueAtual * 12 * 100) / 100
+                              : item.dadosTecnicos.valorAnual || 0,
+                          )}
+                          /ano
+                        </span>
+                      </div>
+                    )}
                   </div>
 
                   {(item.dadosTecnicos.placasMarca || item.dadosTecnicos.inversorMarca) && (
