@@ -66,6 +66,15 @@ import { ModalGerarProcuracaoOM } from './ModalGerarProcuracaoOM'
 import { ModalGerarContratoOM } from './ModalGerarContratoOM'
 import { SecaoMonitoramentoInversor } from './SecaoMonitoramentoInversor'
 import { SecaoAcessoSolarview } from './SecaoAcessoSolarview'
+import { SecaoUsinasCliente } from './SecaoUsinasCliente'
+import { useAuth } from '@/contexts/AuthContext'
+import {
+  fetchUsinasByClienteId,
+  createUsina,
+  updateUsina,
+  deleteUsina,
+} from '@/services/crmService'
+import type { UsinaCliente } from '@/types/crm'
 import { toast } from 'sonner'
 import type {
   TipoDocumentoProjeto,
@@ -141,6 +150,7 @@ const FASES: { value: NumeroFases; label: string }[] = [
 ]
 
 export const FichaClienteDrawer: React.FC = () => {
+  const { isAdmin } = useAuth()
   const {
     selectedCliente,
     selectedClienteId,
@@ -171,7 +181,28 @@ export const FichaClienteDrawer: React.FC = () => {
     documentosCliente,
     addOrUpdateDocumentoCliente,
     updateDocumentoClienteStatus,
+    contratosOM,
   } = useClientes()
+
+  // Estado e carregamento de usinas do cliente selecionado
+  const [usinasDoCliente, setUsinasDoCliente] = useState<UsinaCliente[]>([])
+  const recarregarUsinas = React.useCallback(async () => {
+    if (!selectedCliente?.id) {
+      setUsinasDoCliente([])
+      return
+    }
+    try {
+      const lista = await fetchUsinasByClienteId(selectedCliente.id)
+      setUsinasDoCliente(lista)
+    } catch (err) {
+      console.warn('Erro ao carregar usinas do cliente:', err)
+      setUsinasDoCliente([])
+    }
+  }, [selectedCliente?.id])
+
+  React.useEffect(() => {
+    recarregarUsinas()
+  }, [recarregarUsinas])
 
   // Estado para Modal de Detalhes / Edição Inline da Linha do Tempo Unificada
   const [timelineItemDetalhes, setTimelineItemDetalhes] = useState<TimelineUnifiedItem | null>(null)
@@ -1053,10 +1084,33 @@ export const FichaClienteDrawer: React.FC = () => {
               {/* ABA O&M: Plano, Serviços Avulsos e Anomalias             */}
               {/* ======================================================== */}
               {activeClientTab === 'om' && (
-                <FichaClienteOM
-                  clienteId={selectedCliente.id}
-                  onNavigateToTab={(tab) => setActiveClientTab(tab)}
-                />
+                <div className="space-y-4">
+                  <SecaoUsinasCliente
+                    clienteId={selectedCliente.id}
+                    clienteNome={selectedCliente.nome}
+                    clienteDocumento={selectedCliente.cpf || selectedCliente.cnpj || ''}
+                    isAdmin={isAdmin}
+                    usinas={usinasDoCliente}
+                    contratos={contratosOM.filter((c) => c.cliente_id === selectedCliente.id)}
+                    onCreateUsina={async (data) => {
+                      await createUsina(data)
+                      await recarregarUsinas()
+                    }}
+                    onUpdateUsina={async (usinaId, data) => {
+                      await updateUsina(usinaId, data)
+                      await recarregarUsinas()
+                    }}
+                    onDeleteUsina={async (usinaId) => {
+                      await deleteUsina(usinaId)
+                      await recarregarUsinas()
+                    }}
+                  />
+
+                  <FichaClienteOM
+                    clienteId={selectedCliente.id}
+                    onNavigateToTab={(tab) => setActiveClientTab(tab)}
+                  />
+                </div>
               )}
 
               {/* ======================================================== */}
