@@ -1321,9 +1321,9 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                       )}
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    <div className="flex flex-col gap-2.5">
                       {/* Campo: Valor por placa (editável) */}
-                      <div>
+                      <div className="w-full">
                         <div className="flex items-center justify-between mb-0.5">
                           <label className="text-[11px] font-medium text-gray-700">
                             Valor por placa (R$) *
@@ -1343,7 +1343,7 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                       </div>
 
                       {/* Campo: Mão de obra de instalação (auto preenchido, editável manualmente) */}
-                      <div>
+                      <div className="w-full">
                         <div className="flex items-center justify-between mb-0.5">
                           <label className="text-[11px] font-medium text-gray-700">
                             Mão de obra total (R$) *
@@ -1599,10 +1599,10 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                  <div className="flex flex-col gap-2 text-xs">
                     {/* Opção 1 */}
                     <label
-                      className={`px-2.5 py-1.5 rounded-md border cursor-pointer transition-all flex items-center justify-between gap-2 ${
+                      className={`w-full px-2.5 py-1.5 rounded-md border cursor-pointer transition-all flex items-center justify-between gap-2 ${
                         opcaoImposto === 1
                           ? 'border-blue-600 bg-white shadow-2xs ring-1 ring-blue-500/20'
                           : 'border-blue-200 bg-white/70 hover:bg-white text-gray-700'
@@ -1626,7 +1626,7 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
 
                     {/* Opção 2 */}
                     <label
-                      className={`px-2.5 py-1.5 rounded-md border cursor-pointer transition-all flex items-center justify-between gap-2 ${
+                      className={`w-full px-2.5 py-1.5 rounded-md border cursor-pointer transition-all flex items-center justify-between gap-2 ${
                         opcaoImposto === 2
                           ? 'border-blue-600 bg-white shadow-2xs ring-1 ring-blue-500/20'
                           : 'border-blue-200 bg-white/70 hover:bg-white text-gray-700'
