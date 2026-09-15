@@ -237,4 +237,114 @@ describe('importacaoContatosCelularService', () => {
       expect(resultado[2].status).toBe('nao_encontrado')
     })
   })
+
+  describe('Fluxo de Vinculação Manual a Cliente Existente', () => {
+    const mockClientes: Partial<Cliente>[] = [
+      {
+        id: 'c10',
+        nome: 'Solar Sul Comércio Ltda',
+        telefone: '(54) 3522-0000',
+        whatsapp: '5435220000',
+        cidade: 'Erechim',
+        email: 'contato@solarsul.com.br',
+      },
+      {
+        id: 'c11',
+        nome: 'Paulo Roberto Fontana',
+        telefone: '(54) 99888-7766',
+        cidade: 'Passo Fundo',
+      },
+    ]
+
+    it('deve simular sobreposição de status quando um contato não encontrado é vinculado manualmente', () => {
+      // Contato que não foi encontrado automaticamente
+      const contatos = [{ nome: 'Paulo Fontana Celular', telefone: '54991112233' }]
+      const resultadoInicial = processarContatosComClientes(contatos, mockClientes as Cliente[])
+
+      expect(resultadoInicial).toHaveLength(1)
+      expect(resultadoInicial[0].status).toBe('nao_encontrado')
+      expect(resultadoInicial[0].clienteId).toBeUndefined()
+
+      // Aplica a vinculação manual simulada
+      const vinculacoesManuaisMap: Record<
+        string,
+        {
+          clienteId: string
+          clienteNome: string
+          clienteTelefoneAtual?: string
+          telefoneAtualizado: boolean
+        }
+      > = {
+        [resultadoInicial[0].id]: {
+          clienteId: 'c11',
+          clienteNome: 'Paulo Roberto Fontana',
+          clienteTelefoneAtual: '(54) 99888-7766',
+          telefoneAtualizado: true,
+        },
+      }
+
+      // Projeção do estado mesclado na página
+      const itensComVinculacao = resultadoInicial.map((item) => {
+        const manual = vinculacoesManuaisMap[item.id]
+        if (manual) {
+          return {
+            ...item,
+            status: 'encontrado' as const,
+            clienteId: manual.clienteId,
+            clienteNome: manual.clienteNome,
+            clienteTelefoneAtual: manual.clienteTelefoneAtual,
+            telefoneAtualizado: manual.telefoneAtualizado,
+            novoTelefoneAplicado: manual.telefoneAtualizado ? item.telefoneCsv : undefined,
+          }
+        }
+        return item
+      })
+
+      expect(itensComVinculacao[0].status).toBe('encontrado')
+      expect(itensComVinculacao[0].clienteId).toBe('c11')
+      expect(itensComVinculacao[0].clienteNome).toBe('Paulo Roberto Fontana')
+      expect(itensComVinculacao[0].telefoneAtualizado).toBe(true)
+      expect(itensComVinculacao[0].novoTelefoneAplicado).toBe('54991112233')
+    })
+
+    it('deve permitir desvincular mantendo os dados originais do CSV intactos', () => {
+      const contatos = [{ nome: 'Contato Teste', telefone: '54992223344' }]
+      const resultadoInicial = processarContatosComClientes(contatos, mockClientes as Cliente[])
+
+      let vinculacoesManuaisMap: Record<
+        string,
+        {
+          clienteId: string
+          clienteNome: string
+          clienteTelefoneAtual?: string
+          telefoneAtualizado: boolean
+        }
+      > = {
+        [resultadoInicial[0].id]: {
+          clienteId: 'c10',
+          clienteNome: 'Solar Sul Comércio Ltda',
+          telefoneAtualizado: true,
+        },
+      }
+
+      // Desvincula (remove do map)
+      delete vinculacoesManuaisMap[resultadoInicial[0].id]
+
+      const itensAposDesvincular = resultadoInicial.map((item) => {
+        const manual = vinculacoesManuaisMap[item.id]
+        if (manual) {
+          return {
+            ...item,
+            status: 'encontrado' as const,
+            clienteId: manual.clienteId,
+            clienteNome: manual.clienteNome,
+          }
+        }
+        return item
+      })
+
+      expect(itensAposDesvincular[0].status).toBe('nao_encontrado')
+      expect(itensAposDesvincular[0].clienteId).toBeUndefined()
+    })
+  })
 })

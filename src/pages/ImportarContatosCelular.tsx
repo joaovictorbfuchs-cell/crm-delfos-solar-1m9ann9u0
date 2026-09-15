@@ -11,14 +11,18 @@ import {
   PhoneCall,
   UserCheck,
   UserX,
+  UserPlus,
   ArrowRight,
   HelpCircle,
   ClipboardPaste,
   ShieldCheck,
   Check,
   RotateCcw,
+  Undo2,
 } from 'lucide-react'
 import { useClientes } from '@/contexts/ClientesContext'
+import type { Cliente } from '@/types/crm'
+import { ModalVincularContatoCliente } from '@/components/ModalVincularContatoCliente'
 import {
   parseContatosCsv,
   processarContatosComClientes,
@@ -51,7 +55,25 @@ export default function ImportarContatosCelular() {
   // Mapa de telefones atualizados no banco nesta sessão: clienteId -> novoTelefone
   const [telefonesAtualizadosMap, setTelefonesAtualizadosMap] = useState<Record<string, string>>({})
 
-  // Estado do diálogo de confirmação
+  // Mapa de vinculações manuais realizadas: contatoItemId -> { clienteId, clienteNome, clienteTelefoneAtual, telefoneAtualizado }
+  const [vinculacoesManuaisMap, setVinculacoesManuaisMap] = useState<
+    Record<
+      string,
+      {
+        clienteId: string
+        clienteNome: string
+        clienteTelefoneAtual?: string
+        telefoneAtualizado: boolean
+      }
+    >
+  >({})
+
+  // Estado do modal de vinculação manual a cliente existente
+  const [itemParaVincular, setItemParaVincular] = useState<ItemImportacaoContatoCelular | null>(
+    null,
+  )
+
+  // Estado do diálogo de confirmação para itens encontrados automaticamente
   const [itemParaAtualizar, setItemParaAtualizar] = useState<ItemImportacaoContatoCelular | null>(
     null,
   )
@@ -59,17 +81,41 @@ export default function ImportarContatosCelular() {
 
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  // Processa itens com status de correspondência no CRM em tempo real
+  // Processa itens com status de correspondência no CRM em tempo real (mesclando vinculações manuais)
   const itensProcessados = useMemo<ItemImportacaoContatoCelular[]>(() => {
     if (contatosBrutos.length === 0) return []
-    return processarContatosComClientes(contatosBrutos, clientes, telefonesAtualizadosMap)
-  }, [contatosBrutos, clientes, telefonesAtualizadosMap])
+    const base = processarContatosComClientes(contatosBrutos, clientes, telefonesAtualizadosMap)
+
+    // Se houver vinculações manuais ativas, sobrepõe o status desses itens
+    return base.map((item) => {
+      const vinculacaoManual = vinculacoesManuaisMap[item.id]
+      if (vinculacaoManual) {
+        return {
+          ...item,
+          status: 'encontrado' as const,
+          clienteId: vinculacaoManual.clienteId,
+          clienteNome: vinculacaoManual.clienteNome,
+          clienteTelefoneAtual: vinculacaoManual.clienteTelefoneAtual,
+          telefoneAtualizado: vinculacaoManual.telefoneAtualizado,
+          novoTelefoneAplicado: vinculacaoManual.telefoneAtualizado ? item.telefoneCsv : undefined,
+        }
+      }
+      return item
+    })
+  }, [contatosBrutos, clientes, telefonesAtualizadosMap, vinculacoesManuaisMap])
 
   // Contadores do Resumo
   const resumo = useMemo(() => {
     const totalContatos = itensProcessados.length
     const clientesEncontrados = itensProcessados.filter((i) => i.status === 'encontrado').length
-    const telefonesAtualizados = Object.keys(telefonesAtualizadosMap).length
+    // Telefones atualizados inclui telefones atualizados via botão direto e via vinculação manual
+    const clientesAtualizadosIds = new Set<string>(Object.keys(telefonesAtualizadosMap))
+    Object.values(vinculacoesManuaisMap).forEach((v) => {
+      if (v.telefoneAtualizado && v.clienteId) {
+        clientesAtualizadosIds.add(v.clienteId)
+      }
+    })
+    const telefonesAtualizados = clientesAtualizadosIds.size
     const naoEncontrados = itensProcessados.filter((i) => i.status === 'nao_encontrado').length
 
     return {
@@ -78,7 +124,7 @@ export default function ImportarContatosCelular() {
       telefonesAtualizados,
       naoEncontrados,
     }
-  }, [itensProcessados, telefonesAtualizadosMap])
+  }, [itensProcessados, telefonesAtualizadosMap, vinculacoesManuaisMap])
 
   // Handler de leitura de arquivo
   const handleLerArquivo = async (file: File) => {
@@ -166,9 +212,59 @@ export default function ImportarContatosCelular() {
     setNomeArquivo('')
     setContatosBrutos([])
     setTextoManual('')
+    setVinculacoesManuaisMap({})
     if (fileInputRef.current) {
       fileInputRef.current.value = ''
     }
+  }
+
+  // Handler para vincular contato a cliente existente
+  const handleConfirmarVinculacaoManual = async (
+    item: ItemImportacaoContatoCelular,
+    cliente: Cliente,
+  ) => {
+    const temTelefoneValido = Boolean(item.telefoneCsv && item.telefoneCsv.trim().length > 0)
+    let telefoneFoiAtualizado = false
+
+    if (temTelefoneValido) {
+      const novoTelefone = item.telefoneCsv.trim()
+      await updateCliente(cliente.id, {
+        telefone: novoTelefone,
+      })
+      telefoneFoiAtualizado = true
+      setTelefonesAtualizadosMap((prev) => ({
+        ...prev,
+        [cliente.id]: novoTelefone,
+      }))
+    }
+
+    setVinculacoesManuaisMap((prev) => ({
+      ...prev,
+      [item.id]: {
+        clienteId: cliente.id,
+        clienteNome: cliente.nome,
+        clienteTelefoneAtual: cliente.telefone || cliente.whatsapp || '',
+        telefoneAtualizado: telefoneFoiAtualizado,
+      },
+    }))
+
+    if (telefoneFoiAtualizado) {
+      toast.success(
+        `Contato "${item.nomeCsv}" vinculado a "${cliente.nome}" e telefone atualizado para ${item.telefoneCsv}!`,
+      )
+    } else {
+      toast.success(`Contato "${item.nomeCsv}" vinculado com sucesso a "${cliente.nome}"!`)
+    }
+  }
+
+  // Handler para desvincular contato manual
+  const handleDesvincular = (itemId: string) => {
+    setVinculacoesManuaisMap((prev) => {
+      const copy = { ...prev }
+      delete copy[itemId]
+      return copy
+    })
+    toast.info('Vinculação desfeita para este contato.')
   }
 
   // Solicitar atualização com confirmação
@@ -466,12 +562,17 @@ export default function ImportarContatosCelular() {
                 {itensProcessados.map((item, idx) => {
                   const isEncontrado = item.status === 'encontrado'
                   const isAtualizado = item.telefoneAtualizado
+                  const isVinculadoManualmente = Boolean(vinculacoesManuaisMap[item.id])
 
                   return (
                     <tr
                       key={item.id}
                       className={`hover:bg-gray-50/60 transition-colors ${
-                        isAtualizado ? 'bg-emerald-50/30' : ''
+                        isAtualizado
+                          ? 'bg-emerald-50/30'
+                          : isVinculadoManualmente
+                            ? 'bg-emerald-50/20'
+                            : ''
                       }`}
                     >
                       <td className="py-3.5 px-4 text-gray-400 font-mono text-[11px]">{idx + 1}</td>
@@ -498,16 +599,23 @@ export default function ImportarContatosCelular() {
                       <td className="py-3.5 px-4">
                         {isEncontrado ? (
                           <div className="space-y-0.5">
-                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
-                              <CheckCircle2 className="w-3.5 h-3.5 text-[#16A34A]" />
-                              Cliente encontrado
-                            </span>
+                            {isVinculadoManualmente ? (
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                                <CheckCircle2 className="w-3.5 h-3.5 text-[#16A34A]" />
+                                Vinculado a: {item.clienteNome}
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                                <CheckCircle2 className="w-3.5 h-3.5 text-[#16A34A]" />
+                                Cliente encontrado
+                              </span>
+                            )}
                             <div className="text-xs text-gray-900 font-medium pl-1">
                               Cliente no CRM: <strong>{item.clienteNome}</strong>
                             </div>
                             {item.clienteTelefoneAtual && (
                               <div className="text-[11px] text-gray-500 pl-1">
-                                Telefone atual no cadastro:{' '}
+                                Telefone anterior no cadastro:{' '}
                                 <span className="font-mono">{item.clienteTelefoneAtual}</span>
                               </div>
                             )}
@@ -522,24 +630,49 @@ export default function ImportarContatosCelular() {
 
                       <td className="py-3.5 px-4 text-right">
                         {isEncontrado ? (
-                          isAtualizado ? (
-                            <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-emerald-100 text-emerald-800 text-xs font-bold border border-emerald-200">
-                              <Check className="w-3.5 h-3.5 text-[#16A34A]" />
-                              Telefone atualizado
-                            </span>
-                          ) : (
-                            <Button
-                              type="button"
-                              size="sm"
-                              onClick={() => handleAbrirConfirmacao(item)}
-                              className="bg-[#16A34A] hover:bg-emerald-700 text-white text-xs font-bold shadow-2xs h-8 px-3 rounded-lg inline-flex items-center gap-1.5 transition-all"
-                            >
-                              <PhoneCall className="w-3.5 h-3.5" />
-                              <span>Atualizar telefone do cliente</span>
-                            </Button>
-                          )
+                          <div className="inline-flex items-center justify-end gap-1.5">
+                            {isAtualizado ? (
+                              <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-emerald-100 text-emerald-800 text-xs font-bold border border-emerald-200">
+                                <Check className="w-3.5 h-3.5 text-[#16A34A]" />
+                                Telefone atualizado
+                              </span>
+                            ) : (
+                              <Button
+                                type="button"
+                                size="sm"
+                                onClick={() => handleAbrirConfirmacao(item)}
+                                className="bg-[#16A34A] hover:bg-emerald-700 text-white text-xs font-bold shadow-2xs h-8 px-3 rounded-lg inline-flex items-center gap-1.5 transition-all"
+                              >
+                                <PhoneCall className="w-3.5 h-3.5" />
+                                <span>Atualizar telefone do cliente</span>
+                              </Button>
+                            )}
+
+                            {isVinculadoManualmente && (
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleDesvincular(item.id)}
+                                className="h-8 px-2 text-xs text-gray-500 hover:text-red-600 hover:bg-red-50"
+                                title="Desfazer vinculação deste contato"
+                              >
+                                <Undo2 className="w-3.5 h-3.5 mr-1" />
+                                <span>Desvincular</span>
+                              </Button>
+                            )}
+                          </div>
                         ) : (
-                          <span className="text-gray-400 text-xs italic">—</span>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setItemParaVincular(item)}
+                            className="border-emerald-300 text-emerald-800 hover:bg-emerald-50 hover:text-emerald-900 text-xs font-semibold h-8 px-3 rounded-lg inline-flex items-center gap-1.5 shadow-2xs transition-all"
+                          >
+                            <UserPlus className="w-3.5 h-3.5 text-[#16A34A]" />
+                            <span>Vincular a cliente existente</span>
+                          </Button>
                         )}
                       </td>
                     </tr>
@@ -566,7 +699,16 @@ export default function ImportarContatosCelular() {
         </div>
       </div>
 
-      {/* Diálogo de Confirmação Obrigatório */}
+      {/* Modal para Vincular Contato a Cliente Existente com Busca e Confirmação */}
+      <ModalVincularContatoCliente
+        isOpen={Boolean(itemParaVincular)}
+        onClose={() => setItemParaVincular(null)}
+        item={itemParaVincular}
+        clientes={clientes}
+        onConfirmarVinculacao={handleConfirmarVinculacaoManual}
+      />
+
+      {/* Diálogo de Confirmação Obrigatório para Botão Atualizar Telefone */}
       <Dialog
         open={Boolean(itemParaAtualizar)}
         onOpenChange={(open) => {
