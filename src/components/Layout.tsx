@@ -10,7 +10,6 @@ import {
   Users,
   UserCog,
   FileSpreadsheet,
-  FileSignature,
   Truck,
   Menu,
   X,
@@ -135,7 +134,6 @@ export default function Layout() {
         { name: 'Clientes', path: '/clientes', icon: Users },
         { name: 'Gerenciar Usuários', path: '/gerenciar-usuarios', icon: UserCog },
         { name: 'Importar Clientes', path: '/importar-clientes', icon: FileSpreadsheet },
-        { name: 'Importar Contratos O&M', path: '/importar-contratos-om', icon: FileSignature },
         { name: 'Fornecedores', path: '/fornecedores', icon: Truck },
       ]
 
