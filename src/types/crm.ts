@@ -303,12 +303,14 @@ export interface WhatsAppConversa extends RecordModel {
 // Tipos para Gestão de Fornecedores e Orçamentos de Fornecedores
 // -------------------------------------------------------------
 
-export type FornecedorEspecialidade =
+export type FornecedorEspecialidadePadrao =
   | 'paineis'
   | 'inversores'
   | 'estruturas'
   | 'acessorios'
   | 'completo'
+
+export type FornecedorEspecialidade = FornecedorEspecialidadePadrao | (string & {})
 
 export interface FornecedorItemOrcamento {
   descricao: string

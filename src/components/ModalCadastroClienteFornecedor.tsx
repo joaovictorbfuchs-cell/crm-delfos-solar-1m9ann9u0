@@ -141,9 +141,18 @@ export const ModalCadastroClienteFornecedor: React.FC<ModalCadastroClienteFornec
   const [cep, setCep] = useState(dadosIniciais?.cep || '')
 
   // Fornecedor
-  const [especialidade, setEspecialidade] = useState<FornecedorEspecialidade>(
-    dadosIniciais?.especialidade || 'completo',
+  const ESPECIALIDADES_PADRAO = ['completo', 'paineis', 'inversores', 'estruturas', 'acessorios']
+  const initialIsCustom = dadosIniciais?.especialidade
+    ? !ESPECIALIDADES_PADRAO.includes(dadosIniciais.especialidade)
+    : false
+
+  const [especialidadeSelect, setEspecialidadeSelect] = useState<string>(
+    initialIsCustom ? 'outros' : dadosIniciais?.especialidade || 'completo',
   )
+  const [especialidadeCustom, setEspecialidadeCustom] = useState<string>(
+    initialIsCustom ? dadosIniciais?.especialidade || '' : '',
+  )
+  const [especialidadeCustomErro, setEspecialidadeCustomErro] = useState<string | null>(null)
 
   // Submissão & Conflitos CNPJ
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -198,7 +207,14 @@ export const ModalCadastroClienteFornecedor: React.FC<ModalCadastroClienteFornec
         setCidade(dadosIniciais.cidade || 'Erechim')
         setEstado(dadosIniciais.estado || 'RS')
         setCep(dadosIniciais.cep || '')
-        setEspecialidade(dadosIniciais.especialidade || 'completo')
+        const isCustom = dadosIniciais.especialidade
+          ? !['completo', 'paineis', 'inversores', 'estruturas', 'acessorios'].includes(
+              dadosIniciais.especialidade,
+            )
+          : false
+        setEspecialidadeSelect(isCustom ? 'outros' : dadosIniciais.especialidade || 'completo')
+        setEspecialidadeCustom(isCustom ? dadosIniciais.especialidade || '' : '')
+        setEspecialidadeCustomErro(null)
       } else {
         resetForm()
       }
@@ -230,7 +246,9 @@ export const ModalCadastroClienteFornecedor: React.FC<ModalCadastroClienteFornec
     setCidade('Erechim')
     setEstado('RS')
     setCep('')
-    setEspecialidade('completo')
+    setEspecialidadeSelect('completo')
+    setEspecialidadeCustom('')
+    setEspecialidadeCustomErro(null)
     setConflitosCnpj([])
     setPendenteDadosReceita(null)
     resetCnpjLookup()
@@ -419,6 +437,17 @@ export const ModalCadastroClienteFornecedor: React.FC<ModalCadastroClienteFornec
       return
     }
 
+    if (tipoEntidade === 'fornecedor') {
+      if (especialidadeSelect === 'outros') {
+        if (!especialidadeCustom.trim()) {
+          setEspecialidadeCustomErro('Informe qual é o tipo de fornecimento.')
+          toast.error('Informe a especialidade de fornecimento.')
+          return
+        }
+        setEspecialidadeCustomErro(null)
+      }
+    }
+
     try {
       setIsSubmitting(true)
       await onSubmit({
@@ -446,7 +475,12 @@ export const ModalCadastroClienteFornecedor: React.FC<ModalCadastroClienteFornec
         cidade: cidade.trim() || undefined,
         estado: estado.trim().toUpperCase() || undefined,
         cep: cep.trim() || undefined,
-        especialidade: tipoEntidade === 'fornecedor' ? especialidade : undefined,
+        especialidade:
+          tipoEntidade === 'fornecedor'
+            ? especialidadeSelect === 'outros'
+              ? especialidadeCustom.trim()
+              : especialidadeSelect
+            : undefined,
       })
 
       toast.success(
@@ -822,21 +856,59 @@ export const ModalCadastroClienteFornecedor: React.FC<ModalCadastroClienteFornec
 
           {/* CASO FORNECEDOR: ESPECIALIDADE */}
           {tipoEntidade === 'fornecedor' && (
-            <div>
-              <label className="font-semibold text-gray-700 block mb-1">
-                Especialidade de Fornecimento <span className="text-red-500">*</span>
-              </label>
-              <select
-                value={especialidade}
-                onChange={(e) => setEspecialidade(e.target.value as FornecedorEspecialidade)}
-                className="w-full px-3 py-2 text-xs rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white font-medium"
-              >
-                <option value="completo">Kit Completo Fotovoltaico</option>
-                <option value="paineis">Painéis Fotovoltaicos</option>
-                <option value="inversores">Inversores</option>
-                <option value="estruturas">Estruturas de Fixação</option>
-                <option value="acessorios">Acessórios & Proteções</option>
-              </select>
+            <div className="space-y-2">
+              <div>
+                <label className="font-semibold text-gray-700 block mb-1">
+                  Especialidade de Fornecimento <span className="text-red-500">*</span>
+                </label>
+                <select
+                  value={especialidadeSelect}
+                  onChange={(e) => {
+                    const val = e.target.value
+                    setEspecialidadeSelect(val)
+                    if (val !== 'outros') {
+                      setEspecialidadeCustomErro(null)
+                    }
+                  }}
+                  className="w-full px-3 py-2 text-xs rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white font-medium"
+                >
+                  <option value="completo">Kit Completo Fotovoltaico</option>
+                  <option value="paineis">Painéis Fotovoltaicos</option>
+                  <option value="inversores">Inversores</option>
+                  <option value="estruturas">Estruturas de Fixação</option>
+                  <option value="acessorios">Acessórios & Proteções</option>
+                  <option value="outros">Outros</option>
+                </select>
+              </div>
+
+              {especialidadeSelect === 'outros' && (
+                <div className="animate-in fade-in duration-150">
+                  <label className="font-semibold text-gray-700 block mb-1">
+                    Qual tipo de fornecimento? <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={especialidadeCustom}
+                    onChange={(e) => {
+                      setEspecialidadeCustom(e.target.value)
+                      if (e.target.value.trim()) {
+                        setEspecialidadeCustomErro(null)
+                      }
+                    }}
+                    placeholder="Ex: Transformadores, Cabeamento Especial, Baterias..."
+                    className={`w-full px-3 py-2 text-xs rounded-lg border ${
+                      especialidadeCustomErro
+                        ? 'border-red-400 focus:ring-red-400'
+                        : 'border-gray-300 focus:ring-emerald-500'
+                    } focus:outline-none focus:ring-2 bg-white`}
+                  />
+                  {especialidadeCustomErro && (
+                    <p className="text-[11px] text-red-600 mt-1 font-medium">
+                      {especialidadeCustomErro}
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
           )}
 

@@ -34,7 +34,7 @@ import {
 } from '@/components/ModalCadastroClienteFornecedor'
 
 const ESPECIALIDADES_CONFIG: Record<
-  FornecedorEspecialidade,
+  string,
   { label: string; bg: string; text: string; border: string }
 > = {
   paineis: {
@@ -67,6 +67,21 @@ const ESPECIALIDADES_CONFIG: Record<
     text: 'text-emerald-900',
     border: 'border-emerald-300',
   },
+}
+
+function getEspecialidadeConfig(especialidade: string | undefined) {
+  if (!especialidade) {
+    return ESPECIALIDADES_CONFIG.completo
+  }
+  if (ESPECIALIDADES_CONFIG[especialidade]) {
+    return ESPECIALIDADES_CONFIG[especialidade]
+  }
+  return {
+    label: especialidade,
+    bg: 'bg-slate-50',
+    text: 'text-slate-800',
+    border: 'border-slate-200',
+  }
 }
 
 export function Fornecedores() {
@@ -169,6 +184,18 @@ export function Fornecedores() {
     }
   }
 
+  // Extrair especialidades customizadas existentes para enriquecer o filtro
+  const especialidadesFiltroOpcoes = useMemo(() => {
+    const padroes = ['completo', 'paineis', 'inversores', 'estruturas', 'acessorios']
+    const customSet = new Set<string>()
+    fornecedores.forEach((f) => {
+      if (f.especialidade && !padroes.includes(f.especialidade)) {
+        customSet.add(f.especialidade)
+      }
+    })
+    return Array.from(customSet).sort()
+  }, [fornecedores])
+
   // Filtragem
   const fornecedoresFiltrados = useMemo(() => {
     return fornecedores.filter((f) => {
@@ -182,7 +209,8 @@ export function Fornecedores() {
         (f.contato_nome && f.contato_nome.toLowerCase().includes(lower)) ||
         (f.contato_principal && f.contato_principal.toLowerCase().includes(lower)) ||
         (f.telefone && f.telefone.includes(searchTerm)) ||
-        (f.email && f.email.toLowerCase().includes(lower))
+        (f.email && f.email.toLowerCase().includes(lower)) ||
+        (f.especialidade && f.especialidade.toLowerCase().includes(lower))
 
       const matchEspecialidade =
         filtroEspecialidade === 'todos' || f.especialidade === filtroEspecialidade
@@ -266,6 +294,11 @@ export function Fornecedores() {
             <option value="inversores">Inversores</option>
             <option value="estruturas">Estruturas</option>
             <option value="acessorios">Acessórios</option>
+            {especialidadesFiltroOpcoes.map((esp) => (
+              <option key={esp} value={esp}>
+                {esp}
+              </option>
+            ))}
           </select>
         </div>
       </div>
@@ -294,8 +327,7 @@ export function Fornecedores() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {fornecedoresFiltrados.map((f) => {
-            const espConfig =
-              ESPECIALIDADES_CONFIG[f.especialidade] || ESPECIALIDADES_CONFIG.completo
+            const espConfig = getEspecialidadeConfig(f.especialidade)
             const orcs = fornecedoresOrcamentos.filter(
               (o) =>
                 o.fornecedor_id === f.id ||
@@ -454,10 +486,16 @@ export function Fornecedores() {
                         {drawerFornecedor.situacao_cadastral}
                       </span>
                     )}
-                    <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-800 border border-emerald-200">
-                      {ESPECIALIDADES_CONFIG[drawerFornecedor.especialidade]?.label ||
-                        drawerFornecedor.especialidade}
-                    </span>
+                    {(() => {
+                      const drawerEsp = getEspecialidadeConfig(drawerFornecedor.especialidade)
+                      return (
+                        <span
+                          className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-md border ${drawerEsp.bg} ${drawerEsp.text} ${drawerEsp.border}`}
+                        >
+                          {drawerEsp.label}
+                        </span>
+                      )
+                    })()}
                   </div>
                 </div>
               </div>

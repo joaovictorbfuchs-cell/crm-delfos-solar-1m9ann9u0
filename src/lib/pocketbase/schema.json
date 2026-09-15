@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-15T13:36:38.673Z",
+  "generatedAt": "2026-09-15T13:46:49.669Z",
   "collections": [
     {
       "name": "users",
@@ -2619,13 +2619,6 @@
           "system": false
         },
         {
-          "name": "especialidade",
-          "type": "select",
-          "required": true,
-          "system": false,
-          "selectValues": ["paineis", "inversores", "estruturas", "acessorios", "completo"]
-        },
-        {
           "name": "observacoes",
           "type": "text",
           "required": false,
@@ -2745,6 +2738,12 @@
           "name": "como_conheceu",
           "type": "text",
           "required": false,
+          "system": false
+        },
+        {
+          "name": "especialidade",
+          "type": "text",
+          "required": true,
           "system": false
         }
       ],
