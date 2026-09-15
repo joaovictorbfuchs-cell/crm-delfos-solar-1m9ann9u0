@@ -38,6 +38,22 @@ describe('calcularCustosAba - Desconto e Comissão Mínima', () => {
       Math.round(resComDesconto.baseComDesconto * 0.15 * 100) / 100,
     )
     expect(resComDesconto.administracao).toBeLessThan(resSemDesconto.administracao)
+    expect(resComDesconto.administracaoDescontada).toBe(
+      Math.round((resSemDesconto.administracao - resComDesconto.administracao) * 100) / 100,
+    )
+
+    // Indicação agora também reflete o desconto: (baseComDesconto * 0.01)
+    expect(resComDesconto.indicacao).toBe(
+      Math.round(resComDesconto.baseComDesconto * 0.01 * 100) / 100,
+    )
+    expect(resComDesconto.indicacao).toBeLessThan(resSemDesconto.indicacao)
+    expect(resComDesconto.indicacaoDescontada).toBe(
+      Math.round((resSemDesconto.indicacao - resComDesconto.indicacao) * 100) / 100,
+    )
+
+    // Percentual do desconto em relação ao projeto
+    const expectedPct = Math.round((1000 / resSemDesconto.valorTotal) * 100 * 100) / 100
+    expect(resComDesconto.percentualDescontoProjeto).toBe(expectedPct)
   })
 
   it('aplica piso de R$ 600 na comissão se 3% for menor que 600 e exibe o 3% puro ao lado', () => {
@@ -69,5 +85,52 @@ describe('calcularCustosAba - Desconto e Comissão Mínima', () => {
     expect(res.comissaoPura3Pct).toBeGreaterThan(600)
     expect(res.comissaoComercial).toBe(res.comissaoPura3Pct)
     expect(res.comissaoUsouPisoMinimo).toBe(false)
+  })
+
+  it('reflete o desconto proporcionalmente na comissão quando acima do piso', () => {
+    const resSemDesc = calcularCustosAba({
+      materiais: 30000,
+      maoDeObra: 3000,
+      riscoEngenharia: 400,
+      opcaoImposto: 1,
+      desconto: 0,
+    })
+
+    const resComDesc = calcularCustosAba({
+      materiais: 30000,
+      maoDeObra: 3000,
+      riscoEngenharia: 400,
+      opcaoImposto: 1,
+      desconto: 2000,
+    })
+
+    expect(resComDesc.comissaoUsouPisoMinimo).toBe(false)
+    expect(resComDesc.comissaoComercial).toBe(
+      Math.round(resComDesc.baseComDesconto * 0.03 * 100) / 100,
+    )
+    expect(resComDesc.comissaoDescontada).toBe(
+      Math.round((resSemDesc.comissaoComercial - resComDesc.comissaoComercial) * 100) / 100,
+    )
+    expect(resComDesc.comissaoDescontada).toBe(60) // 2000 * 0.03 = 60
+    expect(resComDesc.administracaoDescontada).toBe(300) // 2000 * 0.15 = 300
+    expect(resComDesc.indicacaoDescontada).toBe(20) // 2000 * 0.01 = 20
+  })
+
+  it('respeita piso de 600 na comissão mesmo com desconto e calcula diferença efetiva descontada', () => {
+    const resComDescPiso = calcularCustosAba({
+      materiais: 3000,
+      maoDeObra: 1500,
+      riscoEngenharia: 400,
+      opcaoImposto: 1,
+      desconto: 500,
+    })
+
+    expect(resComDescPiso.comissaoComercial).toBe(600)
+    expect(resComDescPiso.comissaoUsouPisoMinimo).toBe(true)
+    // Como ambos sem desconto e com desconto batem no piso de 600, o valor descontado efetivo na comissão é 0
+    expect(resComDescPiso.comissaoDescontada).toBe(0)
+    // Mas administração e indicação continuam com o desconto proporcional
+    expect(resComDescPiso.administracaoDescontada).toBe(75) // 500 * 0.15 = 75
+    expect(resComDescPiso.indicacaoDescontada).toBe(5) // 500 * 0.01 = 5
   })
 })

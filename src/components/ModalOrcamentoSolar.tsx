@@ -1533,19 +1533,31 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                   </div>
                 </div>
 
-                {/* Seção de Desconto sobre o total do projeto (Ajuste 1: afeta apenas comissão e administração) */}
+                {/* Seção de Desconto sobre o total do projeto (Reflete proporcionalmente em Administração, Comissão e Indicação) */}
                 <div className="px-3 py-2.5 rounded-lg bg-amber-50/70 border border-amber-300 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
                   <div className="flex items-center gap-2">
                     <span className="p-1 rounded bg-amber-100 text-amber-800 font-bold text-[10px] uppercase">
                       Desconto
                     </span>
                     <div>
-                      <span className="text-[11px] font-bold text-amber-950 block">
-                        Desconto sobre o Total do Projeto (R$)
-                      </span>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="text-[11px] font-bold text-amber-950">
+                          Desconto sobre o Total do Projeto (R$)
+                        </span>
+                        {desconto > 0 && resultadoCustosAba.valorTotal > 0 && (
+                          <span className="text-[10px] font-extrabold text-amber-900 bg-amber-100/90 px-1.5 py-0.2 rounded border border-amber-300">
+                            {formatCurrency(desconto)} (
+                            {resultadoCustosAba.percentualDescontoProjeto
+                              .toFixed(2)
+                              .replace('.', ',')}
+                            % do projeto)
+                          </span>
+                        )}
+                      </div>
                       <span className="text-[10px] text-amber-800">
-                        Reflete <strong>exclusivamente</strong> na base de Administração (15%) e
-                        Comissão comercial (3%). Não altera materiais, mão de obra nem impostos.
+                        Reflete <strong>proporcionalmente</strong> em Administração (15%), Comissão
+                        comercial (3% — mantendo piso R$ 600) e Indicação (1%). Não altera
+                        materiais, mão de obra, impostos nem o valor total.
                       </span>
                     </div>
                   </div>
@@ -1553,7 +1565,7 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                   <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
                     {desconto > 0 && (
                       <span className="text-[10px] font-bold text-amber-800 bg-white px-2 py-0.5 rounded border border-amber-200">
-                        Base:{' '}
+                        Base líq.:{' '}
                         {formatCurrency(
                           resultadoCustosAba.baseComDesconto ??
                             Math.max(0, resultadoCustosAba.somaComImpostos - desconto),
@@ -1569,7 +1581,7 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                         onChange={(e) => setDesconto(Math.max(0, Number(e.target.value) || 0))}
                         className="w-full text-xs font-bold px-2.5 py-1 rounded-md border border-amber-300 bg-white text-amber-950 focus:outline-none focus:ring-1 focus:ring-amber-500 text-right"
                         placeholder="0,00"
-                        title="Digite o valor do desconto em R$ para reduzir a base de administração e comissão comercial"
+                        title="Digite o valor do desconto em R$ para reduzir a base de administração, comissão comercial e indicação"
                       />
                     </div>
                   </div>
@@ -1683,18 +1695,33 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                           15%
                         </span>
                       </div>
-                      <div className="text-sm font-black text-emerald-800">
-                        {formatCurrency(resultadoCustosAba.administracao)}
+                      <div className="flex items-baseline gap-1.5 flex-wrap">
+                        <span className="text-sm font-black text-emerald-800">
+                          {formatCurrency(resultadoCustosAba.administracao)}
+                        </span>
+                        {desconto > 0 && resultadoCustosAba.administracaoDescontada > 0 && (
+                          <span
+                            className="text-[10px] font-bold text-amber-700 bg-amber-50 px-1 py-0.2 rounded border border-amber-200"
+                            title={`Original sem desconto: ${formatCurrency(resultadoCustosAba.administracaoSemDesconto)} | Descontado: − ${formatCurrency(resultadoCustosAba.administracaoDescontada)}`}
+                          >
+                            − {formatCurrency(resultadoCustosAba.administracaoDescontada)} pelo
+                            desconto
+                          </span>
+                        )}
                       </div>
                       <p
                         className="text-[9px] text-gray-400 truncate"
                         title={
                           desconto > 0
-                            ? `(Soma c/ imposto − Desconto ${formatCurrency(desconto)}) × 15%`
+                            ? `Original: ${formatCurrency(resultadoCustosAba.administracaoSemDesconto)} | (Base c/ desc. ${formatCurrency(resultadoCustosAba.baseComDesconto)}) × 15% = ${formatCurrency(resultadoCustosAba.administracao)} (redução de ${formatCurrency(resultadoCustosAba.administracaoDescontada)})`
                             : '(Soma com materiais e impostos) × 0,15'
                         }
                       >
-                        {desconto > 0 ? `Base c/ desc. × 15%` : `(Soma c/ imposto) × 15%`}
+                        {desconto > 0 && resultadoCustosAba.administracaoDescontada > 0
+                          ? `Original: ${formatCurrency(resultadoCustosAba.administracaoSemDesconto)} (Base c/ desc. × 15%)`
+                          : desconto > 0
+                            ? `Base c/ desc. × 15%`
+                            : `(Soma c/ imposto) × 15%`}
                       </p>
                     </div>
 
@@ -1716,16 +1743,24 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                           </span>
                         </div>
                       </div>
-                      <div className="flex items-baseline gap-2">
+                      <div className="flex items-baseline gap-1.5 flex-wrap">
                         <span className="text-sm font-black text-emerald-800">
                           {formatCurrency(resultadoCustosAba.comissaoComercial)}
                         </span>
                         {resultadoCustosAba.comissaoUsouPisoMinimo && (
                           <span
                             className="text-[10px] font-semibold text-gray-500 cursor-help"
-                            title="Valor que resultaria da aplicação pura de 3% sobre a base"
+                            title="Valor que resultaria da aplicação pura de 3% sobre a base líquida"
                           >
                             (3% = {formatCurrency(resultadoCustosAba.comissaoPura3Pct)})
+                          </span>
+                        )}
+                        {desconto > 0 && resultadoCustosAba.comissaoDescontada > 0 && (
+                          <span
+                            className="text-[10px] font-bold text-amber-700 bg-amber-50 px-1 py-0.2 rounded border border-amber-200"
+                            title={`Original sem desconto: ${formatCurrency(resultadoCustosAba.comissaoSemDesconto)} | Descontado: − ${formatCurrency(resultadoCustosAba.comissaoDescontada)}`}
+                          >
+                            − {formatCurrency(resultadoCustosAba.comissaoDescontada)} pelo desconto
                           </span>
                         )}
                       </div>
@@ -1733,15 +1768,19 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                         className="text-[9px] text-gray-400 truncate"
                         title={
                           resultadoCustosAba.comissaoUsouPisoMinimo
-                            ? `Piso de R$ 600 aplicado (3% puro daria ${formatCurrency(resultadoCustosAba.comissaoPura3Pct)})`
-                            : '(Soma com materiais e impostos) × 0,03'
+                            ? `Piso de R$ 600 aplicado (3% puro daria ${formatCurrency(resultadoCustosAba.comissaoPura3Pct)})${desconto > 0 && resultadoCustosAba.comissaoDescontada > 0 ? ` | Original: ${formatCurrency(resultadoCustosAba.comissaoSemDesconto)}` : ''}`
+                            : desconto > 0 && resultadoCustosAba.comissaoDescontada > 0
+                              ? `Original: ${formatCurrency(resultadoCustosAba.comissaoSemDesconto)} | Base c/ desc. × 3% = ${formatCurrency(resultadoCustosAba.comissaoComercial)} (redução de ${formatCurrency(resultadoCustosAba.comissaoDescontada)})`
+                              : '(Soma com materiais e impostos) × 0,03'
                         }
                       >
                         {resultadoCustosAba.comissaoUsouPisoMinimo
                           ? `Piso R$ 600 (3% = ${formatCurrency(resultadoCustosAba.comissaoPura3Pct)})`
-                          : desconto > 0
-                            ? `Base c/ desc. × 3%`
-                            : `(Soma c/ imposto) × 3%`}
+                          : desconto > 0 && resultadoCustosAba.comissaoDescontada > 0
+                            ? `Original: ${formatCurrency(resultadoCustosAba.comissaoSemDesconto)} (Base c/ desc. × 3%)`
+                            : desconto > 0
+                              ? `Base c/ desc. × 3%`
+                              : `(Soma c/ imposto) × 3%`}
                       </p>
                     </div>
 
@@ -1753,14 +1792,32 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                           1%
                         </span>
                       </div>
-                      <div className="text-sm font-black text-emerald-800">
-                        {formatCurrency(resultadoCustosAba.indicacao)}
+                      <div className="flex items-baseline gap-1.5 flex-wrap">
+                        <span className="text-sm font-black text-emerald-800">
+                          {formatCurrency(resultadoCustosAba.indicacao)}
+                        </span>
+                        {desconto > 0 && resultadoCustosAba.indicacaoDescontada > 0 && (
+                          <span
+                            className="text-[10px] font-bold text-amber-700 bg-amber-50 px-1 py-0.2 rounded border border-amber-200"
+                            title={`Original sem desconto: ${formatCurrency(resultadoCustosAba.indicacaoSemDesconto)} | Descontado: − ${formatCurrency(resultadoCustosAba.indicacaoDescontada)}`}
+                          >
+                            − {formatCurrency(resultadoCustosAba.indicacaoDescontada)} pelo desconto
+                          </span>
+                        )}
                       </div>
                       <p
                         className="text-[9px] text-gray-400 truncate"
-                        title="Valor total do orçamento × 0,01"
+                        title={
+                          desconto > 0 && resultadoCustosAba.indicacaoDescontada > 0
+                            ? `Original: ${formatCurrency(resultadoCustosAba.indicacaoSemDesconto)} | Base c/ desc. × 1% = ${formatCurrency(resultadoCustosAba.indicacao)} (redução de ${formatCurrency(resultadoCustosAba.indicacaoDescontada)})`
+                            : '(Soma com materiais e impostos) × 0,01'
+                        }
                       >
-                        Total orçamento × 1%
+                        {desconto > 0 && resultadoCustosAba.indicacaoDescontada > 0
+                          ? `Original: ${formatCurrency(resultadoCustosAba.indicacaoSemDesconto)} (Base c/ desc. × 1%)`
+                          : desconto > 0
+                            ? `Base c/ desc. × 1%`
+                            : `(Soma c/ imposto) × 1%`}
                       </p>
                     </div>
                   </div>

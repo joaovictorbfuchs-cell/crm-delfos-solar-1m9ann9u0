@@ -231,13 +231,20 @@ export interface ParametrosCalculoCustosAba {
 export interface ResultadoCalculoCustosAba {
   impostos: number
   somaComImpostos: number // soma de todos os valores incluindo materiais e impostos (sem deduzir desconto)
-  baseComDesconto: number // base usada para administração e comissão comercial após abater o desconto
+  baseComDesconto: number // base líquida (somaComImpostos - desconto) usada para administração, comissão e indicação
   desconto: number
+  percentualDescontoProjeto: number // percentual que o desconto representa sobre o valor total do projeto (0 a 100)
   administracao: number // baseComDesconto * 0.15
-  comissaoComercial: number // Math.max(600, comissaoPura3Pct) se base > 0 (ou piso R$ 600)
-  comissaoPura3Pct: number // baseComDesconto * 0.03 (para exibir ao lado quando o piso de R$ 600 for acionado)
+  administracaoSemDesconto: number // somaComImpostos * 0.15
+  administracaoDescontada: number // diferença descontada na administração
+  comissaoComercial: number // Math.max(600, comissaoPura3Pct) se base > 0 (mantendo piso R$ 600)
+  comissaoPura3Pct: number // baseComDesconto * 0.03
+  comissaoSemDesconto: number // valor que seria sem desconto (aplicando piso se couber)
+  comissaoDescontada: number // diferença efetivamente descontada da comissão comercial
   comissaoUsouPisoMinimo: boolean // true se a comissão foi elevada para o piso de R$ 600
-  indicacao: number // total * 0.01
+  indicacao: number // baseComDesconto * 0.01
+  indicacaoSemDesconto: number // somaComImpostos * 0.01
+  indicacaoDescontada: number // diferença descontada na indicação
   valorTotal: number
 }
 
@@ -277,14 +284,26 @@ export function calcularCustosAba(params: ParametrosCalculoCustosAba): Resultado
   const somaComImpostos = subtotalBase + impostos
 
   // 1. Desconto sobre o total do projeto:
-  // "quando eu digitar o valor do desconto, ele vai refletir apenas no valor da comissão e do valor de administração."
-  // Reduz a base usada nos cálculos de Administração (15%) e Comissão comercial (3%).
+  // Reflete proporcionalmente nos três valores calculados:
+  // Administração (15%), Comissão comercial (3% mantendo piso R$ 600) e Indicação (1%).
+  // base_liquida = soma_dos_custos - desconto;
+  // administracao = base_liquida * 0.15;
+  // comissao = max(base_liquida * 0.03, 600);
+  // indicacao = base_liquida * 0.01.
   const baseComDesconto = Math.max(0, somaComImpostos - desconto)
-  const administracao = baseComDesconto * 0.15
 
-  // 2. Comissão mínima de R$ 600:
-  // "o minimo de valor calculado para comissão deve ficar em 600, ou seja, se o calculo ficar menor que 600,
-  // o valor para aparecer deve ser 600 e ao lado aparecer quanto daria se fosse 3%."
+  // Administração: 15%
+  const administracaoSemDesconto = somaComImpostos * 0.15
+  const administracao = baseComDesconto * 0.15
+  const administracaoDescontada = Math.max(0, administracaoSemDesconto - administracao)
+
+  // Comissão comercial: 3% (com piso de R$ 600)
+  const comissaoPura3PctSemDesconto = somaComImpostos * 0.03
+  let comissaoSemDesconto = comissaoPura3PctSemDesconto
+  if (somaComImpostos > 0 && comissaoPura3PctSemDesconto < 600) {
+    comissaoSemDesconto = 600
+  }
+
   const comissaoPura3Pct = baseComDesconto * 0.03
   let comissaoComercial = comissaoPura3Pct
   let comissaoUsouPisoMinimo = false
@@ -295,19 +314,33 @@ export function calcularCustosAba(params: ParametrosCalculoCustosAba): Resultado
       comissaoUsouPisoMinimo = true
     }
   }
+  const comissaoDescontada = Math.max(0, comissaoSemDesconto - comissaoComercial)
 
-  const indicacao = valorTotal * 0.01
+  // Indicação: 1%
+  const indicacaoSemDesconto = somaComImpostos * 0.01
+  const indicacao = baseComDesconto * 0.01
+  const indicacaoDescontada = Math.max(0, indicacaoSemDesconto - indicacao)
+
+  const percentualDescontoProjeto =
+    valorTotal > 0 && desconto > 0 ? (desconto / valorTotal) * 100 : 0
 
   return {
     impostos: Math.round(impostos * 100) / 100,
     somaComImpostos: Math.round(somaComImpostos * 100) / 100,
     baseComDesconto: Math.round(baseComDesconto * 100) / 100,
     desconto: Math.round(desconto * 100) / 100,
+    percentualDescontoProjeto: Math.round(percentualDescontoProjeto * 100) / 100,
     administracao: Math.round(administracao * 100) / 100,
+    administracaoSemDesconto: Math.round(administracaoSemDesconto * 100) / 100,
+    administracaoDescontada: Math.round(administracaoDescontada * 100) / 100,
     comissaoComercial: Math.round(comissaoComercial * 100) / 100,
     comissaoPura3Pct: Math.round(comissaoPura3Pct * 100) / 100,
+    comissaoSemDesconto: Math.round(comissaoSemDesconto * 100) / 100,
+    comissaoDescontada: Math.round(comissaoDescontada * 100) / 100,
     comissaoUsouPisoMinimo,
     indicacao: Math.round(indicacao * 100) / 100,
+    indicacaoSemDesconto: Math.round(indicacaoSemDesconto * 100) / 100,
+    indicacaoDescontada: Math.round(indicacaoDescontada * 100) / 100,
     valorTotal: Math.round(valorTotal * 100) / 100,
   }
 }
