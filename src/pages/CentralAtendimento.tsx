@@ -564,8 +564,19 @@ export const CentralAtendimento: React.FC = () => {
                       >
                         <div className="flex items-start justify-between gap-2">
                           <div className="flex items-center gap-2 min-w-0">
-                            <div className="w-8 h-8 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center font-bold text-xs shrink-0">
-                              <Phone className="w-4 h-4" />
+                            <div className="w-8 h-8 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center font-bold text-xs shrink-0 overflow-hidden">
+                              {conv.foto_perfil ? (
+                                <img
+                                  src={conv.foto_perfil}
+                                  alt={cli ? cli.nome : conv.numero}
+                                  className="w-full h-full object-cover"
+                                  onError={(e) => {
+                                    e.currentTarget.style.display = 'none'
+                                  }}
+                                />
+                              ) : (
+                                <Phone className="w-4 h-4" />
+                              )}
                             </div>
                             <div className="min-w-0">
                               <div className="font-bold text-xs text-gray-900 truncate">
@@ -708,8 +719,17 @@ export const CentralAtendimento: React.FC = () => {
                       >
                         <div className="flex items-start justify-between gap-2">
                           <div className="flex items-center gap-2 min-w-0">
-                            <div className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold text-xs shrink-0">
-                              {cli?.nome ? (
+                            <div className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold text-xs shrink-0 overflow-hidden">
+                              {conv.foto_perfil ? (
+                                <img
+                                  src={conv.foto_perfil}
+                                  alt={cli?.nome || conv.numero}
+                                  className="w-full h-full object-cover"
+                                  onError={(e) => {
+                                    e.currentTarget.style.display = 'none'
+                                  }}
+                                />
+                              ) : cli?.nome ? (
                                 cli.nome.substring(0, 2).toUpperCase()
                               ) : (
                                 <Users className="w-4 h-4" />

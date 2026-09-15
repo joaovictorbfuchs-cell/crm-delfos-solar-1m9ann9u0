@@ -615,12 +615,27 @@ export const FichaClienteWhatsApp: React.FC<FichaClienteWhatsAppProps> = ({
                 )
               }
 
+              // Guarda: URLs ou nomes com pps.whatsapp.net ou padrão de foto de perfil
+              const isFotoPerfilUrl = (url?: string) => {
+                if (!url) return false
+                return (
+                  url.includes('pps.whatsapp.net') ||
+                  (url.includes('_n_') && url.includes('id=')) ||
+                  (url.includes('_n.jpg') && url.includes('whatsapp'))
+                )
+              }
+
+              const isMidiaPerfil =
+                isFotoPerfilUrl(msg.documento_url) || isFotoPerfilUrl(msg.arquivo)
+
               const isVideoMsgItem =
-                msg.tipo_mensagem === 'video' ||
-                hasVideoExt(msg.nome_arquivo) ||
-                hasVideoExt(msg.documento_url) ||
-                hasVideoExt(msg.arquivo)
+                !isMidiaPerfil &&
+                (msg.tipo_mensagem === 'video' ||
+                  hasVideoExt(msg.nome_arquivo) ||
+                  hasVideoExt(msg.documento_url) ||
+                  hasVideoExt(msg.arquivo))
               const isImagemMsgItem =
+                !isMidiaPerfil &&
                 !isVideoMsgItem &&
                 (msg.tipo_mensagem === 'imagem' ||
                   hasImageExt(msg.nome_arquivo) ||

@@ -524,13 +524,24 @@ export const ConversaChatView: React.FC<ConversaChatViewProps> = ({
             </button>
           )}
 
-          {/* Avatar com inicial / foto */}
+          {/* Avatar com foto de perfil do contato / inicial como fallback */}
           <div
-            className="w-10 h-10 rounded-full bg-[#00a884] text-white flex items-center justify-center font-bold text-sm shrink-0 shadow-2xs cursor-pointer select-none"
+            className="w-10 h-10 rounded-full bg-[#00a884] text-white flex items-center justify-center font-bold text-sm shrink-0 shadow-2xs cursor-pointer select-none overflow-hidden"
             onClick={() => cliente && openFichaCliente(cliente.id, 'historico')}
             title={cliente ? `Abrir ficha de ${cliente.nome}` : undefined}
           >
-            {contatoIniciais}
+            {conversa.foto_perfil ? (
+              <img
+                src={conversa.foto_perfil}
+                alt={cliente?.nome || conversa.numero}
+                className="w-full h-full object-cover"
+                onError={(e) => {
+                  // Fallback para as iniciais se a URL externa falhar/expirar
+                  e.currentTarget.style.display = 'none'
+                }}
+              />
+            ) : null}
+            <span className={conversa.foto_perfil ? 'hidden' : 'inline'}>{contatoIniciais}</span>
           </div>
 
           <div className="min-w-0 flex-1">
@@ -802,12 +813,27 @@ export const ConversaChatView: React.FC<ConversaChatViewProps> = ({
                 )
               }
 
+              // Guarda: URLs ou nomes com pps.whatsapp.net ou padrão de foto de perfil
+              const isFotoPerfilUrl = (url?: string) => {
+                if (!url) return false
+                return (
+                  url.includes('pps.whatsapp.net') ||
+                  (url.includes('_n_') && url.includes('id=')) ||
+                  (url.includes('_n.jpg') && url.includes('whatsapp'))
+                )
+              }
+
+              const isMidiaPerfil =
+                isFotoPerfilUrl(msg.documento_url) || isFotoPerfilUrl(msg.arquivo)
+
               const isVideoMsg =
-                msg.tipo_mensagem === 'video' ||
-                hasVideoExt(msg.nome_arquivo) ||
-                hasVideoExt(msg.documento_url) ||
-                hasVideoExt(msg.arquivo)
+                !isMidiaPerfil &&
+                (msg.tipo_mensagem === 'video' ||
+                  hasVideoExt(msg.nome_arquivo) ||
+                  hasVideoExt(msg.documento_url) ||
+                  hasVideoExt(msg.arquivo))
               const isImagemMsg =
+                !isMidiaPerfil &&
                 !isVideoMsg &&
                 (msg.tipo_mensagem === 'imagem' ||
                   hasImageExt(msg.nome_arquivo) ||

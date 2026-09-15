@@ -286,6 +286,7 @@ export interface WhatsAppConversa extends RecordModel {
   status: WhatsAppConversaStatus
   atendente?: string
   atendente_id?: string
+  foto_perfil?: string
   ultima_mensagem_preview?: string
   ultima_mensagem_em?: string
   nao_lidas?: number

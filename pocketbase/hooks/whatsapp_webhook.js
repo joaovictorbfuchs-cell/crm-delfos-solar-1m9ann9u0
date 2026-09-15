@@ -33,8 +33,38 @@ routerAdd('POST', '/backend/v1/whatsapp/webhook', (e) => {
       cleanPhone = '55' + cleanPhone
     }
 
+    // Extrair foto de perfil do contato (se presente no payload) para salvar no contato/avatar,
+    // mas NUNCA tratar como mídia da mensagem
+    const senderPhoto = (
+      body.senderPhoto ||
+      body.photo ||
+      body.profilePic ||
+      body.profilePictureUrl ||
+      body.avatarUrl ||
+      ''
+    )
+      .toString()
+      .trim()
+
+    // 0. Extrair texto preliminar (se houver em body.text, body.message, etc.)
+    let rawTextFromPayload = ''
+    if (body.text && typeof body.text === 'object') {
+      rawTextFromPayload = body.text.message || body.text.title || ''
+    } else if (typeof body.text === 'string') {
+      rawTextFromPayload = body.text
+    } else if (body.message && typeof body.message === 'string') {
+      rawTextFromPayload = body.message
+    } else if (body.buttonsResponseMessage && typeof body.buttonsResponseMessage === 'object') {
+      rawTextFromPayload = body.buttonsResponseMessage.message || '[Resposta de Botão]'
+    } else if (body.listResponseMessage && typeof body.listResponseMessage === 'object') {
+      rawTextFromPayload = body.listResponseMessage.message || '[Resposta de Lista]'
+    } else if (body.caption) {
+      rawTextFromPayload = body.caption
+    }
+    rawTextFromPayload = (rawTextFromPayload || '').trim()
+
     // Extrair texto da mensagem e detectar tipo de mídia
-    let messageText = ''
+    let messageText = rawTextFromPayload
     let tipoMensagem = 'texto'
     let nomeArquivo = ''
     let documentoUrl = ''
@@ -167,11 +197,16 @@ routerAdd('POST', '/backend/v1/whatsapp/webhook', (e) => {
       const cap = (im.caption || body.hydratedTemplate.message || '').trim()
       messageText = cap || '[Imagem]'
     }
-    // 10. Imagem via imageUrl ou photo
-    else if (body.imageUrl || body.photo) {
+    // 10. Imagem via imageUrl isolado (NUNCA usar body.photo / senderPhoto aqui!)
+    else if (
+      body.imageUrl &&
+      typeof body.imageUrl === 'string' &&
+      body.imageUrl.trim() &&
+      !body.imageUrl.includes('pps.whatsapp.net')
+    ) {
       tipoMensagem = 'imagem'
-      documentoUrl = body.imageUrl || body.photo || ''
-      messageText = (body.caption || '').trim() || '[Imagem]'
+      documentoUrl = body.imageUrl.trim()
+      messageText = (body.caption || rawTextFromPayload || '').trim() || '[Imagem]'
     }
     // 11. Áudio (objeto audio)
     else if (body.audio && typeof body.audio === 'object') {
@@ -262,21 +297,20 @@ routerAdd('POST', '/backend/v1/whatsapp/webhook', (e) => {
       tipoMensagem = 'video'
       documentoUrl = body.url || body.mediaUrl || body.videoUrl || ''
       nomeArquivo = body.fileName || ''
-      messageText = (body.caption || '').trim() || '[Vídeo]'
+      messageText = (body.caption || rawTextFromPayload || '').trim() || '[Vídeo]'
+    } else if (body.type === 'image' || body.mediaType === 'image') {
+      const imgUrl = (body.url || body.mediaUrl || body.imageUrl || '').toString().trim()
+      // Guarda: garantir que não seja foto de perfil
+      if (imgUrl && !imgUrl.includes('pps.whatsapp.net')) {
+        tipoMensagem = 'imagem'
+        documentoUrl = imgUrl
+        nomeArquivo = body.fileName || ''
+        messageText = (body.caption || rawTextFromPayload || '').trim() || '[Imagem]'
+      }
     }
-    // 17. Mensagens de texto estruturadas ou simples
-    else if (body.text && typeof body.text === 'object') {
-      messageText = body.text.message || body.text.title || ''
-    } else if (typeof body.text === 'string') {
-      messageText = body.text
-    } else if (body.message && typeof body.message === 'string') {
-      messageText = body.message
-    } else if (body.buttonsResponseMessage && typeof body.buttonsResponseMessage === 'object') {
-      messageText = body.buttonsResponseMessage.message || '[Resposta de Botão]'
-    } else if (body.listResponseMessage && typeof body.listResponseMessage === 'object') {
-      messageText = body.listResponseMessage.message || '[Resposta de Lista]'
-    } else if (body.caption) {
-      messageText = body.caption
+    // 17. Mensagens de texto: se tipoMensagem continua 'texto', usar texto extraído
+    if (tipoMensagem === 'texto') {
+      messageText = rawTextFromPayload
     }
 
     messageText = (messageText || '').trim()
@@ -405,6 +439,11 @@ routerAdd('POST', '/backend/v1/whatsapp/webhook', (e) => {
       conversaRecord.set('nao_lidas', naoLidas)
       conversaRecord.set('ultima_mensagem_preview', messageText.substring(0, 120))
       conversaRecord.set('ultima_mensagem_em', nowIso)
+      if (senderPhoto) {
+        try {
+          conversaRecord.set('foto_perfil', senderPhoto)
+        } catch (_) {}
+      }
       $app.save(conversaRecord)
     } else {
       // Conversa NÃO existe ainda
@@ -413,6 +452,11 @@ routerAdd('POST', '/backend/v1/whatsapp/webhook', (e) => {
       conversaRecord.set('ultima_mensagem_preview', messageText.substring(0, 120))
       conversaRecord.set('ultima_mensagem_em', nowIso)
       conversaRecord.set('nao_lidas', 1)
+      if (senderPhoto) {
+        try {
+          conversaRecord.set('foto_perfil', senderPhoto)
+        } catch (_) {}
+      }
 
       if (clienteEncontrado) {
         // Número já conhecido: associar cliente, criar em "em_atendimento"
