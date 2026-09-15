@@ -14,6 +14,7 @@ import Manutencoes from './pages/Manutencoes'
 import Clientes from './pages/Clientes'
 import Fornecedores from './pages/Fornecedores'
 import Orcamentos from './pages/Orcamentos'
+import InstalacoesGaleriaPage from './pages/InstalacoesGaleria'
 import Atividades from './pages/Atividades'
 import ExecucaoOS from './pages/ExecucaoOS'
 import { CentralAtendimento } from './pages/CentralAtendimento'
@@ -138,6 +139,14 @@ const App = () => (
                 element={
                   <ProtectedRoute requiredRole="admin">
                     <Fornecedores />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/instalacoes-galeria"
+                element={
+                  <ProtectedRoute requiredRole="admin">
+                    <InstalacoesGaleriaPage />
                   </ProtectedRoute>
                 }
               />

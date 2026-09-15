@@ -1,0 +1,464 @@
+import React, { useState, useEffect, useRef } from 'react'
+import {
+  Images,
+  Plus,
+  Trash2,
+  Edit2,
+  Upload,
+  Image as ImageIcon,
+  CheckCircle2,
+  MapPin,
+  Zap,
+  RefreshCw,
+  Search,
+} from 'lucide-react'
+import type { InstalacaoGaleria } from '@/types/instalacoesGaleria'
+import {
+  fetchInstalacoesGaleria,
+  createInstalacaoGaleria,
+  updateInstalacaoGaleria,
+  deleteInstalacaoGaleria,
+  getFotoUrl,
+} from '@/services/instalacoesGaleriaService'
+
+export function InstalacoesGaleriaPage() {
+  const [instalacoes, setInstalacoes] = useState<InstalacaoGaleria[]>([])
+  const [loading, setLoading] = useState<boolean>(true)
+  const [busca, setBusca] = useState<string>('')
+
+  // Modal / Form state
+  const [modalOpen, setModalOpen] = useState<boolean>(false)
+  const [editingItem, setEditingItem] = useState<InstalacaoGaleria | null>(null)
+  const [titulo, setTitulo] = useState<string>('')
+  const [cidade, setCidade] = useState<string>('')
+  const [potenciaKwp, setPotenciaKwp] = useState<string>('')
+  const [fotoUrl, setFotoUrl] = useState<string>('')
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [previewUrl, setPreviewUrl] = useState<string>('')
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const carregar = async () => {
+    setLoading(true)
+    try {
+      const data = await fetchInstalacoesGaleria()
+      setInstalacoes(data)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    carregar()
+  }, [])
+
+  const handleOpenCreate = () => {
+    setEditingItem(null)
+    setTitulo('')
+    setCidade('')
+    setPotenciaKwp('')
+    setFotoUrl('')
+    setSelectedFile(null)
+    setPreviewUrl('')
+    setModalOpen(true)
+  }
+
+  const handleOpenEdit = (item: InstalacaoGaleria) => {
+    setEditingItem(item)
+    setTitulo(item.titulo)
+    setCidade(item.cidade || '')
+    setPotenciaKwp(item.potencia_kwp ? String(item.potencia_kwp) : '')
+    setFotoUrl(item.foto_url || '')
+    setSelectedFile(null)
+    setPreviewUrl(getFotoUrl(item))
+    setModalOpen(true)
+  }
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      setSelectedFile(file)
+      const url = URL.createObjectURL(file)
+      setPreviewUrl(url)
+    }
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!titulo.trim()) {
+      alert('Preencha o título da usina ou instalação.')
+      return
+    }
+
+    try {
+      setIsSubmitting(true)
+      const potenciaNum = potenciaKwp ? parseFloat(potenciaKwp.replace(',', '.')) : undefined
+
+      if (editingItem) {
+        await updateInstalacaoGaleria(
+          editingItem.id,
+          {
+            titulo: titulo.trim(),
+            cidade: cidade.trim() || undefined,
+            potencia_kwp: isNaN(potenciaNum || 0) ? undefined : potenciaNum,
+            foto_url: fotoUrl.trim() || undefined,
+          },
+          selectedFile || undefined,
+        )
+      } else {
+        await createInstalacaoGaleria(
+          {
+            titulo: titulo.trim(),
+            cidade: cidade.trim() || undefined,
+            potencia_kwp: isNaN(potenciaNum || 0) ? undefined : potenciaNum,
+            foto_url:
+              fotoUrl.trim() ||
+              (selectedFile
+                ? undefined
+                : 'https://img.usecurling.com/p/800/600?q=solar+panels&color=green'),
+            ordem: instalacoes.length + 1,
+            destaque: true,
+          },
+          selectedFile || undefined,
+        )
+      }
+
+      setModalOpen(false)
+      await carregar()
+    } catch (err) {
+      console.error('Erro ao salvar instalação:', err)
+      alert('Falha ao salvar instalação. Verifique os dados e tente novamente.')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  const handleDelete = async (item: InstalacaoGaleria) => {
+    if (window.confirm(`Deseja realmente remover "${item.titulo}" da biblioteca?`)) {
+      try {
+        await deleteInstalacaoGaleria(item.id)
+        await carregar()
+      } catch (err) {
+        console.error('Erro ao deletar:', err)
+        alert('Não foi possível remover o item.')
+      }
+    }
+  }
+
+  const filtrados = instalacoes.filter((item) => {
+    if (!busca) return true
+    const term = busca.toLowerCase()
+    return (
+      item.titulo.toLowerCase().includes(term) ||
+      (item.cidade && item.cidade.toLowerCase().includes(term))
+    )
+  })
+
+  return (
+    <div className="space-y-5 p-4 sm:p-6 max-w-7xl mx-auto">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-2">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-[#166534] to-[#16A34A] text-white flex items-center justify-center shadow-xs">
+              <Images className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <h1 className="text-xl sm:text-2xl font-bold text-gray-900 tracking-tight">
+                Biblioteca de Instalações Fotovoltaicas
+              </h1>
+              <p className="text-xs text-gray-500">
+                Fotos de usinas homologadas para inclusão automática na galeria da proposta
+                comercial (até 6 em grade)
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <button
+            onClick={carregar}
+            className="p-2 text-gray-500 hover:text-emerald-700 hover:bg-emerald-50 rounded-xl border border-gray-200 transition-colors"
+            title="Atualizar lista"
+          >
+            <RefreshCw className="w-4 h-4" />
+          </button>
+          <button
+            onClick={handleOpenCreate}
+            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-[#16A34A] hover:bg-[#15803D] text-white text-xs font-bold rounded-xl shadow-xs transition-all hover:shadow"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Adicionar Foto de Usina</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Info Banner */}
+      <div className="bg-emerald-50/80 border border-emerald-200 rounded-xl p-3.5 flex items-start gap-3">
+        <CheckCircle2 className="w-5 h-5 text-emerald-700 shrink-0 mt-0.5" />
+        <div className="text-xs text-emerald-950 space-y-0.5">
+          <span className="font-bold">Como funciona na Proposta Técnico-Comercial:</span>
+          <p className="text-emerald-800">
+            Na montagem da proposta comercial, você pode marcar até 6 fotos desta galeria. Elas
+            serão organizadas em uma grade de 3 colunas logo abaixo da seção{' '}
+            <strong>Quem Somos</strong>, exibindo o título de cada usina como legenda profissional.
+          </p>
+        </div>
+      </div>
+
+      {/* Busca */}
+      <div className="bg-white p-3 rounded-xl border border-gray-200 shadow-2xs flex items-center justify-between gap-3">
+        <div className="relative w-full sm:w-80">
+          <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+          <input
+            type="text"
+            value={busca}
+            onChange={(e) => setBusca(e.target.value)}
+            placeholder="Buscar por título ou cidade..."
+            className="w-full text-xs pl-9 pr-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+          />
+        </div>
+        <span className="text-xs text-gray-500 font-medium">
+          Total: <strong>{filtrados.length}</strong> instalações
+        </span>
+      </div>
+
+      {/* Grade de Fotos */}
+      {loading ? (
+        <div className="py-16 text-center text-gray-400 text-xs">
+          Carregando fotos da galeria...
+        </div>
+      ) : filtrados.length === 0 ? (
+        <div className="bg-white rounded-2xl border border-dashed border-gray-300 p-12 text-center">
+          <ImageIcon className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+          <h3 className="text-base font-bold text-gray-800">Nenhuma instalação encontrada</h3>
+          <p className="text-xs text-gray-500 max-w-sm mx-auto mt-1 mb-4">
+            Adicione fotos com os títulos das usinas já entregues pela Delfos Solar.
+          </p>
+          <button
+            onClick={handleOpenCreate}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-[#16A34A] text-white text-xs font-bold rounded-xl hover:bg-[#15803D]"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Cadastrar Primeira Usina</span>
+          </button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+          {filtrados.map((item) => {
+            const url = getFotoUrl(item)
+            return (
+              <div
+                key={item.id}
+                className="bg-white rounded-2xl border border-gray-200 shadow-2xs overflow-hidden flex flex-col group hover:shadow-md transition-shadow"
+              >
+                {/* Imagem */}
+                <div className="relative aspect-[16/10] bg-gray-100 overflow-hidden">
+                  <img
+                    src={url}
+                    alt={item.titulo}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                    loading="lazy"
+                  />
+                  {item.potencia_kwp && (
+                    <span className="absolute top-2.5 left-2.5 px-2.5 py-1 rounded-full text-[11px] font-black bg-emerald-800/90 text-white backdrop-blur-xs flex items-center gap-1 shadow-sm">
+                      <Zap className="w-3 h-3 text-amber-300" />
+                      {item.potencia_kwp} kWp
+                    </span>
+                  )}
+                </div>
+
+                {/* Info */}
+                <div className="p-4 flex-1 flex flex-col justify-between space-y-3">
+                  <div>
+                    <h3 className="font-bold text-gray-900 text-sm line-clamp-2 leading-snug">
+                      {item.titulo}
+                    </h3>
+                    {item.cidade && (
+                      <p className="text-[11px] text-gray-500 mt-1 flex items-center gap-1">
+                        <MapPin className="w-3 h-3 text-gray-400" />
+                        {item.cidade}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Ações */}
+                  <div className="pt-2 border-t border-gray-100 flex items-center justify-between">
+                    <span className="text-[10px] text-emerald-700 font-semibold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                      Disponível na Proposta
+                    </span>
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => handleOpenEdit(item)}
+                        className="p-1.5 text-gray-500 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors"
+                        title="Editar"
+                      >
+                        <Edit2 className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={() => handleDelete(item)}
+                        className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                        title="Excluir"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      {/* Modal Criar / Editar */}
+      {modalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/60 backdrop-blur-[2px] animate-in fade-in">
+          <div className="bg-white w-full max-w-lg rounded-2xl shadow-2xl border border-gray-200 overflow-hidden flex flex-col max-h-[92vh]">
+            <div className="px-5 py-3.5 border-b border-gray-100 flex items-center justify-between bg-emerald-50/50">
+              <h2 className="text-sm sm:text-base font-bold text-gray-900">
+                {editingItem ? 'Editar Foto da Usina' : 'Cadastrar Foto de Usina Instalada'}
+              </h2>
+              <button
+                onClick={() => setModalOpen(false)}
+                className="text-gray-400 hover:text-gray-600 p-1 rounded-lg"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleSubmit} className="p-5 space-y-4 overflow-y-auto">
+              {/* Título */}
+              <div>
+                <label className="text-[11px] font-bold text-gray-700 uppercase block mb-1">
+                  Título da Usina / Legenda na Proposta *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={titulo}
+                  onChange={(e) => setTitulo(e.target.value)}
+                  placeholder="Ex: Usina Cassul 185 Kwp Erechim"
+                  className="w-full text-xs font-semibold px-3 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                />
+                <span className="text-[10px] text-gray-400 block mt-0.5">
+                  Este texto aparecerá exatamente como legenda abaixo da foto na proposta.
+                </span>
+              </div>
+
+              {/* Cidade & Potência */}
+              <div className="grid grid-cols-2 gap-3 text-xs">
+                <div>
+                  <label className="text-[11px] font-semibold text-gray-700 block mb-1">
+                    Cidade / UF
+                  </label>
+                  <input
+                    type="text"
+                    value={cidade}
+                    onChange={(e) => setCidade(e.target.value)}
+                    placeholder="Ex: Erechim/RS"
+                    className="w-full text-xs px-3 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                </div>
+                <div>
+                  <label className="text-[11px] font-semibold text-gray-700 block mb-1">
+                    Potência (kWp)
+                  </label>
+                  <input
+                    type="text"
+                    value={potenciaKwp}
+                    onChange={(e) => setPotenciaKwp(e.target.value)}
+                    placeholder="Ex: 185"
+                    className="w-full text-xs px-3 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                </div>
+              </div>
+
+              {/* Upload de Imagem */}
+              <div>
+                <label className="text-[11px] font-bold text-gray-700 uppercase block mb-1">
+                  Foto da Usina (Upload do arquivo ou Link)
+                </label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    accept="image/*"
+                    onChange={handleFileChange}
+                    className="hidden"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="px-3.5 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 text-xs font-bold rounded-lg inline-flex items-center gap-1.5 transition-colors border border-gray-200"
+                  >
+                    <Upload className="w-3.5 h-3.5 text-emerald-700" />
+                    <span>Selecionar do Computador</span>
+                  </button>
+                  {selectedFile && (
+                    <span className="text-[11px] text-emerald-700 font-semibold truncate max-w-[200px]">
+                      {selectedFile.name}
+                    </span>
+                  )}
+                </div>
+
+                <div className="mt-2">
+                  <label className="text-[10px] text-gray-500 block mb-0.5">
+                    Ou informe uma URL direta de imagem (opcional):
+                  </label>
+                  <input
+                    type="text"
+                    value={fotoUrl}
+                    onChange={(e) => {
+                      setFotoUrl(e.target.value)
+                      if (e.target.value) setPreviewUrl(e.target.value)
+                    }}
+                    placeholder="https://..."
+                    className="w-full text-xs px-3 py-1.5 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                </div>
+              </div>
+
+              {/* Preview da Imagem */}
+              {previewUrl && (
+                <div>
+                  <span className="text-[11px] font-semibold text-gray-600 block mb-1">
+                    Pré-visualização:
+                  </span>
+                  <div className="relative aspect-[16/10] bg-gray-50 rounded-xl overflow-hidden border border-gray-200">
+                    <img
+                      src={previewUrl}
+                      alt="Pré-visualização"
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Ações */}
+              <div className="pt-3 border-t border-gray-100 flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setModalOpen(false)}
+                  disabled={isSubmitting}
+                  className="px-4 py-2 border border-gray-300 text-gray-700 text-xs font-bold rounded-xl hover:bg-gray-50"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="px-4 py-2 bg-[#16A34A] hover:bg-[#15803D] text-white text-xs font-bold rounded-xl shadow-xs inline-flex items-center gap-1.5 disabled:opacity-50"
+                >
+                  {isSubmitting ? 'Salvando...' : 'Salvar Instalação'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+export default InstalacoesGaleriaPage

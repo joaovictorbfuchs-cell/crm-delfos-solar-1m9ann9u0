@@ -53,6 +53,7 @@ import {
   gerarBlobPropostaSolarDocx,
   baixarPropostaSolarDocx,
 } from '@/lib/propostaSolarDocxGenerator'
+import { ModalGerarPropostaTecnicoComercial } from '@/components/ModalGerarPropostaTecnicoComercial'
 
 interface ModalOrcamentoSolarProps {
   isOpen: boolean
@@ -111,6 +112,8 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
   const [observacoes, setObservacoes] = useState<string>('')
   const [prazoEntregaDias, setPrazoEntregaDias] = useState<number>(30)
   const [modalWhatsAppOpen, setModalWhatsAppOpen] = useState<boolean>(false)
+  const [modalPropostaTecnicoComercialOpen, setModalPropostaTecnicoComercialOpen] =
+    useState<boolean>(false)
   const [isGeneratingWord, setIsGeneratingWord] = useState<boolean>(false)
   const [wordDocxBlob, setWordDocxBlob] = useState<Blob | null>(null)
 
@@ -2166,13 +2169,23 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                   <div className="flex items-center gap-2">
                     <button
                       type="button"
+                      onClick={() => setModalPropostaTecnicoComercialOpen(true)}
+                      disabled={!clienteAtual}
+                      className="text-xs font-bold px-3.5 py-1.5 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 flex items-center gap-1.5 transition-colors shadow-2xs"
+                      title="Montar e Pré-visualizar Proposta Técnico-Comercial Oficial em PDF"
+                    >
+                      <FileText className="w-3.5 h-3.5" />
+                      <span>Gerar Proposta Oficial</span>
+                    </button>
+                    <button
+                      type="button"
                       onClick={handleGerarPropostaWord}
                       disabled={isGeneratingWord || !clienteAtual}
                       className="text-xs font-bold px-3 py-1.5 rounded-lg bg-blue-50 text-blue-800 hover:bg-blue-100 border border-blue-200 flex items-center gap-1.5 transition-colors shadow-2xs"
                       title="Gerar proposta em arquivo Word (.docx)"
                     >
                       <FileDown className="w-3.5 h-3.5 text-blue-600" />
-                      <span>{isGeneratingWord ? 'Gerando...' : 'Gerar Proposta em Word'}</span>
+                      <span>{isGeneratingWord ? 'Gerando...' : 'Gerar Word'}</span>
                     </button>
                     {wordDocxBlob && (
                       <button
@@ -2320,16 +2333,16 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
           </div>
 
           <div className="flex items-center gap-2">
-            {/* Botão Gerar Proposta — PDF Técnico-Comercial */}
+            {/* Botão Gerar Proposta Técnico-Comercial Oficial */}
             <button
               type="button"
-              onClick={() => handleSalvar('abrir_pdf')}
-              disabled={isSubmitting || isGeneratingWord || !clienteAtual}
-              className="px-3.5 py-2 bg-emerald-100 hover:bg-emerald-200 text-emerald-900 text-xs font-bold rounded-xl transition-all inline-flex items-center gap-1.5 shadow-2xs border border-emerald-300"
-              title="Salvar orçamento e abrir PDF completo para impressão"
+              onClick={() => setModalPropostaTecnicoComercialOpen(true)}
+              disabled={isSubmitting || !clienteAtual}
+              className="px-4 py-2 bg-[#16A34A] hover:bg-[#15803D] text-white text-xs font-bold rounded-xl transition-all inline-flex items-center gap-1.5 shadow-xs hover:shadow"
+              title="Abrir gerador e preview da Proposta Técnico-Comercial oficial em PDF"
             >
-              <Printer className="w-4 h-4 text-emerald-700" />
-              <span>Gerar Proposta (PDF)</span>
+              <FileText className="w-4 h-4 text-white" />
+              <span>Gerar Proposta</span>
             </button>
 
             {/* Botão Gerar Proposta em Word (.docx) */}
@@ -2418,6 +2431,52 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
           tipo="orcamento_solar"
           referenciaId={initialOrcamento?.id}
           dadosSolar={propostaPDFData}
+        />
+      )}
+
+      {/* Modal de Montagem e Preview da Proposta Técnico-Comercial */}
+      {modalPropostaTecnicoComercialOpen && (
+        <ModalGerarPropostaTecnicoComercial
+          open={modalPropostaTecnicoComercialOpen}
+          onClose={() => setModalPropostaTecnicoComercialOpen(false)}
+          cliente={clienteAtual}
+          orcamento={{
+            id: initialOrcamento?.id || 'temp',
+            cliente_id: clienteAtual?.id || '',
+            cliente_nome: clienteAtual?.nome || 'Cliente',
+            potencia_kwp: potenciaKwp,
+            numero_placas: numeroPlacas,
+            potencia_placa_wp: potenciaPlacaWp,
+            marca_painel: marcaPainel,
+            marca_inversor: marcaInversor,
+            quantidade_inversores: quantidadeInversores,
+            tipo_estrutura: tipoEstrutura,
+            codigo_finame: codigoFiname,
+            area_necessaria_m2: areaNecessariaM2,
+            consumo_mensal_kwh: consumoKwhMes,
+            valor_investimento: valorInvestimentoFinal,
+            valor_total_custos: totalCustosCalculado,
+            payback_meses: calculos.paybackMeses,
+            producao_anual_kwh: calculos.geracaoAnualEstimadaKwh,
+            producao_mensal_kwh: calculos.geracaoMediaMensalKwh,
+            geracao_detalhada_json: JSON.stringify(calculos.geracaoMensalDetalhada),
+            parcela_a_vista: valorInvestimentoFinal,
+            parcela_cartao_18x:
+              calculos.parcelamentos?.cartao18x?.valorParcela || Math.round((valorInvestimentoFinal * 1.12) / 18),
+            parcela_financiamento_banco1:
+              calculos.parcelamentos?.financiamentoBanco1?.valorParcela || Math.round(valorInvestimentoFinal * 0.023),
+            parcela_financiamento_banco2:
+              calculos.parcelamentos?.financiamentoBanco2?.valorParcela || Math.round(valorInvestimentoFinal * 0.02),
+            gasto_sem_solar_1_ano: calculos.gastoSemSolar1Ano,
+            gasto_sem_solar_5_anos: calculos.gastoSemSolar5Anos,
+            gasto_sem_solar_25_anos: calculos.gastoSemSolar25Anos,
+            economia_1_mes: calculos.economia1Mes,
+            economia_1_ano: calculos.economia1Ano,
+            economia_5_anos: calculos.economia5Anos,
+            economia_25_anos: calculos.economia25Anos,
+            conta_primeiro_mes_com_solar: calculos.contaPrimeiroMesComSolar,
+            created: new Date().toISOString(),
+          }}
         />
       )}
     </div>

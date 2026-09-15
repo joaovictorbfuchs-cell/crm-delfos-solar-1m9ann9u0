@@ -987,6 +987,42 @@ export type OrcamentoTipoCliente = 'residencial' | 'comercial' | 'industrial' | 
 export type OrcamentoTipoEstrutura = 'ceramico' | 'metalico' | 'laje' | 'fibrocimento' | 'solo'
 export type OrcamentoOrientacaoTelhado = 'leste' | 'oeste' | 'norte' | 'sul'
 
+export interface OrcamentoSolarCalculado {
+  id?: string
+  cliente_id?: string
+  cliente_nome?: string
+  potencia_kwp?: number
+  numero_placas?: number
+  potencia_placa_wp?: number
+  marca_painel?: string
+  marca_inversor?: string
+  quantidade_inversores?: number
+  tipo_estrutura?: string
+  codigo_finame?: string
+  area_necessaria_m2?: number
+  consumo_mensal_kwh?: number
+  valor_conta_atual?: number
+  valor_investimento?: number
+  valor_total_custos?: number
+  payback_meses?: number
+  producao_anual_kwh?: number
+  producao_mensal_kwh?: number
+  geracao_detalhada_json?: unknown
+  parcela_a_vista?: number
+  parcela_cartao_18x?: number
+  parcela_financiamento_banco1?: number
+  parcela_financiamento_banco2?: number
+  gasto_sem_solar_1_ano?: number
+  gasto_sem_solar_5_anos?: number
+  gasto_sem_solar_25_anos?: number
+  economia_1_mes?: number
+  economia_1_ano?: number
+  economia_5_anos?: number
+  economia_25_anos?: number
+  conta_primeiro_mes_com_solar?: number
+  created?: string
+}
+
 export interface OrcamentoSolar extends RecordModel {
   id: string
   collectionId: string

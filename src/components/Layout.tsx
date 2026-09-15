@@ -22,6 +22,7 @@ import {
   MessageSquare,
   Settings,
   Shield,
+  Images,
 } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { useClientes } from '@/contexts/ClientesContext'
@@ -103,6 +104,8 @@ export default function Layout() {
         return 'Importar Acessos & Monitoramento'
       case '/fornecedores':
         return 'Fornecedores de Equipamentos'
+      case '/instalacoes-galeria':
+        return 'Biblioteca de Instalações'
       case '/gerenciar-usuarios':
         return 'Gerenciar Usuários'
       default:
@@ -128,6 +131,7 @@ export default function Layout() {
         { name: 'Execução de OS', path: '/execucao-os', icon: ClipboardCheck },
         { name: 'O&M / Manutenções', path: '/manutencoes', icon: Wrench },
         { name: 'Clientes', path: '/clientes', icon: Users },
+        { name: 'Galeria Usinas', path: '/instalacoes-galeria', icon: Images },
         { name: 'Gerenciar Usuários', path: '/gerenciar-usuarios', icon: UserCog },
         { name: 'Importar Clientes', path: '/importar-clientes', icon: FileSpreadsheet },
         { name: 'Fornecedores', path: '/fornecedores', icon: Truck },

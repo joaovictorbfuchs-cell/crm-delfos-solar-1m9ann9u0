@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-15T22:22:09.742Z",
+  "generatedAt": "2026-09-15T23:02:22.013Z",
   "collections": [
     {
       "name": "users",
@@ -3746,6 +3746,76 @@
         "CREATE INDEX idx_contatos_adicionais_cliente ON contatos_adicionais (cliente)",
         "CREATE INDEX idx_contatos_adicionais_nome ON contatos_adicionais (nome)"
       ]
+    },
+    {
+      "name": "instalacoes_galeria",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "titulo",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "cidade",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "potencia_kwp",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "foto",
+          "type": "file",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "foto_url",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "ordem",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "destaque",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": ["CREATE INDEX idx_instalacoes_galeria_ordem ON instalacoes_galeria (ordem)"]
     }
   ]
 }
