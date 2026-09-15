@@ -39,7 +39,7 @@ import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
 
 export default function ImportarContatosCelular() {
-  const { clientes, updateCliente } = useClientes()
+  const { clientes, isLoading: isLoadingClientes, updateCliente } = useClientes()
 
   // Arquivo / Dados Carregados
   const [nomeArquivo, setNomeArquivo] = useState<string>('')
@@ -442,6 +442,12 @@ export default function ImportarContatosCelular() {
                 <AlertCircle className="w-3.5 h-3.5 text-gray-400" />
                 {resumo.naoEncontrados} não encontrados
               </span>
+              {isLoadingClientes && (
+                <span className="inline-flex items-center gap-1 text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full text-[11px] font-medium border border-amber-200">
+                  <RefreshCw className="w-3 h-3 animate-spin" />
+                  Carregando clientes do CRM...
+                </span>
+              )}
             </div>
           </div>
 
@@ -473,13 +479,19 @@ export default function ImportarContatosCelular() {
                       <td className="py-3.5 px-4 font-semibold text-gray-900">{item.nomeCsv}</td>
 
                       <td className="py-3.5 px-4">
-                        <div className="font-mono text-gray-700 font-medium">
-                          {item.telefoneCsv}
-                        </div>
-                        {item.telefoneCsv !== formatWhatsAppPhone(item.telefoneCsv) && (
-                          <div className="text-[10px] text-gray-400">
-                            Normalizado: {formatWhatsAppPhone(item.telefoneCsv)}
-                          </div>
+                        {item.telefoneCsv ? (
+                          <>
+                            <div className="font-mono text-gray-700 font-medium">
+                              {item.telefoneCsv}
+                            </div>
+                            {item.telefoneCsvNormalizado && (
+                              <div className="text-[10px] text-gray-400">
+                                Normalizado: {formatWhatsAppPhone(item.telefoneCsvNormalizado)}
+                              </div>
+                            )}
+                          </>
+                        ) : (
+                          <span className="text-gray-400 text-xs italic">Sem telefone</span>
                         )}
                       </td>
 
