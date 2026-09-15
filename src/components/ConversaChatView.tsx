@@ -216,7 +216,7 @@ export const ConversaChatView: React.FC<ConversaChatViewProps> = ({
   }, [])
 
   // Mensagens filtradas desta conversa (ou número/cliente correspondente)
-  // Ordenadas da mais nova para a mais antiga (mais novas no topo) conforme decisão de projeto
+  // Ordem cronológica igual WhatsApp Web: mensagens mais antigas no topo, mais recentes no final (parte de baixo)
   const mensagensConversa = useMemo(() => {
     return whatsAppMensagens
       .filter((m) => {
@@ -236,16 +236,96 @@ export const ConversaChatView: React.FC<ConversaChatViewProps> = ({
       .sort((a, b) => {
         const timeA = new Date(a.enviado_em || a.created).getTime()
         const timeB = new Date(b.enviado_em || b.created).getTime()
-        return timeB - timeA // Mais novas primeiro (topo)
+        return timeA - timeB // Mais antigas primeiro, mais novas no final (parte de baixo)
       })
   }, [whatsAppMensagens, conversa.id, conversa.numero, cliente])
 
-  // Ao trocar de conversa ou receber/enviar nova mensagem, garantir visualização no topo
-  useEffect(() => {
+  // Rastreamento de rolagem para comportamento idêntico ao WhatsApp Web:
+  // - Ao abrir ou trocar de conversa, rola imediatamente para o final (mais recente)
+  // - Ao receber/enviar nova mensagem: se o usuário já estiver próximo ao final, rola automaticamente para o final
+  // - Se o usuário tiver rolado para cima para ler mensagens antigas, mantém a posição e exibe um botão/indicador flutuante de "Nova mensagem"
+  const isNearBottomRef = useRef(true)
+  const [hasUnreadBelow, setHasUnreadBelow] = useState(false)
+  const previousLengthRef = useRef(mensagensConversa.length)
+  const previousConversaIdRef = useRef(conversa.id)
+
+  const scrollToBottom = (behavior: ScrollBehavior = 'smooth') => {
     if (chatScrollContainerRef.current) {
-      chatScrollContainerRef.current.scrollTop = 0
+      chatScrollContainerRef.current.scrollTo({
+        top: chatScrollContainerRef.current.scrollHeight,
+        behavior,
+      })
+      setHasUnreadBelow(false)
+      isNearBottomRef.current = true
     }
-  }, [conversa.id, mensagensConversa.length])
+  }
+
+  // Monitorar evento de scroll do container
+  const handleScroll = () => {
+    const container = chatScrollContainerRef.current
+    if (!container) return
+
+    // Considera próximo ao final se a distância até o fim for <= 120px
+    const distanceToBottom = container.scrollHeight - container.scrollTop - container.clientHeight
+    const nearBottom = distanceToBottom <= 120
+    isNearBottomRef.current = nearBottom
+
+    // Se o usuário rolou até o final, limpa o indicador de novas mensagens abaixo
+    if (nearBottom && hasUnreadBelow) {
+      setHasUnreadBelow(false)
+    }
+  }
+
+  // Ao trocar de conversa (conversa.id), rola instantaneamente para o final (parte de baixo)
+  useEffect(() => {
+    if (previousConversaIdRef.current !== conversa.id) {
+      previousConversaIdRef.current = conversa.id
+      previousLengthRef.current = mensagensConversa.length
+      setHasUnreadBelow(false)
+      isNearBottomRef.current = true
+
+      // Usar requestAnimationFrame e microtask para garantir que o layout renderizou
+      requestAnimationFrame(() => {
+        if (chatScrollContainerRef.current) {
+          chatScrollContainerRef.current.scrollTop = chatScrollContainerRef.current.scrollHeight
+        }
+      })
+      return
+    }
+
+    // Se adicionou mensagem nova na mesma conversa
+    if (mensagensConversa.length > previousLengthRef.current) {
+      const addedCount = mensagensConversa.length - previousLengthRef.current
+      previousLengthRef.current = mensagensConversa.length
+
+      // Checar se a última mensagem foi enviada pelo próprio usuário (atendente)
+      const lastMsg = mensagensConversa[mensagensConversa.length - 1]
+      const isSentByMe =
+        lastMsg && lastMsg.direcao !== 'recebida' && lastMsg.tipo_disparo !== 'webhook'
+
+      if (isNearBottomRef.current || isSentByMe) {
+        // Estava no final ou foi o próprio usuário que enviou: rolar para o final
+        requestAnimationFrame(() => {
+          scrollToBottom('smooth')
+        })
+      } else {
+        // Usuário está lendo mensagens antigas lá em cima: não forçar rolagem e mostrar indicador
+        setHasUnreadBelow(true)
+      }
+    } else {
+      previousLengthRef.current = mensagensConversa.length
+    }
+  }, [conversa.id, mensagensConversa])
+
+  // Rolagem inicial logo na montagem
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (chatScrollContainerRef.current) {
+        chatScrollContainerRef.current.scrollTop = chatScrollContainerRef.current.scrollHeight
+      }
+    }, 50)
+    return () => clearTimeout(timer)
+  }, [])
 
   // Obter último orçamento do cliente para preencher variáveis de template
   const ultimoOrcamento = useMemo(() => {
@@ -668,6 +748,7 @@ export const ConversaChatView: React.FC<ConversaChatViewProps> = ({
       {/* 2. ÁREA DE MENSAGENS (Fundo com textura WhatsApp Web) */}
       <div
         ref={chatScrollContainerRef}
+        onScroll={handleScroll}
         className="flex-1 overflow-y-auto p-4 sm:p-5 select-text relative"
         style={{
           backgroundColor: '#efeae2',
@@ -740,15 +821,15 @@ export const ConversaChatView: React.FC<ConversaChatViewProps> = ({
               const isAudioMsg = !isVideoMsg && !isImagemMsg && msg.tipo_mensagem === 'audio'
 
               // Determinar se esta mensagem é a PRIMEIRA mensagem visível de um bloco de remetente (topo do bloco visual)
-              // Como a lista tem mensagens mais novas no topo (idx 0 é a mais nova):
-              // msg anterior na lista = idx - 1. Se idx === 0 ou o remetente de idx - 1 for diferente, esta é o topo de um bloco!
+              // Como a lista está em ordem cronológica (idx 0 é a mais antiga, idx N é a mais nova):
+              // msg anterior (acima) = idx - 1. Se idx === 0 ou o remetente de idx - 1 for diferente, esta é o início do bloco!
               const msgAcima = idx > 0 ? mensagensConversa[idx - 1] : null
               const isAcimaRecebida = msgAcima
                 ? msgAcima.direcao === 'recebida' || msgAcima.tipo_disparo === 'webhook'
                 : null
               const isPrimeiraDoBloco = idx === 0 || isAcimaRecebida !== isRecebida
 
-              // Espaçamento entre mensagens:
+              // Espaçamento entre mensagens no estilo WhatsApp:
               // Menor entre mensagens consecutivas do mesmo remetente (mt-1)
               // Maior ao trocar de remetente (mt-3)
               const margemTopo = idx === 0 ? 'mt-1' : isPrimeiraDoBloco ? 'mt-3' : 'mt-1'
@@ -1046,6 +1127,20 @@ export const ConversaChatView: React.FC<ConversaChatViewProps> = ({
               )
             })}
           </div>
+        )}
+
+        {/* Botão flutuante para rolar para a mensagem mais recente (estilo WhatsApp Web) */}
+        {hasUnreadBelow && (
+          <button
+            type="button"
+            onClick={() => scrollToBottom('smooth')}
+            className="sticky bottom-3 float-right z-20 flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white text-[#111b21] shadow-md border border-gray-200 hover:bg-gray-50 text-xs font-semibold animate-in fade-in slide-in-from-bottom-2 transition-all"
+            title="Ir para a mensagem mais recente"
+          >
+            <span className="w-2 h-2 rounded-full bg-[#00a884] animate-pulse" />
+            <span>Nova mensagem</span>
+            <ChevronRight className="w-3.5 h-3.5 rotate-90 text-[#54656f]" />
+          </button>
         )}
       </div>
 
