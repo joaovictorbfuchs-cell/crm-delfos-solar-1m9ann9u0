@@ -261,17 +261,17 @@ describe('Proposta Técnico-Comercial Generator', () => {
     expect(html).toContain('CARTÃO 18X')
     expect(html).toContain('FINANCIAMENTO A')
     expect(html).toContain('FINANCIAMENTO B')
-    expect(html).toContain('Maior economia')
-    expect(html).toContain('Sem burocracia')
-    expect(html).toContain('Sem entrada')
-    expect(html).toContain('Menor parcela')
+    expect(html).toContain('Maior Economia')
+    expect(html).toContain('Sem Burocracia')
+    expect(html).toContain('Sem Entrada')
+    expect(html).toContain('Menor Parcela')
 
     // Desperdício x Economia
     expect(html).toContain('PROJEÇÃO DE DESPERDÍCIO X ECONOMIA ACUMULADA')
     expect(html).toContain('jogados fora')
     expect(html).toContain('economizados')
     expect(html).toContain('TOTAL ECONOMIZADO EM 25 ANOS')
-    expect(html).toContain('Cada mês de postergação')
+    expect(html).toContain('Custo da Postergação')
 
     // Rodapé
     expect(html).toContain('VALIDADE DA PROPOSTA: 5 dias a partir da apresentação da proposta.')
@@ -279,5 +279,13 @@ describe('Proposta Técnico-Comercial Generator', () => {
     expect(html).toContain('CREA: RS151894')
     expect(html).toContain('DELFOS ENGENHARIA LTDA')
     expect(html).toContain('21.379.952/0001-38')
+
+    // Validação da divisão em 4 páginas e quebras para impressão
+    expect(html).toContain('id="pagina-1"')
+    expect(html).toContain('id="pagina-2"')
+    expect(html).toContain('id="pagina-3"')
+    expect(html).toContain('id="pagina-4"')
+    expect(html).toContain('Página 1 de 4')
+    expect(html).toContain('Página 4 de 4')
   })
 })

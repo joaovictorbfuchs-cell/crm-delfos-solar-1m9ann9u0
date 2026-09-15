@@ -231,15 +231,15 @@ export function ModalGerarPropostaTecnicoComercial({
       }))
     }
 
-    // Projeções
-    const gastoSemSolar1 = orcamento.gasto_sem_solar_1_ano || contaHoje * 12
-    const gastoSemSolar5 = orcamento.gasto_sem_solar_5_anos || gastoSemSolar1 * 5.8
-    const gastoSemSolar25 = orcamento.gasto_sem_solar_25_anos || gastoSemSolar1 * 38.5
+    // Projeções (cálculo de 1, 5 e 25 anos com reajuste histórico padrão ou dados do orçamento)
+    const gastoSemSolar1 = orcamento.gasto_sem_solar_1_ano || Math.round(contaHoje * 12)
+    const gastoSemSolar5 = orcamento.gasto_sem_solar_5_anos || Math.round(gastoSemSolar1 * 5.8)
+    const gastoSemSolar25 = orcamento.gasto_sem_solar_25_anos || Math.round(gastoSemSolar1 * 38.5)
 
-    const eco1Mes = orcamento.economia_1_mes || Math.max(0, contaHoje - contaComSolar)
-    const eco1Ano = orcamento.economia_1_ano || eco1Mes * 12
-    const eco5Anos = orcamento.economia_5_anos || eco1Ano * 5.5
-    const eco25Anos = orcamento.economia_25_anos || eco1Ano * 32
+    const eco1Mes = orcamento.economia_1_mes || Math.round(Math.max(0, contaHoje - contaComSolar))
+    const eco1Ano = orcamento.economia_1_ano || Math.round(eco1Mes * 12)
+    const eco5Anos = orcamento.economia_5_anos || Math.round(eco1Ano * 5.5)
+    const eco25Anos = orcamento.economia_25_anos || Math.round(eco1Ano * 32)
 
     return {
       cliente: {
@@ -898,13 +898,22 @@ export function ModalGerarPropostaTecnicoComercial({
               </div>
             </div>
           ) : (
-            /* ETAPA DE PREVIEW */
+            /* ETAPA DE PREVIEW COM 4 PÁGINAS BEM ORGANIZADAS */
             <div className="h-full flex flex-col p-4">
-              <div className="flex-1 bg-white rounded-xl shadow-inner border border-gray-300 overflow-hidden relative">
+              <div className="mb-2 flex items-center justify-between text-xs text-gray-500">
+                <span className="flex items-center gap-1.5 font-semibold text-emerald-800">
+                  <Eye className="w-3.5 h-3.5 text-emerald-600" />
+                  Visualização das 4 páginas da proposta formatadas para impressão ou PDF
+                </span>
+                <span className="text-[11px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-full border border-emerald-300">
+                  Documento Completo (4 Páginas)
+                </span>
+              </div>
+              <div className="flex-1 bg-slate-200 rounded-xl shadow-inner border border-gray-300 overflow-hidden relative">
                 <iframe
-                  title="Pré-visualização da Proposta"
+                  title="Pré-visualização da Proposta Técnico-Comercial"
                   srcDoc={htmlPreview}
-                  className="w-full h-full border-none"
+                  className="w-full h-full border-none bg-white"
                 />
               </div>
             </div>
@@ -933,8 +942,8 @@ export function ModalGerarPropostaTecnicoComercial({
                 <span>Visualizar Preview</span>
               </button>
             )}
-            <span className="text-[11px] text-gray-400 hidden sm:inline">
-              Layout fiel ao DOCX de referência com 11 seções
+            <span className="text-[11px] text-gray-500 hidden sm:inline font-medium">
+              Layout oficial em 4 páginas • Visual vendedor & Integração de Fotos
             </span>
           </div>
 

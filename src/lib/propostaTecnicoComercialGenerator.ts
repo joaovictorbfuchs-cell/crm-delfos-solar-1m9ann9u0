@@ -131,7 +131,9 @@ function formatNumBR(val: number, decimals: number = 0): string {
 }
 
 /**
- * Gera o documento HTML estritamente idêntico ao modelo de referência DOCX PROPOSTA-40a14.docx
+ * Gera o documento HTML oficial de Proposta Técnico-Comercial do CRM Delfos Solar
+ * estruturado em exatamente 4 páginas de alta qualidade estética, alinhado ao
+ * modelo DOCX PROPOSTA-40a14.docx, com mescla elegante de imagens e foco comercial em vendas.
  */
 export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercialDados): string {
   const {
@@ -149,6 +151,7 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
     economia,
     parcelamento,
     projecao,
+    observacoes,
   } = dados
 
   // Geração da grade de 12 meses Jan - Dez
@@ -175,824 +178,1623 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
     })
     .join('')
 
-  // Grade de instalações (até 6 fotos em 3 colunas)
+  // Galeria de usinas selecionadas (até 6 fotos em 2 linhas x 3 colunas ou 1 linha se poucas)
+  const fotosValidas = (fotosInstalacoes || []).slice(0, 6)
   const galeriaHtml =
-    fotosInstalacoes && fotosInstalacoes.length > 0
+    fotosValidas.length > 0
       ? `
-    <div class="galeria-usinas-grade">
-      ${fotosInstalacoes
-        .slice(0, 6)
-        .map(
-          (foto) => `
-        <div class="usina-card">
-          <div class="usina-img-wrapper">
-            <img src="${foto.url}" alt="${foto.titulo}" />
+    <div class="galeria-section">
+      <div class="sub-section-title">
+        <span class="sub-dot"></span> Algumas de Nossas Obras e Usinas Entregues
+      </div>
+      <div class="galeria-grid ${fotosValidas.length <= 3 ? 'galeria-grid-3' : 'galeria-grid-6'}">
+        ${fotosValidas
+          .map(
+            (foto) => `
+          <div class="galeria-card">
+            <div class="galeria-img-wrap">
+              <img src="${foto.url}" alt="${foto.titulo}" loading="lazy" />
+              <div class="galeria-badge-solar">DELFOS SOLAR</div>
+            </div>
+            <div class="galeria-legenda">
+              <strong>${foto.titulo}</strong>
+            </div>
           </div>
-          <div class="usina-legenda"><strong>${foto.titulo}</strong></div>
-        </div>
-      `,
-        )
-        .join('')}
+        `,
+          )
+          .join('')}
+      </div>
     </div>
     `
-      : ''
+      : `
+    <div class="galeria-empty-notice">
+      <em>Instalações homologadas com equipamentos de alta tecnologia e engenharia própria nos 3 estados do Sul.</em>
+    </div>
+    `
+
+  // Cabeçalho de topo reutilizável (repetido de forma consistente em cada página)
+  const renderHeader = (pageNumber: number, totalPages: number = 4) => `
+    <header class="page-header">
+      <div class="header-brand">
+        <div class="brand-symbol">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#FFFFFF" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="5"></circle>
+            <line x1="12" y1="1" x2="12" y2="3"></line>
+            <line x1="12" y1="21" x2="12" y2="23"></line>
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+            <line x1="1" y1="12" x2="3" y2="12"></line>
+            <line x1="21" y1="12" x2="23" y2="12"></line>
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+          </svg>
+        </div>
+        <div class="brand-text">
+          <div class="brand-title">DELFOS SOLAR</div>
+          <div class="brand-tagline">ENGENHARIA & SOLUÇÕES FOTOVOLTAICAS</div>
+        </div>
+      </div>
+      <div class="header-company-info">
+        <div class="company-name">${empresa.razaoSocial} • CNPJ ${empresa.cnpj}</div>
+        <div class="company-meta">${empresa.endereco}</div>
+        <div class="company-contacts">
+          Tel: <strong>${empresa.telefone}</strong> | Email: <strong>${empresa.email}</strong> | <strong>${empresa.site}</strong>
+        </div>
+      </div>
+    </header>
+  `
+
+  // Rodapé minimalista com paginação
+  const renderFooter = (pageNumber: number, totalPages: number = 4) => `
+    <footer class="page-footer">
+      <div class="footer-left">
+        <strong>Delfos Engenharia Solar</strong> • Soluções Técnicas de Alta Performance • Responsável: <strong>${empresa.responsavelTecnico}</strong> (${empresa.crea})
+      </div>
+      <div class="footer-right">
+        Página <strong>${pageNumber}</strong> de <strong>${totalPages}</strong>
+      </div>
+    </footer>
+  `
 
   return `<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
   <meta charset="utf-8" />
   <title>Proposta Técnico-Comercial - Delfos Solar - ${cliente.nome}</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <style>
+    /* ==========================================================
+       RESET & BASE SETUP COM PRECISÃO DE IMPRESSÃO A4 (4 PÁGINAS)
+       ========================================================== */
     @page {
       size: A4 portrait;
-      margin: 12mm 15mm 12mm 15mm;
+      margin: 10mm 12mm 10mm 12mm;
     }
+
     * {
       box-sizing: border-box;
       -webkit-print-color-adjust: exact !important;
       print-color-adjust: exact !important;
     }
-    body {
-      font-family: Arial, "Helvetica Neue", Helvetica, sans-serif;
-      color: #111827;
-      background: #FFFFFF;
+
+    html, body {
       margin: 0;
       padding: 0;
+      background: #E5E7EB;
+      font-family: Arial, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+      color: #1F2937;
       font-size: 11px;
-      line-height: 1.45;
-    }
-    .page-container {
-      width: 100%;
-      max-width: 820px;
-      margin: 0 auto;
+      line-height: 1.42;
     }
 
-    /* Barra de ação fixa fora da impressão */
+    /* BARRA DE AÇÃO FORA DA IMPRESSÃO */
     .no-print-bar {
-      margin-bottom: 16px;
-      padding: 12px 18px;
-      background: #0f172a;
-      color: #f8fafc;
-      border-radius: 10px;
+      max-width: 900px;
+      margin: 16px auto 12px auto;
+      padding: 12px 20px;
+      background: #064E3B;
+      color: #FFFFFF;
+      border-radius: 12px;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 12px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      gap: 16px;
+      box-shadow: 0 4px 14px rgba(6, 78, 59, 0.25);
     }
-    .print-btn-action {
+    .no-print-bar-info strong {
+      font-size: 14px;
+      display: block;
+      color: #ECFDF5;
+    }
+    .no-print-bar-info span {
+      font-size: 11px;
+      color: #A7F3D0;
+    }
+    .no-print-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .btn-action-print {
       background: #16A34A;
       color: #FFFFFF;
       border: none;
       padding: 8px 18px;
       font-size: 12px;
-      font-weight: 700;
-      border-radius: 6px;
+      font-weight: 800;
+      border-radius: 8px;
       cursor: pointer;
       display: inline-flex;
       align-items: center;
-      gap: 8px;
-      transition: background 0.15s;
+      gap: 7px;
+      transition: background 0.15s ease, transform 0.1s ease;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
     }
-    .print-btn-action:hover {
+    .btn-action-print:hover {
       background: #15803D;
+      transform: translateY(-1px);
     }
 
-    /* 1. CABEÇALHO */
-    .proposta-header {
-      border-bottom: 2px solid #16A34A;
-      padding-bottom: 14px;
-      margin-bottom: 16px;
-      display: flex;
-      align-items: flex-start;
-      justify-content: space-between;
+    /* CONTÊINER DE FOLHAS A4 (CADA PÁGINA É UMA FOLHA INDEPENDENTE) */
+    .proposta-container {
+      width: 100%;
+      max-width: 860px;
+      margin: 0 auto;
+      padding-bottom: 30px;
     }
-    .brand-box {
+
+    .proposta-page {
+      background: #FFFFFF;
+      width: 100%;
+      min-height: 297mm;
+      padding: 14mm 15mm 12mm 15mm;
+      margin: 0 auto 20px auto;
+      box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      border-radius: 4px;
+    }
+
+    .page-body {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* CABEÇALHO RECORRENTE DA MARCA DELFOS */
+    .page-header {
       display: flex;
       align-items: center;
-      gap: 12px;
+      justify-content: space-between;
+      border-bottom: 2.5px solid #16A34A;
+      padding-bottom: 10px;
+      margin-bottom: 14px;
+      gap: 14px;
     }
-    .brand-logo-circle {
-      width: 48px;
-      height: 48px;
-      background: linear-gradient(135deg, #166534, #16A34A, #F59E0B);
-      border-radius: 50%;
+    .header-brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .brand-symbol {
+      width: 44px;
+      height: 44px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, #166534 0%, #16A34A 50%, #EAB308 100%);
       display: flex;
       align-items: center;
       justify-content: center;
-      color: #FFFFFF;
-      font-size: 24px;
-      font-weight: 900;
-      box-shadow: 0 2px 6px rgba(22, 163, 74, 0.3);
+      box-shadow: 0 2px 6px rgba(22, 163, 74, 0.35);
+      flex-shrink: 0;
     }
-    .brand-names h1 {
-      margin: 0;
-      font-size: 20px;
+    .brand-title {
+      font-size: 19px;
       font-weight: 900;
       color: #064E3B;
       letter-spacing: -0.01em;
       line-height: 1.1;
     }
-    .brand-names p {
-      margin: 2px 0 0 0;
-      font-size: 10px;
-      font-weight: 700;
+    .brand-tagline {
+      font-size: 9px;
+      font-weight: 800;
       color: #16A34A;
       text-transform: uppercase;
       letter-spacing: 0.1em;
+      margin-top: 2px;
     }
-    .header-empresa-contato {
+    .header-company-info {
       text-align: right;
       font-size: 9.5px;
       color: #4B5563;
-      line-height: 1.4;
+      line-height: 1.38;
     }
-    .header-empresa-contato a {
+    .header-company-info .company-name {
+      font-weight: 800;
+      color: #111827;
+      font-size: 10px;
+    }
+    .header-company-info strong {
       color: #166534;
-      text-decoration: none;
+    }
+
+    /* RODAPÉ RECORRENTE */
+    .page-footer {
+      border-top: 1px solid #D1D5DB;
+      padding-top: 8px;
+      margin-top: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 9px;
+      color: #6B7280;
+    }
+    .page-footer strong {
+      color: #111827;
+    }
+    .page-footer .footer-right {
+      font-weight: 700;
+      color: #166534;
+      background: #F0FDF4;
+      border: 1px solid #BBF7D0;
+      padding: 2px 8px;
+      border-radius: 4px;
+    }
+
+    /* BANNER DE TÍTULO PRINCIPAL */
+    .banner-titulo-proposta {
+      background: #F0FDF4;
+      border: 1px solid #BBF7D0;
+      border-left: 5px solid #166534;
+      border-radius: 8px;
+      padding: 10px 14px;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .banner-titulo-proposta h1 {
+      margin: 0;
+      font-size: 15px;
+      font-weight: 900;
+      color: #064E3B;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      line-height: 1.2;
+    }
+    .banner-titulo-proposta p {
+      margin: 3px 0 0 0;
+      font-size: 10px;
+      color: #047857;
       font-weight: 600;
     }
-
-    /* TÍTULO PRINCIPAL */
-    .doc-main-title {
-      font-size: 17px;
-      font-weight: 900;
+    .banner-tag-emissao {
+      text-align: right;
+      font-size: 9.5px;
       color: #065F46;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      margin: 14px 0 10px 0;
-      padding-bottom: 4px;
-      border-bottom: 1px solid #E5E7EB;
+      background: #DCFCE7;
+      border: 1px solid #86EFAC;
+      padding: 5px 10px;
+      border-radius: 6px;
+      white-space: nowrap;
+      font-weight: 700;
     }
 
-    /* CLIENTE E REPRESENTANTE */
-    .meta-dados-grid {
+    /* SEÇÃO COM CABEÇALHO PADRÃO ESTILO DOCX */
+    .section-header-docx {
+      background: linear-gradient(90deg, #F0FDF4 0%, #FFFFFF 100%);
+      border-left: 4px solid #16A34A;
+      border-bottom: 1px solid #DCFCE7;
+      padding: 5px 10px;
+      margin: 12px 0 8px 0;
+      font-size: 11.5px;
+      font-weight: 900;
+      color: #064E3B;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      display: flex;
+      align-items: center;
+      gap: 7px;
+    }
+    .section-header-docx .sq-bullet {
+      color: #16A34A;
+      font-size: 13px;
+    }
+
+    /* GRID CLIENTE & REPRESENTANTE (PÁGINA 1) */
+    .meta-cards-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 12px;
-      margin-bottom: 16px;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+    .meta-card {
       background: #F9FAFB;
       border: 1px solid #E5E7EB;
       border-radius: 8px;
-      padding: 10px 14px;
+      padding: 8px 12px;
+      font-size: 10.5px;
     }
-    .meta-item {
-      font-size: 11px;
-      margin-bottom: 3px;
-    }
-    .meta-item strong {
-      color: #111827;
-    }
-
-    /* SEÇÕES PADRÃO (TÍTULOS EM CAIXA ALTA) */
-    .section-title {
-      font-size: 13px;
+    .meta-card-title {
+      font-size: 10px;
       font-weight: 900;
-      color: #065F46;
+      color: #166534;
       text-transform: uppercase;
-      letter-spacing: 0.03em;
-      margin: 18px 0 8px 0;
-      display: flex;
-      align-items: center;
-      gap: 8px;
+      letter-spacing: 0.05em;
+      border-bottom: 1px dashed #D1D5DB;
+      padding-bottom: 4px;
+      margin-bottom: 6px;
     }
-    .section-title::before {
-      content: "";
-      display: inline-block;
-      width: 4px;
-      height: 14px;
-      background: #16A34A;
-      border-radius: 2px;
+    .meta-row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 3px;
+      line-height: 1.35;
+    }
+    .meta-row span.label {
+      color: #6B7280;
+      font-weight: 600;
+    }
+    .meta-row span.val {
+      font-weight: 700;
+      color: #111827;
+      text-align: right;
+    }
+    .meta-row span.val-accent {
+      color: #16A34A;
+      font-weight: 800;
     }
 
-    /* QUEM SOMOS */
-    .about-text {
-      font-size: 11px;
-      color: #374151;
-      margin-bottom: 8px;
-      text-align: justify;
-      line-height: 1.5;
-    }
-    .bullet-list {
-      margin: 6px 0 12px 0;
-      padding-left: 20px;
-    }
-    .bullet-list li {
+    /* QUEM SOMOS (PÁGINA 1) */
+    .about-lead {
       font-size: 10.5px;
       color: #374151;
-      margin-bottom: 4px;
-      line-height: 1.4;
+      text-align: justify;
+      margin-bottom: 8px;
+      line-height: 1.45;
     }
-    .bullet-list li strong {
-      color: #111827;
+    .about-lead strong {
+      color: #064E3B;
+    }
+    .about-bullets-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px 12px;
+      background: #F0FDF4;
+      border: 1px solid #BBF7D0;
+      border-radius: 8px;
+      padding: 8px 12px;
+      margin-bottom: 12px;
+    }
+    .about-bullet-item {
+      font-size: 10px;
+      color: #1F2937;
+      display: flex;
+      align-items: flex-start;
+      gap: 6px;
+      line-height: 1.35;
+    }
+    .about-bullet-item .check-icon {
+      color: #16A34A;
+      font-weight: 900;
+      font-size: 12px;
+      line-height: 1;
+      margin-top: 1px;
     }
 
-    /* GALERIA DE USINAS EM GRADE (3 COLUNAS) */
-    .galeria-usinas-grade {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 10px;
-      margin: 12px 0 18px 0;
+    /* GALERIA DE INSTALAÇÕES (PÁGINA 1) */
+    .galeria-section {
+      margin-top: 6px;
     }
-    .usina-card {
+    .sub-section-title {
+      font-size: 10.5px;
+      font-weight: 800;
+      color: #166534;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      margin-bottom: 7px;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .sub-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #16A34A;
+      display: inline-block;
+    }
+    .galeria-grid {
+      display: grid;
+      gap: 8px;
+    }
+    .galeria-grid-3 {
+      grid-template-columns: repeat(3, 1fr);
+    }
+    .galeria-grid-6 {
+      grid-template-columns: repeat(3, 1fr);
+    }
+    .galeria-card {
       background: #FFFFFF;
-      border: 1px solid #E5E7EB;
-      border-radius: 6px;
+      border: 1px solid #D1D5DB;
+      border-radius: 7px;
       overflow: hidden;
       display: flex;
       flex-direction: column;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
     }
-    .usina-img-wrapper {
+    .galeria-img-wrap {
       width: 100%;
-      height: 110px;
+      height: 82px;
       background: #F3F4F6;
+      position: relative;
       overflow: hidden;
     }
-    .usina-img-wrapper img {
+    .galeria-img-wrap img {
       width: 100%;
       height: 100%;
       object-fit: cover;
       display: block;
     }
-    .usina-legenda {
-      padding: 6px 8px;
-      font-size: 9.5px;
+    .galeria-badge-solar {
+      position: absolute;
+      top: 3px;
+      right: 3px;
+      font-size: 7.5px;
+      font-weight: 800;
+      background: rgba(6, 78, 59, 0.85);
+      color: #FFFFFF;
+      padding: 1.5px 5px;
+      border-radius: 3px;
+      letter-spacing: 0.05em;
+    }
+    .galeria-legenda {
+      padding: 4px 6px;
+      font-size: 9px;
+      font-weight: 800;
       color: #111827;
       text-align: center;
-      background: #F9FAFB;
-      font-weight: 700;
+      background: #FAFAFA;
       border-top: 1px solid #E5E7EB;
-      min-height: 28px;
+      min-height: 26px;
       display: flex;
       align-items: center;
       justify-content: center;
+      line-height: 1.25;
     }
 
-    /* MONITORAMENTO & ILUSTRATIVAS */
-    .ilustrativa-box {
-      margin: 10px 0 16px 0;
-      padding: 10px;
+    /* PÁGINA 2: IMAGENS ILUSTRATIVAS, ESPECIFICAÇÕES & SERVIÇOS */
+    .ilustrativas-duas-colunas {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+    .ilustrativa-card {
       background: #F9FAFB;
       border: 1px solid #E5E7EB;
       border-radius: 8px;
-      display: flex;
-      align-items: center;
-      gap: 14px;
-    }
-    .ilustrativa-img {
-      width: 180px;
-      height: 100px;
-      object-fit: cover;
-      border-radius: 6px;
-      border: 1px solid #D1D5DB;
-      flex-shrink: 0;
-    }
-    .ilustrativa-desc {
-      font-size: 11px;
-      color: #374151;
-      line-height: 1.5;
-    }
-
-    /* TABELA ESPECIFICAÇÕES TÉCNICAS */
-    .tabela-especificacoes {
-      width: 100%;
-      border-collapse: collapse;
-      margin: 8px 0 12px 0;
-      font-size: 10.5px;
-    }
-    .tabela-especificacoes th {
-      background: #F3F4F6;
-      border: 1px solid #D1D5DB;
-      padding: 7px 10px;
-      font-weight: 800;
-      color: #111827;
-      text-align: left;
-    }
-    .tabela-especificacoes td {
-      border: 1px solid #D1D5DB;
-      padding: 6px 10px;
-      color: #374151;
-    }
-    .tabela-especificacoes tr:nth-child(even) td {
-      background: #FAFAFA;
-    }
-    .especificacoes-extras {
-      margin-top: 6px;
-      font-size: 11px;
-      color: #111827;
-    }
-
-    /* TABELA GERAÇÃO MENSAL (JAN A DEZ) */
-    .tabela-geracao-meses {
-      width: 100%;
-      border-collapse: collapse;
-      margin: 8px 0 14px 0;
-      font-size: 10px;
-      text-align: center;
-    }
-    .tabela-geracao-meses th {
-      background: #E5E7EB;
-      border: 1px solid #D1D5DB;
-      padding: 5px 4px;
-      font-weight: 800;
-      color: #111827;
-    }
-    .tabela-geracao-meses td {
-      border: 1px solid #D1D5DB;
-      padding: 6px 4px;
-      font-weight: 700;
-      color: #166534;
-      background: #FFFFFF;
-    }
-
-    /* ECONOMIA & DESTAQUES */
-    .destaque-investimento-box {
-      background: #F0FDF4;
-      border: 1px solid #BBF7D0;
-      border-radius: 8px;
-      padding: 10px 14px;
-      margin: 10px 0 14px 0;
-    }
-    .destaque-investimento-box .valor-destaque {
-      font-size: 15px;
-      font-weight: 900;
-      color: #166534;
-    }
-
-    /* SIMULAÇÃO DE PARCELAMENTO - 4 COLUNAS */
-    .parcelamento-grid {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 8px;
-      margin: 10px 0 6px 0;
-    }
-    .parcela-card {
-      border: 1.5px solid #D1D5DB;
-      border-radius: 6px;
       padding: 8px;
-      background: #FFFFFF;
-      text-align: center;
       display: flex;
       flex-direction: column;
       justify-content: space-between;
     }
-    .parcela-card.destaque-verde {
-      border-color: #16A34A;
+    .ilustrativa-header-title {
+      font-size: 10px;
+      font-weight: 800;
+      color: #065F46;
+      text-transform: uppercase;
+      margin-bottom: 5px;
+    }
+    .ilustrativa-img-box {
+      width: 100%;
+      height: 110px;
+      border-radius: 6px;
+      overflow: hidden;
+      border: 1px solid #D1D5DB;
+      background: #FFFFFF;
+      margin-bottom: 6px;
+    }
+    .ilustrativa-img-box img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+    .ilustrativa-texto-desc {
+      font-size: 9.5px;
+      color: #374151;
+      line-height: 1.35;
+      text-align: justify;
+    }
+
+    /* CARDS RESUMO POTÊNCIA / ÁREA (PÁGINA 2) */
+    .potencia-banner {
+      background: linear-gradient(135deg, #065F46 0%, #166534 100%);
+      color: #FFFFFF;
+      border-radius: 8px;
+      padding: 8px 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px;
+    }
+    .potencia-banner-title {
+      font-size: 11.5px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .potencia-banner-number {
+      font-size: 18px;
+      font-weight: 900;
+      color: #FACC15;
+    }
+
+    /* TABELA DE ESPECIFICAÇÕES TÉCNICAS */
+    .tabela-tecnica {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 10px;
+      font-size: 10px;
+    }
+    .tabela-tecnica th {
+      background: #064E3B;
+      color: #FFFFFF;
+      padding: 6px 10px;
+      font-weight: 800;
+      text-align: left;
+      font-size: 10px;
+      text-transform: uppercase;
+      border: 1px solid #064E3B;
+    }
+    .tabela-tecnica td {
+      border: 1px solid #D1D5DB;
+      padding: 6px 10px;
+      color: #374151;
+      line-height: 1.35;
+    }
+    .tabela-tecnica tr:nth-child(even) td {
+      background: #F9FAFB;
+    }
+    .tabela-tecnica td.highlight-qtd {
+      font-weight: 800;
+      color: #166534;
+      text-align: center;
       background: #F0FDF4;
     }
-    .parcela-col-titulo {
-      font-size: 11px;
-      font-weight: 900;
+
+    .especificacoes-meta-box {
+      background: #F9FAFB;
+      border: 1px solid #E5E7EB;
+      border-radius: 6px;
+      padding: 6px 10px;
+      font-size: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px;
+    }
+    .especificacoes-meta-box strong {
       color: #111827;
-      text-transform: uppercase;
-      padding-bottom: 4px;
-      border-bottom: 1px solid #E5E7EB;
     }
-    .parcela-col-valor {
-      font-size: 13px;
-      font-weight: 900;
-      color: #166534;
-      margin: 8px 0;
+
+    /* SERVIÇOS INCLUSOS */
+    .servicos-inclusos-box {
+      background: #FAFAFA;
+      border: 1px solid #E5E7EB;
+      border-radius: 8px;
+      padding: 8px 12px;
+      margin-bottom: 6px;
     }
-    .parcela-contas {
-      font-size: 9px;
-      color: #4B5563;
-      text-align: left;
-      border-top: 1px dashed #D1D5DB;
-      padding-top: 4px;
-      margin-top: 4px;
+    .servicos-inclusos-list {
+      margin: 0;
+      padding-left: 18px;
+      font-size: 9.5px;
+      color: #374151;
     }
-    .parcela-tag {
-      margin-top: 6px;
+    .servicos-inclusos-list li {
+      margin-bottom: 3.5px;
+      line-height: 1.35;
+    }
+    .servicos-inclusos-list li strong {
+      color: #064E3B;
+    }
+
+    /* PÁGINA 3: GARANTIAS, PRODUÇÃO DE ENERGIA & INVESTIMENTO / PAYBACK */
+    .garantias-cards-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+    .garantia-card {
+      background: #FFFFFF;
+      border: 1.5px solid #BBF7D0;
+      border-top: 3.5px solid #16A34A;
+      border-radius: 7px;
+      padding: 8px 10px;
+      text-align: center;
+    }
+    .garantia-card-tipo {
       font-size: 9px;
       font-weight: 800;
-      padding: 2px 6px;
-      border-radius: 4px;
-      background: #E5E7EB;
-      color: #374151;
+      color: #065F46;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 3px;
+    }
+    .garantia-card-tempo {
+      font-size: 14px;
+      font-weight: 900;
+      color: #166534;
+      line-height: 1.1;
+    }
+    .garantia-card-sub {
+      font-size: 8.5px;
+      color: #4B5563;
+      margin-top: 2px;
+    }
+    .garantias-nota {
+      font-size: 9px;
+      color: #6B7280;
+      font-style: italic;
+      margin-bottom: 12px;
+      padding-left: 4px;
+    }
+
+    /* PRODUÇÃO E TABELA 12 MESES */
+    .producao-resumo-banner {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+    .producao-pill {
+      background: #F0FDF4;
+      border: 1px solid #BBF7D0;
+      border-radius: 7px;
+      padding: 8px 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .producao-pill-label {
+      font-size: 9.5px;
+      font-weight: 700;
+      color: #166534;
       text-transform: uppercase;
     }
-    .parcela-card.destaque-verde .parcela-tag {
+    .producao-pill-val {
+      font-size: 14px;
+      font-weight: 900;
+      color: #065F46;
+    }
+
+    .tabela-meses-wrap {
+      margin-bottom: 14px;
+    }
+    .tabela-meses {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: center;
+      font-size: 9.5px;
+    }
+    .tabela-meses th {
+      background: #065F46;
+      color: #FFFFFF;
+      padding: 5px 2px;
+      font-weight: 800;
+      border: 1px solid #065F46;
+      text-transform: uppercase;
+      font-size: 9px;
+    }
+    .tabela-meses td {
+      border: 1px solid #D1D5DB;
+      padding: 6px 2px;
+      font-weight: 700;
+      color: #166534;
+      background: #FFFFFF;
+    }
+    .tabela-meses tr td.label-kwh {
+      background: #F3F4F6;
+      font-weight: 800;
+      color: #111827;
+      padding: 6px 4px;
+    }
+
+    /* DESTAQUE HERO DE INVESTIMENTO & PAYBACK (VENDA) */
+    .investimento-hero-card {
+      background: linear-gradient(135deg, #ECFDF5 0%, #D1FAE5 100%);
+      border: 2px solid #10B981;
+      border-radius: 10px;
+      padding: 14px 18px;
+      margin-top: 4px;
+      box-shadow: 0 3px 10px rgba(16, 185, 129, 0.15);
+      position: relative;
+    }
+    .investimento-hero-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid #A7F3D0;
+      padding-bottom: 8px;
+      margin-bottom: 10px;
+    }
+    .investimento-hero-title {
+      font-size: 11px;
+      font-weight: 900;
+      color: #065F46;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .investimento-hero-prazo {
+      font-size: 10px;
+      font-weight: 700;
+      color: #047857;
+      background: #FFFFFF;
+      border: 1px solid #86EFAC;
+      padding: 3px 8px;
+      border-radius: 6px;
+    }
+    .investimento-valores-row {
+      display: grid;
+      grid-template-columns: 1.4fr 1fr;
+      gap: 14px;
+      align-items: center;
+    }
+    .valor-total-destaque-box {
+      border-right: 1px dashed #6EE7B7;
+      padding-right: 12px;
+    }
+    .valor-total-label {
+      font-size: 10px;
+      font-weight: 800;
+      color: #047857;
+      text-transform: uppercase;
+      margin-bottom: 2px;
+    }
+    .valor-total-big {
+      font-size: 26px;
+      font-weight: 900;
+      color: #064E3B;
+      letter-spacing: -0.02em;
+      line-height: 1;
+    }
+    .valor-total-sub {
+      font-size: 9.5px;
+      color: #047857;
+      font-weight: 600;
+      margin-top: 4px;
+    }
+    .payback-destaque-box {
+      text-align: center;
+      background: #FFFFFF;
+      border: 1px solid #86EFAC;
+      border-radius: 8px;
+      padding: 8px 12px;
+    }
+    .payback-label {
+      font-size: 9.5px;
+      font-weight: 800;
+      color: #065F46;
+      text-transform: uppercase;
+    }
+    .payback-number {
+      font-size: 18px;
+      font-weight: 900;
+      color: #16A34A;
+      margin: 2px 0;
+    }
+    .payback-note {
+      font-size: 8.5px;
+      color: #6B7280;
+    }
+
+    /* PÁGINA 4: SIMULAÇÃO DE PARCELAMENTO, PROJEÇÃO DE ECONOMIA & ASSINATURA */
+    .parcelamento-grid-4 {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+      margin-bottom: 4px;
+    }
+    .parc-card {
+      border: 1.5px solid #D1D5DB;
+      border-radius: 8px;
+      background: #FFFFFF;
+      padding: 8px 6px;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      position: relative;
+    }
+    .parc-card.card-destaque-verde {
+      border-color: #16A34A;
+      background: #F0FDF4;
+      box-shadow: 0 2px 8px rgba(22, 163, 74, 0.15);
+    }
+    .parc-card.card-destaque-azul {
+      border-color: #2563EB;
+      background: #EFF6FF;
+    }
+    .parc-card-top-tag {
+      font-size: 8px;
+      font-weight: 900;
+      text-transform: uppercase;
+      padding: 2px 6px;
+      border-radius: 4px;
+      margin-bottom: 4px;
+      display: inline-block;
+      background: #E5E7EB;
+      color: #374151;
+    }
+    .card-destaque-verde .parc-card-top-tag {
       background: #16A34A;
       color: #FFFFFF;
     }
-    .nota-parcelamento {
+    .card-destaque-azul .parc-card-top-tag {
+      background: #2563EB;
+      color: #FFFFFF;
+    }
+    .parc-col-titulo {
+      font-size: 10px;
+      font-weight: 900;
+      color: #111827;
+      text-transform: uppercase;
+      margin-bottom: 4px;
+      border-bottom: 1px solid #E5E7EB;
+      padding-bottom: 3px;
+    }
+    .parc-col-valor-principal {
+      font-size: 13.5px;
+      font-weight: 900;
+      color: #065F46;
+      margin: 4px 0 2px 0;
+      line-height: 1.15;
+    }
+    .parc-col-sub {
       font-size: 8.5px;
       color: #6B7280;
-      font-style: italic;
-      margin: 4px 0 14px 0;
+      margin-bottom: 6px;
+    }
+    .parc-contas-box {
+      border-top: 1px dashed #D1D5DB;
+      padding-top: 5px;
+      margin-top: 4px;
+      font-size: 8.5px;
+      color: #4B5563;
+      text-align: left;
+      line-height: 1.35;
+    }
+    .parc-contas-box .row-conta {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 1.5px;
+    }
+    .parc-contas-box .row-conta strong {
+      color: #111827;
+    }
+    .parc-contas-box .row-conta strong.accent-solar {
+      color: #166534;
+      font-weight: 900;
     }
 
-    /* TABELA DESPERDÍCIO X ECONOMIA */
-    .tabela-desperdicio {
+    .nota-parcelamento-legal {
+      font-size: 8px;
+      color: #6B7280;
+      font-style: italic;
+      margin: 2px 0 10px 0;
+    }
+
+    /* TABELA DE PROJEÇÃO DE DESPERDÍCIO X ECONOMIA */
+    .tabela-projecao-venda {
       width: 100%;
       border-collapse: collapse;
-      margin: 8px 0 10px 0;
-      font-size: 10.5px;
+      margin-bottom: 8px;
+      font-size: 10px;
     }
-    .tabela-desperdicio th {
-      background: #F3F4F6;
-      border: 1px solid #D1D5DB;
+    .tabela-projecao-venda th {
+      background: #064E3B;
+      color: #FFFFFF;
       padding: 6px 10px;
       font-weight: 800;
-      color: #111827;
       text-align: left;
+      font-size: 10px;
+      text-transform: uppercase;
+      border: 1px solid #064E3B;
     }
-    .tabela-desperdicio td {
+    .tabela-projecao-venda td {
       border: 1px solid #D1D5DB;
       padding: 6px 10px;
+      line-height: 1.35;
     }
-    .td-sem-solar {
+    .td-sem-solar-perda {
       color: #DC2626;
-      font-weight: 700;
+      font-weight: 800;
+      background: #FEF2F2;
     }
-    .td-com-solar {
+    .td-com-solar-ganho {
       color: #166534;
-      font-weight: 700;
+      font-weight: 800;
+      background: #F0FDF4;
     }
-    .destaque-total-25anos {
-      background: #FEF3C7;
-      border: 1px solid #FCD34D;
-      border-radius: 6px;
-      padding: 8px 12px;
-      margin: 10px 0 16px 0;
-      font-size: 11px;
+
+    /* BANNER DE IMPACTO TOTAL 25 ANOS (VENDA AGRESSIVA & CLARA) */
+    .banner-impacto-25anos {
+      background: linear-gradient(135deg, #FEF3C7 0%, #FDE68A 100%);
+      border: 1.5px solid #F59E0B;
+      border-radius: 8px;
+      padding: 10px 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px;
+    }
+    .impacto-total-texto strong {
+      font-size: 12.5px;
+      color: #78350F;
+      display: block;
+      font-weight: 900;
+      text-transform: uppercase;
+    }
+    .impacto-total-texto span {
+      font-size: 9.5px;
       color: #92400E;
     }
-    .destaque-total-25anos strong {
-      color: #78350F;
-      font-size: 12px;
+    .impacto-perda-mes {
+      background: #FFFFFF;
+      border: 1px solid #FCD34D;
+      border-radius: 6px;
+      padding: 6px 10px;
+      text-align: right;
+    }
+    .impacto-perda-mes-label {
+      font-size: 8.5px;
+      font-weight: 700;
+      color: #92400E;
+      text-transform: uppercase;
+    }
+    .impacto-perda-mes-val {
+      font-size: 14px;
+      font-weight: 900;
+      color: #DC2626;
     }
 
-    /* RODAPÉ E ASSINATURA */
-    .rodape-proposta {
+    /* TERMO DE ACEITE & ASSINATURA */
+    .aceite-aprovacao-grid {
       border-top: 2px solid #16A34A;
-      padding-top: 14px;
-      margin-top: 24px;
+      padding-top: 10px;
+      margin-top: 6px;
       display: grid;
-      grid-template-columns: 1fr 1fr;
+      grid-template-columns: 1.1fr 1fr;
       gap: 16px;
-      font-size: 10px;
+      font-size: 9.5px;
       color: #374151;
-      page-break-inside: avoid;
     }
-    .assinatura-box {
+    .validade-responsabilidade-box {
+      background: #F9FAFB;
+      border: 1px solid #E5E7EB;
+      border-radius: 6px;
+      padding: 8px 10px;
+      line-height: 1.4;
+    }
+    .validade-responsabilidade-box strong {
+      color: #111827;
+    }
+    .assinatura-cliente-box {
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      align-items: center;
       text-align: center;
-      margin-top: 20px;
+      padding: 6px;
     }
-    .assinatura-linha {
-      width: 80%;
-      margin: 0 auto 6px auto;
-      border-bottom: 1px solid #111827;
+    .linha-assinatura {
+      width: 85%;
+      border-bottom: 1.5px solid #111827;
+      margin-bottom: 6px;
+    }
+    .assinatura-nome-cliente {
+      font-size: 10.5px;
+      font-weight: 800;
+      color: #111827;
+      text-transform: uppercase;
+    }
+    .assinatura-doc-cliente {
+      font-size: 9px;
+      color: #6B7280;
     }
 
+    /* ==========================================================
+       REGRAS DE IMPRESSÃO / PDF NATIVO (PAGE BREAKS ESTRITOS)
+       ========================================================== */
     @media print {
+      html, body {
+        background: #FFFFFF !important;
+      }
       .no-print-bar {
         display: none !important;
       }
-      body {
-        background: #FFFFFF;
+      .proposta-container {
+        max-width: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
       }
-      .page-container {
-        max-width: 100%;
+      .proposta-page {
+        margin: 0 !important;
+        padding: 8mm 10mm 8mm 10mm !important;
+        box-shadow: none !important;
+        border-radius: 0 !important;
+        page-break-after: always !important;
+        break-after: page !important;
+        height: 297mm !important;
+        max-height: 297mm !important;
+        overflow: hidden !important;
       }
-      .galeria-usinas-grade {
-        page-break-inside: avoid;
-      }
-      .tabela-geracao-meses, .parcelamento-grid, .tabela-desperdicio {
-        page-break-inside: avoid;
+      .proposta-page:last-child {
+        page-break-after: avoid !important;
+        break-after: avoid !important;
       }
     }
   </style>
 </head>
 <body>
-  <div class="page-container">
-    <!-- Barra para visualização em navegador -->
-    <div class="no-print-bar">
-      <div>
-        <strong style="font-size: 13px;">Delfos Solar — Proposta Técnico-Comercial Oficial</strong>
-        <div style="font-size: 11px; color: #94a3b8;">Estrutura fiel ao documento anexado • Pronta para gerar PDF ou imprimir</div>
-      </div>
-      <button class="print-btn-action" onclick="window.print()">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+
+  <!-- BARRA DE AÇÃO SUPERIOR (APENAS NA VISUALIZAÇÃO EM TELA) -->
+  <div class="no-print-bar">
+    <div class="no-print-bar-info">
+      <strong>Proposta Técnico-Comercial Delfos Solar (4 Páginas Oficiais)</strong>
+      <span>Layout de alto impacto para vendas • Fiel ao documento de referência DOCX • Pronto para PDF ou impressão</span>
+    </div>
+    <div class="no-print-actions">
+      <button class="btn-action-print" onclick="window.print()">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
           <polyline points="6 9 6 2 18 2 18 9"></polyline>
           <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
           <rect x="6" y="14" width="12" height="8"></rect>
         </svg>
-        Baixar em PDF / Imprimir
+        Salvar em PDF / Imprimir (4 Páginas)
       </button>
     </div>
-
-    <!-- 1. CABEÇALHO -->
-    <div class="proposta-header">
-      <div class="brand-box">
-        <div class="brand-logo-circle">☀️</div>
-        <div class="brand-names">
-          <h1>DELFOS SOLAR</h1>
-          <p>Engenharia & Soluções Fotovoltaicas</p>
-        </div>
-      </div>
-      <div class="header-empresa-contato">
-        <strong>${empresa.razaoSocial}</strong><br />
-        ${empresa.endereco}<br />
-        Tel: <strong>${empresa.telefone}</strong><br />
-        Email: <a href="mailto:${empresa.email}">${empresa.email}</a><br />
-        <a href="http://${empresa.site}" target="_blank">${empresa.site}</a>
-      </div>
-    </div>
-
-    <div class="doc-main-title">PROPOSTA TÉCNICO - COMERCIAL</div>
-
-    <!-- DADOS CLIENTE / REPRESENTANTE / DATA -->
-    <div class="meta-dados-grid">
-      <div>
-        <div class="meta-item">Cliente: <strong>${cliente.nome}</strong></div>
-        ${cliente.cpfOuCnpj ? `<div class="meta-item">Documento: <strong>${cliente.cpfOuCnpj}</strong></div>` : ''}
-        ${cliente.endereco ? `<div class="meta-item">Endereço: ${cliente.endereco} ${cliente.municipio ? `— ${cliente.municipio}` : ''}</div>` : ''}
-      </div>
-      <div>
-        <div class="meta-item">Representante: <strong>${representante.nome}</strong></div>
-        <div class="meta-item">Contato: <strong>${representante.contato}</strong></div>
-        <div class="meta-item">Data da Proposta: <strong>${dataProposta}</strong></div>
-      </div>
-    </div>
-
-    <!-- 2. SEÇÃO QUEM SOMOS -->
-    <div class="section-title">QUEM SOMOS</div>
-    <div class="about-text">
-      A Delfos Solar é especialista em transformar contas de energia em ativos que geram retorno mensal. Com uma trajetória consolidada, entregamos segurança técnica e previsibilidade financeira para nossos clientes.
-    </div>
-
-    <ul class="bullet-list">
-      <li><strong>Experiência Comprovada:</strong> 12 anos de atuação ininterrupta no mercado de energia.</li>
-      <li><strong>Portfólio Robusto:</strong> Mais de 2.500 projetos entregues e homologados.</li>
-      <li><strong>Presença Regional:</strong> Atuação estratégica nos 3 estados do Sul do Brasil.</li>
-      <li><strong>Engenharia Própria:</strong> Projetos customizados para máxima eficiência.</li>
-      <li><strong>Pós-vendas Estruturado:</strong> Monitoramento de usinas, manutenção preventiva, relatórios mensais e suporte técnico especializado.</li>
-    </ul>
-
-    <!-- GALERIA DAS INSTALAÇÕES EM GRADE (ATÉ 6) -->
-    ${galeriaHtml}
-
-    <!-- 3. SEÇÃO MONITORAMENTO / COMO FUNCIONA -->
-    ${
-      incluirImagemComoFunciona
-        ? `
-    <div class="section-title">COMO FUNCIONA O SISTEMA SOLAR ON-GRID</div>
-    <div class="ilustrativa-box">
-      <img src="https://img.usecurling.com/p/800/450?q=solar+energy+system+diagram&color=teal" alt="Como Funciona o Sistema Solar" class="ilustrativa-img" />
-      <div class="ilustrativa-desc">
-        <strong>Geração Fotovoltaica Conectada à Rede:</strong> Os módulos fotovoltaicos convertem a radiação solar em energia elétrica contínua. O inversor converte para corrente alternada pronta para consumo no imóvel. O excedente produzido é injetado diretamente na rede da concessionária, gerando créditos energéticos compensáveis.
-      </div>
-    </div>
-    `
-        : ''
-    }
-
-    ${
-      incluirImagemMonitoramento
-        ? `
-    <div class="section-title">MONITORAMENTO</div>
-    <div class="ilustrativa-box">
-      <img src="https://img.usecurling.com/p/800/450?q=solar+app+dashboard+graph&color=green" alt="Monitoramento do Sistema Solar" class="ilustrativa-img" />
-      <div class="ilustrativa-desc">
-        O sistema de monitoramento permite ao usuário acessar remotamente o desempenho do seu sistema.
-      </div>
-    </div>
-    `
-        : ''
-    }
-
-    <!-- 4. SEÇÃO ESPECIFICAÇÕES TÉCNICAS DO SISTEMA -->
-    <div class="section-title">ESPECIFICAÇÕES TÉCNICAS DO SISTEMA</div>
-    <div class="about-text">
-      Projetamos um sistema de alta performance utilizando tecnologia de ponta para garantir a máxima captação solar em sua localização.
-    </div>
-    <div style="font-size: 11.5px; margin-bottom: 6px;">
-      Equipamento: Gerador Fotovoltaico com potência de <strong>${formatNumBR(sistema.potenciaKwp, 2)} kWp</strong>
-    </div>
-
-    <table class="tabela-especificacoes">
-      <thead>
-        <tr>
-          <th style="width: 30%;">Componente</th>
-          <th style="width: 45%;">Descrição Técnica</th>
-          <th style="width: 25%;">Quantidade</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td><strong>Módulos Fotovoltaicos</strong></td>
-          <td>${sistema.descricaoPaineis}</td>
-          <td>${sistema.qtdPaineis} unid.</td>
-        </tr>
-        <tr>
-          <td><strong>Inversor</strong></td>
-          <td>${sistema.descricaoInversores}</td>
-          <td>${sistema.qtdInversores} unid.</td>
-        </tr>
-        <tr>
-          <td><strong>Estrutura de Fixação</strong></td>
-          <td>${sistema.estruturaFixacao}</td>
-          <td>Kit Completo</td>
-        </tr>
-      </tbody>
-    </table>
-
-    <div class="especificacoes-extras">
-      Código FINAME/CFI: <strong>${sistema.codigoFiname || 'Sob consulta'}</strong><br />
-      Área necessária para instalação: <strong>${formatNumBR(sistema.areaNecessariaM2, 1)} m²</strong>
-    </div>
-
-    <!-- 5. SEÇÃO SERVIÇOS INCLUSOS -->
-    <div class="section-title">SERVIÇOS INCLUSOS:</div>
-    <ul class="bullet-list">
-      <li>Elaboração do projeto fotovoltaico e homologação junto à concessionária de energia;</li>
-      <li>Instalação completa do sistema fotovoltaico, contemplando módulos, estruturas de fixação, inversor, passagem e organização dos cabos, dispositivos de proteção e aterramento do gerador;</li>
-      <li>Configuração inicial do sistema de monitoramento e orientação ao cliente para acompanhamento da geração de energia;</li>
-    </ul>
-
-    <!-- 6. SEÇÃO GARANTIAS -->
-    <div class="section-title">GARANTIAS</div>
-    <ul class="bullet-list">
-      <li><strong>Painéis Solares:</strong> ${garantias.paineisAnosFabricacao} anos contra defeitos de fabricação e ${garantias.paineisAnosDesempenho} anos de garantia para desempenho de ${garantias.paineisPercentualDesempenho} da potência nominal.</li>
-      <li><strong>Inversor:</strong> ${garantias.inversorAnosFabricacao} anos de garantia contra defeitos de fabricação.</li>
-      <li><strong>Instalação Delfos:</strong> ${garantias.instalacaoAnos} ano de garantia total sobre o serviço executado.</li>
-    </ul>
-    <div style="font-size: 10px; color: #4B5563; font-style: italic; margin-top: 4px;">
-      OBS: Não são cobertas as garantias de peças ou componentes por desgaste natural, como disjuntores e DPS
-    </div>
-
-    <!-- 7. SEÇÃO PRODUÇÃO DE ENERGIA & GERAÇÃO MENSAL -->
-    <div class="section-title">PRODUÇÃO DE ENERGIA</div>
-    <div style="font-size: 11px; margin-bottom: 8px;">
-      Anual: <strong>${formatNumBR(producao.anualKwh, 0)} kWh/ano</strong><br />
-      Média Mensal: <strong>${formatNumBR(producao.mediaMensalKwh, 0)} kWh/mês</strong>
-    </div>
-
-    <div class="section-title" style="font-size: 11.5px;">GERAÇÃO MENSAL (KWH)</div>
-    <table class="tabela-geracao-meses">
-      <thead>
-        <tr>
-          <th>Mês</th>
-          ${thMeses}
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td style="background: #F3F4F6; font-weight: 800; color: #111827;">kWh</td>
-          ${tdMeses}
-        </tr>
-      </tbody>
-    </table>
-
-    <!-- 8. SEÇÃO SUA PROPOSTA DE ECONOMIA ENERGÉTICA -->
-    <div class="section-title">SUA PROPOSTA DE ECONOMIA ENERGÉTICA</div>
-    <div class="destaque-investimento-box">
-      <div class="valor-destaque">Investimento total: ${formatBRL(economia.investimentoTotal)}</div>
-      <div style="font-size: 11px; color: #166534; margin-top: 4px;">
-        <strong>Prazo de entrega:</strong> Até ${economia.prazoEntregaDias} dias a partir da colocação do pedido.<br />
-        Economia já a partir do 1º mês na conta de energia.<br />
-        <strong>Tempo de retorno do investimento:</strong> ${economia.paybackTexto}
-      </div>
-    </div>
-
-    <!-- 9. SEÇÃO SIMULAÇÃO DE PARCELAMENTO -->
-    <div class="section-title">SIMULAÇÃO DE PARCELAMENTO</div>
-    <div class="parcelamento-grid">
-      <!-- À VISTA -->
-      <div class="parcela-card destaque-verde">
-        <div>
-          <div class="parcela-col-titulo">À VISTA</div>
-          <div class="parcela-col-valor">${formatBRL(parcelamento.aVista.valorTotal)}</div>
-          <div style="font-size: 9px; color: #4B5563;">Parcela única</div>
-        </div>
-        <div>
-          <div class="parcela-contas">
-            Conta hoje: <strong>${formatBRL(parcelamento.aVista.contaHoje)}</strong><br />
-            Conta com solar*: <strong style="color: #166534;">${formatBRL(parcelamento.aVista.contaComSolar)}</strong>
-          </div>
-          <div class="parcela-tag">Maior economia</div>
-        </div>
-      </div>
-
-      <!-- CARTÃO 18X -->
-      <div class="parcela-card">
-        <div>
-          <div class="parcela-col-titulo">CARTÃO 18X</div>
-          <div class="parcela-col-valor">${parcelamento.cartao18x.numeroParcelas}x de ${formatBRL(parcelamento.cartao18x.valorParcela)}</div>
-          <div style="font-size: 9px; color: #4B5563;">Sem burocracia bancária</div>
-        </div>
-        <div>
-          <div class="parcela-contas">
-            Conta hoje: <strong>${formatBRL(parcelamento.cartao18x.contaHoje)}</strong><br />
-            Conta com solar*: <strong style="color: #166534;">${formatBRL(parcelamento.cartao18x.contaComSolar)}</strong>
-          </div>
-          <div class="parcela-tag">Sem burocracia</div>
-        </div>
-      </div>
-
-      <!-- FINANCIAMENTO A -->
-      <div class="parcela-card">
-        <div>
-          <div class="parcela-col-titulo">${parcelamento.financiamentoA.nome}</div>
-          <div class="parcela-col-valor">${parcelamento.financiamentoA.numeroParcelas}x de ${formatBRL(parcelamento.financiamentoA.valorParcela)}</div>
-          <div style="font-size: 9px; color: #4B5563;">Linha Bancária 1</div>
-        </div>
-        <div>
-          <div class="parcela-contas">
-            Conta hoje: <strong>${formatBRL(parcelamento.financiamentoA.contaHoje)}</strong><br />
-            Conta com solar*: <strong style="color: #166534;">${formatBRL(parcelamento.financiamentoA.contaComSolar)}</strong>
-          </div>
-          <div class="parcela-tag">Sem entrada</div>
-        </div>
-      </div>
-
-      <!-- FINANCIAMENTO B -->
-      <div class="parcela-card">
-        <div>
-          <div class="parcela-col-titulo">${parcelamento.financiamentoB.nome}</div>
-          <div class="parcela-col-valor">${parcelamento.financiamentoB.numeroParcelas}x de ${formatBRL(parcelamento.financiamentoB.valorParcela)}</div>
-          <div style="font-size: 9px; color: #4B5563;">Linha Bancária 2</div>
-        </div>
-        <div>
-          <div class="parcela-contas">
-            Conta hoje: <strong>${formatBRL(parcelamento.financiamentoB.contaHoje)}</strong><br />
-            Conta com solar*: <strong style="color: #166534;">${formatBRL(parcelamento.financiamentoB.contaComSolar)}</strong>
-          </div>
-          <div class="parcela-tag">Menor parcela</div>
-        </div>
-      </div>
-    </div>
-    <div class="nota-parcelamento">
-      * Valores estimados. A conta com energia solar pode variar conforme consumo, taxa mínima da concessionária e iluminação pública.
-    </div>
-
-    <!-- 10. SEÇÃO PROJEÇÃO DE DESPERDÍCIO X ECONOMIA ACUMULADA -->
-    <div class="section-title">PROJEÇÃO DE DESPERDÍCIO X ECONOMIA ACUMULADA</div>
-    <table class="tabela-desperdicio">
-      <thead>
-        <tr>
-          <th style="width: 25%;">Período</th>
-          <th style="width: 37%;">Sem energia solar</th>
-          <th style="width: 38%;">Com energia solar</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td><strong>1 ano</strong></td>
-          <td class="td-sem-solar">${formatBRL(projecao.gastoSemSolar1Ano)} <strong>jogados fora</strong></td>
-          <td class="td-com-solar">${formatBRL(projecao.economia1Ano)} <strong>economizados</strong></td>
-        </tr>
-        <tr>
-          <td><strong>5 anos</strong></td>
-          <td class="td-sem-solar">${formatBRL(projecao.gastoSemSolar5Anos)} <strong>jogados fora</strong></td>
-          <td class="td-com-solar">${formatBRL(projecao.economia5Anos)} <strong>economizados</strong></td>
-        </tr>
-        <tr>
-          <td><strong>25 anos</strong></td>
-          <td class="td-sem-solar">${formatBRL(projecao.gastoSemSolar25Anos)} <strong>jogados fora</strong></td>
-          <td class="td-com-solar">${formatBRL(projecao.economia25Anos)} <strong>economizados</strong></td>
-        </tr>
-      </tbody>
-    </table>
-
-    <div class="destaque-total-25anos">
-      <strong>TOTAL ECONOMIZADO EM 25 ANOS: ${formatBRL(projecao.economia25Anos)}</strong><br />
-      Cada mês de postergação = <strong>${formatBRL(projecao.economia1Mes)}</strong> que não retorna mais.
-    </div>
-
-    ${
-      dados.observacoes
-        ? `<div style="background: #F9FAFB; border: 1px solid #E5E7EB; border-radius: 6px; padding: 6px 10px; font-size: 10px; color: #4B5563; margin-bottom: 12px;">
-        <strong>Observações do Orçamento:</strong> ${dados.observacoes}
-      </div>`
-        : ''
-    }
-
-    <!-- 11. RODAPÉ E ASSINATURA -->
-    <div class="rodape-proposta">
-      <div>
-        <p style="margin: 0 0 6px 0;">
-          <strong>VALIDADE DA PROPOSTA:</strong> ${validadeDias} dias a partir da apresentação da proposta.
-        </p>
-        <p style="margin: 0 0 4px 0;">
-          RESPONSÁVEL TÉCNICO: <strong>${empresa.responsavelTecnico}</strong><br />
-          ${empresa.crea}
-        </p>
-        <p style="margin: 0 0 4px 0;">
-          <strong>${empresa.razaoSocial}</strong><br />
-          CNPJ: ${empresa.cnpj}
-        </p>
-      </div>
-
-      <div class="assinatura-box">
-        <div class="assinatura-linha"></div>
-        <strong>${cliente.nome}</strong><br />
-        <span>CPF/CNPJ: ${cliente.cpfOuCnpj || '_____________________'}</span>
-      </div>
-    </div>
   </div>
+
+  <div class="proposta-container">
+
+    <!-- ========================================================
+         PÁGINA 1: CABEÇALHO + CLIENTE/REPRESENTANTE + QUEM SOMOS + GALERIA
+         ======================================================== -->
+    <section class="proposta-page" id="pagina-1">
+      <div class="page-body">
+        ${renderHeader(1, 4)}
+
+        <div class="banner-titulo-proposta">
+          <div>
+            <h1>PROPOSTA TÉCNICO - COMERCIAL</h1>
+            <p>Engenharia fotovoltaica de precisão, homologação completa e rentabilidade sustentável</p>
+          </div>
+          <div class="banner-tag-emissao">
+            Data: <strong>${dataProposta}</strong><br />
+            Validade: <strong>${validadeDias} dias corridos</strong>
+          </div>
+        </div>
+
+        <!-- Dados do Cliente e Representante -->
+        <div class="meta-cards-grid">
+          <div class="meta-card">
+            <div class="meta-card-title">1. Dados do Cliente / Contratante</div>
+            <div class="meta-row">
+              <span class="label">Cliente:</span>
+              <span class="val">${cliente.nome}</span>
+            </div>
+            ${
+              cliente.cpfOuCnpj
+                ? `<div class="meta-row"><span class="label">CPF/CNPJ:</span><span class="val">${cliente.cpfOuCnpj}</span></div>`
+                : ''
+            }
+            ${
+              cliente.endereco
+                ? `<div class="meta-row"><span class="label">Endereço:</span><span class="val">${cliente.endereco}</span></div>`
+                : ''
+            }
+            ${
+              cliente.municipio
+                ? `<div class="meta-row"><span class="label">Município:</span><span class="val">${cliente.municipio}</span></div>`
+                : ''
+            }
+            ${
+              cliente.telefone || cliente.email
+                ? `<div class="meta-row"><span class="label">Contato:</span><span class="val">${[cliente.telefone, cliente.email].filter(Boolean).join(' • ')}</span></div>`
+                : ''
+            }
+          </div>
+
+          <div class="meta-card">
+            <div class="meta-card-title">2. Atendimento & Responsáveis</div>
+            <div class="meta-row">
+              <span class="label">Representante Comercial:</span>
+              <span class="val-accent">${representante.nome}</span>
+            </div>
+            <div class="meta-row">
+              <span class="label">Contato Comercial:</span>
+              <span class="val">${representante.contato}</span>
+            </div>
+            <div class="meta-row">
+              <span class="label">Responsável Técnico:</span>
+              <span class="val">${empresa.responsavelTecnico}</span>
+            </div>
+            <div class="meta-row">
+              <span class="label">Registro Profissional:</span>
+              <span class="val">${empresa.crea}</span>
+            </div>
+            <div class="meta-row">
+              <span class="label">Prazo de Entrega:</span>
+              <span class="val-accent">${economia.prazoEntregaDias} dias corridos</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Seção Quem Somos -->
+        <div class="section-header-docx">
+          <span class="sq-bullet">■</span> QUEM SOMOS
+        </div>
+        <div class="about-lead">
+          A <strong>Delfos Solar</strong> é especialista em transformar contas de energia em ativos que geram retorno mensal e segurança patrimonial. Com uma trajetória consolidada e equipe técnica própria, entregamos soluções sob medida com máxima eficiência e confiabilidade operacional:
+        </div>
+
+        <div class="about-bullets-grid">
+          <div class="about-bullet-item">
+            <span class="check-icon">✓</span>
+            <div><strong>12 Anos de Atuação:</strong> Experiência consolidada e solidez no mercado de energia solar.</div>
+          </div>
+          <div class="about-bullet-item">
+            <span class="check-icon">✓</span>
+            <div><strong>Mais de 2.500 Projetos:</strong> Usinas entregues, homologadas e gerando energia limpa.</div>
+          </div>
+          <div class="about-bullet-item">
+            <span class="check-icon">✓</span>
+            <div><strong>Presença Regional:</strong> Atuação forte nos 3 estados do Sul (RS, SC e PR).</div>
+          </div>
+          <div class="about-bullet-item">
+            <span class="check-icon">✓</span>
+            <div><strong>Engenharia Própria:</strong> Projetos customizados e homologação direta junto à concessionária.</div>
+          </div>
+          <div class="about-bullet-item" style="grid-column: span 2;">
+            <span class="check-icon">✓</span>
+            <div><strong>Pós-Vendas Estruturado:</strong> Monitoramento ativo de usinas, preventiva, relatórios e suporte técnico especializado.</div>
+          </div>
+        </div>
+
+        <!-- Galeria de Fotos de Instalações -->
+        ${galeriaHtml}
+      </div>
+
+      ${renderFooter(1, 4)}
+    </section>
+
+    <!-- ========================================================
+         PÁGINA 2: IMAGENS ILUSTRATIVAS + ESPECIFICAÇÕES TÉCNICAS + SERVIÇOS INCLUSOS
+         ======================================================== -->
+    <section class="proposta-page" id="pagina-2">
+      <div class="page-body">
+        ${renderHeader(2, 4)}
+
+        <!-- Imagens Ilustrativas: Como Funciona & Monitoramento -->
+        <div class="section-header-docx">
+          <span class="sq-bullet">■</span> FUNCIONAMENTO DO SISTEMA & MONITORAMENTO INTELIGENTE
+        </div>
+
+        <div class="ilustrativas-duas-colunas">
+          ${
+            incluirImagemComoFunciona !== false
+              ? `
+          <div class="ilustrativa-card">
+            <div class="ilustrativa-header-title">COMO FUNCIONA O SISTEMA SOLAR ON-GRID</div>
+            <div class="ilustrativa-img-box">
+              <img src="https://img.usecurling.com/p/800/450?q=solar+energy+system+diagram&color=teal" alt="Como Funciona o Sistema Solar On-Grid" />
+            </div>
+            <div class="ilustrativa-texto-desc">
+              <strong>Geração Fotovoltaica Conectada à Rede:</strong> Os módulos captam a radiação solar e convertem em energia elétrica contínua. O inversor transforma em corrente alternada para o consumo do imóvel. O excedente produzido é injetado diretamente na rede da concessionária, gerando créditos energéticos compensáveis.
+            </div>
+          </div>
+          `
+              : ''
+          }
+
+          ${
+            incluirImagemMonitoramento !== false
+              ? `
+          <div class="ilustrativa-card">
+            <div class="ilustrativa-header-title">MONITORAMENTO EM TEMPO REAL</div>
+            <div class="ilustrativa-img-box">
+              <img src="https://img.usecurling.com/p/800/450?q=solar+app+dashboard+graph&color=green" alt="Monitoramento do Sistema Solar" />
+            </div>
+            <div class="ilustrativa-texto-desc">
+              <strong>Acompanhamento na Palma da Mão:</strong> O sistema de monitoramento permite ao usuário acessar remotamente o desempenho do seu gerador via smartphone e computador. Visualize a geração diária, economia acumulada e alertas automáticos em tempo real.
+            </div>
+          </div>
+          `
+              : ''
+          }
+        </div>
+
+        <!-- Especificações Técnicas do Sistema -->
+        <div class="section-header-docx">
+          <span class="sq-bullet">■</span> ESPECIFICAÇÕES TÉCNICAS DO SISTEMA
+        </div>
+
+        <div class="potencia-banner">
+          <div>
+            <div class="potencia-banner-title">GERADOR FOTOVOLTAICO PROJETADO</div>
+            <div style="font-size: 10px; color: #D1FAE5; margin-top: 1px;">Alta performance com módulos Tier-1 e inversor de última geração</div>
+          </div>
+          <div style="text-align: right;">
+            <div style="font-size: 9px; text-transform: uppercase; letter-spacing: 0.05em; color: #A7F3D0;">Potência Total</div>
+            <div class="potencia-banner-number">${formatNumBR(sistema.potenciaKwp, 2)} kWp</div>
+          </div>
+        </div>
+
+        <table class="tabela-tecnica">
+          <thead>
+            <tr>
+              <th style="width: 28%;">Componente</th>
+              <th style="width: 52%;">Descrição Técnica dos Equipamentos</th>
+              <th style="width: 20%; text-align: center;">Quantidade</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Módulos Fotovoltaicos</strong></td>
+              <td>${sistema.descricaoPaineis}</td>
+              <td class="highlight-qtd">${sistema.qtdPaineis} unid.</td>
+            </tr>
+            <tr>
+              <td><strong>Inversor(es) Solar(es)</strong></td>
+              <td>${sistema.descricaoInversores}</td>
+              <td class="highlight-qtd">${sistema.qtdInversores} unid.</td>
+            </tr>
+            <tr>
+              <td><strong>Estrutura de Fixação</strong></td>
+              <td>${sistema.estruturaFixacao}</td>
+              <td class="highlight-qtd">1 Conjunto Completo</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="especificacoes-meta-box">
+          <div>
+            Código FINAME / CFI: <strong>${sistema.codigoFiname || 'Sob consulta (elegível BNDES)'}</strong>
+          </div>
+          <div>
+            Área necessária estimada para instalação: <strong>${formatNumBR(sistema.areaNecessariaM2, 1)} m²</strong>
+          </div>
+        </div>
+
+        <!-- Serviços Inclusos -->
+        <div class="section-header-docx" style="margin-top: 12px;">
+          <span class="sq-bullet">■</span> SERVIÇOS INCLUSOS
+        </div>
+        <div class="servicos-inclusos-box">
+          <ul class="servicos-inclusos-list">
+            <li><strong>Projeto e Homologação:</strong> Elaboração do projeto fotovoltaico executivo e homologação completa junto à concessionária de energia;</li>
+            <li><strong>Instalação Completa:</strong> Execução técnica por equipe própria, contemplando módulos, estruturas de fixação, inversor, passagem e organização dos cabos solares anti-UV, dispositivos de proteção CC/CA (String Box) e aterramento do gerador;</li>
+            <li><strong>Comissionamento & Orientação:</strong> Configuração inicial do sistema de monitoramento via aplicativo e suporte ao cliente para acompanhamento da geração de energia;</li>
+            <li><strong>Responsabilidade Técnica (ART):</strong> Registro emitido por Engenheiro responsável credenciado junto ao CREA.</li>
+          </ul>
+        </div>
+      </div>
+
+      ${renderFooter(2, 4)}
+    </section>
+
+    <!-- ========================================================
+         PÁGINA 3: GARANTIAS + PRODUÇÃO DE ENERGIA (TABELA 12 MESES) + INVESTIMENTO / PAYBACK
+         ======================================================== -->
+    <section class="proposta-page" id="pagina-3">
+      <div class="page-body">
+        ${renderHeader(3, 4)}
+
+        <!-- Garantias -->
+        <div class="section-header-docx">
+          <span class="sq-bullet">■</span> GARANTIAS ASSEGURADAS
+        </div>
+
+        <div class="garantias-cards-grid">
+          <div class="garantia-card">
+            <div class="garantia-card-tipo">PAINÉIS SOLARES</div>
+            <div class="garantia-card-tempo">${garantias.paineisAnosFabricacao} ANOS</div>
+            <div class="garantia-card-sub">Contra defeitos de fabricação</div>
+            <div style="font-size: 8.5px; font-weight: 800; color: #166534; margin-top: 3px;">
+              + ${garantias.paineisAnosDesempenho} anos (${garantias.paineisPercentualDesempenho} de rendimento)
+            </div>
+          </div>
+
+          <div class="garantia-card">
+            <div class="garantia-card-tipo">INVERSOR SOLAR</div>
+            <div class="garantia-card-tempo">${garantias.inversorAnosFabricacao} ANOS</div>
+            <div class="garantia-card-sub">Garantia padrão de fábrica</div>
+            <div style="font-size: 8.5px; font-weight: 800; color: #166534; margin-top: 3px;">
+              Assistência técnica ágil
+            </div>
+          </div>
+
+          <div class="garantia-card">
+            <div class="garantia-card-tipo">INSTALAÇÃO DELFOS</div>
+            <div class="garantia-card-tempo">${garantias.instalacaoAnos} ANO</div>
+            <div class="garantia-card-sub">Garantia integral sobre os serviços</div>
+            <div style="font-size: 8.5px; font-weight: 800; color: #166534; margin-top: 3px;">
+              Padrão de engenharia Delfos
+            </div>
+          </div>
+        </div>
+
+        <div class="garantias-nota">
+          * OBS: Não são cobertas as garantias de peças ou componentes por desgaste natural, como disjuntores e DPS.
+        </div>
+
+        <!-- Produção de Energia -->
+        <div class="section-header-docx">
+          <span class="sq-bullet">■</span> PRODUÇÃO ESTIMADA DE ENERGIA
+        </div>
+
+        <div class="producao-resumo-banner">
+          <div class="producao-pill">
+            <span class="producao-pill-label">Produção Anual Estimada:</span>
+            <span class="producao-pill-val">${formatNumBR(producao.anualKwh, 0)} kWh/ano</span>
+          </div>
+          <div class="producao-pill">
+            <span class="producao-pill-label">Geração Média Mensal:</span>
+            <span class="producao-pill-val">${formatNumBR(producao.mediaMensalKwh, 0)} kWh/mês</span>
+          </div>
+        </div>
+
+        <!-- Tabela Mensal Jan a Dez -->
+        <div class="tabela-meses-wrap">
+          <table class="tabela-meses">
+            <thead>
+              <tr>
+                <th style="width: 10%;">Mês</th>
+                ${thMeses}
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="label-kwh">kWh</td>
+                ${tdMeses}
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Investimento & Payback (Hero de Venda) -->
+        <div class="section-header-docx">
+          <span class="sq-bullet">■</span> SUA PROPOSTA DE ECONOMIA ENERGÉTICA
+        </div>
+
+        <div class="investimento-hero-card">
+          <div class="investimento-hero-header">
+            <div class="investimento-hero-title">INVESTIMENTO TOTAL COM ENGENHARIA DELFOS</div>
+            <div class="investimento-hero-prazo">
+              Prazo de entrega: até <strong>${economia.prazoEntregaDias} dias</strong> após pedido
+            </div>
+          </div>
+
+          <div class="investimento-valores-row">
+            <div class="valor-total-destaque-box">
+              <div class="valor-total-label">Valor Total do Projeto Turnkey:</div>
+              <div class="valor-total-big">${formatBRL(economia.investimentoTotal)}</div>
+              <div class="valor-total-sub">
+                ✓ Economia imediata já a partir do 1º mês na sua conta de energia.
+              </div>
+            </div>
+
+            <div class="payback-destaque-box">
+              <div class="payback-label">Tempo de Retorno do Investimento (Payback)</div>
+              <div class="payback-number">${economia.paybackTexto}</div>
+              <div class="payback-note">Após esse período, toda a geração torna-se lucro líquido direto.</div>
+            </div>
+          </div>
+        </div>
+
+        ${
+          observacoes
+            ? `
+        <div style="background: #F9FAFB; border: 1px solid #E5E7EB; border-radius: 6px; padding: 7px 10px; font-size: 9.5px; color: #4B5563; margin-top: 10px;">
+          <strong>Observações Técnicas / Comerciais:</strong> ${observacoes}
+        </div>
+        `
+            : ''
+        }
+      </div>
+
+      ${renderFooter(3, 4)}
+    </section>
+
+    <!-- ========================================================
+         PÁGINA 4: SIMULAÇÃO DE PARCELAMENTO + PROJEÇÃO DE ECONOMIA + TERMO DE ACEITE
+         ======================================================== -->
+    <section class="proposta-page" id="pagina-4">
+      <div class="page-body">
+        ${renderHeader(4, 4)}
+
+        <!-- Simulação de Parcelamento em 4 Colunas -->
+        <div class="section-header-docx">
+          <span class="sq-bullet">■</span> SIMULAÇÃO DE PARCELAMENTO E CONDIÇÕES COMERCIAIS
+        </div>
+
+        <div class="parcelamento-grid-4">
+          <!-- Coluna 1: À Vista -->
+          <div class="parc-card card-destaque-verde">
+            <div>
+              <span class="parc-card-top-tag">Maior Economia</span>
+              <div class="parc-col-titulo">À VISTA</div>
+              <div class="parc-col-valor-principal">${formatBRL(parcelamento.aVista.valorTotal)}</div>
+              <div class="parc-col-sub">Parcela única na contratação</div>
+            </div>
+            <div class="parc-contas-box">
+              <div class="row-conta">
+                <span>Conta hoje:</span>
+                <strong>${formatBRL(parcelamento.aVista.contaHoje)}</strong>
+              </div>
+              <div class="row-conta">
+                <span>Conta c/ solar*:</span>
+                <strong class="accent-solar">${formatBRL(parcelamento.aVista.contaComSolar)}</strong>
+              </div>
+            </div>
+          </div>
+
+          <!-- Coluna 2: Cartão 18x -->
+          <div class="parc-card">
+            <div>
+              <span class="parc-card-top-tag">Sem Burocracia</span>
+              <div class="parc-col-titulo">CARTÃO 18X</div>
+              <div class="parc-col-valor-principal">
+                ${parcelamento.cartao18x.numeroParcelas}x de ${formatBRL(parcelamento.cartao18x.valorParcela)}
+              </div>
+              <div class="parc-col-sub">Direto no cartão de crédito</div>
+            </div>
+            <div class="parc-contas-box">
+              <div class="row-conta">
+                <span>Conta hoje:</span>
+                <strong>${formatBRL(parcelamento.cartao18x.contaHoje)}</strong>
+              </div>
+              <div class="row-conta">
+                <span>Conta c/ solar*:</span>
+                <strong class="accent-solar">${formatBRL(parcelamento.cartao18x.contaComSolar)}</strong>
+              </div>
+            </div>
+          </div>
+
+          <!-- Coluna 3: Financiamento A -->
+          <div class="parc-card">
+            <div>
+              <span class="parc-card-top-tag">Sem Entrada</span>
+              <div class="parc-col-titulo">${parcelamento.financiamentoA.nome}</div>
+              <div class="parc-col-valor-principal">
+                ${parcelamento.financiamentoA.numeroParcelas}x de ${formatBRL(parcelamento.financiamentoA.valorParcela)}
+              </div>
+              <div class="parc-col-sub">Linha bancária facilitada</div>
+            </div>
+            <div class="parc-contas-box">
+              <div class="row-conta">
+                <span>Conta hoje:</span>
+                <strong>${formatBRL(parcelamento.financiamentoA.contaHoje)}</strong>
+              </div>
+              <div class="row-conta">
+                <span>Conta c/ solar*:</span>
+                <strong class="accent-solar">${formatBRL(parcelamento.financiamentoA.contaComSolar)}</strong>
+              </div>
+            </div>
+          </div>
+
+          <!-- Coluna 4: Financiamento B -->
+          <div class="parc-card card-destaque-azul">
+            <div>
+              <span class="parc-card-top-tag">Menor Parcela</span>
+              <div class="parc-col-titulo">${parcelamento.financiamentoB.nome}</div>
+              <div class="parc-col-valor-principal">
+                ${parcelamento.financiamentoB.numeroParcelas}x de ${formatBRL(parcelamento.financiamentoB.valorParcela)}
+              </div>
+              <div class="parc-col-sub">Prazo estendido</div>
+            </div>
+            <div class="parc-contas-box">
+              <div class="row-conta">
+                <span>Conta hoje:</span>
+                <strong>${formatBRL(parcelamento.financiamentoB.contaHoje)}</strong>
+              </div>
+              <div class="row-conta">
+                <span>Conta c/ solar*:</span>
+                <strong class="accent-solar">${formatBRL(parcelamento.financiamentoB.contaComSolar)}</strong>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="nota-parcelamento-legal">
+          * Valores estimados. A conta com energia solar pode variar conforme consumo excedente, custo de disponibilidade/taxa mínima da concessionária e taxa de iluminação pública.
+        </div>
+
+        <!-- Projeção de Desperdício x Economia Acumulada -->
+        <div class="section-header-docx">
+          <span class="sq-bullet">■</span> PROJEÇÃO DE DESPERDÍCIO X ECONOMIA ACUMULADA
+        </div>
+
+        <table class="tabela-projecao-venda">
+          <thead>
+            <tr>
+              <th style="width: 25%;">Período</th>
+              <th style="width: 37.5%;">Sem Energia Solar (Desperdício)</th>
+              <th style="width: 37.5%;">Com Energia Solar Delfos</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>1 ano</strong></td>
+              <td class="td-sem-solar-perda">${formatBRL(projecao.gastoSemSolar1Ano)} jogados fora</td>
+              <td class="td-com-solar-ganho">${formatBRL(projecao.economia1Ano)} economizados</td>
+            </tr>
+            <tr>
+              <td><strong>5 anos</strong></td>
+              <td class="td-sem-solar-perda">${formatBRL(projecao.gastoSemSolar5Anos)} jogados fora</td>
+              <td class="td-com-solar-ganho">${formatBRL(projecao.economia5Anos)} economizados</td>
+            </tr>
+            <tr>
+              <td><strong>25 anos</strong></td>
+              <td class="td-sem-solar-perda">${formatBRL(projecao.gastoSemSolar25Anos)} jogados fora</td>
+              <td class="td-com-solar-ganho">${formatBRL(projecao.economia25Anos)} economizados</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <!-- Banner Vendedor Total Economizado em 25 anos -->
+        <div class="banner-impacto-25anos">
+          <div class="impacto-total-texto">
+            <strong>TOTAL ECONOMIZADO EM 25 ANOS: ${formatBRL(projecao.economia25Anos)}</strong>
+            <span>Patrimônio protegido contra reajustes tarifários da concessionária.</span>
+          </div>
+          <div class="impacto-perda-mes">
+            <div class="impacto-perda-mes-label">Custo da Postergação</div>
+            <div class="impacto-perda-mes-val">${formatBRL(projecao.economia1Mes)}/mês</div>
+            <span style="font-size: 8px; color: #92400E;">que não retornam mais</span>
+          </div>
+        </div>
+
+        <!-- Termo de Aceite e Assinaturas -->
+        <div class="section-header-docx">
+          <span class="sq-bullet">■</span> VALIDADE & TERMO DE ACEITE DA PROPOSTA
+        </div>
+
+        <div class="aceite-aprovacao-grid">
+          <div class="validade-responsabilidade-box">
+            <div>
+              <strong>VALIDADE DA PROPOSTA:</strong> ${validadeDias} dias a partir da apresentação da proposta.
+            </div>
+            <div style="margin-top: 4px;">
+              RESPONSÁVEL TÉCNICO: <strong>${empresa.responsavelTecnico}</strong> — ${empresa.crea}
+            </div>
+            <div style="margin-top: 4px;">
+              <strong>${empresa.razaoSocial}</strong> — CNPJ: ${empresa.cnpj}<br />
+              ${empresa.endereco}
+            </div>
+          </div>
+
+          <div class="assinatura-cliente-box">
+            <div class="linha-assinatura"></div>
+            <div class="assinatura-nome-cliente">${cliente.nome}</div>
+            <div class="assinatura-doc-cliente">
+              CPF/CNPJ: ${cliente.cpfOuCnpj || '_________________________________'}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      ${renderFooter(4, 4)}
+    </section>
+
+  </div>
+
 </body>
 </html>`
 }
