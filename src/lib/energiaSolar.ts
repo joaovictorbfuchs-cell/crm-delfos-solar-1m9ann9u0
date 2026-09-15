@@ -22,6 +22,7 @@ export interface DadosCustosSolar {
   impostos: number
   valorPorPlaca?: number
   opcaoImposto?: 1 | 2
+  desconto?: number
 }
 
 export const CUSTOS_SOLAR_PADRAO: DadosCustosSolar = {
@@ -38,6 +39,7 @@ export const CUSTOS_SOLAR_PADRAO: DadosCustosSolar = {
   impostos: 0,
   valorPorPlaca: 0,
   opcaoImposto: 1,
+  desconto: 0,
 }
 
 export interface GeracaoMensalItem {
@@ -223,13 +225,18 @@ export interface ParametrosCalculoCustosAba {
   terceirizacao?: number
   marketingCombustivel?: number
   opcaoImposto: 1 | 2
+  desconto?: number
 }
 
 export interface ResultadoCalculoCustosAba {
   impostos: number
-  somaComImpostos: number // soma de todos os valores incluindo materiais e impostos
-  administracao: number // somaComImpostos * 0.15
-  comissaoComercial: number // somaComImpostos * 0.03
+  somaComImpostos: number // soma de todos os valores incluindo materiais e impostos (sem deduzir desconto)
+  baseComDesconto: number // base usada para administração e comissão comercial após abater o desconto
+  desconto: number
+  administracao: number // baseComDesconto * 0.15
+  comissaoComercial: number // Math.max(600, comissaoPura3Pct) se base > 0 (ou piso R$ 600)
+  comissaoPura3Pct: number // baseComDesconto * 0.03 (para exibir ao lado quando o piso de R$ 600 for acionado)
+  comissaoUsouPisoMinimo: boolean // true se a comissão foi elevada para o piso de R$ 600
   indicacao: number // total * 0.01
   valorTotal: number
 }
@@ -242,6 +249,7 @@ export function calcularCustosAba(params: ParametrosCalculoCustosAba): Resultado
   const subestacao = Math.max(0, Number(params.subestacao) || 0)
   const terceirizacao = Math.max(0, Number(params.terceirizacao) || 0)
   const marketing = Math.max(0, Number(params.marketingCombustivel) || 0)
+  const desconto = Math.max(0, Number(params.desconto) || 0)
 
   // Subtotal base (itens diretos sem impostos, administração, comissão e indicação)
   const subtotalBase =
@@ -252,34 +260,13 @@ export function calcularCustosAba(params: ParametrosCalculoCustosAba): Resultado
 
   if (params.opcaoImposto === 1) {
     // Opção 1: Impostos = valor total de materiais e custos * 0,09
-    // Onde valor total = soma de tudo: subtotalBase + impostos + adm (15% de soma c/ imposto) + comissao (3% de soma c/ imposto) + indicacao (1% do total)
-    // somaComImpostos = subtotalBase + I = subtotalBase + 0.09 * T
-    // T = somaComImpostos + 0.15 * somaComImpostos + 0.03 * somaComImpostos + 0.01 * T
-    // T = 1.18 * somaComImpostos + 0.01 * T
-    // 0.99 * T = 1.18 * (subtotalBase + 0.09 * T) = 1.18 * subtotalBase + 0.1062 * T
-    // (0.99 - 0.1062) * T = 1.18 * subtotalBase
-    // 0.8838 * T = 1.18 * subtotalBase => T = (subtotalBase * 1.18) / 0.8838
+    // O desconto NÃO altera mão de obra, impostos, risco, materiais nem valor total do projeto.
     if (subtotalBase > 0) {
       valorTotal = (subtotalBase * 1.18) / 0.8838
       impostos = valorTotal * 0.09
     }
   } else {
     // Opção 2: Impostos = (valor total - materiais) * 0,16
-    // somaComImpostos = subtotalBase + I = subtotalBase + 0.16 * (T - M)
-    // T = 1.18 * somaComImpostos + 0.01 * T
-    // 0.99 * T = 1.18 * (subtotalBase + 0.16 * T - 0.16 * M) = 1.18 * subtotalBase - 0.1888 * M + 0.1888 * T
-    // (0.99 - 0.1888) * T = 1.18 * subtotalBase - 0.1888 * M
-    // Note que se outros custos além de M forem X (subtotalBase = M + X):
-    // 1.18 * (M + X) - 0.1888 * M = 0.9912 * M + 1.18 * X
-    // 0.8012 * T = 1.18 * subtotalBase - 0.1888 * M
-    // T = (1.18 * subtotalBase - 0.1888 * M) / 0.8012
-    // Se interpretarmos "soma de todos os valores incluindo materiais e impostos" como sendo a base antes de adm/comissão:
-    // somaComImpostos = subtotalBase + I
-    // T = somaComImpostos + 0.18 * somaComImpostos + 0.01 * T
-    // 0.99 * T = 1.18 * (subtotalBase + I)
-    // Com I = (T - M) * 0.16:
-    // 0.99 * T = 1.18 * subtotalBase + 0.1888 * T - 0.1888 * M
-    // 0.8012 * T = 1.18 * subtotalBase - 0.1888 * M => T = (1.18 * subtotalBase - 0.1888 * M) / 0.8012
     if (subtotalBase > 0) {
       const numerador = 1.18 * subtotalBase - 0.1888 * materiais
       valorTotal = Math.max(0, numerador / 0.8012)
@@ -288,15 +275,38 @@ export function calcularCustosAba(params: ParametrosCalculoCustosAba): Resultado
   }
 
   const somaComImpostos = subtotalBase + impostos
-  const administracao = somaComImpostos * 0.15
-  const comissaoComercial = somaComImpostos * 0.03
+
+  // 1. Desconto sobre o total do projeto:
+  // "quando eu digitar o valor do desconto, ele vai refletir apenas no valor da comissão e do valor de administração."
+  // Reduz a base usada nos cálculos de Administração (15%) e Comissão comercial (3%).
+  const baseComDesconto = Math.max(0, somaComImpostos - desconto)
+  const administracao = baseComDesconto * 0.15
+
+  // 2. Comissão mínima de R$ 600:
+  // "o minimo de valor calculado para comissão deve ficar em 600, ou seja, se o calculo ficar menor que 600,
+  // o valor para aparecer deve ser 600 e ao lado aparecer quanto daria se fosse 3%."
+  const comissaoPura3Pct = baseComDesconto * 0.03
+  let comissaoComercial = comissaoPura3Pct
+  let comissaoUsouPisoMinimo = false
+
+  if (baseComDesconto > 0 || somaComImpostos > 0) {
+    if (comissaoPura3Pct < 600) {
+      comissaoComercial = 600
+      comissaoUsouPisoMinimo = true
+    }
+  }
+
   const indicacao = valorTotal * 0.01
 
   return {
     impostos: Math.round(impostos * 100) / 100,
     somaComImpostos: Math.round(somaComImpostos * 100) / 100,
+    baseComDesconto: Math.round(baseComDesconto * 100) / 100,
+    desconto: Math.round(desconto * 100) / 100,
     administracao: Math.round(administracao * 100) / 100,
     comissaoComercial: Math.round(comissaoComercial * 100) / 100,
+    comissaoPura3Pct: Math.round(comissaoPura3Pct * 100) / 100,
+    comissaoUsouPisoMinimo,
     indicacao: Math.round(indicacao * 100) / 100,
     valorTotal: Math.round(valorTotal * 100) / 100,
   }

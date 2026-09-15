@@ -117,9 +117,10 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
   // Custos do projeto (aba de custos com soma automática)
   const [custos, setCustos] = useState<DadosCustosSolar>({ ...CUSTOS_SOLAR_PADRAO })
 
-  // Campos específicos da Aba de Custos (Requisitos 1 a 7)
+  // Campos específicos da Aba de Custos (Requisitos 1 a 7 e Desconto)
   const [valorPorPlaca, setValorPorPlaca] = useState<number>(150)
   const [opcaoImposto, setOpcaoImposto] = useState<1 | 2>(1)
+  const [desconto, setDesconto] = useState<number>(0)
   const [fornecedorSelecionadoId, setFornecedorSelecionadoId] = useState<string>('')
   // Controla se a mão de obra foi editada manualmente pelo usuário
   const [maoDeObraEditadaManualmente, setMaoDeObraEditadaManualmente] = useState<boolean>(false)
@@ -152,6 +153,9 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
       const optImp = initialOrcamento.opcao_imposto === 2 ? 2 : 1
       setOpcaoImposto(optImp)
 
+      const initialDesconto = initialOrcamento.desconto || 0
+      setDesconto(initialDesconto)
+
       setFornecedorSelecionadoId(initialOrcamento.fornecedor_selecionado_id || '')
 
       const riscoPadrao =
@@ -183,11 +187,13 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
         impostos: initialOrcamento.custo_impostos || 0,
         opcaoImposto: optImp,
         valorPorPlaca: initialValPlaca,
+        desconto: initialDesconto,
       })
     } else {
       // Novo orçamento: defaults
       setValorPorPlaca(150)
       setOpcaoImposto(1)
+      setDesconto(0)
       setMaoDeObraEditadaManualmente(false)
       setFornecedorSelecionadoId('')
 
@@ -197,6 +203,7 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
         riscoEngenharia: 400,
         opcaoImposto: 1,
         valorPorPlaca: 150,
+        desconto: 0,
       }))
 
       if (initialClienteId) {
@@ -315,7 +322,7 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
     }
   }
 
-  // Cálculos automáticos da Aba de Custos (Requisitos 1 a 6) usando calcularCustosAba de src/lib/energiaSolar.ts
+  // Cálculos automáticos da Aba de Custos (Requisitos 1 a 6 + Desconto) usando calcularCustosAba de src/lib/energiaSolar.ts
   const resultadoCustosAba = useMemo(() => {
     return calcularCustosAba({
       materiais: custos.materiaisExtras || 0,
@@ -326,6 +333,7 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
       terceirizacao: custos.terceirizacao || 0,
       marketingCombustivel: custos.marketingCombustivel || 0,
       opcaoImposto,
+      desconto,
     })
   }, [
     custos.materiaisExtras,
@@ -336,9 +344,10 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
     custos.terceirizacao,
     custos.marketingCombustivel,
     opcaoImposto,
+    desconto,
   ])
 
-  // Sincroniza os campos calculados automaticamente (impostos, administração, comissão, indicação) no estado custos
+  // Sincroniza os campos calculados automaticamente (impostos, administração, comissão, indicação, desconto) no estado custos
   useEffect(() => {
     setCustos((prev) => {
       if (
@@ -347,7 +356,8 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
         prev.comissaoComercial === resultadoCustosAba.comissaoComercial &&
         prev.indicacao === resultadoCustosAba.indicacao &&
         prev.opcaoImposto === opcaoImposto &&
-        prev.valorPorPlaca === valorPorPlaca
+        prev.valorPorPlaca === valorPorPlaca &&
+        prev.desconto === desconto
       ) {
         return prev
       }
@@ -359,9 +369,10 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
         indicacao: resultadoCustosAba.indicacao,
         opcaoImposto,
         valorPorPlaca,
+        desconto,
       }
     })
-  }, [resultadoCustosAba, opcaoImposto, valorPorPlaca])
+  }, [resultadoCustosAba, opcaoImposto, valorPorPlaca, desconto])
 
   // Custo somado da aba de custos: se as fórmulas automáticas geraram valorTotal, usa ele; senão soma direta
   const totalCustosCalculado = useMemo(() => {
@@ -523,6 +534,7 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
         // Custos
         valor_por_placa: valorPorPlaca,
         opcao_imposto: opcaoImposto,
+        desconto: desconto || 0,
         fornecedor_selecionado_id: fornecedorSelecionadoId || undefined,
         custo_mao_de_obra: custos.maoDeObra,
         custo_materiais_extras: custos.materiaisExtras,
@@ -1368,32 +1380,43 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                     </div>
                   </div>
 
-                  {/* Valor de Materiais (Alimentado pelo fornecedor ou digitado) */}
-                  <div>
-                    <label className="text-[11px] font-semibold text-gray-700 block mb-1">
-                      Materiais / Equipamentos (R$)
-                    </label>
+                  {/* Valor de Materiais (Alimentado pelo fornecedor ou digitado) - Compacto */}
+                  <div className="p-2.5 rounded-lg bg-gray-50/70 border border-gray-200">
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="text-[11px] font-medium text-gray-700">
+                        Materiais / Equipamentos (R$)
+                      </label>
+                      <span
+                        className="text-[10px] text-gray-400 cursor-help"
+                        title="Alimentado automaticamente ao selecionar fornecedor na tabela abaixo"
+                      >
+                        Auto/Fornecedor
+                      </span>
+                    </div>
                     <input
                       type="number"
                       value={custos.materiaisExtras || ''}
                       min={0}
                       step={100}
                       onChange={(e) => updateCustoField('materiaisExtras', Number(e.target.value))}
-                      className="w-full text-xs font-semibold px-3 py-2 rounded-lg border border-gray-300 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      className="w-full text-xs font-semibold px-2.5 py-1.5 rounded-md border border-gray-300 bg-white focus:outline-none focus:ring-1 focus:ring-emerald-500"
                       placeholder="0,00"
+                      title="Alimentado automaticamente ao selecionar fornecedor abaixo"
                     />
-                    <span className="text-[10px] text-gray-500 mt-0.5 block">
-                      Alimentado automaticamente ao selecionar fornecedor abaixo
-                    </span>
                   </div>
 
-                  {/* Requisito 6: Risco de engenharia (padrão R$ 400, editável) */}
-                  <div>
+                  {/* Requisito 6: Risco de engenharia (padrão R$ 400, editável) - Compacto */}
+                  <div className="p-2.5 rounded-lg bg-gray-50/70 border border-gray-200">
                     <div className="flex items-center justify-between mb-1">
-                      <label className="text-[11px] font-semibold text-gray-700">
+                      <label className="text-[11px] font-medium text-gray-700">
                         6. Risco de engenharia (R$) *
                       </label>
-                      <span className="text-[10px] text-gray-500">Padrão: R$ 400</span>
+                      <span
+                        className="text-[10px] text-gray-400 cursor-help"
+                        title="Preenchido com valor padrão de R$ 400, podendo ser editado"
+                      >
+                        Padrão R$ 400
+                      </span>
                     </div>
                     <input
                       type="number"
@@ -1401,76 +1424,100 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                       min={0}
                       step={50}
                       onChange={(e) => updateCustoField('riscoEngenharia', Number(e.target.value))}
-                      className="w-full text-xs font-semibold px-3 py-2 rounded-lg border border-gray-300 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      className="w-full text-xs font-semibold px-2.5 py-1.5 rounded-md border border-gray-300 bg-white focus:outline-none focus:ring-1 focus:ring-emerald-500"
                       placeholder="400,00"
+                      title="Preenchido com valor padrão de R$ 400, podendo ser editado"
                     />
-                    <span className="text-[10px] text-gray-500 mt-0.5 block">
-                      Preenchido com valor padrão de R$ 400, podendo ser editado
-                    </span>
                   </div>
 
-                  {/* Frete e guincho */}
-                  <div>
-                    <label className="text-[11px] font-semibold text-gray-700 block mb-1">
-                      Frete e guincho (R$)
-                    </label>
+                  {/* Frete e guincho - Compacto */}
+                  <div className="p-2.5 rounded-lg bg-gray-50/70 border border-gray-200">
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="text-[11px] font-medium text-gray-700">
+                        Frete e guincho (R$)
+                      </label>
+                      <span
+                        className="text-[10px] text-gray-400 cursor-help"
+                        title="Logística e içamento dos módulos fotovoltaicos"
+                      >
+                        Içamento
+                      </span>
+                    </div>
                     <input
                       type="number"
                       value={custos.freteGuincho || ''}
                       min={0}
                       step={50}
                       onChange={(e) => updateCustoField('freteGuincho', Number(e.target.value))}
-                      className="w-full text-xs font-medium px-3 py-2 rounded-lg border border-gray-300 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      className="w-full text-xs font-medium px-2.5 py-1.5 rounded-md border border-gray-300 bg-white focus:outline-none focus:ring-1 focus:ring-emerald-500"
                       placeholder="0,00"
+                      title="Logística e içamento dos módulos"
                     />
-                    <span className="text-[10px] text-gray-400 mt-0.5 block">
-                      Logística e içamento dos módulos
-                    </span>
                   </div>
 
-                  {/* Subestação de energia se necessário */}
-                  <div>
-                    <label className="text-[11px] font-semibold text-gray-700 block mb-1">
-                      Subestação de energia (R$)
-                    </label>
+                  {/* Subestação de energia se necessário - Compacto */}
+                  <div className="p-2.5 rounded-lg bg-gray-50/70 border border-gray-200">
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="text-[11px] font-medium text-gray-700">
+                        Subestação (R$)
+                      </label>
+                      <span
+                        className="text-[10px] text-gray-400 cursor-help"
+                        title="Transformador / subestação rural ou industrial se aplicável"
+                      >
+                        Se aplicável
+                      </span>
+                    </div>
                     <input
                       type="number"
                       value={custos.subestacao || ''}
                       min={0}
                       step={100}
                       onChange={(e) => updateCustoField('subestacao', Number(e.target.value))}
-                      className="w-full text-xs font-medium px-3 py-2 rounded-lg border border-gray-300 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                      placeholder="0,00 (se aplicável)"
+                      className="w-full text-xs font-medium px-2.5 py-1.5 rounded-md border border-gray-300 bg-white focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                      placeholder="0,00"
+                      title="Transformador / subestação rural ou industrial"
                     />
-                    <span className="text-[10px] text-gray-400 mt-0.5 block">
-                      Transformador / subestação rural ou industrial
-                    </span>
                   </div>
 
-                  {/* Terceirização de serviços */}
-                  <div>
-                    <label className="text-[11px] font-semibold text-gray-700 block mb-1">
-                      Terceirização de serviços (R$)
-                    </label>
+                  {/* Terceirização de serviços - Compacto */}
+                  <div className="p-2.5 rounded-lg bg-gray-50/70 border border-gray-200">
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="text-[11px] font-medium text-gray-700">
+                        Terceirização (R$)
+                      </label>
+                      <span
+                        className="text-[10px] text-gray-400 cursor-help"
+                        title="Projetistas, ARTs ou consultores externos"
+                      >
+                        ART/Externos
+                      </span>
+                    </div>
                     <input
                       type="number"
                       value={custos.terceirizacao || ''}
                       min={0}
                       step={50}
                       onChange={(e) => updateCustoField('terceirizacao', Number(e.target.value))}
-                      className="w-full text-xs font-medium px-3 py-2 rounded-lg border border-gray-300 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      className="w-full text-xs font-medium px-2.5 py-1.5 rounded-md border border-gray-300 bg-white focus:outline-none focus:ring-1 focus:ring-emerald-500"
                       placeholder="0,00"
+                      title="Projetistas, ARTs ou consultores externos"
                     />
-                    <span className="text-[10px] text-gray-400 mt-0.5 block">
-                      Projetistas, ARTs ou consultores externos
-                    </span>
                   </div>
 
-                  {/* Marketing e combustível */}
-                  <div>
-                    <label className="text-[11px] font-semibold text-gray-700 block mb-1">
-                      Marketing e combustível (R$)
-                    </label>
+                  {/* Marketing e combustível - Compacto */}
+                  <div className="p-2.5 rounded-lg bg-gray-50/70 border border-gray-200">
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="text-[11px] font-medium text-gray-700">
+                        Marketing/Combustível (R$)
+                      </label>
+                      <span
+                        className="text-[10px] text-gray-400 cursor-help"
+                        title="Deslocamento e suporte comercial"
+                      >
+                        Deslocamento
+                      </span>
+                    </div>
                     <input
                       type="number"
                       value={custos.marketingCombustivel || ''}
@@ -1479,120 +1526,155 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                       onChange={(e) =>
                         updateCustoField('marketingCombustivel', Number(e.target.value))
                       }
-                      className="w-full text-xs font-medium px-3 py-2 rounded-lg border border-gray-300 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      className="w-full text-xs font-medium px-2.5 py-1.5 rounded-md border border-gray-300 bg-white focus:outline-none focus:ring-1 focus:ring-emerald-500"
                       placeholder="0,00"
+                      title="Deslocamento e suporte comercial"
                     />
-                    <span className="text-[10px] text-gray-400 mt-0.5 block">
-                      Deslocamento e suporte comercial
-                    </span>
                   </div>
                 </div>
 
-                {/* Requisito 5: Seletor de Impostos com Opção 1 e Opção 2 */}
-                <div className="p-3.5 rounded-xl bg-blue-50/60 border border-blue-200 space-y-3">
-                  <div className="flex items-center justify-between flex-wrap gap-2">
+                {/* Seção de Desconto sobre o total do projeto (Ajuste 1: afeta apenas comissão e administração) */}
+                <div className="px-3 py-2.5 rounded-lg bg-amber-50/70 border border-amber-300 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                  <div className="flex items-center gap-2">
+                    <span className="p-1 rounded bg-amber-100 text-amber-800 font-bold text-[10px] uppercase">
+                      Desconto
+                    </span>
                     <div>
-                      <span className="text-xs font-bold text-blue-950 uppercase tracking-wide flex items-center gap-1.5">
-                        <Percent className="w-3.5 h-3.5 text-blue-700" />
+                      <span className="text-[11px] font-bold text-amber-950 block">
+                        Desconto sobre o Total do Projeto (R$)
+                      </span>
+                      <span className="text-[10px] text-amber-800">
+                        Reflete <strong>exclusivamente</strong> na base de Administração (15%) e
+                        Comissão comercial (3%). Não altera materiais, mão de obra nem impostos.
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+                    {desconto > 0 && (
+                      <span className="text-[10px] font-bold text-amber-800 bg-white px-2 py-0.5 rounded border border-amber-200">
+                        Base:{' '}
+                        {formatCurrency(
+                          resultadoCustosAba.baseComDesconto ??
+                            Math.max(0, resultadoCustosAba.somaComImpostos - desconto),
+                        )}
+                      </span>
+                    )}
+                    <div className="w-36">
+                      <input
+                        type="number"
+                        min={0}
+                        step={50}
+                        value={desconto || ''}
+                        onChange={(e) => setDesconto(Math.max(0, Number(e.target.value) || 0))}
+                        className="w-full text-xs font-bold px-2.5 py-1 rounded-md border border-amber-300 bg-white text-amber-950 focus:outline-none focus:ring-1 focus:ring-amber-500 text-right"
+                        placeholder="0,00"
+                        title="Digite o valor do desconto em R$ para reduzir a base de administração e comissão comercial"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Requisito 5: Seletor de Impostos com Opção 1 e Opção 2 - Compactado */}
+                <div className="px-3 py-2 rounded-lg bg-blue-50/50 border border-blue-200 space-y-2">
+                  <div className="flex items-center justify-between flex-wrap gap-1.5 pb-1 border-b border-blue-200/60">
+                    <div className="flex items-center gap-1.5">
+                      <Percent className="w-3.5 h-3.5 text-blue-700 shrink-0" />
+                      <span className="text-[11px] font-bold text-blue-950 uppercase tracking-wide">
                         5. Seletor de Impostos
                       </span>
-                      <p className="text-[11px] text-blue-800">
-                        Escolha o regime fiscal aplicável ao orçamento:
-                      </p>
+                      <span
+                        className="text-[10px] text-blue-700 hidden sm:inline cursor-help"
+                        title="Escolha o regime fiscal aplicável ao orçamento"
+                      >
+                        (Opção 1 ou Opção 2)
+                      </span>
                     </div>
 
-                    <div className="text-right">
-                      <span className="text-[10px] uppercase font-bold text-blue-700 block">
-                        Imposto Calculado
-                      </span>
-                      <span className="text-base font-black text-blue-900">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[10px] text-blue-700 font-semibold">Imposto:</span>
+                      <span className="text-xs font-black text-blue-900 bg-white px-2 py-0.5 rounded border border-blue-200">
                         {formatCurrency(resultadoCustosAba.impostos)}
                       </span>
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
                     {/* Opção 1 */}
                     <label
-                      className={`p-3 rounded-lg border cursor-pointer transition-all flex items-start gap-2.5 ${
+                      className={`px-2.5 py-1.5 rounded-md border cursor-pointer transition-all flex items-center justify-between gap-2 ${
                         opcaoImposto === 1
-                          ? 'border-blue-600 bg-white shadow-xs ring-2 ring-blue-500/20'
+                          ? 'border-blue-600 bg-white shadow-2xs ring-1 ring-blue-500/20'
                           : 'border-blue-200 bg-white/70 hover:bg-white text-gray-700'
                       }`}
+                      title="Opção 1: Valor total de materiais e custos multiplicado por 0,09 (9%)"
                     >
-                      <input
-                        type="radio"
-                        name="opcao_imposto_radio"
-                        checked={opcaoImposto === 1}
-                        onChange={() => setOpcaoImposto(1)}
-                        className="mt-0.5 text-blue-600 focus:ring-blue-500 cursor-pointer"
-                      />
-                      <div className="space-y-0.5 flex-1">
-                        <div className="flex items-center justify-between">
-                          <span className="font-bold text-gray-900">Opção 1 (9% total)</span>
-                          {opcaoImposto === 1 && (
-                            <span className="text-[10px] font-extrabold text-blue-700 bg-blue-100 px-1.5 py-0.2 rounded">
-                              Ativo
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-[11px] text-gray-600">
-                          Valor total de materiais e custos multiplicado por 0,09 (9%)
-                        </p>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="radio"
+                          name="opcao_imposto_radio"
+                          checked={opcaoImposto === 1}
+                          onChange={() => setOpcaoImposto(1)}
+                          className="w-3.5 h-3.5 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                        />
+                        <span className="font-bold text-[11px] text-gray-900">
+                          Opção 1 (9% total)
+                        </span>
                       </div>
+                      <span className="text-[10px] text-gray-500">Total × 9%</span>
                     </label>
 
                     {/* Opção 2 */}
                     <label
-                      className={`p-3 rounded-lg border cursor-pointer transition-all flex items-start gap-2.5 ${
+                      className={`px-2.5 py-1.5 rounded-md border cursor-pointer transition-all flex items-center justify-between gap-2 ${
                         opcaoImposto === 2
-                          ? 'border-blue-600 bg-white shadow-xs ring-2 ring-blue-500/20'
+                          ? 'border-blue-600 bg-white shadow-2xs ring-1 ring-blue-500/20'
                           : 'border-blue-200 bg-white/70 hover:bg-white text-gray-700'
                       }`}
+                      title="Opção 2: (Valor total menos materiais) multiplicado por 0,16 (16%)"
                     >
-                      <input
-                        type="radio"
-                        name="opcao_imposto_radio"
-                        checked={opcaoImposto === 2}
-                        onChange={() => setOpcaoImposto(2)}
-                        className="mt-0.5 text-blue-600 focus:ring-blue-500 cursor-pointer"
-                      />
-                      <div className="space-y-0.5 flex-1">
-                        <div className="flex items-center justify-between">
-                          <span className="font-bold text-gray-900">
-                            Opção 2 (16% sobre custos sem materiais)
-                          </span>
-                          {opcaoImposto === 2 && (
-                            <span className="text-[10px] font-extrabold text-blue-700 bg-blue-100 px-1.5 py-0.2 rounded">
-                              Ativo
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-[11px] text-gray-600">
-                          Valor total menos o valor dos materiais da aba anterior multiplicado por
-                          0,16 (16%)
-                        </p>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="radio"
+                          name="opcao_imposto_radio"
+                          checked={opcaoImposto === 2}
+                          onChange={() => setOpcaoImposto(2)}
+                          className="w-3.5 h-3.5 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                        />
+                        <span className="font-bold text-[11px] text-gray-900">
+                          Opção 2 (16% s/ s/ materiais)
+                        </span>
                       </div>
+                      <span className="text-[10px] text-gray-500">(Total − Mat) × 16%</span>
                     </label>
                   </div>
                 </div>
 
-                {/* Requisitos 2, 3, 4: Campos Calculados Automaticamente (Somente Leitura) */}
-                <div className="p-4 bg-emerald-50/50 rounded-xl border border-emerald-200 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-emerald-950 uppercase tracking-wide flex items-center gap-1.5">
-                      <Calculator className="w-3.5 h-3.5 text-emerald-700" />
-                      Campos Calculados Automaticamente (Somente Leitura em R$)
-                    </span>
-                    <span className="text-[10px] text-emerald-700 font-semibold bg-emerald-100 px-2 py-0.5 rounded-full">
-                      Base com materiais e impostos:{' '}
-                      {formatCurrency(resultadoCustosAba.somaComImpostos)}
-                    </span>
+                {/* Requisitos 2, 3, 4: Campos Calculados Automaticamente - Compactado */}
+                <div className="px-3 py-2.5 bg-emerald-50/50 rounded-lg border border-emerald-200 space-y-2">
+                  <div className="flex items-center justify-between flex-wrap gap-1.5 pb-1 border-b border-emerald-200/60">
+                    <div className="flex items-center gap-1.5">
+                      <Calculator className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
+                      <span className="text-[11px] font-bold text-emerald-950 uppercase tracking-wide">
+                        Campos Calculados Automaticamente
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1 text-[10px] text-emerald-800">
+                      <span>Base c/ impostos:</span>
+                      <strong className="bg-emerald-100/80 px-1.5 py-0.2 rounded font-bold text-emerald-900">
+                        {formatCurrency(resultadoCustosAba.somaComImpostos)}
+                      </strong>
+                      {desconto > 0 && (
+                        <span className="text-amber-700">
+                          (com desconto: {formatCurrency(resultadoCustosAba.baseComDesconto)})
+                        </span>
+                      )}
+                    </div>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
-                    {/* Requisito 2: Administração = soma de todos os valores incluindo materiais e impostos * 0,15 */}
-                    <div className="bg-white p-3 rounded-lg border border-emerald-200 shadow-2xs space-y-1">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
+                    {/* Requisito 2: Administração */}
+                    <div className="bg-white px-2.5 py-2 rounded-md border border-emerald-200 shadow-2xs space-y-0.5">
                       <div className="flex items-center justify-between">
                         <span className="text-[11px] font-bold text-gray-800">
                           2. Administração
@@ -1601,58 +1683,105 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                           15%
                         </span>
                       </div>
-                      <div className="text-base font-black text-emerald-800">
+                      <div className="text-sm font-black text-emerald-800">
                         {formatCurrency(resultadoCustosAba.administracao)}
                       </div>
-                      <p className="text-[10px] text-gray-500">
-                        (Soma com materiais e impostos) × 0,15
+                      <p
+                        className="text-[9px] text-gray-400 truncate"
+                        title={
+                          desconto > 0
+                            ? `(Soma c/ imposto − Desconto ${formatCurrency(desconto)}) × 15%`
+                            : '(Soma com materiais e impostos) × 0,15'
+                        }
+                      >
+                        {desconto > 0 ? `Base c/ desc. × 15%` : `(Soma c/ imposto) × 15%`}
                       </p>
                     </div>
 
-                    {/* Requisito 3: Comissão comercial = soma de todos os valores incluindo materiais e impostos * 0,03 */}
-                    <div className="bg-white p-3 rounded-lg border border-emerald-200 shadow-2xs space-y-1">
+                    {/* Requisito 3: Comissão comercial com piso de R$ 600 */}
+                    <div className="bg-white px-2.5 py-2 rounded-md border border-emerald-200 shadow-2xs space-y-0.5">
                       <div className="flex items-center justify-between">
-                        <span className="text-[11px] font-bold text-gray-800">
-                          3. Comissão Comercial
-                        </span>
-                        <span className="text-[10px] font-extrabold text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded">
-                          3%
-                        </span>
+                        <span className="text-[11px] font-bold text-gray-800">3. Comissão</span>
+                        <div className="flex items-center gap-1">
+                          {resultadoCustosAba.comissaoUsouPisoMinimo && (
+                            <span
+                              className="text-[9px] font-bold text-amber-700 bg-amber-50 px-1 py-0.2 rounded border border-amber-200"
+                              title="Piso mínimo de comissão comercial aplicado"
+                            >
+                              Piso R$ 600
+                            </span>
+                          )}
+                          <span className="text-[10px] font-extrabold text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded">
+                            3%
+                          </span>
+                        </div>
                       </div>
-                      <div className="text-base font-black text-emerald-800">
-                        {formatCurrency(resultadoCustosAba.comissaoComercial)}
+                      <div className="flex items-baseline gap-2">
+                        <span className="text-sm font-black text-emerald-800">
+                          {formatCurrency(resultadoCustosAba.comissaoComercial)}
+                        </span>
+                        {resultadoCustosAba.comissaoUsouPisoMinimo && (
+                          <span
+                            className="text-[10px] font-semibold text-gray-500 cursor-help"
+                            title="Valor que resultaria da aplicação pura de 3% sobre a base"
+                          >
+                            (3% = {formatCurrency(resultadoCustosAba.comissaoPura3Pct)})
+                          </span>
+                        )}
                       </div>
-                      <p className="text-[10px] text-gray-500">
-                        (Soma com materiais e impostos) × 0,03
+                      <p
+                        className="text-[9px] text-gray-400 truncate"
+                        title={
+                          resultadoCustosAba.comissaoUsouPisoMinimo
+                            ? `Piso de R$ 600 aplicado (3% puro daria ${formatCurrency(resultadoCustosAba.comissaoPura3Pct)})`
+                            : '(Soma com materiais e impostos) × 0,03'
+                        }
+                      >
+                        {resultadoCustosAba.comissaoUsouPisoMinimo
+                          ? `Piso R$ 600 (3% = ${formatCurrency(resultadoCustosAba.comissaoPura3Pct)})`
+                          : desconto > 0
+                            ? `Base c/ desc. × 3%`
+                            : `(Soma c/ imposto) × 3%`}
                       </p>
                     </div>
 
-                    {/* Requisito 4: Indicação = valor total * 0,01 */}
-                    <div className="bg-white p-3 rounded-lg border border-emerald-200 shadow-2xs space-y-1">
+                    {/* Requisito 4: Indicação */}
+                    <div className="bg-white px-2.5 py-2 rounded-md border border-emerald-200 shadow-2xs space-y-0.5">
                       <div className="flex items-center justify-between">
                         <span className="text-[11px] font-bold text-gray-800">4. Indicação</span>
                         <span className="text-[10px] font-extrabold text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded">
                           1%
                         </span>
                       </div>
-                      <div className="text-base font-black text-emerald-800">
+                      <div className="text-sm font-black text-emerald-800">
                         {formatCurrency(resultadoCustosAba.indicacao)}
                       </div>
-                      <p className="text-[10px] text-gray-500">Valor total do orçamento × 0,01</p>
+                      <p
+                        className="text-[9px] text-gray-400 truncate"
+                        title="Valor total do orçamento × 0,01"
+                      >
+                        Total orçamento × 1%
+                      </p>
                     </div>
                   </div>
                 </div>
 
-                {/* Resumo e Ação da Aba de Custos */}
-                <div className="p-4 bg-emerald-50/70 rounded-xl border border-emerald-300 flex items-center justify-between flex-wrap gap-3">
-                  <div>
-                    <div className="text-xs font-bold text-emerald-950">
-                      Total Geral de Custos: {formatCurrency(totalCustosCalculado)}
+                {/* Resumo e Ação da Aba de Custos - Compacto */}
+                <div className="px-3.5 py-2.5 bg-emerald-50/70 rounded-lg border border-emerald-300 flex items-center justify-between flex-wrap gap-2">
+                  <div className="flex items-center gap-3">
+                    <div>
+                      <span className="text-[10px] text-emerald-800 uppercase font-bold block">
+                        Total Geral de Custos
+                      </span>
+                      <span className="text-sm font-black text-emerald-950">
+                        {formatCurrency(totalCustosCalculado)}
+                      </span>
                     </div>
-                    <div className="text-[11px] text-emerald-700">
+                    <div className="h-6 w-px bg-emerald-200 hidden sm:block" />
+                    <div className="text-[11px] text-emerald-800">
                       Custo por kWp:{' '}
-                      <strong>{formatCurrency(calculos.custoPorKwpInstalado)}</strong> / kWp
-                      instalado ({potenciaKwp.toFixed(2)} kWp)
+                      <strong>{formatCurrency(calculos.custoPorKwpInstalado)}</strong> / kWp (
+                      {potenciaKwp.toFixed(2)} kWp)
                     </div>
                   </div>
 
@@ -1662,25 +1791,24 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                       setValorInvestimentoManual(totalCustosCalculado)
                       setActiveTab('parcelamentos')
                     }}
-                    className="px-4 py-2 bg-[#16A34A] hover:bg-[#15803D] text-white text-xs font-bold rounded-lg shadow-xs inline-flex items-center gap-1.5 transition-all"
+                    className="px-3 py-1.5 bg-[#16A34A] hover:bg-[#15803D] text-white text-xs font-bold rounded-lg shadow-2xs inline-flex items-center gap-1.5 transition-all"
                   >
-                    <span>Usar no Investimento & Ver Parcelamentos</span>
+                    <span>Usar no Investimento</span>
                     <ArrowRight className="w-3.5 h-3.5" />
                   </button>
                 </div>
               </div>
 
-              {/* Requisito 7: Seção Comparativo de Fornecedores */}
-              <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-xs space-y-4">
-                <div className="flex items-center justify-between pb-2 border-b border-gray-100 flex-wrap gap-2">
+              {/* Requisito 7: Seção Comparativo de Fornecedores - Compactado */}
+              <div className="bg-white p-3.5 rounded-xl border border-gray-200 shadow-xs space-y-3">
+                <div className="flex items-center justify-between pb-1.5 border-b border-gray-100 flex-wrap gap-2">
                   <div>
                     <h3 className="text-xs font-bold uppercase tracking-wider text-gray-800 flex items-center gap-1.5">
                       <Layers className="w-4 h-4 text-emerald-600" />
                       7. Comparativo de Fornecedores
                     </h3>
-                    <p className="text-[11px] text-gray-500">
-                      Cadastre orçamentos de diferentes fornecedores e escolha com o botão de rádio
-                      qual alimentará o valor de materiais do orçamento.
+                    <p className="text-[10px] text-gray-500">
+                      Selecione com o rádio qual fornecedor alimenta os materiais do orçamento.
                     </p>
                   </div>
                 </div>

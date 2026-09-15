@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-15T20:22:45.559Z",
+  "generatedAt": "2026-09-15T21:42:25.331Z",
   "collections": [
     {
       "name": "users",
@@ -2198,6 +2198,12 @@
         {
           "name": "fornecedor_selecionado_id",
           "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "desconto",
+          "type": "number",
           "required": false,
           "system": false
         }

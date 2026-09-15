@@ -156,6 +156,7 @@ export const Orcamentos: React.FC = () => {
         comissaoComercial: orc.custo_comissao_comercial || 0,
         indicacao: orc.custo_indicacao || 0,
         impostos: orc.custo_impostos || 0,
+        desconto: orc.desconto || 0,
       },
     })
 
@@ -506,6 +507,7 @@ export const Orcamentos: React.FC = () => {
                                   comissaoComercial: orc.custo_comissao_comercial || 0,
                                   indicacao: orc.custo_indicacao || 0,
                                   impostos: orc.custo_impostos || 0,
+                                  desconto: orc.desconto || 0,
                                 },
                                 valorInvestimentoInformado: orc.valor_investimento,
                               })
@@ -578,6 +580,7 @@ export const Orcamentos: React.FC = () => {
                                   comissaoComercial: orc.custo_comissao_comercial || 0,
                                   indicacao: orc.custo_indicacao || 0,
                                   impostos: orc.custo_impostos || 0,
+                                  desconto: orc.desconto || 0,
                                 },
                                 valorInvestimentoInformado: orc.valor_investimento,
                               })
