@@ -304,6 +304,31 @@ export function getFriendlyWhatsAppErrorMessage(result: {
   )
 }
 
+/**
+ * Converte uma URL de mídia externa da Z-API / Backblaze / storage em uma URL servida
+ * com segurança pelo backend via endpoint proxy (/backend/v1/whatsapp/media-proxy).
+ * Nunca expõe credenciais no navegador e evita problemas de CORS ou links protegidos.
+ */
+export function getWhatsAppMediaProxyUrl(
+  mediaUrl?: string | null,
+  messageId?: string | null,
+): string {
+  if (!mediaUrl && !messageId) return ''
+  const trimmedUrl = (mediaUrl || '').trim()
+
+  // Se já for uma URL relativa ou data URL, não precisa de proxy
+  if (trimmedUrl.startsWith('data:') || trimmedUrl.startsWith('blob:')) {
+    return trimmedUrl
+  }
+
+  const pbUrl = (import.meta.env.VITE_POCKETBASE_URL || '').replace(/\/+$/, '')
+  const params = new URLSearchParams()
+  if (trimmedUrl) params.set('url', trimmedUrl)
+  if (messageId) params.set('msgId', messageId)
+
+  return `${pbUrl}/backend/v1/whatsapp/media-proxy?${params.toString()}`
+}
+
 export function extractGatewayExternalId(resJson: unknown): string {
   if (!resJson || typeof resJson !== 'object') return ''
   const rec = resJson as Record<string, unknown>

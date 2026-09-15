@@ -39,25 +39,54 @@ routerAdd('POST', '/backend/v1/whatsapp/webhook', (e) => {
     let nomeArquivo = ''
     let documentoUrl = ''
 
-    if (body.text && typeof body.text === 'object') {
+    if (body.image && typeof body.image === 'object') {
+      tipoMensagem = 'imagem'
+      documentoUrl = body.image.imageUrl || body.image.url || body.image.thumbnailUrl || ''
+      nomeArquivo = body.image.fileName || ''
+      const cap = (body.image.caption || '').trim()
+      messageText = cap || '[Imagem]'
+    } else if (body.video && typeof body.video === 'object') {
+      tipoMensagem = 'video'
+      documentoUrl = body.video.videoUrl || body.video.url || ''
+      nomeArquivo = body.video.fileName || ''
+      const cap = (body.video.caption || '').trim()
+      messageText = cap || '[Vídeo]'
+    } else if (body.audio && typeof body.audio === 'object') {
+      tipoMensagem = 'audio'
+      documentoUrl = body.audio.audioUrl || body.audio.url || ''
+      messageText = '[Áudio]'
+    } else if (body.document && typeof body.document === 'object') {
+      tipoMensagem = 'documento'
+      nomeArquivo = body.document.fileName || 'documento.pdf'
+      documentoUrl = body.document.documentUrl || body.document.url || ''
+      messageText = body.document.title || body.document.caption || `[Documento: ${nomeArquivo}]`
+    } else if (body.sticker && typeof body.sticker === 'object') {
+      tipoMensagem = 'imagem'
+      documentoUrl = body.sticker.stickerUrl || body.sticker.url || ''
+      messageText = '[Figurinha]'
+    } else if (body.text && typeof body.text === 'object') {
       messageText = body.text.message || body.text.title || ''
     } else if (typeof body.text === 'string') {
       messageText = body.text
     } else if (body.message && typeof body.message === 'string') {
       messageText = body.message
-    } else if (body.document && typeof body.document === 'object') {
-      tipoMensagem = 'documento'
-      nomeArquivo = body.document.fileName || 'documento.pdf'
-      documentoUrl = body.document.documentUrl || ''
-      messageText = body.document.title || `[Documento: ${nomeArquivo}]`
-    } else if (body.image && typeof body.image === 'object') {
+    } else if (body.imageUrl || body.photo) {
       tipoMensagem = 'imagem'
-      documentoUrl = body.image.imageUrl || ''
-      messageText = body.image.caption || '[Imagem]'
-    } else if (body.audio && typeof body.audio === 'object') {
+      documentoUrl = body.imageUrl || body.photo || ''
+      messageText = (body.caption || '').trim() || '[Imagem]'
+    } else if (body.videoUrl) {
+      tipoMensagem = 'video'
+      documentoUrl = body.videoUrl
+      messageText = (body.caption || '').trim() || '[Vídeo]'
+    } else if (body.audioUrl) {
       tipoMensagem = 'audio'
-      documentoUrl = body.audio.audioUrl || ''
+      documentoUrl = body.audioUrl
       messageText = '[Áudio]'
+    } else if (body.documentUrl) {
+      tipoMensagem = 'documento'
+      documentoUrl = body.documentUrl
+      nomeArquivo = body.fileName || 'documento.pdf'
+      messageText = body.title || body.caption || `[Documento: ${nomeArquivo}]`
     } else if (body.buttonsResponseMessage && typeof body.buttonsResponseMessage === 'object') {
       messageText = body.buttonsResponseMessage.message || '[Resposta de Botão]'
     } else if (body.listResponseMessage && typeof body.listResponseMessage === 'object') {

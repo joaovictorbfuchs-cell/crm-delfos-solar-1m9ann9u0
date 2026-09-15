@@ -7,6 +7,7 @@ import {
   buildWhatsAppSendPayload,
   buildWhatsAppAudioPayload,
   extractGatewayExternalId,
+  getWhatsAppMediaProxyUrl,
 } from './whatsappGateway'
 import { formatAudioDuration } from '@/components/GravadorAudioWhatsApp'
 import { formatWhatsAppPhone } from './formatters'
@@ -345,6 +346,31 @@ export function runWhatsAppGatewayTests(): { passed: number; total: number; erro
         assertEquals(formatAudioDuration(5), '00:05', '5 segundos')
         assertEquals(formatAudioDuration(65), '01:05', '65 segundos')
         assertEquals(formatAudioDuration(135), '02:15', '135 segundos')
+      },
+    },
+    {
+      name: 'getWhatsAppMediaProxyUrl deve construir rota segura de proxy ou preservar data URLs',
+      fn: () => {
+        // Data URL não passa por proxy
+        const dataUrl = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUg=='
+        assertEquals(
+          getWhatsAppMediaProxyUrl(dataUrl),
+          dataUrl,
+          'Data URL deve ser mantida inalterada',
+        )
+
+        // URL remota da Z-API / Backblaze passa pelo endpoint proxy
+        const remoteUrl = 'https://f004.backblazeb2.com/file/temp-file-download/test.jpg'
+        const proxyUrl = getWhatsAppMediaProxyUrl(remoteUrl, 'msg123')
+        assert(
+          proxyUrl.includes('/backend/v1/whatsapp/media-proxy'),
+          'Deve apontar para media-proxy',
+        )
+        assert(proxyUrl.includes('url=https%3A%2F%2Ff004.backblazeb2.com'), 'Deve codificar url')
+        assert(proxyUrl.includes('msgId=msg123'), 'Deve conter msgId')
+
+        // Se nulo ou vazio retorna vazio
+        assertEquals(getWhatsAppMediaProxyUrl('', ''), '', 'Vazio se não houver url nem id')
       },
     },
   ]

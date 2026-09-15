@@ -18,10 +18,16 @@ import {
   FileCheck,
   ExternalLink,
   Mic,
+  Image as ImageIcon,
+  Video as VideoIcon,
+  ZoomIn,
+  Download,
+  X,
 } from 'lucide-react'
 import { useClientes } from '@/contexts/ClientesContext'
 import type { Cliente, WhatsAppTemplate } from '@/types/crm'
 import { formatDateTime, formatCurrency, formatWhatsAppPhone } from '@/lib/formatters'
+import { getWhatsAppMediaProxyUrl } from '@/lib/whatsappGateway'
 
 interface FichaClienteWhatsAppProps {
   cliente: Cliente
@@ -55,6 +61,16 @@ export const FichaClienteWhatsApp: React.FC<FichaClienteWhatsAppProps> = ({
     tipo: 'success' | 'warning' | 'error'
     texto: string
   } | null>(null)
+  const [previewMediaModal, setPreviewMediaModal] = useState<{
+    tipo: 'imagem' | 'video'
+    url: string
+    caption?: string
+  } | null>(null)
+  const [mediaErrors, setMediaErrors] = useState<Record<string, boolean>>({})
+
+  const handleMediaError = (msgId: string) => {
+    setMediaErrors((prev) => ({ ...prev, [msgId]: true }))
+  }
 
   // Mensagens enviadas a este cliente específico (ordenadas da mais recente para a mais antiga)
   const mensagensCliente = useMemo(() => {
@@ -625,7 +641,95 @@ export const FichaClienteWhatsApp: React.FC<FichaClienteWhatsAppProps> = ({
                   </div>
 
                   {/* Conteúdo da Mensagem em estilo balão WhatsApp */}
-                  {msg.tipo_mensagem === 'documento' ? (
+                  {msg.tipo_mensagem === 'imagem' ? (
+                    <div className="space-y-2">
+                      {msg.documento_url && !mediaErrors[msg.id] ? (
+                        <div className="relative group cursor-pointer max-w-sm bg-black/5 rounded-xl overflow-hidden border border-gray-200">
+                          <img
+                            src={getWhatsAppMediaProxyUrl(msg.documento_url, msg.id)}
+                            alt={msg.conteudo_final || 'Imagem recebida'}
+                            className="w-full max-h-72 object-cover rounded-xl transition-transform duration-200 group-hover:scale-[1.02]"
+                            loading="lazy"
+                            onError={() => handleMediaError(msg.id)}
+                            onClick={() =>
+                              setPreviewMediaModal({
+                                tipo: 'imagem',
+                                url: getWhatsAppMediaProxyUrl(msg.documento_url, msg.id),
+                                caption:
+                                  msg.conteudo_final && msg.conteudo_final !== '[Imagem]'
+                                    ? msg.conteudo_final
+                                    : undefined,
+                              })
+                            }
+                          />
+                          <div
+                            onClick={() =>
+                              setPreviewMediaModal({
+                                tipo: 'imagem',
+                                url: getWhatsAppMediaProxyUrl(msg.documento_url, msg.id),
+                                caption:
+                                  msg.conteudo_final && msg.conteudo_final !== '[Imagem]'
+                                    ? msg.conteudo_final
+                                    : undefined,
+                              })
+                            }
+                            className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2 text-white font-medium text-xs backdrop-blur-[1px]"
+                          >
+                            <ZoomIn className="w-4 h-4" />
+                            <span>Ampliar Foto</span>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-xs flex items-center gap-2 max-w-sm">
+                          <AlertTriangle className="w-4 h-4 shrink-0 text-amber-600" />
+                          <div className="flex-1 min-w-0">
+                            <span className="font-semibold block">Imagem não disponível</span>
+                            <span className="text-[11px] text-amber-700">
+                              {msg.documento_url
+                                ? 'Não foi possível carregar a imagem remota.'
+                                : 'A imagem expirou ou não possui URL de mídia.'}
+                            </span>
+                          </div>
+                        </div>
+                      )}
+                      {msg.conteudo_final && msg.conteudo_final !== '[Imagem]' && (
+                        <div className="p-3 bg-emerald-50/40 border border-emerald-100 rounded-xl text-xs text-gray-800 whitespace-pre-wrap leading-relaxed font-sans">
+                          {msg.conteudo_final}
+                        </div>
+                      )}
+                    </div>
+                  ) : msg.tipo_mensagem === 'video' ? (
+                    <div className="space-y-2">
+                      {msg.documento_url && !mediaErrors[msg.id] ? (
+                        <div className="max-w-sm bg-black/90 rounded-xl overflow-hidden border border-gray-200">
+                          <video
+                            controls
+                            src={getWhatsAppMediaProxyUrl(msg.documento_url, msg.id)}
+                            className="w-full max-h-72 rounded-xl bg-black"
+                            preload="metadata"
+                            onError={() => handleMediaError(msg.id)}
+                          />
+                        </div>
+                      ) : (
+                        <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-xs flex items-center gap-2 max-w-sm">
+                          <AlertTriangle className="w-4 h-4 shrink-0 text-amber-600" />
+                          <div className="flex-1 min-w-0">
+                            <span className="font-semibold block">Vídeo não disponível</span>
+                            <span className="text-[11px] text-amber-700">
+                              {msg.documento_url
+                                ? 'Não foi possível reproduzir o arquivo de vídeo.'
+                                : 'O vídeo recebido expirou ou não possui URL de mídia.'}
+                            </span>
+                          </div>
+                        </div>
+                      )}
+                      {msg.conteudo_final && msg.conteudo_final !== '[Vídeo]' && (
+                        <div className="p-3 bg-emerald-50/40 border border-emerald-100 rounded-xl text-xs text-gray-800 whitespace-pre-wrap leading-relaxed font-sans">
+                          {msg.conteudo_final}
+                        </div>
+                      )}
+                    </div>
+                  ) : msg.tipo_mensagem === 'documento' ? (
                     <div className="space-y-2">
                       <div className="p-3 bg-emerald-50/80 border border-emerald-200 rounded-xl flex items-center justify-between gap-3 shadow-2xs hover:border-emerald-300 transition-colors">
                         <div className="flex items-center gap-3 min-w-0 flex-1">
@@ -636,7 +740,7 @@ export const FichaClienteWhatsApp: React.FC<FichaClienteWhatsAppProps> = ({
                           <div className="min-w-0 flex-1">
                             {msg.documento_url ? (
                               <a
-                                href={msg.documento_url}
+                                href={getWhatsAppMediaProxyUrl(msg.documento_url, msg.id)}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="text-xs font-bold text-emerald-900 hover:text-emerald-700 hover:underline flex items-center gap-1.5 truncate group"
@@ -668,7 +772,7 @@ export const FichaClienteWhatsApp: React.FC<FichaClienteWhatsAppProps> = ({
                         {/* Ação rápida para abrir se houver documento_url */}
                         {msg.documento_url && (
                           <a
-                            href={msg.documento_url}
+                            href={getWhatsAppMediaProxyUrl(msg.documento_url, msg.id)}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-white border border-emerald-200 text-emerald-800 hover:bg-emerald-50 hover:text-emerald-900 text-xs font-bold shadow-2xs transition-colors shrink-0"
@@ -694,7 +798,7 @@ export const FichaClienteWhatsApp: React.FC<FichaClienteWhatsAppProps> = ({
                       {msg.documento_url && (
                         <audio
                           controls
-                          src={msg.documento_url}
+                          src={getWhatsAppMediaProxyUrl(msg.documento_url, msg.id)}
                           className="h-8 w-full max-w-sm rounded"
                           preload="metadata"
                         />
@@ -732,6 +836,70 @@ export const FichaClienteWhatsApp: React.FC<FichaClienteWhatsAppProps> = ({
           </div>
         )}
       </div>
+
+      {/* Modal de visualização expandida de imagem / vídeo */}
+      {previewMediaModal && (
+        <div
+          className="fixed inset-0 z-50 bg-black/85 backdrop-blur-xs flex flex-col items-center justify-center p-4"
+          onClick={() => setPreviewMediaModal(null)}
+        >
+          <div
+            className="relative max-w-4xl max-h-[90vh] w-full flex flex-col items-center justify-center"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Barra superior de ações */}
+            <div className="w-full flex items-center justify-between pb-3 text-white">
+              <span className="text-xs sm:text-sm font-medium truncate max-w-md">
+                {previewMediaModal.caption || 'Visualização de Mídia'}
+              </span>
+              <div className="flex items-center gap-2">
+                <a
+                  href={previewMediaModal.url}
+                  download
+                  target="_blank"
+                  rel="noreferrer"
+                  className="p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors"
+                  title="Abrir / Baixar original"
+                >
+                  <Download className="w-4 h-4" />
+                </a>
+                <button
+                  type="button"
+                  onClick={() => setPreviewMediaModal(null)}
+                  className="p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors"
+                  title="Fechar"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
+            {/* Mídia expandida */}
+            <div className="w-full flex items-center justify-center overflow-hidden rounded-lg bg-black/40 border border-white/10">
+              {previewMediaModal.tipo === 'imagem' ? (
+                <img
+                  src={previewMediaModal.url}
+                  alt={previewMediaModal.caption || 'Visualização'}
+                  className="max-h-[75vh] w-auto max-w-full object-contain rounded-lg"
+                />
+              ) : (
+                <video
+                  controls
+                  autoPlay
+                  src={previewMediaModal.url}
+                  className="max-h-[75vh] w-auto max-w-full rounded-lg bg-black"
+                />
+              )}
+            </div>
+
+            {previewMediaModal.caption && (
+              <div className="w-full mt-2 p-2.5 bg-black/60 rounded-lg text-white text-xs sm:text-sm text-center">
+                {previewMediaModal.caption}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
