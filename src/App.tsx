@@ -19,8 +19,6 @@ import ExecucaoOS from './pages/ExecucaoOS'
 import { CentralAtendimento } from './pages/CentralAtendimento'
 import ImportarClientes from './pages/ImportarClientes'
 import ImportarAcessos from './pages/ImportarAcessos'
-import ImportarContratosOM from './pages/ImportarContratosOM'
-import ImportarContatosCelular from './pages/ImportarContatosCelular'
 import GerenciarUsuarios from './pages/GerenciarUsuarios'
 import Login from './pages/Login'
 import RedefinirSenha from './pages/RedefinirSenha'
@@ -132,22 +130,6 @@ const App = () => (
                 element={
                   <ProtectedRoute requiredRole="admin">
                     <ImportarAcessos />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/importar-contratos-om"
-                element={
-                  <ProtectedRoute requiredRole="admin">
-                    <ImportarContratosOM />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/importar-contatos-celular"
-                element={
-                  <ProtectedRoute requiredRole="admin">
-                    <ImportarContatosCelular />
                   </ProtectedRoute>
                 }
               />

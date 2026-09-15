@@ -101,10 +101,6 @@ export default function Layout() {
         return 'Importar Clientes (Pipedrive / Conta Azul)'
       case '/importar-acessos':
         return 'Importar Acessos & Monitoramento'
-      case '/importar-contratos-om':
-        return 'Importar Contratos O&M'
-      case '/importar-contatos-celular':
-        return 'Importar Contatos do Celular'
       case '/fornecedores':
         return 'Fornecedores de Equipamentos'
       case '/gerenciar-usuarios':

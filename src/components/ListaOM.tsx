@@ -1,5 +1,4 @@
 import React, { useState, useMemo } from 'react'
-import { useNavigate } from 'react-router-dom'
 import {
   ShieldCheck,
   FileSpreadsheet,
@@ -83,7 +82,6 @@ export const ListaOM: React.FC<ListaOMProps> = ({
   activeSubTab: externalActiveSubTab,
   onSubTabChange,
 }) => {
-  const navigate = useNavigate()
   const {
     clientes,
     contratosOM,
@@ -575,26 +573,14 @@ export const ListaOM: React.FC<ListaOMProps> = ({
         {/* Botões de Ação Rápida */}
         <div className="flex items-center gap-2 self-end sm:self-auto flex-wrap">
           {currentSubTab === 'com_plano' ? (
-            <>
-              <button
-                type="button"
-                onClick={() => navigate('/importar-contratos-om')}
-                className="inline-flex items-center gap-1.5 px-3 py-2.5 bg-white hover:bg-emerald-50 text-emerald-800 border border-emerald-300 text-xs font-bold rounded-xl shadow-xs transition-all"
-                title="Importar contratos O&M de planilhas Conta Azul Pro, PDF ou Word"
-              >
-                <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
-                <span>Importar Contratos O&M</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={onOpenNovoContrato}
-                className="inline-flex items-center gap-1.5 px-3.5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-xs transition-all hover:scale-[1.02]"
-              >
-                <Plus className="w-4 h-4" />
-                <span>Novo Contrato O&M</span>
-              </button>
-            </>
+            <button
+              type="button"
+              onClick={onOpenNovoContrato}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-xs transition-all hover:scale-[1.02]"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Novo Contrato O&M</span>
+            </button>
           ) : (
             <div className="text-xs text-slate-500 hidden sm:block pr-2">
               Clique em{' '}
