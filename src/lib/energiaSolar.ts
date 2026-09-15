@@ -214,7 +214,7 @@ export interface InputCalculoSolar {
  */
 export function calcularOrcamentoSolar(input: InputCalculoSolar): CalculosSolarResultado {
   const consumoKwhMes = Math.max(0, Number(input.consumoKwhMes) || 0)
-  const tarifaKwh = Math.max(0.01, Number(input.tarifaKwh) || 0.95)
+  const tarifaKwh = Math.max(0.01, Number(input.tarifaKwh) || 1.19)
   const potenciaKwp = Math.max(0, Number(input.potenciaKwp) || 0)
   const tipoCliente = input.tipoCliente || 'residencial'
   const orientacao = input.orientacaoTelhado || 'norte'

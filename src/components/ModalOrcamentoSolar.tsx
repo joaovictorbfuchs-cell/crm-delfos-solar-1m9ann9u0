@@ -90,7 +90,7 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
   // Campos técnicos exatos exigidos
   const [consumoKwhMes, setConsumoKwhMes] = useState<number>(650)
   const [tipoCliente, setTipoCliente] = useState<TipoClienteSolar>('residencial')
-  const [tarifaKwh, setTarifaKwh] = useState<number>(0.95)
+  const [tarifaKwh, setTarifaKwh] = useState<number>(1.19)
   const [potenciaKwp, setPotenciaKwp] = useState<number>(5.5)
   const [numeroPlacas, setNumeroPlacas] = useState<number>(10)
   const [potenciaPlacaWp, setPotenciaPlacaWp] = useState<number>(550)
@@ -118,7 +118,7 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
       setStatus(initialOrcamento.status || 'Em elaboração')
       setConsumoKwhMes(initialOrcamento.consumo_kwh_mes || 650)
       setTipoCliente(initialOrcamento.tipo_cliente || 'residencial')
-      setTarifaKwh(initialOrcamento.tarifa_kwh || 0.95)
+      setTarifaKwh(initialOrcamento.tarifa_kwh || 1.19)
       setPotenciaKwp(initialOrcamento.potencia_kwp || 5.5)
       setNumeroPlacas(initialOrcamento.numero_placas || 10)
       setPotenciaPlacaWp(initialOrcamento.potencia_placa_wp || 550)
@@ -868,7 +868,7 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                       step={0.01}
                       onChange={(e) => setTarifaKwh(Number(e.target.value) || 0)}
                       className="w-full text-xs font-semibold px-3 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                      placeholder="Ex: 0.95"
+                      placeholder="Ex: 1.19"
                     />
                   </div>
 
