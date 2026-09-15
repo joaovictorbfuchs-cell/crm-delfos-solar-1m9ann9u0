@@ -1284,59 +1284,65 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
 
                 {/* Grade dos Campos de Custos Conforme Requisitos do Usuário */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 text-xs">
-                  {/* Requisito 1: Mão de obra de instalação & Valor por placa lado a lado */}
-                  <div className="md:col-span-2 lg:col-span-3 p-3 rounded-xl bg-gray-50/80 border border-gray-200 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[11px] font-bold text-gray-800 uppercase tracking-wide flex items-center gap-1.5">
-                        <Wrench className="w-3.5 h-3.5 text-emerald-600" />
-                        1. Mão de Obra de Instalação ({numeroPlacas} placas da aba anterior)
-                      </span>
+                  {/* Requisito 1: Mão de obra de instalação & Valor por placa compactados */}
+                  <div className="md:col-span-2 lg:col-span-3 px-3 py-2 rounded-lg bg-gray-50 border border-gray-200">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 pb-1.5 border-b border-gray-200/60 mb-2">
+                      <div className="flex items-center gap-1.5">
+                        <Wrench className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                        <span className="text-[11px] font-bold text-gray-800 uppercase tracking-wide">
+                          1. Mão de Obra de Instalação ({numeroPlacas} placas)
+                        </span>
+                      </div>
                       {maoDeObraEditadaManualmente ? (
                         <button
                           type="button"
                           onClick={handleResetarMaoDeObraAuto}
-                          className="text-[10px] text-blue-700 hover:underline font-bold"
-                          title="Restaurar fórmula automática: número de placas * valor por placa"
+                          className="text-[10px] text-blue-700 hover:underline font-semibold self-start sm:self-auto"
+                          title="Restaurar fórmula automática: placas × valor por placa"
                         >
-                          Restaurar cálculo automático ({numeroPlacas} ×{' '}
-                          {formatCurrency(valorPorPlaca)})
+                          Restaurar auto ({numeroPlacas} × {formatCurrency(valorPorPlaca)})
                         </button>
                       ) : (
-                        <span className="text-[10px] text-emerald-700 font-bold bg-emerald-100 px-2 py-0.5 rounded-full">
+                        <span className="text-[10px] text-emerald-700 font-medium bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded self-start sm:self-auto">
                           Auto: {numeroPlacas} placas × {formatCurrency(valorPorPlaca)}
                         </span>
                       )}
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                       {/* Campo: Valor por placa (editável) */}
                       <div>
-                        <label className="text-[11px] font-semibold text-gray-700 block mb-1">
-                          Valor por placa (R$) *
-                        </label>
+                        <div className="flex items-center justify-between mb-0.5">
+                          <label className="text-[11px] font-medium text-gray-700">
+                            Valor por placa (R$) *
+                          </label>
+                          <span className="text-[10px] text-gray-400">× {numeroPlacas} placas</span>
+                        </div>
                         <input
                           type="number"
                           value={valorPorPlaca || ''}
                           min={0}
                           step={10}
                           onChange={(e) => handleValorPorPlacaChange(Number(e.target.value))}
-                          className="w-full text-xs font-semibold px-3 py-2 rounded-lg border border-gray-300 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                          className="w-full text-xs font-medium px-2.5 py-1.5 rounded-md border border-gray-300 bg-white focus:outline-none focus:ring-1 focus:ring-emerald-500"
                           placeholder="Ex: 150,00"
+                          title={`Multiplicado pelas ${numeroPlacas} placas configuradas`}
                         />
-                        <span className="text-[10px] text-gray-500 mt-0.5 block">
-                          Multiplicado pelas {numeroPlacas} placas configuradas
-                        </span>
                       </div>
 
                       {/* Campo: Mão de obra de instalação (auto preenchido, editável manualmente) */}
                       <div>
-                        <div className="flex items-center justify-between mb-1">
-                          <label className="text-[11px] font-semibold text-gray-700">
-                            Mão de obra de instalação (R$) *
+                        <div className="flex items-center justify-between mb-0.5">
+                          <label className="text-[11px] font-medium text-gray-700">
+                            Mão de obra total (R$) *
                           </label>
-                          {maoDeObraEditadaManualmente && (
-                            <span className="text-[10px] font-semibold text-amber-700 bg-amber-100 px-1.5 py-0.2 rounded">
-                              Editado manualmente
+                          {maoDeObraEditadaManualmente ? (
+                            <span className="text-[10px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-1 py-0.2 rounded">
+                              Manual
+                            </span>
+                          ) : (
+                            <span className="text-[10px] text-emerald-600">
+                              = {formatCurrency(custos.maoDeObra)}
                             </span>
                           )}
                         </div>
@@ -1346,18 +1352,18 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                           min={0}
                           step={50}
                           onChange={(e) => handleMaoDeObraManualChange(Number(e.target.value))}
-                          className={`w-full text-xs font-bold px-3 py-2 rounded-lg border focus:outline-none focus:ring-2 focus:ring-emerald-500 ${
+                          className={`w-full text-xs font-semibold px-2.5 py-1.5 rounded-md border focus:outline-none focus:ring-1 focus:ring-emerald-500 ${
                             maoDeObraEditadaManualmente
                               ? 'border-amber-300 bg-amber-50/40 text-amber-900'
                               : 'border-emerald-300 bg-white text-emerald-800'
                           }`}
                           placeholder="0,00"
+                          title={
+                            maoDeObraEditadaManualmente
+                              ? 'Valor customizado manual. Clique em "Restaurar auto" para voltar ao automático.'
+                              : `Preenchido automaticamente (${numeroPlacas} × ${formatCurrency(valorPorPlaca)} = ${formatCurrency(custos.maoDeObra)})`
+                          }
                         />
-                        <span className="text-[10px] text-gray-500 mt-0.5 block">
-                          {maoDeObraEditadaManualmente
-                            ? 'Valor customizado manual. Clique em "Restaurar" para voltar ao automático.'
-                            : `Preenchido automaticamente (${numeroPlacas} × ${formatCurrency(valorPorPlaca)} = ${formatCurrency(custos.maoDeObra)})`}
-                        </span>
                       </div>
                     </div>
                   </div>
