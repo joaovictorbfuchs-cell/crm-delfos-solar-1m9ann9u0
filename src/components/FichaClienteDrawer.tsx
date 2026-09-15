@@ -3412,9 +3412,6 @@ export const FichaClienteDrawer: React.FC = () => {
                 <TrendingUp className="w-3.5 h-3.5 text-emerald-600" />
                 Resumo do Cliente
               </span>
-              <span className="text-[10px] text-gray-400 bg-white px-2 py-0.5 rounded border border-gray-200 font-semibold">
-                Pipedrive CRM
-              </span>
             </div>
 
             {/* SEÇÃO MOTIVO DA PERDA (Exibida quando status for Perdido) */}
