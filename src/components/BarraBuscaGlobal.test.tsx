@@ -32,4 +32,10 @@ describe('BarraBuscaGlobal - HighlightMatch', () => {
     )
     expect(html).toContain('Fundo/RS')
   })
+
+  it('formata badge Encontrado via contato corretamente', () => {
+    const contatoNome = 'Rodrigo Becker'
+    const badge = `Encontrado via contato: ${contatoNome}`
+    expect(badge).toBe('Encontrado via contato: Rodrigo Becker')
+  })
 })

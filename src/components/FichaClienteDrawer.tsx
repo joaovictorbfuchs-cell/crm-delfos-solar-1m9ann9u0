@@ -68,6 +68,7 @@ import { ModalSolicitacaoInformacoes } from './ModalSolicitacaoInformacoes'
 import { SecaoMonitoramentoInversor } from './SecaoMonitoramentoInversor'
 import { SecaoAcessoSolarview } from './SecaoAcessoSolarview'
 import { SecaoUsinasCliente } from './SecaoUsinasCliente'
+import { SecaoContatosAdicionais } from './SecaoContatosAdicionais'
 import { useAuth } from '@/contexts/AuthContext'
 import {
   fetchUsinasByClienteId,
@@ -2616,6 +2617,9 @@ export const FichaClienteDrawer: React.FC = () => {
                         </div>
                       </div>
 
+                      {/* Seção Contatos Adicionais (Contato Principal + Contatos Adicionais) */}
+                      <SecaoContatosAdicionais cliente={selectedCliente} />
+
                       {/* Localização da Instalação */}
                       <div className="bg-white rounded-xl p-4 border border-gray-200/80 shadow-xs space-y-2.5">
                         <div className="text-[11px] uppercase font-bold text-gray-500 tracking-wider flex items-center gap-1.5">
@@ -3617,6 +3621,11 @@ export const FichaClienteDrawer: React.FC = () => {
                     handleUpdateClienteField('whatsapp', formatWhatsAppPhone(String(val)))
                   }
                 />
+              </div>
+
+              {/* Contatos Adicionais (Resumo no painel lateral) */}
+              <div className="pt-2 border-t border-gray-100">
+                <SecaoContatosAdicionais cliente={selectedCliente} />
               </div>
 
               {/* Cidade */}

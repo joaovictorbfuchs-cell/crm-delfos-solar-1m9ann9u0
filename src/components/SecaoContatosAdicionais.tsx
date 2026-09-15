@@ -99,7 +99,7 @@ export const SecaoContatosAdicionais: React.FC<SecaoContatosAdicionaisProps> = (
   const contatoPrincipalCargo =
     cliente.contato && cliente.contato !== cliente.nome
       ? 'Responsável / Contato Direto'
-      : cliente.tipo_pessoa === 'PJ'
+      : cliente.tipo_pessoa === 'juridica'
         ? 'Representante Legal / Titular'
         : 'Titular / Proprietário'
 

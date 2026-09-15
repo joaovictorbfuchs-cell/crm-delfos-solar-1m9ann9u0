@@ -566,6 +566,7 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       setFornecedores(fornList)
       setFornecedoresOrcamentos(fornOrcList)
       setContatosAdicionais(contAdicList)
+    } catch (err) {
       console.error('Error loading CRM data:', err)
       setError(err instanceof Error ? err.message : 'Erro ao carregar dados do CRM')
     } finally {

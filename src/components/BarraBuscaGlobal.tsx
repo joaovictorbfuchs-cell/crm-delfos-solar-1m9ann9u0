@@ -96,7 +96,8 @@ const CATEGORY_CONFIG: Record<
 
 export const BarraBuscaGlobal: React.FC<{ className?: string }> = ({ className = '' }) => {
   const navigate = useNavigate()
-  const { clientes, projetos, contratosOM, manutencoes, openFichaCliente } = useClientes()
+  const { clientes, contatosAdicionais, projetos, contratosOM, manutencoes, openFichaCliente } =
+    useClientes()
 
   const [query, setQuery] = useState('')
   const [isOpen, setIsOpen] = useState(false)
@@ -149,6 +150,8 @@ export const BarraBuscaGlobal: React.FC<{ className?: string }> = ({ className =
 
     // 1. Clientes (nome, cidade, email, telefone, whatsapp, doc)
     const matchedClientes: SearchResultItem[] = []
+    const matchedClienteIds = new Set<string>()
+
     clientes.forEach((cli) => {
       const matchNome = normalize(cli.nome).includes(normalizedQuery)
       const matchFantasia = normalize(cli.nome_fantasia).includes(normalizedQuery)
@@ -171,6 +174,8 @@ export const BarraBuscaGlobal: React.FC<{ className?: string }> = ({ className =
         matchCnpj ||
         matchCpf
       ) {
+        matchedClienteIds.add(cli.id)
+
         // Detalhe prioritário para exibir
         const detalhes: string[] = []
         if (cli.cidade) detalhes.push(cli.cidade)
@@ -191,6 +196,62 @@ export const BarraBuscaGlobal: React.FC<{ className?: string }> = ({ className =
             setIsOpen(false)
           },
         })
+      }
+    })
+
+    // 1b. Contatos adicionais vinculados aos clientes (comportamento aditivo)
+    // Quando o usuário digitar o nome/cargo/fone/email de um contato adicional,
+    // exibe o CLIENTE PAI com badge "Encontrado via contato: [Nome]"
+    contatosAdicionais.forEach((contato) => {
+      const matchNomeContato = normalize(contato.nome).includes(normalizedQuery)
+      const matchCargoContato = normalize(contato.cargo).includes(normalizedQuery)
+      const matchTelefoneContato = normalize(contato.telefone).includes(normalizedQuery)
+      const matchEmailContato = normalize(contato.email).includes(normalizedQuery)
+
+      if (matchNomeContato || matchCargoContato || matchTelefoneContato || matchEmailContato) {
+        const clientePai = clientes.find((c) => c.id === contato.cliente)
+        if (!clientePai) return
+
+        // Se o cliente pai já foi encontrado diretamente pelo nome/dados cadastrais,
+        // podemos atualizar o badge ou adicionar uma indicação clara sem duplicar o id de resultado
+        const jaInseridoDireto = matchedClienteIds.has(clientePai.id)
+
+        if (jaInseridoDireto) {
+          // Atualiza o item existente para destacar o badge do contato adicional encontrado
+          const indexExistente = matchedClientes.findIndex(
+            (item) => item.clienteId === clientePai.id,
+          )
+          if (indexExistente !== -1) {
+            matchedClientes[indexExistente] = {
+              ...matchedClientes[indexExistente],
+              badge: `Encontrado via contato: ${contato.nome}`,
+              badgeColorClass: 'bg-teal-50 text-teal-800 border-teal-300 font-semibold',
+            }
+          }
+        } else {
+          matchedClienteIds.add(clientePai.id)
+
+          const detalhesContato: string[] = []
+          if (contato.cargo) detalhesContato.push(contato.cargo)
+          if (contato.telefone) detalhesContato.push(contato.telefone)
+          if (contato.email) detalhesContato.push(contato.email)
+          if (clientePai.cidade) detalhesContato.push(clientePai.cidade)
+
+          matchedClientes.push({
+            id: `cliente-${clientePai.id}-via-contato-${contato.id}`,
+            category: 'clientes',
+            title: clientePai.nome || clientePai.razao_social || 'Cliente sem nome',
+            subtitle: `Contato: ${contato.nome}${detalhesContato.length > 0 ? ` (${detalhesContato.join(' • ')})` : ''}`,
+            badge: `Encontrado via contato: ${contato.nome}`,
+            badgeColorClass: 'bg-teal-50 text-teal-800 border-teal-300 font-semibold',
+            icon: Users,
+            clienteId: clientePai.id,
+            action: () => {
+              openFichaCliente(clientePai.id)
+              setIsOpen(false)
+            },
+          })
+        }
       }
     })
 
@@ -383,6 +444,7 @@ export const BarraBuscaGlobal: React.FC<{ className?: string }> = ({ className =
   }, [
     normalizedQuery,
     clientes,
+    contatosAdicionais,
     ordensServico,
     manutencoes,
     projetos,
@@ -636,7 +698,7 @@ export const BarraBuscaGlobal: React.FC<{ className?: string }> = ({ className =
                                   <HighlightMatch text={item.title} query={trimmedQuery} />
                                   {item.badge && (
                                     <span
-                                      className={`hidden sm:inline-flex text-[10px] font-bold px-1.5 py-0.2 rounded-md border shrink-0 ${
+                                      className={`inline-flex text-[10px] font-bold px-1.5 py-0.2 rounded-md border shrink-0 ${
                                         item.badgeColorClass ||
                                         'bg-gray-100 text-gray-700 border-gray-200'
                                       }`}
