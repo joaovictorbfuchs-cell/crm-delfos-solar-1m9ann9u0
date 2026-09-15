@@ -527,10 +527,14 @@ export const Orcamentos: React.FC = () => {
                                   valor_total_custos:
                                     orc.valor_total_custos || orc.valor_investimento,
                                   payback_meses: orc.payback_meses || calc.paybackMeses,
-                                  producao_anual_kwh: orc.producao_anual_kwh || calc.geracaoAnualEstimadaKwh,
-producao_mensal_kwh: orc.geracao_mensal_kwh || calc.geracaoMediaMensalKwh,
-geracao_detalhada_json: JSON.stringify(calc.geracaoMensalDetalhada),
-parcela_a_vista: orc.valor_investimento,
+                                  producao_anual_kwh:
+                                    orc.producao_anual_kwh || calc.geracaoAnualEstimadaKwh,
+                                  producao_mensal_kwh:
+                                    orc.geracao_mensal_kwh || calc.geracaoMediaMensalKwh,
+                                  geracao_detalhada_json: JSON.stringify(
+                                    calc.geracaoMensalDetalhada,
+                                  ),
+                                  parcela_a_vista: orc.valor_investimento,
                                   parcela_cartao_18x: orc.parcela_cartao_18x,
                                   parcela_financiamento_banco1: orc.parcela_financiamento_banco1,
                                   parcela_financiamento_banco2: orc.parcela_financiamento_banco2,

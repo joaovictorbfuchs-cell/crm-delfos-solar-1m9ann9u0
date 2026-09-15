@@ -2462,11 +2462,14 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
             geracao_detalhada_json: JSON.stringify(calculos.geracaoMensalDetalhada),
             parcela_a_vista: valorInvestimentoFinal,
             parcela_cartao_18x:
-              calculos.parcelamentos?.cartao18x?.valorParcela || Math.round((valorInvestimentoFinal * 1.12) / 18),
+              calculos.parcelamentos?.cartao18x?.valorParcela ||
+              Math.round((valorInvestimentoFinal * 1.12) / 18),
             parcela_financiamento_banco1:
-              calculos.parcelamentos?.financiamentoBanco1?.valorParcela || Math.round(valorInvestimentoFinal * 0.023),
+              calculos.parcelamentos?.financiamentoBanco1?.valorParcela ||
+              Math.round(valorInvestimentoFinal * 0.023),
             parcela_financiamento_banco2:
-              calculos.parcelamentos?.financiamentoBanco2?.valorParcela || Math.round(valorInvestimentoFinal * 0.02),
+              calculos.parcelamentos?.financiamentoBanco2?.valorParcela ||
+              Math.round(valorInvestimentoFinal * 0.02),
             gasto_sem_solar_1_ano: calculos.gastoSemSolar1Ano,
             gasto_sem_solar_5_anos: calculos.gastoSemSolar5Anos,
             gasto_sem_solar_25_anos: calculos.gastoSemSolar25Anos,
