@@ -1321,7 +1321,7 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                       )}
                     </div>
 
-                    <div className="flex flex-col gap-2.5">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                       {/* Campo: Valor por placa (editável) */}
                       <div className="w-full">
                         <div className="flex items-center justify-between mb-0.5">
@@ -1599,7 +1599,7 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                     </div>
                   </div>
 
-                  <div className="flex flex-col gap-2 text-xs">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
                     {/* Opção 1 */}
                     <label
                       className={`w-full px-2.5 py-1.5 rounded-md border cursor-pointer transition-all flex items-center justify-between gap-2 ${
