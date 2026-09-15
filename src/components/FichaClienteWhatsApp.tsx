@@ -27,7 +27,7 @@ import {
 import { useClientes } from '@/contexts/ClientesContext'
 import type { Cliente, WhatsAppTemplate } from '@/types/crm'
 import { formatDateTime, formatCurrency, formatWhatsAppPhone } from '@/lib/formatters'
-import { getWhatsAppMediaProxyUrl } from '@/lib/whatsappGateway'
+import { getWhatsAppMediaUrl } from '@/lib/whatsappGateway'
 
 interface FichaClienteWhatsAppProps {
   cliente: Cliente
@@ -643,10 +643,10 @@ export const FichaClienteWhatsApp: React.FC<FichaClienteWhatsAppProps> = ({
                   {/* Conteúdo da Mensagem em estilo balão WhatsApp */}
                   {msg.tipo_mensagem === 'imagem' ? (
                     <div className="space-y-2">
-                      {msg.documento_url && !mediaErrors[msg.id] ? (
+                      {(msg.arquivo || msg.documento_url) && !mediaErrors[msg.id] ? (
                         <div className="relative group cursor-pointer max-w-sm bg-black/5 rounded-xl overflow-hidden border border-gray-200">
                           <img
-                            src={getWhatsAppMediaProxyUrl(msg.documento_url, msg.id)}
+                            src={getWhatsAppMediaUrl(msg, msg.id)}
                             alt={msg.conteudo_final || 'Imagem recebida'}
                             className="w-full max-h-72 object-cover rounded-xl transition-transform duration-200 group-hover:scale-[1.02]"
                             loading="lazy"
@@ -654,7 +654,7 @@ export const FichaClienteWhatsApp: React.FC<FichaClienteWhatsAppProps> = ({
                             onClick={() =>
                               setPreviewMediaModal({
                                 tipo: 'imagem',
-                                url: getWhatsAppMediaProxyUrl(msg.documento_url, msg.id),
+                                url: getWhatsAppMediaUrl(msg, msg.id),
                                 caption:
                                   msg.conteudo_final && msg.conteudo_final !== '[Imagem]'
                                     ? msg.conteudo_final
@@ -666,7 +666,7 @@ export const FichaClienteWhatsApp: React.FC<FichaClienteWhatsAppProps> = ({
                             onClick={() =>
                               setPreviewMediaModal({
                                 tipo: 'imagem',
-                                url: getWhatsAppMediaProxyUrl(msg.documento_url, msg.id),
+                                url: getWhatsAppMediaUrl(msg, msg.id),
                                 caption:
                                   msg.conteudo_final && msg.conteudo_final !== '[Imagem]'
                                     ? msg.conteudo_final
@@ -685,9 +685,9 @@ export const FichaClienteWhatsApp: React.FC<FichaClienteWhatsAppProps> = ({
                           <div className="flex-1 min-w-0">
                             <span className="font-semibold block">Imagem não disponível</span>
                             <span className="text-[11px] text-amber-700">
-                              {msg.documento_url
-                                ? 'Não foi possível carregar a imagem remota.'
-                                : 'A imagem expirou ou não possui URL de mídia.'}
+                              {msg.documento_url || msg.arquivo
+                                ? 'Mídia não disponível — a imagem não pôde ser carregada ou a URL expirou.'
+                                : 'Mídia não disponível — a imagem não foi armazenada quando recebida.'}
                             </span>
                           </div>
                         </div>
@@ -700,11 +700,11 @@ export const FichaClienteWhatsApp: React.FC<FichaClienteWhatsAppProps> = ({
                     </div>
                   ) : msg.tipo_mensagem === 'video' ? (
                     <div className="space-y-2">
-                      {msg.documento_url && !mediaErrors[msg.id] ? (
+                      {(msg.arquivo || msg.documento_url) && !mediaErrors[msg.id] ? (
                         <div className="max-w-sm bg-black/90 rounded-xl overflow-hidden border border-gray-200">
                           <video
                             controls
-                            src={getWhatsAppMediaProxyUrl(msg.documento_url, msg.id)}
+                            src={getWhatsAppMediaUrl(msg, msg.id)}
                             className="w-full max-h-72 rounded-xl bg-black"
                             preload="metadata"
                             onError={() => handleMediaError(msg.id)}
@@ -716,9 +716,9 @@ export const FichaClienteWhatsApp: React.FC<FichaClienteWhatsAppProps> = ({
                           <div className="flex-1 min-w-0">
                             <span className="font-semibold block">Vídeo não disponível</span>
                             <span className="text-[11px] text-amber-700">
-                              {msg.documento_url
-                                ? 'Não foi possível reproduzir o arquivo de vídeo.'
-                                : 'O vídeo recebido expirou ou não possui URL de mídia.'}
+                              {msg.documento_url || msg.arquivo
+                                ? 'Vídeo não disponível — não foi possível reproduzir o arquivo de vídeo.'
+                                : 'Vídeo não disponível — o vídeo não foi armazenado quando recebido.'}
                             </span>
                           </div>
                         </div>
@@ -738,9 +738,9 @@ export const FichaClienteWhatsApp: React.FC<FichaClienteWhatsAppProps> = ({
                             <FileText className="w-5 h-5 text-white" />
                           </div>
                           <div className="min-w-0 flex-1">
-                            {msg.documento_url ? (
+                            {msg.arquivo || msg.documento_url ? (
                               <a
-                                href={getWhatsAppMediaProxyUrl(msg.documento_url, msg.id)}
+                                href={getWhatsAppMediaUrl(msg, msg.id)}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="text-xs font-bold text-emerald-900 hover:text-emerald-700 hover:underline flex items-center gap-1.5 truncate group"
@@ -769,10 +769,10 @@ export const FichaClienteWhatsApp: React.FC<FichaClienteWhatsAppProps> = ({
                           </div>
                         </div>
 
-                        {/* Ação rápida para abrir se houver documento_url */}
-                        {msg.documento_url && (
+                        {/* Ação rápida para abrir se houver documento_url ou arquivo */}
+                        {(msg.arquivo || msg.documento_url) && (
                           <a
-                            href={getWhatsAppMediaProxyUrl(msg.documento_url, msg.id)}
+                            href={getWhatsAppMediaUrl(msg, msg.id)}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-white border border-emerald-200 text-emerald-800 hover:bg-emerald-50 hover:text-emerald-900 text-xs font-bold shadow-2xs transition-colors shrink-0"
@@ -795,10 +795,10 @@ export const FichaClienteWhatsApp: React.FC<FichaClienteWhatsAppProps> = ({
                         <Mic className="w-4 h-4 text-purple-600" />
                         <span>{msg.conteudo_final || 'Áudio gravado no WhatsApp'}</span>
                       </div>
-                      {msg.documento_url && (
+                      {(msg.arquivo || msg.documento_url) && (
                         <audio
                           controls
-                          src={getWhatsAppMediaProxyUrl(msg.documento_url, msg.id)}
+                          src={getWhatsAppMediaUrl(msg, msg.id)}
                           className="h-8 w-full max-w-sm rounded"
                           preload="metadata"
                         />

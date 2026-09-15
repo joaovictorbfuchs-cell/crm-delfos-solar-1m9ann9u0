@@ -13,12 +13,23 @@ routerAdd('GET', '/backend/v1/whatsapp/media-proxy', (e) => {
 
     let targetUrl = rawTargetUrl
 
-    // Se fornecido msgId, buscar a URL salva na mensagem para segurança extra
-    if (!targetUrl && msgId) {
+    let msgRec = null
+    if (msgId) {
       try {
-        const msgRec = $app.findFirstRecordByData('whatsapp_mensagens', 'id', msgId)
+        msgRec = $app.findFirstRecordByData('whatsapp_mensagens', 'id', msgId)
         if (msgRec) {
-          targetUrl = (msgRec.getString('documento_url') || '').trim()
+          // Se já possui arquivo salvo localmente no PocketBase, servir ou redirecionar
+          const arquivoNome = msgRec.getString('arquivo')
+          if (arquivoNome) {
+            // Redireciona diretamente para a URL de arquivo do PocketBase
+            return e.redirect(
+              302,
+              `/api/files/whatsapp_mensagens/${msgRec.id}/${encodeURIComponent(arquivoNome)}`,
+            )
+          }
+          if (!targetUrl) {
+            targetUrl = (msgRec.getString('documento_url') || '').trim()
+          }
         }
       } catch (_) {}
     }
@@ -107,10 +118,38 @@ routerAdd('GET', '/backend/v1/whatsapp/media-proxy', (e) => {
       }
     }
 
+    // Se a mensagem existir no banco e ainda não tiver arquivo persistido, persistir agora em background
+    if (msgRec && !msgRec.getString('arquivo') && (res.body || res.raw)) {
+      try {
+        let fName = (msgRec.getString('nome_arquivo') || '').trim()
+        if (!fName) {
+          const cleanPart = targetUrl.split('?')[0].split('#')[0]
+          const parts = cleanPart.split('/')
+          fName = parts[parts.length - 1] || 'media_whatsapp'
+        }
+        if (!fName.includes('.')) {
+          if (contentType.includes('jpeg') || contentType.includes('jpg')) fName += '.jpg'
+          else if (contentType.includes('png')) fName += '.png'
+          else if (contentType.includes('webp')) fName += '.webp'
+          else if (contentType.includes('mp4')) fName += '.mp4'
+          else if (contentType.includes('ogg')) fName += '.ogg'
+          else if (contentType.includes('pdf')) fName += '.pdf'
+        }
+        const savedFile = $filesystem.fileFromBytes(res.body || res.raw, fName)
+        if (savedFile) {
+          msgRec.set('arquivo', savedFile)
+          $app.save(msgRec)
+          console.log('[MEDIA PROXY] Arquivo persistido retroativamente para mensagem:', msgRec.id)
+        }
+      } catch (backfillErr) {
+        console.log('[MEDIA PROXY] Aviso ao persistir arquivo na mensagem:', backfillErr)
+      }
+    }
+
     // Configurar headers de resposta para cache e CORS
-    e.response().header().set('Content-Type', contentType)
-    e.response().header().set('Cache-Control', 'public, max-age=86400')
-    e.response().header().set('Access-Control-Allow-Origin', '*')
+    e.response.header().set('Content-Type', contentType)
+    e.response.header().set('Cache-Control', 'public, max-age=86400')
+    e.response.header().set('Access-Control-Allow-Origin', '*')
 
     // Retornar os bytes brutos do arquivo
     return e.blob(200, contentType, res.raw)

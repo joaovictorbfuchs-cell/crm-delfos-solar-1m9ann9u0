@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-15T10:49:48.099Z",
+  "generatedAt": "2026-09-15T11:00:42.026Z",
   "collections": [
     {
       "name": "users",
@@ -2382,6 +2382,18 @@
         },
         {
           "name": "origem_envio",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "arquivo",
+          "type": "file",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "motivo_falha_midia",
           "type": "text",
           "required": false,
           "system": false

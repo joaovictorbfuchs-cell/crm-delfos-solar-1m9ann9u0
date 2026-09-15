@@ -305,6 +305,63 @@ export function getFriendlyWhatsAppErrorMessage(result: {
 }
 
 /**
+ * Obtém a URL de exibição de mídia do WhatsApp com resiliência:
+ * 1. Prioriza o arquivo armazenado localmente no PocketBase (`msg.arquivo`), garantindo
+ *    que a mídia funcione perpetuamente mesmo se a instância Z-API expirar ou for desconectada.
+ * 2. Se não houver arquivo local mas houver URL ou ID da mensagem, utiliza o proxy de mídia seguro do backend
+ *    (/backend/v1/whatsapp/media-proxy), que também tenta persistir o arquivo em segundo plano.
+ */
+export function getWhatsAppMediaUrl(
+  msgOrMedia:
+    | {
+        id?: string
+        arquivo?: string | null
+        documento_url?: string | null
+      }
+    | string
+    | null
+    | undefined,
+  fallbackMessageId?: string | null,
+): string {
+  if (!msgOrMedia) {
+    if (fallbackMessageId) {
+      const pbUrl = (import.meta.env.VITE_POCKETBASE_URL || '').replace(/\/+$/, '')
+      return `${pbUrl}/backend/v1/whatsapp/media-proxy?msgId=${encodeURIComponent(fallbackMessageId)}`
+    }
+    return ''
+  }
+
+  const pbUrl = (import.meta.env.VITE_POCKETBASE_URL || '').replace(/\/+$/, '')
+
+  // Se for um objeto de mensagem
+  if (typeof msgOrMedia === 'object') {
+    const { id, arquivo, documento_url } = msgOrMedia
+    if (arquivo && id) {
+      return `${pbUrl}/api/files/whatsapp_mensagens/${id}/${encodeURIComponent(arquivo)}`
+    }
+    if (documento_url || id || fallbackMessageId) {
+      return getWhatsAppMediaProxyUrl(documento_url, id || fallbackMessageId)
+    }
+    return ''
+  }
+
+  // Se for uma string de URL direta
+  const trimmedUrl = msgOrMedia.trim()
+  if (!trimmedUrl) {
+    if (fallbackMessageId) {
+      return `${pbUrl}/backend/v1/whatsapp/media-proxy?msgId=${encodeURIComponent(fallbackMessageId)}`
+    }
+    return ''
+  }
+
+  if (trimmedUrl.startsWith('data:') || trimmedUrl.startsWith('blob:')) {
+    return trimmedUrl
+  }
+
+  return getWhatsAppMediaProxyUrl(trimmedUrl, fallbackMessageId)
+}
+
+/**
  * Converte uma URL de mídia externa da Z-API / Backblaze / storage em uma URL servida
  * com segurança pelo backend via endpoint proxy (/backend/v1/whatsapp/media-proxy).
  * Nunca expõe credenciais no navegador e evita problemas de CORS ou links protegidos.
@@ -318,6 +375,11 @@ export function getWhatsAppMediaProxyUrl(
 
   // Se já for uma URL relativa ou data URL, não precisa de proxy
   if (trimmedUrl.startsWith('data:') || trimmedUrl.startsWith('blob:')) {
+    return trimmedUrl
+  }
+
+  // Se for uma URL já vinda dos arquivos do próprio PocketBase
+  if (trimmedUrl.includes('/api/files/whatsapp_mensagens/')) {
     return trimmedUrl
   }
 

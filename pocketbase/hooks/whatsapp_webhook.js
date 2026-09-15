@@ -241,6 +241,81 @@ routerAdd('POST', '/backend/v1/whatsapp/webhook', (e) => {
     if (messageIdGateway) msgRecord.set('id_externo_gateway', messageIdGateway)
     msgRecord.set('enviado_em', nowIso)
 
+    // 4. Download e persistência local da mídia no ato do recebimento
+    // Preserva o arquivo na base do PocketBase mesmo se a instância Z-API expirar,
+    // o número for alterado ou a URL temporária da Z-API / Backblaze expirar.
+    if (
+      documentoUrl &&
+      (tipoMensagem === 'imagem' ||
+        tipoMensagem === 'video' ||
+        tipoMensagem === 'audio' ||
+        tipoMensagem === 'documento')
+    ) {
+      try {
+        let fileToSave = null
+        try {
+          fileToSave = $filesystem.fileFromURL(documentoUrl, 25)
+        } catch (downloadErr) {
+          console.log(
+            '[WHATSAPP WEBHOOK] fileFromURL direto falhou, tentando com headers Z-API:',
+            downloadErr,
+          )
+        }
+
+        // Se falhou ou precisa de headers específicos (Client-Token)
+        if (!fileToSave) {
+          const lowerUrl = documentoUrl.toLowerCase()
+          const isZApi =
+            lowerUrl.indexOf('z-api.io') !== -1 ||
+            lowerUrl.indexOf('z-api.com') !== -1 ||
+            lowerUrl.indexOf('plugzapi.com') !== -1
+
+          const apiKey = ($os.getenv('WHATSAPP_API_KEY') || '').trim().replace(/[\r\n\t]/g, '')
+          const headers = { 'User-Agent': 'DelfosSolar-CRM/1.0' }
+          if (isZApi && apiKey) {
+            headers['Client-Token'] = apiKey
+          }
+
+          const httpRes = $http.send({
+            url: documentoUrl,
+            method: 'GET',
+            headers: headers,
+            timeout: 25,
+          })
+
+          if (httpRes.statusCode >= 200 && httpRes.statusCode < 300) {
+            let fname = nomeArquivo
+            if (!fname) {
+              const cleanPart = documentoUrl.split('?')[0].split('#')[0]
+              const parts = cleanPart.split('/')
+              fname = parts[parts.length - 1] || 'media_whatsapp'
+            }
+            if (!fname.includes('.')) {
+              if (tipoMensagem === 'imagem') fname += '.jpg'
+              else if (tipoMensagem === 'video') fname += '.mp4'
+              else if (tipoMensagem === 'audio') fname += '.ogg'
+              else if (tipoMensagem === 'documento') fname += '.pdf'
+            }
+            fileToSave = $filesystem.fileFromBytes(httpRes.body || httpRes.raw, fname)
+          } else {
+            msgRecord.set(
+              'motivo_falha_midia',
+              `HTTP ${httpRes.statusCode} ao baixar mídia original`,
+            )
+          }
+        }
+
+        if (fileToSave) {
+          msgRecord.set('arquivo', fileToSave)
+        }
+      } catch (saveMediaErr) {
+        const errDesc =
+          saveMediaErr && saveMediaErr.message ? saveMediaErr.message : String(saveMediaErr)
+        console.log('[WHATSAPP WEBHOOK ERRO PERSISTIR MIDIA]', errDesc)
+        msgRecord.set('motivo_falha_midia', errDesc)
+      }
+    }
+
     $app.save(msgRecord)
 
     console.log(

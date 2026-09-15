@@ -421,6 +421,8 @@ export interface WhatsAppMensagem extends RecordModel {
   tipo_mensagem?: 'texto' | 'documento' | 'imagem' | 'audio' | string
   nome_arquivo?: string
   documento_url?: string
+  arquivo?: string
+  motivo_falha_midia?: string
   referencia_id?: string
   id_externo_gateway?: string
   log_erro?: string

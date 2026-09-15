@@ -31,7 +31,7 @@ import type { WhatsAppConversa, WhatsAppMensagem, Cliente, WhatsAppTemplate } fr
 import { useClientes } from '@/contexts/ClientesContext'
 import { useAuth } from '@/contexts/AuthContext'
 import { formatDateTime, formatCurrency, formatWhatsAppPhone } from '@/lib/formatters'
-import { getWhatsAppMediaProxyUrl } from '@/lib/whatsappGateway'
+import { getWhatsAppMediaUrl } from '@/lib/whatsappGateway'
 import { GravadorAudioWhatsApp } from '@/components/GravadorAudioWhatsApp'
 import { useToast } from '@/hooks/use-toast'
 
@@ -799,10 +799,10 @@ export const ConversaChatView: React.FC<ConversaChatViewProps> = ({
                       {/* Renderização de Imagem */}
                       {msg.tipo_mensagem === 'imagem' && (
                         <div className="mb-1.5 overflow-hidden rounded-lg">
-                          {msg.documento_url && !mediaErrors[msg.id] ? (
+                          {(msg.arquivo || msg.documento_url) && !mediaErrors[msg.id] ? (
                             <div className="relative group cursor-pointer max-w-[280px] sm:max-w-[320px] bg-black/5 rounded-lg overflow-hidden border border-black/10">
                               <img
-                                src={getWhatsAppMediaProxyUrl(msg.documento_url, msg.id)}
+                                src={getWhatsAppMediaUrl(msg, msg.id)}
                                 alt={msg.conteudo_final || 'Imagem recebida'}
                                 className="w-full max-h-72 object-cover rounded-lg transition-transform duration-200 group-hover:scale-[1.02]"
                                 loading="lazy"
@@ -810,7 +810,7 @@ export const ConversaChatView: React.FC<ConversaChatViewProps> = ({
                                 onClick={() =>
                                   setPreviewMediaModal({
                                     tipo: 'imagem',
-                                    url: getWhatsAppMediaProxyUrl(msg.documento_url, msg.id),
+                                    url: getWhatsAppMediaUrl(msg, msg.id),
                                     caption:
                                       msg.conteudo_final && msg.conteudo_final !== '[Imagem]'
                                         ? msg.conteudo_final
@@ -822,7 +822,7 @@ export const ConversaChatView: React.FC<ConversaChatViewProps> = ({
                                 onClick={() =>
                                   setPreviewMediaModal({
                                     tipo: 'imagem',
-                                    url: getWhatsAppMediaProxyUrl(msg.documento_url, msg.id),
+                                    url: getWhatsAppMediaUrl(msg, msg.id),
                                     caption:
                                       msg.conteudo_final && msg.conteudo_final !== '[Imagem]'
                                         ? msg.conteudo_final
@@ -841,9 +841,9 @@ export const ConversaChatView: React.FC<ConversaChatViewProps> = ({
                               <div className="flex-1 min-w-0">
                                 <span className="font-semibold block">Mídia não disponível</span>
                                 <span className="text-[10px] text-amber-700">
-                                  {msg.documento_url
-                                    ? 'Não foi possível carregar a imagem.'
-                                    : 'A foto recebida expirou ou não possui URL.'}
+                                  {msg.documento_url || msg.arquivo
+                                    ? 'Mídia não disponível — a imagem não pôde ser carregada ou a URL expirou.'
+                                    : 'Mídia não disponível — a imagem não foi armazenada quando recebida.'}
                                 </span>
                               </div>
                             </div>
@@ -854,11 +854,11 @@ export const ConversaChatView: React.FC<ConversaChatViewProps> = ({
                       {/* Renderização de Vídeo */}
                       {msg.tipo_mensagem === 'video' && (
                         <div className="mb-1.5 overflow-hidden rounded-lg">
-                          {msg.documento_url && !mediaErrors[msg.id] ? (
+                          {(msg.arquivo || msg.documento_url) && !mediaErrors[msg.id] ? (
                             <div className="max-w-[280px] sm:max-w-[320px] bg-black/90 rounded-lg overflow-hidden border border-black/10">
                               <video
                                 controls
-                                src={getWhatsAppMediaProxyUrl(msg.documento_url, msg.id)}
+                                src={getWhatsAppMediaUrl(msg, msg.id)}
                                 className="w-full max-h-72 rounded-lg bg-black"
                                 preload="metadata"
                                 onError={() => handleMediaError(msg.id)}
@@ -870,9 +870,9 @@ export const ConversaChatView: React.FC<ConversaChatViewProps> = ({
                               <div className="flex-1 min-w-0">
                                 <span className="font-semibold block">Vídeo não disponível</span>
                                 <span className="text-[10px] text-amber-700">
-                                  {msg.documento_url
-                                    ? 'Não foi possível reproduzir este vídeo.'
-                                    : 'O vídeo recebido expirou ou não possui URL.'}
+                                  {msg.documento_url || msg.arquivo
+                                    ? 'Vídeo não disponível — não foi possível reproduzir este vídeo.'
+                                    : 'Vídeo não disponível — o vídeo não foi armazenado quando recebido.'}
                                 </span>
                               </div>
                             </div>
@@ -886,10 +886,10 @@ export const ConversaChatView: React.FC<ConversaChatViewProps> = ({
                           <div className="flex items-center gap-2 text-xs font-semibold mb-1 text-emerald-800">
                             <span>🎤 Mensagem de voz</span>
                           </div>
-                          {msg.documento_url ? (
+                          {msg.arquivo || msg.documento_url ? (
                             <audio
                               controls
-                              src={getWhatsAppMediaProxyUrl(msg.documento_url, msg.id)}
+                              src={getWhatsAppMediaUrl(msg, msg.id)}
                               className="h-8 max-w-[240px] sm:max-w-[280px] rounded-lg"
                               preload="metadata"
                             />

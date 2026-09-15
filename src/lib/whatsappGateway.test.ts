@@ -7,6 +7,7 @@ import {
   buildWhatsAppSendPayload,
   buildWhatsAppAudioPayload,
   extractGatewayExternalId,
+  getWhatsAppMediaUrl,
   getWhatsAppMediaProxyUrl,
 } from './whatsappGateway'
 import { formatAudioDuration } from '@/components/GravadorAudioWhatsApp'
@@ -371,6 +372,39 @@ export function runWhatsAppGatewayTests(): { passed: number; total: number; erro
 
         // Se nulo ou vazio retorna vazio
         assertEquals(getWhatsAppMediaProxyUrl('', ''), '', 'Vazio se não houver url nem id')
+      },
+    },
+    {
+      name: 'getWhatsAppMediaUrl deve priorizar arquivo local do PocketBase e fazer fallback para proxy',
+      fn: () => {
+        // Mensagem com arquivo local salvo no PocketBase
+        const localMsg = {
+          id: 'msg_local_123',
+          arquivo: 'foto_teste_abc.jpg',
+          documento_url: 'https://f004.backblazeb2.com/temp/foto.jpg',
+        }
+        const localUrl = getWhatsAppMediaUrl(localMsg)
+        assert(
+          localUrl.includes('/api/files/whatsapp_mensagens/msg_local_123/foto_teste_abc.jpg'),
+          'Deve priorizar arquivo salvo no PocketBase',
+        )
+
+        // Mensagem sem arquivo local mas com documento_url
+        const remoteMsg = {
+          id: 'msg_remote_456',
+          arquivo: '',
+          documento_url: 'https://f004.backblazeb2.com/temp/foto.jpg',
+        }
+        const fallbackUrl = getWhatsAppMediaUrl(remoteMsg)
+        assert(
+          fallbackUrl.includes('/backend/v1/whatsapp/media-proxy'),
+          'Deve fazer fallback para media-proxy',
+        )
+        assert(fallbackUrl.includes('msgId=msg_remote_456'), 'Deve enviar msgId no proxy')
+
+        // Data URL
+        const dataUrl = 'data:image/jpeg;base64,/9j/4AAQSkZJRg=='
+        assertEquals(getWhatsAppMediaUrl(dataUrl), dataUrl, 'Data URL direta mantida')
       },
     },
   ]
