@@ -33,60 +33,244 @@ routerAdd('POST', '/backend/v1/whatsapp/webhook', (e) => {
       cleanPhone = '55' + cleanPhone
     }
 
-    // Extrair texto da mensagem
+    // Extrair texto da mensagem e detectar tipo de mídia
     let messageText = ''
     let tipoMensagem = 'texto'
     let nomeArquivo = ''
     let documentoUrl = ''
 
-    if (body.image && typeof body.image === 'object') {
+    // Função auxiliar para inspecionar se uma URL ou nome tem extensão de vídeo
+    const isVideoExtension = (str) => {
+      if (!str || typeof str !== 'string') return false
+      const s = str.split('?')[0].split('#')[0].toLowerCase()
+      return (
+        s.endsWith('.mp4') ||
+        s.endsWith('.mov') ||
+        s.endsWith('.3gp') ||
+        s.endsWith('.mkv') ||
+        s.endsWith('.avi') ||
+        s.endsWith('.webm')
+      )
+    }
+
+    // Função auxiliar para inspecionar se uma URL ou nome tem extensão de áudio
+    const isAudioExtension = (str) => {
+      if (!str || typeof str !== 'string') return false
+      const s = str.split('?')[0].split('#')[0].toLowerCase()
+      return (
+        s.endsWith('.ogg') ||
+        s.endsWith('.opus') ||
+        s.endsWith('.mp3') ||
+        s.endsWith('.wav') ||
+        s.endsWith('.m4a') ||
+        s.endsWith('.aac')
+      )
+    }
+
+    // Função auxiliar para inspecionar se uma URL ou nome tem extensão de imagem
+    const isImageExtension = (str) => {
+      if (!str || typeof str !== 'string') return false
+      const s = str.split('?')[0].split('#')[0].toLowerCase()
+      return (
+        s.endsWith('.jpg') ||
+        s.endsWith('.jpeg') ||
+        s.endsWith('.png') ||
+        s.endsWith('.webp') ||
+        s.endsWith('.gif')
+      )
+    }
+
+    // 1. Objeto 'video' direto
+    if (body.video && typeof body.video === 'object') {
+      tipoMensagem = 'video'
+      documentoUrl = body.video.videoUrl || body.video.url || body.video.link || ''
+      nomeArquivo = body.video.fileName || ''
+      const cap = (body.video.caption || body.caption || '').trim()
+      messageText = cap || '[Vídeo]'
+    }
+    // 2. Objeto 'ptv' (Push To Video / Pre-recorded Transfer Video / Mensagem de vídeo instantânea / bolha de vídeo)
+    else if (body.ptv && typeof body.ptv === 'object') {
+      tipoMensagem = 'video'
+      documentoUrl = body.ptv.videoUrl || body.ptv.url || body.ptv.link || ''
+      nomeArquivo = body.ptv.fileName || ''
+      const cap = (body.ptv.caption || body.caption || '').trim()
+      messageText = cap || '[Vídeo]'
+    }
+    // 3. String direta em body.video (URL ou data-url enviada em body.video)
+    else if (typeof body.video === 'string' && body.video.trim()) {
+      tipoMensagem = 'video'
+      documentoUrl = body.video.trim()
+      nomeArquivo = body.fileName || ''
+      const cap = (body.caption || '').trim()
+      messageText = cap || '[Vídeo]'
+    }
+    // 4. body.videoUrl direto
+    else if (body.videoUrl) {
+      tipoMensagem = 'video'
+      documentoUrl = body.videoUrl
+      nomeArquivo = body.fileName || ''
+      messageText = (body.caption || '').trim() || '[Vídeo]'
+    }
+    // 5. Template hydrated com header de vídeo
+    else if (
+      body.hydratedTemplate &&
+      body.hydratedTemplate.header &&
+      body.hydratedTemplate.header.video
+    ) {
+      tipoMensagem = 'video'
+      const v = body.hydratedTemplate.header.video
+      documentoUrl = v.videoUrl || v.url || ''
+      const cap = (v.caption || body.hydratedTemplate.message || '').trim()
+      messageText = cap || '[Vídeo]'
+    }
+    // 6. Flag isVideo: true no payload da Z-API
+    else if (body.isVideo === true) {
+      tipoMensagem = 'video'
+      documentoUrl =
+        body.videoUrl ||
+        body.url ||
+        (body.document && (body.document.documentUrl || body.document.url)) ||
+        ''
+      nomeArquivo = body.fileName || (body.document && body.document.fileName) || ''
+      const cap = (
+        body.caption ||
+        (body.document && (body.document.title || body.document.caption)) ||
+        ''
+      ).trim()
+      messageText = cap || '[Vídeo]'
+    }
+    // 7. Imagem (objeto image)
+    else if (body.image && typeof body.image === 'object') {
       tipoMensagem = 'imagem'
       documentoUrl = body.image.imageUrl || body.image.url || body.image.thumbnailUrl || ''
       nomeArquivo = body.image.fileName || ''
-      const cap = (body.image.caption || '').trim()
+      const cap = (body.image.caption || body.caption || '').trim()
       messageText = cap || '[Imagem]'
-    } else if (body.video && typeof body.video === 'object') {
-      tipoMensagem = 'video'
-      documentoUrl = body.video.videoUrl || body.video.url || ''
-      nomeArquivo = body.video.fileName || ''
-      const cap = (body.video.caption || '').trim()
-      messageText = cap || '[Vídeo]'
-    } else if (body.audio && typeof body.audio === 'object') {
+    }
+    // 8. String direta em body.image
+    else if (typeof body.image === 'string' && body.image.trim()) {
+      tipoMensagem = 'imagem'
+      documentoUrl = body.image.trim()
+      nomeArquivo = body.fileName || ''
+      const cap = (body.caption || '').trim()
+      messageText = cap || '[Imagem]'
+    }
+    // 9. Template hydrated com imagem
+    else if (
+      body.hydratedTemplate &&
+      body.hydratedTemplate.header &&
+      body.hydratedTemplate.header.image
+    ) {
+      tipoMensagem = 'imagem'
+      const im = body.hydratedTemplate.header.image
+      documentoUrl = im.imageUrl || im.url || ''
+      const cap = (im.caption || body.hydratedTemplate.message || '').trim()
+      messageText = cap || '[Imagem]'
+    }
+    // 10. Imagem via imageUrl ou photo
+    else if (body.imageUrl || body.photo) {
+      tipoMensagem = 'imagem'
+      documentoUrl = body.imageUrl || body.photo || ''
+      messageText = (body.caption || '').trim() || '[Imagem]'
+    }
+    // 11. Áudio (objeto audio)
+    else if (body.audio && typeof body.audio === 'object') {
       tipoMensagem = 'audio'
       documentoUrl = body.audio.audioUrl || body.audio.url || ''
+      nomeArquivo = body.audio.fileName || ''
       messageText = '[Áudio]'
-    } else if (body.document && typeof body.document === 'object') {
-      tipoMensagem = 'documento'
-      nomeArquivo = body.document.fileName || 'documento.pdf'
-      documentoUrl = body.document.documentUrl || body.document.url || ''
-      messageText = body.document.title || body.document.caption || `[Documento: ${nomeArquivo}]`
-    } else if (body.sticker && typeof body.sticker === 'object') {
+    }
+    // 12. String direta em body.audio ou body.audioUrl
+    else if ((typeof body.audio === 'string' && body.audio.trim()) || body.audioUrl) {
+      tipoMensagem = 'audio'
+      documentoUrl = (typeof body.audio === 'string' && body.audio.trim()) || body.audioUrl
+      nomeArquivo = body.fileName || ''
+      messageText = '[Áudio]'
+    }
+    // 13. Documento estruturado: verificar se o mimeType ou extensão é na verdade vídeo ou áudio ou imagem
+    else if (body.document && typeof body.document === 'object') {
+      const mime = (body.document.mimeType || '').toLowerCase()
+      const docUrl = body.document.documentUrl || body.document.url || ''
+      const docName = body.document.fileName || ''
+
+      if (mime.startsWith('video/') || isVideoExtension(docUrl) || isVideoExtension(docName)) {
+        tipoMensagem = 'video'
+        documentoUrl = docUrl
+        nomeArquivo = docName
+        const cap = (body.document.caption || body.document.title || body.caption || '').trim()
+        messageText = cap || '[Vídeo]'
+      } else if (
+        mime.startsWith('audio/') ||
+        isAudioExtension(docUrl) ||
+        isAudioExtension(docName)
+      ) {
+        tipoMensagem = 'audio'
+        documentoUrl = docUrl
+        nomeArquivo = docName
+        messageText = '[Áudio]'
+      } else if (
+        mime.startsWith('image/') ||
+        isImageExtension(docUrl) ||
+        isImageExtension(docName)
+      ) {
+        tipoMensagem = 'imagem'
+        documentoUrl = docUrl
+        nomeArquivo = docName
+        const cap = (body.document.caption || body.document.title || body.caption || '').trim()
+        messageText = cap || '[Imagem]'
+      } else {
+        tipoMensagem = 'documento'
+        nomeArquivo = docName || 'documento.pdf'
+        documentoUrl = docUrl
+        messageText = body.document.title || body.document.caption || `[Documento: ${nomeArquivo}]`
+      }
+    }
+    // 14. Documento via documentUrl direto (verificar se é vídeo/áudio disfarçado)
+    else if (body.documentUrl) {
+      const docUrl = body.documentUrl
+      const docName = body.fileName || ''
+      if (isVideoExtension(docUrl) || isVideoExtension(docName)) {
+        tipoMensagem = 'video'
+        documentoUrl = docUrl
+        nomeArquivo = docName
+        messageText = (body.title || body.caption || '').trim() || '[Vídeo]'
+      } else if (isAudioExtension(docUrl) || isAudioExtension(docName)) {
+        tipoMensagem = 'audio'
+        documentoUrl = docUrl
+        nomeArquivo = docName
+        messageText = '[Áudio]'
+      } else if (isImageExtension(docUrl) || isImageExtension(docName)) {
+        tipoMensagem = 'imagem'
+        documentoUrl = docUrl
+        nomeArquivo = docName
+        messageText = (body.title || body.caption || '').trim() || '[Imagem]'
+      } else {
+        tipoMensagem = 'documento'
+        documentoUrl = docUrl
+        nomeArquivo = docName || 'documento.pdf'
+        messageText = body.title || body.caption || `[Documento: ${nomeArquivo}]`
+      }
+    }
+    // 15. Figurinha (sticker)
+    else if (body.sticker && typeof body.sticker === 'object') {
       tipoMensagem = 'imagem'
       documentoUrl = body.sticker.stickerUrl || body.sticker.url || ''
       messageText = '[Figurinha]'
-    } else if (body.text && typeof body.text === 'object') {
+    }
+    // 16. Tipo genérico com campo type / mediaType no body
+    else if (body.type === 'video' || body.mediaType === 'video') {
+      tipoMensagem = 'video'
+      documentoUrl = body.url || body.mediaUrl || body.videoUrl || ''
+      nomeArquivo = body.fileName || ''
+      messageText = (body.caption || '').trim() || '[Vídeo]'
+    }
+    // 17. Mensagens de texto estruturadas ou simples
+    else if (body.text && typeof body.text === 'object') {
       messageText = body.text.message || body.text.title || ''
     } else if (typeof body.text === 'string') {
       messageText = body.text
     } else if (body.message && typeof body.message === 'string') {
       messageText = body.message
-    } else if (body.imageUrl || body.photo) {
-      tipoMensagem = 'imagem'
-      documentoUrl = body.imageUrl || body.photo || ''
-      messageText = (body.caption || '').trim() || '[Imagem]'
-    } else if (body.videoUrl) {
-      tipoMensagem = 'video'
-      documentoUrl = body.videoUrl
-      messageText = (body.caption || '').trim() || '[Vídeo]'
-    } else if (body.audioUrl) {
-      tipoMensagem = 'audio'
-      documentoUrl = body.audioUrl
-      messageText = '[Áudio]'
-    } else if (body.documentUrl) {
-      tipoMensagem = 'documento'
-      documentoUrl = body.documentUrl
-      nomeArquivo = body.fileName || 'documento.pdf'
-      messageText = body.title || body.caption || `[Documento: ${nomeArquivo}]`
     } else if (body.buttonsResponseMessage && typeof body.buttonsResponseMessage === 'object') {
       messageText = body.buttonsResponseMessage.message || '[Resposta de Botão]'
     } else if (body.listResponseMessage && typeof body.listResponseMessage === 'object') {
@@ -98,6 +282,26 @@ routerAdd('POST', '/backend/v1/whatsapp/webhook', (e) => {
     messageText = (messageText || '').trim()
     if (!messageText && tipoMensagem === 'texto') {
       messageText = '[Mensagem recebida]'
+    } else if (
+      tipoMensagem === 'video' &&
+      (!messageText || messageText === '[Mensagem recebida]')
+    ) {
+      messageText = '[Vídeo]'
+    } else if (
+      tipoMensagem === 'imagem' &&
+      (!messageText || messageText === '[Mensagem recebida]')
+    ) {
+      messageText = '[Imagem]'
+    } else if (
+      tipoMensagem === 'audio' &&
+      (!messageText || messageText === '[Mensagem recebida]')
+    ) {
+      messageText = '[Áudio]'
+    } else if (
+      tipoMensagem === 'documento' &&
+      (!messageText || messageText === '[Mensagem recebida]')
+    ) {
+      messageText = nomeArquivo ? `[Documento: ${nomeArquivo}]` : '[Documento]'
     }
 
     const messageIdGateway = (body.messageId || body.zaapId || body.id || '').toString().trim()
@@ -244,17 +448,17 @@ routerAdd('POST', '/backend/v1/whatsapp/webhook', (e) => {
     // 4. Download e persistência local da mídia no ato do recebimento
     // Preserva o arquivo na base do PocketBase mesmo se a instância Z-API expirar,
     // o número for alterado ou a URL temporária da Z-API / Backblaze expirar.
-    if (
-      documentoUrl &&
-      (tipoMensagem === 'imagem' ||
-        tipoMensagem === 'video' ||
-        tipoMensagem === 'audio' ||
-        tipoMensagem === 'documento')
-    ) {
+    const isMidia =
+      tipoMensagem === 'imagem' ||
+      tipoMensagem === 'video' ||
+      tipoMensagem === 'audio' ||
+      tipoMensagem === 'documento'
+
+    if (isMidia && documentoUrl) {
       try {
         let fileToSave = null
         try {
-          fileToSave = $filesystem.fileFromURL(documentoUrl, 25)
+          fileToSave = $filesystem.fileFromURL(documentoUrl, 30)
         } catch (downloadErr) {
           console.log(
             '[WHATSAPP WEBHOOK] fileFromURL direto falhou, tentando com headers Z-API:',
@@ -280,7 +484,7 @@ routerAdd('POST', '/backend/v1/whatsapp/webhook', (e) => {
             url: documentoUrl,
             method: 'GET',
             headers: headers,
-            timeout: 25,
+            timeout: 30,
           })
 
           if (httpRes.statusCode >= 200 && httpRes.statusCode < 300) {
@@ -314,6 +518,8 @@ routerAdd('POST', '/backend/v1/whatsapp/webhook', (e) => {
         console.log('[WHATSAPP WEBHOOK ERRO PERSISTIR MIDIA]', errDesc)
         msgRecord.set('motivo_falha_midia', errDesc)
       }
+    } else if (isMidia && !documentoUrl) {
+      msgRecord.set('motivo_falha_midia', 'URL de mídia não fornecida no payload da mensagem')
     }
 
     $app.save(msgRecord)

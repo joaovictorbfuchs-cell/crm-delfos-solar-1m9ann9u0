@@ -591,6 +591,49 @@ export const FichaClienteWhatsApp: React.FC<FichaClienteWhatsAppProps> = ({
               const dataExibida = msg.enviado_em || msg.agendado_para || msg.created
               const tplUtilizado = whatsAppTemplates.find((t) => t.id === msg.template_id)
 
+              const hasVideoExt = (urlOrName?: string) => {
+                if (!urlOrName) return false
+                const s = urlOrName.split('?')[0].split('#')[0].toLowerCase()
+                return (
+                  s.endsWith('.mp4') ||
+                  s.endsWith('.mov') ||
+                  s.endsWith('.3gp') ||
+                  s.endsWith('.mkv') ||
+                  s.endsWith('.avi') ||
+                  s.endsWith('.webm')
+                )
+              }
+              const hasImageExt = (urlOrName?: string) => {
+                if (!urlOrName) return false
+                const s = urlOrName.split('?')[0].split('#')[0].toLowerCase()
+                return (
+                  s.endsWith('.jpg') ||
+                  s.endsWith('.jpeg') ||
+                  s.endsWith('.png') ||
+                  s.endsWith('.webp') ||
+                  s.endsWith('.gif')
+                )
+              }
+
+              const isVideoMsgItem =
+                msg.tipo_mensagem === 'video' ||
+                hasVideoExt(msg.nome_arquivo) ||
+                hasVideoExt(msg.documento_url) ||
+                hasVideoExt(msg.arquivo)
+              const isImagemMsgItem =
+                !isVideoMsgItem &&
+                (msg.tipo_mensagem === 'imagem' ||
+                  hasImageExt(msg.nome_arquivo) ||
+                  hasImageExt(msg.documento_url) ||
+                  hasImageExt(msg.arquivo))
+              const isDocumentoMsgItem =
+                !isVideoMsgItem &&
+                !isImagemMsgItem &&
+                (msg.tipo_mensagem === 'documento' ||
+                  Boolean(msg.nome_arquivo && (msg.documento_url || msg.arquivo)))
+              const isAudioMsgItem =
+                !isVideoMsgItem && !isImagemMsgItem && msg.tipo_mensagem === 'audio'
+
               return (
                 <div
                   key={msg.id}
@@ -601,12 +644,20 @@ export const FichaClienteWhatsApp: React.FC<FichaClienteWhatsAppProps> = ({
                     <div className="flex items-center gap-2">
                       {renderStatusBadge(msg.status, msg.agendado_para)}
 
-                      {msg.tipo_mensagem === 'documento' ? (
+                      {isVideoMsgItem ? (
+                        <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-purple-100 text-purple-800 border border-purple-200 flex items-center gap-1">
+                          <span>Vídeo</span>
+                        </span>
+                      ) : isImagemMsgItem ? (
+                        <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 border border-blue-200 flex items-center gap-1">
+                          <span>Imagem</span>
+                        </span>
+                      ) : isDocumentoMsgItem ? (
                         <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200 flex items-center gap-1">
                           <FileText className="w-3 h-3 text-emerald-700" />
                           <span>Documento PDF</span>
                         </span>
-                      ) : msg.tipo_mensagem === 'audio' ? (
+                      ) : isAudioMsgItem ? (
                         <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-purple-100 text-purple-800 border border-purple-200 flex items-center gap-1">
                           <Mic className="w-3 h-3 text-purple-700" />
                           <span>Mensagem de Voz</span>
@@ -641,7 +692,7 @@ export const FichaClienteWhatsApp: React.FC<FichaClienteWhatsAppProps> = ({
                   </div>
 
                   {/* Conteúdo da Mensagem em estilo balão WhatsApp */}
-                  {msg.tipo_mensagem === 'imagem' ? (
+                  {isImagemMsgItem ? (
                     <div className="space-y-2">
                       {(msg.arquivo || msg.documento_url) && !mediaErrors[msg.id] ? (
                         <div className="relative group cursor-pointer max-w-sm bg-black/5 rounded-xl overflow-hidden border border-gray-200">
@@ -698,7 +749,7 @@ export const FichaClienteWhatsApp: React.FC<FichaClienteWhatsAppProps> = ({
                         </div>
                       )}
                     </div>
-                  ) : msg.tipo_mensagem === 'video' ? (
+                  ) : isVideoMsgItem ? (
                     <div className="space-y-2">
                       {(msg.arquivo || msg.documento_url) && !mediaErrors[msg.id] ? (
                         <div className="max-w-sm bg-black/90 rounded-xl overflow-hidden border border-gray-200">
@@ -729,7 +780,7 @@ export const FichaClienteWhatsApp: React.FC<FichaClienteWhatsAppProps> = ({
                         </div>
                       )}
                     </div>
-                  ) : msg.tipo_mensagem === 'documento' ? (
+                  ) : isDocumentoMsgItem ? (
                     <div className="space-y-2">
                       <div className="p-3 bg-emerald-50/80 border border-emerald-200 rounded-xl flex items-center justify-between gap-3 shadow-2xs hover:border-emerald-300 transition-colors">
                         <div className="flex items-center gap-3 min-w-0 flex-1">

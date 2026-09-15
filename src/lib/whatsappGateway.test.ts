@@ -405,6 +405,18 @@ export function runWhatsAppGatewayTests(): { passed: number; total: number; erro
         // Data URL
         const dataUrl = 'data:image/jpeg;base64,/9j/4AAQSkZJRg=='
         assertEquals(getWhatsAppMediaUrl(dataUrl), dataUrl, 'Data URL direta mantida')
+
+        // Mensagem de vídeo com arquivo local
+        const videoMsg = {
+          id: 'msg_video_789',
+          tipo_mensagem: 'video',
+          arquivo: 'video_clip_xyz.mp4',
+        }
+        const videoUrl = getWhatsAppMediaUrl(videoMsg)
+        assert(
+          videoUrl.includes('/api/files/whatsapp_mensagens/msg_video_789/video_clip_xyz.mp4'),
+          'Deve gerar URL do arquivo local de vídeo corretamente',
+        )
       },
     },
   ]

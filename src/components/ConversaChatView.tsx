@@ -696,6 +696,49 @@ export const ConversaChatView: React.FC<ConversaChatViewProps> = ({
 
               const conteudoMensagem = msg.conteudo_final || ''
 
+              // Inferência defensiva caso tipo_mensagem não tenha vindo estritamente como 'video'
+              const hasVideoExt = (urlOrName?: string) => {
+                if (!urlOrName) return false
+                const s = urlOrName.split('?')[0].split('#')[0].toLowerCase()
+                return (
+                  s.endsWith('.mp4') ||
+                  s.endsWith('.mov') ||
+                  s.endsWith('.3gp') ||
+                  s.endsWith('.mkv') ||
+                  s.endsWith('.avi') ||
+                  s.endsWith('.webm')
+                )
+              }
+              const hasImageExt = (urlOrName?: string) => {
+                if (!urlOrName) return false
+                const s = urlOrName.split('?')[0].split('#')[0].toLowerCase()
+                return (
+                  s.endsWith('.jpg') ||
+                  s.endsWith('.jpeg') ||
+                  s.endsWith('.png') ||
+                  s.endsWith('.webp') ||
+                  s.endsWith('.gif')
+                )
+              }
+
+              const isVideoMsg =
+                msg.tipo_mensagem === 'video' ||
+                hasVideoExt(msg.nome_arquivo) ||
+                hasVideoExt(msg.documento_url) ||
+                hasVideoExt(msg.arquivo)
+              const isImagemMsg =
+                !isVideoMsg &&
+                (msg.tipo_mensagem === 'imagem' ||
+                  hasImageExt(msg.nome_arquivo) ||
+                  hasImageExt(msg.documento_url) ||
+                  hasImageExt(msg.arquivo))
+              const isDocumentoMsg =
+                !isVideoMsg &&
+                !isImagemMsg &&
+                (msg.tipo_mensagem === 'documento' ||
+                  Boolean(msg.nome_arquivo && (msg.documento_url || msg.arquivo)))
+              const isAudioMsg = !isVideoMsg && !isImagemMsg && msg.tipo_mensagem === 'audio'
+
               // Determinar se esta mensagem é a PRIMEIRA mensagem visível de um bloco de remetente (topo do bloco visual)
               // Como a lista tem mensagens mais novas no topo (idx 0 é a mais nova):
               // msg anterior na lista = idx - 1. Se idx === 0 ou o remetente de idx - 1 for diferente, esta é o topo de um bloco!
@@ -770,7 +813,7 @@ export const ConversaChatView: React.FC<ConversaChatViewProps> = ({
                       )}
 
                       {/* Tag de documento caso enviado via anexo */}
-                      {msg.tipo_mensagem === 'documento' && (
+                      {isDocumentoMsg && (
                         <div
                           className={`inline-flex items-center gap-1.5 px-2 py-1 rounded text-[11px] font-semibold mb-1 mr-2 ${
                             isRecebida
@@ -797,7 +840,7 @@ export const ConversaChatView: React.FC<ConversaChatViewProps> = ({
                       )}
 
                       {/* Renderização de Imagem */}
-                      {msg.tipo_mensagem === 'imagem' && (
+                      {isImagemMsg && (
                         <div className="mb-1.5 overflow-hidden rounded-lg">
                           {(msg.arquivo || msg.documento_url) && !mediaErrors[msg.id] ? (
                             <div className="relative group cursor-pointer max-w-[280px] sm:max-w-[320px] bg-black/5 rounded-lg overflow-hidden border border-black/10">
@@ -852,7 +895,7 @@ export const ConversaChatView: React.FC<ConversaChatViewProps> = ({
                       )}
 
                       {/* Renderização de Vídeo */}
-                      {msg.tipo_mensagem === 'video' && (
+                      {isVideoMsg && (
                         <div className="mb-1.5 overflow-hidden rounded-lg">
                           {(msg.arquivo || msg.documento_url) && !mediaErrors[msg.id] ? (
                             <div className="max-w-[280px] sm:max-w-[320px] bg-black/90 rounded-lg overflow-hidden border border-black/10">
@@ -881,7 +924,7 @@ export const ConversaChatView: React.FC<ConversaChatViewProps> = ({
                       )}
 
                       {/* Player de áudio se for mensagem de voz */}
-                      {msg.tipo_mensagem === 'audio' && (
+                      {isAudioMsg && (
                         <div className="py-1 mb-1">
                           <div className="flex items-center gap-2 text-xs font-semibold mb-1 text-emerald-800">
                             <span>🎤 Mensagem de voz</span>
@@ -902,20 +945,21 @@ export const ConversaChatView: React.FC<ConversaChatViewProps> = ({
                       )}
 
                       {/* Conteúdo da mensagem (texto ou legenda) com quebra natural de linha e horário compacto ao final */}
-                      {msg.tipo_mensagem !== 'audio' && (
+                      {!isAudioMsg && (
                         <div className="text-xs leading-relaxed select-text">
                           <span className="text-[#111b21] whitespace-pre-wrap break-words">
                             {/* Se for imagem ou vídeo com texto padrão [Imagem]/[Vídeo], não redundar se a mídia renderizou */}
-                            {msg.tipo_mensagem === 'imagem'
-                              ? conteudoMensagem === '[Imagem]'
+                            {isImagemMsg
+                              ? conteudoMensagem === '[Imagem]' ||
+                                conteudoMensagem === '[Mensagem recebida]'
                                 ? ''
                                 : conteudoMensagem
-                              : msg.tipo_mensagem === 'video'
-                                ? conteudoMensagem === '[Vídeo]'
+                              : isVideoMsg
+                                ? conteudoMensagem === '[Vídeo]' ||
+                                  conteudoMensagem === '[Mensagem recebida]'
                                   ? ''
                                   : conteudoMensagem
-                                : conteudoMensagem ||
-                                  (msg.tipo_mensagem === 'documento' ? '' : '—')}
+                                : conteudoMensagem || (isDocumentoMsg ? '' : '—')}
                           </span>
 
                           {/* Horário + Ícones de Status WhatsApp inline ao final do texto (mesma linha) */}
@@ -959,7 +1003,7 @@ export const ConversaChatView: React.FC<ConversaChatViewProps> = ({
                       )}
 
                       {/* Horário + Ícones de Status para Áudios (em linha própria discreta) */}
-                      {msg.tipo_mensagem === 'audio' && (
+                      {isAudioMsg && (
                         <div className="flex items-center justify-end gap-1 text-[11px] font-sans select-none mt-1">
                           <span className="text-[#667781] text-[11px] whitespace-nowrap">
                             {horaFormatada}
