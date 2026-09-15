@@ -11,6 +11,7 @@ import {
   UserCog,
   FileSpreadsheet,
   FileSignature,
+  Smartphone,
   Truck,
   Menu,
   X,
@@ -104,6 +105,8 @@ export default function Layout() {
         return 'Importar Acessos & Monitoramento'
       case '/importar-contratos-om':
         return 'Importar Contratos O&M'
+      case '/importar-contatos-celular':
+        return 'Importar Contatos do Celular'
       case '/fornecedores':
         return 'Fornecedores de Equipamentos'
       case '/gerenciar-usuarios':
@@ -134,6 +137,11 @@ export default function Layout() {
         { name: 'Gerenciar Usuários', path: '/gerenciar-usuarios', icon: UserCog },
         { name: 'Importar Clientes', path: '/importar-clientes', icon: FileSpreadsheet },
         { name: 'Importar Contratos O&M', path: '/importar-contratos-om', icon: FileSignature },
+        {
+          name: 'Importar Contatos do Celular',
+          path: '/importar-contatos-celular',
+          icon: Smartphone,
+        },
         { name: 'Fornecedores', path: '/fornecedores', icon: Truck },
       ]
 
