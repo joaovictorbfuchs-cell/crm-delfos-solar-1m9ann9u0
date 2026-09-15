@@ -11,7 +11,6 @@ import {
   UserCog,
   FileSpreadsheet,
   FileSignature,
-  Smartphone,
   Truck,
   Menu,
   X,
@@ -137,11 +136,6 @@ export default function Layout() {
         { name: 'Gerenciar Usuários', path: '/gerenciar-usuarios', icon: UserCog },
         { name: 'Importar Clientes', path: '/importar-clientes', icon: FileSpreadsheet },
         { name: 'Importar Contratos O&M', path: '/importar-contratos-om', icon: FileSignature },
-        {
-          name: 'Importar Contatos do Celular',
-          path: '/importar-contatos-celular',
-          icon: Smartphone,
-        },
         { name: 'Fornecedores', path: '/fornecedores', icon: Truck },
       ]
 
