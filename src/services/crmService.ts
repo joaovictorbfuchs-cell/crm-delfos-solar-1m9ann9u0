@@ -1261,6 +1261,58 @@ export async function arquivarConversaComoOutroContato(
 }
 
 // -------------------------------------------------------------
+// Contatos Adicionais Services
+// -------------------------------------------------------------
+
+export async function fetchContatosAdicionais(
+  clienteId?: string,
+): Promise<import('@/types/crm').ContatoAdicional[]> {
+  try {
+    const filter = clienteId ? `cliente = '${clienteId}'` : undefined
+    return await pb
+      .collection('contatos_adicionais')
+      .getFullList<import('@/types/crm').ContatoAdicional>({
+        filter,
+        sort: 'created',
+      })
+  } catch (err) {
+    console.error('Erro ao buscar contatos adicionais:', err)
+    return []
+  }
+}
+
+export async function createContatoAdicional(data: {
+  cliente: string
+  nome: string
+  cargo?: string
+  telefone?: string
+  email?: string
+}): Promise<import('@/types/crm').ContatoAdicional> {
+  return await pb
+    .collection('contatos_adicionais')
+    .create<import('@/types/crm').ContatoAdicional>(data)
+}
+
+export async function updateContatoAdicional(
+  id: string,
+  data: Partial<{
+    nome: string
+    cargo: string
+    telefone: string
+    email: string
+  }>,
+): Promise<import('@/types/crm').ContatoAdicional> {
+  return await pb
+    .collection('contatos_adicionais')
+    .update<import('@/types/crm').ContatoAdicional>(id, data)
+}
+
+export async function deleteContatoAdicional(id: string): Promise<boolean> {
+  await pb.collection('contatos_adicionais').delete(id)
+  return true
+}
+
+// -------------------------------------------------------------
 // Fornecedores & Orçamentos de Fornecedores
 // -------------------------------------------------------------
 

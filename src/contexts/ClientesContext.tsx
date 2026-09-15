@@ -146,6 +146,25 @@ interface ClientesContextType {
   orcamentosSolar: OrcamentoSolar[]
   fornecedores: import('@/types/crm').Fornecedor[]
   fornecedoresOrcamentos: import('@/types/crm').FornecedorOrcamento[]
+  contatosAdicionais: import('@/types/crm').ContatoAdicional[]
+  addContatoAdicional: (data: {
+    cliente: string
+    nome: string
+    cargo?: string
+    telefone?: string
+    email?: string
+  }) => Promise<import('@/types/crm').ContatoAdicional>
+  updateContatoAdicional: (
+    id: string,
+    data: Partial<{
+      nome: string
+      cargo: string
+      telefone: string
+      email: string
+    }>,
+  ) => Promise<import('@/types/crm').ContatoAdicional>
+  removeContatoAdicional: (id: string) => Promise<void>
+  refreshContatosAdicionais: () => Promise<void>
   whatsAppTemplates: WhatsAppTemplate[]
   whatsAppMensagens: WhatsAppMensagem[]
   whatsAppConversas: WhatsAppConversa[]
@@ -448,6 +467,9 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [fornecedoresOrcamentos, setFornecedoresOrcamentos] = useState<
     import('@/types/crm').FornecedorOrcamento[]
   >([])
+  const [contatosAdicionais, setContatosAdicionais] = useState<
+    import('@/types/crm').ContatoAdicional[]
+  >([])
   const [whatsAppTemplates, setWhatsAppTemplates] = useState<WhatsAppTemplate[]>([])
   const [whatsAppMensagens, setWhatsAppMensagens] = useState<WhatsAppMensagem[]>([])
   const [whatsAppConversas, setWhatsAppConversas] = useState<WhatsAppConversa[]>([])
@@ -491,6 +513,7 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         transfList,
         docsList,
         customAtivList,
+        contAdicList,
       ] = await Promise.all([
         fetchClientes(),
         fetchSistemas(),
@@ -516,6 +539,7 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         import('@/services/crmService').then((s) => s.fetchTransferenciasCreditos()),
         import('@/services/crmService').then((s) => s.fetchDocumentosCliente()),
         import('@/services/crmService').then((s) => s.fetchTiposAtividadesCustom()),
+        import('@/services/crmService').then((s) => s.fetchContatosAdicionais()),
       ])
       setClientes(cList)
       setSistemas(sList)
@@ -541,7 +565,7 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       setWhatsAppConfig(cfgStatus)
       setFornecedores(fornList)
       setFornecedoresOrcamentos(fornOrcList)
-    } catch (err: unknown) {
+      setContatosAdicionais(contAdicList)
       console.error('Error loading CRM data:', err)
       setError(err instanceof Error ? err.message : 'Erro ao carregar dados do CRM')
     } finally {
@@ -749,6 +773,17 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     'whatsapp_conversas',
     () => {
       fetchWhatsAppConversas().then(setWhatsAppConversas).catch(console.error)
+    },
+    isAuthenticated,
+  )
+
+  // Realtime updates for contatos_adicionais
+  useRealtime<import('@/types/crm').ContatoAdicional>(
+    'contatos_adicionais',
+    () => {
+      import('@/services/crmService')
+        .then((s) => s.fetchContatosAdicionais().then(setContatosAdicionais))
+        .catch(console.error)
     },
     isAuthenticated,
   )
@@ -2190,6 +2225,29 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           ])
           setFornecedores(fList)
           setFornecedoresOrcamentos(foList)
+        },
+        contatosAdicionais,
+        addContatoAdicional: async (data) => {
+          const s = await import('@/services/crmService')
+          const created = await s.createContatoAdicional(data)
+          setContatosAdicionais((prev) => [...prev, created])
+          return created
+        },
+        updateContatoAdicional: async (id, data) => {
+          const s = await import('@/services/crmService')
+          const updated = await s.updateContatoAdicional(id, data)
+          setContatosAdicionais((prev) => prev.map((c) => (c.id === id ? updated : c)))
+          return updated
+        },
+        removeContatoAdicional: async (id) => {
+          const s = await import('@/services/crmService')
+          await s.deleteContatoAdicional(id)
+          setContatosAdicionais((prev) => prev.filter((c) => c.id !== id))
+        },
+        refreshContatosAdicionais: async () => {
+          const s = await import('@/services/crmService')
+          const list = await s.fetchContatosAdicionais()
+          setContatosAdicionais(list)
         },
         whatsAppTemplates,
         whatsAppMensagens,

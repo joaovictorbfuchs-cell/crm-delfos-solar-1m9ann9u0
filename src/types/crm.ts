@@ -521,6 +521,26 @@ export interface WhatsAppConfigStatus {
 // Outros Contatos (fornecedor, instalador, parceiro, outro)
 // -------------------------------------------------------------
 
+// -------------------------------------------------------------
+// Contatos Adicionais vinculados a um Cliente
+// -------------------------------------------------------------
+
+export interface ContatoAdicional extends RecordModel {
+  id: string
+  collectionId: string
+  collectionName: string
+  cliente: string
+  nome: string
+  cargo?: string
+  telefone?: string
+  email?: string
+  created: string
+  updated: string
+  expand?: {
+    cliente?: Cliente
+  }
+}
+
 export type OutroContatoTipo = 'fornecedor' | 'instalador' | 'parceiro' | 'outro'
 
 export interface OutroContato extends RecordModel {
