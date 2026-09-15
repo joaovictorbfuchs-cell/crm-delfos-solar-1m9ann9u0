@@ -32,9 +32,11 @@ import { useAuth } from '@/contexts/AuthContext'
 import { ClienteAutocomplete } from '@/components/ClienteAutocomplete'
 import { formatCurrency } from '@/lib/formatters'
 import type { OrcamentoSolar, Cliente } from '@/types/crm'
+import { SecaoComparativoFornecedoresCustos } from './SecaoComparativoFornecedoresCustos'
 import {
   calcularOrcamentoSolar,
   somarCustosSolar,
+  calcularCustosAba,
   CUSTOS_SOLAR_PADRAO,
   type TipoClienteSolar,
   type TipoEstruturaSolar,
@@ -71,6 +73,10 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
     clientes,
     sistemas,
     orcamentosSolar,
+    fornecedoresOrcamentos,
+    addFornecedorOrcamento,
+    removeFornecedorOrcamento,
+    selecionarFornecedorOrcamento,
     addOrcamentoSolar,
     updateOrcamentoSolar,
     addAtividade,
@@ -111,6 +117,13 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
   // Custos do projeto (aba de custos com soma automática)
   const [custos, setCustos] = useState<DadosCustosSolar>({ ...CUSTOS_SOLAR_PADRAO })
 
+  // Campos específicos da Aba de Custos (Requisitos 1 a 7)
+  const [valorPorPlaca, setValorPorPlaca] = useState<number>(150)
+  const [opcaoImposto, setOpcaoImposto] = useState<1 | 2>(1)
+  const [fornecedorSelecionadoId, setFornecedorSelecionadoId] = useState<string>('')
+  // Controla se a mão de obra foi editada manualmente pelo usuário
+  const [maoDeObraEditadaManualmente, setMaoDeObraEditadaManualmente] = useState<boolean>(false)
+
   // Inicializa ou sincroniza cliente e orçamento
   useEffect(() => {
     if (initialOrcamento) {
@@ -132,23 +145,65 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
       setValorInvestimentoManual(initialOrcamento.valor_investimento || 0)
       setObservacoes(initialOrcamento.observacoes || '')
 
+      const initialValPlaca =
+        initialOrcamento.valor_por_placa !== undefined ? initialOrcamento.valor_por_placa : 150
+      setValorPorPlaca(initialValPlaca)
+
+      const optImp = initialOrcamento.opcao_imposto === 2 ? 2 : 1
+      setOpcaoImposto(optImp)
+
+      setFornecedorSelecionadoId(initialOrcamento.fornecedor_selecionado_id || '')
+
+      const riscoPadrao =
+        initialOrcamento.custo_risco_engenharia !== undefined &&
+        initialOrcamento.custo_risco_engenharia !== 0
+          ? initialOrcamento.custo_risco_engenharia
+          : 400
+
+      const mdo = initialOrcamento.custo_mao_de_obra || 0
+      const qtdPlacas = initialOrcamento.numero_placas || 10
+      // Se mdo for diferente do produto de placas * valorPorPlaca, considerar editada manualmente
+      if (mdo > 0 && mdo !== qtdPlacas * initialValPlaca) {
+        setMaoDeObraEditadaManualmente(true)
+      } else {
+        setMaoDeObraEditadaManualmente(false)
+      }
+
       setCustos({
-        maoDeObra: initialOrcamento.custo_mao_de_obra || 0,
+        maoDeObra: mdo > 0 ? mdo : qtdPlacas * initialValPlaca,
         materiaisExtras: initialOrcamento.custo_materiais_extras || 0,
         freteGuincho: initialOrcamento.custo_frete_guincho || 0,
         subestacao: initialOrcamento.custo_subestacao || 0,
         terceirizacao: initialOrcamento.custo_terceirizacao || 0,
         administracao: initialOrcamento.custo_administracao || 0,
         marketingCombustivel: initialOrcamento.custo_marketing_combustivel || 0,
-        riscoEngenharia: initialOrcamento.custo_risco_engenharia || 0,
+        riscoEngenharia: riscoPadrao,
         comissaoComercial: initialOrcamento.custo_comissao_comercial || 0,
         indicacao: initialOrcamento.custo_indicacao || 0,
         impostos: initialOrcamento.custo_impostos || 0,
+        opcaoImposto: optImp,
+        valorPorPlaca: initialValPlaca,
       })
-    } else if (initialClienteId) {
-      setSelectedClienteId(initialClienteId)
-    } else if (clientes.length > 0 && !selectedClienteId) {
-      setSelectedClienteId(clientes[0].id)
+    } else {
+      // Novo orçamento: defaults
+      setValorPorPlaca(150)
+      setOpcaoImposto(1)
+      setMaoDeObraEditadaManualmente(false)
+      setFornecedorSelecionadoId('')
+
+      setCustos((prev) => ({
+        ...prev,
+        maoDeObra: 10 * 150,
+        riscoEngenharia: 400,
+        opcaoImposto: 1,
+        valorPorPlaca: 150,
+      }))
+
+      if (initialClienteId) {
+        setSelectedClienteId(initialClienteId)
+      } else if (clientes.length > 0 && !selectedClienteId) {
+        setSelectedClienteId(clientes[0].id)
+      }
     }
     setWordDocxBlob(null)
   }, [initialOrcamento, initialClienteId, clientes])
@@ -211,6 +266,36 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
       // Ajuste estimativo da área: cada placa ~ 2.4 m²
       setAreaNecessariaM2(Math.round(qtd * 2.4))
     }
+    // Requisito 1: Mão de obra de instalação é preenchida automaticamente com número de placas * valor por placa se não editada manualmente
+    if (!maoDeObraEditadaManualmente) {
+      const novoMdo = Math.max(0, qtd) * Math.max(0, valorPorPlaca)
+      setCustos((prev) => ({ ...prev, maoDeObra: novoMdo }))
+    }
+  }
+
+  // Handler para mudança no campo 'Valor por placa'
+  const handleValorPorPlacaChange = (val: number) => {
+    const valNumerico = Math.max(0, val || 0)
+    setValorPorPlaca(valNumerico)
+    if (!maoDeObraEditadaManualmente) {
+      const novoMdo = Math.max(0, numeroPlacas) * valNumerico
+      setCustos((prev) => ({ ...prev, maoDeObra: novoMdo, valorPorPlaca: valNumerico }))
+    } else {
+      setCustos((prev) => ({ ...prev, valorPorPlaca: valNumerico }))
+    }
+  }
+
+  // Handler para alteração manual da mão de obra
+  const handleMaoDeObraManualChange = (val: number) => {
+    setMaoDeObraEditadaManualmente(true)
+    setCustos((prev) => ({ ...prev, maoDeObra: Math.max(0, val || 0) }))
+  }
+
+  // Resetar mão de obra para o cálculo automático (número de placas * valor por placa)
+  const handleResetarMaoDeObraAuto = () => {
+    setMaoDeObraEditadaManualmente(false)
+    const novoMdo = Math.max(0, numeroPlacas) * Math.max(0, valorPorPlaca)
+    setCustos((prev) => ({ ...prev, maoDeObra: novoMdo }))
   }
 
   const handlePotenciaPlacaChange = (wp: number) => {
@@ -230,10 +315,60 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
     }
   }
 
-  // Custo somado da aba de custos
+  // Cálculos automáticos da Aba de Custos (Requisitos 1 a 6) usando calcularCustosAba de src/lib/energiaSolar.ts
+  const resultadoCustosAba = useMemo(() => {
+    return calcularCustosAba({
+      materiais: custos.materiaisExtras || 0,
+      maoDeObra: custos.maoDeObra || 0,
+      riscoEngenharia: custos.riscoEngenharia !== undefined ? custos.riscoEngenharia : 400,
+      freteGuincho: custos.freteGuincho || 0,
+      subestacao: custos.subestacao || 0,
+      terceirizacao: custos.terceirizacao || 0,
+      marketingCombustivel: custos.marketingCombustivel || 0,
+      opcaoImposto,
+    })
+  }, [
+    custos.materiaisExtras,
+    custos.maoDeObra,
+    custos.riscoEngenharia,
+    custos.freteGuincho,
+    custos.subestacao,
+    custos.terceirizacao,
+    custos.marketingCombustivel,
+    opcaoImposto,
+  ])
+
+  // Sincroniza os campos calculados automaticamente (impostos, administração, comissão, indicação) no estado custos
+  useEffect(() => {
+    setCustos((prev) => {
+      if (
+        prev.impostos === resultadoCustosAba.impostos &&
+        prev.administracao === resultadoCustosAba.administracao &&
+        prev.comissaoComercial === resultadoCustosAba.comissaoComercial &&
+        prev.indicacao === resultadoCustosAba.indicacao &&
+        prev.opcaoImposto === opcaoImposto &&
+        prev.valorPorPlaca === valorPorPlaca
+      ) {
+        return prev
+      }
+      return {
+        ...prev,
+        impostos: resultadoCustosAba.impostos,
+        administracao: resultadoCustosAba.administracao,
+        comissaoComercial: resultadoCustosAba.comissaoComercial,
+        indicacao: resultadoCustosAba.indicacao,
+        opcaoImposto,
+        valorPorPlaca,
+      }
+    })
+  }, [resultadoCustosAba, opcaoImposto, valorPorPlaca])
+
+  // Custo somado da aba de custos: se as fórmulas automáticas geraram valorTotal, usa ele; senão soma direta
   const totalCustosCalculado = useMemo(() => {
-    return somarCustosSolar(custos)
-  }, [custos])
+    return resultadoCustosAba.valorTotal > 0
+      ? resultadoCustosAba.valorTotal
+      : somarCustosSolar(custos)
+  }, [resultadoCustosAba.valorTotal, custos])
 
   // Valor do investimento: se o usuário preencheu na mão usa ele; senão usa os custos da aba de custos
   const valorInvestimentoFinal = useMemo(() => {
@@ -386,17 +521,20 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
         valor_investimento: valorInvestimentoFinal,
 
         // Custos
+        valor_por_placa: valorPorPlaca,
+        opcao_imposto: opcaoImposto,
+        fornecedor_selecionado_id: fornecedorSelecionadoId || undefined,
         custo_mao_de_obra: custos.maoDeObra,
         custo_materiais_extras: custos.materiaisExtras,
         custo_frete_guincho: custos.freteGuincho,
         custo_subestacao: custos.subestacao,
         custo_terceirizacao: custos.terceirizacao,
-        custo_administracao: custos.administracao,
+        custo_administracao: resultadoCustosAba.administracao,
         custo_marketing_combustivel: custos.marketingCombustivel,
-        custo_risco_engenharia: custos.riscoEngenharia,
-        custo_comissao_comercial: custos.comissaoComercial,
-        custo_indicacao: custos.indicacao,
-        custo_impostos: custos.impostos,
+        custo_risco_engenharia: custos.riscoEngenharia !== undefined ? custos.riscoEngenharia : 400,
+        custo_comissao_comercial: resultadoCustosAba.comissaoComercial,
+        custo_indicacao: resultadoCustosAba.indicacao,
+        custo_impostos: resultadoCustosAba.impostos,
         valor_total_custos: totalCustosCalculado,
         custo_por_kwp: calculos.custoPorKwpInstalado,
 
@@ -1120,61 +1258,149 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
           {/* ========================================================================= */}
           {activeTab === 'custos' && (
             <div className="space-y-4 animate-in fade-in duration-150">
+              {/* Card Principal de Custos */}
               <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-xs space-y-4">
-                <div className="flex items-center justify-between pb-2 border-b border-gray-100">
+                <div className="flex items-center justify-between pb-3 border-b border-gray-100 flex-wrap gap-2">
                   <div>
                     <h3 className="text-xs font-bold uppercase tracking-wider text-gray-800 flex items-center gap-1.5">
                       <DollarSign className="w-4 h-4 text-emerald-600" />
-                      Planilha de Custos do Projeto Solar
+                      Planilha de Custos do Orçamento Solar
                     </h3>
                     <p className="text-[11px] text-gray-500">
-                      Preencha os valores de cada item. A soma calcula automaticamente o valor total
-                      e o custo por kWp.
+                      Cálculos automáticos em tempo real: mão de obra vinculada às {numeroPlacas}{' '}
+                      placas, impostos com 2 opções fiscais, administração, comissão e indicação.
                     </p>
                   </div>
 
                   <div className="text-right">
                     <span className="text-[10px] text-gray-400 uppercase font-semibold block">
-                      Valor Total do Projeto
+                      Valor Total do Orçamento
                     </span>
-                    <span className="text-lg font-black text-emerald-700">
+                    <span className="text-xl font-black text-emerald-700">
                       {formatCurrency(totalCustosCalculado)}
                     </span>
                   </div>
                 </div>
 
-                {/* Grade com os campos monetários exatos pedidos */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 text-xs">
-                  {/* Mão de obra de instalação */}
-                  <div>
-                    <label className="text-[11px] font-semibold text-gray-700 block mb-1">
-                      Mão de obra de instalação (R$)
-                    </label>
-                    <input
-                      type="number"
-                      value={custos.maoDeObra || ''}
-                      min={0}
-                      step={50}
-                      onChange={(e) => updateCustoField('maoDeObra', Number(e.target.value))}
-                      className="w-full text-xs font-medium px-3 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                      placeholder="0,00"
-                    />
+                {/* Grade dos Campos de Custos Conforme Requisitos do Usuário */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 text-xs">
+                  {/* Requisito 1: Mão de obra de instalação & Valor por placa lado a lado */}
+                  <div className="md:col-span-2 lg:col-span-3 p-3 rounded-xl bg-gray-50/80 border border-gray-200 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-bold text-gray-800 uppercase tracking-wide flex items-center gap-1.5">
+                        <Wrench className="w-3.5 h-3.5 text-emerald-600" />
+                        1. Mão de Obra de Instalação ({numeroPlacas} placas da aba anterior)
+                      </span>
+                      {maoDeObraEditadaManualmente ? (
+                        <button
+                          type="button"
+                          onClick={handleResetarMaoDeObraAuto}
+                          className="text-[10px] text-blue-700 hover:underline font-bold"
+                          title="Restaurar fórmula automática: número de placas * valor por placa"
+                        >
+                          Restaurar cálculo automático ({numeroPlacas} ×{' '}
+                          {formatCurrency(valorPorPlaca)})
+                        </button>
+                      ) : (
+                        <span className="text-[10px] text-emerald-700 font-bold bg-emerald-100 px-2 py-0.5 rounded-full">
+                          Auto: {numeroPlacas} placas × {formatCurrency(valorPorPlaca)}
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {/* Campo: Valor por placa (editável) */}
+                      <div>
+                        <label className="text-[11px] font-semibold text-gray-700 block mb-1">
+                          Valor por placa (R$) *
+                        </label>
+                        <input
+                          type="number"
+                          value={valorPorPlaca || ''}
+                          min={0}
+                          step={10}
+                          onChange={(e) => handleValorPorPlacaChange(Number(e.target.value))}
+                          className="w-full text-xs font-semibold px-3 py-2 rounded-lg border border-gray-300 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                          placeholder="Ex: 150,00"
+                        />
+                        <span className="text-[10px] text-gray-500 mt-0.5 block">
+                          Multiplicado pelas {numeroPlacas} placas configuradas
+                        </span>
+                      </div>
+
+                      {/* Campo: Mão de obra de instalação (auto preenchido, editável manualmente) */}
+                      <div>
+                        <div className="flex items-center justify-between mb-1">
+                          <label className="text-[11px] font-semibold text-gray-700">
+                            Mão de obra de instalação (R$) *
+                          </label>
+                          {maoDeObraEditadaManualmente && (
+                            <span className="text-[10px] font-semibold text-amber-700 bg-amber-100 px-1.5 py-0.2 rounded">
+                              Editado manualmente
+                            </span>
+                          )}
+                        </div>
+                        <input
+                          type="number"
+                          value={custos.maoDeObra || ''}
+                          min={0}
+                          step={50}
+                          onChange={(e) => handleMaoDeObraManualChange(Number(e.target.value))}
+                          className={`w-full text-xs font-bold px-3 py-2 rounded-lg border focus:outline-none focus:ring-2 focus:ring-emerald-500 ${
+                            maoDeObraEditadaManualmente
+                              ? 'border-amber-300 bg-amber-50/40 text-amber-900'
+                              : 'border-emerald-300 bg-white text-emerald-800'
+                          }`}
+                          placeholder="0,00"
+                        />
+                        <span className="text-[10px] text-gray-500 mt-0.5 block">
+                          {maoDeObraEditadaManualmente
+                            ? 'Valor customizado manual. Clique em "Restaurar" para voltar ao automático.'
+                            : `Preenchido automaticamente (${numeroPlacas} × ${formatCurrency(valorPorPlaca)} = ${formatCurrency(custos.maoDeObra)})`}
+                        </span>
+                      </div>
+                    </div>
                   </div>
 
-                  {/* Materiais extras */}
+                  {/* Valor de Materiais (Alimentado pelo fornecedor ou digitado) */}
                   <div>
                     <label className="text-[11px] font-semibold text-gray-700 block mb-1">
-                      Materiais extras (R$)
+                      Materiais / Equipamentos (R$)
                     </label>
                     <input
                       type="number"
                       value={custos.materiaisExtras || ''}
                       min={0}
-                      step={50}
+                      step={100}
                       onChange={(e) => updateCustoField('materiaisExtras', Number(e.target.value))}
-                      className="w-full text-xs font-medium px-3 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      className="w-full text-xs font-semibold px-3 py-2 rounded-lg border border-gray-300 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
                       placeholder="0,00"
                     />
+                    <span className="text-[10px] text-gray-500 mt-0.5 block">
+                      Alimentado automaticamente ao selecionar fornecedor abaixo
+                    </span>
+                  </div>
+
+                  {/* Requisito 6: Risco de engenharia (padrão R$ 400, editável) */}
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="text-[11px] font-semibold text-gray-700">
+                        6. Risco de engenharia (R$) *
+                      </label>
+                      <span className="text-[10px] text-gray-500">Padrão: R$ 400</span>
+                    </div>
+                    <input
+                      type="number"
+                      value={custos.riscoEngenharia !== undefined ? custos.riscoEngenharia : 400}
+                      min={0}
+                      step={50}
+                      onChange={(e) => updateCustoField('riscoEngenharia', Number(e.target.value))}
+                      className="w-full text-xs font-semibold px-3 py-2 rounded-lg border border-gray-300 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      placeholder="400,00"
+                    />
+                    <span className="text-[10px] text-gray-500 mt-0.5 block">
+                      Preenchido com valor padrão de R$ 400, podendo ser editado
+                    </span>
                   </div>
 
                   {/* Frete e guincho */}
@@ -1188,9 +1414,12 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                       min={0}
                       step={50}
                       onChange={(e) => updateCustoField('freteGuincho', Number(e.target.value))}
-                      className="w-full text-xs font-medium px-3 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      className="w-full text-xs font-medium px-3 py-2 rounded-lg border border-gray-300 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
                       placeholder="0,00"
                     />
+                    <span className="text-[10px] text-gray-400 mt-0.5 block">
+                      Logística e içamento dos módulos
+                    </span>
                   </div>
 
                   {/* Subestação de energia se necessário */}
@@ -1204,9 +1433,12 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                       min={0}
                       step={100}
                       onChange={(e) => updateCustoField('subestacao', Number(e.target.value))}
-                      className="w-full text-xs font-medium px-3 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                      placeholder="0,00 (se necessário)"
+                      className="w-full text-xs font-medium px-3 py-2 rounded-lg border border-gray-300 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      placeholder="0,00 (se aplicável)"
                     />
+                    <span className="text-[10px] text-gray-400 mt-0.5 block">
+                      Transformador / subestação rural ou industrial
+                    </span>
                   </div>
 
                   {/* Terceirização de serviços */}
@@ -1220,25 +1452,12 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                       min={0}
                       step={50}
                       onChange={(e) => updateCustoField('terceirizacao', Number(e.target.value))}
-                      className="w-full text-xs font-medium px-3 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      className="w-full text-xs font-medium px-3 py-2 rounded-lg border border-gray-300 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
                       placeholder="0,00"
                     />
-                  </div>
-
-                  {/* Administração */}
-                  <div>
-                    <label className="text-[11px] font-semibold text-gray-700 block mb-1">
-                      Administração (R$)
-                    </label>
-                    <input
-                      type="number"
-                      value={custos.administracao || ''}
-                      min={0}
-                      step={50}
-                      onChange={(e) => updateCustoField('administracao', Number(e.target.value))}
-                      className="w-full text-xs font-medium px-3 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                      placeholder="0,00"
-                    />
+                    <span className="text-[10px] text-gray-400 mt-0.5 block">
+                      Projetistas, ARTs ou consultores externos
+                    </span>
                   </div>
 
                   {/* Marketing e combustível */}
@@ -1254,88 +1473,180 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                       onChange={(e) =>
                         updateCustoField('marketingCombustivel', Number(e.target.value))
                       }
-                      className="w-full text-xs font-medium px-3 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      className="w-full text-xs font-medium px-3 py-2 rounded-lg border border-gray-300 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
                       placeholder="0,00"
                     />
-                  </div>
-
-                  {/* Risco de engenharia */}
-                  <div>
-                    <label className="text-[11px] font-semibold text-gray-700 block mb-1">
-                      Risco de engenharia (R$)
-                    </label>
-                    <input
-                      type="number"
-                      value={custos.riscoEngenharia || ''}
-                      min={0}
-                      step={50}
-                      onChange={(e) => updateCustoField('riscoEngenharia', Number(e.target.value))}
-                      className="w-full text-xs font-medium px-3 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                      placeholder="0,00"
-                    />
-                  </div>
-
-                  {/* Comissão comercial */}
-                  <div>
-                    <label className="text-[11px] font-semibold text-gray-700 block mb-1">
-                      Comissão comercial (R$)
-                    </label>
-                    <input
-                      type="number"
-                      value={custos.comissaoComercial || ''}
-                      min={0}
-                      step={50}
-                      onChange={(e) =>
-                        updateCustoField('comissaoComercial', Number(e.target.value))
-                      }
-                      className="w-full text-xs font-medium px-3 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                      placeholder="0,00"
-                    />
-                  </div>
-
-                  {/* Indicação */}
-                  <div>
-                    <label className="text-[11px] font-semibold text-gray-700 block mb-1">
-                      Indicação (R$)
-                    </label>
-                    <input
-                      type="number"
-                      value={custos.indicacao || ''}
-                      min={0}
-                      step={50}
-                      onChange={(e) => updateCustoField('indicacao', Number(e.target.value))}
-                      className="w-full text-xs font-medium px-3 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                      placeholder="0,00"
-                    />
-                  </div>
-
-                  {/* Impostos */}
-                  <div>
-                    <label className="text-[11px] font-semibold text-gray-700 block mb-1">
-                      Impostos (R$)
-                    </label>
-                    <input
-                      type="number"
-                      value={custos.impostos || ''}
-                      min={0}
-                      step={50}
-                      onChange={(e) => updateCustoField('impostos', Number(e.target.value))}
-                      className="w-full text-xs font-medium px-3 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                      placeholder="0,00"
-                    />
+                    <span className="text-[10px] text-gray-400 mt-0.5 block">
+                      Deslocamento e suporte comercial
+                    </span>
                   </div>
                 </div>
 
-                {/* Resumo da Aba de Custos */}
-                <div className="p-4 bg-emerald-50/60 rounded-xl border border-emerald-200 flex items-center justify-between flex-wrap gap-3">
+                {/* Requisito 5: Seletor de Impostos com Opção 1 e Opção 2 */}
+                <div className="p-3.5 rounded-xl bg-blue-50/60 border border-blue-200 space-y-3">
+                  <div className="flex items-center justify-between flex-wrap gap-2">
+                    <div>
+                      <span className="text-xs font-bold text-blue-950 uppercase tracking-wide flex items-center gap-1.5">
+                        <Percent className="w-3.5 h-3.5 text-blue-700" />
+                        5. Seletor de Impostos
+                      </span>
+                      <p className="text-[11px] text-blue-800">
+                        Escolha o regime fiscal aplicável ao orçamento:
+                      </p>
+                    </div>
+
+                    <div className="text-right">
+                      <span className="text-[10px] uppercase font-bold text-blue-700 block">
+                        Imposto Calculado
+                      </span>
+                      <span className="text-base font-black text-blue-900">
+                        {formatCurrency(resultadoCustosAba.impostos)}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
+                    {/* Opção 1 */}
+                    <label
+                      className={`p-3 rounded-lg border cursor-pointer transition-all flex items-start gap-2.5 ${
+                        opcaoImposto === 1
+                          ? 'border-blue-600 bg-white shadow-xs ring-2 ring-blue-500/20'
+                          : 'border-blue-200 bg-white/70 hover:bg-white text-gray-700'
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="opcao_imposto_radio"
+                        checked={opcaoImposto === 1}
+                        onChange={() => setOpcaoImposto(1)}
+                        className="mt-0.5 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                      />
+                      <div className="space-y-0.5 flex-1">
+                        <div className="flex items-center justify-between">
+                          <span className="font-bold text-gray-900">Opção 1 (9% total)</span>
+                          {opcaoImposto === 1 && (
+                            <span className="text-[10px] font-extrabold text-blue-700 bg-blue-100 px-1.5 py-0.2 rounded">
+                              Ativo
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-[11px] text-gray-600">
+                          Valor total de materiais e custos multiplicado por 0,09 (9%)
+                        </p>
+                      </div>
+                    </label>
+
+                    {/* Opção 2 */}
+                    <label
+                      className={`p-3 rounded-lg border cursor-pointer transition-all flex items-start gap-2.5 ${
+                        opcaoImposto === 2
+                          ? 'border-blue-600 bg-white shadow-xs ring-2 ring-blue-500/20'
+                          : 'border-blue-200 bg-white/70 hover:bg-white text-gray-700'
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="opcao_imposto_radio"
+                        checked={opcaoImposto === 2}
+                        onChange={() => setOpcaoImposto(2)}
+                        className="mt-0.5 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                      />
+                      <div className="space-y-0.5 flex-1">
+                        <div className="flex items-center justify-between">
+                          <span className="font-bold text-gray-900">
+                            Opção 2 (16% sobre custos sem materiais)
+                          </span>
+                          {opcaoImposto === 2 && (
+                            <span className="text-[10px] font-extrabold text-blue-700 bg-blue-100 px-1.5 py-0.2 rounded">
+                              Ativo
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-[11px] text-gray-600">
+                          Valor total menos o valor dos materiais da aba anterior multiplicado por
+                          0,16 (16%)
+                        </p>
+                      </div>
+                    </label>
+                  </div>
+                </div>
+
+                {/* Requisitos 2, 3, 4: Campos Calculados Automaticamente (Somente Leitura) */}
+                <div className="p-4 bg-emerald-50/50 rounded-xl border border-emerald-200 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-emerald-950 uppercase tracking-wide flex items-center gap-1.5">
+                      <Calculator className="w-3.5 h-3.5 text-emerald-700" />
+                      Campos Calculados Automaticamente (Somente Leitura em R$)
+                    </span>
+                    <span className="text-[10px] text-emerald-700 font-semibold bg-emerald-100 px-2 py-0.5 rounded-full">
+                      Base com materiais e impostos:{' '}
+                      {formatCurrency(resultadoCustosAba.somaComImpostos)}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                    {/* Requisito 2: Administração = soma de todos os valores incluindo materiais e impostos * 0,15 */}
+                    <div className="bg-white p-3 rounded-lg border border-emerald-200 shadow-2xs space-y-1">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-bold text-gray-800">
+                          2. Administração
+                        </span>
+                        <span className="text-[10px] font-extrabold text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded">
+                          15%
+                        </span>
+                      </div>
+                      <div className="text-base font-black text-emerald-800">
+                        {formatCurrency(resultadoCustosAba.administracao)}
+                      </div>
+                      <p className="text-[10px] text-gray-500">
+                        (Soma com materiais e impostos) × 0,15
+                      </p>
+                    </div>
+
+                    {/* Requisito 3: Comissão comercial = soma de todos os valores incluindo materiais e impostos * 0,03 */}
+                    <div className="bg-white p-3 rounded-lg border border-emerald-200 shadow-2xs space-y-1">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-bold text-gray-800">
+                          3. Comissão Comercial
+                        </span>
+                        <span className="text-[10px] font-extrabold text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded">
+                          3%
+                        </span>
+                      </div>
+                      <div className="text-base font-black text-emerald-800">
+                        {formatCurrency(resultadoCustosAba.comissaoComercial)}
+                      </div>
+                      <p className="text-[10px] text-gray-500">
+                        (Soma com materiais e impostos) × 0,03
+                      </p>
+                    </div>
+
+                    {/* Requisito 4: Indicação = valor total * 0,01 */}
+                    <div className="bg-white p-3 rounded-lg border border-emerald-200 shadow-2xs space-y-1">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-bold text-gray-800">4. Indicação</span>
+                        <span className="text-[10px] font-extrabold text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded">
+                          1%
+                        </span>
+                      </div>
+                      <div className="text-base font-black text-emerald-800">
+                        {formatCurrency(resultadoCustosAba.indicacao)}
+                      </div>
+                      <p className="text-[10px] text-gray-500">Valor total do orçamento × 0,01</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Resumo e Ação da Aba de Custos */}
+                <div className="p-4 bg-emerald-50/70 rounded-xl border border-emerald-300 flex items-center justify-between flex-wrap gap-3">
                   <div>
                     <div className="text-xs font-bold text-emerald-950">
-                      Total de Custos: {formatCurrency(totalCustosCalculado)}
+                      Total Geral de Custos: {formatCurrency(totalCustosCalculado)}
                     </div>
                     <div className="text-[11px] text-emerald-700">
                       Custo por kWp:{' '}
                       <strong>{formatCurrency(calculos.custoPorKwpInstalado)}</strong> / kWp
-                      instalado
+                      instalado ({potenciaKwp.toFixed(2)} kWp)
                     </div>
                   </div>
 
@@ -1345,12 +1656,50 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                       setValorInvestimentoManual(totalCustosCalculado)
                       setActiveTab('parcelamentos')
                     }}
-                    className="px-3.5 py-1.5 bg-[#16A34A] hover:bg-[#15803D] text-white text-xs font-bold rounded-lg shadow-xs inline-flex items-center gap-1.5 transition-all"
+                    className="px-4 py-2 bg-[#16A34A] hover:bg-[#15803D] text-white text-xs font-bold rounded-lg shadow-xs inline-flex items-center gap-1.5 transition-all"
                   >
-                    <span>Usar no Investimento & Ver Parcelamento</span>
+                    <span>Usar no Investimento & Ver Parcelamentos</span>
                     <ArrowRight className="w-3.5 h-3.5" />
                   </button>
                 </div>
+              </div>
+
+              {/* Requisito 7: Seção Comparativo de Fornecedores */}
+              <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-xs space-y-4">
+                <div className="flex items-center justify-between pb-2 border-b border-gray-100 flex-wrap gap-2">
+                  <div>
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-gray-800 flex items-center gap-1.5">
+                      <Layers className="w-4 h-4 text-emerald-600" />
+                      7. Comparativo de Fornecedores
+                    </h3>
+                    <p className="text-[11px] text-gray-500">
+                      Cadastre orçamentos de diferentes fornecedores e escolha com o botão de rádio
+                      qual alimentará o valor de materiais do orçamento.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Tabela do Comparativo de Fornecedores */}
+                <SecaoComparativoFornecedoresCustos
+                  orcamentoSolarId={initialOrcamento?.id}
+                  clienteId={selectedClienteId}
+                  fornecedorSelecionadoId={fornecedorSelecionadoId}
+                  onSelecionarFornecedor={(fornOrc) => {
+                    setFornecedorSelecionadoId(fornOrc.id)
+                    // Requisito 7: "Os materiais do fornecedor escolhido alimentam o valor de materiais da aba anterior."
+                    updateCustoField('materiaisExtras', fornOrc.valor_total || 0)
+                    // Opcionalmente atualiza marcas se disponíveis
+                    if (fornOrc.modulos && fornOrc.modulos[0]?.descricao) {
+                      setMarcaPainel(fornOrc.modulos[0].descricao)
+                    }
+                    if (fornOrc.modulos && fornOrc.modulos[0]?.quantidade) {
+                      handleNumeroPlacasChange(fornOrc.modulos[0].quantidade)
+                    }
+                    if (fornOrc.inversores && fornOrc.inversores[0]?.descricao) {
+                      setMarcaInversor(fornOrc.inversores[0].descricao)
+                    }
+                  }}
+                />
               </div>
             </div>
           )}
