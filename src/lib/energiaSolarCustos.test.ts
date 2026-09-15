@@ -56,6 +56,51 @@ describe('calcularCustosAba - Desconto e Comissão Mínima', () => {
     expect(resComDesconto.percentualDescontoProjeto).toBe(expectedPct)
   })
 
+  it('suporta desconto informado diretamente em percentual (%) e calcula o valor em R$ = valorTotal * % / 100', () => {
+    // Mesma base: materiais = 10000, maoDeObra = 1500, risco = 400
+    const resBase = calcularCustosAba({
+      materiais: 10000,
+      maoDeObra: 1500,
+      riscoEngenharia: 400,
+      opcaoImposto: 1,
+    })
+
+    // Desconto de 1%
+    const res1Pct = calcularCustosAba({
+      materiais: 10000,
+      maoDeObra: 1500,
+      riscoEngenharia: 400,
+      opcaoImposto: 1,
+      descontoPercentual: 1,
+    })
+
+    const expectedDescontoReais = Math.round(resBase.valorTotal * 0.01 * 100) / 100
+    expect(res1Pct.desconto).toBe(expectedDescontoReais)
+    expect(res1Pct.percentualDescontoProjeto).toBe(1)
+
+    // O valor do projeto e impostos permanecem inalterados
+    expect(res1Pct.valorTotal).toBe(resBase.valorTotal)
+    expect(res1Pct.impostos).toBe(resBase.impostos)
+    expect(res1Pct.somaComImpostos).toBe(resBase.somaComImpostos)
+
+    // Base líquida com desconto = somaComImpostos - desconto
+    expect(res1Pct.baseComDesconto).toBe(
+      Math.round((resBase.somaComImpostos - expectedDescontoReais) * 100) / 100,
+    )
+
+    // Administração reduz proporcionalmente
+    expect(res1Pct.administracao).toBe(Math.round(res1Pct.baseComDesconto * 0.15 * 100) / 100)
+    expect(res1Pct.administracaoDescontada).toBe(
+      Math.round((resBase.administracao - res1Pct.administracao) * 100) / 100,
+    )
+
+    // Indicação reduz proporcionalmente
+    expect(res1Pct.indicacao).toBe(Math.round(res1Pct.baseComDesconto * 0.01 * 100) / 100)
+    expect(res1Pct.indicacaoDescontada).toBe(
+      Math.round((resBase.indicacao - res1Pct.indicacao) * 100) / 100,
+    )
+  })
+
   it('aplica piso de R$ 600 na comissão se 3% for menor que 600 e exibe o 3% puro ao lado', () => {
     // Base pequena onde 3% é bem menor que 600 (ex: subtotalBase = 5000)
     // somaComImpostos ~ 5600 -> 3% ~ 168

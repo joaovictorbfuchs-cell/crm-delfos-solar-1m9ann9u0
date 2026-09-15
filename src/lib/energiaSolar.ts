@@ -226,6 +226,7 @@ export interface ParametrosCalculoCustosAba {
   marketingCombustivel?: number
   opcaoImposto: 1 | 2
   desconto?: number
+  descontoPercentual?: number
 }
 
 export interface ResultadoCalculoCustosAba {
@@ -256,7 +257,6 @@ export function calcularCustosAba(params: ParametrosCalculoCustosAba): Resultado
   const subestacao = Math.max(0, Number(params.subestacao) || 0)
   const terceirizacao = Math.max(0, Number(params.terceirizacao) || 0)
   const marketing = Math.max(0, Number(params.marketingCombustivel) || 0)
-  const desconto = Math.max(0, Number(params.desconto) || 0)
 
   // Subtotal base (itens diretos sem impostos, administração, comissão e indicação)
   const subtotalBase =
@@ -284,6 +284,20 @@ export function calcularCustosAba(params: ParametrosCalculoCustosAba): Resultado
   const somaComImpostos = subtotalBase + impostos
 
   // 1. Desconto sobre o total do projeto:
+  // O usuário digita o percentual de desconto sobre o valor total do projeto (ex: 1%).
+  // Se descontoPercentual for fornecido, desconto em R$ = valorTotal * (descontoPercentual / 100).
+  // Caso contrário, usa params.desconto direto em R$.
+  let desconto = 0
+  let percentualDescontoProjeto = 0
+
+  if (params.descontoPercentual !== undefined && params.descontoPercentual !== null) {
+    percentualDescontoProjeto = Math.max(0, Number(params.descontoPercentual) || 0)
+    desconto = valorTotal > 0 ? (valorTotal * percentualDescontoProjeto) / 100 : 0
+  } else {
+    desconto = Math.max(0, Number(params.desconto) || 0)
+    percentualDescontoProjeto = valorTotal > 0 && desconto > 0 ? (desconto / valorTotal) * 100 : 0
+  }
+
   // Reflete proporcionalmente nos três valores calculados:
   // Administração (15%), Comissão comercial (3% mantendo piso R$ 600) e Indicação (1%).
   // base_liquida = soma_dos_custos - desconto;
@@ -320,9 +334,6 @@ export function calcularCustosAba(params: ParametrosCalculoCustosAba): Resultado
   const indicacaoSemDesconto = somaComImpostos * 0.01
   const indicacao = baseComDesconto * 0.01
   const indicacaoDescontada = Math.max(0, indicacaoSemDesconto - indicacao)
-
-  const percentualDescontoProjeto =
-    valorTotal > 0 && desconto > 0 ? (desconto / valorTotal) * 100 : 0
 
   return {
     impostos: Math.round(impostos * 100) / 100,
