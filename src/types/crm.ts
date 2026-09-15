@@ -1022,6 +1022,9 @@ export interface OrcamentoSolar extends RecordModel {
   custo_comissao_comercial?: number
   custo_indicacao?: number
   custo_impostos?: number
+  valor_por_placa?: number
+  opcao_imposto?: number
+  fornecedor_selecionado_id?: string
   valor_total_custos?: number
   custo_por_kwp?: number
   // Cálculos solares

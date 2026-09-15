@@ -20,6 +20,8 @@ export interface DadosCustosSolar {
   comissaoComercial: number
   indicacao: number
   impostos: number
+  valorPorPlaca?: number
+  opcaoImposto?: 1 | 2
 }
 
 export const CUSTOS_SOLAR_PADRAO: DadosCustosSolar = {
@@ -30,10 +32,12 @@ export const CUSTOS_SOLAR_PADRAO: DadosCustosSolar = {
   terceirizacao: 0,
   administracao: 0,
   marketingCombustivel: 0,
-  riscoEngenharia: 0,
+  riscoEngenharia: 400, // Risco de engenharia: preencher com valor padrão de R$ 400
   comissaoComercial: 0,
   indicacao: 0,
   impostos: 0,
+  valorPorPlaca: 0,
+  opcaoImposto: 1,
 }
 
 export interface GeracaoMensalItem {
@@ -197,6 +201,105 @@ export function somarCustosSolar(custos: Partial<DadosCustosSolar> = {}): number
     Number(c.indicacao || 0) +
     Number(c.impostos || 0)
   )
+}
+
+/**
+ * Cálculo das fórmulas da Aba de Custos conforme especificação:
+ * 1. Mão de obra de instalação = número de placas * valor por placa (editável)
+ * 2. Administração = soma de todos os valores, incluindo materiais e impostos * 0,15
+ * 3. Comissão comercial = soma de todos os valores, incluindo materiais e impostos * 0,03
+ * 4. Indicação = valor total * 0,01
+ * 5. Impostos:
+ *    - Opção 1: valor total de materiais e custos * 0,09
+ *    - Opção 2: (valor total - valor dos materiais) * 0,16
+ * 6. Risco de engenharia = padrão R$ 400 (editável)
+ */
+export interface ParametrosCalculoCustosAba {
+  materiais: number
+  maoDeObra: number
+  riscoEngenharia: number
+  freteGuincho?: number
+  subestacao?: number
+  terceirizacao?: number
+  marketingCombustivel?: number
+  opcaoImposto: 1 | 2
+}
+
+export interface ResultadoCalculoCustosAba {
+  impostos: number
+  somaComImpostos: number // soma de todos os valores incluindo materiais e impostos
+  administracao: number // somaComImpostos * 0.15
+  comissaoComercial: number // somaComImpostos * 0.03
+  indicacao: number // total * 0.01
+  valorTotal: number
+}
+
+export function calcularCustosAba(params: ParametrosCalculoCustosAba): ResultadoCalculoCustosAba {
+  const materiais = Math.max(0, Number(params.materiais) || 0)
+  const maoDeObra = Math.max(0, Number(params.maoDeObra) || 0)
+  const risco = Math.max(0, Number(params.riscoEngenharia) || 0)
+  const frete = Math.max(0, Number(params.freteGuincho) || 0)
+  const subestacao = Math.max(0, Number(params.subestacao) || 0)
+  const terceirizacao = Math.max(0, Number(params.terceirizacao) || 0)
+  const marketing = Math.max(0, Number(params.marketingCombustivel) || 0)
+
+  // Subtotal base (itens diretos sem impostos, administração, comissão e indicação)
+  const subtotalBase =
+    materiais + maoDeObra + risco + frete + subestacao + terceirizacao + marketing
+
+  let valorTotal = 0
+  let impostos = 0
+
+  if (params.opcaoImposto === 1) {
+    // Opção 1: Impostos = valor total de materiais e custos * 0,09
+    // Onde valor total = soma de tudo: subtotalBase + impostos + adm (15% de soma c/ imposto) + comissao (3% de soma c/ imposto) + indicacao (1% do total)
+    // somaComImpostos = subtotalBase + I = subtotalBase + 0.09 * T
+    // T = somaComImpostos + 0.15 * somaComImpostos + 0.03 * somaComImpostos + 0.01 * T
+    // T = 1.18 * somaComImpostos + 0.01 * T
+    // 0.99 * T = 1.18 * (subtotalBase + 0.09 * T) = 1.18 * subtotalBase + 0.1062 * T
+    // (0.99 - 0.1062) * T = 1.18 * subtotalBase
+    // 0.8838 * T = 1.18 * subtotalBase => T = (subtotalBase * 1.18) / 0.8838
+    if (subtotalBase > 0) {
+      valorTotal = (subtotalBase * 1.18) / 0.8838
+      impostos = valorTotal * 0.09
+    }
+  } else {
+    // Opção 2: Impostos = (valor total - materiais) * 0,16
+    // somaComImpostos = subtotalBase + I = subtotalBase + 0.16 * (T - M)
+    // T = 1.18 * somaComImpostos + 0.01 * T
+    // 0.99 * T = 1.18 * (subtotalBase + 0.16 * T - 0.16 * M) = 1.18 * subtotalBase - 0.1888 * M + 0.1888 * T
+    // (0.99 - 0.1888) * T = 1.18 * subtotalBase - 0.1888 * M
+    // Note que se outros custos além de M forem X (subtotalBase = M + X):
+    // 1.18 * (M + X) - 0.1888 * M = 0.9912 * M + 1.18 * X
+    // 0.8012 * T = 1.18 * subtotalBase - 0.1888 * M
+    // T = (1.18 * subtotalBase - 0.1888 * M) / 0.8012
+    // Se interpretarmos "soma de todos os valores incluindo materiais e impostos" como sendo a base antes de adm/comissão:
+    // somaComImpostos = subtotalBase + I
+    // T = somaComImpostos + 0.18 * somaComImpostos + 0.01 * T
+    // 0.99 * T = 1.18 * (subtotalBase + I)
+    // Com I = (T - M) * 0.16:
+    // 0.99 * T = 1.18 * subtotalBase + 0.1888 * T - 0.1888 * M
+    // 0.8012 * T = 1.18 * subtotalBase - 0.1888 * M => T = (1.18 * subtotalBase - 0.1888 * M) / 0.8012
+    if (subtotalBase > 0) {
+      const numerador = 1.18 * subtotalBase - 0.1888 * materiais
+      valorTotal = Math.max(0, numerador / 0.8012)
+      impostos = Math.max(0, (valorTotal - materiais) * 0.16)
+    }
+  }
+
+  const somaComImpostos = subtotalBase + impostos
+  const administracao = somaComImpostos * 0.15
+  const comissaoComercial = somaComImpostos * 0.03
+  const indicacao = valorTotal * 0.01
+
+  return {
+    impostos: Math.round(impostos * 100) / 100,
+    somaComImpostos: Math.round(somaComImpostos * 100) / 100,
+    administracao: Math.round(administracao * 100) / 100,
+    comissaoComercial: Math.round(comissaoComercial * 100) / 100,
+    indicacao: Math.round(indicacao * 100) / 100,
+    valorTotal: Math.round(valorTotal * 100) / 100,
+  }
 }
 
 export interface InputCalculoSolar {
