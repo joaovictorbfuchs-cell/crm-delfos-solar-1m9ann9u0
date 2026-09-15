@@ -899,17 +899,18 @@ export function ModalGerarPropostaTecnicoComercial({
             </div>
           ) : (
             /* ETAPA DE PREVIEW COM 4 PÁGINAS BEM ORGANIZADAS */
-            <div className="h-full flex flex-col p-4">
+            <div className="h-full flex flex-col p-3 sm:p-4">
               <div className="mb-2 flex items-center justify-between text-xs text-gray-500">
                 <span className="flex items-center gap-1.5 font-semibold text-emerald-800">
                   <Eye className="w-3.5 h-3.5 text-emerald-600" />
-                  Visualização das 4 páginas da proposta formatadas para impressão ou PDF
+                  Visualização das 4 páginas da proposta (layout compacto sem vãos em branco,
+                  formatado para impressão ou PDF)
                 </span>
-                <span className="text-[11px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-full border border-emerald-300">
+                <span className="text-[11px] bg-emerald-100 text-emerald-800 font-bold px-2.5 py-0.5 rounded-full border border-emerald-300 shadow-2xs">
                   Documento Completo (4 Páginas)
                 </span>
               </div>
-              <div className="flex-1 bg-slate-200 rounded-xl shadow-inner border border-gray-300 overflow-hidden relative">
+              <div className="flex-1 bg-slate-200/80 rounded-xl shadow-inner border border-gray-300 overflow-hidden relative">
                 <iframe
                   title="Pré-visualização da Proposta Técnico-Comercial"
                   srcDoc={htmlPreview}

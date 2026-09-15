@@ -283,50 +283,50 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
       background: #E5E7EB;
       font-family: Arial, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
       color: #1F2937;
-      font-size: 11px;
-      line-height: 1.42;
+      font-size: 10.5px;
+      line-height: 1.36;
     }
 
     /* BARRA DE AÇÃO FORA DA IMPRESSÃO */
     .no-print-bar {
-      max-width: 900px;
-      margin: 16px auto 12px auto;
-      padding: 12px 20px;
+      max-width: 860px;
+      margin: 12px auto 8px auto;
+      padding: 10px 16px;
       background: #064E3B;
       color: #FFFFFF;
-      border-radius: 12px;
+      border-radius: 10px;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 16px;
+      gap: 12px;
       box-shadow: 0 4px 14px rgba(6, 78, 59, 0.25);
     }
     .no-print-bar-info strong {
-      font-size: 14px;
+      font-size: 13px;
       display: block;
       color: #ECFDF5;
     }
     .no-print-bar-info span {
-      font-size: 11px;
+      font-size: 10.5px;
       color: #A7F3D0;
     }
     .no-print-actions {
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 8px;
     }
     .btn-action-print {
       background: #16A34A;
       color: #FFFFFF;
       border: none;
-      padding: 8px 18px;
-      font-size: 12px;
+      padding: 7px 16px;
+      font-size: 11.5px;
       font-weight: 800;
-      border-radius: 8px;
+      border-radius: 7px;
       cursor: pointer;
       display: inline-flex;
       align-items: center;
-      gap: 7px;
+      gap: 6px;
       transition: background 0.15s ease, transform 0.1s ease;
       box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
     }
@@ -340,16 +340,16 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
       width: 100%;
       max-width: 860px;
       margin: 0 auto;
-      padding-bottom: 30px;
+      padding-bottom: 20px;
     }
 
     .proposta-page {
       background: #FFFFFF;
       width: 100%;
       min-height: 297mm;
-      padding: 14mm 15mm 12mm 15mm;
-      margin: 0 auto 20px auto;
-      box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
+      padding: 9mm 12mm 8mm 12mm;
+      margin: 0 auto 16px auto;
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
       position: relative;
       display: flex;
       flex-direction: column;
@@ -368,52 +368,52 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
       display: flex;
       align-items: center;
       justify-content: space-between;
-      border-bottom: 2.5px solid #16A34A;
-      padding-bottom: 10px;
-      margin-bottom: 14px;
-      gap: 14px;
+      border-bottom: 2px solid #16A34A;
+      padding-bottom: 6px;
+      margin-bottom: 8px;
+      gap: 10px;
     }
     .header-brand {
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 8px;
     }
     .brand-symbol {
-      width: 44px;
-      height: 44px;
-      border-radius: 10px;
+      width: 38px;
+      height: 38px;
+      border-radius: 8px;
       background: linear-gradient(135deg, #166534 0%, #16A34A 50%, #EAB308 100%);
       display: flex;
       align-items: center;
       justify-content: center;
-      box-shadow: 0 2px 6px rgba(22, 163, 74, 0.35);
+      box-shadow: 0 2px 5px rgba(22, 163, 74, 0.35);
       flex-shrink: 0;
     }
     .brand-title {
-      font-size: 19px;
+      font-size: 17px;
       font-weight: 900;
       color: #064E3B;
       letter-spacing: -0.01em;
       line-height: 1.1;
     }
     .brand-tagline {
-      font-size: 9px;
+      font-size: 8.5px;
       font-weight: 800;
       color: #16A34A;
       text-transform: uppercase;
-      letter-spacing: 0.1em;
-      margin-top: 2px;
+      letter-spacing: 0.08em;
+      margin-top: 1px;
     }
     .header-company-info {
       text-align: right;
-      font-size: 9.5px;
+      font-size: 9px;
       color: #4B5563;
-      line-height: 1.38;
+      line-height: 1.3;
     }
     .header-company-info .company-name {
       font-weight: 800;
       color: #111827;
-      font-size: 10px;
+      font-size: 9.5px;
     }
     .header-company-info strong {
       color: #166534;
@@ -422,12 +422,12 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
     /* RODAPÉ RECORRENTE */
     .page-footer {
       border-top: 1px solid #D1D5DB;
-      padding-top: 8px;
-      margin-top: 14px;
+      padding-top: 6px;
+      margin-top: 8px;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      font-size: 9px;
+      font-size: 8.5px;
       color: #6B7280;
     }
     .page-footer strong {
@@ -438,100 +438,101 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
       color: #166534;
       background: #F0FDF4;
       border: 1px solid #BBF7D0;
-      padding: 2px 8px;
+      padding: 2px 7px;
       border-radius: 4px;
     }
 
-    /* BANNER DE TÍTULO PRINCIPAL */
+    /* BANNER DE TÍTULO PRINCIPAL (PÁGINA 1) */
     .banner-titulo-proposta {
       background: #F0FDF4;
       border: 1px solid #BBF7D0;
-      border-left: 5px solid #166534;
-      border-radius: 8px;
-      padding: 10px 14px;
-      margin-bottom: 12px;
+      border-left: 4.5px solid #166534;
+      border-radius: 7px;
+      padding: 7px 12px;
+      margin-bottom: 8px;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 12px;
+      gap: 10px;
     }
     .banner-titulo-proposta h1 {
       margin: 0;
-      font-size: 15px;
+      font-size: 14px;
       font-weight: 900;
       color: #064E3B;
       text-transform: uppercase;
-      letter-spacing: 0.04em;
-      line-height: 1.2;
+      letter-spacing: 0.03em;
+      line-height: 1.15;
     }
     .banner-titulo-proposta p {
-      margin: 3px 0 0 0;
-      font-size: 10px;
+      margin: 2px 0 0 0;
+      font-size: 9.5px;
       color: #047857;
       font-weight: 600;
     }
     .banner-tag-emissao {
       text-align: right;
-      font-size: 9.5px;
+      font-size: 9px;
       color: #065F46;
       background: #DCFCE7;
       border: 1px solid #86EFAC;
-      padding: 5px 10px;
-      border-radius: 6px;
+      padding: 4px 8px;
+      border-radius: 5px;
       white-space: nowrap;
       font-weight: 700;
+      line-height: 1.3;
     }
 
     /* SEÇÃO COM CABEÇALHO PADRÃO ESTILO DOCX */
     .section-header-docx {
       background: linear-gradient(90deg, #F0FDF4 0%, #FFFFFF 100%);
-      border-left: 4px solid #16A34A;
+      border-left: 3.5px solid #16A34A;
       border-bottom: 1px solid #DCFCE7;
-      padding: 5px 10px;
-      margin: 12px 0 8px 0;
-      font-size: 11.5px;
+      padding: 4px 8px;
+      margin: 7px 0 6px 0;
+      font-size: 11px;
       font-weight: 900;
       color: #064E3B;
       text-transform: uppercase;
       letter-spacing: 0.03em;
       display: flex;
       align-items: center;
-      gap: 7px;
+      gap: 6px;
     }
     .section-header-docx .sq-bullet {
       color: #16A34A;
-      font-size: 13px;
+      font-size: 12px;
     }
 
     /* GRID CLIENTE & REPRESENTANTE (PÁGINA 1) */
     .meta-cards-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 10px;
-      margin-bottom: 12px;
+      gap: 8px;
+      margin-bottom: 7px;
     }
     .meta-card {
       background: #F9FAFB;
       border: 1px solid #E5E7EB;
-      border-radius: 8px;
-      padding: 8px 12px;
-      font-size: 10.5px;
+      border-radius: 7px;
+      padding: 6px 10px;
+      font-size: 10px;
     }
     .meta-card-title {
-      font-size: 10px;
+      font-size: 9.5px;
       font-weight: 900;
       color: #166534;
       text-transform: uppercase;
-      letter-spacing: 0.05em;
+      letter-spacing: 0.04em;
       border-bottom: 1px dashed #D1D5DB;
-      padding-bottom: 4px;
-      margin-bottom: 6px;
+      padding-bottom: 3px;
+      margin-bottom: 4px;
     }
     .meta-row {
       display: flex;
       justify-content: space-between;
-      margin-bottom: 3px;
-      line-height: 1.35;
+      margin-bottom: 2px;
+      line-height: 1.3;
     }
     .meta-row span.label {
       color: #6B7280;
@@ -549,11 +550,11 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
 
     /* QUEM SOMOS (PÁGINA 1) */
     .about-lead {
-      font-size: 10.5px;
+      font-size: 10px;
       color: #374151;
       text-align: justify;
-      margin-bottom: 8px;
-      line-height: 1.45;
+      margin-bottom: 6px;
+      line-height: 1.38;
     }
     .about-lead strong {
       color: #064E3B;
@@ -561,54 +562,54 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
     .about-bullets-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 6px 12px;
+      gap: 4px 10px;
       background: #F0FDF4;
       border: 1px solid #BBF7D0;
-      border-radius: 8px;
-      padding: 8px 12px;
-      margin-bottom: 12px;
+      border-radius: 7px;
+      padding: 6px 10px;
+      margin-bottom: 7px;
     }
     .about-bullet-item {
-      font-size: 10px;
+      font-size: 9.5px;
       color: #1F2937;
       display: flex;
       align-items: flex-start;
-      gap: 6px;
-      line-height: 1.35;
+      gap: 5px;
+      line-height: 1.3;
     }
     .about-bullet-item .check-icon {
       color: #16A34A;
       font-weight: 900;
-      font-size: 12px;
+      font-size: 11px;
       line-height: 1;
       margin-top: 1px;
     }
 
     /* GALERIA DE INSTALAÇÕES (PÁGINA 1) */
     .galeria-section {
-      margin-top: 6px;
+      margin-top: 4px;
     }
     .sub-section-title {
-      font-size: 10.5px;
+      font-size: 10px;
       font-weight: 800;
       color: #166534;
       text-transform: uppercase;
       letter-spacing: 0.03em;
-      margin-bottom: 7px;
+      margin-bottom: 5px;
       display: flex;
       align-items: center;
       gap: 5px;
     }
     .sub-dot {
-      width: 6px;
-      height: 6px;
+      width: 5px;
+      height: 5px;
       border-radius: 50%;
       background: #16A34A;
       display: inline-block;
     }
     .galeria-grid {
       display: grid;
-      gap: 8px;
+      gap: 6px;
     }
     .galeria-grid-3 {
       grid-template-columns: repeat(3, 1fr);
@@ -619,15 +620,15 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
     .galeria-card {
       background: #FFFFFF;
       border: 1px solid #D1D5DB;
-      border-radius: 7px;
+      border-radius: 6px;
       overflow: hidden;
       display: flex;
       flex-direction: column;
-      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
     }
     .galeria-img-wrap {
       width: 100%;
-      height: 82px;
+      height: 78px;
       background: #F3F4F6;
       position: relative;
       overflow: hidden;
@@ -642,60 +643,60 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
       position: absolute;
       top: 3px;
       right: 3px;
-      font-size: 7.5px;
+      font-size: 7px;
       font-weight: 800;
       background: rgba(6, 78, 59, 0.85);
       color: #FFFFFF;
-      padding: 1.5px 5px;
+      padding: 1px 4px;
       border-radius: 3px;
-      letter-spacing: 0.05em;
+      letter-spacing: 0.04em;
     }
     .galeria-legenda {
-      padding: 4px 6px;
-      font-size: 9px;
+      padding: 3px 5px;
+      font-size: 8.5px;
       font-weight: 800;
       color: #111827;
       text-align: center;
       background: #FAFAFA;
       border-top: 1px solid #E5E7EB;
-      min-height: 26px;
+      min-height: 22px;
       display: flex;
       align-items: center;
       justify-content: center;
-      line-height: 1.25;
+      line-height: 1.2;
     }
 
     /* PÁGINA 2: IMAGENS ILUSTRATIVAS, ESPECIFICAÇÕES & SERVIÇOS */
     .ilustrativas-duas-colunas {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 10px;
-      margin-bottom: 12px;
+      gap: 8px;
+      margin-bottom: 7px;
     }
     .ilustrativa-card {
       background: #F9FAFB;
       border: 1px solid #E5E7EB;
-      border-radius: 8px;
-      padding: 8px;
+      border-radius: 7px;
+      padding: 6px 8px;
       display: flex;
       flex-direction: column;
       justify-content: space-between;
     }
     .ilustrativa-header-title {
-      font-size: 10px;
+      font-size: 9.5px;
       font-weight: 800;
       color: #065F46;
       text-transform: uppercase;
-      margin-bottom: 5px;
+      margin-bottom: 4px;
     }
     .ilustrativa-img-box {
       width: 100%;
-      height: 110px;
-      border-radius: 6px;
+      height: 104px;
+      border-radius: 5px;
       overflow: hidden;
       border: 1px solid #D1D5DB;
       background: #FFFFFF;
-      margin-bottom: 6px;
+      margin-bottom: 5px;
     }
     .ilustrativa-img-box img {
       width: 100%;
@@ -704,9 +705,9 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
       display: block;
     }
     .ilustrativa-texto-desc {
-      font-size: 9.5px;
+      font-size: 9px;
       color: #374151;
-      line-height: 1.35;
+      line-height: 1.32;
       text-align: justify;
     }
 
@@ -714,21 +715,21 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
     .potencia-banner {
       background: linear-gradient(135deg, #065F46 0%, #166534 100%);
       color: #FFFFFF;
-      border-radius: 8px;
-      padding: 8px 14px;
+      border-radius: 7px;
+      padding: 6px 12px;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      margin-bottom: 10px;
+      margin-bottom: 7px;
     }
     .potencia-banner-title {
-      font-size: 11.5px;
+      font-size: 11px;
       font-weight: 800;
       text-transform: uppercase;
-      letter-spacing: 0.05em;
+      letter-spacing: 0.04em;
     }
     .potencia-banner-number {
-      font-size: 18px;
+      font-size: 16px;
       font-weight: 900;
       color: #FACC15;
     }
@@ -737,24 +738,24 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
     .tabela-tecnica {
       width: 100%;
       border-collapse: collapse;
-      margin-bottom: 10px;
-      font-size: 10px;
+      margin-bottom: 6px;
+      font-size: 9.5px;
     }
     .tabela-tecnica th {
       background: #064E3B;
       color: #FFFFFF;
-      padding: 6px 10px;
+      padding: 5px 8px;
       font-weight: 800;
       text-align: left;
-      font-size: 10px;
+      font-size: 9.5px;
       text-transform: uppercase;
       border: 1px solid #064E3B;
     }
     .tabela-tecnica td {
       border: 1px solid #D1D5DB;
-      padding: 6px 10px;
+      padding: 5px 8px;
       color: #374151;
-      line-height: 1.35;
+      line-height: 1.3;
     }
     .tabela-tecnica tr:nth-child(even) td {
       background: #F9FAFB;
@@ -769,13 +770,13 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
     .especificacoes-meta-box {
       background: #F9FAFB;
       border: 1px solid #E5E7EB;
-      border-radius: 6px;
-      padding: 6px 10px;
-      font-size: 10px;
+      border-radius: 5px;
+      padding: 5px 8px;
+      font-size: 9.5px;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      margin-bottom: 10px;
+      margin-bottom: 7px;
     }
     .especificacoes-meta-box strong {
       color: #111827;
@@ -785,19 +786,19 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
     .servicos-inclusos-box {
       background: #FAFAFA;
       border: 1px solid #E5E7EB;
-      border-radius: 8px;
-      padding: 8px 12px;
-      margin-bottom: 6px;
+      border-radius: 7px;
+      padding: 6px 10px;
+      margin-bottom: 4px;
     }
     .servicos-inclusos-list {
       margin: 0;
-      padding-left: 18px;
-      font-size: 9.5px;
+      padding-left: 16px;
+      font-size: 9px;
       color: #374151;
     }
     .servicos-inclusos-list li {
-      margin-bottom: 3.5px;
-      line-height: 1.35;
+      margin-bottom: 2.5px;
+      line-height: 1.32;
     }
     .servicos-inclusos-list li strong {
       color: #064E3B;
@@ -807,93 +808,93 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
     .garantias-cards-grid {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
-      gap: 8px;
-      margin-bottom: 8px;
+      gap: 6px;
+      margin-bottom: 5px;
     }
     .garantia-card {
       background: #FFFFFF;
       border: 1.5px solid #BBF7D0;
-      border-top: 3.5px solid #16A34A;
-      border-radius: 7px;
-      padding: 8px 10px;
+      border-top: 3px solid #16A34A;
+      border-radius: 6px;
+      padding: 6px 8px;
       text-align: center;
     }
     .garantia-card-tipo {
-      font-size: 9px;
+      font-size: 8.5px;
       font-weight: 800;
       color: #065F46;
       text-transform: uppercase;
-      letter-spacing: 0.05em;
-      margin-bottom: 3px;
+      letter-spacing: 0.04em;
+      margin-bottom: 2px;
     }
     .garantia-card-tempo {
-      font-size: 14px;
+      font-size: 13px;
       font-weight: 900;
       color: #166534;
       line-height: 1.1;
     }
     .garantia-card-sub {
-      font-size: 8.5px;
+      font-size: 8px;
       color: #4B5563;
       margin-top: 2px;
     }
     .garantias-nota {
-      font-size: 9px;
+      font-size: 8.5px;
       color: #6B7280;
       font-style: italic;
-      margin-bottom: 12px;
-      padding-left: 4px;
+      margin-bottom: 8px;
+      padding-left: 2px;
     }
 
     /* PRODUÇÃO E TABELA 12 MESES */
     .producao-resumo-banner {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 10px;
-      margin-bottom: 8px;
+      gap: 8px;
+      margin-bottom: 6px;
     }
     .producao-pill {
       background: #F0FDF4;
       border: 1px solid #BBF7D0;
-      border-radius: 7px;
-      padding: 8px 12px;
+      border-radius: 6px;
+      padding: 6px 10px;
       display: flex;
       align-items: center;
       justify-content: space-between;
     }
     .producao-pill-label {
-      font-size: 9.5px;
+      font-size: 9px;
       font-weight: 700;
       color: #166534;
       text-transform: uppercase;
     }
     .producao-pill-val {
-      font-size: 14px;
+      font-size: 13px;
       font-weight: 900;
       color: #065F46;
     }
 
     .tabela-meses-wrap {
-      margin-bottom: 14px;
+      margin-bottom: 8px;
     }
     .tabela-meses {
       width: 100%;
       border-collapse: collapse;
       text-align: center;
-      font-size: 9.5px;
+      font-size: 9px;
     }
     .tabela-meses th {
       background: #065F46;
       color: #FFFFFF;
-      padding: 5px 2px;
+      padding: 4px 2px;
       font-weight: 800;
       border: 1px solid #065F46;
       text-transform: uppercase;
-      font-size: 9px;
+      font-size: 8.5px;
     }
     .tabela-meses td {
       border: 1px solid #D1D5DB;
-      padding: 6px 2px;
+      padding: 5px 2px;
       font-weight: 700;
       color: #166534;
       background: #FFFFFF;
@@ -902,17 +903,17 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
       background: #F3F4F6;
       font-weight: 800;
       color: #111827;
-      padding: 6px 4px;
+      padding: 5px 3px;
     }
 
     /* DESTAQUE HERO DE INVESTIMENTO & PAYBACK (VENDA) */
     .investimento-hero-card {
       background: linear-gradient(135deg, #ECFDF5 0%, #D1FAE5 100%);
-      border: 2px solid #10B981;
-      border-radius: 10px;
-      padding: 14px 18px;
-      margin-top: 4px;
-      box-shadow: 0 3px 10px rgba(16, 185, 129, 0.15);
+      border: 1.5px solid #10B981;
+      border-radius: 8px;
+      padding: 10px 14px;
+      margin-top: 3px;
+      box-shadow: 0 2px 8px rgba(16, 185, 129, 0.12);
       position: relative;
     }
     .investimento-hero-header {
@@ -920,76 +921,76 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
       align-items: center;
       justify-content: space-between;
       border-bottom: 1px solid #A7F3D0;
-      padding-bottom: 8px;
-      margin-bottom: 10px;
+      padding-bottom: 6px;
+      margin-bottom: 8px;
     }
     .investimento-hero-title {
-      font-size: 11px;
+      font-size: 10.5px;
       font-weight: 900;
       color: #065F46;
       text-transform: uppercase;
-      letter-spacing: 0.05em;
+      letter-spacing: 0.04em;
     }
     .investimento-hero-prazo {
-      font-size: 10px;
+      font-size: 9.5px;
       font-weight: 700;
       color: #047857;
       background: #FFFFFF;
       border: 1px solid #86EFAC;
-      padding: 3px 8px;
-      border-radius: 6px;
+      padding: 2.5px 7px;
+      border-radius: 5px;
     }
     .investimento-valores-row {
       display: grid;
       grid-template-columns: 1.4fr 1fr;
-      gap: 14px;
+      gap: 12px;
       align-items: center;
     }
     .valor-total-destaque-box {
       border-right: 1px dashed #6EE7B7;
-      padding-right: 12px;
+      padding-right: 10px;
     }
     .valor-total-label {
-      font-size: 10px;
+      font-size: 9.5px;
       font-weight: 800;
       color: #047857;
       text-transform: uppercase;
       margin-bottom: 2px;
     }
     .valor-total-big {
-      font-size: 26px;
+      font-size: 23px;
       font-weight: 900;
       color: #064E3B;
       letter-spacing: -0.02em;
       line-height: 1;
     }
     .valor-total-sub {
-      font-size: 9.5px;
+      font-size: 9px;
       color: #047857;
       font-weight: 600;
-      margin-top: 4px;
+      margin-top: 3px;
     }
     .payback-destaque-box {
       text-align: center;
       background: #FFFFFF;
       border: 1px solid #86EFAC;
-      border-radius: 8px;
-      padding: 8px 12px;
+      border-radius: 7px;
+      padding: 6px 10px;
     }
     .payback-label {
-      font-size: 9.5px;
+      font-size: 9px;
       font-weight: 800;
       color: #065F46;
       text-transform: uppercase;
     }
     .payback-number {
-      font-size: 18px;
+      font-size: 16px;
       font-weight: 900;
       color: #16A34A;
-      margin: 2px 0;
+      margin: 1px 0;
     }
     .payback-note {
-      font-size: 8.5px;
+      font-size: 8px;
       color: #6B7280;
     }
 
@@ -997,14 +998,14 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
     .parcelamento-grid-4 {
       display: grid;
       grid-template-columns: repeat(4, 1fr);
-      gap: 8px;
-      margin-bottom: 4px;
+      gap: 6px;
+      margin-bottom: 3px;
     }
     .parc-card {
       border: 1.5px solid #D1D5DB;
-      border-radius: 8px;
+      border-radius: 7px;
       background: #FFFFFF;
-      padding: 8px 6px;
+      padding: 6px 5px;
       text-align: center;
       display: flex;
       flex-direction: column;
@@ -1014,19 +1015,19 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
     .parc-card.card-destaque-verde {
       border-color: #16A34A;
       background: #F0FDF4;
-      box-shadow: 0 2px 8px rgba(22, 163, 74, 0.15);
+      box-shadow: 0 2px 6px rgba(22, 163, 74, 0.12);
     }
     .parc-card.card-destaque-azul {
       border-color: #2563EB;
       background: #EFF6FF;
     }
     .parc-card-top-tag {
-      font-size: 8px;
+      font-size: 7.5px;
       font-weight: 900;
       text-transform: uppercase;
-      padding: 2px 6px;
-      border-radius: 4px;
-      margin-bottom: 4px;
+      padding: 1.5px 5px;
+      border-radius: 3px;
+      margin-bottom: 3px;
       display: inline-block;
       background: #E5E7EB;
       color: #374151;
@@ -1040,39 +1041,39 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
       color: #FFFFFF;
     }
     .parc-col-titulo {
-      font-size: 10px;
+      font-size: 9.5px;
       font-weight: 900;
       color: #111827;
       text-transform: uppercase;
-      margin-bottom: 4px;
+      margin-bottom: 3px;
       border-bottom: 1px solid #E5E7EB;
-      padding-bottom: 3px;
+      padding-bottom: 2px;
     }
     .parc-col-valor-principal {
-      font-size: 13.5px;
+      font-size: 12.5px;
       font-weight: 900;
       color: #065F46;
-      margin: 4px 0 2px 0;
+      margin: 3px 0 1px 0;
       line-height: 1.15;
     }
     .parc-col-sub {
-      font-size: 8.5px;
+      font-size: 8px;
       color: #6B7280;
-      margin-bottom: 6px;
+      margin-bottom: 4px;
     }
     .parc-contas-box {
       border-top: 1px dashed #D1D5DB;
-      padding-top: 5px;
-      margin-top: 4px;
-      font-size: 8.5px;
+      padding-top: 4px;
+      margin-top: 3px;
+      font-size: 8px;
       color: #4B5563;
       text-align: left;
-      line-height: 1.35;
+      line-height: 1.3;
     }
     .parc-contas-box .row-conta {
       display: flex;
       justify-content: space-between;
-      margin-bottom: 1.5px;
+      margin-bottom: 1px;
     }
     .parc-contas-box .row-conta strong {
       color: #111827;
@@ -1083,33 +1084,33 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
     }
 
     .nota-parcelamento-legal {
-      font-size: 8px;
+      font-size: 7.5px;
       color: #6B7280;
       font-style: italic;
-      margin: 2px 0 10px 0;
+      margin: 2px 0 6px 0;
     }
 
     /* TABELA DE PROJEÇÃO DE DESPERDÍCIO X ECONOMIA */
     .tabela-projecao-venda {
       width: 100%;
       border-collapse: collapse;
-      margin-bottom: 8px;
-      font-size: 10px;
+      margin-bottom: 6px;
+      font-size: 9.5px;
     }
     .tabela-projecao-venda th {
       background: #064E3B;
       color: #FFFFFF;
-      padding: 6px 10px;
+      padding: 5px 8px;
       font-weight: 800;
       text-align: left;
-      font-size: 10px;
+      font-size: 9.5px;
       text-transform: uppercase;
       border: 1px solid #064E3B;
     }
     .tabela-projecao-venda td {
       border: 1px solid #D1D5DB;
-      padding: 6px 10px;
-      line-height: 1.35;
+      padding: 5px 8px;
+      line-height: 1.3;
     }
     .td-sem-solar-perda {
       color: #DC2626;
@@ -1126,39 +1127,39 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
     .banner-impacto-25anos {
       background: linear-gradient(135deg, #FEF3C7 0%, #FDE68A 100%);
       border: 1.5px solid #F59E0B;
-      border-radius: 8px;
-      padding: 10px 14px;
+      border-radius: 7px;
+      padding: 7px 12px;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      margin-bottom: 10px;
+      margin-bottom: 7px;
     }
     .impacto-total-texto strong {
-      font-size: 12.5px;
+      font-size: 11.5px;
       color: #78350F;
       display: block;
       font-weight: 900;
       text-transform: uppercase;
     }
     .impacto-total-texto span {
-      font-size: 9.5px;
+      font-size: 9px;
       color: #92400E;
     }
     .impacto-perda-mes {
       background: #FFFFFF;
       border: 1px solid #FCD34D;
-      border-radius: 6px;
-      padding: 6px 10px;
+      border-radius: 5px;
+      padding: 4px 8px;
       text-align: right;
     }
     .impacto-perda-mes-label {
-      font-size: 8.5px;
+      font-size: 8px;
       font-weight: 700;
       color: #92400E;
       text-transform: uppercase;
     }
     .impacto-perda-mes-val {
-      font-size: 14px;
+      font-size: 13px;
       font-weight: 900;
       color: #DC2626;
     }
@@ -1166,20 +1167,20 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
     /* TERMO DE ACEITE & ASSINATURA */
     .aceite-aprovacao-grid {
       border-top: 2px solid #16A34A;
-      padding-top: 10px;
-      margin-top: 6px;
+      padding-top: 7px;
+      margin-top: 4px;
       display: grid;
-      grid-template-columns: 1.1fr 1fr;
-      gap: 16px;
-      font-size: 9.5px;
+      grid-template-columns: 1.15fr 1fr;
+      gap: 12px;
+      font-size: 9px;
       color: #374151;
     }
     .validade-responsabilidade-box {
       background: #F9FAFB;
       border: 1px solid #E5E7EB;
       border-radius: 6px;
-      padding: 8px 10px;
-      line-height: 1.4;
+      padding: 6px 8px;
+      line-height: 1.35;
     }
     .validade-responsabilidade-box strong {
       color: #111827;
@@ -1190,21 +1191,21 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
       justify-content: flex-end;
       align-items: center;
       text-align: center;
-      padding: 6px;
+      padding: 4px;
     }
     .linha-assinatura {
       width: 85%;
       border-bottom: 1.5px solid #111827;
-      margin-bottom: 6px;
+      margin-bottom: 5px;
     }
     .assinatura-nome-cliente {
-      font-size: 10.5px;
+      font-size: 10px;
       font-weight: 800;
       color: #111827;
       text-transform: uppercase;
     }
     .assinatura-doc-cliente {
-      font-size: 9px;
+      font-size: 8.5px;
       color: #6B7280;
     }
 
@@ -1225,7 +1226,7 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
       }
       .proposta-page {
         margin: 0 !important;
-        padding: 8mm 10mm 8mm 10mm !important;
+        padding: 7mm 9mm 7mm 9mm !important;
         box-shadow: none !important;
         border-radius: 0 !important;
         page-break-after: always !important;
