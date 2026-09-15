@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 520 280" fill="none">
+  <defs>
+    <linearGradient id="fav-top" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stopColor="#1B5FAA" />
+      <stop offset="22%" stopColor="#1E7A96" />
+      <stop offset="48%" stopColor="#439E3B" />
+      <stop offset="76%" stopColor="#81B939" />
+      <stop offset="92%" stopColor="#DCBE09" />
+      <stop offset="100%" stopColor="#F5C400" />
+    </linearGradient>
+    <linearGradient id="fav-bottom" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stopColor="#F5C400" />
+      <stop offset="15%" stopColor="#DCBE09" />
+      <stop offset="38%" stopColor="#81B939" />
+      <stop offset="62%" stopColor="#3E9B40" />
+      <stop offset="84%" stopColor="#1E7A96" />
+      <stop offset="100%" stopColor="#1B5FAA" />
+    </linearGradient>
+  </defs>
+  <path d="M 12 96 C 40 50, 125 14, 260 14 C 395 14, 480 50, 514 88 C 455 42, 365 26, 260 26 C 145 26, 55 58, 12 96 Z" fill="url(#fav-top)" />
+  <path d="M 10 184 C 55 224, 140 256, 260 256 C 375 256, 465 226, 514 192 C 480 226, 395 266, 260 266 C 130 266, 45 230, 10 184 Z" fill="url(#fav-bottom)" />
+  <text x="260" y="162" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="94" font-weight="900" letter-spacing="0.22em" fill="#0A539E">delfos</text>
+  <text x="264" y="200" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="25" font-weight="800" letter-spacing="0.68em" fill="#0A539E">solar</text>
+</svg>

@@ -155,7 +155,8 @@ export function gerarHTMLPropostaOM(dados: PropostaPDFInput): string {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      border-bottom: 2px solid #16A34A;
+      border-bottom: 2.5px solid #0B5AA8;
+      border-image: linear-gradient(to right, #0B5AA8 0%, #2E9E43 50%, #FCD200 100%) 1;
       padding-bottom: 12px;
       margin-bottom: 14px;
     }
@@ -164,31 +165,31 @@ export function gerarHTMLPropostaOM(dados: PropostaPDFInput): string {
       align-items: center;
       gap: 12px;
     }
-    .logo-badge {
-      width: 48px;
-      height: 48px;
-      background: linear-gradient(135deg, #166534, #16A34A, #F59E0B);
-      border-radius: 12px;
+    .logo-badge-official {
+      width: 76px;
+      height: 44px;
       display: flex;
       align-items: center;
       justify-content: center;
-      color: white;
-      font-weight: 900;
-      font-size: 24px;
-      box-shadow: 0 2px 6px rgba(22, 163, 74, 0.25);
+      flex-shrink: 0;
+    }
+    .logo-badge-official svg {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
     }
     .company-title {
       font-size: 18px;
-      font-weight: 800;
-      color: #064E3B;
-      letter-spacing: -0.02em;
+      font-weight: 900;
+      color: #0A539E;
+      letter-spacing: -0.01em;
       margin: 0;
       line-height: 1.1;
     }
     .company-subtitle {
       font-size: 10px;
-      font-weight: 600;
-      color: #059669;
+      font-weight: 700;
+      color: #2E9E43;
       text-transform: uppercase;
       letter-spacing: 0.12em;
       margin-top: 2px;
@@ -569,10 +570,39 @@ export function gerarHTMLPropostaOM(dados: PropostaPDFInput): string {
       </button>
     </div>
 
-    <!-- Header Delfos -->
+    <!-- Header Delfos Oficial -->
     <div class="header-bar">
       <div class="brand-section">
-        <div class="logo-badge">☀️</div>
+        <div class="logo-badge-official">
+          <svg viewBox="0 0 520 280" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <linearGradient id="om-grad-top" x1="0%" y1="100%" x2="100%" y2="0%">
+                <stop offset="0%" stop-color="#0B5AA8" />
+                <stop offset="18%" stop-color="#12789E" />
+                <stop offset="42%" stop-color="#2E9E43" />
+                <stop offset="68%" stop-color="#7EBE32" />
+                <stop offset="88%" stop-color="#DECA09" />
+                <stop offset="100%" stop-color="#FCD200" />
+              </linearGradient>
+              <linearGradient id="om-grad-bottom" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#FCD200" />
+                <stop offset="14%" stop-color="#DECA09" />
+                <stop offset="36%" stop-color="#7EBE32" />
+                <stop offset="62%" stop-color="#2E9E43" />
+                <stop offset="84%" stop-color="#12789E" />
+                <stop offset="100%" stop-color="#0B5AA8" />
+              </linearGradient>
+            </defs>
+            <path d="M 10 96 C 45 42, 135 12, 260 12 C 390 12, 475 46, 514 88 C 450 42, 360 26, 260 26 C 145 26, 55 56, 10 96 Z" fill="url(#om-grad-top)" />
+            <path d="M 12 96 C 40 48, 130 16, 260 16 C 395 16, 480 50, 514 88 C 455 42, 365 28, 260 28 C 145 28, 55 58, 12 96 Z" fill="url(#om-grad-top)" opacity="0.95" />
+            <path d="M 10 184 C 55 226, 145 258, 260 258 C 375 258, 465 228, 514 192 C 480 228, 395 268, 260 268 C 130 268, 45 232, 10 184 Z" fill="url(#om-grad-bottom)" />
+            <path d="M 12 184 C 52 214, 135 246, 260 246 C 385 246, 470 224, 514 192 C 480 226, 390 264, 260 264 C 105 264, 35 218, 12 184 Z" fill="url(#om-grad-bottom)" opacity="0.95" />
+            <g fill="#0A539E">
+              <text x="260" y="160" text-anchor="middle" font-family="Arial, -apple-system, BlinkMacSystemFont, sans-serif" font-size="94" font-weight="900" letter-spacing="0.22em">delfos</text>
+              <text x="264" y="200" text-anchor="middle" font-family="Arial, -apple-system, BlinkMacSystemFont, sans-serif" font-size="25" font-weight="800" letter-spacing="0.68em">solar</text>
+            </g>
+          </svg>
+        </div>
         <div>
           <div class="company-title">DELFOS SOLAR</div>
           <div class="company-subtitle">Engenharia e Gestão de Usinas Solares</div>

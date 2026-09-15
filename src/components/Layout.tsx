@@ -151,23 +151,26 @@ export default function Layout() {
       >
         {/* Brand Logo & Toggle Button */}
         <div
-          className={`h-16 px-3 border-b border-[#E5E7EB] flex items-center ${
+          className={`h-16 px-3 border-b border-[#E5E7EB] flex items-center bg-white ${
             isSidebarCollapsed ? 'justify-center relative' : 'justify-between'
           }`}
         >
           <NavLink
             to="/"
-            className="flex items-center justify-center group overflow-hidden"
-            title="Delfos Solar"
+            className="flex items-center justify-center group overflow-hidden py-1"
+            title="Delfos Solar - Ir para o início"
           >
             {isSidebarCollapsed ? (
               <DelfosLogo
-                height={38}
+                height={36}
                 collapsed
-                className="transition-transform group-hover:scale-105"
+                className="transition-transform duration-200 group-hover:scale-110 drop-shadow-xs"
               />
             ) : (
-              <DelfosLogo height={42} className="transition-transform group-hover:scale-105" />
+              <DelfosLogo
+                height={44}
+                className="transition-transform duration-200 group-hover:scale-105 drop-shadow-xs"
+              />
             )}
           </NavLink>
 
@@ -316,13 +319,14 @@ export default function Layout() {
           />
           <div className="relative z-50 w-72 max-w-[80%] bg-white h-full shadow-2xl flex flex-col animate-in slide-in-from-left duration-250">
             {/* Header */}
-            <div className="p-4 border-b border-gray-200 flex items-center justify-between">
+            <div className="p-4 border-b border-gray-200 flex items-center justify-between bg-white">
               <NavLink
                 to="/"
                 onClick={() => setMobileMenuOpen(false)}
-                className="flex items-center"
+                className="flex items-center py-1"
+                title="Delfos Solar"
               >
-                <DelfosLogo height={40} />
+                <DelfosLogo height={42} />
               </NavLink>
               <button
                 onClick={() => setMobileMenuOpen(false)}
@@ -387,7 +391,7 @@ export default function Layout() {
       <div className="flex-1 flex flex-col min-w-0">
         {/* Top Header */}
         <header className="h-16 bg-white border-b border-[#E5E7EB] px-3 sm:px-6 lg:px-8 flex items-center justify-between gap-3 sticky top-0 z-20">
-          {/* Lado Esquerdo: Hambúrguer em Mobile + Barra de Busca Central Estilo Pipedrive */}
+          {/* Lado Esquerdo: Hambúrguer em Mobile + Logo Compacto em mobile + Barra de Busca Central */}
           <div className="flex items-center gap-2 sm:gap-3 flex-1 max-w-2xl min-w-0">
             <button
               onClick={() => setMobileMenuOpen(true)}
@@ -396,6 +400,11 @@ export default function Layout() {
             >
               <Menu className="w-5 h-5" />
             </button>
+
+            {/* Logo sutil no topo mobile quando a sidebar está recolhida */}
+            <NavLink to="/" className="lg:hidden flex items-center shrink-0 pr-1">
+              <DelfosLogo height={30} />
+            </NavLink>
 
             {/* Barra de Busca Proeminente ocupando o espaço onde ficava o título repetido */}
             <div className="flex-1 min-w-0">

@@ -81,18 +81,22 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-screen bg-[#F8FAF9] flex flex-col justify-center items-center p-4">
-      {/* Decorative background sun radial blur */}
-      <div className="absolute top-1/4 w-72 h-72 bg-emerald-300/20 rounded-full blur-3xl pointer-events-none" />
+    <div className="min-h-screen bg-gradient-to-b from-emerald-50/40 via-[#F8FAF9] to-slate-100 flex flex-col justify-center items-center p-4 relative overflow-hidden">
+      {/* Decorative background gradients (azul e verde-dourado da marca) */}
+      <div className="absolute top-10 left-1/4 w-80 h-80 bg-emerald-400/15 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute bottom-10 right-1/4 w-80 h-80 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute top-1/3 right-1/3 w-64 h-64 bg-amber-300/15 rounded-full blur-3xl pointer-events-none" />
 
-      <div className="w-full max-w-md bg-white rounded-2xl shadow-xl border border-gray-100 p-8 relative z-10">
+      <div className="w-full max-w-md bg-white/95 backdrop-blur-sm rounded-2xl shadow-xl border border-emerald-100/80 p-8 relative z-10 transition-all">
         {/* Brand */}
-        <div className="flex flex-col items-center text-center mb-8">
-          <div className="mb-3 py-1 flex items-center justify-center">
-            <DelfosLogo height={64} />
+        <div className="flex flex-col items-center text-center mb-7">
+          <div className="mb-3 py-1 px-4 flex items-center justify-center hover:scale-105 transition-transform duration-300">
+            <DelfosLogo height={72} />
           </div>
-          <h1 className="text-xl font-bold text-gray-900 tracking-tight">Painel de Acesso</h1>
-          <p className="text-xs text-gray-500 mt-1">CRM & Gestão Operacional de Energia Solar</p>
+          <h1 className="text-xl font-extrabold text-gray-900 tracking-tight">Painel de Acesso</h1>
+          <p className="text-xs text-emerald-800 font-semibold mt-1">
+            CRM & Gestão Operacional de Usinas Fotovoltaicas
+          </p>
         </div>
 
         {error && !isForgotMode && (

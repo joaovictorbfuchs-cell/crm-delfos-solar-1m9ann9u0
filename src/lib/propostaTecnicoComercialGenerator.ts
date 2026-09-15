@@ -212,21 +212,38 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
     </div>
     `
 
-  // Cabeçalho de topo reutilizável (repetido de forma consistente em cada página)
+  // Cabeçalho de topo reutilizável com o logotipo oficial Delfos Solar (repetido nas 4 páginas)
   const renderHeader = (pageNumber: number, totalPages: number = 4) => `
     <header class="page-header">
       <div class="header-brand">
-        <div class="brand-symbol">
-          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#FFFFFF" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="5"></circle>
-            <line x1="12" y1="1" x2="12" y2="3"></line>
-            <line x1="12" y1="21" x2="12" y2="23"></line>
-            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
-            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
-            <line x1="1" y1="12" x2="3" y2="12"></line>
-            <line x1="21" y1="12" x2="23" y2="12"></line>
-            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
-            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+        <div class="brand-logo-wrap">
+          <svg viewBox="0 0 520 280" fill="none" class="brand-logo-svg" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <linearGradient id="hdr-grad-top-${pageNumber}" x1="0%" y1="100%" x2="100%" y2="0%">
+                <stop offset="0%" stop-color="#0B5AA8" />
+                <stop offset="18%" stop-color="#12789E" />
+                <stop offset="42%" stop-color="#2E9E43" />
+                <stop offset="68%" stop-color="#7EBE32" />
+                <stop offset="88%" stop-color="#DECA09" />
+                <stop offset="100%" stop-color="#FCD200" />
+              </linearGradient>
+              <linearGradient id="hdr-grad-bottom-${pageNumber}" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#FCD200" />
+                <stop offset="14%" stop-color="#DECA09" />
+                <stop offset="36%" stop-color="#7EBE32" />
+                <stop offset="62%" stop-color="#2E9E43" />
+                <stop offset="84%" stop-color="#12789E" />
+                <stop offset="100%" stop-color="#0B5AA8" />
+              </linearGradient>
+            </defs>
+            <path d="M 10 96 C 45 42, 135 12, 260 12 C 390 12, 475 46, 514 88 C 450 42, 360 26, 260 26 C 145 26, 55 56, 10 96 Z" fill="url(#hdr-grad-top-${pageNumber})" />
+            <path d="M 12 96 C 40 48, 130 16, 260 16 C 395 16, 480 50, 514 88 C 455 42, 365 28, 260 28 C 145 28, 55 58, 12 96 Z" fill="url(#hdr-grad-top-${pageNumber})" opacity="0.95" />
+            <path d="M 10 184 C 55 226, 145 258, 260 258 C 375 258, 465 228, 514 192 C 480 228, 395 268, 260 268 C 130 268, 45 232, 10 184 Z" fill="url(#hdr-grad-bottom-${pageNumber})" />
+            <path d="M 12 184 C 52 214, 135 246, 260 246 C 385 246, 470 224, 514 192 C 480 226, 390 264, 260 264 C 105 264, 35 218, 12 184 Z" fill="url(#hdr-grad-bottom-${pageNumber})" opacity="0.95" />
+            <g fill="#0A539E">
+              <text x="260" y="160" text-anchor="middle" font-family="Arial, -apple-system, BlinkMacSystemFont, sans-serif" font-size="94" font-weight="900" letter-spacing="0.22em">delfos</text>
+              <text x="264" y="200" text-anchor="middle" font-family="Arial, -apple-system, BlinkMacSystemFont, sans-serif" font-size="25" font-weight="800" letter-spacing="0.68em">solar</text>
+            </g>
           </svg>
         </div>
         <div class="brand-text">
@@ -368,7 +385,8 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
       display: flex;
       align-items: center;
       justify-content: space-between;
-      border-bottom: 2px solid #16A34A;
+      border-bottom: 2.5px solid #0B5AA8;
+      border-image: linear-gradient(to right, #0B5AA8 0%, #2E9E43 50%, #FCD200 100%) 1;
       padding-bottom: 6px;
       margin-bottom: 8px;
       gap: 10px;
@@ -376,30 +394,32 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
     .header-brand {
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 10px;
     }
-    .brand-symbol {
-      width: 38px;
+    .brand-logo-wrap {
+      width: 64px;
       height: 38px;
-      border-radius: 8px;
-      background: linear-gradient(135deg, #166534 0%, #16A34A 50%, #EAB308 100%);
       display: flex;
       align-items: center;
       justify-content: center;
-      box-shadow: 0 2px 5px rgba(22, 163, 74, 0.35);
       flex-shrink: 0;
+    }
+    .brand-logo-svg {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
     }
     .brand-title {
       font-size: 17px;
       font-weight: 900;
-      color: #064E3B;
+      color: #0A539E;
       letter-spacing: -0.01em;
       line-height: 1.1;
     }
     .brand-tagline {
       font-size: 8.5px;
       font-weight: 800;
-      color: #16A34A;
+      color: #2E9E43;
       text-transform: uppercase;
       letter-spacing: 0.08em;
       margin-top: 1px;

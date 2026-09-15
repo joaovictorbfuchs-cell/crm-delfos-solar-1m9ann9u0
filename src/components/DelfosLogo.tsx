@@ -1,20 +1,23 @@
 import React from 'react'
-import logoPng from '@/assets/delfos-solar-a46ea.png'
+import logoPng from '@/assets/delfos-solar-09ea2.png'
 
-interface DelfosLogoProps {
+export { logoPng as delfosLogoAsset }
+
+export interface DelfosLogoProps {
   className?: string
   /**
-   * Largura ou estilo personalizado.
+   * Largura ou altura personalizada.
    */
   height?: number | string
   width?: number | string
   /**
-   * Se true, renderiza a imagem PNG original salva dos assets se preferir bitmap,
-   * mas por padrão renderizamos o SVG vetorial nítido e responsivo.
+   * 'image' usa o asset PNG oficial de alta fidelidade salvo pelo usuário.
+   * 'svg' usa a versão vetorial cristalina com os gradientes precisos da marca.
+   * Padrão: 'svg' para nitidez vetorial máxima e carregamento instantâneo.
    */
   variant?: 'svg' | 'image'
   /**
-   * Se true, renderiza apenas o símbolo (swoosh de sol) sem o texto, ideal para sidebar recolhida.
+   * Se true, renderiza versão compactada ideal para sidebar recolhida.
    */
   collapsed?: boolean
 }
@@ -66,75 +69,60 @@ export const DelfosLogo: React.FC<DelfosLogoProps> = ({
     >
       <defs>
         {/* Gradiente do Swoosh Superior:
-            Ponta esquerda em azul (#185A9D), arco central em verde (#4C9F38 / #5DB63F),
-            transicionando para verde-dourado e ponta direita em amarelo vibrante (#F5C400) */}
-        <linearGradient id="delfos-swoosh-top" x1="0%" y1="100%" x2="100%" y2="0%">
-          <stop offset="0%" stopColor="#1B5FAA" />
-          <stop offset="18%" stopColor="#1E7A96" />
-          <stop offset="42%" stopColor="#439E3B" />
-          <stop offset="68%" stopColor="#81B939" />
-          <stop offset="88%" stopColor="#DCBE09" />
-          <stop offset="100%" stopColor="#F5C400" />
+            Azul profundo (#0B5AA8) -> Teal (#1A8E9A) -> Verde folha (#3EAF3F) -> Verde-dourado (#9CC52E) -> Amarelo solar (#FCD200) */}
+        <linearGradient id="delfos-grad-top" x1="0%" y1="100%" x2="100%" y2="0%">
+          <stop offset="0%" stopColor="#0B5AA8" />
+          <stop offset="18%" stopColor="#12789E" />
+          <stop offset="42%" stopColor="#2E9E43" />
+          <stop offset="68%" stopColor="#7EBE32" />
+          <stop offset="88%" stopColor="#DECA09" />
+          <stop offset="100%" stopColor="#FCD200" />
         </linearGradient>
 
         {/* Gradiente do Swoosh Inferior:
-            Ponta esquerda em amarelo (#F5C400), passando por verde dourado (#92BF33),
-            verde (#439E3B), verde azulado / teal (#1D7A8F) e finalizando em azul (#1B5FAA) */}
-        <linearGradient id="delfos-swoosh-bottom" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#F5C400" />
-          <stop offset="15%" stopColor="#DCBE09" />
-          <stop offset="35%" stopColor="#81B939" />
-          <stop offset="60%" stopColor="#3E9B40" />
-          <stop offset="82%" stopColor="#1E7A96" />
-          <stop offset="100%" stopColor="#1B5FAA" />
+            Amarelo solar (#FCD200) -> Dourado (#DECA09) -> Verde (#3EAF3F) -> Teal (#12789E) -> Azul (#0B5AA8) */}
+        <linearGradient id="delfos-grad-bottom" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#FCD200" />
+          <stop offset="14%" stopColor="#DECA09" />
+          <stop offset="36%" stopColor="#7EBE32" />
+          <stop offset="62%" stopColor="#2E9E43" />
+          <stop offset="84%" stopColor="#12789E" />
+          <stop offset="100%" stopColor="#0B5AA8" />
         </linearGradient>
       </defs>
 
       {/* Swoosh Superior */}
-      {/*
-        Forma de pincelada curva em arco que envolve a parte de cima:
-        começa numa ponta afunilada à esquerda em torno de (6, 95),
-        engrossa até o topo central (260, 20) com espessura até (260, 48),
-        e se estreita na ponta direita arredondada/afilada em torno de (514, 88).
-      */}
       <path
-        d="M 12 96 C 35 62, 105 18, 260 18 C 390 18, 480 55, 514 88 C 470 54, 385 36, 260 36 C 135 36, 52 68, 12 96 Z"
-        fill="url(#delfos-swoosh-top)"
+        d="M 10 96 C 45 42, 135 12, 260 12 C 390 12, 475 46, 514 88 C 450 42, 360 26, 260 26 C 145 26, 55 56, 10 96 Z"
+        fill="url(#delfos-grad-top)"
       />
-      {/* Camada interna para dar o corpo e volume mais grosso do swoosh idêntico à imagem */}
       <path
-        d="M 10 96 C 45 48, 130 14, 260 14 C 400 14, 485 52, 514 88 C 450 44, 360 28, 260 28 C 145 28, 55 58, 10 96 Z"
-        fill="url(#delfos-swoosh-top)"
+        d="M 12 96 C 40 48, 130 16, 260 16 C 395 16, 480 50, 514 88 C 455 42, 365 28, 260 28 C 145 28, 55 58, 12 96 Z"
+        fill="url(#delfos-grad-top)"
         opacity="0.95"
       />
 
       {/* Swoosh Inferior */}
-      {/*
-        Forma de pincelada curva invertida que envolve a parte de baixo:
-        começa na ponta esquerda afilada em torno de (6, 184),
-        engrossa no ventre inferior central (260, 266) com topo em (260, 240),
-        e termina na ponta direita em (514, 192).
-      */}
       <path
-        d="M 10 184 C 55 222, 145 252, 260 252 C 360 252, 450 236, 514 192 C 485 228, 400 266, 260 266 C 130 266, 45 232, 10 184 Z"
-        fill="url(#delfos-swoosh-bottom)"
-        opacity="0.95"
+        d="M 10 184 C 55 226, 145 258, 260 258 C 375 258, 465 228, 514 192 C 480 228, 395 268, 260 268 C 130 268, 45 232, 10 184 Z"
+        fill="url(#delfos-grad-bottom)"
       />
       <path
-        d="M 12 184 C 52 212, 135 244, 260 244 C 385 244, 470 226, 514 192 C 480 225, 390 262, 260 262 C 105 262, 35 218, 12 184 Z"
-        fill="url(#delfos-swoosh-bottom)"
+        d="M 12 184 C 52 214, 135 246, 260 246 C 385 246, 470 224, 514 192 C 480 226, 390 264, 260 264 C 105 264, 35 218, 12 184 Z"
+        fill="url(#delfos-grad-bottom)"
+        opacity="0.95"
       />
 
       {/* Texto Central: "delfos" */}
       {!collapsed && (
-        <g fill="#175EA8">
+        <g fill="#0A539E">
           <text
             x="260"
-            y="162"
+            y="160"
             textAnchor="middle"
             fontFamily="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif"
-            fontSize="92"
-            fontWeight="800"
+            fontSize="94"
+            fontWeight="900"
             letterSpacing="0.22em"
           >
             delfos
@@ -146,25 +134,27 @@ export const DelfosLogo: React.FC<DelfosLogoProps> = ({
             y="200"
             textAnchor="middle"
             fontFamily="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif"
-            fontSize="24"
-            fontWeight="700"
+            fontSize="25"
+            fontWeight="800"
             letterSpacing="0.68em"
           >
             solar
           </text>
         </g>
       )}
+
+      {/* Versão compactada para sidebar recolhida: Letra 'd' emblemática no centro */}
       {collapsed && (
-        <g fill="#175EA8">
+        <g fill="#0A539E">
           <text
             x="260"
-            y="180"
+            y="178"
             textAnchor="middle"
             fontFamily="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif"
             fontSize="120"
             fontWeight="900"
           >
-            D
+            d
           </text>
         </g>
       )}

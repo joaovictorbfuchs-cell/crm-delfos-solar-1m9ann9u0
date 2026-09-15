@@ -22,7 +22,7 @@ import {
   formatarOrientacao,
   formatarTipoEstrutura,
 } from '@/lib/propostaSolarGenerator'
-import logoPng from '@/assets/delfos-solar-a46ea.png'
+import logoPng from '@/assets/delfos-solar-09ea2.png'
 
 // Cores da identidade visual Delfos Solar
 const COLOR_PRIMARY = '166534' // Verde Escuro Delfos (#166534)

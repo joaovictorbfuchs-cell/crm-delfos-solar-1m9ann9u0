@@ -63,14 +63,13 @@ export function RedefinirSenha() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-muted/40 p-4">
+    <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-emerald-50/40 via-[#F8FAF9] to-slate-100 p-4">
       <div className="w-full max-w-md space-y-6">
         <div className="text-center space-y-2">
           <div className="flex justify-center mb-2">
-            <DelfosLogo height={56} />
+            <DelfosLogo height={64} />
           </div>
-          <div className="flex items-center justify-center gap-1.5 text-xs text-primary font-medium tracking-wide uppercase">
-            <Sun className="h-3.5 w-3.5" />
+          <div className="flex items-center justify-center gap-1.5 text-xs text-emerald-800 font-bold tracking-wide uppercase">
             CRM & Gestão Operacional Solar
           </div>
         </div>
