@@ -32,134 +32,148 @@ const App = () => (
       <TooltipProvider>
         <Toaster />
         <Sonner />
-        <ErrorBoundary errorMessage="Ocorreu um problema ao carregar a página">
-          <Routes>
-            {/* Rotas públicas: montam de forma independente do ClientesProvider */}
-            <Route path="/login" element={<Login />} />
-            <Route path="/redefinir-senha" element={<RedefinirSenha />} />
+        <Routes>
+          {/* Rotas públicas: montam de forma 100% independente do ClientesProvider e protegidas pelo ErrorBoundary dedicado */}
+          <Route
+            path="/login"
+            element={
+              <ErrorBoundary errorMessage="Ocorreu um problema ao carregar o painel de acesso">
+                <Login />
+              </ErrorBoundary>
+            }
+          />
+          <Route
+            path="/redefinir-senha"
+            element={
+              <ErrorBoundary errorMessage="Ocorreu um problema ao carregar a recuperação de senha">
+                <RedefinirSenha />
+              </ErrorBoundary>
+            }
+          />
 
-            {/* Rotas protegidas (autenticadas): envelopadas pelo ClientesProvider */}
-            <Route
-              element={
+          {/* Rotas protegidas (autenticadas): envelopadas pelo ClientesProvider */}
+          <Route
+            element={
+              <ErrorBoundary errorMessage="Ocorreu um problema ao carregar a página">
                 <ProtectedRoute>
                   <ClientesProvider>
                     <Layout />
                   </ClientesProvider>
                 </ProtectedRoute>
-              }
-            >
-              {/* Rota comum ou permitida a ambos */}
-              <Route path="/execucao-os" element={<ExecucaoOS />} />
+              </ErrorBoundary>
+            }
+          >
+            {/* Rota comum ou permitida a ambos */}
+            <Route path="/execucao-os" element={<ExecucaoOS />} />
 
-              {/* Rotas restritas para Administradores: Layout já tem ProtectedRoute de autenticação geral, aqui apenas requiredRole="admin" se necessário */}
-              <Route
-                path="/"
-                element={
-                  <ProtectedRoute requiredRole="admin">
-                    <Index />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/comercial"
-                element={
-                  <ProtectedRoute requiredRole="admin">
-                    <Comercial />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/central-atendimento"
-                element={
-                  <ProtectedRoute requiredRole="admin">
-                    <CentralAtendimento />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/orcamentos"
-                element={
-                  <ProtectedRoute requiredRole="admin">
-                    <Orcamentos />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/projetos"
-                element={
-                  <ProtectedRoute requiredRole="admin">
-                    <Projetos />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/atividades"
-                element={
-                  <ProtectedRoute requiredRole="admin">
-                    <Atividades />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/manutencoes"
-                element={
-                  <ProtectedRoute requiredRole="admin">
-                    <Manutencoes />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/clientes"
-                element={
-                  <ProtectedRoute requiredRole="admin">
-                    <Clientes />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/gerenciar-usuarios"
-                element={
-                  <ProtectedRoute requiredRole="admin">
-                    <GerenciarUsuarios />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/importar-clientes"
-                element={
-                  <ProtectedRoute requiredRole="admin">
-                    <ImportarClientes />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/importar-acessos"
-                element={
-                  <ProtectedRoute requiredRole="admin">
-                    <ImportarAcessos />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/fornecedores"
-                element={
-                  <ProtectedRoute requiredRole="admin">
-                    <Fornecedores />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/instalacoes-galeria"
-                element={
-                  <ProtectedRoute requiredRole="admin">
-                    <InstalacoesGaleriaPage />
-                  </ProtectedRoute>
-                }
-              />
-            </Route>
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </ErrorBoundary>
+            {/* Rotas restritas para Administradores: Layout já tem ProtectedRoute de autenticação geral, aqui apenas requiredRole="admin" se necessário */}
+            <Route
+              path="/"
+              element={
+                <ProtectedRoute requiredRole="admin">
+                  <Index />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/comercial"
+              element={
+                <ProtectedRoute requiredRole="admin">
+                  <Comercial />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/central-atendimento"
+              element={
+                <ProtectedRoute requiredRole="admin">
+                  <CentralAtendimento />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/orcamentos"
+              element={
+                <ProtectedRoute requiredRole="admin">
+                  <Orcamentos />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/projetos"
+              element={
+                <ProtectedRoute requiredRole="admin">
+                  <Projetos />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/atividades"
+              element={
+                <ProtectedRoute requiredRole="admin">
+                  <Atividades />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/manutencoes"
+              element={
+                <ProtectedRoute requiredRole="admin">
+                  <Manutencoes />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/clientes"
+              element={
+                <ProtectedRoute requiredRole="admin">
+                  <Clientes />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/gerenciar-usuarios"
+              element={
+                <ProtectedRoute requiredRole="admin">
+                  <GerenciarUsuarios />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/importar-clientes"
+              element={
+                <ProtectedRoute requiredRole="admin">
+                  <ImportarClientes />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/importar-acessos"
+              element={
+                <ProtectedRoute requiredRole="admin">
+                  <ImportarAcessos />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/fornecedores"
+              element={
+                <ProtectedRoute requiredRole="admin">
+                  <Fornecedores />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/instalacoes-galeria"
+              element={
+                <ProtectedRoute requiredRole="admin">
+                  <InstalacoesGaleriaPage />
+                </ProtectedRoute>
+              }
+            />
+          </Route>
+          <Route path="*" element={<NotFound />} />
+        </Routes>
       </TooltipProvider>
     </AuthProvider>
   </BrowserRouter>
