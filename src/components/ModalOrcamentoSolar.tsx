@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react'
+import React, { useState, useMemo, useEffect, useRef } from 'react'
 import {
   X,
   Sun,
@@ -24,6 +24,7 @@ import {
   Send,
   FileDown,
   Download,
+  RotateCcw,
 } from 'lucide-react'
 import { ModalEnviarDocumentoWhatsApp } from './ModalEnviarDocumentoWhatsApp'
 import { SecaoOrcamentosFornecedores } from './SecaoOrcamentosFornecedores'
@@ -139,8 +140,28 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
   const [parcelasBanco2, setParcelasBanco2] = useState<number>(60)
   const [jurosBanco2, setJurosBanco2] = useState<number>(0.99)
 
-  // Inicializa ou sincroniza cliente e orçamento
+  // Ref para acessar a lista de clientes atual sem colocá-la como dependência do efeito de inicialização
+  const clientesRef = useRef(clientes)
   useEffect(() => {
+    clientesRef.current = clientes
+  }, [clientes])
+
+  // Ref para evitar que o efeito de inicialização sobrescreva o estado do modal se os inputs não mudaram
+  const lastInitializedKeyRef = useRef<string | null>(null)
+
+  // Inicializa ou sincroniza cliente e orçamento somente ao abrir ou ao mudar initialOrcamento / initialClienteId
+  useEffect(() => {
+    if (!isOpen) {
+      lastInitializedKeyRef.current = null
+      return
+    }
+
+    const currentKey = `${initialOrcamento?.id || 'novo'}_${initialClienteId || ''}`
+    if (lastInitializedKeyRef.current === currentKey) {
+      return
+    }
+    lastInitializedKeyRef.current = currentKey
+
     if (initialOrcamento) {
       setSelectedClienteId(initialOrcamento.cliente_id)
       setStatus(initialOrcamento.status || 'Em elaboração')
@@ -289,14 +310,15 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
       setParcelasBanco2(60)
       setJurosBanco2(0.99)
 
+      const listaClientes = clientesRef.current
       if (initialClienteId) {
         setSelectedClienteId(initialClienteId)
-      } else if (clientes.length > 0 && !selectedClienteId) {
-        setSelectedClienteId(clientes[0].id)
+      } else if (listaClientes.length > 0) {
+        setSelectedClienteId(listaClientes[0].id)
       }
     }
     setWordDocxBlob(null)
-  }, [initialOrcamento, initialClienteId, clientes])
+  }, [isOpen, initialOrcamento, initialClienteId])
 
   // Quando o cliente selecionado mudar (e não for edição de orçamento existente), buscar dados automáticos do cliente/sistema
   const clienteAtual = useMemo(() => {
@@ -479,6 +501,12 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
       }
     })
   }, [resultadoCustosAba, opcaoImposto, valorPorPlaca])
+
+  // Fornecedor selecionado atualmente no comparativo / contexto
+  const fornecedorSelecionadoObj = useMemo(() => {
+    if (!fornecedorSelecionadoId) return null
+    return fornecedoresOrcamentos.find((f) => f.id === fornecedorSelecionadoId) || null
+  }, [fornecedoresOrcamentos, fornecedorSelecionadoId])
 
   // Custo somado da aba de custos: se as fórmulas automáticas geraram valorTotal, usa ele; senão soma direta
   const totalCustosCalculado = useMemo(() => {
@@ -1611,12 +1639,28 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                       <label className="text-[11px] font-medium text-gray-700">
                         Materiais / Equipamentos (R$)
                       </label>
-                      <span
-                        className="text-[10px] text-emerald-700 font-semibold cursor-help"
-                        title="Alimentado automaticamente ao selecionar fornecedor na tabela abaixo, podendo ser editado manualmente a qualquer momento"
-                      >
-                        Auto/Fornecedor
-                      </span>
+                      <div className="flex items-center gap-1.5">
+                        {fornecedorSelecionadoObj && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const valorForn = Number(fornecedorSelecionadoObj.valor_total) || 0
+                              updateCustoField('materiaisEquipamentos', valorForn)
+                            }}
+                            className="inline-flex items-center gap-1 text-[10px] text-emerald-700 hover:text-emerald-800 font-medium hover:underline bg-emerald-50 hover:bg-emerald-100 px-1.5 py-0.5 rounded border border-emerald-200 transition-colors"
+                            title={`Reaplicar ${formatCurrency(Number(fornecedorSelecionadoObj.valor_total) || 0)} do fornecedor ${fornecedorSelecionadoObj.fornecedor_nome}`}
+                          >
+                            <RotateCcw className="w-2.5 h-2.5" />
+                            Atualizar do fornecedor
+                          </button>
+                        )}
+                        <span
+                          className="text-[10px] text-emerald-700 font-semibold cursor-help"
+                          title="Alimentado automaticamente ao selecionar fornecedor na tabela abaixo, podendo ser editado manualmente a qualquer momento"
+                        >
+                          Auto/Fornecedor
+                        </span>
+                      </div>
                     </div>
                     <input
                       type="number"
