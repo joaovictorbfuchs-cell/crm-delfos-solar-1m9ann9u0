@@ -356,6 +356,15 @@ export function calcularCustosAba(params: ParametrosCalculoCustosAba): Resultado
   }
 }
 
+export interface ConfiguracaoParcelamentosInput {
+  parcelasCartao?: number
+  jurosCartao?: number
+  parcelasBanco1?: number
+  jurosBanco1?: number
+  parcelasBanco2?: number
+  jurosBanco2?: number
+}
+
 export interface InputCalculoSolar {
   consumoKwhMes: number
   tipoCliente: TipoClienteSolar
@@ -364,6 +373,7 @@ export interface InputCalculoSolar {
   orientacaoTelhado?: OrientacaoTelhadoSolar
   custos?: Partial<DadosCustosSolar>
   valorInvestimentoInformado?: number
+  configParcelamentos?: ConfiguracaoParcelamentosInput
 }
 
 /**
@@ -515,48 +525,81 @@ export function calcularOrcamentoSolar(input: InputCalculoSolar): CalculosSolarR
     economiaMensalLiquida: economia1Mes,
   }
 
-  // 2) Cartão de crédito em 18 vezes com juros típicos (ex: 1.49% a.m.)
-  const taxaCartao18x = 1.49
-  const parcelaCartao18x = calcularParcelaPrice(valorInvestimento, taxaCartao18x, 18)
+  // 2) Cartão de crédito (padrão: 18x e 1.49% a.m. ou configurado)
+  const parcelasCartao = Math.max(
+    1,
+    input.configParcelamentos?.parcelasCartao !== undefined
+      ? Number(input.configParcelamentos.parcelasCartao) || 18
+      : 18,
+  )
+  const taxaCartao = Math.max(
+    0,
+    input.configParcelamentos?.jurosCartao !== undefined
+      ? Number(input.configParcelamentos.jurosCartao) || 0
+      : 1.49,
+  )
+  const parcelaCartao = calcularParcelaPrice(valorInvestimento, taxaCartao, parcelasCartao)
   const cartao18x: ParcelamentoItem = {
-    titulo: 'Cartão de Crédito 18x',
-    descricao: '18x no cartão de crédito',
-    numeroParcelas: 18,
-    taxaJurosMensal: taxaCartao18x,
-    valorParcela: parcelaCartao18x,
-    valorTotal: parcelaCartao18x * 18,
+    titulo: `Cartão de Crédito ${parcelasCartao}x`,
+    descricao: `${parcelasCartao}x no cartão de crédito`,
+    numeroParcelas: parcelasCartao,
+    taxaJurosMensal: taxaCartao,
+    valorParcela: parcelaCartao,
+    valorTotal: parcelaCartao * parcelasCartao,
     contaSemSolar: contaAtualSemSolarMes,
     contaComSolar: contaPrimeiroMesComSolar,
-    desembolsoMensal: parcelaCartao18x + contaPrimeiroMesComSolar,
-    economiaMensalLiquida: contaAtualSemSolarMes - (parcelaCartao18x + contaPrimeiroMesComSolar),
+    desembolsoMensal: parcelaCartao + contaPrimeiroMesComSolar,
+    economiaMensalLiquida: contaAtualSemSolarMes - (parcelaCartao + contaPrimeiroMesComSolar),
   }
 
-  // 3) Financiamento Banco 1: em até 60 vezes com juros de 1,9% ao mês
-  const taxaFinancBanco1 = 1.9
-  const parcelaFinancBanco1 = calcularParcelaPrice(valorInvestimento, taxaFinancBanco1, 60)
+  // 3) Financiamento Banco 1 (padrão: 60x e 1.90% a.m. ou configurado)
+  const parcelasBanco1 = Math.max(
+    1,
+    input.configParcelamentos?.parcelasBanco1 !== undefined
+      ? Number(input.configParcelamentos.parcelasBanco1) || 60
+      : 60,
+  )
+  const taxaBanco1 = Math.max(
+    0,
+    input.configParcelamentos?.jurosBanco1 !== undefined
+      ? Number(input.configParcelamentos.jurosBanco1) || 0
+      : 1.9,
+  )
+  const parcelaFinancBanco1 = calcularParcelaPrice(valorInvestimento, taxaBanco1, parcelasBanco1)
   const financiamentoBanco1: ParcelamentoItem = {
     titulo: 'Financiamento Banco 1',
-    descricao: 'Até 60x com juros de 1,9% a.m.',
-    numeroParcelas: 60,
-    taxaJurosMensal: taxaFinancBanco1,
+    descricao: `Até ${parcelasBanco1}x com juros de ${taxaBanco1.toFixed(2).replace('.', ',')}% a.m.`,
+    numeroParcelas: parcelasBanco1,
+    taxaJurosMensal: taxaBanco1,
     valorParcela: parcelaFinancBanco1,
-    valorTotal: parcelaFinancBanco1 * 60,
+    valorTotal: parcelaFinancBanco1 * parcelasBanco1,
     contaSemSolar: contaAtualSemSolarMes,
     contaComSolar: contaPrimeiroMesComSolar,
     desembolsoMensal: parcelaFinancBanco1 + contaPrimeiroMesComSolar,
     economiaMensalLiquida: contaAtualSemSolarMes - (parcelaFinancBanco1 + contaPrimeiroMesComSolar),
   }
 
-  // 4) Financiamento Banco 2: parcela menor com juros de 0,99% ao mês (ex: 60x a 0,99% a.m. cooperativas/linhas verdes)
-  const taxaFinancBanco2 = 0.99
-  const parcelaFinancBanco2 = calcularParcelaPrice(valorInvestimento, taxaFinancBanco2, 60)
+  // 4) Financiamento Banco 2 (padrão: 60x e 0.99% a.m. ou configurado)
+  const parcelasBanco2 = Math.max(
+    1,
+    input.configParcelamentos?.parcelasBanco2 !== undefined
+      ? Number(input.configParcelamentos.parcelasBanco2) || 60
+      : 60,
+  )
+  const taxaBanco2 = Math.max(
+    0,
+    input.configParcelamentos?.jurosBanco2 !== undefined
+      ? Number(input.configParcelamentos.jurosBanco2) || 0
+      : 0.99,
+  )
+  const parcelaFinancBanco2 = calcularParcelaPrice(valorInvestimento, taxaBanco2, parcelasBanco2)
   const financiamentoBanco2: ParcelamentoItem = {
     titulo: 'Financiamento Banco 2',
-    descricao: 'Até 60x com juros reduzidos de 0,99% a.m.',
-    numeroParcelas: 60,
-    taxaJurosMensal: taxaFinancBanco2,
+    descricao: `Até ${parcelasBanco2}x com juros de ${taxaBanco2.toFixed(2).replace('.', ',')}% a.m.`,
+    numeroParcelas: parcelasBanco2,
+    taxaJurosMensal: taxaBanco2,
     valorParcela: parcelaFinancBanco2,
-    valorTotal: parcelaFinancBanco2 * 60,
+    valorTotal: parcelaFinancBanco2 * parcelasBanco2,
     contaSemSolar: contaAtualSemSolarMes,
     contaComSolar: contaPrimeiroMesComSolar,
     desembolsoMensal: parcelaFinancBanco2 + contaPrimeiroMesComSolar,

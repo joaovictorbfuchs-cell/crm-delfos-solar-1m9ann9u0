@@ -650,8 +650,7 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
                   ],
                 }),
               ],
-            }),
-            // Card 4: Payback
+            }), // Card 4: Payback
             new TableCell({
               width: { size: PAGE_CONTENT_WIDTH - colCardWidth * 3, type: WidthType.DXA },
               shading: { type: ShadingType.CLEAR, fill: COLOR_LIGHT_BG },
@@ -1124,7 +1123,7 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
                   alignment: AlignmentType.CENTER,
                   children: [
                     new TextRun({
-                      text: '18x no cartão de crédito',
+                      text: `${parc.cartao18x.numeroParcelas}x no cartão (${parc.cartao18x.taxaJurosMensal.toFixed(2).replace('.', ',')}% a.m.)`,
                       size: 15,
                       color: COLOR_TEXT_MUTED,
                     }),
@@ -1180,7 +1179,7 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
                   alignment: AlignmentType.CENTER,
                   children: [
                     new TextRun({
-                      text: '60x bancário (1,90% a.m.)',
+                      text: `${parc.financiamentoBanco1.numeroParcelas}x bancário (${parc.financiamentoBanco1.taxaJurosMensal.toFixed(2).replace('.', ',')}% a.m.)`,
                       size: 15,
                       color: COLOR_TEXT_MUTED,
                     }),
@@ -1236,7 +1235,7 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
                   alignment: AlignmentType.CENTER,
                   children: [
                     new TextRun({
-                      text: 'Taxa Verde 60x (0,99% a.m.)',
+                      text: `Taxa Verde ${parc.financiamentoBanco2.numeroParcelas}x (${parc.financiamentoBanco2.taxaJurosMensal.toFixed(2).replace('.', ',')}% a.m.)`,
                       size: 15,
                       color: '1D4ED8',
                       bold: true,

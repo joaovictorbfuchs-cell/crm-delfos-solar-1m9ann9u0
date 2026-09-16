@@ -888,13 +888,13 @@ export function gerarHTMLPropostaSolar(dados: PropostaSolarPDFInput): string {
         </div>
       </div>
 
-      <!-- 2. Cartão 18x -->
+      <!-- 2. Cartão de Crédito -->
       <div class="finance-card">
         <div>
           <div class="finance-title">${calculos.parcelamentos.cartao18x.titulo}</div>
-          <span class="finance-badge">Cartão Crédito</span>
+          <span class="finance-badge">${calculos.parcelamentos.cartao18x.numeroParcelas}x (${calculos.parcelamentos.cartao18x.taxaJurosMensal.toFixed(2).replace('.', ',')}% a.m.)</span>
           <div class="finance-installment">${formatBRL(calculos.parcelamentos.cartao18x.valorParcela)}</div>
-          <div class="finance-total">18 parcelas no cartão</div>
+          <div class="finance-total">${calculos.parcelamentos.cartao18x.numeroParcelas} parcelas no cartão (total: ${formatBRL(calculos.parcelamentos.cartao18x.valorTotal)})</div>
         </div>
         <div class="finance-comparison">
           <div class="finance-row">
@@ -912,13 +912,13 @@ export function gerarHTMLPropostaSolar(dados: PropostaSolarPDFInput): string {
         </div>
       </div>
 
-      <!-- 3. Financiamento Banco 1 (1.9% a.m.) -->
+      <!-- 3. Financiamento Banco 1 -->
       <div class="finance-card">
         <div>
           <div class="finance-title">${calculos.parcelamentos.financiamentoBanco1.titulo}</div>
-          <span class="finance-badge">Até 60x (1,90% a.m.)</span>
+          <span class="finance-badge">${calculos.parcelamentos.financiamentoBanco1.numeroParcelas}x (${calculos.parcelamentos.financiamentoBanco1.taxaJurosMensal.toFixed(2).replace('.', ',')}% a.m.)</span>
           <div class="finance-installment">${formatBRL(calculos.parcelamentos.financiamentoBanco1.valorParcela)}</div>
-          <div class="finance-total">60 parcelas bancárias</div>
+          <div class="finance-total">${calculos.parcelamentos.financiamentoBanco1.numeroParcelas} parcelas (total: ${formatBRL(calculos.parcelamentos.financiamentoBanco1.valorTotal)})</div>
         </div>
         <div class="finance-comparison">
           <div class="finance-row">
@@ -936,13 +936,13 @@ export function gerarHTMLPropostaSolar(dados: PropostaSolarPDFInput): string {
         </div>
       </div>
 
-      <!-- 4. Financiamento Banco 2 (0.99% a.m.) -->
+      <!-- 4. Financiamento Banco 2 -->
       <div class="finance-card highlight-blue">
         <div>
           <div class="finance-title">${calculos.parcelamentos.financiamentoBanco2.titulo}</div>
-          <span class="finance-badge">Taxa Verde (0,99% a.m.)</span>
+          <span class="finance-badge">${calculos.parcelamentos.financiamentoBanco2.numeroParcelas}x (${calculos.parcelamentos.financiamentoBanco2.taxaJurosMensal.toFixed(2).replace('.', ',')}% a.m.)</span>
           <div class="finance-installment">${formatBRL(calculos.parcelamentos.financiamentoBanco2.valorParcela)}</div>
-          <div class="finance-total">60 parcelas reduzidas</div>
+          <div class="finance-total">${calculos.parcelamentos.financiamentoBanco2.numeroParcelas} parcelas (total: ${formatBRL(calculos.parcelamentos.financiamentoBanco2.valorTotal)})</div>
         </div>
         <div class="finance-comparison">
           <div class="finance-row">

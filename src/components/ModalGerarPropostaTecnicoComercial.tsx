@@ -115,17 +115,27 @@ export function ModalGerarPropostaTecnicoComercial({
   )
 
   // 7. SIMULAÇÃO DE PARCELAMENTO
-  const [nParcelasCartao, setNParcelasCartao] = useState<number>(18)
+  const [nParcelasCartao, setNParcelasCartao] = useState<number>(
+    orcamento.parcelas_cartao && orcamento.parcelas_cartao > 0 ? orcamento.parcelas_cartao : 18,
+  )
   const [valorParcelaCartao, setValorParcelaCartao] = useState<number>(
     orcamento.parcela_cartao_18x || Math.round((investimentoTotal * 1.12) / 18),
   )
   const [nomeFinanA, setNomeFinanA] = useState<string>('FINANCIAMENTO A')
-  const [nParcelasFinanA, setNParcelasFinanA] = useState<number>(60)
+  const [nParcelasFinanA, setNParcelasFinanA] = useState<number>(
+    orcamento.parcelas_financiamento_banco1 && orcamento.parcelas_financiamento_banco1 > 0
+      ? orcamento.parcelas_financiamento_banco1
+      : 60,
+  )
   const [valorParcelaFinanA, setValorParcelaFinanA] = useState<number>(
     orcamento.parcela_financiamento_banco1 || Math.round(investimentoTotal * 0.023),
   )
   const [nomeFinanB, setNomeFinanB] = useState<string>('FINANCIAMENTO B')
-  const [nParcelasFinanB, setNParcelasFinanB] = useState<number>(72)
+  const [nParcelasFinanB, setNParcelasFinanB] = useState<number>(
+    orcamento.parcelas_financiamento_banco2 && orcamento.parcelas_financiamento_banco2 > 0
+      ? orcamento.parcelas_financiamento_banco2
+      : 60,
+  )
   const [valorParcelaFinanB, setValorParcelaFinanB] = useState<number>(
     orcamento.parcela_financiamento_banco2 || Math.round(investimentoTotal * 0.02),
   )

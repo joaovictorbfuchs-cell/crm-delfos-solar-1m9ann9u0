@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-16T13:58:39.886Z",
+  "generatedAt": "2026-09-16T14:16:05.558Z",
   "collections": [
     {
       "name": "users",
@@ -2203,6 +2203,42 @@
         },
         {
           "name": "desconto",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "parcelas_cartao",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "juros_cartao",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "parcelas_financiamento_banco1",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "juros_financiamento_banco1",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "parcelas_financiamento_banco2",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "juros_financiamento_banco2",
           "type": "number",
           "required": false,
           "system": false

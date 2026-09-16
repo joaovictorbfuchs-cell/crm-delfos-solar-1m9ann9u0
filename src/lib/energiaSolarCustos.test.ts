@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { calcularCustosAba } from './energiaSolar'
+import { calcularCustosAba, calcularParcelaPrice, calcularOrcamentoSolar } from './energiaSolar'
 
 describe('calcularCustosAba - Desconto e Comissão Mínima', () => {
   it('aplica desconto apenas na base de administração e comissão comercial', () => {
@@ -177,5 +177,79 @@ describe('calcularCustosAba - Desconto e Comissão Mínima', () => {
     // Mas administração e indicação continuam com o desconto proporcional
     expect(resComDescPiso.administracaoDescontada).toBe(75) // 500 * 0.15 = 75
     expect(resComDescPiso.indicacaoDescontada).toBe(5) // 500 * 0.01 = 5
+  })
+})
+
+describe('Simulações personalizadas de Parcelamento & Financiamento (PRICE)', () => {
+  it('calcula amortização PRICE corretamente com taxa zero e com juros positivos', () => {
+    // PV = 10000, 10x sem juros => 1000/mês
+    expect(calcularParcelaPrice(10000, 0, 10)).toBe(1000)
+
+    // PV = 20000, 18x a 1,49% a.m.
+    // i = 0.0149, n = 18 => 20000 * 0.0149 / (1 - (1.0149)^-18) ~ 1276.53
+    const p18 = calcularParcelaPrice(20000, 1.49, 18)
+    expect(p18).toBeGreaterThan(1270)
+    expect(p18).toBeLessThan(1280)
+
+    // PV = 30000, 60x a 1.90% a.m.
+    const p60Banco1 = calcularParcelaPrice(30000, 1.9, 60)
+    expect(p60Banco1).toBeGreaterThan(800)
+    expect(p60Banco1).toBeLessThan(900)
+  })
+
+  it('permite customizar parcelas e juros para Cartão, Banco 1 e Banco 2 em calcularOrcamentoSolar', () => {
+    const orcPadrao = calcularOrcamentoSolar({
+      consumoKwhMes: 600,
+      tipoCliente: 'residencial',
+      tarifaKwh: 1.15,
+      potenciaKwp: 5.5,
+      valorInvestimentoInformado: 25000,
+    })
+
+    expect(orcPadrao.parcelamentos.cartao18x.numeroParcelas).toBe(18)
+    expect(orcPadrao.parcelamentos.cartao18x.taxaJurosMensal).toBe(1.49)
+    expect(orcPadrao.parcelamentos.financiamentoBanco1.numeroParcelas).toBe(60)
+    expect(orcPadrao.parcelamentos.financiamentoBanco1.taxaJurosMensal).toBe(1.9)
+    expect(orcPadrao.parcelamentos.financiamentoBanco2.numeroParcelas).toBe(60)
+    expect(orcPadrao.parcelamentos.financiamentoBanco2.taxaJurosMensal).toBe(0.99)
+
+    // Customizado: Cartão 12x a 1.2%, Banco 1 48x a 1.65%, Banco 2 72x a 0.85%
+    const orcCustom = calcularOrcamentoSolar({
+      consumoKwhMes: 600,
+      tipoCliente: 'residencial',
+      tarifaKwh: 1.15,
+      potenciaKwp: 5.5,
+      valorInvestimentoInformado: 25000,
+      configParcelamentos: {
+        parcelasCartao: 12,
+        jurosCartao: 1.2,
+        parcelasBanco1: 48,
+        jurosBanco1: 1.65,
+        parcelasBanco2: 72,
+        jurosBanco2: 0.85,
+      },
+    })
+
+    // Cartão
+    expect(orcCustom.parcelamentos.cartao18x.numeroParcelas).toBe(12)
+    expect(orcCustom.parcelamentos.cartao18x.taxaJurosMensal).toBe(1.2)
+    expect(orcCustom.parcelamentos.cartao18x.titulo).toBe('Cartão de Crédito 12x')
+    expect(orcCustom.parcelamentos.cartao18x.valorTotal).toBe(
+      orcCustom.parcelamentos.cartao18x.valorParcela * 12,
+    )
+
+    // Banco 1
+    expect(orcCustom.parcelamentos.financiamentoBanco1.numeroParcelas).toBe(48)
+    expect(orcCustom.parcelamentos.financiamentoBanco1.taxaJurosMensal).toBe(1.65)
+    expect(orcCustom.parcelamentos.financiamentoBanco1.valorTotal).toBe(
+      orcCustom.parcelamentos.financiamentoBanco1.valorParcela * 48,
+    )
+
+    // Banco 2
+    expect(orcCustom.parcelamentos.financiamentoBanco2.numeroParcelas).toBe(72)
+    expect(orcCustom.parcelamentos.financiamentoBanco2.taxaJurosMensal).toBe(0.85)
+    expect(orcCustom.parcelamentos.financiamentoBanco2.valorTotal).toBe(
+      orcCustom.parcelamentos.financiamentoBanco2.valorParcela * 72,
+    )
   })
 })

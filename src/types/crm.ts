@@ -1012,6 +1012,12 @@ export interface OrcamentoSolarCalculado {
   parcela_cartao_18x?: number
   parcela_financiamento_banco1?: number
   parcela_financiamento_banco2?: number
+  parcelas_cartao?: number
+  juros_cartao?: number
+  parcelas_financiamento_banco1?: number
+  juros_financiamento_banco1?: number
+  parcelas_financiamento_banco2?: number
+  juros_financiamento_banco2?: number
   gasto_sem_solar_1_ano?: number
   gasto_sem_solar_5_anos?: number
   gasto_sem_solar_25_anos?: number
@@ -1086,6 +1092,13 @@ export interface OrcamentoSolar extends RecordModel {
   parcela_cartao_18x?: number
   parcela_financiamento_banco1?: number
   parcela_financiamento_banco2?: number
+  // Configurações personalizadas de parcelamento & juros
+  parcelas_cartao?: number
+  juros_cartao?: number
+  parcelas_financiamento_banco1?: number
+  juros_financiamento_banco1?: number
+  parcelas_financiamento_banco2?: number
+  juros_financiamento_banco2?: number
   // Metadados
   data_orcamento: string
   validade_dias?: number

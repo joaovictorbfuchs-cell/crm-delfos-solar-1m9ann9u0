@@ -128,6 +128,14 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
   // Controla se a mão de obra foi editada manualmente pelo usuário
   const [maoDeObraEditadaManualmente, setMaoDeObraEditadaManualmente] = useState<boolean>(false)
 
+  // Opções personalizadas de parcelamento & financiamento
+  const [parcelasCartao, setParcelasCartao] = useState<number>(18)
+  const [jurosCartao, setJurosCartao] = useState<number>(1.49)
+  const [parcelasBanco1, setParcelasBanco1] = useState<number>(60)
+  const [jurosBanco1, setJurosBanco1] = useState<number>(1.9)
+  const [parcelasBanco2, setParcelasBanco2] = useState<number>(60)
+  const [jurosBanco2, setJurosBanco2] = useState<number>(0.99)
+
   // Inicializa ou sincroniza cliente e orçamento
   useEffect(() => {
     if (initialOrcamento) {
@@ -199,6 +207,38 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
         valorPorPlaca: initialValPlaca,
         desconto: initialDesconto,
       })
+
+      // Parcelamentos salvos ou defaults
+      setParcelasCartao(
+        initialOrcamento.parcelas_cartao !== undefined && initialOrcamento.parcelas_cartao > 0
+          ? initialOrcamento.parcelas_cartao
+          : 18,
+      )
+      setJurosCartao(
+        initialOrcamento.juros_cartao !== undefined ? initialOrcamento.juros_cartao : 1.49,
+      )
+      setParcelasBanco1(
+        initialOrcamento.parcelas_financiamento_banco1 !== undefined &&
+          initialOrcamento.parcelas_financiamento_banco1 > 0
+          ? initialOrcamento.parcelas_financiamento_banco1
+          : 60,
+      )
+      setJurosBanco1(
+        initialOrcamento.juros_financiamento_banco1 !== undefined
+          ? initialOrcamento.juros_financiamento_banco1
+          : 1.9,
+      )
+      setParcelasBanco2(
+        initialOrcamento.parcelas_financiamento_banco2 !== undefined &&
+          initialOrcamento.parcelas_financiamento_banco2 > 0
+          ? initialOrcamento.parcelas_financiamento_banco2
+          : 60,
+      )
+      setJurosBanco2(
+        initialOrcamento.juros_financiamento_banco2 !== undefined
+          ? initialOrcamento.juros_financiamento_banco2
+          : 0.99,
+      )
     } else {
       // Novo orçamento: defaults
       setValorPorPlaca(150)
@@ -215,6 +255,13 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
         valorPorPlaca: 150,
         desconto: 0,
       }))
+
+      setParcelasCartao(18)
+      setJurosCartao(1.49)
+      setParcelasBanco1(60)
+      setJurosBanco1(1.9)
+      setParcelasBanco2(60)
+      setJurosBanco2(0.99)
 
       if (initialClienteId) {
         setSelectedClienteId(initialClienteId)
@@ -413,6 +460,14 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
       orientacaoTelhado,
       custos,
       valorInvestimentoInformado: valorInvestimentoFinal,
+      configParcelamentos: {
+        parcelasCartao,
+        jurosCartao,
+        parcelasBanco1,
+        jurosBanco1,
+        parcelasBanco2,
+        jurosBanco2,
+      },
     })
   }, [
     consumoKwhMes,
@@ -422,6 +477,12 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
     orientacaoTelhado,
     custos,
     valorInvestimentoFinal,
+    parcelasCartao,
+    jurosCartao,
+    parcelasBanco1,
+    jurosBanco1,
+    parcelasBanco2,
+    jurosBanco2,
   ])
 
   // Objeto preparado para geração de PDF
@@ -583,6 +644,12 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
         parcela_cartao_18x: calculos.parcelamentos.cartao18x.valorParcela,
         parcela_financiamento_banco1: calculos.parcelamentos.financiamentoBanco1.valorParcela,
         parcela_financiamento_banco2: calculos.parcelamentos.financiamentoBanco2.valorParcela,
+        parcelas_cartao: parcelasCartao,
+        juros_cartao: jurosCartao,
+        parcelas_financiamento_banco1: parcelasBanco1,
+        juros_financiamento_banco1: jurosBanco1,
+        parcelas_financiamento_banco2: parcelasBanco2,
+        juros_financiamento_banco2: jurosBanco2,
 
         data_orcamento: new Date().toISOString(),
         validade_dias: 5,
@@ -1979,17 +2046,57 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                     </div>
                   </div>
 
-                  {/* 2. Cartão de Crédito em 18 vezes */}
+                  {/* 2. Cartão de Crédito */}
                   <div className="p-4 rounded-xl border border-gray-200 bg-white flex flex-col justify-between space-y-3 shadow-2xs">
                     <div>
-                      <div className="flex items-center justify-between">
-                        <span className="font-extrabold text-xs uppercase text-gray-900">
+                      <div className="flex items-center justify-between gap-1">
+                        <span className="font-extrabold text-xs uppercase text-gray-900 truncate">
                           {calculos.parcelamentos.cartao18x.titulo}
                         </span>
-                        <span className="text-[10px] font-bold bg-gray-100 text-gray-700 px-2 py-0.5 rounded-full">
-                          18x Cartão
+                        <span className="text-[10px] font-bold bg-gray-100 text-gray-700 px-2 py-0.5 rounded-full shrink-0">
+                          {parcelasCartao}x (
+                          {jurosCartao.toLocaleString('pt-BR', {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2,
+                          })}
+                          % a.m.)
                         </span>
                       </div>
+
+                      {/* Inputs de customização: parcelas e juros */}
+                      <div className="mt-2.5 p-2 bg-gray-50 rounded-lg border border-gray-200 grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="text-[10px] font-semibold text-gray-600 block mb-0.5">
+                            Parcelas
+                          </label>
+                          <input
+                            type="number"
+                            min={1}
+                            max={120}
+                            value={parcelasCartao}
+                            onChange={(e) =>
+                              setParcelasCartao(Math.max(1, parseInt(e.target.value, 10) || 1))
+                            }
+                            className="w-full text-xs font-bold px-2 py-1 bg-white rounded border border-gray-300 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-semibold text-gray-600 block mb-0.5">
+                            Juros (% a.m.)
+                          </label>
+                          <input
+                            type="number"
+                            min={0}
+                            step={0.01}
+                            value={jurosCartao}
+                            onChange={(e) =>
+                              setJurosCartao(Math.max(0, parseFloat(e.target.value) || 0))
+                            }
+                            className="w-full text-xs font-bold px-2 py-1 bg-white rounded border border-gray-300 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                          />
+                        </div>
+                      </div>
+
                       <div className="text-xl font-black text-gray-900 mt-2">
                         {formatCurrency(calculos.parcelamentos.cartao18x.valorParcela)}
                       </div>
@@ -2020,17 +2127,57 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                     </div>
                   </div>
 
-                  {/* 3. Financiamento Banco 1 (até 60x juros 1,9% a.m.) */}
+                  {/* 3. Financiamento Banco 1 */}
                   <div className="p-4 rounded-xl border border-gray-200 bg-white flex flex-col justify-between space-y-3 shadow-2xs">
                     <div>
-                      <div className="flex items-center justify-between">
-                        <span className="font-extrabold text-xs uppercase text-gray-900">
+                      <div className="flex items-center justify-between gap-1">
+                        <span className="font-extrabold text-xs uppercase text-gray-900 truncate">
                           Financiamento Banco 1
                         </span>
-                        <span className="text-[10px] font-bold bg-amber-100 text-amber-900 px-2 py-0.5 rounded-full">
-                          60x (1,90% a.m.)
+                        <span className="text-[10px] font-bold bg-amber-100 text-amber-900 px-2 py-0.5 rounded-full shrink-0">
+                          {parcelasBanco1}x (
+                          {jurosBanco1.toLocaleString('pt-BR', {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2,
+                          })}
+                          % a.m.)
                         </span>
                       </div>
+
+                      {/* Inputs de customização: parcelas e juros */}
+                      <div className="mt-2.5 p-2 bg-gray-50 rounded-lg border border-gray-200 grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="text-[10px] font-semibold text-gray-600 block mb-0.5">
+                            Parcelas
+                          </label>
+                          <input
+                            type="number"
+                            min={1}
+                            max={180}
+                            value={parcelasBanco1}
+                            onChange={(e) =>
+                              setParcelasBanco1(Math.max(1, parseInt(e.target.value, 10) || 1))
+                            }
+                            className="w-full text-xs font-bold px-2 py-1 bg-white rounded border border-gray-300 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-semibold text-gray-600 block mb-0.5">
+                            Juros (% a.m.)
+                          </label>
+                          <input
+                            type="number"
+                            min={0}
+                            step={0.01}
+                            value={jurosBanco1}
+                            onChange={(e) =>
+                              setJurosBanco1(Math.max(0, parseFloat(e.target.value) || 0))
+                            }
+                            className="w-full text-xs font-bold px-2 py-1 bg-white rounded border border-gray-300 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                          />
+                        </div>
+                      </div>
+
                       <div className="text-xl font-black text-gray-900 mt-2">
                         {formatCurrency(calculos.parcelamentos.financiamentoBanco1.valorParcela)}
                       </div>
@@ -2064,17 +2211,57 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                     </div>
                   </div>
 
-                  {/* 4. Financiamento Banco 2 (parcela menor 0,99% a.m.) */}
+                  {/* 4. Financiamento Banco 2 */}
                   <div className="p-4 rounded-xl border-2 border-blue-400 bg-blue-50/40 flex flex-col justify-between space-y-3 shadow-2xs">
                     <div>
-                      <div className="flex items-center justify-between">
-                        <span className="font-extrabold text-xs uppercase text-blue-950">
+                      <div className="flex items-center justify-between gap-1">
+                        <span className="font-extrabold text-xs uppercase text-blue-950 truncate">
                           Financiamento Banco 2
                         </span>
-                        <span className="text-[10px] font-bold bg-blue-200 text-blue-900 px-2 py-0.5 rounded-full">
-                          60x (0,99% a.m.)
+                        <span className="text-[10px] font-bold bg-blue-200 text-blue-900 px-2 py-0.5 rounded-full shrink-0">
+                          {parcelasBanco2}x (
+                          {jurosBanco2.toLocaleString('pt-BR', {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2,
+                          })}
+                          % a.m.)
                         </span>
                       </div>
+
+                      {/* Inputs de customização: parcelas e juros */}
+                      <div className="mt-2.5 p-2 bg-blue-100/50 rounded-lg border border-blue-200 grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="text-[10px] font-semibold text-blue-900 block mb-0.5">
+                            Parcelas
+                          </label>
+                          <input
+                            type="number"
+                            min={1}
+                            max={180}
+                            value={parcelasBanco2}
+                            onChange={(e) =>
+                              setParcelasBanco2(Math.max(1, parseInt(e.target.value, 10) || 1))
+                            }
+                            className="w-full text-xs font-bold px-2 py-1 bg-white rounded border border-blue-300 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-semibold text-blue-900 block mb-0.5">
+                            Juros (% a.m.)
+                          </label>
+                          <input
+                            type="number"
+                            min={0}
+                            step={0.01}
+                            value={jurosBanco2}
+                            onChange={(e) =>
+                              setJurosBanco2(Math.max(0, parseFloat(e.target.value) || 0))
+                            }
+                            className="w-full text-xs font-bold px-2 py-1 bg-white rounded border border-blue-300 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          />
+                        </div>
+                      </div>
+
                       <div className="text-xl font-black text-blue-800 mt-2">
                         {formatCurrency(calculos.parcelamentos.financiamentoBanco2.valorParcela)}
                       </div>
