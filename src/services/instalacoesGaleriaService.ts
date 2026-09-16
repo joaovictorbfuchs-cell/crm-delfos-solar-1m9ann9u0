@@ -13,50 +13,106 @@ export async function fetchInstalacoesGaleria(): Promise<InstalacaoGaleria[]> {
   }
 }
 
+export interface SalvarInstalacaoDados {
+  titulo: string
+  cidade?: string
+  potencia_kwp?: number | null
+  foto_url?: string
+  ordem?: number
+  destaque?: boolean
+}
+
+const CAMPOS_PERMITIDOS_INSTALACAO = [
+  'titulo',
+  'cidade',
+  'potencia_kwp',
+  'foto_url',
+  'ordem',
+  'destaque',
+]
+
 export async function createInstalacaoGaleria(
-  dados: {
-    titulo: string
-    cidade?: string
-    potencia_kwp?: number
-    foto_url?: string
-    ordem?: number
-    destaque?: boolean
-  },
+  dados: SalvarInstalacaoDados,
   arquivoFoto?: File,
 ): Promise<InstalacaoGaleria> {
-  const formData = new FormData()
-  formData.append('titulo', dados.titulo)
-  if (dados.cidade) formData.append('cidade', dados.cidade)
-  if (dados.potencia_kwp !== undefined) formData.append('potencia_kwp', String(dados.potencia_kwp))
-  if (dados.foto_url) formData.append('foto_url', dados.foto_url)
-  if (dados.ordem !== undefined) formData.append('ordem', String(dados.ordem))
-  if (dados.destaque !== undefined) formData.append('destaque', String(dados.destaque))
-
-  if (arquivoFoto) {
-    formData.append('foto', arquivoFoto)
+  const cleaned: Record<string, any> = {
+    titulo: dados.titulo.trim(),
   }
 
-  const record = await pb.collection('instalacoes_galeria').create<InstalacaoGaleria>(formData)
-  return record
+  if (dados.cidade !== undefined && dados.cidade !== null) {
+    cleaned.cidade = dados.cidade.trim()
+  }
+  if (typeof dados.potencia_kwp === 'number' && !isNaN(dados.potencia_kwp)) {
+    cleaned.potencia_kwp = dados.potencia_kwp
+  }
+  if (dados.foto_url !== undefined && dados.foto_url !== null) {
+    cleaned.foto_url = dados.foto_url.trim()
+  }
+  if (typeof dados.ordem === 'number' && !isNaN(dados.ordem)) {
+    cleaned.ordem = dados.ordem
+  }
+  if (typeof dados.destaque === 'boolean') {
+    cleaned.destaque = dados.destaque
+  }
+
+  if (arquivoFoto) {
+    const formData = new FormData()
+    Object.entries(cleaned).forEach(([k, v]) => {
+      formData.append(k, String(v))
+    })
+    formData.append('foto', arquivoFoto)
+    return await pb.collection('instalacoes_galeria').create<InstalacaoGaleria>(formData)
+  }
+
+  return await pb.collection('instalacoes_galeria').create<InstalacaoGaleria>(cleaned)
 }
 
 export async function updateInstalacaoGaleria(
   id: string,
-  dados: Partial<InstalacaoGaleria>,
+  dados: Partial<SalvarInstalacaoDados>,
   arquivoFoto?: File,
 ): Promise<InstalacaoGaleria> {
+  const cleaned: Record<string, any> = {}
+
+  if (dados.titulo !== undefined) {
+    cleaned.titulo = dados.titulo.trim()
+  }
+  if (dados.cidade !== undefined) {
+    cleaned.cidade = dados.cidade ? dados.cidade.trim() : ''
+  }
+  if (dados.potencia_kwp !== undefined) {
+    if (dados.potencia_kwp === null || isNaN(dados.potencia_kwp)) {
+      cleaned.potencia_kwp = null
+    } else {
+      cleaned.potencia_kwp = dados.potencia_kwp
+    }
+  }
+  if (dados.foto_url !== undefined) {
+    cleaned.foto_url = dados.foto_url ? dados.foto_url.trim() : ''
+  }
+  if (typeof dados.ordem === 'number' && !isNaN(dados.ordem)) {
+    cleaned.ordem = dados.ordem
+  }
+  if (typeof dados.destaque === 'boolean') {
+    cleaned.destaque = dados.destaque
+  }
+
   if (arquivoFoto) {
     const formData = new FormData()
-    Object.entries(dados).forEach(([k, v]) => {
-      if (v !== undefined && v !== null && k !== 'foto') {
-        formData.append(k, String(v))
+    Object.entries(cleaned).forEach(([k, v]) => {
+      if (CAMPOS_PERMITIDOS_INSTALACAO.includes(k)) {
+        if (v === null || v === undefined) {
+          formData.append(k, '')
+        } else {
+          formData.append(k, String(v))
+        }
       }
     })
     formData.append('foto', arquivoFoto)
     return await pb.collection('instalacoes_galeria').update<InstalacaoGaleria>(id, formData)
   }
 
-  return await pb.collection('instalacoes_galeria').update<InstalacaoGaleria>(id, dados)
+  return await pb.collection('instalacoes_galeria').update<InstalacaoGaleria>(id, cleaned)
 }
 
 export async function deleteInstalacaoGaleria(id: string): Promise<boolean> {

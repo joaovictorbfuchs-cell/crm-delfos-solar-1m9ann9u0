@@ -11,7 +11,10 @@ import {
   Zap,
   RefreshCw,
   Search,
+  AlertCircle,
+  X,
 } from 'lucide-react'
+import { toast } from 'sonner'
 import type { InstalacaoGaleria } from '@/types/instalacoesGaleria'
 import {
   fetchInstalacoesGaleria,
@@ -20,6 +23,7 @@ import {
   deleteInstalacaoGaleria,
   getFotoUrl,
 } from '@/services/instalacoesGaleriaService'
+import { extractFieldErrors } from '@/lib/pocketbase/errors'
 
 export function InstalacoesGaleriaPage() {
   const [instalacoes, setInstalacoes] = useState<InstalacaoGaleria[]>([])
@@ -36,6 +40,7 @@ export function InstalacoesGaleriaPage() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [previewUrl, setPreviewUrl] = useState<string>('')
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const carregar = async () => {
@@ -60,23 +65,38 @@ export function InstalacoesGaleriaPage() {
     setFotoUrl('')
     setSelectedFile(null)
     setPreviewUrl('')
+    setErrorMessage(null)
     setModalOpen(true)
   }
 
   const handleOpenEdit = (item: InstalacaoGaleria) => {
     setEditingItem(item)
-    setTitulo(item.titulo)
+    setTitulo(item.titulo || '')
     setCidade(item.cidade || '')
-    setPotenciaKwp(item.potencia_kwp ? String(item.potencia_kwp) : '')
+    setPotenciaKwp(
+      item.potencia_kwp !== undefined && item.potencia_kwp !== null
+        ? String(item.potencia_kwp)
+        : '',
+    )
     setFotoUrl(item.foto_url || '')
     setSelectedFile(null)
     setPreviewUrl(getFotoUrl(item))
+    setErrorMessage(null)
     setModalOpen(true)
   }
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file) {
+      // Validação defensiva de tamanho no cliente (máx 25MB)
+      const maxBytes = 25 * 1024 * 1024
+      if (file.size > maxBytes) {
+        const msg = `O arquivo selecionado (${(file.size / (1024 * 1024)).toFixed(1)} MB) ultrapassa o limite máximo de 25 MB. Por favor, selecione uma imagem menor.`
+        setErrorMessage(msg)
+        toast.error(msg)
+        return
+      }
+      setErrorMessage(null)
       setSelectedFile(file)
       const url = URL.createObjectURL(file)
       setPreviewUrl(url)
@@ -85,32 +105,44 @@ export function InstalacoesGaleriaPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    setErrorMessage(null)
+
     if (!titulo.trim()) {
-      alert('Preencha o título da usina ou instalação.')
+      setErrorMessage('Por favor, preencha o título da usina ou instalação.')
       return
     }
 
     try {
       setIsSubmitting(true)
-      const potenciaNum = potenciaKwp ? parseFloat(potenciaKwp.replace(',', '.')) : undefined
+      const cleanedPotencia = potenciaKwp.trim().replace(',', '.')
+      const potenciaNum = cleanedPotencia ? parseFloat(cleanedPotencia) : null
+
+      if (cleanedPotencia && isNaN(potenciaNum as number)) {
+        setErrorMessage(
+          'O valor de potência (kWp) informado é inválido. Digite apenas números (ex: 114 ou 123.5).',
+        )
+        setIsSubmitting(false)
+        return
+      }
 
       if (editingItem) {
         await updateInstalacaoGaleria(
           editingItem.id,
           {
             titulo: titulo.trim(),
-            cidade: cidade.trim() || undefined,
-            potencia_kwp: isNaN(potenciaNum || 0) ? undefined : potenciaNum,
-            foto_url: fotoUrl.trim() || undefined,
+            cidade: cidade.trim(),
+            potencia_kwp: potenciaNum,
+            foto_url: fotoUrl.trim(),
           },
           selectedFile || undefined,
         )
+        toast.success('Foto da usina atualizada com sucesso!')
       } else {
         await createInstalacaoGaleria(
           {
             titulo: titulo.trim(),
-            cidade: cidade.trim() || undefined,
-            potencia_kwp: isNaN(potenciaNum || 0) ? undefined : potenciaNum,
+            cidade: cidade.trim(),
+            potencia_kwp: potenciaNum,
             foto_url:
               fotoUrl.trim() ||
               (selectedFile
@@ -121,13 +153,48 @@ export function InstalacoesGaleriaPage() {
           },
           selectedFile || undefined,
         )
+        toast.success('Foto da usina cadastrada com sucesso na galeria!')
       }
 
       setModalOpen(false)
       await carregar()
-    } catch (err) {
+    } catch (err: any) {
       console.error('Erro ao salvar instalação:', err)
-      alert('Falha ao salvar instalação. Verifique os dados e tente novamente.')
+
+      let mensagemDetalhada = 'Falha ao salvar instalação. Verifique os dados e tente novamente.'
+
+      const fieldErrors = extractFieldErrors(err)
+      const errorKeys = Object.keys(fieldErrors)
+
+      if (errorKeys.length > 0) {
+        const detalhes = errorKeys
+          .map((k) => {
+            const rotulos: Record<string, string> = {
+              titulo: 'Título',
+              cidade: 'Cidade',
+              potencia_kwp: 'Potência (kWp)',
+              foto: 'Arquivo de foto',
+              foto_url: 'Link da foto',
+              ordem: 'Ordem',
+            }
+            const nomeCampo = rotulos[k] || k
+            return `${nomeCampo}: ${fieldErrors[k]}`
+          })
+          .join('. ')
+        mensagemDetalhada = `Erro de validação: ${detalhes}`
+      } else if (err?.message) {
+        if (err.message.includes('file too large') || err.message.includes('maxSize')) {
+          mensagemDetalhada = 'O arquivo de imagem enviado é muito grande (limite de 25MB).'
+        } else if (err.message.includes('mime') || err.message.includes('type')) {
+          mensagemDetalhada =
+            'O formato da imagem não é suportado. Envie em JPG, PNG, WEBP ou HEIC.'
+        } else {
+          mensagemDetalhada = `Erro do servidor: ${err.message}`
+        }
+      }
+
+      setErrorMessage(mensagemDetalhada)
+      toast.error(mensagemDetalhada)
     } finally {
       setIsSubmitting(false)
     }
@@ -137,10 +204,11 @@ export function InstalacoesGaleriaPage() {
     if (window.confirm(`Deseja realmente remover "${item.titulo}" da biblioteca?`)) {
       try {
         await deleteInstalacaoGaleria(item.id)
+        toast.success('Instalação removida com sucesso.')
         await carregar()
-      } catch (err) {
+      } catch (err: any) {
         console.error('Erro ao deletar:', err)
-        alert('Não foi possível remover o item.')
+        toast.error('Não foi possível remover o item da galeria.')
       }
     }
   }
@@ -328,6 +396,24 @@ export function InstalacoesGaleriaPage() {
             </div>
 
             <form onSubmit={handleSubmit} className="p-5 space-y-4 overflow-y-auto">
+              {/* Alerta de erro na UI */}
+              {errorMessage && (
+                <div className="bg-red-50 border border-red-200 text-red-800 rounded-xl p-3 flex items-start gap-2.5 text-xs">
+                  <AlertCircle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
+                  <div className="flex-1">
+                    <p className="font-semibold">Não foi possível salvar</p>
+                    <p className="text-red-700 mt-0.5">{errorMessage}</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setErrorMessage(null)}
+                    className="text-red-400 hover:text-red-600 p-0.5"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              )}
+
               {/* Título */}
               <div>
                 <label className="text-[11px] font-bold text-gray-700 uppercase block mb-1">
@@ -337,7 +423,10 @@ export function InstalacoesGaleriaPage() {
                   type="text"
                   required
                   value={titulo}
-                  onChange={(e) => setTitulo(e.target.value)}
+                  onChange={(e) => {
+                    setTitulo(e.target.value)
+                    if (errorMessage) setErrorMessage(null)
+                  }}
                   placeholder="Ex: Usina Cassul 185 Kwp Erechim"
                   className="w-full text-xs font-semibold px-3 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 />
@@ -383,24 +472,47 @@ export function InstalacoesGaleriaPage() {
                   <input
                     type="file"
                     ref={fileInputRef}
-                    accept="image/*"
+                    accept="image/jpeg,image/png,image/webp,image/heic,image/heif,image/*"
                     onChange={handleFileChange}
                     className="hidden"
                   />
                   <button
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
-                    className="px-3.5 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 text-xs font-bold rounded-lg inline-flex items-center gap-1.5 transition-colors border border-gray-200"
+                    className="px-3.5 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 text-xs font-bold rounded-lg inline-flex items-center gap-1.5 transition-colors border border-gray-200 active:scale-95"
                   >
                     <Upload className="w-3.5 h-3.5 text-emerald-700" />
                     <span>Selecionar do Computador</span>
                   </button>
-                  {selectedFile && (
-                    <span className="text-[11px] text-emerald-700 font-semibold truncate max-w-[200px]">
-                      {selectedFile.name}
-                    </span>
-                  )}
+                  {selectedFile ? (
+                    <div className="flex items-center gap-1.5 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-lg">
+                      <span className="text-[11px] text-emerald-800 font-semibold truncate max-w-[180px]">
+                        {selectedFile.name}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedFile(null)
+                          if (editingItem) {
+                            setPreviewUrl(getFotoUrl(editingItem))
+                          } else if (fotoUrl) {
+                            setPreviewUrl(fotoUrl)
+                          } else {
+                            setPreviewUrl('')
+                          }
+                          if (fileInputRef.current) fileInputRef.current.value = ''
+                        }}
+                        className="text-emerald-600 hover:text-red-600 p-0.5 rounded"
+                        title="Remover arquivo selecionado"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ) : null}
                 </div>
+                <span className="text-[10px] text-gray-400 block mt-1">
+                  Suporta JPG, PNG, WEBP e fotos de drones DJI / celulares (até 25 MB).
+                </span>
 
                 <div className="mt-2">
                   <label className="text-[10px] text-gray-500 block mb-0.5">
