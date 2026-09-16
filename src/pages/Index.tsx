@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Users, TrendingUp, DollarSign, Loader2, RefreshCw } from 'lucide-react'
+import { Users, TrendingUp, DollarSign, Loader2, RefreshCw, AlertCircle } from 'lucide-react'
 import { useClientes } from '@/contexts/ClientesContext'
 import { formatCurrency } from '@/lib/formatters'
 import { KanbanBoard } from '@/components/KanbanBoard'
@@ -9,7 +9,7 @@ import { PainelLembretesHoje } from '@/components/PainelLembretesHoje'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 
 export default function Index() {
-  const { clientes, isLoading, refreshData } = useClientes()
+  const { clientes, isLoading, error, refreshData } = useClientes()
   const [activeTab, setActiveTab] = useState<'comercial' | 'manutencoes'>('comercial')
   const [isNovaManutencaoOpen, setIsNovaManutencaoOpen] = useState(false)
   const [isRefreshing, setIsRefreshing] = useState(false)
@@ -79,8 +79,30 @@ export default function Index() {
         </button>
       </div>
 
+      {/* Banner de erro quando houver falha ao carregar dados do CRM */}
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-center justify-between gap-3 text-xs text-red-800">
+          <div className="flex items-start gap-2.5">
+            <AlertCircle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
+            <div>
+              <p className="font-bold">Erro ao carregar dados do CRM</p>
+              <p className="text-red-700 mt-0.5">{error}</p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg shrink-0 transition-colors"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
+            <span>Tentar novamente</span>
+          </button>
+        </div>
+      )}
+
       {/* Alerta defensivo quando a lista estiver vazia após carregar */}
-      {!isLoading && safeClientes.length === 0 && (
+      {!isLoading && !error && safeClientes.length === 0 && (
         <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-center justify-between gap-3 text-xs text-amber-800">
           <div>
             <p className="font-bold">Nenhum cliente carregado no painel.</p>

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react'
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react'
 import type {
   Cliente,
   Sistema,
@@ -31,6 +31,12 @@ import {
   fetchServicosAdicionaisOM,
   fetchTimelineOM,
   fetchServicosAvulsos,
+  fetchFornecedores,
+  fetchFornecedoresOrcamentos,
+  fetchTransferenciasCreditos,
+  fetchDocumentosCliente,
+  fetchTiposAtividadesCustom,
+  fetchContatosAdicionais,
   createServicoAvulso as apiCreateServicoAvulso,
   updateServicoAvulso as apiUpdateServicoAvulso,
   deleteServicoAvulso as apiDeleteServicoAvulso,
@@ -91,6 +97,27 @@ import {
   assumirConversa as apiAssumirConversa,
   finalizarConversa as apiFinalizarConversa,
   updateWhatsAppConversa as apiUpdateWhatsAppConversa,
+  createTipoAtividadeCustom as apiCreateTipoAtividadeCustom,
+  deleteTipoAtividadeCustom as apiDeleteTipoAtividadeCustom,
+  createTransferenciaCredito as apiCreateTransferenciaCredito,
+  updateTransferenciaCredito as apiUpdateTransferenciaCredito,
+  deleteTransferenciaCredito as apiDeleteTransferenciaCredito,
+  upsertDocumentoCliente as apiUpsertDocumentoCliente,
+  updateDocumentoClienteStatus as apiUpdateDocumentoClienteStatus,
+  deleteDocumentoCliente as apiDeleteDocumentoCliente,
+  createFornecedor as apiCreateFornecedor,
+  updateFornecedor as apiUpdateFornecedor,
+  deleteFornecedor as apiDeleteFornecedor,
+  createFornecedorOrcamento as apiCreateFornecedorOrcamento,
+  updateFornecedorOrcamento as apiUpdateFornecedorOrcamento,
+  selecionarFornecedorOrcamento as apiSelecionarFornecedorOrcamento,
+  deleteFornecedorOrcamento as apiDeleteFornecedorOrcamento,
+  createContatoAdicional as apiCreateContatoAdicional,
+  updateContatoAdicional as apiUpdateContatoAdicional,
+  deleteContatoAdicional as apiDeleteContatoAdicional,
+  createOutroContato as apiCreateOutroContato,
+  marcarClienteComoGanho as apiMarcarClienteComoGanho,
+  marcarClienteComoPerdido as apiMarcarClienteComoPerdido,
 } from '@/services/crmService'
 import type {
   OrcamentoSolar,
@@ -121,7 +148,7 @@ interface ClientesContextType {
   servicosAvulsos: ServicoAvulso[]
   transferenciasCreditos: import('@/types/crm').TransferenciaCredito[]
   addTransferenciaCredito: (
-    data: Parameters<typeof import('@/services/crmService').createTransferenciaCredito>[0],
+    data: Parameters<typeof apiCreateTransferenciaCredito>[0],
   ) => Promise<import('@/types/crm').TransferenciaCredito>
   updateTransferenciaCredito: (
     id: string,
@@ -131,7 +158,7 @@ interface ClientesContextType {
   refreshTransferenciasCreditos: () => Promise<void>
   documentosCliente: import('@/types/crm').DocumentoCliente[]
   addOrUpdateDocumentoCliente: (
-    data: Parameters<typeof import('@/services/crmService').upsertDocumentoCliente>[0],
+    data: Parameters<typeof apiUpsertDocumentoCliente>[0],
   ) => Promise<import('@/types/crm').DocumentoCliente>
   getDocumentoCliente: (
     clienteId: string,
@@ -444,7 +471,7 @@ interface ClientesContextType {
 const ClientesContext = createContext<ClientesContextType | undefined>(undefined)
 
 export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { isAuthenticated } = useAuth()
+  const { isAuthenticated, token, user } = useAuth()
   const [clientes, setClientes] = useState<Cliente[]>([])
   const [sistemas, setSistemas] = useState<Sistema[]>([])
   const [manutencoes, setManutencoes] = useState<Manutencao[]>([])
@@ -486,13 +513,21 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [selectedOMClienteId, setSelectedOMClienteId] = useState<string | null>(null)
   const [activeClientTab, setActiveClientTab] = useState<ClientTabType>('historico')
 
+  const isLoadingRef = useRef(false)
+
   const loadAllData = useCallback(async () => {
-    if (!isAuthenticated) {
+    if (!isAuthenticated || (!user?.id && !token)) {
       setIsLoading(false)
       return
     }
 
+    if (isLoadingRef.current) {
+      return
+    }
+
+    isLoadingRef.current = true
     let isCompleted = false
+
     // Fallback de segurança de ~4s: se por algum motivo extremo a rede demorar,
     // libera a interface para não travar o usuário, mas continua processando os dados
     const safetyTimer = setTimeout(() => {
@@ -524,6 +559,35 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           fetchContratosOM(),
         ])
 
+      // Em falha nas tabelas prioritárias, registrar no estado error e console.error
+      const failedPriority: string[] = []
+      if (cRes.status === 'rejected') {
+        console.error('Falha ao carregar clientes:', cRes.reason)
+        failedPriority.push('clientes')
+      }
+      if (aRes.status === 'rejected') {
+        console.error('Falha ao carregar atividades:', aRes.reason)
+        failedPriority.push('atividades')
+      }
+      if (orcRes.status === 'rejected') {
+        console.error('Falha ao carregar orçamentos solares:', orcRes.reason)
+        failedPriority.push('orçamentos')
+      }
+      if (uRes.status === 'rejected') {
+        console.error('Falha ao carregar usuários:', uRes.reason)
+      }
+      if (sRes.status === 'rejected') {
+        console.error('Falha ao carregar sistemas:', sRes.reason)
+      }
+
+      if (failedPriority.length > 0) {
+        const primaryReason =
+          (cRes.status === 'rejected' && cRes.reason?.message) ||
+          (aRes.status === 'rejected' && aRes.reason?.message) ||
+          'Erro ao carregar dados essenciais do CRM'
+        setError(`Falha ao obter ${failedPriority.join(', ')}: ${primaryReason}`)
+      }
+
       const cList = getValue(cRes, [])
       const aList = getValue(aRes, [])
       const orcList = getValue(orcRes, [])
@@ -545,7 +609,7 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       setProjetos(projList)
       setContratosOM(contList)
 
-      // Se clientes vier vazio nesta primeira tentativa e não houver erro crítico,
+      // Se clientes vier vazio nesta primeira tentativa e houve rejeição,
       // fazer uma checagem defensiva de recuperação direta para clientes
       if (cList.length === 0 && cRes.status === 'rejected') {
         console.warn('Tentativa primária de clientes falhou. Executando recuperação defensiva...')
@@ -553,6 +617,7 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           const recC = await fetchClientes()
           if (recC && recC.length > 0) {
             setClientes(recC)
+            setError(null)
           }
         } catch (recErr) {
           console.warn('Recuperação defensiva de clientes:', recErr)
@@ -562,7 +627,7 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       // Desativa o loading assim que as tabelas vitais estão no estado
       setIsLoading(false)
 
-      // ETAPA 2 (Background): Dados secundários carregados em segundo plano
+      // ETAPA 2 (Background): Dados secundários carregados com imports estáticos diretos
       // sem bloquear as telas vitais do CRM
       Promise.allSettled([
         fetchProjetoEventos(),
@@ -574,13 +639,13 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         fetchWhatsAppMensagens(),
         fetchWhatsAppConfigStatus(),
         fetchWhatsAppConversas(),
-        import('@/services/crmService').then((s) => s.fetchFornecedores()),
-        import('@/services/crmService').then((s) => s.fetchFornecedoresOrcamentos()),
+        fetchFornecedores(),
+        fetchFornecedoresOrcamentos(),
         fetchServicosAvulsos(),
-        import('@/services/crmService').then((s) => s.fetchTransferenciasCreditos()),
-        import('@/services/crmService').then((s) => s.fetchDocumentosCliente()),
-        import('@/services/crmService').then((s) => s.fetchTiposAtividadesCustom()),
-        import('@/services/crmService').then((s) => s.fetchContatosAdicionais()),
+        fetchTransferenciasCreditos(),
+        fetchDocumentosCliente(),
+        fetchTiposAtividadesCustom(),
+        fetchContatosAdicionais(),
       ])
         .then(
           ([
@@ -637,12 +702,15 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       isCompleted = true
       clearTimeout(safetyTimer)
       setIsLoading(false)
+      isLoadingRef.current = false
     }
-  }, [isAuthenticated])
+  }, [isAuthenticated, user?.id, token])
 
   useEffect(() => {
-    loadAllData()
-  }, [loadAllData])
+    if (isAuthenticated && (user?.id || token)) {
+      loadAllData()
+    }
+  }, [isAuthenticated, user?.id, token, loadAllData])
 
   // Realtime updates for clientes
   useRealtime<Cliente>(
@@ -706,9 +774,7 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   useRealtime<import('@/types/crm').TipoAtividadeCustomItem>(
     'tipos_atividades_custom',
     () => {
-      import('@/services/crmService')
-        .then((s) => s.fetchTiposAtividadesCustom().then(setTiposAtividadesCustom))
-        .catch(console.error)
+      fetchTiposAtividadesCustom().then(setTiposAtividadesCustom).catch(console.error)
     },
     isAuthenticated,
   )
@@ -798,9 +864,7 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   useRealtime<import('@/types/crm').Fornecedor>(
     'fornecedores',
     () => {
-      import('@/services/crmService')
-        .then((s) => s.fetchFornecedores().then(setFornecedores))
-        .catch(console.error)
+      fetchFornecedores().then(setFornecedores).catch(console.error)
     },
     isAuthenticated,
   )
@@ -809,9 +873,7 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   useRealtime<import('@/types/crm').FornecedorOrcamento>(
     'fornecedores_orcamentos',
     () => {
-      import('@/services/crmService')
-        .then((s) => s.fetchFornecedoresOrcamentos().then(setFornecedoresOrcamentos))
-        .catch(console.error)
+      fetchFornecedoresOrcamentos().then(setFornecedoresOrcamentos).catch(console.error)
     },
     isAuthenticated,
   )
@@ -848,9 +910,7 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   useRealtime<import('@/types/crm').ContatoAdicional>(
     'contatos_adicionais',
     () => {
-      import('@/services/crmService')
-        .then((s) => s.fetchContatosAdicionais().then(setContatosAdicionais))
-        .catch(console.error)
+      fetchContatosAdicionais().then(setContatosAdicionais).catch(console.error)
     },
     isAuthenticated,
   )
@@ -1149,8 +1209,7 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     icone?: string
     descricao?: string
   }) => {
-    const s = await import('@/services/crmService')
-    const created = await s.createTipoAtividadeCustom(data)
+    const created = await apiCreateTipoAtividadeCustom(data)
     setTiposAtividadesCustom((prev) => {
       if (prev.some((item) => item.id === created.id)) return prev
       return [...prev, created]
@@ -1160,13 +1219,11 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   const removeTipoAtividadeCustom = async (id: string) => {
     setTiposAtividadesCustom((prev) => prev.filter((t) => t.id !== id))
-    const s = await import('@/services/crmService')
-    await s.deleteTipoAtividadeCustom(id)
+    await apiDeleteTipoAtividadeCustom(id)
   }
 
   const refreshTiposAtividadesCustom = async () => {
-    const s = await import('@/services/crmService')
-    const list = await s.fetchTiposAtividadesCustom()
+    const list = await fetchTiposAtividadesCustom()
     setTiposAtividadesCustom(list)
   }
 
@@ -1332,12 +1389,11 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     try {
       // Se tiver área de destino explícita, chama marcarClienteComoGanho para cada um
       // garantindo que projeto ou O&M sejam criados/vinculados
-      const s = await import('@/services/crmService')
       const updatedList: Cliente[] = []
 
       for (const item of normalizedList) {
         try {
-          const cli = await s.marcarClienteComoGanho(item.id, finalDestino)
+          const cli = await apiMarcarClienteComoGanho(item.id, finalDestino)
           updatedList.push(cli)
         } catch (e) {
           console.warn(`Erro ao transferir cliente ${item.id} para pós-vendas:`, e)
@@ -1388,8 +1444,7 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     )
 
     try {
-      const s = await import('@/services/crmService')
-      const clienteAtualizado = await s.marcarClienteComoGanho(clienteId, areaDestino)
+      const clienteAtualizado = await apiMarcarClienteComoGanho(clienteId, areaDestino)
       setClientes((prev) => prev.map((c) => (c.id === clienteId ? clienteAtualizado : c)))
 
       // Se área de destino for projetos, recarregar projetos para atualizar Kanban de Projetos e abas
@@ -1427,8 +1482,7 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     )
 
     try {
-      const s = await import('@/services/crmService')
-      const clienteAtualizado = await s.marcarClienteComoPerdido(
+      const clienteAtualizado = await apiMarcarClienteComoPerdido(
         clienteId,
         motivoPerda,
         observacaoTexto,
@@ -1948,10 +2002,9 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   }
 
   const addTransferenciaCredito = async (
-    data: Parameters<typeof import('@/services/crmService').createTransferenciaCredito>[0],
+    data: Parameters<typeof apiCreateTransferenciaCredito>[0],
   ) => {
-    const s = await import('@/services/crmService')
-    const created = await s.createTransferenciaCredito(data)
+    const created = await apiCreateTransferenciaCredito(data)
     setTransferenciasCreditos((prev) => [created, ...prev.filter((t) => t.id !== created.id)])
     return created
   }
@@ -1960,29 +2013,25 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     id: string,
     data: Partial<import('@/types/crm').TransferenciaCredito>,
   ) => {
-    const s = await import('@/services/crmService')
-    const updated = await s.updateTransferenciaCredito(id, data)
+    const updated = await apiUpdateTransferenciaCredito(id, data)
     setTransferenciasCreditos((prev) => prev.map((t) => (t.id === id ? updated : t)))
     return updated
   }
 
   const removeTransferenciaCredito = async (id: string) => {
-    const s = await import('@/services/crmService')
-    await s.deleteTransferenciaCredito(id)
+    await apiDeleteTransferenciaCredito(id)
     setTransferenciasCreditos((prev) => prev.filter((t) => t.id !== id))
   }
 
   const refreshTransferenciasCreditos = async () => {
-    const s = await import('@/services/crmService')
-    const list = await s.fetchTransferenciasCreditos()
+    const list = await fetchTransferenciasCreditos()
     setTransferenciasCreditos(list)
   }
 
   const addOrUpdateDocumentoCliente = async (
-    data: Parameters<typeof import('@/services/crmService').upsertDocumentoCliente>[0],
+    data: Parameters<typeof apiUpsertDocumentoCliente>[0],
   ) => {
-    const s = await import('@/services/crmService')
-    const saved = await s.upsertDocumentoCliente(data)
+    const saved = await apiUpsertDocumentoCliente(data)
     setDocumentosCliente((prev) => [saved, ...prev.filter((d) => d.id !== saved.id)])
     return saved
   }
@@ -1992,21 +2041,18 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     status: import('@/types/crm').DocumentoClienteStatusAssinatura,
     dataAssinatura?: string,
   ) => {
-    const s = await import('@/services/crmService')
-    const updated = await s.updateDocumentoClienteStatus(id, status, dataAssinatura)
+    const updated = await apiUpdateDocumentoClienteStatus(id, status, dataAssinatura)
     setDocumentosCliente((prev) => prev.map((d) => (d.id === id ? updated : d)))
     return updated
   }
 
   const removeDocumentoCliente = async (id: string) => {
-    const s = await import('@/services/crmService')
-    await s.deleteDocumentoCliente(id)
+    await apiDeleteDocumentoCliente(id)
     setDocumentosCliente((prev) => prev.filter((d) => d.id !== id))
   }
 
   const refreshDocumentosCliente = async () => {
-    const s = await import('@/services/crmService')
-    const list = await s.fetchDocumentosCliente()
+    const list = await fetchDocumentosCliente()
     setDocumentosCliente(list)
   }
 
@@ -2200,8 +2246,7 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     },
   ) => {
     // 1. Criar registro na collection outros_contatos
-    const { createOutroContato } = await import('@/services/crmService')
-    const novoContato = await createOutroContato({
+    const novoContato = await apiCreateOutroContato({
       nome: contatoData.nome,
       telefone: contatoData.telefone,
       tipo_contato: contatoData.tipo_contato,
@@ -2405,37 +2450,31 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         fornecedores,
         fornecedoresOrcamentos,
         addFornecedor: async (data) => {
-          const s = await import('@/services/crmService')
-          const created = await s.createFornecedor(data)
+          const created = await apiCreateFornecedor(data)
           setFornecedores((prev) => [...prev, created])
           return created
         },
         updateFornecedor: async (id, data) => {
-          const s = await import('@/services/crmService')
-          const updated = await s.updateFornecedor(id, data)
+          const updated = await apiUpdateFornecedor(id, data)
           setFornecedores((prev) => prev.map((f) => (f.id === id ? updated : f)))
           return updated
         },
         removeFornecedor: async (id) => {
-          const s = await import('@/services/crmService')
-          await s.deleteFornecedor(id)
+          await apiDeleteFornecedor(id)
           setFornecedores((prev) => prev.filter((f) => f.id !== id))
         },
         addFornecedorOrcamento: async (data, file) => {
-          const s = await import('@/services/crmService')
-          const created = await s.createFornecedorOrcamento(data, file)
+          const created = await apiCreateFornecedorOrcamento(data, file)
           setFornecedoresOrcamentos((prev) => [created, ...prev])
           return created
         },
         updateFornecedorOrcamento: async (id, data, file) => {
-          const s = await import('@/services/crmService')
-          const updated = await s.updateFornecedorOrcamento(id, data, file)
+          const updated = await apiUpdateFornecedorOrcamento(id, data, file)
           setFornecedoresOrcamentos((prev) => prev.map((o) => (o.id === id ? updated : o)))
           return updated
         },
         selecionarFornecedorOrcamento: async (id, options) => {
-          const s = await import('@/services/crmService')
-          const updated = await s.selecionarFornecedorOrcamento(id, options)
+          const updated = await apiSelecionarFornecedorOrcamento(id, options)
           setFornecedoresOrcamentos((prev) =>
             prev.map((o) => {
               if (o.id === id) return updated
@@ -2452,40 +2491,34 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           return updated
         },
         removeFornecedorOrcamento: async (id) => {
-          const s = await import('@/services/crmService')
-          await s.deleteFornecedorOrcamento(id)
+          await apiDeleteFornecedorOrcamento(id)
           setFornecedoresOrcamentos((prev) => prev.filter((o) => o.id !== id))
         },
         refreshFornecedores: async () => {
-          const s = await import('@/services/crmService')
           const [fList, foList] = await Promise.all([
-            s.fetchFornecedores(),
-            s.fetchFornecedoresOrcamentos(),
+            fetchFornecedores(),
+            fetchFornecedoresOrcamentos(),
           ])
           setFornecedores(fList)
           setFornecedoresOrcamentos(foList)
         },
         contatosAdicionais,
         addContatoAdicional: async (data) => {
-          const s = await import('@/services/crmService')
-          const created = await s.createContatoAdicional(data)
+          const created = await apiCreateContatoAdicional(data)
           setContatosAdicionais((prev) => [...prev, created])
           return created
         },
         updateContatoAdicional: async (id, data) => {
-          const s = await import('@/services/crmService')
-          const updated = await s.updateContatoAdicional(id, data)
+          const updated = await apiUpdateContatoAdicional(id, data)
           setContatosAdicionais((prev) => prev.map((c) => (c.id === id ? updated : c)))
           return updated
         },
         removeContatoAdicional: async (id) => {
-          const s = await import('@/services/crmService')
-          await s.deleteContatoAdicional(id)
+          await apiDeleteContatoAdicional(id)
           setContatosAdicionais((prev) => prev.filter((c) => c.id !== id))
         },
         refreshContatosAdicionais: async () => {
-          const s = await import('@/services/crmService')
-          const list = await s.fetchContatosAdicionais()
+          const list = await fetchContatosAdicionais()
           setContatosAdicionais(list)
         },
         whatsAppTemplates,

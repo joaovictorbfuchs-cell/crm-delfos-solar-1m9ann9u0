@@ -1,5 +1,14 @@
 import React, { useState } from 'react'
-import { KanbanSquare, List, Loader2, UserPlus, LayoutGrid, Send, RefreshCw } from 'lucide-react'
+import {
+  KanbanSquare,
+  List,
+  Loader2,
+  UserPlus,
+  LayoutGrid,
+  Send,
+  RefreshCw,
+  AlertCircle,
+} from 'lucide-react'
 import { useClientes } from '@/contexts/ClientesContext'
 import { KanbanBoard } from '@/components/KanbanBoard'
 import { ComercialListView } from '@/components/ComercialListView'
@@ -18,7 +27,7 @@ import { Button } from '@/components/ui/button'
 import { toast } from '@/hooks/use-toast'
 
 export default function Comercial() {
-  const { clientes, isLoading, bulkTransferirFechadosPosVendas, refreshData } = useClientes()
+  const { clientes, isLoading, error, bulkTransferirFechadosPosVendas, refreshData } = useClientes()
   const [isNovoLeadOpen, setIsNovoLeadOpen] = useState(false)
   const [viewMode, setViewMode] = useState<'kanban' | 'list'>('kanban')
   const [isRefreshing, setIsRefreshing] = useState(false)
@@ -80,8 +89,30 @@ export default function Comercial() {
 
   return (
     <div className="space-y-6">
+      {/* Banner de erro quando houver falha ao carregar dados do CRM */}
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-center justify-between gap-3 text-xs text-red-800">
+          <div className="flex items-start gap-2.5">
+            <AlertCircle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
+            <div>
+              <p className="font-bold">Erro ao carregar dados do CRM</p>
+              <p className="text-red-700 mt-0.5">{error}</p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg shrink-0 transition-colors"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
+            <span>Tentar novamente</span>
+          </button>
+        </div>
+      )}
+
       {/* Botão de recarga defensivo quando a lista estiver vazia */}
-      {!isLoading && clientesAtivos.length === 0 && (
+      {!isLoading && !error && clientesAtivos.length === 0 && (
         <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-center justify-between gap-3 text-xs text-amber-800">
           <div>
             <p className="font-bold">Nenhum cliente ou lead encontrado no Funil Comercial.</p>
