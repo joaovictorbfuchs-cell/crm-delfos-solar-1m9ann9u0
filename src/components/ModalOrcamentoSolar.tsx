@@ -57,6 +57,8 @@ import {
   baixarPropostaSolarDocx,
 } from '@/lib/propostaSolarDocxGenerator'
 import { ModalGerarPropostaTecnicoComercial } from '@/components/ModalGerarPropostaTecnicoComercial'
+import { SecaoCapaProposta } from '@/components/SecaoCapaProposta'
+import { SecaoCustoInercia } from '@/components/SecaoCustoInercia'
 import { SecaoProjecaoEconomia } from '@/components/SecaoProjecaoEconomia'
 import { SecaoSeuSistemaFotovoltaico } from '@/components/SecaoSeuSistemaFotovoltaico'
 
@@ -2708,6 +2710,31 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                   </div>
                 </div>
 
+                {/* Seção 1: Capa da Proposta Comercial Oficial */}
+                <SecaoCapaProposta
+                  nomeCliente={clienteAtual?.nome}
+                  economiaMensal={calculos.economia1Mes}
+                  dataOrcamento={initialOrcamento?.data_orcamento || initialOrcamento?.created}
+                  consultor={initialOrcamento?.autor || user?.name || 'Equipe Delfos Solar'}
+                  potenciaKwp={potenciaKwp}
+                />
+
+                {/* Seção 2: O Custo da Inércia (Diagnóstico Visual) */}
+                <SecaoCustoInercia
+                  gastoSemSolar1Ano={calculos.gastoSemSolar1Ano}
+                  gastoSemSolar5Anos={calculos.gastoSemSolar5Anos}
+                  gastoSemSolar25Anos={calculos.gastoSemSolar25Anos}
+                  valorInvestimento={valorInvestimentoFinal}
+                  economiaMensal={calculos.economia1Mes}
+                  contaMensal={
+                    calculos.contaAtualSemSolarMes ||
+                    (consumoKwhMes ? consumoKwhMes * tarifaKwh : undefined)
+                  }
+                  economia1Ano={calculos.economia1Ano}
+                  economia5Anos={calculos.economia5Anos}
+                  economia25Anos={calculos.economia25Anos}
+                />
+
                 {/* Nova Seção: Seu Sistema Fotovoltaico (Visão consolidada em cards visuais) */}
                 <SecaoSeuSistemaFotovoltaico
                   potenciaKwp={potenciaKwp}
@@ -3010,6 +3037,8 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
             parcela_financiamento_banco2:
               calculos.parcelamentos?.financiamentoBanco2?.valorParcela ||
               Math.round(valorInvestimentoFinal * 0.02),
+            data_orcamento: initialOrcamento?.data_orcamento || new Date().toISOString(),
+            autor: initialOrcamento?.autor || user?.name || 'Equipe Delfos Solar',
             gasto_sem_solar_1_ano: calculos.gastoSemSolar1Ano,
             gasto_sem_solar_5_anos: calculos.gastoSemSolar5Anos,
             gasto_sem_solar_25_anos: calculos.gastoSemSolar25Anos,
@@ -3018,7 +3047,7 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
             economia_5_anos: calculos.economia5Anos,
             economia_25_anos: calculos.economia25Anos,
             conta_primeiro_mes_com_solar: calculos.contaPrimeiroMesComSolar,
-            created: new Date().toISOString(),
+            created: initialOrcamento?.created || new Date().toISOString(),
           }}
         />
       )}

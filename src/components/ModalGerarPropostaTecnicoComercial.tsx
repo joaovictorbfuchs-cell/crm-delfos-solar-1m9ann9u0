@@ -29,6 +29,8 @@ import {
   abrirPropostaTecnicoComercialEmNovaAba,
   baixarPropostaTecnicoComercialHTML,
 } from '@/lib/propostaTecnicoComercialGenerator'
+import { SecaoCapaProposta } from '@/components/SecaoCapaProposta'
+import { SecaoCustoInercia } from '@/components/SecaoCustoInercia'
 import { SecaoProjecaoEconomia } from '@/components/SecaoProjecaoEconomia'
 import { SecaoSeuSistemaFotovoltaico } from '@/components/SecaoSeuSistemaFotovoltaico'
 
@@ -970,6 +972,34 @@ export function ModalGerarPropostaTecnicoComercial({
                   </div>
                 </div>
               </div>
+
+              {/* Seção 1: Capa da Proposta Comercial Oficial */}
+              <SecaoCapaProposta
+                nomeCliente={clienteNome}
+                economiaMensal={orcamento.economia_1_mes || contaHoje - contaComSolar}
+                dataOrcamento={orcamento.data_orcamento || orcamento.created}
+                consultor={orcamento.autor || representanteNome}
+                potenciaKwp={potenciaKwp}
+              />
+
+              {/* Seção 2: O Custo da Inércia (Diagnóstico Visual) */}
+              <SecaoCustoInercia
+                gastoSemSolar1Ano={orcamento.gasto_sem_solar_1_ano || Math.round(contaHoje * 12)}
+                gastoSemSolar5Anos={
+                  orcamento.gasto_sem_solar_5_anos ||
+                  Math.round((orcamento.gasto_sem_solar_1_ano || contaHoje * 12) * 5.8)
+                }
+                gastoSemSolar25Anos={
+                  orcamento.gasto_sem_solar_25_anos ||
+                  Math.round((orcamento.gasto_sem_solar_1_ano || contaHoje * 12) * 38.5)
+                }
+                valorInvestimento={investimentoTotal}
+                economiaMensal={orcamento.economia_1_mes || Math.max(0, contaHoje - contaComSolar)}
+                contaMensal={contaHoje}
+                economia1Ano={orcamento.economia_1_ano}
+                economia5Anos={orcamento.economia_5_anos}
+                economia25Anos={orcamento.economia_25_anos}
+              />
 
               {/* Seção Visual: Seu Sistema Fotovoltaico */}
               <SecaoSeuSistemaFotovoltaico

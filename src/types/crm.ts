@@ -1026,6 +1026,8 @@ export interface OrcamentoSolarCalculado {
   economia_5_anos?: number
   economia_25_anos?: number
   conta_primeiro_mes_com_solar?: number
+  data_orcamento?: string
+  autor?: string
   created?: string
 }
 
