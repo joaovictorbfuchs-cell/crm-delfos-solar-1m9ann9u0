@@ -1,12 +1,15 @@
 /* Main entry point for the application - renders the root React component */
 import { createRoot } from 'react-dom/client'
-import App from './App.tsx'
+import App from './App'
 import './main.css'
-import { RootErrorBoundary } from './components/RootErrorBoundary.tsx'
+import { RootErrorBoundary } from './components/RootErrorBoundary'
 
 // @skip-protected: Do not remove. Required for React rendering.
-createRoot(document.getElementById('root')!).render(
-  <RootErrorBoundary>
-    <App />
-  </RootErrorBoundary>,
-)
+const rootElement = document.getElementById('root')
+if (rootElement) {
+  createRoot(rootElement).render(
+    <RootErrorBoundary>
+      <App />
+    </RootErrorBoundary>,
+  )
+}
