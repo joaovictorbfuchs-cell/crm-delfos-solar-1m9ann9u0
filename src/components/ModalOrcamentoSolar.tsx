@@ -99,7 +99,9 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
 
   // Campos técnicos exatos exigidos
   const [consumoKwhMes, setConsumoKwhMes] = useState<number>(650)
-  const [geracaoPretendidaKwhAno, setGeracaoPretendidaKwhAno] = useState<number | ''>('')
+  const [geracaoPretendidaKwhMes, setGeracaoPretendidaKwhMes] = useState<number | ''>(650)
+  const [geracaoPretendidaEditadaManualmente, setGeracaoPretendidaEditadaManualmente] =
+    useState<boolean>(false)
   const [tipoCliente, setTipoCliente] = useState<TipoClienteSolar>('residencial')
   const [tarifaKwh, setTarifaKwh] = useState<number>(1.19)
   const [potenciaKwp, setPotenciaKwp] = useState<number>(5.5)
@@ -169,13 +171,20 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
     if (initialOrcamento) {
       setSelectedClienteId(initialOrcamento.cliente_id)
       setStatus(initialOrcamento.status || 'Em elaboração')
-      setConsumoKwhMes(initialOrcamento.consumo_kwh_mes || 650)
-      setGeracaoPretendidaKwhAno(
+      const consumoInicial = initialOrcamento.consumo_kwh_mes || 650
+      setConsumoKwhMes(consumoInicial)
+      if (
         initialOrcamento.geracao_pretendida_kwh_ano &&
-          initialOrcamento.geracao_pretendida_kwh_ano > 0
-          ? initialOrcamento.geracao_pretendida_kwh_ano
-          : '',
-      )
+        initialOrcamento.geracao_pretendida_kwh_ano > 0
+      ) {
+        // Converte kWh/ano salvo para kWh/mês no campo
+        const mensalConvertido = Math.round(initialOrcamento.geracao_pretendida_kwh_ano / 12)
+        setGeracaoPretendidaKwhMes(mensalConvertido)
+        setGeracaoPretendidaEditadaManualmente(true)
+      } else {
+        setGeracaoPretendidaKwhMes(consumoInicial)
+        setGeracaoPretendidaEditadaManualmente(false)
+      }
       setTipoCliente(initialOrcamento.tipo_cliente || 'residencial')
       setTarifaKwh(initialOrcamento.tarifa_kwh || 1.19)
       setPotenciaKwp(initialOrcamento.potencia_kwp || 5.5)
@@ -303,7 +312,8 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
       setValorPorPlaca(150)
       setOpcaoImposto(1)
       setDescontoPercentual(0)
-      setGeracaoPretendidaKwhAno('')
+      setGeracaoPretendidaKwhMes(650)
+      setGeracaoPretendidaEditadaManualmente(false)
       setMaoDeObraEditadaManualmente(false)
       setFornecedorSelecionadoId('')
 
@@ -352,6 +362,9 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
     // Consumo médio
     if (clienteAtual.consumo_kwh_mes && clienteAtual.consumo_kwh_mes > 0) {
       setConsumoKwhMes(clienteAtual.consumo_kwh_mes)
+      if (!geracaoPretendidaEditadaManualmente) {
+        setGeracaoPretendidaKwhMes(clienteAtual.consumo_kwh_mes)
+      }
     }
     // Tarifa
     if (clienteAtual.tarifa && clienteAtual.tarifa > 0) {
@@ -442,12 +455,17 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
     }
   }
 
-  // Dimensionamento automático a partir da geração pretendida anual informada
+  // Dimensionamento automático a partir da geração pretendida mensal informada (convertida para kWh/ano = mensal * 12)
   const dimensionamentoSugerido = useMemo(() => {
-    const geracaoNum = Number(geracaoPretendidaKwhAno) || 0
-    if (geracaoNum <= 0) return null
-    return dimensionarSistemaPorGeracaoPretendida(geracaoNum, orientacaoTelhado, potenciaPlacaWp)
-  }, [geracaoPretendidaKwhAno, orientacaoTelhado, potenciaPlacaWp])
+    const geracaoMensalNum = Number(geracaoPretendidaKwhMes) || 0
+    if (geracaoMensalNum <= 0) return null
+    const geracaoAnualCalculo = geracaoMensalNum * 12
+    return dimensionarSistemaPorGeracaoPretendida(
+      geracaoAnualCalculo,
+      orientacaoTelhado,
+      potenciaPlacaWp,
+    )
+  }, [geracaoPretendidaKwhMes, orientacaoTelhado, potenciaPlacaWp])
 
   // Ação para aplicar o dimensionamento sugerido ao campo "Potência do sistema (kWp)"
   const handleAplicarDimensionamento = () => {
@@ -682,8 +700,8 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
         tipo_cliente: tipoCliente,
         consumo_kwh_mes: consumoKwhMes,
         geracao_pretendida_kwh_ano:
-          geracaoPretendidaKwhAno && Number(geracaoPretendidaKwhAno) > 0
-            ? Number(geracaoPretendidaKwhAno)
+          geracaoPretendidaKwhMes && Number(geracaoPretendidaKwhMes) > 0
+            ? Math.round(Number(geracaoPretendidaKwhMes) * 12)
             : undefined,
         tarifa_kwh: tarifaKwh,
         potencia_kwp: potenciaKwp,
@@ -1157,17 +1175,23 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                       value={consumoKwhMes}
                       min={0}
                       step={10}
-                      onChange={(e) => setConsumoKwhMes(Number(e.target.value) || 0)}
+                      onChange={(e) => {
+                        const novoConsumo = Number(e.target.value) || 0
+                        setConsumoKwhMes(novoConsumo)
+                        if (!geracaoPretendidaEditadaManualmente) {
+                          setGeracaoPretendidaKwhMes(novoConsumo)
+                        }
+                      }}
                       className="w-full text-xs font-semibold px-3 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-emerald-500"
                       placeholder="Ex: 650"
                     />
                   </div>
 
-                  {/* Geração pretendida (kWh/ano) - Permite dimensionar quando o cliente quer gerar mais do que consome */}
+                  {/* Geração pretendida (kWh/mês) - Permite dimensionar quando o cliente quer gerar mais do que consome */}
                   <div>
                     <div className="flex items-center justify-between mb-1">
                       <label className="text-[11px] font-semibold text-gray-700 block">
-                        Geração pretendida (kWh/ano)
+                        Geração pretendida (kWh/mês)
                       </label>
                       <span className="text-[10px] text-emerald-700 font-medium">
                         Dimensiona kWp
@@ -1175,16 +1199,17 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                     </div>
                     <input
                       type="number"
-                      value={geracaoPretendidaKwhAno}
+                      value={geracaoPretendidaKwhMes}
                       min={0}
-                      step={100}
+                      step={10}
                       onChange={(e) => {
+                        setGeracaoPretendidaEditadaManualmente(true)
                         const val = e.target.value
-                        setGeracaoPretendidaKwhAno(val === '' ? '' : Number(val) || 0)
+                        setGeracaoPretendidaKwhMes(val === '' ? '' : Number(val) || 0)
                       }}
                       className="w-full text-xs font-semibold px-3 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                      placeholder="Ex: 9459 (ou mais que o consumo)"
-                      title="Informe a energia anual desejada caso queira dimensionar um sistema maior que o consumo atual"
+                      placeholder="Ex: 790 (ou mais que o consumo médio)"
+                      title="Informe a energia média mensal desejada (kWh/mês) caso queira dimensionar um sistema maior que o consumo médio atual"
                     />
                   </div>
 
@@ -1238,10 +1263,18 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                     {dimensionamentoSugerido && (
                       <span className="text-[10px] text-emerald-700 font-medium block mt-1 leading-tight">
                         Sugerido:{' '}
-                        <strong>
-                          ~{dimensionamentoSugerido.geracaoPretendidaKwhAno.toLocaleString('pt-BR')}{' '}
-                          kWh/ano
-                        </strong>{' '}
+                        {geracaoPretendidaKwhMes && (
+                          <>
+                            <strong>
+                              {Number(geracaoPretendidaKwhMes).toLocaleString('pt-BR')} kWh/mês
+                            </strong>{' '}
+                            (~
+                            {dimensionamentoSugerido.geracaoPretendidaKwhAno.toLocaleString(
+                              'pt-BR',
+                            )}{' '}
+                            kWh/ano)
+                          </>
+                        )}{' '}
                         na orientação{' '}
                         <strong className="capitalize">{dimensionamentoSugerido.orientacao}</strong>{' '}
                         ({dimensionamentoSugerido.potenciaKwpNecessaria.toFixed(2)} kWp)
@@ -1442,12 +1475,16 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                         <p className="text-[11px] text-emerald-800 leading-snug">
                           Geração pretendida de{' '}
                           <strong>
-                            {dimensionamentoSugerido.geracaoPretendidaKwhAno.toLocaleString(
-                              'pt-BR',
-                            )}{' '}
-                            kWh/ano
+                            {geracaoPretendidaKwhMes
+                              ? Number(geracaoPretendidaKwhMes).toLocaleString('pt-BR')
+                              : Math.round(
+                                  dimensionamentoSugerido.geracaoPretendidaKwhAno / 12,
+                                ).toLocaleString('pt-BR')}{' '}
+                            kWh/mês
                           </strong>{' '}
-                          ÷ fator de{' '}
+                          (~
+                          {dimensionamentoSugerido.geracaoPretendidaKwhAno.toLocaleString('pt-BR')}{' '}
+                          kWh/ano) ÷ fator de{' '}
                           {dimensionamentoSugerido.fatorKwhPorKwpAno.toLocaleString('pt-BR')}{' '}
                           kWh/kWp/ano (telhado {dimensionamentoSugerido.orientacao}). Sugestão de
                           placas:{' '}
