@@ -488,33 +488,37 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     try {
       setIsLoading(true)
       setError(null)
+
+      const getValue = <T,>(res: PromiseSettledResult<T>, fallback: T): T =>
+        res.status === 'fulfilled' ? res.value : fallback
+
       const [
-        cList,
-        sList,
-        mList,
-        aList,
-        uList,
-        pList,
-        projList,
-        evList,
-        contList,
-        anomList,
-        adicList,
-        timeList,
-        propList,
-        orcList,
-        tplList,
-        msgList,
-        cfgStatus,
-        convList,
-        fornList,
-        fornOrcList,
-        avulsosList,
-        transfList,
-        docsList,
-        customAtivList,
-        contAdicList,
-      ] = await Promise.all([
+        cRes,
+        sRes,
+        mRes,
+        aRes,
+        uRes,
+        pRes,
+        projRes,
+        evRes,
+        contRes,
+        anomRes,
+        adicRes,
+        timeRes,
+        propRes,
+        orcRes,
+        tplRes,
+        msgRes,
+        cfgRes,
+        convRes,
+        fornRes,
+        fornOrcRes,
+        avulsosRes,
+        transfRes,
+        docsRes,
+        customAtivRes,
+        contAdicRes,
+      ] = await Promise.allSettled([
         fetchClientes(),
         fetchSistemas(),
         fetchManutencoes(),
@@ -541,6 +545,39 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         import('@/services/crmService').then((s) => s.fetchTiposAtividadesCustom()),
         import('@/services/crmService').then((s) => s.fetchContatosAdicionais()),
       ])
+
+      const cList = getValue(cRes, [])
+      const sList = getValue(sRes, [])
+      const mList = getValue(mRes, [])
+      const aList = getValue(aRes, [])
+      const uList = getValue(uRes, [])
+      const pList = getValue(pRes, [])
+      const projList = getValue(projRes, [])
+      const evList = getValue(evRes, [])
+      const contList = getValue(contRes, [])
+      const anomList = getValue(anomRes, [])
+      const adicList = getValue(adicRes, [])
+      const timeList = getValue(timeRes, [])
+      const propList = getValue(propRes, [])
+      const orcList = getValue(orcRes, [])
+      const tplList = getValue(tplRes, [])
+      const msgList = getValue(msgRes, [])
+      const cfgStatus = getValue(cfgRes, {
+        ok: false,
+        configured: false,
+        hasApiUrl: false,
+        hasApiKey: false,
+        secretsRequired: ['WHATSAPP_API_URL', 'WHATSAPP_API_KEY', 'WHATSAPP_ORIGIN_NUMBER'],
+      })
+      const convList = getValue(convRes, [])
+      const fornList = getValue(fornRes, [])
+      const fornOrcList = getValue(fornOrcRes, [])
+      const avulsosList = getValue(avulsosRes, [])
+      const transfList = getValue(transfRes, [])
+      const docsList = getValue(docsRes, [])
+      const customAtivList = getValue(customAtivRes, [])
+      const contAdicList = getValue(contAdicRes, [])
+
       setClientes(cList)
       setSistemas(sList)
       setManutencoes(mList)
@@ -1875,9 +1912,13 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   ) => {
     const updated = await apiVincularConversaCliente(conversaId, clienteId, atendenteNome)
     setWhatsAppConversas((prev) => prev.map((c) => (c.id === conversaId ? updated : c)))
-    const [cList, mList] = await Promise.all([fetchClientes(), fetchWhatsAppMensagens()])
-    setClientes(cList)
-    setWhatsAppMensagens(mList)
+    const [cRes, mRes] = await Promise.allSettled([fetchClientes(), fetchWhatsAppMensagens()])
+    if (cRes.status === 'fulfilled') {
+      setClientes(cRes.value)
+    }
+    if (mRes.status === 'fulfilled') {
+      setWhatsAppMensagens(mRes.value)
+    }
     return updated
   }
 
@@ -1955,9 +1996,13 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     // 3. Atualizar estados locais e recarregar
     setClientes((prev) => [novoCliente, ...prev.filter((c) => c.id !== novoCliente.id)])
     setWhatsAppConversas((prev) => prev.map((c) => (c.id === conversaId ? updatedConversa : c)))
-    const [cList, mList] = await Promise.all([fetchClientes(), fetchWhatsAppMensagens()])
-    setClientes(cList)
-    setWhatsAppMensagens(mList)
+    const [cRes, mRes] = await Promise.allSettled([fetchClientes(), fetchWhatsAppMensagens()])
+    if (cRes.status === 'fulfilled') {
+      setClientes(cRes.value)
+    }
+    if (mRes.status === 'fulfilled') {
+      setWhatsAppMensagens(mRes.value)
+    }
 
     return { cliente: novoCliente, conversa: updatedConversa }
   }
@@ -2002,12 +2047,16 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   }) => {
     const res = await apiSendWhatsAppMensagem(data)
     // Atualiza mensagens e conversas
-    const [refreshedMsgs, refreshedConvs] = await Promise.all([
+    const [msgsRes, convsRes] = await Promise.allSettled([
       fetchWhatsAppMensagens(),
       fetchWhatsAppConversas(),
     ])
-    setWhatsAppMensagens(refreshedMsgs)
-    setWhatsAppConversas(refreshedConvs)
+    if (msgsRes.status === 'fulfilled') {
+      setWhatsAppMensagens(msgsRes.value)
+    }
+    if (convsRes.status === 'fulfilled') {
+      setWhatsAppConversas(convsRes.value)
+    }
     return res
   }
 
@@ -2044,12 +2093,16 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   }) => {
     const res = await apiSendWhatsAppAudio(data)
     // Atualiza mensagens, conversas e atividades do histórico
-    const [refreshedMsgs, refreshedConvs] = await Promise.all([
+    const [msgsRes, convsRes] = await Promise.allSettled([
       fetchWhatsAppMensagens(),
       fetchWhatsAppConversas(),
     ])
-    setWhatsAppMensagens(refreshedMsgs)
-    setWhatsAppConversas(refreshedConvs)
+    if (msgsRes.status === 'fulfilled') {
+      setWhatsAppMensagens(msgsRes.value)
+    }
+    if (convsRes.status === 'fulfilled') {
+      setWhatsAppConversas(convsRes.value)
+    }
     try {
       const atvs = await fetchAtividades()
       setAtividades(atvs)

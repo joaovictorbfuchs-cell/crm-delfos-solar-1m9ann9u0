@@ -1083,11 +1083,16 @@ export async function finalizarConversa(
 export async function fetchWhatsAppMensagens(options?: {
   clienteId?: string
   conversaId?: string
+  numero?: string
+  telefone_destino?: string
 }): Promise<import('@/types/crm').WhatsAppMensagem[]> {
   try {
     const filters: string[] = []
     if (options?.clienteId) filters.push(`cliente_id='${options.clienteId}'`)
     if (options?.conversaId) filters.push(`conversa_id='${options.conversaId}'`)
+    // O campo 'numero' não existe em whatsapp_mensagens; o campo correto é 'telefone_destino'
+    const telefoneDestino = options?.telefone_destino || options?.numero
+    if (telefoneDestino) filters.push(`telefone_destino='${telefoneDestino}'`)
     const filter = filters.join(' && ')
 
     const records = await pb

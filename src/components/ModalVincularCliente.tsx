@@ -1,7 +1,18 @@
 import React, { useState, useMemo } from 'react'
-import { Search, UserPlus, Building2, MapPin, Check, AlertCircle, X } from 'lucide-react'
+import {
+  Search,
+  UserPlus,
+  Building2,
+  MapPin,
+  Check,
+  AlertCircle,
+  X,
+  RefreshCw,
+  Plus,
+} from 'lucide-react'
 import type { Cliente, WhatsAppConversa } from '@/types/crm'
 import { formatWhatsAppPhone } from '@/lib/formatters'
+import { useClientes } from '@/contexts/ClientesContext'
 
 interface ModalVincularClienteProps {
   isOpen: boolean
@@ -20,10 +31,23 @@ export const ModalVincularCliente: React.FC<ModalVincularClienteProps> = ({
   onVincular,
   onCadastrarLead,
 }) => {
+  const { refreshData } = useClientes()
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedClienteId, setSelectedClienteId] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [isReloading, setIsReloading] = useState(false)
+
+  const handleRecarregarClientes = async () => {
+    try {
+      setIsReloading(true)
+      await refreshData()
+    } catch (e) {
+      console.error('Erro ao recarregar clientes:', e)
+    } finally {
+      setIsReloading(false)
+    }
+  }
 
   // Filtrar clientes por Nome, CPF/CNPJ ou Endereço da Usina / Localização
   const clientesFiltrados = useMemo(() => {
@@ -206,7 +230,42 @@ export const ModalVincularCliente: React.FC<ModalVincularClienteProps> = ({
 
           {/* Lista de Resultados */}
           <div className="space-y-2 max-h-[340px] overflow-y-auto pr-1">
-            {clientesFiltrados.length === 0 ? (
+            {clientes.length === 0 ? (
+              <div className="text-center py-8 px-4 text-gray-500 text-xs bg-amber-50/60 rounded-xl border border-amber-200 space-y-3">
+                <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center text-amber-700 mx-auto">
+                  <AlertCircle className="w-5 h-5" />
+                </div>
+                <div>
+                  <p className="font-medium text-gray-800 text-sm">
+                    Nenhum cliente carregado na base de dados ou ocorreu uma falha de sincronização.
+                  </p>
+                  <p className="text-[11px] text-gray-500 mt-1">
+                    Você pode refazer a carga dos clientes para sincronizar com o servidor.
+                  </p>
+                </div>
+                <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
+                  <button
+                    type="button"
+                    disabled={isReloading}
+                    onClick={handleRecarregarClientes}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-amber-300 hover:bg-amber-50 text-amber-900 rounded-lg font-medium text-xs transition shadow-sm disabled:opacity-50"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${isReloading ? 'animate-spin' : ''}`} />
+                    {isReloading ? 'Recarregando...' : 'Recarregar Clientes'}
+                  </button>
+                  {onCadastrarLead && (
+                    <button
+                      type="button"
+                      onClick={onCadastrarLead}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-slate-900 rounded-lg font-semibold text-xs transition shadow-sm"
+                    >
+                      <UserPlus className="w-3.5 h-3.5" />
+                      Cadastrar como Novo Lead
+                    </button>
+                  )}
+                </div>
+              </div>
+            ) : clientesFiltrados.length === 0 ? (
               <div className="text-center py-8 px-4 text-gray-500 text-xs bg-gray-50 rounded-xl border border-dashed border-gray-200 space-y-2">
                 <p className="font-medium text-gray-700">
                   Nenhum cliente encontrado para "{searchTerm}"
