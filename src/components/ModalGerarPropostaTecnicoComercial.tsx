@@ -17,6 +17,8 @@ import {
   X,
   ExternalLink,
 } from 'lucide-react'
+import { onGridPngAsset } from '@/lib/propostaIlustracoesAssets'
+import { IllustracaoMonitoramento } from '@/components/IllustracaoMonitoramento'
 import type { OrcamentoSolarCalculado, Cliente } from '@/types/crm'
 import type { InstalacaoGaleria } from '@/types/instalacoesGaleria'
 import { fetchInstalacoesGaleria, getFotoUrl } from '@/services/instalacoesGaleriaService'
@@ -575,46 +577,103 @@ export function ModalGerarPropostaTecnicoComercial({
 
               {/* Card 3: Imagens Ilustrativas Padrão */}
               <div className="bg-white rounded-2xl border border-gray-200 p-4 shadow-2xs space-y-3">
-                <div className="flex items-center gap-2 text-xs font-bold text-gray-800 uppercase tracking-wide border-b border-gray-100 pb-2">
-                  <Eye className="w-4 h-4 text-emerald-600" />
-                  <span>Imagens Ilustrativas no Documento</span>
+                <div className="flex items-center justify-between border-b border-gray-100 pb-2">
+                  <div className="flex items-center gap-2 text-xs font-bold text-gray-800 uppercase tracking-wide">
+                    <Eye className="w-4 h-4 text-emerald-600" />
+                    <span>Ilustrações Explicativas na Proposta (Página 2)</span>
+                  </div>
+                  <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
+                    Ilustrações Oficiais Delfos
+                  </span>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-                  <label className="flex items-start gap-3 p-3 rounded-xl border border-gray-200 hover:bg-gray-50 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={incluirComoFunciona}
-                      onChange={(e) => setIncluirComoFunciona(e.target.checked)}
-                      className="mt-0.5 w-4 h-4 text-emerald-600 rounded border-gray-300 focus:ring-emerald-500"
-                    />
-                    <div>
-                      <span className="font-bold text-gray-800 block">
-                        Como funciona o sistema solar on-grid
-                      </span>
-                      <span className="text-[11px] text-gray-500">
-                        Diagrama explicativo ilustrando módulos, inversor, consumo e injeção na
-                        rede.
-                      </span>
-                    </div>
-                  </label>
 
-                  <label className="flex items-start gap-3 p-3 rounded-xl border border-gray-200 hover:bg-gray-50 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={incluirMonitoramento}
-                      onChange={(e) => setIncluirMonitoramento(e.target.checked)}
-                      className="mt-0.5 w-4 h-4 text-emerald-600 rounded border-gray-300 focus:ring-emerald-500"
-                    />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+                  {/* Ilustração 1: On-Grid */}
+                  <div
+                    className={`rounded-xl border p-3.5 transition-all flex flex-col justify-between ${
+                      incluirComoFunciona
+                        ? 'border-emerald-500 bg-emerald-50/30 shadow-xs'
+                        : 'border-gray-200 bg-gray-50/50 opacity-70'
+                    }`}
+                  >
                     <div>
-                      <span className="font-bold text-gray-800 block">
-                        Monitoramento do sistema solar
-                      </span>
-                      <span className="text-[11px] text-gray-500">
-                        Gráfico do app com legenda: &ldquo;O sistema de monitoramento permite ao
-                        usuário acessar remotamente o desempenho do seu sistema.&rdquo;
-                      </span>
+                      <label className="flex items-start gap-3 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={incluirComoFunciona}
+                          onChange={(e) => setIncluirComoFunciona(e.target.checked)}
+                          className="mt-1 w-4 h-4 text-emerald-600 rounded border-gray-300 focus:ring-emerald-500"
+                        />
+                        <div className="flex-1">
+                          <span className="font-bold text-gray-900 block text-xs">
+                            Como Funciona o Sistema Solar On-Grid
+                          </span>
+                          <span className="text-[11px] text-gray-500">
+                            Ilustração explicativa em português com módulos, inversor, medidor
+                            bidirecional, rede da concessionária, consumo da casa e funcionamento à
+                            noite.
+                          </span>
+                        </div>
+                      </label>
+
+                      {/* Mini Preview da Ilustração On-Grid */}
+                      <div className="mt-3 rounded-lg overflow-hidden border border-gray-200 bg-white aspect-[16/9] flex items-center justify-center p-1">
+                        <img
+                          src={onGridPngAsset}
+                          alt="Preview Como funciona on-grid"
+                          className="w-full h-full object-contain"
+                        />
+                      </div>
                     </div>
-                  </label>
+
+                    <div className="mt-2 pt-2 border-t border-gray-100 flex items-center justify-between text-[10px] text-gray-500">
+                      <span className="font-semibold text-emerald-700">
+                        ✓ Ilustração do usuário
+                      </span>
+                      <span>Ocupa metade superior da Página 2</span>
+                    </div>
+                  </div>
+
+                  {/* Ilustração 2: Monitoramento */}
+                  <div
+                    className={`rounded-xl border p-3.5 transition-all flex flex-col justify-between ${
+                      incluirMonitoramento
+                        ? 'border-emerald-500 bg-emerald-50/30 shadow-xs'
+                        : 'border-gray-200 bg-gray-50/50 opacity-70'
+                    }`}
+                  >
+                    <div>
+                      <label className="flex items-start gap-3 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={incluirMonitoramento}
+                          onChange={(e) => setIncluirMonitoramento(e.target.checked)}
+                          className="mt-1 w-4 h-4 text-emerald-600 rounded border-gray-300 focus:ring-emerald-500"
+                        />
+                        <div className="flex-1">
+                          <span className="font-bold text-gray-900 block text-xs">
+                            Monitoramento do Sistema Solar em Tempo Real
+                          </span>
+                          <span className="text-[11px] text-gray-500">
+                            Dashboard de monitoramento no smartphone com curva diária em kWh,
+                            potência instantânea, transmissão Wi-Fi e telemetria.
+                          </span>
+                        </div>
+                      </label>
+
+                      {/* Mini Preview do SVG de Monitoramento */}
+                      <div className="mt-3 rounded-lg overflow-hidden border border-gray-200 bg-white aspect-[16/9] flex items-center justify-center p-1">
+                        <IllustracaoMonitoramento width="100%" height="100%" />
+                      </div>
+                    </div>
+
+                    <div className="mt-2 pt-2 border-t border-gray-100 flex items-center justify-between text-[10px] text-gray-500">
+                      <span className="font-semibold text-blue-700">
+                        ✓ Vetorial SVG alta nitidez
+                      </span>
+                      <span>Ocupa lado direito da Página 2</span>
+                    </div>
+                  </div>
                 </div>
               </div>
 

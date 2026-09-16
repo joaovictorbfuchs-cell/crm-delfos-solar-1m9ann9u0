@@ -13,9 +13,13 @@ import {
   Search,
   AlertCircle,
   X,
+  FileText,
+  Sparkles,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import type { InstalacaoGaleria } from '@/types/instalacoesGaleria'
+import { onGridPngAsset } from '@/lib/propostaIlustracoesAssets'
+import { IllustracaoMonitoramento } from '@/components/IllustracaoMonitoramento'
 import {
   fetchInstalacoesGaleria,
   createInstalacaoGaleria,
@@ -289,6 +293,88 @@ export function InstalacoesGaleriaPage() {
         <span className="text-xs text-gray-500 font-medium">
           Total: <strong>{filtrados.length}</strong> instalações
         </span>
+      </div>
+
+      {/* SEÇÃO ESPECIAL: ILUSTRAÇÕES EXPLICATIVAS DA PROPOSTA */}
+      <div className="bg-gradient-to-r from-slate-900 via-emerald-950 to-slate-900 rounded-2xl p-4 sm:p-5 text-white shadow-md border border-emerald-800/40">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/10 pb-3 mb-4">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center border border-emerald-500/30">
+              <Sparkles className="w-4 h-4" />
+            </div>
+            <div>
+              <h2 className="text-sm sm:text-base font-bold text-white flex items-center gap-2">
+                Ilustrações Oficiais da Proposta Comercial
+                <span className="text-[10px] font-bold bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded-full border border-emerald-500/30">
+                  Página 2 • Automáticas
+                </span>
+              </h2>
+              <p className="text-[11px] text-gray-300">
+                Estas ilustrações já ficam disponíveis na proposta comercial e podem ser
+                ativadas/desativadas na geração do PDF.
+              </p>
+            </div>
+          </div>
+          <span className="text-[11px] text-emerald-300 font-semibold bg-white/5 px-2.5 py-1 rounded-lg border border-white/10 self-start sm:self-auto flex items-center gap-1.5">
+            <FileText className="w-3.5 h-3.5" />2 Ilustrações Integradas
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Card 1: Como Funciona o Sistema On-Grid */}
+          <div className="bg-white/10 rounded-xl p-3.5 border border-white/10 flex flex-col justify-between backdrop-blur-xs">
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-bold text-white">
+                  1. Como Funciona o Sistema Solar On-Grid
+                </span>
+                <span className="text-[10px] font-bold text-emerald-300 bg-emerald-900/60 px-2 py-0.5 rounded border border-emerald-500/30">
+                  Ilustração do Usuário
+                </span>
+              </div>
+              <p className="text-[11px] text-gray-300 leading-relaxed mb-3">
+                Diagrama explicativo ilustrando módulos, inversor, medidor bidirecional, rede da
+                concessionária, consumo da casa e funcionamento à noite.
+              </p>
+              <div className="rounded-lg overflow-hidden border border-white/20 bg-white aspect-[16/9] flex items-center justify-center p-1">
+                <img
+                  src={onGridPngAsset}
+                  alt="Como Funciona o Sistema Solar On-Grid"
+                  className="w-full h-full object-contain"
+                />
+              </div>
+            </div>
+            <div className="mt-3 pt-2 border-t border-white/10 flex items-center justify-between text-[10px] text-gray-300">
+              <span className="text-emerald-400 font-semibold">✓ Inclusa na proposta</span>
+              <span>Formato de alta definição</span>
+            </div>
+          </div>
+
+          {/* Card 2: Monitoramento em Tempo Real */}
+          <div className="bg-white/10 rounded-xl p-3.5 border border-white/10 flex flex-col justify-between backdrop-blur-xs">
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-bold text-white">
+                  2. Monitoramento do Sistema Solar em Tempo Real
+                </span>
+                <span className="text-[10px] font-bold text-blue-300 bg-blue-900/60 px-2 py-0.5 rounded border border-blue-500/30">
+                  Vetor SVG Nítido
+                </span>
+              </div>
+              <p className="text-[11px] text-gray-300 leading-relaxed mb-3">
+                Dashboard de telemetria no celular: gráfico diário em curva solar, status
+                operacional, conexão Wi-Fi e economia em R$.
+              </p>
+              <div className="rounded-lg overflow-hidden border border-white/20 bg-white aspect-[16/9] flex items-center justify-center p-1">
+                <IllustracaoMonitoramento width="100%" height="100%" />
+              </div>
+            </div>
+            <div className="mt-3 pt-2 border-t border-white/10 flex items-center justify-between text-[10px] text-gray-300">
+              <span className="text-blue-400 font-semibold">✓ Inclusa na proposta</span>
+              <span>SVG vetorial para impressão perfeita</span>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Grade de Fotos */}

@@ -1,4 +1,5 @@
 import type { CalculosSolarResultado, GeracaoMensalItem } from '@/lib/energiaSolar'
+import { SVG_MONITORAMENTO_INLINE, onGridPngAsset } from '@/lib/propostaIlustracoesAssets'
 
 export interface FotoInstalacaoProposta {
   id: string
@@ -711,23 +712,32 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
     }
     .ilustrativa-img-box {
       width: 100%;
-      height: 104px;
+      height: 108px;
       border-radius: 5px;
       overflow: hidden;
       border: 1px solid #D1D5DB;
       background: #FFFFFF;
       margin-bottom: 5px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
     .ilustrativa-img-box img {
       width: 100%;
       height: 100%;
-      object-fit: cover;
+      object-fit: contain;
+      background: #FFFFFF;
+      display: block;
+    }
+    .ilustrativa-img-box svg {
+      width: 100%;
+      height: 100%;
       display: block;
     }
     .ilustrativa-texto-desc {
-      font-size: 9px;
+      font-size: 8.8px;
       color: #374151;
-      line-height: 1.32;
+      line-height: 1.3;
       text-align: justify;
     }
 
@@ -1414,10 +1424,10 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
           <div class="ilustrativa-card">
             <div class="ilustrativa-header-title">COMO FUNCIONA O SISTEMA SOLAR ON-GRID</div>
             <div class="ilustrativa-img-box">
-              <img src="https://img.usecurling.com/p/800/450?q=solar+energy+system+diagram&color=teal" alt="Como Funciona o Sistema Solar On-Grid" />
+              <img src="${onGridPngAsset}" alt="Como Funciona o Sistema Solar On-Grid" />
             </div>
             <div class="ilustrativa-texto-desc">
-              <strong>Geração Fotovoltaica Conectada à Rede:</strong> Os módulos captam a radiação solar e convertem em energia elétrica contínua. O inversor transforma em corrente alternada para o consumo do imóvel. O excedente produzido é injetado diretamente na rede da concessionária, gerando créditos energéticos compensáveis.
+              <strong>Geração Fotovoltaica Conectada à Rede:</strong> Os módulos captam a luz do sol e geram energia limpa contínua. O inversor solar converte em corrente alternada para o consumo da casa. O excedente passa pelo medidor bidirecional e é exportado para a rede, gerando créditos energéticos; à noite, você consome normalmente da rede.
             </div>
           </div>
           `
@@ -1430,10 +1440,10 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
           <div class="ilustrativa-card">
             <div class="ilustrativa-header-title">MONITORAMENTO EM TEMPO REAL</div>
             <div class="ilustrativa-img-box">
-              <img src="https://img.usecurling.com/p/800/450?q=solar+app+dashboard+graph&color=green" alt="Monitoramento do Sistema Solar" />
+              ${SVG_MONITORAMENTO_INLINE}
             </div>
             <div class="ilustrativa-texto-desc">
-              <strong>Acompanhamento na Palma da Mão:</strong> O sistema de monitoramento permite ao usuário acessar remotamente o desempenho do seu gerador via smartphone e computador. Visualize a geração diária, economia acumulada e alertas automáticos em tempo real.
+              <strong>Acompanhamento na Palma da Mão:</strong> O sistema de monitoramento permite ao usuário acessar remotamente o desempenho do seu gerador via smartphone e computador. Visualize a geração diária em tempo real, curva solar em kWh, economia acumulada e status operacional em qualquer lugar.
             </div>
           </div>
           `
