@@ -9,6 +9,7 @@ interface ModalVincularClienteProps {
   conversa: WhatsAppConversa | null
   clientes: Cliente[]
   onVincular: (clienteId: string) => Promise<void>
+  onCadastrarLead?: (conversa: WhatsAppConversa) => void
 }
 
 export const ModalVincularCliente: React.FC<ModalVincularClienteProps> = ({
@@ -17,6 +18,7 @@ export const ModalVincularCliente: React.FC<ModalVincularClienteProps> = ({
   conversa,
   clientes,
   onVincular,
+  onCadastrarLead,
 }) => {
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedClienteId, setSelectedClienteId] = useState<string | null>(null)
@@ -29,11 +31,34 @@ export const ModalVincularCliente: React.FC<ModalVincularClienteProps> = ({
     const term = searchTerm.trim().toLowerCase()
     if (!term) return clientes.slice(0, 15)
 
+    const digitsOnly = term.replace(/\D/g, '')
+
     return clientes
       .filter((c) => {
-        const matchNome = (c.nome || '').toLowerCase().includes(term)
-        const matchDoc = (c.cpf_cnpj || '').replace(/\D/g, '').includes(term.replace(/\D/g, ''))
-        const matchDocRaw = (c.cpf_cnpj || '').toLowerCase().includes(term)
+        const nome = (c.nome || '').toLowerCase()
+        const razaoSocial = (c.razao_social || '').toLowerCase()
+        const nomeFantasia = (c.nome_fantasia || '').toLowerCase()
+        const contato = (c.contato || '').toLowerCase()
+        const contatoPrincipal = (c.contato_principal || '').toLowerCase()
+
+        const matchNome =
+          nome.includes(term) ||
+          razaoSocial.includes(term) ||
+          nomeFantasia.includes(term) ||
+          contato.includes(term) ||
+          contatoPrincipal.includes(term)
+
+        const cpf = c.cpf || ''
+        const cnpj = c.cnpj || ''
+        const cpfDigits = cpf.replace(/\D/g, '')
+        const cnpjDigits = cnpj.replace(/\D/g, '')
+
+        const matchDoc =
+          (digitsOnly.length > 0 &&
+            (cpfDigits.includes(digitsOnly) || cnpjDigits.includes(digitsOnly))) ||
+          cpf.toLowerCase().includes(term) ||
+          cnpj.toLowerCase().includes(term)
+
         const matchEndereco = [
           c.endereco,
           c.numero,
@@ -42,20 +67,29 @@ export const ModalVincularCliente: React.FC<ModalVincularClienteProps> = ({
           c.estado,
           c.cep,
           c.usina_endereco,
-          c.unidade_consumidora,
+          c.uc,
         ]
           .filter(Boolean)
           .join(' ')
           .toLowerCase()
           .includes(term)
-        const matchWhats = (c.whatsapp || c.telefone || '')
-          .replace(/\D/g, '')
-          .includes(term.replace(/\D/g, ''))
 
-        return matchNome || matchDoc || matchDocRaw || matchEndereco || matchWhats
+        const telDigits = (c.telefone || '').replace(/\D/g, '')
+        const whatsDigits = (c.whatsapp || '').replace(/\D/g, '')
+        const secDigits = (c.telefone_secundario || '').replace(/\D/g, '')
+
+        const matchWhats =
+          (digitsOnly.length > 0 &&
+            (telDigits.includes(digitsOnly) ||
+              whatsDigits.includes(digitsOnly) ||
+              secDigits.includes(digitsOnly))) ||
+          (c.whatsapp || '').toLowerCase().includes(term) ||
+          (c.telefone || '').toLowerCase().includes(term)
+
+        return matchNome || matchDoc || matchEndereco || matchWhats
       })
-      .slice(0, 20)
-  }, [clientes, searchTerm])
+      .slice(0, 30)
+  }, [clientes, searchTerm, isOpen, conversa])
 
   if (!isOpen || !conversa) return null
 
@@ -128,8 +162,19 @@ export const ModalVincularCliente: React.FC<ModalVincularClienteProps> = ({
                 placeholder="Ex: João Silva, 123.456, Erechim, Rua das Flores..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-9 pr-3 py-2 text-sm bg-gray-50 focus:bg-white border border-gray-200 rounded-xl focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all outline-none"
+                className="w-full pl-9 pr-8 py-2 text-sm bg-gray-50 focus:bg-white border border-gray-200 rounded-xl focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all outline-none"
               />
+              {searchTerm && (
+                <button
+                  type="button"
+                  onClick={() => setSearchTerm('')}
+                  className="p-1 text-gray-400 hover:text-gray-700 absolute right-2.5 top-1/2 -translate-y-1/2 rounded-full"
+                  title="Limpar busca"
+                  aria-label="Limpar busca"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
             </div>
           </div>
 
@@ -140,11 +185,48 @@ export const ModalVincularCliente: React.FC<ModalVincularClienteProps> = ({
             </div>
           )}
 
+          {/* Contador e Ajuda de Resultados */}
+          <div className="flex items-center justify-between text-[11px] text-gray-500 px-0.5">
+            <span>
+              {searchTerm.trim() ? (
+                <>
+                  Resultados para "<strong className="text-gray-700">{searchTerm.trim()}</strong>":{' '}
+                  {clientesFiltrados.length} cliente(s)
+                </>
+              ) : (
+                <>
+                  Mostrando {clientesFiltrados.length} clientes recentes. Digite acima para filtrar.
+                </>
+              )}
+            </span>
+            {selectedClienteId && (
+              <span className="text-emerald-700 font-semibold">1 cliente selecionado</span>
+            )}
+          </div>
+
           {/* Lista de Resultados */}
           <div className="space-y-2 max-h-[340px] overflow-y-auto pr-1">
             {clientesFiltrados.length === 0 ? (
-              <div className="text-center py-8 text-gray-400 text-xs bg-gray-50 rounded-xl border border-dashed border-gray-200">
-                Nenhum cliente encontrado com os critérios digitados.
+              <div className="text-center py-8 px-4 text-gray-500 text-xs bg-gray-50 rounded-xl border border-dashed border-gray-200 space-y-2">
+                <p className="font-medium text-gray-700">
+                  Nenhum cliente encontrado para "{searchTerm}"
+                </p>
+                <p className="text-[11px] text-gray-400">
+                  Tente buscar por partes do nome, telefone sem máscara ou cidade.
+                </p>
+                {onCadastrarLead && conversa && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onClose()
+                      onCadastrarLead(conversa)
+                    }}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 mt-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 rounded-lg text-xs font-semibold transition-colors"
+                  >
+                    <UserPlus className="w-3.5 h-3.5" />
+                    <span>Cadastrar como novo lead com este número</span>
+                  </button>
+                )}
               </div>
             ) : (
               clientesFiltrados.map((cliente) => {
@@ -176,8 +258,8 @@ export const ModalVincularCliente: React.FC<ModalVincularClienteProps> = ({
                       </div>
 
                       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-gray-500">
-                        {cliente.cpf_cnpj && (
-                          <span className="font-mono">Doc: {cliente.cpf_cnpj}</span>
+                        {(cliente.cpf || cliente.cnpj) && (
+                          <span className="font-mono">Doc: {cliente.cpf || cliente.cnpj}</span>
                         )}
                         {(cliente.whatsapp || cliente.telefone) && (
                           <span>Cadastrado: {cliente.whatsapp || cliente.telefone}</span>

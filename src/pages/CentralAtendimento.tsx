@@ -880,6 +880,10 @@ export const CentralAtendimento: React.FC = () => {
         conversa={conversaParaVincular}
         clientes={clientes}
         onVincular={handleVincularCliente}
+        onCadastrarLead={(conv) => {
+          setSelectedConversaId(conv.id)
+          setConversaParaNovoLead(conv)
+        }}
       />
 
       {/* Modal para Cadastrar como Novo Lead a partir do WhatsApp */}
