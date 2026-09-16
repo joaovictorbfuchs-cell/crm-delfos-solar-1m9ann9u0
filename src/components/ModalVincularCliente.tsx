@@ -256,7 +256,10 @@ export const ModalVincularCliente: React.FC<ModalVincularClienteProps> = ({
                   {onCadastrarLead && (
                     <button
                       type="button"
-                      onClick={onCadastrarLead}
+                      onClick={() => {
+                        onClose()
+                        onCadastrarLead(conversa)
+                      }}
                       className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-slate-900 rounded-lg font-semibold text-xs transition shadow-sm"
                     >
                       <UserPlus className="w-3.5 h-3.5" />
