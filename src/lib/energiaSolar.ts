@@ -10,6 +10,7 @@ export type StatusOrcamentoSolar = 'Em elaboração' | 'Enviado ao cliente' | 'A
 
 export interface DadosCustosSolar {
   maoDeObra: number
+  materiaisEquipamentos: number
   materiaisExtras: number
   freteGuincho: number
   subestacao: number
@@ -27,6 +28,7 @@ export interface DadosCustosSolar {
 
 export const CUSTOS_SOLAR_PADRAO: DadosCustosSolar = {
   maoDeObra: 0,
+  materiaisEquipamentos: 0,
   materiaisExtras: 0,
   freteGuincho: 0,
   subestacao: 0,
@@ -246,6 +248,7 @@ export function somarCustosSolar(custos: Partial<DadosCustosSolar> = {}): number
   const c = { ...CUSTOS_SOLAR_PADRAO, ...custos }
   return (
     Number(c.maoDeObra || 0) +
+    Number(c.materiaisEquipamentos || 0) +
     Number(c.materiaisExtras || 0) +
     Number(c.freteGuincho || 0) +
     Number(c.subestacao || 0) +
@@ -271,7 +274,9 @@ export function somarCustosSolar(custos: Partial<DadosCustosSolar> = {}): number
  * 6. Risco de engenharia = padrão R$ 400 (editável)
  */
 export interface ParametrosCalculoCustosAba {
-  materiais: number
+  materiais?: number
+  materiaisEquipamentos?: number
+  materiaisExtras?: number
   maoDeObra: number
   riscoEngenharia: number
   freteGuincho?: number
@@ -304,7 +309,16 @@ export interface ResultadoCalculoCustosAba {
 }
 
 export function calcularCustosAba(params: ParametrosCalculoCustosAba): ResultadoCalculoCustosAba {
-  const materiais = Math.max(0, Number(params.materiais) || 0)
+  // Se informados materiaisEquipamentos ou materiaisExtras, sua soma compõe os materiais totais.
+  // Caso contrário, usa o campo legado materiais.
+  const materiaisEquip = Math.max(0, Number(params.materiaisEquipamentos) || 0)
+  const matExtras = Math.max(0, Number(params.materiaisExtras) || 0)
+  const materiaisLegado = Math.max(0, Number(params.materiais) || 0)
+  const materiais =
+    params.materiaisEquipamentos !== undefined || params.materiaisExtras !== undefined
+      ? materiaisEquip + matExtras
+      : materiaisLegado
+
   const maoDeObra = Math.max(0, Number(params.maoDeObra) || 0)
   const risco = Math.max(0, Number(params.riscoEngenharia) || 0)
   const frete = Math.max(0, Number(params.freteGuincho) || 0)

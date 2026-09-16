@@ -1055,6 +1055,7 @@ export interface OrcamentoSolar extends RecordModel {
   valor_investimento: number
   // Custos
   custo_mao_de_obra?: number
+  custo_materiais_equipamentos?: number
   custo_materiais_extras?: number
   custo_frete_guincho?: number
   custo_subestacao?: number

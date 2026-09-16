@@ -3722,7 +3722,16 @@ export const FichaClienteDrawer: React.FC = () => {
               valorInvestimentoInformado: o.valor_investimento,
               custos: {
                 maoDeObra: o.custo_mao_de_obra || 0,
-                materiaisExtras: o.custo_materiais_extras || 0,
+                materiaisEquipamentos:
+                  o.custo_materiais_equipamentos !== undefined &&
+                  o.custo_materiais_equipamentos !== null
+                    ? o.custo_materiais_equipamentos
+                    : o.custo_materiais_extras || 0,
+                materiaisExtras:
+                  o.custo_materiais_equipamentos !== undefined &&
+                  o.custo_materiais_equipamentos !== null
+                    ? o.custo_materiais_extras || 0
+                    : 0,
                 freteGuincho: o.custo_frete_guincho || 0,
                 subestacao: o.custo_subestacao || 0,
                 terceirizacao: o.custo_terceirizacao || 0,
@@ -3779,7 +3788,16 @@ export const FichaClienteDrawer: React.FC = () => {
               valorInvestimentoInformado: o.valor_investimento,
               custos: {
                 maoDeObra: o.custo_mao_de_obra || 0,
-                materiaisExtras: o.custo_materiais_extras || 0,
+                materiaisEquipamentos:
+                  o.custo_materiais_equipamentos !== undefined &&
+                  o.custo_materiais_equipamentos !== null
+                    ? o.custo_materiais_equipamentos
+                    : o.custo_materiais_extras || 0,
+                materiaisExtras:
+                  o.custo_materiais_equipamentos !== undefined &&
+                  o.custo_materiais_equipamentos !== null
+                    ? o.custo_materiais_extras || 0
+                    : 0,
                 freteGuincho: o.custo_frete_guincho || 0,
                 subestacao: o.custo_subestacao || 0,
                 terceirizacao: o.custo_terceirizacao || 0,
@@ -3876,7 +3894,16 @@ export const FichaClienteDrawer: React.FC = () => {
               valorInvestimentoInformado: o.valor_investimento,
               custos: {
                 maoDeObra: o.custo_mao_de_obra || 0,
-                materiaisExtras: o.custo_materiais_extras || 0,
+                materiaisEquipamentos:
+                  o.custo_materiais_equipamentos !== undefined &&
+                  o.custo_materiais_equipamentos !== null
+                    ? o.custo_materiais_equipamentos
+                    : o.custo_materiais_extras || 0,
+                materiaisExtras:
+                  o.custo_materiais_equipamentos !== undefined &&
+                  o.custo_materiais_equipamentos !== null
+                    ? o.custo_materiais_extras || 0
+                    : 0,
                 freteGuincho: o.custo_frete_guincho || 0,
                 subestacao: o.custo_subestacao || 0,
                 terceirizacao: o.custo_terceirizacao || 0,

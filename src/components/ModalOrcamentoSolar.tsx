@@ -200,9 +200,23 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
         setMaoDeObraEditadaManualmente(false)
       }
 
+      // Compatibilidade com orçamentos antigos:
+      // Se custo_materiais_equipamentos estiver definido, usa ele e materiaisExtras = custo_materiais_extras || 0.
+      // Se não estiver (orçamento antigo), usa materiaisEquipamentos = custo_materiais_extras || 0 e materiaisExtras = 0.
+      const temMateriaisEquipDefinido =
+        initialOrcamento.custo_materiais_equipamentos !== undefined &&
+        initialOrcamento.custo_materiais_equipamentos !== null
+      const matEquipInicial = temMateriaisEquipDefinido
+        ? Number(initialOrcamento.custo_materiais_equipamentos) || 0
+        : Number(initialOrcamento.custo_materiais_extras) || 0
+      const matExtrasInicial = temMateriaisEquipDefinido
+        ? Number(initialOrcamento.custo_materiais_extras) || 0
+        : 0
+
       setCustos({
         maoDeObra: mdo > 0 ? mdo : qtdPlacas * initialValPlaca,
-        materiaisExtras: initialOrcamento.custo_materiais_extras || 0,
+        materiaisEquipamentos: matEquipInicial,
+        materiaisExtras: matExtrasInicial,
         freteGuincho: initialOrcamento.custo_frete_guincho || 0,
         subestacao: initialOrcamento.custo_subestacao || 0,
         terceirizacao: initialOrcamento.custo_terceirizacao || 0,
@@ -260,6 +274,8 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
       setCustos((prev) => ({
         ...prev,
         maoDeObra: 10 * 150,
+        materiaisEquipamentos: 0,
+        materiaisExtras: 0,
         riscoEngenharia: 400,
         opcaoImposto: 1,
         valorPorPlaca: 150,
@@ -413,7 +429,8 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
   // Cálculos automáticos da Aba de Custos (Requisitos 1 a 6 + Desconto em percentual) usando calcularCustosAba de src/lib/energiaSolar.ts
   const resultadoCustosAba = useMemo(() => {
     return calcularCustosAba({
-      materiais: custos.materiaisExtras || 0,
+      materiaisEquipamentos: custos.materiaisEquipamentos || 0,
+      materiaisExtras: custos.materiaisExtras || 0,
       maoDeObra: custos.maoDeObra || 0,
       riscoEngenharia: custos.riscoEngenharia !== undefined ? custos.riscoEngenharia : 400,
       freteGuincho: custos.freteGuincho || 0,
@@ -424,6 +441,7 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
       descontoPercentual,
     })
   }, [
+    custos.materiaisEquipamentos,
     custos.materiaisExtras,
     custos.maoDeObra,
     custos.riscoEngenharia,
@@ -643,6 +661,7 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
         desconto: resultadoCustosAba.desconto || 0,
         fornecedor_selecionado_id: fornecedorSelecionadoId || undefined,
         custo_mao_de_obra: custos.maoDeObra,
+        custo_materiais_equipamentos: custos.materiaisEquipamentos,
         custo_materiais_extras: custos.materiaisExtras,
         custo_frete_guincho: custos.freteGuincho,
         custo_subestacao: custos.subestacao,
@@ -1586,28 +1605,55 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                     </div>
                   </div>
 
-                  {/* Valor de Materiais (Alimentado pelo fornecedor ou digitado) - Compacto */}
+                  {/* Valor de Materiais / Equipamentos (Alimentado pelo fornecedor ou digitado) */}
                   <div className="p-2.5 rounded-lg bg-gray-50/70 border border-gray-200">
                     <div className="flex items-center justify-between mb-1">
                       <label className="text-[11px] font-medium text-gray-700">
                         Materiais / Equipamentos (R$)
                       </label>
                       <span
-                        className="text-[10px] text-gray-400 cursor-help"
-                        title="Alimentado automaticamente ao selecionar fornecedor na tabela abaixo"
+                        className="text-[10px] text-emerald-700 font-semibold cursor-help"
+                        title="Alimentado automaticamente ao selecionar fornecedor na tabela abaixo, podendo ser editado manualmente a qualquer momento"
                       >
                         Auto/Fornecedor
                       </span>
                     </div>
                     <input
                       type="number"
-                      value={custos.materiaisExtras || ''}
+                      value={custos.materiaisEquipamentos || ''}
                       min={0}
                       step={100}
+                      onChange={(e) =>
+                        updateCustoField('materiaisEquipamentos', Number(e.target.value))
+                      }
+                      className="w-full text-xs font-semibold px-2.5 py-1.5 rounded-md border border-gray-300 bg-white focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                      placeholder="0,00"
+                      title="Alimentado automaticamente ao selecionar fornecedor no comparativo abaixo, permitindo edição manual"
+                    />
+                  </div>
+
+                  {/* NOVO: Materiais Extras (Campo exclusivamente manual: andaimes, cabos, estruturas adicionais etc.) */}
+                  <div className="p-2.5 rounded-lg bg-gray-50/70 border border-gray-200">
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="text-[11px] font-medium text-gray-700">
+                        Materiais Extras (R$)
+                      </label>
+                      <span
+                        className="text-[10px] text-gray-400 cursor-help"
+                        title="Valores extras manuais: andaimes, cabos, estruturas adicionais etc."
+                      >
+                        Manual
+                      </span>
+                    </div>
+                    <input
+                      type="number"
+                      value={custos.materiaisExtras || ''}
+                      min={0}
+                      step={50}
                       onChange={(e) => updateCustoField('materiaisExtras', Number(e.target.value))}
                       className="w-full text-xs font-semibold px-2.5 py-1.5 rounded-md border border-gray-300 bg-white focus:outline-none focus:ring-1 focus:ring-emerald-500"
                       placeholder="0,00"
-                      title="Alimentado automaticamente ao selecionar fornecedor abaixo"
+                      title="Valores extras manuais: andaimes, cabos, estruturas adicionais etc."
                     />
                   </div>
 
@@ -2093,8 +2139,9 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                   fornecedorSelecionadoId={fornecedorSelecionadoId}
                   onSelecionarFornecedor={(fornOrc) => {
                     setFornecedorSelecionadoId(fornOrc.id)
-                    // Requisito 7: "Os materiais do fornecedor escolhido alimentam o valor de materiais da aba anterior."
-                    updateCustoField('materiaisExtras', fornOrc.valor_total || 0)
+                    // Requisito: Os materiais do fornecedor escolhido alimentam o valor de Materiais / Equipamentos da aba anterior
+                    const valorTotalForn = Number(fornOrc.valor_total) || 0
+                    updateCustoField('materiaisEquipamentos', valorTotalForn)
                     // Opcionalmente atualiza marcas se disponíveis
                     if (fornOrc.modulos && fornOrc.modulos[0]?.descricao) {
                       setMarcaPainel(fornOrc.modulos[0].descricao)

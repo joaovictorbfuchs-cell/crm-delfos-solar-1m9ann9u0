@@ -184,6 +184,41 @@ describe('calcularCustosAba - Desconto e Comissão Mínima', () => {
     expect(resComDescPiso.administracaoDescontada).toBe(75) // 500 * 0.15 = 75
     expect(resComDescPiso.indicacaoDescontada).toBe(5) // 500 * 0.01 = 5
   })
+
+  it('separa materiaisEquipamentos e materiaisExtras e soma ambos no cálculo base e na dedução de impostos Opção 2', () => {
+    // Caso com campo único de materiais = 18000
+    const resUnico = calcularCustosAba({
+      materiais: 18000,
+      maoDeObra: 1500,
+      riscoEngenharia: 400,
+      opcaoImposto: 2,
+    })
+
+    // Caso separado: materiaisEquipamentos = 15000 + materiaisExtras = 3000 (total = 18000)
+    const resSeparado = calcularCustosAba({
+      materiaisEquipamentos: 15000,
+      materiaisExtras: 3000,
+      maoDeObra: 1500,
+      riscoEngenharia: 400,
+      opcaoImposto: 2,
+    })
+
+    // Devem ter exatamente os mesmos resultados de valorTotal, impostos e somaComImpostos
+    expect(resSeparado.valorTotal).toBe(resUnico.valorTotal)
+    expect(resSeparado.impostos).toBe(resUnico.impostos)
+    expect(resSeparado.somaComImpostos).toBe(resUnico.somaComImpostos)
+    expect(resSeparado.administracao).toBe(resUnico.administracao)
+
+    // Adicionando mais materiais extras aumenta proporcionalmente os custos e investimento
+    const resMaisExtras = calcularCustosAba({
+      materiaisEquipamentos: 15000,
+      materiaisExtras: 5000,
+      maoDeObra: 1500,
+      riscoEngenharia: 400,
+      opcaoImposto: 2,
+    })
+    expect(resMaisExtras.valorTotal).toBeGreaterThan(resSeparado.valorTotal)
+  })
 })
 
 describe('Simulações personalizadas de Parcelamento & Financiamento (PRICE)', () => {

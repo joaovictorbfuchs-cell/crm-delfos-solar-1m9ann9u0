@@ -152,7 +152,16 @@ export const Orcamentos: React.FC = () => {
       valorInvestimentoInformado: orc.valor_investimento,
       custos: {
         maoDeObra: orc.custo_mao_de_obra || 0,
-        materiaisExtras: orc.custo_materiais_extras || 0,
+        materiaisEquipamentos:
+          orc.custo_materiais_equipamentos !== undefined &&
+          orc.custo_materiais_equipamentos !== null
+            ? orc.custo_materiais_equipamentos
+            : orc.custo_materiais_extras || 0,
+        materiaisExtras:
+          orc.custo_materiais_equipamentos !== undefined &&
+          orc.custo_materiais_equipamentos !== null
+            ? orc.custo_materiais_extras || 0
+            : 0,
         freteGuincho: orc.custo_frete_guincho || 0,
         subestacao: orc.custo_subestacao || 0,
         terceirizacao: orc.custo_terceirizacao || 0,
@@ -494,7 +503,16 @@ export const Orcamentos: React.FC = () => {
                                 orientacaoTelhado: orc.orientacao_telhado,
                                 custos: {
                                   maoDeObra: orc.custo_mao_de_obra || 0,
-                                  materiaisExtras: orc.custo_materiais_extras || 0,
+                                  materiaisEquipamentos:
+                                    orc.custo_materiais_equipamentos !== undefined &&
+                                    orc.custo_materiais_equipamentos !== null
+                                      ? orc.custo_materiais_equipamentos
+                                      : orc.custo_materiais_extras || 0,
+                                  materiaisExtras:
+                                    orc.custo_materiais_equipamentos !== undefined &&
+                                    orc.custo_materiais_equipamentos !== null
+                                      ? orc.custo_materiais_extras || 0
+                                      : 0,
                                   freteGuincho: orc.custo_frete_guincho || 0,
                                   subestacao: orc.custo_subestacao || 0,
                                   terceirizacao: orc.custo_terceirizacao || 0,
@@ -582,7 +600,16 @@ export const Orcamentos: React.FC = () => {
                                 orientacaoTelhado: orc.orientacao_telhado,
                                 custos: {
                                   maoDeObra: orc.custo_mao_de_obra || 0,
-                                  materiaisExtras: orc.custo_materiais_extras || 0,
+                                  materiaisEquipamentos:
+                                    orc.custo_materiais_equipamentos !== undefined &&
+                                    orc.custo_materiais_equipamentos !== null
+                                      ? orc.custo_materiais_equipamentos
+                                      : orc.custo_materiais_extras || 0,
+                                  materiaisExtras:
+                                    orc.custo_materiais_equipamentos !== undefined &&
+                                    orc.custo_materiais_equipamentos !== null
+                                      ? orc.custo_materiais_extras || 0
+                                      : 0,
                                   freteGuincho: orc.custo_frete_guincho || 0,
                                   subestacao: orc.custo_subestacao || 0,
                                   terceirizacao: orc.custo_terceirizacao || 0,
@@ -655,7 +682,16 @@ export const Orcamentos: React.FC = () => {
                                 orientacaoTelhado: orc.orientacao_telhado,
                                 custos: {
                                   maoDeObra: orc.custo_mao_de_obra || 0,
-                                  materiaisExtras: orc.custo_materiais_extras || 0,
+                                  materiaisEquipamentos:
+                                    orc.custo_materiais_equipamentos !== undefined &&
+                                    orc.custo_materiais_equipamentos !== null
+                                      ? orc.custo_materiais_equipamentos
+                                      : orc.custo_materiais_extras || 0,
+                                  materiaisExtras:
+                                    orc.custo_materiais_equipamentos !== undefined &&
+                                    orc.custo_materiais_equipamentos !== null
+                                      ? orc.custo_materiais_extras || 0
+                                      : 0,
                                   freteGuincho: orc.custo_frete_guincho || 0,
                                   subestacao: orc.custo_subestacao || 0,
                                   terceirizacao: orc.custo_terceirizacao || 0,
