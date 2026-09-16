@@ -129,21 +129,19 @@ export const SecaoComparativoFornecedoresCustos: React.FC<
   }
 
   const handleSelectRadio = async (fornOrc: FornecedorOrcamento) => {
+    onSelecionarFornecedor(fornOrc)
     try {
       await selecionarFornecedorOrcamento(fornOrc.id, {
         orcamentoSolarId,
         clienteId,
       })
-      onSelecionarFornecedor(fornOrc)
       toast.success(
         `Fornecedor "${fornOrc.nome_fornecedor}" selecionado! Valor de ${formatCurrency(
           fornOrc.valor_total,
         )} aplicado em materiais.`,
       )
     } catch (err) {
-      console.error('Erro ao selecionar fornecedor:', err)
-      // Dispara o callback mesmo assim para a UI local
-      onSelecionarFornecedor(fornOrc)
+      console.error('Erro ao persistir seleção do fornecedor:', err)
     }
   }
 

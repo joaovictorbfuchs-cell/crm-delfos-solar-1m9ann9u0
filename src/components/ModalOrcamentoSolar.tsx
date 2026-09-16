@@ -149,10 +149,14 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
   // Ref para evitar que o efeito de inicialização sobrescreva o estado do modal se os inputs não mudaram
   const lastInitializedKeyRef = useRef<string | null>(null)
 
+  // Ref para guardar seleção de fornecedor feita na sessão do modal e evitar reversão de materiais/equipamentos
+  const fornecedorAplicadoRef = useRef<{ id: string; valor: number } | null>(null)
+
   // Inicializa ou sincroniza cliente e orçamento somente ao abrir ou ao mudar initialOrcamento / initialClienteId
   useEffect(() => {
     if (!isOpen) {
       lastInitializedKeyRef.current = null
+      fornecedorAplicadoRef.current = null
       return
     }
 
@@ -227,9 +231,19 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
       const temMateriaisEquipDefinido =
         initialOrcamento.custo_materiais_equipamentos !== undefined &&
         initialOrcamento.custo_materiais_equipamentos !== null
-      const matEquipInicial = temMateriaisEquipDefinido
+      let matEquipInicial = temMateriaisEquipDefinido
         ? Number(initialOrcamento.custo_materiais_equipamentos) || 0
         : Number(initialOrcamento.custo_materiais_extras) || 0
+
+      // Se o usuário já selecionou um fornecedor nesta sessão do modal para este orçamento, preserva o valor selecionado
+      if (
+        fornecedorAplicadoRef.current &&
+        initialOrcamento.fornecedor_selecionado_id &&
+        fornecedorAplicadoRef.current.id === initialOrcamento.fornecedor_selecionado_id
+      ) {
+        matEquipInicial = Number(fornecedorAplicadoRef.current.valor)
+      }
+
       const matExtrasInicial = temMateriaisEquipDefinido
         ? Number(initialOrcamento.custo_materiais_extras) || 0
         : 0
@@ -1640,20 +1654,32 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                         Materiais / Equipamentos (R$)
                       </label>
                       <div className="flex items-center gap-1.5">
-                        {fornecedorSelecionadoObj && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const valorForn = Number(fornecedorSelecionadoObj.valor_total) || 0
-                              updateCustoField('materiaisEquipamentos', valorForn)
-                            }}
-                            className="inline-flex items-center gap-1 text-[10px] text-emerald-700 hover:text-emerald-800 font-medium hover:underline bg-emerald-50 hover:bg-emerald-100 px-1.5 py-0.5 rounded border border-emerald-200 transition-colors"
-                            title={`Reaplicar ${formatCurrency(Number(fornecedorSelecionadoObj.valor_total) || 0)} do fornecedor ${fornecedorSelecionadoObj.fornecedor_nome}`}
-                          >
-                            <RotateCcw className="w-2.5 h-2.5" />
-                            Atualizar do fornecedor
-                          </button>
-                        )}
+                        {fornecedorSelecionadoObj &&
+                          (() => {
+                            const nomeFornecedorExibicao =
+                              fornecedorSelecionadoObj.nome_fornecedor ||
+                              (fornecedorSelecionadoObj as any).fornecedor_nome ||
+                              'Fornecedor'
+                            return (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const valorForn =
+                                    Number(fornecedorSelecionadoObj.valor_total) || 0
+                                  fornecedorAplicadoRef.current = {
+                                    id: fornecedorSelecionadoObj.id,
+                                    valor: valorForn,
+                                  }
+                                  updateCustoField('materiaisEquipamentos', valorForn)
+                                }}
+                                className="inline-flex items-center gap-1 text-[10px] text-emerald-700 hover:text-emerald-800 font-medium hover:underline bg-emerald-50 hover:bg-emerald-100 px-1.5 py-0.5 rounded border border-emerald-200 transition-colors"
+                                title={`Reaplicar ${formatCurrency(Number(fornecedorSelecionadoObj.valor_total) || 0)} do fornecedor ${nomeFornecedorExibicao}`}
+                              >
+                                <RotateCcw className="w-2.5 h-2.5" />
+                                Atualizar do fornecedor
+                              </button>
+                            )
+                          })()}
                         <span
                           className="text-[10px] text-emerald-700 font-semibold cursor-help"
                           title="Alimentado automaticamente ao selecionar fornecedor na tabela abaixo, podendo ser editado manualmente a qualquer momento"
@@ -2185,6 +2211,7 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                     setFornecedorSelecionadoId(fornOrc.id)
                     // Requisito: Os materiais do fornecedor escolhido alimentam o valor de Materiais / Equipamentos da aba anterior
                     const valorTotalForn = Number(fornOrc.valor_total) || 0
+                    fornecedorAplicadoRef.current = { id: fornOrc.id, valor: valorTotalForn }
                     updateCustoField('materiaisEquipamentos', valorTotalForn)
                     // Opcionalmente atualiza marcas se disponíveis
                     if (fornOrc.modulos && fornOrc.modulos[0]?.descricao) {
