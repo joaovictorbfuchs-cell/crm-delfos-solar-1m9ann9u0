@@ -32,6 +32,7 @@ import {
 import { SecaoCapaProposta } from '@/components/SecaoCapaProposta'
 import { SecaoCustoInercia } from '@/components/SecaoCustoInercia'
 import { SecaoProjecaoEconomia } from '@/components/SecaoProjecaoEconomia'
+import { SecaoProjecao25Anos } from '@/components/SecaoProjecao25Anos'
 import { SecaoSeuSistemaFotovoltaico } from '@/components/SecaoSeuSistemaFotovoltaico'
 
 export interface ModalGerarPropostaTecnicoComercialProps {
@@ -1036,6 +1037,24 @@ export function ModalGerarPropostaTecnicoComercial({
                 }
                 nomeCliente={clienteNome}
                 permitirAjusteConsumo={true}
+              />
+
+              {/* Nova Seção: Projeção de Economia em 25 Anos (Curva comparativa, Payback, ROI e Tabela 2026-2051) */}
+              <SecaoProjecao25Anos
+                consumoAnualCadastradoKwh={
+                  orcamento.consumo_mensal_kwh && orcamento.consumo_mensal_kwh > 0
+                    ? Number((orcamento.consumo_mensal_kwh * 12).toFixed(2))
+                    : cliente?.consumo_kwh_mes && cliente.consumo_kwh_mes > 0
+                      ? Number((cliente.consumo_kwh_mes * 12).toFixed(2))
+                      : 4807.08
+                }
+                tipoClienteInicial={
+                  cliente?.tipo_cliente === 'comercial' ? 'comercial' : 'residencial'
+                }
+                valorInvestimento={investimentoTotal}
+                paybackMeses={orcamento.payback_meses}
+                potenciaKwp={potenciaKwp || 8.54}
+                nomeCliente={clienteNome}
               />
             </div>
           ) : (

@@ -60,6 +60,7 @@ import { ModalGerarPropostaTecnicoComercial } from '@/components/ModalGerarPropo
 import { SecaoCapaProposta } from '@/components/SecaoCapaProposta'
 import { SecaoCustoInercia } from '@/components/SecaoCustoInercia'
 import { SecaoProjecaoEconomia } from '@/components/SecaoProjecaoEconomia'
+import { SecaoProjecao25Anos } from '@/components/SecaoProjecao25Anos'
 import { SecaoSeuSistemaFotovoltaico } from '@/components/SecaoSeuSistemaFotovoltaico'
 
 interface ModalOrcamentoSolarProps {
@@ -2769,6 +2770,23 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                   tarifaReferenciaInicial={tarifaKwh || 0.985}
                   nomeCliente={clienteAtual?.nome || 'Cliente'}
                   permitirAjusteConsumo={true}
+                />
+
+                {/* Nova Seção: Projeção de Economia em 25 Anos (Curva comparativa, Payback, ROI e Tabela 2026-2051) */}
+                <SecaoProjecao25Anos
+                  consumoAnualCadastradoKwh={
+                    consumoKwhMes && consumoKwhMes > 0
+                      ? Number((consumoKwhMes * 12).toFixed(2))
+                      : clienteAtual?.consumo_kwh_mes && clienteAtual.consumo_kwh_mes > 0
+                        ? Number((clienteAtual.consumo_kwh_mes * 12).toFixed(2))
+                        : 4807.08
+                  }
+                  tipoClienteInicial={tipoCliente === 'comercial' ? 'comercial' : 'residencial'}
+                  tarifaReferenciaInicial={tarifaKwh || 0.985}
+                  valorInvestimento={valorInvestimentoFinal}
+                  paybackMeses={calculos.paybackMeses}
+                  potenciaKwp={potenciaKwp || 8.54}
+                  nomeCliente={clienteAtual?.nome || 'Cliente'}
                 />
 
                 {/* Grade de Desperdício x Economia */}
