@@ -400,6 +400,10 @@ export async function deleteCliente(id: string): Promise<boolean> {
     'documentos_cliente',
     'fornecedores_orcamentos',
     'whatsapp_mensagens',
+    'whatsapp_conversas',
+    'ordens_servico',
+    'cliente_inversores',
+    'usinas',
   ]
 
   for (const colName of collectionsWithClienteId) {
@@ -466,9 +470,174 @@ export async function deleteCliente(id: string): Promise<boolean> {
     console.warn('Erro ao consultar transferencias_creditos para cascata:', err)
   }
 
+  // Contatos adicionais (campo `cliente` em vez de `cliente_id`)
+  try {
+    const contatos = await pb.collection('contatos_adicionais').getFullList({
+      filter: `cliente = '${id}'`,
+      fields: 'id',
+    })
+    for (const ca of contatos) {
+      try {
+        await pb.collection('contatos_adicionais').delete(ca.id)
+      } catch {
+        /* ignore */
+      }
+    }
+  } catch (err) {
+    console.warn('Erro ao consultar contatos_adicionais para cascata:', err)
+  }
+
   // Exclui o registro principal da collection clientes
   await pb.collection('clientes').delete(id)
   return true
+}
+
+export async function bulkDeleteClientes(ids: string[]): Promise<boolean> {
+  for (const id of ids) {
+    await deleteCliente(id)
+  }
+  return true
+}
+
+export interface MesclagemOpcoes {
+  clienteMestreId: string
+  clienteSecundarioId: string
+  camposSobrescritos: Partial<Cliente>
+}
+
+/**
+ * Mescla com segurança o clienteSecundario no clienteMestre:
+ * 1. Reatribui todas as relações (atividades, propostas, orçamentos, contratos O&M, manutenções,
+ *    conversas WhatsApp, mensagens, projetos, usinas, inversores, etc.) do cliente secundário para o mestre.
+ * 2. Atualiza o cadastro do cliente mestre com os campos selecionados e funde observações/histórico.
+ * 3. Registra atividade no histórico do cliente mestre informando sobre a fusão.
+ * 4. Exclui o cliente secundário com segurança após a reatribuição.
+ */
+export async function mesclarClientes({
+  clienteMestreId,
+  clienteSecundarioId,
+  camposSobrescritos,
+}: MesclagemOpcoes): Promise<Cliente> {
+  if (clienteMestreId === clienteSecundarioId) {
+    throw new Error('Não é possível mesclar um cliente nele mesmo.')
+  }
+
+  // 1. Reatribuir coleções que usam `cliente_id`
+  const collectionsComClienteId = [
+    'atividades',
+    'propostas_om',
+    'orcamentos_solar',
+    'manutencoes',
+    'sistemas',
+    'contratos_om',
+    'anomalias_om',
+    'servicos_adicionais_om',
+    'timeline_om',
+    'servicos_avulsos',
+    'documentos_cliente',
+    'fornecedores_orcamentos',
+    'whatsapp_mensagens',
+    'whatsapp_conversas',
+    'ordens_servico',
+    'cliente_inversores',
+    'usinas',
+    'projetos',
+  ]
+
+  for (const col of collectionsComClienteId) {
+    try {
+      const records = await pb.collection(col).getFullList({
+        filter: `cliente_id = '${clienteSecundarioId}'`,
+        fields: 'id',
+      })
+      for (const rec of records) {
+        try {
+          await pb.collection(col).update(rec.id, { cliente_id: clienteMestreId })
+        } catch (err) {
+          console.warn(`Falha ao reatribuir ${col} ${rec.id} para cliente ${clienteMestreId}:`, err)
+        }
+      }
+    } catch (err) {
+      console.warn(`Erro ao consultar ${col} para reatribuição na mesclagem:`, err)
+    }
+  }
+
+  // 2. Reatribuir contatos_adicionais (campo se chama `cliente`)
+  try {
+    const contatos = await pb.collection('contatos_adicionais').getFullList({
+      filter: `cliente = '${clienteSecundarioId}'`,
+      fields: 'id',
+    })
+    for (const c of contatos) {
+      try {
+        await pb.collection('contatos_adicionais').update(c.id, { cliente: clienteMestreId })
+      } catch (err) {
+        console.warn(`Falha ao reatribuir contato_adicional ${c.id}:`, err)
+      }
+    }
+  } catch (err) {
+    console.warn('Erro ao reatribuir contatos_adicionais na mesclagem:', err)
+  }
+
+  // 3. Reatribuir transferencias_creditos (origem ou destino)
+  try {
+    const transfOrigem = await pb.collection('transferencias_creditos').getFullList({
+      filter: `cliente_origem_id = '${clienteSecundarioId}'`,
+      fields: 'id',
+    })
+    for (const t of transfOrigem) {
+      try {
+        await pb
+          .collection('transferencias_creditos')
+          .update(t.id, { cliente_origem_id: clienteMestreId })
+      } catch {
+        /* ignore */
+      }
+    }
+
+    const transfDestino = await pb.collection('transferencias_creditos').getFullList({
+      filter: `cliente_destino_id = '${clienteSecundarioId}'`,
+      fields: 'id',
+    })
+    for (const t of transfDestino) {
+      try {
+        await pb
+          .collection('transferencias_creditos')
+          .update(t.id, { cliente_destino_id: clienteMestreId })
+      } catch {
+        /* ignore */
+      }
+    }
+  } catch (err) {
+    console.warn('Erro ao reatribuir transferencias_creditos na mesclagem:', err)
+  }
+
+  // 4. Atualizar o cliente mestre com os campos definidos
+  const clienteAtualizado = await updateCliente(clienteMestreId, camposSobrescritos)
+
+  // 5. Registrar atividade informativa de auditoria no cliente mestre
+  try {
+    await createAtividade({
+      cliente_id: clienteMestreId,
+      tipo: 'anotacao',
+      titulo: 'Clientes mesclados',
+      descricao: `Mesclagem de clientes realizada com sucesso em ${new Date().toLocaleString('pt-BR')}. O cliente duplicado (ID: ${clienteSecundarioId}) foi fundido neste cadastro e todos os relacionamentos e históricos foram transferidos.`,
+      data: new Date().toISOString(),
+      status: 'concluida',
+      autor: 'Sistema Delfos',
+    })
+  } catch (e) {
+    console.warn('Falha ao registrar atividade de mesclagem:', e)
+  }
+
+  // 6. Agora que todos os relacionamentos foram migrados, excluir o registro do cliente secundário
+  try {
+    await pb.collection('clientes').delete(clienteSecundarioId)
+  } catch (err) {
+    console.warn(`Falha ao excluir cliente secundário ${clienteSecundarioId} após mesclagem:`, err)
+  }
+
+  return clienteAtualizado
 }
 
 export async function createSistema(

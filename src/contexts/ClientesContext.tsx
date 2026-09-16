@@ -48,6 +48,9 @@ import {
   bulkTransferirFechadosParaPosVendas as apiBulkTransferirFechadosParaPosVendas,
   bulkArquivarClientes as apiBulkArquivarClientes,
   deleteCliente as apiDeleteCliente,
+  bulkDeleteClientes as apiBulkDeleteClientes,
+  mesclarClientes as apiMesclarClientes,
+  MesclagemOpcoes,
   upsertSistemaForCliente,
   createProfissional as apiCreateProfissional,
   updateProfissional as apiUpdateProfissional,
@@ -185,6 +188,8 @@ interface ClientesContextType {
   closeFichaCliente: () => void
   addCliente: (data: Partial<Cliente> & { nome: string }) => Promise<Cliente>
   removeCliente: (id: string) => Promise<void>
+  bulkRemoveClientes: (ids: string[]) => Promise<void>
+  mesclarClientes: (opcoes: MesclagemOpcoes) => Promise<Cliente>
   addManutencao: (data: {
     cliente_id: string
     data: string
@@ -238,7 +243,8 @@ interface ClientesContextType {
   ) => Promise<void>
   bulkMarcarFechado: (ids: string[]) => Promise<void>
   bulkTransferirFechadosPosVendas: (
-    clientesParaTransferir: { id: string; data_fechamento?: string }[],
+    clientesParaTransferir: { id: string; data_fechamento?: string }[] | string[],
+    areaDestino?: 'projetos' | 'manutencoes' | 'om',
   ) => Promise<Cliente[]>
   marcarComoGanho: (clienteId: string, areaDestino: 'projetos' | 'om') => Promise<Cliente>
   marcarComoPerdido: (
@@ -869,6 +875,127 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
   }
 
+  const bulkRemoveClientes = async (ids: string[]) => {
+    if (ids.length === 0) return
+
+    if (selectedClienteId && ids.includes(selectedClienteId)) {
+      setSelectedClienteId(null)
+    }
+    if (selectedOMClienteId && ids.includes(selectedOMClienteId)) {
+      setSelectedOMClienteId(null)
+    }
+
+    const idsSet = new Set(ids)
+    setClientes((prev) => prev.filter((c) => !idsSet.has(c.id)))
+    setAtividades((prev) => prev.filter((a) => !idsSet.has(a.cliente_id)))
+    setSistemas((prev) => prev.filter((s) => !idsSet.has(s.cliente_id)))
+    setManutencoes((prev) => prev.filter((m) => !idsSet.has(m.cliente_id)))
+    setProjetos((prev) => prev.filter((p) => !idsSet.has(p.cliente_id)))
+    setContratosOM((prev) => prev.filter((c) => !idsSet.has(c.cliente_id)))
+    setAnomaliasOM((prev) => prev.filter((a) => !idsSet.has(a.cliente_id)))
+    setServicosAdicionaisOM((prev) => prev.filter((s) => !idsSet.has(s.cliente_id)))
+    setTimelineOM((prev) => prev.filter((t) => !idsSet.has(t.cliente_id)))
+    setPropostasOM((prev) => prev.filter((p) => !idsSet.has(p.cliente_id)))
+    setOrcamentosSolar((prev) => prev.filter((o) => !idsSet.has(o.cliente_id)))
+    setServicosAvulsos((prev) => prev.filter((s) => !idsSet.has(s.cliente_id)))
+    setDocumentosCliente((prev) => prev.filter((d) => !idsSet.has(d.cliente_id)))
+
+    try {
+      await apiBulkDeleteClientes(ids)
+    } catch (err) {
+      console.error('Erro ao excluir clientes em lote:', err)
+      await loadAllData()
+      throw err
+    }
+  }
+
+  const mesclarClientes = async (opcoes: MesclagemOpcoes): Promise<Cliente> => {
+    const { clienteMestreId, clienteSecundarioId, camposSobrescritos } = opcoes
+
+    if (selectedClienteId === clienteSecundarioId) {
+      setSelectedClienteId(clienteMestreId)
+    }
+    if (selectedOMClienteId === clienteSecundarioId) {
+      setSelectedOMClienteId(clienteMestreId)
+    }
+
+    // Optimistic update: atualiza mestre e remove secundário
+    setClientes((prev) => {
+      return prev
+        .filter((c) => c.id !== clienteSecundarioId)
+        .map((c) => (c.id === clienteMestreId ? { ...c, ...camposSobrescritos } : c))
+    })
+
+    // Reatribuir relacionamentos localmente no state
+    setAtividades((prev) =>
+      prev.map((a) =>
+        a.cliente_id === clienteSecundarioId ? { ...a, cliente_id: clienteMestreId } : a,
+      ),
+    )
+    setProjetos((prev) =>
+      prev.map((p) =>
+        p.cliente_id === clienteSecundarioId ? { ...p, cliente_id: clienteMestreId } : p,
+      ),
+    )
+    setContratosOM((prev) =>
+      prev.map((c) =>
+        c.cliente_id === clienteSecundarioId ? { ...c, cliente_id: clienteMestreId } : c,
+      ),
+    )
+    setAnomaliasOM((prev) =>
+      prev.map((a) =>
+        a.cliente_id === clienteSecundarioId ? { ...a, cliente_id: clienteMestreId } : a,
+      ),
+    )
+    setServicosAdicionaisOM((prev) =>
+      prev.map((s) =>
+        s.cliente_id === clienteSecundarioId ? { ...s, cliente_id: clienteMestreId } : s,
+      ),
+    )
+    setTimelineOM((prev) =>
+      prev.map((t) =>
+        t.cliente_id === clienteSecundarioId ? { ...t, cliente_id: clienteMestreId } : t,
+      ),
+    )
+    setPropostasOM((prev) =>
+      prev.map((p) =>
+        p.cliente_id === clienteSecundarioId ? { ...p, cliente_id: clienteMestreId } : p,
+      ),
+    )
+    setOrcamentosSolar((prev) =>
+      prev.map((o) =>
+        o.cliente_id === clienteSecundarioId ? { ...o, cliente_id: clienteMestreId } : o,
+      ),
+    )
+    setManutencoes((prev) =>
+      prev.map((m) =>
+        m.cliente_id === clienteSecundarioId ? { ...m, cliente_id: clienteMestreId } : m,
+      ),
+    )
+    setServicosAvulsos((prev) =>
+      prev.map((s) =>
+        s.cliente_id === clienteSecundarioId ? { ...s, cliente_id: clienteMestreId } : s,
+      ),
+    )
+    setDocumentosCliente((prev) =>
+      prev.map((d) =>
+        d.cliente_id === clienteSecundarioId ? { ...d, cliente_id: clienteMestreId } : d,
+      ),
+    )
+
+    try {
+      const clienteFinal = await apiMesclarClientes(opcoes)
+      setClientes((prev) => prev.map((c) => (c.id === clienteMestreId ? clienteFinal : c)))
+      // Recarregar histórico de atividades para refletir a nota de auditoria
+      fetchAtividades().then(setAtividades).catch(console.error)
+      return clienteFinal
+    } catch (err) {
+      console.error('Erro ao mesclar clientes:', err)
+      await loadAllData()
+      throw err
+    }
+  }
+
   const openFichaCliente = (id: string, initialTab: ClientTabType = 'historico') => {
     const existe = clientes.some((c) => c.id === id)
     if (!existe) {
@@ -1149,30 +1276,63 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   }
 
   const bulkTransferirFechadosPosVendas = async (
-    clientesParaTransferir: { id: string; data_fechamento?: string }[],
+    clientesParaTransferir: { id: string; data_fechamento?: string }[] | string[],
+    areaDestino?: 'projetos' | 'manutencoes' | 'om',
   ): Promise<Cliente[]> => {
     const agora = new Date().toISOString()
-    const ids = clientesParaTransferir.map((c) => c.id)
+    const normalizedList: { id: string; data_fechamento?: string }[] = clientesParaTransferir.map(
+      (item) => (typeof item === 'string' ? { id: item, data_fechamento: agora } : item),
+    )
+    const ids = normalizedList.map((c) => c.id)
 
-    // Optimistic update: marca transferido_pos_vendas e preserva todos os dados
+    // Determinar destino normalizado ('projetos' ou 'om')
+    const finalDestino: 'projetos' | 'om' =
+      areaDestino === 'manutencoes' || areaDestino === 'om' ? 'om' : 'projetos'
+
+    // Optimistic update: marca status Fechado, transferido_pos_vendas e área destino
     setClientes((prev) =>
       prev.map((c) => {
         if (!ids.includes(c.id)) return c
-        const match = clientesParaTransferir.find((item) => item.id === c.id)
+        const match = normalizedList.find((item) => item.id === c.id)
         return {
           ...c,
+          status: 'Fechado',
           transferido_pos_vendas: true,
           data_transferencia_pos_vendas: agora,
           origem_pos_vendas: 'funil_comercial',
           data_fechamento: match?.data_fechamento || c.data_fechamento || agora,
+          area_destino: finalDestino,
         }
       }),
     )
 
     try {
-      const updatedList = await apiBulkTransferirFechadosParaPosVendas(clientesParaTransferir)
-      const mapUpdated = new Map(updatedList.map((u) => [u.id, u]))
-      setClientes((prev) => prev.map((c) => mapUpdated.get(c.id) || c))
+      // Se tiver área de destino explícita, chama marcarClienteComoGanho para cada um
+      // garantindo que projeto ou O&M sejam criados/vinculados
+      const s = await import('@/services/crmService')
+      const updatedList: Cliente[] = []
+
+      for (const item of normalizedList) {
+        try {
+          const cli = await s.marcarClienteComoGanho(item.id, finalDestino)
+          updatedList.push(cli)
+        } catch (e) {
+          console.warn(`Erro ao transferir cliente ${item.id} para pós-vendas:`, e)
+        }
+      }
+
+      if (updatedList.length > 0) {
+        const mapUpdated = new Map(updatedList.map((u) => [u.id, u]))
+        setClientes((prev) => prev.map((c) => mapUpdated.get(c.id) || c))
+      }
+
+      if (finalDestino === 'projetos') {
+        fetchProjetos().then(setProjetos).catch(console.error)
+      } else {
+        fetchManutencoes().then(setManutencoes).catch(console.error)
+      }
+      fetchAtividades().then(setAtividades).catch(console.error)
+
       return updatedList
     } catch (err) {
       console.error('Erro ao transferir fechados para pós-vendas em lote:', err)
@@ -2169,6 +2329,8 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         closeFichaCliente,
         addCliente,
         removeCliente,
+        bulkRemoveClientes,
+        mesclarClientes,
         addManutencao,
         removeManutencao,
         addAtividade,
