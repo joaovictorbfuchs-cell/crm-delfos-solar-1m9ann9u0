@@ -25,7 +25,9 @@ import {
   FileDown,
   Download,
   RotateCcw,
+  Check,
 } from 'lucide-react'
+import { toast } from 'sonner'
 import { ModalEnviarDocumentoWhatsApp } from './ModalEnviarDocumentoWhatsApp'
 import { SecaoOrcamentosFornecedores } from './SecaoOrcamentosFornecedores'
 import { useClientes } from '@/contexts/ClientesContext'
@@ -1481,6 +1483,7 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
               <SecaoOrcamentosFornecedores
                 clienteId={selectedClienteId}
                 orcamentoSolarId={initialOrcamento?.id}
+                fornecedorSelecionadoId={fornecedorSelecionadoId}
                 onUsarEquipamentos={(equip) => {
                   if (equip.marcaPainel) setMarcaPainel(equip.marcaPainel)
                   if (equip.numeroPlacas && equip.numeroPlacas > 0) {
@@ -1490,8 +1493,74 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                   if (equip.quantidadeInversores && equip.quantidadeInversores > 0) {
                     setQuantidadeInversores(equip.quantidadeInversores)
                   }
-                  if (equip.valorTotal && equip.valorTotal > 0) {
-                    setValorInvestimentoManual(equip.valorTotal)
+                }}
+                onAplicarAoProjeto={async (fornOrc) => {
+                  const valorTotalForn = Number(fornOrc.valor_total) || 0
+
+                  // 1. Atualização otimista e imediata do estado local
+                  setFornecedorSelecionadoId(fornOrc.id)
+                  fornecedorAplicadoRef.current = { id: fornOrc.id, valor: valorTotalForn }
+                  updateCustoField('materiaisEquipamentos', valorTotalForn)
+
+                  // Se houver valor manual fixo travando o total, libera para o cálculo em cadeia da planilha de custos fluir
+                  setValorInvestimentoManual(0)
+
+                  // Atualiza também dados dos equipamentos se cadastrados no fornecedor
+                  if (fornOrc.modulos && fornOrc.modulos[0]?.descricao) {
+                    setMarcaPainel(fornOrc.modulos[0].descricao)
+                  }
+                  if (
+                    fornOrc.modulos &&
+                    fornOrc.modulos[0]?.quantidade &&
+                    fornOrc.modulos[0].quantidade > 0
+                  ) {
+                    handleNumeroPlacasChange(fornOrc.modulos[0].quantidade)
+                  }
+                  if (fornOrc.inversores && fornOrc.inversores[0]?.descricao) {
+                    setMarcaInversor(fornOrc.inversores[0].descricao)
+                  }
+                  if (
+                    fornOrc.inversores &&
+                    fornOrc.inversores[0]?.quantidade &&
+                    fornOrc.inversores[0].quantidade > 0
+                  ) {
+                    setQuantidadeInversores(fornOrc.inversores[0].quantidade)
+                  }
+
+                  // 2. Feedback visual claro com ação para navegar imediatamente para a Aba de Custos
+                  const nomeForn = fornOrc.nome_fornecedor || 'Fornecedor'
+                  const valorFormatado = formatCurrency(valorTotalForn)
+
+                  toast.success(
+                    <div className="flex flex-col gap-1 text-xs">
+                      <div className="font-bold text-emerald-950 flex items-center gap-1">
+                        <Check className="w-3.5 h-3.5 text-emerald-600 inline" />
+                        <span>{nomeForn} aplicado ao projeto!</span>
+                      </div>
+                      <div className="text-gray-600">
+                        Materiais atualizado para <strong>{valorFormatado}</strong>. Custos
+                        recalculados em cadeia.
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setActiveTab('custos')}
+                        className="mt-1 px-2.5 py-1 bg-emerald-700 hover:bg-emerald-800 text-white font-bold rounded text-[11px] self-start inline-flex items-center gap-1 transition-colors"
+                      >
+                        <span>Ver Aba de Custos Atualizada</span>
+                        <ArrowRight className="w-3 h-3" />
+                      </button>
+                    </div>,
+                    { duration: 5000 },
+                  )
+
+                  // 3. Persistência assíncrona em segundo plano sem bloquear o recálculo
+                  try {
+                    await selecionarFornecedorOrcamento(fornOrc.id, {
+                      orcamentoSolarId: initialOrcamento?.id,
+                      clienteId: selectedClienteId,
+                    })
+                  } catch (errSync) {
+                    console.warn('Persistência em background do fornecedor ativo:', errSync)
                   }
                 }}
               />

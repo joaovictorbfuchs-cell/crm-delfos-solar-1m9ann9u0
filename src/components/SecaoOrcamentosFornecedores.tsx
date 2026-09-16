@@ -35,6 +35,7 @@ import { ModalOrcamentoFornecedorForm } from './ModalOrcamentoFornecedorForm'
 interface SecaoOrcamentosFornecedoresProps {
   clienteId?: string
   orcamentoSolarId?: string
+  fornecedorSelecionadoId?: string
   onUsarEquipamentos?: (dados: {
     marcaPainel?: string
     numeroPlacas?: number
@@ -42,12 +43,15 @@ interface SecaoOrcamentosFornecedoresProps {
     quantidadeInversores?: number
     valorTotal?: number
   }) => void
+  onAplicarAoProjeto?: (fornecedorOrc: FornecedorOrcamento) => void
 }
 
 export function SecaoOrcamentosFornecedores({
   clienteId,
   orcamentoSolarId,
+  fornecedorSelecionadoId,
   onUsarEquipamentos,
+  onAplicarAoProjeto,
 }: SecaoOrcamentosFornecedoresProps) {
   const {
     fornecedores,
@@ -872,126 +876,155 @@ export function SecaoOrcamentosFornecedores({
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {orcamentosVinculados.map((orc) => (
-              <div
-                key={orc.id}
-                className={`p-3 rounded-xl border transition-all shadow-2xs space-y-2 text-xs relative ${
-                  orc.selecionado
-                    ? 'border-2 border-emerald-600 bg-emerald-50/20 ring-2 ring-emerald-500/10'
-                    : 'border-gray-200 bg-white hover:border-emerald-300'
-                }`}
-              >
-                {orc.selecionado && (
-                  <div className="absolute -top-2.5 right-3">
-                    <span className="inline-flex items-center gap-1 text-[10px] font-extrabold uppercase bg-emerald-600 text-white px-2 py-0.5 rounded-full shadow-xs">
-                      <Check className="w-3 h-3" />
-                      Fornecedor Ativo
-                    </span>
-                  </div>
-                )}
+            {orcamentosVinculados.map((orc) => {
+              const isSelected =
+                (fornecedorSelecionadoId && orc.id === fornecedorSelecionadoId) ||
+                Boolean(orc.selecionado)
 
-                <div className="flex items-start justify-between">
-                  <div>
-                    <h5 className="font-bold text-gray-900 flex items-center gap-1.5">
-                      {orc.nome_fornecedor}
-                    </h5>
-                    <span className="text-[10px] text-gray-500">
-                      Revisão: <strong>{orc.numero_revisao || 'REV-01'}</strong> •{' '}
-                      {formatDate(orc.data)}
-                    </span>
-                  </div>
-                  <span className="text-xs font-black text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
-                    {formatCurrency(orc.valor_total)}
-                  </span>
-                </div>
-
-                <div className="text-[11px] text-gray-600 space-y-0.5">
-                  {orc.modulos && orc.modulos.length > 0 && (
-                    <div className="truncate">
-                      <strong>Módulos:</strong> {orc.modulos[0].quantidade}x{' '}
-                      {orc.modulos[0].descricao}
+              return (
+                <div
+                  key={orc.id}
+                  className={`p-3 rounded-xl border transition-all shadow-2xs space-y-2 text-xs relative ${
+                    isSelected
+                      ? 'border-2 border-emerald-600 bg-emerald-50/25 ring-2 ring-emerald-500/15 shadow-sm'
+                      : 'border-gray-200 bg-white hover:border-emerald-300'
+                  }`}
+                >
+                  {isSelected && (
+                    <div className="absolute -top-2.5 right-3">
+                      <span className="inline-flex items-center gap-1 text-[10px] font-extrabold uppercase bg-emerald-600 text-white px-2.5 py-0.5 rounded-full shadow-xs">
+                        <Check className="w-3 h-3" />
+                        Aplicado ✓
+                      </span>
                     </div>
                   )}
-                  {orc.inversores && orc.inversores.length > 0 && (
-                    <div className="truncate">
-                      <strong>Inversor:</strong> {orc.inversores[0].quantidade}x{' '}
-                      {orc.inversores[0].descricao}
+
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <h5 className="font-bold text-gray-900 flex items-center gap-1.5">
+                        {orc.nome_fornecedor}
+                      </h5>
+                      <span className="text-[10px] text-gray-500">
+                        Revisão: <strong>{orc.numero_revisao || 'REV-01'}</strong> •{' '}
+                        {formatDate(orc.data)}
+                      </span>
                     </div>
-                  )}
-                </div>
+                    <span className="text-xs font-black text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                      {formatCurrency(orc.valor_total)}
+                    </span>
+                  </div>
 
-                <div className="pt-2 border-t border-gray-100 flex items-center justify-between text-[11px] flex-wrap gap-2">
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={async () => {
-                        await selecionarFornecedorOrcamento(orc.id, {
-                          orcamentoSolarId,
-                          clienteId,
-                        })
-                        toast.success(`${orc.nome_fornecedor} marcado como ativo!`)
-                      }}
-                      className={`text-[11px] font-bold px-2 py-0.5 rounded border transition-colors inline-flex items-center gap-1 ${
-                        orc.selecionado
-                          ? 'bg-emerald-600 text-white border-emerald-700'
-                          : 'bg-white hover:bg-emerald-50 text-emerald-800 border-emerald-300'
-                      }`}
-                    >
-                      <Check className="w-3 h-3" />
-                      <span>{orc.selecionado ? 'Fornecedor Ativo' : 'Tornar Ativo'}</span>
-                    </button>
-
-                    {orc.arquivo && (
-                      <a
-                        href={pb.files.getURL(orc, orc.arquivo)}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-blue-600 hover:underline inline-flex items-center gap-1"
-                      >
-                        <ExternalLink className="w-3 h-3" />
-                        <span>PDF</span>
-                      </a>
+                  <div className="text-[11px] text-gray-600 space-y-0.5">
+                    {orc.modulos && orc.modulos.length > 0 && (
+                      <div className="truncate">
+                        <strong>Módulos:</strong> {orc.modulos[0].quantidade}x{' '}
+                        {orc.modulos[0].descricao}
+                      </div>
+                    )}
+                    {orc.inversores && orc.inversores.length > 0 && (
+                      <div className="truncate">
+                        <strong>Inversor:</strong> {orc.inversores[0].quantidade}x{' '}
+                        {orc.inversores[0].descricao}
+                      </div>
                     )}
                   </div>
 
-                  <div className="flex items-center gap-2 ml-auto">
-                    {onUsarEquipamentos && (
+                  <div className="pt-2 border-t border-gray-100 flex items-center justify-between text-[11px] flex-wrap gap-2">
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          if (onAplicarAoProjeto) {
+                            onAplicarAoProjeto(orc)
+                          } else {
+                            await selecionarFornecedorOrcamento(orc.id, {
+                              orcamentoSolarId,
+                              clienteId,
+                            })
+                            toast.success(`${orc.nome_fornecedor} marcado como ativo!`)
+                          }
+                        }}
+                        className={`text-[11px] font-bold px-2 py-0.5 rounded border transition-colors inline-flex items-center gap-1 ${
+                          isSelected
+                            ? 'bg-emerald-600 text-white border-emerald-700 shadow-2xs'
+                            : 'bg-white hover:bg-emerald-50 text-emerald-800 border-emerald-300'
+                        }`}
+                        title={
+                          isSelected
+                            ? 'Fornecedor atualmente aplicado ao projeto'
+                            : 'Selecionar e aplicar este fornecedor ao projeto'
+                        }
+                      >
+                        <Check className="w-3 h-3" />
+                        <span>{isSelected ? 'Fornecedor Ativo' : 'Tornar Ativo'}</span>
+                      </button>
+
+                      {orc.arquivo && (
+                        <a
+                          href={pb.files.getURL(orc, orc.arquivo)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-600 hover:underline inline-flex items-center gap-1"
+                        >
+                          <ExternalLink className="w-3 h-3" />
+                          <span>PDF</span>
+                        </a>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-2 ml-auto">
                       <button
                         type="button"
                         onClick={() => {
-                          const m = orc.modulos?.[0]
-                          const inv = orc.inversores?.[0]
-                          onUsarEquipamentos({
-                            marcaPainel: m?.descricao,
-                            numeroPlacas: m?.quantidade,
-                            marcaInversor: inv?.descricao,
-                            quantidadeInversores: inv?.quantidade,
-                            valorTotal: orc.valor_total,
-                          })
-                          toast.success('Equipamentos aplicados aos campos do sistema!')
+                          if (onAplicarAoProjeto) {
+                            onAplicarAoProjeto(orc)
+                          } else if (onUsarEquipamentos) {
+                            const m = orc.modulos?.[0]
+                            const inv = orc.inversores?.[0]
+                            onUsarEquipamentos({
+                              marcaPainel: m?.descricao,
+                              numeroPlacas: m?.quantidade,
+                              marcaInversor: inv?.descricao,
+                              quantidadeInversores: inv?.quantidade,
+                              valorTotal: orc.valor_total,
+                            })
+                            toast.success('Equipamentos aplicados aos campos do sistema!')
+                          }
                         }}
-                        className="text-emerald-700 hover:text-emerald-800 font-bold"
+                        className={`px-2.5 py-1 text-xs font-extrabold rounded-lg transition-all inline-flex items-center gap-1 ${
+                          isSelected
+                            ? 'bg-emerald-600 text-white shadow-2xs'
+                            : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 hover:scale-[1.02]'
+                        }`}
+                        title="Aplica o valor total deste fornecedor ao campo 'Materiais / Equipamentos' na aba Custos recalculando todos os totais"
                       >
-                        Aplicar ao Projeto
+                        {isSelected ? (
+                          <>
+                            <Check className="w-3.5 h-3.5" />
+                            <span>Aplicado ✓</span>
+                          </>
+                        ) : (
+                          <span>Aplicar ao Projeto</span>
+                        )}
                       </button>
-                    )}
-                    <button
-                      type="button"
-                      onClick={async () => {
-                        if (confirm('Deseja excluir este orçamento de fornecedor?')) {
-                          await removeFornecedorOrcamento(orc.id)
-                          toast.success('Orçamento removido.')
-                        }
-                      }}
-                      className="text-gray-400 hover:text-red-600 p-1"
-                      title="Excluir Cotação"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          if (confirm('Deseja excluir este orçamento de fornecedor?')) {
+                            await removeFornecedorOrcamento(orc.id)
+                            toast.success('Orçamento removido.')
+                          }
+                        }}
+                        className="text-gray-400 hover:text-red-600 p-1"
+                        title="Excluir Cotação"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         )}
       </div>
@@ -1059,6 +1092,14 @@ export function SecaoOrcamentosFornecedores({
         onAplicarAoProjeto={(dados) => {
           if (onUsarEquipamentos) {
             onUsarEquipamentos(dados)
+          }
+          if (onAplicarAoProjeto) {
+            const fornEncontrado = orcamentosVinculados.find(
+              (o) => o.valor_total === dados.valorTotal || o.nome_fornecedor === dados.marcaPainel,
+            )
+            if (fornEncontrado) {
+              onAplicarAoProjeto(fornEncontrado)
+            }
           }
         }}
       />
