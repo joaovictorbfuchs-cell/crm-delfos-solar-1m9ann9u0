@@ -11,7 +11,6 @@ import {
   TrendingUp,
   Percent,
   Calendar,
-  Layers,
   Wrench,
   Calculator,
   Compass,
@@ -35,7 +34,6 @@ import { useAuth } from '@/contexts/AuthContext'
 import { ClienteAutocomplete } from '@/components/ClienteAutocomplete'
 import { formatCurrency } from '@/lib/formatters'
 import type { OrcamentoSolar, Cliente } from '@/types/crm'
-import { SecaoComparativoFornecedoresCustos } from './SecaoComparativoFornecedoresCustos'
 import {
   calcularOrcamentoSolar,
   somarCustosSolar,
@@ -126,7 +124,7 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
   // Custos do projeto (aba de custos com soma automática)
   const [custos, setCustos] = useState<DadosCustosSolar>({ ...CUSTOS_SOLAR_PADRAO })
 
-  // Campos específicos da Aba de Custos (Requisitos 1 a 7 e Desconto)
+  // Campos específicos da Aba de Custos (Requisitos 1 a 6 e Desconto)
   const [valorPorPlaca, setValorPorPlaca] = useState<number>(150)
   const [opcaoImposto, setOpcaoImposto] = useState<1 | 2>(1)
   const [descontoPercentual, setDescontoPercentual] = useState<number>(0)
@@ -2255,45 +2253,6 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                     <ArrowRight className="w-3.5 h-3.5" />
                   </button>
                 </div>
-              </div>
-
-              {/* Requisito 7: Seção Comparativo de Fornecedores - Compactado */}
-              <div className="bg-white p-3.5 rounded-xl border border-gray-200 shadow-xs space-y-3">
-                <div className="flex items-center justify-between pb-1.5 border-b border-gray-100 flex-wrap gap-2">
-                  <div>
-                    <h3 className="text-xs font-bold uppercase tracking-wider text-gray-800 flex items-center gap-1.5">
-                      <Layers className="w-4 h-4 text-emerald-600" />
-                      7. Comparativo de Fornecedores
-                    </h3>
-                    <p className="text-[10px] text-gray-500">
-                      Selecione com o rádio qual fornecedor alimenta os materiais do orçamento.
-                    </p>
-                  </div>
-                </div>
-
-                {/* Tabela do Comparativo de Fornecedores */}
-                <SecaoComparativoFornecedoresCustos
-                  orcamentoSolarId={initialOrcamento?.id}
-                  clienteId={selectedClienteId}
-                  fornecedorSelecionadoId={fornecedorSelecionadoId}
-                  onSelecionarFornecedor={(fornOrc) => {
-                    setFornecedorSelecionadoId(fornOrc.id)
-                    // Requisito: Os materiais do fornecedor escolhido alimentam o valor de Materiais / Equipamentos da aba anterior
-                    const valorTotalForn = Number(fornOrc.valor_total) || 0
-                    fornecedorAplicadoRef.current = { id: fornOrc.id, valor: valorTotalForn }
-                    updateCustoField('materiaisEquipamentos', valorTotalForn)
-                    // Opcionalmente atualiza marcas se disponíveis
-                    if (fornOrc.modulos && fornOrc.modulos[0]?.descricao) {
-                      setMarcaPainel(fornOrc.modulos[0].descricao)
-                    }
-                    if (fornOrc.modulos && fornOrc.modulos[0]?.quantidade) {
-                      handleNumeroPlacasChange(fornOrc.modulos[0].quantidade)
-                    }
-                    if (fornOrc.inversores && fornOrc.inversores[0]?.descricao) {
-                      setMarcaInversor(fornOrc.inversores[0].descricao)
-                    }
-                  }}
-                />
               </div>
             </div>
           )}
