@@ -29,6 +29,7 @@ import {
   abrirPropostaTecnicoComercialEmNovaAba,
   baixarPropostaTecnicoComercialHTML,
 } from '@/lib/propostaTecnicoComercialGenerator'
+import { SecaoProjecaoEconomia } from '@/components/SecaoProjecaoEconomia'
 
 export interface ModalGerarPropostaTecnicoComercialProps {
   orcamento: OrcamentoSolarCalculado
@@ -968,6 +969,22 @@ export function ModalGerarPropostaTecnicoComercial({
                   </div>
                 </div>
               </div>
+
+              {/* Card 7: Projeção de Economia na Conta de Energia (2026-2051) */}
+              <SecaoProjecaoEconomia
+                consumoAnualCadastradoKwh={
+                  orcamento.consumo_mensal_kwh && orcamento.consumo_mensal_kwh > 0
+                    ? Number((orcamento.consumo_mensal_kwh * 12).toFixed(2))
+                    : cliente?.consumo_kwh_mes && cliente.consumo_kwh_mes > 0
+                      ? Number((cliente.consumo_kwh_mes * 12).toFixed(2))
+                      : 4807.08
+                }
+                tipoClienteInicial={
+                  cliente?.tipo_cliente === 'comercial' ? 'comercial' : 'residencial'
+                }
+                nomeCliente={clienteNome}
+                permitirAjusteConsumo={true}
+              />
             </div>
           ) : (
             /* ETAPA DE PREVIEW COM 4 PÁGINAS BEM ORGANIZADAS */

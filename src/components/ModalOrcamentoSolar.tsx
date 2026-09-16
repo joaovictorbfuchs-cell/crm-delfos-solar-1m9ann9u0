@@ -57,6 +57,7 @@ import {
   baixarPropostaSolarDocx,
 } from '@/lib/propostaSolarDocxGenerator'
 import { ModalGerarPropostaTecnicoComercial } from '@/components/ModalGerarPropostaTecnicoComercial'
+import { SecaoProjecaoEconomia } from '@/components/SecaoProjecaoEconomia'
 
 interface ModalOrcamentoSolarProps {
   isOpen: boolean
@@ -2705,6 +2706,21 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                     </span>
                   </div>
                 </div>
+
+                {/* Nova Seção: Projeção de Economia na Conta de Energia (2026-2051) */}
+                <SecaoProjecaoEconomia
+                  consumoAnualCadastradoKwh={
+                    consumoKwhMes && consumoKwhMes > 0
+                      ? Number((consumoKwhMes * 12).toFixed(2))
+                      : clienteAtual?.consumo_kwh_mes && clienteAtual.consumo_kwh_mes > 0
+                        ? Number((clienteAtual.consumo_kwh_mes * 12).toFixed(2))
+                        : 4807.08
+                  }
+                  tipoClienteInicial={tipoCliente === 'comercial' ? 'comercial' : 'residencial'}
+                  tarifaReferenciaInicial={tarifaKwh || 0.985}
+                  nomeCliente={clienteAtual?.nome || 'Cliente'}
+                  permitirAjusteConsumo={true}
+                />
 
                 {/* Grade de Desperdício x Economia */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
