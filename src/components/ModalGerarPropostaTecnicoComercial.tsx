@@ -30,6 +30,7 @@ import {
   baixarPropostaTecnicoComercialHTML,
 } from '@/lib/propostaTecnicoComercialGenerator'
 import { SecaoProjecaoEconomia } from '@/components/SecaoProjecaoEconomia'
+import { SecaoSeuSistemaFotovoltaico } from '@/components/SecaoSeuSistemaFotovoltaico'
 
 export interface ModalGerarPropostaTecnicoComercialProps {
   orcamento: OrcamentoSolarCalculado
@@ -969,6 +970,27 @@ export function ModalGerarPropostaTecnicoComercial({
                   </div>
                 </div>
               </div>
+
+              {/* Seção Visual: Seu Sistema Fotovoltaico */}
+              <SecaoSeuSistemaFotovoltaico
+                potenciaKwp={potenciaKwp}
+                geracaoMensalKwh={producaoMensalKwh}
+                economiaMensal={orcamento.economia_1_mes}
+                numeroPlacas={qtdPaineis}
+                marcaPainel={descricaoPaineis}
+                potenciaPlacaWp={orcamento.potencia_placa_wp || 550}
+                tecnologiaModulo="bifacial N-type"
+                marcaInversor={descricaoInversores}
+                quantidadeInversores={qtdInversores}
+                mpptInversor={2}
+                potenciaInversorKw={potenciaKwp ? Math.round(potenciaKwp * 0.8 * 10) / 10 : 6}
+                areaNecessariaM2={areaNecessariaM2}
+                garantiaModulosAnos={paineisAnosDesemp || 30}
+                garantiaInversorAnos={inversorAnosFab || 10}
+                garantiaInstalacaoTexto={`${instalacaoAnos || 1} anos`}
+                garantiaInstalacaoAnos={instalacaoAnos || 1}
+                nomeCliente={clienteNome}
+              />
 
               {/* Card 7: Projeção de Economia na Conta de Energia (2026-2051) */}
               <SecaoProjecaoEconomia

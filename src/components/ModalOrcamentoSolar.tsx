@@ -58,6 +58,7 @@ import {
 } from '@/lib/propostaSolarDocxGenerator'
 import { ModalGerarPropostaTecnicoComercial } from '@/components/ModalGerarPropostaTecnicoComercial'
 import { SecaoProjecaoEconomia } from '@/components/SecaoProjecaoEconomia'
+import { SecaoSeuSistemaFotovoltaico } from '@/components/SecaoSeuSistemaFotovoltaico'
 
 interface ModalOrcamentoSolarProps {
   isOpen: boolean
@@ -2706,6 +2707,27 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                     </span>
                   </div>
                 </div>
+
+                {/* Nova Seção: Seu Sistema Fotovoltaico (Visão consolidada em cards visuais) */}
+                <SecaoSeuSistemaFotovoltaico
+                  potenciaKwp={potenciaKwp}
+                  geracaoMensalKwh={calculos.geracaoMediaMensalKwh}
+                  economiaMensal={calculos.economia1Mes}
+                  numeroPlacas={numeroPlacas}
+                  marcaPainel={marcaPainel}
+                  potenciaPlacaWp={potenciaPlacaWp}
+                  tecnologiaModulo="bifacial N-type"
+                  marcaInversor={marcaInversor}
+                  quantidadeInversores={quantidadeInversores}
+                  mpptInversor={2}
+                  potenciaInversorKw={potenciaKwp ? Math.round(potenciaKwp * 0.8 * 10) / 10 : 6}
+                  areaNecessariaM2={areaNecessariaM2}
+                  garantiaModulosAnos={30}
+                  garantiaInversorAnos={10}
+                  garantiaInstalacaoTexto="12 meses"
+                  garantiaInstalacaoAnos={1}
+                  nomeCliente={clienteAtual?.nome}
+                />
 
                 {/* Nova Seção: Projeção de Economia na Conta de Energia (2026-2051) */}
                 <SecaoProjecaoEconomia
