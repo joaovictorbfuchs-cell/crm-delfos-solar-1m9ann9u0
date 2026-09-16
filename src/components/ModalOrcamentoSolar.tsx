@@ -1173,6 +1173,18 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                       className="w-full text-xs font-bold text-emerald-700 px-3 py-2 rounded-lg border border-emerald-300 bg-emerald-50/30 focus:outline-none focus:ring-2 focus:ring-emerald-500"
                       placeholder="Ex: 5.5"
                     />
+                    {dimensionamentoSugerido && (
+                      <span className="text-[10px] text-emerald-700 font-medium block mt-1 leading-tight">
+                        Sugerido:{' '}
+                        <strong>
+                          ~{dimensionamentoSugerido.geracaoPretendidaKwhAno.toLocaleString('pt-BR')}{' '}
+                          kWh/ano
+                        </strong>{' '}
+                        na orientação{' '}
+                        <strong className="capitalize">{dimensionamentoSugerido.orientacao}</strong>{' '}
+                        ({dimensionamentoSugerido.potenciaKwpNecessaria.toFixed(2)} kWp)
+                      </span>
+                    )}
                   </div>
 
                   {/* Número de placas */}
