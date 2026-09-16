@@ -77,3 +77,67 @@ export const FATORES_SIMULTANEIDADE: Record<TipoClienteProjecao, number> = {
 }
 
 export const CONSUMO_EXEMPLO_PADRAO_KWH_ANO = 4807.08
+
+/**
+ * Parâmetros de degradação padrão de módulos fotovoltaicos:
+ * - LID (Light-Induced Degradation) no 1º ano: 2,0% (geração retém 98,00%)
+ * - Degradação linear subsequente: 0,55% ao ano
+ * - No ano 25: 100% - 2,0% - 24 * 0,55% = 84,80% (fator 0,8480)
+ */
+export const TAXA_DEGRADACAO_LID_ANO1 = 0.02 // 2.0% LID no ano 1
+export const TAXA_DEGRADACAO_LINEAR_AA = 0.0055 // 0.55% a.a. a partir do ano 2
+
+/**
+ * Tabela com os fatores de retenção de potência/geração por ano (1 a 26):
+ * Ano 1: 0.9800 (98,00%)
+ * Ano 2: 0.9745 (97,45%)
+ * Ano 3: 0.9690 (96,90%)
+ * ...
+ * Ano 25: 0.8480 (84,80%)
+ * Ano 26: 0.8425 (84,25%)
+ */
+export const FATORES_DEGRADACAO_PAINEIS: readonly number[] = Object.freeze([
+  0.98, // Ano 1
+  0.9745, // Ano 2
+  0.969, // Ano 3
+  0.9635, // Ano 4
+  0.958, // Ano 5
+  0.9525, // Ano 6
+  0.947, // Ano 7
+  0.9415, // Ano 8
+  0.936, // Ano 9
+  0.9305, // Ano 10
+  0.925, // Ano 11
+  0.9195, // Ano 12
+  0.914, // Ano 13
+  0.9085, // Ano 14
+  0.903, // Ano 15
+  0.8975, // Ano 16
+  0.892, // Ano 17
+  0.8865, // Ano 18
+  0.881, // Ano 19
+  0.8755, // Ano 20
+  0.87, // Ano 21
+  0.8645, // Ano 22
+  0.859, // Ano 23
+  0.8535, // Ano 24
+  0.848, // Ano 25 (exatamente 84,80%)
+  0.8425, // Ano 26 (2051)
+])
+
+/**
+ * Retorna o fator de geração retida pelo módulo para um dado ano (1-indexado).
+ * Ex: ano 1 => 0.98, ano 25 => 0.8480.
+ * Para anos além da tabela, continua a degradação linear de 0.55% a.a.
+ */
+export function getFatorDegradacaoPainel(anoIndice1: number): number {
+  if (anoIndice1 <= 0) return 1.0
+  const idx = anoIndice1 - 1
+  if (idx < FATORES_DEGRADACAO_PAINEIS.length) {
+    return FATORES_DEGRADACAO_PAINEIS[idx]
+  }
+  // Continuação linear caso haja anos adicionais
+  const anosAlem = anoIndice1 - 1
+  const fator = 1.0 - TAXA_DEGRADACAO_LID_ANO1 - (anosAlem - 1) * TAXA_DEGRADACAO_LINEAR_AA
+  return Number(Math.max(0, fator).toFixed(4))
+}

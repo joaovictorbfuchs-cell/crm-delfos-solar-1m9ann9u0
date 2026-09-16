@@ -157,6 +157,9 @@ export const SecaoProjecaoEconomia: React.FC<SecaoProjecaoEconomiaProps> = ({
           <p className="text-xs text-emerald-100/90 max-w-2xl leading-relaxed">
             Simulação de 26 anos (2026 a 2051) com aplicação automática do fator de simultaneidade,
             componente do Fio B da distribuidora e GD Eco Líquida.
+            <span className="block mt-0.5 text-amber-200/95 font-medium">
+              Projeção considera degradação dos painéis: LID 2% no 1º ano + 0,55% a.a.
+            </span>
             {nomeCliente && (
               <span className="block mt-0.5 text-emerald-200 font-semibold">
                 Cliente: {nomeCliente}
@@ -354,6 +357,12 @@ export const SecaoProjecaoEconomia: React.FC<SecaoProjecaoEconomiaProps> = ({
               Cenário: {tipoCliente === 'residencial' ? 'Residencial (30%)' : 'Comercial (70%)'}
             </span>
             <span
+              className="text-[10px] font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-300"
+              title="Degradação dos módulos: LID 2% no 1º ano e 0,55% a.a., resultando em 84,80% no ano 25"
+            >
+              Degradação: LID 2% + 0,55% a.a.
+            </span>
+            <span
               className={`text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-md border ${
                 possuiDadosBancoParaTipo
                   ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
@@ -450,6 +459,12 @@ export const SecaoProjecaoEconomia: React.FC<SecaoProjecaoEconomiaProps> = ({
                   <th className="py-2.5 px-3 text-right whitespace-nowrap bg-emerald-50 text-emerald-900 font-black">
                     GD Eco Líquida (R$/kWh)
                   </th>
+                  <th
+                    className="py-2.5 px-3 text-right whitespace-nowrap bg-slate-50 text-slate-800 font-bold"
+                    title="Potência útil remanescente após degradação (LID 2% no ano 1 + 0,55% a.a.)"
+                  >
+                    Geração / Módulos
+                  </th>
                   <th className="py-2.5 px-3 text-right whitespace-nowrap text-emerald-800 font-black">
                     Economia Acumulada (R$)
                   </th>
@@ -498,6 +513,12 @@ export const SecaoProjecaoEconomia: React.FC<SecaoProjecaoEconomiaProps> = ({
                       <td className="py-2 px-3 text-right font-bold text-emerald-700 bg-emerald-50/40 whitespace-nowrap">
                         R$ {linha.gdEcoLiquidaKwh.toFixed(4).replace('.', ',')}
                       </td>
+                      <td
+                        className="py-2 px-3 text-right text-slate-700 bg-slate-50/50 whitespace-nowrap font-medium"
+                        title={`Fator de degradação: ${(linha.fatorDegradacao * 100).toFixed(2)}% | Economia anual efetiva: ${formatCurrency(linha.economiaAnual)}`}
+                      >
+                        {(linha.fatorDegradacao * 100).toFixed(2).replace('.', ',')}%
+                      </td>
                       <td className="py-2 px-3 text-right font-black text-emerald-700 whitespace-nowrap">
                         {formatCurrency(linha.economiaAcumulada)}
                       </td>
@@ -534,13 +555,13 @@ export const SecaoProjecaoEconomia: React.FC<SecaoProjecaoEconomiaProps> = ({
                 {formatCurrency(projecao.economiaTotal25Anos)}
               </div>
               <p className="text-[11px] text-gray-500 mt-1">
-                Acumulado líquido dos primeiros 25 anos (período total:{' '}
+                Acumulado líquido dos primeiros 25 anos com degradação (período total:{' '}
                 {formatCurrency(projecao.economiaTotal26Anos)})
               </p>
             </div>
             <div className="pt-2 mt-3 border-t border-gray-100 flex items-center justify-between text-[10px] text-emerald-800 font-semibold">
-              <span>Fator: {Math.round(projecao.fatorSimultaneidade * 100)}%</span>
-              <span>{possuiDadosBancoParaTipo ? 'Planilha Oficial' : 'Reajuste 9% a.a.'}</span>
+              <span>Fator FS: {Math.round(projecao.fatorSimultaneidade * 100)}%</span>
+              <span>Degradação: LID 2% + 0,55% a.a.</span>
             </div>
           </div>
 
@@ -584,7 +605,7 @@ export const SecaoProjecaoEconomia: React.FC<SecaoProjecaoEconomiaProps> = ({
               </p>
             </div>
             <div className="pt-2 mt-3 border-t border-white/20 flex items-center justify-between text-[10px] text-amber-100 font-bold">
-              <span>Economia Ano 1: {formatCurrency(projecao.economiaPrimeiroAno)}</span>
+              <span>Economia Ano 1 (98% LID): {formatCurrency(projecao.economiaPrimeiroAno)}</span>
               <span>÷ 12 meses</span>
             </div>
           </div>

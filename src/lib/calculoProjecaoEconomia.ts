@@ -2,17 +2,26 @@ import {
   TABELA_REFERENCIA_BASE,
   FATORES_SIMULTANEIDADE,
   CONSUMO_EXEMPLO_PADRAO_KWH_ANO,
+  getFatorDegradacaoPainel,
   type TipoClienteProjecao,
 } from '@/data/planilhaBaseProjecao'
 import type { ProjecaoTarifariaRecord } from '@/services/projecaoTarifariaService'
 
 export interface LinhaProjecaoEconomia {
   ano: number
+  /** Índice do ano no período de projeção (1 a 26) */
+  indiceAno?: number
   consumoKwhAno: number
   tarifaKwh: number
   fioBKwh: number
   gdEcoLiquidaKwh: number
+  /** Fator de degradação do módulo solar aplicado neste ano (ex: 0.98 no ano 1, 0.848 no ano 25) */
+  fatorDegradacao: number
+  /** Economia anual nominal sem degradação */
+  economiaAnualSemDegradacao?: number
+  /** Economia anual efetiva considerando a degradação dos painéis */
   economiaAnual: number
+  /** Economia acumulada somando a economia anual degradada */
   economiaAcumulada: number
   gastoSemSolarAnual: number
   gastoSemSolarAcumulado: number
@@ -61,10 +70,11 @@ export interface CalcularProjecaoOptions {
  * com reajuste de 9% a.a. e metodologia da Lei 14.300.
  *
  * Fórmulas preservadas:
- * - Economia Anual (R$) = Consumo Anual * GD Eco Líquida
- * - Gasto Sem Solar (R$) = Consumo Anual * Tarifa
- * - Economia Acumulada e Gasto Acumulado somam ano a ano.
- * - Valor perdido por mês de postergação = Economia do 1º ano / 12.
+ * - Economia Anual (R$) = Consumo Anual * GD Eco Líquida * Fator Degradação (LID 2% ano 1 + 0,55% a.a.)
+ * - Gasto Sem Solar (R$) = Consumo Anual * Tarifa (sem alteração — usa tarifa cheia sobre consumo)
+ * - Economia Acumulada soma a Economia Anual (com degradação) ano a ano.
+ * - Gasto Acumulado soma o Gasto Sem Solar ano a ano.
+ * - Valor perdido por mês de postergação = Economia do 1º ano / 12 (com degradação do 1º ano).
  */
 export function calcularProjecaoEconomia({
   tipoCliente = 'residencial',
@@ -98,6 +108,8 @@ export function calcularProjecaoEconomia({
   if (usarDadosBanco) {
     // Usar os dados da planilha oficial importada no banco
     linhas = dadosBanco.map((rec, idx) => {
+      const indiceAno = idx + 1
+      const fatorDegradacao = getFatorDegradacaoPainel(indiceAno)
       const tarifaKwh = Number(rec.tarifa_kwh || 0)
       const fioBKwh = Number(rec.fio_b_kwh || 0)
 
@@ -107,7 +119,9 @@ export function calcularProjecaoEconomia({
         gdEcoLiquidaKwh = Number((tarifaKwh - fioBKwh * parcelaInjetada).toFixed(4))
       }
 
-      const economiaAnual = Number((consumoFinal * gdEcoLiquidaKwh).toFixed(2))
+      // Aplica a degradação anual dos painéis fotovoltaicos sobre a economia anual
+      const economiaAnualSemDegradacao = Number((consumoFinal * gdEcoLiquidaKwh).toFixed(2))
+      const economiaAnual = Number((consumoFinal * gdEcoLiquidaKwh * fatorDegradacao).toFixed(2))
       const gastoSemSolarAnual = Number((consumoFinal * tarifaKwh).toFixed(2))
 
       ecoAcum += economiaAnual
@@ -120,10 +134,13 @@ export function calcularProjecaoEconomia({
 
       return {
         ano: rec.ano,
+        indiceAno,
         consumoKwhAno: consumoFinal,
         tarifaKwh,
         fioBKwh,
         gdEcoLiquidaKwh,
+        fatorDegradacao,
+        economiaAnualSemDegradacao,
         economiaAnual,
         economiaAcumulada: Number(ecoAcum.toFixed(2)),
         gastoSemSolarAnual,
@@ -142,11 +159,14 @@ export function calcularProjecaoEconomia({
     }
 
     linhas = TABELA_REFERENCIA_BASE.map((ref, idx) => {
+      const indiceAno = idx + 1
+      const fatorDegradacao = getFatorDegradacaoPainel(indiceAno)
       const tarifaKwh = Number((ref.tarifaBase * multiplicadorTarifa).toFixed(4))
       const fioBKwh = Number((ref.fioBEfetivo * multiplicadorTarifa).toFixed(4))
 
       const gdEcoLiquidaKwh = Number((tarifaKwh - fioBKwh * parcelaInjetada).toFixed(4))
-      const economiaAnual = Number((consumoFinal * gdEcoLiquidaKwh).toFixed(2))
+      const economiaAnualSemDegradacao = Number((consumoFinal * gdEcoLiquidaKwh).toFixed(2))
+      const economiaAnual = Number((consumoFinal * gdEcoLiquidaKwh * fatorDegradacao).toFixed(2))
       const gastoSemSolarAnual = Number((consumoFinal * tarifaKwh).toFixed(2))
 
       ecoAcum += economiaAnual
@@ -159,10 +179,13 @@ export function calcularProjecaoEconomia({
 
       return {
         ano: ref.ano,
+        indiceAno,
         consumoKwhAno: consumoFinal,
         tarifaKwh,
         fioBKwh,
         gdEcoLiquidaKwh,
+        fatorDegradacao,
+        economiaAnualSemDegradacao,
         economiaAnual,
         economiaAcumulada: Number(ecoAcum.toFixed(2)),
         gastoSemSolarAnual,

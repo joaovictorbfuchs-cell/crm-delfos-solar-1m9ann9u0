@@ -5,6 +5,8 @@ import {
   FATORES_SIMULTANEIDADE,
   CONSUMO_EXEMPLO_PADRAO_KWH_ANO,
   TAXA_REAJUSTE_PADRAO_AA,
+  FATORES_DEGRADACAO_PAINEIS,
+  getFatorDegradacaoPainel,
 } from '@/data/planilhaBaseProjecao'
 import { extrairLinhasTarifarias, normalizarNumero } from './planilhaTarifariaParser'
 import type { ProjecaoTarifariaRecord } from '@/services/projecaoTarifariaService'
@@ -70,8 +72,39 @@ describe('Cálculo da Projeção de Economia na Conta de Energia (2026-2051)', (
     expect(proj.linhas).toHaveLength(2)
     expect(proj.linhas[0].tarifaKwh).toBe(1.0)
     expect(proj.linhas[0].gdEcoLiquidaKwh).toBe(0.86)
-    expect(proj.linhas[0].economiaAnual).toBe(860) // 1000 * 0.86
-    expect(proj.linhas[0].gastoSemSolarAnual).toBe(1000) // 1000 * 1.0
+    // Ano 1 aplica 98% (LID 2%): 1000 * 0.86 * 0.98 = 842.80
+    expect(proj.linhas[0].economiaAnual).toBe(842.8)
+    expect(proj.linhas[0].fatorDegradacao).toBe(0.98)
+    expect(proj.linhas[0].gastoSemSolarAnual).toBe(1000) // 1000 * 1.0 (não sofre degradação)
+
+    // Ano 2 aplica 97.45%: 1000 * 0.936 * 0.9745 = 912.13
+    expect(proj.linhas[1].fatorDegradacao).toBe(0.9745)
+    expect(proj.linhas[1].economiaAnual).toBe(912.13)
+    expect(proj.linhas[1].economiaAcumulada).toBe(Number((842.8 + 912.13).toFixed(2)))
+  })
+
+  it('deve aplicar corretamente a série de degradação: LID 2% no ano 1 até 84,80% no ano 25', () => {
+    expect(FATORES_DEGRADACAO_PAINEIS[0]).toBe(0.98)
+    expect(FATORES_DEGRADACAO_PAINEIS[1]).toBe(0.9745)
+    expect(FATORES_DEGRADACAO_PAINEIS[2]).toBe(0.969)
+    expect(FATORES_DEGRADACAO_PAINEIS[24]).toBe(0.848) // Ano 25 = 84.80%
+    expect(getFatorDegradacaoPainel(1)).toBe(0.98)
+    expect(getFatorDegradacaoPainel(25)).toBe(0.848)
+
+    const proj = calcularProjecaoEconomia({
+      tipoCliente: 'residencial',
+      consumoKwhAno: 1000,
+    })
+
+    // No ano 25 (índice 24), a degradação deve ser 0.8480
+    const linhaAno25 = proj.linhas[24]
+    expect(linhaAno25.fatorDegradacao).toBe(0.848)
+    expect(linhaAno25.economiaAnual).toBe(
+      Number((1000 * linhaAno25.gdEcoLiquidaKwh * 0.848).toFixed(2)),
+    )
+
+    // Gasto sem solar não é degradado
+    expect(linhaAno25.gastoSemSolarAnual).toBe(Number((1000 * linhaAno25.tarifaKwh).toFixed(2)))
   })
 
   it('deve preservar as fórmulas consolidadas: postergação = ecoAno1 / 12', () => {
