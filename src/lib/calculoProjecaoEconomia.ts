@@ -4,6 +4,7 @@ import {
   CONSUMO_EXEMPLO_PADRAO_KWH_ANO,
   type TipoClienteProjecao,
 } from '@/data/planilhaBaseProjecao'
+import type { ProjecaoTarifariaRecord } from '@/services/projecaoTarifariaService'
 
 export interface LinhaProjecaoEconomia {
   ano: number
@@ -36,6 +37,8 @@ export interface ResumoProjecaoEconomia {
   economiaPrimeiroAno: number
   /** Valor perdido por mês de postergação = economia do 1º ano ÷ 12 */
   valorPerdidoPorMesPostergacao: number
+  /** Indica se os dados vieram do banco (planilha importada) ou do fallback estimado */
+  origemDados: 'banco' | 'estimativa'
   /** Projeção completa linha a linha */
   linhas: LinhaProjecaoEconomia[]
 }
@@ -44,19 +47,20 @@ export interface CalcularProjecaoOptions {
   tipoCliente?: TipoClienteProjecao
   consumoKwhAno?: number
   tarifaPersonalizadaPrimeiroAno?: number
+  /** Registros da coleção projecao_tarifaria (quando existirem) */
+  dadosTarifariosCustomizados?: ProjecaoTarifariaRecord[] | null
 }
 
 /**
  * Calcula a Projeção de Economia na Conta de Energia ano a ano (2026-2051).
  *
- * Fórmulas:
- * - Fator de simultaneidade (f): Residencial = 0.30 (30%), Comercial = 0.70 (70%)
- * - Parcela injetada = (1 - f)
- * - GD Eco Líquida (R$/kWh) = Tarifa - (Fio B efetivo * Parcela injetada)
- *   * No autoconsumo imediato (f), não há dedução do Fio B.
- *   * Na parcela injetada e compensada (1 - f), abate-se o Fio B regulamentado.
- *   * Portanto: GD Eco Líquida = f * Tarifa + (1 - f) * (Tarifa - Fio B efetivo)
- *     = Tarifa - (1 - f) * Fio B efetivo.
+ * Se `dadosTarifariosCustomizados` tiver registros para o `tipoCliente`, utiliza
+ * diretamente as tarifas, fio B e GD Eco Líquida importadas da planilha do usuário.
+ *
+ * Caso contrário, utiliza o fallback da tabela de referência estimada interna
+ * com reajuste de 9% a.a. e metodologia da Lei 14.300.
+ *
+ * Fórmulas preservadas:
  * - Economia Anual (R$) = Consumo Anual * GD Eco Líquida
  * - Gasto Sem Solar (R$) = Consumo Anual * Tarifa
  * - Economia Acumulada e Gasto Acumulado somam ano a ano.
@@ -66,6 +70,7 @@ export function calcularProjecaoEconomia({
   tipoCliente = 'residencial',
   consumoKwhAno,
   tarifaPersonalizadaPrimeiroAno,
+  dadosTarifariosCustomizados,
 }: CalcularProjecaoOptions = {}): ResumoProjecaoEconomia {
   const consumoFinal =
     consumoKwhAno !== undefined && consumoKwhAno !== null && consumoKwhAno > 0
@@ -75,57 +80,97 @@ export function calcularProjecaoEconomia({
   const fatorSimultaneidade = FATORES_SIMULTANEIDADE[tipoCliente] ?? 0.3
   const parcelaInjetada = 1 - fatorSimultaneidade
 
-  // Fator multiplicador se o usuário passou uma tarifa base diferente para o primeiro ano
-  let multiplicadorTarifa = 1
-  if (
-    tarifaPersonalizadaPrimeiroAno &&
-    tarifaPersonalizadaPrimeiroAno > 0 &&
-    TABELA_REFERENCIA_BASE[0]
-  ) {
-    multiplicadorTarifa = tarifaPersonalizadaPrimeiroAno / TABELA_REFERENCIA_BASE[0].tarifaBase
-  }
+  // Verificar se há dados importados no banco válidos para este tipoCliente
+  const dadosBanco = (dadosTarifariosCustomizados || [])
+    .filter((d) => d.tipo_cliente === tipoCliente)
+    .sort((a, b) => a.ano - b.ano)
+
+  const usarDadosBanco = dadosBanco.length > 0
+  const origemDados: 'banco' | 'estimativa' = usarDadosBanco ? 'banco' : 'estimativa'
 
   let ecoAcum = 0
   let gastoAcum = 0
   let economiaTotal25Anos = 0
   let gastoTotalSemSolar25Anos = 0
 
-  const linhas: LinhaProjecaoEconomia[] = TABELA_REFERENCIA_BASE.map((ref, idx) => {
-    const tarifaKwh = Number((ref.tarifaBase * multiplicadorTarifa).toFixed(4))
-    const fioBKwh = Number((ref.fioBEfetivo * multiplicadorTarifa).toFixed(4))
+  let linhas: LinhaProjecaoEconomia[] = []
 
-    // GD Eco Líquida ajustada pelo fator de simultaneidade:
-    // A parcela simultânea (f) economiza a tarifa cheia.
-    // A parcela injetada (1 - f) economiza tarifa - fio B.
-    // GD Eco Líquida = Tarifa - (fio B * (1 - f))
-    const gdEcoLiquidaKwh = Number((tarifaKwh - fioBKwh * parcelaInjetada).toFixed(4))
+  if (usarDadosBanco) {
+    // Usar os dados da planilha oficial importada no banco
+    linhas = dadosBanco.map((rec, idx) => {
+      const tarifaKwh = Number(rec.tarifa_kwh || 0)
+      const fioBKwh = Number(rec.fio_b_kwh || 0)
 
-    const economiaAnual = Number((consumoFinal * gdEcoLiquidaKwh).toFixed(2))
-    const gastoSemSolarAnual = Number((consumoFinal * tarifaKwh).toFixed(2))
+      // Se a GD Eco Líquida já veio informada na planilha, usamos ela; se zero, calcula pela fórmula
+      let gdEcoLiquidaKwh = Number(rec.gd_eco_liquida || 0)
+      if (!gdEcoLiquidaKwh && tarifaKwh) {
+        gdEcoLiquidaKwh = Number((tarifaKwh - fioBKwh * parcelaInjetada).toFixed(4))
+      }
 
-    ecoAcum += economiaAnual
-    gastoAcum += gastoSemSolarAnual
+      const economiaAnual = Number((consumoFinal * gdEcoLiquidaKwh).toFixed(2))
+      const gastoSemSolarAnual = Number((consumoFinal * tarifaKwh).toFixed(2))
 
-    // Salvar acumulado de 25 anos (anos 0 a 24, isto é, 2026 até 2050 inclusive)
-    if (idx === 24) {
-      economiaTotal25Anos = ecoAcum
-      gastoTotalSemSolar25Anos = gastoAcum
+      ecoAcum += economiaAnual
+      gastoAcum += gastoSemSolarAnual
+
+      if (idx === 24) {
+        economiaTotal25Anos = ecoAcum
+        gastoTotalSemSolar25Anos = gastoAcum
+      }
+
+      return {
+        ano: rec.ano,
+        consumoKwhAno: consumoFinal,
+        tarifaKwh,
+        fioBKwh,
+        gdEcoLiquidaKwh,
+        economiaAnual,
+        economiaAcumulada: Number(ecoAcum.toFixed(2)),
+        gastoSemSolarAnual,
+        gastoSemSolarAcumulado: Number(gastoAcum.toFixed(2)),
+      }
+    })
+  } else {
+    // Usar o fallback da tabela estimada interna (com reajuste de 9% a.a.)
+    let multiplicadorTarifa = 1
+    if (
+      tarifaPersonalizadaPrimeiroAno &&
+      tarifaPersonalizadaPrimeiroAno > 0 &&
+      TABELA_REFERENCIA_BASE[0]
+    ) {
+      multiplicadorTarifa = tarifaPersonalizadaPrimeiroAno / TABELA_REFERENCIA_BASE[0].tarifaBase
     }
 
-    return {
-      ano: ref.ano,
-      consumoKwhAno: consumoFinal,
-      tarifaKwh,
-      fioBKwh,
-      gdEcoLiquidaKwh,
-      economiaAnual,
-      economiaAcumulada: Number(ecoAcum.toFixed(2)),
-      gastoSemSolarAnual,
-      gastoSemSolarAcumulado: Number(gastoAcum.toFixed(2)),
-    }
-  })
+    linhas = TABELA_REFERENCIA_BASE.map((ref, idx) => {
+      const tarifaKwh = Number((ref.tarifaBase * multiplicadorTarifa).toFixed(4))
+      const fioBKwh = Number((ref.fioBEfetivo * multiplicadorTarifa).toFixed(4))
 
-  // Se por ventura a tabela tiver 25 anos ou menos, fecha com o acumulado final
+      const gdEcoLiquidaKwh = Number((tarifaKwh - fioBKwh * parcelaInjetada).toFixed(4))
+      const economiaAnual = Number((consumoFinal * gdEcoLiquidaKwh).toFixed(2))
+      const gastoSemSolarAnual = Number((consumoFinal * tarifaKwh).toFixed(2))
+
+      ecoAcum += economiaAnual
+      gastoAcum += gastoSemSolarAnual
+
+      if (idx === 24) {
+        economiaTotal25Anos = ecoAcum
+        gastoTotalSemSolar25Anos = gastoAcum
+      }
+
+      return {
+        ano: ref.ano,
+        consumoKwhAno: consumoFinal,
+        tarifaKwh,
+        fioBKwh,
+        gdEcoLiquidaKwh,
+        economiaAnual,
+        economiaAcumulada: Number(ecoAcum.toFixed(2)),
+        gastoSemSolarAnual,
+        gastoSemSolarAcumulado: Number(gastoAcum.toFixed(2)),
+      }
+    })
+  }
+
   if (linhas.length <= 25) {
     economiaTotal25Anos = ecoAcum
     gastoTotalSemSolar25Anos = gastoAcum
@@ -147,6 +192,7 @@ export function calcularProjecaoEconomia({
     gastoTotalSemSolar26Anos: Number(gastoAcum.toFixed(2)),
     economiaPrimeiroAno,
     valorPerdidoPorMesPostergacao,
+    origemDados,
     linhas,
   }
 }

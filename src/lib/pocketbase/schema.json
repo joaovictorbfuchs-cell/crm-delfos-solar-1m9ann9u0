@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-16T19:49:14.419Z",
+  "generatedAt": "2026-09-16T20:07:05.100Z",
   "collections": [
     {
       "name": "users",
@@ -3864,6 +3864,85 @@
         }
       ],
       "indexes": ["CREATE INDEX idx_instalacoes_galeria_ordem ON instalacoes_galeria (ordem)"]
+    },
+    {
+      "name": "projecao_tarifaria",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "ano",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "tipo_cliente",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["residencial", "comercial"]
+        },
+        {
+          "name": "tarifa_kwh",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "fio_b_kwh",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "fs",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "gd_eco_liquida",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "economia_acumulada",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "gasto_acumulado",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_projecao_tarifaria_tipo_ano ON projecao_tarifaria (tipo_cliente, ano)"
+      ]
     }
   ]
 }

@@ -1,17 +1,17 @@
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useEffect, useCallback } from 'react'
 import {
   TrendingUp,
   AlertTriangle,
-  Zap,
   Building2,
   Home,
-  Clock,
   Sparkles,
   Info,
-  DollarSign,
   BarChart3,
   CheckCircle2,
   Table as TableIcon,
+  Upload,
+  Database,
+  FileSpreadsheet,
 } from 'lucide-react'
 import {
   ResponsiveContainer,
@@ -31,6 +31,11 @@ import {
   CONSUMO_EXEMPLO_PADRAO_KWH_ANO,
   type TipoClienteProjecao,
 } from '@/data/planilhaBaseProjecao'
+import {
+  fetchProjecoesTarifarias,
+  type ProjecaoTarifariaRecord,
+} from '@/services/projecaoTarifariaService'
+import { ModalImportarPlanilhaTarifaria } from '@/components/ModalImportarPlanilhaTarifaria'
 import { formatCurrency } from '@/lib/formatters'
 
 export interface SecaoProjecaoEconomiaProps {
@@ -57,6 +62,28 @@ export const SecaoProjecaoEconomia: React.FC<SecaoProjecaoEconomiaProps> = ({
 }) => {
   // Estado de tipo de cliente: Residencial (30% simultaneidade) ou Comercial (70% simultaneidade)
   const [tipoCliente, setTipoCliente] = useState<TipoClienteProjecao>(tipoClienteInicial)
+  const [modalImportarOpen, setModalImportarOpen] = useState(false)
+  const [dadosTarifariosCustomizados, setDadosTarifariosCustomizados] = useState<
+    ProjecaoTarifariaRecord[]
+  >([])
+  const [carregandoTarifas, setCarregandoTarifas] = useState(false)
+
+  // Carregar dados de projecao_tarifaria do PocketBase
+  const carregarTarifasDoBanco = useCallback(async () => {
+    setCarregandoTarifas(true)
+    try {
+      const records = await fetchProjecoesTarifarias()
+      setDadosTarifariosCustomizados(records)
+    } catch (err) {
+      console.warn('Erro ao carregar tarifas:', err)
+    } finally {
+      setCarregandoTarifas(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    carregarTarifasDoBanco()
+  }, [carregarTarifasDoBanco])
 
   // Estado para consumo anual
   const consumoBaseInicial = useMemo(() => {
@@ -75,14 +102,19 @@ export const SecaoProjecaoEconomia: React.FC<SecaoProjecaoEconomiaProps> = ({
     !consumoAnualCadastradoKwh || consumoAnualCadastradoKwh <= 0,
   )
 
-  // Recalcula projeção completa
+  // Recalcula projeção completa consumindo dados do banco ou do fallback estimado
   const projecao: ResumoProjecaoEconomia = useMemo(() => {
     return calcularProjecaoEconomia({
       tipoCliente,
       consumoKwhAno: consumoAnual,
       tarifaPersonalizadaPrimeiroAno: tarifaReferenciaInicial || undefined,
+      dadosTarifariosCustomizados,
     })
-  }, [tipoCliente, consumoAnual, tarifaReferenciaInicial])
+  }, [tipoCliente, consumoAnual, tarifaReferenciaInicial, dadosTarifariosCustomizados])
+
+  const possuiDadosBancoParaTipo = useMemo(() => {
+    return dadosTarifariosCustomizados.some((d) => d.tipo_cliente === tipoCliente)
+  }, [dadosTarifariosCustomizados, tipoCliente])
 
   // Formatação para o gráfico Recharts
   const dadosGrafico = useMemo(() => {
@@ -133,17 +165,29 @@ export const SecaoProjecaoEconomia: React.FC<SecaoProjecaoEconomiaProps> = ({
           </p>
         </div>
 
-        {/* Fator de Simultaneidade em Destaque */}
-        <div className="bg-emerald-950/40 border border-white/15 rounded-xl p-3 text-right self-start md:self-auto shrink-0 backdrop-blur-xs">
-          <span className="text-[10px] uppercase font-bold text-emerald-200 block">
-            Fator de Simultaneidade
-          </span>
-          <span className="text-2xl font-black text-amber-300">
-            {Math.round(projecao.fatorSimultaneidade * 100)}%
-          </span>
-          <span className="text-[10px] text-emerald-100 block">
-            {tipoCliente === 'residencial' ? 'Autoconsumo Residencial' : 'Autoconsumo Comercial'}
-          </span>
+        {/* Fator de Simultaneidade e Botão Importar */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+          <button
+            type="button"
+            onClick={() => setModalImportarOpen(true)}
+            className="px-3.5 py-2 rounded-xl bg-white/15 hover:bg-white/25 border border-white/25 text-white text-xs font-bold inline-flex items-center justify-center gap-2 transition-all shadow-xs backdrop-blur-xs"
+            title="Importar planilha oficial do Excel ou CSV para alimentar as tarifas e GD Eco"
+          >
+            <Upload className="w-4 h-4 text-amber-300" />
+            <span>Importar planilha tarifária</span>
+          </button>
+
+          <div className="bg-emerald-950/40 border border-white/15 rounded-xl p-3 text-right self-start sm:self-auto shrink-0 backdrop-blur-xs">
+            <span className="text-[10px] uppercase font-bold text-emerald-200 block">
+              Fator de Simultaneidade
+            </span>
+            <span className="text-2xl font-black text-amber-300">
+              {Math.round(projecao.fatorSimultaneidade * 100)}%
+            </span>
+            <span className="text-[10px] text-emerald-100 block">
+              {tipoCliente === 'residencial' ? 'Autoconsumo Residencial' : 'Autoconsumo Comercial'}
+            </span>
+          </div>
         </div>
       </div>
 
@@ -241,20 +285,59 @@ export const SecaoProjecaoEconomia: React.FC<SecaoProjecaoEconomiaProps> = ({
         </div>
       </div>
 
-      {/* AVISO INFORMATIVO DA PLANILHA BASE */}
-      <div className="mx-4 sm:mx-5 mt-4 p-3 bg-blue-50/70 border border-blue-200 rounded-xl flex items-start gap-2.5 text-xs text-blue-900">
-        <Info className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
-        <div className="flex-1 space-y-0.5">
-          <p className="font-semibold text-blue-950">
-            Valores de Tarifa, Fio B e GD Eco Líquida calculados pela Planilha Base do Sistema:
-          </p>
-          <p className="text-[11px] text-blue-800 leading-relaxed">
-            Residencial aplica <strong>30% de simultaneidade</strong> (70% sujeito ao Fio B
-            escalonado da Lei 14.300) e Comercial aplica <strong>70% de simultaneidade</strong> (30%
-            sujeito ao Fio B). Os valores de Tarifa e Fio B crescem com reajuste anual de ~8% a.a. e
-            GD Eco Líquida é calculada como <em>Tarifa - (Fio B × (1 - Fator))</em>.
-          </p>
-        </div>
+      {/* STATUS DA ORIGEM DOS DADOS (BANCO vs FALLBACK ESTIMADO) */}
+      <div className="mx-4 sm:mx-5 mt-4">
+        {possuiDadosBancoParaTipo ? (
+          <div className="p-3 bg-emerald-50/90 border border-emerald-300 rounded-xl flex items-center justify-between flex-wrap gap-2 text-xs text-emerald-950">
+            <div className="flex items-center gap-2">
+              <div className="w-6 h-6 rounded-full bg-emerald-200 text-emerald-800 flex items-center justify-center shrink-0">
+                <Database className="w-3.5 h-3.5" />
+              </div>
+              <div>
+                <p className="font-bold text-emerald-950">
+                  Valores oficiais carregados da planilha do usuário (
+                  {tipoCliente === 'residencial' ? 'Residencial' : 'Comercial'})
+                </p>
+                <p className="text-[11px] text-emerald-800">
+                  Tarifas, Fio B e GD Eco Líquida sincronizados com a coleção oficial no banco de
+                  dados.
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setModalImportarOpen(true)}
+              className="text-[11px] font-bold text-emerald-800 hover:text-emerald-950 underline px-2 py-1 rounded hover:bg-emerald-100 transition-colors"
+            >
+              Reimportar ou atualizar
+            </button>
+          </div>
+        ) : (
+          <div className="p-3 bg-amber-50/80 border border-amber-300 rounded-xl flex items-center justify-between flex-wrap gap-2 text-xs text-amber-950">
+            <div className="flex items-start gap-2.5">
+              <Info className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
+              <div>
+                <p className="font-bold text-amber-950">
+                  Valores estimados — importe a planilha oficial
+                </p>
+                <p className="text-[11px] text-amber-800 leading-relaxed">
+                  Esta projeção está utilizando a{' '}
+                  <strong>tabela interna estimada com reajuste de 9% a.a.</strong> (Lei 14.300).
+                  Importe sua planilha oficial (.xlsx ou .csv) para usar as tarifas exatas da sua
+                  concessionária.
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setModalImportarOpen(true)}
+              className="px-3 py-1.5 rounded-lg bg-amber-700 hover:bg-amber-800 text-white font-bold text-xs inline-flex items-center gap-1.5 transition-colors shadow-2xs shrink-0"
+            >
+              <FileSpreadsheet className="w-3.5 h-3.5" />
+              <span>Importar planilha oficial</span>
+            </button>
+          </div>
+        )}
       </div>
 
       {/* GRÁFICO RECHARTS: EVOLUÇÃO DA ECONOMIA ACUMULADA */}
@@ -266,9 +349,20 @@ export const SecaoProjecaoEconomia: React.FC<SecaoProjecaoEconomiaProps> = ({
               Evolução da Economia Acumulada x Gasto sem Solar (2026–2051)
             </h4>
           </div>
-          <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200 self-start sm:self-auto">
-            Cenário: {tipoCliente === 'residencial' ? 'Residencial (30%)' : 'Comercial (70%)'}
-          </span>
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
+              Cenário: {tipoCliente === 'residencial' ? 'Residencial (30%)' : 'Comercial (70%)'}
+            </span>
+            <span
+              className={`text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-md border ${
+                possuiDadosBancoParaTipo
+                  ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
+                  : 'bg-amber-100 text-amber-800 border-amber-300'
+              }`}
+            >
+              {possuiDadosBancoParaTipo ? 'Planilha Oficial' : 'Estimativa 9% a.a.'}
+            </span>
+          </div>
         </div>
 
         <div className="bg-slate-50/70 rounded-xl p-3 border border-gray-200">
@@ -335,11 +429,11 @@ export const SecaoProjecaoEconomia: React.FC<SecaoProjecaoEconomiaProps> = ({
           <div className="flex items-center gap-2">
             <TableIcon className="w-4 h-4 text-emerald-600" />
             <h4 className="text-xs sm:text-sm font-bold uppercase tracking-wider text-gray-800">
-              Tabela Projeção Ano a Ano (2026–2051)
+              Tabela Projeção Ano a Ano ({projecao.anoInicial}–{projecao.anoFinal})
             </h4>
           </div>
           <span className="text-[11px] text-gray-500 font-medium">
-            26 anos • Scroll horizontal/vertical
+            {projecao.totalAnos} anos • Scroll horizontal/vertical
           </span>
         </div>
 
@@ -367,7 +461,7 @@ export const SecaoProjecaoEconomia: React.FC<SecaoProjecaoEconomiaProps> = ({
               <tbody className="divide-y divide-gray-100">
                 {projecao.linhas.map((linha, index) => {
                   const isPar = index % 2 === 0
-                  const isAno25 = linha.ano === 2050
+                  const isAno25 = linha.ano === 2050 || index === 24
                   return (
                     <tr
                       key={linha.ano}
@@ -381,7 +475,7 @@ export const SecaoProjecaoEconomia: React.FC<SecaoProjecaoEconomiaProps> = ({
                     >
                       <td className="py-2 px-3 font-bold text-gray-900 whitespace-nowrap">
                         {linha.ano}
-                        {linha.ano === 2026 && (
+                        {index === 0 && (
                           <span className="ml-1 text-[9px] px-1 py-0.2 rounded bg-emerald-100 text-emerald-800 font-bold">
                             Ano 1
                           </span>
@@ -396,13 +490,13 @@ export const SecaoProjecaoEconomia: React.FC<SecaoProjecaoEconomiaProps> = ({
                         {formatarKwh(linha.consumoKwhAno)}
                       </td>
                       <td className="py-2 px-3 text-right text-gray-700 whitespace-nowrap">
-                        R$ {linha.tarifaKwh.toFixed(3).replace('.', ',')}
+                        R$ {linha.tarifaKwh.toFixed(4).replace('.', ',')}
                       </td>
                       <td className="py-2 px-3 text-right text-gray-600 whitespace-nowrap">
-                        R$ {linha.fioBKwh.toFixed(3).replace('.', ',')}
+                        R$ {linha.fioBKwh.toFixed(4).replace('.', ',')}
                       </td>
                       <td className="py-2 px-3 text-right font-bold text-emerald-700 bg-emerald-50/40 whitespace-nowrap">
-                        R$ {linha.gdEcoLiquidaKwh.toFixed(3).replace('.', ',')}
+                        R$ {linha.gdEcoLiquidaKwh.toFixed(4).replace('.', ',')}
                       </td>
                       <td className="py-2 px-3 text-right font-black text-emerald-700 whitespace-nowrap">
                         {formatCurrency(linha.economiaAcumulada)}
@@ -440,13 +534,13 @@ export const SecaoProjecaoEconomia: React.FC<SecaoProjecaoEconomiaProps> = ({
                 {formatCurrency(projecao.economiaTotal25Anos)}
               </div>
               <p className="text-[11px] text-gray-500 mt-1">
-                Acumulado líquido de 2026 a 2050 (em 26 anos:{' '}
+                Acumulado líquido dos primeiros 25 anos (período total:{' '}
                 {formatCurrency(projecao.economiaTotal26Anos)})
               </p>
             </div>
             <div className="pt-2 mt-3 border-t border-gray-100 flex items-center justify-between text-[10px] text-emerald-800 font-semibold">
               <span>Fator: {Math.round(projecao.fatorSimultaneidade * 100)}%</span>
-              <span>Protegido de reajustes</span>
+              <span>{possuiDadosBancoParaTipo ? 'Planilha Oficial' : 'Reajuste 9% a.a.'}</span>
             </div>
           </div>
 
@@ -461,7 +555,7 @@ export const SecaoProjecaoEconomia: React.FC<SecaoProjecaoEconomiaProps> = ({
                 {formatCurrency(projecao.gastoTotalSemSolar25Anos)}
               </div>
               <p className="text-[11px] text-gray-500 mt-1">
-                Valor pago à concessionária sem retorno (em 26 anos:{' '}
+                Valor pago à concessionária sem retorno (período total:{' '}
                 {formatCurrency(projecao.gastoTotalSemSolar26Anos)})
               </p>
             </div>
@@ -496,6 +590,18 @@ export const SecaoProjecaoEconomia: React.FC<SecaoProjecaoEconomiaProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Modal de Importação da Planilha Tarifária */}
+      {modalImportarOpen && (
+        <ModalImportarPlanilhaTarifaria
+          isOpen={modalImportarOpen}
+          onClose={() => setModalImportarOpen(false)}
+          onImportSuccess={() => {
+            carregarTarifasDoBanco()
+          }}
+          tipoClienteSugerido={tipoCliente}
+        />
+      )}
     </section>
   )
 }

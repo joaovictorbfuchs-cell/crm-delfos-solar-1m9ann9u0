@@ -1,20 +1,15 @@
 /**
  * Tabela de referência base com projeção tarifária de 2026 a 2051 (26 anos).
  *
- * Conforme especificado na tarefa:
- * "Se NÃO existirem dados de planilha base importada no sistema, crie uma tabela de referência
- * interna (arquivo de dados em src/) com os valores base de Tarifa, Fio B e GD Eco Líquida
- * por ano (2026–2051), crescendo com reajuste anual (use um reajuste razoável, ex. tarifa ~8% a.a.
- * com degrau de bandeira tarifária; Fio B reajustado; GD Eco Líquida derivada de tarifa e fio B),
- * e deixe claro no relatório que os valores são estimativa até a planilha real ser importada."
+ * Utilizada como FALLBACK quando o usuário ainda não tiver importado a planilha
+ * tarifária oficial na coleção `projecao_tarifaria`.
  *
- * Marco Legal da GD (Lei 14.300/2022):
- * - Fio B é gradualmente cobrado sobre a energia compensada injetada.
- * - Fator de simultaneidade (autoconsumo instantâneo local):
- *   * Residencial: 30% instantâneo (70% injetado na rede sujeito a Fio B)
- *   * Comercial: 70% instantâneo (30% injetado na rede sujeito a Fio B)
- * - GD Eco Líquida (R$/kWh) representa a economia efetiva por kWh compensado
- *   considerando Tarifa e dedução do Fio B ponderado pelo fator de simultaneidade.
+ * Parâmetros de cálculo:
+ * - Reajuste tarifário anual de 9% a.a. (conforme Lei 14.300 e diretriz da concessionária).
+ * - Fio B com transição da Lei 14.300 (2026: 60%, 2027: 75%, 2028: 90%, 2029+: 100%).
+ * - Fatores de simultaneidade:
+ *   * Residencial: 30% instantâneo (70% injetado sujeito ao Fio B)
+ *   * Comercial: 70% instantâneo (30% injetado sujeito ao Fio B)
  */
 
 export type TipoClienteProjecao = 'residencial' | 'comercial'
@@ -31,172 +26,50 @@ export interface LinhaReferenciaAno {
   fioBEfetivo: number
 }
 
+export const TAXA_REAJUSTE_PADRAO_AA = 0.09 // 9% a.a.
+
 /**
- * Tabela pré-calculada de referência base (2026-2051 = 26 anos).
- * Tarifa base parte de ~R$ 0,98/kWh em 2026 e cresce a ~8% a.a. com pequenas variações realistas.
- * Fio B base parte de ~R$ 0,28/kWh em 2026 e segue reajuste regulatório com a transição da Lei 14.300
- * (2026 = 60%, 2027 = 75%, 2028 = 90%, 2029+ = 100%).
+ * Gera a tabela de referência base com reajuste anual de 9% a.a. para os anos 2026 a 2051.
+ * Tarifa base de partida em 2026: R$ 0,985/kWh. Fio B de partida em 2026: R$ 0,285/kWh.
  */
-export const TABELA_REFERENCIA_BASE: LinhaReferenciaAno[] = [
-  {
-    ano: 2026,
-    tarifaBase: 0.985,
-    fioBBase: 0.285,
-    percentualFioBLei14300: 0.6,
-    fioBEfetivo: 0.171,
-  },
-  {
-    ano: 2027,
-    tarifaBase: 1.064,
-    fioBBase: 0.308,
-    percentualFioBLei14300: 0.75,
-    fioBEfetivo: 0.231,
-  },
-  {
-    ano: 2028,
-    tarifaBase: 1.149,
-    fioBBase: 0.332,
-    percentualFioBLei14300: 0.9,
-    fioBEfetivo: 0.299,
-  },
-  {
-    ano: 2029,
-    tarifaBase: 1.241,
-    fioBBase: 0.359,
-    percentualFioBLei14300: 1.0,
-    fioBEfetivo: 0.359,
-  },
-  { ano: 2030, tarifaBase: 1.34, fioBBase: 0.388, percentualFioBLei14300: 1.0, fioBEfetivo: 0.388 },
-  {
-    ano: 2031,
-    tarifaBase: 1.447,
-    fioBBase: 0.419,
-    percentualFioBLei14300: 1.0,
-    fioBEfetivo: 0.419,
-  },
-  {
-    ano: 2032,
-    tarifaBase: 1.563,
-    fioBBase: 0.452,
-    percentualFioBLei14300: 1.0,
-    fioBEfetivo: 0.452,
-  },
-  {
-    ano: 2033,
-    tarifaBase: 1.688,
-    fioBBase: 0.488,
-    percentualFioBLei14300: 1.0,
-    fioBEfetivo: 0.488,
-  },
-  {
-    ano: 2034,
-    tarifaBase: 1.823,
-    fioBBase: 0.528,
-    percentualFioBLei14300: 1.0,
-    fioBEfetivo: 0.528,
-  },
-  { ano: 2035, tarifaBase: 1.969, fioBBase: 0.57, percentualFioBLei14300: 1.0, fioBEfetivo: 0.57 },
-  {
-    ano: 2036,
-    tarifaBase: 2.127,
-    fioBBase: 0.615,
-    percentualFioBLei14300: 1.0,
-    fioBEfetivo: 0.615,
-  },
-  {
-    ano: 2037,
-    tarifaBase: 2.297,
-    fioBBase: 0.665,
-    percentualFioBLei14300: 1.0,
-    fioBEfetivo: 0.665,
-  },
-  {
-    ano: 2038,
-    tarifaBase: 2.481,
-    fioBBase: 0.718,
-    percentualFioBLei14300: 1.0,
-    fioBEfetivo: 0.718,
-  },
-  {
-    ano: 2039,
-    tarifaBase: 2.679,
-    fioBBase: 0.775,
-    percentualFioBLei14300: 1.0,
-    fioBEfetivo: 0.775,
-  },
-  {
-    ano: 2040,
-    tarifaBase: 2.893,
-    fioBBase: 0.837,
-    percentualFioBLei14300: 1.0,
-    fioBEfetivo: 0.837,
-  },
-  {
-    ano: 2041,
-    tarifaBase: 3.125,
-    fioBBase: 0.904,
-    percentualFioBLei14300: 1.0,
-    fioBEfetivo: 0.904,
-  },
-  {
-    ano: 2042,
-    tarifaBase: 3.375,
-    fioBBase: 0.977,
-    percentualFioBLei14300: 1.0,
-    fioBEfetivo: 0.977,
-  },
-  {
-    ano: 2043,
-    tarifaBase: 3.645,
-    fioBBase: 1.055,
-    percentualFioBLei14300: 1.0,
-    fioBEfetivo: 1.055,
-  },
-  {
-    ano: 2044,
-    tarifaBase: 3.937,
-    fioBBase: 1.139,
-    percentualFioBLei14300: 1.0,
-    fioBEfetivo: 1.139,
-  },
-  { ano: 2045, tarifaBase: 4.251, fioBBase: 1.23, percentualFioBLei14300: 1.0, fioBEfetivo: 1.23 },
-  {
-    ano: 2046,
-    tarifaBase: 4.592,
-    fioBBase: 1.329,
-    percentualFioBLei14300: 1.0,
-    fioBEfetivo: 1.329,
-  },
-  {
-    ano: 2047,
-    tarifaBase: 4.959,
-    fioBBase: 1.435,
-    percentualFioBLei14300: 1.0,
-    fioBEfetivo: 1.435,
-  },
-  { ano: 2048, tarifaBase: 5.356, fioBBase: 1.55, percentualFioBLei14300: 1.0, fioBEfetivo: 1.55 },
-  {
-    ano: 2049,
-    tarifaBase: 5.784,
-    fioBBase: 1.674,
-    percentualFioBLei14300: 1.0,
-    fioBEfetivo: 1.674,
-  },
-  {
-    ano: 2050,
-    tarifaBase: 6.247,
-    fioBBase: 1.808,
-    percentualFioBLei14300: 1.0,
-    fioBEfetivo: 1.808,
-  },
-  {
-    ano: 2051,
-    tarifaBase: 6.747,
-    fioBBase: 1.953,
-    percentualFioBLei14300: 1.0,
-    fioBEfetivo: 1.953,
-  },
-]
+function gerarTabelaReferenciaBase(): LinhaReferenciaAno[] {
+  const anos: LinhaReferenciaAno[] = []
+  const anoInicial = 2026
+  const totalAnos = 26 // 2026 até 2051
+
+  let tarifa = 0.985
+  let fioB = 0.285
+
+  for (let i = 0; i < totalAnos; i++) {
+    const ano = anoInicial + i
+
+    // Transição Lei 14.300
+    let percentualFioB = 1.0
+    if (ano === 2026) percentualFioB = 0.6
+    else if (ano === 2027) percentualFioB = 0.75
+    else if (ano === 2028) percentualFioB = 0.9
+    else percentualFioB = 1.0
+
+    if (i > 0) {
+      tarifa = tarifa * (1 + TAXA_REAJUSTE_PADRAO_AA)
+      fioB = fioB * (1 + TAXA_REAJUSTE_PADRAO_AA)
+    }
+
+    const fioBEfetivo = fioB * percentualFioB
+
+    anos.push({
+      ano,
+      tarifaBase: Number(tarifa.toFixed(4)),
+      fioBBase: Number(fioB.toFixed(4)),
+      percentualFioBLei14300: percentualFioB,
+      fioBEfetivo: Number(fioBEfetivo.toFixed(4)),
+    })
+  }
+
+  return anos
+}
+
+export const TABELA_REFERENCIA_BASE: LinhaReferenciaAno[] = gerarTabelaReferenciaBase()
 
 export const FATORES_SIMULTANEIDADE: Record<TipoClienteProjecao, number> = {
   residencial: 0.3, // 30% de simultaneidade (autoconsumo imediato)
