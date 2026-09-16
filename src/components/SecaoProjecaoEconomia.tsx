@@ -83,20 +83,18 @@ export const SecaoProjecaoEconomia: React.FC<SecaoProjecaoEconomiaProps> = ({
 
   // Estado para consumo anual
   const consumoBaseInicial = useMemo(() => {
-    if (
-      consumoAnualCadastradoKwh !== undefined &&
-      consumoAnualCadastradoKwh !== null &&
-      consumoAnualCadastradoKwh > 0
-    ) {
-      return Number(consumoAnualCadastradoKwh.toFixed(2))
+    const num = Number(consumoAnualCadastradoKwh)
+    if (!isNaN(num) && num > 0) {
+      return Number(num.toFixed(2))
     }
     return CONSUMO_EXEMPLO_PADRAO_KWH_ANO
   }, [consumoAnualCadastradoKwh])
 
   const [consumoAnual, setConsumoAnual] = useState<number>(consumoBaseInicial)
-  const [usandoExemplo, setUsandoExemplo] = useState<boolean>(
-    !consumoAnualCadastradoKwh || consumoAnualCadastradoKwh <= 0,
-  )
+  const [usandoExemplo, setUsandoExemplo] = useState<boolean>(() => {
+    const num = Number(consumoAnualCadastradoKwh)
+    return isNaN(num) || num <= 0
+  })
 
   // Recalcula projeção completa consumindo dados do banco ou do fallback estimado
   const projecao: ResumoProjecaoEconomia = useMemo(() => {
@@ -122,17 +120,21 @@ export const SecaoProjecaoEconomia: React.FC<SecaoProjecaoEconomiaProps> = ({
     }))
   }, [projecao.linhas])
 
-  const formatarKwh = (val: number) =>
-    val.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  const formatarKwh = (val: number | unknown) => {
+    const num = Number(val)
+    if (isNaN(num)) return '0,00'
+    return num.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  }
 
-  const formatarMoedaCompacta = (val: number) => {
-    if (val >= 1_000_000) {
-      return `R$ ${(val / 1_000_000).toFixed(1).replace('.', ',')}M`
+  const formatarMoedaCompacta = (val: number | unknown) => {
+    const num = Number(val) || 0
+    if (num >= 1_000_000) {
+      return `R$ ${(num / 1_000_000).toFixed(1).replace('.', ',')}M`
     }
-    if (val >= 1_000) {
-      return `R$ ${(val / 1_000).toFixed(0)}k`
+    if (num >= 1_000) {
+      return `R$ ${(num / 1_000).toFixed(0)}k`
     }
-    return `R$ ${Math.round(val)}`
+    return `R$ ${Math.round(num)}`
   }
 
   return (
@@ -470,19 +472,19 @@ export const SecaoProjecaoEconomia: React.FC<SecaoProjecaoEconomiaProps> = ({
                         {formatarKwh(linha.consumoKwhAno)}
                       </td>
                       <td className="py-2 px-3 text-right text-gray-700 whitespace-nowrap">
-                        R$ {linha.tarifaKwh.toFixed(4).replace('.', ',')}
+                        R$ {(Number(linha.tarifaKwh) || 0).toFixed(4).replace('.', ',')}
                       </td>
                       <td className="py-2 px-3 text-right text-gray-600 whitespace-nowrap">
-                        R$ {linha.fioBKwh.toFixed(4).replace('.', ',')}
+                        R$ {(Number(linha.fioBKwh) || 0).toFixed(4).replace('.', ',')}
                       </td>
                       <td className="py-2 px-3 text-right font-bold text-emerald-700 bg-emerald-50/40 whitespace-nowrap">
-                        R$ {linha.gdEcoLiquidaKwh.toFixed(4).replace('.', ',')}
+                        R$ {(Number(linha.gdEcoLiquidaKwh) || 0).toFixed(4).replace('.', ',')}
                       </td>
                       <td
                         className="py-2 px-3 text-right text-slate-700 bg-slate-50/50 whitespace-nowrap font-medium"
-                        title={`Fator de degradação: ${(linha.fatorDegradacao * 100).toFixed(2)}% | Economia anual efetiva: ${formatCurrency(linha.economiaAnual)}`}
+                        title={`Fator de degradação: ${((Number(linha.fatorDegradacao) || 0) * 100).toFixed(2)}% | Economia anual efetiva: ${formatCurrency(linha.economiaAnual)}`}
                       >
-                        {(linha.fatorDegradacao * 100).toFixed(2).replace('.', ',')}%
+                        {((Number(linha.fatorDegradacao) || 0) * 100).toFixed(2).replace('.', ',')}%
                       </td>
                       <td className="py-2 px-3 text-right font-black text-emerald-700 whitespace-nowrap">
                         {formatCurrency(linha.economiaAcumulada)}

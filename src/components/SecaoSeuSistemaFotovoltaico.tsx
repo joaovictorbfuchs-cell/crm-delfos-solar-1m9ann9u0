@@ -217,7 +217,7 @@ export const SecaoSeuSistemaFotovoltaico: React.FC<SecaoSeuSistemaFotovoltaicoPr
                 Potência do sistema
               </div>
               <div className="text-2xl sm:text-3xl font-black text-gray-900 mt-1 tracking-tight">
-                {potenciaFinal.toLocaleString('pt-BR', {
+                {(Number(potenciaFinal) || 0).toLocaleString('pt-BR', {
                   minimumFractionDigits: 2,
                   maximumFractionDigits: 2,
                 })}{' '}
@@ -244,7 +244,7 @@ export const SecaoSeuSistemaFotovoltaico: React.FC<SecaoSeuSistemaFotovoltaicoPr
                 Geração estimada
               </div>
               <div className="text-2xl sm:text-3xl font-black text-emerald-700 mt-1 tracking-tight">
-                {Math.round(geracaoFinal).toLocaleString('pt-BR')}{' '}
+                {Math.round(Number(geracaoFinal) || 0).toLocaleString('pt-BR')}{' '}
                 <span className="text-lg font-bold text-gray-600">kWh/mês</span>
               </div>
               <div className="mt-2 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-bold">
@@ -321,7 +321,7 @@ export const SecaoSeuSistemaFotovoltaico: React.FC<SecaoSeuSistemaFotovoltaicoPr
                 Área necessária
               </div>
               <div className="text-2xl sm:text-3xl font-black text-gray-900 mt-1 tracking-tight">
-                {areaFinalM2.toLocaleString('pt-BR', {
+                {(Number(areaFinalM2) || 0).toLocaleString('pt-BR', {
                   minimumFractionDigits: 1,
                   maximumFractionDigits: 2,
                 })}{' '}

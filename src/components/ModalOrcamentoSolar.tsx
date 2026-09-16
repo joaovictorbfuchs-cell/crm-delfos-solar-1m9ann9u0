@@ -63,6 +63,7 @@ import { SecaoProjecaoEconomia } from '@/components/SecaoProjecaoEconomia'
 import { SecaoProjecao25Anos } from '@/components/SecaoProjecao25Anos'
 import { SecaoSeuSistemaFotovoltaico } from '@/components/SecaoSeuSistemaFotovoltaico'
 import { SecaoInvestimentoPagamento } from '@/components/SecaoInvestimentoPagamento'
+import { ErrorBoundary } from '@/components/ErrorBoundary'
 
 interface ModalOrcamentoSolarProps {
   isOpen: boolean
@@ -2713,117 +2714,135 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                 </div>
 
                 {/* Seção 1: Capa da Proposta Comercial Oficial */}
-                <SecaoCapaProposta
-                  nomeCliente={clienteAtual?.nome}
-                  economiaMensal={calculos.economia1Mes}
-                  dataOrcamento={initialOrcamento?.data_orcamento || initialOrcamento?.created}
-                  consultor={initialOrcamento?.autor || user?.name || 'Equipe Delfos Solar'}
-                  potenciaKwp={potenciaKwp}
-                />
+                <ErrorBoundary compact errorMessage="Não foi possível exibir a Capa da Proposta">
+                  <SecaoCapaProposta
+                    nomeCliente={clienteAtual?.nome}
+                    economiaMensal={calculos.economia1Mes}
+                    dataOrcamento={initialOrcamento?.data_orcamento || initialOrcamento?.created}
+                    consultor={initialOrcamento?.autor || user?.name || 'Equipe Delfos Solar'}
+                    potenciaKwp={potenciaKwp}
+                  />
+                </ErrorBoundary>
 
                 {/* Seção 2: O Custo da Inércia (Diagnóstico Visual) */}
-                <SecaoCustoInercia
-                  gastoSemSolar1Ano={calculos.gastoSemSolar1Ano}
-                  gastoSemSolar5Anos={calculos.gastoSemSolar5Anos}
-                  gastoSemSolar25Anos={calculos.gastoSemSolar25Anos}
-                  valorInvestimento={valorInvestimentoFinal}
-                  economiaMensal={calculos.economia1Mes}
-                  contaMensal={
-                    calculos.contaAtualSemSolarMes ||
-                    (consumoKwhMes ? consumoKwhMes * tarifaKwh : undefined)
-                  }
-                  economia1Ano={calculos.economia1Ano}
-                  economia5Anos={calculos.economia5Anos}
-                  economia25Anos={calculos.economia25Anos}
-                />
+                <ErrorBoundary compact errorMessage="Não foi possível exibir o Custo da Inércia">
+                  <SecaoCustoInercia
+                    gastoSemSolar1Ano={calculos.gastoSemSolar1Ano}
+                    gastoSemSolar5Anos={calculos.gastoSemSolar5Anos}
+                    gastoSemSolar25Anos={calculos.gastoSemSolar25Anos}
+                    valorInvestimento={valorInvestimentoFinal}
+                    economiaMensal={calculos.economia1Mes}
+                    contaMensal={
+                      calculos.contaAtualSemSolarMes ||
+                      (consumoKwhMes ? consumoKwhMes * tarifaKwh : undefined)
+                    }
+                    economia1Ano={calculos.economia1Ano}
+                    economia5Anos={calculos.economia5Anos}
+                    economia25Anos={calculos.economia25Anos}
+                  />
+                </ErrorBoundary>
 
                 {/* Nova Seção: Seu Sistema Fotovoltaico (Visão consolidada em cards visuais) */}
-                <SecaoSeuSistemaFotovoltaico
-                  potenciaKwp={potenciaKwp}
-                  geracaoMensalKwh={calculos.geracaoMediaMensalKwh}
-                  economiaMensal={calculos.economia1Mes}
-                  numeroPlacas={numeroPlacas}
-                  marcaPainel={marcaPainel}
-                  potenciaPlacaWp={potenciaPlacaWp}
-                  tecnologiaModulo="bifacial N-type"
-                  marcaInversor={marcaInversor}
-                  quantidadeInversores={quantidadeInversores}
-                  mpptInversor={2}
-                  potenciaInversorKw={potenciaKwp ? Math.round(potenciaKwp * 0.8 * 10) / 10 : 6}
-                  areaNecessariaM2={areaNecessariaM2}
-                  garantiaModulosAnos={30}
-                  garantiaInversorAnos={10}
-                  garantiaInstalacaoTexto="12 meses"
-                  garantiaInstalacaoAnos={1}
-                  nomeCliente={clienteAtual?.nome}
-                />
+                <ErrorBoundary compact errorMessage="Não foi possível exibir os Dados do Sistema">
+                  <SecaoSeuSistemaFotovoltaico
+                    potenciaKwp={potenciaKwp}
+                    geracaoMensalKwh={calculos.geracaoMediaMensalKwh}
+                    economiaMensal={calculos.economia1Mes}
+                    numeroPlacas={numeroPlacas}
+                    marcaPainel={marcaPainel}
+                    potenciaPlacaWp={potenciaPlacaWp}
+                    tecnologiaModulo="bifacial N-type"
+                    marcaInversor={marcaInversor}
+                    quantidadeInversores={quantidadeInversores}
+                    mpptInversor={2}
+                    potenciaInversorKw={potenciaKwp ? Math.round(potenciaKwp * 0.8 * 10) / 10 : 6}
+                    areaNecessariaM2={areaNecessariaM2}
+                    garantiaModulosAnos={30}
+                    garantiaInversorAnos={10}
+                    garantiaInstalacaoTexto="12 meses"
+                    garantiaInstalacaoAnos={1}
+                    nomeCliente={clienteAtual?.nome}
+                  />
+                </ErrorBoundary>
 
                 {/* Nova Seção: Projeção de Economia na Conta de Energia (2026-2051) */}
-                <SecaoProjecaoEconomia
-                  consumoAnualCadastradoKwh={
-                    consumoKwhMes && consumoKwhMes > 0
-                      ? Number((consumoKwhMes * 12).toFixed(2))
-                      : clienteAtual?.consumo_kwh_mes && clienteAtual.consumo_kwh_mes > 0
-                        ? Number((clienteAtual.consumo_kwh_mes * 12).toFixed(2))
-                        : 4807.08
-                  }
-                  tipoClienteInicial={tipoCliente === 'comercial' ? 'comercial' : 'residencial'}
-                  tarifaReferenciaInicial={tarifaKwh || 0.985}
-                  nomeCliente={clienteAtual?.nome || 'Cliente'}
-                  permitirAjusteConsumo={true}
-                />
+                <ErrorBoundary
+                  compact
+                  errorMessage="Não foi possível exibir a Projeção de Economia"
+                >
+                  <SecaoProjecaoEconomia
+                    consumoAnualCadastradoKwh={
+                      consumoKwhMes && consumoKwhMes > 0
+                        ? Number((consumoKwhMes * 12).toFixed(2))
+                        : clienteAtual?.consumo_kwh_mes && clienteAtual.consumo_kwh_mes > 0
+                          ? Number((clienteAtual.consumo_kwh_mes * 12).toFixed(2))
+                          : 4807.08
+                    }
+                    tipoClienteInicial={tipoCliente === 'comercial' ? 'comercial' : 'residencial'}
+                    tarifaReferenciaInicial={tarifaKwh || 0.985}
+                    nomeCliente={clienteAtual?.nome || 'Cliente'}
+                    permitirAjusteConsumo={true}
+                  />
+                </ErrorBoundary>
 
                 {/* Nova Seção: Projeção de Economia em 25 Anos (Curva comparativa, Payback, ROI e Tabela 2026-2051) */}
-                <SecaoProjecao25Anos
-                  consumoAnualCadastradoKwh={
-                    consumoKwhMes && consumoKwhMes > 0
-                      ? Number((consumoKwhMes * 12).toFixed(2))
-                      : clienteAtual?.consumo_kwh_mes && clienteAtual.consumo_kwh_mes > 0
-                        ? Number((clienteAtual.consumo_kwh_mes * 12).toFixed(2))
-                        : 4807.08
-                  }
-                  tipoClienteInicial={tipoCliente === 'comercial' ? 'comercial' : 'residencial'}
-                  tarifaReferenciaInicial={tarifaKwh || 0.985}
-                  valorInvestimento={valorInvestimentoFinal}
-                  paybackMeses={calculos.paybackMeses}
-                  potenciaKwp={potenciaKwp || 8.54}
-                  nomeCliente={clienteAtual?.nome || 'Cliente'}
-                />
+                <ErrorBoundary compact errorMessage="Não foi possível exibir a Projeção em 25 Anos">
+                  <SecaoProjecao25Anos
+                    consumoAnualCadastradoKwh={
+                      consumoKwhMes && consumoKwhMes > 0
+                        ? Number((consumoKwhMes * 12).toFixed(2))
+                        : clienteAtual?.consumo_kwh_mes && clienteAtual.consumo_kwh_mes > 0
+                          ? Number((clienteAtual.consumo_kwh_mes * 12).toFixed(2))
+                          : 4807.08
+                    }
+                    tipoClienteInicial={tipoCliente === 'comercial' ? 'comercial' : 'residencial'}
+                    tarifaReferenciaInicial={tarifaKwh || 0.985}
+                    valorInvestimento={valorInvestimentoFinal}
+                    paybackMeses={calculos.paybackMeses}
+                    potenciaKwp={potenciaKwp || 8.54}
+                    nomeCliente={clienteAtual?.nome || 'Cliente'}
+                  />
+                </ErrorBoundary>
 
                 {/* Nova Seção: Investimento e Condições de Pagamento */}
-                <SecaoInvestimentoPagamento
-                  valorInvestimento={valorInvestimentoFinal}
-                  valorAVista={
-                    calculos.parcelamentos?.aVista?.valorTotal ||
-                    Math.round(valorInvestimentoFinal * 0.95)
-                  }
-                  descontoAVistaReais={
-                    valorInvestimentoFinal -
-                    (calculos.parcelamentos?.aVista?.valorTotal ||
-                      Math.round(valorInvestimentoFinal * 0.95))
-                  }
-                  parcelasCartao={parcelasCartao}
-                  valorParcelaCartao={calculos.parcelamentos?.cartao18x?.valorParcela}
-                  cartaoSemJuros={jurosCartao === 0}
-                  nomeFinanciamentoA="Financiamento A"
-                  entradaFinanciamentoA={Math.round(valorInvestimentoFinal * 0.2)}
-                  parcelasFinanciamentoA={parcelasBanco1}
-                  valorParcelaFinanciamentoA={
-                    calculos.parcelamentos?.financiamentoBanco1?.valorParcela
-                  }
-                  nomeFinanciamentoB="Financiamento B"
-                  entradaFinanciamentoB={Math.round(valorInvestimentoFinal * 0.1)}
-                  parcelasFinanciamentoB={parcelasBanco2}
-                  valorParcelaFinanciamentoB={
-                    calculos.parcelamentos?.financiamentoBanco2?.valorParcela
-                  }
-                  contaMensalAtual={
-                    calculos.contaAtualSemSolarMes ||
-                    (consumoKwhMes && tarifaKwh ? consumoKwhMes * tarifaKwh : undefined)
-                  }
-                  validadeDias={initialOrcamento?.validade_dias || 5}
-                  nomeCliente={clienteAtual?.nome}
-                />
+                <ErrorBoundary
+                  compact
+                  errorMessage="Não foi possível exibir as Condições de Pagamento"
+                >
+                  <SecaoInvestimentoPagamento
+                    valorInvestimento={valorInvestimentoFinal}
+                    valorAVista={
+                      calculos.parcelamentos?.aVista?.valorTotal ||
+                      Math.round(valorInvestimentoFinal * 0.95)
+                    }
+                    descontoAVistaReais={
+                      valorInvestimentoFinal -
+                      (calculos.parcelamentos?.aVista?.valorTotal ||
+                        Math.round(valorInvestimentoFinal * 0.95))
+                    }
+                    parcelasCartao={parcelasCartao}
+                    valorParcelaCartao={calculos.parcelamentos?.cartao18x?.valorParcela}
+                    cartaoSemJuros={jurosCartao === 0}
+                    nomeFinanciamentoA="Financiamento A"
+                    entradaFinanciamentoA={Math.round(valorInvestimentoFinal * 0.2)}
+                    parcelasFinanciamentoA={parcelasBanco1}
+                    valorParcelaFinanciamentoA={
+                      calculos.parcelamentos?.financiamentoBanco1?.valorParcela
+                    }
+                    nomeFinanciamentoB="Financiamento B"
+                    entradaFinanciamentoB={Math.round(valorInvestimentoFinal * 0.1)}
+                    parcelasFinanciamentoB={parcelasBanco2}
+                    valorParcelaFinanciamentoB={
+                      calculos.parcelamentos?.financiamentoBanco2?.valorParcela
+                    }
+                    contaMensalAtual={
+                      calculos.contaAtualSemSolarMes ||
+                      (consumoKwhMes && tarifaKwh ? consumoKwhMes * tarifaKwh : undefined)
+                    }
+                    validadeDias={initialOrcamento?.validade_dias || 5}
+                    nomeCliente={clienteAtual?.nome}
+                  />
+                </ErrorBoundary>
 
                 {/* Grade de Desperdício x Economia */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">

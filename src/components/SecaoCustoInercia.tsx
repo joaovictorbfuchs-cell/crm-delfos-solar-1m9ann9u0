@@ -153,10 +153,11 @@ export const SecaoCustoInercia: React.FC<SecaoCustoInerciaProps> = ({
   ]
 
   // Formatter compacto para eixo Y
-  const formatarEixoY = (valor: number) => {
-    if (valor >= 1000000) return `R$ ${(valor / 1000000).toFixed(1)}M`
-    if (valor >= 1000) return `R$ ${(valor / 1000).toFixed(0)}k`
-    return `R$ ${valor}`
+  const formatarEixoY = (valor: number | unknown) => {
+    const num = Number(valor) || 0
+    if (num >= 1000000) return `R$ ${(num / 1000000).toFixed(1)}M`
+    if (num >= 1000) return `R$ ${(num / 1000).toFixed(0)}k`
+    return `R$ ${Math.round(num)}`
   }
 
   return (

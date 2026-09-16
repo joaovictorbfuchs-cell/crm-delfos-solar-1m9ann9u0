@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import {
   FileText,
   Printer,
@@ -22,19 +22,21 @@ import type { OrcamentoSolarCalculado, Cliente } from '@/types/crm'
 import type { InstalacaoGaleria } from '@/types/instalacoesGaleria'
 import { fetchInstalacoesGaleria, getFotoUrl } from '@/services/instalacoesGaleriaService'
 import {
-  type PropostaTecnicoComercialDados,
-  type FotoInstalacaoProposta,
+  PropostaTecnicoComercialDados,
+  FotoInstalacaoProposta,
   DADOS_FIXOS_EMPRESA_DELFOS,
   gerarHTMLPropostaTecnicoComercial,
   abrirPropostaTecnicoComercialEmNovaAba,
   baixarPropostaTecnicoComercialHTML,
 } from '@/lib/propostaTecnicoComercialGenerator'
+import { GeracaoMensalItem, DADOS_CLIMATICOS_ERECHIM } from '@/lib/energiaSolar'
 import { SecaoCapaProposta } from '@/components/SecaoCapaProposta'
 import { SecaoCustoInercia } from '@/components/SecaoCustoInercia'
 import { SecaoProjecaoEconomia } from '@/components/SecaoProjecaoEconomia'
 import { SecaoProjecao25Anos } from '@/components/SecaoProjecao25Anos'
 import { SecaoSeuSistemaFotovoltaico } from '@/components/SecaoSeuSistemaFotovoltaico'
 import { SecaoInvestimentoPagamento } from '@/components/SecaoInvestimentoPagamento'
+import { ErrorBoundary } from '@/components/ErrorBoundary'
 
 export interface ModalGerarPropostaTecnicoComercialProps {
   orcamento: OrcamentoSolarCalculado
@@ -114,11 +116,13 @@ export function ModalGerarPropostaTecnicoComercial({
     orcamento.valor_investimento || orcamento.valor_total_custos || 45000,
   )
   const [prazoEntregaDias, setPrazoEntregaDias] = useState<number>(40)
-  const [paybackTexto, setPaybackTexto] = useState<string>(
-    orcamento.payback_meses
-      ? `${(orcamento.payback_meses / 12).toFixed(1).replace('.', ',')} anos (${orcamento.payback_meses} meses)`
-      : '4,2 anos (50 meses)',
-  )
+  const [paybackTexto, setPaybackTexto] = useState<string>(() => {
+    const pbMeses = Number(orcamento?.payback_meses)
+    if (!isNaN(pbMeses) && pbMeses > 0) {
+      return `${(pbMeses / 12).toFixed(1).replace('.', ',')} anos (${pbMeses} meses)`
+    }
+    return '4,2 anos (50 meses)'
+  })
 
   // 7. SIMULAÇÃO DE PARCELAMENTO
   const [nParcelasCartao, setNParcelasCartao] = useState<number>(
@@ -182,8 +186,6 @@ export function ModalGerarPropostaTecnicoComercial({
     }
   }, [open])
 
-  if (!open) return null
-
   // Alternar foto na galeria (máximo 6)
   const toggleFoto = (id: string) => {
     if (fotosSelecionadasIds.includes(id)) {
@@ -197,168 +199,245 @@ export function ModalGerarPropostaTecnicoComercial({
     }
   }
 
-  // Montar objeto PropostaTecnicoComercialDados
-  const montarDadosProposta = (): PropostaTecnicoComercialDados => {
-    const fotosParaProposta: FotoInstalacaoProposta[] = todasInstalacoes
-      .filter((inst) => fotosSelecionadasIds.includes(inst.id))
-      .map((inst) => ({
-        id: inst.id,
-        titulo: inst.titulo,
-        url: getFotoUrl(inst),
-      }))
+  // Montar objeto PropostaTecnicoComercialDados com useMemo defensivo e try/catch
+  const dadosAtuais = useMemo<PropostaTecnicoComercialDados | null>(() => {
+    if (!open) return null
+    try {
+      const fotosParaProposta: FotoInstalacaoProposta[] = (todasInstalacoes || [])
+        .filter((inst) => inst && fotosSelecionadasIds.includes(inst.id))
+        .map((inst) => ({
+          id: inst.id,
+          titulo: inst.titulo || '',
+          url: getFotoUrl(inst),
+        }))
 
-    // Meses de geração detalhada
-    let geracaoMensalItens = []
-    if (orcamento.geracao_detalhada_json) {
-      try {
-        const parsed =
-          typeof orcamento.geracao_detalhada_json === 'string'
-            ? JSON.parse(orcamento.geracao_detalhada_json)
-            : orcamento.geracao_detalhada_json
-        if (Array.isArray(parsed) && parsed.length >= 12) {
-          geracaoMensalItens = parsed
+      // Meses de geração detalhada
+      let geracaoMensalItens: GeracaoMensalItem[] = []
+      if (orcamento?.geracao_detalhada_json) {
+        try {
+          const parsed =
+            typeof orcamento.geracao_detalhada_json === 'string'
+              ? JSON.parse(orcamento.geracao_detalhada_json)
+              : orcamento.geracao_detalhada_json
+          if (Array.isArray(parsed) && parsed.length >= 12) {
+            geracaoMensalItens = parsed.map((item: any, idx: number) => ({
+              mesIndex: idx,
+              mesNome: item.mesNome || item.mes || DADOS_CLIMATICOS_ERECHIM[idx]?.mes || '',
+              dias: item.dias || DADOS_CLIMATICOS_ERECHIM[idx]?.dias || 30,
+              irradiacaoHSP: item.irradiacaoHSP || DADOS_CLIMATICOS_ERECHIM[idx]?.hspDiario || 4.5,
+              fatorSazonal: item.fatorSazonal || 1.0,
+              geracaoKwh: Number(item.geracaoKwh) || 0,
+            }))
+          }
+        } catch (errJson) {
+          console.warn('Erro ao processar geracao_detalhada_json:', errJson)
         }
-      } catch {
-        /* intentionally ignored */
       }
+
+      const prodAnual = Number(producaoAnualKwh) || 15000
+      if (geracaoMensalItens.length === 0) {
+        // Distribuição sazonal do Sul do Brasil
+        const fatores = [1.15, 1.05, 0.98, 0.85, 0.72, 0.65, 0.7, 0.82, 0.9, 1.02, 1.12, 1.18]
+        const media = prodAnual / 12
+        geracaoMensalItens = fatores.map((fat, idx) => ({
+          mesIndex: idx,
+          mesNome: DADOS_CLIMATICOS_ERECHIM[idx]?.mes || `Mês ${idx + 1}`,
+          dias: DADOS_CLIMATICOS_ERECHIM[idx]?.dias || 30,
+          irradiacaoHSP: DADOS_CLIMATICOS_ERECHIM[idx]?.hspDiario || 4.5,
+          fatorSazonal: fat,
+          geracaoKwh: Math.round(media * fat),
+        }))
+      }
+
+      const contaHojeNum = Number(contaHoje) || 0
+      const contaComSolarNum = Number(contaComSolar) || 0
+
+      // Projeções (cálculo de 1, 5 e 25 anos com reajuste histórico padrão ou dados do orçamento)
+      const gastoSemSolar1 =
+        Number(orcamento?.gasto_sem_solar_1_ano) || Math.round(contaHojeNum * 12)
+      const gastoSemSolar5 =
+        Number(orcamento?.gasto_sem_solar_5_anos) || Math.round(gastoSemSolar1 * 5.8)
+      const gastoSemSolar25 =
+        Number(orcamento?.gasto_sem_solar_25_anos) || Math.round(gastoSemSolar1 * 38.5)
+
+      const eco1Mes =
+        Number(orcamento?.economia_1_mes) ||
+        Math.round(Math.max(0, contaHojeNum - contaComSolarNum))
+      const eco1Ano = Number(orcamento?.economia_1_ano) || Math.round(eco1Mes * 12)
+      const eco5Anos = Number(orcamento?.economia_5_anos) || Math.round(eco1Ano * 5.5)
+      const eco25Anos = Number(orcamento?.economia_25_anos) || Math.round(eco1Ano * 32)
+      const invTotalNum = Number(investimentoTotal) || 0
+
+      return {
+        cliente: {
+          nome: clienteNome || 'Cliente',
+          cpfOuCnpj: clienteDocumento || '',
+          endereco: cliente?.endereco || '',
+          municipio: cliente?.municipio || '',
+          email: cliente?.email || '',
+          telefone: cliente?.telefone || '',
+        },
+        representante: {
+          nome: representanteNome || '',
+          contato: representanteContato || '',
+        },
+        dataProposta: dataProposta || '',
+        validadeDias: Number(validadeDias) || 5,
+        empresa: DADOS_FIXOS_EMPRESA_DELFOS,
+        fotosInstalacoes: fotosParaProposta,
+        incluirImagemComoFunciona: !!incluirComoFunciona,
+        incluirImagemMonitoramento: !!incluirMonitoramento,
+        sistema: {
+          potenciaKwp: Number(potenciaKwp) || 0,
+          descricaoPaineis: descricaoPaineis || '',
+          qtdPaineis: Number(qtdPaineis) || 0,
+          descricaoInversores: descricaoInversores || '',
+          qtdInversores: Number(qtdInversores) || 0,
+          estruturaFixacao: estruturaFixacao || '',
+          codigoFiname: codigoFiname || 'Sob consulta',
+          areaNecessariaM2: Number(areaNecessariaM2) || 0,
+        },
+        garantias: {
+          paineisAnosFabricacao: Number(paineisAnosFab) || 12,
+          paineisAnosDesempenho: Number(paineisAnosDesemp) || 25,
+          paineisPercentualDesempenho: paineisPercDesemp || '84,8%',
+          inversorAnosFabricacao: Number(inversorAnosFab) || 10,
+          instalacaoAnos: Number(instalacaoAnos) || 1,
+        },
+        producao: {
+          anualKwh: prodAnual,
+          mediaMensalKwh: Number(producaoMensalKwh) || Math.round(prodAnual / 12),
+          geracaoMensal: geracaoMensalItens,
+        },
+        economia: {
+          investimentoTotal: invTotalNum,
+          prazoEntregaDias: Number(prazoEntregaDias) || 40,
+          paybackTexto: paybackTexto || '4,2 anos (50 meses)',
+        },
+        parcelamento: {
+          aVista: {
+            valorTotal: invTotalNum,
+            contaHoje: contaHojeNum,
+            contaComSolar: contaComSolarNum,
+          },
+          cartao18x: {
+            numeroParcelas: Number(nParcelasCartao) || 18,
+            valorParcela: Number(valorParcelaCartao) || 0,
+            contaHoje: contaHojeNum,
+            contaComSolar: contaComSolarNum,
+          },
+          financiamentoA: {
+            nome: nomeFinanA || 'FINANCIAMENTO A',
+            numeroParcelas: Number(nParcelasFinanA) || 60,
+            valorParcela: Number(valorParcelaFinanA) || 0,
+            contaHoje: contaHojeNum,
+            contaComSolar: contaComSolarNum,
+          },
+          financiamentoB: {
+            nome: nomeFinanB || 'FINANCIAMENTO B',
+            numeroParcelas: Number(nParcelasFinanB) || 60,
+            valorParcela: Number(valorParcelaFinanB) || 0,
+            contaHoje: contaHojeNum,
+            contaComSolar: contaComSolarNum,
+          },
+        },
+        projecao: {
+          gastoSemSolar1Ano: gastoSemSolar1,
+          gastoSemSolar5Anos: gastoSemSolar5,
+          gastoSemSolar25Anos: gastoSemSolar25,
+          economia1Ano: eco1Ano,
+          economia5Anos: eco5Anos,
+          economia25Anos: eco25Anos,
+          economia1Mes: eco1Mes,
+        },
+      }
+    } catch (err) {
+      console.error('Erro ao montar dados da proposta técnico-comercial:', err)
+      return null
     }
+  }, [
+    open,
+    todasInstalacoes,
+    fotosSelecionadasIds,
+    orcamento,
+    producaoAnualKwh,
+    contaHoje,
+    contaComSolar,
+    investimentoTotal,
+    clienteNome,
+    clienteDocumento,
+    cliente,
+    representanteNome,
+    representanteContato,
+    dataProposta,
+    validadeDias,
+    incluirComoFunciona,
+    incluirMonitoramento,
+    potenciaKwp,
+    descricaoPaineis,
+    qtdPaineis,
+    descricaoInversores,
+    qtdInversores,
+    estruturaFixacao,
+    codigoFiname,
+    areaNecessariaM2,
+    paineisAnosFab,
+    paineisAnosDesemp,
+    paineisPercDesemp,
+    inversorAnosFab,
+    instalacaoAnos,
+    producaoMensalKwh,
+    prazoEntregaDias,
+    paybackTexto,
+    nParcelasCartao,
+    valorParcelaCartao,
+    nomeFinanA,
+    nParcelasFinanA,
+    valorParcelaFinanA,
+    nomeFinanB,
+    nParcelasFinanB,
+    valorParcelaFinanB,
+  ])
 
-    if (geracaoMensalItens.length === 0) {
-      // Distribuição sazonal do Sul do Brasil
-      const fatores = [1.15, 1.05, 0.98, 0.85, 0.72, 0.65, 0.7, 0.82, 0.9, 1.02, 1.12, 1.18]
-      const media = producaoAnualKwh / 12
-      const nomes = [
-        'Jan',
-        'Fev',
-        'Mar',
-        'Abr',
-        'Mai',
-        'Jun',
-        'Jul',
-        'Ago',
-        'Set',
-        'Out',
-        'Nov',
-        'Dez',
-      ]
-      geracaoMensalItens = fatores.map((fat, idx) => ({
-        mes: nomes[idx],
-        mesIndex: idx,
-        geracaoKwh: Math.round(media * fat),
-      }))
+  const htmlPreview = useMemo<string>(() => {
+    if (!open || !dadosAtuais) return ''
+    try {
+      return gerarHTMLPropostaTecnicoComercial(dadosAtuais)
+    } catch (err) {
+      console.error('Erro ao gerar HTML da proposta técnico-comercial:', err)
+      return '<div style="padding:20px;color:#b91c1c;font-family:sans-serif;">Não foi possível gerar a pré-visualização da proposta. Verifique os dados preenchidos.</div>'
     }
+  }, [open, dadosAtuais])
 
-    // Projeções (cálculo de 1, 5 e 25 anos com reajuste histórico padrão ou dados do orçamento)
-    const gastoSemSolar1 = orcamento.gasto_sem_solar_1_ano || Math.round(contaHoje * 12)
-    const gastoSemSolar5 = orcamento.gasto_sem_solar_5_anos || Math.round(gastoSemSolar1 * 5.8)
-    const gastoSemSolar25 = orcamento.gasto_sem_solar_25_anos || Math.round(gastoSemSolar1 * 38.5)
-
-    const eco1Mes = orcamento.economia_1_mes || Math.round(Math.max(0, contaHoje - contaComSolar))
-    const eco1Ano = orcamento.economia_1_ano || Math.round(eco1Mes * 12)
-    const eco5Anos = orcamento.economia_5_anos || Math.round(eco1Ano * 5.5)
-    const eco25Anos = orcamento.economia_25_anos || Math.round(eco1Ano * 32)
-
-    return {
-      cliente: {
-        nome: clienteNome,
-        cpfOuCnpj: clienteDocumento,
-        endereco: cliente?.endereco,
-        municipio: cliente?.municipio,
-        email: cliente?.email,
-        telefone: cliente?.telefone,
-      },
-      representante: {
-        nome: representanteNome,
-        contato: representanteContato,
-      },
-      dataProposta,
-      validadeDias,
-      empresa: DADOS_FIXOS_EMPRESA_DELFOS,
-      fotosInstalacoes: fotosParaProposta,
-      incluirImagemComoFunciona: incluirComoFunciona,
-      incluirImagemMonitoramento: incluirMonitoramento,
-      sistema: {
-        potenciaKwp,
-        descricaoPaineis,
-        qtdPaineis,
-        descricaoInversores,
-        qtdInversores,
-        estruturaFixacao,
-        codigoFiname,
-        areaNecessariaM2,
-      },
-      garantias: {
-        paineisAnosFabricacao: paineisAnosFab,
-        paineisAnosDesempenho: paineisAnosDesemp,
-        paineisPercentualDesempenho: paineisPercDesemp,
-        inversorAnosFabricacao: inversorAnosFab,
-        instalacaoAnos,
-      },
-      producao: {
-        anualKwh: producaoAnualKwh,
-        mediaMensalKwh: producaoMensalKwh,
-        geracaoMensal: geracaoMensalItens,
-      },
-      economia: {
-        investimentoTotal,
-        prazoEntregaDias,
-        paybackTexto,
-      },
-      parcelamento: {
-        aVista: {
-          valorTotal: investimentoTotal,
-          contaHoje,
-          contaComSolar,
-        },
-        cartao18x: {
-          numeroParcelas: nParcelasCartao,
-          valorParcela: valorParcelaCartao,
-          contaHoje,
-          contaComSolar,
-        },
-        financiamentoA: {
-          nome: nomeFinanA,
-          numeroParcelas: nParcelasFinanA,
-          valorParcela: valorParcelaFinanA,
-          contaHoje,
-          contaComSolar,
-        },
-        financiamentoB: {
-          nome: nomeFinanB,
-          numeroParcelas: nParcelasFinanB,
-          valorParcela: valorParcelaFinanB,
-          contaHoje,
-          contaComSolar,
-        },
-      },
-      projecao: {
-        gastoSemSolar1Ano: gastoSemSolar1,
-        gastoSemSolar5Anos: gastoSemSolar5,
-        gastoSemSolar25Anos: gastoSemSolar25,
-        economia1Ano: eco1Ano,
-        economia5Anos: eco5Anos,
-        economia25Anos: eco25Anos,
-        economia1Mes: eco1Mes,
-      },
-    }
-  }
-
-  const dadosAtuais = montarDadosProposta()
-  const htmlPreview = gerarHTMLPropostaTecnicoComercial(dadosAtuais)
+  if (!open) return null
 
   // Ações
   const handleImprimirOuBaixarPDF = () => {
-    abrirPropostaTecnicoComercialEmNovaAba(dadosAtuais)
+    if (dadosAtuais) {
+      abrirPropostaTecnicoComercialEmNovaAba(dadosAtuais)
+    }
   }
 
   const handleBaixarHTML = () => {
-    baixarPropostaTecnicoComercialHTML(dadosAtuais)
+    if (dadosAtuais) {
+      baixarPropostaTecnicoComercialHTML(dadosAtuais)
+    }
   }
 
   const handleEnviarEmail = () => {
+    const eco25 = dadosAtuais?.projecao?.economia25Anos || 0
+    const prodAnualFmt = (Number(producaoAnualKwh) || 0).toLocaleString('pt-BR')
+    const invTotalFmt = (Number(investimentoTotal) || 0).toLocaleString('pt-BR', {
+      style: 'currency',
+      currency: 'BRL',
+    })
+    const eco25Fmt = (Number(eco25) || 0).toLocaleString('pt-BR', {
+      style: 'currency',
+      currency: 'BRL',
+    })
     const assunto = encodeURIComponent(`Proposta Comercial Solar - Delfos Solar - ${clienteNome}`)
     const corpo = encodeURIComponent(
-      `Olá ${clienteNome},\n\nSegue a apresentação da sua Proposta Técnico-Comercial de Energia Solar elaborada pela Delfos Solar:\n\n- Potência do Sistema: ${potenciaKwp} kWp\n- Produção Anual Estimada: ${producaoAnualKwh.toLocaleString('pt-BR')} kWh/ano\n- Investimento Total: ${(investimentoTotal || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}\n- Economia Estimada em 25 anos: ${(dadosAtuais.projecao.economia25Anos || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}\n\nEstamos à disposição para esclarecer qualquer dúvida.\n\nAtenciosamente,\n${representanteNome}\nDelfos Solar - (54) 99129-2121\nwww.delfos.eng.br`,
+      `Olá ${clienteNome},\n\nSegue a apresentação da sua Proposta Técnico-Comercial de Energia Solar elaborada pela Delfos Solar:\n\n- Potência do Sistema: ${potenciaKwp} kWp\n- Produção Anual Estimada: ${prodAnualFmt} kWh/ano\n- Investimento Total: ${invTotalFmt}\n- Economia Estimada em 25 anos: ${eco25Fmt}\n\nEstamos à disposição para esclarecer qualquer dúvida.\n\nAtenciosamente,\n${representanteNome}\nDelfos Solar - (54) 99129-2121\nwww.delfos.eng.br`,
     )
     const emailDestino = cliente?.email ? encodeURIComponent(cliente.email) : ''
     const mailtoUrl = `mailto:${emailDestino}?subject=${assunto}&body=${corpo}`
@@ -387,7 +466,7 @@ export function ModalGerarPropostaTecnicoComercial({
               </h2>
               <p className="text-xs text-emerald-100">
                 Cliente: <strong>{clienteNome}</strong> • Sistema de {potenciaKwp} kWp •
-                Investimento: R$ {investimentoTotal.toLocaleString('pt-BR')}
+                Investimento: R$ {(Number(investimentoTotal) || 0).toLocaleString('pt-BR')}
               </p>
             </div>
           </div>
@@ -976,108 +1055,125 @@ export function ModalGerarPropostaTecnicoComercial({
               </div>
 
               {/* Seção 1: Capa da Proposta Comercial Oficial */}
-              <SecaoCapaProposta
-                nomeCliente={clienteNome}
-                economiaMensal={orcamento.economia_1_mes || contaHoje - contaComSolar}
-                dataOrcamento={orcamento.data_orcamento || orcamento.created}
-                consultor={orcamento.autor || representanteNome}
-                potenciaKwp={potenciaKwp}
-              />
+              <ErrorBoundary compact errorMessage="Não foi possível exibir a Capa da Proposta">
+                <SecaoCapaProposta
+                  nomeCliente={clienteNome}
+                  economiaMensal={orcamento.economia_1_mes || contaHoje - contaComSolar}
+                  dataOrcamento={orcamento.data_orcamento || orcamento.created}
+                  consultor={orcamento.autor || representanteNome}
+                  potenciaKwp={potenciaKwp}
+                />
+              </ErrorBoundary>
 
               {/* Seção 2: O Custo da Inércia (Diagnóstico Visual) */}
-              <SecaoCustoInercia
-                gastoSemSolar1Ano={orcamento.gasto_sem_solar_1_ano || Math.round(contaHoje * 12)}
-                gastoSemSolar5Anos={
-                  orcamento.gasto_sem_solar_5_anos ||
-                  Math.round((orcamento.gasto_sem_solar_1_ano || contaHoje * 12) * 5.8)
-                }
-                gastoSemSolar25Anos={
-                  orcamento.gasto_sem_solar_25_anos ||
-                  Math.round((orcamento.gasto_sem_solar_1_ano || contaHoje * 12) * 38.5)
-                }
-                valorInvestimento={investimentoTotal}
-                economiaMensal={orcamento.economia_1_mes || Math.max(0, contaHoje - contaComSolar)}
-                contaMensal={contaHoje}
-                economia1Ano={orcamento.economia_1_ano}
-                economia5Anos={orcamento.economia_5_anos}
-                economia25Anos={orcamento.economia_25_anos}
-              />
+              <ErrorBoundary compact errorMessage="Não foi possível exibir o Custo da Inércia">
+                <SecaoCustoInercia
+                  gastoSemSolar1Ano={orcamento.gasto_sem_solar_1_ano || Math.round(contaHoje * 12)}
+                  gastoSemSolar5Anos={
+                    orcamento.gasto_sem_solar_5_anos ||
+                    Math.round((orcamento.gasto_sem_solar_1_ano || contaHoje * 12) * 5.8)
+                  }
+                  gastoSemSolar25Anos={
+                    orcamento.gasto_sem_solar_25_anos ||
+                    Math.round((orcamento.gasto_sem_solar_1_ano || contaHoje * 12) * 38.5)
+                  }
+                  valorInvestimento={investimentoTotal}
+                  economiaMensal={
+                    orcamento.economia_1_mes || Math.max(0, contaHoje - contaComSolar)
+                  }
+                  contaMensal={contaHoje}
+                  economia1Ano={orcamento.economia_1_ano}
+                  economia5Anos={orcamento.economia_5_anos}
+                  economia25Anos={orcamento.economia_25_anos}
+                />
+              </ErrorBoundary>
 
               {/* Seção Visual: Seu Sistema Fotovoltaico */}
-              <SecaoSeuSistemaFotovoltaico
-                potenciaKwp={potenciaKwp}
-                geracaoMensalKwh={producaoMensalKwh}
-                economiaMensal={orcamento.economia_1_mes}
-                numeroPlacas={qtdPaineis}
-                marcaPainel={descricaoPaineis}
-                potenciaPlacaWp={orcamento.potencia_placa_wp || 550}
-                tecnologiaModulo="bifacial N-type"
-                marcaInversor={descricaoInversores}
-                quantidadeInversores={qtdInversores}
-                mpptInversor={2}
-                potenciaInversorKw={potenciaKwp ? Math.round(potenciaKwp * 0.8 * 10) / 10 : 6}
-                areaNecessariaM2={areaNecessariaM2}
-                garantiaModulosAnos={paineisAnosDesemp || 30}
-                garantiaInversorAnos={inversorAnosFab || 10}
-                garantiaInstalacaoTexto={`${instalacaoAnos || 1} anos`}
-                garantiaInstalacaoAnos={instalacaoAnos || 1}
-                nomeCliente={clienteNome}
-              />
+              <ErrorBoundary compact errorMessage="Não foi possível exibir os Dados do Sistema">
+                <SecaoSeuSistemaFotovoltaico
+                  potenciaKwp={potenciaKwp}
+                  geracaoMensalKwh={producaoMensalKwh}
+                  economiaMensal={orcamento.economia_1_mes}
+                  numeroPlacas={qtdPaineis}
+                  marcaPainel={descricaoPaineis}
+                  potenciaPlacaWp={orcamento.potencia_placa_wp || 550}
+                  tecnologiaModulo="bifacial N-type"
+                  marcaInversor={descricaoInversores}
+                  quantidadeInversores={qtdInversores}
+                  mpptInversor={2}
+                  potenciaInversorKw={potenciaKwp ? Math.round(potenciaKwp * 0.8 * 10) / 10 : 6}
+                  areaNecessariaM2={areaNecessariaM2}
+                  garantiaModulosAnos={paineisAnosDesemp || 30}
+                  garantiaInversorAnos={inversorAnosFab || 10}
+                  garantiaInstalacaoTexto={`${instalacaoAnos || 1} anos`}
+                  garantiaInstalacaoAnos={instalacaoAnos || 1}
+                  nomeCliente={clienteNome}
+                />
+              </ErrorBoundary>
 
               {/* Card 7: Projeção de Economia na Conta de Energia (2026-2051) */}
-              <SecaoProjecaoEconomia
-                consumoAnualCadastradoKwh={
-                  orcamento.consumo_mensal_kwh && orcamento.consumo_mensal_kwh > 0
-                    ? Number((orcamento.consumo_mensal_kwh * 12).toFixed(2))
-                    : cliente?.consumo_kwh_mes && cliente.consumo_kwh_mes > 0
-                      ? Number((cliente.consumo_kwh_mes * 12).toFixed(2))
-                      : 4807.08
-                }
-                tipoClienteInicial={
-                  cliente?.tipo_cliente === 'comercial' ? 'comercial' : 'residencial'
-                }
-                nomeCliente={clienteNome}
-                permitirAjusteConsumo={true}
-              />
+              <ErrorBoundary compact errorMessage="Não foi possível exibir a Projeção de Economia">
+                <SecaoProjecaoEconomia
+                  consumoAnualCadastradoKwh={
+                    orcamento.consumo_mensal_kwh && orcamento.consumo_mensal_kwh > 0
+                      ? Number((orcamento.consumo_mensal_kwh * 12).toFixed(2))
+                      : cliente?.consumo_kwh_mes && cliente.consumo_kwh_mes > 0
+                        ? Number((cliente.consumo_kwh_mes * 12).toFixed(2))
+                        : 4807.08
+                  }
+                  tipoClienteInicial={
+                    cliente?.tipo_cliente === 'comercial' ? 'comercial' : 'residencial'
+                  }
+                  nomeCliente={clienteNome}
+                  permitirAjusteConsumo={true}
+                />
+              </ErrorBoundary>
 
               {/* Nova Seção: Projeção de Economia em 25 Anos (Curva comparativa, Payback, ROI e Tabela 2026-2051) */}
-              <SecaoProjecao25Anos
-                consumoAnualCadastradoKwh={
-                  orcamento.consumo_mensal_kwh && orcamento.consumo_mensal_kwh > 0
-                    ? Number((orcamento.consumo_mensal_kwh * 12).toFixed(2))
-                    : cliente?.consumo_kwh_mes && cliente.consumo_kwh_mes > 0
-                      ? Number((cliente.consumo_kwh_mes * 12).toFixed(2))
-                      : 4807.08
-                }
-                tipoClienteInicial={
-                  cliente?.tipo_cliente === 'comercial' ? 'comercial' : 'residencial'
-                }
-                valorInvestimento={investimentoTotal}
-                paybackMeses={orcamento.payback_meses}
-                potenciaKwp={potenciaKwp || 8.54}
-                nomeCliente={clienteNome}
-              />
+              <ErrorBoundary compact errorMessage="Não foi possível exibir a Projeção em 25 Anos">
+                <SecaoProjecao25Anos
+                  consumoAnualCadastradoKwh={
+                    orcamento.consumo_mensal_kwh && orcamento.consumo_mensal_kwh > 0
+                      ? Number((orcamento.consumo_mensal_kwh * 12).toFixed(2))
+                      : cliente?.consumo_kwh_mes && cliente.consumo_kwh_mes > 0
+                        ? Number((cliente.consumo_kwh_mes * 12).toFixed(2))
+                        : 4807.08
+                  }
+                  tipoClienteInicial={
+                    cliente?.tipo_cliente === 'comercial' ? 'comercial' : 'residencial'
+                  }
+                  valorInvestimento={investimentoTotal}
+                  paybackMeses={orcamento.payback_meses}
+                  potenciaKwp={potenciaKwp || 8.54}
+                  nomeCliente={clienteNome}
+                />
+              </ErrorBoundary>
 
               {/* Nova Seção: Investimento e Condições de Pagamento */}
-              <SecaoInvestimentoPagamento
-                valorInvestimento={investimentoTotal}
-                valorAVista={Math.round(investimentoTotal * 0.95)}
-                descontoAVistaReais={Math.round(investimentoTotal * 0.05)}
-                parcelasCartao={nParcelasCartao}
-                valorParcelaCartao={valorParcelaCartao}
-                cartaoSemJuros={true}
-                nomeFinanciamentoA={nomeFinanA}
-                entradaFinanciamentoA={Math.round(investimentoTotal * 0.2)}
-                parcelasFinanciamentoA={nParcelasFinanA}
-                valorParcelaFinanciamentoA={valorParcelaFinanA}
-                nomeFinanciamentoB={nomeFinanB}
-                entradaFinanciamentoB={Math.round(investimentoTotal * 0.1)}
-                parcelasFinanciamentoB={nParcelasFinanB}
-                valorParcelaFinanciamentoB={valorParcelaFinanB}
-                contaMensalAtual={contaHoje}
-                validadeDias={validadeDias}
-                nomeCliente={clienteNome}
-              />
+              <ErrorBoundary
+                compact
+                errorMessage="Não foi possível exibir as Condições de Pagamento"
+              >
+                <SecaoInvestimentoPagamento
+                  valorInvestimento={investimentoTotal}
+                  valorAVista={Math.round(investimentoTotal * 0.95)}
+                  descontoAVistaReais={Math.round(investimentoTotal * 0.05)}
+                  parcelasCartao={nParcelasCartao}
+                  valorParcelaCartao={valorParcelaCartao}
+                  cartaoSemJuros={true}
+                  nomeFinanciamentoA={nomeFinanA}
+                  entradaFinanciamentoA={Math.round(investimentoTotal * 0.2)}
+                  parcelasFinanciamentoA={nParcelasFinanA}
+                  valorParcelaFinanciamentoA={valorParcelaFinanA}
+                  nomeFinanciamentoB={nomeFinanB}
+                  entradaFinanciamentoB={Math.round(investimentoTotal * 0.1)}
+                  parcelasFinanciamentoB={nParcelasFinanB}
+                  valorParcelaFinanciamentoB={valorParcelaFinanB}
+                  contaMensalAtual={contaHoje}
+                  validadeDias={validadeDias}
+                  nomeCliente={clienteNome}
+                />
+              </ErrorBoundary>
             </div>
           ) : (
             /* ETAPA DE PREVIEW COM 4 PÁGINAS BEM ORGANIZADAS */

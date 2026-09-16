@@ -96,12 +96,9 @@ export const SecaoProjecao25Anos: React.FC<SecaoProjecao25AnosProps> = ({
 
   // Consumo anual: se não informado ou inválido, usa o exemplo do usuário de 4.807 kWh/ano
   const consumoAnual = useMemo(() => {
-    if (
-      consumoAnualCadastradoKwh !== undefined &&
-      consumoAnualCadastradoKwh !== null &&
-      consumoAnualCadastradoKwh > 0
-    ) {
-      return Number(consumoAnualCadastradoKwh.toFixed(2))
+    const num = Number(consumoAnualCadastradoKwh)
+    if (!isNaN(num) && num > 0) {
+      return Number(num.toFixed(2))
     }
     return CONSUMO_EXEMPLO_PADRAO_KWH_ANO // 4.807,08 kWh/ano
   }, [consumoAnualCadastradoKwh])
@@ -149,18 +146,20 @@ export const SecaoProjecao25Anos: React.FC<SecaoProjecao25AnosProps> = ({
       const taxaMinimaAnoReais = taxaMinimaKwhMes * 12 * linha.tarifaKwh * 1.3
       custoConcessionariaAcum += taxaMinimaAnoReais
 
-      const gastoSemSolarAcum = Number(linha.gastoSemSolarAcumulado.toFixed(2))
-      const investMaisCustos = Number((investimentoCalculado + custoConcessionariaAcum).toFixed(2))
+      const gastoSemSolarAcum = Number((Number(linha.gastoSemSolarAcumulado) || 0).toFixed(2))
+      const investMaisCustos = Number(
+        ((Number(investimentoCalculado) || 0) + custoConcessionariaAcum).toFixed(2),
+      )
 
       return {
         ano: linha.ano,
         indiceAno: idx + 1,
-        tarifaKwh: linha.tarifaKwh,
+        tarifaKwh: Number(linha.tarifaKwh) || 0,
         gastoSemSolarAcumulado: gastoSemSolarAcum,
         investimentoMaisEconomiaComSolar: investMaisCustos,
-        economiaAcumulada: Number(linha.economiaAcumulada.toFixed(2)),
-        custoConcessionariaAno: Number(taxaMinimaAnoReais.toFixed(2)),
-        custoConcessionariaAcumulado: Number(custoConcessionariaAcum.toFixed(2)),
+        economiaAcumulada: Number((Number(linha.economiaAcumulada) || 0).toFixed(2)),
+        custoConcessionariaAno: Number((Number(taxaMinimaAnoReais) || 0).toFixed(2)),
+        custoConcessionariaAcumulado: Number((Number(custoConcessionariaAcum) || 0).toFixed(2)),
         taxaMinimaAnoReais,
       }
     })
@@ -281,14 +280,15 @@ export const SecaoProjecao25Anos: React.FC<SecaoProjecao25AnosProps> = ({
     }))
   }, [linhasComparativas])
 
-  const formatarMoedaCompacta = (val: number) => {
-    if (val >= 1_000_000) {
-      return `R$ ${(val / 1_000_000).toFixed(1).replace('.', ',')}M`
+  const formatarMoedaCompacta = (val: number | unknown) => {
+    const num = Number(val) || 0
+    if (num >= 1_000_000) {
+      return `R$ ${(num / 1_000_000).toFixed(1).replace('.', ',')}M`
     }
-    if (val >= 1_000) {
-      return `R$ ${(val / 1_000).toFixed(0)}k`
+    if (num >= 1_000) {
+      return `R$ ${(num / 1_000).toFixed(0)}k`
     }
-    return `R$ ${Math.round(val)}`
+    return `R$ ${Math.round(num)}`
   }
 
   return (
@@ -551,7 +551,7 @@ export const SecaoProjecao25Anos: React.FC<SecaoProjecao25AnosProps> = ({
                         )}
                       </td>
                       <td className="py-2 px-3 text-right text-gray-700 whitespace-nowrap font-medium">
-                        R$ {linha.tarifaKwh.toFixed(4).replace('.', ',')}
+                        R$ {(Number(linha.tarifaKwh) || 0).toFixed(4).replace('.', ',')}
                       </td>
                       <td className="py-2 px-3 text-right font-black text-emerald-700 bg-emerald-50/40 whitespace-nowrap">
                         {formatCurrency(linha.economiaAcumulada)}

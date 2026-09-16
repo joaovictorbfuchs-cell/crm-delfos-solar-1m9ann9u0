@@ -56,11 +56,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setToken(pb.authStore.token)
     setUserProfile(extractUserProfile(record))
 
-    // Se houver token, validar sessão no backend e checar se continua ativo
+    // Se houver token, validar sessão no backend e checar se continua ativo com timeout de segurança
     if (pb.authStore.isValid && record) {
+      let isDone = false
+
+      // Timeout de segurança de 2,5 segundos: se o backend travar ou demorar (ex.: rede ou token corrompido),
+      // limpa a sessão inválida e destrava o loading
+      const timeoutId = setTimeout(() => {
+        if (!isDone) {
+          isDone = true
+          console.warn('Timeout na validação da sessão (authRefresh). Liberando loading.')
+          pb.authStore.clear()
+          setUser(null)
+          setUserProfile(null)
+          setToken(null)
+          setIsLoading(false)
+        }
+      }, 2500)
+
       pb.collection('users')
         .authRefresh()
         .then((authData) => {
+          if (isDone) return
+          isDone = true
+          clearTimeout(timeoutId)
           if (authData.record?.ativo === false) {
             // Se usuário foi desativado enquanto tinha sessão, desconectar
             pb.authStore.clear()
@@ -73,7 +92,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setToken(authData.token)
           }
         })
-        .catch(() => {
+        .catch((err) => {
+          if (isDone) return
+          isDone = true
+          clearTimeout(timeoutId)
+          console.warn('Sessão expirada ou inválida ao executar authRefresh:', err)
           // Token expirado ou inválido
           pb.authStore.clear()
           setUser(null)
@@ -81,6 +104,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setToken(null)
         })
         .finally(() => {
+          if (!isDone) {
+            isDone = true
+            clearTimeout(timeoutId)
+          }
           setIsLoading(false)
         })
     } else {
