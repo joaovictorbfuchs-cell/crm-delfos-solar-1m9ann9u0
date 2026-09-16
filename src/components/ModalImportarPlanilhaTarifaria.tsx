@@ -38,6 +38,10 @@ export const ModalImportarPlanilhaTarifaria: React.FC<ModalImportarPlanilhaTarif
   const [isParsing, setIsParsing] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [isClearing, setIsClearing] = useState(false)
+  const [salvandoProgresso, setSalvandoProgresso] = useState<{
+    atual: number
+    total: number
+  } | null>(null)
   const [erro, setErro] = useState<string | null>(null)
   const [sucessoMsg, setSucessoMsg] = useState<string | null>(null)
   const [blocos, setBlocos] = useState<BlocoDetectado[]>([])
@@ -95,19 +99,27 @@ export const ModalImportarPlanilhaTarifaria: React.FC<ModalImportarPlanilhaTarif
     setErro(null)
     setSucessoMsg(null)
 
+    const todasLinhas = blocos.flatMap((b) => b.linhas)
+    setSalvandoProgresso({ atual: 0, total: todasLinhas.length })
+
     try {
-      // Gravar todas as linhas dos blocos detectados
-      const todasLinhas = blocos.flatMap((b) => b.linhas)
+      // Gravar todas as linhas dos blocos detectados com intervalo seguro e retry
       const res = await saveProjecoesTarifarias(todasLinhas, {
         replaceExistingForType: true,
+        delayBetweenItemsMs: 150,
+        onProgress: (current, total) => {
+          setSalvandoProgresso({ atual: current, total })
+        },
       })
 
       if (!res.success && res.errors.length > 0) {
-        setErro(`Algumas linhas falharam ao salvar: ${res.errors.slice(0, 3).join(', ')}`)
+        setErro(
+          `Aviso: ${res.errors.length} de ${todasLinhas.length} linhas falharam ao salvar após múltiplas tentativas: ${res.errors.slice(0, 3).join(', ')}${res.errors.length > 3 ? ` (e mais ${res.errors.length - 3})` : ''}`,
+        )
       } else {
         const tipos = blocos.map((b) => b.nome).join(' e ')
         setSucessoMsg(
-          `Importação concluída com sucesso! ${res.inserted} registros tarifários foram gravados no banco (${tipos}).`,
+          `Importação concluída com sucesso! Todos os ${res.inserted} registros tarifários foram gravados no banco de dados (${tipos}) de forma segura.`,
         )
         if (onImportSuccess) {
           onImportSuccess()
@@ -119,6 +131,7 @@ export const ModalImportarPlanilhaTarifaria: React.FC<ModalImportarPlanilhaTarif
       setErro(`Erro ao gravar dados no banco de dados: ${msg}`)
     } finally {
       setIsSaving(false)
+      setSalvandoProgresso(null)
     }
   }
 
@@ -410,7 +423,11 @@ export const ModalImportarPlanilhaTarifaria: React.FC<ModalImportarPlanilhaTarif
               {isSaving ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>Salvando no Banco...</span>
+                  <span>
+                    {salvandoProgresso && salvandoProgresso.total > 0
+                      ? `Salvando (${salvandoProgresso.atual}/${salvandoProgresso.total})...`
+                      : 'Salvando no Banco...'}
+                  </span>
                 </>
               ) : (
                 <>
