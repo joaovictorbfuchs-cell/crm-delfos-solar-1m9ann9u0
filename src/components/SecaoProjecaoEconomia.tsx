@@ -9,9 +9,7 @@ import {
   BarChart3,
   CheckCircle2,
   Table as TableIcon,
-  Upload,
   Database,
-  FileSpreadsheet,
 } from 'lucide-react'
 import {
   ResponsiveContainer,
@@ -35,7 +33,6 @@ import {
   fetchProjecoesTarifarias,
   type ProjecaoTarifariaRecord,
 } from '@/services/projecaoTarifariaService'
-import { ModalImportarPlanilhaTarifaria } from '@/components/ModalImportarPlanilhaTarifaria'
 import { formatCurrency } from '@/lib/formatters'
 
 export interface SecaoProjecaoEconomiaProps {
@@ -62,7 +59,6 @@ export const SecaoProjecaoEconomia: React.FC<SecaoProjecaoEconomiaProps> = ({
 }) => {
   // Estado de tipo de cliente: Residencial (30% simultaneidade) ou Comercial (70% simultaneidade)
   const [tipoCliente, setTipoCliente] = useState<TipoClienteProjecao>(tipoClienteInicial)
-  const [modalImportarOpen, setModalImportarOpen] = useState(false)
   const [dadosTarifariosCustomizados, setDadosTarifariosCustomizados] = useState<
     ProjecaoTarifariaRecord[]
   >([])
@@ -168,29 +164,17 @@ export const SecaoProjecaoEconomia: React.FC<SecaoProjecaoEconomiaProps> = ({
           </p>
         </div>
 
-        {/* Fator de Simultaneidade e Botão Importar */}
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-          <button
-            type="button"
-            onClick={() => setModalImportarOpen(true)}
-            className="px-3.5 py-2 rounded-xl bg-white/15 hover:bg-white/25 border border-white/25 text-white text-xs font-bold inline-flex items-center justify-center gap-2 transition-all shadow-xs backdrop-blur-xs"
-            title="Importar planilha oficial do Excel ou CSV para alimentar as tarifas e GD Eco"
-          >
-            <Upload className="w-4 h-4 text-amber-300" />
-            <span>Importar planilha tarifária</span>
-          </button>
-
-          <div className="bg-emerald-950/40 border border-white/15 rounded-xl p-3 text-right self-start sm:self-auto shrink-0 backdrop-blur-xs">
-            <span className="text-[10px] uppercase font-bold text-emerald-200 block">
-              Fator de Simultaneidade
-            </span>
-            <span className="text-2xl font-black text-amber-300">
-              {Math.round(projecao.fatorSimultaneidade * 100)}%
-            </span>
-            <span className="text-[10px] text-emerald-100 block">
-              {tipoCliente === 'residencial' ? 'Autoconsumo Residencial' : 'Autoconsumo Comercial'}
-            </span>
-          </div>
+        {/* Fator de Simultaneidade */}
+        <div className="bg-emerald-950/40 border border-white/15 rounded-xl p-3 text-right self-start md:self-auto shrink-0 backdrop-blur-xs">
+          <span className="text-[10px] uppercase font-bold text-emerald-200 block">
+            Fator de Simultaneidade
+          </span>
+          <span className="text-2xl font-black text-amber-300">
+            {Math.round(projecao.fatorSimultaneidade * 100)}%
+          </span>
+          <span className="text-[10px] text-emerald-100 block">
+            {tipoCliente === 'residencial' ? 'Autoconsumo Residencial' : 'Autoconsumo Comercial'}
+          </span>
         </div>
       </div>
 
@@ -307,38 +291,19 @@ export const SecaoProjecaoEconomia: React.FC<SecaoProjecaoEconomiaProps> = ({
                 </p>
               </div>
             </div>
-            <button
-              type="button"
-              onClick={() => setModalImportarOpen(true)}
-              className="text-[11px] font-bold text-emerald-800 hover:text-emerald-950 underline px-2 py-1 rounded hover:bg-emerald-100 transition-colors"
-            >
-              Reimportar ou atualizar
-            </button>
           </div>
         ) : (
           <div className="p-3 bg-amber-50/80 border border-amber-300 rounded-xl flex items-center justify-between flex-wrap gap-2 text-xs text-amber-950">
             <div className="flex items-start gap-2.5">
               <Info className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
               <div>
-                <p className="font-bold text-amber-950">
-                  Valores estimados — importe a planilha oficial
-                </p>
+                <p className="font-bold text-amber-950">Valores de referência estimados</p>
                 <p className="text-[11px] text-amber-800 leading-relaxed">
                   Esta projeção está utilizando a{' '}
-                  <strong>tabela interna estimada com reajuste de 9% a.a.</strong> (Lei 14.300).
-                  Importe sua planilha oficial (.xlsx ou .csv) para usar as tarifas exatas da sua
-                  concessionária.
+                  <strong>tabela interna com reajuste estimado de 9% a.a.</strong> (Lei 14.300).
                 </p>
               </div>
             </div>
-            <button
-              type="button"
-              onClick={() => setModalImportarOpen(true)}
-              className="px-3 py-1.5 rounded-lg bg-amber-700 hover:bg-amber-800 text-white font-bold text-xs inline-flex items-center gap-1.5 transition-colors shadow-2xs shrink-0"
-            >
-              <FileSpreadsheet className="w-3.5 h-3.5" />
-              <span>Importar planilha oficial</span>
-            </button>
           </div>
         )}
       </div>
@@ -611,18 +576,6 @@ export const SecaoProjecaoEconomia: React.FC<SecaoProjecaoEconomiaProps> = ({
           </div>
         </div>
       </div>
-
-      {/* Modal de Importação da Planilha Tarifária */}
-      {modalImportarOpen && (
-        <ModalImportarPlanilhaTarifaria
-          isOpen={modalImportarOpen}
-          onClose={() => setModalImportarOpen(false)}
-          onImportSuccess={() => {
-            carregarTarifasDoBanco()
-          }}
-          tipoClienteSugerido={tipoCliente}
-        />
-      )}
     </section>
   )
 }
