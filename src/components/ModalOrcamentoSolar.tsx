@@ -299,6 +299,7 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
       )
     } else {
       // Novo orçamento: defaults
+      setTarifaKwh(1.19)
       setValorPorPlaca(150)
       setOpcaoImposto(1)
       setDescontoPercentual(0)
