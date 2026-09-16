@@ -151,6 +151,60 @@ export const FATORES_ORIENTACAO: Record<OrientacaoTelhadoSolar, number> = {
   sul: 0.75, // Perda significativa no hemisfério sul
 }
 
+/**
+ * Fatores de produtividade anual calibrados por orientação de telhado (kWh gerados por kWp instalado por ano).
+ * Calibração baseada nos dados do usuário: sistema de 7,32 kWp produzindo:
+ * - Norte: 9459 kWh/ano  => 9459 / 7.32 ≈ 1292.213 kWh/kWp/ano
+ * - Oeste: 8894 kWh/ano  => 8894 / 7.32 ≈ 1215.027 kWh/kWp/ano
+ * - Leste: 8894 kWh/ano  => 8894 / 7.32 ≈ 1215.027 kWh/kWp/ano
+ * - Sul:   8224 kWh/ano  => 8224 / 7.32 ≈ 1123.497 kWh/kWp/ano
+ */
+export const FATORES_GERACAO_ANUAL_KWP: Record<OrientacaoTelhadoSolar, number> = {
+  norte: 9459 / 7.32, // ≈ 1292.2131
+  oeste: 8894 / 7.32, // ≈ 1215.0273
+  leste: 8894 / 7.32, // ≈ 1215.0273
+  sul: 8224 / 7.32, // ≈ 1123.4973
+}
+
+export interface DimensionamentoGeracaoResultado {
+  geracaoPretendidaKwhAno: number
+  orientacao: OrientacaoTelhadoSolar
+  fatorKwhPorKwpAno: number
+  potenciaKwpNecessaria: number
+  numeroPlacasSugerido: number
+  potenciaPlacaWp: number
+}
+
+/**
+ * Dimensionamento automático de kWp e número de placas a partir da geração pretendida em kWh/ano.
+ * Fórmula: kWp necessário = geração pretendida (kWh/ano) ÷ fator da orientação escolhida.
+ * Placas sugeridas = Math.ceil(kWp × 1000 ÷ potenciaPlacaWp)
+ */
+export function dimensionarSistemaPorGeracaoPretendida(
+  geracaoPretendidaKwhAno: number,
+  orientacao: OrientacaoTelhadoSolar = 'norte',
+  potenciaPlacaWp: number = 550,
+): DimensionamentoGeracaoResultado | null {
+  const geracao = Math.max(0, Number(geracaoPretendidaKwhAno) || 0)
+  if (geracao <= 0) return null
+
+  const fator = FATORES_GERACAO_ANUAL_KWP[orientacao] || FATORES_GERACAO_ANUAL_KWP.norte
+  const kwpExato = geracao / fator
+  const kwpArredondado = Number((Math.round(kwpExato * 100) / 100).toFixed(2))
+
+  const wpPlaca = Math.max(100, Number(potenciaPlacaWp) || 550)
+  const placas = Math.max(1, Math.ceil((kwpArredondado * 1000) / wpPlaca))
+
+  return {
+    geracaoPretendidaKwhAno: geracao,
+    orientacao,
+    fatorKwhPorKwpAno: Number(fator.toFixed(1)),
+    potenciaKwpNecessaria: kwpArredondado,
+    numeroPlacasSugerido: placas,
+    potenciaPlacaWp: wpPlaca,
+  }
+}
+
 // Custo de disponibilidade (taxa mínima em kWh conforme tipo de ligação típica ou classe)
 export function getTaxaMinimaKwh(tipoCliente: TipoClienteSolar): number {
   switch (tipoCliente) {

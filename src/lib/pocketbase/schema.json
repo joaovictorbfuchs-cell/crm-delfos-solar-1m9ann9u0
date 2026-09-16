@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-16T14:16:05.558Z",
+  "generatedAt": "2026-09-16T14:37:04.188Z",
   "collections": [
     {
       "name": "users",
@@ -2239,6 +2239,12 @@
         },
         {
           "name": "juros_financiamento_banco2",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "geracao_pretendida_kwh_ano",
           "type": "number",
           "required": false,
           "system": false

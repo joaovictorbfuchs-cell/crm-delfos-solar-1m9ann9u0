@@ -38,6 +38,8 @@ import {
   somarCustosSolar,
   calcularCustosAba,
   CUSTOS_SOLAR_PADRAO,
+  dimensionarSistemaPorGeracaoPretendida,
+  FATORES_GERACAO_ANUAL_KWP,
   type TipoClienteSolar,
   type TipoEstruturaSolar,
   type OrientacaoTelhadoSolar,
@@ -96,6 +98,7 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
 
   // Campos técnicos exatos exigidos
   const [consumoKwhMes, setConsumoKwhMes] = useState<number>(650)
+  const [geracaoPretendidaKwhAno, setGeracaoPretendidaKwhAno] = useState<number | ''>('')
   const [tipoCliente, setTipoCliente] = useState<TipoClienteSolar>('residencial')
   const [tarifaKwh, setTarifaKwh] = useState<number>(1.19)
   const [potenciaKwp, setPotenciaKwp] = useState<number>(5.5)
@@ -142,6 +145,12 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
       setSelectedClienteId(initialOrcamento.cliente_id)
       setStatus(initialOrcamento.status || 'Em elaboração')
       setConsumoKwhMes(initialOrcamento.consumo_kwh_mes || 650)
+      setGeracaoPretendidaKwhAno(
+        initialOrcamento.geracao_pretendida_kwh_ano &&
+          initialOrcamento.geracao_pretendida_kwh_ano > 0
+          ? initialOrcamento.geracao_pretendida_kwh_ano
+          : '',
+      )
       setTipoCliente(initialOrcamento.tipo_cliente || 'residencial')
       setTarifaKwh(initialOrcamento.tarifa_kwh || 1.19)
       setPotenciaKwp(initialOrcamento.potencia_kwp || 5.5)
@@ -244,6 +253,7 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
       setValorPorPlaca(150)
       setOpcaoImposto(1)
       setDescontoPercentual(0)
+      setGeracaoPretendidaKwhAno('')
       setMaoDeObraEditadaManualmente(false)
       setFornecedorSelecionadoId('')
 
@@ -376,6 +386,27 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
       const qtdEstimada = Math.round((kwp * 1000) / potenciaPlacaWp)
       setNumeroPlacas(qtdEstimada)
       setAreaNecessariaM2(Math.round(qtdEstimada * 2.4))
+    }
+  }
+
+  // Dimensionamento automático a partir da geração pretendida anual informada
+  const dimensionamentoSugerido = useMemo(() => {
+    const geracaoNum = Number(geracaoPretendidaKwhAno) || 0
+    if (geracaoNum <= 0) return null
+    return dimensionarSistemaPorGeracaoPretendida(geracaoNum, orientacaoTelhado, potenciaPlacaWp)
+  }, [geracaoPretendidaKwhAno, orientacaoTelhado, potenciaPlacaWp])
+
+  // Ação para aplicar o dimensionamento sugerido ao campo "Potência do sistema (kWp)"
+  const handleAplicarDimensionamento = () => {
+    if (!dimensionamentoSugerido) return
+    const novoKwp = dimensionamentoSugerido.potenciaKwpNecessaria
+    setPotenciaKwp(novoKwp)
+    const placas = dimensionamentoSugerido.numeroPlacasSugerido
+    setNumeroPlacas(placas)
+    setAreaNecessariaM2(Math.round(placas * 2.4))
+    if (!maoDeObraEditadaManualmente) {
+      const novoMdo = Math.max(0, placas) * Math.max(0, valorPorPlaca)
+      setCustos((prev) => ({ ...prev, maoDeObra: novoMdo }))
     }
   }
 
@@ -589,6 +620,10 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
         status_revisao: statusRevisao,
         tipo_cliente: tipoCliente,
         consumo_kwh_mes: consumoKwhMes,
+        geracao_pretendida_kwh_ano:
+          geracaoPretendidaKwhAno && Number(geracaoPretendidaKwhAno) > 0
+            ? Number(geracaoPretendidaKwhAno)
+            : undefined,
         tarifa_kwh: tarifaKwh,
         potencia_kwp: potenciaKwp,
         numero_placas: numeroPlacas,
@@ -1066,6 +1101,31 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                     />
                   </div>
 
+                  {/* Geração pretendida (kWh/ano) - Permite dimensionar quando o cliente quer gerar mais do que consome */}
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="text-[11px] font-semibold text-gray-700 block">
+                        Geração pretendida (kWh/ano)
+                      </label>
+                      <span className="text-[10px] text-emerald-700 font-medium">
+                        Dimensiona kWp
+                      </span>
+                    </div>
+                    <input
+                      type="number"
+                      value={geracaoPretendidaKwhAno}
+                      min={0}
+                      step={100}
+                      onChange={(e) => {
+                        const val = e.target.value
+                        setGeracaoPretendidaKwhAno(val === '' ? '' : Number(val) || 0)
+                      }}
+                      className="w-full text-xs font-semibold px-3 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      placeholder="Ex: 9459 (ou mais que o consumo)"
+                      title="Informe a energia anual desejada caso queira dimensionar um sistema maior que o consumo atual"
+                    />
+                  </div>
+
                   {/* Tipo de cliente */}
                   <div>
                     <label className="text-[11px] font-semibold text-gray-700 block mb-1">
@@ -1285,6 +1345,63 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                     </span>
                   </div>
                 </div>
+
+                {/* Banner de Dimensionamento Automático baseado na Geração Pretendida */}
+                {dimensionamentoSugerido && (
+                  <div className="mt-3 p-3 rounded-xl bg-gradient-to-r from-emerald-50 via-emerald-100/50 to-teal-50 border border-emerald-300 shadow-xs animate-in fade-in duration-200">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wide bg-emerald-600 text-white">
+                            Dimensionamento Automático
+                          </span>
+                          <span className="text-xs font-bold text-emerald-950">
+                            Sistema dimensionado:{' '}
+                            <strong className="text-emerald-800 text-sm font-black">
+                              {dimensionamentoSugerido.potenciaKwpNecessaria.toFixed(2)} kWp
+                            </strong>{' '}
+                            (orientação{' '}
+                            <span className="capitalize">{dimensionamentoSugerido.orientacao}</span>
+                            )
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-emerald-800 leading-snug">
+                          Geração pretendida de{' '}
+                          <strong>
+                            {dimensionamentoSugerido.geracaoPretendidaKwhAno.toLocaleString(
+                              'pt-BR',
+                            )}{' '}
+                            kWh/ano
+                          </strong>{' '}
+                          ÷ fator de{' '}
+                          {dimensionamentoSugerido.fatorKwhPorKwpAno.toLocaleString('pt-BR')}{' '}
+                          kWh/kWp/ano (telhado {dimensionamentoSugerido.orientacao}). Sugestão de
+                          placas:{' '}
+                          <strong className="text-emerald-900">
+                            {dimensionamentoSugerido.numeroPlacasSugerido} módulos
+                          </strong>{' '}
+                          de {potenciaPlacaWp} Wp (área aprox.{' '}
+                          {Math.round(dimensionamentoSugerido.numeroPlacasSugerido * 2.4)} m²).
+                        </p>
+                      </div>
+
+                      <div className="flex items-center gap-2 shrink-0">
+                        <button
+                          type="button"
+                          onClick={handleAplicarDimensionamento}
+                          className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-sm transition-all active:scale-95 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-1"
+                          title="Atualiza a potência em kWp, número de placas e mão de obra calculada"
+                        >
+                          <Sun className="w-4 h-4 text-emerald-100" />
+                          <span>
+                            Aplicar {dimensionamentoSugerido.potenciaKwpNecessaria.toFixed(2)} kWp
+                            ao Sistema
+                          </span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Seção Orçamentos de Fornecedores com Upload de PDF e Tabela de Revisão */}

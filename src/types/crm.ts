@@ -1040,6 +1040,7 @@ export interface OrcamentoSolar extends RecordModel {
   status_revisao?: PropostaRevisaoStatus
   tipo_cliente: OrcamentoTipoCliente
   consumo_kwh_mes: number
+  geracao_pretendida_kwh_ano?: number
   tarifa_kwh: number
   potencia_kwp: number
   numero_placas: number

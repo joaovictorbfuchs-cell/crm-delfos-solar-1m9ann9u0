@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest'
-import { calcularCustosAba, calcularParcelaPrice, calcularOrcamentoSolar } from './energiaSolar'
+import {
+  calcularCustosAba,
+  calcularParcelaPrice,
+  calcularOrcamentoSolar,
+  dimensionarSistemaPorGeracaoPretendida,
+  FATORES_GERACAO_ANUAL_KWP,
+} from './energiaSolar'
 
 describe('calcularCustosAba - Desconto e Comissão Mínima', () => {
   it('aplica desconto apenas na base de administração e comissão comercial', () => {
@@ -251,5 +257,50 @@ describe('Simulações personalizadas de Parcelamento & Financiamento (PRICE)', 
     expect(orcCustom.parcelamentos.financiamentoBanco2.valorTotal).toBe(
       orcCustom.parcelamentos.financiamentoBanco2.valorParcela * 72,
     )
+  })
+})
+
+describe('dimensionarSistemaPorGeracaoPretendida - Calibração dos Fatores de Orientação', () => {
+  it('dimensiona 7.32 kWp para 9459 kWh/ano na orientação Norte', () => {
+    const res = dimensionarSistemaPorGeracaoPretendida(9459, 'norte', 550)
+    expect(res).not.toBeNull()
+    expect(res!.potenciaKwpNecessaria).toBe(7.32)
+    // 7.32 * 1000 / 550 = 13.309 -> Math.ceil = 14 placas
+    expect(res!.numeroPlacasSugerido).toBe(14)
+  })
+
+  it('dimensiona 7.32 kWp para 8894 kWh/ano na orientação Oeste', () => {
+    const res = dimensionarSistemaPorGeracaoPretendida(8894, 'oeste', 550)
+    expect(res).not.toBeNull()
+    expect(res!.potenciaKwpNecessaria).toBe(7.32)
+    expect(res!.numeroPlacasSugerido).toBe(14)
+  })
+
+  it('dimensiona 7.32 kWp para 8894 kWh/ano na orientação Leste', () => {
+    const res = dimensionarSistemaPorGeracaoPretendida(8894, 'leste', 550)
+    expect(res).not.toBeNull()
+    expect(res!.potenciaKwpNecessaria).toBe(7.32)
+    expect(res!.numeroPlacasSugerido).toBe(14)
+  })
+
+  it('dimensiona 7.32 kWp para 8224 kWh/ano na orientação Sul', () => {
+    const res = dimensionarSistemaPorGeracaoPretendida(8224, 'sul', 550)
+    expect(res).not.toBeNull()
+    expect(res!.potenciaKwpNecessaria).toBe(7.32)
+    expect(res!.numeroPlacasSugerido).toBe(14)
+  })
+
+  it('calcula proporcionalmente para geração pretendida de 10530 kWh/ano (Norte ~ 8.15 kWp)', () => {
+    // 10530 / (9459 / 7.32) = 10530 / 1292.2131 ~ 8.1488 -> 8.15 kWp
+    const res = dimensionarSistemaPorGeracaoPretendida(10530, 'norte', 550)
+    expect(res).not.toBeNull()
+    expect(res!.potenciaKwpNecessaria).toBe(8.15)
+    // 8.15 * 1000 / 550 = 14.81 -> Math.ceil = 15 placas
+    expect(res!.numeroPlacasSugerido).toBe(15)
+  })
+
+  it('retorna null se a geração pretendida for zero ou negativa', () => {
+    expect(dimensionarSistemaPorGeracaoPretendida(0, 'norte')).toBeNull()
+    expect(dimensionarSistemaPorGeracaoPretendida(-100, 'sul')).toBeNull()
   })
 })
