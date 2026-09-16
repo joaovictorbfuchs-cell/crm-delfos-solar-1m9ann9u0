@@ -3,6 +3,7 @@ import { KanbanSquare, List, Loader2, UserPlus, LayoutGrid, Send } from 'lucide-
 import { useClientes } from '@/contexts/ClientesContext'
 import { KanbanBoard } from '@/components/KanbanBoard'
 import { ComercialListView } from '@/components/ComercialListView'
+import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { formatCurrency } from '@/lib/formatters'
 import { NovoLeadModal } from '@/components/NovoLeadModal'
 import {
@@ -150,12 +151,16 @@ export default function Comercial() {
 
         {/* Alternância de Visualização */}
         {viewMode === 'kanban' ? (
-          <KanbanBoard clientes={clientesAtivos} />
+          <ErrorBoundary compact errorMessage="Não foi possível exibir o funil de vendas.">
+            <KanbanBoard clientes={clientesAtivos} />
+          </ErrorBoundary>
         ) : (
-          <ComercialListView
-            clientes={clientesAtivos}
-            onBackToKanban={() => setViewMode('kanban')}
-          />
+          <ErrorBoundary compact errorMessage="Não foi possível exibir o funil de vendas.">
+            <ComercialListView
+              clientes={clientesAtivos}
+              onBackToKanban={() => setViewMode('kanban')}
+            />
+          </ErrorBoundary>
         )}
       </div>
 

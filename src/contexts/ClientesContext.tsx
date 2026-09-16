@@ -491,6 +491,17 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       setIsLoading(false)
       return
     }
+
+    let isCompleted = false
+    // Fallback de segurança de ~4s: garante setIsLoading(false) incondicionalmente
+    // mesmo se qualquer promessa ou import dinâmico travar ou demorar
+    const safetyTimer = setTimeout(() => {
+      if (!isCompleted) {
+        console.warn('Timeout de segurança de 4s atingido no ClientesContext. Liberando interface.')
+        setIsLoading(false)
+      }
+    }, 4000)
+
     try {
       setIsLoading(true)
       setError(null)
@@ -613,6 +624,8 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       console.error('Error loading CRM data:', err)
       setError(err instanceof Error ? err.message : 'Erro ao carregar dados do CRM')
     } finally {
+      isCompleted = true
+      clearTimeout(safetyTimer)
       setIsLoading(false)
     }
   }, [isAuthenticated])

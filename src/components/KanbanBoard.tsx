@@ -63,15 +63,27 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ clientes: clientesProp
     useClientes()
   const { toast } = useToast()
 
-  // O funil de vendas Kanban exibe apenas as etapas ativas do negócio:
-  // Negócios 'Fechado', 'Perdido', 'Arquivado' e já transferidos não são exibidos no Kanban
-  const clientes = clientesProp.filter(
-    (c) =>
-      c.status !== 'Fechado' &&
-      (c.status as string) !== 'Perdido' &&
-      !c.arquivado &&
-      !c.transferido_pos_vendas,
-  )
+  // Sanitização e normalização defensiva dos clientes:
+  // Evita erros se algum registro vier com campos nulos, tipos inesperados ou status corrompido
+  const clientes = (Array.isArray(clientesProp) ? clientesProp : [])
+    .filter(
+      (c) =>
+        Boolean(c) &&
+        c.status !== 'Fechado' &&
+        (c.status as string) !== 'Perdido' &&
+        !c.arquivado &&
+        !c.transferido_pos_vendas,
+    )
+    .map((c) => ({
+      ...c,
+      id: String(c.id || ''),
+      nome: typeof c.nome === 'string' && c.nome.trim() ? c.nome.trim() : 'Cliente sem nome',
+      status: (c.status || 'Novo Lead') as ClienteStatus,
+      valor_estimado: Number(c.valor_estimado) || 0,
+      cidade: typeof c.cidade === 'string' ? c.cidade : '',
+      produto: typeof c.produto === 'string' ? c.produto : 'Energia Solar',
+      potencia_kwp: Number(c.potencia_kwp) || 0,
+    }))
 
   // Modais de ação rápida Ganho / Perdido
   const [modalGanhoCliente, setModalGanhoCliente] = useState<Cliente | null>(null)
@@ -255,8 +267,11 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ clientes: clientesProp
     <div className="w-full pb-4 pt-1 select-none overflow-hidden">
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-2.5 lg:gap-3 items-start w-full">
         {KANBAN_COLUMNS.map((col) => {
-          const colClients = clientes.filter((c) => c.status === col.id)
-          const totalColValue = colClients.reduce((sum, c) => sum + (c.valor_estimado || 0), 0)
+          const colClients = clientes.filter((c) => (c.status || '') === col.id)
+          const totalColValue = colClients.reduce(
+            (sum, c) => sum + (Number(c.valor_estimado) || 0),
+            0,
+          )
           const isOver = dragOverColumnId === col.id
 
           return (

@@ -10,8 +10,24 @@ interface ProtectedRouteProps {
 
 export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, requiredRole }) => {
   const { isAuthenticated, isLoading, isAdmin, isInstalador } = useAuth()
+  const [safetyTimeoutReached, setSafetyTimeoutReached] = React.useState(false)
 
-  if (isLoading) {
+  // Fallback de segurança: se por qualquer razão o AuthContext ficar com isLoading=true por mais de 3s,
+  // desbloqueia o render para evitar travamento em tela branca com spinner infinito
+  React.useEffect(() => {
+    if (!isLoading) {
+      setSafetyTimeoutReached(false)
+      return
+    }
+    const timer = setTimeout(() => {
+      console.warn('Timeout de segurança atingido no ProtectedRoute. Liberando render.')
+      setSafetyTimeoutReached(true)
+    }, 3000)
+
+    return () => clearTimeout(timer)
+  }, [isLoading])
+
+  if (isLoading && !safetyTimeoutReached) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#F8FAF9]">
         <Loader2 className="w-8 h-8 animate-spin text-[#16A34A]" />

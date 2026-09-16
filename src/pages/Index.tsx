@@ -6,25 +6,34 @@ import { KanbanBoard } from '@/components/KanbanBoard'
 import { ManutencoesList } from '@/components/ManutencoesList'
 import { NovaManutencaoModal } from '@/components/NovaManutencaoModal'
 import { PainelLembretesHoje } from '@/components/PainelLembretesHoje'
+import { ErrorBoundary } from '@/components/ErrorBoundary'
 
 export default function Index() {
   const { clientes, isLoading } = useClientes()
   const [activeTab, setActiveTab] = useState<'comercial' | 'manutencoes'>('comercial')
   const [isNovaManutencaoOpen, setIsNovaManutencaoOpen] = useState(false)
 
+  const safeClientes = Array.isArray(clientes) ? clientes : []
+
   // Top metric calculations
-  const totalClientes = clientes.length
+  const totalClientes = safeClientes.length
 
   // Negócios em Aberto: etapas ativas do funil (exclui Fechado, Contato Futuro e Perdido)
   const STATUS_EM_ABERTO = ['Novo Lead', 'Levantamento', 'Orçamento', 'Negociação']
-  const negociosEmAberto = clientes.filter(
+  const negociosEmAberto = safeClientes.filter(
     (c) =>
+      Boolean(c) &&
       STATUS_EM_ABERTO.includes(c.status) &&
       (c.status as string) !== 'Perdido' &&
-      (c.status as string) !== 'Fechado',
+      (c.status as string) !== 'Fechado' &&
+      !c.arquivado &&
+      !c.transferido_pos_vendas,
   )
 
-  const valorTotalFunil = negociosEmAberto.reduce((sum, c) => sum + (c.valor_estimado || 0), 0)
+  const valorTotalFunil = negociosEmAberto.reduce((sum, c) => {
+    const val = Number(c?.valor_estimado)
+    return sum + (isNaN(val) ? 0 : val)
+  }, 0)
 
   if (isLoading) {
     return (
@@ -47,61 +56,65 @@ export default function Index() {
         </div>
       </div>
 
-      {/* 3 Metric Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-        {/* Card 1: Total Clientes */}
-        <div className="bg-white rounded-xl p-5 border border-gray-200/80 shadow-xs hover:shadow-md transition-shadow">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wider text-gray-500">
-                Total de Clientes
-              </p>
-              <h3 className="text-2xl font-bold text-gray-900 mt-1">{totalClientes}</h3>
-              <p className="text-[11px] text-gray-400 mt-0.5">Base cadastrada no sistema</p>
-            </div>
-            <div className="w-12 h-12 rounded-xl bg-emerald-50 border border-emerald-100 text-[#16A34A] flex items-center justify-center">
-              <Users className="w-6 h-6" />
+      {/* 3 Metric Cards protegidos por ErrorBoundary */}
+      <ErrorBoundary compact errorMessage="Não foi possível carregar as métricas do painel.">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+          {/* Card 1: Total Clientes */}
+          <div className="bg-white rounded-xl p-5 border border-gray-200/80 shadow-xs hover:shadow-md transition-shadow">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wider text-gray-500">
+                  Total de Clientes
+                </p>
+                <h3 className="text-2xl font-bold text-gray-900 mt-1">{totalClientes}</h3>
+                <p className="text-[11px] text-gray-400 mt-0.5">Base cadastrada no sistema</p>
+              </div>
+              <div className="w-12 h-12 rounded-xl bg-emerald-50 border border-emerald-100 text-[#16A34A] flex items-center justify-center">
+                <Users className="w-6 h-6" />
+              </div>
             </div>
           </div>
-        </div>
 
-        {/* Card 2: Negócios em Aberto */}
-        <div className="bg-white rounded-xl p-5 border border-gray-200/80 shadow-xs hover:shadow-md transition-shadow">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wider text-gray-500">
-                Negócios em Aberto
-              </p>
-              <h3 className="text-2xl font-bold text-gray-900 mt-1">{negociosEmAberto.length}</h3>
-              <p className="text-[11px] text-gray-400 mt-0.5">Leads, levantamentos e propostas</p>
-            </div>
-            <div className="w-12 h-12 rounded-xl bg-blue-50 border border-blue-100 text-blue-600 flex items-center justify-center">
-              <TrendingUp className="w-6 h-6" />
+          {/* Card 2: Negócios em Aberto */}
+          <div className="bg-white rounded-xl p-5 border border-gray-200/80 shadow-xs hover:shadow-md transition-shadow">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wider text-gray-500">
+                  Negócios em Aberto
+                </p>
+                <h3 className="text-2xl font-bold text-gray-900 mt-1">{negociosEmAberto.length}</h3>
+                <p className="text-[11px] text-gray-400 mt-0.5">Leads, levantamentos e propostas</p>
+              </div>
+              <div className="w-12 h-12 rounded-xl bg-blue-50 border border-blue-100 text-blue-600 flex items-center justify-center">
+                <TrendingUp className="w-6 h-6" />
+              </div>
             </div>
           </div>
-        </div>
 
-        {/* Card 3: Valor Total Estimado do Funil */}
-        <div className="bg-white rounded-xl p-5 border border-gray-200/80 shadow-xs hover:shadow-md transition-shadow">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wider text-gray-500">
-                Valor Total no Funil
-              </p>
-              <h3 className="text-2xl font-bold text-gray-900 mt-1">
-                {formatCurrency(valorTotalFunil)}
-              </h3>
-              <p className="text-[11px] text-gray-400 mt-0.5">Soma de negócios em aberto</p>
-            </div>
-            <div className="w-12 h-12 rounded-xl bg-amber-50 border border-amber-100 text-amber-600 flex items-center justify-center">
-              <DollarSign className="w-6 h-6" />
+          {/* Card 3: Valor Total Estimado do Funil */}
+          <div className="bg-white rounded-xl p-5 border border-gray-200/80 shadow-xs hover:shadow-md transition-shadow">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wider text-gray-500">
+                  Valor Total no Funil
+                </p>
+                <h3 className="text-2xl font-bold text-gray-900 mt-1">
+                  {formatCurrency(valorTotalFunil)}
+                </h3>
+                <p className="text-[11px] text-gray-400 mt-0.5">Soma de negócios em aberto</p>
+              </div>
+              <div className="w-12 h-12 rounded-xl bg-amber-50 border border-amber-100 text-amber-600 flex items-center justify-center">
+                <DollarSign className="w-6 h-6" />
+              </div>
             </div>
           </div>
         </div>
-      </div>
+      </ErrorBoundary>
 
       {/* Painel "Lembretes de Hoje" destacado acima das abas */}
-      <PainelLembretesHoje />
+      <ErrorBoundary compact errorMessage="Não foi possível carregar os lembretes do dia.">
+        <PainelLembretesHoje />
+      </ErrorBoundary>
 
       {/* Main Tabs Container */}
       <div className="bg-white rounded-xl border border-gray-200/80 shadow-xs p-3 sm:p-5">
@@ -135,24 +148,28 @@ export default function Index() {
         {/* Tab Content with 150ms smooth transition */}
         <div className="transition-opacity duration-150">
           {activeTab === 'comercial' ? (
-            <div className="animate-in fade-in duration-150 space-y-4">
-              <div className="flex items-center justify-between gap-4 flex-wrap">
-                <div>
-                  <h3 className="text-base font-semibold text-gray-900">
-                    Funil Comercial de Oportunidades
-                  </h3>
-                  <p className="text-xs text-gray-500">
-                    Visão em Kanban das negociações por estágio na região de Erechim, Passo Fundo e
-                    Chapecó
-                  </p>
+            <ErrorBoundary compact errorMessage="Não foi possível exibir o funil comercial.">
+              <div className="animate-in fade-in duration-150 space-y-4">
+                <div className="flex items-center justify-between gap-4 flex-wrap">
+                  <div>
+                    <h3 className="text-base font-semibold text-gray-900">
+                      Funil Comercial de Oportunidades
+                    </h3>
+                    <p className="text-xs text-gray-500">
+                      Visão em Kanban das negociações por estágio na região de Erechim, Passo Fundo
+                      e Chapecó
+                    </p>
+                  </div>
                 </div>
+                <KanbanBoard clientes={safeClientes} />
               </div>
-              <KanbanBoard clientes={clientes} />
-            </div>
+            </ErrorBoundary>
           ) : (
-            <div className="animate-in fade-in duration-150">
-              <ManutencoesList onOpenNovaManutencao={() => setIsNovaManutencaoOpen(true)} />
-            </div>
+            <ErrorBoundary compact errorMessage="Não foi possível exibir a lista de manutenções.">
+              <div className="animate-in fade-in duration-150">
+                <ManutencoesList onOpenNovaManutencao={() => setIsNovaManutencaoOpen(true)} />
+              </div>
+            </ErrorBoundary>
           )}
         </div>
       </div>
