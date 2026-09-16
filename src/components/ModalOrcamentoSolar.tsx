@@ -62,6 +62,7 @@ import { SecaoCustoInercia } from '@/components/SecaoCustoInercia'
 import { SecaoProjecaoEconomia } from '@/components/SecaoProjecaoEconomia'
 import { SecaoProjecao25Anos } from '@/components/SecaoProjecao25Anos'
 import { SecaoSeuSistemaFotovoltaico } from '@/components/SecaoSeuSistemaFotovoltaico'
+import { SecaoInvestimentoPagamento } from '@/components/SecaoInvestimentoPagamento'
 
 interface ModalOrcamentoSolarProps {
   isOpen: boolean
@@ -2787,6 +2788,41 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                   paybackMeses={calculos.paybackMeses}
                   potenciaKwp={potenciaKwp || 8.54}
                   nomeCliente={clienteAtual?.nome || 'Cliente'}
+                />
+
+                {/* Nova Seção: Investimento e Condições de Pagamento */}
+                <SecaoInvestimentoPagamento
+                  valorInvestimento={valorInvestimentoFinal}
+                  valorAVista={
+                    calculos.parcelamentos?.aVista?.valorTotal ||
+                    Math.round(valorInvestimentoFinal * 0.95)
+                  }
+                  descontoAVistaReais={
+                    valorInvestimentoFinal -
+                    (calculos.parcelamentos?.aVista?.valorTotal ||
+                      Math.round(valorInvestimentoFinal * 0.95))
+                  }
+                  parcelasCartao={parcelasCartao}
+                  valorParcelaCartao={calculos.parcelamentos?.cartao18x?.valorParcela}
+                  cartaoSemJuros={jurosCartao === 0}
+                  nomeFinanciamentoA="Financiamento A"
+                  entradaFinanciamentoA={Math.round(valorInvestimentoFinal * 0.2)}
+                  parcelasFinanciamentoA={parcelasBanco1}
+                  valorParcelaFinanciamentoA={
+                    calculos.parcelamentos?.financiamentoBanco1?.valorParcela
+                  }
+                  nomeFinanciamentoB="Financiamento B"
+                  entradaFinanciamentoB={Math.round(valorInvestimentoFinal * 0.1)}
+                  parcelasFinanciamentoB={parcelasBanco2}
+                  valorParcelaFinanciamentoB={
+                    calculos.parcelamentos?.financiamentoBanco2?.valorParcela
+                  }
+                  contaMensalAtual={
+                    calculos.contaAtualSemSolarMes ||
+                    (consumoKwhMes && tarifaKwh ? consumoKwhMes * tarifaKwh : undefined)
+                  }
+                  validadeDias={initialOrcamento?.validade_dias || 5}
+                  nomeCliente={clienteAtual?.nome}
                 />
 
                 {/* Grade de Desperdício x Economia */}

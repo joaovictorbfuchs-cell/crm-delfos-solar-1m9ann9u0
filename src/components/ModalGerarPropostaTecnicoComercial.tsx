@@ -34,6 +34,7 @@ import { SecaoCustoInercia } from '@/components/SecaoCustoInercia'
 import { SecaoProjecaoEconomia } from '@/components/SecaoProjecaoEconomia'
 import { SecaoProjecao25Anos } from '@/components/SecaoProjecao25Anos'
 import { SecaoSeuSistemaFotovoltaico } from '@/components/SecaoSeuSistemaFotovoltaico'
+import { SecaoInvestimentoPagamento } from '@/components/SecaoInvestimentoPagamento'
 
 export interface ModalGerarPropostaTecnicoComercialProps {
   orcamento: OrcamentoSolarCalculado
@@ -1054,6 +1055,27 @@ export function ModalGerarPropostaTecnicoComercial({
                 valorInvestimento={investimentoTotal}
                 paybackMeses={orcamento.payback_meses}
                 potenciaKwp={potenciaKwp || 8.54}
+                nomeCliente={clienteNome}
+              />
+
+              {/* Nova Seção: Investimento e Condições de Pagamento */}
+              <SecaoInvestimentoPagamento
+                valorInvestimento={investimentoTotal}
+                valorAVista={Math.round(investimentoTotal * 0.95)}
+                descontoAVistaReais={Math.round(investimentoTotal * 0.05)}
+                parcelasCartao={nParcelasCartao}
+                valorParcelaCartao={valorParcelaCartao}
+                cartaoSemJuros={true}
+                nomeFinanciamentoA={nomeFinanA}
+                entradaFinanciamentoA={Math.round(investimentoTotal * 0.2)}
+                parcelasFinanciamentoA={nParcelasFinanA}
+                valorParcelaFinanciamentoA={valorParcelaFinanA}
+                nomeFinanciamentoB={nomeFinanB}
+                entradaFinanciamentoB={Math.round(investimentoTotal * 0.1)}
+                parcelasFinanciamentoB={nParcelasFinanB}
+                valorParcelaFinanciamentoB={valorParcelaFinanB}
+                contaMensalAtual={contaHoje}
+                validadeDias={validadeDias}
                 nomeCliente={clienteNome}
               />
             </div>
