@@ -459,7 +459,7 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
   const dimensionamentoSugerido = useMemo(() => {
     const geracaoMensalNum = Number(geracaoPretendidaKwhMes) || 0
     if (geracaoMensalNum <= 0) return null
-    const geracaoAnualCalculo = geracaoMensalNum * 12
+    const geracaoAnualCalculo = Math.round(geracaoMensalNum * 12)
     return dimensionarSistemaPorGeracaoPretendida(
       geracaoAnualCalculo,
       orientacaoTelhado,
@@ -1483,7 +1483,9 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                             kWh/mês
                           </strong>{' '}
                           (~
-                          {dimensionamentoSugerido.geracaoPretendidaKwhAno.toLocaleString('pt-BR')}{' '}
+                          {dimensionamentoSugerido.geracaoPretendidaKwhAno.toLocaleString(
+                            'pt-BR',
+                          )}{' '}
                           kWh/ano) ÷ fator de{' '}
                           {dimensionamentoSugerido.fatorKwhPorKwpAno.toLocaleString('pt-BR')}{' '}
                           kWh/kWp/ano (telhado {dimensionamentoSugerido.orientacao}). Sugestão de
