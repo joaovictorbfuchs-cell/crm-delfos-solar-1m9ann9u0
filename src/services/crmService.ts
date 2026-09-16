@@ -22,6 +22,7 @@ import type {
 export async function fetchClientes(): Promise<Cliente[]> {
   const records = await pb.collection('clientes').getFullList<Cliente>({
     sort: 'nome',
+    requestKey: null,
   })
   return records
 }
@@ -29,6 +30,7 @@ export async function fetchClientes(): Promise<Cliente[]> {
 export async function fetchSistemas(): Promise<Sistema[]> {
   const records = await pb.collection('sistemas').getFullList<Sistema>({
     sort: '-created',
+    requestKey: null,
   })
   return records
 }
@@ -48,6 +50,7 @@ export async function fetchManutencoes(): Promise<Manutencao[]> {
   const records = await pb.collection('manutencoes').getFullList<Manutencao>({
     sort: '-data',
     expand: 'cliente_id',
+    requestKey: null,
   })
   return records
 }
@@ -56,6 +59,7 @@ export async function fetchAtividades(): Promise<Atividade[]> {
   const records = await pb.collection('atividades').getFullList<Atividade>({
     sort: '-data',
     expand: 'cliente_id,responsavel_id',
+    requestKey: null,
   })
   return records
 }
@@ -64,6 +68,7 @@ export async function fetchUsuarios(): Promise<SistemaUsuario[]> {
   try {
     const records = await pb.collection('users').getFullList<SistemaUsuario>({
       sort: 'name',
+      requestKey: null,
     })
     return records
   } catch (err) {
@@ -140,6 +145,7 @@ export async function fetchServicosAvulsos(
         filter: filter || undefined,
         sort: '-data_servico,-created',
         expand: 'cliente_id',
+        requestKey: null,
       })
     return records
   } catch (err) {
@@ -674,6 +680,7 @@ export async function upsertSistemaForCliente(
 export async function fetchProfissionais(): Promise<Profissional[]> {
   const records = await pb.collection('profissionais').getFullList<Profissional>({
     sort: 'nome',
+    requestKey: null,
   })
   return records
 }
@@ -705,6 +712,7 @@ export async function fetchProjetos(): Promise<Projeto[]> {
   const records = await pb.collection('projetos').getFullList<Projeto>({
     sort: '-updated',
     expand: 'cliente_id,profissional_id',
+    requestKey: null,
   })
   return records
 }
@@ -754,6 +762,7 @@ export async function fetchProjetoEventos(projetoId?: string): Promise<ProjetoEv
   const records = await pb.collection('projeto_eventos').getFullList<ProjetoEvento>({
     filter,
     sort: '-data',
+    requestKey: null,
   })
   return records
 }
@@ -785,6 +794,7 @@ export async function fetchContratosOM(): Promise<ContratoOM[]> {
     const records = await pb.collection('contratos_om').getFullList<ContratoOM>({
       sort: '-created',
       expand: 'cliente_id',
+      requestKey: null,
     })
     return records
   } catch (err) {
@@ -850,6 +860,7 @@ export async function fetchAnomaliasOM(clienteId?: string): Promise<AnomaliaOM[]
       filter,
       sort: '-data_abertura',
       expand: 'cliente_id,tecnico_id',
+      requestKey: null,
     })
     return records
   } catch (err) {
@@ -899,6 +910,7 @@ export async function fetchServicosAdicionaisOM(clienteId?: string): Promise<Ser
       filter,
       sort: '-data',
       expand: 'cliente_id,tecnico_id',
+      requestKey: null,
     })
     return records
   } catch (err) {
@@ -947,6 +959,7 @@ export async function fetchTimelineOM(clienteId?: string): Promise<TimelineOM[]>
     const records = await pb.collection('timeline_om').getFullList<TimelineOM>({
       filter,
       sort: '-data',
+      requestKey: null,
     })
     return records
   } catch (err) {
@@ -990,6 +1003,7 @@ export async function fetchPropostasOM(
         filter,
         sort: '-data_proposta',
         expand: 'cliente_id',
+        requestKey: null,
       })
     return records
   } catch (err) {
@@ -1062,6 +1076,7 @@ export async function fetchOrcamentosSolar(): Promise<import('@/types/crm').Orca
     .getFullList<import('@/types/crm').OrcamentoSolar>({
       sort: '-data_orcamento,-created',
       expand: 'cliente_id',
+      requestKey: null,
     })
   return records
 }
@@ -1111,6 +1126,7 @@ export async function fetchWhatsAppTemplates(): Promise<import('@/types/crm').Wh
       .collection('whatsapp_templates')
       .getFullList<import('@/types/crm').WhatsAppTemplate>({
         sort: 'titulo',
+        requestKey: null,
       })
     return records
   } catch (err) {
@@ -1154,6 +1170,7 @@ export async function fetchWhatsAppConversas(): Promise<import('@/types/crm').Wh
       .getFullList<import('@/types/crm').WhatsAppConversa>({
         sort: '-ultima_mensagem_em,-updated',
         expand: 'cliente_id',
+        requestKey: null,
       })
   } catch (err) {
     console.error('Erro ao buscar conversas WhatsApp:', err)
@@ -1270,6 +1287,7 @@ export async function fetchWhatsAppMensagens(options?: {
         filter: filter || undefined,
         sort: 'created',
         expand: 'cliente_id,template_id,conversa_id',
+        requestKey: null,
       })
     return records
   } catch (err) {
@@ -1417,6 +1435,7 @@ export async function fetchOutrosContatos(): Promise<import('@/types/crm').Outro
   try {
     return await pb.collection('outros_contatos').getFullList<import('@/types/crm').OutroContato>({
       sort: '-created',
+      requestKey: null,
     })
   } catch (err) {
     console.error('Erro ao buscar outros contatos:', err)
@@ -1448,6 +1467,7 @@ export async function fetchContatosAdicionais(
       .getFullList<import('@/types/crm').ContatoAdicional>({
         filter,
         sort: 'created',
+        requestKey: null,
       })
   } catch (err) {
     console.error('Erro ao buscar contatos adicionais:', err)
@@ -1496,6 +1516,7 @@ export async function fetchFornecedores(): Promise<import('@/types/crm').Fornece
       .collection('fornecedores')
       .getFullList<import('@/types/crm').Fornecedor>({
         sort: 'nome_empresa',
+        requestKey: null,
       })
     return records
   } catch (err) {
@@ -1541,6 +1562,7 @@ export async function fetchFornecedoresOrcamentos(options?: {
         filter: filter || undefined,
         sort: '-data,-created',
         expand: 'fornecedor_id,cliente_id,orcamento_solar_id',
+        requestKey: null,
       })
     return records
   } catch (err) {
@@ -1668,6 +1690,7 @@ export async function selecionarFornecedorOrcamento(
       .collection('fornecedores_orcamentos')
       .getFullList<import('@/types/crm').FornecedorOrcamento>({
         filter: filters.join(' && '),
+        requestKey: null,
       })
     for (const outro of outrosAtivos) {
       await pb.collection('fornecedores_orcamentos').update(outro.id, { selecionado: false })
@@ -1703,6 +1726,7 @@ export async function fetchTransferenciasCreditos(
         filter: filter || undefined,
         sort: '-data_solicitacao,-created',
         expand: 'cliente_origem_id,cliente_destino_id',
+        requestKey: null,
       })
     return records
   } catch (err) {
@@ -1763,6 +1787,7 @@ export async function fetchDocumentosCliente(
         filter: filter || undefined,
         sort: '-updated,-created',
         expand: 'cliente_id',
+        requestKey: null,
       })
     return records
   } catch (err) {
@@ -1849,6 +1874,7 @@ export async function fetchTiposAtividadesCustom(): Promise<
       .collection('tipos_atividades_custom')
       .getFullList<import('@/types/crm').TipoAtividadeCustomItem>({
         sort: 'nome',
+        requestKey: null,
       })
     return records
   } catch (err) {
@@ -1921,6 +1947,7 @@ export async function fetchOSTemplates(): Promise<import('@/types/crm').OSTempla
       .collection('os_templates')
       .getFullList<import('@/types/crm').OSTemplate>({
         sort: 'tipo_servico',
+        requestKey: null,
       })
     return records
   } catch (err) {
@@ -1970,6 +1997,7 @@ export async function fetchOrdensServico(
         filter: filter || undefined,
         sort: 'data_agendada,-created',
         expand: 'cliente_id,profissional_id,responsavel_usuario_id',
+        requestKey: null,
       })
     return records
   } catch (err) {
@@ -2123,6 +2151,7 @@ export async function fetchMonitoramentoMarcas(): Promise<
       .collection('monitoramento_marcas')
       .getFullList<import('@/types/crm').MonitoramentoMarca>({
         sort: 'marca',
+        requestKey: null,
       })
     return records
   } catch (err) {
@@ -2211,6 +2240,7 @@ export async function fetchAllInversores(): Promise<import('@/types/crm').Client
       .collection('cliente_inversores')
       .getFullList<import('@/types/crm').ClienteInversor>({
         sort: 'cliente_id,ordem,created',
+        requestKey: null,
       })
     return list
   } catch (err) {
@@ -2229,6 +2259,7 @@ export async function fetchInversoresByClienteId(
       .getFullList<import('@/types/crm').ClienteInversor>({
         filter: `cliente_id = '${clienteId}'`,
         sort: 'ordem,created',
+        requestKey: null,
       })
     return list
   } catch (err) {
@@ -2275,6 +2306,7 @@ export async function fetchAllUsinas(): Promise<import('@/types/crm').UsinaClien
     const list = await pb.collection('usinas').getFullList<import('@/types/crm').UsinaCliente>({
       sort: 'cliente_id,created',
       expand: 'contrato_id',
+      requestKey: null,
     })
     return list
   } catch (err) {
@@ -2292,6 +2324,7 @@ export async function fetchUsinasByClienteId(
       filter: `cliente_id = '${clienteId}'`,
       sort: 'created',
       expand: 'contrato_id',
+      requestKey: null,
     })
     return list
   } catch (err) {

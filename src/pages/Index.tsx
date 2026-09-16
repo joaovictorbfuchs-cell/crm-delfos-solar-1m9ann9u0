@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Users, TrendingUp, DollarSign, Loader2 } from 'lucide-react'
+import { Users, TrendingUp, DollarSign, Loader2, RefreshCw } from 'lucide-react'
 import { useClientes } from '@/contexts/ClientesContext'
 import { formatCurrency } from '@/lib/formatters'
 import { KanbanBoard } from '@/components/KanbanBoard'
@@ -9,9 +9,19 @@ import { PainelLembretesHoje } from '@/components/PainelLembretesHoje'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 
 export default function Index() {
-  const { clientes, isLoading } = useClientes()
+  const { clientes, isLoading, refreshData } = useClientes()
   const [activeTab, setActiveTab] = useState<'comercial' | 'manutencoes'>('comercial')
   const [isNovaManutencaoOpen, setIsNovaManutencaoOpen] = useState(false)
+  const [isRefreshing, setIsRefreshing] = useState(false)
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true)
+    try {
+      await refreshData()
+    } finally {
+      setIsRefreshing(false)
+    }
+  }
 
   const safeClientes = Array.isArray(clientes) ? clientes : []
 
@@ -54,7 +64,42 @@ export default function Index() {
             Acompanhamento de vendas, metas comerciais e ordens de serviço
           </p>
         </div>
+
+        <button
+          type="button"
+          onClick={handleRefresh}
+          disabled={isRefreshing}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 text-xs font-semibold text-gray-700 shadow-2xs transition-all disabled:opacity-50"
+          title="Recarregar dados do CRM"
+        >
+          <RefreshCw
+            className={`w-3.5 h-3.5 text-emerald-600 ${isRefreshing ? 'animate-spin' : ''}`}
+          />
+          <span>{isRefreshing ? 'Recarregando...' : 'Recarregar dados'}</span>
+        </button>
       </div>
+
+      {/* Alerta defensivo quando a lista estiver vazia após carregar */}
+      {!isLoading && safeClientes.length === 0 && (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-center justify-between gap-3 text-xs text-amber-800">
+          <div>
+            <p className="font-bold">Nenhum cliente carregado no painel.</p>
+            <p className="text-amber-700">
+              Se você possui dados cadastrados no CRM, clique em recarregar para revalidar a
+              consulta.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-lg shrink-0 transition-colors"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
+            <span>Recarregar dados</span>
+          </button>
+        </div>
+      )}
 
       {/* 3 Metric Cards protegidos por ErrorBoundary */}
       <ErrorBoundary compact errorMessage="Não foi possível carregar as métricas do painel.">

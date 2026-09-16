@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { KanbanSquare, List, Loader2, UserPlus, LayoutGrid, Send } from 'lucide-react'
+import { KanbanSquare, List, Loader2, UserPlus, LayoutGrid, Send, RefreshCw } from 'lucide-react'
 import { useClientes } from '@/contexts/ClientesContext'
 import { KanbanBoard } from '@/components/KanbanBoard'
 import { ComercialListView } from '@/components/ComercialListView'
@@ -18,9 +18,19 @@ import { Button } from '@/components/ui/button'
 import { toast } from '@/hooks/use-toast'
 
 export default function Comercial() {
-  const { clientes, isLoading, bulkTransferirFechadosPosVendas } = useClientes()
+  const { clientes, isLoading, bulkTransferirFechadosPosVendas, refreshData } = useClientes()
   const [isNovoLeadOpen, setIsNovoLeadOpen] = useState(false)
   const [viewMode, setViewMode] = useState<'kanban' | 'list'>('kanban')
+  const [isRefreshing, setIsRefreshing] = useState(false)
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true)
+    try {
+      await refreshData()
+    } finally {
+      setIsRefreshing(false)
+    }
+  }
 
   // Clientes ativos no funil comercial: desconsidera arquivados e negócios já transferidos para Pós-Vendas
   const clientesAtivos = clientes.filter((c) => !c.arquivado && !c.transferido_pos_vendas)
@@ -70,6 +80,28 @@ export default function Comercial() {
 
   return (
     <div className="space-y-6">
+      {/* Botão de recarga defensivo quando a lista estiver vazia */}
+      {!isLoading && clientesAtivos.length === 0 && (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-center justify-between gap-3 text-xs text-amber-800">
+          <div>
+            <p className="font-bold">Nenhum cliente ou lead encontrado no Funil Comercial.</p>
+            <p className="text-amber-700">
+              Se você já possui negócios cadastrados, clique no botão para recarregar os dados do
+              sistema.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-lg shrink-0 transition-colors"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
+            <span>Recarregar dados</span>
+          </button>
+        </div>
+      )}
+
       {/* Action Bar & Container */}
       <div className="bg-white rounded-xl border border-gray-200/80 p-3 sm:p-5 shadow-xs space-y-4">
         <div className="flex items-center justify-between gap-4 flex-wrap pb-1">
@@ -136,6 +168,22 @@ export default function Comercial() {
                   {fechados.length}
                 </span>
               )}
+            </button>
+
+            {/* Botão Recarregar dados */}
+            <button
+              type="button"
+              onClick={handleRefresh}
+              disabled={isRefreshing}
+              className="inline-flex items-center gap-1.5 px-3 py-2 bg-white hover:bg-gray-50 border border-gray-200 text-gray-700 text-xs font-semibold rounded-xl shadow-2xs transition-colors disabled:opacity-50"
+              title="Recarregar dados do CRM"
+            >
+              <RefreshCw
+                className={`w-3.5 h-3.5 text-emerald-600 ${isRefreshing ? 'animate-spin' : ''}`}
+              />
+              <span className="hidden sm:inline">
+                {isRefreshing ? 'Recarregando...' : 'Recarregar dados'}
+              </span>
             </button>
 
             {/* Botão Novo Lead */}

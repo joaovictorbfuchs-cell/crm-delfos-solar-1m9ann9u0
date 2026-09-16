@@ -493,8 +493,8 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
 
     let isCompleted = false
-    // Fallback de segurança de ~4s: garante setIsLoading(false) incondicionalmente
-    // mesmo se qualquer promessa ou import dinâmico travar ou demorar
+    // Fallback de segurança de ~4s: se por algum motivo extremo a rede demorar,
+    // libera a interface para não travar o usuário, mas continua processando os dados
     const safetyTimer = setTimeout(() => {
       if (!isCompleted) {
         console.warn('Timeout de segurança de 4s atingido no ClientesContext. Liberando interface.')
@@ -509,47 +509,67 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       const getValue = <T,>(res: PromiseSettledResult<T>, fallback: T): T =>
         res.status === 'fulfilled' ? res.value : fallback
 
-      const [
-        cRes,
-        sRes,
-        mRes,
-        aRes,
-        uRes,
-        pRes,
-        projRes,
-        evRes,
-        contRes,
-        anomRes,
-        adicRes,
-        timeRes,
-        propRes,
-        orcRes,
-        tplRes,
-        msgRes,
-        cfgRes,
-        convRes,
-        fornRes,
-        fornOrcRes,
-        avulsosRes,
-        transfRes,
-        docsRes,
-        customAtivRes,
-        contAdicRes,
-      ] = await Promise.allSettled([
-        fetchClientes(),
-        fetchSistemas(),
-        fetchManutencoes(),
-        fetchAtividades(),
-        fetchUsuarios(),
-        fetchProfissionais(),
-        fetchProjetos(),
+      // ETAPA 1 (Prioridade Alta): Dados vitais para visualização imediata do CRM
+      // (clientes, atividades, orcamentos_solar, usuarios, sistemas, manutencoes, profissionais, projetos, contratos_om)
+      const [cRes, aRes, orcRes, uRes, sRes, mRes, pRes, projRes, contRes] =
+        await Promise.allSettled([
+          fetchClientes(),
+          fetchAtividades(),
+          fetchOrcamentosSolar(),
+          fetchUsuarios(),
+          fetchSistemas(),
+          fetchManutencoes(),
+          fetchProfissionais(),
+          fetchProjetos(),
+          fetchContratosOM(),
+        ])
+
+      const cList = getValue(cRes, [])
+      const aList = getValue(aRes, [])
+      const orcList = getValue(orcRes, [])
+      const uList = getValue(uRes, [])
+      const sList = getValue(sRes, [])
+      const mList = getValue(mRes, [])
+      const pList = getValue(pRes, [])
+      const projList = getValue(projRes, [])
+      const contList = getValue(contRes, [])
+
+      // Aplica imediatamente as entidades prioritárias do CRM
+      setClientes(cList)
+      setAtividades(aList)
+      setOrcamentosSolar(orcList)
+      setUsuarios(uList)
+      setSistemas(sList)
+      setManutencoes(mList)
+      setProfissionais(pList)
+      setProjetos(projList)
+      setContratosOM(contList)
+
+      // Se clientes vier vazio nesta primeira tentativa e não houver erro crítico,
+      // fazer uma checagem defensiva de recuperação direta para clientes
+      if (cList.length === 0 && cRes.status === 'rejected') {
+        console.warn('Tentativa primária de clientes falhou. Executando recuperação defensiva...')
+        try {
+          const recC = await fetchClientes()
+          if (recC && recC.length > 0) {
+            setClientes(recC)
+          }
+        } catch (recErr) {
+          console.warn('Recuperação defensiva de clientes:', recErr)
+        }
+      }
+
+      // Desativa o loading assim que as tabelas vitais estão no estado
+      setIsLoading(false)
+
+      // ETAPA 2 (Background): Dados secundários carregados em segundo plano
+      // sem bloquear as telas vitais do CRM
+      Promise.allSettled([
         fetchProjetoEventos(),
-        fetchContratosOM(),
         fetchAnomaliasOM(),
         fetchServicosAdicionaisOM(),
         fetchTimelineOM(),
         fetchPropostasOM(),
-        fetchOrcamentosSolar(),
         fetchWhatsAppTemplates(),
         fetchWhatsAppMensagens(),
         fetchWhatsAppConfigStatus(),
@@ -562,64 +582,54 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         import('@/services/crmService').then((s) => s.fetchTiposAtividadesCustom()),
         import('@/services/crmService').then((s) => s.fetchContatosAdicionais()),
       ])
-
-      const cList = getValue(cRes, [])
-      const sList = getValue(sRes, [])
-      const mList = getValue(mRes, [])
-      const aList = getValue(aRes, [])
-      const uList = getValue(uRes, [])
-      const pList = getValue(pRes, [])
-      const projList = getValue(projRes, [])
-      const evList = getValue(evRes, [])
-      const contList = getValue(contRes, [])
-      const anomList = getValue(anomRes, [])
-      const adicList = getValue(adicRes, [])
-      const timeList = getValue(timeRes, [])
-      const propList = getValue(propRes, [])
-      const orcList = getValue(orcRes, [])
-      const tplList = getValue(tplRes, [])
-      const msgList = getValue(msgRes, [])
-      const cfgStatus = getValue(cfgRes, {
-        ok: false,
-        configured: false,
-        hasApiUrl: false,
-        hasApiKey: false,
-        secretsRequired: ['WHATSAPP_API_URL', 'WHATSAPP_API_KEY', 'WHATSAPP_ORIGIN_NUMBER'],
-      })
-      const convList = getValue(convRes, [])
-      const fornList = getValue(fornRes, [])
-      const fornOrcList = getValue(fornOrcRes, [])
-      const avulsosList = getValue(avulsosRes, [])
-      const transfList = getValue(transfRes, [])
-      const docsList = getValue(docsRes, [])
-      const customAtivList = getValue(customAtivRes, [])
-      const contAdicList = getValue(contAdicRes, [])
-
-      setClientes(cList)
-      setSistemas(sList)
-      setManutencoes(mList)
-      setAtividades(aList)
-      setUsuarios(uList)
-      setProfissionais(pList)
-      setProjetos(projList)
-      setProjetoEventos(evList)
-      setContratosOM(contList)
-      setAnomaliasOM(anomList)
-      setServicosAdicionaisOM(adicList)
-      setServicosAvulsos(avulsosList)
-      setTransferenciasCreditos(transfList)
-      setDocumentosCliente(docsList)
-      setTiposAtividadesCustom(customAtivList)
-      setTimelineOM(timeList)
-      setPropostasOM(propList)
-      setOrcamentosSolar(orcList)
-      setWhatsAppTemplates(tplList)
-      setWhatsAppMensagens(msgList)
-      setWhatsAppConversas(convList)
-      setWhatsAppConfig(cfgStatus)
-      setFornecedores(fornList)
-      setFornecedoresOrcamentos(fornOrcList)
-      setContatosAdicionais(contAdicList)
+        .then(
+          ([
+            evRes,
+            anomRes,
+            adicRes,
+            timeRes,
+            propRes,
+            tplRes,
+            msgRes,
+            cfgRes,
+            convRes,
+            fornRes,
+            fornOrcRes,
+            avulsosRes,
+            transfRes,
+            docsRes,
+            customAtivRes,
+            contAdicRes,
+          ]) => {
+            setProjetoEventos(getValue(evRes, []))
+            setAnomaliasOM(getValue(anomRes, []))
+            setServicosAdicionaisOM(getValue(adicRes, []))
+            setTimelineOM(getValue(timeRes, []))
+            setPropostasOM(getValue(propRes, []))
+            setWhatsAppTemplates(getValue(tplRes, []))
+            setWhatsAppMensagens(getValue(msgRes, []))
+            setWhatsAppConfig(
+              getValue(cfgRes, {
+                ok: false,
+                configured: false,
+                hasApiUrl: false,
+                hasApiKey: false,
+                secretsRequired: ['WHATSAPP_API_URL', 'WHATSAPP_API_KEY', 'WHATSAPP_ORIGIN_NUMBER'],
+              }),
+            )
+            setWhatsAppConversas(getValue(convRes, []))
+            setFornecedores(getValue(fornRes, []))
+            setFornecedoresOrcamentos(getValue(fornOrcRes, []))
+            setServicosAvulsos(getValue(avulsosRes, []))
+            setTransferenciasCreditos(getValue(transfRes, []))
+            setDocumentosCliente(getValue(docsRes, []))
+            setTiposAtividadesCustom(getValue(customAtivRes, []))
+            setContatosAdicionais(getValue(contAdicRes, []))
+          },
+        )
+        .catch((bgErr) => {
+          console.warn('Erro ao carregar dados secundários em background:', bgErr)
+        })
     } catch (err) {
       console.error('Error loading CRM data:', err)
       setError(err instanceof Error ? err.message : 'Erro ao carregar dados do CRM')

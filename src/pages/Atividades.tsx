@@ -7,6 +7,7 @@ import {
   ListTodo,
   CalendarDays,
   Plus,
+  RefreshCw,
 } from 'lucide-react'
 import { useClientes } from '@/contexts/ClientesContext'
 import { useAuth } from '@/contexts/AuthContext'
@@ -36,8 +37,20 @@ export const Atividades: React.FC = () => {
     updateAtividadeStatus,
     removeAtividade,
     openFichaCliente,
+    isLoading,
+    refreshData,
   } = useClientes()
   const { user } = useAuth()
+  const [isRefreshing, setIsRefreshing] = useState(false)
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true)
+    try {
+      await refreshData()
+    } finally {
+      setIsRefreshing(false)
+    }
+  }
 
   // Usuário selecionado no filtro global da página de atividades (padrão: usuário logado ou "todos")
   const [usuarioFiltroId, setUsuarioFiltroId] = useState<string>('todos')
@@ -155,6 +168,19 @@ export const Atividades: React.FC = () => {
 
           <button
             type="button"
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+            className="inline-flex items-center gap-1.5 px-3 py-2 bg-white hover:bg-gray-50 border border-gray-200 text-gray-700 text-xs font-semibold rounded-xl shadow-2xs transition-colors disabled:opacity-50"
+            title="Recarregar dados do CRM"
+          >
+            <RefreshCw
+              className={`w-3.5 h-3.5 text-emerald-600 ${isRefreshing ? 'animate-spin' : ''}`}
+            />
+            <span>{isRefreshing ? 'Recarregando...' : 'Recarregar dados'}</span>
+          </button>
+
+          <button
+            type="button"
             onClick={() => {
               setModalInitialTipo('contato_ligacao')
               setModalOpen(true)
@@ -166,6 +192,28 @@ export const Atividades: React.FC = () => {
           </button>
         </div>
       </div>
+
+      {/* Alerta defensivo quando a lista de atividades estiver vazia */}
+      {!isLoading && atividades.length === 0 && (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-center justify-between gap-3 text-xs text-amber-800">
+          <div>
+            <p className="font-bold">Nenhuma atividade carregada na central.</p>
+            <p className="text-amber-700">
+              Se você já possui tarefas ou agendamentos cadastrados, clique no botão para recarregar
+              os dados do sistema.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-lg shrink-0 transition-colors"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
+            <span>Recarregar dados</span>
+          </button>
+        </div>
+      )}
 
       {/* 2. BARRA COM OS 12 ÍCONES DE ATIVIDADES (com tooltip e clique para abrir form com título preenchido automaticamente) */}
       <AtividadesGridIcones onSelectTipo={handleSelectIconeTipo} tipoAtivo={modalInitialTipo} />
@@ -340,10 +388,21 @@ export const Atividades: React.FC = () => {
             <div className="bg-white rounded-2xl border border-dashed border-gray-200 p-12 text-center">
               <Clock className="w-10 h-10 text-gray-300 mx-auto mb-3" />
               <h3 className="font-bold text-sm text-gray-800">Nenhuma atividade encontrada</h3>
-              <p className="text-xs text-gray-500 mt-1 max-w-sm mx-auto">
+              <p className="text-xs text-gray-500 mt-1 max-w-sm mx-auto mb-3">
                 Tente alterar os filtros acima ou registre uma nova atividade clicando em um dos 12
                 ícones no topo.
               </p>
+              <button
+                type="button"
+                onClick={handleRefresh}
+                disabled={isRefreshing}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-white hover:bg-gray-50 border border-gray-200 text-gray-700 text-xs font-bold rounded-xl transition-colors"
+              >
+                <RefreshCw
+                  className={`w-3.5 h-3.5 text-emerald-600 ${isRefreshing ? 'animate-spin' : ''}`}
+                />
+                <span>{isRefreshing ? 'Recarregando...' : 'Recarregar dados'}</span>
+              </button>
             </div>
           ) : (
             <div className="bg-white rounded-2xl border border-gray-200/90 p-5 shadow-xs">

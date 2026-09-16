@@ -60,22 +60,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (pb.authStore.isValid && record) {
       let isDone = false
 
-      // Timeout de segurança de 2,5 segundos: se o backend travar ou demorar (ex.: rede ou token corrompido),
-      // limpa a sessão inválida e destrava o loading
+      // Timeout de segurança de 2,5 segundos: se o backend demorar (ex.: concorrência ou rede lenta),
+      // apenas libera a interface (setIsLoading(false)) sem deslogar o usuário.
       const timeoutId = setTimeout(() => {
         if (!isDone) {
           isDone = true
-          console.warn('Timeout na validação da sessão (authRefresh). Liberando loading.')
-          pb.authStore.clear()
-          setUser(null)
-          setUserProfile(null)
-          setToken(null)
+          console.warn(
+            'Timeout na validação da sessão (authRefresh). Liberando loading sem deslogar.',
+          )
           setIsLoading(false)
         }
       }, 2500)
 
       pb.collection('users')
-        .authRefresh()
+        .authRefresh({ requestKey: null })
         .then((authData) => {
           if (isDone) return
           isDone = true
@@ -92,16 +90,40 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setToken(authData.token)
           }
         })
-        .catch((err) => {
+        .catch((err: any) => {
           if (isDone) return
           isDone = true
           clearTimeout(timeoutId)
-          console.warn('Sessão expirada ou inválida ao executar authRefresh:', err)
-          // Token expirado ou inválido
-          pb.authStore.clear()
-          setUser(null)
-          setUserProfile(null)
-          setToken(null)
+          console.warn('Erro ao executar authRefresh:', err)
+
+          // Não limpar authStore se for cancelamento de requisição ou erro temporário de rede.
+          // Só limpa se o backend explicitamente retornou 401/403 (sessão expirada/revogada)
+          // ou se a authStore não for mais válida.
+          const isAutocancelled =
+            err?.isAbort ||
+            err?.name === 'AbortError' ||
+            String(err?.message || '')
+              .toLowerCase()
+              .includes('autocancelled')
+          const isNetworkError = err?.status === 0 || !err?.status
+
+          if (isAutocancelled || isNetworkError) {
+            console.warn(
+              'authRefresh cancelado ou erro de rede temporário. Mantendo sessão ativa se ainda válida localmente.',
+            )
+            if (!pb.authStore.isValid) {
+              pb.authStore.clear()
+              setUser(null)
+              setUserProfile(null)
+              setToken(null)
+            }
+          } else if (err?.status === 401 || err?.status === 403 || !pb.authStore.isValid) {
+            // Token realmente revogado/expirado
+            pb.authStore.clear()
+            setUser(null)
+            setUserProfile(null)
+            setToken(null)
+          }
         })
         .finally(() => {
           if (!isDone) {
@@ -128,10 +150,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const refreshAuth = async () => {
     if (pb.authStore.isValid) {
-      const authData = await pb.collection('users').authRefresh()
-      setUser(authData.record as any)
-      setUserProfile(extractUserProfile(authData.record))
-      setToken(authData.token)
+      try {
+        const authData = await pb.collection('users').authRefresh({ requestKey: null })
+        setUser(authData.record as any)
+        setUserProfile(extractUserProfile(authData.record))
+        setToken(authData.token)
+      } catch (err: any) {
+        console.warn('Falha em refreshAuth:', err)
+        const isAutocancelled =
+          err?.isAbort ||
+          err?.name === 'AbortError' ||
+          String(err?.message || '')
+            .toLowerCase()
+            .includes('autocancelled')
+        if (!isAutocancelled && (err?.status === 401 || err?.status === 403)) {
+          pb.authStore.clear()
+          setUser(null)
+          setUserProfile(null)
+          setToken(null)
+        }
+      }
     }
   }
 

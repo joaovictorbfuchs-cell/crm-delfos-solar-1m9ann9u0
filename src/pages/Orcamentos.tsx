@@ -5,6 +5,7 @@ import {
   Search,
   Filter,
   FileText,
+  RefreshCw,
   Printer,
   Download,
   Edit2,
@@ -43,9 +44,21 @@ export const Orcamentos: React.FC = () => {
     updateOrcamentoSolar,
     removeOrcamentoSolar,
     openFichaCliente,
+    isLoading,
+    refreshData,
   } = useClientes()
 
   const [busca, setBusca] = useState('')
+  const [isRefreshing, setIsRefreshing] = useState(false)
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true)
+    try {
+      await refreshData()
+    } finally {
+      setIsRefreshing(false)
+    }
+  }
   const [filtroStatus, setFiltroStatus] = useState<string>('todos')
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingOrcamento, setEditingOrcamento] = useState<OrcamentoSolar | null>(null)
@@ -273,14 +286,51 @@ export const Orcamentos: React.FC = () => {
           </div>
         </div>
 
-        <button
-          onClick={() => handleNovoOrcamento()}
-          className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-[#16A34A] hover:bg-[#15803D] text-white text-xs font-bold rounded-xl shadow-xs transition-all hover:shadow"
-        >
-          <Plus className="w-4 h-4" />
-          <span>Novo Orçamento Solar</span>
-        </button>
+        <div className="flex items-center gap-2 flex-wrap">
+          <button
+            type="button"
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+            className="inline-flex items-center gap-1.5 px-3 py-2 bg-white hover:bg-gray-50 border border-gray-200 text-gray-700 text-xs font-semibold rounded-xl shadow-2xs transition-colors disabled:opacity-50"
+            title="Recarregar dados do CRM"
+          >
+            <RefreshCw
+              className={`w-3.5 h-3.5 text-emerald-600 ${isRefreshing ? 'animate-spin' : ''}`}
+            />
+            <span>{isRefreshing ? 'Recarregando...' : 'Recarregar dados'}</span>
+          </button>
+
+          <button
+            onClick={() => handleNovoOrcamento()}
+            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-[#16A34A] hover:bg-[#15803D] text-white text-xs font-bold rounded-xl shadow-xs transition-all hover:shadow"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Novo Orçamento Solar</span>
+          </button>
+        </div>
       </div>
+
+      {/* Alerta defensivo quando a lista de orçamentos estiver vazia */}
+      {!isLoading && orcamentosSolar.length === 0 && (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-center justify-between gap-3 text-xs text-amber-800">
+          <div>
+            <p className="font-bold">Nenhum orçamento solar carregado na tela.</p>
+            <p className="text-amber-700">
+              Se você já possui orçamentos cadastrados no sistema, clique no botão para recarregar
+              os dados.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-lg shrink-0 transition-colors"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
+            <span>Recarregar dados</span>
+          </button>
+        </div>
+      )}
 
       {/* Cards de Métricas do Topo */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -375,13 +425,26 @@ export const Orcamentos: React.FC = () => {
               ? 'Nenhum resultado corresponde aos filtros aplicados.'
               : 'Gere seu primeiro orçamento técnico de energia solar fotovoltaica para os clientes.'}
           </p>
-          <button
-            onClick={() => handleNovoOrcamento()}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-[#16A34A] text-white text-xs font-bold rounded-xl hover:bg-[#15803D] transition-colors"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Criar Novo Orçamento</span>
-          </button>
+          <div className="flex items-center justify-center gap-2 flex-wrap">
+            <button
+              type="button"
+              onClick={handleRefresh}
+              disabled={isRefreshing}
+              className="inline-flex items-center gap-1.5 px-4 py-2 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 text-xs font-bold rounded-xl transition-colors"
+            >
+              <RefreshCw
+                className={`w-4 h-4 text-emerald-600 ${isRefreshing ? 'animate-spin' : ''}`}
+              />
+              <span>{isRefreshing ? 'Recarregando...' : 'Recarregar dados'}</span>
+            </button>
+            <button
+              onClick={() => handleNovoOrcamento()}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-[#16A34A] text-white text-xs font-bold rounded-xl hover:bg-[#15803D] transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Criar Novo Orçamento</span>
+            </button>
+          </div>
         </div>
       ) : (
         <div className="bg-white rounded-2xl border border-gray-200 shadow-2xs overflow-hidden">
