@@ -228,7 +228,7 @@ describe('Proposta Técnico-Comercial Generator', () => {
     // Monitoramento
     expect(html).toContain('MONITORAMENTO')
     expect(html).toContain(
-      'O sistema de monitoramento permite ao usuário acessar remotamente o desempenho do seu gerador via smartphone e computador.',
+      'Acompanhe a geração de energia em tempo real pelo celular ou computador',
     )
     expect(html).toContain('COMO FUNCIONA O SISTEMA SOLAR ON-GRID')
 

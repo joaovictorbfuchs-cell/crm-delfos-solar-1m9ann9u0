@@ -1,4 +1,5 @@
 import onGridAssetUrl from '@/assets/editedimage1789566225196-8e828.png'
+import monitoramentoAssetUrl from '@/assets/generatedimage1789566526403-a7f37.png'
 
 export interface InstalacaoGaleria {
   id: string
@@ -36,6 +37,6 @@ export const IMAGENS_ILUSTRATIVAS_PADRAO: ImagemIlustrativaProposta[] = [
     subtitulo: 'Gestão Inteligente em Tempo Real',
     descricao:
       'O sistema de monitoramento permite ao usuário acessar remotamente o desempenho do seu sistema via aplicativo no smartphone e computador, acompanhando a geração diária em tempo real.',
-    url: 'svg:monitoramento',
+    url: monitoramentoAssetUrl,
   },
 ]

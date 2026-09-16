@@ -1,5 +1,5 @@
 import type { CalculosSolarResultado, GeracaoMensalItem } from '@/lib/energiaSolar'
-import { SVG_MONITORAMENTO_INLINE, onGridPngAsset } from '@/lib/propostaIlustracoesAssets'
+import { monitoramentoPngAsset, onGridPngAsset } from '@/lib/propostaIlustracoesAssets'
 
 export interface FotoInstalacaoProposta {
   id: string
@@ -1440,10 +1440,10 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
           <div class="ilustrativa-card">
             <div class="ilustrativa-header-title">MONITORAMENTO EM TEMPO REAL</div>
             <div class="ilustrativa-img-box">
-              ${SVG_MONITORAMENTO_INLINE}
+              <img src="${monitoramentoPngAsset}" alt="Monitoramento Solar em Tempo Real pelo Celular" />
             </div>
             <div class="ilustrativa-texto-desc">
-              <strong>Acompanhamento na Palma da Mão:</strong> O sistema de monitoramento permite ao usuário acessar remotamente o desempenho do seu gerador via smartphone e computador. Visualize a geração diária em tempo real, curva solar em kWh, economia acumulada e status operacional em qualquer lugar.
+              <strong>Acompanhe a geração de energia em tempo real pelo celular ou computador:</strong> O sistema de monitoramento permite acessar remotamente o desempenho do seu gerador fotovoltaico. Visualize geração diária em tempo real, curva solar em kWh, economia no mês e status operacional de onde estiver.
             </div>
           </div>
           `

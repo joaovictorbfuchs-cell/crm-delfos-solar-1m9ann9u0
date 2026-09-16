@@ -1,11 +1,11 @@
 import onGridPngAsset from '@/assets/editedimage1789566225196-8e828.png'
+import monitoramentoPngAsset from '@/assets/generatedimage1789566526403-a7f37.png'
 
-export { onGridPngAsset }
+export { onGridPngAsset, monitoramentoPngAsset }
 
 /**
- * SVG inline da Ilustração de Monitoramento do Sistema Solar em tempo real,
- * gerado para uso em HTML impresso (proposta técnico-comercial, impressão A4 e exportação).
- * Sem dependências externas, cores fiéis à identidade Delfos e alta nitidez em qualquer resolução.
+ * @deprecated Mantido para compatibilidade seletiva caso necessário,
+ * a proposta agora utiliza a foto real `monitoramentoPngAsset`.
  */
 export const SVG_MONITORAMENTO_INLINE = `<svg viewBox="0 0 1000 560" width="100%" height="auto" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Monitoramento do Sistema Solar em Tempo Real" style="display:block;max-width:100%;height:auto;">
   <defs>

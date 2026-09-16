@@ -18,8 +18,7 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 import type { InstalacaoGaleria } from '@/types/instalacoesGaleria'
-import { onGridPngAsset } from '@/lib/propostaIlustracoesAssets'
-import { IllustracaoMonitoramento } from '@/components/IllustracaoMonitoramento'
+import { monitoramentoPngAsset, onGridPngAsset } from '@/lib/propostaIlustracoesAssets'
 import {
   fetchInstalacoesGaleria,
   createInstalacaoGaleria,
@@ -358,20 +357,24 @@ export function InstalacoesGaleriaPage() {
                   2. Monitoramento do Sistema Solar em Tempo Real
                 </span>
                 <span className="text-[10px] font-bold text-blue-300 bg-blue-900/60 px-2 py-0.5 rounded border border-blue-500/30">
-                  Vetor SVG Nítido
+                  Foto Realista
                 </span>
               </div>
               <p className="text-[11px] text-gray-300 leading-relaxed mb-3">
-                Dashboard de telemetria no celular: gráfico diário em curva solar, status
-                operacional, conexão Wi-Fi e economia em R$.
+                Dashboard de telemetria no iPhone: geração agora (kW), energia gerada hoje (kWh),
+                economia no mês em R$, créditos de energia e gráfico com curva solar diária.
               </p>
-              <div className="rounded-lg overflow-hidden border border-white/20 bg-white aspect-[16/9] flex items-center justify-center p-1">
-                <IllustracaoMonitoramento width="100%" height="100%" />
+              <div className="rounded-lg overflow-hidden border border-white/20 bg-slate-900/40 aspect-[16/9] flex items-center justify-center p-1">
+                <img
+                  src={monitoramentoPngAsset}
+                  alt="Monitoramento Solar em Tempo Real pelo Celular"
+                  className="w-full h-full object-contain"
+                />
               </div>
             </div>
             <div className="mt-3 pt-2 border-t border-white/10 flex items-center justify-between text-[10px] text-gray-300">
               <span className="text-blue-400 font-semibold">✓ Inclusa na proposta</span>
-              <span>SVG vetorial para impressão perfeita</span>
+              <span>Foto em alta resolução para proposta comercial</span>
             </div>
           </div>
         </div>

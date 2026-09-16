@@ -17,8 +17,7 @@ import {
   X,
   ExternalLink,
 } from 'lucide-react'
-import { onGridPngAsset } from '@/lib/propostaIlustracoesAssets'
-import { IllustracaoMonitoramento } from '@/components/IllustracaoMonitoramento'
+import { monitoramentoPngAsset, onGridPngAsset } from '@/lib/propostaIlustracoesAssets'
 import type { OrcamentoSolarCalculado, Cliente } from '@/types/crm'
 import type { InstalacaoGaleria } from '@/types/instalacoesGaleria'
 import { fetchInstalacoesGaleria, getFotoUrl } from '@/services/instalacoesGaleriaService'
@@ -661,15 +660,19 @@ export function ModalGerarPropostaTecnicoComercial({
                         </div>
                       </label>
 
-                      {/* Mini Preview do SVG de Monitoramento */}
-                      <div className="mt-3 rounded-lg overflow-hidden border border-gray-200 bg-white aspect-[16/9] flex items-center justify-center p-1">
-                        <IllustracaoMonitoramento width="100%" height="100%" />
+                      {/* Mini Preview da Foto de Monitoramento */}
+                      <div className="mt-3 rounded-lg overflow-hidden border border-gray-200 bg-slate-900/5 aspect-[16/9] flex items-center justify-center p-1">
+                        <img
+                          src={monitoramentoPngAsset}
+                          alt="Preview Monitoramento solar em tempo real"
+                          className="w-full h-full object-contain"
+                        />
                       </div>
                     </div>
 
                     <div className="mt-2 pt-2 border-t border-gray-100 flex items-center justify-between text-[10px] text-gray-500">
                       <span className="font-semibold text-blue-700">
-                        ✓ Vetorial SVG alta nitidez
+                        ✓ Foto realista alta definição
                       </span>
                       <span>Ocupa lado direito da Página 2</span>
                     </div>
