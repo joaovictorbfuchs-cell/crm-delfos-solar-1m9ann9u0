@@ -7,7 +7,6 @@ import {
   PiggyBank,
   Clock,
   Sparkles,
-  CheckCircle2,
   ArrowRight,
   ShieldCheck,
 } from 'lucide-react'
@@ -288,12 +287,6 @@ export const SecaoInvestimentoPagamento: React.FC<SecaoInvestimentoPagamentoProp
               <h3 className="text-xs font-bold uppercase tracking-wider text-gray-500">À Vista</h3>
               <div className="text-2xl sm:text-3xl font-black text-gray-900 tracking-tight">
                 {formatCurrency(aVistaFinal)}
-              </div>
-              <div className="pt-1">
-                <span className="inline-flex items-center gap-1 text-xs font-extrabold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
-                  <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
-                  Economia de {formatCurrency(descontoAVistaFinal)} à vista
-                </span>
               </div>
             </div>
 

@@ -2741,9 +2741,6 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
                 <span>${formatBRL(parcelamento?.aVista?.contaComSolar !== undefined ? parcelamento.aVista.contaComSolar : 70)}/mês</span>
               </div>
             </div>
-            <div class="card-pagamento-badge-sub emerald" style="margin-top: 6px;">
-              Economia de ${formatBRL(aVistaDesconto)}
-            </div>
           </div>
 
           <!-- Card 2: Cartão -->

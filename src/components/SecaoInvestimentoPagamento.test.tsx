@@ -77,9 +77,9 @@ describe('SecaoInvestimentoPagamento Component', () => {
     expect(html).toContain('Carlos Silva')
     expect(html).toContain('60.000')
 
-    // À vista com desconto de R$ 3.000
+    // À vista com valor
     expect(html).toContain('57.000')
-    expect(html).toContain('3.000')
+    expect(html).not.toContain('Economia de')
 
     // Cartão 18x
     expect(html).toContain('18x')
