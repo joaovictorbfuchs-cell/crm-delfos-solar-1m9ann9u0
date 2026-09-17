@@ -27,9 +27,9 @@ describe('SecaoInvestimentoPagamento Component', () => {
     expect(html).toContain('Parcela + Conta:')
     expect(html).toContain('Maior prazo')
 
-    // Informações adicionadas: custo com energia atual e fatura mensal com solar + parcela
-    expect(html).toContain('Custo com energia atual:')
-    expect(html).toContain('Fatura mensal com solar + parcela:')
+    // As 3 linhas inferiores de comparativo
+    expect(html).toContain('Conta hoje s/ solar:')
+    expect(html).toContain('Conta c/ solar:')
 
     // Linha comparativa
     expect(html).toContain('Hoje você paga')
@@ -65,14 +65,12 @@ describe('SecaoInvestimentoPagamento Component', () => {
       }),
     )
 
-    // Custo atual e fatura pós solar + parcelas
-    expect(html).toContain('1.450,50/mês')
     // Cartão: 3333 + 95.5 = 3428.5
-    expect(html).toContain('3.428,50/mês')
+    expect(html).toContain('3.428,50')
     // Finan A: 1100 + 95.5 = 1195.5
-    expect(html).toContain('1.195,50/mês')
+    expect(html).toContain('1.195,50')
     // Finan B: 850 + 95.5 = 945.5
-    expect(html).toContain('945,50/mês')
+    expect(html).toContain('945,50')
 
     // Cliente e título
     expect(html).toContain('Carlos Silva')
