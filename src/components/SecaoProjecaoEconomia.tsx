@@ -155,7 +155,7 @@ export const SecaoProjecaoEconomia: React.FC<SecaoProjecaoEconomiaProps> = ({
       aria-label="Projeção de Economia na Conta de Energia"
     >
       {/* Cabeçalho da Seção com Identidade Solar Delfos */}
-      <div className="p-4 sm:p-5 bg-gradient-to-r from-emerald-800 via-emerald-700 to-green-700 text-white flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="p-4 sm:p-5 bg-gradient-to-r from-emerald-800 via-emerald-700 to-green-700 text-white">
         <div className="space-y-1">
           <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-white/15 text-emerald-100 border border-white/20">
             <Sparkles className="w-3.5 h-3.5 text-amber-300" />
@@ -164,7 +164,7 @@ export const SecaoProjecaoEconomia: React.FC<SecaoProjecaoEconomiaProps> = ({
           <h3 className="text-lg sm:text-xl font-black text-white tracking-tight flex items-center gap-2">
             Projeção de Economia na Conta de Energia
           </h3>
-          <p className="text-xs text-emerald-100/90 max-w-2xl leading-relaxed">
+          <p className="text-xs text-emerald-100/90 max-w-3xl leading-relaxed">
             Simulação de 26 anos (2026 a 2051) com aplicação automática do fator de simultaneidade,
             componente do Fio B da distribuidora e GD Eco Líquida.
             <span className="block mt-0.5 text-amber-200/95 font-medium">
@@ -176,19 +176,6 @@ export const SecaoProjecaoEconomia: React.FC<SecaoProjecaoEconomiaProps> = ({
               </span>
             )}
           </p>
-        </div>
-
-        {/* Fator de Simultaneidade */}
-        <div className="bg-emerald-950/40 border border-white/15 rounded-xl p-3 text-right self-start md:self-auto shrink-0 backdrop-blur-xs">
-          <span className="text-[10px] uppercase font-bold text-emerald-200 block">
-            Fator de Simultaneidade
-          </span>
-          <span className="text-2xl font-black text-amber-300">
-            {Math.round(projecao.fatorSimultaneidade * 100)}%
-          </span>
-          <span className="text-[10px] text-emerald-100 block">
-            {tipoCliente === 'residencial' ? 'Autoconsumo Residencial' : 'Autoconsumo Comercial'}
-          </span>
         </div>
       </div>
 

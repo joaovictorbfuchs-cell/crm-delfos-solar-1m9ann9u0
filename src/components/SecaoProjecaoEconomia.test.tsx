@@ -34,5 +34,8 @@ describe('SecaoProjecaoEconomia Component', () => {
     expect(html).not.toContain('Evolução da Economia Acumulada x Gasto sem Solar')
     expect(html).not.toContain('Tabela Projeção Ano a Ano')
     expect(html).not.toContain('<table')
+
+    // Quadro de Fator de Simultaneidade no cabeçalho removido conforme solicitação
+    expect(html).not.toContain('Fator de Simultaneidade')
   })
 })

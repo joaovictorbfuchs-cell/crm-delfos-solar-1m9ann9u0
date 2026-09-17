@@ -1532,39 +1532,7 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
       border-radius: 16px;
       padding: 16px 20px;
       margin-bottom: 12px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 14px;
       box-shadow: 0 4px 10px rgba(6, 95, 70, 0.15);
-    }
-    .card-fator-simultaneidade-box {
-      background: rgba(4, 47, 46, 0.45);
-      border: 1px solid rgba(255, 255, 255, 0.2);
-      border-radius: 12px;
-      padding: 8px 14px;
-      text-align: right;
-      shrink-0;
-      backdrop-filter: blur(4px);
-    }
-    .fator-simult-tag {
-      font-size: 8px;
-      text-transform: uppercase;
-      font-weight: 800;
-      color: #A7F3D0;
-      letter-spacing: 0.05em;
-      display: block;
-    }
-    .fator-simult-num {
-      font-size: 22px;
-      font-weight: 900;
-      color: #FDE047;
-      line-height: 1.1;
-    }
-    .fator-simult-sub {
-      font-size: 8px;
-      color: #E2E8F0;
-      display: block;
     }
 
     .tabela-projecao-scroll {
@@ -2423,24 +2391,18 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
       <div class="secao-body">
         ${renderInternalHeader('Projeção de Economia na Conta de Energia', 4, 'projecao')}
 
-        <!-- Cabeçalho em Gradiente Esmeralda com Badge da Lei 14.300 e Card do Fator de Simultaneidade (espelhado do SecaoProjecaoEconomia) -->
+        <!-- Cabeçalho em Gradiente Esmeralda com Badge da Lei 14.300 (espelhado do SecaoProjecaoEconomia) -->
         <div class="secao-header-card projecao">
-          <div style="flex: 1;">
+          <div>
             <div style="display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 9999px; font-size: 9px; font-weight: 800; background: rgba(255, 255, 255, 0.18); border: 1px solid rgba(255, 255, 255, 0.28); color: #D1FAE5; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 6px;">
               <span>⚖️</span> Marco Legal da GD (Lei 14.300/2022)
             </div>
             <h2 style="margin: 0; font-size: 21px; font-weight: 900; color: #FFFFFF; letter-spacing: -0.015em;">
               Projeção de Economia na Conta de Energia (2026–2051)
             </h2>
-            <p style="margin: 4px 0 0 0; font-size: 9.5px; color: #D1FAE5; line-height: 1.4; max-width: 620px;">
+            <p style="margin: 4px 0 0 0; font-size: 9.5px; color: #D1FAE5; line-height: 1.4; max-width: 720px;">
               Aplicação oficial do Marco Legal da GD (Lei 14.300/2022), Fator de Simultaneidade (${Math.round(projecaoOficial.fatorSimultaneidade * 100)}%), Fio B e degradação linear dos painéis (LID 2% + 0,55% a.a.).
             </p>
-          </div>
-
-          <div class="card-fator-simultaneidade-box">
-            <span class="fator-simult-tag">Fator de Simultaneidade</span>
-            <div class="fator-simult-num">${Math.round(projecaoOficial.fatorSimultaneidade * 100)}%</div>
-            <span class="fator-simult-sub">Lei 14.300/2022</span>
           </div>
         </div>
 
