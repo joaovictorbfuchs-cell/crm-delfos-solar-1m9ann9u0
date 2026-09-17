@@ -994,23 +994,23 @@ export function ModalGerarPropostaTecnicoComercial({
               <ErrorBoundary compact errorMessage="Não foi possível exibir a Situação Atual">
                 <SecaoCustoInercia
                   consumoMensalKwh={
-                    orcamento.consumo_mensal_kwh && orcamento.consumo_mensal_kwh > 0
-                      ? orcamento.consumo_mensal_kwh
-                      : cliente?.consumo_kwh_mes && cliente.consumo_kwh_mes > 0
-                        ? cliente.consumo_kwh_mes
-                        : producaoMensalKwh && producaoMensalKwh > 0
-                          ? producaoMensalKwh
+                    producaoMensalKwh && producaoMensalKwh > 0
+                      ? producaoMensalKwh
+                      : orcamento.consumo_mensal_kwh && orcamento.consumo_mensal_kwh > 0
+                        ? orcamento.consumo_mensal_kwh
+                        : cliente?.consumo_kwh_mes && cliente.consumo_kwh_mes > 0
+                          ? cliente.consumo_kwh_mes
                           : contaHoje > 0
                             ? Math.round(contaHoje / 0.95)
                             : 650
                   }
                   consumoAnualKwh={
-                    orcamento.consumo_mensal_kwh && orcamento.consumo_mensal_kwh > 0
-                      ? Math.round(orcamento.consumo_mensal_kwh * 12)
-                      : cliente?.consumo_kwh_mes && cliente.consumo_kwh_mes > 0
-                        ? Math.round(cliente.consumo_kwh_mes * 12)
-                        : producaoAnualKwh && producaoAnualKwh > 0
-                          ? producaoAnualKwh
+                    producaoAnualKwh && producaoAnualKwh > 0
+                      ? producaoAnualKwh
+                      : orcamento.consumo_mensal_kwh && orcamento.consumo_mensal_kwh > 0
+                        ? Math.round(orcamento.consumo_mensal_kwh * 12)
+                        : cliente?.consumo_kwh_mes && cliente.consumo_kwh_mes > 0
+                          ? Math.round(cliente.consumo_kwh_mes * 12)
                           : contaHoje > 0
                             ? Math.round((contaHoje / 0.95) * 12)
                             : 7800
@@ -1065,11 +1065,15 @@ export function ModalGerarPropostaTecnicoComercial({
               <ErrorBoundary compact errorMessage="Não foi possível exibir a Projeção de Economia">
                 <SecaoProjecaoEconomia
                   consumoAnualCadastradoKwh={
-                    orcamento.consumo_mensal_kwh && orcamento.consumo_mensal_kwh > 0
-                      ? Number((orcamento.consumo_mensal_kwh * 12).toFixed(2))
-                      : cliente?.consumo_kwh_mes && cliente.consumo_kwh_mes > 0
-                        ? Number((cliente.consumo_kwh_mes * 12).toFixed(2))
-                        : 4807.08
+                    producaoAnualKwh && producaoAnualKwh > 0
+                      ? Number(producaoAnualKwh.toFixed(2))
+                      : producaoMensalKwh && producaoMensalKwh > 0
+                        ? Number((producaoMensalKwh * 12).toFixed(2))
+                        : orcamento.consumo_mensal_kwh && orcamento.consumo_mensal_kwh > 0
+                          ? Number((orcamento.consumo_mensal_kwh * 12).toFixed(2))
+                          : cliente?.consumo_kwh_mes && cliente.consumo_kwh_mes > 0
+                            ? Number((cliente.consumo_kwh_mes * 12).toFixed(2))
+                            : 4807.08
                   }
                   tipoClienteInicial={
                     cliente?.tipo_cliente === 'comercial' ? 'comercial' : 'residencial'
@@ -1086,11 +1090,15 @@ export function ModalGerarPropostaTecnicoComercial({
               <ErrorBoundary compact errorMessage="Não foi possível exibir a Projeção em 25 Anos">
                 <SecaoProjecao25Anos
                   consumoAnualCadastradoKwh={
-                    orcamento.consumo_mensal_kwh && orcamento.consumo_mensal_kwh > 0
-                      ? Number((orcamento.consumo_mensal_kwh * 12).toFixed(2))
-                      : cliente?.consumo_kwh_mes && cliente.consumo_kwh_mes > 0
-                        ? Number((cliente.consumo_kwh_mes * 12).toFixed(2))
-                        : 4807.08
+                    producaoAnualKwh && producaoAnualKwh > 0
+                      ? Number(producaoAnualKwh.toFixed(2))
+                      : producaoMensalKwh && producaoMensalKwh > 0
+                        ? Number((producaoMensalKwh * 12).toFixed(2))
+                        : orcamento.consumo_mensal_kwh && orcamento.consumo_mensal_kwh > 0
+                          ? Number((orcamento.consumo_mensal_kwh * 12).toFixed(2))
+                          : cliente?.consumo_kwh_mes && cliente.consumo_kwh_mes > 0
+                            ? Number((cliente.consumo_kwh_mes * 12).toFixed(2))
+                            : 4807.08
                   }
                   tipoClienteInicial={
                     cliente?.tipo_cliente === 'comercial' ? 'comercial' : 'residencial'

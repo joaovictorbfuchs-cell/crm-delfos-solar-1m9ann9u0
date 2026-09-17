@@ -293,6 +293,38 @@ describe('Simulações personalizadas de Parcelamento & Financiamento (PRICE)', 
       orcCustom.parcelamentos.financiamentoBanco2.valorParcela * 72,
     )
   })
+
+  it('calcula economia e gastos considerando consumo efetivo igual à geração real dimensionada', () => {
+    const orc = calcularOrcamentoSolar({
+      potenciaKwp: 8.54,
+      consumoKwhMes: 600,
+      tipoCliente: 'residencial',
+      tarifaKwh: 0.95,
+    })
+
+    // Geração mensal e anual
+    expect(orc.geracaoMediaMensalKwh).toBeGreaterThan(0)
+    expect(orc.geracaoAnualEstimadaKwh).toBeGreaterThan(0)
+
+    // Conta sem solar baseada na geração real dimensionada
+    const contaMesEsperada = orc.geracaoMediaMensalKwh * 0.95
+    expect(orc.contaAtualSemSolarMes).toBeCloseTo(contaMesEsperada, 2)
+    expect(orc.contaAtualSemSolarAno).toBeCloseTo(orc.geracaoAnualEstimadaKwh * 0.95, 2)
+
+    // Como consumo = geração, energia não compensada = 0
+    // Residencial monofásico: 30 kWh * 0.95 = 28.5
+    // Com solar = 28.5 * 1.30 = 37.05
+    const taxaMinimaReais = 30 * 0.95
+    expect(orc.contaPrimeiroMesComSolar).toBeCloseTo(taxaMinimaReais * 1.3, 2)
+
+    // Economia mensal
+    expect(orc.economia1Mes).toBeCloseTo(contaMesEsperada - taxaMinimaReais * 1.3, 2)
+    expect(orc.economia1Ano).toBeCloseTo(orc.economia1Mes * 12, 2)
+
+    // Parcelamentos usam os valores alinhados
+    expect(orc.parcelamentos.aVista.contaSemSolar).toBe(Math.round(orc.contaAtualSemSolarMes))
+    expect(orc.parcelamentos.aVista.contaComSolar).toBe(Math.round(orc.contaPrimeiroMesComSolar))
+  })
 })
 
 describe('dimensionarSistemaPorGeracaoPretendida - Calibração dos Fatores de Orientação', () => {

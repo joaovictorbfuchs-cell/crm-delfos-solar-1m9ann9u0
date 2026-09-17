@@ -220,13 +220,15 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
   const eco5Anos = calculos.economia5Anos || Math.round(gasto5Anos - investimentoTotal)
   const eco25Anos = calculos.economia25Anos || Math.round(gasto25Anos - investimentoTotal)
 
-  // Projeção Lei 14.300
+  // Projeção Lei 14.300 (paridade total: consumo anual = geração anual)
   const consumoKwhAnoEstimado =
-    sistema.consumoKwhMes && sistema.consumoKwhMes > 0
-      ? Math.round(sistema.consumoKwhMes * 12)
-      : calculos.geracaoAnualEstimadaKwh > 0
-        ? calculos.geracaoAnualEstimadaKwh
-        : CONSUMO_EXEMPLO_PADRAO_KWH_ANO
+    calculos.geracaoAnualEstimadaKwh > 0
+      ? calculos.geracaoAnualEstimadaKwh
+      : calculos.geracaoMediaMensalKwh > 0
+        ? Math.round(calculos.geracaoMediaMensalKwh * 12)
+        : sistema.consumoKwhMes && sistema.consumoKwhMes > 0
+          ? Math.round(sistema.consumoKwhMes * 12)
+          : CONSUMO_EXEMPLO_PADRAO_KWH_ANO
 
   const tipoClienteProj = cliente.tipoCliente === 'comercial' ? 'comercial' : 'residencial'
   const projecaoOficial = calcularProjecaoEconomia({
@@ -800,11 +802,14 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
   )
 
   // 1. Grid Visual em 2 Cards Grandes de Situação Atual (Consumo mensal/anual empilhados e Custo mensal/anual empilhados)
+  // REGRA DE NEGÓCIO: consumo = geração real dimensionada
   const colWidth2 = Math.floor(PAGE_CONTENT_WIDTH / 2)
   const consumoKwhMesDocx =
-    sistema.consumoKwhMes && sistema.consumoKwhMes > 0
-      ? sistema.consumoKwhMes
-      : Math.round(contaHoje / 0.95)
+    calculos.geracaoMediaMensalKwh > 0
+      ? calculos.geracaoMediaMensalKwh
+      : sistema.consumoKwhMes && sistema.consumoKwhMes > 0
+        ? sistema.consumoKwhMes
+        : Math.round(contaHoje / 0.95)
   const consumoKwhAnoDocx =
     consumoKwhAnoEstimado > 0 ? consumoKwhAnoEstimado : Math.round(consumoKwhMesDocx * 12)
 

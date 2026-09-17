@@ -183,13 +183,17 @@ function converterInputParaTemplateComercial(
     instalacoesSelecionadasIds,
     producao: {
       anualKwh:
-        sistema.consumoKwhMes && sistema.consumoKwhMes > 0
-          ? Math.round(sistema.consumoKwhMes * 12)
-          : calculos.geracaoAnualEstimadaKwh,
+        calculos.geracaoAnualEstimadaKwh > 0
+          ? calculos.geracaoAnualEstimadaKwh
+          : sistema.consumoKwhMes && sistema.consumoKwhMes > 0
+            ? Math.round(sistema.consumoKwhMes * 12)
+            : 0,
       mediaMensalKwh:
-        sistema.consumoKwhMes && sistema.consumoKwhMes > 0
-          ? sistema.consumoKwhMes
-          : calculos.geracaoMediaMensalKwh,
+        calculos.geracaoMediaMensalKwh > 0
+          ? calculos.geracaoMediaMensalKwh
+          : sistema.consumoKwhMes && sistema.consumoKwhMes > 0
+            ? sistema.consumoKwhMes
+            : 0,
       geracaoMensal: calculos.geracaoMensalDetalhada,
     },
     economia: {

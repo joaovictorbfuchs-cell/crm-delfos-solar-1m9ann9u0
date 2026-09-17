@@ -3156,22 +3156,24 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                 <ErrorBoundary compact errorMessage="Não foi possível exibir a Situação Atual">
                   <SecaoCustoInercia
                     consumoMensalKwh={
+                      calculos.geracaoMediaMensalKwh ||
                       consumoKwhMes ||
                       clienteAtual?.consumo_kwh_mes ||
-                      (calculos.contaAtualSemSolarMes && tarifaKwh
-                        ? Math.round(calculos.contaAtualSemSolarMes / tarifaKwh)
-                        : 650)
+                      650
                     }
                     consumoAnualKwh={
-                      consumoKwhMes
-                        ? Math.round(consumoKwhMes * 12)
-                        : clienteAtual?.consumo_kwh_mes
-                          ? Math.round(clienteAtual.consumo_kwh_mes * 12)
-                          : calculos.geracaoAnualEstimadaKwh || 7800
+                      calculos.geracaoAnualEstimadaKwh ||
+                      (calculos.geracaoMediaMensalKwh
+                        ? Math.round(calculos.geracaoMediaMensalKwh * 12)
+                        : consumoKwhMes
+                          ? Math.round(consumoKwhMes * 12)
+                          : 7800)
                     }
                     contaMensal={
                       calculos.contaAtualSemSolarMes ||
-                      (consumoKwhMes ? consumoKwhMes * tarifaKwh : undefined)
+                      (calculos.geracaoMediaMensalKwh && tarifaKwh
+                        ? calculos.geracaoMediaMensalKwh * tarifaKwh
+                        : undefined)
                     }
                     contaAnual={
                       calculos.contaAtualSemSolarAno ||
@@ -3224,11 +3226,13 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                 >
                   <SecaoProjecaoEconomia
                     consumoAnualCadastradoKwh={
-                      consumoKwhMes && consumoKwhMes > 0
-                        ? Number((consumoKwhMes * 12).toFixed(2))
-                        : clienteAtual?.consumo_kwh_mes && clienteAtual.consumo_kwh_mes > 0
-                          ? Number((clienteAtual.consumo_kwh_mes * 12).toFixed(2))
-                          : 4807.08
+                      calculos.geracaoAnualEstimadaKwh > 0
+                        ? Number(calculos.geracaoAnualEstimadaKwh.toFixed(2))
+                        : calculos.geracaoMediaMensalKwh > 0
+                          ? Number((calculos.geracaoMediaMensalKwh * 12).toFixed(2))
+                          : consumoKwhMes && consumoKwhMes > 0
+                            ? Number((consumoKwhMes * 12).toFixed(2))
+                            : 4807.08
                     }
                     tipoClienteInicial={tipoCliente === 'comercial' ? 'comercial' : 'residencial'}
                     tarifaReferenciaInicial={tarifaKwh || 0.985}
@@ -3243,11 +3247,13 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                 <ErrorBoundary compact errorMessage="Não foi possível exibir a Projeção em 25 Anos">
                   <SecaoProjecao25Anos
                     consumoAnualCadastradoKwh={
-                      consumoKwhMes && consumoKwhMes > 0
-                        ? Number((consumoKwhMes * 12).toFixed(2))
-                        : clienteAtual?.consumo_kwh_mes && clienteAtual.consumo_kwh_mes > 0
-                          ? Number((clienteAtual.consumo_kwh_mes * 12).toFixed(2))
-                          : 4807.08
+                      calculos.geracaoAnualEstimadaKwh > 0
+                        ? Number(calculos.geracaoAnualEstimadaKwh.toFixed(2))
+                        : calculos.geracaoMediaMensalKwh > 0
+                          ? Number((calculos.geracaoMediaMensalKwh * 12).toFixed(2))
+                          : consumoKwhMes && consumoKwhMes > 0
+                            ? Number((consumoKwhMes * 12).toFixed(2))
+                            : 4807.08
                     }
                     tipoClienteInicial={tipoCliente === 'comercial' ? 'comercial' : 'residencial'}
                     tarifaReferenciaInicial={tarifaKwh || 0.985}
@@ -3291,7 +3297,14 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                     }
                     contaMensalAtual={
                       calculos.contaAtualSemSolarMes ||
-                      (consumoKwhMes && tarifaKwh ? consumoKwhMes * tarifaKwh : undefined)
+                      (calculos.geracaoMediaMensalKwh && tarifaKwh
+                        ? calculos.geracaoMediaMensalKwh * tarifaKwh
+                        : undefined)
+                    }
+                    contaMensalComSolar={
+                      calculos.contaPrimeiroMesComSolar ||
+                      initialOrcamento?.conta_primeiro_mes_com_solar ||
+                      70
                     }
                     faturaMensalComSolar={
                       calculos.contaPrimeiroMesComSolar ||

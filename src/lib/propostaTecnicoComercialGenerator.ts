@@ -268,7 +268,7 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
       ? projecao.gastoSemSolar1Ano
       : Math.round(contaHoje * 12)
 
-  // Consumo mensal e anual da Situação Atual
+  // Consumo mensal e anual da Situação Atual (Regra de Negócio: consumo = geração real)
   const consumoKwhMesReal =
     producao?.mediaMensalKwh && producao.mediaMensalKwh > 0
       ? producao.mediaMensalKwh
@@ -357,7 +357,7 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
       ? projecao.economia25Anos
       : Math.round(gasto25Anos - investimentoTotal)
 
-  // Cálculo da projeção completa 2026-2051 via lib oficial
+  // Cálculo da projeção completa 2026-2051 via lib oficial (paridade total consumo = geração)
   const consumoKwhAnoEstimado =
     producao?.anualKwh && producao.anualKwh > 0
       ? producao.anualKwh

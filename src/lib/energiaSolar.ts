@@ -552,21 +552,23 @@ export function calcularOrcamentoSolar(input: InputCalculoSolar): CalculosSolarR
   })
 
   // 3. Contas de Energia
+  // REGRA DE NEGÓCIO: para todos os cálculos de economia e gasto de energia, deve ser considerada
+  // a energia gerada real no dimensionamento, e a consumida também igual à gerada (paridade total).
+  // consumoEfetivo = geracaoReal
+  const consumoKwhMesEfetivo = geracaoMediaMensalKwh > 0 ? geracaoMediaMensalKwh : consumoKwhMes
+  const consumoAnualEfetivo = geracaoAnualTotal > 0 ? geracaoAnualTotal : consumoKwhMesEfetivo * 12
+
   const taxaMinimaKwh = getTaxaMinimaKwh(tipoCliente)
   const taxaMinimaReais = taxaMinimaKwh * tarifaKwh
 
-  // Conta atual sem solar: consumo total * tarifa
-  const contaAtualSemSolarMes = consumoKwhMes * tarifaKwh
-  const contaAtualSemSolarAno = contaAtualSemSolarMes * 12
+  // Conta atual sem solar: baseada na geração real dimensionada * tarifa
+  const contaAtualSemSolarMes = consumoKwhMesEfetivo * tarifaKwh
+  const contaAtualSemSolarAno = consumoAnualEfetivo * tarifaKwh
 
-  // Conta após instalar solar:
-  // Se a geração cobrir o consumo, o cliente paga apenas o custo de disponibilidade (taxa mínima)
-  // + iluminação pública típica (~R$ 25 a R$ 35, usamos taxa mínima como piso regulatório)
-  const energiaNaoCompensadaKwh = Math.max(0, consumoKwhMes - geracaoMediaMensalKwh)
-  const contaPrimeiroMesComSolar = Math.max(
-    taxaMinimaReais,
-    energiaNaoCompensadaKwh * tarifaKwh + taxaMinimaReais * 0.3, // taxa mínima / iluminação
-  )
+  // Como consumo = geração, energia não compensada = 0.
+  // A conta com solar fica com a taxa mínima de disponibilidade + iluminação pública (CIP ~30% da taxa mínima):
+  // contaPrimeiroMesComSolar = taxaMinimaReais * 1.30.
+  const contaPrimeiroMesComSolar = taxaMinimaReais * 1.3
 
   // Economia mensal no primeiro mês
   const economia1Mes = Math.max(0, contaAtualSemSolarMes - contaPrimeiroMesComSolar)
