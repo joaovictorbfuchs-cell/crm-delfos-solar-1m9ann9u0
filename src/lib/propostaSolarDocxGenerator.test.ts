@@ -57,4 +57,22 @@ describe('propostaSolarDocxGenerator', () => {
       'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
     )
   })
+
+  it('contém referências às 6 seções canônicas e não contém termos legados', async () => {
+    const doc = await gerarPropostaSolarDocx(dadosExemploMarceloBecker)
+    const jsonStr = JSON.stringify(doc)
+
+    // As 6 seções canônicas devem estar presentes
+    expect(jsonStr).toContain('PROPOSTA COMERCIAL EXCLUSIVA')
+    expect(jsonStr).toContain('O Custo da Inércia')
+    expect(jsonStr).toContain('Seu Sistema Fotovoltaico')
+    expect(jsonStr).toContain('Projeção de Economia na Conta de Energia')
+    expect(jsonStr).toContain('Projeção de Economia em 25 Anos')
+    expect(jsonStr).toContain('Investimento e Condições de Pagamento')
+
+    // Termos legados não devem existir no docx
+    expect(jsonStr).not.toContain('Quem Somos')
+    expect(jsonStr).not.toContain('Como Funciona o Sistema Solar On-Grid')
+    expect(jsonStr).not.toContain('Monitoramento do Sistema Solar em Tempo Real')
+  })
 })

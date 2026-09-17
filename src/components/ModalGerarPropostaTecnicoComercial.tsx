@@ -68,7 +68,7 @@ export function ModalGerarPropostaTecnicoComercial({
   // 2. SELEÇÃO DE FOTOS DA GALERIA (até 6)
   const [fotosSelecionadasIds, setFotosSelecionadasIds] = useState<string[]>([])
 
-  // 3. IMAGENS ILUSTRATIVAS (checkboxes)
+  // 3. IMAGENS ILUSTRATIVAS (checkboxes mantidos para compatibilidade)
   const [incluirComoFunciona, setIncluirComoFunciona] = useState<boolean>(true)
   const [incluirMonitoramento, setIncluirMonitoramento] = useState<boolean>(true)
 
@@ -610,171 +610,6 @@ export function ModalGerarPropostaTecnicoComercial({
                 </div>
               </div>
 
-              {/* Card 2: Galeria de Instalações (Fotos de Usinas Homologadas) */}
-              <div className="bg-white rounded-2xl border border-gray-200 p-4 shadow-2xs space-y-3">
-                <div className="flex items-center justify-between border-b border-gray-100 pb-2">
-                  <div className="flex items-center gap-2 text-xs font-bold text-gray-800 uppercase tracking-wide">
-                    <Images className="w-4 h-4 text-emerald-600" />
-                    <span>Galeria de Usinas Entregues (Selecione até 6 fotos)</span>
-                  </div>
-                  <span className="text-xs font-extrabold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
-                    {fotosSelecionadasIds.length}/6 selecionadas
-                  </span>
-                </div>
-
-                <p className="text-[11px] text-gray-500">
-                  Marque as fotos que serão incluídas na seção <strong>Quem Somos</strong> da
-                  proposta. Elas serão organizadas em uma grade de 3 colunas com seus respectivos
-                  títulos como legendas.
-                </p>
-
-                {loadingGaleria ? (
-                  <div className="py-6 text-center text-xs text-gray-400">
-                    Carregando usinas da galeria...
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
-                    {todasInstalacoes.map((item) => {
-                      const isSelected = fotosSelecionadasIds.includes(item.id)
-                      const url = getFotoUrl(item)
-                      return (
-                        <div
-                          key={item.id}
-                          onClick={() => toggleFoto(item.id)}
-                          className={`cursor-pointer rounded-xl border overflow-hidden transition-all flex flex-col justify-between ${
-                            isSelected
-                              ? 'border-emerald-600 ring-2 ring-emerald-500 bg-emerald-50/50 shadow-sm'
-                              : 'border-gray-200 hover:border-gray-300 bg-white opacity-80 hover:opacity-100'
-                          }`}
-                        >
-                          <div className="relative aspect-[4/3] bg-gray-100 overflow-hidden">
-                            <img
-                              src={url}
-                              alt={item.titulo}
-                              className="w-full h-full object-cover"
-                            />
-                            {isSelected && (
-                              <div className="absolute top-1.5 right-1.5 bg-emerald-600 text-white p-0.5 rounded-full shadow">
-                                <CheckCircle className="w-3.5 h-3.5" />
-                              </div>
-                            )}
-                          </div>
-                          <div className="p-1.5 text-[10px] font-bold text-gray-800 line-clamp-2 text-center leading-tight">
-                            {item.titulo}
-                          </div>
-                        </div>
-                      )
-                    })}
-                  </div>
-                )}
-              </div>
-
-              {/* Card 3: Imagens Ilustrativas Padrão */}
-              <div className="bg-white rounded-2xl border border-gray-200 p-4 shadow-2xs space-y-3">
-                <div className="flex items-center justify-between border-b border-gray-100 pb-2">
-                  <div className="flex items-center gap-2 text-xs font-bold text-gray-800 uppercase tracking-wide">
-                    <Eye className="w-4 h-4 text-emerald-600" />
-                    <span>Ilustrações Explicativas na Proposta (Página 2)</span>
-                  </div>
-                  <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
-                    Ilustrações Oficiais Delfos
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
-                  {/* Ilustração 1: On-Grid */}
-                  <div
-                    className={`rounded-xl border p-3.5 transition-all flex flex-col justify-between ${
-                      incluirComoFunciona
-                        ? 'border-emerald-500 bg-emerald-50/30 shadow-xs'
-                        : 'border-gray-200 bg-gray-50/50 opacity-70'
-                    }`}
-                  >
-                    <div>
-                      <label className="flex items-start gap-3 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={incluirComoFunciona}
-                          onChange={(e) => setIncluirComoFunciona(e.target.checked)}
-                          className="mt-1 w-4 h-4 text-emerald-600 rounded border-gray-300 focus:ring-emerald-500"
-                        />
-                        <div className="flex-1">
-                          <span className="font-bold text-gray-900 block text-xs">
-                            Como Funciona o Sistema Solar On-Grid
-                          </span>
-                          <span className="text-[11px] text-gray-500">
-                            Ilustração explicativa em português com módulos, inversor, medidor
-                            bidirecional, rede da concessionária, consumo da casa e funcionamento à
-                            noite.
-                          </span>
-                        </div>
-                      </label>
-
-                      {/* Mini Preview da Ilustração On-Grid */}
-                      <div className="mt-3 rounded-lg overflow-hidden border border-gray-200 bg-white aspect-[16/9] flex items-center justify-center p-1">
-                        <img
-                          src={onGridPngAsset}
-                          alt="Preview Como funciona on-grid"
-                          className="w-full h-full object-contain"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="mt-2 pt-2 border-t border-gray-100 flex items-center justify-between text-[10px] text-gray-500">
-                      <span className="font-semibold text-emerald-700">
-                        ✓ Ilustração do usuário
-                      </span>
-                      <span>Ocupa metade superior da Página 2</span>
-                    </div>
-                  </div>
-
-                  {/* Ilustração 2: Monitoramento */}
-                  <div
-                    className={`rounded-xl border p-3.5 transition-all flex flex-col justify-between ${
-                      incluirMonitoramento
-                        ? 'border-emerald-500 bg-emerald-50/30 shadow-xs'
-                        : 'border-gray-200 bg-gray-50/50 opacity-70'
-                    }`}
-                  >
-                    <div>
-                      <label className="flex items-start gap-3 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={incluirMonitoramento}
-                          onChange={(e) => setIncluirMonitoramento(e.target.checked)}
-                          className="mt-1 w-4 h-4 text-emerald-600 rounded border-gray-300 focus:ring-emerald-500"
-                        />
-                        <div className="flex-1">
-                          <span className="font-bold text-gray-900 block text-xs">
-                            Monitoramento do Sistema Solar em Tempo Real
-                          </span>
-                          <span className="text-[11px] text-gray-500">
-                            Dashboard de monitoramento no smartphone com curva diária em kWh,
-                            potência instantânea, transmissão Wi-Fi e telemetria.
-                          </span>
-                        </div>
-                      </label>
-
-                      {/* Mini Preview da Foto de Monitoramento */}
-                      <div className="mt-3 rounded-lg overflow-hidden border border-gray-200 bg-slate-900/5 aspect-[16/9] flex items-center justify-center p-1">
-                        <img
-                          src={monitoramentoPngAsset}
-                          alt="Preview Monitoramento solar em tempo real"
-                          className="w-full h-full object-contain"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="mt-2 pt-2 border-t border-gray-100 flex items-center justify-between text-[10px] text-gray-500">
-                      <span className="font-semibold text-blue-700">
-                        ✓ Foto realista alta definição
-                      </span>
-                      <span>Ocupa lado direito da Página 2</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
               {/* Card 4: Especificações Técnicas e Equipamentos */}
               <div className="bg-white rounded-2xl border border-gray-200 p-4 shadow-2xs space-y-3">
                 <div className="flex items-center gap-2 text-xs font-bold text-gray-800 uppercase tracking-wide border-b border-gray-100 pb-2">
@@ -1176,16 +1011,16 @@ export function ModalGerarPropostaTecnicoComercial({
               </ErrorBoundary>
             </div>
           ) : (
-            /* ETAPA DE PREVIEW COM 4 PÁGINAS BEM ORGANIZADAS */
+            /* ETAPA DE PREVIEW COM AS 6 SEÇÕES CANÔNICAS DA PROPOSTA */
             <div className="h-full flex flex-col p-3 sm:p-4">
               <div className="mb-2 flex items-center justify-between text-xs text-gray-500">
                 <span className="flex items-center gap-1.5 font-semibold text-emerald-800">
                   <Eye className="w-3.5 h-3.5 text-emerald-600" />
-                  Visualização das 4 páginas da proposta (layout compacto sem vãos em branco,
-                  formatado para impressão ou PDF)
+                  Visualização oficial da proposta (6 seções: Capa, Custo da Inércia, Sistema,
+                  Projeção Conta, Projeção 25 Anos e Investimento)
                 </span>
                 <span className="text-[11px] bg-emerald-100 text-emerald-800 font-bold px-2.5 py-0.5 rounded-full border border-emerald-300 shadow-2xs">
-                  Documento Completo (4 Páginas)
+                  Documento Completo (6 Seções)
                 </span>
               </div>
               <div className="flex-1 bg-slate-200/80 rounded-xl shadow-inner border border-gray-300 overflow-hidden relative">
@@ -1222,7 +1057,7 @@ export function ModalGerarPropostaTecnicoComercial({
               </button>
             )}
             <span className="text-[11px] text-gray-500 hidden sm:inline font-medium">
-              Layout oficial em 4 páginas • Visual vendedor & Integração de Fotos
+              Layout oficial em 6 seções • 100% alinhado à proposta comercial
             </span>
           </div>
 

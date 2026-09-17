@@ -174,8 +174,14 @@ function converterInputParaTemplateComercial(
       instalacaoTexto: '1 ano de garantia direta Delfos Engenharia',
     },
     producao: {
-      anualKwh: calculos.geracaoAnualEstimadaKwh,
-      mediaMensalKwh: calculos.geracaoMediaMensalKwh,
+      anualKwh:
+        sistema.consumoKwhMes && sistema.consumoKwhMes > 0
+          ? Math.round(sistema.consumoKwhMes * 12)
+          : calculos.geracaoAnualEstimadaKwh,
+      mediaMensalKwh:
+        sistema.consumoKwhMes && sistema.consumoKwhMes > 0
+          ? sistema.consumoKwhMes
+          : calculos.geracaoMediaMensalKwh,
       geracaoMensal: calculos.geracaoMensalDetalhada,
     },
     economia: {

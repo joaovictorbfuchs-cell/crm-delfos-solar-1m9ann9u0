@@ -196,112 +196,156 @@ export async function gerarBase64OrcamentoSolar(
 
   const lines: PdfLine[] = []
 
-  // Título e Identificação do Orçamento
+  // Cálculos base para as 6 seções canônicas
+  const ecoMensal =
+    dados.calculos.economia1Mes && dados.calculos.economia1Mes > 0
+      ? dados.calculos.economia1Mes
+      : Math.max(
+          0,
+          (dados.calculos.parcelamentos?.aVista?.contaSemSolar || 0) -
+            (dados.calculos.parcelamentos?.aVista?.contaComSolar || 0),
+        ) || 928.75
+
+  const gasto1Ano =
+    dados.calculos.gastoSemSolar1Ano ||
+    Math.round(
+      (dados.calculos.parcelamentos?.aVista?.contaSemSolar || ecoMensal * 1.08) * 12 * 1.045,
+    )
+  const gasto5Anos = dados.calculos.gastoSemSolar5Anos || Math.round(gasto1Ano * 5.8)
+  const gasto25Anos = dados.calculos.gastoSemSolar25Anos || Math.round(gasto1Ano * 38.5)
+
+  const eco1Ano = dados.calculos.economia1Ano || Math.round(ecoMensal * 12)
+  const eco5Anos =
+    dados.calculos.economia5Anos || Math.round(gasto5Anos - dados.calculos.valorInvestimento)
+  const eco25Anos =
+    dados.calculos.economia25Anos || Math.round(gasto25Anos - dados.calculos.valorInvestimento)
+
+  // 1. CAPA DA PROPOSTA COMERCIAL
   lines.push({
-    text: `PROPOSTA TECNICO-COMERCIAL — SISTEMA SOLAR FOTOVOLTAICO`,
-    size: 13,
+    text: `1. PROPOSTA COMERCIAL EXCLUSIVA — DELFOS SOLAR`,
+    size: 11,
     bold: true,
     color: [0.086, 0.4, 0.2],
   })
   lines.push({
-    text: `Emissao: ${formatDate(dados.dataEmissao)} • Validade: ${dados.validadeDias || 5} dias corridos`,
+    text: `Cliente: ${dados.cliente.nome}${dados.cliente.cpfOuCnpj ? ` • CPF/CNPJ: ${dados.cliente.cpfOuCnpj}` : ''}`,
     size: 9,
+    bold: true,
+  })
+  lines.push({
+    text: `Localizacao: ${dados.cliente.endereco ? `${dados.cliente.endereco}, ` : ''}${dados.cliente.municipio || 'Erechim/RS'}`,
+    size: 8.5,
+  })
+  lines.push({
+    text: `Emissao: ${formatDate(dados.dataEmissao)} • Validade: ${dados.validadeDias || 5} dias corridos • Consultor: ${dados.representanteComercial || 'Equipe Delfos'}`,
+    size: 8.5,
     color: [0.4, 0.4, 0.4],
   })
 
-  // Dados do Cliente
-  lines.push({ text: ' ', size: 6 })
-  lines.push({ text: '1. DADOS DO CLIENTE', size: 10, bold: true, color: [0.086, 0.639, 0.29] })
-  lines.push({ text: `Nome: ${dados.cliente.nome}`, size: 9, bold: true })
-  if (dados.cliente.cpfOuCnpj) {
-    lines.push({ text: `CPF / CNPJ: ${dados.cliente.cpfOuCnpj}`, size: 9 })
-  }
+  // 2. O CUSTO DA INÉRCIA (DIAGNÓSTICO VISUAL)
+  lines.push({ text: ' ', size: 4 })
   lines.push({
-    text: `Localizacao: ${dados.cliente.endereco ? `${dados.cliente.endereco}, ` : ''}${dados.cliente.municipio}`,
-    size: 9,
+    text: '2. O CUSTO DA INERCIA (DIAGNOSTICO VISUAL)',
+    size: 10,
+    bold: true,
+    color: [0.8, 0.15, 0.15],
   })
   lines.push({
-    text: `Contato: ${dados.cliente.telefone || dados.cliente.email || 'Nao informado'}`,
-    size: 9,
+    text: `Sem solar (perda): 1 ano: ${formatCurrency(gasto1Ano)} • 5 anos: ${formatCurrency(gasto5Anos)} • 25 anos: ${formatCurrency(gasto25Anos)}`,
+    size: 8.5,
+  })
+  lines.push({
+    text: `Com solar (patrimonio): 1 ano: +${formatCurrency(eco1Ano)} • 5 anos: +${formatCurrency(eco5Anos)} • 25 anos: +${formatCurrency(eco25Anos)}`,
+    size: 8.5,
+    bold: true,
+    color: [0.086, 0.5, 0.2],
   })
 
-  // Dados Técnicos do Sistema
-  lines.push({ text: ' ', size: 6 })
+  // 3. SEU SISTEMA FOTOVOLTAICO
+  lines.push({ text: ' ', size: 4 })
   lines.push({
-    text: '2. ESPECIFICACOES TECNICAS DO SISTEMA',
+    text: '3. SEU SISTEMA FOTOVOLTAICO',
     size: 10,
     bold: true,
     color: [0.086, 0.639, 0.29],
   })
   lines.push({
-    text: `Potencia Total: ${dados.sistema.potenciaKwp.toFixed(2)} kWp (${dados.sistema.numeroPlacas} modulos de ${dados.sistema.potenciaPlacaWp}W)`,
-    size: 9,
+    text: `Potencia: ${dados.sistema.potenciaKwp.toFixed(2)} kWp • Geracao Media: ${dados.calculos.geracaoMediaMensalKwh.toLocaleString('pt-BR')} kWh/mes (~${formatCurrency(ecoMensal)}/mes)`,
+    size: 8.5,
     bold: true,
   })
   lines.push({
-    text: `Geracao Mensal Estimada: ${dados.calculos.geracaoMediaMensalKwh.toLocaleString('pt-BR')} kWh/mes (media anual)`,
-    size: 9,
+    text: `Modulos: ${dados.sistema.numeroPlacas}x ${dados.sistema.marcaPlacas || 'Tier-1'} (${dados.sistema.potenciaPlacaWp}W) • Inversor: ${dados.sistema.quantidadeInversores}x ${dados.sistema.marcaInversor || 'Homologado'}`,
+    size: 8.5,
   })
   lines.push({
-    text: `Geracao Anual Estimada: ${dados.calculos.geracaoAnualEstimadaKwh.toLocaleString('pt-BR')} kWh/ano`,
-    size: 9,
-  })
-  lines.push({
-    text: `Modulos: ${dados.sistema.marcaPlacas || 'Tier 1'} • Inversor: ${dados.sistema.marcaInversor || 'Delfos Top Quality'} (${dados.sistema.quantidadeInversores} un)`,
-    size: 9,
-  })
-  lines.push({
-    text: `Estrutura de Fixacao: ${dados.sistema.tipoEstrutura.toUpperCase()} • Area Necessaria: ~${dados.sistema.areaNecessariaM2} m2`,
-    size: 9,
+    text: `Estrutura: ${dados.sistema.tipoEstrutura.toUpperCase()} • Area Estimada: ~${dados.sistema.areaNecessariaM2} m2 • Garantias: 30 anos modulos / 10 anos inversor`,
+    size: 8.5,
   })
 
-  // Viabilidade e Retorno Financeiro
-  lines.push({ text: ' ', size: 6 })
+  // 4. PROJEÇÃO DE ECONOMIA NA CONTA DE ENERGIA (2026–2051)
+  lines.push({ text: ' ', size: 4 })
   lines.push({
-    text: '3. RETORNO FINANCEIRO E ECONOMIA',
+    text: '4. PROJECAO DE ECONOMIA NA CONTA DE ENERGIA (2026-2051)',
     size: 10,
     bold: true,
     color: [0.086, 0.639, 0.29],
   })
   lines.push({
-    text: `Investimento Total Turnkey: ${formatCurrency(dados.calculos.valorInvestimento)}`,
-    size: 11,
+    text: `Marco Legal da GD (Lei 14.300/2022) • Transicao Fio B e Fator de Simultaneidade aplicados`,
+    size: 8.5,
+  })
+  lines.push({
+    text: `Economia Ano 1 (2026): ${formatCurrency(eco1Ano)} • Economia Ano 5 (2030): ${formatCurrency(eco5Anos / 5)}/ano`,
+    size: 8.5,
+    color: [0.086, 0.4, 0.2],
+  })
+
+  // 5. PROJEÇÃO DE ECONOMIA EM 25 ANOS
+  lines.push({ text: ' ', size: 4 })
+  lines.push({
+    text: '5. PROJECAO DE ECONOMIA EM 25 ANOS',
+    size: 10,
+    bold: true,
+    color: [0.086, 0.639, 0.29],
+  })
+  lines.push({
+    text: `Economia Total Acumulada em 25 anos: ${formatCurrency(eco25Anos)}`,
+    size: 9.5,
     bold: true,
     color: [0.086, 0.5, 0.2],
   })
   lines.push({
-    text: `Economia no 1o mes: ${formatCurrency(dados.calculos.economia1Mes)} • Economia no 1o ano: ${formatCurrency(dados.calculos.economia1Ano)}`,
-    size: 9,
-  })
-  lines.push({
-    text: `Economia acumulada em 25 anos: ${formatCurrency(dados.calculos.economia25Anos)}`,
-    size: 9,
-  })
-  lines.push({
-    text: `Tempo Estimado de Retorno (Payback): ~${dados.calculos.paybackMeses} meses (${dados.calculos.paybackAnos} anos)`,
-    size: 9,
+    text: `Tempo de Retorno (Payback): ~${dados.calculos.paybackMeses} meses (${dados.calculos.paybackAnos} anos) • ROI expressivo sobre capital`,
+    size: 8.5,
     bold: true,
   })
 
-  // Opções de Pagamento
-  lines.push({ text: ' ', size: 6 })
+  // 6. INVESTIMENTO E CONDIÇÕES DE PAGAMENTO
+  lines.push({ text: ' ', size: 4 })
   lines.push({
-    text: '4. CONDICOES DE PAGAMENTO',
+    text: '6. INVESTIMENTO E CONDICOES DE PAGAMENTO',
     size: 10,
     bold: true,
     color: [0.086, 0.639, 0.29],
   })
   lines.push({
+    text: `Investimento Total Turnkey: ${formatCurrency(dados.calculos.valorInvestimento)} (chave na mao)`,
+    size: 10,
+    bold: true,
+    color: [0.086, 0.5, 0.2],
+  })
+  lines.push({
     text: `A vista com desconto: ${formatCurrency(dados.calculos.parcelamentos.aVista.valorParcela)}`,
-    size: 9,
+    size: 8.5,
   })
   lines.push({
-    text: `Cartao de credito (18x): 18x de ${formatCurrency(dados.calculos.parcelamentos.cartao18x.valorParcela)}`,
-    size: 9,
+    text: `Cartao de credito (18x): 18x de ${formatCurrency(dados.calculos.parcelamentos.cartao18x.valorParcela)} sem juros`,
+    size: 8.5,
   })
   lines.push({
-    text: `Financiamento Bancario (BV/Santander 60x): 60x de ${formatCurrency(dados.calculos.parcelamentos.financiamentoBanco1.valorParcela)}`,
-    size: 9,
+    text: `Financiamento Bancario: 60x de ${formatCurrency(dados.calculos.parcelamentos.financiamentoBanco1.valorParcela)} ou 120x de ${formatCurrency(dados.calculos.parcelamentos.financiamentoBanco2.valorParcela)}`,
+    size: 8.5,
   })
 
   if (dados.observacoes) {

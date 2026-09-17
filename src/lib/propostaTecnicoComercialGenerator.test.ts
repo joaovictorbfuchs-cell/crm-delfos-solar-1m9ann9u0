@@ -288,5 +288,10 @@ describe('Proposta Técnico-Comercial Generator (6 Seções Oficiais)', () => {
     expect(htmlSolar).toContain('id="secao-6-investimento-pagamento"')
     expect(htmlSolar).toContain('Maria Solar Teste')
     expect(htmlSolar).toContain('7,20 kWp')
+
+    // Confirma que não há conteúdos legados
+    expect(htmlSolar).not.toContain('Quem Somos')
+    expect(htmlSolar).not.toContain('Como Funciona o Sistema Solar On-Grid')
+    expect(htmlSolar).not.toContain('Monitoramento do Sistema Solar em Tempo Real')
   })
 })
