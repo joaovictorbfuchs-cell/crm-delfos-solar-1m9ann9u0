@@ -154,11 +154,12 @@ describe('Proposta Técnico-Comercial Generator (6 Seções Oficiais)', () => {
     expect(html).toContain('Custo de Postergação')
     expect(html).toContain('Payback Estimado')
 
-    // SEÇÃO 5: Projeção de Economia em 25 Anos (cards de resumo/payback/ROI sem gráfico ou tabela)
+    // SEÇÃO 5: Projeção de Economia em 25 Anos (cards de economia 1, 5 e 25 anos sem payback ou ROI)
     expect(html).toContain('Projeção de Economia em 25 Anos')
-    expect(html).toContain('Economia Total Acumulada')
-    expect(html).toContain('Tempo de Retorno (Payback)')
-    expect(html).toContain('Retorno Sobre Investimento (ROI)')
+    expect(html).toContain('Economia em 1 ano')
+    expect(html).toContain('Economia em 5 anos')
+    expect(html).toContain('Economia em 25 anos')
+    expect(html).not.toContain('Retorno Sobre Investimento (ROI)')
 
     // SEÇÃO 6: Investimento e Condições de Pagamento (cards À vista / Cartão / Finan A / Finan B, comparativo conta, validade)
     expect(html).toContain('Investimento e Condições de Pagamento')

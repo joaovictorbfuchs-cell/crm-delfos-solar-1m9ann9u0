@@ -2492,25 +2492,25 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
 
         <!-- 3 CARDS DE MÉTRICAS EXATOS DO SecaoProjecao25Anos -->
         <div class="cards-metricas-25anos" style="margin-top: 18px;">
-          <!-- Card 1: Economia Total Acumulada -->
+          <!-- Card 1: Economia em 1 ano -->
           <div class="card-metrica-destaque">
-            <div class="card-metrica-label">Economia Total Acumulada</div>
-            <div class="card-metrica-numero">${formatBRL(eco25Anos)}</div>
-            <div class="card-metrica-sub">Retorno líquido direto em 25 anos de vida útil</div>
+            <div class="card-metrica-label">Economia em 1 ano</div>
+            <div class="card-metrica-numero">${formatBRL(eco1Ano)}</div>
+            <div class="card-metrica-sub">Economia acumulada no primeiro ano</div>
           </div>
 
-          <!-- Card 2: Tempo de Retorno (Payback) -->
+          <!-- Card 2: Economia em 5 anos -->
           <div class="card-metrica-destaque payback-card">
-            <div class="card-metrica-label">Tempo de Retorno (Payback)</div>
-            <div class="card-metrica-numero" style="color: #92400E;">${paybackTextoFinal}</div>
-            <div class="card-metrica-sub">Cruzamento das curvas no ano ${anoPayback}</div>
+            <div class="card-metrica-label">Economia em 5 anos</div>
+            <div class="card-metrica-numero" style="color: #92400E;">${formatBRL(eco5Anos)}</div>
+            <div class="card-metrica-sub">Economia acumulada em 5 anos</div>
           </div>
 
-          <!-- Card 3: Retorno Sobre Investimento (ROI) -->
+          <!-- Card 3: Economia em 25 anos -->
           <div class="card-metrica-destaque roi-card">
-            <div class="card-metrica-label">Retorno Sobre Investimento (ROI)</div>
-            <div class="card-metrica-numero" style="color: #1D4ED8;">${roiCalculado}%</div>
-            <div class="card-metrica-sub">Multiplicação líquida do capital investido</div>
+            <div class="card-metrica-label">Economia em 25 anos</div>
+            <div class="card-metrica-numero" style="color: #1D4ED8;">${formatBRL(eco25Anos)}</div>
+            <div class="card-metrica-sub">Total poupado na vida útil do sistema</div>
           </div>
         </div>
 

@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react'
-import { TrendingUp, Clock, DollarSign, Sparkles } from 'lucide-react'
+import { DollarSign, Sparkles, Calendar, ShieldCheck } from 'lucide-react'
 import {
   calcularProjecaoEconomia,
   type ResumoProjecaoEconomia,
@@ -306,67 +306,71 @@ export const SecaoProjecao25Anos: React.FC<SecaoProjecao25AnosProps> = ({
       {/* 4. PARTE INFERIOR: TRÊS CARDS DE DESTAQUE LADO A LADO */}
       <div className="p-4 sm:p-5 bg-gradient-to-br from-gray-50 to-emerald-50/30 border-t border-gray-200 space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
-          {/* Card 1: 💰 Economia total em 25 anos: R$ [valor] */}
+          {/* Card 1: Economia em 1 ano */}
           <div className="bg-white p-4 rounded-xl border border-emerald-300 shadow-2xs flex flex-col justify-between relative overflow-hidden">
             <div className="absolute top-0 right-0 w-16 h-16 bg-emerald-500/10 rounded-bl-full pointer-events-none" />
             <div>
               <div className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-emerald-800">
                 <DollarSign className="w-4 h-4 text-emerald-600" />
-                <span>💰 Economia total em 25 anos</span>
+                <span>Economia em 1 ano</span>
               </div>
               <div className="text-2xl sm:text-3xl font-black text-emerald-700 mt-2">
-                {formatCurrency(economiaTotal25Anos)}
+                {formatCurrency(
+                  projecao.linhas[0]?.economiaAcumulada ?? projecao.economiaPrimeiroAno,
+                )}
               </div>
               <p className="text-[11px] text-gray-500 mt-1">
-                Total poupado pelo cliente na conta de energia durante a vida útil do sistema solar.
+                Economia acumulada no primeiro ano de operação do sistema.
               </p>
             </div>
             <div className="pt-2 mt-3 border-t border-gray-100 flex items-center justify-between text-[10px] text-emerald-800 font-semibold">
-              <span>Retorno garantido</span>
-              <span>Proteção inflacionária</span>
+              <span>Primeiro ano de geração</span>
+              <span>Início imediato</span>
             </div>
           </div>
 
-          {/* Card 2: ⏱️ Payback: [X] anos e [Y] meses */}
+          {/* Card 2: Economia em 5 anos */}
           <div className="bg-white p-4 rounded-xl border border-amber-300 shadow-2xs flex flex-col justify-between relative overflow-hidden">
             <div className="absolute top-0 right-0 w-16 h-16 bg-amber-500/10 rounded-bl-full pointer-events-none" />
             <div>
               <div className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-amber-900">
-                <Clock className="w-4 h-4 text-amber-600" />
-                <span>⏱️ Payback</span>
+                <Calendar className="w-4 h-4 text-amber-600" />
+                <span>Economia em 5 anos</span>
               </div>
               <div className="text-2xl sm:text-3xl font-black text-amber-600 mt-2">
-                {cruzamentoInfo.anos} anos e {cruzamentoInfo.meses} meses
+                {formatCurrency(
+                  projecao.linhas[4]?.economiaAcumulada ??
+                    projecao.linhas.slice(0, 5).reduce((acc, l) => acc + l.economiaAnual, 0),
+                )}
               </div>
               <p className="text-[11px] text-gray-500 mt-1">
-                Tempo necessário para o sistema pagar 100% do seu investimento com a própria
-                geração.
+                Economia acumulada nos primeiros 5 anos de geração fotovoltaica.
               </p>
             </div>
             <div className="pt-2 mt-3 border-t border-gray-100 flex items-center justify-between text-[10px] text-amber-800 font-semibold">
-              <span>Ano de quitação: ~{cruzamentoInfo.anoCalendario}</span>
-              <span>Rápido retorno</span>
+              <span>Meio decênio de economia</span>
+              <span>Consolidação do ganho</span>
             </div>
           </div>
 
-          {/* Card 3: 📈 ROI: [X]% */}
+          {/* Card 3: Economia em 25 anos */}
           <div className="bg-white p-4 rounded-xl border border-blue-300 shadow-2xs flex flex-col justify-between relative overflow-hidden">
             <div className="absolute top-0 right-0 w-16 h-16 bg-blue-500/10 rounded-bl-full pointer-events-none" />
             <div>
               <div className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-blue-900">
-                <TrendingUp className="w-4 h-4 text-blue-600" />
-                <span>📈 ROI</span>
+                <ShieldCheck className="w-4 h-4 text-blue-600" />
+                <span>Economia em 25 anos</span>
               </div>
               <div className="text-2xl sm:text-3xl font-black text-blue-600 mt-2">
-                {roiPercentual > 0 ? `${roiPercentual.toLocaleString('pt-BR')}%` : '—'}
+                {formatCurrency(economiaTotal25Anos)}
               </div>
               <p className="text-[11px] text-gray-500 mt-1">
-                Retorno sobre o investimento: (Economia acumulada − Investimento) ÷ Investimento.
+                Total poupado pelo cliente na conta de energia durante a vida útil do sistema.
               </p>
             </div>
             <div className="pt-2 mt-3 border-t border-gray-100 flex items-center justify-between text-[10px] text-blue-800 font-semibold">
-              <span>Rentabilidade superior</span>
-              <span>Renda passiva limpa</span>
+              <span>Vida útil do sistema</span>
+              <span>Proteção inflacionária</span>
             </div>
           </div>
         </div>

@@ -1469,7 +1469,71 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
                   alignment: AlignmentType.CENTER,
                   children: [
                     new TextRun({
-                      text: 'ECONOMIA TOTAL ACUMULADA\n',
+                      text: 'ECONOMIA EM 1 ANO\n',
+                      bold: true,
+                      size: 15,
+                      color: COLOR_PRIMARY,
+                      font: 'Arial',
+                    }),
+                    new TextRun({
+                      text: formatBRL(eco1Ano),
+                      bold: true,
+                      size: 22,
+                      color: COLOR_ACCENT,
+                      font: 'Arial',
+                    }),
+                    new TextRun({
+                      text: '\nPrimeiro ano de geração',
+                      size: 14,
+                      color: COLOR_TEXT_MUTED,
+                      font: 'Arial',
+                    }),
+                  ],
+                }),
+              ],
+            }),
+            new TableCell({
+              width: { size: colWidthMetricas, type: WidthType.DXA },
+              shading: { type: ShadingType.CLEAR, fill: COLOR_LIGHT_BG },
+              margins: { top: 100, bottom: 100, left: 100, right: 100 },
+              children: [
+                new Paragraph({
+                  alignment: AlignmentType.CENTER,
+                  children: [
+                    new TextRun({
+                      text: 'ECONOMIA EM 5 ANOS\n',
+                      bold: true,
+                      size: 15,
+                      color: COLOR_PRIMARY,
+                      font: 'Arial',
+                    }),
+                    new TextRun({
+                      text: formatBRL(eco5Anos),
+                      bold: true,
+                      size: 22,
+                      color: 'B45309',
+                      font: 'Arial',
+                    }),
+                    new TextRun({
+                      text: '\nConsolidação em 5 anos',
+                      size: 14,
+                      color: COLOR_TEXT_MUTED,
+                      font: 'Arial',
+                    }),
+                  ],
+                }),
+              ],
+            }),
+            new TableCell({
+              width: { size: colWidthMetricas, type: WidthType.DXA },
+              shading: { type: ShadingType.CLEAR, fill: COLOR_LIGHT_BG },
+              margins: { top: 100, bottom: 100, left: 100, right: 100 },
+              children: [
+                new Paragraph({
+                  alignment: AlignmentType.CENTER,
+                  children: [
+                    new TextRun({
+                      text: 'ECONOMIA EM 25 ANOS\n',
                       bold: true,
                       size: 15,
                       color: COLOR_PRIMARY,
@@ -1479,75 +1543,11 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
                       text: formatBRL(eco25Anos),
                       bold: true,
                       size: 22,
-                      color: COLOR_ACCENT,
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: '\nLíquido em 25 anos de vida útil',
-                      size: 14,
-                      color: COLOR_TEXT_MUTED,
-                      font: 'Arial',
-                    }),
-                  ],
-                }),
-              ],
-            }),
-            new TableCell({
-              width: { size: colWidthMetricas, type: WidthType.DXA },
-              shading: { type: ShadingType.CLEAR, fill: COLOR_LIGHT_BG },
-              margins: { top: 100, bottom: 100, left: 100, right: 100 },
-              children: [
-                new Paragraph({
-                  alignment: AlignmentType.CENTER,
-                  children: [
-                    new TextRun({
-                      text: 'TEMPO DE RETORNO (PAYBACK)\n',
-                      bold: true,
-                      size: 15,
-                      color: COLOR_PRIMARY,
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: paybackTextoFinal,
-                      bold: true,
-                      size: 22,
-                      color: COLOR_PRIMARY,
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: '\nCruzamento de quitação estimado',
-                      size: 14,
-                      color: COLOR_TEXT_MUTED,
-                      font: 'Arial',
-                    }),
-                  ],
-                }),
-              ],
-            }),
-            new TableCell({
-              width: { size: colWidthMetricas, type: WidthType.DXA },
-              shading: { type: ShadingType.CLEAR, fill: COLOR_LIGHT_BG },
-              margins: { top: 100, bottom: 100, left: 100, right: 100 },
-              children: [
-                new Paragraph({
-                  alignment: AlignmentType.CENTER,
-                  children: [
-                    new TextRun({
-                      text: 'RETORNO SOBRE INVESTIMENTO\n',
-                      bold: true,
-                      size: 15,
-                      color: COLOR_PRIMARY,
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: `${roiCalculado}% ROI`,
-                      bold: true,
-                      size: 22,
                       color: '1E40AF',
                       font: 'Arial',
                     }),
                     new TextRun({
-                      text: '\nMultiplicação do capital investido',
+                      text: '\nTotal poupado na vida útil',
                       size: 14,
                       color: COLOR_TEXT_MUTED,
                       font: 'Arial',
