@@ -10,6 +10,10 @@ import {
   CheckCircle2,
 } from 'lucide-react'
 import { formatCurrency } from '@/lib/formatters'
+import { useEffect, useState } from 'react'
+import { fetchInstalacoesGaleria, getFotoUrl } from '@/services/instalacoesGaleriaService'
+import type { InstalacaoGaleria } from '@/types/instalacoesGaleria'
+import { onGridPngAsset, monitoramentoPngAsset } from '@/lib/propostaIlustracoesAssets'
 
 /**
  * Ícone representativo de um módulo/painel solar fotovoltaico:
@@ -181,6 +185,48 @@ export const SecaoSeuSistemaFotovoltaico: React.FC<SecaoSeuSistemaFotovoltaicoPr
   const garantiaInstalacaoFinalTexto =
     garantiaInstalacaoTexto ||
     (garantiaInstalacaoAnos ? `${garantiaInstalacaoAnos} anos` : '12 meses')
+
+  const [fotosGaleria, setFotosGaleria] = useState<InstalacaoGaleria[]>([])
+
+  useEffect(() => {
+    let cancel = false
+    async function carregarGaleria() {
+      try {
+        const dados = await fetchInstalacoesGaleria()
+        if (!cancel && dados) {
+          setFotosGaleria(dados)
+        }
+      } catch (err) {
+        console.warn('Erro ao carregar galeria para blocos explicativos:', err)
+      }
+    }
+    carregarGaleria()
+    return () => {
+      cancel = true
+    }
+  }, [])
+
+  // Seleciona fotos da galeria com fallback defensivo para as ilustrações padrão
+  const instalacoesComFoto = fotosGaleria.filter((item) => !!(item.foto || item.foto_url))
+  const fotoOnGrid =
+    instalacoesComFoto.length > 0 ? getFotoUrl(instalacoesComFoto[0]) : onGridPngAsset
+  const tituloOnGrid =
+    instalacoesComFoto.length > 0 && instalacoesComFoto[0].titulo
+      ? instalacoesComFoto[0].titulo
+      : 'Sistema Fotovoltaico Conectado à Rede (On-Grid)'
+
+  const fotoMonitoramento =
+    instalacoesComFoto.length > 1
+      ? getFotoUrl(instalacoesComFoto[1])
+      : instalacoesComFoto.length === 1
+        ? getFotoUrl(instalacoesComFoto[0])
+        : monitoramentoPngAsset
+  const tituloMonitoramento =
+    instalacoesComFoto.length > 1 && instalacoesComFoto[1].titulo
+      ? instalacoesComFoto[1].titulo
+      : instalacoesComFoto.length === 1 && instalacoesComFoto[0].titulo
+        ? instalacoesComFoto[0].titulo
+        : 'Monitoramento Inteligente em Tempo Real'
 
   return (
     <section
@@ -467,6 +513,120 @@ export const SecaoSeuSistemaFotovoltaico: React.FC<SecaoSeuSistemaFotovoltaicoPr
               <CheckCircle2 className="w-4 h-4 text-emerald-600" />
               <span>iOS & Android</span>
             </span>
+          </div>
+        </div>
+
+        {/* ========================================================================= */}
+        {/* BLOCOS: COMO FUNCIONA O SISTEMA SOLAR & MONITORAMENTO INTELIGENTE 24/7     */}
+        {/* Fundo #F0FDF4, borda #BBF7D0 e acentos #16A34A / #166534                  */}
+        {/* Utiliza as fotos cadastradas na Galeria Usinas com fallback elegante       */}
+        {/* ========================================================================= */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5 pt-2">
+          {/* Bloco 1: Como funciona o sistema solar (On-Grid) */}
+          <div className="bg-[#F0FDF4] border border-[#BBF7D0] rounded-2xl p-5 shadow-xs flex flex-col justify-between">
+            <div className="space-y-3">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-[#166534] bg-emerald-100/80 px-2.5 py-0.5 rounded-full border border-[#BBF7D0]">
+                  Engenharia On-Grid
+                </span>
+                <span className="text-[11px] text-[#16A34A] font-semibold">Conexão à Rede</span>
+              </div>
+
+              <div>
+                <h3 className="text-base sm:text-lg font-extrabold text-[#166534] tracking-tight">
+                  Como funciona o sistema solar (On-Grid)
+                </h3>
+                <p className="text-xs text-gray-700 mt-1 leading-relaxed">
+                  Os módulos fotovoltaicos captam a radiação solar e geram energia limpa em corrente
+                  contínua. O inversor converte para corrente alternada pronta para o consumo
+                  imediato no seu imóvel. A energia excedente é injetada na rede da concessionária
+                  com medidor bidirecional homologado, gerando créditos energéticos para abater
+                  faturas futuras.
+                </p>
+              </div>
+
+              <div className="rounded-xl overflow-hidden border border-[#BBF7D0] bg-white aspect-[16/10] relative shadow-2xs group">
+                <img
+                  src={fotoOnGrid}
+                  alt={tituloOnGrid}
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                  loading="lazy"
+                  onError={(e) => {
+                    const target = e.currentTarget
+                    if (target.src !== onGridPngAsset) {
+                      target.src = onGridPngAsset
+                    }
+                  }}
+                />
+                <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-emerald-950/80 via-emerald-950/40 to-transparent p-2.5 text-white flex items-center justify-between">
+                  <span className="text-xs font-bold line-clamp-1">{tituloOnGrid}</span>
+                  <span className="text-[10px] text-emerald-200 bg-white/20 px-2 py-0.5 rounded-md backdrop-blur-xs font-semibold shrink-0 ml-2">
+                    Galeria Delfos
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-4 pt-3 border-t border-[#BBF7D0]/60 flex items-center justify-between text-xs text-[#166534]">
+              <span className="inline-flex items-center gap-1 font-semibold">
+                <CheckCircle2 className="w-3.5 h-3.5 text-[#16A34A]" />
+                Homologação e ART Inclusa
+              </span>
+              <span className="font-bold text-[#16A34A]">Turnkey Delfos</span>
+            </div>
+          </div>
+
+          {/* Bloco 2: Monitoramento Inteligente 24/7 */}
+          <div className="bg-[#F0FDF4] border border-[#BBF7D0] rounded-2xl p-5 shadow-xs flex flex-col justify-between">
+            <div className="space-y-3">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-[#166534] bg-emerald-100/80 px-2.5 py-0.5 rounded-full border border-[#BBF7D0]">
+                  Telemetria em Tempo Real
+                </span>
+                <span className="text-[11px] text-[#16A34A] font-semibold">App Mobile Incluso</span>
+              </div>
+
+              <div>
+                <h3 className="text-base sm:text-lg font-extrabold text-[#166534] tracking-tight">
+                  Monitoramento Inteligente 24/7
+                </h3>
+                <p className="text-xs text-gray-700 mt-1 leading-relaxed">
+                  Acompanhe a performance da sua usina solar na palma da mão. Gráficos diários,
+                  mensais e anuais de geração em kWh, comparativo de economia em reais, alerta de
+                  anomalias e histórico completo de produção em servidores dedicados e seguros para
+                  Android e iOS.
+                </p>
+              </div>
+
+              <div className="rounded-xl overflow-hidden border border-[#BBF7D0] bg-white aspect-[16/10] relative shadow-2xs group">
+                <img
+                  src={fotoMonitoramento}
+                  alt={tituloMonitoramento}
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                  loading="lazy"
+                  onError={(e) => {
+                    const target = e.currentTarget
+                    if (target.src !== monitoramentoPngAsset) {
+                      target.src = monitoramentoPngAsset
+                    }
+                  }}
+                />
+                <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-emerald-950/80 via-emerald-950/40 to-transparent p-2.5 text-white flex items-center justify-between">
+                  <span className="text-xs font-bold line-clamp-1">{tituloMonitoramento}</span>
+                  <span className="text-[10px] text-emerald-200 bg-white/20 px-2 py-0.5 rounded-md backdrop-blur-xs font-semibold shrink-0 ml-2">
+                    Galeria Delfos
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-4 pt-3 border-t border-[#BBF7D0]/60 flex items-center justify-between text-xs text-[#166534]">
+              <span className="inline-flex items-center gap-1 font-semibold">
+                <CheckCircle2 className="w-3.5 h-3.5 text-[#16A34A]" />
+                Suporte e Acesso Vitalício
+              </span>
+              <span className="font-bold text-[#16A34A]">iOS & Android</span>
+            </div>
           </div>
         </div>
       </div>

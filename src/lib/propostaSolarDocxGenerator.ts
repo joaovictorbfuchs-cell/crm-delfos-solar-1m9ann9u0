@@ -1394,6 +1394,145 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
   )
 
   // ----------------------------------------------------
+  // BLOCOS: COMO FUNCIONA O SISTEMA SOLAR (ON-GRID) & MONITORAMENTO INTELIGENTE 24/7
+  // Utiliza as imagens cadastradas na Galeria Usinas (usinasDocx / usinasGaleria)
+  // Fundo #F0FDF4, borda #BBF7D0 e acentos verdes
+  // ----------------------------------------------------
+  const titUsina1 =
+    usinasDocx.length > 0 && usinasDocx[0].titulo
+      ? usinasDocx[0].titulo
+      : 'Usina Solar Delfos On-Grid'
+  const cidUsina1 =
+    usinasDocx.length > 0 && usinasDocx[0].cidade ? usinasDocx[0].cidade : 'Erechim / RS'
+
+  const titUsina2 =
+    usinasDocx.length > 1 && usinasDocx[1].titulo
+      ? usinasDocx[1].titulo
+      : usinasDocx.length > 0 && usinasDocx[0].titulo
+        ? usinasDocx[0].titulo
+        : 'Monitoramento Solar em Tempo Real'
+  const cidUsina2 =
+    usinasDocx.length > 1 && usinasDocx[1].cidade
+      ? usinasDocx[1].cidade
+      : usinasDocx.length > 0 && usinasDocx[0].cidade
+        ? usinasDocx[0].cidade
+        : 'Erechim / RS'
+
+  const colWidthBlocos = Math.floor(PAGE_CONTENT_WIDTH / 2)
+  docChildren.push(
+    new Table({
+      width: { size: PAGE_CONTENT_WIDTH, type: WidthType.DXA },
+      borders: {
+        top: { style: BorderStyle.SINGLE, size: 8, color: 'BBF7D0' },
+        bottom: { style: BorderStyle.SINGLE, size: 8, color: 'BBF7D0' },
+        left: { style: BorderStyle.SINGLE, size: 8, color: 'BBF7D0' },
+        right: { style: BorderStyle.SINGLE, size: 8, color: 'BBF7D0' },
+        insideVertical: { style: BorderStyle.SINGLE, size: 8, color: 'BBF7D0' },
+        insideHorizontal: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
+      },
+      rows: [
+        new TableRow({
+          children: [
+            // Bloco 1: Como Funciona o Sistema Solar (On-Grid)
+            new TableCell({
+              width: { size: colWidthBlocos, type: WidthType.DXA },
+              shading: { type: ShadingType.CLEAR, fill: 'F0FDF4' },
+              margins: { top: 100, bottom: 100, left: 110, right: 110 },
+              children: [
+                new Paragraph({
+                  children: [
+                    new TextRun({
+                      text: '⚡ ENGENHARIA ON-GRID • CONEXÃO À REDE\n',
+                      bold: true,
+                      size: 13,
+                      color: '166534',
+                      font: 'Arial',
+                    }),
+                    new TextRun({
+                      text: 'Como funciona o sistema solar (On-Grid)\n',
+                      bold: true,
+                      size: 16,
+                      color: '166534',
+                      font: 'Arial',
+                    }),
+                    new TextRun({
+                      text: 'Módulos solares convertem luz em energia contínua e o inversor transforma em corrente alternada para seu imóvel. O excedente gera créditos no medidor bidirecional.\n\n',
+                      size: 13,
+                      color: COLOR_TEXT_MUTED,
+                      font: 'Arial',
+                    }),
+                    new TextRun({
+                      text: `☀️ Foto da Usina Homologada: ${titUsina1} (${cidUsina1})\n`,
+                      bold: true,
+                      size: 13,
+                      color: '15803D',
+                      font: 'Arial',
+                    }),
+                    new TextRun({
+                      text: '✓ Homologação e ART Inclusa • Turnkey Delfos',
+                      bold: true,
+                      size: 12,
+                      color: '166534',
+                      font: 'Arial',
+                    }),
+                  ],
+                }),
+              ],
+            }),
+
+            // Bloco 2: Monitoramento Inteligente 24/7
+            new TableCell({
+              width: { size: colWidthBlocos, type: WidthType.DXA },
+              shading: { type: ShadingType.CLEAR, fill: 'F0FDF4' },
+              margins: { top: 100, bottom: 100, left: 110, right: 110 },
+              children: [
+                new Paragraph({
+                  children: [
+                    new TextRun({
+                      text: '📱 TELEMETRIA EM TEMPO REAL • APP MOBILE\n',
+                      bold: true,
+                      size: 13,
+                      color: '166534',
+                      font: 'Arial',
+                    }),
+                    new TextRun({
+                      text: 'Monitoramento Inteligente 24/7\n',
+                      bold: true,
+                      size: 16,
+                      color: '166534',
+                      font: 'Arial',
+                    }),
+                    new TextRun({
+                      text: 'Acompanhe sua geração diária em tempo real na palma da mão: gráficos em kWh, economia acumulada em reais e histórico completo de performance.\n\n',
+                      size: 13,
+                      color: COLOR_TEXT_MUTED,
+                      font: 'Arial',
+                    }),
+                    new TextRun({
+                      text: `📱 Telemetria Ativa: ${titUsina2} (${cidUsina2})\n`,
+                      bold: true,
+                      size: 13,
+                      color: '15803D',
+                      font: 'Arial',
+                    }),
+                    new TextRun({
+                      text: '✓ Suporte e Acesso Vitalício • iOS & Android',
+                      bold: true,
+                      size: 12,
+                      color: '166534',
+                      font: 'Arial',
+                    }),
+                  ],
+                }),
+              ],
+            }),
+          ],
+        }),
+      ],
+    }),
+  )
+
+  // ----------------------------------------------------
   // SEÇÃO 4: PROJEÇÃO DE ECONOMIA NA CONTA DE ENERGIA
   // Cards de resumo + Card do Payback abaixo
   // ----------------------------------------------------

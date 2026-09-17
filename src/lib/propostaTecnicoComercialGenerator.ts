@@ -2516,6 +2516,105 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
             ✓ iOS & Android Inclusos
           </div>
         </div>
+
+        ${(() => {
+          // Imagens da Galeria de Usinas para os blocos explicativos
+          const fotosValidas = (dados.fotosInstalacoes || []).filter(
+            (f) => !!(f && f.url && f.url.trim()),
+          )
+          const foto1 = fotosValidas.length > 0 ? fotosValidas[0].url : ''
+          const titulo1 =
+            fotosValidas.length > 0 ? fotosValidas[0].titulo : 'Usina Fotovoltaica Conectada à Rede'
+          const foto2 =
+            fotosValidas.length > 1
+              ? fotosValidas[1].url
+              : fotosValidas.length === 1
+                ? fotosValidas[0].url
+                : ''
+          const titulo2 =
+            fotosValidas.length > 1
+              ? fotosValidas[1].titulo
+              : fotosValidas.length === 1
+                ? fotosValidas[0].titulo
+                : 'Monitoramento Inteligente em Tempo Real'
+
+          const img1Html = foto1
+            ? `<img src="${foto1}" alt="${titulo1}" style="width: 100%; height: 130px; object-fit: cover; display: block; border-radius: 10px;" />`
+            : `<div style="width: 100%; height: 130px; background: #DCFCE7; border-radius: 10px; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #166534;">
+                 <span style="font-size: 32px;">☀️</span>
+                 <span style="font-size: 9px; font-weight: 800; margin-top: 4px;">Sistema Solar On-Grid Delfos</span>
+               </div>`
+
+          const img2Html = foto2
+            ? `<img src="${foto2}" alt="${titulo2}" style="width: 100%; height: 130px; object-fit: cover; display: block; border-radius: 10px;" />`
+            : `<div style="width: 100%; height: 130px; background: #DCFCE7; border-radius: 10px; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #166534;">
+                 <span style="font-size: 32px;">📱</span>
+                 <span style="font-size: 9px; font-weight: 800; margin-top: 4px;">Telemetria e Monitoramento 24/7</span>
+               </div>`
+
+          return `
+          <!-- BLOCOS EXPLICATIVOS COM FOTOS REAIS DA GALERIA USINAS -->
+          <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-top: 14px;">
+            <!-- Bloco 1: Como funciona o sistema solar (On-Grid) -->
+            <div style="background: #F0FDF4; border: 1.5px solid #BBF7D0; border-radius: 14px; padding: 12px 14px; display: flex; flex-direction: column; justify-content: space-between; box-shadow: 0 1px 3px rgba(22, 163, 74, 0.08);">
+              <div>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                  <span style="font-size: 8px; font-weight: 800; text-transform: uppercase; background: #DCFCE7; color: #166534; padding: 2px 7px; border-radius: 9999px; border: 1px solid #BBF7D0;">
+                    Engenharia On-Grid
+                  </span>
+                  <span style="font-size: 8px; font-weight: 700; color: #16A34A;">Conexão à Rede</span>
+                </div>
+                <div style="font-size: 11.5px; font-weight: 900; color: #166534; line-height: 1.25; margin-bottom: 4px;">
+                  Como funciona o sistema solar (On-Grid)
+                </div>
+                <p style="font-size: 8.5px; color: #374151; line-height: 1.35; margin: 0 0 8px 0;">
+                  Módulos fotovoltaicos convertem a luz solar em energia limpa contínua e o inversor transforma em corrente alternada para o consumo do imóvel. O excedente é injetado na concessionária gerando créditos energéticos no medidor bidirecional.
+                </p>
+                <div style="position: relative; border-radius: 10px; overflow: hidden; border: 1px solid #BBF7D0;">
+                  ${img1Html}
+                  <div style="position: absolute; bottom: 0; left: 0; right: 0; background: linear-gradient(0deg, rgba(6, 78, 59, 0.9) 0%, transparent 100%); padding: 5px 8px; color: #FFFFFF; font-size: 8px; font-weight: 800; display: flex; justify-content: space-between;">
+                    <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 170px;">${titulo1}</span>
+                    <span style="color: #A7F3D0; font-size: 7.5px;">Galeria Delfos</span>
+                  </div>
+                </div>
+              </div>
+              <div style="margin-top: 8px; padding-top: 6px; border-top: 1px solid #BBF7D0; display: flex; justify-content: space-between; font-size: 8px; color: #166534; font-weight: 800;">
+                <span>✓ Homologação e ART Inclusa</span>
+                <span style="color: #16A34A;">Turnkey Delfos</span>
+              </div>
+            </div>
+
+            <!-- Bloco 2: Monitoramento Inteligente 24/7 -->
+            <div style="background: #F0FDF4; border: 1.5px solid #BBF7D0; border-radius: 14px; padding: 12px 14px; display: flex; flex-direction: column; justify-content: space-between; box-shadow: 0 1px 3px rgba(22, 163, 74, 0.08);">
+              <div>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                  <span style="font-size: 8px; font-weight: 800; text-transform: uppercase; background: #DCFCE7; color: #166534; padding: 2px 7px; border-radius: 9999px; border: 1px solid #BBF7D0;">
+                    Telemetria em Tempo Real
+                  </span>
+                  <span style="font-size: 8px; font-weight: 700; color: #16A34A;">App Mobile Incluso</span>
+                </div>
+                <div style="font-size: 11.5px; font-weight: 900; color: #166534; line-height: 1.25; margin-bottom: 4px;">
+                  Monitoramento Inteligente 24/7
+                </div>
+                <p style="font-size: 8.5px; color: #374151; line-height: 1.35; margin: 0 0 8px 0;">
+                  Acompanhe a geração de energia em tempo real na palma da mão. Gráficos diários em kWh, economia acumulada em reais, status do inversor e alertas inteligentes via aplicativo para celular (Android e iOS).
+                </p>
+                <div style="position: relative; border-radius: 10px; overflow: hidden; border: 1px solid #BBF7D0;">
+                  ${img2Html}
+                  <div style="position: absolute; bottom: 0; left: 0; right: 0; background: linear-gradient(0deg, rgba(6, 78, 59, 0.9) 0%, transparent 100%); padding: 5px 8px; color: #FFFFFF; font-size: 8px; font-weight: 800; display: flex; justify-content: space-between;">
+                    <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 170px;">${titulo2}</span>
+                    <span style="color: #A7F3D0; font-size: 7.5px;">Galeria Delfos</span>
+                  </div>
+                </div>
+              </div>
+              <div style="margin-top: 8px; padding-top: 6px; border-top: 1px solid #BBF7D0; display: flex; justify-content: space-between; font-size: 8px; color: #166534; font-weight: 800;">
+                <span>✓ Suporte e Acesso Vitalício</span>
+                <span style="color: #16A34A;">iOS & Android</span>
+              </div>
+            </div>
+          </div>
+          `
+        })()}
       </div>
       ${renderInternalFooter(3)}
     </section>
