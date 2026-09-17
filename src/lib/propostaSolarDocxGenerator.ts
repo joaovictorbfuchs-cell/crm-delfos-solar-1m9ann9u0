@@ -1119,25 +1119,6 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
                     }),
                   ],
                 }),
-                new Paragraph({
-                  spacing: { before: 20 },
-                  children: [
-                    new TextRun({
-                      text: '• Garantia da instalação: ',
-                      bold: true,
-                      color: '065F46',
-                      size: 14,
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: `${(sistema as any)?.garantias?.instalacaoTexto || (dados as any)?.garantias?.instalacaoTexto || '12 meses'}`,
-                      bold: true,
-                      color: '065F46',
-                      size: 14,
-                      font: 'Arial',
-                    }),
-                  ],
-                }),
               ],
             }),
           ],

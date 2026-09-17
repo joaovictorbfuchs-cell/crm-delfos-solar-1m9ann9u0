@@ -77,7 +77,7 @@ describe('propostaSolarDocxGenerator', () => {
     expect(jsonStr).toContain('Garantia de performance (degradação):')
     expect(jsonStr).toContain('Garantia contra defeitos de fabricação:')
     expect(jsonStr).toContain('Garantia do inversor:')
-    expect(jsonStr).toContain('Garantia da instalação:')
+    expect(jsonStr).not.toContain('Garantia da instalação:')
     expect(jsonStr).toContain('Projeção de Economia na Conta de Energia')
     expect(jsonStr).toContain('Projeção de Economia em 25 Anos')
     expect(jsonStr).toContain('Investimento e Condições de Pagamento')

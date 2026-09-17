@@ -142,7 +142,7 @@ describe('Proposta Técnico-Comercial Generator (6 Seções Oficiais)', () => {
     expect(html).toContain('Inversor Solar')
     expect(html).toContain('Growatt 10kW On-Grid com WiFi')
     expect(html).toContain('Garantia do inversor:')
-    expect(html).toContain('Garantia da instalação:')
+    expect(html).not.toContain('Garantia da instalação:')
     expect(html).toContain('Área Necessária')
     expect(html).not.toContain('Tranquilidade e Garantias Asseguradas')
     expect(html).toContain('Monitoramento Inteligente 24/7 pelo Smartphone')

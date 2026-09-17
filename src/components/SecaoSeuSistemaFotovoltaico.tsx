@@ -375,18 +375,12 @@ export const SecaoSeuSistemaFotovoltaico: React.FC<SecaoSeuSistemaFotovoltaicoPr
               </div>
             </div>
 
-            {/* Rodapé do Card: Garantia do Inversor + Garantia da Instalação */}
+            {/* Rodapé do Card: Garantia do Inversor */}
             <div className="mt-4 pt-3 border-t border-gray-100 space-y-1.5">
               <div className="flex items-center justify-between text-[11px] text-gray-600">
                 <span className="font-medium text-gray-500">Garantia do inversor:</span>
                 <span className="font-extrabold text-teal-800 bg-teal-50 px-2 py-0.5 rounded-md border border-teal-200/70">
                   {garantiaInversorFinalAnos} anos
-                </span>
-              </div>
-              <div className="flex items-center justify-between text-[11px] text-gray-600">
-                <span className="font-medium text-gray-500">Garantia da instalação:</span>
-                <span className="font-extrabold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200/70">
-                  {garantiaInstalacaoFinalTexto}
                 </span>
               </div>
             </div>

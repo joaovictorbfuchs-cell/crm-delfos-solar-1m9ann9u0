@@ -2354,15 +2354,11 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
               </div>
             </div>
 
-            <!-- Rodapé do Card: Garantia do Inversor + Garantia da Instalação -->
+            <!-- Rodapé do Card: Garantia do Inversor -->
             <div style="margin-top: 8px; padding-top: 6px; border-top: 1px solid #E5E7EB; font-size: 8px; line-height: 1.4;">
-              <div style="display: flex; justify-content: space-between; align-items: center; color: #4B5563; margin-bottom: 2px;">
+              <div style="display: flex; justify-content: space-between; align-items: center; color: #4B5563;">
                 <span>Garantia do inversor:</span>
                 <strong style="color: #0F766E; background: #CCFBF1; padding: 1px 5px; border-radius: 4px; border: 1px solid #99F6E4;">${garantiaInversor} anos</strong>
-              </div>
-              <div style="display: flex; justify-content: space-between; align-items: center; color: #4B5563;">
-                <span>Garantia da instalação:</span>
-                <strong style="color: #065F46; background: #DCFCE7; padding: 1px 5px; border-radius: 4px; border: 1px solid #BBF7D0;">${garantiaInstalacao}</strong>
               </div>
             </div>
           </div>
