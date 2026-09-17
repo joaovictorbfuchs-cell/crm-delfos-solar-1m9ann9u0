@@ -2725,9 +2725,12 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
           <!-- Card 1: À Vista -->
           <div class="card-pagamento destaque-verde">
             <div>
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                <span style="font-size: 7.5px; font-weight: 800; background: #A7F3D0; color: #064E3B; padding: 2px 6px; border-radius: 9999px; text-transform: uppercase; letter-spacing: 0.04em;">Melhor condição</span>
+              </div>
               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
                 <span class="card-pagamento-titulo" style="margin: 0; font-size: 9.5px; font-weight: 900; color: #022c22; text-transform: uppercase;">À VISTA</span>
-                <span style="font-size: 8px; font-weight: 800; background: #A7F3D0; color: #064E3B; padding: 2px 6px; border-radius: 9999px;">Sem Juros</span>
+                <span style="font-size: 8px; font-weight: 800; background: #D1FAE5; color: #064E3B; padding: 2px 6px; border-radius: 9999px;">Sem Juros</span>
               </div>
               <div class="card-pagamento-valor" style="color: #047857; margin-top: 6px;">${formatBRL(aVistaValor)}</div>
               <div class="card-pagamento-desc">
@@ -2757,6 +2760,9 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
           <!-- Card 2: Cartão -->
           <div class="card-pagamento">
             <div>
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                <span style="font-size: 7.5px; font-weight: 800; background: #F3F4F6; color: #374151; padding: 2px 6px; border-radius: 9999px; text-transform: uppercase; letter-spacing: 0.04em;">Condição facilitada</span>
+              </div>
               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
                 <span class="card-pagamento-titulo" style="margin: 0; font-size: 9.5px; font-weight: 900; color: #111827; text-transform: uppercase;">CARTÃO DE CRÉDITO</span>
                 <span style="font-size: 8px; font-weight: 800; background: #F3F4F6; color: #374151; padding: 2px 6px; border-radius: 9999px;">${cartaoParcelas}x</span>
@@ -2792,6 +2798,9 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
           <!-- Card 3: Financiamento A -->
           <div class="card-pagamento">
             <div>
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                <span style="font-size: 7.5px; font-weight: 800; background: #FEF3C7; color: #78350F; padding: 2px 6px; border-radius: 9999px; text-transform: uppercase; letter-spacing: 0.04em;">Menor parcela</span>
+              </div>
               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
                 <span class="card-pagamento-titulo" style="margin: 0; font-size: 9.5px; font-weight: 900; color: #111827; text-transform: uppercase;">${finanANome}</span>
                 <span style="font-size: 8px; font-weight: 800; background: #FEF3C7; color: #78350F; padding: 2px 6px; border-radius: 9999px;">${finanAParcelas}x</span>
@@ -2827,6 +2836,9 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
           <!-- Card 4: Financiamento B -->
           <div class="card-pagamento destaque-azul" style="border: 2px solid #60A5FA; background: #F0F9FF;">
             <div>
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                <span style="font-size: 7.5px; font-weight: 800; background: #DBEAFE; color: #1E3A8A; padding: 2px 6px; border-radius: 9999px; text-transform: uppercase; letter-spacing: 0.04em;">Maior prazo</span>
+              </div>
               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
                 <span class="card-pagamento-titulo" style="margin: 0; font-size: 9.5px; font-weight: 900; color: #172554; text-transform: uppercase;">${finanBNome}</span>
                 <span style="font-size: 8px; font-weight: 800; background: #BFDBFE; color: #1E3A8A; padding: 2px 6px; border-radius: 9999px;">${finanBParcelas}x</span>

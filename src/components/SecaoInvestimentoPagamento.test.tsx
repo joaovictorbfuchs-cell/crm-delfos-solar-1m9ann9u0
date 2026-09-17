@@ -16,20 +16,21 @@ describe('SecaoInvestimentoPagamento Component', () => {
     // Valor padrão R$ 45.000
     expect(html).toContain('45.000')
 
-    // 4 cards de pagamento
+    // 4 cards de pagamento com suas badges superiores restauradas
     expect(html).toContain('À Vista')
+    expect(html).toContain('Melhor condição')
     expect(html).toContain('Cartão de Crédito')
+    expect(html).toContain('Condição facilitada')
     expect(html).toContain('Financiamento A')
+    expect(html).toContain('Menor parcela')
     expect(html).toContain('Financiamento B')
+    expect(html).toContain('Maior prazo')
+
+    // Linhas comparativas inferiores idênticas à aba de parcelamento
     expect(html).toContain('Conta hoje s/ solar:')
     expect(html).toContain('Conta c/ solar:')
     expect(html).toContain('Economia/mês:')
     expect(html).toContain('Parcela + Conta:')
-    expect(html).toContain('Maior prazo')
-
-    // As 3 linhas inferiores de comparativo
-    expect(html).toContain('Conta hoje s/ solar:')
-    expect(html).toContain('Conta c/ solar:')
 
     // Linha comparativa
     expect(html).toContain('Hoje você paga')
@@ -85,13 +86,15 @@ describe('SecaoInvestimentoPagamento Component', () => {
     expect(html).toContain('3.333')
     expect(html).toContain('Condição facilitada')
 
-    // Financiamentos personalizados
+    // Financiamentos personalizados e badges
     expect(html).toContain('Banco Santander')
+    expect(html).toContain('Menor parcela')
     expect(html).toContain('48x')
     expect(html).toContain('1.100')
     expect(html).toContain('12.000')
 
     expect(html).toContain('Banco BV')
+    expect(html).toContain('Maior prazo')
     expect(html).toContain('84x')
     expect(html).toContain('850')
     expect(html).toContain('6.000')

@@ -276,25 +276,39 @@ export const SecaoInvestimentoPagamento: React.FC<SecaoInvestimentoPagamentoProp
         {/* ========================================================================= */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-xs">
           {/* CARD 1: À VISTA */}
-          <div className="p-4 rounded-xl border-2 border-emerald-400 bg-emerald-50/40 flex flex-col justify-between space-y-3 shadow-2xs">
+          <div className="p-5 sm:p-6 rounded-2xl border-2 border-emerald-400 bg-emerald-50/50 flex flex-col justify-between space-y-4 shadow-sm hover:shadow-md transition-shadow">
             <div>
+              {/* Cabeçalho com ícone e badge pill superior */}
+              <div className="flex items-center justify-between gap-2 mb-3">
+                <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center shrink-0 border border-emerald-200 shadow-2xs">
+                  <Wallet className="w-5 h-5 text-emerald-700" />
+                </div>
+                <span className="text-[10px] font-bold px-2.5 py-1 rounded-full uppercase bg-emerald-200 text-emerald-900 tracking-wider">
+                  Melhor condição
+                </span>
+              </div>
+
               <div className="flex items-center justify-between">
-                <span className="font-extrabold text-xs uppercase text-emerald-950">À Vista</span>
-                <span className="text-[10px] font-bold bg-emerald-200 text-emerald-900 px-2 py-0.5 rounded-full">
+                <span className="font-extrabold text-xs uppercase tracking-wider text-emerald-950">
+                  À Vista
+                </span>
+                <span className="text-[10px] font-bold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full">
                   Sem Juros
                 </span>
               </div>
-              <div className="text-xl font-black text-emerald-700 mt-2">
+
+              <div className="text-2xl sm:text-3xl font-black text-emerald-700 tracking-tight mt-2">
                 {formatCurrency(aVistaFinal)}
               </div>
-              <p className="text-[10px] text-gray-500">
+              <p className="text-[11px] text-gray-500 mt-1">
                 {descontoAVistaFinal > 0
                   ? `Desconto de ${formatCurrency(descontoAVistaFinal)} aplicado`
                   : 'Valor total do projeto à vista'}
               </p>
             </div>
 
-            <div className="pt-2 border-t border-emerald-200 space-y-1 text-[11px]">
+            {/* 3 Linhas comparativas inferiores idênticas à aba de parcelamento */}
+            <div className="pt-3 border-t border-emerald-200 space-y-1.5 text-[11px]">
               <div className="flex justify-between">
                 <span className="text-gray-500">Conta hoje s/ solar:</span>
                 <span className="font-bold text-red-600">{formatCurrency(contaAtualFinal)}</span>
@@ -313,10 +327,20 @@ export const SecaoInvestimentoPagamento: React.FC<SecaoInvestimentoPagamentoProp
           </div>
 
           {/* CARD 2: CARTÃO */}
-          <div className="p-4 rounded-xl border border-gray-200 bg-white flex flex-col justify-between space-y-3 shadow-2xs">
+          <div className="p-5 sm:p-6 rounded-2xl border border-gray-200 bg-white flex flex-col justify-between space-y-4 shadow-sm hover:shadow-md transition-shadow">
             <div>
+              {/* Cabeçalho com ícone e badge pill superior */}
+              <div className="flex items-center justify-between gap-2 mb-3">
+                <div className="w-10 h-10 rounded-xl bg-gray-100 text-gray-800 flex items-center justify-center shrink-0 border border-gray-200 shadow-2xs">
+                  <CreditCard className="w-5 h-5 text-gray-700" />
+                </div>
+                <span className="text-[10px] font-bold px-2.5 py-1 rounded-full uppercase bg-gray-100 text-gray-700 tracking-wider">
+                  Condição facilitada
+                </span>
+              </div>
+
               <div className="flex items-center justify-between gap-1">
-                <span className="font-extrabold text-xs uppercase text-gray-900 truncate">
+                <span className="font-extrabold text-xs uppercase tracking-wider text-gray-900 truncate">
                   Cartão de Crédito
                 </span>
                 <span className="text-[10px] font-bold bg-gray-100 text-gray-700 px-2 py-0.5 rounded-full shrink-0">
@@ -326,16 +350,19 @@ export const SecaoInvestimentoPagamento: React.FC<SecaoInvestimentoPagamentoProp
                 </span>
               </div>
 
-              <div className="text-xl font-black text-gray-900 mt-2">
-                <span className="text-sm font-bold text-gray-600">{parcelasCartaoFinal}x de </span>
+              <div className="text-2xl sm:text-3xl font-black text-gray-900 tracking-tight mt-2">
+                <span className="text-sm sm:text-base font-bold text-gray-600">
+                  {parcelasCartaoFinal}x de{' '}
+                </span>
                 {formatCurrency(valorParcelaCartaoFinal)}
               </div>
-              <p className="text-[10px] text-gray-500">
+              <p className="text-[11px] text-gray-500 mt-1">
                 Total: {formatCurrency(valorParcelaCartaoFinal * parcelasCartaoFinal)}
               </p>
             </div>
 
-            <div className="pt-2 border-t border-gray-100 space-y-1 text-[11px]">
+            {/* 3 Linhas comparativas inferiores idênticas à aba de parcelamento */}
+            <div className="pt-3 border-t border-gray-100 space-y-1.5 text-[11px]">
               <div className="flex justify-between">
                 <span className="text-gray-500">Conta hoje s/ solar:</span>
                 <span className="font-bold text-red-600">{formatCurrency(contaAtualFinal)}</span>
@@ -354,10 +381,20 @@ export const SecaoInvestimentoPagamento: React.FC<SecaoInvestimentoPagamentoProp
           </div>
 
           {/* CARD 3: FINANCIAMENTO A */}
-          <div className="p-4 rounded-xl border border-gray-200 bg-white flex flex-col justify-between space-y-3 shadow-2xs">
+          <div className="p-5 sm:p-6 rounded-2xl border border-gray-200 bg-white flex flex-col justify-between space-y-4 shadow-sm hover:shadow-md transition-shadow">
             <div>
+              {/* Cabeçalho com ícone e badge pill superior */}
+              <div className="flex items-center justify-between gap-2 mb-3">
+                <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center shrink-0 border border-amber-200 shadow-2xs">
+                  <Building2 className="w-5 h-5 text-amber-700" />
+                </div>
+                <span className="text-[10px] font-bold px-2.5 py-1 rounded-full uppercase bg-amber-100 text-amber-900 tracking-wider">
+                  Menor parcela
+                </span>
+              </div>
+
               <div className="flex items-center justify-between gap-1">
-                <span className="font-extrabold text-xs uppercase text-gray-900 truncate">
+                <span className="font-extrabold text-xs uppercase tracking-wider text-gray-900 truncate">
                   {nomeFinanciamentoA || 'Financiamento A'}
                 </span>
                 <span className="text-[10px] font-bold bg-amber-100 text-amber-900 px-2 py-0.5 rounded-full shrink-0">
@@ -365,11 +402,13 @@ export const SecaoInvestimentoPagamento: React.FC<SecaoInvestimentoPagamentoProp
                 </span>
               </div>
 
-              <div className="text-xl font-black text-gray-900 mt-2">
-                <span className="text-sm font-bold text-gray-600">{parcelasFinanAFinal}x de </span>
+              <div className="text-2xl sm:text-3xl font-black text-gray-900 tracking-tight mt-2">
+                <span className="text-sm sm:text-base font-bold text-gray-600">
+                  {parcelasFinanAFinal}x de{' '}
+                </span>
                 {formatCurrency(valorParcelaFinanAFinal)}
               </div>
-              <p className="text-[10px] text-gray-500">
+              <p className="text-[11px] text-gray-500 mt-1">
                 {entradaFinanAFinal > 0 && (
                   <span className="block text-amber-800 font-semibold">
                     Entrada: {formatCurrency(entradaFinanAFinal)}
@@ -380,7 +419,8 @@ export const SecaoInvestimentoPagamento: React.FC<SecaoInvestimentoPagamentoProp
               </p>
             </div>
 
-            <div className="pt-2 border-t border-gray-100 space-y-1 text-[11px]">
+            {/* 3 Linhas comparativas inferiores idênticas à aba de parcelamento */}
+            <div className="pt-3 border-t border-gray-100 space-y-1.5 text-[11px]">
               <div className="flex justify-between">
                 <span className="text-gray-500">Conta hoje s/ solar:</span>
                 <span className="font-bold text-red-600">{formatCurrency(contaAtualFinal)}</span>
@@ -399,10 +439,20 @@ export const SecaoInvestimentoPagamento: React.FC<SecaoInvestimentoPagamentoProp
           </div>
 
           {/* CARD 4: FINANCIAMENTO B */}
-          <div className="p-4 rounded-xl border-2 border-blue-400 bg-blue-50/40 flex flex-col justify-between space-y-3 shadow-2xs">
+          <div className="p-5 sm:p-6 rounded-2xl border-2 border-blue-400 bg-blue-50/50 flex flex-col justify-between space-y-4 shadow-sm hover:shadow-md transition-shadow">
             <div>
+              {/* Cabeçalho com ícone e badge pill superior */}
+              <div className="flex items-center justify-between gap-2 mb-3">
+                <div className="w-10 h-10 rounded-xl bg-blue-100 text-blue-800 flex items-center justify-center shrink-0 border border-blue-200 shadow-2xs">
+                  <Landmark className="w-5 h-5 text-blue-700" />
+                </div>
+                <span className="text-[10px] font-bold px-2.5 py-1 rounded-full uppercase bg-blue-100 text-blue-900 tracking-wider">
+                  Maior prazo
+                </span>
+              </div>
+
               <div className="flex items-center justify-between gap-1">
-                <span className="font-extrabold text-xs uppercase text-blue-950 truncate">
+                <span className="font-extrabold text-xs uppercase tracking-wider text-blue-950 truncate">
                   {nomeFinanciamentoB || 'Financiamento B'}
                 </span>
                 <span className="text-[10px] font-bold bg-blue-200 text-blue-900 px-2 py-0.5 rounded-full shrink-0">
@@ -410,13 +460,13 @@ export const SecaoInvestimentoPagamento: React.FC<SecaoInvestimentoPagamentoProp
                 </span>
               </div>
 
-              <div className="text-xl font-black text-blue-800 mt-2">
-                <span className="text-sm font-bold text-blue-900/80">
+              <div className="text-2xl sm:text-3xl font-black text-blue-800 tracking-tight mt-2">
+                <span className="text-sm sm:text-base font-bold text-blue-900/80">
                   {parcelasFinanBFinal}x de{' '}
                 </span>
                 {formatCurrency(valorParcelaFinanBFinal)}
               </div>
-              <p className="text-[10px] text-gray-500">
+              <p className="text-[11px] text-gray-500 mt-1">
                 {entradaFinanBFinal > 0 && (
                   <span className="block text-blue-900 font-semibold">
                     Entrada: {formatCurrency(entradaFinanBFinal)}
@@ -427,7 +477,8 @@ export const SecaoInvestimentoPagamento: React.FC<SecaoInvestimentoPagamentoProp
               </p>
             </div>
 
-            <div className="pt-2 border-t border-blue-200 space-y-1 text-[11px]">
+            {/* 3 Linhas comparativas inferiores idênticas à aba de parcelamento */}
+            <div className="pt-3 border-t border-blue-200 space-y-1.5 text-[11px]">
               <div className="flex justify-between">
                 <span className="text-gray-500">Conta hoje s/ solar:</span>
                 <span className="font-bold text-red-600">{formatCurrency(contaAtualFinal)}</span>

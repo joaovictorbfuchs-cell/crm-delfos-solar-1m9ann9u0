@@ -286,17 +286,26 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
   const cartaoValor =
     parcelamentos.cartao18x.valorParcela || Math.round(investimentoTotal / cartaoParcelas)
 
+  const cartaoEntrada =
+    parcelamentos.cartao18x.valorEntrada !== undefined ? parcelamentos.cartao18x.valorEntrada : 0
+
   const finanANome = parcelamentos.financiamentoBanco1.titulo || 'Financiamento A'
   const finanAParcelas = parcelamentos.financiamentoBanco1.numeroParcelas || 60
   const finanAValor =
     parcelamentos.financiamentoBanco1.valorParcela || Math.round(investimentoTotal * 0.023)
-  const finanAEntrada = Math.round(investimentoTotal * 0.2)
+  const finanAEntrada =
+    parcelamentos.financiamentoBanco1.valorEntrada !== undefined
+      ? parcelamentos.financiamentoBanco1.valorEntrada
+      : 0
 
   const finanBNome = parcelamentos.financiamentoBanco2.titulo || 'Financiamento B'
   const finanBParcelas = parcelamentos.financiamentoBanco2.numeroParcelas || 120
   const finanBValor =
     parcelamentos.financiamentoBanco2.valorParcela || Math.round(investimentoTotal * 0.02)
-  const finanBEntrada = Math.round(investimentoTotal * 0.1)
+  const finanBEntrada =
+    parcelamentos.financiamentoBanco2.valorEntrada !== undefined
+      ? parcelamentos.financiamentoBanco2.valorEntrada
+      : 0
 
   // Montagem do cabeçalho de cada página do Word
   const headerChildren: (Paragraph | Table)[] = []
@@ -463,17 +472,24 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
                 new Paragraph({
                   children: [
                     new TextRun({
-                      text: '✦ PROPOSTA COMERCIAL EXCLUSIVA • ',
+                      text: 'MELHOR CONDIÇÃO\n',
                       bold: true,
-                      size: 20,
-                      color: '6EE7B7',
+                      size: 11,
+                      color: '047857',
                       font: 'Arial',
                     }),
                     new TextRun({
-                      text: `${formatNumBR(potenciaKwp, 2)} kWp`,
+                      text: 'À VISTA',
                       bold: true,
-                      size: 20,
-                      color: 'FCD34D',
+                      size: 15,
+                      color: '064E3B',
+                      font: 'Arial',
+                    }),
+                    new TextRun({
+                      text: ' [SEM JUROS]\n',
+                      bold: true,
+                      size: 12,
+                      color: '047857',
                       font: 'Arial',
                     }),
                   ],
@@ -2100,6 +2116,13 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
                 new Paragraph({
                   children: [
                     new TextRun({
+                      text: 'CONDIÇÃO FACILITADA\n',
+                      bold: true,
+                      size: 11,
+                      color: '4B5563',
+                      font: 'Arial',
+                    }),
+                    new TextRun({
                       text: 'CARTÃO DE CRÉDITO',
                       bold: true,
                       size: 15,
@@ -2128,7 +2151,9 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
                       font: 'Arial',
                     }),
                     new TextRun({
-                      text: `Total: ${formatBRL(cartaoValor * cartaoParcelas)}\n`,
+                      text: `${
+                        cartaoEntrada > 0 ? `Entrada: ${formatBRL(cartaoEntrada)} | ` : ''
+                      }Total: ${formatBRL(cartaoEntrada + cartaoValor * cartaoParcelas)}\n`,
                       size: 11,
                       color: '6B7280',
                       font: 'Arial',
@@ -2197,6 +2222,13 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
               children: [
                 new Paragraph({
                   children: [
+                    new TextRun({
+                      text: 'MENOR PARCELA\n',
+                      bold: true,
+                      size: 11,
+                      color: 'B45309',
+                      font: 'Arial',
+                    }),
                     new TextRun({
                       text: finanANome.toUpperCase(),
                       bold: true,
@@ -2297,6 +2329,13 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
               children: [
                 new Paragraph({
                   children: [
+                    new TextRun({
+                      text: 'MAIOR PRAZO\n',
+                      bold: true,
+                      size: 11,
+                      color: '1D4ED8',
+                      font: 'Arial',
+                    }),
                     new TextRun({
                       text: finanBNome.toUpperCase(),
                       bold: true,

@@ -215,6 +215,10 @@ function converterInputParaTemplateComercial(
         contaHoje: parcelamentos.cartao18x.contaSemSolar,
         contaComSolar: parcelamentos.cartao18x.contaComSolar,
         semJuros: true,
+        entrada:
+          parcelamentos.cartao18x.valorEntrada !== undefined
+            ? parcelamentos.cartao18x.valorEntrada
+            : 0,
       },
       financiamentoA: {
         nome: parcelamentos.financiamentoBanco1.titulo || 'Financiamento 60x',
@@ -222,7 +226,10 @@ function converterInputParaTemplateComercial(
         valorParcela: parcelamentos.financiamentoBanco1.valorParcela,
         contaHoje: parcelamentos.financiamentoBanco1.contaSemSolar,
         contaComSolar: parcelamentos.financiamentoBanco1.contaComSolar,
-        entrada: 0,
+        entrada:
+          parcelamentos.financiamentoBanco1.valorEntrada !== undefined
+            ? parcelamentos.financiamentoBanco1.valorEntrada
+            : 0,
       },
       financiamentoB: {
         nome: parcelamentos.financiamentoBanco2.titulo || 'Financiamento 120x',
@@ -230,7 +237,10 @@ function converterInputParaTemplateComercial(
         valorParcela: parcelamentos.financiamentoBanco2.valorParcela,
         contaHoje: parcelamentos.financiamentoBanco2.contaSemSolar,
         contaComSolar: parcelamentos.financiamentoBanco2.contaComSolar,
-        entrada: 0,
+        entrada:
+          parcelamentos.financiamentoBanco2.valorEntrada !== undefined
+            ? parcelamentos.financiamentoBanco2.valorEntrada
+            : 0,
       },
     },
     projecao: {
