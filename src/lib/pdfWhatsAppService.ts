@@ -229,8 +229,14 @@ export async function gerarBase64OrcamentoSolar(
   })
   lines.push({
     text: `Cliente: ${dados.cliente.nome}${dados.cliente.cpfOuCnpj ? ` • CPF/CNPJ: ${dados.cliente.cpfOuCnpj}` : ''}`,
+    size: 9.5,
+    bold: true,
+  })
+  lines.push({
+    text: `Economize ${formatCurrency(ecoMensal)} por mes com sua propria usina solar`,
     size: 9,
     bold: true,
+    color: [0.086, 0.55, 0.25],
   })
   lines.push({
     text: `Localizacao: ${dados.cliente.endereco ? `${dados.cliente.endereco}, ` : ''}${dados.cliente.municipio || 'Erechim/RS'}`,

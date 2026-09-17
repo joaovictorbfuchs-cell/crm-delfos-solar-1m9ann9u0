@@ -371,85 +371,105 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
   const docChildren: (Paragraph | Table)[] = []
 
   // ----------------------------------------------------
-  // SEÇÃO 1: CAPA DA PROPOSTA COMERCIAL
+  // SEÇÃO 1: CAPA DA PROPOSTA COMERCIAL (ESTILO MODERNO ESPELHADO DO SecaoCapaProposta)
   // ----------------------------------------------------
   docChildren.push(
     new Table({
       width: { size: PAGE_CONTENT_WIDTH, type: WidthType.DXA },
       borders: {
-        top: { style: BorderStyle.SINGLE, size: 8, color: COLOR_ACCENT },
-        bottom: { style: BorderStyle.SINGLE, size: 8, color: COLOR_ACCENT },
-        left: { style: BorderStyle.SINGLE, size: 24, color: COLOR_PRIMARY },
-        right: { style: BorderStyle.SINGLE, size: 8, color: COLOR_ACCENT },
+        top: { style: BorderStyle.SINGLE, size: 12, color: COLOR_ACCENT },
+        bottom: { style: BorderStyle.SINGLE, size: 12, color: COLOR_ACCENT },
+        left: { style: BorderStyle.SINGLE, size: 36, color: COLOR_PRIMARY },
+        right: { style: BorderStyle.SINGLE, size: 12, color: COLOR_ACCENT },
       },
       rows: [
         new TableRow({
           children: [
             new TableCell({
               width: { size: PAGE_CONTENT_WIDTH, type: WidthType.DXA },
-              shading: { type: ShadingType.CLEAR, fill: COLOR_LIGHT_BG },
-              margins: { top: 160, bottom: 160, left: 180, right: 180 },
+              shading: { type: ShadingType.CLEAR, fill: '071A15' },
+              margins: { top: 200, bottom: 200, left: 220, right: 220 },
               children: [
                 new Paragraph({
                   children: [
                     new TextRun({
-                      text: 'PROPOSTA COMERCIAL EXCLUSIVA — DELFOS SOLAR',
+                      text: '✦ PROPOSTA COMERCIAL EXCLUSIVA • ',
                       bold: true,
-                      size: 24,
-                      color: COLOR_PRIMARY,
+                      size: 20,
+                      color: '6EE7B7',
+                      font: 'Arial',
+                    }),
+                    new TextRun({
+                      text: `${formatNumBR(potenciaKwp, 2)} kWp`,
+                      bold: true,
+                      size: 20,
+                      color: 'FCD34D',
                       font: 'Arial',
                     }),
                   ],
                 }),
                 new Paragraph({
-                  spacing: { before: 80 },
+                  spacing: { before: 100 },
                   children: [
                     new TextRun({
-                      text: `Preparada especialmente para: `,
-                      size: 18,
-                      color: COLOR_TEXT_MUTED,
+                      text: 'PROPOSTA PREPARADA PARA\n',
+                      bold: true,
+                      size: 16,
+                      color: '34D399',
                       font: 'Arial',
                     }),
                     new TextRun({
                       text: cliente.nome,
                       bold: true,
-                      size: 22,
-                      color: COLOR_TEXT_DARK,
+                      size: 32,
+                      color: 'FFFFFF',
                       font: 'Arial',
                     }),
                   ],
                 }),
                 new Paragraph({
-                  spacing: { before: 60 },
+                  spacing: { before: 100 },
                   children: [
                     new TextRun({
                       text: `Economize ${formatBRL(economiaMensal)} por mês com sua própria usina solar.`,
                       bold: true,
-                      size: 20,
-                      color: COLOR_ACCENT,
+                      size: 22,
+                      color: '22C55E',
                       font: 'Arial',
                     }),
                   ],
                 }),
                 new Paragraph({
-                  spacing: { before: 60 },
+                  spacing: { before: 40 },
                   children: [
                     new TextRun({
-                      text: `Potência Nominal: ${formatNumBR(potenciaKwp, 2)} kWp   •   Geração Estimada: ${formatNumBR(calculos.geracaoMediaMensalKwh, 0)} kWh/mês   •   Payback: ${paybackTextoFinal}`,
-                      size: 17,
-                      color: COLOR_PRIMARY,
+                      text: 'Independência energética projetada exclusivamente para você com tecnologia de ponta.',
+                      size: 16,
+                      color: 'D1FAE5',
+                      font: 'Arial',
+                    }),
+                  ],
+                }),
+                new Paragraph({
+                  spacing: { before: 120 },
+                  children: [
+                    new TextRun({
+                      text: `⚡ Potência: ${formatNumBR(potenciaKwp, 2)} kWp   |   📈 Geração: ${formatNumBR(calculos.geracaoMediaMensalKwh, 0)} kWh/mês   |   ⏳ Payback: ${paybackTextoFinal}`,
+                      size: 16,
+                      color: 'FFFFFF',
                       font: 'Arial',
                       bold: true,
                     }),
                   ],
                 }),
                 new Paragraph({
-                  spacing: { before: 80 },
+                  spacing: { before: 120 },
+                  border: { top: { style: BorderStyle.SINGLE, size: 6, color: '065F46' } },
                   children: [
                     new TextRun({
-                      text: `Consultor: ${repNome}   •   Data: ${dataFormatada}   •   Validade: ${validadeEmDias} dias corridos`,
-                      size: 16,
-                      color: COLOR_TEXT_MUTED,
+                      text: `👤 Consultor: ${repNome}   •   📅 Data: ${dataFormatada}   •   ⏰ Validade: ${validadeEmDias} dias corridos`,
+                      size: 15,
+                      color: 'A7F3D0',
                       font: 'Arial',
                     }),
                   ],
@@ -921,7 +941,7 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
     }),
   )
 
-  // Faixa de garantias
+  // Faixa de garantias com selos visuais
   docChildren.push(
     new Table({
       width: { size: PAGE_CONTENT_WIDTH, type: WidthType.DXA },
@@ -931,24 +951,25 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
           children: [
             new TableCell({
               width: { size: Math.floor(PAGE_CONTENT_WIDTH / 3), type: WidthType.DXA },
-              shading: { type: ShadingType.CLEAR, fill: COLOR_LIGHT_BG },
-              margins: { top: 80, bottom: 80, left: 100, right: 100 },
+              shading: { type: ShadingType.CLEAR, fill: 'ECFDF5' },
+              margins: { top: 90, bottom: 90, left: 100, right: 100 },
               children: [
                 new Paragraph({
                   alignment: AlignmentType.CENTER,
                   children: [
                     new TextRun({
-                      text: '30 ANOS\n',
+                      text: '🛡️ 30 ANOS\n',
                       bold: true,
                       size: 20,
-                      color: COLOR_PRIMARY,
+                      color: '065F46',
                       font: 'Arial',
                     }),
                     new TextRun({
                       text: 'Módulos Solares (Performance)',
-                      size: 15,
-                      color: COLOR_TEXT_MUTED,
+                      size: 14,
+                      color: '047857',
                       font: 'Arial',
+                      bold: true,
                     }),
                   ],
                 }),
@@ -956,24 +977,25 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
             }),
             new TableCell({
               width: { size: Math.floor(PAGE_CONTENT_WIDTH / 3), type: WidthType.DXA },
-              shading: { type: ShadingType.CLEAR, fill: COLOR_LIGHT_BG },
-              margins: { top: 80, bottom: 80, left: 100, right: 100 },
+              shading: { type: ShadingType.CLEAR, fill: 'CCFBF1' },
+              margins: { top: 90, bottom: 90, left: 100, right: 100 },
               children: [
                 new Paragraph({
                   alignment: AlignmentType.CENTER,
                   children: [
                     new TextRun({
-                      text: '10 ANOS\n',
+                      text: '🛡️ 10 ANOS\n',
                       bold: true,
                       size: 20,
-                      color: COLOR_PRIMARY,
+                      color: '0F766E',
                       font: 'Arial',
                     }),
                     new TextRun({
                       text: 'Inversor Solar (Fábrica)',
-                      size: 15,
-                      color: COLOR_TEXT_MUTED,
+                      size: 14,
+                      color: '0F766E',
                       font: 'Arial',
+                      bold: true,
                     }),
                   ],
                 }),
@@ -981,23 +1003,62 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
             }),
             new TableCell({
               width: { size: Math.floor(PAGE_CONTENT_WIDTH / 3), type: WidthType.DXA },
-              shading: { type: ShadingType.CLEAR, fill: COLOR_LIGHT_BG },
-              margins: { top: 80, bottom: 80, left: 100, right: 100 },
+              shading: { type: ShadingType.CLEAR, fill: 'FEF3C7' },
+              margins: { top: 90, bottom: 90, left: 100, right: 100 },
               children: [
                 new Paragraph({
                   alignment: AlignmentType.CENTER,
                   children: [
                     new TextRun({
-                      text: '1 ANO\n',
+                      text: '🔧 1 ANO\n',
                       bold: true,
                       size: 20,
-                      color: COLOR_PRIMARY,
+                      color: '92400E',
                       font: 'Arial',
                     }),
                     new TextRun({
                       text: 'Instalação e Engenharia Delfos',
+                      size: 14,
+                      color: '92400E',
+                      font: 'Arial',
+                      bold: true,
+                    }),
+                  ],
+                }),
+              ],
+            }),
+          ],
+        }),
+      ],
+    }),
+  )
+
+  // Faixa verde de monitoramento 24/7 com smartphone
+  docChildren.push(
+    new Table({
+      width: { size: PAGE_CONTENT_WIDTH, type: WidthType.DXA },
+      borders: tableBorderNone,
+      rows: [
+        new TableRow({
+          children: [
+            new TableCell({
+              width: { size: PAGE_CONTENT_WIDTH, type: WidthType.DXA },
+              shading: { type: ShadingType.CLEAR, fill: '065F46' },
+              margins: { top: 80, bottom: 80, left: 120, right: 120 },
+              children: [
+                new Paragraph({
+                  children: [
+                    new TextRun({
+                      text: '📱 MONITORAMENTO INTELIGENTE 24/7 PELO SMARTPHONE (iOS & ANDROID): ',
+                      bold: true,
+                      size: 16,
+                      color: 'FFFFFF',
+                      font: 'Arial',
+                    }),
+                    new TextRun({
+                      text: 'Acompanhe geração diária, curva solar em kWh e economia acumulada em tempo real direto na tela do seu celular.',
                       size: 15,
-                      color: COLOR_TEXT_MUTED,
+                      color: 'D1FAE5',
                       font: 'Arial',
                     }),
                   ],
@@ -1014,10 +1075,53 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
   // SEÇÃO 4: PROJEÇÃO DE ECONOMIA NA CONTA DE ENERGIA (2026–2051)
   // ----------------------------------------------------
   docChildren.push(
-    ...createSectionHeader(
-      '4. Projeção de Economia na Conta de Energia (2026–2051)',
-      `Aplicação do Marco Legal da GD (Lei 14.300/2022), Fio B, Fator de Simultaneidade (${Math.round(projecaoOficial.fatorSimultaneidade * 100)}%) e degradação linear dos módulos fotovoltaicos.`,
-    ),
+    new Table({
+      width: { size: PAGE_CONTENT_WIDTH, type: WidthType.DXA },
+      borders: tableBorderNone,
+      rows: [
+        new TableRow({
+          children: [
+            new TableCell({
+              width: { size: PAGE_CONTENT_WIDTH, type: WidthType.DXA },
+              shading: { type: ShadingType.CLEAR, fill: '065F46' },
+              margins: { top: 100, bottom: 100, left: 140, right: 140 },
+              children: [
+                new Paragraph({
+                  children: [
+                    new TextRun({
+                      text: '⚖️ MARCO LEGAL DA GD (LEI 14.300/2022) • FATOR DE SIMULTANEIDADE: ',
+                      bold: true,
+                      size: 15,
+                      color: 'A7F3D0',
+                      font: 'Arial',
+                    }),
+                    new TextRun({
+                      text: `${Math.round(projecaoOficial.fatorSimultaneidade * 100)}%`,
+                      bold: true,
+                      size: 18,
+                      color: 'FDE047',
+                      font: 'Arial',
+                    }),
+                  ],
+                }),
+                new Paragraph({
+                  spacing: { before: 40 },
+                  children: [
+                    new TextRun({
+                      text: '4. Projeção de Economia na Conta de Energia (2026–2051)',
+                      bold: true,
+                      size: 20,
+                      color: 'FFFFFF',
+                      font: 'Arial',
+                    }),
+                  ],
+                }),
+              ],
+            }),
+          ],
+        }),
+      ],
+    }),
   )
 
   const projColWidth = Math.floor(PAGE_CONTENT_WIDTH / 6)
@@ -1348,7 +1452,7 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
     ),
   )
 
-  // Banner do Investimento Total
+  // Banner do Investimento Total com fundo escuro/esmeralda e valor dourado
   docChildren.push(
     new Table({
       width: { size: PAGE_CONTENT_WIDTH, type: WidthType.DXA },
@@ -1363,29 +1467,34 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
           children: [
             new TableCell({
               width: { size: PAGE_CONTENT_WIDTH, type: WidthType.DXA },
-              shading: { type: ShadingType.CLEAR, fill: COLOR_LIGHT_BG },
-              margins: { top: 100, bottom: 100, left: 140, right: 140 },
+              shading: { type: ShadingType.CLEAR, fill: '064E3B' },
+              margins: { top: 120, bottom: 120, left: 160, right: 160 },
               children: [
                 new Paragraph({
                   children: [
                     new TextRun({
-                      text: 'INVESTIMENTO TOTAL TURNKEY: ',
+                      text: 'INVESTIMENTO TOTAL TURNKEY (SISTEMA COMPLETO): ',
                       bold: true,
-                      size: 18,
-                      color: COLOR_PRIMARY,
+                      size: 17,
+                      color: 'A7F3D0',
                       font: 'Arial',
                     }),
                     new TextRun({
                       text: formatBRL(investimentoTotal),
                       bold: true,
-                      size: 24,
-                      color: COLOR_ACCENT,
+                      size: 28,
+                      color: 'FDE047',
                       font: 'Arial',
                     }),
+                  ],
+                }),
+                new Paragraph({
+                  spacing: { before: 40 },
+                  children: [
                     new TextRun({
-                      text: ' (equipamentos, projeto, ART, instalação e homologação)',
-                      size: 16,
-                      color: COLOR_TEXT_MUTED,
+                      text: 'Investimento único — o sistema é seu. Equipamentos Tier-1, projeto, ART, instalação e homologação inclusos.',
+                      size: 15,
+                      color: 'D1FAE5',
                       font: 'Arial',
                     }),
                   ],
@@ -1398,7 +1507,7 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
     }),
   )
 
-  // Grade 4 modalidades de pagamento
+  // Grade 4 modalidades de pagamento com destaques estilizados idênticos ao React
   const colWidthPgto = Math.floor(PAGE_CONTENT_WIDTH / 4)
   docChildren.push(
     new Table({
@@ -1407,34 +1516,48 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
       rows: [
         new TableRow({
           children: [
-            // À Vista
+            // À Vista (Destaque Verde)
             new TableCell({
               width: { size: colWidthPgto, type: WidthType.DXA },
-              shading: { type: ShadingType.CLEAR, fill: COLOR_LIGHT_BG },
-              margins: { top: 80, bottom: 80, left: 80, right: 80 },
+              shading: { type: ShadingType.CLEAR, fill: 'ECFDF5' },
+              borders: {
+                top: { style: BorderStyle.SINGLE, size: 16, color: '16A34A' },
+                bottom: { style: BorderStyle.SINGLE, size: 16, color: '16A34A' },
+                left: { style: BorderStyle.SINGLE, size: 16, color: '16A34A' },
+                right: { style: BorderStyle.SINGLE, size: 16, color: '16A34A' },
+              },
+              margins: { top: 90, bottom: 90, left: 80, right: 80 },
               children: [
                 new Paragraph({
                   alignment: AlignmentType.CENTER,
                   children: [
                     new TextRun({
-                      text: 'À VISTA (DESCONTO)\n',
+                      text: '[MELHOR CONDIÇÃO]\n',
                       bold: true,
-                      size: 16,
-                      color: COLOR_PRIMARY,
+                      size: 13,
+                      color: '16A34A',
+                      font: 'Arial',
+                    }),
+                    new TextRun({
+                      text: '💵 À VISTA\n',
+                      bold: true,
+                      size: 15,
+                      color: '065F46',
                       font: 'Arial',
                     }),
                     new TextRun({
                       text: `${formatBRL(aVistaValor)}\n`,
                       bold: true,
                       size: 18,
-                      color: COLOR_ACCENT,
+                      color: '15803D',
                       font: 'Arial',
                     }),
                     new TextRun({
-                      text: `Economia de ${formatBRL(aVistaDesconto)}`,
-                      size: 14,
-                      color: COLOR_TEXT_MUTED,
+                      text: `Desconto de ${formatBRL(aVistaDesconto)}`,
+                      size: 13,
+                      color: '166534',
                       font: 'Arial',
+                      bold: true,
                     }),
                   ],
                 }),
@@ -1443,93 +1566,117 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
             // Cartão
             new TableCell({
               width: { size: colWidthPgto, type: WidthType.DXA },
-              margins: { top: 80, bottom: 80, left: 80, right: 80 },
+              shading: { type: ShadingType.CLEAR, fill: 'EFF6FF' },
+              margins: { top: 90, bottom: 90, left: 80, right: 80 },
               children: [
                 new Paragraph({
                   alignment: AlignmentType.CENTER,
                   children: [
                     new TextRun({
-                      text: 'CARTÃO DE CRÉDITO\n',
+                      text: '[SEM BUROCRACIA]\n',
                       bold: true,
-                      size: 16,
-                      color: COLOR_TEXT_DARK,
+                      size: 13,
+                      color: '2563EB',
                       font: 'Arial',
                     }),
                     new TextRun({
-                      text: `${cartaoParcelas}x de ${formatBRL(cartaoValor)}\n`,
+                      text: '💳 CARTÃO\n',
                       bold: true,
-                      size: 18,
-                      color: COLOR_PRIMARY,
+                      size: 15,
+                      color: '1E40AF',
                       font: 'Arial',
                     }),
                     new TextRun({
-                      text: 'Sem juros na máquina',
-                      size: 14,
-                      color: COLOR_TEXT_MUTED,
+                      text: `${cartaoParcelas}x ${formatBRL(cartaoValor)}\n`,
+                      bold: true,
+                      size: 17,
+                      color: '1E3A8A',
+                      font: 'Arial',
+                    }),
+                    new TextRun({
+                      text: 'Direto na maquininha',
+                      size: 13,
+                      color: '3B82F6',
                       font: 'Arial',
                     }),
                   ],
                 }),
               ],
             }),
-            // Financiamento A
+            // Financiamento A (Menor Parcela)
             new TableCell({
               width: { size: colWidthPgto, type: WidthType.DXA },
-              margins: { top: 80, bottom: 80, left: 80, right: 80 },
+              shading: { type: ShadingType.CLEAR, fill: 'FFFBEB' },
+              margins: { top: 90, bottom: 90, left: 80, right: 80 },
               children: [
                 new Paragraph({
                   alignment: AlignmentType.CENTER,
                   children: [
                     new TextRun({
-                      text: `${finanANome.toUpperCase()}\n`,
+                      text: '[MENOR PARCELA]\n',
                       bold: true,
-                      size: 16,
-                      color: COLOR_TEXT_DARK,
+                      size: 13,
+                      color: 'D97706',
                       font: 'Arial',
                     }),
                     new TextRun({
-                      text: `${finanAParcelas}x de ${formatBRL(finanAValor)}\n`,
+                      text: `🏦 ${finanANome.toUpperCase()}\n`,
                       bold: true,
-                      size: 18,
-                      color: COLOR_PRIMARY,
+                      size: 15,
+                      color: '92400E',
+                      font: 'Arial',
+                    }),
+                    new TextRun({
+                      text: `${finanAParcelas}x ${formatBRL(finanAValor)}\n`,
+                      bold: true,
+                      size: 17,
+                      color: '78350F',
                       font: 'Arial',
                     }),
                     new TextRun({
                       text: `Entrada: ${formatBRL(finanAEntrada)}`,
-                      size: 14,
-                      color: COLOR_TEXT_MUTED,
+                      size: 13,
+                      color: 'B45309',
                       font: 'Arial',
                     }),
                   ],
                 }),
               ],
             }),
-            // Financiamento B
+            // Financiamento B (Maior Prazo)
             new TableCell({
               width: { size: colWidthPgto, type: WidthType.DXA },
-              margins: { top: 80, bottom: 80, left: 80, right: 80 },
+              shading: { type: ShadingType.CLEAR, fill: 'FAF5FF' },
+              margins: { top: 90, bottom: 90, left: 80, right: 80 },
               children: [
                 new Paragraph({
                   alignment: AlignmentType.CENTER,
                   children: [
                     new TextRun({
-                      text: `${finanBNome.toUpperCase()}\n`,
+                      text: '[MAIOR PRAZO]\n',
                       bold: true,
-                      size: 16,
-                      color: COLOR_TEXT_DARK,
+                      size: 13,
+                      color: '9333EA',
                       font: 'Arial',
                     }),
                     new TextRun({
-                      text: `${finanBParcelas}x de ${formatBRL(finanBValor)}\n`,
+                      text: `⏳ ${finanBNome.toUpperCase()}\n`,
                       bold: true,
-                      size: 18,
-                      color: COLOR_PRIMARY,
+                      size: 15,
+                      color: '6B21A8',
+                      font: 'Arial',
+                    }),
+                    new TextRun({
+                      text: `${finanBParcelas}x ${formatBRL(finanBValor)}\n`,
+                      bold: true,
+                      size: 17,
+                      color: '581C87',
                       font: 'Arial',
                     }),
                     new TextRun({
                       text: `Entrada: ${formatBRL(finanBEntrada)}`,
-                      size: 14,
-                      color: COLOR_TEXT_MUTED,
+                      size: 13,
+                      color: '7E22CE',
                       font: 'Arial',
                     }),
                   ],
