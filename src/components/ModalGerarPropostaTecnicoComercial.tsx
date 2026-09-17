@@ -38,7 +38,9 @@ import { SecaoInvestimentoPagamento } from '@/components/SecaoInvestimentoPagame
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 
 export interface ModalGerarPropostaTecnicoComercialProps {
-  orcamento: OrcamentoSolarCalculado
+  orcamento: OrcamentoSolarCalculado & {
+    instalacoes_selecionadas?: string[] | null
+  }
   cliente?: Cliente | null
   open: boolean
   onClose: () => void
@@ -175,8 +177,14 @@ export function ModalGerarPropostaTecnicoComercial({
       try {
         const galeria = await fetchInstalacoesGaleria()
         setTodasInstalacoes(galeria)
-        // Por padrão selecionar as primeiras fotos válidas
-        if (galeria.length > 0) {
+        // Se o orçamento já traz instalacoes_selecionadas salvas, usa essa seleção
+        if (
+          Array.isArray(orcamento.instalacoes_selecionadas) &&
+          orcamento.instalacoes_selecionadas.length > 0
+        ) {
+          setFotosSelecionadasIds(orcamento.instalacoes_selecionadas)
+        } else if (galeria.length > 0) {
+          // Fallback padrão se não houver seleção específica
           const comFoto = galeria.filter((g) => {
             const url = getFotoUrl(g)
             return !!(url && url.trim())

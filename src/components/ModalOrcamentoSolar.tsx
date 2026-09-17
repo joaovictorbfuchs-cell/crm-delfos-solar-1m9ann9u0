@@ -65,6 +65,9 @@ import { SecaoProjecao25Anos } from '@/components/SecaoProjecao25Anos'
 import { SecaoSeuSistemaFotovoltaico } from '@/components/SecaoSeuSistemaFotovoltaico'
 import { SecaoInvestimentoPagamento } from '@/components/SecaoInvestimentoPagamento'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
+import { fetchInstalacoesGaleria, getFotoUrl } from '@/services/instalacoesGaleriaService'
+import type { InstalacaoGaleria } from '@/types/instalacoesGaleria'
+import { CheckSquare, Square } from 'lucide-react'
 
 interface ModalOrcamentoSolarProps {
   isOpen: boolean
@@ -155,6 +158,11 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
   const [parcelasBanco2, setParcelasBanco2] = useState<number>(60)
   const [jurosBanco2, setJurosBanco2] = useState<number>(0.99)
 
+  // Usinas da galeria e usinas selecionadas para esta proposta
+  const [usinasGaleria, setUsinasGaleria] = useState<InstalacaoGaleria[]>([])
+  const [instalacoesSelecionadasIds, setInstalacoesSelecionadasIds] = useState<string[]>([])
+  const [loadingGaleria, setLoadingGaleria] = useState<boolean>(false)
+
   // Ref para acessar a lista de clientes atual sem colocá-la como dependência do efeito de inicialização
   const clientesRef = useRef(clientes)
   useEffect(() => {
@@ -166,6 +174,30 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
 
   // Ref para guardar seleção de fornecedor feita na sessão do modal e evitar reversão de materiais/equipamentos
   const fornecedorAplicadoRef = useRef<{ id: string; valor: number } | null>(null)
+
+  // Carrega as usinas da galeria quando o modal é aberto
+  useEffect(() => {
+    if (!isOpen) return
+    let cancel = false
+    setLoadingGaleria(true)
+    fetchInstalacoesGaleria()
+      .then((dados) => {
+        if (!cancel) {
+          setUsinasGaleria(dados || [])
+        }
+      })
+      .catch((err) => {
+        console.error('Erro ao buscar galeria de usinas no modal de orçamento:', err)
+      })
+      .finally(() => {
+        if (!cancel) {
+          setLoadingGaleria(false)
+        }
+      })
+    return () => {
+      cancel = true
+    }
+  }, [isOpen])
 
   // Inicializa ou sincroniza cliente e orçamento somente ao abrir ou ao mudar initialOrcamento / initialClienteId
   useEffect(() => {
@@ -342,8 +374,19 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
           ? initialOrcamento.juros_financiamento_banco2
           : 0.99,
       )
+
+      // Carrega usinas selecionadas salvas no orçamento
+      if (
+        Array.isArray(initialOrcamento.instalacoes_selecionadas) &&
+        initialOrcamento.instalacoes_selecionadas.length > 0
+      ) {
+        setInstalacoesSelecionadasIds(initialOrcamento.instalacoes_selecionadas)
+      } else {
+        setInstalacoesSelecionadasIds([])
+      }
     } else {
       // Novo orçamento: defaults
+      setInstalacoesSelecionadasIds([])
       setTarifaKwh(1.19)
       setValorPorPlaca(150)
       setOpcaoImposto(1)
@@ -672,6 +715,8 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
         garantiaInstalacaoTexto: '12 meses',
       },
       calculos,
+      instalacoesSelecionadasIds:
+        instalacoesSelecionadasIds.length > 0 ? instalacoesSelecionadasIds : undefined,
       dataEmissao: new Date().toISOString(),
       validadeDias: 5,
       observacoes,
@@ -696,6 +741,7 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
     garantiaModulosFabricacaoAnos,
     garantiaInversorAnos,
     calculos,
+    instalacoesSelecionadasIds,
     observacoes,
   ])
 
@@ -817,6 +863,10 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
         garantia_modulos_degradacao_anos: garantiaModulosDegradacaoAnos,
         garantia_modulos_fabricacao_anos: garantiaModulosFabricacaoAnos,
         garantia_inversor_anos: garantiaInversorAnos,
+
+        // Instalações da galeria selecionadas para a proposta
+        instalacoes_selecionadas:
+          instalacoesSelecionadasIds.length > 0 ? instalacoesSelecionadasIds : null,
 
         data_orcamento: new Date().toISOString(),
         validade_dias: 5,
@@ -2831,6 +2881,147 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                   </div>
                 </div>
 
+                {/* Seletor de Instalações que Aparecerão na Apresentação da Proposta */}
+                <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-2xs space-y-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 pb-2.5 border-b border-gray-100">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-emerald-100 text-emerald-800 text-xs font-bold">
+                          ✓
+                        </span>
+                        <h4 className="text-xs font-bold text-gray-900 uppercase tracking-wide">
+                          Instalações que aparecerão na apresentação da proposta
+                        </h4>
+                      </div>
+                      <p className="text-[11px] text-gray-500 mt-0.5">
+                        Escolha quais usinas de referência do portfólio Delfos Solar serão exibidas
+                        ao cliente nesta proposta.
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const todosIds = usinasGaleria.map((u) => u.id)
+                          setInstalacoesSelecionadasIds(todosIds)
+                        }}
+                        className="text-[11px] font-bold px-2.5 py-1 rounded-md bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 transition-colors"
+                      >
+                        Selecionar todas
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setInstalacoesSelecionadasIds([])}
+                        className="text-[11px] font-semibold px-2.5 py-1 rounded-md bg-gray-50 text-gray-600 hover:bg-gray-100 border border-gray-200 transition-colors"
+                      >
+                        Desmarcar todas
+                      </button>
+                      <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
+                        {instalacoesSelecionadasIds.length === 0
+                          ? `Todas (${usinasGaleria.length})`
+                          : `${instalacoesSelecionadasIds.length} selecionada(s)`}
+                      </span>
+                    </div>
+                  </div>
+
+                  {loadingGaleria ? (
+                    <div className="py-6 text-center text-xs text-gray-400">
+                      Carregando usinas da galeria...
+                    </div>
+                  ) : usinasGaleria.length === 0 ? (
+                    <div className="py-4 text-center text-xs text-gray-500 bg-gray-50 rounded-lg">
+                      Nenhuma usina cadastrada na galeria de instalações.
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5 max-h-60 overflow-y-auto pr-1">
+                      {usinasGaleria.map((usina) => {
+                        const isChecked =
+                          instalacoesSelecionadasIds.length === 0 ||
+                          instalacoesSelecionadasIds.includes(usina.id)
+                        const urlFoto = getFotoUrl(usina)
+
+                        const toggleSelect = () => {
+                          if (instalacoesSelecionadasIds.length === 0) {
+                            // Se estava no fallback (todas ativas), ao clicar desmarca esta usina
+                            const outrosIds = usinasGaleria
+                              .map((u) => u.id)
+                              .filter((id) => id !== usina.id)
+                            setInstalacoesSelecionadasIds(outrosIds)
+                          } else if (instalacoesSelecionadasIds.includes(usina.id)) {
+                            setInstalacoesSelecionadasIds((prev) =>
+                              prev.filter((id) => id !== usina.id),
+                            )
+                          } else {
+                            setInstalacoesSelecionadasIds((prev) => [...prev, usina.id])
+                          }
+                        }
+
+                        return (
+                          <div
+                            key={usina.id}
+                            onClick={toggleSelect}
+                            className={`flex items-center gap-2.5 p-2 rounded-lg border text-xs cursor-pointer transition-all select-none ${
+                              isChecked
+                                ? 'border-emerald-400 bg-emerald-50/50 shadow-2xs'
+                                : 'border-gray-200 bg-white hover:border-gray-300 opacity-60'
+                            }`}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              onChange={() => {}}
+                              className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 pointer-events-none"
+                            />
+
+                            {/* Miniatura da foto ou placeholder verde */}
+                            <div className="w-12 h-10 rounded-md overflow-hidden bg-emerald-900/10 shrink-0 flex items-center justify-center border border-gray-200">
+                              {urlFoto ? (
+                                <img
+                                  src={urlFoto}
+                                  alt={usina.titulo}
+                                  className="w-full h-full object-cover"
+                                  onError={(e) => {
+                                    // Fallback para ícone se foto quebrar
+                                    ;(e.target as HTMLElement).style.display = 'none'
+                                  }}
+                                />
+                              ) : (
+                                <Sun className="w-5 h-5 text-emerald-600" />
+                              )}
+                            </div>
+
+                            <div className="min-w-0 flex-1">
+                              <div
+                                className="font-bold text-gray-900 truncate"
+                                title={usina.titulo}
+                              >
+                                {usina.titulo || 'Usina Solar Delfos'}
+                              </div>
+                              <div className="text-[10px] text-gray-500 truncate">
+                                {usina.cidade || 'Erechim / RS'}
+                              </div>
+                              <div className="text-[10px] font-bold text-emerald-700">
+                                {usina.potencia_kwp ? `${usina.potencia_kwp} kWp` : 'Turnkey'}
+                              </div>
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+                  {instalacoesSelecionadasIds.length === 0 && usinasGaleria.length > 0 && (
+                    <div className="text-[11px] text-gray-500 italic bg-amber-50/70 text-amber-800 p-2 rounded-lg border border-amber-200/60 flex items-center gap-1.5">
+                      <span>💡</span>
+                      <span>
+                        Nenhuma usina selecionada especificamente: a proposta exibirá{' '}
+                        <strong>todas as {usinasGaleria.length} usinas</strong> do portfólio (regra
+                        de segurança comercial).
+                      </span>
+                    </div>
+                  )}
+                </div>
+
                 {/* Seção 1: Capa da Proposta Comercial Oficial */}
                 <ErrorBoundary compact errorMessage="Não foi possível exibir a Capa da Proposta">
                   <SecaoCapaProposta
@@ -2847,7 +3038,11 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                   compact
                   errorMessage="Não foi possível exibir a Apresentação da Empresa"
                 >
-                  <SecaoApresentacaoEmpresa />
+                  <SecaoApresentacaoEmpresa
+                    instalacoesSelecionadasIds={
+                      instalacoesSelecionadasIds.length > 0 ? instalacoesSelecionadasIds : undefined
+                    }
+                  />
                 </ErrorBoundary>
 
                 {/* Seção 2: Situação Atual (Consumo & Custos + Gastos Acumulados) */}
@@ -3208,6 +3403,8 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
             parcela_financiamento_banco2:
               calculos.parcelamentos?.financiamentoBanco2?.valorParcela ||
               Math.round(valorInvestimentoFinal * 0.02),
+            instalacoes_selecionadas:
+              instalacoesSelecionadasIds.length > 0 ? instalacoesSelecionadasIds : null,
             data_orcamento: initialOrcamento?.data_orcamento || new Date().toISOString(),
             autor: initialOrcamento?.autor || user?.name || 'Equipe Delfos Solar',
             gasto_sem_solar_1_ano: calculos.gastoSemSolar1Ano,

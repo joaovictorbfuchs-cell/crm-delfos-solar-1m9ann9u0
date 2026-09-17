@@ -64,6 +64,7 @@ export interface PropostaSolarPDFInput {
     garantiaInstalacaoTexto?: string
   }
   calculos: CalculosSolarResultado
+  instalacoesSelecionadasIds?: string[]
   dataEmissao?: string
   validadeDias?: number // 5 dias prescritos
   observacoes?: string
@@ -116,6 +117,7 @@ function converterInputParaTemplateComercial(
     dataEmissao,
     validadeDias,
     observacoes,
+    instalacoesSelecionadasIds,
   } = dados
 
   const dataPropostaFormatada = dataEmissao
@@ -178,6 +180,7 @@ function converterInputParaTemplateComercial(
       instalacaoTexto:
         sistema.garantiaInstalacaoTexto || '1 ano de garantia direta Delfos Engenharia',
     },
+    instalacoesSelecionadasIds,
     producao: {
       anualKwh:
         sistema.consumoKwhMes && sistema.consumoKwhMes > 0

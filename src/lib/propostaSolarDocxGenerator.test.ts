@@ -151,4 +151,15 @@ describe('propostaSolarDocxGenerator', () => {
     expect(jsonStr).toContain('Gastos Acumulados Sem Solar: 1, 5 Anos e 25 Anos')
     expect(jsonStr).toContain('GASTO EM 5 ANOS')
   })
+
+  it('respeita instalacoesSelecionadasIds no docx e mantém portfólio', async () => {
+    const dadosComSelecao: PropostaSolarPDFInput = {
+      ...dadosExemploMarceloBecker,
+      instalacoesSelecionadasIds: ['1'],
+    }
+    const doc = await gerarPropostaSolarDocx(dadosComSelecao)
+    const jsonStr = JSON.stringify(doc)
+    expect(jsonStr).toContain('PORTFÓLIO DE USINAS INSTALADAS')
+    expect(jsonStr).toContain('Usina Solar Residencial')
+  })
 })

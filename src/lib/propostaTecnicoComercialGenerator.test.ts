@@ -393,4 +393,31 @@ describe('Proposta Técnico-Comercial Generator (6 Seções Oficiais)', () => {
     expect(html).toContain('Gastos Acumulados Sem Solar: 1, 5 Anos e 25 Anos')
     expect(html).toContain('Gasto em 5 Anos')
   })
+
+  it('filtra as usinas de acordo com instalacoesSelecionadasIds', () => {
+    const dadosComFiltro: PropostaTecnicoComercialDados = {
+      ...dadosExemplo,
+      fotosInstalacoes: [
+        {
+          id: 'usina-1',
+          titulo: 'Usina Solar Comercial Alpha',
+          url: 'https://img.usecurling.com/p/800/600?q=solar',
+          cidade: 'Erechim / RS',
+          potenciaKwp: 120,
+        },
+        {
+          id: 'usina-2',
+          titulo: 'Usina Solar Rural Beta',
+          url: 'https://img.usecurling.com/p/800/600?q=solar',
+          cidade: 'Getúlio Vargas / RS',
+          potenciaKwp: 45,
+        },
+      ],
+      instalacoesSelecionadasIds: ['usina-1'],
+    }
+
+    const html = gerarHTMLPropostaTecnicoComercial(dadosComFiltro)
+    expect(html).toContain('Usina Solar Comercial Alpha')
+    expect(html).not.toContain('Usina Solar Rural Beta')
+  })
 })

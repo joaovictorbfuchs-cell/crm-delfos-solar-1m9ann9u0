@@ -5,6 +5,11 @@ import type { InstalacaoGaleria } from '@/types/instalacoesGaleria'
 
 export interface SecaoApresentacaoEmpresaProps {
   className?: string
+  /**
+   * IDs das usinas selecionadas para esta proposta.
+   * Se for undefined, nulo ou vazio, exibe todas as usinas (fallback obrigatório).
+   */
+  instalacoesSelecionadasIds?: string[]
 }
 
 /**
@@ -13,8 +18,9 @@ export interface SecaoApresentacaoEmpresaProps {
  */
 export const SecaoApresentacaoEmpresa: React.FC<SecaoApresentacaoEmpresaProps> = ({
   className = '',
+  instalacoesSelecionadasIds,
 }) => {
-  const [usinas, setUsinas] = useState<InstalacaoGaleria[]>([])
+  const [todasUsinas, setTodasUsinas] = useState<InstalacaoGaleria[]>([])
   const [loading, setLoading] = useState<boolean>(true)
 
   useEffect(() => {
@@ -23,7 +29,7 @@ export const SecaoApresentacaoEmpresa: React.FC<SecaoApresentacaoEmpresaProps> =
       try {
         const dados = await fetchInstalacoesGaleria()
         if (!cancel) {
-          setUsinas(dados || [])
+          setTodasUsinas(dados || [])
         }
       } catch (err) {
         console.error('Erro ao carregar galeria de usinas:', err)
@@ -38,6 +44,16 @@ export const SecaoApresentacaoEmpresa: React.FC<SecaoApresentacaoEmpresaProps> =
       cancel = true
     }
   }, [])
+
+  // Filtragem com fallback: se o array de selecionadas estiver vazio/null/undefined, exibe todas
+  const usinas = React.useMemo(() => {
+    if (!instalacoesSelecionadasIds || instalacoesSelecionadasIds.length === 0) {
+      return todasUsinas
+    }
+    const filtradas = todasUsinas.filter((u) => instalacoesSelecionadasIds.includes(u.id))
+    // Fallback de segurança: se nenhuma foi encontrada pelos IDs, mantém todas
+    return filtradas.length > 0 ? filtradas : todasUsinas
+  }, [todasUsinas, instalacoesSelecionadasIds])
 
   return (
     <section

@@ -1030,6 +1030,7 @@ export interface OrcamentoSolarCalculado {
   garantia_modulos_fabricacao_anos?: number
   garantia_inversor_anos?: number
   garantia_instalacao_anos?: number
+  instalacoes_selecionadas?: string[] | null
   data_orcamento?: string
   autor?: string
   created?: string
@@ -1112,6 +1113,7 @@ export interface OrcamentoSolar extends RecordModel {
   garantia_modulos_fabricacao_anos?: number
   garantia_inversor_anos?: number
   garantia_instalacao_anos?: number
+  instalacoes_selecionadas?: string[] | null
   // Metadados
   data_orcamento: string
   validade_dias?: number

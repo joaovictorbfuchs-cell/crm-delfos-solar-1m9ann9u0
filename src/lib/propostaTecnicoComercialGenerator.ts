@@ -38,6 +38,7 @@ export interface PropostaTecnicoComercialDados {
     crea: string
   }
   fotosInstalacoes?: FotoInstalacaoProposta[]
+  instalacoesSelecionadasIds?: string[]
   incluirImagemComoFunciona?: boolean
   incluirImagemMonitoramento?: boolean
   sistema: {
@@ -2093,33 +2094,48 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
 
           <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;">
             ${(() => {
-              const usinasExibicao =
-                dados.fotosInstalacoes && dados.fotosInstalacoes.length > 0
-                  ? dados.fotosInstalacoes.slice(0, 3)
-                  : [
-                      {
-                        id: '1',
-                        titulo: 'Usina Solar Residencial',
-                        url: '',
-                        cidade: 'Erechim / RS',
-                        potenciaKwp: 10.5,
-                      },
-                      {
-                        id: '2',
-                        titulo: 'Usina Solar Comercial',
-                        url: '',
-                        cidade: 'Passo Fundo / RS',
-                        potenciaKwp: 35.0,
-                      },
-                      {
-                        id: '3',
-                        titulo: 'Usina Solar Agropecuária',
-                        url: '',
-                        cidade: 'Getúlio Vargas / RS',
-                        potenciaKwp: 50.0,
-                      },
-                    ]
+              // Se há fotosInstalacoes fornecidas, respeita a seleção (filtrada se houver instalacoesSelecionadasIds)
+              let usinasExibicao = dados.fotosInstalacoes || []
+              if (
+                dados.instalacoesSelecionadasIds &&
+                dados.instalacoesSelecionadasIds.length > 0 &&
+                usinasExibicao.length > 0
+              ) {
+                const filtradas = usinasExibicao.filter((u) =>
+                  dados.instalacoesSelecionadasIds!.includes(u.id),
+                )
+                if (filtradas.length > 0) {
+                  usinasExibicao = filtradas
+                }
+              }
 
+              if (!usinasExibicao || usinasExibicao.length === 0) {
+                usinasExibicao = [
+                  {
+                    id: '1',
+                    titulo: 'Usina Solar Residencial',
+                    url: '',
+                    cidade: 'Erechim / RS',
+                    potenciaKwp: 10.5,
+                  },
+                  {
+                    id: '2',
+                    titulo: 'Usina Solar Comercial',
+                    url: '',
+                    cidade: 'Passo Fundo / RS',
+                    potenciaKwp: 35.0,
+                  },
+                  {
+                    id: '3',
+                    titulo: 'Usina Solar Agropecuária',
+                    url: '',
+                    cidade: 'Getúlio Vargas / RS',
+                    potenciaKwp: 50.0,
+                  },
+                ]
+              }
+
+              // Exibir até 6 usinas se selecionadas, mantendo grade responsiva
               return usinasExibicao
                 .map((u) => {
                   const temFoto = !!(u.url && u.url.trim())

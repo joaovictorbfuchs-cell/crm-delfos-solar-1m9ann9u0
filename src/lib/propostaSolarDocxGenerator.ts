@@ -637,9 +637,21 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
     console.warn('Erro ao carregar galeria de usinas para o docx:', err)
   }
 
-  const usinasDocx =
+  // Filtragem conforme instalacoesSelecionadasIds; se vazio/nulo, usa todas as disponíveis (fallback)
+  if (
+    dados.instalacoesSelecionadasIds &&
+    dados.instalacoesSelecionadasIds.length > 0 &&
     usinasGaleria.length > 0
-      ? usinasGaleria.slice(0, 3)
+  ) {
+    const filtradas = usinasGaleria.filter((u) => dados.instalacoesSelecionadasIds!.includes(u.id))
+    if (filtradas.length > 0) {
+      usinasGaleria = filtradas
+    }
+  }
+
+  const usinasBase =
+    usinasGaleria.length > 0
+      ? usinasGaleria.slice(0, 6)
       : [
           {
             id: '1',
@@ -661,6 +673,21 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
           },
         ]
 
+  // Pré-carrega as imagens das usinas selecionadas
+  const usinasDocxComFoto = await Promise.all(
+    usinasBase.map(async (u) => {
+      const url = getFotoUrl(u)
+      let imgBytes: Uint8Array | null = null
+      if (url) {
+        imgBytes = await loadImageUint8Array(url)
+      }
+      return {
+        ...u,
+        imgBytes,
+      }
+    }),
+  )
+
   docChildren.push(
     new Paragraph({
       spacing: { before: 100, after: 60 },
@@ -676,28 +703,56 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
     }),
   )
 
+  // Divide as usinas em linhas de 3 colunas para docx limpo
+  const chunksUsinas: (typeof usinasDocxComFoto)[] = []
+  for (let i = 0; i < usinasDocxComFoto.length; i += 3) {
+    chunksUsinas.push(usinasDocxComFoto.slice(i, i + 3))
+  }
+
   const colWidthGaleria = Math.floor(PAGE_CONTENT_WIDTH / 3)
   docChildren.push(
     new Table({
       width: { size: PAGE_CONTENT_WIDTH, type: WidthType.DXA },
       borders: tableBorderDefault,
-      rows: [
-        new TableRow({
-          children: usinasDocx.map((u) => {
-            const pot = u.potencia_kwp ? `${formatNumBR(Number(u.potencia_kwp), 1)} kWp` : 'Turnkey'
-            const cid = u.cidade || 'Erechim / RS'
-            const tit = u.titulo || 'Usina Solar Delfos'
-            return new TableCell({
-              width: { size: colWidthGaleria, type: WidthType.DXA },
-              shading: { type: ShadingType.CLEAR, fill: COLOR_GRAY_BG },
-              margins: { top: 100, bottom: 100, left: 100, right: 100 },
-              children: [
+      rows: chunksUsinas.map(
+        (chunk) =>
+          new TableRow({
+            children: chunk.map((u) => {
+              const pot = u.potencia_kwp
+                ? `${formatNumBR(Number(u.potencia_kwp), 1)} kWp`
+                : 'Turnkey'
+              const cid = u.cidade || 'Erechim / RS'
+              const tit = u.titulo || 'Usina Solar Delfos'
+
+              const cellChildren: (Paragraph | Table)[] = []
+
+              if (u.imgBytes) {
+                cellChildren.push(
+                  new Paragraph({
+                    alignment: AlignmentType.CENTER,
+                    spacing: { after: 60 },
+                    children: [
+                      new ImageRun({
+                        type: 'jpg',
+                        data: u.imgBytes,
+                        transformation: { width: 170, height: 105 },
+                      }),
+                    ],
+                  }),
+                )
+              }
+
+              cellChildren.push(
                 new Paragraph({
                   children: [
-                    new TextRun({
-                      text: '☀️ ',
-                      size: 20,
-                    }),
+                    ...(!u.imgBytes
+                      ? [
+                          new TextRun({
+                            text: '☀️ ',
+                            size: 20,
+                          }),
+                        ]
+                      : []),
                     new TextRun({
                       text: `${tit}\n`,
                       bold: true,
@@ -720,11 +775,17 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
                     }),
                   ],
                 }),
-              ],
-            })
+              )
+
+              return new TableCell({
+                width: { size: colWidthGaleria, type: WidthType.DXA },
+                shading: { type: ShadingType.CLEAR, fill: COLOR_GRAY_BG },
+                margins: { top: 100, bottom: 100, left: 100, right: 100 },
+                children: cellChildren,
+              })
+            }),
           }),
-        }),
-      ],
+      ),
     }),
   )
 
