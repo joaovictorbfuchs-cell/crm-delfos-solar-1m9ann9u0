@@ -56,6 +56,12 @@ export interface SecaoInvestimentoPagamentoProps {
   validadeDias?: number | null
   /** Nome do cliente para contextualização */
   nomeCliente?: string | null
+  /** Payback em meses (calculado ou persistido no orçamento) */
+  paybackMeses?: number | null
+  /** Texto personalizado de payback (ex: '1 ano e 9 meses') */
+  paybackTexto?: string | null
+  /** Se deve exibir o card de payback integrado ao final da seção (default: true) */
+  exibirPaybackAbaixo?: boolean
   className?: string
 }
 
@@ -99,6 +105,9 @@ export const SecaoInvestimentoPagamento: React.FC<SecaoInvestimentoPagamentoProp
   contaComSolarFinanB,
   validadeDias,
   nomeCliente,
+  paybackMeses,
+  paybackTexto,
+  exibirPaybackAbaixo = true,
   className = '',
 }) => {
   const totalFinal =
@@ -520,6 +529,78 @@ export const SecaoInvestimentoPagamento: React.FC<SecaoInvestimentoPagamentoProp
             <ArrowRight className="w-4 h-4" />
           </div>
         </div>
+
+        {/* ========================================================================= */}
+        {/* 5. CARD DE PAYBACK ESTIMADO (TEMPO DE RETORNO DO INVESTIMENTO)            */}
+        {/* ========================================================================= */}
+        {exibirPaybackAbaixo && (
+          <div className="bg-white rounded-2xl p-5 sm:p-6 border-2 border-amber-400/80 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 relative overflow-hidden">
+            <div className="absolute -right-8 -bottom-8 w-32 h-32 bg-amber-400/10 rounded-full pointer-events-none" />
+            <div className="flex items-start gap-4">
+              <div className="w-12 h-12 rounded-2xl bg-amber-100 text-amber-800 border border-amber-300 flex items-center justify-center shrink-0 shadow-2xs">
+                <Clock className="w-6 h-6 text-amber-700" />
+              </div>
+              <div className="space-y-1">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-[11px] font-black uppercase tracking-wider text-amber-900 bg-amber-100 px-2 py-0.5 rounded-md border border-amber-200">
+                    Tempo de Retorno do Investimento
+                  </span>
+                  <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
+                    Retorno Garantido
+                  </span>
+                </div>
+                <h4 className="text-sm font-bold text-gray-800">Payback Estimado</h4>
+                <p className="text-xs text-gray-600 max-w-xl leading-relaxed">
+                  Tempo necessário para que a economia na conta de energia pague 100% do
+                  investimento no sistema solar. Após esse prazo, toda a economia gerada passa a ser
+                  lucro líquido direto.
+                </p>
+              </div>
+            </div>
+
+            {(() => {
+              let texto = paybackTexto
+              let anoCalendario = 2026 + 2
+              if (paybackTexto && paybackTexto.trim()) {
+                const match = paybackTexto.match(/(\d+)\s*(?:anos?|a)/i)
+                if (match && match[1]) {
+                  anoCalendario = 2026 + parseInt(match[1], 10)
+                }
+              } else {
+                const mesesTotais =
+                  paybackMeses !== undefined && paybackMeses !== null && paybackMeses > 0
+                    ? paybackMeses
+                    : totalFinal > 0 && Math.max(0, contaAtualFinal - faturaComSolarFinal) > 0
+                      ? Math.round(
+                          (totalFinal / Math.max(1, contaAtualFinal - faturaComSolarFinal)) * 10,
+                        ) / 10
+                      : 21
+                const anos = Math.floor(mesesTotais / 12)
+                const meses = Math.round(mesesTotais % 12)
+                anoCalendario = 2026 + Math.max(1, Math.ceil(mesesTotais / 12))
+                texto = `${anos} anos`
+                if (anos === 1) texto = '1 ano'
+                if (anos === 0) texto = `${meses} meses`
+                else if (meses > 0) {
+                  texto = `${anos} ${anos === 1 ? 'ano' : 'anos'} e ${meses} ${meses === 1 ? 'mês' : 'meses'}`
+                }
+              }
+              return (
+                <div className="bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-300 rounded-xl p-3.5 sm:p-4 text-center sm:text-right shrink-0 w-full sm:w-auto shadow-2xs">
+                  <span className="text-[10px] uppercase font-bold text-amber-800 block">
+                    Payback do Sistema
+                  </span>
+                  <div className="text-2xl sm:text-3xl font-black text-amber-700 tracking-tight my-0.5">
+                    {texto}
+                  </div>
+                  <span className="text-[11px] font-semibold text-amber-900 block">
+                    Quitação prevista: ~{anoCalendario}
+                  </span>
+                </div>
+              )
+            })()}
+          </div>
+        )}
       </div>
     </section>
   )

@@ -147,12 +147,11 @@ describe('Proposta Técnico-Comercial Generator (6 Seções Oficiais)', () => {
     expect(html).not.toContain('Tranquilidade e Garantias Asseguradas')
     expect(html).toContain('Monitoramento Inteligente 24/7 pelo Smartphone')
 
-    // SEÇÃO 4: Projeção de Economia na Conta de Energia (cards de resumo + card payback, sem tabela/gráfico)
+    // SEÇÃO 4: Projeção de Economia na Conta de Energia (cards de resumo, sem tabela/gráfico e sem payback)
     expect(html).toContain('Projeção de Economia na Conta de Energia')
     expect(html).toContain('Economia Total em 25 Anos')
     expect(html).toContain('Gasto Total Sem Solar (25 Anos)')
     expect(html).toContain('Custo de Postergação')
-    expect(html).toContain('Payback Estimado')
     // Cabeçalho verde e badge da GD removidos
     expect(html).not.toContain('Marco Legal da GD (Lei 14.300/2022)')
     expect(html).not.toContain('secao-header-card projecao')
@@ -164,7 +163,7 @@ describe('Proposta Técnico-Comercial Generator (6 Seções Oficiais)', () => {
     expect(html).toContain('Economia em 25 anos')
     expect(html).not.toContain('Retorno Sobre Investimento (ROI)')
 
-    // SEÇÃO 6: Investimento e Condições de Pagamento (cards À vista / Cartão / Finan A / Finan B, comparativo conta, validade)
+    // SEÇÃO 6: Investimento e Condições de Pagamento (cards À vista / Cartão / Finan A / Finan B, comparativo conta, validade E PAYBACK AO FINAL)
     expect(html).toContain('Investimento e Condições de Pagamento')
     expect(html).toContain('Seu Investimento')
     expect(html).toContain('À VISTA')
@@ -175,6 +174,8 @@ describe('Proposta Técnico-Comercial Generator (6 Seções Oficiais)', () => {
     expect(html).toContain('Fatura c/ solar + parcela:')
     expect(html).toContain('Hoje você paga')
     expect(html).toContain('sua parcela do financiamento é')
+    expect(html).toContain('Payback Estimado')
+    expect(html).toContain('Tempo de Retorno do Investimento')
     expect(html).toContain('Condições comerciais válidas por')
 
     // CSS de impressão A4 obrigatório

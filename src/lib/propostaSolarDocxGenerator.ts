@@ -1696,68 +1696,6 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
     }),
   )
 
-  // Card do Payback Abaixo dos Cards de Resumo
-  docChildren.push(
-    new Table({
-      width: { size: PAGE_CONTENT_WIDTH, type: WidthType.DXA },
-      borders: {
-        top: { style: BorderStyle.SINGLE, size: 12, color: 'F59E0B' },
-        bottom: { style: BorderStyle.SINGLE, size: 12, color: 'F59E0B' },
-        left: { style: BorderStyle.SINGLE, size: 12, color: 'F59E0B' },
-        right: { style: BorderStyle.SINGLE, size: 12, color: 'F59E0B' },
-      },
-      rows: [
-        new TableRow({
-          children: [
-            new TableCell({
-              width: { size: PAGE_CONTENT_WIDTH, type: WidthType.DXA },
-              shading: { type: ShadingType.CLEAR, fill: 'FFFBEB' },
-              margins: { top: 120, bottom: 120, left: 140, right: 140 },
-              children: [
-                new Paragraph({
-                  children: [
-                    new TextRun({
-                      text: '⏱️ TEMPO DE RETORNO DO INVESTIMENTO (PAYBACK): ',
-                      bold: true,
-                      size: 15,
-                      color: '92400E',
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: paybackTextoFinal,
-                      bold: true,
-                      size: 20,
-                      color: 'B45309',
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: ` (Ano de quitação: ~${anoPayback})`,
-                      bold: true,
-                      size: 15,
-                      color: '78350F',
-                      font: 'Arial',
-                    }),
-                  ],
-                }),
-                new Paragraph({
-                  spacing: { before: 40 },
-                  children: [
-                    new TextRun({
-                      text: 'Tempo necessário para a economia na conta pagar 100% do sistema. A partir daí, toda a geração torna-se patrimônio e lucro líquido.',
-                      size: 14,
-                      color: '92400E',
-                      font: 'Arial',
-                    }),
-                  ],
-                }),
-              ],
-            }),
-          ],
-        }),
-      ],
-    }),
-  )
-
   // ----------------------------------------------------
   // SEÇÃO 5: PROJEÇÃO DE ECONOMIA EM 25 ANOS
   // ----------------------------------------------------
@@ -2187,6 +2125,68 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
                       bold: true,
                       size: 16,
                       color: COLOR_PRIMARY,
+                      font: 'Arial',
+                    }),
+                  ],
+                }),
+              ],
+            }),
+          ],
+        }),
+      ],
+    }),
+  )
+
+  // Card de Payback Estimado (Tempo de Retorno do Investimento) posicionado após investimento/pagamento
+  docChildren.push(
+    new Table({
+      width: { size: PAGE_CONTENT_WIDTH, type: WidthType.DXA },
+      borders: {
+        top: { style: BorderStyle.SINGLE, size: 12, color: 'F59E0B' },
+        bottom: { style: BorderStyle.SINGLE, size: 12, color: 'F59E0B' },
+        left: { style: BorderStyle.SINGLE, size: 12, color: 'F59E0B' },
+        right: { style: BorderStyle.SINGLE, size: 12, color: 'F59E0B' },
+      },
+      rows: [
+        new TableRow({
+          children: [
+            new TableCell({
+              width: { size: PAGE_CONTENT_WIDTH, type: WidthType.DXA },
+              shading: { type: ShadingType.CLEAR, fill: 'FFFBEB' },
+              margins: { top: 120, bottom: 120, left: 140, right: 140 },
+              children: [
+                new Paragraph({
+                  children: [
+                    new TextRun({
+                      text: '⏱️ TEMPO DE RETORNO DO INVESTIMENTO (PAYBACK): ',
+                      bold: true,
+                      size: 15,
+                      color: '92400E',
+                      font: 'Arial',
+                    }),
+                    new TextRun({
+                      text: paybackTextoFinal,
+                      bold: true,
+                      size: 20,
+                      color: 'B45309',
+                      font: 'Arial',
+                    }),
+                    new TextRun({
+                      text: ` (Ano de quitação: ~${anoPayback})`,
+                      bold: true,
+                      size: 15,
+                      color: '78350F',
+                      font: 'Arial',
+                    }),
+                  ],
+                }),
+                new Paragraph({
+                  spacing: { before: 40 },
+                  children: [
+                    new TextRun({
+                      text: 'Tempo necessário para a economia na conta pagar 100% do sistema. A partir daí, toda a geração torna-se patrimônio e lucro líquido.',
+                      size: 14,
+                      color: '92400E',
                       font: 'Arial',
                     }),
                   ],

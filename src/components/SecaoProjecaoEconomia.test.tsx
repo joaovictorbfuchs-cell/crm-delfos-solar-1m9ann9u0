@@ -22,11 +22,11 @@ describe('SecaoProjecaoEconomia Component', () => {
     expect(html).toContain('Gasto Total Sem Solar em 25 Anos')
     expect(html).toContain('Custo de Postergação')
 
-    // Card do payback abaixo mantido
-    expect(html).toContain('Tempo de Retorno do Investimento')
-    expect(html).toContain('Payback Estimado')
-    expect(html).toContain('Payback do Sistema')
-    expect(html).toContain('4 anos e 1 mês')
+    // Card do payback removido de dentro de SecaoProjecaoEconomia (movido para após investimento)
+    expect(html).not.toContain('Tempo de Retorno do Investimento')
+    expect(html).not.toContain('Payback Estimado')
+    expect(html).not.toContain('Payback do Sistema')
+    expect(html).not.toContain('4 anos e 1 mês')
 
     // Cabeçalho verde removido
     expect(html).not.toContain('Marco Legal da GD (Lei 14.300/2022)')

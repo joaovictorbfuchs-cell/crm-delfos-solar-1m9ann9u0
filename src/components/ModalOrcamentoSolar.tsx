@@ -2998,6 +2998,7 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                     }
                     validadeDias={initialOrcamento?.validade_dias || 5}
                     nomeCliente={clienteAtual?.nome}
+                    paybackMeses={calculos.paybackMeses}
                   />
                 </ErrorBoundary>
 

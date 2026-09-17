@@ -1056,6 +1056,8 @@ export function ModalGerarPropostaTecnicoComercial({
                   }
                   validadeDias={validadeDias}
                   nomeCliente={clienteNome}
+                  paybackMeses={orcamento.payback_meses}
+                  paybackTexto={paybackTexto}
                 />
               </ErrorBoundary>
             </div>

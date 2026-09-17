@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react'
-import { TrendingUp, AlertTriangle, CheckCircle2, Clock } from 'lucide-react'
+import { TrendingUp, AlertTriangle, CheckCircle2 } from 'lucide-react'
 import {
   calcularProjecaoEconomia,
   type ResumoProjecaoEconomia,
@@ -89,46 +89,6 @@ export const SecaoProjecaoEconomia: React.FC<SecaoProjecaoEconomiaProps> = ({
     })
   }, [tipoCliente, consumoAnual, tarifaReferenciaInicial, dadosTarifariosCustomizados])
 
-  // Resolução do Payback estimado
-  const infoPayback = useMemo(() => {
-    if (paybackTexto) {
-      return {
-        texto: paybackTexto,
-        anos: null,
-        meses: null,
-      }
-    }
-    const mesesTotais =
-      paybackMeses !== undefined && paybackMeses !== null && paybackMeses > 0
-        ? paybackMeses
-        : valorInvestimento && valorInvestimento > 0 && projecao.valorPerdidoPorMesPostergacao > 0
-          ? Math.round((valorInvestimento / projecao.valorPerdidoPorMesPostergacao) * 10) / 10
-          : 50
-
-    const anos = Math.floor(mesesTotais / 12)
-    const meses = Math.round(mesesTotais % 12)
-    const anoCalendario = (projecao.anoInicial || 2026) + anos
-
-    let texto = `${anos} anos`
-    if (meses > 0) {
-      texto = `${anos} anos e ${meses} meses`
-    }
-
-    return {
-      texto,
-      anos,
-      meses,
-      anoCalendario,
-      mesesTotais,
-    }
-  }, [
-    paybackTexto,
-    paybackMeses,
-    valorInvestimento,
-    projecao.valorPerdidoPorMesPostergacao,
-    projecao.anoInicial,
-  ])
-
   return (
     <section
       className={`bg-white rounded-2xl border border-gray-200 shadow-xs overflow-hidden ${className}`}
@@ -189,7 +149,7 @@ export const SecaoProjecaoEconomia: React.FC<SecaoProjecaoEconomiaProps> = ({
         </div>
       )}
 
-      {/* CORPO DA SEÇÃO: CARDS DO RESUMO DA PROJEÇÃO DE ECONOMIA + CARD DO PAYBACK ABAIXO */}
+      {/* CORPO DA SEÇÃO: CARDS DO RESUMO DA PROJEÇÃO DE ECONOMIA */}
       <div className="p-5 sm:p-6 bg-gradient-to-br from-gray-50/70 to-emerald-50/30 space-y-4">
         <div className="flex items-center justify-between flex-wrap gap-2">
           <div className="flex items-center gap-2">
@@ -274,46 +234,6 @@ export const SecaoProjecaoEconomia: React.FC<SecaoProjecaoEconomiaProps> = ({
               <span>Economia Ano 1: {formatCurrency(projecao.economiaPrimeiroAno)}</span>
               <span>÷ 12 meses</span>
             </div>
-          </div>
-        </div>
-
-        {/* CARD DO PAYBACK ABAIXO DOS CARDS DE RESUMO */}
-        <div className="bg-white rounded-2xl p-5 sm:p-6 border-2 border-amber-400/80 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 relative overflow-hidden">
-          <div className="absolute -right-8 -bottom-8 w-32 h-32 bg-amber-400/10 rounded-full pointer-events-none" />
-          <div className="flex items-start gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-amber-100 text-amber-800 border border-amber-300 flex items-center justify-center shrink-0 shadow-2xs">
-              <Clock className="w-6 h-6 text-amber-700" />
-            </div>
-            <div className="space-y-1">
-              <div className="flex items-center gap-2">
-                <span className="text-[11px] font-black uppercase tracking-wider text-amber-900 bg-amber-100 px-2 py-0.5 rounded-md border border-amber-200">
-                  Tempo de Retorno do Investimento
-                </span>
-                <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
-                  Retorno Garantido
-                </span>
-              </div>
-              <h4 className="text-sm font-bold text-gray-800">Payback Estimado</h4>
-              <p className="text-xs text-gray-600 max-w-xl leading-relaxed">
-                Tempo necessário para que a economia na conta de energia pague 100% do investimento
-                no sistema solar. Após esse prazo, toda a economia gerada passa a ser lucro líquido
-                direto.
-              </p>
-            </div>
-          </div>
-
-          <div className="bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-300 rounded-xl p-3.5 sm:p-4 text-center sm:text-right shrink-0 w-full sm:w-auto shadow-2xs">
-            <span className="text-[10px] uppercase font-bold text-amber-800 block">
-              Payback do Sistema
-            </span>
-            <div className="text-2xl sm:text-3xl font-black text-amber-700 tracking-tight my-0.5">
-              {infoPayback.texto}
-            </div>
-            {infoPayback.anoCalendario && (
-              <span className="text-[11px] font-semibold text-amber-900 block">
-                Quitação prevista: ~{infoPayback.anoCalendario}
-              </span>
-            )}
           </div>
         </div>
       </div>

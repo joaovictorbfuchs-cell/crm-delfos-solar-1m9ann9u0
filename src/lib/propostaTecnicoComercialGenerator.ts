@@ -2604,41 +2604,6 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
           </div>
         </div>
 
-        <!-- CARD DO PAYBACK ABAIXO DOS CARDS DE RESUMO -->
-        <div style="background: #FFFFFF; border: 2px solid #F59E0B; border-radius: 12px; padding: 16px 20px; display: flex; align-items: center; justify-content: space-between; gap: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); margin-top: 10px;">
-          <div style="display: flex; align-items: center; gap: 14px;">
-            <div style="width: 44px; height: 44px; border-radius: 10px; background: #FEF3C7; border: 1px solid #FDE68A; display: flex; align-items: center; justify-content: center; font-size: 22px; shrink-0;">
-              ⏱️
-            </div>
-            <div>
-              <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
-                <span style="font-size: 8.5px; font-weight: 900; text-transform: uppercase; background: #FEF3C7; color: #92400E; padding: 2px 7px; border-radius: 4px; border: 1px solid #FDE68A;">
-                  Tempo de Retorno do Investimento
-                </span>
-                <span style="font-size: 8.5px; font-weight: 800; background: #DCFCE7; color: #166534; padding: 2px 7px; border-radius: 4px; border: 1px solid #86EFAC;">
-                  Retorno Garantido
-                </span>
-              </div>
-              <div style="font-size: 13px; font-weight: 900; color: #1F2937;">Payback Estimado</div>
-              <p style="margin: 3px 0 0 0; font-size: 9px; color: #4B5563; max-width: 430px; line-height: 1.35;">
-                Tempo para que a economia na fatura de energia pague 100% do investimento. A partir desse momento, todo o ganho transforma-se em patrimônio e lucro líquido.
-              </p>
-            </div>
-          </div>
-
-          <div style="background: linear-gradient(135deg, #FFFBEB 0%, #FEF3C7 100%); border: 1.5px solid #FCD34D; border-radius: 10px; padding: 10px 16px; text-align: right; shrink-0;">
-            <span style="font-size: 8.5px; font-weight: 800; text-transform: uppercase; color: #92400E; display: block;">
-              Payback do Sistema
-            </span>
-            <div style="font-size: 20px; font-weight: 900; color: #B45309; line-height: 1.2; margin: 2px 0;">
-              ${paybackTextoFinal}
-            </div>
-            <span style="font-size: 8.5px; color: #78350F; font-weight: 700; display: block;">
-              Ano de quitação: ~${anoPayback}
-            </span>
-          </div>
-        </div>
-
         <div style="font-size: 8px; color: #6B7280; text-align: right; margin-top: 12px;">
           * Simulação calculada sobre consumo anual de <strong>${formatNumBR(consumoKwhAnoEstimado, 2)} kWh/ano</strong> e tarifa de referência com reajuste médio estimado.
         </div>
@@ -2827,6 +2792,41 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
           </div>
           <div style="font-size: 9px; font-weight: 800; color: #166534; background: #DCFCE7; padding: 5px 10px; border-radius: 8px; white-space: nowrap; border: 1px solid #86EFAC;">
             Troque despesa por patrimônio ➜
+          </div>
+        </div>
+
+        <!-- CARD DO PAYBACK ESTIMADO (TEMPO DE RETORNO DO INVESTIMENTO) -->
+        <div style="background: #FFFFFF; border: 2px solid #F59E0B; border-radius: 12px; padding: 14px 18px; display: flex; align-items: center; justify-content: space-between; gap: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); margin-top: 10px; margin-bottom: 10px;">
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <div style="width: 40px; height: 40px; border-radius: 10px; background: #FEF3C7; border: 1px solid #FDE68A; display: flex; align-items: center; justify-content: center; font-size: 20px; shrink-0;">
+              ⏱️
+            </div>
+            <div>
+              <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 3px;">
+                <span style="font-size: 8.5px; font-weight: 900; text-transform: uppercase; background: #FEF3C7; color: #92400E; padding: 2px 7px; border-radius: 4px; border: 1px solid #FDE68A;">
+                  Tempo de Retorno do Investimento
+                </span>
+                <span style="font-size: 8.5px; font-weight: 800; background: #DCFCE7; color: #166534; padding: 2px 7px; border-radius: 4px; border: 1px solid #86EFAC;">
+                  Retorno Garantido
+                </span>
+              </div>
+              <div style="font-size: 13px; font-weight: 900; color: #1F2937;">Payback Estimado</div>
+              <p style="margin: 2px 0 0 0; font-size: 9px; color: #4B5563; max-width: 430px; line-height: 1.35;">
+                Tempo para que a economia na fatura de energia pague 100% do investimento. A partir desse momento, todo o ganho transforma-se em patrimônio e lucro líquido.
+              </p>
+            </div>
+          </div>
+
+          <div style="background: linear-gradient(135deg, #FFFBEB 0%, #FEF3C7 100%); border: 1.5px solid #FCD34D; border-radius: 10px; padding: 8px 14px; text-align: right; shrink-0;">
+            <span style="font-size: 8px; font-weight: 800; text-transform: uppercase; color: #92400E; display: block;">
+              Payback do Sistema
+            </span>
+            <div style="font-size: 18px; font-weight: 900; color: #B45309; line-height: 1.2; margin: 2px 0;">
+              ${paybackTextoFinal}
+            </div>
+            <span style="font-size: 8.5px; color: #78350F; font-weight: 700; display: block;">
+              Ano de quitação: ~${anoPayback}
+            </span>
           </div>
         </div>
 
