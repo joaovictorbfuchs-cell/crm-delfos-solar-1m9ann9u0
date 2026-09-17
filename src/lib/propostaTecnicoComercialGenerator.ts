@@ -272,17 +272,6 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
       ? producao.anualKwh
       : Math.round(consumoKwhMesReal * 12)
 
-  // Tarifa implícita da Situação Atual (custo mensal ÷ consumo mensal)
-  const tarifaImplicitaReal =
-    consumoKwhMesReal > 0 && contaHoje > 0 ? contaHoje / consumoKwhMesReal : null
-  const tarifaImplicitaRealStr =
-    tarifaImplicitaReal !== null
-      ? tarifaImplicitaReal.toLocaleString('pt-BR', {
-          minimumFractionDigits: 2,
-          maximumFractionDigits: 2,
-        })
-      : null
-
   const investimentoTotal = economia?.investimentoTotal || parcelamento?.aVista?.valorTotal || 45000
 
   // Valores de inércia
@@ -894,47 +883,6 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
       display: grid;
       grid-template-columns: repeat(2, 1fr);
       gap: 12px;
-    }
-    .conector-situacao-badge {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      background: #FFFFFF;
-      border: 1.5px solid #A7F3D0;
-      border-radius: 9999px;
-      padding: 4px 10px;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      box-shadow: 0 4px 10px rgba(6, 78, 59, 0.12);
-      z-index: 5;
-    }
-    .conector-situacao-label {
-      font-size: 8px;
-      font-weight: 800;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      color: #047857;
-    }
-    .conector-situacao-arrow {
-      width: 18px;
-      height: 18px;
-      border-radius: 50%;
-      background: #059669;
-      color: #FFFFFF;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 11px;
-      font-weight: 900;
-      line-height: 1;
-    }
-    .conector-situacao-tarifa {
-      font-size: 8.5px;
-      font-weight: 800;
-      color: #1F2937;
-      white-space: nowrap;
     }
     .card-situacao {
       background: #FFFFFF;
@@ -2315,17 +2263,6 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
                 <div class="card-situacao-sub">Total desembolsado em 12 faturas sem retorno</div>
               </div>
             </div>
-          </div>
-
-          <!-- Indicador visual de correspondência (seta do consumo para custo) -->
-          <div class="conector-situacao-badge">
-            <span class="conector-situacao-label">Convertido em</span>
-            <div class="conector-situacao-arrow">→</div>
-            ${
-              tarifaImplicitaRealStr
-                ? `<span class="conector-situacao-tarifa">≈ R$ ${tarifaImplicitaRealStr}/kWh</span>`
-                : ''
-            }
           </div>
         </div>
 
