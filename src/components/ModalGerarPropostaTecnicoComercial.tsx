@@ -176,9 +176,15 @@ export function ModalGerarPropostaTecnicoComercial({
       try {
         const galeria = await fetchInstalacoesGaleria()
         setTodasInstalacoes(galeria)
-        // Por padrão selecionar as 4 ou 6 primeiras fotos
+        // Por padrão selecionar as primeiras fotos válidas
         if (galeria.length > 0) {
-          const defaultSelected = galeria.slice(0, 4).map((g) => g.id)
+          const comFoto = galeria.filter((g) => {
+            const url = getFotoUrl(g)
+            return !!(url && url.trim())
+          })
+          const defaultSelected = (comFoto.length > 0 ? comFoto : galeria)
+            .slice(0, 4)
+            .map((g) => g.id)
           setFotosSelecionadasIds(defaultSelected)
         }
       } catch (err) {

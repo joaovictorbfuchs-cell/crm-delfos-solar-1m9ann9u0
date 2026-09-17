@@ -28,6 +28,8 @@ import {
 import { calcularProjecaoEconomia } from '@/lib/calculoProjecaoEconomia'
 import { CONSUMO_EXEMPLO_PADRAO_KWH_ANO } from '@/data/planilhaBaseProjecao'
 import logoPng from '@/assets/delfos-solar-09ea2.png'
+import { getFotoUrl } from '@/services/instalacoesGaleriaService'
+import { onGridPngAsset, monitoramentoPngAsset } from './propostaIlustracoesAssets'
 
 // Cores da identidade visual Delfos Solar
 const COLOR_PRIMARY = '065F46' // Verde Escuro Delfos (#065F46)
@@ -75,6 +77,34 @@ async function loadLogoUint8Array(): Promise<Uint8Array | null> {
     return new Uint8Array(arrayBuffer)
   } catch (err) {
     console.warn('Não foi possível carregar o arquivo de logotipo para o docx:', err)
+    return null
+  }
+}
+
+/**
+ * Tenta carregar uma imagem (URL remota ou data-URI base64) para Uint8Array para embutir no docx
+ */
+async function loadImageUint8Array(urlOrDataUri?: string | null): Promise<Uint8Array | null> {
+  if (!urlOrDataUri || !urlOrDataUri.trim()) return null
+  try {
+    if (urlOrDataUri.startsWith('data:')) {
+      const parts = urlOrDataUri.split(',')
+      if (parts.length < 2) return null
+      const base64 = parts[1]
+      const binaryString = atob(base64)
+      const len = binaryString.length
+      const bytes = new Uint8Array(len)
+      for (let i = 0; i < len; i++) {
+        bytes[i] = binaryString.charCodeAt(i)
+      }
+      return bytes
+    }
+    const response = await fetch(urlOrDataUri)
+    if (!response.ok) return null
+    const arrayBuffer = await response.arrayBuffer()
+    return new Uint8Array(arrayBuffer)
+  } catch (err) {
+    console.warn('Não foi possível carregar imagem para o docx:', err)
     return null
   }
 }
@@ -1395,28 +1425,47 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
 
   // ----------------------------------------------------
   // BLOCOS: COMO FUNCIONA O SISTEMA SOLAR (ON-GRID) & MONITORAMENTO INTELIGENTE 24/7
-  // Utiliza as imagens cadastradas na Galeria Usinas (usinasDocx / usinasGaleria)
-  // Fundo #F0FDF4, borda #BBF7D0 e acentos verdes
+  // Utiliza as imagens cadastradas na Galeria Usinas com fallback para ilustrações
+  // Fundo #F0FDF4, borda #BBF7D0 e acentos verdes (#16A34A / #166534)
   // ----------------------------------------------------
+  const instalacoesValidasComFoto = usinasGaleria.filter((item) => {
+    const url = getFotoUrl(item)
+    return !!(url && url.trim())
+  })
+  const urlOnGridDocx =
+    instalacoesValidasComFoto.length > 0 ? getFotoUrl(instalacoesValidasComFoto[0]) : onGridPngAsset
   const titUsina1 =
-    usinasDocx.length > 0 && usinasDocx[0].titulo
-      ? usinasDocx[0].titulo
-      : 'Usina Solar Delfos On-Grid'
+    instalacoesValidasComFoto.length > 0 && instalacoesValidasComFoto[0].titulo
+      ? instalacoesValidasComFoto[0].titulo
+      : 'Como funciona o sistema solar (On-Grid)'
   const cidUsina1 =
-    usinasDocx.length > 0 && usinasDocx[0].cidade ? usinasDocx[0].cidade : 'Erechim / RS'
+    instalacoesValidasComFoto.length > 0 && instalacoesValidasComFoto[0].cidade
+      ? instalacoesValidasComFoto[0].cidade
+      : 'Erechim / RS'
 
+  const urlMonitoramentoDocx =
+    instalacoesValidasComFoto.length > 1
+      ? getFotoUrl(instalacoesValidasComFoto[1])
+      : instalacoesValidasComFoto.length === 1
+        ? getFotoUrl(instalacoesValidasComFoto[0])
+        : monitoramentoPngAsset
   const titUsina2 =
-    usinasDocx.length > 1 && usinasDocx[1].titulo
-      ? usinasDocx[1].titulo
-      : usinasDocx.length > 0 && usinasDocx[0].titulo
-        ? usinasDocx[0].titulo
-        : 'Monitoramento Solar em Tempo Real'
+    instalacoesValidasComFoto.length > 1 && instalacoesValidasComFoto[1].titulo
+      ? instalacoesValidasComFoto[1].titulo
+      : instalacoesValidasComFoto.length === 1 && instalacoesValidasComFoto[0].titulo
+        ? instalacoesValidasComFoto[0].titulo
+        : 'Monitoramento Inteligente 24/7'
   const cidUsina2 =
-    usinasDocx.length > 1 && usinasDocx[1].cidade
-      ? usinasDocx[1].cidade
-      : usinasDocx.length > 0 && usinasDocx[0].cidade
-        ? usinasDocx[0].cidade
+    instalacoesValidasComFoto.length > 1 && instalacoesValidasComFoto[1].cidade
+      ? instalacoesValidasComFoto[1].cidade
+      : instalacoesValidasComFoto.length === 1 && instalacoesValidasComFoto[0].cidade
+        ? instalacoesValidasComFoto[0].cidade
         : 'Erechim / RS'
+
+  const [imgOnGridBytes, imgMonitoramentoBytes] = await Promise.all([
+    loadImageUint8Array(urlOnGridDocx),
+    loadImageUint8Array(urlMonitoramentoDocx),
+  ])
 
   const colWidthBlocos = Math.floor(PAGE_CONTENT_WIDTH / 2)
   docChildren.push(
@@ -1456,13 +1505,32 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
                       font: 'Arial',
                     }),
                     new TextRun({
-                      text: 'Módulos solares convertem luz em energia contínua e o inversor transforma em corrente alternada para seu imóvel. O excedente gera créditos no medidor bidirecional.\n\n',
+                      text: 'Módulos solares convertem luz em energia contínua e o inversor transforma em corrente alternada para seu imóvel. O excedente gera créditos no medidor bidirecional.',
                       size: 13,
                       color: COLOR_TEXT_MUTED,
                       font: 'Arial',
                     }),
+                  ],
+                }),
+                ...(imgOnGridBytes
+                  ? [
+                      new Paragraph({
+                        spacing: { before: 80, after: 60 },
+                        alignment: AlignmentType.CENTER,
+                        children: [
+                          new ImageRun({
+                            type: 'png',
+                            data: imgOnGridBytes,
+                            transformation: { width: 230, height: 110 },
+                          }),
+                        ],
+                      }),
+                    ]
+                  : []),
+                new Paragraph({
+                  children: [
                     new TextRun({
-                      text: `☀️ Foto da Usina Homologada: ${titUsina1} (${cidUsina1})\n`,
+                      text: `☀️ Galeria Usinas: ${titUsina1} (${cidUsina1})\n`,
                       bold: true,
                       size: 13,
                       color: '15803D',
@@ -1503,11 +1571,30 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
                       font: 'Arial',
                     }),
                     new TextRun({
-                      text: 'Acompanhe sua geração diária em tempo real na palma da mão: gráficos em kWh, economia acumulada em reais e histórico completo de performance.\n\n',
+                      text: 'Acompanhe sua geração diária em tempo real na palma da mão: gráficos em kWh, economia acumulada em reais e histórico completo de performance.',
                       size: 13,
                       color: COLOR_TEXT_MUTED,
                       font: 'Arial',
                     }),
+                  ],
+                }),
+                ...(imgMonitoramentoBytes
+                  ? [
+                      new Paragraph({
+                        spacing: { before: 80, after: 60 },
+                        alignment: AlignmentType.CENTER,
+                        children: [
+                          new ImageRun({
+                            type: 'png',
+                            data: imgMonitoramentoBytes,
+                            transformation: { width: 230, height: 110 },
+                          }),
+                        ],
+                      }),
+                    ]
+                  : []),
+                new Paragraph({
+                  children: [
                     new TextRun({
                       text: `📱 Telemetria Ativa: ${titUsina2} (${cidUsina2})\n`,
                       bold: true,

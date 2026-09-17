@@ -1,6 +1,7 @@
 import type { GeracaoMensalItem } from '@/lib/energiaSolar'
 import { calcularProjecaoEconomia } from '@/lib/calculoProjecaoEconomia'
 import { CONSUMO_EXEMPLO_PADRAO_KWH_ANO } from '@/data/planilhaBaseProjecao'
+import { onGridPngAsset, monitoramentoPngAsset } from './propostaIlustracoesAssets'
 
 export interface FotoInstalacaoProposta {
   id: string
@@ -2524,7 +2525,9 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
           )
           const foto1 = fotosValidas.length > 0 ? fotosValidas[0].url : ''
           const titulo1 =
-            fotosValidas.length > 0 ? fotosValidas[0].titulo : 'Usina Fotovoltaica Conectada à Rede'
+            fotosValidas.length > 0 && fotosValidas[0].titulo
+              ? fotosValidas[0].titulo
+              : 'Como funciona o sistema solar (On-Grid)'
           const foto2 =
             fotosValidas.length > 1
               ? fotosValidas[1].url
@@ -2532,25 +2535,19 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
                 ? fotosValidas[0].url
                 : ''
           const titulo2 =
-            fotosValidas.length > 1
+            fotosValidas.length > 1 && fotosValidas[1].titulo
               ? fotosValidas[1].titulo
-              : fotosValidas.length === 1
+              : fotosValidas.length === 1 && fotosValidas[0].titulo
                 ? fotosValidas[0].titulo
-                : 'Monitoramento Inteligente em Tempo Real'
+                : 'Monitoramento Inteligente 24/7'
 
           const img1Html = foto1
             ? `<img src="${foto1}" alt="${titulo1}" style="width: 100%; height: 130px; object-fit: cover; display: block; border-radius: 10px;" />`
-            : `<div style="width: 100%; height: 130px; background: #DCFCE7; border-radius: 10px; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #166534;">
-                 <span style="font-size: 32px;">☀️</span>
-                 <span style="font-size: 9px; font-weight: 800; margin-top: 4px;">Sistema Solar On-Grid Delfos</span>
-               </div>`
+            : `<img src="${onGridPngAsset}" alt="${titulo1}" style="width: 100%; height: 130px; object-fit: cover; display: block; border-radius: 10px;" />`
 
           const img2Html = foto2
             ? `<img src="${foto2}" alt="${titulo2}" style="width: 100%; height: 130px; object-fit: cover; display: block; border-radius: 10px;" />`
-            : `<div style="width: 100%; height: 130px; background: #DCFCE7; border-radius: 10px; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #166534;">
-                 <span style="font-size: 32px;">📱</span>
-                 <span style="font-size: 9px; font-weight: 800; margin-top: 4px;">Telemetria e Monitoramento 24/7</span>
-               </div>`
+            : `<img src="${monitoramentoPngAsset}" alt="${titulo2}" style="width: 100%; height: 130px; object-fit: cover; display: block; border-radius: 10px;" />`
 
           return `
           <!-- BLOCOS EXPLICATIVOS COM FOTOS REAIS DA GALERIA USINAS -->

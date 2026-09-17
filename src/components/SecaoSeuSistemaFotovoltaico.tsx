@@ -207,13 +207,17 @@ export const SecaoSeuSistemaFotovoltaico: React.FC<SecaoSeuSistemaFotovoltaicoPr
   }, [])
 
   // Seleciona fotos da galeria com fallback defensivo para as ilustrações padrão
-  const instalacoesComFoto = fotosGaleria.filter((item) => !!(item.foto || item.foto_url))
+  // Padrão solicitado: 1ª instalação com foto para On-Grid e 2ª (ou 1ª se só houver uma) para Monitoramento
+  const instalacoesComFoto = fotosGaleria.filter((item) => {
+    const url = getFotoUrl(item)
+    return !!(url && url.trim())
+  })
   const fotoOnGrid =
     instalacoesComFoto.length > 0 ? getFotoUrl(instalacoesComFoto[0]) : onGridPngAsset
   const tituloOnGrid =
     instalacoesComFoto.length > 0 && instalacoesComFoto[0].titulo
       ? instalacoesComFoto[0].titulo
-      : 'Sistema Fotovoltaico Conectado à Rede (On-Grid)'
+      : 'Como funciona o sistema solar (On-Grid)'
 
   const fotoMonitoramento =
     instalacoesComFoto.length > 1
@@ -226,7 +230,7 @@ export const SecaoSeuSistemaFotovoltaico: React.FC<SecaoSeuSistemaFotovoltaicoPr
       ? instalacoesComFoto[1].titulo
       : instalacoesComFoto.length === 1 && instalacoesComFoto[0].titulo
         ? instalacoesComFoto[0].titulo
-        : 'Monitoramento Inteligente em Tempo Real'
+        : 'Monitoramento Inteligente 24/7'
 
   return (
     <section
