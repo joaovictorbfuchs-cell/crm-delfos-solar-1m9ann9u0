@@ -102,7 +102,7 @@ export function ModalGerarPropostaTecnicoComercial({
   const [paineisAnosFab, setPaineisAnosFab] = useState<number>(
     (orcamento as any)?.garantia_modulos_fabricacao_anos || 15,
   )
-  const [paineisAnosDesemp, setPaineisDesemp] = useState<number>(
+  const [paineisAnosDesemp, setPaineisAnosDesemp] = useState<number>(
     (orcamento as any)?.garantia_modulos_degradacao_anos ||
       (orcamento as any)?.garantia_modulos_anos ||
       30,
