@@ -65,6 +65,10 @@ describe('propostaSolarDocxGenerator', () => {
     // As 6 seções canônicas devem estar presentes
     expect(jsonStr).toContain('PROPOSTA COMERCIAL EXCLUSIVA')
     expect(jsonStr).toContain('Situação Atual')
+    expect(jsonStr).toContain('Gastos Acumulados Sem Solar: 1, 5 e 25 Anos')
+    expect(jsonStr).toContain('GASTO EM 1 ANO')
+    expect(jsonStr).toContain('GASTO EM 5 ANOS')
+    expect(jsonStr).toContain('GASTO EM 25 ANOS')
     expect(jsonStr).not.toContain('Consumo convertido em custo')
     expect(jsonStr).toContain('Seu Sistema Fotovoltaico')
     expect(jsonStr).toContain('Projeção de Economia na Conta de Energia')

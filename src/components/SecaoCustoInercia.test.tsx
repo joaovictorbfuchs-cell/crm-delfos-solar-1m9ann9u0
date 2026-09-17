@@ -31,10 +31,20 @@ describe('SecaoCustoInercia Component', () => {
     expect(html).toContain('Conta Atual')
     expect(html).toContain('Gasto Anual')
 
-    // Marcos acumulados 1, 5 e 25 anos
-    expect(html).toContain('1 ano')
-    expect(html).toContain('5 anos')
-    expect(html).toContain('25 anos')
+    // Gastos Acumulados Sem Solar em 3 grandes cards
+    expect(html).toContain('Gastos Acumulados Sem Solar: 1, 5 e 25 Anos')
+    expect(html).toContain('Gasto em 1 Ano')
+    expect(html).toContain('Gasto em 5 Anos')
+    expect(html).toContain('Gasto em 25 Anos')
+    expect(html).toContain('Valores Acumulados em Reais')
+    expect(html).toContain('Curto prazo')
+    expect(html).toContain('Médio prazo')
+    expect(html).toContain('Longo prazo')
+    expect(html).toContain('Média mensal:')
+
+    // Não deve conter barras ou comparação com solar nesta seção
+    expect(html).not.toContain('Com energia solar Delfos')
+    expect(html).not.toContain('recharts')
 
     // Alerta de perda acumulada e linha reflexiva
     expect(html).toContain('Alerta de Perda Acumulada')
@@ -63,8 +73,14 @@ describe('SecaoCustoInercia Component', () => {
     expect(html).toContain('807,50')
     expect(html).toContain('9.690,00')
 
-    // 2 cards em grid
+    // 2 cards em grid de consumo e custos
     expect(html).toContain('grid-cols-1 md:grid-cols-2')
+
+    // 3 cards de gastos acumulados sem solar
+    expect(html).toContain('Gasto em 1 Ano')
+    expect(html).toContain('Gasto em 5 Anos')
+    expect(html).toContain('Gasto em 25 Anos')
+    expect(html).toContain('62.000,00')
 
     // Não deve conter o conector
     expect(html).not.toContain('Convertido em')

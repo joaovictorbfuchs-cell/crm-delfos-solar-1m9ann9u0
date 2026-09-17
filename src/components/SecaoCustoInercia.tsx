@@ -5,23 +5,13 @@ import {
   TrendingDown,
   ArrowRight,
   PiggyBank,
-  CheckCircle2,
   Activity,
   Zap,
-  Calendar,
   DollarSign,
+  Calendar,
   Clock,
+  ShieldAlert,
 } from 'lucide-react'
-import {
-  ResponsiveContainer,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  Tooltip as RechartsTooltip,
-  Legend,
-  CartesianGrid,
-} from 'recharts'
 import { formatCurrency } from '@/lib/formatters'
 
 export interface SecaoCustoInerciaProps {
@@ -53,20 +43,22 @@ export interface SecaoCustoInerciaProps {
 }
 
 /**
- * Seção 2 — Situação Atual (Consumo & Custos + Gastos Acumulados)
+ * Seção 2 — Situação Atual (Consumo & Custos + Gastos Acumulados Sem Solar)
  *
- * Estrutura solicitada pelo usuário:
+ * Estrutura:
  * 1. Título "Situação Atual" e badge "Situação Atual"
- * 2. Visualização em cards arredondados com sombra suave (sem tabelas):
+ * 2. Visualização em cards arredondados com sombra suave:
  *    - Consumo mensal (kWh/mês)
  *    - Consumo no ano (kWh/ano)
  *    - Custo mensal (R$ — conta mensal atual)
  *    - Custo no ano (R$ — conta anual)
- * 3. Abaixo, informações de quanto ele gasta acumulado em 1 ano, 5 anos e 25 anos:
- *    - Gráfico comparativo de barras (Sem solar vs. Com solar Delfos)
- *    - Cards rápidos por marco (1 ano, 5 anos e 25 anos)
- *    - Box de alerta vermelho de perda acumulada ("Sem solar, em 5 anos você pagará...")
- *    - Linha comparativa inteligente ("Hoje você paga R$ X para a concessionária...")
+ * 3. Gastos Acumulados Sem Solar: 1, 5 e 25 Anos:
+ *    - 3 cards grandes de destaque em R$ (formato pt-BR)
+ *    - Sem comparação com solar (conforme solicitação do usuário)
+ *    - Progressão visual sutil de gravidade (âmbar claro → âmbar escuro → vermelho)
+ *    - Linha de contexto com média mensal aproximada e impacto tarifário
+ * 4. Box de alerta vermelho de perda acumulada ("Sem solar, em 5 anos você pagará...")
+ * 5. Linha comparativa inteligente ("Hoje você paga R$ X para a concessionária...")
  */
 export const SecaoCustoInercia: React.FC<SecaoCustoInerciaProps> = ({
   consumoMensalKwh,
@@ -76,11 +68,11 @@ export const SecaoCustoInercia: React.FC<SecaoCustoInerciaProps> = ({
   gastoSemSolar1Ano,
   gastoSemSolar5Anos,
   gastoSemSolar25Anos,
-  valorInvestimento,
+  valorInvestimento: _valorInvestimento,
   economiaMensal,
-  economia1Ano,
-  economia5Anos,
-  economia25Anos,
+  economia1Ano: _economia1Ano,
+  economia5Anos: _economia5Anos,
+  economia25Anos: _economia25Anos,
   className = '',
 }) => {
   // =========================================================================
@@ -113,11 +105,6 @@ export const SecaoCustoInercia: React.FC<SecaoCustoInerciaProps> = ({
       ? consumoAnualKwh
       : Math.round(consumoMensalFinal * 12)
 
-  const investimentoFinal =
-    valorInvestimento !== undefined && valorInvestimento !== null && valorInvestimento > 0
-      ? valorInvestimento
-      : 45000
-
   const gasto5AnosFinal =
     gastoSemSolar5Anos !== undefined && gastoSemSolar5Anos !== null && gastoSemSolar5Anos > 0
       ? gastoSemSolar5Anos
@@ -133,59 +120,10 @@ export const SecaoCustoInercia: React.FC<SecaoCustoInerciaProps> = ({
       ? gastoSemSolar25Anos
       : Math.round(gasto5AnosFinal * 11.9) // ~845.000
 
-  // Com solar: investimento único quitado + ativos Delfos
-  const comSolar1Ano = Math.round(investimentoFinal)
-  const comSolar5Anos = Math.round(investimentoFinal)
-  const comSolar25Anos = Math.round(investimentoFinal)
-
-  // Economias líquidas geradas
-  const eco1AnoFinal =
-    economia1Ano !== undefined && economia1Ano !== null && economia1Ano > 0
-      ? economia1Ano
-      : Math.round(contaMensalFinal * 12)
-
-  const eco5AnosFinal =
-    economia5Anos !== undefined && economia5Anos !== null && economia5Anos > 0
-      ? economia5Anos
-      : Math.round(gasto5AnosFinal - investimentoFinal)
-
-  const eco25AnosFinal =
-    economia25Anos !== undefined && economia25Anos !== null && economia25Anos > 0
-      ? economia25Anos
-      : Math.round(gasto25AnosFinal - investimentoFinal)
-
-  // Dados do gráfico de barras para o Recharts
-  const dadosGrafico = [
-    {
-      marco: '1 ano',
-      rotulo: 'Em 1 ano',
-      semSolar: Math.round(gasto1AnoFinal),
-      comSolar: comSolar1Ano,
-      diferenca: Math.max(0, gasto1AnoFinal - comSolar1Ano),
-    },
-    {
-      marco: '5 anos',
-      rotulo: 'Em 5 anos',
-      semSolar: Math.round(gasto5AnosFinal),
-      comSolar: comSolar5Anos,
-      diferenca: Math.round(gasto5AnosFinal - comSolar5Anos),
-    },
-    {
-      marco: '25 anos',
-      rotulo: 'Em 25 anos',
-      semSolar: Math.round(gasto25AnosFinal),
-      comSolar: comSolar25Anos,
-      diferenca: Math.round(gasto25AnosFinal - comSolar25Anos),
-    },
-  ]
-
-  // Formatter compacto para eixo Y
-  const formatarEixoY = (valor: number | unknown) => {
-    const num = Number(valor) || 0
-    if (num >= 1000000) return `R$ ${(num / 1000000).toFixed(1)}M`
-    if (num >= 1000) return `R$ ${(num / 1000).toFixed(0)}k`
-    return `R$ ${Math.round(num)}`
-  }
+  // Média mensal aproximada ao longo de cada período (considerando reajustes)
+  const mediaMensal1Ano = Math.round(gasto1AnoFinal / 12)
+  const mediaMensal5Anos = Math.round(gasto5AnosFinal / 60)
+  const mediaMensal25Anos = Math.round(gasto25AnosFinal / 300)
 
   return (
     <section
@@ -212,12 +150,10 @@ export const SecaoCustoInercia: React.FC<SecaoCustoInerciaProps> = ({
             </p>
           </div>
 
-          <div className="hidden md:flex items-center gap-2 px-3 py-2 rounded-xl bg-white border border-gray-200 shadow-2xs text-xs text-gray-600">
-            <span className="w-3 h-3 rounded-sm bg-[#DC2626] inline-block" />
-            <span className="font-semibold text-gray-700">Sem solar</span>
-            <span className="text-gray-300 mx-1">|</span>
-            <span className="w-3 h-3 rounded-sm bg-[#16A34A] inline-block" />
-            <span className="font-semibold text-gray-700">Com solar Delfos</span>
+          <div className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white border border-red-200 shadow-2xs text-xs">
+            <span className="w-2.5 h-2.5 rounded-full bg-red-600 inline-block animate-pulse" />
+            <span className="font-bold text-red-700">Sem energia solar</span>
+            <span className="text-gray-400 text-[11px]">• Desembolso direto</span>
           </div>
         </div>
       </div>
@@ -362,163 +298,148 @@ export const SecaoCustoInercia: React.FC<SecaoCustoInerciaProps> = ({
         </div>
 
         {/* ========================================================================= */}
-        {/* 2. INFORMAÇÕES DE GASTOS EM 1 ANO, 5 ANOS E 25 ANOS                      */}
+        {/* 2. GASTOS ACUMULADOS SEM SOLAR: 1 ANO, 5 ANOS E 25 ANOS                  */}
         {/* ========================================================================= */}
-        <div className="bg-white rounded-2xl p-5 sm:p-6 border border-gray-200 shadow-xs space-y-4">
+        <div className="bg-white rounded-2xl p-5 sm:p-6 border border-gray-200 shadow-xs space-y-5">
           <div className="flex items-center justify-between flex-wrap gap-2">
             <div>
               <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider flex items-center gap-2">
-                <TrendingUp className="w-4 h-4 text-emerald-600" />
-                Gastos Acumulados: 1 Ano, 5 Anos e 25 Anos Sem Solar vs. Delfos
+                <TrendingUp className="w-4 h-4 text-red-600" />
+                Gastos Acumulados Sem Solar: 1, 5 e 25 Anos
               </h3>
               <p className="text-xs text-gray-500">
-                Comparativo real de desembolso acumulado considerando o reajuste tarifário histórico
-                da rede
+                Total faturado pela concessionária ao longo do tempo considerando o reajuste
+                tarifário histórico da rede elétrica
               </p>
             </div>
-            <span className="text-[11px] font-bold text-gray-600 bg-gray-100 px-2.5 py-1 rounded-lg border border-gray-200">
-              Valores acumulados em R$
+            <span className="text-[11px] font-bold text-red-800 bg-red-50 px-3 py-1 rounded-lg border border-red-200 flex items-center gap-1.5">
+              <ShieldAlert className="w-3.5 h-3.5 text-red-600" />
+              Valores Acumulados em Reais
             </span>
           </div>
 
-          {/* Container do Gráfico Recharts */}
-          <div className="w-full h-72 sm:h-80 pt-2">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart
-                data={dadosGrafico}
-                margin={{ top: 20, right: 20, left: 10, bottom: 5 }}
-                barGap={8}
-              >
-                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
-                <XAxis
-                  dataKey="marco"
-                  tick={{ fontSize: 12, fill: '#374151', fontWeight: 600 }}
-                  tickLine={false}
-                  axisLine={{ stroke: '#e5e7eb' }}
-                />
-                <YAxis
-                  tick={{ fontSize: 11, fill: '#6b7280' }}
-                  tickFormatter={formatarEixoY}
-                  axisLine={{ stroke: '#e5e7eb' }}
-                  tickLine={false}
-                  width={72}
-                />
-                <RechartsTooltip
-                  cursor={{ fill: 'rgba(243, 244, 246, 0.6)' }}
-                  formatter={(value: unknown, name: unknown) => {
-                    const num = typeof value === 'number' ? value : Number(value) || 0
-                    const label = String(name || '')
-                    return [formatCurrency(num), label]
-                  }}
-                  labelFormatter={(label) => `Marco temporal: ${label}`}
-                  contentStyle={{
-                    backgroundColor: '#ffffff',
-                    borderRadius: '1rem',
-                    border: '1px solid #e5e7eb',
-                    fontSize: '12px',
-                    boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)',
-                    padding: '10px 14px',
-                  }}
-                />
-                <Legend
-                  verticalAlign="top"
-                  align="right"
-                  height={36}
-                  iconType="circle"
-                  iconSize={10}
-                  wrapperStyle={{ fontSize: '12px', fontWeight: 600, paddingBottom: '8px' }}
-                />
-                {/* Barra Vermelha Crescente: Sua conta de luz sem solar */}
-                <Bar
-                  dataKey="semSolar"
-                  name="Sua conta de luz sem solar"
-                  fill="#DC2626"
-                  radius={[8, 8, 0, 0]}
-                  maxBarSize={64}
-                />
-                {/* Barra Verde Estável: Com energia solar Delfos */}
-                <Bar
-                  dataKey="comSolar"
-                  name="Com energia solar Delfos"
-                  fill="#16A34A"
-                  radius={[8, 8, 0, 0]}
-                  maxBarSize={64}
-                />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
+          {/* 3 Grandes Cards de Gasto Acumulado Sem Solar lado a lado (empilhados no mobile) */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-1">
+            {/* Card 1: Gasto em 1 Ano */}
+            <div className="rounded-2xl p-5 bg-gradient-to-br from-amber-50/70 via-white to-amber-50/30 border-2 border-amber-200 shadow-xs hover:shadow-md transition-all flex flex-col justify-between relative overflow-hidden group">
+              <div className="absolute top-0 right-0 w-24 h-24 bg-amber-400/10 rounded-full blur-xl pointer-events-none group-hover:scale-125 transition-transform" />
+              <div className="space-y-3 relative z-10">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-lg bg-amber-100 border border-amber-300 flex items-center justify-center text-amber-800">
+                      <Calendar className="w-4 h-4 text-amber-700" />
+                    </div>
+                    <span className="text-xs font-bold text-amber-900 uppercase tracking-wide">
+                      Gasto em 1 Ano
+                    </span>
+                  </div>
+                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-amber-800 bg-amber-100/80 px-2.5 py-0.5 rounded-full border border-amber-200">
+                    Curto prazo
+                  </span>
+                </div>
 
-          {/* Cards Rápidos de Detalhe por Marco (1 ano, 5 anos, 25 anos) */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-3 border-t border-gray-100">
-            {/* Marco 1 ano */}
-            <div className="p-3.5 rounded-xl bg-gray-50 border border-gray-200/80 space-y-1.5">
-              <div className="flex items-center justify-between text-xs font-semibold text-gray-500">
-                <span>Gasto em 1 ano</span>
-                <span className="text-[10px] font-bold text-gray-600 bg-white px-2 py-0.5 rounded border border-gray-200">
-                  Curto prazo
-                </span>
-              </div>
-              <div className="text-xs space-y-0.5 text-gray-700">
-                <div className="flex justify-between">
-                  <span>Sem solar:</span>
-                  <strong className="text-red-600">{formatCurrency(gasto1AnoFinal)}</strong>
-                </div>
-                <div className="flex justify-between">
-                  <span>Investimento:</span>
-                  <strong className="text-emerald-700">{formatCurrency(investimentoFinal)}</strong>
+                <div className="space-y-1">
+                  <span className="text-[11px] font-semibold text-gray-500 block">
+                    Sem energia solar
+                  </span>
+                  <div className="text-2xl sm:text-3xl font-black text-amber-900 tracking-tight">
+                    {formatCurrency(gasto1AnoFinal)}
+                  </div>
                 </div>
               </div>
-              <div className="text-[11px] text-emerald-700 font-bold pt-1.5 border-t border-gray-200 flex items-center gap-1">
-                <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
-                <span>Economia de {formatCurrency(eco1AnoFinal)}</span>
+
+              <div className="pt-3.5 mt-3.5 border-t border-amber-200/80 relative z-10 space-y-1 text-[11px] text-gray-600">
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-500">Média mensal:</span>
+                  <strong className="text-gray-900 font-bold">
+                    ≈ {formatCurrency(mediaMensal1Ano)}/mês
+                  </strong>
+                </div>
+                <div className="text-[10px] text-gray-500 leading-tight">
+                  12 faturas com reajuste inicial
+                </div>
               </div>
             </div>
 
-            {/* Marco 5 anos */}
-            <div className="p-3.5 rounded-xl bg-amber-50/60 border border-amber-200 space-y-1.5">
-              <div className="flex items-center justify-between text-xs font-semibold text-amber-900">
-                <span>Gasto em 5 anos</span>
-                <span className="text-[10px] font-bold text-amber-800 bg-white px-2 py-0.5 rounded border border-amber-200">
-                  Retorno (Payback)
-                </span>
-              </div>
-              <div className="text-xs space-y-0.5 text-gray-700">
-                <div className="flex justify-between">
-                  <span>Sem solar:</span>
-                  <strong className="text-red-600">{formatCurrency(gasto5AnosFinal)}</strong>
+            {/* Card 2: Gasto em 5 Anos */}
+            <div className="rounded-2xl p-5 bg-gradient-to-br from-orange-50/80 via-white to-amber-50/40 border-2 border-orange-300 shadow-xs hover:shadow-md transition-all flex flex-col justify-between relative overflow-hidden group">
+              <div className="absolute top-0 right-0 w-24 h-24 bg-orange-500/10 rounded-full blur-xl pointer-events-none group-hover:scale-125 transition-transform" />
+              <div className="space-y-3 relative z-10">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-lg bg-orange-100 border border-orange-300 flex items-center justify-center text-orange-800">
+                      <Clock className="w-4 h-4 text-orange-700" />
+                    </div>
+                    <span className="text-xs font-bold text-orange-950 uppercase tracking-wide">
+                      Gasto em 5 Anos
+                    </span>
+                  </div>
+                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-orange-900 bg-orange-100 px-2.5 py-0.5 rounded-full border border-orange-200">
+                    Médio prazo
+                  </span>
                 </div>
-                <div className="flex justify-between">
-                  <span>Investimento quitado:</span>
-                  <strong className="text-emerald-700">{formatCurrency(investimentoFinal)}</strong>
+
+                <div className="space-y-1">
+                  <span className="text-[11px] font-semibold text-gray-500 block">
+                    Sem energia solar
+                  </span>
+                  <div className="text-2xl sm:text-3xl font-black text-orange-800 tracking-tight">
+                    {formatCurrency(gasto5AnosFinal)}
+                  </div>
                 </div>
               </div>
-              <div className="text-[11px] text-emerald-800 font-bold pt-1.5 border-t border-amber-200 flex items-center gap-1">
-                <PiggyBank className="w-3.5 h-3.5 shrink-0 text-emerald-700" />
-                <span>Sobram {formatCurrency(eco5AnosFinal)} no bolso</span>
+
+              <div className="pt-3.5 mt-3.5 border-t border-orange-200/80 relative z-10 space-y-1 text-[11px] text-gray-600">
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-500">Média mensal:</span>
+                  <strong className="text-gray-900 font-bold">
+                    ≈ {formatCurrency(mediaMensal5Anos)}/mês
+                  </strong>
+                </div>
+                <div className="text-[10px] text-orange-700 font-semibold leading-tight">
+                  Supera o valor de uma usina própria
+                </div>
               </div>
             </div>
 
-            {/* Marco 25 anos */}
-            <div className="p-3.5 rounded-xl bg-emerald-50/60 border border-emerald-200 space-y-1.5">
-              <div className="flex items-center justify-between text-xs font-semibold text-emerald-900">
-                <span>Gasto em 25 anos</span>
-                <span className="text-[10px] font-bold text-emerald-800 bg-white px-2 py-0.5 rounded border border-emerald-200">
-                  Longo prazo
-                </span>
-              </div>
-              <div className="text-xs space-y-0.5 text-gray-700">
-                <div className="flex justify-between">
-                  <span>Sem solar:</span>
-                  <strong className="text-red-600">{formatCurrency(gasto25AnosFinal)}</strong>
+            {/* Card 3: Gasto em 25 Anos */}
+            <div className="rounded-2xl p-5 bg-gradient-to-br from-red-50/90 via-white to-rose-50/40 border-2 border-red-300 shadow-xs hover:shadow-md transition-all flex flex-col justify-between relative overflow-hidden group">
+              <div className="absolute top-0 right-0 w-24 h-24 bg-red-600/10 rounded-full blur-xl pointer-events-none group-hover:scale-125 transition-transform" />
+              <div className="space-y-3 relative z-10">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-lg bg-red-100 border border-red-300 flex items-center justify-center text-red-800">
+                      <TrendingDown className="w-4 h-4 text-red-600" />
+                    </div>
+                    <span className="text-xs font-bold text-red-950 uppercase tracking-wide">
+                      Gasto em 25 Anos
+                    </span>
+                  </div>
+                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-red-900 bg-red-100 px-2.5 py-0.5 rounded-full border border-red-200">
+                    Longo prazo
+                  </span>
                 </div>
-                <div className="flex justify-between">
-                  <span>Investimento:</span>
-                  <strong className="text-emerald-700">{formatCurrency(investimentoFinal)}</strong>
+
+                <div className="space-y-1">
+                  <span className="text-[11px] font-semibold text-gray-500 block">
+                    Sem energia solar
+                  </span>
+                  <div className="text-2xl sm:text-3xl font-black text-red-600 tracking-tight">
+                    {formatCurrency(gasto25AnosFinal)}
+                  </div>
                 </div>
               </div>
-              <div className="text-[11px] text-emerald-800 font-bold pt-1.5 border-t border-emerald-200 flex items-center gap-1">
-                <TrendingUp className="w-3.5 h-3.5 shrink-0 text-emerald-700" />
-                <span>Economia acumulada: {formatCurrency(eco25AnosFinal)}</span>
+
+              <div className="pt-3.5 mt-3.5 border-t border-red-200/80 relative z-10 space-y-1 text-[11px] text-gray-600">
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-500">Média mensal:</span>
+                  <strong className="text-gray-900 font-bold">
+                    ≈ {formatCurrency(mediaMensal25Anos)}/mês
+                  </strong>
+                </div>
+                <div className="text-[10px] text-red-700 font-semibold leading-tight">
+                  Desembolso acumulado com inflação da rede
+                </div>
               </div>
             </div>
           </div>

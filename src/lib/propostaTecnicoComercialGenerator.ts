@@ -988,7 +988,7 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
       line-height: 1.3;
     }
 
-    /* Container do Comparativo de Barras */
+    /* Container dos Gastos Acumulados Sem Solar */
     .box-barras-inercia {
       background: #FFFFFF;
       border: 1px solid #E5E7EB;
@@ -1022,31 +1022,24 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
     .legenda-barras-pill {
       display: inline-flex;
       align-items: center;
-      gap: 8px;
-      background: #F9FAFB;
-      border: 1px solid #E5E7EB;
+      gap: 6px;
+      background: #FEF2F2;
+      border: 1px solid #FECACA;
       padding: 4px 10px;
       border-radius: 10px;
       font-size: 9px;
-      font-weight: 700;
-      color: #374151;
+      font-weight: 800;
+      color: #991B1B;
     }
     .leg-bullet-red {
-      width: 10px;
-      height: 10px;
-      border-radius: 3px;
+      width: 8px;
+      height: 8px;
+      border-radius: 9999px;
       background: #DC2626;
       display: inline-block;
     }
-    .leg-bullet-green {
-      width: 10px;
-      height: 10px;
-      border-radius: 3px;
-      background: #16A34A;
-      display: inline-block;
-    }
 
-    /* 3 Colunas dos Marcos (1 ano, 5 anos, 25 anos) */
+    /* 3 Cards Grandes de Gasto Acumulado Sem Solar (1 ano, 5 anos, 25 anos) */
     .grid-marcos-inercia {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
@@ -1054,36 +1047,39 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
       margin-top: 8px;
     }
     .card-marco-inercia {
-      border: 1px solid #E5E7EB;
+      border: 2px solid #E5E7EB;
       border-radius: 14px;
-      padding: 12px;
-      background: #F9FAFB;
+      padding: 14px 12px;
+      background: #FFFFFF;
       display: flex;
       flex-direction: column;
       justify-content: space-between;
+      min-height: 130px;
     }
     .card-marco-inercia.ano1 {
-      background: #FAFAFA;
-      border-color: #E5E7EB;
-    }
-    .card-marco-inercia.ano5 {
-      background: #FFFBEB;
+      background: linear-gradient(135deg, #FFFBEB 0%, #FFFFFF 100%);
       border-color: #FDE68A;
     }
+    .card-marco-inercia.ano5 {
+      background: linear-gradient(135deg, #FFF7ED 0%, #FFFFFF 100%);
+      border-color: #FDBA74;
+    }
     .card-marco-inercia.ano25 {
-      background: #ECFDF5;
-      border-color: #A7F3D0;
+      background: linear-gradient(135deg, #FEF2F2 0%, #FFFFFF 100%);
+      border-color: #FCA5A5;
     }
     .card-marco-head {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      margin-bottom: 8px;
+      margin-bottom: 6px;
     }
     .card-marco-title {
       font-size: 11px;
       font-weight: 800;
       color: #111827;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
     }
     .card-marco-tag {
       font-size: 8px;
@@ -1095,79 +1091,59 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
       border: 1px solid #E5E7EB;
       color: #4B5563;
     }
-    .card-marco-inercia.ano5 .card-marco-tag {
+    .card-marco-inercia.ano1 .card-marco-tag {
       color: #92400E;
-      border-color: #FCD34D;
+      border-color: #FDE68A;
+      background: #FEF3C7;
+    }
+    .card-marco-inercia.ano5 .card-marco-tag {
+      color: #9A3412;
+      border-color: #FED7AA;
+      background: #FFEDD5;
     }
     .card-marco-inercia.ano25 .card-marco-tag {
-      color: #065F46;
-      border-color: #86EFAC;
+      color: #991B1B;
+      border-color: #FECACA;
+      background: #FEE2E2;
     }
 
-    /* Barras comparativas verticais dentro do card do marco */
-    .marco-barras-dupla {
-      display: flex;
-      align-items: flex-end;
-      justify-content: center;
-      gap: 14px;
-      height: 110px;
-      padding: 10px 8px 4px 8px;
-      margin: 6px 0;
-      border-bottom: 1px dashed #D1D5DB;
+    .card-marco-subhead {
+      font-size: 8.5px;
+      font-weight: 600;
+      color: #6B7280;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      margin-bottom: 2px;
     }
-    .barra-col {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: flex-end;
-      height: 100%;
-      width: 48px;
-    }
-    .barra-val-label {
-      font-size: 8px;
+    .card-marco-valor-grande {
+      font-size: 19px;
       font-weight: 900;
-      margin-bottom: 3px;
-      white-space: nowrap;
+      line-height: 1.15;
+      letter-spacing: -0.02em;
     }
-    .barra-val-label.red {
+    .card-marco-inercia.ano1 .card-marco-valor-grande {
+      color: #78350F;
+    }
+    .card-marco-inercia.ano5 .card-marco-valor-grande {
+      color: #9A3412;
+    }
+    .card-marco-inercia.ano25 .card-marco-valor-grande {
       color: #DC2626;
     }
-    .barra-val-label.green {
-      color: #16A34A;
-    }
-    .barra-fill {
-      width: 100%;
-      border-radius: 6px 6px 0 0;
-      min-height: 10px;
-      transition: height 0.3s;
-    }
-    .barra-fill.red {
-      background: linear-gradient(180deg, #EF4444 0%, #DC2626 100%);
-      box-shadow: 0 2px 6px rgba(220, 38, 38, 0.25);
-    }
-    .barra-fill.green {
-      background: linear-gradient(180deg, #22C55E 0%, #16A34A 100%);
-      box-shadow: 0 2px 6px rgba(22, 163, 74, 0.25);
-    }
-    .barra-caption {
-      font-size: 7.5px;
-      color: #6B7280;
-      font-weight: 700;
-      margin-top: 3px;
-      text-transform: uppercase;
-      text-align: center;
-    }
 
-    .card-marco-foot {
-      font-size: 9.5px;
-      font-weight: 800;
-      padding-top: 6px;
+    .card-marco-footer-meta {
+      margin-top: 10px;
+      padding-top: 8px;
+      border-top: 1px dashed #E5E7EB;
+      font-size: 8.5px;
+      color: #4B5563;
       display: flex;
-      align-items: center;
-      gap: 5px;
+      flex-direction: column;
+      gap: 2px;
     }
-    .card-marco-foot.green {
-      color: #166534;
+    .card-marco-footer-meta strong {
+      color: #111827;
+      font-weight: 800;
     }
 
     /* Box Vermelho com gradiente fiel ao SecaoCustoInercia.tsx */
@@ -2266,91 +2242,69 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
           </div>
         </div>
 
-        <!-- 2. Box de Comparativo Visual com Barras 1 ano, 5 anos, 25 anos -->
+        <!-- 2. Box de Gastos Acumulados Sem Solar: 1 ano, 5 anos, 25 anos -->
         <div class="box-barras-inercia">
           <div class="barras-topo-row">
             <div>
               <div class="barras-topo-title">
-                <span>📈</span> Gastos Acumulados: 1 Ano, 5 Anos e 25 Anos Sem Solar vs. Delfos
+                <span style="color: #DC2626;">📈</span> Gastos Acumulados Sem Solar: 1, 5 e 25 Anos
               </div>
               <div class="barras-topo-sub">
-                Evolução nos marcos de 1, 5 e 25 anos com reajuste tarifário histórico da rede
+                Total faturado pela concessionária ao longo do tempo considerando o reajuste tarifário histórico da rede elétrica
               </div>
             </div>
             <div class="legenda-barras-pill">
-              <span><span class="leg-bullet-red"></span> Sem solar</span>
-              <span style="color: #CBD5E1;">|</span>
-              <span><span class="leg-bullet-green"></span> Com solar Delfos</span>
+              <span class="leg-bullet-red"></span>
+              <span>Sem energia solar • Desembolso direto</span>
             </div>
           </div>
 
           <div class="grid-marcos-inercia">
             <!-- Marco 1: 1 ano -->
             <div class="card-marco-inercia ano1">
-              <div class="card-marco-head">
-                <span class="card-marco-title">Marco 1 ano</span>
-                <span class="card-marco-tag">Curto prazo</span>
-              </div>
-              <div class="marco-barras-dupla">
-                <div class="barra-col">
-                  <span class="barra-val-label red">${formatBRL(gasto1Ano)}</span>
-                  <div class="barra-fill red" style="height: 25px;"></div>
-                  <span class="barra-caption">Sem solar</span>
+              <div>
+                <div class="card-marco-head">
+                  <span class="card-marco-title">Gasto em 1 Ano</span>
+                  <span class="card-marco-tag">Curto prazo</span>
                 </div>
-                <div class="barra-col">
-                  <span class="barra-val-label green">${formatBRL(investimentoTotal)}</span>
-                  <div class="barra-fill green" style="height: 60px;"></div>
-                  <span class="barra-caption">Com solar</span>
-                </div>
+                <div class="card-marco-subhead">Sem energia solar</div>
+                <div class="card-marco-valor-grande">${formatBRL(gasto1Ano)}</div>
               </div>
-              <div class="card-marco-foot green">
-                <span>✓</span> Economia de ${formatBRL(eco1Ano)}
+              <div class="card-marco-footer-meta">
+                <div>Média mensal: <strong>≈ ${formatBRL(Math.round(gasto1Ano / 12))}/mês</strong></div>
+                <div style="font-size: 8px; color: #6B7280;">12 faturas com reajuste inicial</div>
               </div>
             </div>
 
-            <!-- Marco 2: 5 anos (Payback) -->
+            <!-- Marco 2: 5 anos -->
             <div class="card-marco-inercia ano5">
-              <div class="card-marco-head">
-                <span class="card-marco-title">Marco 5 anos</span>
-                <span class="card-marco-tag">Retorno (Payback)</span>
-              </div>
-              <div class="marco-barras-dupla">
-                <div class="barra-col">
-                  <span class="barra-val-label red">${formatBRL(gasto5Anos)}</span>
-                  <div class="barra-fill red" style="height: 70px;"></div>
-                  <span class="barra-caption">Sem solar</span>
+              <div>
+                <div class="card-marco-head">
+                  <span class="card-marco-title">Gasto em 5 Anos</span>
+                  <span class="card-marco-tag">Médio prazo</span>
                 </div>
-                <div class="barra-col">
-                  <span class="barra-val-label green">${formatBRL(investimentoTotal)}</span>
-                  <div class="barra-fill green" style="height: 60px;"></div>
-                  <span class="barra-caption">Quitado</span>
-                </div>
+                <div class="card-marco-subhead">Sem energia solar</div>
+                <div class="card-marco-valor-grande">${formatBRL(gasto5Anos)}</div>
               </div>
-              <div class="card-marco-foot green">
-                <span>🐷</span> Sobram ${formatBRL(eco5Anos)} no bolso
+              <div class="card-marco-footer-meta">
+                <div>Média mensal: <strong>≈ ${formatBRL(Math.round(gasto5Anos / 60))}/mês</strong></div>
+                <div style="font-size: 8px; color: #C2410C; font-weight: 700;">Supera o valor de uma usina própria</div>
               </div>
             </div>
 
-            <!-- Marco 3: 25 anos (Longo prazo) -->
+            <!-- Marco 3: 25 anos -->
             <div class="card-marco-inercia ano25">
-              <div class="card-marco-head">
-                <span class="card-marco-title">Marco 25 anos</span>
-                <span class="card-marco-tag">Longo prazo</span>
-              </div>
-              <div class="marco-barras-dupla">
-                <div class="barra-col">
-                  <span class="barra-val-label red">${formatBRL(gasto25Anos)}</span>
-                  <div class="barra-fill red" style="height: 100px;"></div>
-                  <span class="barra-caption">Desperdício</span>
+              <div>
+                <div class="card-marco-head">
+                  <span class="card-marco-title">Gasto em 25 Anos</span>
+                  <span class="card-marco-tag">Longo prazo</span>
                 </div>
-                <div class="barra-col">
-                  <span class="barra-val-label green">${formatBRL(investimentoTotal)}</span>
-                  <div class="barra-fill green" style="height: 60px;"></div>
-                  <span class="barra-caption">Ativo seu</span>
-                </div>
+                <div class="card-marco-subhead">Sem energia solar</div>
+                <div class="card-marco-valor-grande">${formatBRL(gasto25Anos)}</div>
               </div>
-              <div class="card-marco-foot green">
-                <span>✦</span> Economia acumulada: ${formatBRL(eco25Anos)}
+              <div class="card-marco-footer-meta">
+                <div>Média mensal: <strong>≈ ${formatBRL(Math.round(gasto25Anos / 300))}/mês</strong></div>
+                <div style="font-size: 8px; color: #DC2626; font-weight: 700;">Desembolso acumulado com inflação da rede</div>
               </div>
             </div>
           </div>

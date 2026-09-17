@@ -690,13 +690,24 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
 
   docChildren.push(
     new Paragraph({
-      spacing: { before: 80, after: 60 },
+      spacing: { before: 80, after: 40 },
       children: [
         new TextRun({
-          text: '📈 Gastos Acumulados: 1 Ano, 5 Anos e 25 Anos Sem Solar vs. Delfos Solar',
+          text: '📈 Gastos Acumulados Sem Solar: 1, 5 e 25 Anos',
           bold: true,
           size: 18,
-          color: COLOR_PRIMARY,
+          color: COLOR_RED,
+          font: 'Arial',
+        }),
+      ],
+    }),
+    new Paragraph({
+      spacing: { before: 0, after: 60 },
+      children: [
+        new TextRun({
+          text: 'Total faturado pela concessionária ao longo do tempo considerando o reajuste tarifário histórico da rede elétrica (sem geração própria).',
+          size: 15,
+          color: COLOR_TEXT_MUTED,
           font: 'Arial',
         }),
       ],
@@ -711,222 +722,199 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
       rows: [
         new TableRow({
           children: [
+            // Card 1: 1 Ano
             new TableCell({
               width: { size: colWidthInercia, type: WidthType.DXA },
-              shading: { type: ShadingType.CLEAR, fill: COLOR_PRIMARY },
-              margins: { top: 80, bottom: 80, left: 100, right: 100 },
+              shading: { type: ShadingType.CLEAR, fill: 'FFFBEB' },
+              margins: { top: 90, bottom: 90, left: 100, right: 100 },
               children: [
                 new Paragraph({
                   children: [
                     new TextRun({
-                      text: 'PERÍODO',
+                      text: 'GASTO EM 1 ANO',
                       bold: true,
-                      color: 'FFFFFF',
-                      size: 17,
+                      size: 15,
+                      color: '78350F',
+                      font: 'Arial',
+                    }),
+                  ],
+                }),
+                new Paragraph({
+                  spacing: { before: 20 },
+                  children: [
+                    new TextRun({
+                      text: 'Curto Prazo (12 faturas)',
+                      size: 13,
+                      color: COLOR_TEXT_MUTED,
+                      font: 'Arial',
+                    }),
+                  ],
+                }),
+                new Paragraph({
+                  spacing: { before: 60 },
+                  children: [
+                    new TextRun({
+                      text: `${formatBRL(gasto1Ano)}`,
+                      bold: true,
+                      color: '78350F',
+                      size: 24,
+                      font: 'Arial',
+                    }),
+                  ],
+                }),
+                new Paragraph({
+                  spacing: { before: 40 },
+                  children: [
+                    new TextRun({
+                      text: `≈ ${formatBRL(Math.round(gasto1Ano / 12))}/mês`,
+                      bold: true,
+                      size: 14,
+                      color: COLOR_TEXT_DARK,
+                      font: 'Arial',
+                    }),
+                  ],
+                }),
+                new Paragraph({
+                  spacing: { before: 20 },
+                  children: [
+                    new TextRun({
+                      text: 'Sem retorno patrimonial',
+                      size: 13,
+                      color: COLOR_TEXT_MUTED,
                       font: 'Arial',
                     }),
                   ],
                 }),
               ],
             }),
+
+            // Card 2: 5 Anos
             new TableCell({
               width: { size: colWidthInercia, type: WidthType.DXA },
-              shading: { type: ShadingType.CLEAR, fill: COLOR_PRIMARY },
-              margins: { top: 80, bottom: 80, left: 100, right: 100 },
+              shading: { type: ShadingType.CLEAR, fill: 'FFF7ED' },
+              margins: { top: 90, bottom: 90, left: 100, right: 100 },
               children: [
                 new Paragraph({
                   children: [
                     new TextRun({
-                      text: 'SEM SOLAR (DESPERDÍCIO)',
+                      text: 'GASTO EM 5 ANOS',
                       bold: true,
-                      color: 'FFFFFF',
-                      size: 17,
+                      size: 15,
+                      color: '9A3412',
+                      font: 'Arial',
+                    }),
+                  ],
+                }),
+                new Paragraph({
+                  spacing: { before: 20 },
+                  children: [
+                    new TextRun({
+                      text: 'Médio Prazo (60 faturas)',
+                      size: 13,
+                      color: COLOR_TEXT_MUTED,
+                      font: 'Arial',
+                    }),
+                  ],
+                }),
+                new Paragraph({
+                  spacing: { before: 60 },
+                  children: [
+                    new TextRun({
+                      text: `${formatBRL(gasto5Anos)}`,
+                      bold: true,
+                      color: '9A3412',
+                      size: 24,
+                      font: 'Arial',
+                    }),
+                  ],
+                }),
+                new Paragraph({
+                  spacing: { before: 40 },
+                  children: [
+                    new TextRun({
+                      text: `≈ ${formatBRL(Math.round(gasto5Anos / 60))}/mês`,
+                      bold: true,
+                      size: 14,
+                      color: COLOR_TEXT_DARK,
+                      font: 'Arial',
+                    }),
+                  ],
+                }),
+                new Paragraph({
+                  spacing: { before: 20 },
+                  children: [
+                    new TextRun({
+                      text: 'Supera o valor de uma usina',
+                      size: 13,
+                      color: 'C2410C',
+                      bold: true,
                       font: 'Arial',
                     }),
                   ],
                 }),
               ],
             }),
-            new TableCell({
-              width: { size: colWidthInercia, type: WidthType.DXA },
-              shading: { type: ShadingType.CLEAR, fill: COLOR_PRIMARY },
-              margins: { top: 80, bottom: 80, left: 100, right: 100 },
-              children: [
-                new Paragraph({
-                  children: [
-                    new TextRun({
-                      text: 'COM SOLAR DELFOS (PATRIMÔNIO)',
-                      bold: true,
-                      color: 'FFFFFF',
-                      size: 17,
-                      font: 'Arial',
-                    }),
-                  ],
-                }),
-              ],
-            }),
-          ],
-        }),
-        new TableRow({
-          children: [
-            new TableCell({
-              width: { size: colWidthInercia, type: WidthType.DXA },
-              margins: { top: 80, bottom: 80, left: 100, right: 100 },
-              children: [
-                new Paragraph({
-                  children: [
-                    new TextRun({
-                      text: '1 ano (Curto Prazo)',
-                      bold: true,
-                      size: 17,
-                      font: 'Arial',
-                    }),
-                  ],
-                }),
-              ],
-            }),
+
+            // Card 3: 25 Anos
             new TableCell({
               width: { size: colWidthInercia, type: WidthType.DXA },
               shading: { type: ShadingType.CLEAR, fill: COLOR_RED_BG },
-              margins: { top: 80, bottom: 80, left: 100, right: 100 },
+              margins: { top: 90, bottom: 90, left: 100, right: 100 },
               children: [
                 new Paragraph({
                   children: [
                     new TextRun({
-                      text: `${formatBRL(gasto1Ano)} pagos à concessionária`,
+                      text: 'GASTO EM 25 ANOS',
+                      bold: true,
+                      size: 15,
+                      color: COLOR_RED,
+                      font: 'Arial',
+                    }),
+                  ],
+                }),
+                new Paragraph({
+                  spacing: { before: 20 },
+                  children: [
+                    new TextRun({
+                      text: 'Longo Prazo (300 faturas)',
+                      size: 13,
+                      color: COLOR_TEXT_MUTED,
+                      font: 'Arial',
+                    }),
+                  ],
+                }),
+                new Paragraph({
+                  spacing: { before: 60 },
+                  children: [
+                    new TextRun({
+                      text: `${formatBRL(gasto25Anos)}`,
                       bold: true,
                       color: COLOR_RED,
-                      size: 17,
+                      size: 24,
                       font: 'Arial',
                     }),
                   ],
                 }),
-              ],
-            }),
-            new TableCell({
-              width: { size: colWidthInercia, type: WidthType.DXA },
-              shading: { type: ShadingType.CLEAR, fill: COLOR_LIGHT_BG },
-              margins: { top: 80, bottom: 80, left: 100, right: 100 },
-              children: [
                 new Paragraph({
+                  spacing: { before: 40 },
                   children: [
                     new TextRun({
-                      text: `${formatBRL(eco1Ano)} economizados`,
+                      text: `≈ ${formatBRL(Math.round(gasto25Anos / 300))}/mês`,
                       bold: true,
-                      color: COLOR_PRIMARY,
-                      size: 17,
+                      size: 14,
+                      color: COLOR_TEXT_DARK,
                       font: 'Arial',
                     }),
                   ],
                 }),
-              ],
-            }),
-          ],
-        }),
-        new TableRow({
-          children: [
-            new TableCell({
-              width: { size: colWidthInercia, type: WidthType.DXA },
-              margins: { top: 80, bottom: 80, left: 100, right: 100 },
-              children: [
                 new Paragraph({
+                  spacing: { before: 20 },
                   children: [
                     new TextRun({
-                      text: '5 anos (Payback Quitado)',
-                      bold: true,
-                      size: 17,
-                      font: 'Arial',
-                    }),
-                  ],
-                }),
-              ],
-            }),
-            new TableCell({
-              width: { size: colWidthInercia, type: WidthType.DXA },
-              shading: { type: ShadingType.CLEAR, fill: COLOR_RED_BG },
-              margins: { top: 80, bottom: 80, left: 100, right: 100 },
-              children: [
-                new Paragraph({
-                  children: [
-                    new TextRun({
-                      text: `${formatBRL(gasto5Anos)} jogados fora`,
-                      bold: true,
+                      text: 'Desembolso com inflação da rede',
+                      size: 13,
                       color: COLOR_RED,
-                      size: 17,
-                      font: 'Arial',
-                    }),
-                  ],
-                }),
-              ],
-            }),
-            new TableCell({
-              width: { size: colWidthInercia, type: WidthType.DXA },
-              shading: { type: ShadingType.CLEAR, fill: COLOR_LIGHT_BG },
-              margins: { top: 80, bottom: 80, left: 100, right: 100 },
-              children: [
-                new Paragraph({
-                  children: [
-                    new TextRun({
-                      text: `${formatBRL(eco5Anos)} sobram no seu bolso`,
                       bold: true,
-                      color: COLOR_PRIMARY,
-                      size: 17,
-                      font: 'Arial',
-                    }),
-                  ],
-                }),
-              ],
-            }),
-          ],
-        }),
-        new TableRow({
-          children: [
-            new TableCell({
-              width: { size: colWidthInercia, type: WidthType.DXA },
-              margins: { top: 80, bottom: 80, left: 100, right: 100 },
-              children: [
-                new Paragraph({
-                  children: [
-                    new TextRun({
-                      text: '25 anos (Vida Útil)',
-                      bold: true,
-                      size: 17,
-                      font: 'Arial',
-                    }),
-                  ],
-                }),
-              ],
-            }),
-            new TableCell({
-              width: { size: colWidthInercia, type: WidthType.DXA },
-              shading: { type: ShadingType.CLEAR, fill: COLOR_RED_BG },
-              margins: { top: 80, bottom: 80, left: 100, right: 100 },
-              children: [
-                new Paragraph({
-                  children: [
-                    new TextRun({
-                      text: `${formatBRL(gasto25Anos)} sem qualquer retorno`,
-                      bold: true,
-                      color: COLOR_RED,
-                      size: 17,
-                      font: 'Arial',
-                    }),
-                  ],
-                }),
-              ],
-            }),
-            new TableCell({
-              width: { size: colWidthInercia, type: WidthType.DXA },
-              shading: { type: ShadingType.CLEAR, fill: COLOR_LIGHT_BG },
-              margins: { top: 80, bottom: 80, left: 100, right: 100 },
-              children: [
-                new Paragraph({
-                  children: [
-                    new TextRun({
-                      text: `${formatBRL(eco25Anos)} de patrimônio acumulado`,
-                      bold: true,
-                      color: COLOR_PRIMARY,
-                      size: 17,
                       font: 'Arial',
                     }),
                   ],
