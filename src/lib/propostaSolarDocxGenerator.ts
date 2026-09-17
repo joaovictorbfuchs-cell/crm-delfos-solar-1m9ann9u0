@@ -1425,46 +1425,12 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
 
   // ----------------------------------------------------
   // BLOCOS: COMO FUNCIONA O SISTEMA SOLAR (ON-GRID) & MONITORAMENTO INTELIGENTE 24/7
-  // Utiliza as imagens cadastradas na Galeria Usinas com fallback para ilustrações
+  // Utiliza as ilustrações oficiais da proposta (onGridPngAsset e monitoramentoPngAsset)
   // Fundo #F0FDF4, borda #BBF7D0 e acentos verdes (#16A34A / #166534)
   // ----------------------------------------------------
-  const instalacoesValidasComFoto = usinasGaleria.filter((item) => {
-    const url = getFotoUrl(item)
-    return !!(url && url.trim())
-  })
-  const urlOnGridDocx =
-    instalacoesValidasComFoto.length > 0 ? getFotoUrl(instalacoesValidasComFoto[0]) : onGridPngAsset
-  const titUsina1 =
-    instalacoesValidasComFoto.length > 0 && instalacoesValidasComFoto[0].titulo
-      ? instalacoesValidasComFoto[0].titulo
-      : 'Como funciona o sistema solar (On-Grid)'
-  const cidUsina1 =
-    instalacoesValidasComFoto.length > 0 && instalacoesValidasComFoto[0].cidade
-      ? instalacoesValidasComFoto[0].cidade
-      : 'Erechim / RS'
-
-  const urlMonitoramentoDocx =
-    instalacoesValidasComFoto.length > 1
-      ? getFotoUrl(instalacoesValidasComFoto[1])
-      : instalacoesValidasComFoto.length === 1
-        ? getFotoUrl(instalacoesValidasComFoto[0])
-        : monitoramentoPngAsset
-  const titUsina2 =
-    instalacoesValidasComFoto.length > 1 && instalacoesValidasComFoto[1].titulo
-      ? instalacoesValidasComFoto[1].titulo
-      : instalacoesValidasComFoto.length === 1 && instalacoesValidasComFoto[0].titulo
-        ? instalacoesValidasComFoto[0].titulo
-        : 'Monitoramento Inteligente 24/7'
-  const cidUsina2 =
-    instalacoesValidasComFoto.length > 1 && instalacoesValidasComFoto[1].cidade
-      ? instalacoesValidasComFoto[1].cidade
-      : instalacoesValidasComFoto.length === 1 && instalacoesValidasComFoto[0].cidade
-        ? instalacoesValidasComFoto[0].cidade
-        : 'Erechim / RS'
-
   const [imgOnGridBytes, imgMonitoramentoBytes] = await Promise.all([
-    loadImageUint8Array(urlOnGridDocx),
-    loadImageUint8Array(urlMonitoramentoDocx),
+    loadImageUint8Array(onGridPngAsset),
+    loadImageUint8Array(monitoramentoPngAsset),
   ])
 
   const colWidthBlocos = Math.floor(PAGE_CONTENT_WIDTH / 2)
@@ -1530,13 +1496,6 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
                 new Paragraph({
                   children: [
                     new TextRun({
-                      text: `☀️ Galeria Usinas: ${titUsina1} (${cidUsina1})\n`,
-                      bold: true,
-                      size: 13,
-                      color: '15803D',
-                      font: 'Arial',
-                    }),
-                    new TextRun({
                       text: '✓ Homologação e ART Inclusa • Turnkey Delfos',
                       bold: true,
                       size: 12,
@@ -1595,13 +1554,6 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
                   : []),
                 new Paragraph({
                   children: [
-                    new TextRun({
-                      text: `📱 Telemetria Ativa: ${titUsina2} (${cidUsina2})\n`,
-                      bold: true,
-                      size: 13,
-                      color: '15803D',
-                      font: 'Arial',
-                    }),
                     new TextRun({
                       text: '✓ Suporte e Acesso Vitalício • iOS & Android',
                       bold: true,

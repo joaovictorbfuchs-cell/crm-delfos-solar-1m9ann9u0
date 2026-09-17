@@ -10,9 +10,6 @@ import {
   CheckCircle2,
 } from 'lucide-react'
 import { formatCurrency } from '@/lib/formatters'
-import { useEffect, useState } from 'react'
-import { fetchInstalacoesGaleria, getFotoUrl } from '@/services/instalacoesGaleriaService'
-import type { InstalacaoGaleria } from '@/types/instalacoesGaleria'
 import { onGridPngAsset, monitoramentoPngAsset } from '@/lib/propostaIlustracoesAssets'
 
 /**
@@ -185,52 +182,6 @@ export const SecaoSeuSistemaFotovoltaico: React.FC<SecaoSeuSistemaFotovoltaicoPr
   const garantiaInstalacaoFinalTexto =
     garantiaInstalacaoTexto ||
     (garantiaInstalacaoAnos ? `${garantiaInstalacaoAnos} anos` : '12 meses')
-
-  const [fotosGaleria, setFotosGaleria] = useState<InstalacaoGaleria[]>([])
-
-  useEffect(() => {
-    let cancel = false
-    async function carregarGaleria() {
-      try {
-        const dados = await fetchInstalacoesGaleria()
-        if (!cancel && dados) {
-          setFotosGaleria(dados)
-        }
-      } catch (err) {
-        console.warn('Erro ao carregar galeria para blocos explicativos:', err)
-      }
-    }
-    carregarGaleria()
-    return () => {
-      cancel = true
-    }
-  }, [])
-
-  // Seleciona fotos da galeria com fallback defensivo para as ilustrações padrão
-  // Padrão solicitado: 1ª instalação com foto para On-Grid e 2ª (ou 1ª se só houver uma) para Monitoramento
-  const instalacoesComFoto = fotosGaleria.filter((item) => {
-    const url = getFotoUrl(item)
-    return !!(url && url.trim())
-  })
-  const fotoOnGrid =
-    instalacoesComFoto.length > 0 ? getFotoUrl(instalacoesComFoto[0]) : onGridPngAsset
-  const tituloOnGrid =
-    instalacoesComFoto.length > 0 && instalacoesComFoto[0].titulo
-      ? instalacoesComFoto[0].titulo
-      : 'Como funciona o sistema solar (On-Grid)'
-
-  const fotoMonitoramento =
-    instalacoesComFoto.length > 1
-      ? getFotoUrl(instalacoesComFoto[1])
-      : instalacoesComFoto.length === 1
-        ? getFotoUrl(instalacoesComFoto[0])
-        : monitoramentoPngAsset
-  const tituloMonitoramento =
-    instalacoesComFoto.length > 1 && instalacoesComFoto[1].titulo
-      ? instalacoesComFoto[1].titulo
-      : instalacoesComFoto.length === 1 && instalacoesComFoto[0].titulo
-        ? instalacoesComFoto[0].titulo
-        : 'Monitoramento Inteligente 24/7'
 
   return (
     <section
@@ -523,7 +474,7 @@ export const SecaoSeuSistemaFotovoltaico: React.FC<SecaoSeuSistemaFotovoltaicoPr
         {/* ========================================================================= */}
         {/* BLOCOS: COMO FUNCIONA O SISTEMA SOLAR & MONITORAMENTO INTELIGENTE 24/7     */}
         {/* Fundo #F0FDF4, borda #BBF7D0 e acentos #16A34A / #166534                  */}
-        {/* Utiliza as fotos cadastradas na Galeria Usinas com fallback elegante       */}
+        {/* Utiliza as ilustrações oficiais da proposta (onGridPngAsset e monitoramentoPngAsset) */}
         {/* ========================================================================= */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5 pt-2">
           {/* Bloco 1: Como funciona o sistema solar (On-Grid) */}
@@ -549,25 +500,13 @@ export const SecaoSeuSistemaFotovoltaico: React.FC<SecaoSeuSistemaFotovoltaicoPr
                 </p>
               </div>
 
-              <div className="rounded-xl overflow-hidden border border-[#BBF7D0] bg-white aspect-[16/10] relative shadow-2xs group">
+              <div className="rounded-xl overflow-hidden border border-[#BBF7D0] bg-white aspect-[16/10] relative shadow-2xs group flex items-center justify-center p-2">
                 <img
-                  src={fotoOnGrid}
-                  alt={tituloOnGrid}
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                  src={onGridPngAsset}
+                  alt="Como funciona o sistema solar (On-Grid)"
+                  className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300"
                   loading="lazy"
-                  onError={(e) => {
-                    const target = e.currentTarget
-                    if (target.src !== onGridPngAsset) {
-                      target.src = onGridPngAsset
-                    }
-                  }}
                 />
-                <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-emerald-950/80 via-emerald-950/40 to-transparent p-2.5 text-white flex items-center justify-between">
-                  <span className="text-xs font-bold line-clamp-1">{tituloOnGrid}</span>
-                  <span className="text-[10px] text-emerald-200 bg-white/20 px-2 py-0.5 rounded-md backdrop-blur-xs font-semibold shrink-0 ml-2">
-                    Galeria Delfos
-                  </span>
-                </div>
               </div>
             </div>
 
@@ -602,25 +541,13 @@ export const SecaoSeuSistemaFotovoltaico: React.FC<SecaoSeuSistemaFotovoltaicoPr
                 </p>
               </div>
 
-              <div className="rounded-xl overflow-hidden border border-[#BBF7D0] bg-white aspect-[16/10] relative shadow-2xs group">
+              <div className="rounded-xl overflow-hidden border border-[#BBF7D0] bg-white aspect-[16/10] relative shadow-2xs group flex items-center justify-center p-2">
                 <img
-                  src={fotoMonitoramento}
-                  alt={tituloMonitoramento}
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                  src={monitoramentoPngAsset}
+                  alt="Monitoramento Inteligente 24/7"
+                  className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300"
                   loading="lazy"
-                  onError={(e) => {
-                    const target = e.currentTarget
-                    if (target.src !== monitoramentoPngAsset) {
-                      target.src = monitoramentoPngAsset
-                    }
-                  }}
                 />
-                <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-emerald-950/80 via-emerald-950/40 to-transparent p-2.5 text-white flex items-center justify-between">
-                  <span className="text-xs font-bold line-clamp-1">{tituloMonitoramento}</span>
-                  <span className="text-[10px] text-emerald-200 bg-white/20 px-2 py-0.5 rounded-md backdrop-blur-xs font-semibold shrink-0 ml-2">
-                    Galeria Delfos
-                  </span>
-                </div>
               </div>
             </div>
 

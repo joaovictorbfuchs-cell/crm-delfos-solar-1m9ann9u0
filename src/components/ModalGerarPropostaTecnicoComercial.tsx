@@ -17,7 +17,6 @@ import {
   X,
   ExternalLink,
 } from 'lucide-react'
-import { monitoramentoPngAsset, onGridPngAsset } from '@/lib/propostaIlustracoesAssets'
 import type { OrcamentoSolarCalculado, Cliente } from '@/types/crm'
 import type { InstalacaoGaleria } from '@/types/instalacoesGaleria'
 import { fetchInstalacoesGaleria, getFotoUrl } from '@/services/instalacoesGaleriaService'
