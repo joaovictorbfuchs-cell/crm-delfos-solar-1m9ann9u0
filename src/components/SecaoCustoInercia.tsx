@@ -3,10 +3,14 @@ import {
   AlertTriangle,
   TrendingUp,
   TrendingDown,
-  ShieldAlert,
   ArrowRight,
   PiggyBank,
   CheckCircle2,
+  Activity,
+  Zap,
+  Calendar,
+  DollarSign,
+  Clock,
 } from 'lucide-react'
 import {
   ResponsiveContainer,
@@ -21,6 +25,14 @@ import {
 import { formatCurrency } from '@/lib/formatters'
 
 export interface SecaoCustoInerciaProps {
+  /** Consumo mensal atual em kWh/mês */
+  consumoMensalKwh?: number | null
+  /** Consumo anual atual em kWh/ano */
+  consumoAnualKwh?: number | null
+  /** Custo mensal atual da conta de energia (R$) */
+  contaMensal?: number | null
+  /** Custo anual atual da conta de energia (R$) */
+  contaAnual?: number | null
   /** Gasto acumulado sem solar em 1 ano (R$) */
   gastoSemSolar1Ano?: number | null
   /** Gasto acumulado sem solar em 5 anos (R$) */
@@ -31,8 +43,6 @@ export interface SecaoCustoInerciaProps {
   valorInvestimento?: number | null
   /** Economia mensal estimada (R$) */
   economiaMensal?: number | null
-  /** Valor da conta de luz mensal atual (R$) */
-  contaMensal?: number | null
   /** Economia líquida acumulada em 1 ano com solar (R$) */
   economia1Ano?: number | null
   /** Economia líquida acumulada em 5 anos com solar (R$) */
@@ -43,46 +53,65 @@ export interface SecaoCustoInerciaProps {
 }
 
 /**
- * Seção 2 — O Custo da Inércia (Diagnóstico Visual)
+ * Seção 2 — Situação Atual (Consumo & Custos + Gastos Acumulados)
  *
- * Título: "O quanto você já perdeu sem solar?"
- *
- * Gráfico de barras comparativo lado a lado (Recharts):
- * - Barra vermelha crescente: "Sua conta de luz sem solar" — gasto acumulado em 1, 5 e 25 anos
- * - Barra verde estável: "Com energia solar Delfos" — investimento único + economia nos marcos de 1, 5 e 25 anos
- *
- * Destaque em box:
- * "Sem solar, em 5 anos você pagará R$ [gasto acumulado 5 anos]. Esse dinheiro poderia estar no seu bolso."
- *
- * Linha comparativa abaixo:
- * "Hoje você paga R$ [conta mensal] para a concessionária e não recebe nada em troca. Com solar, você investe e o sistema passa a ser seu patrimônio."
+ * Estrutura solicitada pelo usuário:
+ * 1. Título "Situação Atual" e badge "Situação Atual"
+ * 2. Visualização em cards arredondados com sombra suave (sem tabelas):
+ *    - Consumo mensal (kWh/mês)
+ *    - Consumo no ano (kWh/ano)
+ *    - Custo mensal (R$ — conta mensal atual)
+ *    - Custo no ano (R$ — conta anual)
+ * 3. Abaixo, informações de quanto ele gasta acumulado em 1 ano, 5 anos e 25 anos:
+ *    - Gráfico comparativo de barras (Sem solar vs. Com solar Delfos)
+ *    - Cards rápidos por marco (1 ano, 5 anos e 25 anos)
+ *    - Box de alerta vermelho de perda acumulada ("Sem solar, em 5 anos você pagará...")
+ *    - Linha comparativa inteligente ("Hoje você paga R$ X para a concessionária...")
  */
 export const SecaoCustoInercia: React.FC<SecaoCustoInerciaProps> = ({
+  consumoMensalKwh,
+  consumoAnualKwh,
+  contaMensal,
+  contaAnual,
   gastoSemSolar1Ano,
   gastoSemSolar5Anos,
   gastoSemSolar25Anos,
   valorInvestimento,
   economiaMensal,
-  contaMensal,
   economia1Ano,
   economia5Anos,
   economia25Anos,
   className = '',
 }) => {
   // =========================================================================
-  // DADOS COM FALLBACK CONSISTENTE (exemplos especificados pelo usuário):
-  // Cliente com conta de R$ 928,75/mês, gasto acumulado 5 anos R$ 71.000,
-  // investimento solar R$ 45.000, economia mensal R$ 928,75.
-  // 1 ano sem solar ≈ 928,75 * 12 * 1.045 ≈ 11.600
-  // 25 anos sem solar ≈ coerente com a projeção (ex: R$ 850.000 com inflação de 9% a.a.)
-  // =========================================================================
-
+  // DADOS COM FALLBACK CONSISTENTE:
+  // Custo mensal base
   const contaMensalFinal =
     contaMensal !== undefined && contaMensal !== null && contaMensal > 0
       ? contaMensal
       : economiaMensal !== undefined && economiaMensal !== null && economiaMensal > 0
         ? economiaMensal
         : 928.75
+
+  // Custo anual base
+  const contaAnualFinal =
+    contaAnual !== undefined && contaAnual !== null && contaAnual > 0
+      ? contaAnual
+      : Math.round(contaMensalFinal * 12)
+
+  // Consumo mensal base (estimado a partir de ~R$ 0,95/kWh se não informado)
+  const consumoMensalFinal =
+    consumoMensalKwh !== undefined && consumoMensalKwh !== null && consumoMensalKwh > 0
+      ? consumoMensalKwh
+      : consumoAnualKwh !== undefined && consumoAnualKwh !== null && consumoAnualKwh > 0
+        ? Math.round(consumoAnualKwh / 12)
+        : Math.round(contaMensalFinal / 0.95)
+
+  // Consumo anual base
+  const consumoAnualFinal =
+    consumoAnualKwh !== undefined && consumoAnualKwh !== null && consumoAnualKwh > 0
+      ? consumoAnualKwh
+      : Math.round(consumoMensalFinal * 12)
 
   const investimentoFinal =
     valorInvestimento !== undefined && valorInvestimento !== null && valorInvestimento > 0
@@ -104,9 +133,7 @@ export const SecaoCustoInercia: React.FC<SecaoCustoInerciaProps> = ({
       ? gastoSemSolar25Anos
       : Math.round(gasto5AnosFinal * 11.9) // ~845.000
 
-  // Com solar: investimento único quitado + custos mínimos de taxa de conexão
-  // Em 1 ano: investimento total + taxa residual (ou o próprio valor do investimento fixo que vira ativo)
-  // Como o usuário pediu: "Barra verde estável: 'Com energia solar Delfos' — mostrando o investimento único + economia"
+  // Com solar: investimento único quitado + ativos Delfos
   const comSolar1Ano = Math.round(investimentoFinal)
   const comSolar5Anos = Math.round(investimentoFinal)
   const comSolar25Anos = Math.round(investimentoFinal)
@@ -163,25 +190,25 @@ export const SecaoCustoInercia: React.FC<SecaoCustoInerciaProps> = ({
   return (
     <section
       className={`bg-white rounded-3xl border border-gray-200/90 shadow-sm overflow-hidden transition-all ${className}`}
-      aria-label="O Custo da Inércia"
+      aria-label="Situação Atual"
     >
       {/* ========================================================================= */}
-      {/* CABEÇALHO DA SEÇÃO                                                        */}
+      {/* CABEÇALHO DA SEÇÃO: Situação Atual                                        */}
       {/* ========================================================================= */}
-      <div className="p-6 sm:p-8 border-b border-gray-100 bg-gradient-to-r from-red-50/40 via-amber-50/20 to-white">
+      <div className="p-6 sm:p-8 border-b border-gray-100 bg-gradient-to-r from-emerald-50/40 via-amber-50/30 to-white">
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div className="space-y-1.5 max-w-2xl">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold bg-red-100 text-red-800 border border-red-200">
-              <ShieldAlert className="w-3.5 h-3.5 text-red-600 shrink-0" />
-              <span className="uppercase tracking-wider text-[11px]">Diagnóstico Financeiro</span>
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+              <Activity className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
+              <span className="uppercase tracking-wider text-[11px]">Situação Atual</span>
             </div>
             <h2 className="text-2xl sm:text-3xl font-black text-gray-900 tracking-tight">
-              O quanto você já perdeu sem solar?
+              Situação Atual
             </h2>
             <p className="text-xs sm:text-sm text-gray-600 leading-relaxed font-normal">
-              A energia elétrica da concessionária é um custo contínuo e crescente que nunca vira
-              patrimônio. Veja o comparativo real entre continuar pagando boletos e ter sua própria
-              usina.
+              Panorama do seu padrão de consumo energético e despesas recorrentes pagas à
+              concessionária sem qualquer retorno patrimonial, além da projeção de gastos futuros
+              sem a tecnologia solar.
             </p>
           </div>
 
@@ -197,17 +224,128 @@ export const SecaoCustoInercia: React.FC<SecaoCustoInerciaProps> = ({
 
       <div className="p-6 sm:p-8 space-y-6 sm:space-y-8 bg-[#FAFCFA]">
         {/* ========================================================================= */}
-        {/* GRÁFICO DE BARRAS COMPARATIVO LADO A LADO                                 */}
+        {/* 1. CARDS DA SITUAÇÃO ATUAL (Consumo mensal/anual e Custos mensal/anual)   */}
+        {/* ========================================================================= */}
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold uppercase tracking-wider text-gray-500">
+              Diagnóstico de Consumo e Custos Recorrentes
+            </span>
+            <span className="text-[11px] font-semibold text-emerald-800 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
+              Padrão Energético Atual
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {/* Card 1: Consumo Mensal */}
+            <div className="bg-white rounded-2xl p-5 border border-emerald-100 shadow-xs hover:shadow-md transition-all flex flex-col justify-between">
+              <div className="flex items-start justify-between gap-3 mb-2">
+                <div className="w-11 h-11 rounded-xl bg-blue-50 border border-blue-200/60 flex items-center justify-center text-blue-600 shadow-2xs">
+                  <Zap className="w-5 h-5 text-blue-600" />
+                </div>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200">
+                  Mensal
+                </span>
+              </div>
+              <div>
+                <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                  Consumo Mensal
+                </div>
+                <div className="text-2xl sm:text-3xl font-black text-gray-900 mt-1 tracking-tight">
+                  {Math.round(Number(consumoMensalFinal) || 0).toLocaleString('pt-BR')}{' '}
+                  <span className="text-base font-bold text-blue-600">kWh/mês</span>
+                </div>
+                <p className="text-[11px] text-gray-500 mt-1">
+                  Média mensal de energia consumida da rede
+                </p>
+              </div>
+            </div>
+
+            {/* Card 2: Consumo no Ano */}
+            <div className="bg-white rounded-2xl p-5 border border-emerald-100 shadow-xs hover:shadow-md transition-all flex flex-col justify-between">
+              <div className="flex items-start justify-between gap-3 mb-2">
+                <div className="w-11 h-11 rounded-xl bg-indigo-50 border border-indigo-200/60 flex items-center justify-center text-indigo-600 shadow-2xs">
+                  <Calendar className="w-5 h-5 text-indigo-600" />
+                </div>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-full border border-indigo-200">
+                  Anual
+                </span>
+              </div>
+              <div>
+                <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                  Consumo no Ano
+                </div>
+                <div className="text-2xl sm:text-3xl font-black text-gray-900 mt-1 tracking-tight">
+                  {Math.round(Number(consumoAnualFinal) || 0).toLocaleString('pt-BR')}{' '}
+                  <span className="text-base font-bold text-indigo-600">kWh/ano</span>
+                </div>
+                <p className="text-[11px] text-gray-500 mt-1">
+                  Volume total anual faturado pela concessionária
+                </p>
+              </div>
+            </div>
+
+            {/* Card 3: Custo Mensal */}
+            <div className="bg-white rounded-2xl p-5 border border-red-100 shadow-xs hover:shadow-md transition-all flex flex-col justify-between">
+              <div className="flex items-start justify-between gap-3 mb-2">
+                <div className="w-11 h-11 rounded-xl bg-red-50 border border-red-200/60 flex items-center justify-center text-red-600 shadow-2xs">
+                  <DollarSign className="w-5 h-5 text-red-600" />
+                </div>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-red-700 bg-red-50 px-2 py-0.5 rounded-full border border-red-200">
+                  Conta Atual
+                </span>
+              </div>
+              <div>
+                <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                  Custo Mensal
+                </div>
+                <div className="text-2xl sm:text-3xl font-black text-red-600 mt-1 tracking-tight">
+                  {formatCurrency(contaMensalFinal)}
+                </div>
+                <p className="text-[11px] text-gray-500 mt-1">
+                  Despesa média paga todo mês à concessionária
+                </p>
+              </div>
+            </div>
+
+            {/* Card 4: Custo no Ano */}
+            <div className="bg-white rounded-2xl p-5 border border-amber-100 shadow-xs hover:shadow-md transition-all flex flex-col justify-between">
+              <div className="flex items-start justify-between gap-3 mb-2">
+                <div className="w-11 h-11 rounded-xl bg-amber-50 border border-amber-200/60 flex items-center justify-center text-amber-600 shadow-2xs">
+                  <Clock className="w-5 h-5 text-amber-600" />
+                </div>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-amber-800 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
+                  Gasto Anual
+                </span>
+              </div>
+              <div>
+                <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                  Custo no Ano
+                </div>
+                <div className="text-2xl sm:text-3xl font-black text-amber-700 mt-1 tracking-tight">
+                  {formatCurrency(contaAnualFinal)}
+                </div>
+                <p className="text-[11px] text-gray-500 mt-1">
+                  Total desembolsado em 12 faturas sem retorno
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* ========================================================================= */}
+        {/* 2. INFORMAÇÕES DE GASTOS EM 1 ANO, 5 ANOS E 25 ANOS                      */}
         {/* ========================================================================= */}
         <div className="bg-white rounded-2xl p-5 sm:p-6 border border-gray-200 shadow-xs space-y-4">
           <div className="flex items-center justify-between flex-wrap gap-2">
             <div>
               <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider flex items-center gap-2">
                 <TrendingUp className="w-4 h-4 text-emerald-600" />
-                Comparativo Acumulado: Gasto Concessionária vs. Investimento Delfos
+                Gastos Acumulados: 1 Ano, 5 Anos e 25 Anos Sem Solar vs. Delfos
               </h3>
               <p className="text-xs text-gray-500">
-                Evolução nos marcos de 1, 5 e 25 anos com reajuste tarifário histórico da rede
+                Comparativo real de desembolso acumulado considerando o reajuste tarifário histórico
+                da rede
               </p>
             </div>
             <span className="text-[11px] font-bold text-gray-600 bg-gray-100 px-2.5 py-1 rounded-lg border border-gray-200">
@@ -282,12 +420,12 @@ export const SecaoCustoInercia: React.FC<SecaoCustoInerciaProps> = ({
             </ResponsiveContainer>
           </div>
 
-          {/* Cards Rápidos de Detalhe por Marco */}
+          {/* Cards Rápidos de Detalhe por Marco (1 ano, 5 anos, 25 anos) */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-3 border-t border-gray-100">
             {/* Marco 1 ano */}
-            <div className="p-3 rounded-xl bg-gray-50 border border-gray-200/80 space-y-1">
+            <div className="p-3.5 rounded-xl bg-gray-50 border border-gray-200/80 space-y-1.5">
               <div className="flex items-center justify-between text-xs font-semibold text-gray-500">
-                <span>Marco 1 ano</span>
+                <span>Gasto em 1 ano</span>
                 <span className="text-[10px] font-bold text-gray-600 bg-white px-2 py-0.5 rounded border border-gray-200">
                   Curto prazo
                 </span>
@@ -302,16 +440,16 @@ export const SecaoCustoInercia: React.FC<SecaoCustoInerciaProps> = ({
                   <strong className="text-emerald-700">{formatCurrency(investimentoFinal)}</strong>
                 </div>
               </div>
-              <div className="text-[11px] text-emerald-700 font-bold pt-1 border-t border-gray-200 flex items-center gap-1">
-                <CheckCircle2 className="w-3 h-3 shrink-0" />
+              <div className="text-[11px] text-emerald-700 font-bold pt-1.5 border-t border-gray-200 flex items-center gap-1">
+                <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
                 <span>Economia de {formatCurrency(eco1AnoFinal)}</span>
               </div>
             </div>
 
             {/* Marco 5 anos */}
-            <div className="p-3 rounded-xl bg-amber-50/60 border border-amber-200 space-y-1">
+            <div className="p-3.5 rounded-xl bg-amber-50/60 border border-amber-200 space-y-1.5">
               <div className="flex items-center justify-between text-xs font-semibold text-amber-900">
-                <span>Marco 5 anos</span>
+                <span>Gasto em 5 anos</span>
                 <span className="text-[10px] font-bold text-amber-800 bg-white px-2 py-0.5 rounded border border-amber-200">
                   Retorno (Payback)
                 </span>
@@ -326,16 +464,16 @@ export const SecaoCustoInercia: React.FC<SecaoCustoInerciaProps> = ({
                   <strong className="text-emerald-700">{formatCurrency(investimentoFinal)}</strong>
                 </div>
               </div>
-              <div className="text-[11px] text-emerald-800 font-bold pt-1 border-t border-amber-200 flex items-center gap-1">
-                <PiggyBank className="w-3 h-3 shrink-0 text-emerald-700" />
+              <div className="text-[11px] text-emerald-800 font-bold pt-1.5 border-t border-amber-200 flex items-center gap-1">
+                <PiggyBank className="w-3.5 h-3.5 shrink-0 text-emerald-700" />
                 <span>Sobram {formatCurrency(eco5AnosFinal)} no bolso</span>
               </div>
             </div>
 
             {/* Marco 25 anos */}
-            <div className="p-3 rounded-xl bg-emerald-50/60 border border-emerald-200 space-y-1">
+            <div className="p-3.5 rounded-xl bg-emerald-50/60 border border-emerald-200 space-y-1.5">
               <div className="flex items-center justify-between text-xs font-semibold text-emerald-900">
-                <span>Marco 25 anos</span>
+                <span>Gasto em 25 anos</span>
                 <span className="text-[10px] font-bold text-emerald-800 bg-white px-2 py-0.5 rounded border border-emerald-200">
                   Longo prazo
                 </span>
@@ -350,8 +488,8 @@ export const SecaoCustoInercia: React.FC<SecaoCustoInerciaProps> = ({
                   <strong className="text-emerald-700">{formatCurrency(investimentoFinal)}</strong>
                 </div>
               </div>
-              <div className="text-[11px] text-emerald-800 font-bold pt-1 border-t border-emerald-200 flex items-center gap-1">
-                <TrendingUp className="w-3 h-3 shrink-0 text-emerald-700" />
+              <div className="text-[11px] text-emerald-800 font-bold pt-1.5 border-t border-emerald-200 flex items-center gap-1">
+                <TrendingUp className="w-3.5 h-3.5 shrink-0 text-emerald-700" />
                 <span>Economia acumulada: {formatCurrency(eco25AnosFinal)}</span>
               </div>
             </div>
@@ -359,7 +497,7 @@ export const SecaoCustoInercia: React.FC<SecaoCustoInerciaProps> = ({
         </div>
 
         {/* ========================================================================= */}
-        {/* DESTAQUE EM BOX (Exatamente conforme pedido pelo usuário)                 */}
+        {/* BOX DE ALERTA DE PERDA ACUMULADA EM 5 ANOS                                */}
         {/* ========================================================================= */}
         <div className="bg-gradient-to-r from-red-600 via-rose-600 to-red-700 text-white rounded-2xl p-5 sm:p-6 shadow-md relative overflow-hidden flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="absolute -right-8 -bottom-8 w-40 h-40 bg-white/10 rounded-full blur-2xl pointer-events-none" />
@@ -391,7 +529,7 @@ export const SecaoCustoInercia: React.FC<SecaoCustoInerciaProps> = ({
         </div>
 
         {/* ========================================================================= */}
-        {/* LINHA COMPARATIVA ABAIXO (Texto reflexivo fiel ao prompt)                 */}
+        {/* LINHA COMPARATIVA REFLEXIVA (Concessionária vs. Patrimônio Solar)          */}
         {/* ========================================================================= */}
         <div className="bg-white rounded-2xl p-5 sm:p-6 border border-emerald-200 shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
           <div className="flex items-start gap-3.5">

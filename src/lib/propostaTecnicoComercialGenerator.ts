@@ -211,7 +211,7 @@ function renderInternalFooter(numeroSecao: number): string {
  * com exatamente as 6 SEÇÕES NOVAS aprovadas pelo usuário:
  *
  * 1. Capa (logo Delfos, cliente, potência kWp, geração, consultor, data)
- * 2. Custo da Inércia (comparativo 1/5/25 anos + box vermelho + linha reflexiva)
+ * 2. Situação Atual (consumo/custo mensal e anual + comparativo 1/5/25 anos + box vermelho + linha reflexiva)
  * 3. Seu Sistema Fotovoltaico (cards potência, geração, módulos, inversor, área, garantias 30a/10a/Delfos, faixa 24/7)
  * 4. Projeção de Economia na Conta de Energia (tabela 2026–2051, calculada via calcularProjecaoEconomia)
  * 5. Projeção de Economia em 25 Anos (curvas gasto sem solar vs investimento/economia + marcador payback + cards)
@@ -254,6 +254,23 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
     parcelamento?.aVista?.contaHoje && parcelamento.aVista.contaHoje > 0
       ? parcelamento.aVista.contaHoje
       : Math.round(economiaMensal * 1.08)
+
+  // Custo anual atual da conta de energia
+  const contaAnualEstimada =
+    projecao?.gastoSemSolar1Ano && projecao.gastoSemSolar1Ano > 0
+      ? projecao.gastoSemSolar1Ano
+      : Math.round(contaHoje * 12)
+
+  // Consumo mensal e anual da Situação Atual
+  const consumoKwhMesReal =
+    producao?.mediaMensalKwh && producao.mediaMensalKwh > 0
+      ? producao.mediaMensalKwh
+      : Math.round(contaHoje / 0.95)
+
+  const consumoKwhAnoReal =
+    producao?.anualKwh && producao.anualKwh > 0
+      ? producao.anualKwh
+      : Math.round(consumoKwhMesReal * 12)
 
   const investimentoTotal = economia?.investimentoTotal || parcelamento?.aVista?.valorTotal || 45000
 
@@ -816,7 +833,7 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
     }
 
     /* ==========================================================
-       SEÇÃO 2 — O CUSTO DA INÉRCIA (ESPELHADO DO SecaoCustoInercia.tsx)
+       SEÇÃO 2 — SITUAÇÃO ATUAL (ESPELHADO DO SecaoCustoInercia.tsx)
        ========================================================== */
     .secao-header-card {
       padding: 16px 20px;
@@ -824,11 +841,11 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
       margin-bottom: 14px;
       border: 1px solid #E5E7EB;
     }
-    .secao-header-card.inercia {
-      background: linear-gradient(90deg, rgba(254, 242, 242, 0.6) 0%, rgba(254, 243, 199, 0.3) 40%, #FFFFFF 100%);
-      border-color: #FECACA;
+    .secao-header-card.situacao-atual {
+      background: linear-gradient(90deg, rgba(236, 253, 245, 0.6) 0%, rgba(254, 243, 199, 0.35) 45%, #FFFFFF 100%);
+      border-color: #A7F3D0;
     }
-    .badge-diagnostico {
+    .badge-situacao-atual {
       display: inline-flex;
       align-items: center;
       gap: 6px;
@@ -836,9 +853,9 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
       border-radius: 9999px;
       font-size: 9.5px;
       font-weight: 800;
-      background: #FEE2E2;
-      color: #991B1B;
-      border: 1px solid #FCA5A5;
+      background: #DCFCE7;
+      color: #166534;
+      border: 1px solid #86EFAC;
       text-transform: uppercase;
       letter-spacing: 0.06em;
       margin-bottom: 4px;
@@ -855,6 +872,79 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
       font-size: 10px;
       color: #4B5563;
       line-height: 1.4;
+    }
+
+    /* Grid de 4 Cards da Situação Atual */
+    .grid-situacao-cards {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+    .card-situacao {
+      background: #FFFFFF;
+      border: 1px solid #E5E7EB;
+      border-radius: 14px;
+      padding: 12px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+    .card-situacao.consumo-m { border-color: #BFDBFE; }
+    .card-situacao.consumo-a { border-color: #C7D2FE; }
+    .card-situacao.custo-m { border-color: #FECACA; }
+    .card-situacao.custo-a { border-color: #FDE68A; }
+    .card-situacao-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 6px;
+    }
+    .card-situacao-icon {
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+    }
+    .card-situacao.consumo-m .card-situacao-icon { background: #EFF6FF; color: #2563EB; }
+    .card-situacao.consumo-a .card-situacao-icon { background: #EEF2FF; color: #4F46E5; }
+    .card-situacao.custo-m .card-situacao-icon { background: #FEF2F2; color: #DC2626; }
+    .card-situacao.custo-a .card-situacao-icon { background: #FFFBEB; color: #D97706; }
+    .card-situacao-tag {
+      font-size: 7.5px;
+      font-weight: 800;
+      text-transform: uppercase;
+      padding: 1px 6px;
+      border-radius: 9999px;
+    }
+    .card-situacao.consumo-m .card-situacao-tag { background: #EFF6FF; color: #1D4ED8; border: 1px solid #BFDBFE; }
+    .card-situacao.consumo-a .card-situacao-tag { background: #EEF2FF; color: #4338CA; border: 1px solid #C7D2FE; }
+    .card-situacao.custo-m .card-situacao-tag { background: #FEF2F2; color: #B91C1C; border: 1px solid #FECACA; }
+    .card-situacao.custo-a .card-situacao-tag { background: #FFFBEB; color: #B45309; border: 1px solid #FDE68A; }
+    .card-situacao-label {
+      font-size: 9px;
+      font-weight: 700;
+      color: #6B7280;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .card-situacao-valor {
+      font-size: 16px;
+      font-weight: 900;
+      color: #111827;
+      margin: 2px 0 2px 0;
+      line-height: 1.15;
+    }
+    .card-situacao.custo-m .card-situacao-valor { color: #DC2626; }
+    .card-situacao.custo-a .card-situacao-valor { color: #B45309; }
+    .card-situacao-sub {
+      font-size: 8px;
+      color: #6B7280;
+      line-height: 1.3;
     }
 
     /* Container do Comparativo de Barras */
@@ -2036,30 +2126,93 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
     </section>
 
     <!-- ========================================================
-         SEÇÃO 2 — O CUSTO DA INÉRCIA (ESPELHADO DO SecaoCustoInercia.tsx)
+         SEÇÃO 2 — SITUAÇÃO ATUAL (ESPELHADO DO SecaoCustoInercia.tsx)
          ======================================================== -->
     <section class="proposta-secao-page" id="secao-2-custo-inercia">
       <div class="secao-body">
-        ${renderInternalHeader('O Custo da Inércia (Diagnóstico Visual)', 2, 'inercia')}
+        ${renderInternalHeader('Situação Atual', 2, 'situacao-atual')}
 
-        <!-- Cabeçalho idêntico ao SecaoCustoInercia -->
-        <div class="secao-header-card inercia">
-          <div class="badge-diagnostico">
-            <span>🛡️</span> Diagnóstico Financeiro
+        <!-- Cabeçalho Situação Atual -->
+        <div class="secao-header-card situacao-atual">
+          <div class="badge-situacao-atual">
+            <span>📊</span> Situação Atual
           </div>
-          <h2 class="secao-titulo-h2">O quanto você já perdeu sem solar?</h2>
+          <h2 class="secao-titulo-h2">Situação Atual</h2>
           <p class="secao-desc-sub">
-            A energia elétrica da concessionária é um custo contínuo e crescente que nunca vira patrimônio.
-            Veja o comparativo real entre continuar pagando boletos e ter sua própria usina.
+            Panorama do seu padrão de consumo energético e despesas recorrentes pagas à concessionária
+            sem qualquer retorno patrimonial, além da projeção de gastos futuros sem a tecnologia solar.
           </p>
         </div>
 
-        <!-- Box de Comparativo Visual com Barras 1 ano, 5 anos, 25 anos -->
+        <!-- 1. Grid Visual em Cards: Consumo Mensal, Consumo Anual, Custo Mensal, Custo Anual -->
+        <div class="grid-situacao-cards">
+          <!-- Card 1: Consumo Mensal -->
+          <div class="card-situacao consumo-m">
+            <div class="card-situacao-head">
+              <div class="card-situacao-icon">⚡</div>
+              <span class="card-situacao-tag">Mensal</span>
+            </div>
+            <div>
+              <div class="card-situacao-label">Consumo Mensal</div>
+              <div class="card-situacao-valor">
+                ${formatNumBR(consumoKwhMesReal, 0)} <span style="font-size: 11px; font-weight: 700; color: #2563EB;">kWh/mês</span>
+              </div>
+              <div class="card-situacao-sub">Média mensal consumida da concessionária</div>
+            </div>
+          </div>
+
+          <!-- Card 2: Consumo no Ano -->
+          <div class="card-situacao consumo-a">
+            <div class="card-situacao-head">
+              <div class="card-situacao-icon">📅</div>
+              <span class="card-situacao-tag">Anual</span>
+            </div>
+            <div>
+              <div class="card-situacao-label">Consumo no Ano</div>
+              <div class="card-situacao-valor">
+                ${formatNumBR(consumoKwhAnoReal, 0)} <span style="font-size: 11px; font-weight: 700; color: #4F46E5;">kWh/ano</span>
+              </div>
+              <div class="card-situacao-sub">Volume total faturado em 12 faturas</div>
+            </div>
+          </div>
+
+          <!-- Card 3: Custo Mensal -->
+          <div class="card-situacao custo-m">
+            <div class="card-situacao-head">
+              <div class="card-situacao-icon">💲</div>
+              <span class="card-situacao-tag">Conta Atual</span>
+            </div>
+            <div>
+              <div class="card-situacao-label">Custo Mensal</div>
+              <div class="card-situacao-valor">
+                ${formatBRL(contaHoje)}
+              </div>
+              <div class="card-situacao-sub">Despesa média mensal paga todo mês</div>
+            </div>
+          </div>
+
+          <!-- Card 4: Custo no Ano -->
+          <div class="card-situacao custo-a">
+            <div class="card-situacao-head">
+              <div class="card-situacao-icon">⏱️</div>
+              <span class="card-situacao-tag">Gasto Anual</span>
+            </div>
+            <div>
+              <div class="card-situacao-label">Custo no Ano</div>
+              <div class="card-situacao-valor">
+                ${formatBRL(contaAnualEstimada)}
+              </div>
+              <div class="card-situacao-sub">Total desembolsado no ano sem retorno</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 2. Box de Comparativo Visual com Barras 1 ano, 5 anos, 25 anos -->
         <div class="box-barras-inercia">
           <div class="barras-topo-row">
             <div>
               <div class="barras-topo-title">
-                <span>📈</span> Comparativo Acumulado: Gasto Concessionária vs. Investimento Delfos
+                <span>📈</span> Gastos Acumulados: 1 Ano, 5 Anos e 25 Anos Sem Solar vs. Delfos
               </div>
               <div class="barras-topo-sub">
                 Evolução nos marcos de 1, 5 e 25 anos com reajuste tarifário histórico da rede

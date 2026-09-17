@@ -2724,18 +2724,38 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                   />
                 </ErrorBoundary>
 
-                {/* Seção 2: O Custo da Inércia (Diagnóstico Visual) */}
-                <ErrorBoundary compact errorMessage="Não foi possível exibir o Custo da Inércia">
+                {/* Seção 2: Situação Atual (Consumo & Custos + Gastos Acumulados) */}
+                <ErrorBoundary compact errorMessage="Não foi possível exibir a Situação Atual">
                   <SecaoCustoInercia
+                    consumoMensalKwh={
+                      consumoKwhMes ||
+                      clienteAtual?.consumo_kwh_mes ||
+                      (calculos.contaAtualSemSolarMes && tarifaKwh
+                        ? Math.round(calculos.contaAtualSemSolarMes / tarifaKwh)
+                        : 650)
+                    }
+                    consumoAnualKwh={
+                      consumoKwhMes
+                        ? Math.round(consumoKwhMes * 12)
+                        : clienteAtual?.consumo_kwh_mes
+                          ? Math.round(clienteAtual.consumo_kwh_mes * 12)
+                          : calculos.geracaoAnualEstimadaKwh || 7800
+                    }
+                    contaMensal={
+                      calculos.contaAtualSemSolarMes ||
+                      (consumoKwhMes ? consumoKwhMes * tarifaKwh : undefined)
+                    }
+                    contaAnual={
+                      calculos.contaAtualSemSolarAno ||
+                      (calculos.contaAtualSemSolarMes
+                        ? calculos.contaAtualSemSolarMes * 12
+                        : undefined)
+                    }
                     gastoSemSolar1Ano={calculos.gastoSemSolar1Ano}
                     gastoSemSolar5Anos={calculos.gastoSemSolar5Anos}
                     gastoSemSolar25Anos={calculos.gastoSemSolar25Anos}
                     valorInvestimento={valorInvestimentoFinal}
                     economiaMensal={calculos.economia1Mes}
-                    contaMensal={
-                      calculos.contaAtualSemSolarMes ||
-                      (consumoKwhMes ? consumoKwhMes * tarifaKwh : undefined)
-                    }
                     economia1Ano={calculos.economia1Ano}
                     economia5Anos={calculos.economia5Anos}
                     economia25Anos={calculos.economia25Anos}

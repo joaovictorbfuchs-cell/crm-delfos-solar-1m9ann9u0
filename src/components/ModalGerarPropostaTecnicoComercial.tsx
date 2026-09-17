@@ -900,9 +900,33 @@ export function ModalGerarPropostaTecnicoComercial({
                 />
               </ErrorBoundary>
 
-              {/* Seção 2: O Custo da Inércia (Diagnóstico Visual) */}
-              <ErrorBoundary compact errorMessage="Não foi possível exibir o Custo da Inércia">
+              {/* Seção 2: Situação Atual (Consumo & Custos + Gastos Acumulados) */}
+              <ErrorBoundary compact errorMessage="Não foi possível exibir a Situação Atual">
                 <SecaoCustoInercia
+                  consumoMensalKwh={
+                    orcamento.consumo_mensal_kwh && orcamento.consumo_mensal_kwh > 0
+                      ? orcamento.consumo_mensal_kwh
+                      : cliente?.consumo_kwh_mes && cliente.consumo_kwh_mes > 0
+                        ? cliente.consumo_kwh_mes
+                        : producaoMensalKwh && producaoMensalKwh > 0
+                          ? producaoMensalKwh
+                          : contaHoje > 0
+                            ? Math.round(contaHoje / 0.95)
+                            : 650
+                  }
+                  consumoAnualKwh={
+                    orcamento.consumo_mensal_kwh && orcamento.consumo_mensal_kwh > 0
+                      ? Math.round(orcamento.consumo_mensal_kwh * 12)
+                      : cliente?.consumo_kwh_mes && cliente.consumo_kwh_mes > 0
+                        ? Math.round(cliente.consumo_kwh_mes * 12)
+                        : producaoAnualKwh && producaoAnualKwh > 0
+                          ? producaoAnualKwh
+                          : contaHoje > 0
+                            ? Math.round((contaHoje / 0.95) * 12)
+                            : 7800
+                  }
+                  contaMensal={contaHoje}
+                  contaAnual={orcamento.gasto_sem_solar_1_ano || Math.round(contaHoje * 12)}
                   gastoSemSolar1Ano={orcamento.gasto_sem_solar_1_ano || Math.round(contaHoje * 12)}
                   gastoSemSolar5Anos={
                     orcamento.gasto_sem_solar_5_anos ||
@@ -916,7 +940,6 @@ export function ModalGerarPropostaTecnicoComercial({
                   economiaMensal={
                     orcamento.economia_1_mes || Math.max(0, contaHoje - contaComSolar)
                   }
-                  contaMensal={contaHoje}
                   economia1Ano={orcamento.economia_1_ano}
                   economia5Anos={orcamento.economia_5_anos}
                   economia25Anos={orcamento.economia_25_anos}
@@ -1016,7 +1039,7 @@ export function ModalGerarPropostaTecnicoComercial({
               <div className="mb-2 flex items-center justify-between text-xs text-gray-500">
                 <span className="flex items-center gap-1.5 font-semibold text-emerald-800">
                   <Eye className="w-3.5 h-3.5 text-emerald-600" />
-                  Visualização oficial da proposta (6 seções: Capa, Custo da Inércia, Sistema,
+                  Visualização oficial da proposta (6 seções: Capa, Situação Atual, Sistema,
                   Projeção Conta, Projeção 25 Anos e Investimento)
                 </span>
                 <span className="text-[11px] bg-emerald-100 text-emerald-800 font-bold px-2.5 py-0.5 rounded-full border border-emerald-300 shadow-2xs">

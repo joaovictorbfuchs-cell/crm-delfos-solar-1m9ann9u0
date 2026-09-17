@@ -64,7 +64,7 @@ describe('propostaSolarDocxGenerator', () => {
 
     // As 6 seções canônicas devem estar presentes
     expect(jsonStr).toContain('PROPOSTA COMERCIAL EXCLUSIVA')
-    expect(jsonStr).toContain('O Custo da Inércia')
+    expect(jsonStr).toContain('Situação Atual')
     expect(jsonStr).toContain('Seu Sistema Fotovoltaico')
     expect(jsonStr).toContain('Projeção de Economia na Conta de Energia')
     expect(jsonStr).toContain('Projeção de Economia em 25 Anos')

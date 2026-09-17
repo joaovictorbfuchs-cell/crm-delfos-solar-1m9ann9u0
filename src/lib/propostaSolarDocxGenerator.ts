@@ -142,7 +142,7 @@ function createSectionHeader(title: string, sub?: string): Paragraph[] {
 /**
  * Gera um Document oficial em formato docx com as 6 SEÇÕES CANÔNICAS:
  * 1. Capa
- * 2. O Custo da Inércia (Diagnóstico Visual)
+ * 2. Situação Atual (Consumo & Custos + Gastos Acumulados)
  * 3. Seu Sistema Fotovoltaico
  * 4. Projeção de Economia na Conta de Energia (2026–2051)
  * 5. Projeção de Economia em 25 Anos
@@ -483,13 +483,193 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
   )
 
   // ----------------------------------------------------
-  // SEÇÃO 2: O CUSTO DA INÉRCIA (DIAGNÓSTICO VISUAL)
+  // SEÇÃO 2: SITUAÇÃO ATUAL
   // ----------------------------------------------------
   docChildren.push(
     ...createSectionHeader(
-      '2. O Custo da Inércia (Diagnóstico Visual)',
-      'O quanto você já perdeu sem solar? Comparativo entre continuar pagando boletos e investir na sua própria usina.',
+      '2. Situação Atual',
+      'Diagnóstico do padrão de consumo e despesas recorrentes pagas à concessionária sem retorno, seguido do comparativo acumulado sem solar.',
     ),
+  )
+
+  // 1. Grid Visual em 4 Cards de Situação Atual (Consumo mensal/anual e Custo mensal/anual)
+  const colWidth4 = Math.floor(PAGE_CONTENT_WIDTH / 4)
+  const consumoKwhMesDocx =
+    sistema.consumoKwhMes && sistema.consumoKwhMes > 0
+      ? sistema.consumoKwhMes
+      : Math.round(contaHoje / 0.95)
+  const consumoKwhAnoDocx =
+    consumoKwhAnoEstimado > 0 ? consumoKwhAnoEstimado : Math.round(consumoKwhMesDocx * 12)
+  const contaAnualDocx = gasto1Ano > 0 ? gasto1Ano : Math.round(contaHoje * 12)
+
+  docChildren.push(
+    new Table({
+      width: { size: PAGE_CONTENT_WIDTH, type: WidthType.DXA },
+      borders: tableBorderDefault,
+      rows: [
+        new TableRow({
+          children: [
+            // Card 1: Consumo Mensal
+            new TableCell({
+              width: { size: colWidth4, type: WidthType.DXA },
+              shading: { type: ShadingType.CLEAR, fill: 'EFF6FF' },
+              margins: { top: 80, bottom: 80, left: 90, right: 90 },
+              children: [
+                new Paragraph({
+                  children: [
+                    new TextRun({
+                      text: '⚡ CONSUMO MENSAL\n',
+                      bold: true,
+                      color: '1D4ED8',
+                      size: 14,
+                      font: 'Arial',
+                    }),
+                    new TextRun({
+                      text: `${formatNumBR(consumoKwhMesDocx, 0)} `,
+                      bold: true,
+                      color: '111827',
+                      size: 22,
+                      font: 'Arial',
+                    }),
+                    new TextRun({
+                      text: 'kWh/mês\n',
+                      bold: true,
+                      color: '2563EB',
+                      size: 14,
+                      font: 'Arial',
+                    }),
+                    new TextRun({
+                      text: 'Média mensal consumida',
+                      color: '4B5563',
+                      size: 13,
+                      font: 'Arial',
+                    }),
+                  ],
+                }),
+              ],
+            }),
+            // Card 2: Consumo no Ano
+            new TableCell({
+              width: { size: colWidth4, type: WidthType.DXA },
+              shading: { type: ShadingType.CLEAR, fill: 'EEF2FF' },
+              margins: { top: 80, bottom: 80, left: 90, right: 90 },
+              children: [
+                new Paragraph({
+                  children: [
+                    new TextRun({
+                      text: '📅 CONSUMO NO ANO\n',
+                      bold: true,
+                      color: '4338CA',
+                      size: 14,
+                      font: 'Arial',
+                    }),
+                    new TextRun({
+                      text: `${formatNumBR(consumoKwhAnoDocx, 0)} `,
+                      bold: true,
+                      color: '111827',
+                      size: 22,
+                      font: 'Arial',
+                    }),
+                    new TextRun({
+                      text: 'kWh/ano\n',
+                      bold: true,
+                      color: '4F46E5',
+                      size: 14,
+                      font: 'Arial',
+                    }),
+                    new TextRun({
+                      text: 'Total em 12 faturas',
+                      color: '4B5563',
+                      size: 13,
+                      font: 'Arial',
+                    }),
+                  ],
+                }),
+              ],
+            }),
+            // Card 3: Custo Mensal
+            new TableCell({
+              width: { size: colWidth4, type: WidthType.DXA },
+              shading: { type: ShadingType.CLEAR, fill: 'FEF2F2' },
+              margins: { top: 80, bottom: 80, left: 90, right: 90 },
+              children: [
+                new Paragraph({
+                  children: [
+                    new TextRun({
+                      text: '💲 CUSTO MENSAL\n',
+                      bold: true,
+                      color: 'B91C1C',
+                      size: 14,
+                      font: 'Arial',
+                    }),
+                    new TextRun({
+                      text: `${formatBRL(contaHoje)}\n`,
+                      bold: true,
+                      color: COLOR_RED,
+                      size: 22,
+                      font: 'Arial',
+                    }),
+                    new TextRun({
+                      text: 'Conta atual mensal',
+                      color: '4B5563',
+                      size: 13,
+                      font: 'Arial',
+                    }),
+                  ],
+                }),
+              ],
+            }),
+            // Card 4: Custo no Ano
+            new TableCell({
+              width: { size: colWidth4, type: WidthType.DXA },
+              shading: { type: ShadingType.CLEAR, fill: 'FFFBEB' },
+              margins: { top: 80, bottom: 80, left: 90, right: 90 },
+              children: [
+                new Paragraph({
+                  children: [
+                    new TextRun({
+                      text: '⏱️ CUSTO NO ANO\n',
+                      bold: true,
+                      color: 'B45309',
+                      size: 14,
+                      font: 'Arial',
+                    }),
+                    new TextRun({
+                      text: `${formatBRL(contaAnualDocx)}\n`,
+                      bold: true,
+                      color: 'B45309',
+                      size: 22,
+                      font: 'Arial',
+                    }),
+                    new TextRun({
+                      text: 'Total desembolsado no ano',
+                      color: '4B5563',
+                      size: 13,
+                      font: 'Arial',
+                    }),
+                  ],
+                }),
+              ],
+            }),
+          ],
+        }),
+      ],
+    }),
+  )
+
+  docChildren.push(
+    new Paragraph({
+      spacing: { before: 80, after: 60 },
+      children: [
+        new TextRun({
+          text: '📈 Gastos Acumulados: 1 Ano, 5 Anos e 25 Anos Sem Solar vs. Delfos Solar',
+          bold: true,
+          size: 18,
+          color: COLOR_PRIMARY,
+          font: 'Arial',
+        }),
+      ],
+    }),
   )
 
   const colWidthInercia = Math.floor(PAGE_CONTENT_WIDTH / 3)
