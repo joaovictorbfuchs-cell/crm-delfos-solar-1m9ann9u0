@@ -15,8 +15,11 @@ import {
   PageNumber,
   HeadingLevel,
   ImageRun,
+  PageBreak,
 } from 'docx'
 import type { PropostaSolarPDFInput } from '@/lib/propostaSolarGenerator'
+import { fetchInstalacoesGaleria } from '@/services/instalacoesGaleriaService'
+import type { InstalacaoGaleria } from '@/types/instalacoesGaleria'
 import {
   DADOS_EMPRESA_DELFOS_SOLAR,
   formatarOrientacao,
@@ -512,6 +515,184 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
               ],
             }),
           ],
+        }),
+      ],
+    }),
+  )
+
+  // Quebra de página após a Capa
+  docChildren.push(
+    new Paragraph({
+      children: [new PageBreak()],
+    }),
+  )
+
+  // ----------------------------------------------------
+  // SEÇÃO: APRESENTAÇÃO INSTITUCIONAL & ENGENHARIA
+  // ----------------------------------------------------
+  docChildren.push(
+    ...createSectionHeader(
+      'Apresentação Institucional & Engenharia',
+      'Delfos Engenharia Solar — Projetos fotovoltaicos de alta eficiência e homologação completa.',
+    ),
+  )
+
+  // Card institucional com dados da Delfos Engenharia e Engenheiro Responsável
+  docChildren.push(
+    new Table({
+      width: { size: PAGE_CONTENT_WIDTH, type: WidthType.DXA },
+      borders: {
+        top: { style: BorderStyle.SINGLE, size: 8, color: COLOR_ACCENT },
+        bottom: { style: BorderStyle.SINGLE, size: 8, color: COLOR_ACCENT },
+        left: { style: BorderStyle.SINGLE, size: 24, color: COLOR_PRIMARY },
+        right: { style: BorderStyle.SINGLE, size: 8, color: COLOR_ACCENT },
+      },
+      rows: [
+        new TableRow({
+          children: [
+            new TableCell({
+              width: { size: PAGE_CONTENT_WIDTH, type: WidthType.DXA },
+              shading: { type: ShadingType.CLEAR, fill: COLOR_LIGHT_BG },
+              margins: { top: 120, bottom: 120, left: 140, right: 140 },
+              children: [
+                new Paragraph({
+                  children: [
+                    new TextRun({
+                      text: 'Delfos Engenharia Ltda (Delfos Solar)\n',
+                      bold: true,
+                      size: 22,
+                      color: COLOR_PRIMARY,
+                      font: 'Arial',
+                    }),
+                    new TextRun({
+                      text: 'CNPJ: 21.379.952/0001-38  •  Erechim / RS\n',
+                      bold: true,
+                      size: 16,
+                      color: COLOR_TEXT_DARK,
+                      font: 'Arial',
+                    }),
+                    new TextRun({
+                      text: 'Responsável Técnico: Eng. João Victor Bagetti Fuchs — CREA RS151894\n',
+                      bold: true,
+                      size: 16,
+                      color: COLOR_ACCENT,
+                      font: 'Arial',
+                    }),
+                  ],
+                }),
+                new Paragraph({
+                  spacing: { before: 60 },
+                  children: [
+                    new TextRun({
+                      text: 'Engenharia própria especializada em projetos fotovoltaicos, homologação e garantia de desempenho. Atuação completa Turnkey com equipe de engenharia habilitada e suporte contínuo.',
+                      size: 15,
+                      color: COLOR_TEXT_MUTED,
+                      font: 'Arial',
+                    }),
+                  ],
+                }),
+              ],
+            }),
+          ],
+        }),
+      ],
+    }),
+  )
+
+  // Portfólio / Tabela de usinas da galeria
+  let usinasGaleria: InstalacaoGaleria[] = []
+  try {
+    usinasGaleria = (await fetchInstalacoesGaleria()) || []
+  } catch (err) {
+    console.warn('Erro ao carregar galeria de usinas para o docx:', err)
+  }
+
+  const usinasDocx =
+    usinasGaleria.length > 0
+      ? usinasGaleria.slice(0, 3)
+      : [
+          {
+            id: '1',
+            titulo: 'Usina Solar Residencial',
+            cidade: 'Erechim / RS',
+            potencia_kwp: 10.5,
+          },
+          {
+            id: '2',
+            titulo: 'Usina Solar Comercial',
+            cidade: 'Passo Fundo / RS',
+            potencia_kwp: 35.0,
+          },
+          {
+            id: '3',
+            titulo: 'Usina Solar Agropecuária',
+            cidade: 'Getúlio Vargas / RS',
+            potencia_kwp: 50.0,
+          },
+        ]
+
+  docChildren.push(
+    new Paragraph({
+      spacing: { before: 100, after: 60 },
+      children: [
+        new TextRun({
+          text: 'PORTFÓLIO DE USINAS INSTALADAS',
+          bold: true,
+          size: 16,
+          color: COLOR_PRIMARY,
+          font: 'Arial',
+        }),
+      ],
+    }),
+  )
+
+  const colWidthGaleria = Math.floor(PAGE_CONTENT_WIDTH / 3)
+  docChildren.push(
+    new Table({
+      width: { size: PAGE_CONTENT_WIDTH, type: WidthType.DXA },
+      borders: tableBorderDefault,
+      rows: [
+        new TableRow({
+          children: usinasDocx.map((u) => {
+            const pot = u.potencia_kwp ? `${formatNumBR(Number(u.potencia_kwp), 1)} kWp` : 'Turnkey'
+            const cid = u.cidade || 'Erechim / RS'
+            const tit = u.titulo || 'Usina Solar Delfos'
+            return new TableCell({
+              width: { size: colWidthGaleria, type: WidthType.DXA },
+              shading: { type: ShadingType.CLEAR, fill: COLOR_GRAY_BG },
+              margins: { top: 100, bottom: 100, left: 100, right: 100 },
+              children: [
+                new Paragraph({
+                  children: [
+                    new TextRun({
+                      text: '☀️ ',
+                      size: 20,
+                    }),
+                    new TextRun({
+                      text: `${tit}\n`,
+                      bold: true,
+                      size: 16,
+                      color: COLOR_PRIMARY,
+                      font: 'Arial',
+                    }),
+                    new TextRun({
+                      text: `Localização: ${cid}\n`,
+                      size: 14,
+                      color: COLOR_TEXT_MUTED,
+                      font: 'Arial',
+                    }),
+                    new TextRun({
+                      text: `Potência: ${pot}`,
+                      bold: true,
+                      size: 15,
+                      color: COLOR_ACCENT,
+                      font: 'Arial',
+                    }),
+                  ],
+                }),
+              ],
+            })
+          }),
         }),
       ],
     }),

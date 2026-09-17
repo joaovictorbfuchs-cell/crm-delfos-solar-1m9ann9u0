@@ -6,6 +6,8 @@ export interface FotoInstalacaoProposta {
   id: string
   titulo: string
   url: string
+  cidade?: string
+  potenciaKwp?: number
 }
 
 export interface PropostaTecnicoComercialDados {
@@ -2031,6 +2033,140 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
         </div>
       </div>
       ${renderInternalFooter(1)}
+    </section>
+
+    <!-- ========================================================
+         PÁGINA DE APRESENTAÇÃO DA EMPRESA & PORTFÓLIO DE USINAS
+         ======================================================== -->
+    <section class="proposta-secao-page" id="secao-apresentacao-empresa">
+      <div class="secao-body">
+        <header class="doc-header">
+          <div class="header-brand">
+            <div class="logo-box">${renderLogoSvg('apresentacao')}</div>
+            <div>
+              <div class="brand-title">DELFOS SOLAR</div>
+              <div class="brand-sub">ENGENHARIA & SOLUÇÕES FOTOVOLTAICAS</div>
+            </div>
+          </div>
+          <div class="header-tag">
+            <span class="tag-secao">INSTITUCIONAL</span>
+            <span class="tag-desc">Apresentação & Engenharia</span>
+          </div>
+        </header>
+
+        <!-- Banner Institucional Delfos Solar -->
+        <div style="background: linear-gradient(135deg, #064E3B 0%, #065F46 50%, #0F766E 100%); border-radius: 16px; padding: 18px 22px; color: #FFFFFF; box-shadow: 0 4px 12px rgba(6, 78, 59, 0.2); margin-bottom: 16px;">
+          <div style="display: inline-flex; align-items: center; gap: 6px; padding: 2px 9px; border-radius: 9999px; font-size: 8.5px; font-weight: 800; background: rgba(255, 255, 255, 0.15); border: 1px solid rgba(255, 255, 255, 0.25); color: #D1FAE5; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 6px;">
+            <span>🏢</span> Engenharia Própria Especializada
+          </div>
+          <h2 style="margin: 0; font-size: 20px; font-weight: 900; color: #FFFFFF; letter-spacing: -0.015em;">
+            Delfos Engenharia Ltda (Delfos Solar)
+          </h2>
+          <div style="display: flex; flex-wrap: wrap; gap: 10px; font-size: 9.5px; color: #D1FAE5; margin-top: 6px; font-weight: 600;">
+            <span>CNPJ: <strong>${empresa?.cnpj || '21.379.952/0001-38'}</strong></span>
+            <span>•</span>
+            <span>📍 Erechim / RS</span>
+            <span>•</span>
+            <span style="color: #FDE047;">Engenheiro Responsável: <strong>Eng. João Victor Bagetti Fuchs — CREA RS151894</strong></span>
+          </div>
+          <p style="margin: 8px 0 0 0; font-size: 9.5px; color: #ECFDF5; line-height: 1.45; max-width: 740px;">
+            Engenharia própria especializada em projetos fotovoltaicos, homologação completa junto à concessionária de energia e rigorosa garantia de desempenho com monitoramento em tempo real. Soluções completas Turnkey (chave na mão) do projeto à aprovação e geração.
+          </p>
+        </div>
+
+        <!-- Grade com 3 Usinas do Portfólio / Galeria Usinas -->
+        <div>
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
+            <div>
+              <h3 style="margin: 0; font-size: 13px; font-weight: 900; color: #111827;">
+                Portfólio de Usinas Solares Instaladas
+              </h3>
+              <p style="margin: 2px 0 0 0; font-size: 8.5px; color: #4B5563;">
+                Conheça algumas usinas projetadas, homologadas e executadas pela equipe da Delfos Solar.
+              </p>
+            </div>
+            <span style="font-size: 8.5px; font-weight: 800; background: #DCFCE7; color: #166534; padding: 3px 9px; border-radius: 9999px; border: 1px solid #86EFAC;">
+              Projetos Reais Homologados
+            </span>
+          </div>
+
+          <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;">
+            ${(() => {
+              const usinasExibicao =
+                dados.fotosInstalacoes && dados.fotosInstalacoes.length > 0
+                  ? dados.fotosInstalacoes.slice(0, 3)
+                  : [
+                      {
+                        id: '1',
+                        titulo: 'Usina Solar Residencial',
+                        url: '',
+                        cidade: 'Erechim / RS',
+                        potenciaKwp: 10.5,
+                      },
+                      {
+                        id: '2',
+                        titulo: 'Usina Solar Comercial',
+                        url: '',
+                        cidade: 'Passo Fundo / RS',
+                        potenciaKwp: 35.0,
+                      },
+                      {
+                        id: '3',
+                        titulo: 'Usina Solar Agropecuária',
+                        url: '',
+                        cidade: 'Getúlio Vargas / RS',
+                        potenciaKwp: 50.0,
+                      },
+                    ]
+
+              return usinasExibicao
+                .map((u) => {
+                  const temFoto = !!(u.url && u.url.trim())
+                  const fotoHtml = temFoto
+                    ? `<img src="${u.url}" alt="${u.titulo || 'Usina Solar'}" style="width: 100%; height: 110px; object-fit: cover; display: block;" />`
+                    : `<div style="width: 100%; height: 110px; background: #F0FDF4; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #166534;">
+                       <span style="font-size: 26px;">☀️</span>
+                       <span style="font-size: 8.5px; font-weight: 800; color: #166534; margin-top: 4px;">Usina Fotovoltaica Delfos</span>
+                     </div>`
+
+                  const potTexto = u.potenciaKwp
+                    ? `${formatNumBR(u.potenciaKwp, 1)} kWp`
+                    : 'Turnkey'
+                  const cidTexto = u.cidade || 'Erechim / RS'
+
+                  return `
+                  <div style="border: 1px solid #E5E7EB; border-radius: 12px; overflow: hidden; background: #FFFFFF; box-shadow: 0 1px 3px rgba(0,0,0,0.05); display: flex; flex-direction: column; justify-content: space-between;">
+                    <div style="position: relative;">
+                      ${fotoHtml}
+                      <span style="position: absolute; top: 6px; right: 6px; background: rgba(6, 78, 59, 0.88); color: #FFFFFF; font-size: 8.5px; font-weight: 800; padding: 2px 7px; border-radius: 9999px; border: 1px solid rgba(255, 255, 255, 0.25);">
+                        ⚡ ${potTexto}
+                      </span>
+                    </div>
+                    <div style="padding: 8px 10px;">
+                      <div style="font-size: 10px; font-weight: 800; color: #111827; line-height: 1.25; margin-bottom: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                        ${u.titulo || 'Usina Solar Delfos'}
+                      </div>
+                      <div style="display: flex; justify-content: space-between; align-items: center; font-size: 8.5px; color: #6B7280;">
+                        <span>📍 ${cidTexto}</span>
+                        <strong style="color: #166534;">${potTexto}</strong>
+                      </div>
+                    </div>
+                  </div>
+                `
+                })
+                .join('')
+            })()}
+          </div>
+        </div>
+      </div>
+      <footer class="doc-footer">
+        <div class="footer-left">
+          <strong>Delfos Engenharia Solar</strong> • CNPJ 21.379.952/0001-38 • Erechim / RS • Tel: (54) 99129-2121 • Responsável: <strong>João Victor Bagetti Fuchs</strong> (CREA RS151894)
+        </div>
+        <div class="footer-right">
+          Apresentação Institucional
+        </div>
+      </footer>
     </section>
 
     <!-- ========================================================

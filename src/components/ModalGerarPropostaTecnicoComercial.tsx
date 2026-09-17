@@ -217,6 +217,8 @@ export function ModalGerarPropostaTecnicoComercial({
           id: inst.id,
           titulo: inst.titulo || '',
           url: getFotoUrl(inst),
+          cidade: inst.cidade || '',
+          potenciaKwp: Number(inst.potencia_kwp) || undefined,
         }))
 
       // Meses de geração detalhada

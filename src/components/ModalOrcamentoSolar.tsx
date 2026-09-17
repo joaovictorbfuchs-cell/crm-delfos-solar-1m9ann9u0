@@ -58,6 +58,7 @@ import {
 } from '@/lib/propostaSolarDocxGenerator'
 import { ModalGerarPropostaTecnicoComercial } from '@/components/ModalGerarPropostaTecnicoComercial'
 import { SecaoCapaProposta } from '@/components/SecaoCapaProposta'
+import { SecaoApresentacaoEmpresa } from '@/components/SecaoApresentacaoEmpresa'
 import { SecaoCustoInercia } from '@/components/SecaoCustoInercia'
 import { SecaoProjecaoEconomia } from '@/components/SecaoProjecaoEconomia'
 import { SecaoProjecao25Anos } from '@/components/SecaoProjecao25Anos'
@@ -2841,6 +2842,14 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                   />
                 </ErrorBoundary>
 
+                {/* Página de Apresentação da Empresa & Galeria de Usinas */}
+                <ErrorBoundary
+                  compact
+                  errorMessage="Não foi possível exibir a Apresentação da Empresa"
+                >
+                  <SecaoApresentacaoEmpresa />
+                </ErrorBoundary>
+
                 {/* Seção 2: Situação Atual (Consumo & Custos + Gastos Acumulados) */}
                 <ErrorBoundary compact errorMessage="Não foi possível exibir a Situação Atual">
                   <SecaoCustoInercia
@@ -2991,69 +3000,6 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                     nomeCliente={clienteAtual?.nome}
                   />
                 </ErrorBoundary>
-
-                {/* Grade de Desperdício x Economia */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                  <div className="bg-red-50/70 p-3.5 rounded-xl border border-red-200 space-y-2">
-                    <span className="font-bold text-red-900 uppercase block">
-                      Gasto Acumulado com Concessionária SEM Solar (com 9% a.a.)
-                    </span>
-                    <div className="space-y-1 text-[11px]">
-                      <div className="flex justify-between">
-                        <span>Em 1 ano:</span>
-                        <strong className="text-red-700">
-                          {formatCurrency(calculos.gastoSemSolar1Ano)}
-                        </strong>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Em 5 anos:</span>
-                        <strong className="text-red-700">
-                          {formatCurrency(calculos.gastoSemSolar5Anos)}
-                        </strong>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Em 10 anos:</span>
-                        <strong className="text-red-700">
-                          {formatCurrency(calculos.gastoSemSolar10Anos)}
-                        </strong>
-                      </div>
-                      <div className="flex justify-between pt-1 border-t border-red-200 font-extrabold text-red-950">
-                        <span>Em 25 anos:</span>
-                        <span>{formatCurrency(calculos.gastoSemSolar25Anos)}</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="bg-emerald-50/70 p-3.5 rounded-xl border border-emerald-200 space-y-2">
-                    <span className="font-bold text-emerald-900 uppercase block">
-                      Economia Líquida Acumulada COM Solar Delfos
-                    </span>
-                    <div className="space-y-1 text-[11px]">
-                      <div className="flex justify-between">
-                        <span>Em 1 ano:</span>
-                        <strong className="text-emerald-700">
-                          {formatCurrency(calculos.economia1Ano)}
-                        </strong>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Em 5 anos:</span>
-                        <strong className="text-emerald-700">
-                          {formatCurrency(calculos.economia5Anos)}
-                        </strong>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Em 10 anos:</span>
-                        <strong className="text-emerald-700">
-                          {formatCurrency(calculos.economia10Anos)}
-                        </strong>
-                      </div>
-                      <div className="flex justify-between pt-1 border-t border-emerald-200 font-extrabold text-emerald-950">
-                        <span>Em 25 anos:</span>
-                        <span>{formatCurrency(calculos.economia25Anos)}</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
 
                 {/* Observações e Prazo */}
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs pt-1">
