@@ -18,11 +18,7 @@ describe('SecaoProjecao25Anos Component', () => {
     // Título no topo
     expect(html).toContain('Sua economia ao longo do tempo')
 
-    // Rótulos das duas linhas do gráfico
-    expect(html).toContain('Gasto acumulado sem solar:')
-    expect(html).toContain('Investimento + economia com solar:')
-
-    // Cards inferiores solicitados
+    // Cards inferiores solicitados mantidos
     expect(html).toContain('Economia total em 25 anos')
     expect(html).toContain('Payback')
     expect(html).toContain('ROI')
@@ -34,24 +30,11 @@ describe('SecaoProjecao25Anos Component', () => {
     expect(html).toContain(
       'Valores estimados com base na projeção tarifária atual. Podem variar conforme reajustes anuais da concessionária, CIP municipal e fator de simultaneidade real de consumo.',
     )
-  })
 
-  it('exibe a tabela resumo com os anos de 2026 a 2051 (26 linhas)', () => {
-    const html = renderToStaticMarkup(
-      React.createElement(SecaoProjecao25Anos, {
-        consumoAnualCadastradoKwh: 4807,
-        potenciaKwp: 8.54,
-      }),
-    )
-
-    // Verifica que o primeiro ano (2026) e o último ano (2051) aparecem na tabela
-    expect(html).toContain('2026')
-    expect(html).toContain('2051')
-
-    // Conta a ocorrência de linhas da tabela
-    const rowCount = (html.match(/<tr/g) || []).length
-    // 1 cabeçalho (thead) + 26 linhas no tbody = 27 rows
-    expect(rowCount).toBe(27)
+    // Gráfico e tabela foram removidos conforme solicitação do usuário
+    expect(html).not.toContain('Gráfico Comparativo')
+    expect(html).not.toContain('Tabela Resumo Ano a Ano')
+    expect(html).not.toContain('<table')
   })
 
   it('calcula o ROI corretamente a partir do investimento e da economia acumulada', () => {

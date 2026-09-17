@@ -2417,7 +2417,7 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
     </section>
 
     <!-- ========================================================
-         SEÇÃO 4 — PROJEÇÃO DE ECONOMIA NA CONTA DE ENERGIA (TABELA 2026-2051)
+         SEÇÃO 4 — PROJEÇÃO DE ECONOMIA NA CONTA DE ENERGIA (CARDS DE RESUMO + CARD PAYBACK)
          ======================================================== -->
     <section class="proposta-secao-page" id="secao-4-projecao-economia">
       <div class="secao-body">
@@ -2444,41 +2444,67 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
           </div>
         </div>
 
-        <table class="tabela-projecao-scroll">
-          <thead>
-            <tr>
-              <th style="width: 7%;">Ano</th>
-              <th style="width: 14%;">Tarifa (R$/kWh)</th>
-              <th style="width: 14%;">Fio B (R$/kWh)</th>
-              <th style="width: 15%;">GD Eco Líq. (R$/kWh)</th>
-              <th style="width: 11%;">Degradação</th>
-              <th style="width: 18%;">Economia no Ano</th>
-              <th style="width: 21%;">Economia Acumulada</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${projecaoOficial.linhas
-              .map((l, idx) => {
-                const classeDestaque =
-                  idx === 4 ? 'destaque-5anos' : idx === 24 ? 'destaque-25anos' : ''
-                return `
-                <tr class="${classeDestaque}">
-                  <td><strong>${l.ano}</strong></td>
-                  <td>${formatNumBR(l.tarifaKwh, 4)}</td>
-                  <td>${formatNumBR(l.fioBKwh, 4)}</td>
-                  <td class="destaque-verde">${formatNumBR(l.gdEcoLiquidaKwh, 4)}</td>
-                  <td>${(l.fatorDegradacao * 100).toFixed(1)}%</td>
-                  <td class="destaque-verde">${formatBRL(l.economiaAnual)}</td>
-                  <td class="destaque-verde" style="font-weight: 800;">${formatBRL(l.economiaAcumulada)}</td>
-                </tr>
-              `
-              })
-              .join('')}
-          </tbody>
-        </table>
+        <!-- CARDS GRANDES DE RESUMO DA PROJEÇÃO DE ECONOMIA (ESPELHADOS DE SecaoProjecaoEconomia.tsx) -->
+        <div class="cards-metricas-25anos" style="margin-top: 18px; margin-bottom: 14px;">
+          <!-- Card 1: Economia Total Acumulada em 25 Anos -->
+          <div class="card-metrica-destaque">
+            <div class="card-metrica-label" style="color: #065F46;">Economia Total em 25 Anos</div>
+            <div class="card-metrica-numero" style="color: #15803D;">${formatBRL(projecaoOficial.economiaTotal25Anos)}</div>
+            <div class="card-metrica-sub">Ciclo completo com degradação considerada</div>
+          </div>
 
-        <div style="font-size: 8px; color: #6B7280; text-align: right; margin-top: 4px;">
-          * Simulação calculada sobre consumo anual de <strong>${formatNumBR(consumoKwhAnoEstimado, 2)} kWh/ano</strong>.
+          <!-- Card 2: Gasto Total Sem Solar em 25 Anos -->
+          <div class="card-metrica-destaque" style="border-color: #FECACA; background: #FEF2F2;">
+            <div class="card-metrica-label" style="color: #991B1B;">Gasto Total Sem Solar (25 Anos)</div>
+            <div class="card-metrica-numero" style="color: #B91C1C;">${formatBRL(projecaoOficial.gastoTotalSemSolar25Anos)}</div>
+            <div class="card-metrica-sub">Desembolso acumulado pago à concessionária</div>
+          </div>
+
+          <!-- Card 3: Custo de Postergação (Valor Perdido / Mês) -->
+          <div class="card-metrica-destaque" style="border-color: #FDBA74; background: linear-gradient(135deg, #FFF7ED 0%, #FFEDD5 100%);">
+            <div class="card-metrica-label" style="color: #C2410C;">Custo de Postergação</div>
+            <div class="card-metrica-numero" style="color: #EA580C;">${formatBRL(projecaoOficial.valorPerdidoPorMesPostergacao)} <span style="font-size: 11px; font-weight: 700;">/mês</span></div>
+            <div class="card-metrica-sub">Perda financeira a cada mês sem energia solar</div>
+          </div>
+        </div>
+
+        <!-- CARD DO PAYBACK ABAIXO DOS CARDS DE RESUMO -->
+        <div style="background: #FFFFFF; border: 2px solid #F59E0B; border-radius: 12px; padding: 16px 20px; display: flex; align-items: center; justify-content: space-between; gap: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); margin-top: 10px;">
+          <div style="display: flex; align-items: center; gap: 14px;">
+            <div style="width: 44px; height: 44px; border-radius: 10px; background: #FEF3C7; border: 1px solid #FDE68A; display: flex; align-items: center; justify-content: center; font-size: 22px; shrink-0;">
+              ⏱️
+            </div>
+            <div>
+              <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+                <span style="font-size: 8.5px; font-weight: 900; text-transform: uppercase; background: #FEF3C7; color: #92400E; padding: 2px 7px; border-radius: 4px; border: 1px solid #FDE68A;">
+                  Tempo de Retorno do Investimento
+                </span>
+                <span style="font-size: 8.5px; font-weight: 800; background: #DCFCE7; color: #166534; padding: 2px 7px; border-radius: 4px; border: 1px solid #86EFAC;">
+                  Retorno Garantido
+                </span>
+              </div>
+              <div style="font-size: 13px; font-weight: 900; color: #1F2937;">Payback Estimado</div>
+              <p style="margin: 3px 0 0 0; font-size: 9px; color: #4B5563; max-width: 430px; line-height: 1.35;">
+                Tempo para que a economia na fatura de energia pague 100% do investimento. A partir desse momento, todo o ganho transforma-se em patrimônio e lucro líquido.
+              </p>
+            </div>
+          </div>
+
+          <div style="background: linear-gradient(135deg, #FFFBEB 0%, #FEF3C7 100%); border: 1.5px solid #FCD34D; border-radius: 10px; padding: 10px 16px; text-align: right; shrink-0;">
+            <span style="font-size: 8.5px; font-weight: 800; text-transform: uppercase; color: #92400E; display: block;">
+              Payback do Sistema
+            </span>
+            <div style="font-size: 20px; font-weight: 900; color: #B45309; line-height: 1.2; margin: 2px 0;">
+              ${paybackTextoFinal}
+            </div>
+            <span style="font-size: 8.5px; color: #78350F; font-weight: 700; display: block;">
+              Ano de quitação: ~${anoPayback}
+            </span>
+          </div>
+        </div>
+
+        <div style="font-size: 8px; color: #6B7280; text-align: right; margin-top: 12px;">
+          * Simulação calculada sobre consumo anual de <strong>${formatNumBR(consumoKwhAnoEstimado, 2)} kWh/ano</strong> e tarifa de referência com reajuste médio estimado.
         </div>
       </div>
       ${renderInternalFooter(4)}
@@ -2502,62 +2528,8 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
           </p>
         </div>
 
-        <!-- GRÁFICO VETORIAL DE DUAS CURVAS + MARCADOR NO PAYBACK (ESTILO DO SecaoProjecao25Anos) -->
-        <div class="grafico-curvas-box">
-          <div class="grafico-legendas">
-            <div class="leg-item">
-              <span class="leg-cor-bullet red"></span>
-              <strong style="color: #991B1B;">Gasto acumulado sem solar:</strong> <span style="color: #6B7280;">conta de luz + reajustes</span>
-            </div>
-            <div class="leg-item">
-              <span class="leg-cor-bullet green"></span>
-              <strong style="color: #166534;">Com solar Delfos:</strong> <span style="color: #6B7280;">sistema quitado + economia</span>
-            </div>
-            <div class="badge-cruzamento-payback">
-              <span>⚡</span> Payback no cruzamento: ${paybackTextoFinal}
-            </div>
-          </div>
-
-          <div style="width: 100%; height: 210px;">
-            <svg viewBox="0 0 700 220" style="width: 100%; height: 100%; overflow: visible;" xmlns="http://www.w3.org/2000/svg">
-              <!-- Grade de fundo suave -->
-              <line x1="55" y1="30" x2="655" y2="30" stroke="#F3F4F6" stroke-dasharray="3 3" />
-              <line x1="55" y1="70" x2="655" y2="70" stroke="#F3F4F6" stroke-dasharray="3 3" />
-              <line x1="55" y1="110" x2="655" y2="110" stroke="#F3F4F6" stroke-dasharray="3 3" />
-              <line x1="55" y1="150" x2="655" y2="150" stroke="#F3F4F6" stroke-dasharray="3 3" />
-              <line x1="55" y1="190" x2="655" y2="190" stroke="#E5E7EB" stroke-width="1.5" />
-              <line x1="55" y1="20" x2="55" y2="190" stroke="#E5E7EB" stroke-width="1.5" />
-
-              <!-- Eixo Y Labels -->
-              <text x="50" y="34" text-anchor="end" font-size="8" fill="#6B7280">${formatBRL(maxVal)}</text>
-              <text x="50" y="114" text-anchor="end" font-size="8" fill="#6B7280">${formatBRL(maxVal * 0.5)}</text>
-              <text x="50" y="193" text-anchor="end" font-size="8" fill="#6B7280">R$ 0</text>
-
-              <!-- Eixo X Labels -->
-              <text x="55" y="204" text-anchor="middle" font-size="8" fill="#6B7280">2026</text>
-              <text x="175" y="204" text-anchor="middle" font-size="8" fill="#6B7280">2031 (5a)</text>
-              <text x="295" y="204" text-anchor="middle" font-size="8" fill="#6B7280">2036 (10a)</text>
-              <text x="415" y="204" text-anchor="middle" font-size="8" fill="#6B7280">2041 (15a)</text>
-              <text x="535" y="204" text-anchor="middle" font-size="8" fill="#6B7280">2046 (20a)</text>
-              <text x="655" y="204" text-anchor="middle" font-size="8" fill="#6B7280">2051 (25a)</text>
-
-              <!-- Curva Vermelha: Gasto sem solar -->
-              <polyline fill="none" stroke="#DC2626" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" points="${pontosVermelho}" />
-
-              <!-- Curva Verde: Com solar -->
-              <polyline fill="none" stroke="#16A34A" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" points="${pontosVerde}" />
-
-              <!-- Marcador de Payback no cruzamento -->
-              <line x1="${xPayback}" y1="20" x2="${xPayback}" y2="190" stroke="#F59E0B" stroke-width="1.8" stroke-dasharray="4 3" />
-              <circle cx="${xPayback}" y="${yPayback}" r="7" fill="#F59E0B" stroke="#FFFFFF" stroke-width="2.5" />
-              <rect x="${Math.max(55, Number(xPayback) - 65)}" y="12" width="130" height="22" rx="6" fill="#FEF3C7" stroke="#F59E0B" stroke-width="1" />
-              <text x="${xPayback}" y="26" text-anchor="middle" font-size="9" font-weight="900" fill="#92400E">Payback: ${paybackTextoFinal} (${anoPayback})</text>
-            </svg>
-          </div>
-        </div>
-
         <!-- 3 CARDS DE MÉTRICAS EXATOS DO SecaoProjecao25Anos -->
-        <div class="cards-metricas-25anos">
+        <div class="cards-metricas-25anos" style="margin-top: 18px;">
           <!-- Card 1: Economia Total Acumulada -->
           <div class="card-metrica-destaque">
             <div class="card-metrica-label">Economia Total Acumulada</div>
@@ -2619,7 +2591,17 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
               <div class="card-pagamento-valor" style="color: #15803D;">${formatBRL(aVistaValor)}</div>
               <div class="card-pagamento-desc">Desconto exclusivo de 5% aplicado</div>
             </div>
-            <div class="card-pagamento-badge-sub emerald">
+            <div style="margin-top: 6px; padding-top: 6px; border-top: 1px solid rgba(22, 163, 74, 0.2); font-size: 8px;">
+              <div style="display: flex; justify-content: space-between; color: #4B5563;">
+                <span>Custo com energia atual:</span>
+                <strong style="color: #DC2626;">${formatBRL(contaHoje)}/mês</strong>
+              </div>
+              <div style="display: flex; justify-content: space-between; color: #166534; font-weight: 800; margin-top: 2px;">
+                <span>Fatura pós-solar:</span>
+                <span>${formatBRL(parcelamento?.aVista?.contaComSolar !== undefined ? parcelamento.aVista.contaComSolar : 70)}/mês</span>
+              </div>
+            </div>
+            <div class="card-pagamento-badge-sub emerald" style="margin-top: 6px;">
               Economia de ${formatBRL(aVistaDesconto)}
             </div>
           </div>
@@ -2633,7 +2615,17 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
               <div class="card-pagamento-valor">${cartaoParcelas}x de ${formatBRL(cartaoValor)}</div>
               <div class="card-pagamento-desc">Direto na maquininha sem alienação</div>
             </div>
-            <div class="card-pagamento-badge-sub blue">
+            <div style="margin-top: 6px; padding-top: 6px; border-top: 1px solid #E5E7EB; font-size: 8px;">
+              <div style="display: flex; justify-content: space-between; color: #4B5563;">
+                <span>Custo com energia atual:</span>
+                <strong style="color: #DC2626;">${formatBRL(contaHoje)}/mês</strong>
+              </div>
+              <div style="display: flex; justify-content: space-between; color: #1E40AF; font-weight: 800; margin-top: 2px;">
+                <span>Fatura c/ solar + parcela:</span>
+                <span>${formatBRL((parcelamento?.cartao18x?.contaComSolar !== undefined ? parcelamento.cartao18x.contaComSolar : 70) + cartaoValor)}/mês</span>
+              </div>
+            </div>
+            <div class="card-pagamento-badge-sub blue" style="margin-top: 6px;">
               Até ${cartaoParcelas}x no cartão
             </div>
           </div>
@@ -2647,7 +2639,17 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
               <div class="card-pagamento-valor">${finanAParcelas}x de ${formatBRL(finanAValor)}</div>
               <div class="card-pagamento-desc">Entrada de ${formatBRL(finanAEntrada)}</div>
             </div>
-            <div class="card-pagamento-badge-sub amber">
+            <div style="margin-top: 6px; padding-top: 6px; border-top: 1px solid #E5E7EB; font-size: 8px;">
+              <div style="display: flex; justify-content: space-between; color: #4B5563;">
+                <span>Custo com energia atual:</span>
+                <strong style="color: #DC2626;">${formatBRL(contaHoje)}/mês</strong>
+              </div>
+              <div style="display: flex; justify-content: space-between; color: #92400E; font-weight: 800; margin-top: 2px;">
+                <span>Fatura c/ solar + parcela:</span>
+                <span>${formatBRL((parcelamento?.financiamentoA?.contaComSolar !== undefined ? parcelamento.financiamentoA.contaComSolar : 70) + finanAValor)}/mês</span>
+              </div>
+            </div>
+            <div class="card-pagamento-badge-sub amber" style="margin-top: 6px;">
               Linha solar facilitada
             </div>
           </div>
@@ -2661,7 +2663,17 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
               <div class="card-pagamento-valor">${finanBParcelas}x de ${formatBRL(finanBValor)}</div>
               <div class="card-pagamento-desc">Entrada de ${formatBRL(finanBEntrada)}</div>
             </div>
-            <div class="card-pagamento-badge-sub purple">
+            <div style="margin-top: 6px; padding-top: 6px; border-top: 1px solid #E5E7EB; font-size: 8px;">
+              <div style="display: flex; justify-content: space-between; color: #4B5563;">
+                <span>Custo com energia atual:</span>
+                <strong style="color: #DC2626;">${formatBRL(contaHoje)}/mês</strong>
+              </div>
+              <div style="display: flex; justify-content: space-between; color: #6B21A8; font-weight: 800; margin-top: 2px;">
+                <span>Fatura c/ solar + parcela:</span>
+                <span>${formatBRL((parcelamento?.financiamentoB?.contaComSolar !== undefined ? parcelamento.financiamentoB.contaComSolar : 70) + finanBValor)}/mês</span>
+              </div>
+            </div>
+            <div class="card-pagamento-badge-sub purple" style="margin-top: 6px;">
               Até ${finanBParcelas} meses
             </div>
           </div>

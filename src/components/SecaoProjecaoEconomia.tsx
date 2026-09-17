@@ -6,21 +6,11 @@ import {
   Home,
   Sparkles,
   Info,
-  BarChart3,
   CheckCircle2,
-  Table as TableIcon,
   Database,
+  Clock,
+  ShieldCheck,
 } from 'lucide-react'
-import {
-  ResponsiveContainer,
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip as RechartsTooltip,
-  Legend,
-} from 'recharts'
 import {
   calcularProjecaoEconomia,
   type ResumoProjecaoEconomia,
@@ -46,6 +36,12 @@ export interface SecaoProjecaoEconomiaProps {
   nomeCliente?: string
   /** Se deve permitir edição manual do consumo para simulação */
   permitirAjusteConsumo?: boolean
+  /** Payback em meses (calculado ou persistido no orçamento) */
+  paybackMeses?: number | null
+  /** Texto personalizado de payback (ex: '4 anos e 2 meses') */
+  paybackTexto?: string | null
+  /** Valor do investimento total (R$) para cálculo de payback se não fornecido */
+  valorInvestimento?: number | null
   className?: string
 }
 
@@ -55,6 +51,9 @@ export const SecaoProjecaoEconomia: React.FC<SecaoProjecaoEconomiaProps> = ({
   tarifaReferenciaInicial,
   nomeCliente,
   permitirAjusteConsumo = true,
+  paybackMeses,
+  paybackTexto,
+  valorInvestimento,
   className = '',
 }) => {
   // Estado de tipo de cliente: Residencial (30% simultaneidade) ou Comercial (70% simultaneidade)
@@ -110,32 +109,45 @@ export const SecaoProjecaoEconomia: React.FC<SecaoProjecaoEconomiaProps> = ({
     return dadosTarifariosCustomizados.some((d) => d.tipo_cliente === tipoCliente)
   }, [dadosTarifariosCustomizados, tipoCliente])
 
-  // Formatação para o gráfico Recharts
-  const dadosGrafico = useMemo(() => {
-    return projecao.linhas.map((linha) => ({
-      ano: String(linha.ano),
-      'Economia Acumulada': Math.round(linha.economiaAcumulada),
-      'Gasto s/ Solar': Math.round(linha.gastoSemSolarAcumulado),
-      gdEcoLiquida: Number(linha.gdEcoLiquidaKwh.toFixed(3)),
-    }))
-  }, [projecao.linhas])
-
-  const formatarKwh = (val: number | unknown) => {
-    const num = Number(val)
-    if (isNaN(num)) return '0,00'
-    return num.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-  }
-
-  const formatarMoedaCompacta = (val: number | unknown) => {
-    const num = Number(val) || 0
-    if (num >= 1_000_000) {
-      return `R$ ${(num / 1_000_000).toFixed(1).replace('.', ',')}M`
+  // Resolução do Payback estimado
+  const infoPayback = useMemo(() => {
+    if (paybackTexto) {
+      return {
+        texto: paybackTexto,
+        anos: null,
+        meses: null,
+      }
     }
-    if (num >= 1_000) {
-      return `R$ ${(num / 1_000).toFixed(0)}k`
+    const mesesTotais =
+      paybackMeses !== undefined && paybackMeses !== null && paybackMeses > 0
+        ? paybackMeses
+        : valorInvestimento && valorInvestimento > 0 && projecao.valorPerdidoPorMesPostergacao > 0
+          ? Math.round((valorInvestimento / projecao.valorPerdidoPorMesPostergacao) * 10) / 10
+          : 50
+
+    const anos = Math.floor(mesesTotais / 12)
+    const meses = Math.round(mesesTotais % 12)
+    const anoCalendario = (projecao.anoInicial || 2026) + anos
+
+    let texto = `${anos} anos`
+    if (meses > 0) {
+      texto = `${anos} anos e ${meses} meses`
     }
-    return `R$ ${Math.round(num)}`
-  }
+
+    return {
+      texto,
+      anos,
+      meses,
+      anoCalendario,
+      mesesTotais,
+    }
+  }, [
+    paybackTexto,
+    paybackMeses,
+    valorInvestimento,
+    projecao.valorPerdidoPorMesPostergacao,
+    projecao.anoInicial,
+  ])
 
   return (
     <section
@@ -310,271 +322,136 @@ export const SecaoProjecaoEconomia: React.FC<SecaoProjecaoEconomiaProps> = ({
         )}
       </div>
 
-      {/* GRÁFICO RECHARTS: EVOLUÇÃO DA ECONOMIA ACUMULADA */}
-      <div className="p-4 sm:p-5 space-y-3">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+      {/* CORPO DA SEÇÃO: CARDS DO RESUMO DA PROJEÇÃO DE ECONOMIA + CARD DO PAYBACK ABAIXO */}
+      <div className="p-5 sm:p-6 bg-gradient-to-br from-gray-50/70 to-emerald-50/30 space-y-4">
+        <div className="flex items-center justify-between flex-wrap gap-2">
           <div className="flex items-center gap-2">
-            <BarChart3 className="w-4 h-4 text-emerald-600" />
-            <h4 className="text-xs sm:text-sm font-bold uppercase tracking-wider text-gray-800">
-              Evolução da Economia Acumulada x Gasto sem Solar (2026–2051)
+            <TrendingUp className="w-4 h-4 text-emerald-700" />
+            <h4 className="text-xs sm:text-sm font-bold uppercase tracking-wider text-gray-900">
+              Resumo da Projeção de Economia
             </h4>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
             <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
-              Cenário: {tipoCliente === 'residencial' ? 'Residencial (30%)' : 'Comercial (70%)'}
+              {tipoCliente === 'residencial'
+                ? 'Autoconsumo Residencial (30%)'
+                : 'Autoconsumo Comercial (70%)'}
             </span>
             <span
               className="text-[10px] font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-300"
-              title="Degradação dos módulos: LID 2% no 1º ano e 0,55% a.a., resultando em 84,80% no ano 25"
+              title="Degradação dos módulos: LID 2% no 1º ano e 0,55% a.a."
             >
               Degradação: LID 2% + 0,55% a.a.
             </span>
-            <span
-              className={`text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-md border ${
-                possuiDadosBancoParaTipo
-                  ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
-                  : 'bg-amber-100 text-amber-800 border-amber-300'
-              }`}
-            >
-              {possuiDadosBancoParaTipo ? 'Planilha Oficial' : 'Estimativa 9% a.a.'}
-            </span>
           </div>
         </div>
 
-        <div className="bg-slate-50/70 rounded-xl p-3 border border-gray-200">
-          <div className="w-full h-64 sm:h-72">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={dadosGrafico} margin={{ top: 10, right: 20, left: 10, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                <XAxis
-                  dataKey="ano"
-                  tick={{ fontSize: 11, fill: '#4b5563' }}
-                  tickLine={false}
-                  interval={2}
-                />
-                <YAxis
-                  tick={{ fontSize: 10, fill: '#6b7280' }}
-                  tickFormatter={formatarMoedaCompacta}
-                  width={68}
-                />
-                <RechartsTooltip
-                  formatter={(value: unknown, name: unknown) => {
-                    const num = typeof value === 'number' ? value : Number(value) || 0
-                    const label = String(name || '')
-                    return [formatCurrency(num), label]
-                  }}
-                  labelFormatter={(label) => `Ano ${label}`}
-                  contentStyle={{
-                    backgroundColor: '#ffffff',
-                    borderRadius: '0.75rem',
-                    border: '1px solid #d1d5db',
-                    fontSize: '11px',
-                    boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)',
-                  }}
-                />
-                <Legend
-                  verticalAlign="top"
-                  height={32}
-                  wrapperStyle={{ fontSize: '11px', fontWeight: 600 }}
-                />
-                <Line
-                  type="monotone"
-                  dataKey="Economia Acumulada"
-                  stroke="#16A34A"
-                  strokeWidth={3}
-                  dot={{ r: 2, fill: '#16A34A' }}
-                  activeDot={{ r: 5 }}
-                />
-                <Line
-                  type="monotone"
-                  dataKey="Gasto s/ Solar"
-                  stroke="#DC2626"
-                  strokeWidth={2}
-                  strokeDasharray="4 4"
-                  dot={false}
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-      </div>
-
-      {/* TABELA ANO A ANO (2026 A 2051 - 26 ANOS) */}
-      <div className="p-4 sm:p-5 pt-0 space-y-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <TableIcon className="w-4 h-4 text-emerald-600" />
-            <h4 className="text-xs sm:text-sm font-bold uppercase tracking-wider text-gray-800">
-              Tabela Projeção Ano a Ano ({projecao.anoInicial}–{projecao.anoFinal})
-            </h4>
-          </div>
-          <span className="text-[11px] text-gray-500 font-medium">
-            {projecao.totalAnos} anos • Scroll horizontal/vertical
-          </span>
-        </div>
-
-        {/* Container compacto com scroll vertical (máx 340px) */}
-        <div className="border border-gray-200 rounded-xl overflow-hidden shadow-2xs">
-          <div className="overflow-x-auto max-h-80 overflow-y-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-gray-100/90 sticky top-0 z-10 border-b border-gray-200 text-gray-600 uppercase text-[10px] font-black tracking-wider shadow-2xs">
-                <tr>
-                  <th className="py-2.5 px-3 whitespace-nowrap">Ano</th>
-                  <th className="py-2.5 px-3 text-right whitespace-nowrap">Consumo (kWh)</th>
-                  <th className="py-2.5 px-3 text-right whitespace-nowrap">Tarifa (R$/kWh)</th>
-                  <th className="py-2.5 px-3 text-right whitespace-nowrap">Fio B (R$/kWh)</th>
-                  <th className="py-2.5 px-3 text-right whitespace-nowrap bg-emerald-50 text-emerald-900 font-black">
-                    GD Eco Líquida (R$/kWh)
-                  </th>
-                  <th
-                    className="py-2.5 px-3 text-right whitespace-nowrap bg-slate-50 text-slate-800 font-bold"
-                    title="Potência útil remanescente após degradação (LID 2% no ano 1 + 0,55% a.a.)"
-                  >
-                    Geração / Módulos
-                  </th>
-                  <th className="py-2.5 px-3 text-right whitespace-nowrap text-emerald-800 font-black">
-                    Economia Acumulada (R$)
-                  </th>
-                  <th className="py-2.5 px-3 text-right whitespace-nowrap text-red-700 font-bold">
-                    Gasto Acumulado sem Solar (R$)
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {projecao.linhas.map((linha, index) => {
-                  const isPar = index % 2 === 0
-                  const isAno25 = linha.ano === 2050 || index === 24
-                  return (
-                    <tr
-                      key={linha.ano}
-                      className={`hover:bg-emerald-50/50 transition-colors ${
-                        isAno25
-                          ? 'bg-amber-50/60 font-semibold'
-                          : isPar
-                            ? 'bg-white'
-                            : 'bg-gray-50/40'
-                      }`}
-                    >
-                      <td className="py-2 px-3 font-bold text-gray-900 whitespace-nowrap">
-                        {linha.ano}
-                        {index === 0 && (
-                          <span className="ml-1 text-[9px] px-1 py-0.2 rounded bg-emerald-100 text-emerald-800 font-bold">
-                            Ano 1
-                          </span>
-                        )}
-                        {isAno25 && (
-                          <span className="ml-1 text-[9px] px-1 py-0.2 rounded bg-amber-200 text-amber-900 font-bold">
-                            25 anos
-                          </span>
-                        )}
-                      </td>
-                      <td className="py-2 px-3 text-right text-gray-700 whitespace-nowrap">
-                        {formatarKwh(linha.consumoKwhAno)}
-                      </td>
-                      <td className="py-2 px-3 text-right text-gray-700 whitespace-nowrap">
-                        R$ {(Number(linha.tarifaKwh) || 0).toFixed(4).replace('.', ',')}
-                      </td>
-                      <td className="py-2 px-3 text-right text-gray-600 whitespace-nowrap">
-                        R$ {(Number(linha.fioBKwh) || 0).toFixed(4).replace('.', ',')}
-                      </td>
-                      <td className="py-2 px-3 text-right font-bold text-emerald-700 bg-emerald-50/40 whitespace-nowrap">
-                        R$ {(Number(linha.gdEcoLiquidaKwh) || 0).toFixed(4).replace('.', ',')}
-                      </td>
-                      <td
-                        className="py-2 px-3 text-right text-slate-700 bg-slate-50/50 whitespace-nowrap font-medium"
-                        title={`Fator de degradação: ${((Number(linha.fatorDegradacao) || 0) * 100).toFixed(2)}% | Economia anual efetiva: ${formatCurrency(linha.economiaAnual)}`}
-                      >
-                        {((Number(linha.fatorDegradacao) || 0) * 100).toFixed(2).replace('.', ',')}%
-                      </td>
-                      <td className="py-2 px-3 text-right font-black text-emerald-700 whitespace-nowrap">
-                        {formatCurrency(linha.economiaAcumulada)}
-                      </td>
-                      <td className="py-2 px-3 text-right font-semibold text-red-700 whitespace-nowrap">
-                        {formatCurrency(linha.gastoSemSolarAcumulado)}
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-
-      {/* PARTE INFERIOR: RESUMO CONSOLIDADO (25 ANOS, SEM SOLAR E VALOR PERDIDO POR MÊS) */}
-      <div className="p-4 sm:p-5 bg-gradient-to-br from-gray-50 to-emerald-50/30 border-t border-gray-200 space-y-4">
-        <div className="flex items-center gap-2">
-          <TrendingUp className="w-4 h-4 text-emerald-700" />
-          <h4 className="text-xs font-bold uppercase tracking-wider text-gray-900">
-            Resumo Consolidado do Investimento Solar
-          </h4>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
+        {/* CARDS GRANDES DE RESUMO */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {/* Card 1: Economia Total Acumulada em 25 anos */}
-          <div className="bg-white p-4 rounded-xl border border-emerald-300 shadow-2xs flex flex-col justify-between relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-16 h-16 bg-emerald-500/10 rounded-bl-full pointer-events-none" />
+          <div className="bg-white p-5 rounded-2xl border border-emerald-300 shadow-sm flex flex-col justify-between relative overflow-hidden group hover:border-emerald-400 transition-all">
+            <div className="absolute top-0 right-0 w-20 h-20 bg-emerald-500/10 rounded-bl-full pointer-events-none" />
             <div>
               <span className="text-[11px] font-bold uppercase tracking-wide text-emerald-800 block">
                 Economia Total em 25 Anos
               </span>
-              <div className="text-2xl sm:text-3xl font-black text-emerald-700 mt-1">
+              <div className="text-2xl sm:text-3xl font-black text-emerald-700 mt-1 tracking-tight">
                 {formatCurrency(projecao.economiaTotal25Anos)}
               </div>
-              <p className="text-[11px] text-gray-500 mt-1">
-                Acumulado líquido dos primeiros 25 anos com degradação (período total:{' '}
-                {formatCurrency(projecao.economiaTotal26Anos)})
+              <p className="text-xs text-gray-500 mt-1.5 leading-relaxed">
+                Total acumulado líquido economizado na fatura durante o ciclo de 25 anos com
+                degradação considerada.
               </p>
             </div>
-            <div className="pt-2 mt-3 border-t border-gray-100 flex items-center justify-between text-[10px] text-emerald-800 font-semibold">
-              <span>Fator FS: {Math.round(projecao.fatorSimultaneidade * 100)}%</span>
-              <span>Degradação: LID 2% + 0,55% a.a.</span>
+            <div className="pt-3 mt-4 border-t border-gray-100 flex items-center justify-between text-[11px] text-emerald-800 font-semibold">
+              <span>Período total (26 anos):</span>
+              <span className="font-bold">{formatCurrency(projecao.economiaTotal26Anos)}</span>
             </div>
           </div>
 
           {/* Card 2: Gasto Total Sem Solar em 25 anos */}
-          <div className="bg-white p-4 rounded-xl border border-red-200 shadow-2xs flex flex-col justify-between relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-16 h-16 bg-red-500/10 rounded-bl-full pointer-events-none" />
+          <div className="bg-white p-5 rounded-2xl border border-red-200 shadow-sm flex flex-col justify-between relative overflow-hidden group hover:border-red-300 transition-all">
+            <div className="absolute top-0 right-0 w-20 h-20 bg-red-500/10 rounded-bl-full pointer-events-none" />
             <div>
               <span className="text-[11px] font-bold uppercase tracking-wide text-red-900 block">
                 Gasto Total Sem Solar em 25 Anos
               </span>
-              <div className="text-2xl sm:text-3xl font-black text-red-700 mt-1">
+              <div className="text-2xl sm:text-3xl font-black text-red-700 mt-1 tracking-tight">
                 {formatCurrency(projecao.gastoTotalSemSolar25Anos)}
               </div>
-              <p className="text-[11px] text-gray-500 mt-1">
-                Valor pago à concessionária sem retorno (período total:{' '}
-                {formatCurrency(projecao.gastoTotalSemSolar26Anos)})
+              <p className="text-xs text-gray-500 mt-1.5 leading-relaxed">
+                Total desembolsado à concessionária sem retorno patrimonial, considerando a inflação
+                da tarifa de energia.
               </p>
             </div>
-            <div className="pt-2 mt-3 border-t border-gray-100 flex items-center justify-between text-[10px] text-red-800 font-semibold">
-              <span>Dinheiro desperdiçado</span>
-              <span>Inflação tarifária contínua</span>
+            <div className="pt-3 mt-4 border-t border-gray-100 flex items-center justify-between text-[11px] text-red-800 font-semibold">
+              <span>Período total (26 anos):</span>
+              <span className="font-bold">{formatCurrency(projecao.gastoTotalSemSolar26Anos)}</span>
             </div>
           </div>
 
-          {/* Card 3: Valor Perdido a Cada Mês de Postergação (DESTAQUE MÁXIMO) */}
-          <div className="bg-gradient-to-br from-amber-500 via-amber-600 to-orange-600 text-white p-4 rounded-xl shadow-sm flex flex-col justify-between relative overflow-hidden">
-            <div className="absolute -top-3 -right-3 w-16 h-16 bg-white/10 rounded-full pointer-events-none" />
+          {/* Card 3: Custo de Postergação (Valor Perdido por Mês) */}
+          <div className="bg-gradient-to-br from-amber-500 via-amber-600 to-orange-600 text-white p-5 rounded-2xl shadow-sm flex flex-col justify-between relative overflow-hidden">
+            <div className="absolute -top-3 -right-3 w-20 h-20 bg-white/10 rounded-full pointer-events-none" />
             <div>
               <div className="flex items-center gap-1.5 text-[11px] font-extrabold uppercase tracking-wide text-amber-100">
                 <AlertTriangle className="w-4 h-4 text-amber-200 animate-pulse" />
                 <span>Custo de Postergação</span>
               </div>
-              <div className="text-2xl sm:text-3xl font-black text-white mt-1">
+              <div className="text-2xl sm:text-3xl font-black text-white mt-1 tracking-tight">
                 {formatCurrency(projecao.valorPerdidoPorMesPostergacao)}
                 <span className="text-sm font-bold text-amber-100"> /mês</span>
               </div>
-              <p className="text-[11px] text-amber-100 mt-1 leading-snug">
-                Cada mês sem instalar energia solar custa{' '}
+              <p className="text-xs text-amber-100 mt-1.5 leading-snug">
+                Cada mês sem energia solar representa{' '}
                 <strong>{formatCurrency(projecao.valorPerdidoPorMesPostergacao)}</strong> pagos à
-                concessionária que não retornam mais.
+                concessionária que não retornam.
               </p>
             </div>
-            <div className="pt-2 mt-3 border-t border-white/20 flex items-center justify-between text-[10px] text-amber-100 font-bold">
-              <span>Economia Ano 1 (98% LID): {formatCurrency(projecao.economiaPrimeiroAno)}</span>
+            <div className="pt-3 mt-4 border-t border-white/20 flex items-center justify-between text-[11px] text-amber-100 font-bold">
+              <span>Economia Ano 1: {formatCurrency(projecao.economiaPrimeiroAno)}</span>
               <span>÷ 12 meses</span>
             </div>
+          </div>
+        </div>
+
+        {/* CARD DO PAYBACK ABAIXO DOS CARDS DE RESUMO */}
+        <div className="bg-white rounded-2xl p-5 sm:p-6 border-2 border-amber-400/80 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 relative overflow-hidden">
+          <div className="absolute -right-8 -bottom-8 w-32 h-32 bg-amber-400/10 rounded-full pointer-events-none" />
+          <div className="flex items-start gap-4">
+            <div className="w-12 h-12 rounded-2xl bg-amber-100 text-amber-800 border border-amber-300 flex items-center justify-center shrink-0 shadow-2xs">
+              <Clock className="w-6 h-6 text-amber-700" />
+            </div>
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] font-black uppercase tracking-wider text-amber-900 bg-amber-100 px-2 py-0.5 rounded-md border border-amber-200">
+                  Tempo de Retorno do Investimento
+                </span>
+                <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
+                  Retorno Garantido
+                </span>
+              </div>
+              <h4 className="text-sm font-bold text-gray-800">Payback Estimado</h4>
+              <p className="text-xs text-gray-600 max-w-xl leading-relaxed">
+                Tempo necessário para que a economia na conta de energia pague 100% do investimento
+                no sistema solar. Após esse prazo, toda a economia gerada passa a ser lucro líquido
+                direto.
+              </p>
+            </div>
+          </div>
+
+          <div className="bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-300 rounded-xl p-3.5 sm:p-4 text-center sm:text-right shrink-0 w-full sm:w-auto shadow-2xs">
+            <span className="text-[10px] uppercase font-bold text-amber-800 block">
+              Payback do Sistema
+            </span>
+            <div className="text-2xl sm:text-3xl font-black text-amber-700 tracking-tight my-0.5">
+              {infoPayback.texto}
+            </div>
+            {infoPayback.anoCalendario && (
+              <span className="text-[11px] font-semibold text-amber-900 block">
+                Quitação prevista: ~{infoPayback.anoCalendario}
+              </span>
+            )}
           </div>
         </div>
       </div>

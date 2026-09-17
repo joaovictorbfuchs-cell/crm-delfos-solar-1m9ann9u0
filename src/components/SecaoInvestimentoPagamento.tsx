@@ -44,6 +44,14 @@ export interface SecaoInvestimentoPagamentoProps {
   valorParcelaFinanciamentoB?: number | null
   /** Valor da conta de energia atual paga à concessionária (R$/mês) */
   contaMensalAtual?: number | null
+  /** Valor estimado da fatura de energia pós-solar (taxa mínima / disponibilidade / Fio B) em R$/mês */
+  faturaMensalComSolar?: number | null
+  /** Alias aceito para faturaMensalComSolar */
+  contaMensalComSolar?: number | null
+  /** Fatura com solar específica por modalidade (opcional) */
+  contaComSolarCartao?: number | null
+  contaComSolarFinanA?: number | null
+  contaComSolarFinanB?: number | null
   /** Validade da proposta em dias (fallback: 5 dias) */
   validadeDias?: number | null
   /** Nome do cliente para contextualização */
@@ -84,26 +92,50 @@ export const SecaoInvestimentoPagamento: React.FC<SecaoInvestimentoPagamentoProp
   parcelasFinanciamentoB,
   valorParcelaFinanciamentoB,
   contaMensalAtual,
+  faturaMensalComSolar,
+  contaMensalComSolar,
+  contaComSolarCartao,
+  contaComSolarFinanA,
+  contaComSolarFinanB,
   validadeDias,
   nomeCliente,
   className = '',
 }) => {
-  // =========================================================================
-  // DADOS COM RESOLUÇÃO PRIORITÁRIA E FALLBACKS ESPECIFICADOS
-  // Fallbacks do usuário:
-  // - Valor total: R$ 45.000
-  // - À vista: R$ 42.750 (5% desconto, economia R$ 2.250)
-  // - Cartão: 12x de R$ 3.750 sem juros
-  // - Financiamento A: entrada R$ 9.000 + 60x de R$ 720
-  // - Financiamento B: entrada R$ 4.500 + 120x de R$ 450
-  // - Conta atual: R$ 928,75/mês
-  // - Validade: 5 dias
-  // =========================================================================
-
   const totalFinal =
     valorInvestimento !== undefined && valorInvestimento !== null && valorInvestimento > 0
       ? valorInvestimento
       : 45000
+
+  // Conta de energia atual sem solar
+  const contaAtualFinal =
+    contaMensalAtual !== undefined && contaMensalAtual !== null && contaMensalAtual > 0
+      ? contaMensalAtual
+      : 928.75
+
+  // Fatura mensal residual COM solar (taxa mínima da concessionária)
+  const faturaComSolarFinal =
+    faturaMensalComSolar !== undefined && faturaMensalComSolar !== null && faturaMensalComSolar >= 0
+      ? faturaMensalComSolar
+      : contaMensalComSolar !== undefined &&
+          contaMensalComSolar !== null &&
+          contaMensalComSolar >= 0
+        ? contaMensalComSolar
+        : 70
+
+  const contaSolarCartao =
+    contaComSolarCartao !== undefined && contaComSolarCartao !== null && contaComSolarCartao >= 0
+      ? contaComSolarCartao
+      : faturaComSolarFinal
+
+  const contaSolarFinanA =
+    contaComSolarFinanA !== undefined && contaComSolarFinanA !== null && contaComSolarFinanA >= 0
+      ? contaComSolarFinanA
+      : faturaComSolarFinal
+
+  const contaSolarFinanB =
+    contaComSolarFinanB !== undefined && contaComSolarFinanB !== null && contaComSolarFinanB >= 0
+      ? contaComSolarFinanB
+      : faturaComSolarFinal
 
   // 1. À Vista (se não informado, aplica 5% sobre totalFinal ou valorAVista explícito)
   const aVistaFinal =
@@ -169,11 +201,10 @@ export const SecaoInvestimentoPagamento: React.FC<SecaoInvestimentoPagamentoProp
       ? valorParcelaFinanciamentoB
       : 450
 
-  // Conta de energia atual
-  const contaAtualFinal =
-    contaMensalAtual !== undefined && contaMensalAtual !== null && contaMensalAtual > 0
-      ? contaMensalAtual
-      : 928.75
+  // Totais mensais somando fatura com solar + parcela
+  const totalMensalCartao = contaSolarCartao + valorParcelaCartaoFinal
+  const totalMensalFinanA = contaSolarFinanA + valorParcelaFinanAFinal
+  const totalMensalFinanB = contaSolarFinanB + valorParcelaFinanBFinal
 
   // Validade
   const diasValidadeFinal =
@@ -257,105 +288,174 @@ export const SecaoInvestimentoPagamento: React.FC<SecaoInvestimentoPagamentoProp
               </div>
             </div>
 
-            <div className="pt-4 mt-3 border-t border-gray-100 text-[11px] text-gray-500 flex items-center justify-between font-medium">
-              <span>Desconto de 5%</span>
-              <span className="font-bold text-emerald-700">Quitação imediata</span>
+            <div className="pt-3 mt-3 border-t border-gray-100 space-y-1.5 text-[11px]">
+              <div className="flex items-center justify-between text-gray-500">
+                <span>Custo com energia atual:</span>
+                <span className="font-bold text-red-600">
+                  {formatCurrency(contaAtualFinal)}/mês
+                </span>
+              </div>
+              <div className="flex items-center justify-between text-emerald-800 font-bold bg-emerald-50 px-2 py-1 rounded-md border border-emerald-200">
+                <span>Fatura pós-solar:</span>
+                <span>{formatCurrency(faturaComSolarFinal)}/mês</span>
+              </div>
             </div>
           </div>
 
           {/* CARD 2: CARTÃO */}
           <div className="relative bg-white rounded-2xl p-5 border border-gray-200 shadow-sm hover:shadow-md hover:border-emerald-300 transition-all flex flex-col justify-between group">
-            <div className="flex items-center justify-between mb-3">
-              <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-700 border border-blue-200 flex items-center justify-center shrink-0">
-                <CreditCard className="w-5 h-5" />
-              </div>
-              <span className="text-[11px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-800 border border-blue-200">
-                Parcele em até {parcelasCartaoFinal}x
-              </span>
-            </div>
-
-            <div className="space-y-1 my-2">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-gray-500">Cartão</h3>
-              <div className="text-2xl sm:text-3xl font-black text-gray-900 tracking-tight">
-                <span className="text-lg font-bold text-gray-600">{parcelasCartaoFinal}x de </span>
-                {formatCurrency(valorParcelaCartaoFinal)}
-              </div>
-              <div className="pt-1">
-                <span className="inline-flex items-center gap-1 text-xs font-extrabold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-200">
-                  {cartaoSemJuros ? 'Sem juros' : 'Condição facilitada'}
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-700 border border-blue-200 flex items-center justify-center shrink-0">
+                  <CreditCard className="w-5 h-5" />
+                </div>
+                <span className="text-[11px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-800 border border-blue-200">
+                  Parcele em até {parcelasCartaoFinal}x
                 </span>
               </div>
+
+              <div className="space-y-1 my-2">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-gray-500">Cartão</h3>
+                <div className="text-2xl sm:text-3xl font-black text-gray-900 tracking-tight">
+                  <span className="text-lg font-bold text-gray-600">
+                    {parcelasCartaoFinal}x de{' '}
+                  </span>
+                  {formatCurrency(valorParcelaCartaoFinal)}
+                </div>
+                <div className="pt-1">
+                  <span className="inline-flex items-center gap-1 text-xs font-extrabold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-200">
+                    {cartaoSemJuros ? 'Sem juros' : 'Condição facilitada'}
+                  </span>
+                </div>
+              </div>
             </div>
 
-            <div className="pt-4 mt-3 border-t border-gray-100 text-[11px] text-gray-500 flex items-center justify-between font-medium">
-              <span>Total no cartão:</span>
-              <span className="font-bold text-gray-800">
-                {formatCurrency(valorParcelaCartaoFinal * parcelasCartaoFinal)}
-              </span>
+            {/* Comparativo: Fatura com Solar + Parcela e Custo Atual */}
+            <div className="pt-3 mt-3 border-t border-gray-100 space-y-1.5 text-[11px]">
+              <div className="p-2 rounded-lg bg-blue-50/70 border border-blue-200/70 space-y-0.5">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-blue-900 block">
+                  Fatura mensal com solar + parcela:
+                </span>
+                <div className="font-black text-blue-950 text-xs">
+                  {formatCurrency(contaSolarCartao + valorParcelaCartaoFinal)}/mês
+                  <span className="font-normal text-blue-800 text-[10px] block sm:inline sm:ml-1">
+                    ({formatCurrency(contaSolarCartao)} conta +{' '}
+                    {formatCurrency(valorParcelaCartaoFinal)} parc.)
+                  </span>
+                </div>
+              </div>
+              <div className="flex items-center justify-between text-[10px] px-1 text-gray-600 font-medium">
+                <span>Custo com energia atual:</span>
+                <strong className="text-red-700 font-bold">
+                  {formatCurrency(contaAtualFinal)}/mês
+                </strong>
+              </div>
             </div>
           </div>
 
           {/* CARD 3: FINANCIAMENTO A */}
           <div className="relative bg-white rounded-2xl p-5 border border-gray-200 shadow-sm hover:shadow-md hover:border-emerald-300 transition-all flex flex-col justify-between group">
-            <div className="flex items-center justify-between mb-3">
-              <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-700 border border-amber-200 flex items-center justify-center shrink-0">
-                <Building2 className="w-5 h-5" />
-              </div>
-              <span className="text-[11px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-200">
-                Menor parcela
-              </span>
-            </div>
-
-            <div className="space-y-1 my-2">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-gray-500">
-                {nomeFinanciamentoA || 'Financiamento A'}
-              </h3>
-              <div className="text-2xl sm:text-3xl font-black text-gray-900 tracking-tight">
-                <span className="text-lg font-bold text-gray-600">{parcelasFinanAFinal}x de </span>
-                {formatCurrency(valorParcelaFinanAFinal)}
-              </div>
-              <div className="pt-1">
-                <span className="inline-flex items-center gap-1 text-xs font-bold text-amber-900 bg-amber-50/80 px-2 py-0.5 rounded-md border border-amber-200">
-                  Entrada: {formatCurrency(entradaFinanAFinal)}
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-700 border border-amber-200 flex items-center justify-center shrink-0">
+                  <Building2 className="w-5 h-5" />
+                </div>
+                <span className="text-[11px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-200">
+                  Menor parcela
                 </span>
               </div>
+
+              <div className="space-y-1 my-2">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-gray-500">
+                  {nomeFinanciamentoA || 'Financiamento A'}
+                </h3>
+                <div className="text-2xl sm:text-3xl font-black text-gray-900 tracking-tight">
+                  <span className="text-lg font-bold text-gray-600">
+                    {parcelasFinanAFinal}x de{' '}
+                  </span>
+                  {formatCurrency(valorParcelaFinanAFinal)}
+                </div>
+                <div className="pt-1">
+                  <span className="inline-flex items-center gap-1 text-xs font-bold text-amber-900 bg-amber-50/80 px-2 py-0.5 rounded-md border border-amber-200">
+                    Entrada: {formatCurrency(entradaFinanAFinal)}
+                  </span>
+                </div>
+              </div>
             </div>
 
-            <div className="pt-4 mt-3 border-t border-gray-100 text-[11px] text-gray-500 flex items-center justify-between font-medium">
-              <span>Prazo intermediário</span>
-              <span className="font-bold text-gray-800">{parcelasFinanAFinal} meses</span>
+            {/* Comparativo: Fatura com Solar + Parcela e Custo Atual */}
+            <div className="pt-3 mt-3 border-t border-gray-100 space-y-1.5 text-[11px]">
+              <div className="p-2 rounded-lg bg-amber-50/70 border border-amber-200/70 space-y-0.5">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-amber-900 block">
+                  Fatura mensal com solar + parcela:
+                </span>
+                <div className="font-black text-amber-950 text-xs">
+                  {formatCurrency(contaSolarFinanA + valorParcelaFinanAFinal)}/mês
+                  <span className="font-normal text-amber-800 text-[10px] block sm:inline sm:ml-1">
+                    ({formatCurrency(contaSolarFinanA)} conta +{' '}
+                    {formatCurrency(valorParcelaFinanAFinal)} parc.)
+                  </span>
+                </div>
+              </div>
+              <div className="flex items-center justify-between text-[10px] px-1 text-gray-600 font-medium">
+                <span>Custo com energia atual:</span>
+                <strong className="text-red-700 font-bold">
+                  {formatCurrency(contaAtualFinal)}/mês
+                </strong>
+              </div>
             </div>
           </div>
 
           {/* CARD 4: FINANCIAMENTO B */}
           <div className="relative bg-white rounded-2xl p-5 border border-gray-200 shadow-sm hover:shadow-md hover:border-emerald-300 transition-all flex flex-col justify-between group">
-            <div className="flex items-center justify-between mb-3">
-              <div className="w-10 h-10 rounded-xl bg-purple-50 text-purple-700 border border-purple-200 flex items-center justify-center shrink-0">
-                <Landmark className="w-5 h-5" />
-              </div>
-              <span className="text-[11px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-purple-100 text-purple-900 border border-purple-200">
-                Maior prazo
-              </span>
-            </div>
-
-            <div className="space-y-1 my-2">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-gray-500">
-                {nomeFinanciamentoB || 'Financiamento B'}
-              </h3>
-              <div className="text-2xl sm:text-3xl font-black text-gray-900 tracking-tight">
-                <span className="text-lg font-bold text-gray-600">{parcelasFinanBFinal}x de </span>
-                {formatCurrency(valorParcelaFinanBFinal)}
-              </div>
-              <div className="pt-1">
-                <span className="inline-flex items-center gap-1 text-xs font-bold text-purple-900 bg-purple-50/80 px-2 py-0.5 rounded-md border border-purple-200">
-                  Entrada: {formatCurrency(entradaFinanBFinal)}
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <div className="w-10 h-10 rounded-xl bg-purple-50 text-purple-700 border border-purple-200 flex items-center justify-center shrink-0">
+                  <Landmark className="w-5 h-5" />
+                </div>
+                <span className="text-[11px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-purple-100 text-purple-900 border border-purple-200">
+                  Maior prazo
                 </span>
               </div>
+
+              <div className="space-y-1 my-2">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-gray-500">
+                  {nomeFinanciamentoB || 'Financiamento B'}
+                </h3>
+                <div className="text-2xl sm:text-3xl font-black text-gray-900 tracking-tight">
+                  <span className="text-lg font-bold text-gray-600">
+                    {parcelasFinanBFinal}x de{' '}
+                  </span>
+                  {formatCurrency(valorParcelaFinanBFinal)}
+                </div>
+                <div className="pt-1">
+                  <span className="inline-flex items-center gap-1 text-xs font-bold text-purple-900 bg-purple-50/80 px-2 py-0.5 rounded-md border border-purple-200">
+                    Entrada: {formatCurrency(entradaFinanBFinal)}
+                  </span>
+                </div>
+              </div>
             </div>
 
-            <div className="pt-4 mt-3 border-t border-gray-100 text-[11px] text-gray-500 flex items-center justify-between font-medium">
-              <span>Prazo longo</span>
-              <span className="font-bold text-gray-800">{parcelasFinanBFinal} meses</span>
+            {/* Comparativo: Fatura com Solar + Parcela e Custo Atual */}
+            <div className="pt-3 mt-3 border-t border-gray-100 space-y-1.5 text-[11px]">
+              <div className="p-2 rounded-lg bg-purple-50/70 border border-purple-200/70 space-y-0.5">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-purple-900 block">
+                  Fatura mensal com solar + parcela:
+                </span>
+                <div className="font-black text-purple-950 text-xs">
+                  {formatCurrency(contaSolarFinanB + valorParcelaFinanBFinal)}/mês
+                  <span className="font-normal text-purple-800 text-[10px] block sm:inline sm:ml-1">
+                    ({formatCurrency(contaSolarFinanB)} conta +{' '}
+                    {formatCurrency(valorParcelaFinanBFinal)} parc.)
+                  </span>
+                </div>
+              </div>
+              <div className="flex items-center justify-between text-[10px] px-1 text-gray-600 font-medium">
+                <span>Custo com energia atual:</span>
+                <strong className="text-red-700 font-bold">
+                  {formatCurrency(contaAtualFinal)}/mês
+                </strong>
+              </div>
             </div>
           </div>
         </div>

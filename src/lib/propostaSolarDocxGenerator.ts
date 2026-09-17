@@ -206,6 +206,7 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
   const paybackAnosInt = Math.floor(paybackMesesCalculado / 12)
   const paybackMesesInt = Math.round(paybackMesesCalculado % 12)
   const paybackTextoFinal = `${paybackAnosInt} anos e ${paybackMesesInt} meses`
+  const anoPayback = 2026 + Math.ceil(paybackMesesCalculado / 12)
 
   // Período de payback arredondado PARA CIMA até fechar um ano inteiro (ex.: 22 meses -> 2 anos; 25 meses -> 3 anos)
   const anosPaybackArredondado =
@@ -1212,7 +1213,8 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
   )
 
   // ----------------------------------------------------
-  // SEÇÃO 4: PROJEÇÃO DE ECONOMIA NA CONTA DE ENERGIA (2026–2051)
+  // SEÇÃO 4: PROJEÇÃO DE ECONOMIA NA CONTA DE ENERGIA
+  // Cards de resumo + Card do Payback abaixo
   // ----------------------------------------------------
   docChildren.push(
     new Table({
@@ -1223,8 +1225,8 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
           children: [
             new TableCell({
               width: { size: PAGE_CONTENT_WIDTH, type: WidthType.DXA },
-              shading: { type: ShadingType.CLEAR, fill: '065F46' },
-              margins: { top: 100, bottom: 100, left: 140, right: 140 },
+              shading: { type: ShadingType.CLEAR, fill: COLOR_PRIMARY },
+              margins: { top: 120, bottom: 120, left: 140, right: 140 },
               children: [
                 new Paragraph({
                   children: [
@@ -1264,201 +1266,179 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
     }),
   )
 
-  const projColWidth = Math.floor(PAGE_CONTENT_WIDTH / 6)
-  const headerProjecao = new TableRow({
-    children: [
-      new TableCell({
-        width: { size: projColWidth, type: WidthType.DXA },
-        shading: { type: ShadingType.CLEAR, fill: COLOR_PRIMARY },
-        children: [
-          new Paragraph({
-            children: [
-              new TextRun({ text: 'ANO', bold: true, color: 'FFFFFF', size: 15, font: 'Arial' }),
-            ],
-          }),
-        ],
-      }),
-      new TableCell({
-        width: { size: projColWidth, type: WidthType.DXA },
-        shading: { type: ShadingType.CLEAR, fill: COLOR_PRIMARY },
-        children: [
-          new Paragraph({
-            children: [
-              new TextRun({ text: 'TARIFA', bold: true, color: 'FFFFFF', size: 15, font: 'Arial' }),
-            ],
-          }),
-        ],
-      }),
-      new TableCell({
-        width: { size: projColWidth, type: WidthType.DXA },
-        shading: { type: ShadingType.CLEAR, fill: COLOR_PRIMARY },
-        children: [
-          new Paragraph({
-            children: [
-              new TextRun({ text: 'FIO B', bold: true, color: 'FFFFFF', size: 15, font: 'Arial' }),
-            ],
-          }),
-        ],
-      }),
-      new TableCell({
-        width: { size: projColWidth, type: WidthType.DXA },
-        shading: { type: ShadingType.CLEAR, fill: COLOR_PRIMARY },
-        children: [
-          new Paragraph({
-            children: [
-              new TextRun({
-                text: 'GD ECO LÍQ.',
-                bold: true,
-                color: 'FFFFFF',
-                size: 15,
-                font: 'Arial',
-              }),
-            ],
-          }),
-        ],
-      }),
-      new TableCell({
-        width: { size: projColWidth, type: WidthType.DXA },
-        shading: { type: ShadingType.CLEAR, fill: COLOR_PRIMARY },
-        children: [
-          new Paragraph({
-            children: [
-              new TextRun({
-                text: 'ECONOMIA ANO',
-                bold: true,
-                color: 'FFFFFF',
-                size: 15,
-                font: 'Arial',
-              }),
-            ],
-          }),
-        ],
-      }),
-      new TableCell({
-        width: { size: projColWidth, type: WidthType.DXA },
-        shading: { type: ShadingType.CLEAR, fill: COLOR_PRIMARY },
-        children: [
-          new Paragraph({
-            children: [
-              new TextRun({
-                text: 'ECON. ACUMULADA',
-                bold: true,
-                color: 'FFFFFF',
-                size: 15,
-                font: 'Arial',
-              }),
-            ],
-          }),
-        ],
-      }),
-    ],
-  })
-
-  // Exibir linhas chave (anos iniciais, ano 5, 10, 15, 20 e 25) para compacidade e legibilidade no Word
-  const linhasFiltradasWord = projecaoOficial.linhas.filter(
-    (l, idx) => idx <= 4 || idx === 9 || idx === 14 || idx === 19 || idx === 24,
-  )
-
-  const rowsProjecao = [headerProjecao]
-  for (const l of linhasFiltradasWord) {
-    const isDestaque = l.ano === 2030 || l.ano === 2050
-    rowsProjecao.push(
-      new TableRow({
-        children: [
-          new TableCell({
-            width: { size: projColWidth, type: WidthType.DXA },
-            shading: isDestaque ? { type: ShadingType.CLEAR, fill: COLOR_LIGHT_BG } : undefined,
-            children: [
-              new Paragraph({
-                children: [
-                  new TextRun({ text: String(l.ano), bold: true, size: 15, font: 'Arial' }),
-                ],
-              }),
-            ],
-          }),
-          new TableCell({
-            width: { size: projColWidth, type: WidthType.DXA },
-            shading: isDestaque ? { type: ShadingType.CLEAR, fill: COLOR_LIGHT_BG } : undefined,
-            children: [
-              new Paragraph({
-                children: [
-                  new TextRun({ text: formatNumBR(l.tarifaKwh, 4), size: 15, font: 'Arial' }),
-                ],
-              }),
-            ],
-          }),
-          new TableCell({
-            width: { size: projColWidth, type: WidthType.DXA },
-            shading: isDestaque ? { type: ShadingType.CLEAR, fill: COLOR_LIGHT_BG } : undefined,
-            children: [
-              new Paragraph({
-                children: [
-                  new TextRun({ text: formatNumBR(l.fioBKwh, 4), size: 15, font: 'Arial' }),
-                ],
-              }),
-            ],
-          }),
-          new TableCell({
-            width: { size: projColWidth, type: WidthType.DXA },
-            shading: isDestaque ? { type: ShadingType.CLEAR, fill: COLOR_LIGHT_BG } : undefined,
-            children: [
-              new Paragraph({
-                children: [
-                  new TextRun({
-                    text: formatNumBR(l.gdEcoLiquidaKwh, 4),
-                    bold: true,
-                    color: COLOR_PRIMARY,
-                    size: 15,
-                    font: 'Arial',
-                  }),
-                ],
-              }),
-            ],
-          }),
-          new TableCell({
-            width: { size: projColWidth, type: WidthType.DXA },
-            shading: isDestaque ? { type: ShadingType.CLEAR, fill: COLOR_LIGHT_BG } : undefined,
-            children: [
-              new Paragraph({
-                children: [
-                  new TextRun({
-                    text: formatBRL(l.economiaAnual),
-                    bold: true,
-                    color: COLOR_ACCENT,
-                    size: 15,
-                    font: 'Arial',
-                  }),
-                ],
-              }),
-            ],
-          }),
-          new TableCell({
-            width: { size: projColWidth, type: WidthType.DXA },
-            shading: isDestaque ? { type: ShadingType.CLEAR, fill: COLOR_LIGHT_BG } : undefined,
-            children: [
-              new Paragraph({
-                children: [
-                  new TextRun({
-                    text: formatBRL(l.economiaAcumulada),
-                    bold: true,
-                    color: COLOR_PRIMARY,
-                    size: 15,
-                    font: 'Arial',
-                  }),
-                ],
-              }),
-            ],
-          }),
-        ],
-      }),
-    )
-  }
-
+  // 3 Cards Grandes de Resumo da Projeção de Economia
+  const colWidthResumo = Math.floor(PAGE_CONTENT_WIDTH / 3)
   docChildren.push(
     new Table({
       width: { size: PAGE_CONTENT_WIDTH, type: WidthType.DXA },
       borders: tableBorderDefault,
-      rows: rowsProjecao,
+      rows: [
+        new TableRow({
+          children: [
+            // Card 1: Economia Total em 25 Anos
+            new TableCell({
+              width: { size: colWidthResumo, type: WidthType.DXA },
+              shading: { type: ShadingType.CLEAR, fill: 'ECFDF5' },
+              margins: { top: 100, bottom: 100, left: 100, right: 100 },
+              children: [
+                new Paragraph({
+                  alignment: AlignmentType.CENTER,
+                  children: [
+                    new TextRun({
+                      text: 'ECONOMIA TOTAL EM 25 ANOS\n',
+                      bold: true,
+                      size: 14,
+                      color: '065F46',
+                      font: 'Arial',
+                    }),
+                    new TextRun({
+                      text: formatBRL(projecaoOficial.economiaTotal25Anos),
+                      bold: true,
+                      size: 20,
+                      color: '15803D',
+                      font: 'Arial',
+                    }),
+                    new TextRun({
+                      text: '\nCiclo de 25 anos com degradação',
+                      size: 13,
+                      color: COLOR_TEXT_MUTED,
+                      font: 'Arial',
+                    }),
+                  ],
+                }),
+              ],
+            }),
+            // Card 2: Gasto Total Sem Solar (25 Anos)
+            new TableCell({
+              width: { size: colWidthResumo, type: WidthType.DXA },
+              shading: { type: ShadingType.CLEAR, fill: 'FEF2F2' },
+              margins: { top: 100, bottom: 100, left: 100, right: 100 },
+              children: [
+                new Paragraph({
+                  alignment: AlignmentType.CENTER,
+                  children: [
+                    new TextRun({
+                      text: 'GASTO TOTAL SEM SOLAR (25 ANOS)\n',
+                      bold: true,
+                      size: 14,
+                      color: '991B1B',
+                      font: 'Arial',
+                    }),
+                    new TextRun({
+                      text: formatBRL(projecaoOficial.gastoTotalSemSolar25Anos),
+                      bold: true,
+                      size: 20,
+                      color: 'B91C1C',
+                      font: 'Arial',
+                    }),
+                    new TextRun({
+                      text: '\nDesembolso sem retorno concessionária',
+                      size: 13,
+                      color: COLOR_TEXT_MUTED,
+                      font: 'Arial',
+                    }),
+                  ],
+                }),
+              ],
+            }),
+            // Card 3: Custo de Postergação
+            new TableCell({
+              width: { size: colWidthResumo, type: WidthType.DXA },
+              shading: { type: ShadingType.CLEAR, fill: 'FFF7ED' },
+              margins: { top: 100, bottom: 100, left: 100, right: 100 },
+              children: [
+                new Paragraph({
+                  alignment: AlignmentType.CENTER,
+                  children: [
+                    new TextRun({
+                      text: 'CUSTO DE POSTERGAÇÃO\n',
+                      bold: true,
+                      size: 14,
+                      color: 'C2410C',
+                      font: 'Arial',
+                    }),
+                    new TextRun({
+                      text: `${formatBRL(projecaoOficial.valorPerdidoPorMesPostergacao)} /mês`,
+                      bold: true,
+                      size: 20,
+                      color: 'EA580C',
+                      font: 'Arial',
+                    }),
+                    new TextRun({
+                      text: '\nPerda a cada mês sem energia solar',
+                      size: 13,
+                      color: COLOR_TEXT_MUTED,
+                      font: 'Arial',
+                    }),
+                  ],
+                }),
+              ],
+            }),
+          ],
+        }),
+      ],
+    }),
+  )
+
+  // Card do Payback Abaixo dos Cards de Resumo
+  docChildren.push(
+    new Table({
+      width: { size: PAGE_CONTENT_WIDTH, type: WidthType.DXA },
+      borders: {
+        top: { style: BorderStyle.SINGLE, size: 12, color: 'F59E0B' },
+        bottom: { style: BorderStyle.SINGLE, size: 12, color: 'F59E0B' },
+        left: { style: BorderStyle.SINGLE, size: 12, color: 'F59E0B' },
+        right: { style: BorderStyle.SINGLE, size: 12, color: 'F59E0B' },
+      },
+      rows: [
+        new TableRow({
+          children: [
+            new TableCell({
+              width: { size: PAGE_CONTENT_WIDTH, type: WidthType.DXA },
+              shading: { type: ShadingType.CLEAR, fill: 'FFFBEB' },
+              margins: { top: 120, bottom: 120, left: 140, right: 140 },
+              children: [
+                new Paragraph({
+                  children: [
+                    new TextRun({
+                      text: '⏱️ TEMPO DE RETORNO DO INVESTIMENTO (PAYBACK): ',
+                      bold: true,
+                      size: 15,
+                      color: '92400E',
+                      font: 'Arial',
+                    }),
+                    new TextRun({
+                      text: paybackTextoFinal,
+                      bold: true,
+                      size: 20,
+                      color: 'B45309',
+                      font: 'Arial',
+                    }),
+                    new TextRun({
+                      text: ` (Ano de quitação: ~${anoPayback})`,
+                      bold: true,
+                      size: 15,
+                      color: '78350F',
+                      font: 'Arial',
+                    }),
+                  ],
+                }),
+                new Paragraph({
+                  spacing: { before: 40 },
+                  children: [
+                    new TextRun({
+                      text: 'Tempo necessário para a economia na conta pagar 100% do sistema. A partir daí, toda a geração torna-se patrimônio e lucro líquido.',
+                      size: 14,
+                      color: '92400E',
+                      font: 'Arial',
+                    }),
+                  ],
+                }),
+              ],
+            }),
+          ],
+        }),
+      ],
     }),
   )
 
@@ -1583,7 +1563,7 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
   )
 
   // ----------------------------------------------------
-  // SEÇÃO 6: INVESTIMENTO E CONDIÇÕES DE PAGAMENTO
+  // SEÇÃO 6: INVESTIMENTO E CONDIÇÕES DE PAGAMENTO (LAYOUT 4 CARDS)
   // ----------------------------------------------------
   docChildren.push(
     ...createSectionHeader(
@@ -1734,10 +1714,18 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
                       font: 'Arial',
                     }),
                     new TextRun({
-                      text: 'Direto na maquininha',
-                      size: 13,
-                      color: '3B82F6',
+                      text: `Fatura c/ solar + parcela: ${formatBRL((parcelamentos?.cartao18x?.contaComSolar !== undefined ? parcelamentos.cartao18x.contaComSolar : 70) + cartaoValor)}/mês\n`,
+                      size: 12,
+                      bold: true,
+                      color: '1E40AF',
                       font: 'Arial',
+                    }),
+                    new TextRun({
+                      text: `Custo atual: ${formatBRL(contaHoje)}/mês`,
+                      size: 12,
+                      color: 'DC2626',
+                      font: 'Arial',
+                      bold: true,
                     }),
                   ],
                 }),
@@ -1774,10 +1762,24 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
                       font: 'Arial',
                     }),
                     new TextRun({
-                      text: `Entrada: ${formatBRL(finanAEntrada)}`,
-                      size: 13,
+                      text: `Entrada: ${formatBRL(finanAEntrada)}\n`,
+                      size: 12,
                       color: 'B45309',
                       font: 'Arial',
+                    }),
+                    new TextRun({
+                      text: `Fatura c/ solar + parcela: ${formatBRL((parcelamentos?.financiamentoBanco1?.contaComSolar !== undefined ? parcelamentos.financiamentoBanco1.contaComSolar : 70) + finanAValor)}/mês\n`,
+                      size: 12,
+                      bold: true,
+                      color: '92400E',
+                      font: 'Arial',
+                    }),
+                    new TextRun({
+                      text: `Custo atual: ${formatBRL(contaHoje)}/mês`,
+                      size: 12,
+                      color: 'DC2626',
+                      font: 'Arial',
+                      bold: true,
                     }),
                   ],
                 }),
@@ -1814,10 +1816,24 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
                       font: 'Arial',
                     }),
                     new TextRun({
-                      text: `Entrada: ${formatBRL(finanBEntrada)}`,
-                      size: 13,
+                      text: `Entrada: ${formatBRL(finanBEntrada)}\n`,
+                      size: 12,
                       color: '7E22CE',
                       font: 'Arial',
+                    }),
+                    new TextRun({
+                      text: `Fatura c/ solar + parcela: ${formatBRL((parcelamentos?.financiamentoBanco2?.contaComSolar !== undefined ? parcelamentos.financiamentoBanco2.contaComSolar : 70) + finanBValor)}/mês\n`,
+                      size: 12,
+                      bold: true,
+                      color: '6B21A8',
+                      font: 'Arial',
+                    }),
+                    new TextRun({
+                      text: `Custo atual: ${formatBRL(contaHoje)}/mês`,
+                      size: 12,
+                      color: 'DC2626',
+                      font: 'Arial',
+                      bold: true,
                     }),
                   ],
                 }),

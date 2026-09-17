@@ -994,6 +994,9 @@ export function ModalGerarPropostaTecnicoComercial({
                   }
                   nomeCliente={clienteNome}
                   permitirAjusteConsumo={true}
+                  paybackMeses={orcamento.payback_meses}
+                  paybackTexto={paybackTexto}
+                  valorInvestimento={investimentoTotal}
                 />
               </ErrorBoundary>
 
@@ -1038,6 +1041,12 @@ export function ModalGerarPropostaTecnicoComercial({
                   parcelasFinanciamentoB={nParcelasFinanB}
                   valorParcelaFinanciamentoB={valorParcelaFinanB}
                   contaMensalAtual={contaHoje}
+                  contaMensalComSolar={
+                    orcamento.conta_primeiro_mes_com_solar || (contaHoje > 100 ? 70 : 50)
+                  }
+                  faturaMensalComSolar={
+                    orcamento.conta_primeiro_mes_com_solar || (contaHoje > 100 ? 70 : 50)
+                  }
                   validadeDias={validadeDias}
                   nomeCliente={clienteNome}
                 />

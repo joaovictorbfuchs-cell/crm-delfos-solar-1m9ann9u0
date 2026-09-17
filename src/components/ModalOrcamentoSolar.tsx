@@ -2923,6 +2923,8 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                     tarifaReferenciaInicial={tarifaKwh || 0.985}
                     nomeCliente={clienteAtual?.nome || 'Cliente'}
                     permitirAjusteConsumo={true}
+                    paybackMeses={calculos.paybackMeses}
+                    valorInvestimento={valorInvestimentoFinal}
                   />
                 </ErrorBoundary>
 
@@ -2979,6 +2981,11 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                     contaMensalAtual={
                       calculos.contaAtualSemSolarMes ||
                       (consumoKwhMes && tarifaKwh ? consumoKwhMes * tarifaKwh : undefined)
+                    }
+                    faturaMensalComSolar={
+                      calculos.contaPrimeiroMesComSolar ||
+                      initialOrcamento?.conta_primeiro_mes_com_solar ||
+                      70
                     }
                     validadeDias={initialOrcamento?.validade_dias || 5}
                     nomeCliente={clienteAtual?.nome}
