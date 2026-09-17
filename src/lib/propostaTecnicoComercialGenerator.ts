@@ -874,73 +874,111 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
       line-height: 1.4;
     }
 
-    /* Grid de 4 Cards da Situação Atual */
+    /* Grid de 2 Cards Grandes da Situação Atual (Consumo e Custos com valores mensal/anual empilhados) */
     .grid-situacao-cards {
       display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 10px;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
       margin-bottom: 12px;
     }
     .card-situacao {
       background: #FFFFFF;
-      border: 1px solid #E5E7EB;
-      border-radius: 14px;
-      padding: 12px;
+      border: 1px solid #D1FAE5;
+      border-radius: 16px;
+      padding: 14px 16px;
       box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
       display: flex;
       flex-direction: column;
       justify-content: space-between;
     }
-    .card-situacao.consumo-m { border-color: #BFDBFE; }
-    .card-situacao.consumo-a { border-color: #C7D2FE; }
-    .card-situacao.custo-m { border-color: #FECACA; }
-    .card-situacao.custo-a { border-color: #FDE68A; }
-    .card-situacao-head {
+    .card-situacao-header {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      margin-bottom: 6px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid #F3F4F6;
+      margin-bottom: 8px;
     }
-    .card-situacao-icon {
+    .card-situacao-header-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .card-situacao-header-icon {
       width: 28px;
       height: 28px;
       border-radius: 8px;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 14px;
+      font-size: 13px;
     }
-    .card-situacao.consumo-m .card-situacao-icon { background: #EFF6FF; color: #2563EB; }
-    .card-situacao.consumo-a .card-situacao-icon { background: #EEF2FF; color: #4F46E5; }
-    .card-situacao.custo-m .card-situacao-icon { background: #FEF2F2; color: #DC2626; }
-    .card-situacao.custo-a .card-situacao-icon { background: #FFFBEB; color: #D97706; }
-    .card-situacao-tag {
+    .card-situacao.consumo .card-situacao-header-icon { background: #EFF6FF; color: #2563EB; }
+    .card-situacao.custos .card-situacao-header-icon { background: #FEF2F2; color: #DC2626; }
+    .card-situacao-header-title {
+      font-size: 10px;
+      font-weight: 800;
+      color: #111827;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .card-situacao-header-sub {
+      font-size: 7.5px;
+      color: #6B7280;
+    }
+    .card-situacao-header-badge {
       font-size: 7.5px;
       font-weight: 800;
       text-transform: uppercase;
-      padding: 1px 6px;
+      padding: 2px 7px;
       border-radius: 9999px;
     }
-    .card-situacao.consumo-m .card-situacao-tag { background: #EFF6FF; color: #1D4ED8; border: 1px solid #BFDBFE; }
-    .card-situacao.consumo-a .card-situacao-tag { background: #EEF2FF; color: #4338CA; border: 1px solid #C7D2FE; }
-    .card-situacao.custo-m .card-situacao-tag { background: #FEF2F2; color: #B91C1C; border: 1px solid #FECACA; }
-    .card-situacao.custo-a .card-situacao-tag { background: #FFFBEB; color: #B45309; border: 1px solid #FDE68A; }
+    .card-situacao.consumo .card-situacao-header-badge { background: #EFF6FF; color: #1D4ED8; border: 1px solid #BFDBFE; }
+    .card-situacao.custos .card-situacao-header-badge { background: #FEF2F2; color: #B91C1C; border: 1px solid #FECACA; }
+
+    .card-situacao-row-item {
+      padding: 6px 0;
+    }
+    .card-situacao-row-item.first {
+      border-bottom: 1px dashed #E5E7EB;
+      padding-top: 0;
+    }
+    .card-situacao-row-item.second {
+      padding-bottom: 0;
+    }
+    .card-situacao-row-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 2px;
+    }
     .card-situacao-label {
-      font-size: 9px;
+      font-size: 8.5px;
       font-weight: 700;
       color: #6B7280;
       text-transform: uppercase;
       letter-spacing: 0.04em;
     }
+    .card-situacao-tag {
+      font-size: 7px;
+      font-weight: 800;
+      text-transform: uppercase;
+      padding: 1px 5px;
+      border-radius: 9999px;
+    }
+    .tag-mensal { background: #EFF6FF; color: #1D4ED8; border: 1px solid #BFDBFE; }
+    .tag-anual { background: #EEF2FF; color: #4338CA; border: 1px solid #C7D2FE; }
+    .tag-conta-atual { background: #FEF2F2; color: #B91C1C; border: 1px solid #FECACA; }
+    .tag-gasto-anual { background: #FFFBEB; color: #B45309; border: 1px solid #FDE68A; }
     .card-situacao-valor {
       font-size: 16px;
       font-weight: 900;
       color: #111827;
-      margin: 2px 0 2px 0;
+      margin: 1px 0;
       line-height: 1.15;
     }
-    .card-situacao.custo-m .card-situacao-valor { color: #DC2626; }
-    .card-situacao.custo-a .card-situacao-valor { color: #B45309; }
+    .card-situacao-valor.red { color: #DC2626; }
+    .card-situacao-valor.amber { color: #B45309; }
     .card-situacao-sub {
       font-size: 8px;
       color: #6B7280;
@@ -2144,31 +2182,39 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
           </p>
         </div>
 
-        <!-- 1. Grid Visual em Cards: Consumo Mensal, Consumo Anual, Custo Mensal, Custo Anual -->
+        <!-- 1. Grid Visual em 2 Cards Grandes: Consumo (Mensal + Anual) e Custos (Mensal + Anual) -->
         <div class="grid-situacao-cards">
-          <!-- Card 1: Consumo Mensal -->
-          <div class="card-situacao consumo-m">
-            <div class="card-situacao-head">
-              <div class="card-situacao-icon">⚡</div>
-              <span class="card-situacao-tag">Mensal</span>
+          <!-- Card 1: Consumo de Energia (Mensal em cima, Anual abaixo) -->
+          <div class="card-situacao consumo">
+            <div class="card-situacao-header">
+              <div class="card-situacao-header-left">
+                <div class="card-situacao-header-icon">⚡</div>
+                <div>
+                  <div class="card-situacao-header-title">Consumo de Energia</div>
+                  <div class="card-situacao-header-sub">Volume consumido da concessionária</div>
+                </div>
+              </div>
+              <span class="card-situacao-header-badge">kWh</span>
             </div>
-            <div>
-              <div class="card-situacao-label">Consumo Mensal</div>
+
+            <!-- Bloco Mensal -->
+            <div class="card-situacao-row-item first">
+              <div class="card-situacao-row-top">
+                <div class="card-situacao-label">Consumo Mensal</div>
+                <span class="card-situacao-tag tag-mensal">Mensal</span>
+              </div>
               <div class="card-situacao-valor">
                 ${formatNumBR(consumoKwhMesReal, 0)} <span style="font-size: 11px; font-weight: 700; color: #2563EB;">kWh/mês</span>
               </div>
-              <div class="card-situacao-sub">Média mensal consumida da concessionária</div>
+              <div class="card-situacao-sub">Média mensal de energia consumida da rede</div>
             </div>
-          </div>
 
-          <!-- Card 2: Consumo no Ano -->
-          <div class="card-situacao consumo-a">
-            <div class="card-situacao-head">
-              <div class="card-situacao-icon">📅</div>
-              <span class="card-situacao-tag">Anual</span>
-            </div>
-            <div>
-              <div class="card-situacao-label">Consumo no Ano</div>
+            <!-- Bloco Anual -->
+            <div class="card-situacao-row-item second">
+              <div class="card-situacao-row-top">
+                <div class="card-situacao-label">Consumo no Ano</div>
+                <span class="card-situacao-tag tag-anual">Anual</span>
+              </div>
               <div class="card-situacao-valor">
                 ${formatNumBR(consumoKwhAnoReal, 0)} <span style="font-size: 11px; font-weight: 700; color: #4F46E5;">kWh/ano</span>
               </div>
@@ -2176,33 +2222,41 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
             </div>
           </div>
 
-          <!-- Card 3: Custo Mensal -->
-          <div class="card-situacao custo-m">
-            <div class="card-situacao-head">
-              <div class="card-situacao-icon">💲</div>
-              <span class="card-situacao-tag">Conta Atual</span>
+          <!-- Card 2: Custos com Concessionária (Mensal em cima, Anual abaixo) -->
+          <div class="card-situacao custos">
+            <div class="card-situacao-header">
+              <div class="card-situacao-header-left">
+                <div class="card-situacao-header-icon">💲</div>
+                <div>
+                  <div class="card-situacao-header-title">Custos com Concessionária</div>
+                  <div class="card-situacao-header-sub">Desembolso financeiro sem retorno</div>
+                </div>
+              </div>
+              <span class="card-situacao-header-badge">R$ Reais</span>
             </div>
-            <div>
-              <div class="card-situacao-label">Custo Mensal</div>
-              <div class="card-situacao-valor">
+
+            <!-- Bloco Mensal (Conta Atual) -->
+            <div class="card-situacao-row-item first">
+              <div class="card-situacao-row-top">
+                <div class="card-situacao-label">Custo Mensal</div>
+                <span class="card-situacao-tag tag-conta-atual">Conta Atual</span>
+              </div>
+              <div class="card-situacao-valor red">
                 ${formatBRL(contaHoje)}
               </div>
-              <div class="card-situacao-sub">Despesa média mensal paga todo mês</div>
+              <div class="card-situacao-sub">Despesa média paga todo mês à concessionária</div>
             </div>
-          </div>
 
-          <!-- Card 4: Custo no Ano -->
-          <div class="card-situacao custo-a">
-            <div class="card-situacao-head">
-              <div class="card-situacao-icon">⏱️</div>
-              <span class="card-situacao-tag">Gasto Anual</span>
-            </div>
-            <div>
-              <div class="card-situacao-label">Custo no Ano</div>
-              <div class="card-situacao-valor">
+            <!-- Bloco Anual (Gasto Anual) -->
+            <div class="card-situacao-row-item second">
+              <div class="card-situacao-row-top">
+                <div class="card-situacao-label">Custo no Ano</div>
+                <span class="card-situacao-tag tag-gasto-anual">Gasto Anual</span>
+              </div>
+              <div class="card-situacao-valor amber">
                 ${formatBRL(contaAnualEstimada)}
               </div>
-              <div class="card-situacao-sub">Total desembolsado no ano sem retorno</div>
+              <div class="card-situacao-sub">Total desembolsado em 12 faturas sem retorno</div>
             </div>
           </div>
         </div>

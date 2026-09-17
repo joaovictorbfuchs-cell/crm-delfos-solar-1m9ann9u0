@@ -492,8 +492,8 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
     ),
   )
 
-  // 1. Grid Visual em 4 Cards de Situação Atual (Consumo mensal/anual e Custo mensal/anual)
-  const colWidth4 = Math.floor(PAGE_CONTENT_WIDTH / 4)
+  // 1. Grid Visual em 2 Cards Grandes de Situação Atual (Consumo mensal/anual empilhados e Custo mensal/anual empilhados)
+  const colWidth2 = Math.floor(PAGE_CONTENT_WIDTH / 2)
   const consumoKwhMesDocx =
     sistema.consumoKwhMes && sistema.consumoKwhMes > 0
       ? sistema.consumoKwhMes
@@ -509,18 +509,39 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
       rows: [
         new TableRow({
           children: [
-            // Card 1: Consumo Mensal
+            // Card 1 — Consumo de Energia: Mensal em cima e Anual logo abaixo
             new TableCell({
-              width: { size: colWidth4, type: WidthType.DXA },
-              shading: { type: ShadingType.CLEAR, fill: 'EFF6FF' },
-              margins: { top: 80, bottom: 80, left: 90, right: 90 },
+              width: { size: colWidth2, type: WidthType.DXA },
+              shading: { type: ShadingType.CLEAR, fill: 'F8FAFC' },
+              margins: { top: 100, bottom: 100, left: 110, right: 110 },
               children: [
+                // Topo do card: Consumo
                 new Paragraph({
+                  spacing: { after: 60 },
                   children: [
                     new TextRun({
-                      text: '⚡ CONSUMO MENSAL\n',
+                      text: '⚡ CONSUMO DE ENERGIA\n',
                       bold: true,
                       color: '1D4ED8',
+                      size: 16,
+                      font: 'Arial',
+                    }),
+                    new TextRun({
+                      text: 'Volume consumido da concessionária',
+                      color: '6B7280',
+                      size: 13,
+                      font: 'Arial',
+                    }),
+                  ],
+                }),
+                // Bloco 1: Consumo Mensal
+                new Paragraph({
+                  spacing: { after: 60 },
+                  children: [
+                    new TextRun({
+                      text: '• Consumo Mensal (Média):\n',
+                      bold: true,
+                      color: '4B5563',
                       size: 14,
                       font: 'Arial',
                     }),
@@ -539,27 +560,21 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
                       font: 'Arial',
                     }),
                     new TextRun({
-                      text: 'Média mensal consumida',
-                      color: '4B5563',
+                      text: 'Média mensal de energia consumida da rede',
+                      color: '6B7280',
                       size: 13,
                       font: 'Arial',
                     }),
                   ],
                 }),
-              ],
-            }),
-            // Card 2: Consumo no Ano
-            new TableCell({
-              width: { size: colWidth4, type: WidthType.DXA },
-              shading: { type: ShadingType.CLEAR, fill: 'EEF2FF' },
-              margins: { top: 80, bottom: 80, left: 90, right: 90 },
-              children: [
+                // Bloco 2: Consumo no Ano (logo abaixo)
                 new Paragraph({
+                  spacing: { before: 40 },
                   children: [
                     new TextRun({
-                      text: '📅 CONSUMO NO ANO\n',
+                      text: '• Consumo no Ano (12 meses):\n',
                       bold: true,
-                      color: '4338CA',
+                      color: '4B5563',
                       size: 14,
                       font: 'Arial',
                     }),
@@ -578,8 +593,8 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
                       font: 'Arial',
                     }),
                     new TextRun({
-                      text: 'Total em 12 faturas',
-                      color: '4B5563',
+                      text: 'Volume total faturado em 12 faturas',
+                      color: '6B7280',
                       size: 13,
                       font: 'Arial',
                     }),
@@ -587,18 +602,40 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
                 }),
               ],
             }),
-            // Card 3: Custo Mensal
+
+            // Card 2 — Custos com Concessionária: Mensal em cima e Anual logo abaixo
             new TableCell({
-              width: { size: colWidth4, type: WidthType.DXA },
-              shading: { type: ShadingType.CLEAR, fill: 'FEF2F2' },
-              margins: { top: 80, bottom: 80, left: 90, right: 90 },
+              width: { size: colWidth2, type: WidthType.DXA },
+              shading: { type: ShadingType.CLEAR, fill: 'F8FAFC' },
+              margins: { top: 100, bottom: 100, left: 110, right: 110 },
               children: [
+                // Topo do card: Custos
                 new Paragraph({
+                  spacing: { after: 60 },
                   children: [
                     new TextRun({
-                      text: '💲 CUSTO MENSAL\n',
+                      text: '💲 CUSTOS COM CONCESSIONÁRIA\n',
                       bold: true,
                       color: 'B91C1C',
+                      size: 16,
+                      font: 'Arial',
+                    }),
+                    new TextRun({
+                      text: 'Desembolso financeiro sem retorno',
+                      color: '6B7280',
+                      size: 13,
+                      font: 'Arial',
+                    }),
+                  ],
+                }),
+                // Bloco 1: Custo Mensal (Conta Atual)
+                new Paragraph({
+                  spacing: { after: 60 },
+                  children: [
+                    new TextRun({
+                      text: '• Custo Mensal (Conta Atual):\n',
+                      bold: true,
+                      color: '4B5563',
                       size: 14,
                       font: 'Arial',
                     }),
@@ -610,27 +647,21 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
                       font: 'Arial',
                     }),
                     new TextRun({
-                      text: 'Conta atual mensal',
-                      color: '4B5563',
+                      text: 'Despesa média paga todo mês à concessionária',
+                      color: '6B7280',
                       size: 13,
                       font: 'Arial',
                     }),
                   ],
                 }),
-              ],
-            }),
-            // Card 4: Custo no Ano
-            new TableCell({
-              width: { size: colWidth4, type: WidthType.DXA },
-              shading: { type: ShadingType.CLEAR, fill: 'FFFBEB' },
-              margins: { top: 80, bottom: 80, left: 90, right: 90 },
-              children: [
+                // Bloco 2: Custo no Ano (logo abaixo)
                 new Paragraph({
+                  spacing: { before: 40 },
                   children: [
                     new TextRun({
-                      text: '⏱️ CUSTO NO ANO\n',
+                      text: '• Custo no Ano (Gasto Anual):\n',
                       bold: true,
-                      color: 'B45309',
+                      color: '4B5563',
                       size: 14,
                       font: 'Arial',
                     }),
@@ -642,8 +673,8 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
                       font: 'Arial',
                     }),
                     new TextRun({
-                      text: 'Total desembolsado no ano',
-                      color: '4B5563',
+                      text: 'Total desembolsado em 12 faturas sem retorno',
+                      color: '6B7280',
                       size: 13,
                       font: 'Arial',
                     }),
