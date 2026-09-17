@@ -272,6 +272,17 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
       ? producao.anualKwh
       : Math.round(consumoKwhMesReal * 12)
 
+  // Tarifa implícita da Situação Atual (custo mensal ÷ consumo mensal)
+  const tarifaImplicitaReal =
+    consumoKwhMesReal > 0 && contaHoje > 0 ? contaHoje / consumoKwhMesReal : null
+  const tarifaImplicitaRealStr =
+    tarifaImplicitaReal !== null
+      ? tarifaImplicitaReal.toLocaleString('pt-BR', {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        })
+      : null
+
   const investimentoTotal = economia?.investimentoTotal || parcelamento?.aVista?.valorTotal || 45000
 
   // Valores de inércia
@@ -875,11 +886,55 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
     }
 
     /* Grid de 2 Cards Grandes da Situação Atual (Consumo e Custos com valores mensal/anual empilhados) */
+    .grid-situacao-wrapper {
+      position: relative;
+      margin-bottom: 12px;
+    }
     .grid-situacao-cards {
       display: grid;
       grid-template-columns: repeat(2, 1fr);
       gap: 12px;
-      margin-bottom: 12px;
+    }
+    .conector-situacao-badge {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: #FFFFFF;
+      border: 1.5px solid #A7F3D0;
+      border-radius: 9999px;
+      padding: 4px 10px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      box-shadow: 0 4px 10px rgba(6, 78, 59, 0.12);
+      z-index: 5;
+    }
+    .conector-situacao-label {
+      font-size: 8px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #047857;
+    }
+    .conector-situacao-arrow {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: #059669;
+      color: #FFFFFF;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: 900;
+      line-height: 1;
+    }
+    .conector-situacao-tarifa {
+      font-size: 8.5px;
+      font-weight: 800;
+      color: #1F2937;
+      white-space: nowrap;
     }
     .card-situacao {
       background: #FFFFFF;
@@ -2182,82 +2237,95 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
           </p>
         </div>
 
-        <!-- 1. Grid Visual em 2 Cards Grandes: Consumo (Mensal + Anual) e Custos (Mensal + Anual) -->
-        <div class="grid-situacao-cards">
-          <!-- Card 1: Consumo de Energia (Mensal em cima, Anual abaixo) -->
-          <div class="card-situacao consumo">
-            <div class="card-situacao-header">
-              <div class="card-situacao-header-left">
-                <div class="card-situacao-header-icon">⚡</div>
-                <div>
-                  <div class="card-situacao-header-title">Consumo de Energia</div>
-                  <div class="card-situacao-header-sub">Volume consumido da concessionária</div>
+        <!-- 1. Grid Visual em 2 Cards Grandes: Consumo (Mensal + Anual) e Custos (Mensal + Anual) com conector de correspondência -->
+        <div class="grid-situacao-wrapper">
+          <div class="grid-situacao-cards">
+            <!-- Card 1: Consumo de Energia (Mensal em cima, Anual abaixo) -->
+            <div class="card-situacao consumo">
+              <div class="card-situacao-header">
+                <div class="card-situacao-header-left">
+                  <div class="card-situacao-header-icon">⚡</div>
+                  <div>
+                    <div class="card-situacao-header-title">Consumo de Energia</div>
+                    <div class="card-situacao-header-sub">Volume consumido da concessionária</div>
+                  </div>
                 </div>
+                <span class="card-situacao-header-badge">kWh</span>
               </div>
-              <span class="card-situacao-header-badge">kWh</span>
+
+              <!-- Bloco Mensal -->
+              <div class="card-situacao-row-item first">
+                <div class="card-situacao-row-top">
+                  <div class="card-situacao-label">Consumo Mensal</div>
+                  <span class="card-situacao-tag tag-mensal">Mensal</span>
+                </div>
+                <div class="card-situacao-valor">
+                  ${formatNumBR(consumoKwhMesReal, 0)} <span style="font-size: 11px; font-weight: 700; color: #2563EB;">kWh/mês</span>
+                </div>
+                <div class="card-situacao-sub">Média mensal de energia consumida da rede</div>
+              </div>
+
+              <!-- Bloco Anual -->
+              <div class="card-situacao-row-item second">
+                <div class="card-situacao-row-top">
+                  <div class="card-situacao-label">Consumo no Ano</div>
+                  <span class="card-situacao-tag tag-anual">Anual</span>
+                </div>
+                <div class="card-situacao-valor">
+                  ${formatNumBR(consumoKwhAnoReal, 0)} <span style="font-size: 11px; font-weight: 700; color: #4F46E5;">kWh/ano</span>
+                </div>
+                <div class="card-situacao-sub">Volume total faturado em 12 faturas</div>
+              </div>
             </div>
 
-            <!-- Bloco Mensal -->
-            <div class="card-situacao-row-item first">
-              <div class="card-situacao-row-top">
-                <div class="card-situacao-label">Consumo Mensal</div>
-                <span class="card-situacao-tag tag-mensal">Mensal</span>
+            <!-- Card 2: Custos com Concessionária (Mensal em cima, Anual abaixo) -->
+            <div class="card-situacao custos">
+              <div class="card-situacao-header">
+                <div class="card-situacao-header-left">
+                  <div class="card-situacao-header-icon">💲</div>
+                  <div>
+                    <div class="card-situacao-header-title">Custos com Concessionária</div>
+                    <div class="card-situacao-header-sub">Desembolso financeiro sem retorno</div>
+                  </div>
+                </div>
+                <span class="card-situacao-header-badge">R$ Reais</span>
               </div>
-              <div class="card-situacao-valor">
-                ${formatNumBR(consumoKwhMesReal, 0)} <span style="font-size: 11px; font-weight: 700; color: #2563EB;">kWh/mês</span>
-              </div>
-              <div class="card-situacao-sub">Média mensal de energia consumida da rede</div>
-            </div>
 
-            <!-- Bloco Anual -->
-            <div class="card-situacao-row-item second">
-              <div class="card-situacao-row-top">
-                <div class="card-situacao-label">Consumo no Ano</div>
-                <span class="card-situacao-tag tag-anual">Anual</span>
+              <!-- Bloco Mensal (Conta Atual) -->
+              <div class="card-situacao-row-item first">
+                <div class="card-situacao-row-top">
+                  <div class="card-situacao-label">Custo Mensal</div>
+                  <span class="card-situacao-tag tag-conta-atual">Conta Atual</span>
+                </div>
+                <div class="card-situacao-valor red">
+                  ${formatBRL(contaHoje)}
+                </div>
+                <div class="card-situacao-sub">Despesa média paga todo mês à concessionária</div>
               </div>
-              <div class="card-situacao-valor">
-                ${formatNumBR(consumoKwhAnoReal, 0)} <span style="font-size: 11px; font-weight: 700; color: #4F46E5;">kWh/ano</span>
+
+              <!-- Bloco Anual (Gasto Anual) -->
+              <div class="card-situacao-row-item second">
+                <div class="card-situacao-row-top">
+                  <div class="card-situacao-label">Custo no Ano</div>
+                  <span class="card-situacao-tag tag-gasto-anual">Gasto Anual</span>
+                </div>
+                <div class="card-situacao-valor amber">
+                  ${formatBRL(contaAnualEstimada)}
+                </div>
+                <div class="card-situacao-sub">Total desembolsado em 12 faturas sem retorno</div>
               </div>
-              <div class="card-situacao-sub">Volume total faturado em 12 faturas</div>
             </div>
           </div>
 
-          <!-- Card 2: Custos com Concessionária (Mensal em cima, Anual abaixo) -->
-          <div class="card-situacao custos">
-            <div class="card-situacao-header">
-              <div class="card-situacao-header-left">
-                <div class="card-situacao-header-icon">💲</div>
-                <div>
-                  <div class="card-situacao-header-title">Custos com Concessionária</div>
-                  <div class="card-situacao-header-sub">Desembolso financeiro sem retorno</div>
-                </div>
-              </div>
-              <span class="card-situacao-header-badge">R$ Reais</span>
-            </div>
-
-            <!-- Bloco Mensal (Conta Atual) -->
-            <div class="card-situacao-row-item first">
-              <div class="card-situacao-row-top">
-                <div class="card-situacao-label">Custo Mensal</div>
-                <span class="card-situacao-tag tag-conta-atual">Conta Atual</span>
-              </div>
-              <div class="card-situacao-valor red">
-                ${formatBRL(contaHoje)}
-              </div>
-              <div class="card-situacao-sub">Despesa média paga todo mês à concessionária</div>
-            </div>
-
-            <!-- Bloco Anual (Gasto Anual) -->
-            <div class="card-situacao-row-item second">
-              <div class="card-situacao-row-top">
-                <div class="card-situacao-label">Custo no Ano</div>
-                <span class="card-situacao-tag tag-gasto-anual">Gasto Anual</span>
-              </div>
-              <div class="card-situacao-valor amber">
-                ${formatBRL(contaAnualEstimada)}
-              </div>
-              <div class="card-situacao-sub">Total desembolsado em 12 faturas sem retorno</div>
-            </div>
+          <!-- Indicador visual de correspondência (seta do consumo para custo) -->
+          <div class="conector-situacao-badge">
+            <span class="conector-situacao-label">Convertido em</span>
+            <div class="conector-situacao-arrow">→</div>
+            ${
+              tarifaImplicitaRealStr
+                ? `<span class="conector-situacao-tarifa">≈ R$ ${tarifaImplicitaRealStr}/kWh</span>`
+                : ''
+            }
           </div>
         </div>
 

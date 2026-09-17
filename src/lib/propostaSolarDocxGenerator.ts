@@ -502,6 +502,17 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
     consumoKwhAnoEstimado > 0 ? consumoKwhAnoEstimado : Math.round(consumoKwhMesDocx * 12)
   const contaAnualDocx = gasto1Ano > 0 ? gasto1Ano : Math.round(contaHoje * 12)
 
+  // Tarifa implícita calculada (R$ / kWh)
+  const tarifaImplicitaDocx =
+    consumoKwhMesDocx > 0 && contaHoje > 0 ? contaHoje / consumoKwhMesDocx : null
+  const tarifaImplicitaDocxStr =
+    tarifaImplicitaDocx !== null
+      ? tarifaImplicitaDocx.toLocaleString('pt-BR', {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        })
+      : null
+
   docChildren.push(
     new Table({
       width: { size: PAGE_CONTENT_WIDTH, type: WidthType.DXA },
@@ -675,6 +686,47 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
                     new TextRun({
                       text: 'Total desembolsado em 12 faturas sem retorno',
                       color: '6B7280',
+                      size: 13,
+                      font: 'Arial',
+                    }),
+                  ],
+                }),
+              ],
+            }),
+          ],
+        }),
+        // Linha com conector visual de correspondência (Consumo convertido em custo)
+        new TableRow({
+          children: [
+            new TableCell({
+              columnSpan: 2,
+              width: { size: PAGE_CONTENT_WIDTH, type: WidthType.DXA },
+              shading: { type: ShadingType.CLEAR, fill: 'ECFDF5' },
+              margins: { top: 70, bottom: 70, left: 110, right: 110 },
+              children: [
+                new Paragraph({
+                  alignment: AlignmentType.CENTER,
+                  children: [
+                    new TextRun({
+                      text: '→ ',
+                      bold: true,
+                      color: '059669',
+                      size: 16,
+                      font: 'Arial',
+                    }),
+                    new TextRun({
+                      text: 'Consumo convertido em custo',
+                      bold: true,
+                      color: '065F46',
+                      size: 14,
+                      font: 'Arial',
+                    }),
+                    new TextRun({
+                      text: tarifaImplicitaDocxStr
+                        ? ` (tarifa média estimada ≈ R$ ${tarifaImplicitaDocxStr}/kWh)`
+                        : '',
+                      bold: false,
+                      color: '047857',
                       size: 13,
                       font: 'Arial',
                     }),

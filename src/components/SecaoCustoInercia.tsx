@@ -4,6 +4,7 @@ import {
   TrendingUp,
   TrendingDown,
   ArrowRight,
+  ArrowDown,
   PiggyBank,
   CheckCircle2,
   Activity,
@@ -179,6 +180,17 @@ export const SecaoCustoInercia: React.FC<SecaoCustoInerciaProps> = ({
     },
   ]
 
+  // Tarifa implícita calculada (R$ / kWh) a partir do custo mensal e consumo mensal
+  const tarifaImplicita =
+    consumoMensalFinal > 0 && contaMensalFinal > 0 ? contaMensalFinal / consumoMensalFinal : null
+  const tarifaImplicitaFormatada =
+    tarifaImplicita !== null
+      ? tarifaImplicita.toLocaleString('pt-BR', {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        })
+      : null
+
   // Formatter compacto para eixo Y
   const formatarEixoY = (valor: number | unknown) => {
     const num = Number(valor) || 0
@@ -236,122 +248,167 @@ export const SecaoCustoInercia: React.FC<SecaoCustoInerciaProps> = ({
             </span>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
-            {/* Card 1 — Consumo Energético (Mensal acima, Anual abaixo) */}
-            <div className="bg-white rounded-2xl p-5 sm:p-6 border border-emerald-100 shadow-xs hover:shadow-md transition-all flex flex-col justify-between">
-              {/* Cabeçalho do Card */}
-              <div className="flex items-center justify-between pb-4 border-b border-gray-100 mb-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-11 h-11 rounded-xl bg-blue-50 border border-blue-200/60 flex items-center justify-center text-blue-600 shadow-2xs">
-                    <Zap className="w-5 h-5 text-blue-600" />
+          <div className="relative">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+              {/* Card 1 — Consumo Energético (Mensal acima, Anual abaixo) */}
+              <div className="bg-white rounded-2xl p-5 sm:p-6 border border-emerald-100 shadow-xs hover:shadow-md transition-all flex flex-col justify-between">
+                {/* Cabeçalho do Card */}
+                <div className="flex items-center justify-between pb-4 border-b border-gray-100 mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-11 h-11 rounded-xl bg-blue-50 border border-blue-200/60 flex items-center justify-center text-blue-600 shadow-2xs">
+                      <Zap className="w-5 h-5 text-blue-600" />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-bold text-gray-900 tracking-tight">
+                        Consumo de Energia
+                      </h3>
+                      <p className="text-[11px] text-gray-500">
+                        Volume consumido da concessionária
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="text-sm font-bold text-gray-900 tracking-tight">
-                      Consumo de Energia
-                    </h3>
-                    <p className="text-[11px] text-gray-500">Volume consumido da concessionária</p>
-                  </div>
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-blue-700 bg-blue-50 px-2.5 py-1 rounded-full border border-blue-200">
+                    kWh
+                  </span>
                 </div>
-                <span className="text-[10px] font-bold uppercase tracking-wider text-blue-700 bg-blue-50 px-2.5 py-1 rounded-full border border-blue-200">
-                  kWh
-                </span>
+
+                {/* Bloco 1: Consumo Mensal */}
+                <div className="space-y-1 pb-4 border-b border-dashed border-gray-200">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-gray-500 uppercase tracking-wide">
+                      Consumo Mensal
+                    </span>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200">
+                      Mensal
+                    </span>
+                  </div>
+                  <div className="text-2xl sm:text-3xl font-black text-gray-900 tracking-tight">
+                    {Math.round(Number(consumoMensalFinal) || 0).toLocaleString('pt-BR')}{' '}
+                    <span className="text-base font-bold text-blue-600">kWh/mês</span>
+                  </div>
+                  <p className="text-[11px] text-gray-500">
+                    Média mensal de energia consumida da rede
+                  </p>
+                </div>
+
+                {/* Bloco 2: Consumo no Ano (logo abaixo) */}
+                <div className="space-y-1 pt-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-gray-500 uppercase tracking-wide">
+                      Consumo no Ano
+                    </span>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-full border border-indigo-200">
+                      Anual
+                    </span>
+                  </div>
+                  <div className="text-2xl sm:text-3xl font-black text-gray-900 tracking-tight">
+                    {Math.round(Number(consumoAnualFinal) || 0).toLocaleString('pt-BR')}{' '}
+                    <span className="text-base font-bold text-indigo-600">kWh/ano</span>
+                  </div>
+                  <p className="text-[11px] text-gray-500">
+                    Volume total anual faturado pela concessionária (12 meses)
+                  </p>
+                </div>
               </div>
 
-              {/* Bloco 1: Consumo Mensal */}
-              <div className="space-y-1 pb-4 border-b border-dashed border-gray-200">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-gray-500 uppercase tracking-wide">
-                    Consumo Mensal
-                  </span>
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200">
-                    Mensal
-                  </span>
+              {/* Conector Visual no Mobile (entre os cards empilhados) */}
+              <div
+                className="md:hidden flex items-center justify-center -my-2 z-10"
+                aria-label="Correspondência de consumo para custo"
+              >
+                <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-200 shadow-2xs text-[11px] font-semibold text-emerald-800">
+                  <span className="text-gray-600">Consumo gera o custo</span>
+                  <div className="w-5 h-5 rounded-full bg-emerald-600 text-white flex items-center justify-center shadow-2xs">
+                    <ArrowDown className="w-3 h-3" />
+                  </div>
+                  {tarifaImplicitaFormatada && (
+                    <span className="font-bold text-emerald-700">
+                      ≈ R$ {tarifaImplicitaFormatada}/kWh
+                    </span>
+                  )}
                 </div>
-                <div className="text-2xl sm:text-3xl font-black text-gray-900 tracking-tight">
-                  {Math.round(Number(consumoMensalFinal) || 0).toLocaleString('pt-BR')}{' '}
-                  <span className="text-base font-bold text-blue-600">kWh/mês</span>
-                </div>
-                <p className="text-[11px] text-gray-500">
-                  Média mensal de energia consumida da rede
-                </p>
               </div>
 
-              {/* Bloco 2: Consumo no Ano (logo abaixo) */}
-              <div className="space-y-1 pt-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-gray-500 uppercase tracking-wide">
-                    Consumo no Ano
-                  </span>
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-full border border-indigo-200">
-                    Anual
+              {/* Card 2 — Custos em R$ (Mensal acima, Anual abaixo) */}
+              <div className="bg-white rounded-2xl p-5 sm:p-6 border border-emerald-100 shadow-xs hover:shadow-md transition-all flex flex-col justify-between">
+                {/* Cabeçalho do Card */}
+                <div className="flex items-center justify-between pb-4 border-b border-gray-100 mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-11 h-11 rounded-xl bg-red-50 border border-red-200/60 flex items-center justify-center text-red-600 shadow-2xs">
+                      <DollarSign className="w-5 h-5 text-red-600" />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-bold text-gray-900 tracking-tight">
+                        Custos com Concessionária
+                      </h3>
+                      <p className="text-[11px] text-gray-500">
+                        Desembolso financeiro sem retorno patrimonial
+                      </p>
+                    </div>
+                  </div>
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-red-700 bg-red-50 px-2.5 py-1 rounded-full border border-red-200">
+                    R$ Reais
                   </span>
                 </div>
-                <div className="text-2xl sm:text-3xl font-black text-gray-900 tracking-tight">
-                  {Math.round(Number(consumoAnualFinal) || 0).toLocaleString('pt-BR')}{' '}
-                  <span className="text-base font-bold text-indigo-600">kWh/ano</span>
+
+                {/* Bloco 1: Custo Mensal (Conta Atual) */}
+                <div className="space-y-1 pb-4 border-b border-dashed border-gray-200">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                      Custo Mensal
+                    </span>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-red-700 bg-red-50 px-2 py-0.5 rounded-full border border-red-200">
+                      Conta Atual
+                    </span>
+                  </div>
+                  <div className="text-2xl sm:text-3xl font-black text-red-600 tracking-tight">
+                    {formatCurrency(contaMensalFinal)}
+                  </div>
+                  <p className="text-[11px] text-gray-500">
+                    Despesa média paga todo mês à concessionária
+                  </p>
                 </div>
-                <p className="text-[11px] text-gray-500">
-                  Volume total anual faturado pela concessionária (12 meses)
-                </p>
+
+                {/* Bloco 2: Custo no Ano (logo abaixo) */}
+                <div className="space-y-1 pt-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                      Custo no Ano
+                    </span>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-amber-800 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
+                      Gasto Anual
+                    </span>
+                  </div>
+                  <div className="text-2xl sm:text-3xl font-black text-amber-700 tracking-tight">
+                    {formatCurrency(contaAnualFinal)}
+                  </div>
+                  <p className="text-[11px] text-gray-500">
+                    Total desembolsado em 12 faturas sem retorno
+                  </p>
+                </div>
               </div>
             </div>
 
-            {/* Card 2 — Custos em R$ (Mensal acima, Anual abaixo) */}
-            <div className="bg-white rounded-2xl p-5 sm:p-6 border border-emerald-100 shadow-xs hover:shadow-md transition-all flex flex-col justify-between">
-              {/* Cabeçalho do Card */}
-              <div className="flex items-center justify-between pb-4 border-b border-gray-100 mb-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-11 h-11 rounded-xl bg-red-50 border border-red-200/60 flex items-center justify-center text-red-600 shadow-2xs">
-                    <DollarSign className="w-5 h-5 text-red-600" />
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-bold text-gray-900 tracking-tight">
-                      Custos com Concessionária
-                    </h3>
-                    <p className="text-[11px] text-gray-500">
-                      Desembolso financeiro sem retorno patrimonial
-                    </p>
-                  </div>
-                </div>
-                <span className="text-[10px] font-bold uppercase tracking-wider text-red-700 bg-red-50 px-2.5 py-1 rounded-full border border-red-200">
-                  R$ Reais
+            {/* Conector Visual no Desktop (sobreposto entre os dois cards) */}
+            <div
+              className="hidden md:flex absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-20 pointer-events-none"
+              aria-hidden="true"
+            >
+              <div className="flex flex-col items-center bg-white/95 backdrop-blur-md px-3.5 py-2 rounded-2xl border border-emerald-200/90 shadow-md">
+                <span className="text-[10px] font-black uppercase tracking-wider text-emerald-700">
+                  Convertido em
                 </span>
-              </div>
-
-              {/* Bloco 1: Custo Mensal (Conta Atual) */}
-              <div className="space-y-1 pb-4 border-b border-dashed border-gray-200">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                    Custo Mensal
-                  </span>
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-red-700 bg-red-50 px-2 py-0.5 rounded-full border border-red-200">
-                    Conta Atual
-                  </span>
+                <div className="flex items-center gap-1.5 mt-0.5">
+                  <div className="w-6 h-6 rounded-full bg-emerald-600 text-white flex items-center justify-center shadow-xs">
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </div>
+                  {tarifaImplicitaFormatada && (
+                    <span className="text-[11px] font-extrabold text-gray-800 whitespace-nowrap">
+                      ≈ R$ {tarifaImplicitaFormatada}
+                      <span className="text-[9.5px] font-semibold text-gray-500">/kWh</span>
+                    </span>
+                  )}
                 </div>
-                <div className="text-2xl sm:text-3xl font-black text-red-600 tracking-tight">
-                  {formatCurrency(contaMensalFinal)}
-                </div>
-                <p className="text-[11px] text-gray-500">
-                  Despesa média paga todo mês à concessionária
-                </p>
-              </div>
-
-              {/* Bloco 2: Custo no Ano (logo abaixo) */}
-              <div className="space-y-1 pt-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                    Custo no Ano
-                  </span>
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-amber-800 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
-                    Gasto Anual
-                  </span>
-                </div>
-                <div className="text-2xl sm:text-3xl font-black text-amber-700 tracking-tight">
-                  {formatCurrency(contaAnualFinal)}
-                </div>
-                <p className="text-[11px] text-gray-500">
-                  Total desembolsado em 12 faturas sem retorno
-                </p>
               </div>
             </div>
           </div>

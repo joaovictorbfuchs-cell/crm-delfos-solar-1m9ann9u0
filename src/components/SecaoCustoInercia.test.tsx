@@ -15,6 +15,11 @@ describe('SecaoCustoInercia Component', () => {
     expect(html).toContain('Consumo de Energia')
     expect(html).toContain('Custos com Concessionária')
 
+    // Conector visual de correspondência (desktop + mobile)
+    expect(html).toContain('Convertido em')
+    expect(html).toContain('Consumo gera o custo')
+    expect(html).toContain('/kWh')
+
     // Valores mensal e anual empilhados para consumo
     expect(html).toContain('Consumo Mensal')
     expect(html).toContain('Consumo no Ano')
@@ -61,5 +66,24 @@ describe('SecaoCustoInercia Component', () => {
 
     // 2 cards em grid
     expect(html).toContain('grid-cols-1 md:grid-cols-2')
+
+    // Tarifa implícita calculada com guard e formatada em pt-BR (807.50 / 850 = 0.95)
+    expect(html).toContain('0,95')
+    expect(html).toContain('Convertido em')
+  })
+
+  it('lida defensivamente com consumo ou custo zero sem erro de divisão por zero', () => {
+    const html = renderToStaticMarkup(
+      React.createElement(SecaoCustoInercia, {
+        consumoMensalKwh: 0,
+        contaMensal: 0,
+      }),
+    )
+
+    expect(html).toContain('Situação Atual')
+    expect(html).toContain('Convertido em')
+    // Não quebrou e não gerou NaN ou Infinity
+    expect(html).not.toContain('NaN')
+    expect(html).not.toContain('Infinity')
   })
 })
