@@ -2,8 +2,6 @@ import React from 'react'
 import {
   TrendingUp,
   TrendingDown,
-  ArrowRight,
-  PiggyBank,
   Activity,
   Zap,
   DollarSign,
@@ -62,7 +60,6 @@ export interface SecaoCustoInerciaProps {
  *    - Sem comparação com solar (conforme solicitação do usuário)
  *    - Progressão visual sutil de gravidade (âmbar claro → âmbar escuro → vermelho)
  *    - Linha de contexto com média mensal aproximada e impacto tarifário
- * 4. Linha comparativa inteligente ("Hoje você paga R$ X para a concessionária...")
  */
 export const SecaoCustoInercia: React.FC<SecaoCustoInerciaProps> = ({
   consumoMensalKwh,
@@ -497,37 +494,6 @@ export const SecaoCustoInercia: React.FC<SecaoCustoInerciaProps> = ({
                   Desembolso acumulado com inflação da rede
                 </div>
               </div>
-            </div>
-          </div>
-        </div>
-
-        {/* ========================================================================= */}
-        {/* LINHA COMPARATIVA REFLEXIVA (Concessionária vs. Patrimônio Solar)          */}
-        {/* ========================================================================= */}
-        <div className="bg-white rounded-2xl p-5 sm:p-6 border border-emerald-200 shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-          <div className="flex items-start gap-3.5">
-            <div className="w-11 h-11 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center shrink-0">
-              <PiggyBank className="w-5 h-5 text-emerald-700" />
-            </div>
-            <div className="space-y-1">
-              <span className="text-[11px] uppercase font-bold text-gray-500 tracking-wider block">
-                Decisão Inteligente • Concessionária vs. Patrimônio Solar
-              </span>
-              <p className="text-sm sm:text-base text-gray-800 leading-relaxed font-medium">
-                Hoje você paga{' '}
-                <strong className="text-red-600 font-extrabold">
-                  {formatCurrency(contaMensalFinal)}
-                </strong>{' '}
-                para a concessionária e não recebe nada em troca. Com solar, você investe e o
-                sistema passa a ser seu patrimônio.
-              </p>
-            </div>
-          </div>
-
-          <div className="shrink-0 flex items-center gap-2 self-end md:self-center">
-            <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-bold">
-              <span>Seu Ativo Próprio</span>
-              <ArrowRight className="w-3.5 h-3.5 text-emerald-600" />
             </div>
           </div>
         </div>

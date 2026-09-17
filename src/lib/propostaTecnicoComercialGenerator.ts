@@ -1190,61 +1190,6 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
       font-weight: 800;
     }
 
-    /* Linha Reflexiva com box verde e ícone */
-    .box-linha-reflexiva {
-      background: #FFFFFF;
-      border: 1.5px solid #86EFAC;
-      border-radius: 14px;
-      padding: 12px 18px;
-      margin-top: 10px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 14px;
-      box-shadow: 0 2px 6px rgba(22, 163, 74, 0.08);
-    }
-    .box-linha-left {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-    .box-linha-reflexiva .icon-patrimonio {
-      width: 40px;
-      height: 40px;
-      border-radius: 12px;
-      background: #DCFCE7;
-      color: #166534;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 20px;
-      font-weight: 900;
-      shrink-0;
-    }
-    .box-linha-reflexiva .tag-reflexiva {
-      font-size: 8.5px;
-      text-transform: uppercase;
-      font-weight: 800;
-      color: #6B7280;
-      letter-spacing: 0.06em;
-      margin-bottom: 2px;
-    }
-    .box-linha-reflexiva .texto-principal {
-      font-size: 11px;
-      color: #1F2937;
-      line-height: 1.35;
-    }
-    .box-linha-badge-right {
-      background: #F0FDF4;
-      border: 1px solid #BBF7D0;
-      color: #166534;
-      font-size: 9.5px;
-      font-weight: 800;
-      padding: 6px 12px;
-      border-radius: 10px;
-      white-space: nowrap;
-    }
-
     /* ==========================================================
        SEÇÃO 3 — SEU SISTEMA FOTOVOLTAICO (ESPELHADO DO SecaoSeuSistemaFotovoltaico.tsx)
        ========================================================== */
@@ -2284,22 +2229,6 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
                 <div style="font-size: 8px; color: #DC2626; font-weight: 700;">Desembolso acumulado com inflação da rede</div>
               </div>
             </div>
-          </div>
-        </div>
-
-        <!-- LINHA REFLEXIVA EXATA SOLICITADA -->
-        <div class="box-linha-reflexiva">
-          <div class="box-linha-left">
-            <div class="icon-patrimonio">🐷</div>
-            <div>
-              <div class="tag-reflexiva">Decisão Inteligente • Concessionária vs. Patrimônio Solar</div>
-              <div class="texto-principal">
-                Hoje você paga <strong style="color: #DC2626;">${formatBRL(contaHoje)}</strong> para a concessionária e <strong>não recebe nada em troca</strong>. Com solar, você investe e o sistema passa a ser seu patrimônio.
-              </div>
-            </div>
-          </div>
-          <div class="box-linha-badge-right">
-            Seu Ativo Próprio ➜
           </div>
         </div>
       </div>

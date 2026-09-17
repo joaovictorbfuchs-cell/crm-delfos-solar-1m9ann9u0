@@ -51,8 +51,10 @@ describe('SecaoCustoInercia Component', () => {
     expect(html).not.toContain('Esse dinheiro poderia estar no seu bolso')
     expect(html).not.toContain('Gasto Sem Retorno')
 
-    // Mantém a linha reflexiva intacta
-    expect(html).toContain('Decisão Inteligente • Concessionária vs. Patrimônio Solar')
+    // Não deve conter a linha comparativa reflexiva removida conforme solicitação do usuário
+    expect(html).not.toContain('Decisão Inteligente • Concessionária vs. Patrimônio Solar')
+    expect(html).not.toContain('Seu Ativo Próprio')
+    expect(html).not.toContain('não recebe nada em troca')
   })
 
   it('respeita os valores dinâmicos informados via props', () => {

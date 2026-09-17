@@ -112,7 +112,7 @@ describe('Proposta Técnico-Comercial Generator (6 Seções Oficiais)', () => {
     expect(html).toContain('15/05/2025')
     expect(html).toContain('Economize')
 
-    // SEÇÃO 2: Situação Atual (cards de consumo e custo mensal/anual + 3 cards de gastos acumulados sem solar 1/5/25 anos + linha reflexiva, sem o box vermelho)
+    // SEÇÃO 2: Situação Atual (cards de consumo e custo mensal/anual + 3 cards de gastos acumulados sem solar 1/5/25 anos, sem linha reflexiva e sem o box vermelho)
     expect(html).toContain('Situação Atual')
     expect(html).toContain('Consumo Mensal')
     expect(html).toContain('Consumo no Ano')
@@ -127,9 +127,9 @@ describe('Proposta Técnico-Comercial Generator (6 Seções Oficiais)', () => {
     expect(html).not.toContain('Sem solar, em 5 anos você pagará')
     expect(html).not.toContain('Alerta de Perda Acumulada')
     expect(html).not.toContain('Gasto Sem Retorno')
-    expect(html).toContain('Hoje você paga')
-    expect(html).toContain('para a concessionária e')
-    expect(html).toContain('não recebe nada em troca')
+    expect(html).not.toContain('Decisão Inteligente • Concessionária vs. Patrimônio Solar')
+    expect(html).not.toContain('Seu Ativo Próprio')
+    expect(html).not.toContain('não recebe nada em troca')
 
     // SEÇÃO 3: Seu Sistema Fotovoltaico (cards: potência, geração, módulos, inversor, área, garantias 30a/10a/Delfos, faixa 24/7)
     expect(html).toContain('Seu Sistema Fotovoltaico')
