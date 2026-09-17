@@ -2725,20 +2725,31 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
           <!-- Card 1: À Vista -->
           <div class="card-pagamento destaque-verde">
             <div>
-              <span class="card-pagamento-tag">Melhor condição</span>
-              <div class="card-pagamento-icon-circle emerald">💵</div>
-              <div class="card-pagamento-titulo">À VISTA (PIX / TED)</div>
-              <div class="card-pagamento-valor" style="color: #15803D;">${formatBRL(aVistaValor)}</div>
-              <div class="card-pagamento-desc">Desconto exclusivo de 5% aplicado</div>
-            </div>
-            <div style="margin-top: 6px; padding-top: 6px; border-top: 1px solid rgba(22, 163, 74, 0.2); font-size: 8px;">
-              <div style="display: flex; justify-content: space-between; color: #4B5563;">
-                <span>Custo com energia atual:</span>
-                <strong style="color: #DC2626;">${formatBRL(contaHoje)}/mês</strong>
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                <span class="card-pagamento-titulo" style="margin: 0; font-size: 9.5px; font-weight: 900; color: #022c22; text-transform: uppercase;">À VISTA</span>
+                <span style="font-size: 8px; font-weight: 800; background: #A7F3D0; color: #064E3B; padding: 2px 6px; border-radius: 9999px;">Sem Juros</span>
               </div>
-              <div style="display: flex; justify-content: space-between; color: #166534; font-weight: 800; margin-top: 2px;">
-                <span>Fatura pós-solar:</span>
-                <span>${formatBRL(parcelamento?.aVista?.contaComSolar !== undefined ? parcelamento.aVista.contaComSolar : 70)}/mês</span>
+              <div class="card-pagamento-valor" style="color: #047857; margin-top: 6px;">${formatBRL(aVistaValor)}</div>
+              <div class="card-pagamento-desc">
+                ${
+                  aVistaDesconto > 0
+                    ? `Desconto de ${formatBRL(aVistaDesconto)} aplicado`
+                    : 'Valor total do projeto à vista'
+                }
+              </div>
+            </div>
+            <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #A7F3D0; font-size: 8.5px; line-height: 1.45;">
+              <div style="display: flex; justify-content: space-between; color: #6B7280;">
+                <span>Conta hoje s/ solar:</span>
+                <strong style="color: #DC2626; font-weight: 800;">${formatBRL(contaHoje)}</strong>
+              </div>
+              <div style="display: flex; justify-content: space-between; color: #6B7280; margin-top: 2px;">
+                <span>Conta c/ solar:</span>
+                <strong style="color: #047857; font-weight: 800;">${formatBRL(parcelamento?.aVista?.contaComSolar !== undefined ? parcelamento.aVista.contaComSolar : 70)}</strong>
+              </div>
+              <div style="display: flex; justify-content: space-between; color: #064E3B; font-weight: 900; margin-top: 4px; padding-top: 4px; border-top: 1px solid #A7F3D0;">
+                <span>Economia/mês:</span>
+                <span>${formatBRL(Math.max(0, contaHoje - (parcelamento?.aVista?.contaComSolar !== undefined ? parcelamento.aVista.contaComSolar : 70)))}</span>
               </div>
             </div>
           </div>
@@ -2746,96 +2757,105 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
           <!-- Card 2: Cartão -->
           <div class="card-pagamento">
             <div>
-              <span class="card-pagamento-tag blue">Sem burocracia</span>
-              <div class="card-pagamento-icon-circle blue">💳</div>
-              <div class="card-pagamento-titulo">CARTÃO DE CRÉDITO</div>
-              <div class="card-pagamento-valor">${cartaoParcelas}x de ${formatBRL(cartaoValor)}</div>
-              ${
-                cartaoEntrada > 0
-                  ? `<div class="card-pagamento-desc" style="color: #1D4ED8; font-weight: 700;">Entrada: ${formatBRL(cartaoEntrada)}</div>`
-                  : `<div class="card-pagamento-desc">Direto na maquininha sem alienação</div>`
-              }
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                <span class="card-pagamento-titulo" style="margin: 0; font-size: 9.5px; font-weight: 900; color: #111827; text-transform: uppercase;">CARTÃO DE CRÉDITO</span>
+                <span style="font-size: 8px; font-weight: 800; background: #F3F4F6; color: #374151; padding: 2px 6px; border-radius: 9999px;">${cartaoParcelas}x</span>
+              </div>
+              <div class="card-pagamento-valor" style="color: #111827; margin-top: 6px;">
+                <span style="font-size: 11px; font-weight: 700; color: #4B5563;">${cartaoParcelas}x de </span>${formatBRL(cartaoValor)}
+              </div>
+              <div class="card-pagamento-desc">
+                ${
+                  cartaoEntrada > 0
+                    ? `<span style="color: #047857; font-weight: 700; display: block;">Entrada: ${formatBRL(cartaoEntrada)}</span>`
+                    : ''
+                }
+                Total: ${formatBRL(cartaoEntrada + cartaoValor * cartaoParcelas)}
+              </div>
             </div>
-            <div style="margin-top: 6px; padding-top: 6px; border-top: 1px solid #E5E7EB; font-size: 8px;">
-              <div style="display: flex; justify-content: space-between; color: #4B5563;">
+            <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #F3F4F6; font-size: 8.5px; line-height: 1.45;">
+              <div style="display: flex; justify-content: space-between; color: #6B7280;">
                 <span>Conta hoje s/ solar:</span>
-                <strong style="color: #DC2626;">${formatBRL(cartaoContaSemSolar)}</strong>
+                <strong style="color: #DC2626; font-weight: 800;">${formatBRL(cartaoContaSemSolar)}</strong>
               </div>
-              <div style="display: flex; justify-content: space-between; color: #4B5563; margin-top: 2px;">
+              <div style="display: flex; justify-content: space-between; color: #6B7280; margin-top: 2px;">
                 <span>Conta c/ solar:</span>
-                <strong style="color: #047857;">${formatBRL(cartaoContaComSolar)}</strong>
+                <strong style="color: #047857; font-weight: 800;">${formatBRL(cartaoContaComSolar)}</strong>
               </div>
-              <div style="display: flex; justify-content: space-between; color: #1E40AF; font-weight: 800; margin-top: 3px; padding-top: 2px; border-top: 1px dashed #BFDBFE;">
+              <div style="display: flex; justify-content: space-between; color: #111827; font-weight: 900; margin-top: 4px; padding-top: 4px; border-top: 1px solid #F3F4F6;">
                 <span>Parcela + Conta:</span>
                 <span>${formatBRL(cartaoDesembolso)}</span>
               </div>
-            </div>
-            <div class="card-pagamento-badge-sub blue" style="margin-top: 6px;">
-              Até ${cartaoParcelas}x no cartão
             </div>
           </div>
 
           <!-- Card 3: Financiamento A -->
           <div class="card-pagamento">
             <div>
-              <span class="card-pagamento-tag amber">Menor parcela</span>
-              <div class="card-pagamento-icon-circle amber">🏦</div>
-              <div class="card-pagamento-titulo">${finanANome}</div>
-              <div class="card-pagamento-valor">${finanAParcelas}x de ${formatBRL(finanAValor)}</div>
-              ${
-                finanAEntrada > 0
-                  ? `<div class="card-pagamento-desc" style="color: #B45309; font-weight: 700;">Entrada: ${formatBRL(finanAEntrada)}</div>`
-                  : `<div class="card-pagamento-desc">Linha de crédito solar</div>`
-              }
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                <span class="card-pagamento-titulo" style="margin: 0; font-size: 9.5px; font-weight: 900; color: #111827; text-transform: uppercase;">${finanANome}</span>
+                <span style="font-size: 8px; font-weight: 800; background: #FEF3C7; color: #78350F; padding: 2px 6px; border-radius: 9999px;">${finanAParcelas}x</span>
+              </div>
+              <div class="card-pagamento-valor" style="color: #111827; margin-top: 6px;">
+                <span style="font-size: 11px; font-weight: 700; color: #4B5563;">${finanAParcelas}x de </span>${formatBRL(finanAValor)}
+              </div>
+              <div class="card-pagamento-desc">
+                ${
+                  finanAEntrada > 0
+                    ? `<span style="color: #92400E; font-weight: 700; display: block;">Entrada: ${formatBRL(finanAEntrada)}</span>`
+                    : ''
+                }
+                Total: ${formatBRL(finanAEntrada + finanAValor * finanAParcelas)}
+              </div>
             </div>
-            <div style="margin-top: 6px; padding-top: 6px; border-top: 1px solid #E5E7EB; font-size: 8px;">
-              <div style="display: flex; justify-content: space-between; color: #4B5563;">
+            <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #F3F4F6; font-size: 8.5px; line-height: 1.45;">
+              <div style="display: flex; justify-content: space-between; color: #6B7280;">
                 <span>Conta hoje s/ solar:</span>
-                <strong style="color: #DC2626;">${formatBRL(finanAContaSemSolar)}</strong>
+                <strong style="color: #DC2626; font-weight: 800;">${formatBRL(finanAContaSemSolar)}</strong>
               </div>
-              <div style="display: flex; justify-content: space-between; color: #4B5563; margin-top: 2px;">
+              <div style="display: flex; justify-content: space-between; color: #6B7280; margin-top: 2px;">
                 <span>Conta c/ solar:</span>
-                <strong style="color: #047857;">${formatBRL(finanAContaComSolar)}</strong>
+                <strong style="color: #047857; font-weight: 800;">${formatBRL(finanAContaComSolar)}</strong>
               </div>
-              <div style="display: flex; justify-content: space-between; color: #92400E; font-weight: 800; margin-top: 3px; padding-top: 2px; border-top: 1px dashed #FDE68A;">
+              <div style="display: flex; justify-content: space-between; color: #111827; font-weight: 900; margin-top: 4px; padding-top: 4px; border-top: 1px solid #F3F4F6;">
                 <span>Parcela + Conta:</span>
                 <span>${formatBRL(finanADesembolso)}</span>
               </div>
             </div>
-            <div class="card-pagamento-badge-sub amber" style="margin-top: 6px;">
-              Linha solar facilitada
-            </div>
           </div>
 
           <!-- Card 4: Financiamento B -->
-          <div class="card-pagamento">
+          <div class="card-pagamento destaque-azul" style="border: 2px solid #60A5FA; background: #F0F9FF;">
             <div>
-              <span class="card-pagamento-tag purple">Maior prazo</span>
-              <div class="card-pagamento-icon-circle purple">⏳</div>
-              <div class="card-pagamento-titulo">${finanBNome}</div>
-              <div class="card-pagamento-valor">${finanBParcelas}x de ${formatBRL(finanBValor)}</div>
-              ${
-                finanBEntrada > 0
-                  ? `<div class="card-pagamento-desc" style="color: #6B21A8; font-weight: 700;">Entrada: ${formatBRL(finanBEntrada)}</div>`
-                  : `<div class="card-pagamento-desc">Prazo estendido em até ${finanBParcelas}x</div>`
-              }
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                <span class="card-pagamento-titulo" style="margin: 0; font-size: 9.5px; font-weight: 900; color: #172554; text-transform: uppercase;">${finanBNome}</span>
+                <span style="font-size: 8px; font-weight: 800; background: #BFDBFE; color: #1E3A8A; padding: 2px 6px; border-radius: 9999px;">${finanBParcelas}x</span>
+              </div>
+              <div class="card-pagamento-valor" style="color: #1E40AF; margin-top: 6px;">
+                <span style="font-size: 11px; font-weight: 700; color: #1E3A8A;">${finanBParcelas}x de </span>${formatBRL(finanBValor)}
+              </div>
+              <div class="card-pagamento-desc">
+                ${
+                  finanBEntrada > 0
+                    ? `<span style="color: #1E3A8A; font-weight: 700; display: block;">Entrada: ${formatBRL(finanBEntrada)}</span>`
+                    : ''
+                }
+                Total: ${formatBRL(finanBEntrada + finanBValor * finanBParcelas)}
+              </div>
             </div>
-            <div style="margin-top: 6px; padding-top: 6px; border-top: 1px solid #E5E7EB; font-size: 8px;">
-              <div style="display: flex; justify-content: space-between; color: #4B5563;">
+            <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #BFDBFE; font-size: 8.5px; line-height: 1.45;">
+              <div style="display: flex; justify-content: space-between; color: #6B7280;">
                 <span>Conta hoje s/ solar:</span>
-                <strong style="color: #DC2626;">${formatBRL(finanBContaSemSolar)}</strong>
+                <strong style="color: #DC2626; font-weight: 800;">${formatBRL(finanBContaSemSolar)}</strong>
               </div>
-              <div style="display: flex; justify-content: space-between; color: #4B5563; margin-top: 2px;">
+              <div style="display: flex; justify-content: space-between; color: #6B7280; margin-top: 2px;">
                 <span>Conta c/ solar:</span>
-                <strong style="color: #047857;">${formatBRL(finanBContaComSolar)}</strong>
+                <strong style="color: #047857; font-weight: 800;">${formatBRL(finanBContaComSolar)}</strong>
               </div>
-              <div style="display: flex; justify-content: space-between; color: #6B21A8; font-weight: 800; margin-top: 3px; padding-top: 2px; border-top: 1px dashed #E9D5FF;">
+              <div style="display: flex; justify-content: space-between; color: #1E3A8A; font-weight: 900; margin-top: 4px; padding-top: 4px; border-top: 1px solid #BFDBFE;">
                 <span>Parcela + Conta:</span>
                 <span>${formatBRL(finanBDesembolso)}</span>
               </div>
-            </div>
-            <div class="card-pagamento-badge-sub purple" style="margin-top: 6px;">
-              Até ${finanBParcelas} meses
             </div>
           </div>
         </div>

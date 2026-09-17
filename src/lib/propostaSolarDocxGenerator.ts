@@ -1947,8 +1947,42 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
     }),
   )
 
-  // Grade 4 modalidades de pagamento com destaques estilizados idênticos ao React
+  // Grade 4 modalidades de pagamento com layout e linhas comparativas idênticos à aba de parcelamento
   const colWidthPgto = Math.floor(PAGE_CONTENT_WIDTH / 4)
+  const contaComSolarAVista =
+    parcelamentos?.aVista?.contaComSolar !== undefined ? parcelamentos.aVista.contaComSolar : 70
+  const economiaMesAVista = Math.max(0, contaHoje - contaComSolarAVista)
+
+  const contaComSolarCartao =
+    parcelamentos?.cartao18x?.contaComSolar !== undefined
+      ? parcelamentos.cartao18x.contaComSolar
+      : 70
+  const contaSemSolarCartao =
+    parcelamentos?.cartao18x?.contaSemSolar !== undefined
+      ? parcelamentos.cartao18x.contaSemSolar
+      : contaHoje
+  const parcelaMaisContaCartao = cartaoValor + contaComSolarCartao
+
+  const contaComSolarFinanA =
+    parcelamentos?.financiamentoBanco1?.contaComSolar !== undefined
+      ? parcelamentos.financiamentoBanco1.contaComSolar
+      : 70
+  const contaSemSolarFinanA =
+    parcelamentos?.financiamentoBanco1?.contaSemSolar !== undefined
+      ? parcelamentos.financiamentoBanco1.contaSemSolar
+      : contaHoje
+  const parcelaMaisContaFinanA = finanAValor + contaComSolarFinanA
+
+  const contaComSolarFinanB =
+    parcelamentos?.financiamentoBanco2?.contaComSolar !== undefined
+      ? parcelamentos.financiamentoBanco2.contaComSolar
+      : 70
+  const contaSemSolarFinanB =
+    parcelamentos?.financiamentoBanco2?.contaSemSolar !== undefined
+      ? parcelamentos.financiamentoBanco2.contaSemSolar
+      : contaHoje
+  const parcelaMaisContaFinanB = finanBValor + contaComSolarFinanB
+
   docChildren.push(
     new Table({
       width: { size: PAGE_CONTENT_WIDTH, type: WidthType.DXA },
@@ -1961,35 +1995,90 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
               width: { size: colWidthPgto, type: WidthType.DXA },
               shading: { type: ShadingType.CLEAR, fill: 'ECFDF5' },
               borders: {
-                top: { style: BorderStyle.SINGLE, size: 16, color: '16A34A' },
-                bottom: { style: BorderStyle.SINGLE, size: 16, color: '16A34A' },
-                left: { style: BorderStyle.SINGLE, size: 16, color: '16A34A' },
-                right: { style: BorderStyle.SINGLE, size: 16, color: '16A34A' },
+                top: { style: BorderStyle.SINGLE, size: 16, color: '10B981' },
+                bottom: { style: BorderStyle.SINGLE, size: 16, color: '10B981' },
+                left: { style: BorderStyle.SINGLE, size: 16, color: '10B981' },
+                right: { style: BorderStyle.SINGLE, size: 16, color: '10B981' },
               },
               margins: { top: 90, bottom: 90, left: 80, right: 80 },
               children: [
                 new Paragraph({
-                  alignment: AlignmentType.CENTER,
                   children: [
                     new TextRun({
-                      text: '[MELHOR CONDIÇÃO]\n',
-                      bold: true,
-                      size: 13,
-                      color: '16A34A',
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: '💵 À VISTA\n',
+                      text: 'À VISTA',
                       bold: true,
                       size: 15,
                       color: '065F46',
                       font: 'Arial',
                     }),
                     new TextRun({
-                      text: `${formatBRL(aVistaValor)}`,
+                      text: ' [Sem Juros]\n',
                       bold: true,
-                      size: 18,
-                      color: '15803D',
+                      size: 12,
+                      color: '047857',
+                      font: 'Arial',
+                    }),
+                    new TextRun({
+                      text: `${formatBRL(aVistaValor)}\n`,
+                      bold: true,
+                      size: 20,
+                      color: '047857',
+                      font: 'Arial',
+                    }),
+                    new TextRun({
+                      text: `${
+                        aVistaDesconto > 0
+                          ? `Desconto de ${formatBRL(aVistaDesconto)} aplicado\n`
+                          : 'Valor total do projeto à vista\n'
+                      }`,
+                      size: 11,
+                      color: '6B7280',
+                      font: 'Arial',
+                    }),
+                    new TextRun({
+                      text: '-----------------------------\n',
+                      size: 10,
+                      color: 'A7F3D0',
+                      font: 'Arial',
+                    }),
+                    new TextRun({
+                      text: 'Conta hoje s/ solar: ',
+                      size: 12,
+                      color: '6B7280',
+                      font: 'Arial',
+                    }),
+                    new TextRun({
+                      text: `${formatBRL(contaHoje)}\n`,
+                      bold: true,
+                      size: 12,
+                      color: 'DC2626',
+                      font: 'Arial',
+                    }),
+                    new TextRun({
+                      text: 'Conta c/ solar: ',
+                      size: 12,
+                      color: '6B7280',
+                      font: 'Arial',
+                    }),
+                    new TextRun({
+                      text: `${formatBRL(contaComSolarAVista)}\n`,
+                      bold: true,
+                      size: 12,
+                      color: '047857',
+                      font: 'Arial',
+                    }),
+                    new TextRun({
+                      text: 'Economia/mês: ',
+                      bold: true,
+                      size: 13,
+                      color: '064E3B',
+                      font: 'Arial',
+                    }),
+                    new TextRun({
+                      text: `${formatBRL(economiaMesAVista)}`,
+                      bold: true,
+                      size: 13,
+                      color: '064E3B',
                       font: 'Arial',
                     }),
                   ],
@@ -1999,46 +2088,96 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
             // Cartão
             new TableCell({
               width: { size: colWidthPgto, type: WidthType.DXA },
-              shading: { type: ShadingType.CLEAR, fill: 'EFF6FF' },
+              shading: { type: ShadingType.CLEAR, fill: 'FFFFFF' },
+              borders: {
+                top: { style: BorderStyle.SINGLE, size: 8, color: 'E5E7EB' },
+                bottom: { style: BorderStyle.SINGLE, size: 8, color: 'E5E7EB' },
+                left: { style: BorderStyle.SINGLE, size: 8, color: 'E5E7EB' },
+                right: { style: BorderStyle.SINGLE, size: 8, color: 'E5E7EB' },
+              },
               margins: { top: 90, bottom: 90, left: 80, right: 80 },
               children: [
                 new Paragraph({
-                  alignment: AlignmentType.CENTER,
                   children: [
                     new TextRun({
-                      text: '[SEM BUROCRACIA]\n',
-                      bold: true,
-                      size: 13,
-                      color: '2563EB',
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: '💳 CARTÃO\n',
+                      text: 'CARTÃO DE CRÉDITO',
                       bold: true,
                       size: 15,
-                      color: '1E40AF',
+                      color: '111827',
                       font: 'Arial',
                     }),
                     new TextRun({
-                      text: `${cartaoParcelas}x ${formatBRL(cartaoValor)}\n`,
+                      text: ` [${cartaoParcelas}x]\n`,
                       bold: true,
-                      size: 17,
-                      color: '1E3A8A',
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: `Fatura c/ solar + parcela: ${formatBRL((parcelamentos?.cartao18x?.contaComSolar !== undefined ? parcelamentos.cartao18x.contaComSolar : 70) + cartaoValor)}/mês\n`,
                       size: 12,
-                      bold: true,
-                      color: '1E40AF',
+                      color: '4B5563',
                       font: 'Arial',
                     }),
                     new TextRun({
-                      text: `Custo atual: ${formatBRL(contaHoje)}/mês`,
+                      text: `${cartaoParcelas}x de `,
+                      bold: true,
+                      size: 13,
+                      color: '4B5563',
+                      font: 'Arial',
+                    }),
+                    new TextRun({
+                      text: `${formatBRL(cartaoValor)}\n`,
+                      bold: true,
+                      size: 20,
+                      color: '111827',
+                      font: 'Arial',
+                    }),
+                    new TextRun({
+                      text: `Total: ${formatBRL(cartaoValor * cartaoParcelas)}\n`,
+                      size: 11,
+                      color: '6B7280',
+                      font: 'Arial',
+                    }),
+                    new TextRun({
+                      text: '-----------------------------\n',
+                      size: 10,
+                      color: 'E5E7EB',
+                      font: 'Arial',
+                    }),
+                    new TextRun({
+                      text: 'Conta hoje s/ solar: ',
+                      size: 12,
+                      color: '6B7280',
+                      font: 'Arial',
+                    }),
+                    new TextRun({
+                      text: `${formatBRL(contaSemSolarCartao)}\n`,
+                      bold: true,
                       size: 12,
                       color: 'DC2626',
                       font: 'Arial',
+                    }),
+                    new TextRun({
+                      text: 'Conta c/ solar: ',
+                      size: 12,
+                      color: '6B7280',
+                      font: 'Arial',
+                    }),
+                    new TextRun({
+                      text: `${formatBRL(contaComSolarCartao)}\n`,
                       bold: true,
+                      size: 12,
+                      color: '047857',
+                      font: 'Arial',
+                    }),
+                    new TextRun({
+                      text: 'Parcela + Conta: ',
+                      bold: true,
+                      size: 13,
+                      color: '111827',
+                      font: 'Arial',
+                    }),
+                    new TextRun({
+                      text: `${formatBRL(parcelaMaisContaCartao)}`,
+                      bold: true,
+                      size: 13,
+                      color: '111827',
+                      font: 'Arial',
                     }),
                   ],
                 }),
@@ -2047,52 +2186,98 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
             // Financiamento A (Menor Parcela)
             new TableCell({
               width: { size: colWidthPgto, type: WidthType.DXA },
-              shading: { type: ShadingType.CLEAR, fill: 'FFFBEB' },
+              shading: { type: ShadingType.CLEAR, fill: 'FFFFFF' },
+              borders: {
+                top: { style: BorderStyle.SINGLE, size: 8, color: 'E5E7EB' },
+                bottom: { style: BorderStyle.SINGLE, size: 8, color: 'E5E7EB' },
+                left: { style: BorderStyle.SINGLE, size: 8, color: 'E5E7EB' },
+                right: { style: BorderStyle.SINGLE, size: 8, color: 'E5E7EB' },
+              },
               margins: { top: 90, bottom: 90, left: 80, right: 80 },
               children: [
                 new Paragraph({
-                  alignment: AlignmentType.CENTER,
                   children: [
                     new TextRun({
-                      text: '[MENOR PARCELA]\n',
-                      bold: true,
-                      size: 13,
-                      color: 'D97706',
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: `🏦 ${finanANome.toUpperCase()}\n`,
+                      text: finanANome.toUpperCase(),
                       bold: true,
                       size: 15,
+                      color: '111827',
+                      font: 'Arial',
+                    }),
+                    new TextRun({
+                      text: ` [${finanAParcelas}x]\n`,
+                      bold: true,
+                      size: 12,
                       color: '92400E',
                       font: 'Arial',
                     }),
                     new TextRun({
-                      text: `${finanAParcelas}x ${formatBRL(finanAValor)}\n`,
+                      text: `${finanAParcelas}x de `,
                       bold: true,
-                      size: 17,
-                      color: '78350F',
+                      size: 13,
+                      color: '4B5563',
                       font: 'Arial',
                     }),
                     new TextRun({
-                      text: `Entrada: ${formatBRL(finanAEntrada)}\n`,
-                      size: 12,
-                      color: 'B45309',
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: `Fatura c/ solar + parcela: ${formatBRL((parcelamentos?.financiamentoBanco1?.contaComSolar !== undefined ? parcelamentos.financiamentoBanco1.contaComSolar : 70) + finanAValor)}/mês\n`,
-                      size: 12,
+                      text: `${formatBRL(finanAValor)}\n`,
                       bold: true,
-                      color: '92400E',
+                      size: 20,
+                      color: '111827',
                       font: 'Arial',
                     }),
                     new TextRun({
-                      text: `Custo atual: ${formatBRL(contaHoje)}/mês`,
+                      text: `${
+                        finanAEntrada > 0 ? `Entrada: ${formatBRL(finanAEntrada)} | ` : ''
+                      }Total: ${formatBRL(finanAEntrada + finanAValor * finanAParcelas)}\n`,
+                      size: 11,
+                      color: '6B7280',
+                      font: 'Arial',
+                    }),
+                    new TextRun({
+                      text: '-----------------------------\n',
+                      size: 10,
+                      color: 'E5E7EB',
+                      font: 'Arial',
+                    }),
+                    new TextRun({
+                      text: 'Conta hoje s/ solar: ',
+                      size: 12,
+                      color: '6B7280',
+                      font: 'Arial',
+                    }),
+                    new TextRun({
+                      text: `${formatBRL(contaSemSolarFinanA)}\n`,
+                      bold: true,
                       size: 12,
                       color: 'DC2626',
                       font: 'Arial',
+                    }),
+                    new TextRun({
+                      text: 'Conta c/ solar: ',
+                      size: 12,
+                      color: '6B7280',
+                      font: 'Arial',
+                    }),
+                    new TextRun({
+                      text: `${formatBRL(contaComSolarFinanA)}\n`,
                       bold: true,
+                      size: 12,
+                      color: '047857',
+                      font: 'Arial',
+                    }),
+                    new TextRun({
+                      text: 'Parcela + Conta: ',
+                      bold: true,
+                      size: 13,
+                      color: '111827',
+                      font: 'Arial',
+                    }),
+                    new TextRun({
+                      text: `${formatBRL(parcelaMaisContaFinanA)}`,
+                      bold: true,
+                      size: 13,
+                      color: '111827',
+                      font: 'Arial',
                     }),
                   ],
                 }),
@@ -2101,52 +2286,98 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
             // Financiamento B (Maior Prazo)
             new TableCell({
               width: { size: colWidthPgto, type: WidthType.DXA },
-              shading: { type: ShadingType.CLEAR, fill: 'FAF5FF' },
+              shading: { type: ShadingType.CLEAR, fill: 'EFF6FF' },
+              borders: {
+                top: { style: BorderStyle.SINGLE, size: 16, color: '60A5FA' },
+                bottom: { style: BorderStyle.SINGLE, size: 16, color: '60A5FA' },
+                left: { style: BorderStyle.SINGLE, size: 16, color: '60A5FA' },
+                right: { style: BorderStyle.SINGLE, size: 16, color: '60A5FA' },
+              },
               margins: { top: 90, bottom: 90, left: 80, right: 80 },
               children: [
                 new Paragraph({
-                  alignment: AlignmentType.CENTER,
                   children: [
                     new TextRun({
-                      text: '[MAIOR PRAZO]\n',
-                      bold: true,
-                      size: 13,
-                      color: '9333EA',
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: `⏳ ${finanBNome.toUpperCase()}\n`,
+                      text: finanBNome.toUpperCase(),
                       bold: true,
                       size: 15,
-                      color: '6B21A8',
+                      color: '1E3A8A',
                       font: 'Arial',
                     }),
                     new TextRun({
-                      text: `${finanBParcelas}x ${formatBRL(finanBValor)}\n`,
+                      text: ` [${finanBParcelas}x]\n`,
                       bold: true,
-                      size: 17,
-                      color: '581C87',
+                      size: 12,
+                      color: '1D4ED8',
                       font: 'Arial',
                     }),
                     new TextRun({
-                      text: `Entrada: ${formatBRL(finanBEntrada)}\n`,
-                      size: 12,
-                      color: '7E22CE',
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: `Fatura c/ solar + parcela: ${formatBRL((parcelamentos?.financiamentoBanco2?.contaComSolar !== undefined ? parcelamentos.financiamentoBanco2.contaComSolar : 70) + finanBValor)}/mês\n`,
-                      size: 12,
+                      text: `${finanBParcelas}x de `,
                       bold: true,
-                      color: '6B21A8',
+                      size: 13,
+                      color: '1E3A8A',
                       font: 'Arial',
                     }),
                     new TextRun({
-                      text: `Custo atual: ${formatBRL(contaHoje)}/mês`,
+                      text: `${formatBRL(finanBValor)}\n`,
+                      bold: true,
+                      size: 20,
+                      color: '1E40AF',
+                      font: 'Arial',
+                    }),
+                    new TextRun({
+                      text: `${
+                        finanBEntrada > 0 ? `Entrada: ${formatBRL(finanBEntrada)} | ` : ''
+                      }Total: ${formatBRL(finanBEntrada + finanBValor * finanBParcelas)}\n`,
+                      size: 11,
+                      color: '6B7280',
+                      font: 'Arial',
+                    }),
+                    new TextRun({
+                      text: '-----------------------------\n',
+                      size: 10,
+                      color: 'BFDBFE',
+                      font: 'Arial',
+                    }),
+                    new TextRun({
+                      text: 'Conta hoje s/ solar: ',
+                      size: 12,
+                      color: '6B7280',
+                      font: 'Arial',
+                    }),
+                    new TextRun({
+                      text: `${formatBRL(contaSemSolarFinanB)}\n`,
+                      bold: true,
                       size: 12,
                       color: 'DC2626',
                       font: 'Arial',
+                    }),
+                    new TextRun({
+                      text: 'Conta c/ solar: ',
+                      size: 12,
+                      color: '6B7280',
+                      font: 'Arial',
+                    }),
+                    new TextRun({
+                      text: `${formatBRL(contaComSolarFinanB)}\n`,
                       bold: true,
+                      size: 12,
+                      color: '047857',
+                      font: 'Arial',
+                    }),
+                    new TextRun({
+                      text: 'Parcela + Conta: ',
+                      bold: true,
+                      size: 13,
+                      color: '1E3A8A',
+                      font: 'Arial',
+                    }),
+                    new TextRun({
+                      text: `${formatBRL(parcelaMaisContaFinanB)}`,
+                      bold: true,
+                      size: 13,
+                      color: '1E3A8A',
+                      font: 'Arial',
                     }),
                   ],
                 }),

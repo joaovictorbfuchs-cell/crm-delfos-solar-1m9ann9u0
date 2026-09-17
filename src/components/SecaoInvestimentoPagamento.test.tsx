@@ -18,12 +18,13 @@ describe('SecaoInvestimentoPagamento Component', () => {
 
     // 4 cards de pagamento
     expect(html).toContain('À Vista')
-    expect(html).toContain('Melhor condição')
-    expect(html).toContain('Cartão')
-    expect(html).toContain('Sem juros')
+    expect(html).toContain('Cartão de Crédito')
     expect(html).toContain('Financiamento A')
-    expect(html).toContain('Menor parcela')
     expect(html).toContain('Financiamento B')
+    expect(html).toContain('Conta hoje s/ solar:')
+    expect(html).toContain('Conta c/ solar:')
+    expect(html).toContain('Economia/mês:')
+    expect(html).toContain('Parcela + Conta:')
     expect(html).toContain('Maior prazo')
 
     // Informações adicionadas: custo com energia atual e fatura mensal com solar + parcela
