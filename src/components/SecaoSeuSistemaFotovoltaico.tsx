@@ -2,7 +2,7 @@ import React from 'react'
 import {
   Zap,
   TrendingUp,
-  Sun,
+  SolarPanel,
   Cpu,
   Maximize2,
   ShieldCheck,
@@ -258,7 +258,7 @@ export const SecaoSeuSistemaFotovoltaico: React.FC<SecaoSeuSistemaFotovoltaicoPr
           <div className="bg-white rounded-2xl p-5 border border-emerald-100 shadow-xs hover:shadow-md transition-all group flex flex-col justify-between">
             <div className="flex items-start justify-between gap-3 mb-3">
               <div className="w-12 h-12 rounded-xl bg-yellow-50 border border-yellow-200/60 flex items-center justify-center text-yellow-600 group-hover:scale-105 transition-transform shadow-2xs">
-                <Sun className="w-6 h-6 text-yellow-600" />
+                <SolarPanel className="w-6 h-6 text-yellow-600" />
               </div>
               <span className="text-[11px] font-bold uppercase tracking-wider text-blue-700 bg-blue-50 px-2.5 py-0.5 rounded-full border border-blue-200">
                 Tier-1 Global
