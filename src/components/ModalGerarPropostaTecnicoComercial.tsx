@@ -137,10 +137,18 @@ export function ModalGerarPropostaTecnicoComercial({
   const [nParcelasCartao, setNParcelasCartao] = useState<number>(
     orcamento.parcelas_cartao && orcamento.parcelas_cartao > 0 ? orcamento.parcelas_cartao : 18,
   )
+  const [entradaCartao, setEntradaCartao] = useState<number>(
+    orcamento.entrada_cartao && orcamento.entrada_cartao > 0 ? orcamento.entrada_cartao : 0,
+  )
   const [valorParcelaCartao, setValorParcelaCartao] = useState<number>(
     orcamento.parcela_cartao_18x || Math.round((investimentoTotal * 1.12) / 18),
   )
   const [nomeFinanA, setNomeFinanA] = useState<string>('FINANCIAMENTO A')
+  const [entradaFinanA, setEntradaFinanA] = useState<number>(
+    orcamento.entrada_financiamento_banco1 && orcamento.entrada_financiamento_banco1 > 0
+      ? orcamento.entrada_financiamento_banco1
+      : 0,
+  )
   const [nParcelasFinanA, setNParcelasFinanA] = useState<number>(
     orcamento.parcelas_financiamento_banco1 && orcamento.parcelas_financiamento_banco1 > 0
       ? orcamento.parcelas_financiamento_banco1
@@ -150,6 +158,11 @@ export function ModalGerarPropostaTecnicoComercial({
     orcamento.parcela_financiamento_banco1 || Math.round(investimentoTotal * 0.023),
   )
   const [nomeFinanB, setNomeFinanB] = useState<string>('FINANCIAMENTO B')
+  const [entradaFinanB, setEntradaFinanB] = useState<number>(
+    orcamento.entrada_financiamento_banco2 && orcamento.entrada_financiamento_banco2 > 0
+      ? orcamento.entrada_financiamento_banco2
+      : 0,
+  )
   const [nParcelasFinanB, setNParcelasFinanB] = useState<number>(
     orcamento.parcelas_financiamento_banco2 && orcamento.parcelas_financiamento_banco2 > 0
       ? orcamento.parcelas_financiamento_banco2
@@ -348,6 +361,7 @@ export function ModalGerarPropostaTecnicoComercial({
             valorParcela: Number(valorParcelaCartao) || 0,
             contaHoje: contaHojeNum,
             contaComSolar: contaComSolarNum,
+            entrada: Number(entradaCartao) || 0,
           },
           financiamentoA: {
             nome: nomeFinanA || 'FINANCIAMENTO A',
@@ -355,6 +369,7 @@ export function ModalGerarPropostaTecnicoComercial({
             valorParcela: Number(valorParcelaFinanA) || 0,
             contaHoje: contaHojeNum,
             contaComSolar: contaComSolarNum,
+            entrada: Number(entradaFinanA) || 0,
           },
           financiamentoB: {
             nome: nomeFinanB || 'FINANCIAMENTO B',
@@ -362,6 +377,7 @@ export function ModalGerarPropostaTecnicoComercial({
             valorParcela: Number(valorParcelaFinanB) || 0,
             contaHoje: contaHojeNum,
             contaComSolar: contaComSolarNum,
+            entrada: Number(entradaFinanB) || 0,
           },
         },
         projecao: {
@@ -414,12 +430,15 @@ export function ModalGerarPropostaTecnicoComercial({
     paybackTexto,
     nParcelasCartao,
     valorParcelaCartao,
+    entradaCartao,
     nomeFinanA,
     nParcelasFinanA,
     valorParcelaFinanA,
+    entradaFinanA,
     nomeFinanB,
     nParcelasFinanB,
     valorParcelaFinanB,
+    entradaFinanB,
   ])
 
   const htmlPreview = useMemo<string>(() => {
@@ -910,6 +929,54 @@ export function ModalGerarPropostaTecnicoComercial({
                     </div>
                   </div>
                 </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs pt-2 border-t border-gray-100">
+                  <div>
+                    <label className="text-[10px] font-semibold text-gray-600 block mb-1">
+                      Entrada Cartão (R$)
+                    </label>
+                    <input
+                      type="number"
+                      min={0}
+                      value={entradaCartao || ''}
+                      placeholder="0,00"
+                      onChange={(e) =>
+                        setEntradaCartao(Math.max(0, parseFloat(e.target.value) || 0))
+                      }
+                      className="w-full text-xs px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-emerald-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-semibold text-gray-600 block mb-1">
+                      Entrada Financ. A (R$)
+                    </label>
+                    <input
+                      type="number"
+                      min={0}
+                      value={entradaFinanA || ''}
+                      placeholder="0,00"
+                      onChange={(e) =>
+                        setEntradaFinanA(Math.max(0, parseFloat(e.target.value) || 0))
+                      }
+                      className="w-full text-xs px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-emerald-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-semibold text-gray-600 block mb-1">
+                      Entrada Financ. B (R$)
+                    </label>
+                    <input
+                      type="number"
+                      min={0}
+                      value={entradaFinanB || ''}
+                      placeholder="0,00"
+                      onChange={(e) =>
+                        setEntradaFinanB(Math.max(0, parseFloat(e.target.value) || 0))
+                      }
+                      className="w-full text-xs px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-emerald-500"
+                    />
+                  </div>
+                </div>
               </div>
 
               {/* Seção 1: Capa da Proposta Comercial Oficial */}
@@ -1048,11 +1115,11 @@ export function ModalGerarPropostaTecnicoComercial({
                   valorParcelaCartao={valorParcelaCartao}
                   cartaoSemJuros={true}
                   nomeFinanciamentoA={nomeFinanA}
-                  entradaFinanciamentoA={Math.round(investimentoTotal * 0.2)}
+                  entradaFinanciamentoA={entradaFinanA}
                   parcelasFinanciamentoA={nParcelasFinanA}
                   valorParcelaFinanciamentoA={valorParcelaFinanA}
                   nomeFinanciamentoB={nomeFinanB}
-                  entradaFinanciamentoB={Math.round(investimentoTotal * 0.1)}
+                  entradaFinanciamentoB={entradaFinanB}
                   parcelasFinanciamentoB={nParcelasFinanB}
                   valorParcelaFinanciamentoB={valorParcelaFinanB}
                   contaMensalAtual={contaHoje}

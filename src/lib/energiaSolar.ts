@@ -64,6 +64,8 @@ export interface ParcelamentoItem {
   contaComSolar: number
   desembolsoMensal: number // Parcela + Conta com solar
   economiaMensalLiquida: number // Conta sem solar - desembolso
+  valorEntrada?: number // Valor de entrada opcional (abatido do principal)
+  valorFinanciado?: number // Valor efetivamente financiado (valorInvestimento - valorEntrada)
 }
 
 export interface CalculosSolarResultado {
@@ -476,10 +478,13 @@ export function calcularCustosAba(params: ParametrosCalculoCustosAba): Resultado
 export interface ConfiguracaoParcelamentosInput {
   parcelasCartao?: number
   jurosCartao?: number
+  entradaCartao?: number
   parcelasBanco1?: number
   jurosBanco1?: number
+  entradaBanco1?: number
   parcelasBanco2?: number
   jurosBanco2?: number
+  entradaBanco2?: number
 }
 
 export interface InputCalculoSolar {
@@ -651,18 +656,23 @@ export function calcularOrcamentoSolar(input: InputCalculoSolar): CalculosSolarR
       ? Number(input.configParcelamentos.jurosCartao) || 0
       : 1.49,
   )
-  const parcelaCartao = calcularParcelaPrice(valorInvestimento, taxaCartao, parcelasCartao)
+  const entradaCartaoBruta = Number(input.configParcelamentos?.entradaCartao) || 0
+  const entradaCartao = Math.min(valorInvestimento, Math.max(0, entradaCartaoBruta))
+  const principalCartao = Math.max(0, valorInvestimento - entradaCartao)
+  const parcelaCartao = calcularParcelaPrice(principalCartao, taxaCartao, parcelasCartao)
   const cartao18x: ParcelamentoItem = {
     titulo: `Cartão de Crédito ${parcelasCartao}x`,
     descricao: `${parcelasCartao}x no cartão de crédito`,
     numeroParcelas: parcelasCartao,
     taxaJurosMensal: taxaCartao,
     valorParcela: parcelaCartao,
-    valorTotal: parcelaCartao * parcelasCartao,
+    valorTotal: entradaCartao + parcelaCartao * parcelasCartao,
     contaSemSolar: contaAtualSemSolarMes,
     contaComSolar: contaPrimeiroMesComSolar,
     desembolsoMensal: parcelaCartao + contaPrimeiroMesComSolar,
     economiaMensalLiquida: contaAtualSemSolarMes - (parcelaCartao + contaPrimeiroMesComSolar),
+    valorEntrada: entradaCartao,
+    valorFinanciado: principalCartao,
   }
 
   // 3) Financiamento Banco 1 (padrão: 60x e 1.90% a.m. ou configurado)
@@ -678,18 +688,23 @@ export function calcularOrcamentoSolar(input: InputCalculoSolar): CalculosSolarR
       ? Number(input.configParcelamentos.jurosBanco1) || 0
       : 1.9,
   )
-  const parcelaFinancBanco1 = calcularParcelaPrice(valorInvestimento, taxaBanco1, parcelasBanco1)
+  const entradaBanco1Bruta = Number(input.configParcelamentos?.entradaBanco1) || 0
+  const entradaBanco1 = Math.min(valorInvestimento, Math.max(0, entradaBanco1Bruta))
+  const principalBanco1 = Math.max(0, valorInvestimento - entradaBanco1)
+  const parcelaFinancBanco1 = calcularParcelaPrice(principalBanco1, taxaBanco1, parcelasBanco1)
   const financiamentoBanco1: ParcelamentoItem = {
     titulo: 'Financiamento Banco 1',
     descricao: `Até ${parcelasBanco1}x com juros de ${taxaBanco1.toFixed(2).replace('.', ',')}% a.m.`,
     numeroParcelas: parcelasBanco1,
     taxaJurosMensal: taxaBanco1,
     valorParcela: parcelaFinancBanco1,
-    valorTotal: parcelaFinancBanco1 * parcelasBanco1,
+    valorTotal: entradaBanco1 + parcelaFinancBanco1 * parcelasBanco1,
     contaSemSolar: contaAtualSemSolarMes,
     contaComSolar: contaPrimeiroMesComSolar,
     desembolsoMensal: parcelaFinancBanco1 + contaPrimeiroMesComSolar,
     economiaMensalLiquida: contaAtualSemSolarMes - (parcelaFinancBanco1 + contaPrimeiroMesComSolar),
+    valorEntrada: entradaBanco1,
+    valorFinanciado: principalBanco1,
   }
 
   // 4) Financiamento Banco 2 (padrão: 60x e 0.99% a.m. ou configurado)
@@ -705,18 +720,23 @@ export function calcularOrcamentoSolar(input: InputCalculoSolar): CalculosSolarR
       ? Number(input.configParcelamentos.jurosBanco2) || 0
       : 0.99,
   )
-  const parcelaFinancBanco2 = calcularParcelaPrice(valorInvestimento, taxaBanco2, parcelasBanco2)
+  const entradaBanco2Bruta = Number(input.configParcelamentos?.entradaBanco2) || 0
+  const entradaBanco2 = Math.min(valorInvestimento, Math.max(0, entradaBanco2Bruta))
+  const principalBanco2 = Math.max(0, valorInvestimento - entradaBanco2)
+  const parcelaFinancBanco2 = calcularParcelaPrice(principalBanco2, taxaBanco2, parcelasBanco2)
   const financiamentoBanco2: ParcelamentoItem = {
     titulo: 'Financiamento Banco 2',
     descricao: `Até ${parcelasBanco2}x com juros de ${taxaBanco2.toFixed(2).replace('.', ',')}% a.m.`,
     numeroParcelas: parcelasBanco2,
     taxaJurosMensal: taxaBanco2,
     valorParcela: parcelaFinancBanco2,
-    valorTotal: parcelaFinancBanco2 * parcelasBanco2,
+    valorTotal: entradaBanco2 + parcelaFinancBanco2 * parcelasBanco2,
     contaSemSolar: contaAtualSemSolarMes,
     contaComSolar: contaPrimeiroMesComSolar,
     desembolsoMensal: parcelaFinancBanco2 + contaPrimeiroMesComSolar,
     economiaMensalLiquida: contaAtualSemSolarMes - (parcelaFinancBanco2 + contaPrimeiroMesComSolar),
+    valorEntrada: entradaBanco2,
+    valorFinanciado: principalBanco2,
   }
 
   return {

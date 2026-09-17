@@ -153,10 +153,13 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
   // Opções personalizadas de parcelamento & financiamento
   const [parcelasCartao, setParcelasCartao] = useState<number>(18)
   const [jurosCartao, setJurosCartao] = useState<number>(1.49)
+  const [entradaCartao, setEntradaCartao] = useState<number>(0)
   const [parcelasBanco1, setParcelasBanco1] = useState<number>(60)
   const [jurosBanco1, setJurosBanco1] = useState<number>(1.9)
+  const [entradaBanco1, setEntradaBanco1] = useState<number>(0)
   const [parcelasBanco2, setParcelasBanco2] = useState<number>(60)
   const [jurosBanco2, setJurosBanco2] = useState<number>(0.99)
+  const [entradaBanco2, setEntradaBanco2] = useState<number>(0)
 
   // Usinas da galeria e usinas selecionadas para esta proposta
   const [usinasGaleria, setUsinasGaleria] = useState<InstalacaoGaleria[]>([])
@@ -352,6 +355,11 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
       setJurosCartao(
         initialOrcamento.juros_cartao !== undefined ? initialOrcamento.juros_cartao : 1.49,
       )
+      setEntradaCartao(
+        initialOrcamento.entrada_cartao !== undefined && initialOrcamento.entrada_cartao > 0
+          ? initialOrcamento.entrada_cartao
+          : 0,
+      )
       setParcelasBanco1(
         initialOrcamento.parcelas_financiamento_banco1 !== undefined &&
           initialOrcamento.parcelas_financiamento_banco1 > 0
@@ -363,6 +371,12 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
           ? initialOrcamento.juros_financiamento_banco1
           : 1.9,
       )
+      setEntradaBanco1(
+        initialOrcamento.entrada_financiamento_banco1 !== undefined &&
+          initialOrcamento.entrada_financiamento_banco1 > 0
+          ? initialOrcamento.entrada_financiamento_banco1
+          : 0,
+      )
       setParcelasBanco2(
         initialOrcamento.parcelas_financiamento_banco2 !== undefined &&
           initialOrcamento.parcelas_financiamento_banco2 > 0
@@ -373,6 +387,12 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
         initialOrcamento.juros_financiamento_banco2 !== undefined
           ? initialOrcamento.juros_financiamento_banco2
           : 0.99,
+      )
+      setEntradaBanco2(
+        initialOrcamento.entrada_financiamento_banco2 !== undefined &&
+          initialOrcamento.entrada_financiamento_banco2 > 0
+          ? initialOrcamento.entrada_financiamento_banco2
+          : 0,
       )
 
       // Carrega usinas selecionadas salvas no orçamento
@@ -409,10 +429,13 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
 
       setParcelasCartao(18)
       setJurosCartao(1.49)
+      setEntradaCartao(0)
       setParcelasBanco1(60)
       setJurosBanco1(1.9)
+      setEntradaBanco1(0)
       setParcelasBanco2(60)
       setJurosBanco2(0.99)
+      setEntradaBanco2(0)
 
       setGarantiaModulosDegradacaoAnos(30)
       setGarantiaModulosFabricacaoAnos(15)
@@ -656,10 +679,13 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
       configParcelamentos: {
         parcelasCartao,
         jurosCartao,
+        entradaCartao,
         parcelasBanco1,
         jurosBanco1,
+        entradaBanco1,
         parcelasBanco2,
         jurosBanco2,
+        entradaBanco2,
       },
     })
   }, [
@@ -672,10 +698,13 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
     valorInvestimentoFinal,
     parcelasCartao,
     jurosCartao,
+    entradaCartao,
     parcelasBanco1,
     jurosBanco1,
+    entradaBanco1,
     parcelasBanco2,
     jurosBanco2,
+    entradaBanco2,
   ])
 
   // Objeto preparado para geração de PDF
@@ -854,10 +883,13 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
         parcela_financiamento_banco2: calculos.parcelamentos.financiamentoBanco2.valorParcela,
         parcelas_cartao: parcelasCartao,
         juros_cartao: jurosCartao,
+        entrada_cartao: entradaCartao,
         parcelas_financiamento_banco1: parcelasBanco1,
         juros_financiamento_banco1: jurosBanco1,
+        entrada_financiamento_banco1: entradaBanco1,
         parcelas_financiamento_banco2: parcelasBanco2,
         juros_financiamento_banco2: jurosBanco2,
+        entrada_financiamento_banco2: entradaBanco2,
 
         // Garantias dinâmicas
         garantia_modulos_degradacao_anos: garantiaModulosDegradacaoAnos,
@@ -2553,35 +2585,55 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                         </span>
                       </div>
 
-                      {/* Inputs de customização: parcelas e juros */}
-                      <div className="mt-2.5 p-2 bg-gray-50 rounded-lg border border-gray-200 grid grid-cols-2 gap-2">
-                        <div>
-                          <label className="text-[10px] font-semibold text-gray-600 block mb-0.5">
-                            Parcelas
-                          </label>
-                          <input
-                            type="number"
-                            min={1}
-                            max={120}
-                            value={parcelasCartao}
-                            onChange={(e) =>
-                              setParcelasCartao(Math.max(1, parseInt(e.target.value, 10) || 1))
-                            }
-                            className="w-full text-xs font-bold px-2 py-1 bg-white rounded border border-gray-300 focus:outline-none focus:ring-1 focus:ring-emerald-500"
-                          />
+                      {/* Inputs de customização: parcelas, juros e entrada */}
+                      <div className="mt-2.5 p-2 bg-gray-50 rounded-lg border border-gray-200 space-y-2">
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <label className="text-[10px] font-semibold text-gray-600 block mb-0.5">
+                              Parcelas
+                            </label>
+                            <input
+                              type="number"
+                              min={1}
+                              max={120}
+                              value={parcelasCartao}
+                              onChange={(e) =>
+                                setParcelasCartao(Math.max(1, parseInt(e.target.value, 10) || 1))
+                              }
+                              className="w-full text-xs font-bold px-2 py-1 bg-white rounded border border-gray-300 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[10px] font-semibold text-gray-600 block mb-0.5">
+                              Juros (% a.m.)
+                            </label>
+                            <input
+                              type="number"
+                              min={0}
+                              step={0.01}
+                              value={jurosCartao}
+                              onChange={(e) =>
+                                setJurosCartao(Math.max(0, parseFloat(e.target.value) || 0))
+                              }
+                              className="w-full text-xs font-bold px-2 py-1 bg-white rounded border border-gray-300 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                            />
+                          </div>
                         </div>
                         <div>
                           <label className="text-[10px] font-semibold text-gray-600 block mb-0.5">
-                            Juros (% a.m.)
+                            Entrada (R$)
                           </label>
                           <input
                             type="number"
                             min={0}
-                            step={0.01}
-                            value={jurosCartao}
-                            onChange={(e) =>
-                              setJurosCartao(Math.max(0, parseFloat(e.target.value) || 0))
-                            }
+                            max={valorInvestimentoFinal}
+                            step={100}
+                            value={entradaCartao || ''}
+                            placeholder="0,00"
+                            onChange={(e) => {
+                              const val = Math.max(0, parseFloat(e.target.value) || 0)
+                              setEntradaCartao(Math.min(val, valorInvestimentoFinal))
+                            }}
                             className="w-full text-xs font-bold px-2 py-1 bg-white rounded border border-gray-300 focus:outline-none focus:ring-1 focus:ring-emerald-500"
                           />
                         </div>
@@ -2591,6 +2643,11 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                         {formatCurrency(calculos.parcelamentos.cartao18x.valorParcela)}
                       </div>
                       <p className="text-[10px] text-gray-500">
+                        {entradaCartao > 0 && (
+                          <span className="block text-emerald-700 font-semibold">
+                            Entrada: {formatCurrency(entradaCartao)}
+                          </span>
+                        )}
                         Total: {formatCurrency(calculos.parcelamentos.cartao18x.valorTotal)}
                       </p>
                     </div>
@@ -2634,35 +2691,55 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                         </span>
                       </div>
 
-                      {/* Inputs de customização: parcelas e juros */}
-                      <div className="mt-2.5 p-2 bg-gray-50 rounded-lg border border-gray-200 grid grid-cols-2 gap-2">
-                        <div>
-                          <label className="text-[10px] font-semibold text-gray-600 block mb-0.5">
-                            Parcelas
-                          </label>
-                          <input
-                            type="number"
-                            min={1}
-                            max={180}
-                            value={parcelasBanco1}
-                            onChange={(e) =>
-                              setParcelasBanco1(Math.max(1, parseInt(e.target.value, 10) || 1))
-                            }
-                            className="w-full text-xs font-bold px-2 py-1 bg-white rounded border border-gray-300 focus:outline-none focus:ring-1 focus:ring-emerald-500"
-                          />
+                      {/* Inputs de customização: parcelas, juros e entrada */}
+                      <div className="mt-2.5 p-2 bg-gray-50 rounded-lg border border-gray-200 space-y-2">
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <label className="text-[10px] font-semibold text-gray-600 block mb-0.5">
+                              Parcelas
+                            </label>
+                            <input
+                              type="number"
+                              min={1}
+                              max={180}
+                              value={parcelasBanco1}
+                              onChange={(e) =>
+                                setParcelasBanco1(Math.max(1, parseInt(e.target.value, 10) || 1))
+                              }
+                              className="w-full text-xs font-bold px-2 py-1 bg-white rounded border border-gray-300 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[10px] font-semibold text-gray-600 block mb-0.5">
+                              Juros (% a.m.)
+                            </label>
+                            <input
+                              type="number"
+                              min={0}
+                              step={0.01}
+                              value={jurosBanco1}
+                              onChange={(e) =>
+                                setJurosBanco1(Math.max(0, parseFloat(e.target.value) || 0))
+                              }
+                              className="w-full text-xs font-bold px-2 py-1 bg-white rounded border border-gray-300 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                            />
+                          </div>
                         </div>
                         <div>
                           <label className="text-[10px] font-semibold text-gray-600 block mb-0.5">
-                            Juros (% a.m.)
+                            Entrada (R$)
                           </label>
                           <input
                             type="number"
                             min={0}
-                            step={0.01}
-                            value={jurosBanco1}
-                            onChange={(e) =>
-                              setJurosBanco1(Math.max(0, parseFloat(e.target.value) || 0))
-                            }
+                            max={valorInvestimentoFinal}
+                            step={100}
+                            value={entradaBanco1 || ''}
+                            placeholder="0,00"
+                            onChange={(e) => {
+                              const val = Math.max(0, parseFloat(e.target.value) || 0)
+                              setEntradaBanco1(Math.min(val, valorInvestimentoFinal))
+                            }}
                             className="w-full text-xs font-bold px-2 py-1 bg-white rounded border border-gray-300 focus:outline-none focus:ring-1 focus:ring-emerald-500"
                           />
                         </div>
@@ -2672,6 +2749,11 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                         {formatCurrency(calculos.parcelamentos.financiamentoBanco1.valorParcela)}
                       </div>
                       <p className="text-[10px] text-gray-500">
+                        {entradaBanco1 > 0 && (
+                          <span className="block text-amber-800 font-semibold">
+                            Entrada: {formatCurrency(entradaBanco1)}
+                          </span>
+                        )}
                         Total:{' '}
                         {formatCurrency(calculos.parcelamentos.financiamentoBanco1.valorTotal)}
                       </p>
@@ -2718,35 +2800,55 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                         </span>
                       </div>
 
-                      {/* Inputs de customização: parcelas e juros */}
-                      <div className="mt-2.5 p-2 bg-blue-100/50 rounded-lg border border-blue-200 grid grid-cols-2 gap-2">
-                        <div>
-                          <label className="text-[10px] font-semibold text-blue-900 block mb-0.5">
-                            Parcelas
-                          </label>
-                          <input
-                            type="number"
-                            min={1}
-                            max={180}
-                            value={parcelasBanco2}
-                            onChange={(e) =>
-                              setParcelasBanco2(Math.max(1, parseInt(e.target.value, 10) || 1))
-                            }
-                            className="w-full text-xs font-bold px-2 py-1 bg-white rounded border border-blue-300 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                          />
+                      {/* Inputs de customização: parcelas, juros e entrada */}
+                      <div className="mt-2.5 p-2 bg-blue-100/50 rounded-lg border border-blue-200 space-y-2">
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <label className="text-[10px] font-semibold text-blue-900 block mb-0.5">
+                              Parcelas
+                            </label>
+                            <input
+                              type="number"
+                              min={1}
+                              max={180}
+                              value={parcelasBanco2}
+                              onChange={(e) =>
+                                setParcelasBanco2(Math.max(1, parseInt(e.target.value, 10) || 1))
+                              }
+                              className="w-full text-xs font-bold px-2 py-1 bg-white rounded border border-blue-300 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[10px] font-semibold text-blue-900 block mb-0.5">
+                              Juros (% a.m.)
+                            </label>
+                            <input
+                              type="number"
+                              min={0}
+                              step={0.01}
+                              value={jurosBanco2}
+                              onChange={(e) =>
+                                setJurosBanco2(Math.max(0, parseFloat(e.target.value) || 0))
+                              }
+                              className="w-full text-xs font-bold px-2 py-1 bg-white rounded border border-blue-300 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                            />
+                          </div>
                         </div>
                         <div>
                           <label className="text-[10px] font-semibold text-blue-900 block mb-0.5">
-                            Juros (% a.m.)
+                            Entrada (R$)
                           </label>
                           <input
                             type="number"
                             min={0}
-                            step={0.01}
-                            value={jurosBanco2}
-                            onChange={(e) =>
-                              setJurosBanco2(Math.max(0, parseFloat(e.target.value) || 0))
-                            }
+                            max={valorInvestimentoFinal}
+                            step={100}
+                            value={entradaBanco2 || ''}
+                            placeholder="0,00"
+                            onChange={(e) => {
+                              const val = Math.max(0, parseFloat(e.target.value) || 0)
+                              setEntradaBanco2(Math.min(val, valorInvestimentoFinal))
+                            }}
                             className="w-full text-xs font-bold px-2 py-1 bg-white rounded border border-blue-300 focus:outline-none focus:ring-1 focus:ring-blue-500"
                           />
                         </div>
@@ -2756,6 +2858,11 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                         {formatCurrency(calculos.parcelamentos.financiamentoBanco2.valorParcela)}
                       </div>
                       <p className="text-[10px] text-gray-500">
+                        {entradaBanco2 > 0 && (
+                          <span className="block text-blue-900 font-semibold">
+                            Entrada: {formatCurrency(entradaBanco2)}
+                          </span>
+                        )}
                         Total:{' '}
                         {formatCurrency(calculos.parcelamentos.financiamentoBanco2.valorTotal)}
                       </p>
@@ -3171,13 +3278,13 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                     valorParcelaCartao={calculos.parcelamentos?.cartao18x?.valorParcela}
                     cartaoSemJuros={jurosCartao === 0}
                     nomeFinanciamentoA="Financiamento A"
-                    entradaFinanciamentoA={Math.round(valorInvestimentoFinal * 0.2)}
+                    entradaFinanciamentoA={entradaBanco1}
                     parcelasFinanciamentoA={parcelasBanco1}
                     valorParcelaFinanciamentoA={
                       calculos.parcelamentos?.financiamentoBanco1?.valorParcela
                     }
                     nomeFinanciamentoB="Financiamento B"
-                    entradaFinanciamentoB={Math.round(valorInvestimentoFinal * 0.1)}
+                    entradaFinanciamentoB={entradaBanco2}
                     parcelasFinanciamentoB={parcelasBanco2}
                     valorParcelaFinanciamentoB={
                       calculos.parcelamentos?.financiamentoBanco2?.valorParcela
@@ -3403,6 +3510,15 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
             parcela_financiamento_banco2:
               calculos.parcelamentos?.financiamentoBanco2?.valorParcela ||
               Math.round(valorInvestimentoFinal * 0.02),
+            parcelas_cartao: parcelasCartao,
+            juros_cartao: jurosCartao,
+            entrada_cartao: entradaCartao,
+            parcelas_financiamento_banco1: parcelasBanco1,
+            juros_financiamento_banco1: jurosBanco1,
+            entrada_financiamento_banco1: entradaBanco1,
+            parcelas_financiamento_banco2: parcelasBanco2,
+            juros_financiamento_banco2: jurosBanco2,
+            entrada_financiamento_banco2: entradaBanco2,
             instalacoes_selecionadas:
               instalacoesSelecionadasIds.length > 0 ? instalacoesSelecionadasIds : null,
             data_orcamento: initialOrcamento?.data_orcamento || new Date().toISOString(),

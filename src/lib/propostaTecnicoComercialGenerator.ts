@@ -87,6 +87,7 @@ export interface PropostaTecnicoComercialDados {
       contaHoje: number
       contaComSolar: number
       semJuros?: boolean
+      entrada?: number
     }
     financiamentoA: {
       nome: string
@@ -389,28 +390,50 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
       : Math.max(0, investimentoTotal - aVistaValor)
 
   const cartaoParcelas = parcelamento?.cartao18x?.numeroParcelas || 12
+  const cartaoEntrada =
+    parcelamento?.cartao18x?.entrada !== undefined ? parcelamento.cartao18x.entrada : 0
   const cartaoValor =
-    parcelamento?.cartao18x?.valorParcela || Math.round(investimentoTotal / cartaoParcelas)
+    parcelamento?.cartao18x?.valorParcela ||
+    Math.round(Math.max(0, investimentoTotal - cartaoEntrada) / cartaoParcelas)
+  const cartaoContaSemSolar =
+    parcelamento?.cartao18x?.contaHoje !== undefined ? parcelamento.cartao18x.contaHoje : contaHoje
+  const cartaoContaComSolar =
+    parcelamento?.cartao18x?.contaComSolar !== undefined ? parcelamento.cartao18x.contaComSolar : 70
+  const cartaoDesembolso = cartaoValor + cartaoContaComSolar
 
   const finanANome = parcelamento?.financiamentoA?.nome || 'Financiamento A'
   const finanAParcelas = parcelamento?.financiamentoA?.numeroParcelas || 60
   const finanAEntrada =
-    parcelamento?.financiamentoA?.entrada !== undefined
-      ? parcelamento.financiamentoA.entrada
-      : Math.round(investimentoTotal * 0.2)
+    parcelamento?.financiamentoA?.entrada !== undefined ? parcelamento.financiamentoA.entrada : 0
   const finanAValor =
     parcelamento?.financiamentoA?.valorParcela ||
     Math.round(((investimentoTotal - finanAEntrada) * 1.35) / finanAParcelas)
+  const finanAContaSemSolar =
+    parcelamento?.financiamentoA?.contaHoje !== undefined
+      ? parcelamento.financiamentoA.contaHoje
+      : contaHoje
+  const finanAContaComSolar =
+    parcelamento?.financiamentoA?.contaComSolar !== undefined
+      ? parcelamento.financiamentoA.contaComSolar
+      : 70
+  const finanADesembolso = finanAValor + finanAContaComSolar
 
   const finanBNome = parcelamento?.financiamentoB?.nome || 'Financiamento B'
   const finanBParcelas = parcelamento?.financiamentoB?.numeroParcelas || 120
   const finanBEntrada =
-    parcelamento?.financiamentoB?.entrada !== undefined
-      ? parcelamento.financiamentoB.entrada
-      : Math.round(investimentoTotal * 0.1)
+    parcelamento?.financiamentoB?.entrada !== undefined ? parcelamento.financiamentoB.entrada : 0
   const finanBValor =
     parcelamento?.financiamentoB?.valorParcela ||
     Math.round(((investimentoTotal - finanBEntrada) * 1.6) / finanBParcelas)
+  const finanBContaSemSolar =
+    parcelamento?.financiamentoB?.contaHoje !== undefined
+      ? parcelamento.financiamentoB.contaHoje
+      : contaHoje
+  const finanBContaComSolar =
+    parcelamento?.financiamentoB?.contaComSolar !== undefined
+      ? parcelamento.financiamentoB.contaComSolar
+      : 70
+  const finanBDesembolso = finanBValor + finanBContaComSolar
 
   const menorParcela = Math.min(
     finanAValor > 0 ? finanAValor : Infinity,
@@ -2730,16 +2753,24 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
               <div class="card-pagamento-icon-circle blue">💳</div>
               <div class="card-pagamento-titulo">CARTÃO DE CRÉDITO</div>
               <div class="card-pagamento-valor">${cartaoParcelas}x de ${formatBRL(cartaoValor)}</div>
-              <div class="card-pagamento-desc">Direto na maquininha sem alienação</div>
+              ${
+                cartaoEntrada > 0
+                  ? `<div class="card-pagamento-desc" style="color: #1D4ED8; font-weight: 700;">Entrada: ${formatBRL(cartaoEntrada)}</div>`
+                  : `<div class="card-pagamento-desc">Direto na maquininha sem alienação</div>`
+              }
             </div>
             <div style="margin-top: 6px; padding-top: 6px; border-top: 1px solid #E5E7EB; font-size: 8px;">
               <div style="display: flex; justify-content: space-between; color: #4B5563;">
-                <span>Custo com energia atual:</span>
-                <strong style="color: #DC2626;">${formatBRL(contaHoje)}/mês</strong>
+                <span>Conta hoje s/ solar:</span>
+                <strong style="color: #DC2626;">${formatBRL(cartaoContaSemSolar)}</strong>
               </div>
-              <div style="display: flex; justify-content: space-between; color: #1E40AF; font-weight: 800; margin-top: 2px;">
-                <span>Fatura c/ solar + parcela:</span>
-                <span>${formatBRL((parcelamento?.cartao18x?.contaComSolar !== undefined ? parcelamento.cartao18x.contaComSolar : 70) + cartaoValor)}/mês</span>
+              <div style="display: flex; justify-content: space-between; color: #4B5563; margin-top: 2px;">
+                <span>Conta c/ solar:</span>
+                <strong style="color: #047857;">${formatBRL(cartaoContaComSolar)}</strong>
+              </div>
+              <div style="display: flex; justify-content: space-between; color: #1E40AF; font-weight: 800; margin-top: 3px; padding-top: 2px; border-top: 1px dashed #BFDBFE;">
+                <span>Parcela + Conta:</span>
+                <span>${formatBRL(cartaoDesembolso)}</span>
               </div>
             </div>
             <div class="card-pagamento-badge-sub blue" style="margin-top: 6px;">
@@ -2754,16 +2785,24 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
               <div class="card-pagamento-icon-circle amber">🏦</div>
               <div class="card-pagamento-titulo">${finanANome}</div>
               <div class="card-pagamento-valor">${finanAParcelas}x de ${formatBRL(finanAValor)}</div>
-              <div class="card-pagamento-desc">Entrada de ${formatBRL(finanAEntrada)}</div>
+              ${
+                finanAEntrada > 0
+                  ? `<div class="card-pagamento-desc" style="color: #B45309; font-weight: 700;">Entrada: ${formatBRL(finanAEntrada)}</div>`
+                  : `<div class="card-pagamento-desc">Linha de crédito solar</div>`
+              }
             </div>
             <div style="margin-top: 6px; padding-top: 6px; border-top: 1px solid #E5E7EB; font-size: 8px;">
               <div style="display: flex; justify-content: space-between; color: #4B5563;">
-                <span>Custo com energia atual:</span>
-                <strong style="color: #DC2626;">${formatBRL(contaHoje)}/mês</strong>
+                <span>Conta hoje s/ solar:</span>
+                <strong style="color: #DC2626;">${formatBRL(finanAContaSemSolar)}</strong>
               </div>
-              <div style="display: flex; justify-content: space-between; color: #92400E; font-weight: 800; margin-top: 2px;">
-                <span>Fatura c/ solar + parcela:</span>
-                <span>${formatBRL((parcelamento?.financiamentoA?.contaComSolar !== undefined ? parcelamento.financiamentoA.contaComSolar : 70) + finanAValor)}/mês</span>
+              <div style="display: flex; justify-content: space-between; color: #4B5563; margin-top: 2px;">
+                <span>Conta c/ solar:</span>
+                <strong style="color: #047857;">${formatBRL(finanAContaComSolar)}</strong>
+              </div>
+              <div style="display: flex; justify-content: space-between; color: #92400E; font-weight: 800; margin-top: 3px; padding-top: 2px; border-top: 1px dashed #FDE68A;">
+                <span>Parcela + Conta:</span>
+                <span>${formatBRL(finanADesembolso)}</span>
               </div>
             </div>
             <div class="card-pagamento-badge-sub amber" style="margin-top: 6px;">
@@ -2778,16 +2817,24 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
               <div class="card-pagamento-icon-circle purple">⏳</div>
               <div class="card-pagamento-titulo">${finanBNome}</div>
               <div class="card-pagamento-valor">${finanBParcelas}x de ${formatBRL(finanBValor)}</div>
-              <div class="card-pagamento-desc">Entrada de ${formatBRL(finanBEntrada)}</div>
+              ${
+                finanBEntrada > 0
+                  ? `<div class="card-pagamento-desc" style="color: #6B21A8; font-weight: 700;">Entrada: ${formatBRL(finanBEntrada)}</div>`
+                  : `<div class="card-pagamento-desc">Prazo estendido em até ${finanBParcelas}x</div>`
+              }
             </div>
             <div style="margin-top: 6px; padding-top: 6px; border-top: 1px solid #E5E7EB; font-size: 8px;">
               <div style="display: flex; justify-content: space-between; color: #4B5563;">
-                <span>Custo com energia atual:</span>
-                <strong style="color: #DC2626;">${formatBRL(contaHoje)}/mês</strong>
+                <span>Conta hoje s/ solar:</span>
+                <strong style="color: #DC2626;">${formatBRL(finanBContaSemSolar)}</strong>
               </div>
-              <div style="display: flex; justify-content: space-between; color: #6B21A8; font-weight: 800; margin-top: 2px;">
-                <span>Fatura c/ solar + parcela:</span>
-                <span>${formatBRL((parcelamento?.financiamentoB?.contaComSolar !== undefined ? parcelamento.financiamentoB.contaComSolar : 70) + finanBValor)}/mês</span>
+              <div style="display: flex; justify-content: space-between; color: #4B5563; margin-top: 2px;">
+                <span>Conta c/ solar:</span>
+                <strong style="color: #047857;">${formatBRL(finanBContaComSolar)}</strong>
+              </div>
+              <div style="display: flex; justify-content: space-between; color: #6B21A8; font-weight: 800; margin-top: 3px; padding-top: 2px; border-top: 1px dashed #E9D5FF;">
+                <span>Parcela + Conta:</span>
+                <span>${formatBRL(finanBDesembolso)}</span>
               </div>
             </div>
             <div class="card-pagamento-badge-sub purple" style="margin-top: 6px;">
