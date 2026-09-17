@@ -58,6 +58,10 @@ export interface PropostaSolarPDFInput {
     areaNecessariaM2: number
     codigoFiname?: string
     prazoEntregaDias?: number
+    garantiaModulosAnos?: number
+    garantiaModulosFabricacaoAnos?: number
+    garantiaInversorAnos?: number
+    garantiaInstalacaoTexto?: string
   }
   calculos: CalculosSolarResultado
   dataEmissao?: string
@@ -166,12 +170,13 @@ function converterInputParaTemplateComercial(
       potenciaInversorKw: Math.round(sistema.potenciaKwp * 0.8 * 10) / 10,
     },
     garantias: {
-      paineisAnosFabricacao: 15,
-      paineisAnosDesempenho: 30,
+      paineisAnosFabricacao: sistema.garantiaModulosFabricacaoAnos || 15,
+      paineisAnosDesempenho: sistema.garantiaModulosAnos || 30,
       paineisPercentualDesempenho: '84,80%',
-      inversorAnosFabricacao: 10,
+      inversorAnosFabricacao: sistema.garantiaInversorAnos || 10,
       instalacaoAnos: 1,
-      instalacaoTexto: '1 ano de garantia direta Delfos Engenharia',
+      instalacaoTexto:
+        sistema.garantiaInstalacaoTexto || '1 ano de garantia direta Delfos Engenharia',
     },
     producao: {
       anualKwh:

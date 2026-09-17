@@ -1046,6 +1046,44 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
                     }),
                   ],
                 }),
+                new Paragraph({
+                  spacing: { before: 30 },
+                  children: [
+                    new TextRun({
+                      text: '• Garantia de performance (degradação): ',
+                      bold: true,
+                      color: '065F46',
+                      size: 14,
+                      font: 'Arial',
+                    }),
+                    new TextRun({
+                      text: `${(sistema as any)?.garantias?.paineisAnosDesempenho || (dados as any)?.garantias?.paineisAnosDesempenho || 30} anos`,
+                      bold: true,
+                      color: '065F46',
+                      size: 14,
+                      font: 'Arial',
+                    }),
+                  ],
+                }),
+                new Paragraph({
+                  spacing: { before: 20 },
+                  children: [
+                    new TextRun({
+                      text: '• Garantia contra defeitos de fabricação: ',
+                      bold: true,
+                      color: '92400E',
+                      size: 14,
+                      font: 'Arial',
+                    }),
+                    new TextRun({
+                      text: `${(sistema as any)?.garantias?.paineisAnosFabricacao || (dados as any)?.garantias?.paineisAnosFabricacao || 15} anos`,
+                      bold: true,
+                      color: '92400E',
+                      size: 14,
+                      font: 'Arial',
+                    }),
+                  ],
+                }),
               ],
             }),
             new TableCell({
@@ -1058,6 +1096,44 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
                     new TextRun({
                       text: `${sistema.quantidadeInversores}x ${sistema.marcaInversor || 'Inversor Homologado'} com WiFi e telemetria`,
                       size: 17,
+                      font: 'Arial',
+                    }),
+                  ],
+                }),
+                new Paragraph({
+                  spacing: { before: 30 },
+                  children: [
+                    new TextRun({
+                      text: '• Garantia do inversor: ',
+                      bold: true,
+                      color: '0F766E',
+                      size: 14,
+                      font: 'Arial',
+                    }),
+                    new TextRun({
+                      text: `${(sistema as any)?.garantias?.inversorAnosFabricacao || (dados as any)?.garantias?.inversorAnosFabricacao || 10} anos`,
+                      bold: true,
+                      color: '0F766E',
+                      size: 14,
+                      font: 'Arial',
+                    }),
+                  ],
+                }),
+                new Paragraph({
+                  spacing: { before: 20 },
+                  children: [
+                    new TextRun({
+                      text: '• Garantia da instalação: ',
+                      bold: true,
+                      color: '065F46',
+                      size: 14,
+                      font: 'Arial',
+                    }),
+                    new TextRun({
+                      text: `${(sistema as any)?.garantias?.instalacaoTexto || (dados as any)?.garantias?.instalacaoTexto || '12 meses'}`,
+                      bold: true,
+                      color: '065F46',
+                      size: 14,
                       font: 'Arial',
                     }),
                   ],
@@ -1105,98 +1181,6 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
                       text: `~${sistema.areaNecessariaM2} m² • ${formatarOrientacao(sistema.orientacaoTelhado)}`,
                       size: 17,
                       font: 'Arial',
-                    }),
-                  ],
-                }),
-              ],
-            }),
-          ],
-        }),
-      ],
-    }),
-  )
-
-  // Faixa de garantias com selos visuais
-  docChildren.push(
-    new Table({
-      width: { size: PAGE_CONTENT_WIDTH, type: WidthType.DXA },
-      borders: tableBorderDefault,
-      rows: [
-        new TableRow({
-          children: [
-            new TableCell({
-              width: { size: Math.floor(PAGE_CONTENT_WIDTH / 3), type: WidthType.DXA },
-              shading: { type: ShadingType.CLEAR, fill: 'ECFDF5' },
-              margins: { top: 90, bottom: 90, left: 100, right: 100 },
-              children: [
-                new Paragraph({
-                  alignment: AlignmentType.CENTER,
-                  children: [
-                    new TextRun({
-                      text: '🛡️ 30 ANOS\n',
-                      bold: true,
-                      size: 20,
-                      color: '065F46',
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: 'Módulos Solares (Performance)',
-                      size: 14,
-                      color: '047857',
-                      font: 'Arial',
-                      bold: true,
-                    }),
-                  ],
-                }),
-              ],
-            }),
-            new TableCell({
-              width: { size: Math.floor(PAGE_CONTENT_WIDTH / 3), type: WidthType.DXA },
-              shading: { type: ShadingType.CLEAR, fill: 'CCFBF1' },
-              margins: { top: 90, bottom: 90, left: 100, right: 100 },
-              children: [
-                new Paragraph({
-                  alignment: AlignmentType.CENTER,
-                  children: [
-                    new TextRun({
-                      text: '🛡️ 10 ANOS\n',
-                      bold: true,
-                      size: 20,
-                      color: '0F766E',
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: 'Inversor Solar (Fábrica)',
-                      size: 14,
-                      color: '0F766E',
-                      font: 'Arial',
-                      bold: true,
-                    }),
-                  ],
-                }),
-              ],
-            }),
-            new TableCell({
-              width: { size: Math.floor(PAGE_CONTENT_WIDTH / 3), type: WidthType.DXA },
-              shading: { type: ShadingType.CLEAR, fill: 'FEF3C7' },
-              margins: { top: 90, bottom: 90, left: 100, right: 100 },
-              children: [
-                new Paragraph({
-                  alignment: AlignmentType.CENTER,
-                  children: [
-                    new TextRun({
-                      text: '🔧 1 ANO\n',
-                      bold: true,
-                      size: 20,
-                      color: '92400E',
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: 'Instalação e Engenharia Delfos',
-                      size: 14,
-                      color: '92400E',
-                      font: 'Arial',
-                      bold: true,
                     }),
                   ],
                 }),

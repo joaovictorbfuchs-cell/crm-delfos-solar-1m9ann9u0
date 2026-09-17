@@ -98,11 +98,19 @@ export function ModalGerarPropostaTecnicoComercial({
     orcamento.area_necessaria_m2 || Math.round((orcamento.potencia_kwp || 10.5) * 6),
   )
 
-  // 5. GARANTIAS
-  const [paineisAnosFab, setPaineisAnosFab] = useState<number>(12)
-  const [paineisAnosDesemp, setPaineisAnosDesemp] = useState<number>(25)
+  // 5. GARANTIAS (padrões solicitados: degradação 30, fabricação 15, inversor 10, instalação 1 ano)
+  const [paineisAnosFab, setPaineisAnosFab] = useState<number>(
+    (orcamento as any)?.garantia_modulos_fabricacao_anos || 15,
+  )
+  const [paineisAnosDesemp, setPaineisDesemp] = useState<number>(
+    (orcamento as any)?.garantia_modulos_degradacao_anos ||
+      (orcamento as any)?.garantia_modulos_anos ||
+      30,
+  )
   const [paineisPercDesemp, setPaineisPercDesemp] = useState<string>('84,8%')
-  const [inversorAnosFab, setInversorAnosFab] = useState<number>(10)
+  const [inversorAnosFab, setInversorAnosFab] = useState<number>(
+    (orcamento as any)?.garantia_inversor_anos || 10,
+  )
   const [instalacaoAnos, setInstalacaoAnos] = useState<number>(1)
 
   // 6. PRODUÇÃO & ECONOMIA
@@ -298,8 +306,8 @@ export function ModalGerarPropostaTecnicoComercial({
           areaNecessariaM2: Number(areaNecessariaM2) || 0,
         },
         garantias: {
-          paineisAnosFabricacao: Number(paineisAnosFab) || 12,
-          paineisAnosDesempenho: Number(paineisAnosDesemp) || 25,
+          paineisAnosFabricacao: Number(paineisAnosFab) || 15,
+          paineisAnosDesempenho: Number(paineisAnosDesemp) || 30,
           paineisPercentualDesempenho: paineisPercDesemp || '84,8%',
           inversorAnosFabricacao: Number(inversorAnosFab) || 10,
           instalacaoAnos: Number(instalacaoAnos) || 1,
@@ -963,6 +971,7 @@ export function ModalGerarPropostaTecnicoComercial({
                   potenciaInversorKw={potenciaKwp ? Math.round(potenciaKwp * 0.8 * 10) / 10 : 6}
                   areaNecessariaM2={areaNecessariaM2}
                   garantiaModulosAnos={paineisAnosDesemp || 30}
+                  garantiaModulosFabricacaoAnos={paineisAnosFab || 15}
                   garantiaInversorAnos={inversorAnosFab || 10}
                   garantiaInstalacaoTexto={`${instalacaoAnos || 1} anos`}
                   garantiaInstalacaoAnos={instalacaoAnos || 1}

@@ -141,6 +141,11 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
   // Controla se a mão de obra foi editada manualmente pelo usuário
   const [maoDeObraEditadaManualmente, setMaoDeObraEditadaManualmente] = useState<boolean>(false)
 
+  // Períodos de garantia cadastráveis (padrões solicitados: degradação 30, fabricação 15, inversor 10)
+  const [garantiaModulosDegradacaoAnos, setGarantiaModulosDegradacaoAnos] = useState<number>(30)
+  const [garantiaModulosFabricacaoAnos, setGarantiaModulosFabricacaoAnos] = useState<number>(15)
+  const [garantiaInversorAnos, setGarantiaInversorAnos] = useState<number>(10)
+
   // Opções personalizadas de parcelamento & financiamento
   const [parcelasCartao, setParcelasCartao] = useState<number>(18)
   const [jurosCartao, setJurosCartao] = useState<number>(1.49)
@@ -206,6 +211,29 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
       setCodigoFiname(initialOrcamento.codigo_finame || '')
       setValorInvestimentoManual(initialOrcamento.valor_investimento || 0)
       setObservacoes(initialOrcamento.observacoes || '')
+
+      // Garantias salvas ou padrões
+      setGarantiaModulosDegradacaoAnos(
+        (initialOrcamento as any).garantia_modulos_degradacao_anos !== undefined &&
+          (initialOrcamento as any).garantia_modulos_degradacao_anos > 0
+          ? (initialOrcamento as any).garantia_modulos_degradacao_anos
+          : (initialOrcamento as any).garantia_modulos_anos !== undefined &&
+              (initialOrcamento as any).garantia_modulos_anos > 0
+            ? (initialOrcamento as any).garantia_modulos_anos
+            : 30,
+      )
+      setGarantiaModulosFabricacaoAnos(
+        (initialOrcamento as any).garantia_modulos_fabricacao_anos !== undefined &&
+          (initialOrcamento as any).garantia_modulos_fabricacao_anos > 0
+          ? (initialOrcamento as any).garantia_modulos_fabricacao_anos
+          : 15,
+      )
+      setGarantiaInversorAnos(
+        (initialOrcamento as any).garantia_inversor_anos !== undefined &&
+          (initialOrcamento as any).garantia_inversor_anos > 0
+          ? (initialOrcamento as any).garantia_inversor_anos
+          : 10,
+      )
 
       const initialValPlaca =
         initialOrcamento.valor_por_placa !== undefined ? initialOrcamento.valor_por_placa : 150
@@ -341,6 +369,10 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
       setJurosBanco1(1.9)
       setParcelasBanco2(60)
       setJurosBanco2(0.99)
+
+      setGarantiaModulosDegradacaoAnos(30)
+      setGarantiaModulosFabricacaoAnos(15)
+      setGarantiaInversorAnos(10)
 
       const listaClientes = clientesRef.current
       if (initialClienteId) {
@@ -633,6 +665,10 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
         areaNecessariaM2,
         codigoFiname: codigoFiname.trim() || undefined,
         prazoEntregaDias,
+        garantiaModulosAnos: garantiaModulosDegradacaoAnos,
+        garantiaModulosFabricacaoAnos: garantiaModulosFabricacaoAnos,
+        garantiaInversorAnos: garantiaInversorAnos,
+        garantiaInstalacaoTexto: '12 meses',
       },
       calculos,
       dataEmissao: new Date().toISOString(),
@@ -655,6 +691,9 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
     areaNecessariaM2,
     codigoFiname,
     prazoEntregaDias,
+    garantiaModulosDegradacaoAnos,
+    garantiaModulosFabricacaoAnos,
+    garantiaInversorAnos,
     calculos,
     observacoes,
   ])
@@ -772,6 +811,11 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
         juros_financiamento_banco1: jurosBanco1,
         parcelas_financiamento_banco2: parcelasBanco2,
         juros_financiamento_banco2: jurosBanco2,
+
+        // Garantias dinâmicas
+        garantia_modulos_degradacao_anos: garantiaModulosDegradacaoAnos,
+        garantia_modulos_fabricacao_anos: garantiaModulosFabricacaoAnos,
+        garantia_inversor_anos: garantiaInversorAnos,
 
         data_orcamento: new Date().toISOString(),
         validade_dias: 5,
@@ -1457,6 +1501,79 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                           ? 'Calculado da soma da Aba de Custos'
                           : 'Estimado por kWp'}
                     </span>
+                  </div>
+                </div>
+
+                {/* Sub-bloco de Garantias Cadastráveis do Sistema */}
+                <div className="mt-3 pt-3 border-t border-gray-100">
+                  <div className="flex items-center gap-1.5 mb-2.5">
+                    <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                    <span className="text-xs font-bold text-gray-800 uppercase tracking-wide">
+                      Prazos de Garantia do Sistema (Anos)
+                    </span>
+                    <span className="text-[10px] text-gray-400 font-normal">
+                      — exibidos no rodapé dos cards de módulos e inversores
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div className="bg-emerald-50/50 p-2.5 rounded-xl border border-emerald-150">
+                      <label className="text-[11px] font-semibold text-emerald-950 block mb-1">
+                        Garantia de Performance Módulos (anos) *
+                      </label>
+                      <input
+                        type="number"
+                        min={1}
+                        max={50}
+                        value={garantiaModulosDegradacaoAnos}
+                        onChange={(e) =>
+                          setGarantiaModulosDegradacaoAnos(Number(e.target.value) || 30)
+                        }
+                        className="w-full text-xs font-bold text-emerald-900 px-3 py-1.5 rounded-lg border border-emerald-300 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                        placeholder="Padrão: 30"
+                      />
+                      <span className="text-[10px] text-emerald-700 mt-0.5 block">
+                        Degradação de geração linear (padrão 30 anos)
+                      </span>
+                    </div>
+
+                    <div className="bg-amber-50/50 p-2.5 rounded-xl border border-amber-150">
+                      <label className="text-[11px] font-semibold text-amber-950 block mb-1">
+                        Garantia Fabricação Módulos (anos) *
+                      </label>
+                      <input
+                        type="number"
+                        min={1}
+                        max={50}
+                        value={garantiaModulosFabricacaoAnos}
+                        onChange={(e) =>
+                          setGarantiaModulosFabricacaoAnos(Number(e.target.value) || 15)
+                        }
+                        className="w-full text-xs font-bold text-amber-900 px-3 py-1.5 rounded-lg border border-amber-300 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                        placeholder="Padrão: 15"
+                      />
+                      <span className="text-[10px] text-amber-700 mt-0.5 block">
+                        Contra defeitos de fabricação (padrão 15 anos)
+                      </span>
+                    </div>
+
+                    <div className="bg-teal-50/50 p-2.5 rounded-xl border border-teal-150">
+                      <label className="text-[11px] font-semibold text-teal-950 block mb-1">
+                        Garantia Inversor (anos) *
+                      </label>
+                      <input
+                        type="number"
+                        min={1}
+                        max={50}
+                        value={garantiaInversorAnos}
+                        onChange={(e) => setGarantiaInversorAnos(Number(e.target.value) || 10)}
+                        className="w-full text-xs font-bold text-teal-900 px-3 py-1.5 rounded-lg border border-teal-300 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                        placeholder="Padrão: 10"
+                      />
+                      <span className="text-[10px] text-teal-700 mt-0.5 block">
+                        Garantia de fábrica do inversor (padrão 10 anos)
+                      </span>
+                    </div>
                   </div>
                 </div>
 
@@ -2780,8 +2897,9 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                     mpptInversor={2}
                     potenciaInversorKw={potenciaKwp ? Math.round(potenciaKwp * 0.8 * 10) / 10 : 6}
                     areaNecessariaM2={areaNecessariaM2}
-                    garantiaModulosAnos={30}
-                    garantiaInversorAnos={10}
+                    garantiaModulosAnos={garantiaModulosDegradacaoAnos}
+                    garantiaModulosFabricacaoAnos={garantiaModulosFabricacaoAnos}
+                    garantiaInversorAnos={garantiaInversorAnos}
                     garantiaInstalacaoTexto="12 meses"
                     garantiaInstalacaoAnos={1}
                     nomeCliente={clienteAtual?.nome}
@@ -3116,6 +3234,9 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
             tipo_estrutura: tipoEstrutura,
             codigo_finame: codigoFiname,
             area_necessaria_m2: areaNecessariaM2,
+            garantia_modulos_degradacao_anos: garantiaModulosDegradacaoAnos,
+            garantia_modulos_fabricacao_anos: garantiaModulosFabricacaoAnos,
+            garantia_inversor_anos: garantiaInversorAnos,
             consumo_mensal_kwh: consumoKwhMes,
             valor_investimento: valorInvestimentoFinal,
             valor_total_custos: totalCustosCalculado,

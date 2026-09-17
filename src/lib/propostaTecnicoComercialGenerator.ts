@@ -52,11 +52,11 @@ export interface PropostaTecnicoComercialDados {
     potenciaInversorKw?: number
   }
   garantias: {
-    paineisAnosFabricacao: number
-    paineisAnosDesempenho: number
-    paineisPercentualDesempenho: string
-    inversorAnosFabricacao: number
-    instalacaoAnos: number
+    paineisAnosFabricacao: number // ex: 15
+    paineisAnosDesempenho: number // ex: 30
+    paineisPercentualDesempenho: string // ex: "84,80%"
+    inversorAnosFabricacao: number // ex: 10
+    instalacaoAnos: number // ex: 1
     instalacaoTexto?: string
   }
   producao: {
@@ -425,7 +425,8 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
   const inversorKw =
     sistema?.potenciaInversorKw || (potenciaKwp > 0 ? Math.round(potenciaKwp * 0.8 * 10) / 10 : 6)
   const areaM2 = sistema?.areaNecessariaM2 || 37.8
-  const garantiaModulos = garantias?.paineisAnosDesempenho || 30
+  const garantiaModulosDesempenho = garantias?.paineisAnosDesempenho || 30
+  const garantiaModulosFabricacao = garantias?.paineisAnosFabricacao || 15
   const garantiaInversor = garantias?.inversorAnosFabricacao || 10
   const garantiaInstalacao =
     garantias?.instalacaoTexto || `${garantias?.instalacaoAnos || 1} ano(s)`
@@ -2289,36 +2290,79 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
             </div>
           </div>
 
-          <!-- Card 3: ☀️ Módulos fotovoltaicos -->
-          <div class="card-sistema">
-            <div class="card-sistema-header">
-              <div class="card-sistema-icon-wrap yellow">☀️</div>
-              <span class="card-sistema-tag blue">Tier-1 Global</span>
-            </div>
+          <!-- Card 3: ☀️ Módulos fotovoltaicos (ícone representativo em grade + garantias no rodapé) -->
+          <div class="card-sistema" style="display: flex; flex-direction: column; justify-content: space-between;">
             <div>
-              <div class="card-sistema-label">Módulos Fotovoltaicos</div>
-              <div class="card-sistema-valor">
-                ${modulosQtd} <span class="unit" style="color: #4B5563;">unidades</span>
+              <div class="card-sistema-header">
+                <div class="card-sistema-icon-wrap amber" style="background: #FEF3C7; color: #D97706;">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 18px; height: 18px;">
+                    <rect x="3" y="3" width="18" height="18" rx="2" />
+                    <line x1="12" y1="3" x2="12" y2="21" />
+                    <line x1="3" y1="9" x2="21" y2="9" />
+                    <line x1="3" y1="15" x2="21" y2="15" />
+                  </svg>
+                </div>
+                <span class="card-sistema-tag blue">Tier-1 Global</span>
               </div>
-              <div class="card-sistema-sub">
-                <strong>${modulosDesc}</strong> (${modulosWp}W cada • ${modulosTecnologia}).
+              <div>
+                <div class="card-sistema-label">Módulos Fotovoltaicos</div>
+                <div class="card-sistema-valor">
+                  ${modulosQtd} <span class="unit" style="color: #4B5563;">unidades</span>
+                </div>
+                <div class="card-sistema-sub">
+                  <strong>${modulosDesc}</strong> (${modulosWp}W cada • ${modulosTecnologia}).
+                </div>
+              </div>
+            </div>
+
+            <!-- Rodapé do Card: Garantias dos Módulos (Degradação & Fabricação) -->
+            <div style="margin-top: 8px; padding-top: 6px; border-top: 1px solid #E5E7EB; font-size: 8px; line-height: 1.4;">
+              <div style="display: flex; justify-content: space-between; align-items: center; color: #4B5563; margin-bottom: 2px;">
+                <span>Garantia de performance (degradação):</span>
+                <strong style="color: #065F46; background: #DCFCE7; padding: 1px 5px; border-radius: 4px; border: 1px solid #BBF7D0;">${garantiaModulosDesempenho} anos</strong>
+              </div>
+              <div style="display: flex; justify-content: space-between; align-items: center; color: #4B5563;">
+                <span>Garantia contra defeitos de fabricação:</span>
+                <strong style="color: #92400E; background: #FEF3C7; padding: 1px 5px; border-radius: 4px; border: 1px solid #FDE68A;">${garantiaModulosFabricacao} anos</strong>
               </div>
             </div>
           </div>
 
-          <!-- Card 4: 🔌 Inversor solar -->
-          <div class="card-sistema">
-            <div class="card-sistema-header">
-              <div class="card-sistema-icon-wrap teal">🔌</div>
-              <span class="card-sistema-tag teal">${inversorQtd} Inversor</span>
-            </div>
+          <!-- Card 4: 🔌 Inversor solar (ícone de placa de circuito + garantias no rodapé) -->
+          <div class="card-sistema" style="display: flex; flex-direction: column; justify-content: space-between;">
             <div>
-              <div class="card-sistema-label">Inversor Solar</div>
-              <div class="card-sistema-valor" style="font-size: 15px;">
-                ${inversorDesc}
+              <div class="card-sistema-header">
+                <div class="card-sistema-icon-wrap teal" style="background: #CCFBF1; color: #0F766E;">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 18px; height: 18px;">
+                    <rect width="18" height="18" x="3" y="3" rx="2" />
+                    <path d="M11 9h4a2 2 0 0 0 2-2V3" />
+                    <circle cx="9" cy="9" r="2" />
+                    <path d="M7 21v-4a2 2 0 0 1 2-2h4" />
+                    <circle cx="15" cy="15" r="2" />
+                  </svg>
+                </div>
+                <span class="card-sistema-tag teal">${inversorQtd} Inversor</span>
               </div>
-              <div class="card-sistema-sub">
-                ${inversorMppt} MPPT • Potência: ${inversorKw} kW homologado.
+              <div>
+                <div class="card-sistema-label">Inversor Solar</div>
+                <div class="card-sistema-valor" style="font-size: 15px;">
+                  ${inversorDesc}
+                </div>
+                <div class="card-sistema-sub">
+                  ${inversorMppt} MPPT • Potência: ${inversorKw} kW homologado.
+                </div>
+              </div>
+            </div>
+
+            <!-- Rodapé do Card: Garantia do Inversor + Garantia da Instalação -->
+            <div style="margin-top: 8px; padding-top: 6px; border-top: 1px solid #E5E7EB; font-size: 8px; line-height: 1.4;">
+              <div style="display: flex; justify-content: space-between; align-items: center; color: #4B5563; margin-bottom: 2px;">
+                <span>Garantia do inversor:</span>
+                <strong style="color: #0F766E; background: #CCFBF1; padding: 1px 5px; border-radius: 4px; border: 1px solid #99F6E4;">${garantiaInversor} anos</strong>
+              </div>
+              <div style="display: flex; justify-content: space-between; align-items: center; color: #4B5563;">
+                <span>Garantia da instalação:</span>
+                <strong style="color: #065F46; background: #DCFCE7; padding: 1px 5px; border-radius: 4px; border: 1px solid #BBF7D0;">${garantiaInstalacao}</strong>
               </div>
             </div>
           </div>
@@ -2350,53 +2394,6 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
                 ${garantiaInstalacao}
               </div>
               <div class="card-sistema-sub">Garantia integral sobre mão de obra, cabos e ART.</div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Box de Selos de Garantia Lado a Lado -->
-        <div class="faixa-garantias-tripla">
-          <div class="garantias-topo-flex">
-            <div class="garantias-title-row">
-              <div class="garantias-title-icon">🏆</div>
-              <div>
-                <strong style="font-size: 11px; text-transform: uppercase; color: #065F46; letter-spacing: 0.04em;">
-                  Tranquilidade e Garantias Asseguradas
-                </strong>
-                <div style="font-size: 8.5px; color: #6B7280;">Proteção completa do seu investimento por décadas</div>
-              </div>
-            </div>
-            <span style="font-size: 8.5px; font-weight: 800; color: #065F46; background: #FFFFFF; border: 1px solid #86EFAC; padding: 3px 8px; border-radius: 9999px;">
-              Padrão Delfos Solar
-            </span>
-          </div>
-
-          <div class="garantias-tripla-grid">
-            <div class="garantia-item-bloco">
-              <div class="garantia-item-icon-box emerald">🛡️</div>
-              <div>
-                <div class="garantia-item-tipo">Garantia dos Módulos</div>
-                <div class="garantia-item-anos">${garantiaModulos} ANOS</div>
-                <div class="garantia-item-sub">de performance linear</div>
-              </div>
-            </div>
-
-            <div class="garantia-item-bloco">
-              <div class="garantia-item-icon-box teal">🛡️</div>
-              <div>
-                <div class="garantia-item-tipo">Garantia do Inversor</div>
-                <div class="garantia-item-anos">${garantiaInversor} ANOS</div>
-                <div class="garantia-item-sub">de fábrica assegurada</div>
-              </div>
-            </div>
-
-            <div class="garantia-item-bloco">
-              <div class="garantia-item-icon-box amber">🔧</div>
-              <div>
-                <div class="garantia-item-tipo">Garantia da Instalação</div>
-                <div class="garantia-item-anos" style="font-size: 15px;">${garantiaInstalacao}</div>
-                <div class="garantia-item-sub" style="color: #059669; font-weight: 800;">Delfos Engenharia</div>
-              </div>
             </div>
           </div>
         </div>

@@ -2,17 +2,46 @@ import React from 'react'
 import {
   Zap,
   TrendingUp,
-  SolarPanel,
-  Cpu,
+  CircuitBoard,
   Maximize2,
   ShieldCheck,
   Smartphone,
   Sparkles,
-  Award,
-  Wrench,
   CheckCircle2,
 } from 'lucide-react'
 import { formatCurrency } from '@/lib/formatters'
+
+/**
+ * Ícone representativo de um módulo/painel solar fotovoltaico:
+ * grade retangular de células fotovoltaicas com moldura externa e linhas de células.
+ */
+const ModuloSolarIcon: React.FC<{ className?: string }> = ({ className = 'w-6 h-6' }) => (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.8"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={className}
+    aria-hidden="true"
+  >
+    {/* Moldura externa do painel */}
+    <rect x="3" y="3" width="18" height="18" rx="2" />
+    {/* Linha vertical central divisória das células */}
+    <line x1="12" y1="3" x2="12" y2="21" />
+    {/* Linhas horizontais divisórias das células */}
+    <line x1="3" y1="9" x2="21" y2="9" />
+    <line x1="3" y1="15" x2="21" y2="15" />
+    {/* Células internas com detalhe sutil */}
+    <circle cx="7.5" cy="6" r="0.6" fill="currentColor" />
+    <circle cx="16.5" cy="6" r="0.6" fill="currentColor" />
+    <circle cx="7.5" cy="12" r="0.6" fill="currentColor" />
+    <circle cx="16.5" cy="12" r="0.6" fill="currentColor" />
+    <circle cx="7.5" cy="18" r="0.6" fill="currentColor" />
+    <circle cx="16.5" cy="18" r="0.6" fill="currentColor" />
+  </svg>
+)
 
 export interface SecaoSeuSistemaFotovoltaicoProps {
   /** Potência do sistema em kWp */
@@ -39,9 +68,11 @@ export interface SecaoSeuSistemaFotovoltaicoProps {
   potenciaInversorKw?: number | null
   /** Área necessária em m² */
   areaNecessariaM2?: number | null
-  /** Garantia dos módulos em anos (performance) */
+  /** Garantia dos módulos em anos (performance / degradação - padrão 30) */
   garantiaModulosAnos?: number | null
-  /** Garantia do inversor em anos (fábrica) */
+  /** Garantia contra defeitos de fabricação dos módulos em anos (padrão 15) */
+  garantiaModulosFabricacaoAnos?: number | null
+  /** Garantia do inversor em anos (fábrica - padrão 10) */
   garantiaInversorAnos?: number | null
   /** Garantia da instalação Delfos em anos ou texto */
   garantiaInstalacaoTexto?: string | null
@@ -71,6 +102,7 @@ export const SecaoSeuSistemaFotovoltaico: React.FC<SecaoSeuSistemaFotovoltaicoPr
   potenciaInversorKw,
   areaNecessariaM2,
   garantiaModulosAnos,
+  garantiaModulosFabricacaoAnos,
   garantiaInversorAnos,
   garantiaInstalacaoTexto,
   garantiaInstalacaoAnos,
@@ -80,8 +112,8 @@ export const SecaoSeuSistemaFotovoltaico: React.FC<SecaoSeuSistemaFotovoltaicoPr
   // Dados de fallback para demonstração conforme especificado pelo usuário:
   // "sistema de 8,54 kWp, 14 módulos JA Solar 610W bifacial N-type,
   //  inversor Huawei SUN2000-6KTL-L1 220V 2 MPPT, geração 1.106 kWh/mês,
-  //  economia R$ 928,75/mês, área 37,80 m², garantia módulos 30 anos,
-  //  inversor 10 anos, instalação 12 meses."
+  //  economia R$ 928,75/mês, área 37,80 m², garantia módulos degradação 30 anos,
+  //  defeitos fabricação 15 anos, inversor 10 anos, instalação 12 meses."
 
   const potenciaFinal =
     potenciaKwp !== undefined && potenciaKwp !== null && potenciaKwp > 0 ? potenciaKwp : 8.54
@@ -124,10 +156,22 @@ export const SecaoSeuSistemaFotovoltaico: React.FC<SecaoSeuSistemaFotovoltaicoPr
       ? areaNecessariaM2
       : 37.8
 
-  const garantiaModulosFinalAnos =
+  // Garantias dinâmicas com padrões cadastráveis:
+  // - Degradação/performance dos módulos: 30 anos
+  // - Defeitos de fabricação dos módulos: 15 anos
+  // - Inversor: 10 anos
+  // - Instalação: 12 meses (ou texto personalizado)
+  const garantiaModulosDegradacaoFinal =
     garantiaModulosAnos !== undefined && garantiaModulosAnos !== null && garantiaModulosAnos > 0
       ? garantiaModulosAnos
       : 30
+
+  const garantiaModulosFabricacaoFinal =
+    garantiaModulosFabricacaoAnos !== undefined &&
+    garantiaModulosFabricacaoAnos !== null &&
+    garantiaModulosFabricacaoAnos > 0
+      ? garantiaModulosFabricacaoAnos
+      : 15
 
   const garantiaInversorFinalAnos =
     garantiaInversorAnos !== undefined && garantiaInversorAnos !== null && garantiaInversorAnos > 0
@@ -254,53 +298,95 @@ export const SecaoSeuSistemaFotovoltaico: React.FC<SecaoSeuSistemaFotovoltaicoPr
             </div>
           </div>
 
-          {/* Card 3: 🔆 Módulos */}
+          {/* Card 3: 🔆 Módulos Fotovoltaicos com ícone representativo e garantias no rodapé */}
           <div className="bg-white rounded-2xl p-5 border border-emerald-100 shadow-xs hover:shadow-md transition-all group flex flex-col justify-between">
-            <div className="flex items-start justify-between gap-3 mb-3">
-              <div className="w-12 h-12 rounded-xl bg-yellow-50 border border-yellow-200/60 flex items-center justify-center text-yellow-600 group-hover:scale-105 transition-transform shadow-2xs">
-                <SolarPanel className="w-6 h-6 text-yellow-600" />
-              </div>
-              <span className="text-[11px] font-bold uppercase tracking-wider text-blue-700 bg-blue-50 px-2.5 py-0.5 rounded-full border border-blue-200">
-                Tier-1 Global
-              </span>
-            </div>
             <div>
-              <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                Módulos Fotovoltaicos
+              <div className="flex items-start justify-between gap-3 mb-3">
+                <div className="w-12 h-12 rounded-xl bg-amber-50 border border-amber-200/60 flex items-center justify-center text-amber-600 group-hover:scale-105 transition-transform shadow-2xs">
+                  <ModuloSolarIcon className="w-6 h-6 text-amber-600" />
+                </div>
+                <span className="text-[11px] font-bold uppercase tracking-wider text-blue-700 bg-blue-50 px-2.5 py-0.5 rounded-full border border-blue-200">
+                  Tier-1 Global
+                </span>
               </div>
-              <div className="text-2xl sm:text-3xl font-black text-gray-900 mt-1 tracking-tight">
-                {placasQtdFinal} <span className="text-lg font-bold text-gray-600">unidades</span>
+              <div>
+                <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                  Módulos Fotovoltaicos
+                </div>
+                <div className="text-2xl sm:text-3xl font-black text-gray-900 mt-1 tracking-tight">
+                  {placasQtdFinal} <span className="text-lg font-bold text-gray-600">unidades</span>
+                </div>
+                <p className="text-xs text-gray-700 font-semibold mt-1.5 leading-snug">
+                  {marcaModuloFinal} — {placasPotenciaWpFinal}W cada
+                </p>
+                <p className="text-[11px] text-gray-500 mt-0.5">
+                  Tecnologia {tecnologiaModuloFinal}
+                </p>
               </div>
-              <p className="text-xs text-gray-700 font-semibold mt-1.5 leading-snug">
-                {marcaModuloFinal} — {placasPotenciaWpFinal}W cada
-              </p>
-              <p className="text-[11px] text-gray-500 mt-0.5">Tecnologia {tecnologiaModuloFinal}</p>
+            </div>
+
+            {/* Rodapé do Card: Garantias dos Módulos (Degradação/Performance & Fabricação) */}
+            <div className="mt-4 pt-3 border-t border-gray-100 space-y-1.5">
+              <div className="flex items-center justify-between text-[11px] text-gray-600">
+                <span className="font-medium text-gray-500">
+                  Garantia de performance (degradação):
+                </span>
+                <span className="font-extrabold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200/70">
+                  {garantiaModulosDegradacaoFinal} anos
+                </span>
+              </div>
+              <div className="flex items-center justify-between text-[11px] text-gray-600">
+                <span className="font-medium text-gray-500">
+                  Garantia contra defeitos de fabricação:
+                </span>
+                <span className="font-extrabold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200/70">
+                  {garantiaModulosFabricacaoFinal} anos
+                </span>
+              </div>
             </div>
           </div>
 
-          {/* Card 4: 🔌 Inversor */}
+          {/* Card 4: 🔌 Inversor Solar com ícone CircuitBoard e garantias no rodapé */}
           <div className="bg-white rounded-2xl p-5 border border-emerald-100 shadow-xs hover:shadow-md transition-all group flex flex-col justify-between">
-            <div className="flex items-start justify-between gap-3 mb-3">
-              <div className="w-12 h-12 rounded-xl bg-teal-50 border border-teal-200/60 flex items-center justify-center text-teal-600 group-hover:scale-105 transition-transform shadow-2xs">
-                <Cpu className="w-6 h-6 text-teal-600" />
-              </div>
-              <span className="text-[11px] font-bold uppercase tracking-wider text-teal-800 bg-teal-50 px-2.5 py-0.5 rounded-full border border-teal-200">
-                {quantidadeInversores} {quantidadeInversores > 1 ? 'Inversores' : 'Inversor'}
-              </span>
-            </div>
             <div>
-              <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                Inversor Solar
-              </div>
-              <div className="text-lg sm:text-xl font-black text-gray-900 mt-1 tracking-tight leading-snug">
-                {marcaInversorFinal}
-              </div>
-              <div className="flex items-center gap-2 mt-2 flex-wrap">
-                <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-gray-100 text-gray-700 text-xs font-bold border border-gray-200">
-                  {mpptFinal} MPPT
+              <div className="flex items-start justify-between gap-3 mb-3">
+                <div className="w-12 h-12 rounded-xl bg-teal-50 border border-teal-200/60 flex items-center justify-center text-teal-600 group-hover:scale-105 transition-transform shadow-2xs">
+                  <CircuitBoard className="w-6 h-6 text-teal-600" />
+                </div>
+                <span className="text-[11px] font-bold uppercase tracking-wider text-teal-800 bg-teal-50 px-2.5 py-0.5 rounded-full border border-teal-200">
+                  {quantidadeInversores} {quantidadeInversores > 1 ? 'Inversores' : 'Inversor'}
                 </span>
-                <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-800 text-xs font-bold border border-emerald-200">
-                  {potenciaInversorFinalKw} kW
+              </div>
+              <div>
+                <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                  Inversor Solar
+                </div>
+                <div className="text-lg sm:text-xl font-black text-gray-900 mt-1 tracking-tight leading-snug">
+                  {marcaInversorFinal}
+                </div>
+                <div className="flex items-center gap-2 mt-2 flex-wrap">
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-gray-100 text-gray-700 text-xs font-bold border border-gray-200">
+                    {mpptFinal} MPPT
+                  </span>
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-800 text-xs font-bold border border-emerald-200">
+                    {potenciaInversorFinalKw} kW
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Rodapé do Card: Garantia do Inversor + Garantia da Instalação */}
+            <div className="mt-4 pt-3 border-t border-gray-100 space-y-1.5">
+              <div className="flex items-center justify-between text-[11px] text-gray-600">
+                <span className="font-medium text-gray-500">Garantia do inversor:</span>
+                <span className="font-extrabold text-teal-800 bg-teal-50 px-2 py-0.5 rounded-md border border-teal-200/70">
+                  {garantiaInversorFinalAnos} anos
+                </span>
+              </div>
+              <div className="flex items-center justify-between text-[11px] text-gray-600">
+                <span className="font-medium text-gray-500">Garantia da instalação:</span>
+                <span className="font-extrabold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200/70">
+                  {garantiaInstalacaoFinalTexto}
                 </span>
               </div>
             </div>
@@ -354,80 +440,6 @@ export const SecaoSeuSistemaFotovoltaico: React.FC<SecaoSeuSistemaFotovoltaicoPr
                 Garantia integral Delfos sobre mão de obra especializada, cabos, proteções e ART
                 emitida.
               </p>
-            </div>
-          </div>
-        </div>
-
-        {/* ========================================================================= */}
-        {/* BOX DESTACADO DE GARANTIAS COM SELOS VISUAIS LADO A LADO                  */}
-        {/* ========================================================================= */}
-        <div className="bg-gradient-to-br from-emerald-50/90 via-teal-50/50 to-white rounded-2xl p-5 sm:p-6 border border-emerald-200 shadow-xs space-y-4">
-          <div className="flex items-center justify-between flex-wrap gap-2 border-b border-emerald-200/60 pb-3">
-            <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-lg bg-emerald-600 text-white flex items-center justify-center">
-                <Award className="w-4 h-4" />
-              </div>
-              <div>
-                <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider">
-                  Tranquilidade e Garantias Asseguradas
-                </h3>
-                <p className="text-[11px] text-gray-500">
-                  Proteção completa do seu investimento por décadas
-                </p>
-              </div>
-            </div>
-            <span className="text-xs font-bold text-emerald-800 bg-white px-3 py-1 rounded-full border border-emerald-300 shadow-2xs">
-              Padrão Delfos Solar
-            </span>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {/* Selo 1: Garantia dos módulos */}
-            <div className="bg-white rounded-xl p-4 border border-emerald-200/80 shadow-2xs flex items-center gap-3.5 hover:border-emerald-400 transition-colors">
-              <div className="w-12 h-12 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center shrink-0">
-                <ShieldCheck className="w-6 h-6 text-emerald-700" />
-              </div>
-              <div className="min-w-0">
-                <span className="text-[10px] uppercase font-bold text-gray-500 block">
-                  Garantia dos Módulos
-                </span>
-                <div className="text-lg font-black text-emerald-800 tracking-tight leading-tight">
-                  {garantiaModulosFinalAnos} anos
-                </div>
-                <span className="text-xs text-gray-600 font-medium">de performance linear</span>
-              </div>
-            </div>
-
-            {/* Selo 2: Garantia do inversor */}
-            <div className="bg-white rounded-xl p-4 border border-emerald-200/80 shadow-2xs flex items-center gap-3.5 hover:border-emerald-400 transition-colors">
-              <div className="w-12 h-12 rounded-xl bg-teal-100 text-teal-800 flex items-center justify-center shrink-0">
-                <ShieldCheck className="w-6 h-6 text-teal-700" />
-              </div>
-              <div className="min-w-0">
-                <span className="text-[10px] uppercase font-bold text-gray-500 block">
-                  Garantia do Inversor
-                </span>
-                <div className="text-lg font-black text-teal-900 tracking-tight leading-tight">
-                  {garantiaInversorFinalAnos} anos
-                </div>
-                <span className="text-xs text-gray-600 font-medium">de fábrica assegurada</span>
-              </div>
-            </div>
-
-            {/* Selo 3: Garantia da instalação */}
-            <div className="bg-white rounded-xl p-4 border border-emerald-200/80 shadow-2xs flex items-center gap-3.5 hover:border-emerald-400 transition-colors">
-              <div className="w-12 h-12 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center shrink-0">
-                <Wrench className="w-6 h-6 text-amber-700" />
-              </div>
-              <div className="min-w-0">
-                <span className="text-[10px] uppercase font-bold text-gray-500 block">
-                  Garantia da Instalação
-                </span>
-                <div className="text-lg font-black text-gray-900 tracking-tight leading-tight">
-                  {garantiaInstalacaoFinalTexto}
-                </div>
-                <span className="text-xs text-emerald-700 font-bold">Delfos Engenharia</span>
-              </div>
             </div>
           </div>
         </div>

@@ -1103,6 +1103,11 @@ export interface OrcamentoSolar extends RecordModel {
   juros_financiamento_banco1?: number
   parcelas_financiamento_banco2?: number
   juros_financiamento_banco2?: number
+  // Prazos de garantia personalizados do sistema
+  garantia_modulos_degradacao_anos?: number
+  garantia_modulos_fabricacao_anos?: number
+  garantia_inversor_anos?: number
+  garantia_instalacao_anos?: number
   // Metadados
   data_orcamento: string
   validade_dias?: number
