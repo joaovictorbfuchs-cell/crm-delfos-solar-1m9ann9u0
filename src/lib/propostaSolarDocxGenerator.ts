@@ -175,6 +175,10 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
       : Math.round(economiaMensal * 1.08)
 
   // Inércia
+  const contaAnualDocx =
+    calculos.contaAtualSemSolarAno && calculos.contaAtualSemSolarAno > 0
+      ? calculos.contaAtualSemSolarAno
+      : Math.round(contaHoje * 12)
   const gasto1Ano = calculos.gastoSemSolar1Ano || Math.round(contaHoje * 12 * 1.045)
   const gasto5Anos = calculos.gastoSemSolar5Anos || Math.round(gasto1Ano * 5.8)
   const gasto25Anos = calculos.gastoSemSolar25Anos || Math.round(gasto1Ano * 38.5)
@@ -530,7 +534,6 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
       : Math.round(contaHoje / 0.95)
   const consumoKwhAnoDocx =
     consumoKwhAnoEstimado > 0 ? consumoKwhAnoEstimado : Math.round(consumoKwhMesDocx * 12)
-  const contaAnualDocx = gasto1Ano > 0 ? gasto1Ano : Math.round(contaHoje * 12)
 
   docChildren.push(
     new Table({

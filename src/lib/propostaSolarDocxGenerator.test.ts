@@ -65,9 +65,7 @@ describe('propostaSolarDocxGenerator', () => {
     // As 6 seções canônicas devem estar presentes
     expect(jsonStr).toContain('PROPOSTA COMERCIAL EXCLUSIVA')
     expect(jsonStr).toContain('Situação Atual')
-    expect(jsonStr).toContain('Gastos Acumulados Sem Solar: 1, 5 e 25 Anos')
     expect(jsonStr).toContain('GASTO EM 1 ANO')
-    expect(jsonStr).toContain('GASTO EM 5 ANOS')
     expect(jsonStr).toContain('GASTO EM 25 ANOS')
     expect(jsonStr).not.toContain('Consumo convertido em custo')
     expect(jsonStr).toContain('Seu Sistema Fotovoltaico')
@@ -79,5 +77,59 @@ describe('propostaSolarDocxGenerator', () => {
     expect(jsonStr).not.toContain('Quem Somos')
     expect(jsonStr).not.toContain('Como Funciona o Sistema Solar On-Grid')
     expect(jsonStr).not.toContain('Monitoramento do Sistema Solar em Tempo Real')
+  })
+
+  it('gera card do meio dinâmico com período de payback arredondado para cima (22 meses -> GASTO EM 2 ANOS)', async () => {
+    const dados22Meses: PropostaSolarPDFInput = {
+      ...dadosExemploMarceloBecker,
+      calculos: {
+        ...dadosExemploMarceloBecker.calculos,
+        paybackMeses: 22,
+        anosPaybackArredondado: 2,
+        gastoSemSolarPaybackAnos: undefined,
+      },
+    }
+
+    const doc = await gerarPropostaSolarDocx(dados22Meses)
+    const jsonStr = JSON.stringify(doc)
+
+    expect(jsonStr).toContain('Gastos Acumulados Sem Solar: 1, 2 Anos e 25 Anos')
+    expect(jsonStr).toContain('GASTO EM 2 ANOS')
+  })
+
+  it('gera card do meio dinâmico com payback de 25 meses -> GASTO EM 3 ANOS e acumulação com 9% a.a.', async () => {
+    const dados25Meses: PropostaSolarPDFInput = {
+      ...dadosExemploMarceloBecker,
+      calculos: {
+        ...dadosExemploMarceloBecker.calculos,
+        paybackMeses: 25,
+        anosPaybackArredondado: undefined,
+        gastoSemSolarPaybackAnos: undefined,
+      },
+    }
+
+    const doc = await gerarPropostaSolarDocx(dados25Meses)
+    const jsonStr = JSON.stringify(doc)
+
+    expect(jsonStr).toContain('Gastos Acumulados Sem Solar: 1, 3 Anos e 25 Anos')
+    expect(jsonStr).toContain('GASTO EM 3 ANOS')
+  })
+
+  it('aplica fallback para 5 anos (GASTO EM 5 ANOS) quando payback for zerado ou inválido', async () => {
+    const dadosFallback: PropostaSolarPDFInput = {
+      ...dadosExemploMarceloBecker,
+      calculos: {
+        ...dadosExemploMarceloBecker.calculos,
+        paybackMeses: 0,
+        anosPaybackArredondado: undefined,
+        gastoSemSolarPaybackAnos: undefined,
+      },
+    }
+
+    const doc = await gerarPropostaSolarDocx(dadosFallback)
+    const jsonStr = JSON.stringify(doc)
+
+    expect(jsonStr).toContain('Gastos Acumulados Sem Solar: 1, 5 Anos e 25 Anos')
+    expect(jsonStr).toContain('GASTO EM 5 ANOS')
   })
 })

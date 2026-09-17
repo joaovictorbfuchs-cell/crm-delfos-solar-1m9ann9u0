@@ -301,4 +301,87 @@ describe('Proposta Técnico-Comercial Generator (6 Seções Oficiais)', () => {
     expect(htmlSolar).not.toContain('Como Funciona o Sistema Solar On-Grid')
     expect(htmlSolar).not.toContain('Monitoramento do Sistema Solar em Tempo Real')
   })
+
+  it('exibe card do meio dinâmico com período de payback arredondado para cima (22 meses -> Gasto em 2 Anos)', () => {
+    const dadosCustom: PropostaTecnicoComercialDados = {
+      ...dadosExemplo,
+      economia: {
+        ...dadosExemplo.economia,
+        paybackMeses: 22,
+        paybackTexto: '1 ano e 10 meses',
+      },
+      projecao: {
+        ...dadosExemplo.projecao,
+        anosPaybackArredondado: 2,
+        gastoSemSolarPaybackAnos: undefined,
+      },
+      parcelamento: {
+        ...dadosExemplo.parcelamento,
+        aVista: {
+          ...dadosExemplo.parcelamento.aVista,
+          contaHoje: 1000,
+        },
+      },
+    }
+
+    const html = gerarHTMLPropostaTecnicoComercial(dadosCustom)
+
+    expect(html).toContain('Gastos Acumulados Sem Solar: 1, 2 Anos e 25 Anos')
+    expect(html).toContain('Gasto em 2 Anos')
+    // Gasto 2 anos com 9% a.a. para conta anual de 12.000: 12.000 + 13.080 = 25.080
+    expect(html).toContain('25.080')
+  })
+
+  it('exibe card do meio dinâmico com payback de 25 meses -> Gasto em 3 Anos com 9% a.a.', () => {
+    const dadosCustom: PropostaTecnicoComercialDados = {
+      ...dadosExemplo,
+      economia: {
+        ...dadosExemplo.economia,
+        paybackMeses: 25,
+        paybackTexto: '2 anos e 1 mês',
+      },
+      projecao: {
+        ...dadosExemplo.projecao,
+        anosPaybackArredondado: undefined,
+        gastoSemSolarPaybackAnos: undefined,
+      },
+      parcelamento: {
+        ...dadosExemplo.parcelamento,
+        aVista: {
+          ...dadosExemplo.parcelamento.aVista,
+          contaHoje: 1000,
+        },
+      },
+    }
+
+    const html = gerarHTMLPropostaTecnicoComercial(dadosCustom)
+
+    expect(html).toContain('Gastos Acumulados Sem Solar: 1, 3 Anos e 25 Anos')
+    expect(html).toContain('Gasto em 3 Anos')
+    // Gasto 3 anos com 9% a.a. para conta anual de 12.000: 12.000 + 13.080 + 14.257,20 = 39.337
+    expect(html).toContain('39.337')
+  })
+
+  it('aplica fallback para 5 anos no card do meio quando payback/investimento/economia forem zerados ou ausentes', () => {
+    const dadosFallback: PropostaTecnicoComercialDados = {
+      ...dadosExemplo,
+      economia: {
+        investimentoTotal: 0,
+        prazoEntregaDias: 30,
+        paybackTexto: '',
+        paybackMeses: 0,
+      },
+      projecao: {
+        ...dadosExemplo.projecao,
+        anosPaybackArredondado: undefined,
+        gastoSemSolarPaybackAnos: undefined,
+        gastoSemSolar5Anos: 66000,
+      },
+    }
+
+    const html = gerarHTMLPropostaTecnicoComercial(dadosFallback)
+
+    expect(html).toContain('Gastos Acumulados Sem Solar: 1, 5 Anos e 25 Anos')
+    expect(html).toContain('Gasto em 5 Anos')
+  })
 })
