@@ -16,18 +16,30 @@ describe('SecaoProjecaoEconomia Component', () => {
 
     // Título da seção
     expect(html).toContain('Projeção de Economia na Conta de Energia')
-    expect(html).toContain('Resumo da Projeção de Economia')
 
-    // Cards do resumo
+    // Cards do resumo mantidos
     expect(html).toContain('Economia Total em 25 Anos')
     expect(html).toContain('Gasto Total Sem Solar em 25 Anos')
     expect(html).toContain('Custo de Postergação')
 
-    // Card do payback abaixo
+    // Card do payback abaixo mantido
     expect(html).toContain('Tempo de Retorno do Investimento')
     expect(html).toContain('Payback Estimado')
     expect(html).toContain('Payback do Sistema')
     expect(html).toContain('4 anos e 1 mês')
+
+    // Cabeçalho verde removido
+    expect(html).not.toContain('Marco Legal da GD (Lei 14.300/2022)')
+    expect(html).not.toContain('Simulação de 26 anos (2026 a 2051)')
+
+    // Quadro tipo de cliente & simultaneidade removido
+    expect(html).not.toContain('Tipo de Cliente & Simultaneidade')
+    expect(html).not.toContain('Residencial (30%)')
+    expect(html).not.toContain('Comercial (70%)')
+
+    // Bloco de valores oficiais / valores de referência removido
+    expect(html).not.toContain('Valores oficiais carregados')
+    expect(html).not.toContain('Valores de referência estimados')
 
     // Gráfico e tabela removidos
     expect(html).not.toContain('recharts-responsive-container')

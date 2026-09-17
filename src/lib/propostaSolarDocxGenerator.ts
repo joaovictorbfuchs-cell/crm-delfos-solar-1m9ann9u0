@@ -1576,53 +1576,10 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
   // Cards de resumo + Card do Payback abaixo
   // ----------------------------------------------------
   docChildren.push(
-    new Table({
-      width: { size: PAGE_CONTENT_WIDTH, type: WidthType.DXA },
-      borders: tableBorderNone,
-      rows: [
-        new TableRow({
-          children: [
-            new TableCell({
-              width: { size: PAGE_CONTENT_WIDTH, type: WidthType.DXA },
-              shading: { type: ShadingType.CLEAR, fill: COLOR_PRIMARY },
-              margins: { top: 120, bottom: 120, left: 140, right: 140 },
-              children: [
-                new Paragraph({
-                  children: [
-                    new TextRun({
-                      text: '⚖️ MARCO LEGAL DA GD (LEI 14.300/2022) • FATOR DE SIMULTANEIDADE: ',
-                      bold: true,
-                      size: 15,
-                      color: 'A7F3D0',
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: `${Math.round(projecaoOficial.fatorSimultaneidade * 100)}%`,
-                      bold: true,
-                      size: 18,
-                      color: 'FDE047',
-                      font: 'Arial',
-                    }),
-                  ],
-                }),
-                new Paragraph({
-                  spacing: { before: 40 },
-                  children: [
-                    new TextRun({
-                      text: '4. Projeção de Economia na Conta de Energia (2026–2051)',
-                      bold: true,
-                      size: 20,
-                      color: 'FFFFFF',
-                      font: 'Arial',
-                    }),
-                  ],
-                }),
-              ],
-            }),
-          ],
-        }),
-      ],
-    }),
+    ...createSectionHeader(
+      '4. Projeção de Economia na Conta de Energia (2026–2051)',
+      'Simulação de economia líquida acumulada e estimativa de retorno financeiro.',
+    ),
   )
 
   // 3 Cards Grandes de Resumo da Projeção de Economia

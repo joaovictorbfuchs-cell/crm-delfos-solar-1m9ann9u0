@@ -82,6 +82,8 @@ describe('propostaSolarDocxGenerator', () => {
     expect(jsonStr).toContain('ECONOMIA TOTAL EM 25 ANOS')
     expect(jsonStr).toContain('GASTO TOTAL SEM SOLAR')
     expect(jsonStr).toContain('CUSTO DE POSTERGAÇÃO')
+    expect(jsonStr).not.toContain('FATOR DE SIMULTANEIDADE')
+    expect(jsonStr).not.toContain('MARCO LEGAL DA GD')
     expect(jsonStr).toContain('Projeção de Economia em 25 Anos')
     expect(jsonStr).toContain('ECONOMIA EM 1 ANO')
     expect(jsonStr).toContain('ECONOMIA EM 5 ANOS')

@@ -2580,21 +2580,6 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
       <div class="secao-body">
         ${renderInternalHeader('Projeção de Economia na Conta de Energia', 4, 'projecao')}
 
-        <!-- Cabeçalho em Gradiente Esmeralda com Badge da Lei 14.300 (espelhado do SecaoProjecaoEconomia) -->
-        <div class="secao-header-card projecao">
-          <div>
-            <div style="display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 9999px; font-size: 9px; font-weight: 800; background: rgba(255, 255, 255, 0.18); border: 1px solid rgba(255, 255, 255, 0.28); color: #D1FAE5; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 6px;">
-              <span>⚖️</span> Marco Legal da GD (Lei 14.300/2022)
-            </div>
-            <h2 style="margin: 0; font-size: 21px; font-weight: 900; color: #FFFFFF; letter-spacing: -0.015em;">
-              Projeção de Economia na Conta de Energia (2026–2051)
-            </h2>
-            <p style="margin: 4px 0 0 0; font-size: 9.5px; color: #D1FAE5; line-height: 1.4; max-width: 720px;">
-              Aplicação oficial do Marco Legal da GD (Lei 14.300/2022), Fator de Simultaneidade (${Math.round(projecaoOficial.fatorSimultaneidade * 100)}%), Fio B e degradação linear dos painéis (LID 2% + 0,55% a.a.).
-            </p>
-          </div>
-        </div>
-
         <!-- CARDS GRANDES DE RESUMO DA PROJEÇÃO DE ECONOMIA (ESPELHADOS DE SecaoProjecaoEconomia.tsx) -->
         <div class="cards-metricas-25anos" style="margin-top: 18px; margin-bottom: 14px;">
           <!-- Card 1: Economia Total Acumulada em 25 Anos -->

@@ -148,11 +148,14 @@ describe('Proposta Técnico-Comercial Generator (6 Seções Oficiais)', () => {
     expect(html).toContain('Monitoramento Inteligente 24/7 pelo Smartphone')
 
     // SEÇÃO 4: Projeção de Economia na Conta de Energia (cards de resumo + card payback, sem tabela/gráfico)
-    expect(html).toContain('Projeção de Economia na Conta de Energia (2026–2051)')
+    expect(html).toContain('Projeção de Economia na Conta de Energia')
     expect(html).toContain('Economia Total em 25 Anos')
     expect(html).toContain('Gasto Total Sem Solar (25 Anos)')
     expect(html).toContain('Custo de Postergação')
     expect(html).toContain('Payback Estimado')
+    // Cabeçalho verde e badge da GD removidos
+    expect(html).not.toContain('Marco Legal da GD (Lei 14.300/2022)')
+    expect(html).not.toContain('secao-header-card projecao')
 
     // SEÇÃO 5: Projeção de Economia em 25 Anos (cards de economia 1, 5 e 25 anos sem payback ou ROI)
     expect(html).toContain('Projeção de Economia em 25 Anos')

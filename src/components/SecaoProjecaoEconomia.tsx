@@ -1,16 +1,5 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react'
-import {
-  TrendingUp,
-  AlertTriangle,
-  Building2,
-  Home,
-  Sparkles,
-  Info,
-  CheckCircle2,
-  Database,
-  Clock,
-  ShieldCheck,
-} from 'lucide-react'
+import { TrendingUp, AlertTriangle, CheckCircle2, Clock } from 'lucide-react'
 import {
   calcularProjecaoEconomia,
   type ResumoProjecaoEconomia,
@@ -61,18 +50,13 @@ export const SecaoProjecaoEconomia: React.FC<SecaoProjecaoEconomiaProps> = ({
   const [dadosTarifariosCustomizados, setDadosTarifariosCustomizados] = useState<
     ProjecaoTarifariaRecord[]
   >([])
-  const [carregandoTarifas, setCarregandoTarifas] = useState(false)
-
   // Carregar dados de projecao_tarifaria do PocketBase
   const carregarTarifasDoBanco = useCallback(async () => {
-    setCarregandoTarifas(true)
     try {
       const records = await fetchProjecoesTarifarias()
       setDadosTarifariosCustomizados(records)
     } catch (err) {
       console.warn('Erro ao carregar tarifas:', err)
-    } finally {
-      setCarregandoTarifas(false)
     }
   }, [])
 
@@ -104,10 +88,6 @@ export const SecaoProjecaoEconomia: React.FC<SecaoProjecaoEconomiaProps> = ({
       dadosTarifariosCustomizados,
     })
   }, [tipoCliente, consumoAnual, tarifaReferenciaInicial, dadosTarifariosCustomizados])
-
-  const possuiDadosBancoParaTipo = useMemo(() => {
-    return dadosTarifariosCustomizados.some((d) => d.tipo_cliente === tipoCliente)
-  }, [dadosTarifariosCustomizados, tipoCliente])
 
   // Resolução do Payback estimado
   const infoPayback = useMemo(() => {
@@ -154,160 +134,60 @@ export const SecaoProjecaoEconomia: React.FC<SecaoProjecaoEconomiaProps> = ({
       className={`bg-white rounded-2xl border border-gray-200 shadow-xs overflow-hidden ${className}`}
       aria-label="Projeção de Economia na Conta de Energia"
     >
-      {/* Cabeçalho da Seção com Identidade Solar Delfos */}
-      <div className="p-4 sm:p-5 bg-gradient-to-r from-emerald-800 via-emerald-700 to-green-700 text-white">
-        <div className="space-y-1">
-          <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-white/15 text-emerald-100 border border-white/20">
-            <Sparkles className="w-3.5 h-3.5 text-amber-300" />
-            <span>Marco Legal da GD (Lei 14.300/2022)</span>
-          </div>
-          <h3 className="text-lg sm:text-xl font-black text-white tracking-tight flex items-center gap-2">
-            Projeção de Economia na Conta de Energia
-          </h3>
-          <p className="text-xs text-emerald-100/90 max-w-3xl leading-relaxed">
-            Simulação de 26 anos (2026 a 2051) com aplicação automática do fator de simultaneidade,
-            componente do Fio B da distribuidora e GD Eco Líquida.
-            <span className="block mt-0.5 text-amber-200/95 font-medium">
-              Projeção considera degradação dos painéis: LID 2% no 1º ano + 0,55% a.a.
-            </span>
-            {nomeCliente && (
-              <span className="block mt-0.5 text-emerald-200 font-semibold">
-                Cliente: {nomeCliente}
-              </span>
-            )}
-          </p>
-        </div>
-      </div>
-
-      {/* Barra de Controles: Seletor Residencial / Comercial e Consumo Anual */}
-      <div className="p-4 bg-emerald-50/40 border-b border-gray-200 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
-        {/* 1. SELEÇÃO DO TIPO DE CLIENTE */}
-        <div className="space-y-1">
-          <label className="text-[11px] font-bold uppercase tracking-wider text-gray-700 flex items-center gap-1.5">
-            <span className="w-4 h-4 rounded-full bg-emerald-600 text-white flex items-center justify-center text-[10px] font-black">
-              1
-            </span>
-            Tipo de Cliente & Simultaneidade
-          </label>
-          <div className="inline-flex rounded-xl p-1 bg-white border border-gray-300 shadow-2xs">
-            <button
-              type="button"
-              onClick={() => setTipoCliente('residencial')}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold inline-flex items-center gap-1.5 transition-all ${
-                tipoCliente === 'residencial'
-                  ? 'bg-emerald-600 text-white shadow-xs'
-                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-              }`}
-            >
-              <Home className="w-3.5 h-3.5" />
-              <span>Residencial (30%)</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setTipoCliente('comercial')}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold inline-flex items-center gap-1.5 transition-all ${
-                tipoCliente === 'comercial'
-                  ? 'bg-emerald-600 text-white shadow-xs'
-                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-              }`}
-            >
-              <Building2 className="w-3.5 h-3.5" />
-              <span>Comercial (70%)</span>
-            </button>
-          </div>
-        </div>
-
-        {/* 2. CONSUMO ANUAL (FICHA OU DEMONSTRAÇÃO) */}
-        <div className="space-y-1">
-          <div className="flex items-center justify-between gap-2">
-            <label className="text-[11px] font-bold uppercase tracking-wider text-gray-700 flex items-center gap-1.5">
-              <span className="w-4 h-4 rounded-full bg-emerald-600 text-white flex items-center justify-center text-[10px] font-black">
-                2
-              </span>
-              Consumo Anual (kWh/ano)
-            </label>
-            <button
-              type="button"
-              onClick={() => {
-                setConsumoAnual(CONSUMO_EXEMPLO_PADRAO_KWH_ANO)
-                setUsandoExemplo(true)
-              }}
-              className="text-[10px] text-emerald-700 hover:underline font-bold"
-              title="Carregar 4.807,08 kWh/ano para demonstrar a proposta"
-            >
-              Usar exemplo (4.807,08)
-            </button>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <div className="relative">
-              <input
-                type="number"
-                step="0.01"
-                min="100"
-                disabled={!permitirAjusteConsumo}
-                value={consumoAnual}
-                onChange={(e) => {
-                  const val = parseFloat(e.target.value) || 0
-                  setConsumoAnual(val)
-                  setUsandoExemplo(false)
+      {/* Barra de Ajuste de Consumo Anual (se permitido) */}
+      {permitirAjusteConsumo && (
+        <div className="p-4 bg-emerald-50/40 border-b border-gray-200 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
+          <div className="space-y-1">
+            <div className="flex items-center justify-between gap-2">
+              <label className="text-[11px] font-bold uppercase tracking-wider text-gray-700">
+                Consumo Anual (kWh/ano)
+              </label>
+              <button
+                type="button"
+                onClick={() => {
+                  setConsumoAnual(CONSUMO_EXEMPLO_PADRAO_KWH_ANO)
+                  setUsandoExemplo(true)
                 }}
-                className="w-40 sm:w-44 text-xs font-black text-gray-900 px-3 py-1.5 rounded-lg border border-gray-300 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
-              />
-              <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] font-bold text-gray-400 pointer-events-none">
-                kWh/ano
-              </span>
+                className="text-[10px] text-emerald-700 hover:underline font-bold"
+                title="Carregar 4.807,08 kWh/ano para demonstrar a proposta"
+              >
+                Usar exemplo (4.807,08)
+              </button>
             </div>
 
-            {usandoExemplo ? (
-              <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-800 bg-amber-100 px-2 py-1 rounded-md border border-amber-300">
-                <CheckCircle2 className="w-3 h-3 text-amber-700" />
-                Exemplo solicitado
-              </span>
-            ) : (
-              <span className="text-[11px] text-gray-500 font-medium">
-                (~{(consumoAnual / 12).toFixed(1)} kWh/mês)
-              </span>
-            )}
+            <div className="flex items-center gap-2">
+              <div className="relative">
+                <input
+                  type="number"
+                  step="0.01"
+                  min="100"
+                  value={consumoAnual}
+                  onChange={(e) => {
+                    const val = parseFloat(e.target.value) || 0
+                    setConsumoAnual(val)
+                    setUsandoExemplo(false)
+                  }}
+                  className="w-40 sm:w-44 text-xs font-black text-gray-900 px-3 py-1.5 rounded-lg border border-gray-300 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                />
+                <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] font-bold text-gray-400 pointer-events-none">
+                  kWh/ano
+                </span>
+              </div>
+
+              {usandoExemplo ? (
+                <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-800 bg-amber-100 px-2 py-1 rounded-md border border-amber-300">
+                  <CheckCircle2 className="w-3 h-3 text-amber-700" />
+                  Exemplo solicitado
+                </span>
+              ) : (
+                <span className="text-[11px] text-gray-500 font-medium">
+                  (~{(consumoAnual / 12).toFixed(1)} kWh/mês)
+                </span>
+              )}
+            </div>
           </div>
         </div>
-      </div>
-
-      {/* STATUS DA ORIGEM DOS DADOS (BANCO vs FALLBACK ESTIMADO) */}
-      <div className="mx-4 sm:mx-5 mt-4">
-        {possuiDadosBancoParaTipo ? (
-          <div className="p-3 bg-emerald-50/90 border border-emerald-300 rounded-xl flex items-center justify-between flex-wrap gap-2 text-xs text-emerald-950">
-            <div className="flex items-center gap-2">
-              <div className="w-6 h-6 rounded-full bg-emerald-200 text-emerald-800 flex items-center justify-center shrink-0">
-                <Database className="w-3.5 h-3.5" />
-              </div>
-              <div>
-                <p className="font-bold text-emerald-950">
-                  Valores oficiais carregados da planilha do usuário (
-                  {tipoCliente === 'residencial' ? 'Residencial' : 'Comercial'})
-                </p>
-                <p className="text-[11px] text-emerald-800">
-                  Tarifas, Fio B e GD Eco Líquida sincronizados com a coleção oficial no banco de
-                  dados.
-                </p>
-              </div>
-            </div>
-          </div>
-        ) : (
-          <div className="p-3 bg-amber-50/80 border border-amber-300 rounded-xl flex items-center justify-between flex-wrap gap-2 text-xs text-amber-950">
-            <div className="flex items-start gap-2.5">
-              <Info className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
-              <div>
-                <p className="font-bold text-amber-950">Valores de referência estimados</p>
-                <p className="text-[11px] text-amber-800 leading-relaxed">
-                  Esta projeção está utilizando a{' '}
-                  <strong>tabela interna com reajuste estimado de 9% a.a.</strong> (Lei 14.300).
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
+      )}
 
       {/* CORPO DA SEÇÃO: CARDS DO RESUMO DA PROJEÇÃO DE ECONOMIA + CARD DO PAYBACK ABAIXO */}
       <div className="p-5 sm:p-6 bg-gradient-to-br from-gray-50/70 to-emerald-50/30 space-y-4">
@@ -315,15 +195,10 @@ export const SecaoProjecaoEconomia: React.FC<SecaoProjecaoEconomiaProps> = ({
           <div className="flex items-center gap-2">
             <TrendingUp className="w-4 h-4 text-emerald-700" />
             <h4 className="text-xs sm:text-sm font-bold uppercase tracking-wider text-gray-900">
-              Resumo da Projeção de Economia
+              Projeção de Economia na Conta de Energia
             </h4>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
-              {tipoCliente === 'residencial'
-                ? 'Autoconsumo Residencial (30%)'
-                : 'Autoconsumo Comercial (70%)'}
-            </span>
             <span
               className="text-[10px] font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-300"
               title="Degradação dos módulos: LID 2% no 1º ano e 0,55% a.a."
