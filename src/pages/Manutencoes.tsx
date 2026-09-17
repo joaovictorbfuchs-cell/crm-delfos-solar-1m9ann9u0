@@ -160,94 +160,158 @@ export default function Manutencoes() {
         </div>
       </div>
 
-      {/* Cards de Métricas de O&M */}
+      {/* Cards de Métricas e Resumo Oficial de Contratos O&M (Conforme Relatório PDF) */}
       {viewMode === 'om' && (
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          {/* Card 1: Planos Ativos (Lista 1) */}
-          <div
-            onClick={() => setActiveSubTab('com_plano')}
-            className={`rounded-xl p-4 border transition-all cursor-pointer flex items-center justify-between ${
-              activeSubTab === 'com_plano'
-                ? 'bg-emerald-50/80 border-emerald-400 shadow-sm ring-2 ring-emerald-500/20'
-                : 'bg-white border-emerald-200 shadow-xs hover:border-emerald-300'
-            }`}
-          >
-            <div>
-              <span className="text-[11px] font-bold text-emerald-800 uppercase tracking-wider">
-                1. Planos O&M Ativos
-              </span>
-              <div className="text-2xl font-extrabold text-emerald-600 mt-0.5">
-                {contratosAtivos}
+        <div className="space-y-4">
+          {/* Faixa Oficial do Relatório de Contratos O&M */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 bg-white p-3 sm:p-4 rounded-2xl border border-gray-200/90 shadow-2xs">
+            {/* Encerrados */}
+            <div className="bg-rose-50/60 rounded-xl p-3 border border-rose-100 flex flex-col justify-between">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-rose-800">Encerrados (54)</span>
+                <span className="w-2 h-2 rounded-full bg-rose-500" />
               </div>
-              <div className="text-[11px] text-emerald-700 font-medium mt-0.5">
-                Contratos vigentes
-              </div>
+              <div className="text-lg sm:text-xl font-black text-rose-600 mt-1">R$ 7.685,23</div>
+              <span className="text-[10px] text-rose-500 mt-0.5">Total histórico acumulado</span>
             </div>
-            <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
-              <CheckCircle2 className="w-5 h-5" />
+
+            {/* Próximos do término */}
+            <div
+              onClick={() => setActiveSubTab('com_plano')}
+              className="bg-amber-50/70 rounded-xl p-3 border border-amber-200/90 flex flex-col justify-between cursor-pointer hover:border-amber-400 transition-colors"
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-amber-900">
+                  Próximos do término (3)
+                </span>
+                <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+              </div>
+              <div className="text-lg sm:text-xl font-black text-amber-600 mt-1">R$ 1.252,90</div>
+              <span className="text-[10px] text-amber-700 font-medium mt-0.5">
+                Renovação em até 60 dias
+              </span>
+            </div>
+
+            {/* Ativos */}
+            <div
+              onClick={() => setActiveSubTab('com_plano')}
+              className="bg-emerald-50/70 rounded-xl p-3 border-2 border-emerald-500 flex flex-col justify-between cursor-pointer shadow-xs hover:bg-emerald-50 transition-colors"
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-emerald-900">
+                  Ativos ({contratosAtivos})
+                </span>
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
+              </div>
+              <div className="text-lg sm:text-xl font-black text-emerald-700 mt-1">R$ 6.663,06</div>
+              <span className="text-[10px] text-emerald-700 font-medium mt-0.5">
+                Receita recorrente mensal
+              </span>
+            </div>
+
+            {/* Todos */}
+            <div className="bg-slate-50 rounded-xl p-3 border border-slate-200 flex flex-col justify-between">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-slate-700">Todos (88)</span>
+                <Layers className="w-3.5 h-3.5 text-slate-400" />
+              </div>
+              <div className="text-lg sm:text-xl font-black text-slate-800 mt-1">R$ 14.348,29</div>
+              <span className="text-[10px] text-slate-500 mt-0.5">Volume total gerido O&M</span>
             </div>
           </div>
 
-          {/* Card 2: Clientes Pós-Vendas (Lista 2) */}
-          <div
-            onClick={() => setActiveSubTab('pos_vendas')}
-            className={`rounded-xl p-4 border transition-all cursor-pointer flex items-center justify-between ${
-              activeSubTab === 'pos_vendas'
-                ? 'bg-slate-50 border-slate-400 shadow-sm ring-2 ring-slate-500/20'
-                : 'bg-white border-slate-200 shadow-xs hover:border-slate-300'
-            }`}
-          >
-            <div>
-              <span className="text-[11px] font-bold text-slate-700 uppercase tracking-wider">
-                2. Clientes Pós-Vendas
-              </span>
-              <div className="text-2xl font-extrabold text-slate-900 mt-0.5">{posVendasTotal}</div>
-              <div className="text-[11px] text-slate-500 font-medium mt-0.5">
-                Fechados e monitoramento
+          {/* Cards Operacionais de Navegação */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            {/* Card 1: Planos Ativos (Lista 1) */}
+            <div
+              onClick={() => setActiveSubTab('com_plano')}
+              className={`rounded-xl p-4 border transition-all cursor-pointer flex items-center justify-between ${
+                activeSubTab === 'com_plano'
+                  ? 'bg-emerald-50/80 border-emerald-400 shadow-sm ring-2 ring-emerald-500/20'
+                  : 'bg-white border-emerald-200 shadow-xs hover:border-emerald-300'
+              }`}
+            >
+              <div>
+                <span className="text-[11px] font-bold text-emerald-800 uppercase tracking-wider">
+                  1. Planos O&M Ativos
+                </span>
+                <div className="text-2xl font-extrabold text-emerald-600 mt-0.5">
+                  {contratosAtivos}
+                </div>
+                <div className="text-[11px] text-emerald-700 font-medium mt-0.5">
+                  Contratos vigentes no CRM
+                </div>
+              </div>
+              <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
+                <CheckCircle2 className="w-5 h-5" />
               </div>
             </div>
-            <div className="w-10 h-10 rounded-xl bg-slate-100 text-slate-700 flex items-center justify-center shrink-0">
-              <Sparkles className="w-5 h-5" />
-            </div>
-          </div>
 
-          {/* Card 3: Oportunidades de O&M (Solar instalado sem plano) */}
-          <div
-            onClick={() => setActiveSubTab('pos_vendas')}
-            className="bg-white rounded-xl p-4 border border-amber-200 shadow-xs flex items-center justify-between hover:border-amber-300 transition-colors cursor-pointer"
-          >
-            <div>
-              <span className="text-[11px] font-bold text-amber-800 uppercase tracking-wider">
-                Oportunidades O&M
-              </span>
-              <div className="text-2xl font-extrabold text-amber-600 mt-0.5">{oportunidadesOM}</div>
-              <div className="text-[11px] text-amber-700 font-medium mt-0.5">
-                Solar sem manutenção
+            {/* Card 2: Clientes Pós-Vendas (Lista 2) */}
+            <div
+              onClick={() => setActiveSubTab('pos_vendas')}
+              className={`rounded-xl p-4 border transition-all cursor-pointer flex items-center justify-between ${
+                activeSubTab === 'pos_vendas'
+                  ? 'bg-slate-50 border-slate-400 shadow-sm ring-2 ring-slate-500/20'
+                  : 'bg-white border-slate-200 shadow-xs hover:border-slate-300'
+              }`}
+            >
+              <div>
+                <span className="text-[11px] font-bold text-slate-700 uppercase tracking-wider">
+                  2. Clientes Pós-Vendas
+                </span>
+                <div className="text-2xl font-extrabold text-slate-900 mt-0.5">
+                  {posVendasTotal}
+                </div>
+                <div className="text-[11px] text-slate-500 font-medium mt-0.5">
+                  Fechados e monitoramento
+                </div>
+              </div>
+              <div className="w-10 h-10 rounded-xl bg-slate-100 text-slate-700 flex items-center justify-center shrink-0">
+                <Sparkles className="w-5 h-5" />
               </div>
             </div>
-            <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
-              <Clock className="w-5 h-5" />
-            </div>
-          </div>
 
-          {/* Card 4: Serviços Avulsos Realizados */}
-          <div
-            onClick={() => setActiveSubTab('pos_vendas')}
-            className="bg-white rounded-xl p-4 border border-blue-200 shadow-xs flex items-center justify-between hover:border-blue-300 transition-colors cursor-pointer"
-          >
-            <div>
-              <span className="text-[11px] font-bold text-blue-800 uppercase tracking-wider">
-                Serviços Avulsos
-              </span>
-              <div className="text-2xl font-extrabold text-blue-600 mt-0.5">
-                {servicosAvulsosTotal}
+            {/* Card 3: Oportunidades de O&M (Solar instalado sem plano) */}
+            <div
+              onClick={() => setActiveSubTab('pos_vendas')}
+              className="bg-white rounded-xl p-4 border border-amber-200 shadow-xs flex items-center justify-between hover:border-amber-300 transition-colors cursor-pointer"
+            >
+              <div>
+                <span className="text-[11px] font-bold text-amber-800 uppercase tracking-wider">
+                  Oportunidades O&M
+                </span>
+                <div className="text-2xl font-extrabold text-amber-600 mt-0.5">
+                  {oportunidadesOM}
+                </div>
+                <div className="text-[11px] text-amber-700 font-medium mt-0.5">
+                  Solar sem manutenção
+                </div>
               </div>
-              <div className="text-[11px] text-blue-600 font-medium mt-0.5">
-                Limpezas, reparos e visitas
+              <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
+                <Clock className="w-5 h-5" />
               </div>
             </div>
-            <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
-              <Wrench className="w-5 h-5" />
+
+            {/* Card 4: Serviços Avulsos Realizados */}
+            <div
+              onClick={() => setActiveSubTab('pos_vendas')}
+              className="bg-white rounded-xl p-4 border border-blue-200 shadow-xs flex items-center justify-between hover:border-blue-300 transition-colors cursor-pointer"
+            >
+              <div>
+                <span className="text-[11px] font-bold text-blue-800 uppercase tracking-wider">
+                  Serviços Avulsos
+                </span>
+                <div className="text-2xl font-extrabold text-blue-600 mt-0.5">
+                  {servicosAvulsosTotal}
+                </div>
+                <div className="text-[11px] text-blue-600 font-medium mt-0.5">
+                  Limpezas, reparos e visitas
+                </div>
+              </div>
+              <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
+                <Wrench className="w-5 h-5" />
+              </div>
             </div>
           </div>
         </div>

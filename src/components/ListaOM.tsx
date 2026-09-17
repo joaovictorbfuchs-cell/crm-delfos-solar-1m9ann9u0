@@ -321,10 +321,12 @@ export const ListaOM: React.FC<ListaOMProps> = ({
       .filter((item) => {
         const nomeCliente = item.cliente?.nome || 'Cliente'
         const cidadeCliente = item.cliente?.cidade || ''
+        const numContrato = item.contrato?.numero_contrato || ''
         const matchBusca =
           !busca.trim() ||
           nomeCliente.toLowerCase().includes(busca.toLowerCase()) ||
-          cidadeCliente.toLowerCase().includes(busca.toLowerCase())
+          cidadeCliente.toLowerCase().includes(busca.toLowerCase()) ||
+          numContrato.toLowerCase().includes(busca.toLowerCase())
         const matchPlano = filtroPlano === 'todos' || item.plano === filtroPlano
         return matchBusca && matchPlano
       })
@@ -716,11 +718,11 @@ export const ListaOM: React.FC<ListaOMProps> = ({
                   <thead className="bg-[#F8FAF9] border-b border-gray-200 text-gray-600 font-semibold uppercase tracking-wider">
                     <tr>
                       <th className="py-3.5 px-4">Cliente & Local</th>
-                      <th className="py-3.5 px-4">Dados do Contrato</th>
+                      <th className="py-3.5 px-4">Contrato</th>
                       <th className="py-3.5 px-4">Potência (kWp)</th>
                       <th className="py-3.5 px-4">Valor Mensal</th>
-                      <th className="py-3.5 px-4">Próxima Visita Agendada</th>
-                      <th className="py-3.5 px-4">Status do Plano</th>
+                      <th className="py-3.5 px-4">Próx. Vencimento / Visita</th>
+                      <th className="py-3.5 px-4">Situação</th>
                       <th className="py-3.5 px-4 text-right">Ação</th>
                     </tr>
                   </thead>
@@ -763,9 +765,25 @@ export const ListaOM: React.FC<ListaOMProps> = ({
                           {/* Dados do Contrato */}
                           <td className="py-3.5 px-4">
                             <div className="flex flex-col gap-1">
-                              <div>{renderPlanoBadge(item.plano)}</div>
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                {item.contrato?.numero_contrato && (
+                                  <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-bold bg-slate-100 text-slate-800 border border-slate-300">
+                                    nº {item.contrato.numero_contrato}
+                                  </span>
+                                )}
+                                {renderPlanoBadge(item.plano)}
+                              </div>
                               <span className="text-[11px] text-gray-500">
                                 Vigência até {formatDate(item.dataVencimento)}
+                                {item.diasRestantes !== null && item.diasRestantes >= 0 && (
+                                  <span className="text-gray-400 ml-1">
+                                    (
+                                    {item.diasRestantes <= 30
+                                      ? `resta ${item.diasRestantes}d`
+                                      : `restam ${Math.round(item.diasRestantes / 30)} meses`}
+                                    )
+                                  </span>
+                                )}
                               </span>
                             </div>
                           </td>
@@ -932,10 +950,17 @@ export const ListaOM: React.FC<ListaOMProps> = ({
                         <p className="text-xs text-gray-400 flex items-center gap-1 mt-0.5">
                           <MapPin className="w-3 h-3" />
                           {item.cliente.cidade || 'Erechim/RS'}
+                          {item.contrato?.numero_contrato && (
+                            <span className="font-semibold text-slate-700 ml-1">
+                              • Contrato nº {item.contrato.numero_contrato}
+                            </span>
+                          )}
                         </p>
                       </div>
                       <div className="flex flex-col items-end gap-1">
-                        {renderPlanoBadge(item.plano)}
+                        <div className="flex items-center gap-1">
+                          {renderPlanoBadge(item.plano)}
+                        </div>
                         {renderStatusPlanoBadge(item.statusPlano)}
                       </div>
                     </div>
