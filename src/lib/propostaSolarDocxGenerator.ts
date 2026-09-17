@@ -959,62 +959,6 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
     }),
   )
 
-  // Box de alerta vermelho
-  docChildren.push(
-    new Table({
-      width: { size: PAGE_CONTENT_WIDTH, type: WidthType.DXA },
-      borders: {
-        top: { style: BorderStyle.SINGLE, size: 8, color: COLOR_RED },
-        bottom: { style: BorderStyle.SINGLE, size: 8, color: COLOR_RED },
-        left: { style: BorderStyle.SINGLE, size: 24, color: COLOR_RED },
-        right: { style: BorderStyle.SINGLE, size: 8, color: COLOR_RED },
-      },
-      rows: [
-        new TableRow({
-          children: [
-            new TableCell({
-              width: { size: PAGE_CONTENT_WIDTH, type: WidthType.DXA },
-              shading: { type: ShadingType.CLEAR, fill: COLOR_RED_BG },
-              margins: { top: 100, bottom: 100, left: 140, right: 140 },
-              children: [
-                new Paragraph({
-                  children: [
-                    new TextRun({
-                      text: '⚠️ DIAGNÓSTICO FINANCEIRO DE PERDA ACUMULADA: ',
-                      bold: true,
-                      size: 17,
-                      color: COLOR_RED,
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: `Sem solar, em 5 anos você pagará ${formatBRL(gasto5Anos)}. Esse dinheiro poderia estar no seu bolso.`,
-                      bold: true,
-                      size: 17,
-                      color: COLOR_TEXT_DARK,
-                      font: 'Arial',
-                    }),
-                  ],
-                }),
-                new Paragraph({
-                  spacing: { before: 40 },
-                  children: [
-                    new TextRun({
-                      text: `Hoje você paga ${formatBRL(contaHoje)} para a concessionária e não recebe nada em troca. Com solar, você investe e o sistema passa a ser seu patrimônio.`,
-                      size: 16,
-                      color: COLOR_PRIMARY,
-                      font: 'Arial',
-                      bold: true,
-                    }),
-                  ],
-                }),
-              ],
-            }),
-          ],
-        }),
-      ],
-    }),
-  )
-
   // ----------------------------------------------------
   // SEÇÃO 3: SEU SISTEMA FOTOVOLTAICO
   // ----------------------------------------------------

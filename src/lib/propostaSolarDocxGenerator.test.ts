@@ -68,6 +68,8 @@ describe('propostaSolarDocxGenerator', () => {
     expect(jsonStr).toContain('GASTO EM 1 ANO')
     expect(jsonStr).toContain('GASTO EM 25 ANOS')
     expect(jsonStr).not.toContain('Consumo convertido em custo')
+    expect(jsonStr).not.toContain('DIAGNÓSTICO FINANCEIRO DE PERDA ACUMULADA')
+    expect(jsonStr).not.toContain('Esse dinheiro poderia estar no seu bolso')
     expect(jsonStr).toContain('Seu Sistema Fotovoltaico')
     expect(jsonStr).toContain('Projeção de Economia na Conta de Energia')
     expect(jsonStr).toContain('Projeção de Economia em 25 Anos')

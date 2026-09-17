@@ -46,8 +46,12 @@ describe('SecaoCustoInercia Component', () => {
     expect(html).not.toContain('Com energia solar Delfos')
     expect(html).not.toContain('recharts')
 
-    // Alerta de perda acumulada e linha reflexiva
-    expect(html).toContain('Alerta de Perda Acumulada')
+    // Não deve conter o alerta vermelho de perda acumulada ("esta parte pode retirar")
+    expect(html).not.toContain('Alerta de Perda Acumulada')
+    expect(html).not.toContain('Esse dinheiro poderia estar no seu bolso')
+    expect(html).not.toContain('Gasto Sem Retorno')
+
+    // Mantém a linha reflexiva intacta
     expect(html).toContain('Decisão Inteligente • Concessionária vs. Patrimônio Solar')
   })
 

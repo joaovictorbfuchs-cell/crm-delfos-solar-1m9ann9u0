@@ -1,6 +1,5 @@
 import React from 'react'
 import {
-  AlertTriangle,
   TrendingUp,
   TrendingDown,
   ArrowRight,
@@ -63,8 +62,7 @@ export interface SecaoCustoInerciaProps {
  *    - Sem comparação com solar (conforme solicitação do usuário)
  *    - Progressão visual sutil de gravidade (âmbar claro → âmbar escuro → vermelho)
  *    - Linha de contexto com média mensal aproximada e impacto tarifário
- * 4. Box de alerta vermelho de perda acumulada ("Sem solar, em 5 anos você pagará...")
- * 5. Linha comparativa inteligente ("Hoje você paga R$ X para a concessionária...")
+ * 4. Linha comparativa inteligente ("Hoje você paga R$ X para a concessionária...")
  */
 export const SecaoCustoInercia: React.FC<SecaoCustoInerciaProps> = ({
   consumoMensalKwh,
@@ -500,38 +498,6 @@ export const SecaoCustoInercia: React.FC<SecaoCustoInerciaProps> = ({
                 </div>
               </div>
             </div>
-          </div>
-        </div>
-
-        {/* ========================================================================= */}
-        {/* BOX DE ALERTA DE PERDA ACUMULADA EM 5 ANOS                                */}
-        {/* ========================================================================= */}
-        <div className="bg-gradient-to-r from-red-600 via-rose-600 to-red-700 text-white rounded-2xl p-5 sm:p-6 shadow-md relative overflow-hidden flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div className="absolute -right-8 -bottom-8 w-40 h-40 bg-white/10 rounded-full blur-2xl pointer-events-none" />
-
-          <div className="flex items-start gap-4 z-10">
-            <div className="w-12 h-12 rounded-2xl bg-white/15 backdrop-blur-md border border-white/25 flex items-center justify-center shrink-0 shadow-2xs">
-              <AlertTriangle className="w-6 h-6 text-amber-200 animate-pulse" />
-            </div>
-            <div className="space-y-1">
-              <span className="text-[11px] uppercase font-black tracking-widest text-red-200 block">
-                Alerta de Perda Acumulada
-              </span>
-              <p className="text-base sm:text-lg md:text-xl font-extrabold text-white leading-snug">
-                Sem solar, em 5 anos você pagará{' '}
-                <span className="underline decoration-amber-300 decoration-2 underline-offset-4 font-black">
-                  {formatCurrency(gasto5AnosFinal)}
-                </span>
-                . Esse dinheiro poderia estar no seu bolso.
-              </p>
-            </div>
-          </div>
-
-          <div className="shrink-0 z-10 self-end sm:self-center">
-            <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-white text-red-700 text-xs font-black shadow-xs">
-              <TrendingDown className="w-4 h-4" />
-              <span>Gasto Sem Retorno</span>
-            </span>
           </div>
         </div>
 

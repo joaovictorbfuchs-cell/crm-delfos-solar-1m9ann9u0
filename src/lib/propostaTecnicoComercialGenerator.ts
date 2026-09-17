@@ -1190,73 +1190,6 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
       font-weight: 800;
     }
 
-    /* Box Vermelho com gradiente fiel ao SecaoCustoInercia.tsx */
-    .box-vermelho-alerta {
-      background: linear-gradient(135deg, #DC2626 0%, #B91C1C 100%);
-      color: #FFFFFF;
-      border-radius: 16px;
-      padding: 16px 20px;
-      margin: 12px 0;
-      box-shadow: 0 8px 16px -4px rgba(220, 38, 38, 0.3);
-      position: relative;
-      overflow: hidden;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 16px;
-    }
-    .box-vermelho-left {
-      display: flex;
-      align-items: center;
-      gap: 14px;
-      z-index: 2;
-    }
-    .box-vermelho-icon {
-      width: 44px;
-      height: 44px;
-      border-radius: 14px;
-      background: rgba(255, 255, 255, 0.18);
-      border: 1px solid rgba(255, 255, 255, 0.3);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 20px;
-      color: #FEF08A;
-      shrink-0;
-    }
-    .box-vermelho-tag {
-      font-size: 9px;
-      font-weight: 900;
-      text-transform: uppercase;
-      letter-spacing: 0.12em;
-      color: #FECACA;
-      margin-bottom: 2px;
-    }
-    .box-vermelho-texto {
-      font-size: 15px;
-      font-weight: 900;
-      line-height: 1.3;
-      margin: 0;
-      color: #FFFFFF;
-    }
-    .box-vermelho-texto span.destaque-valor {
-      text-decoration: underline;
-      text-decoration-color: #FDE047;
-      text-decoration-thickness: 2.5px;
-      text-underline-offset: 4px;
-    }
-    .box-vermelho-badge-rt {
-      background: #FFFFFF;
-      color: #B91C1C;
-      font-size: 9.5px;
-      font-weight: 900;
-      padding: 6px 12px;
-      border-radius: 10px;
-      white-space: nowrap;
-      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
-      z-index: 2;
-    }
-
     /* Linha Reflexiva com box verde e ícone */
     .box-linha-reflexiva {
       background: #FFFFFF;
@@ -2351,22 +2284,6 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
                 <div style="font-size: 8px; color: #DC2626; font-weight: 700;">Desembolso acumulado com inflação da rede</div>
               </div>
             </div>
-          </div>
-        </div>
-
-        <!-- BOX VERMELHO EXATO SOLICITADO NO PROMPT -->
-        <div class="box-vermelho-alerta">
-          <div class="box-vermelho-left">
-            <div class="box-vermelho-icon">⚠️</div>
-            <div>
-              <div class="box-vermelho-tag">Alerta de Perda Acumulada</div>
-              <p class="box-vermelho-texto">
-                Sem solar, em 5 anos você pagará <span class="destaque-valor">${formatBRL(gasto5Anos)}</span>. Esse dinheiro poderia estar no seu bolso.
-              </p>
-            </div>
-          </div>
-          <div class="box-vermelho-badge-rt">
-            📉 Gasto Sem Retorno
           </div>
         </div>
 
