@@ -224,6 +224,8 @@ function converterInputParaTemplateComercial(
     projecao: {
       gastoSemSolar1Ano: calculos.gastoSemSolar1Ano,
       gastoSemSolar5Anos: calculos.gastoSemSolar5Anos,
+      gastoSemSolarPaybackAnos: calculos.gastoSemSolarPaybackAnos,
+      anosPaybackArredondado: calculos.anosPaybackArredondado,
       gastoSemSolar25Anos: calculos.gastoSemSolar25Anos,
       economia1Ano: calculos.economia1Ano,
       economia5Anos: calculos.economia5Anos,

@@ -932,6 +932,7 @@ export function ModalGerarPropostaTecnicoComercial({
                     orcamento.gasto_sem_solar_5_anos ||
                     Math.round((orcamento.gasto_sem_solar_1_ano || contaHoje * 12) * 5.8)
                   }
+                  paybackMeses={orcamento.payback_meses}
                   gastoSemSolar25Anos={
                     orcamento.gasto_sem_solar_25_anos ||
                     Math.round((orcamento.gasto_sem_solar_1_ano || contaHoje * 12) * 38.5)

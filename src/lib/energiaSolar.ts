@@ -88,6 +88,8 @@ export interface CalculosSolarResultado {
   // Projeção sem solar com reajuste de 9% ao ano
   gastoSemSolar1Ano: number
   gastoSemSolar5Anos: number
+  gastoSemSolarPaybackAnos?: number
+  anosPaybackArredondado?: number
   gastoSemSolar10Anos: number
   gastoSemSolar25Anos: number
 
@@ -141,6 +143,53 @@ export const DADOS_CLIMATICOS_ERECHIM: Array<{
   { mes: 'Novembro', dias: 30, hspDiario: 5.6 },
   { mes: 'Dezembro', dias: 31, hspDiario: 5.85 },
 ]
+
+export const REAJUSTE_ANUAL_PADRAO = 0.09 // 9% a.a.
+
+/**
+ * Calcula o gasto acumulado sem energia solar ao longo de um número inteiro de anos,
+ * considerando a taxa anual de reajuste tarifário (juros compostos por ano).
+ * Fórmula: sum_{ano=0}^{anos-1} baseAnual * (1 + taxa)^ano
+ */
+export function calcularGastoAcumuladoSemSolar(
+  anos: number,
+  baseAnual: number,
+  taxaReajusteAnual: number = REAJUSTE_ANUAL_PADRAO,
+): number {
+  const anosFinal = Math.max(0, Math.round(anos))
+  if (anosFinal === 0 || baseAnual <= 0) return 0
+  let acumulado = 0
+  for (let ano = 0; ano < anosFinal; ano++) {
+    acumulado += baseAnual * Math.pow(1 + taxaReajusteAnual, ano)
+  }
+  return Math.round(acumulado)
+}
+
+/**
+ * Calcula os anos de payback arredondados para cima até fechar um ano inteiro.
+ * Exemplo: 22 meses -> 2 anos; 25 meses -> 3 anos; 12 meses -> 1 ano; 0/inválido -> 5 anos (fallback).
+ */
+export function calcularAnosPaybackArredondado(
+  paybackMeses?: number | null,
+  valorInvestimento?: number | null,
+  economiaMensal?: number | null,
+): number {
+  if (
+    paybackMeses !== undefined &&
+    paybackMeses !== null &&
+    Number.isFinite(paybackMeses) &&
+    paybackMeses > 0
+  ) {
+    return Math.max(1, Math.ceil(paybackMeses / 12))
+  }
+  const invest = Number(valorInvestimento) || 0
+  const eco = Number(economiaMensal) || 0
+  if (invest > 0 && eco > 0) {
+    const meses = invest / eco
+    return Math.max(1, Math.ceil(meses / 12))
+  }
+  return 5 // Fallback padrão
+}
 
 // Taxa média de Performance Ratio (PR) típica de sistemas bem dimensionados em telhados
 export const DEFAULT_PERFORMANCE_RATIO = 0.8 // 80% considerando perdas térmicas, cabos, sujeira e inversor
@@ -523,11 +572,7 @@ export function calcularOrcamentoSolar(input: InputCalculoSolar): CalculosSolarR
 
   // Sem solar: somatório de (contaAnual * (1 + reajuste)^ano)
   function calcularGastoAcumulado(anos: number, baseAnual: number): number {
-    let acumulado = 0
-    for (let ano = 0; ano < anos; ano++) {
-      acumulado += baseAnual * Math.pow(1 + REAJUSTE_ANUAL, ano)
-    }
-    return acumulado
+    return calcularGastoAcumuladoSemSolar(anos, baseAnual, REAJUSTE_ANUAL)
   }
 
   // Economia acumulada com solar:
@@ -689,6 +734,11 @@ export function calcularOrcamentoSolar(input: InputCalculoSolar): CalculosSolarR
     taxaMinimaDisponibilidadeReais: taxaMinimaReais,
     gastoSemSolar1Ano,
     gastoSemSolar5Anos,
+    gastoSemSolarPaybackAnos: calcularGastoAcumulado(
+      Math.max(1, Math.ceil(paybackMeses > 0 ? paybackMeses / 12 : 5)),
+      contaAtualSemSolarAno,
+    ),
+    anosPaybackArredondado: Math.max(1, Math.ceil(paybackMeses > 0 ? paybackMeses / 12 : 5)),
     gastoSemSolar10Anos,
     gastoSemSolar25Anos,
     economia1Mes,

@@ -202,6 +202,36 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
   const paybackAnosInt = Math.floor(paybackMesesCalculado / 12)
   const paybackMesesInt = Math.round(paybackMesesCalculado % 12)
   const paybackTextoFinal = `${paybackAnosInt} anos e ${paybackMesesInt} meses`
+
+  // Período de payback arredondado PARA CIMA até fechar um ano inteiro (ex.: 22 meses -> 2 anos; 25 meses -> 3 anos)
+  const anosPaybackArredondado =
+    calculos.anosPaybackArredondado ||
+    (paybackMesesCalculado > 0 ? Math.max(1, Math.ceil(paybackMesesCalculado / 12)) : 5)
+
+  // Gasto acumulado no período do payback arredondado (card do meio)
+  const gastoCardMeio = (() => {
+    if (calculos.gastoSemSolarPaybackAnos && calculos.gastoSemSolarPaybackAnos > 0) {
+      return calculos.gastoSemSolarPaybackAnos
+    }
+    if (anosPaybackArredondado === 5 && gasto5Anos > 0) {
+      return gasto5Anos
+    }
+    if (anosPaybackArredondado === 1 && gasto1Ano > 0) {
+      return gasto1Ano
+    }
+    let acumulado = 0
+    for (let ano = 0; ano < anosPaybackArredondado; ano++) {
+      acumulado += contaAnualDocx * Math.pow(1 + 0.09, ano)
+    }
+    return Math.round(acumulado)
+  })()
+
+  const rotuloPeriodoCardMeio =
+    anosPaybackArredondado === 1 ? '1 Ano' : `${anosPaybackArredondado} Anos`
+  const tituloCardMeio = `GASTO EM ${rotuloPeriodoCardMeio.toUpperCase()}`
+  const totalMesesCardMeio = anosPaybackArredondado * 12
+  const mediaMensalCardMeio = Math.round(gastoCardMeio / totalMesesCardMeio)
+
   const roiCalculado =
     investimentoTotal > 0
       ? Math.round(((eco25Anos - investimentoTotal) / investimentoTotal) * 100)
@@ -693,7 +723,7 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
       spacing: { before: 80, after: 40 },
       children: [
         new TextRun({
-          text: '📈 Gastos Acumulados Sem Solar: 1, 5 e 25 Anos',
+          text: `📈 Gastos Acumulados Sem Solar: 1, ${rotuloPeriodoCardMeio} e 25 Anos`,
           bold: true,
           size: 18,
           color: COLOR_RED,
@@ -788,7 +818,7 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
               ],
             }),
 
-            // Card 2: 5 Anos
+            // Card 2: Período de Payback Arredondado para Cima (ex: 2 Anos)
             new TableCell({
               width: { size: colWidthInercia, type: WidthType.DXA },
               shading: { type: ShadingType.CLEAR, fill: 'FFF7ED' },
@@ -797,7 +827,7 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
                 new Paragraph({
                   children: [
                     new TextRun({
-                      text: 'GASTO EM 5 ANOS',
+                      text: tituloCardMeio,
                       bold: true,
                       size: 15,
                       color: '9A3412',
@@ -809,7 +839,7 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
                   spacing: { before: 20 },
                   children: [
                     new TextRun({
-                      text: 'Médio Prazo (60 faturas)',
+                      text: `Médio Prazo (${totalMesesCardMeio} faturas)`,
                       size: 13,
                       color: COLOR_TEXT_MUTED,
                       font: 'Arial',
@@ -820,7 +850,7 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
                   spacing: { before: 60 },
                   children: [
                     new TextRun({
-                      text: `${formatBRL(gasto5Anos)}`,
+                      text: `${formatBRL(gastoCardMeio)}`,
                       bold: true,
                       color: '9A3412',
                       size: 24,
@@ -832,7 +862,7 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
                   spacing: { before: 40 },
                   children: [
                     new TextRun({
-                      text: `≈ ${formatBRL(Math.round(gasto5Anos / 60))}/mês`,
+                      text: `≈ ${formatBRL(mediaMensalCardMeio)}/mês`,
                       bold: true,
                       size: 14,
                       color: COLOR_TEXT_DARK,
@@ -854,7 +884,6 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
                 }),
               ],
             }),
-
             // Card 3: 25 Anos
             new TableCell({
               width: { size: colWidthInercia, type: WidthType.DXA },

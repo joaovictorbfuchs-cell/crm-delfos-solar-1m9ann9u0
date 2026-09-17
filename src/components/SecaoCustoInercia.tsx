@@ -27,6 +27,12 @@ export interface SecaoCustoInerciaProps {
   gastoSemSolar1Ano?: number | null
   /** Gasto acumulado sem solar em 5 anos (R$) */
   gastoSemSolar5Anos?: number | null
+  /** Gasto acumulado sem solar no período do payback arredondado para cima (R$) */
+  gastoSemSolarPaybackAnos?: number | null
+  /** Payback em meses (para cálculo dinâmico do período arredondado em anos) */
+  paybackMeses?: number | null
+  /** Anos de payback arredondados para cima até fechar o ano */
+  anosPayback?: number | null
   /** Gasto acumulado sem solar em 25 anos (R$) */
   gastoSemSolar25Anos?: number | null
   /** Valor do investimento solar Delfos (R$) */
@@ -67,8 +73,11 @@ export const SecaoCustoInercia: React.FC<SecaoCustoInerciaProps> = ({
   contaAnual,
   gastoSemSolar1Ano,
   gastoSemSolar5Anos,
+  gastoSemSolarPaybackAnos,
+  paybackMeses,
+  anosPayback,
   gastoSemSolar25Anos,
-  valorInvestimento: _valorInvestimento,
+  valorInvestimento,
   economiaMensal,
   economia1Ano: _economia1Ano,
   economia5Anos: _economia5Anos,
@@ -105,24 +114,73 @@ export const SecaoCustoInercia: React.FC<SecaoCustoInerciaProps> = ({
       ? consumoAnualKwh
       : Math.round(consumoMensalFinal * 12)
 
+  // Determinação dos anos de payback arredondados para cima até fechar o ano (fallback: 5 anos)
+  const anosPaybackFinal = (() => {
+    if (anosPayback !== undefined && anosPayback !== null && anosPayback > 0) {
+      return Math.max(1, Math.round(anosPayback))
+    }
+    if (paybackMeses !== undefined && paybackMeses !== null && paybackMeses > 0) {
+      return Math.max(1, Math.ceil(paybackMeses / 12))
+    }
+    const invest = Number(valorInvestimento) || 0
+    const eco = Number(economiaMensal) || 0
+    if (invest > 0 && eco > 0) {
+      return Math.max(1, Math.ceil(invest / eco / 12))
+    }
+    return 5
+  })()
+
+  // Gasto acumulado em 1 ano
+  const gasto1AnoFinal =
+    gastoSemSolar1Ano !== undefined && gastoSemSolar1Ano !== null && gastoSemSolar1Ano > 0
+      ? gastoSemSolar1Ano
+      : Math.round(contaMensalFinal * 12 * 1.045) // ~11.650
+
+  // Gasto acumulado em 5 anos (fallback/referência)
   const gasto5AnosFinal =
     gastoSemSolar5Anos !== undefined && gastoSemSolar5Anos !== null && gastoSemSolar5Anos > 0
       ? gastoSemSolar5Anos
       : 71000
 
-  const gasto1AnoFinal =
-    gastoSemSolar1Ano !== undefined && gastoSemSolar1Ano !== null && gastoSemSolar1Ano > 0
-      ? gastoSemSolar1Ano
-      : Math.round(contaMensalFinal * 12 * 1.045) // ~11.650
+  // Gasto acumulado no período do payback arredondado (card do meio)
+  const gastoCardMeioFinal = (() => {
+    // Se veio prop direta de gasto sem solar no payback e o período bate com anosPayback
+    if (
+      gastoSemSolarPaybackAnos !== undefined &&
+      gastoSemSolarPaybackAnos !== null &&
+      gastoSemSolarPaybackAnos > 0
+    ) {
+      return gastoSemSolarPaybackAnos
+    }
+    // Se o período for exatamente 5 anos e tivermos gastoSemSolar5Anos
+    if (anosPaybackFinal === 5 && gastoSemSolar5Anos && gastoSemSolar5Anos > 0) {
+      return gastoSemSolar5Anos
+    }
+    // Se o período for 1 ano
+    if (anosPaybackFinal === 1 && gasto1AnoFinal > 0) {
+      return gasto1AnoFinal
+    }
+    // Calcular acumulação ano a ano com a taxa de reajuste de 9% a.a. (mesma fórmula oficial)
+    let acumulado = 0
+    for (let ano = 0; ano < anosPaybackFinal; ano++) {
+      acumulado += contaAnualFinal * Math.pow(1 + 0.09, ano)
+    }
+    return Math.round(acumulado)
+  })()
 
   const gasto25AnosFinal =
     gastoSemSolar25Anos !== undefined && gastoSemSolar25Anos !== null && gastoSemSolar25Anos > 0
       ? gastoSemSolar25Anos
       : Math.round(gasto5AnosFinal * 11.9) // ~845.000
 
+  // Título e label do período do card do meio dinâmico
+  const rotuloPeriodoCardMeio = anosPaybackFinal === 1 ? '1 Ano' : `${anosPaybackFinal} Anos`
+  const tituloCardMeio = `Gasto em ${rotuloPeriodoCardMeio}`
+  const totalMesesCardMeio = anosPaybackFinal * 12
+
   // Média mensal aproximada ao longo de cada período (considerando reajustes)
   const mediaMensal1Ano = Math.round(gasto1AnoFinal / 12)
-  const mediaMensal5Anos = Math.round(gasto5AnosFinal / 60)
+  const mediaMensalCardMeio = Math.round(gastoCardMeioFinal / totalMesesCardMeio)
   const mediaMensal25Anos = Math.round(gasto25AnosFinal / 300)
 
   return (
@@ -298,14 +356,14 @@ export const SecaoCustoInercia: React.FC<SecaoCustoInerciaProps> = ({
         </div>
 
         {/* ========================================================================= */}
-        {/* 2. GASTOS ACUMULADOS SEM SOLAR: 1 ANO, 5 ANOS E 25 ANOS                  */}
+        {/* 2. GASTOS ACUMULADOS SEM SOLAR: 1 ANO, PAYBACK E 25 ANOS                  */}
         {/* ========================================================================= */}
         <div className="bg-white rounded-2xl p-5 sm:p-6 border border-gray-200 shadow-xs space-y-5">
           <div className="flex items-center justify-between flex-wrap gap-2">
             <div>
               <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider flex items-center gap-2">
                 <TrendingUp className="w-4 h-4 text-red-600" />
-                Gastos Acumulados Sem Solar: 1, 5 e 25 Anos
+                Gastos Acumulados Sem Solar: 1, {rotuloPeriodoCardMeio} e 25 Anos
               </h3>
               <p className="text-xs text-gray-500">
                 Total faturado pela concessionária ao longo do tempo considerando o reajuste
@@ -361,7 +419,7 @@ export const SecaoCustoInercia: React.FC<SecaoCustoInerciaProps> = ({
               </div>
             </div>
 
-            {/* Card 2: Gasto em 5 Anos */}
+            {/* Card 2: Gasto no Período do Payback (X Anos arredondados para cima) */}
             <div className="rounded-2xl p-5 bg-gradient-to-br from-orange-50/80 via-white to-amber-50/40 border-2 border-orange-300 shadow-xs hover:shadow-md transition-all flex flex-col justify-between relative overflow-hidden group">
               <div className="absolute top-0 right-0 w-24 h-24 bg-orange-500/10 rounded-full blur-xl pointer-events-none group-hover:scale-125 transition-transform" />
               <div className="space-y-3 relative z-10">
@@ -371,7 +429,7 @@ export const SecaoCustoInercia: React.FC<SecaoCustoInerciaProps> = ({
                       <Clock className="w-4 h-4 text-orange-700" />
                     </div>
                     <span className="text-xs font-bold text-orange-950 uppercase tracking-wide">
-                      Gasto em 5 Anos
+                      {tituloCardMeio}
                     </span>
                   </div>
                   <span className="text-[10px] font-extrabold uppercase tracking-wider text-orange-900 bg-orange-100 px-2.5 py-0.5 rounded-full border border-orange-200">
@@ -384,7 +442,7 @@ export const SecaoCustoInercia: React.FC<SecaoCustoInerciaProps> = ({
                     Sem energia solar
                   </span>
                   <div className="text-2xl sm:text-3xl font-black text-orange-800 tracking-tight">
-                    {formatCurrency(gasto5AnosFinal)}
+                    {formatCurrency(gastoCardMeioFinal)}
                   </div>
                 </div>
               </div>
@@ -393,7 +451,7 @@ export const SecaoCustoInercia: React.FC<SecaoCustoInerciaProps> = ({
                 <div className="flex items-center justify-between">
                   <span className="text-gray-500">Média mensal:</span>
                   <strong className="text-gray-900 font-bold">
-                    ≈ {formatCurrency(mediaMensal5Anos)}/mês
+                    ≈ {formatCurrency(mediaMensalCardMeio)}/mês
                   </strong>
                 </div>
                 <div className="text-[10px] text-orange-700 font-semibold leading-tight">

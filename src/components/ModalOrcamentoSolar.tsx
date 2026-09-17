@@ -2753,6 +2753,9 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                     }
                     gastoSemSolar1Ano={calculos.gastoSemSolar1Ano}
                     gastoSemSolar5Anos={calculos.gastoSemSolar5Anos}
+                    gastoSemSolarPaybackAnos={calculos.gastoSemSolarPaybackAnos}
+                    paybackMeses={calculos.paybackMeses}
+                    anosPayback={calculos.anosPaybackArredondado}
                     gastoSemSolar25Anos={calculos.gastoSemSolar25Anos}
                     valorInvestimento={valorInvestimentoFinal}
                     economiaMensal={calculos.economia1Mes}

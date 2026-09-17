@@ -104,6 +104,8 @@ export interface PropostaTecnicoComercialDados {
   projecao: {
     gastoSemSolar1Ano: number
     gastoSemSolar5Anos: number
+    gastoSemSolarPaybackAnos?: number
+    anosPaybackArredondado?: number
     gastoSemSolar25Anos: number
     economia1Ano: number
     economia5Anos: number
@@ -274,6 +276,25 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
 
   const investimentoTotal = economia?.investimentoTotal || parcelamento?.aVista?.valorTotal || 45000
 
+  // Payback
+  const paybackMesesCalculado =
+    economia?.paybackMeses && economia.paybackMeses > 0
+      ? economia.paybackMeses
+      : economiaMensal > 0
+        ? Math.round((investimentoTotal / economiaMensal) * 10) / 10
+        : 50
+
+  // Anos de payback arredondados PARA CIMA até fechar um ano inteiro (ex: 22 meses -> 2 anos; 25 meses -> 3 anos)
+  const anosPaybackArredondado = (() => {
+    if (projecao?.anosPaybackArredondado && projecao.anosPaybackArredondado > 0) {
+      return Math.max(1, Math.round(projecao.anosPaybackArredondado))
+    }
+    if (paybackMesesCalculado > 0) {
+      return Math.max(1, Math.ceil(paybackMesesCalculado / 12))
+    }
+    return 5
+  })()
+
   // Valores de inércia
   const gasto1Ano =
     projecao?.gastoSemSolar1Ano && projecao.gastoSemSolar1Ano > 0
@@ -283,6 +304,36 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
     projecao?.gastoSemSolar5Anos && projecao.gastoSemSolar5Anos > 0
       ? projecao.gastoSemSolar5Anos
       : Math.round(gasto1Ano * 5.8)
+
+  // Gasto acumulado no período do payback arredondado (card do meio)
+  const gastoCardMeio = (() => {
+    if (
+      projecao?.gastoSemSolarPaybackAnos &&
+      projecao.gastoSemSolarPaybackAnos > 0 &&
+      (!projecao.anosPaybackArredondado ||
+        projecao.anosPaybackArredondado === anosPaybackArredondado)
+    ) {
+      return projecao.gastoSemSolarPaybackAnos
+    }
+    if (anosPaybackArredondado === 5 && gasto5Anos > 0) {
+      return gasto5Anos
+    }
+    if (anosPaybackArredondado === 1 && gasto1Ano > 0) {
+      return gasto1Ano
+    }
+    let acumulado = 0
+    for (let ano = 0; ano < anosPaybackArredondado; ano++) {
+      acumulado += contaAnualEstimada * Math.pow(1 + 0.09, ano)
+    }
+    return Math.round(acumulado)
+  })()
+
+  const rotuloPeriodoCardMeio =
+    anosPaybackArredondado === 1 ? '1 Ano' : `${anosPaybackArredondado} Anos`
+  const tituloCardMeio = `Gasto em ${rotuloPeriodoCardMeio}`
+  const totalMesesCardMeio = anosPaybackArredondado * 12
+  const mediaMensalCardMeio = Math.round(gastoCardMeio / totalMesesCardMeio)
+
   const gasto25Anos =
     projecao?.gastoSemSolar25Anos && projecao.gastoSemSolar25Anos > 0
       ? projecao.gastoSemSolar25Anos
@@ -315,13 +366,6 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
     consumoKwhAno: consumoKwhAnoEstimado,
   })
 
-  // Payback
-  const paybackMesesCalculado =
-    economia?.paybackMeses && economia.paybackMeses > 0
-      ? economia.paybackMeses
-      : economiaMensal > 0
-        ? Math.round((investimentoTotal / economiaMensal) * 10) / 10
-        : 50
   const paybackAnosInt = Math.floor(paybackMesesCalculado / 12)
   const paybackMesesInt = Math.round(paybackMesesCalculado % 12)
   const paybackTextoFinal =
@@ -2242,12 +2286,12 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
           </div>
         </div>
 
-        <!-- 2. Box de Gastos Acumulados Sem Solar: 1 ano, 5 anos, 25 anos -->
+        <!-- 2. Box de Gastos Acumulados Sem Solar: 1 ano, payback em anos, 25 anos -->
         <div class="box-barras-inercia">
           <div class="barras-topo-row">
             <div>
               <div class="barras-topo-title">
-                <span style="color: #DC2626;">📈</span> Gastos Acumulados Sem Solar: 1, 5 e 25 Anos
+                <span style="color: #DC2626;">📈</span> Gastos Acumulados Sem Solar: 1, ${rotuloPeriodoCardMeio} e 25 Anos
               </div>
               <div class="barras-topo-sub">
                 Total faturado pela concessionária ao longo do tempo considerando o reajuste tarifário histórico da rede elétrica
@@ -2276,18 +2320,18 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
               </div>
             </div>
 
-            <!-- Marco 2: 5 anos -->
+            <!-- Marco 2: Payback em X Anos -->
             <div class="card-marco-inercia ano5">
               <div>
                 <div class="card-marco-head">
-                  <span class="card-marco-title">Gasto em 5 Anos</span>
+                  <span class="card-marco-title">${tituloCardMeio}</span>
                   <span class="card-marco-tag">Médio prazo</span>
                 </div>
                 <div class="card-marco-subhead">Sem energia solar</div>
-                <div class="card-marco-valor-grande">${formatBRL(gasto5Anos)}</div>
+                <div class="card-marco-valor-grande">${formatBRL(gastoCardMeio)}</div>
               </div>
               <div class="card-marco-footer-meta">
-                <div>Média mensal: <strong>≈ ${formatBRL(Math.round(gasto5Anos / 60))}/mês</strong></div>
+                <div>Média mensal: <strong>≈ ${formatBRL(mediaMensalCardMeio)}/mês</strong></div>
                 <div style="font-size: 8px; color: #C2410C; font-weight: 700;">Supera o valor de uma usina própria</div>
               </div>
             </div>
