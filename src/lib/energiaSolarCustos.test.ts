@@ -627,13 +627,12 @@ describe('Simulações personalizadas de Parcelamento & Financiamento (PRICE)', 
 
 describe('calcularOrcamentoSolar - Novo Modelo GD Eco Líquida e Taxa Mínima Condicionada', () => {
   it('validação com as fixtures da planilha: tarifa 1.1979, FS 30%, Fio B 0.2239 -> GD Eco Líquida 1.1039', () => {
-    // Quando fornecido gdEcoLiquida informado de 1.1039:
+    // Quando calculado com tarifa 1.1979, FS 0.3 e Fio B 0.2239 -> GD Eco Líquida 1.1039:
     const orcPlanilhaExata = calcularOrcamentoSolar({
       consumoKwhMes: 331.43,
       tarifaKwh: 1.1979,
       fatorSimultaneidade: 0.3,
       fioBKwh: 0.2239,
-      gdEcoLiquidaKwh: 1.1039,
       potenciaKwp: 2.8,
       padraoFases: 'monofasico',
       tipoCliente: 'residencial',
