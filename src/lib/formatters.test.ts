@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest'
-import { formatCurrencyBRL, maskCurrencyBRL, parseCurrencyBRL } from './formatters'
+import {
+  formatCurrencyBRL,
+  maskCurrencyBRL,
+  parseCurrencyBRL,
+  formatarMesAnoQuitacao,
+} from './formatters'
 
 describe('Formatters - Máscara Monetária em Real (R$)', () => {
   describe('formatCurrencyBRL', () => {
@@ -50,6 +55,20 @@ describe('Formatters - Máscara Monetária em Real (R$)', () => {
       const anual = Math.round(mensal * 12 * 100) / 100
       expect(anual).toBe(1198.8)
       expect(formatCurrencyBRL(anual)).toBe('R$ 1.198,80')
+    })
+  })
+
+  describe('formatarMesAnoQuitacao', () => {
+    it('deve calcular o mês e ano corretos a partir de uma data base e payback em meses', () => {
+      // 2024-03-15 + 52 meses = março/2024 + 4 anos e 4 meses = julho/2028
+      const resultado = formatarMesAnoQuitacao('2024-03-15', 52)
+      expect(resultado).toBe('julho/2028')
+    })
+
+    it('deve usar 24 meses como fallback quando paybackMeses não for informado', () => {
+      const base = new Date(2024, 0, 15) // janeiro/2024
+      const resultado = formatarMesAnoQuitacao(base, null)
+      expect(resultado).toBe('janeiro/2026')
     })
   })
 })

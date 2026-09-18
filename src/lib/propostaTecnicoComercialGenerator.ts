@@ -1,6 +1,7 @@
 import type { GeracaoMensalItem } from '@/lib/energiaSolar'
 import { calcularProjecaoEconomia } from '@/lib/calculoProjecaoEconomia'
 import { CONSUMO_EXEMPLO_PADRAO_KWH_ANO } from '@/data/planilhaBaseProjecao'
+import { formatarMesAnoQuitacao } from '@/lib/formatters'
 import { onGridPngAsset, monitoramentoPngAsset } from './propostaIlustracoesAssets'
 
 export interface FotoInstalacaoProposta {
@@ -489,7 +490,7 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
   )
   const xPayback = escalaX(idxPayback).toFixed(1)
   const yPayback = escalaY(investimentoTotal).toFixed(1)
-  const anoPayback = 2026 + idxPayback
+  const quitacaoMesAno = formatarMesAnoQuitacao(dataProposta, paybackMesesCalculado)
 
   return `<!DOCTYPE html>
 <html lang="pt-BR">
@@ -2923,7 +2924,7 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
               ${paybackTextoFinal}
             </div>
             <span style="font-size: 8px; color: #78350F; font-weight: 700; display: block;">
-              Ano de quitação: ~${anoPayback}
+              Quitação prevista: ${quitacaoMesAno}
             </span>
           </div>
         </div>

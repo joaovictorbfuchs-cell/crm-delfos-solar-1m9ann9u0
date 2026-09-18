@@ -3270,6 +3270,7 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                   errorMessage="Não foi possível exibir as Condições de Pagamento"
                 >
                   <SecaoInvestimentoPagamento
+                    dataOrcamento={initialOrcamento?.data_orcamento}
                     valorInvestimento={valorInvestimentoFinal}
                     valorAVista={
                       calculos.parcelamentos?.aVista?.valorTotal ||

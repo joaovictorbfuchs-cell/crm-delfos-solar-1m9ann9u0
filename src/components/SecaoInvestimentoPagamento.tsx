@@ -1,8 +1,10 @@
 import React from 'react'
 import { Wallet, CreditCard, Building2, Landmark, Clock, Sparkles } from 'lucide-react'
-import { formatCurrency } from '@/lib/formatters'
+import { formatCurrency, formatarMesAnoQuitacao } from '@/lib/formatters'
 
 export interface SecaoInvestimentoPagamentoProps {
+  /** Data base do orçamento ou proposta (para cálculo do mês de quitação) */
+  dataOrcamento?: string | Date | null
   /** Valor total do investimento solar (R$) */
   valorInvestimento?: number | null
   /** Valor à vista com desconto (R$) */
@@ -72,6 +74,7 @@ export interface SecaoInvestimentoPagamentoProps {
  * - Badge de urgência: 'Condições válidas por [X] dias. Reserve sua usina agora.'
  */
 export const SecaoInvestimentoPagamento: React.FC<SecaoInvestimentoPagamentoProps> = ({
+  dataOrcamento,
   valorInvestimento,
   valorAVista,
   descontoAVistaReais,
@@ -219,28 +222,27 @@ export const SecaoInvestimentoPagamento: React.FC<SecaoInvestimentoPagamentoProp
   // Economia mensal líquida à vista (Conta hoje s/ solar - Conta c/ solar)
   const economiaMensalAVista = Math.max(0, contaAtualFinal - faturaComSolarFinal)
 
-  // Cálculo e formatação do Payback (anos, meses e ano de quitação)
+  // Cálculo e formatação do Payback (anos, meses e mês/ano de quitação)
   const infoPayback = React.useMemo(() => {
     let texto = paybackTexto || ''
-    const anoBase = new Date().getFullYear() || 2026
-    let anoCalendario = anoBase + 2
+    let mesesTotais =
+      paybackMeses !== undefined && paybackMeses !== null && paybackMeses > 0
+        ? paybackMeses
+        : totalFinal > 0 && Math.max(0, contaAtualFinal - faturaComSolarFinal) > 0
+          ? Math.round((totalFinal / Math.max(1, contaAtualFinal - faturaComSolarFinal)) * 10) / 10
+          : 22
 
     if (paybackTexto && paybackTexto.trim()) {
-      const match = paybackTexto.match(/(\d+)\s*(?:anos?|a)/i)
-      if (match && match[1]) {
-        anoCalendario = anoBase + parseInt(match[1], 10)
+      const matchAnos = paybackTexto.match(/(\d+)\s*(?:anos?|a)/i)
+      const matchMeses = paybackTexto.match(/(\d+)\s*m[eê]s(?:es)?/i)
+      if (matchAnos && matchAnos[1]) {
+        const anos = parseInt(matchAnos[1], 10)
+        const mesesExtra = matchMeses && matchMeses[1] ? parseInt(matchMeses[1], 10) : 0
+        mesesTotais = anos * 12 + mesesExtra
       }
     } else {
-      const mesesTotais =
-        paybackMeses !== undefined && paybackMeses !== null && paybackMeses > 0
-          ? paybackMeses
-          : totalFinal > 0 && Math.max(0, contaAtualFinal - faturaComSolarFinal) > 0
-            ? Math.round((totalFinal / Math.max(1, contaAtualFinal - faturaComSolarFinal)) * 10) /
-              10
-            : 22
       const anos = Math.floor(mesesTotais / 12)
       const meses = Math.round(mesesTotais % 12)
-      anoCalendario = anoBase + Math.max(1, Math.ceil(mesesTotais / 12))
       texto = `${anos} anos`
       if (anos === 1) texto = '1 ano'
       if (anos === 0) texto = `${meses} meses`
@@ -249,11 +251,13 @@ export const SecaoInvestimentoPagamento: React.FC<SecaoInvestimentoPagamentoProp
       }
     }
 
+    const quitacaoMesAno = formatarMesAnoQuitacao(dataOrcamento, mesesTotais)
+
     return {
       texto,
-      anoCalendario,
+      quitacaoMesAno,
     }
-  }, [paybackTexto, paybackMeses, totalFinal, contaAtualFinal, faturaComSolarFinal])
+  }, [paybackTexto, paybackMeses, totalFinal, contaAtualFinal, faturaComSolarFinal, dataOrcamento])
 
   return (
     <section
@@ -547,7 +551,7 @@ export const SecaoInvestimentoPagamento: React.FC<SecaoInvestimentoPagamentoProp
                     <span>Payback estimado</span>
                   </span>
                   <span className="text-xs font-semibold text-amber-900/85">
-                    Quitação prevista: ~{infoPayback.anoCalendario}
+                    Quitação prevista: {infoPayback.quitacaoMesAno}
                   </span>
                 </div>
                 <p className="text-xs text-gray-600 font-medium">

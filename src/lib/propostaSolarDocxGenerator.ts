@@ -27,6 +27,7 @@ import {
 } from '@/lib/propostaSolarGenerator'
 import { calcularProjecaoEconomia } from '@/lib/calculoProjecaoEconomia'
 import { CONSUMO_EXEMPLO_PADRAO_KWH_ANO } from '@/data/planilhaBaseProjecao'
+import { formatarMesAnoQuitacao } from '@/lib/formatters'
 import logoPng from '@/assets/delfos-solar-09ea2.png'
 import { getFotoUrl } from '@/services/instalacoesGaleriaService'
 import { onGridPngAsset, monitoramentoPngAsset } from './propostaIlustracoesAssets'
@@ -241,7 +242,7 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
   const paybackAnosInt = Math.floor(paybackMesesCalculado / 12)
   const paybackMesesInt = Math.round(paybackMesesCalculado % 12)
   const paybackTextoFinal = `${paybackAnosInt} anos e ${paybackMesesInt} meses`
-  const anoPayback = 2026 + Math.ceil(paybackMesesCalculado / 12)
+  const quitacaoMesAno = formatarMesAnoQuitacao(dados.dataEmissao, paybackMesesCalculado)
 
   // Período de payback arredondado PARA CIMA até fechar um ano inteiro (ex.: 22 meses -> 2 anos; 25 meses -> 3 anos)
   const anosPaybackArredondado =
@@ -2479,7 +2480,7 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
                       font: 'Arial',
                     }),
                     new TextRun({
-                      text: ` (Quitação prevista: ~${anoPayback})`,
+                      text: ` (Quitação prevista: ${quitacaoMesAno})`,
                       bold: true,
                       size: 15,
                       color: '78350F',

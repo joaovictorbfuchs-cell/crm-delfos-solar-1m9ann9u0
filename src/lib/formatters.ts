@@ -139,3 +139,24 @@ export function getTelhadoLabel(tipo: string | undefined): string {
       return tipo || '-'
   }
 }
+
+/**
+ * Calcula a data prevista de quitação do investimento (mês por extenso/ano em pt-BR)
+ * a partir da data base da proposta/orçamento + meses de payback.
+ * Exemplo: dataBase = "2024-03-15", mesesPayback = 52 -> "julho/2028"
+ */
+export function formatarMesAnoQuitacao(
+  dataBase?: Date | string | null,
+  mesesPayback?: number | null,
+): string {
+  let base = new Date()
+  if (typeof dataBase === 'string' && dataBase.trim()) {
+    const parsed = new Date(dataBase)
+    if (!isNaN(parsed.getTime())) base = parsed
+  } else if (dataBase instanceof Date && !isNaN(dataBase.getTime())) {
+    base = new Date(dataBase.getTime())
+  }
+  const meses = mesesPayback && mesesPayback > 0 ? Math.round(mesesPayback) : 24
+  const dataFinal = new Date(base.getFullYear(), base.getMonth() + meses, 1)
+  return `${dataFinal.toLocaleDateString('pt-BR', { month: 'long' })}/${dataFinal.getFullYear()}`
+}
