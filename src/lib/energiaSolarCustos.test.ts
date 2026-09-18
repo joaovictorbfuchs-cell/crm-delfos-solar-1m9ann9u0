@@ -207,6 +207,177 @@ describe('calcularCustosAba - Formação de Preço Delfos Solar', () => {
     const soma = 13900 + res.impostos + res.administracao + res.comissaoComercial + res.indicacao
     expect(Math.abs(soma - res.valorTotal)).toBeLessThanOrEqual(0.02)
   })
+
+  it('permite edição manual de Administração e mantém a invariante de soma na Opção 1 e Opção 2', () => {
+    // Modo manual de Administração na Opção 1:
+    const resManualAdminOp1 = calcularCustosAba({
+      materiaisEquipamentos: 12000,
+      maoDeObra: 2000,
+      riscoEngenharia: 400,
+      opcaoImposto: 1,
+      manualAdministracao: true,
+      valorManualAdministracao: 2500, // valor fixo manual
+    })
+
+    expect(resManualAdminOp1.manualAdministracao).toBe(true)
+    expect(resManualAdminOp1.administracao).toBe(2500)
+    expect(resManualAdminOp1.administracaoSemDesconto).toBe(2500)
+
+    // Invariante de soma: Base + Impostos + AdminManual + Comissao + Indicacao = Total
+    const somaOp1 =
+      14400 +
+      resManualAdminOp1.impostos +
+      resManualAdminOp1.administracao +
+      resManualAdminOp1.comissaoComercial +
+      resManualAdminOp1.indicacao
+    expect(Math.abs(somaOp1 - resManualAdminOp1.valorTotal)).toBeLessThanOrEqual(0.02)
+
+    // Modo manual de Administração na Opção 2:
+    const resManualAdminOp2 = calcularCustosAba({
+      materiaisEquipamentos: 15000,
+      maoDeObra: 2500,
+      riscoEngenharia: 400,
+      opcaoImposto: 2,
+      manualAdministracao: true,
+      valorManualAdministracao: 3000,
+    })
+
+    expect(resManualAdminOp2.manualAdministracao).toBe(true)
+    expect(resManualAdminOp2.administracao).toBe(3000)
+
+    // Imposto Opção 2 = 16% * (Total - Materiais)
+    const impostoOp2Esperado = Math.round((resManualAdminOp2.valorTotal - 15000) * 0.16 * 100) / 100
+    expect(resManualAdminOp2.impostos).toBe(impostoOp2Esperado)
+
+    const somaOp2 =
+      17900 +
+      resManualAdminOp2.impostos +
+      resManualAdminOp2.administracao +
+      resManualAdminOp2.comissaoComercial +
+      resManualAdminOp2.indicacao
+    expect(Math.abs(somaOp2 - resManualAdminOp2.valorTotal)).toBeLessThanOrEqual(0.02)
+  })
+
+  it('permite edição manual de Comissão comercial e mantém a invariante de soma', () => {
+    // Usuário digita comissão manual de R$ 1.500 (livre do piso e de 3%)
+    const resManualComissao = calcularCustosAba({
+      materiaisEquipamentos: 10000,
+      maoDeObra: 1500,
+      riscoEngenharia: 400,
+      opcaoImposto: 1,
+      manualComissao: true,
+      valorManualComissao: 1500,
+    })
+
+    expect(resManualComissao.manualComissao).toBe(true)
+    expect(resManualComissao.comissaoComercial).toBe(1500)
+    expect(resManualComissao.comissaoSemDesconto).toBe(1500)
+
+    const soma =
+      11900 +
+      resManualComissao.impostos +
+      resManualComissao.administracao +
+      resManualComissao.comissaoComercial +
+      resManualComissao.indicacao
+    expect(Math.abs(soma - resManualComissao.valorTotal)).toBeLessThanOrEqual(0.02)
+
+    // Usuário digita comissão manual menor que R$ 600 (ex: R$ 300) — modo manual deve respeitar o valor digitado!
+    const resComissaoAbaixoPiso = calcularCustosAba({
+      materiaisEquipamentos: 10000,
+      maoDeObra: 1500,
+      riscoEngenharia: 400,
+      opcaoImposto: 1,
+      manualComissao: true,
+      valorManualComissao: 300,
+    })
+
+    expect(resComissaoAbaixoPiso.comissaoComercial).toBe(300)
+    const somaAbaixo =
+      11900 +
+      resComissaoAbaixoPiso.impostos +
+      resComissaoAbaixoPiso.administracao +
+      resComissaoAbaixoPiso.comissaoComercial +
+      resComissaoAbaixoPiso.indicacao
+    expect(Math.abs(somaAbaixo - resComissaoAbaixoPiso.valorTotal)).toBeLessThanOrEqual(0.02)
+  })
+
+  it('permite edição manual de Indicação e mantém a invariante de soma', () => {
+    // Modo manual de Indicação: R$ 800
+    const resManualInd = calcularCustosAba({
+      materiaisEquipamentos: 8000,
+      maoDeObra: 1200,
+      riscoEngenharia: 400,
+      opcaoImposto: 2,
+      manualIndicacao: true,
+      valorManualIndicacao: 800,
+    })
+
+    expect(resManualInd.manualIndicacao).toBe(true)
+    expect(resManualInd.indicacao).toBe(800)
+    expect(resManualInd.indicacaoSemDesconto).toBe(800)
+
+    const soma =
+      9600 +
+      resManualInd.impostos +
+      resManualInd.administracao +
+      resManualInd.comissaoComercial +
+      resManualInd.indicacao
+    expect(Math.abs(soma - resManualInd.valorTotal)).toBeLessThanOrEqual(0.02)
+  })
+
+  it('permite edição manual simultânea dos três campos (Administração, Comissão e Indicação)', () => {
+    const resTodosManuais = calcularCustosAba({
+      materiaisEquipamentos: 14000,
+      maoDeObra: 2000,
+      riscoEngenharia: 400,
+      opcaoImposto: 1,
+      manualAdministracao: true,
+      valorManualAdministracao: 2200,
+      manualComissao: true,
+      valorManualComissao: 1100,
+      manualIndicacao: true,
+      valorManualIndicacao: 450,
+    })
+
+    expect(resTodosManuais.manualAdministracao).toBe(true)
+    expect(resTodosManuais.manualComissao).toBe(true)
+    expect(resTodosManuais.manualIndicacao).toBe(true)
+    expect(resTodosManuais.administracao).toBe(2200)
+    expect(resTodosManuais.comissaoComercial).toBe(1100)
+    expect(resTodosManuais.indicacao).toBe(450)
+
+    // Subtotal base = 16400
+    // Total = (16400 + 2200 + 1100 + 450) / (1 - 0.0923) = 20150 / 0.9077 ~ 22199.07
+    // Impostos = 9.23% * Total
+    const soma =
+      16400 +
+      resTodosManuais.impostos +
+      resTodosManuais.administracao +
+      resTodosManuais.comissaoComercial +
+      resTodosManuais.indicacao
+    expect(Math.abs(soma - resTodosManuais.valorTotal)).toBeLessThanOrEqual(0.02)
+  })
+
+  it('comportamento de desconto quando campos estão em modo manual: desconto atua proporcionalmente nos campos automáticos e preserva os manuais', () => {
+    // Cenário: Administração em modo manual (R$ 2000), Comissão automática, Indicação automática.
+    // Desconto de R$ 400 informado.
+    const resMisto = calcularCustosAba({
+      materiaisEquipamentos: 15000,
+      maoDeObra: 2500,
+      riscoEngenharia: 400,
+      opcaoImposto: 1,
+      manualAdministracao: true,
+      valorManualAdministracao: 2000,
+      desconto: 400,
+    })
+
+    // Administração manual não é descontada (mantém os R$ 2000 fixos que o usuário estabeleceu)
+    expect(resMisto.administracao).toBe(2000)
+    expect(resMisto.administracaoDescontada).toBe(0)
+
+    // Indicação (automática) absorve a redução
+    expect(resMisto.indicacaoDescontada).toBeGreaterThan(0)
+  })
 })
 
 describe('Simulações personalizadas de Parcelamento & Financiamento (PRICE)', () => {

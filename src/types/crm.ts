@@ -1088,6 +1088,12 @@ export interface OrcamentoSolar extends RecordModel {
   desconto?: number
   valor_total_custos?: number
   custo_por_kwp?: number
+  manual_administracao?: boolean
+  manual_comissao?: boolean
+  manual_indicacao?: boolean
+  valor_manual_administracao?: number
+  valor_manual_comissao?: number
+  valor_manual_indicacao?: number
   // Cálculos solares
   geracao_anual_kwh?: number
   geracao_mensal_kwh?: number

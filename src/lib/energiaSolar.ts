@@ -360,6 +360,12 @@ export interface ParametrosCalculoCustosAba {
   opcaoImposto: 1 | 2
   desconto?: number
   descontoPercentual?: number
+  manualAdministracao?: boolean
+  valorManualAdministracao?: number
+  manualComissao?: boolean
+  valorManualComissao?: number
+  manualIndicacao?: boolean
+  valorManualIndicacao?: number
 }
 
 export interface ResultadoCalculoCustosAba {
@@ -368,17 +374,20 @@ export interface ResultadoCalculoCustosAba {
   baseComDesconto: number // base líquida (somaComImpostos - desconto)
   desconto: number
   percentualDescontoProjeto: number // percentual que o desconto representa sobre o valor total do projeto (0 a 100)
-  administracao: number // 15% do total do projeto (ou reduzido proporcionalmente por desconto)
+  administracao: number // 15% do total do projeto (ou reduzido proporcionalmente por desconto, ou valor manual)
   administracaoSemDesconto: number
   administracaoDescontada: number
-  comissaoComercial: number // 3% do total (com piso de R$ 600), com redução de desconto mantendo piso se couber
+  manualAdministracao: boolean
+  comissaoComercial: number // 3% do total (com piso de R$ 600), com redução de desconto mantendo piso se couber (ou manual)
   comissaoPura3Pct: number
   comissaoSemDesconto: number
   comissaoDescontada: number
   comissaoUsouPisoMinimo: boolean
-  indicacao: number // 1% do total (ou reduzido proporcionalmente por desconto)
+  manualComissao: boolean
+  indicacao: number // 1% do total (ou reduzido proporcionalmente por desconto, ou valor manual)
   indicacaoSemDesconto: number
   indicacaoDescontada: number
+  manualIndicacao: boolean
   valorTotal: number
 }
 
@@ -411,6 +420,28 @@ export function calcularCustosAba(params: ParametrosCalculoCustosAba): Resultado
       ? materiaisEquip
       : materiais
 
+  const manualAdmin = Boolean(params.manualAdministracao)
+  const manualComiss = Boolean(params.manualComissao)
+  const manualInd = Boolean(params.manualIndicacao)
+
+  const valManualAdmin = manualAdmin ? Math.max(0, Number(params.valorManualAdministracao) || 0) : 0
+  const valManualComiss = manualComiss ? Math.max(0, Number(params.valorManualComissao) || 0) : 0
+  const valManualInd = manualInd ? Math.max(0, Number(params.valorManualIndicacao) || 0) : 0
+
+  // Frações dinâmicas de cada item sobre o Total (quando em modo automático)
+  const fAdmin = manualAdmin ? 0 : 0.15
+  const fInd = manualInd ? 0 : 0.01
+
+  // Alíquota de imposto sobre Total (tImposto) e termo independente do imposto (constImposto)
+  // Opção 1: Imposto = 0.0923 * Total
+  // Opção 2: Imposto = 0.16 * (Total - Mat) = 0.16 * Total - 0.16 * Mat
+  const tImposto = params.opcaoImposto === 1 ? 0.0923 : 0.16
+  const constImposto = params.opcaoImposto === 1 ? 0 : -0.16 * materiaisDeduziveisImposto
+
+  // Termo fixo que entra no numerador da equação do Total:
+  // Base direta + constImposto + valores manuais informados
+  const termoFixoBase = subtotalBase + constImposto + valManualAdmin + valManualInd
+
   let valorTotal = 0
   let impostos = 0
   let administracaoSemDesconto = 0
@@ -420,12 +451,20 @@ export function calcularCustosAba(params: ParametrosCalculoCustosAba): Resultado
   let indicacaoSemDesconto = 0
 
   if (subtotalBase > 0) {
-    if (params.opcaoImposto === 1) {
-      // Opção 1: Impostos = 9,23% sobre o Total do projeto
-      // Total = Base + 0,0923*Total + 0,15*Total + Comissao + 0,01*Total
+    if (manualComiss) {
+      // Comissão é valor manual fixo
+      const termoFixoTotal = termoFixoBase + valManualComiss
+      const denominador = 1 - tImposto - fAdmin - fInd
+      valorTotal = denominador > 0 ? termoFixoTotal / denominador : termoFixoTotal
+      comissaoSemDesconto = valManualComiss
+      comissaoPura3Pct = valorTotal * 0.03
+      comissaoUsouPisoMinimo = false
+    } else {
+      // Comissão é automática: pode ser piso R$ 600 ou 3% do Total
       // Hipótese 1: Comissão = R$ 600 (piso)
-      // Total = (Base + 600) / (1 - 0,0923 - 0,15 - 0,01) = (Base + 600) / 0,7477
-      const totalComPiso = (subtotalBase + 600) / 0.7477
+      const termoFixoPiso = termoFixoBase + 600
+      const denPiso = 1 - tImposto - fAdmin - fInd
+      const totalComPiso = denPiso > 0 ? termoFixoPiso / denPiso : termoFixoPiso
       const comissao3Pct = totalComPiso * 0.03
 
       if (comissao3Pct <= 600) {
@@ -434,42 +473,23 @@ export function calcularCustosAba(params: ParametrosCalculoCustosAba): Resultado
         comissaoPura3Pct = comissao3Pct
         comissaoUsouPisoMinimo = true
       } else {
-        // Hipótese 2: Comissão = 3% sobre o Total do projeto
-        // Total = Base / (1 - 0,0923 - 0,15 - 0,03 - 0,01) = Base / 0,7177
-        valorTotal = subtotalBase / 0.7177
+        // Hipótese 2: Comissão = 3% sobre Total
+        const den3Pct = 1 - tImposto - fAdmin - 0.03 - fInd
+        valorTotal = den3Pct > 0 ? termoFixoBase / den3Pct : termoFixoBase
         comissaoPura3Pct = valorTotal * 0.03
         comissaoSemDesconto = comissaoPura3Pct
         comissaoUsouPisoMinimo = false
       }
+    }
 
+    if (params.opcaoImposto === 1) {
       impostos = valorTotal * 0.0923
     } else {
-      // Opção 2: Impostos = 16% sobre (Total - Materiais/Equipamentos)
-      // Total = Base + 0,16*(Total - Mat) + 0,15*Total + Comissao + 0,01*Total
-      // Total = (Base - 0,16*Mat + Comissao) / (1 - 0,16 - 0,15 - 0,01)
-      // Denominador com piso (Comissão = 600): 1 - 0,32 = 0,68
-      const totalComPiso = (subtotalBase - 0.16 * materiaisDeduziveisImposto + 600) / 0.68
-      const comissao3Pct = totalComPiso * 0.03
-
-      if (comissao3Pct <= 600) {
-        valorTotal = totalComPiso
-        comissaoSemDesconto = 600
-        comissaoPura3Pct = comissao3Pct
-        comissaoUsouPisoMinimo = true
-      } else {
-        // Hipótese 2: Comissão = 3% sobre o Total do projeto
-        // Denominador com 3%: 1 - 0,16 - 0,15 - 0,03 - 0,01 = 0,65
-        valorTotal = (subtotalBase - 0.16 * materiaisDeduziveisImposto) / 0.65
-        comissaoPura3Pct = valorTotal * 0.03
-        comissaoSemDesconto = comissaoPura3Pct
-        comissaoUsouPisoMinimo = false
-      }
-
       impostos = Math.max(0, (valorTotal - materiaisDeduziveisImposto) * 0.16)
     }
 
-    administracaoSemDesconto = valorTotal * 0.15
-    indicacaoSemDesconto = valorTotal * 0.01
+    administracaoSemDesconto = manualAdmin ? valManualAdmin : valorTotal * 0.15
+    indicacaoSemDesconto = manualInd ? valManualInd : valorTotal * 0.01
   }
 
   // Desconto sobre o total do projeto:
@@ -484,13 +504,19 @@ export function calcularCustosAba(params: ParametrosCalculoCustosAba): Resultado
     percentualDescontoProjeto = valorTotal > 0 && desconto > 0 ? (desconto / valorTotal) * 100 : 0
   }
 
-  // Redução proporcional pelo desconto em Administração (15%), Comissão (3% mantendo piso) e Indicação (1%)
-  // Nunca reduz materiais, mão de obra, outros custos nem impostos.
-  const somaTaxasVariaveis = 0.15 + (comissaoUsouPisoMinimo ? 0 : 0.03) + 0.01
-  const proporcaoAdmin = somaTaxasVariaveis > 0 ? 0.15 / somaTaxasVariaveis : 15 / 19
-  const proporcaoComissao =
-    somaTaxasVariaveis > 0 ? (comissaoUsouPisoMinimo ? 0 : 0.03 / somaTaxasVariaveis) : 0
-  const proporcaoIndicacao = somaTaxasVariaveis > 0 ? 0.01 / somaTaxasVariaveis : 1 / 19
+  // Redução proporcional pelo desconto:
+  // Aplica sobre os campos em modo AUTOMÁTICO (alíquotas variáveis: 15%, 3% se acima do piso, 1%).
+  // Campos em modo manual são valores fixos definidos pelo usuário e não sofrem redução de alíquota proporcional.
+  // Caso todos estejam em modo manual, a taxa variável é 0.
+  const taxaAdminAuto = manualAdmin ? 0 : 0.15
+  const taxaComissaoAuto = manualComiss || comissaoUsouPisoMinimo ? 0 : 0.03
+  const taxaIndicacaoAuto = manualInd ? 0 : 0.01
+
+  const somaTaxasVariaveis = taxaAdminAuto + taxaComissaoAuto + taxaIndicacaoAuto
+
+  const proporcaoAdmin = somaTaxasVariaveis > 0 ? taxaAdminAuto / somaTaxasVariaveis : 0
+  const proporcaoComissao = somaTaxasVariaveis > 0 ? taxaComissaoAuto / somaTaxasVariaveis : 0
+  const proporcaoIndicacao = somaTaxasVariaveis > 0 ? taxaIndicacaoAuto / somaTaxasVariaveis : 0
 
   const reducaoAdmin = desconto * proporcaoAdmin
   const reducaoComissao = desconto * proporcaoComissao
@@ -500,7 +526,7 @@ export function calcularCustosAba(params: ParametrosCalculoCustosAba): Resultado
   const administracaoDescontada = Math.max(0, administracaoSemDesconto - administracao)
 
   let comissaoComercial = Math.max(0, comissaoSemDesconto - reducaoComissao)
-  if (subtotalBase > 0 && comissaoComercial < 600) {
+  if (!manualComiss && subtotalBase > 0 && comissaoComercial < 600) {
     comissaoComercial = 600
   }
   const comissaoDescontada = Math.max(0, comissaoSemDesconto - comissaoComercial)
@@ -520,14 +546,17 @@ export function calcularCustosAba(params: ParametrosCalculoCustosAba): Resultado
     administracao: Math.round(administracao * 100) / 100,
     administracaoSemDesconto: Math.round(administracaoSemDesconto * 100) / 100,
     administracaoDescontada: Math.round(administracaoDescontada * 100) / 100,
+    manualAdministracao: manualAdmin,
     comissaoComercial: Math.round(comissaoComercial * 100) / 100,
     comissaoPura3Pct: Math.round(comissaoPura3Pct * 100) / 100,
     comissaoSemDesconto: Math.round(comissaoSemDesconto * 100) / 100,
     comissaoDescontada: Math.round(comissaoDescontada * 100) / 100,
     comissaoUsouPisoMinimo,
+    manualComissao: manualComiss,
     indicacao: Math.round(indicacao * 100) / 100,
     indicacaoSemDesconto: Math.round(indicacaoSemDesconto * 100) / 100,
     indicacaoDescontada: Math.round(indicacaoDescontada * 100) / 100,
+    manualIndicacao: manualInd,
     valorTotal: Math.round(valorTotal * 100) / 100,
   }
 }

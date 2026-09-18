@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-18T18:19:41.842Z",
+  "generatedAt": "2026-09-18T18:35:58.031Z",
   "collections": [
     {
       "name": "users",
@@ -2288,6 +2288,42 @@
         },
         {
           "name": "geracao_simulada_kwh_ano",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "manual_administracao",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "manual_comissao",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "manual_indicacao",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "valor_manual_administracao",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "valor_manual_comissao",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "valor_manual_indicacao",
           "type": "number",
           "required": false,
           "system": false

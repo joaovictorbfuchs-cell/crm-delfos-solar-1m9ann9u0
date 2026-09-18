@@ -160,6 +160,14 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
   // Controla se a mão de obra foi editada manualmente pelo usuário
   const [maoDeObraEditadaManualmente, setMaoDeObraEditadaManualmente] = useState<boolean>(false)
 
+  // Modos manuais e valores manuais em R$ para Administração, Comissão e Indicação
+  const [manualAdministracao, setManualAdministracao] = useState<boolean>(false)
+  const [valorManualAdministracao, setValorManualAdministracao] = useState<number>(0)
+  const [manualComissao, setManualComissao] = useState<boolean>(false)
+  const [valorManualComissao, setValorManualComissao] = useState<number>(0)
+  const [manualIndicacao, setManualIndicacao] = useState<boolean>(false)
+  const [valorManualIndicacao, setValorManualIndicacao] = useState<number>(0)
+
   // Períodos de garantia cadastráveis (padrões solicitados: degradação 30, fabricação 15, inversor 10)
   const [garantiaModulosDegradacaoAnos, setGarantiaModulosDegradacaoAnos] = useState<number>(30)
   const [garantiaModulosFabricacaoAnos, setGarantiaModulosFabricacaoAnos] = useState<number>(15)
@@ -357,6 +365,34 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
         setMaoDeObraEditadaManualmente(false)
       }
 
+      // Modos manuais e valores salvos em orcamentos_solar
+      const isManualAdmin = Boolean(initialOrcamento.manual_administracao)
+      setManualAdministracao(isManualAdmin)
+      setValorManualAdministracao(
+        initialOrcamento.valor_manual_administracao !== undefined &&
+          initialOrcamento.valor_manual_administracao !== null
+          ? Number(initialOrcamento.valor_manual_administracao)
+          : initialOrcamento.custo_administracao || 0,
+      )
+
+      const isManualComiss = Boolean(initialOrcamento.manual_comissao)
+      setManualComissao(isManualComiss)
+      setValorManualComissao(
+        initialOrcamento.valor_manual_comissao !== undefined &&
+          initialOrcamento.valor_manual_comissao !== null
+          ? Number(initialOrcamento.valor_manual_comissao)
+          : initialOrcamento.custo_comissao_comercial || 0,
+      )
+
+      const isManualInd = Boolean(initialOrcamento.manual_indicacao)
+      setManualIndicacao(isManualInd)
+      setValorManualIndicacao(
+        initialOrcamento.valor_manual_indicacao !== undefined &&
+          initialOrcamento.valor_manual_indicacao !== null
+          ? Number(initialOrcamento.valor_manual_indicacao)
+          : initialOrcamento.custo_indicacao || 0,
+      )
+
       // Compatibilidade com orçamentos antigos:
       // Se custo_materiais_equipamentos estiver definido, usa ele e materiaisExtras = custo_materiais_extras || 0.
       // Se não estiver (orçamento antigo), usa materiaisEquipamentos = custo_materiais_extras || 0 e materiaisExtras = 0.
@@ -468,6 +504,12 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
       setGeracaoPretendidaEditadaManualmente(false)
       setGeracaoSimuladaKwhAno('')
       setMaoDeObraEditadaManualmente(false)
+      setManualAdministracao(false)
+      setValorManualAdministracao(0)
+      setManualComissao(false)
+      setValorManualComissao(0)
+      setManualIndicacao(false)
+      setValorManualIndicacao(0)
       setFornecedorSelecionadoId('')
 
       setCustos((prev) => ({
@@ -641,7 +683,7 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
     }
   }
 
-  // Cálculos automáticos da Aba de Custos (Requisitos 1 a 6 + Desconto em percentual) usando calcularCustosAba de src/lib/energiaSolar.ts
+  // Cálculos automáticos da Aba de Custos (Requisitos 1 a 6 + Desconto em percentual + Modos Manuais) usando calcularCustosAba de src/lib/energiaSolar.ts
   const resultadoCustosAba = useMemo(() => {
     return calcularCustosAba({
       materiaisEquipamentos: custos.materiaisEquipamentos || 0,
@@ -654,6 +696,12 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
       marketingCombustivel: custos.marketingCombustivel || 0,
       opcaoImposto,
       descontoPercentual,
+      manualAdministracao,
+      valorManualAdministracao,
+      manualComissao,
+      valorManualComissao,
+      manualIndicacao,
+      valorManualIndicacao,
     })
   }, [
     custos.materiaisEquipamentos,
@@ -666,6 +714,12 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
     custos.marketingCombustivel,
     opcaoImposto,
     descontoPercentual,
+    manualAdministracao,
+    valorManualAdministracao,
+    manualComissao,
+    valorManualComissao,
+    manualIndicacao,
+    valorManualIndicacao,
   ])
 
   // Sincroniza os campos calculados automaticamente (impostos, administração, comissão, indicação, desconto derivado em R$) no estado custos
@@ -929,6 +983,12 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
         custo_impostos: resultadoCustosAba.impostos,
         valor_total_custos: totalCustosCalculado,
         custo_por_kwp: calculos.custoPorKwpInstalado,
+        manual_administracao: manualAdministracao,
+        manual_comissao: manualComissao,
+        manual_indicacao: manualIndicacao,
+        valor_manual_administracao: manualAdministracao ? valorManualAdministracao : undefined,
+        valor_manual_comissao: manualComissao ? valorManualComissao : undefined,
+        valor_manual_indicacao: manualIndicacao ? valorManualIndicacao : undefined,
 
         // Cálculos solares
         geracao_anual_kwh: calculos.geracaoAnualEstimadaKwh,
@@ -2577,53 +2637,124 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs">
                     {/* Requisito 2: Administração */}
-                    <div className="bg-white px-2.5 py-2 rounded-md border border-emerald-200 shadow-2xs space-y-0.5">
-                      <div className="flex items-center justify-between">
+                    <div
+                      className={`bg-white px-2.5 py-2 rounded-md border shadow-2xs space-y-1.5 transition-colors ${
+                        manualAdministracao
+                          ? 'border-amber-300 ring-1 ring-amber-400/20'
+                          : 'border-emerald-200'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-1">
                         <span className="text-[11px] font-bold text-gray-800">
                           2. Administração
                         </span>
-                        <span className="text-[10px] font-extrabold text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded">
-                          15%
-                        </span>
-                      </div>
-                      <div className="flex items-baseline gap-1.5 flex-wrap">
-                        <span className="text-sm font-black text-emerald-800">
-                          {formatCurrency(resultadoCustosAba.administracao)}
-                        </span>
-                        {resultadoCustosAba.administracaoDescontada > 0 && (
-                          <span
-                            className="text-[10px] font-bold text-amber-700 bg-amber-50 px-1 py-0.2 rounded border border-amber-200"
-                            title={`Original sem desconto: ${formatCurrency(resultadoCustosAba.administracaoSemDesconto)} | Descontado: − ${formatCurrency(resultadoCustosAba.administracaoDescontada)}`}
+                        <div className="flex items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (!manualAdministracao) {
+                                setValorManualAdministracao(resultadoCustosAba.administracao)
+                                setManualAdministracao(true)
+                              } else {
+                                setManualAdministracao(false)
+                              }
+                            }}
+                            className={`text-[9px] font-bold px-1.5 py-0.5 rounded transition-all flex items-center gap-1 ${
+                              manualAdministracao
+                                ? 'bg-amber-100 text-amber-900 border border-amber-300 hover:bg-amber-200'
+                                : 'bg-gray-100 text-gray-600 hover:bg-emerald-50 hover:text-emerald-800'
+                            }`}
+                            title={
+                              manualAdministracao
+                                ? 'Clique para voltar ao cálculo automático de 15%'
+                                : 'Clique para editar o valor manualmente em R$'
+                            }
                           >
-                            − {formatCurrency(resultadoCustosAba.administracaoDescontada)} pelo
-                            desconto
-                          </span>
-                        )}
+                            {manualAdministracao ? 'Manual' : 'Auto (15%)'}
+                          </button>
+                        </div>
                       </div>
-                      <p
-                        className="text-[9px] text-gray-400 truncate"
-                        title={
-                          resultadoCustosAba.desconto > 0
-                            ? `Original: ${formatCurrency(resultadoCustosAba.administracaoSemDesconto)} | (Base c/ desc. ${formatCurrency(resultadoCustosAba.baseComDesconto)}) × 15% = ${formatCurrency(resultadoCustosAba.administracao)} (redução de ${formatCurrency(resultadoCustosAba.administracaoDescontada)})`
-                            : '(Soma com materiais e impostos) × 0,15'
-                        }
-                      >
-                        {resultadoCustosAba.administracaoDescontada > 0
-                          ? `Original: ${formatCurrency(resultadoCustosAba.administracaoSemDesconto)} (Base c/ desc. × 15%)`
-                          : resultadoCustosAba.desconto > 0
-                            ? `Base c/ desc. × 15%`
-                            : `(Soma c/ imposto) × 15%`}
-                      </p>
+
+                      {manualAdministracao ? (
+                        <div className="space-y-1">
+                          <div className="relative">
+                            <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[10px] font-bold text-gray-400 pointer-events-none">
+                              R$
+                            </span>
+                            <input
+                              type="number"
+                              min={0}
+                              step={50}
+                              value={valorManualAdministracao || ''}
+                              onChange={(e) =>
+                                setValorManualAdministracao(
+                                  Math.max(0, Number(e.target.value) || 0),
+                                )
+                              }
+                              className="w-full text-xs font-bold pl-7 pr-2 py-1 rounded border border-amber-300 bg-amber-50/30 text-amber-950 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                              placeholder="0,00"
+                              title="Digite o valor de administração em R$"
+                            />
+                          </div>
+                          <div className="flex items-center justify-between text-[9px] text-gray-500">
+                            <span>Valor manual em R$</span>
+                            <button
+                              type="button"
+                              onClick={() => setManualAdministracao(false)}
+                              className="text-blue-700 hover:underline font-semibold"
+                            >
+                              Restaurar 15%
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <>
+                          <div className="flex items-baseline gap-1.5 flex-wrap">
+                            <span className="text-sm font-black text-emerald-800">
+                              {formatCurrency(resultadoCustosAba.administracao)}
+                            </span>
+                            {resultadoCustosAba.administracaoDescontada > 0 && (
+                              <span
+                                className="text-[10px] font-bold text-amber-700 bg-amber-50 px-1 py-0.2 rounded border border-amber-200"
+                                title={`Original sem desconto: ${formatCurrency(resultadoCustosAba.administracaoSemDesconto)} | Descontado: − ${formatCurrency(resultadoCustosAba.administracaoDescontada)}`}
+                              >
+                                − {formatCurrency(resultadoCustosAba.administracaoDescontada)} pelo
+                                desconto
+                              </span>
+                            )}
+                          </div>
+                          <p
+                            className="text-[9px] text-gray-400 truncate"
+                            title={
+                              resultadoCustosAba.desconto > 0
+                                ? `Original: ${formatCurrency(resultadoCustosAba.administracaoSemDesconto)} | (Base c/ desc. ${formatCurrency(resultadoCustosAba.baseComDesconto)}) × 15% = ${formatCurrency(resultadoCustosAba.administracao)} (redução de ${formatCurrency(resultadoCustosAba.administracaoDescontada)})`
+                                : '(Soma com materiais e impostos) × 0,15'
+                            }
+                          >
+                            {resultadoCustosAba.administracaoDescontada > 0
+                              ? `Original: ${formatCurrency(resultadoCustosAba.administracaoSemDesconto)} (Base c/ desc. × 15%)`
+                              : resultadoCustosAba.desconto > 0
+                                ? `Base c/ desc. × 15%`
+                                : `(Soma c/ imposto) × 15%`}
+                          </p>
+                        </>
+                      )}
                     </div>
 
                     {/* Requisito 3: Comissão comercial com piso de R$ 600 */}
-                    <div className="bg-white px-2.5 py-2 rounded-md border border-emerald-200 shadow-2xs space-y-0.5">
-                      <div className="flex items-center justify-between">
+                    <div
+                      className={`bg-white px-2.5 py-2 rounded-md border shadow-2xs space-y-1.5 transition-colors ${
+                        manualComissao
+                          ? 'border-amber-300 ring-1 ring-amber-400/20'
+                          : 'border-emerald-200'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-1">
                         <span className="text-[11px] font-bold text-gray-800">3. Comissão</span>
                         <div className="flex items-center gap-1">
-                          {resultadoCustosAba.comissaoUsouPisoMinimo && (
+                          {!manualComissao && resultadoCustosAba.comissaoUsouPisoMinimo && (
                             <span
                               className="text-[9px] font-bold text-amber-700 bg-amber-50 px-1 py-0.2 rounded border border-amber-200"
                               title="Piso mínimo de comissão comercial aplicado"
@@ -2631,87 +2762,207 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                               Piso R$ 600
                             </span>
                           )}
-                          <span className="text-[10px] font-extrabold text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded">
-                            3%
-                          </span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (!manualComissao) {
+                                setValorManualComissao(resultadoCustosAba.comissaoComercial)
+                                setManualComissao(true)
+                              } else {
+                                setManualComissao(false)
+                              }
+                            }}
+                            className={`text-[9px] font-bold px-1.5 py-0.5 rounded transition-all flex items-center gap-1 ${
+                              manualComissao
+                                ? 'bg-amber-100 text-amber-900 border border-amber-300 hover:bg-amber-200'
+                                : 'bg-gray-100 text-gray-600 hover:bg-emerald-50 hover:text-emerald-800'
+                            }`}
+                            title={
+                              manualComissao
+                                ? 'Clique para voltar ao cálculo automático de 3% (piso R$ 600)'
+                                : 'Clique para editar o valor manualmente em R$'
+                            }
+                          >
+                            {manualComissao ? 'Manual' : 'Auto (3%)'}
+                          </button>
                         </div>
                       </div>
-                      <div className="flex items-baseline gap-1.5 flex-wrap">
-                        <span className="text-sm font-black text-emerald-800">
-                          {formatCurrency(resultadoCustosAba.comissaoComercial)}
-                        </span>
-                        {resultadoCustosAba.comissaoUsouPisoMinimo && (
-                          <span
-                            className="text-[10px] font-semibold text-gray-500 cursor-help"
-                            title="Valor que resultaria da aplicação pura de 3% sobre a base líquida"
+
+                      {manualComissao ? (
+                        <div className="space-y-1">
+                          <div className="relative">
+                            <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[10px] font-bold text-gray-400 pointer-events-none">
+                              R$
+                            </span>
+                            <input
+                              type="number"
+                              min={0}
+                              step={50}
+                              value={valorManualComissao || ''}
+                              onChange={(e) =>
+                                setValorManualComissao(Math.max(0, Number(e.target.value) || 0))
+                              }
+                              className="w-full text-xs font-bold pl-7 pr-2 py-1 rounded border border-amber-300 bg-amber-50/30 text-amber-950 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                              placeholder="0,00"
+                              title="Digite o valor de comissão comercial em R$"
+                            />
+                          </div>
+                          <div className="flex items-center justify-between text-[9px] text-gray-500">
+                            <span>Valor manual em R$</span>
+                            <button
+                              type="button"
+                              onClick={() => setManualComissao(false)}
+                              className="text-blue-700 hover:underline font-semibold"
+                            >
+                              Restaurar 3%
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <>
+                          <div className="flex items-baseline gap-1.5 flex-wrap">
+                            <span className="text-sm font-black text-emerald-800">
+                              {formatCurrency(resultadoCustosAba.comissaoComercial)}
+                            </span>
+                            {resultadoCustosAba.comissaoUsouPisoMinimo && (
+                              <span
+                                className="text-[10px] font-semibold text-gray-500 cursor-help"
+                                title="Valor que resultaria da aplicação pura de 3% sobre a base líquida"
+                              >
+                                (3% = {formatCurrency(resultadoCustosAba.comissaoPura3Pct)})
+                              </span>
+                            )}
+                            {resultadoCustosAba.comissaoDescontada > 0 && (
+                              <span
+                                className="text-[10px] font-bold text-amber-700 bg-amber-50 px-1 py-0.2 rounded border border-amber-200"
+                                title={`Original sem desconto: ${formatCurrency(resultadoCustosAba.comissaoSemDesconto)} | Descontado: − ${formatCurrency(resultadoCustosAba.comissaoDescontada)}`}
+                              >
+                                − {formatCurrency(resultadoCustosAba.comissaoDescontada)} pelo
+                                desconto
+                              </span>
+                            )}
+                          </div>
+                          <p
+                            className="text-[9px] text-gray-400 truncate"
+                            title={
+                              resultadoCustosAba.comissaoUsouPisoMinimo
+                                ? `Piso de R$ 600 aplicado (3% puro daria ${formatCurrency(resultadoCustosAba.comissaoPura3Pct)})${resultadoCustosAba.comissaoDescontada > 0 ? ` | Original: ${formatCurrency(resultadoCustosAba.comissaoSemDesconto)}` : ''}`
+                                : resultadoCustosAba.comissaoDescontada > 0
+                                  ? `Original: ${formatCurrency(resultadoCustosAba.comissaoSemDesconto)} | Base c/ desc. × 3% = ${formatCurrency(resultadoCustosAba.comissaoComercial)} (redução de ${formatCurrency(resultadoCustosAba.comissaoDescontada)})`
+                                  : '(Soma com materiais e impostos) × 0,03'
+                            }
                           >
-                            (3% = {formatCurrency(resultadoCustosAba.comissaoPura3Pct)})
-                          </span>
-                        )}
-                        {resultadoCustosAba.comissaoDescontada > 0 && (
-                          <span
-                            className="text-[10px] font-bold text-amber-700 bg-amber-50 px-1 py-0.2 rounded border border-amber-200"
-                            title={`Original sem desconto: ${formatCurrency(resultadoCustosAba.comissaoSemDesconto)} | Descontado: − ${formatCurrency(resultadoCustosAba.comissaoDescontada)}`}
-                          >
-                            − {formatCurrency(resultadoCustosAba.comissaoDescontada)} pelo desconto
-                          </span>
-                        )}
-                      </div>
-                      <p
-                        className="text-[9px] text-gray-400 truncate"
-                        title={
-                          resultadoCustosAba.comissaoUsouPisoMinimo
-                            ? `Piso de R$ 600 aplicado (3% puro daria ${formatCurrency(resultadoCustosAba.comissaoPura3Pct)})${resultadoCustosAba.comissaoDescontada > 0 ? ` | Original: ${formatCurrency(resultadoCustosAba.comissaoSemDesconto)}` : ''}`
-                            : resultadoCustosAba.comissaoDescontada > 0
-                              ? `Original: ${formatCurrency(resultadoCustosAba.comissaoSemDesconto)} | Base c/ desc. × 3% = ${formatCurrency(resultadoCustosAba.comissaoComercial)} (redução de ${formatCurrency(resultadoCustosAba.comissaoDescontada)})`
-                              : '(Soma com materiais e impostos) × 0,03'
-                        }
-                      >
-                        {resultadoCustosAba.comissaoUsouPisoMinimo
-                          ? `Piso R$ 600 (3% = ${formatCurrency(resultadoCustosAba.comissaoPura3Pct)})`
-                          : resultadoCustosAba.comissaoDescontada > 0
-                            ? `Original: ${formatCurrency(resultadoCustosAba.comissaoSemDesconto)} (Base c/ desc. × 3%)`
-                            : resultadoCustosAba.desconto > 0
-                              ? `Base c/ desc. × 3%`
-                              : `(Soma c/ imposto) × 3%`}
-                      </p>
+                            {resultadoCustosAba.comissaoUsouPisoMinimo
+                              ? `Piso R$ 600 (3% = ${formatCurrency(resultadoCustosAba.comissaoPura3Pct)})`
+                              : resultadoCustosAba.comissaoDescontada > 0
+                                ? `Original: ${formatCurrency(resultadoCustosAba.comissaoSemDesconto)} (Base c/ desc. × 3%)`
+                                : resultadoCustosAba.desconto > 0
+                                  ? `Base c/ desc. × 3%`
+                                  : `(Soma c/ imposto) × 3%`}
+                          </p>
+                        </>
+                      )}
                     </div>
 
                     {/* Requisito 4: Indicação */}
-                    <div className="bg-white px-2.5 py-2 rounded-md border border-emerald-200 shadow-2xs space-y-0.5">
-                      <div className="flex items-center justify-between">
+                    <div
+                      className={`bg-white px-2.5 py-2 rounded-md border shadow-2xs space-y-1.5 transition-colors ${
+                        manualIndicacao
+                          ? 'border-amber-300 ring-1 ring-amber-400/20'
+                          : 'border-emerald-200'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-1">
                         <span className="text-[11px] font-bold text-gray-800">4. Indicação</span>
-                        <span className="text-[10px] font-extrabold text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded">
-                          1%
-                        </span>
-                      </div>
-                      <div className="flex items-baseline gap-1.5 flex-wrap">
-                        <span className="text-sm font-black text-emerald-800">
-                          {formatCurrency(resultadoCustosAba.indicacao)}
-                        </span>
-                        {resultadoCustosAba.indicacaoDescontada > 0 && (
-                          <span
-                            className="text-[10px] font-bold text-amber-700 bg-amber-50 px-1 py-0.2 rounded border border-amber-200"
-                            title={`Original sem desconto: ${formatCurrency(resultadoCustosAba.indicacaoSemDesconto)} | Descontado: − ${formatCurrency(resultadoCustosAba.indicacaoDescontada)}`}
+                        <div className="flex items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (!manualIndicacao) {
+                                setValorManualIndicacao(resultadoCustosAba.indicacao)
+                                setManualIndicacao(true)
+                              } else {
+                                setManualIndicacao(false)
+                              }
+                            }}
+                            className={`text-[9px] font-bold px-1.5 py-0.5 rounded transition-all flex items-center gap-1 ${
+                              manualIndicacao
+                                ? 'bg-amber-100 text-amber-900 border border-amber-300 hover:bg-amber-200'
+                                : 'bg-gray-100 text-gray-600 hover:bg-emerald-50 hover:text-emerald-800'
+                            }`}
+                            title={
+                              manualIndicacao
+                                ? 'Clique para voltar ao cálculo automático de 1%'
+                                : 'Clique para editar o valor manualmente em R$'
+                            }
                           >
-                            − {formatCurrency(resultadoCustosAba.indicacaoDescontada)} pelo desconto
-                          </span>
-                        )}
+                            {manualIndicacao ? 'Manual' : 'Auto (1%)'}
+                          </button>
+                        </div>
                       </div>
-                      <p
-                        className="text-[9px] text-gray-400 truncate"
-                        title={
-                          resultadoCustosAba.indicacaoDescontada > 0
-                            ? `Original: ${formatCurrency(resultadoCustosAba.indicacaoSemDesconto)} | Base c/ desc. × 1% = ${formatCurrency(resultadoCustosAba.indicacao)} (redução de ${formatCurrency(resultadoCustosAba.indicacaoDescontada)})`
-                            : '(Soma com materiais e impostos) × 0,01'
-                        }
-                      >
-                        {resultadoCustosAba.indicacaoDescontada > 0
-                          ? `Original: ${formatCurrency(resultadoCustosAba.indicacaoSemDesconto)} (Base c/ desc. × 1%)`
-                          : resultadoCustosAba.desconto > 0
-                            ? `Base c/ desc. × 1%`
-                            : `(Soma c/ imposto) × 1%`}
-                      </p>
+
+                      {manualIndicacao ? (
+                        <div className="space-y-1">
+                          <div className="relative">
+                            <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[10px] font-bold text-gray-400 pointer-events-none">
+                              R$
+                            </span>
+                            <input
+                              type="number"
+                              min={0}
+                              step={50}
+                              value={valorManualIndicacao || ''}
+                              onChange={(e) =>
+                                setValorManualIndicacao(Math.max(0, Number(e.target.value) || 0))
+                              }
+                              className="w-full text-xs font-bold pl-7 pr-2 py-1 rounded border border-amber-300 bg-amber-50/30 text-amber-950 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                              placeholder="0,00"
+                              title="Digite o valor de indicação em R$"
+                            />
+                          </div>
+                          <div className="flex items-center justify-between text-[9px] text-gray-500">
+                            <span>Valor manual em R$</span>
+                            <button
+                              type="button"
+                              onClick={() => setManualIndicacao(false)}
+                              className="text-blue-700 hover:underline font-semibold"
+                            >
+                              Restaurar 1%
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <>
+                          <div className="flex items-baseline gap-1.5 flex-wrap">
+                            <span className="text-sm font-black text-emerald-800">
+                              {formatCurrency(resultadoCustosAba.indicacao)}
+                            </span>
+                            {resultadoCustosAba.indicacaoDescontada > 0 && (
+                              <span
+                                className="text-[10px] font-bold text-amber-700 bg-amber-50 px-1 py-0.2 rounded border border-amber-200"
+                                title={`Original sem desconto: ${formatCurrency(resultadoCustosAba.indicacaoSemDesconto)} | Descontado: − ${formatCurrency(resultadoCustosAba.indicacaoDescontada)}`}
+                              >
+                                − {formatCurrency(resultadoCustosAba.indicacaoDescontada)} pelo
+                                desconto
+                              </span>
+                            )}
+                          </div>
+                          <p
+                            className="text-[9px] text-gray-400 truncate"
+                            title={
+                              resultadoCustosAba.indicacaoDescontada > 0
+                                ? `Original: ${formatCurrency(resultadoCustosAba.indicacaoSemDesconto)} | Base c/ desc. × 1% = ${formatCurrency(resultadoCustosAba.indicacao)} (redução de ${formatCurrency(resultadoCustosAba.indicacaoDescontada)})`
+                                : '(Soma com materiais e impostos) × 0,01'
+                            }
+                          >
+                            {resultadoCustosAba.indicacaoDescontada > 0
+                              ? `Original: ${formatCurrency(resultadoCustosAba.indicacaoSemDesconto)} (Base c/ desc. × 1%)`
+                              : resultadoCustosAba.desconto > 0
+                                ? `Base c/ desc. × 1%`
+                                : `(Soma c/ imposto) × 1%`}
+                          </p>
+                        </>
+                      )}
                     </div>
                   </div>
                 </div>
