@@ -95,6 +95,11 @@ export interface CalculosSolarResultado {
   valorInvestimento: number // Valor final do projeto (base payback)
   custoPorKwpInstalado: number
 
+  // Parâmetros GD Eco Líquida & Fio B (novo modelo)
+  fioBKwh: number
+  fatorSimultaneidade: number
+  gdEcoLiquidaKwh: number
+
   // Contas de energia
   contaAtualSemSolarMes: number
   contaAtualSemSolarAno: number
@@ -645,6 +650,8 @@ export interface InputCalculoSolar {
   valorInvestimentoInformado?: number
   configParcelamentos?: ConfiguracaoParcelamentosInput
   geracaoSimuladaKwhAno?: number
+  fioBKwh?: number // Tarifa do Fio B em R$/kWh (padrão 0.2239)
+  fatorSimultaneidade?: number // Fator de simultaneidade (padrão: 0.3 residencial / 0.7 comercial)
 }
 
 /**
@@ -730,28 +737,72 @@ export function calcularOrcamentoSolar(input: InputCalculoSolar): CalculosSolarR
       geracaoMediaMensalKwh > 0 ? Number((item.geracaoKwh / geracaoMediaMensalKwh).toFixed(2)) : 1
   })
 
-  // 3. Contas de Energia
+  // 3. Contas de Energia - Novo modelo GD Eco Líquida & Fio B
   // REGRA DE NEGÓCIO: para todos os cálculos de economia e gasto de energia, deve ser considerada
   // a energia gerada real no dimensionamento, e a consumida também igual à gerada (paridade total).
   // consumoEfetivo = geracaoReal
   const consumoKwhMesEfetivo = geracaoMediaMensalKwh > 0 ? geracaoMediaMensalKwh : consumoKwhMes
   const consumoAnualEfetivo = geracaoAnualTotal > 0 ? geracaoAnualTotal : consumoKwhMesEfetivo * 12
 
-  const taxaMinimaKwh = getTaxaMinimaKwh(tipoCliente, input.padraoFases)
+  // Fator de simultaneidade (FS): 30% (0.3) para residencial / rural, 70% (0.7) para comercial / industrial
+  const fsPadrao = tipoCliente === 'comercial' || tipoCliente === 'industrial' ? 0.7 : 0.3
+  const fatorSimultaneidade =
+    input.fatorSimultaneidade !== undefined && input.fatorSimultaneidade !== null
+      ? Math.max(0, Math.min(1, Number(input.fatorSimultaneidade)))
+      : fsPadrao
+
+  // Fio B (padrão 0.2239 R$/kWh)
+  const fioBKwh =
+    input.fioBKwh !== undefined && input.fioBKwh !== null && Number(input.fioBKwh) >= 0
+      ? Number(input.fioBKwh)
+      : 0.2239
+
+  // GD Eco Líquida (R$/kWh creditado): Tarifa - FS * Fio B
+  // Validação: tarifa 1.1979, FS 0.3, Fio B 0.2239 -> 1.1979 - (0.3 * 0.2239) = 1.1039 R$/kWh
+  const gdEcoLiquidaKwh = Number((tarifaKwh - fatorSimultaneidade * fioBKwh).toFixed(4))
+
+  // Detecção de cliente Trifásico:
+  const padraoNormalizado = String(input.padraoFases || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+  const isTrifasico =
+    padraoNormalizado.includes('tri') ||
+    padraoNormalizado === '3' ||
+    padraoNormalizado === '3f' ||
+    (!input.padraoFases && (tipoCliente === 'comercial' || tipoCliente === 'industrial'))
+
+  // Taxa mínima condicionada:
+  // A taxa mínima de disponibilidade (100 kWh para trifásico) SÓ é aplicada quando o cliente é TRIFÁSICO
+  // e o consumo compensado (energia creditada, convertido em reais pela GD Eco Líquida: consumoKwhMesEfetivo * gdEcoLiquidaKwh)
+  // fica ABAIXO do equivalente a 100 kWh em reais (100 * tarifaKwh).
+  // Nesse caso, a conta com solar = taxa mínima em reais.
+  // Caso contrário (monofásico, bifásico, ou trifásico com compensação >= 100 kWh em reais),
+  // a conta com solar fica R$ 0 (sem taxa mínima).
+  const taxaMinimaKwh = isTrifasico ? 100 : 0
   const taxaMinimaReais = taxaMinimaKwh * tarifaKwh
 
-  // Conta atual sem solar: baseada na geração real dimensionada * tarifa
-  const contaAtualSemSolarMes = consumoKwhMesEfetivo * tarifaKwh
-  const contaAtualSemSolarAno = consumoAnualEfetivo * tarifaKwh
+  const energiaCreditadaEmReais = consumoKwhMesEfetivo * gdEcoLiquidaKwh
+  const valor100KwhEmReais = 100 * tarifaKwh
 
-  // Como consumo = geração, energia não compensada = 0.
-  // A conta com solar fica com a taxa mínima de disponibilidade + iluminação pública (CIP ~30% da taxa mínima):
-  // contaPrimeiroMesComSolar = taxaMinimaReais * 1.30.
-  const contaPrimeiroMesComSolar = taxaMinimaReais * 1.3
+  let contaPrimeiroMesComSolar = 0
+  if (isTrifasico && energiaCreditadaEmReais < valor100KwhEmReais) {
+    contaPrimeiroMesComSolar = Number(taxaMinimaReais.toFixed(2))
+  } else {
+    contaPrimeiroMesComSolar = 0
+  }
 
-  // Economia mensal no primeiro mês
-  const economia1Mes = Math.max(0, contaAtualSemSolarMes - contaPrimeiroMesComSolar)
-  const economia1Ano = economia1Mes * 12
+  // Conta atual sem solar: consumo * GD Eco Líquida (novo modelo conforme regra 2 do usuário)
+  const contaAtualSemSolarMes = Number((consumoKwhMesEfetivo * gdEcoLiquidaKwh).toFixed(2))
+  const contaAtualSemSolarAno = Number((consumoAnualEfetivo * gdEcoLiquidaKwh).toFixed(2))
+
+  // Economia mensal no primeiro mês = max(0, contaAtualSemSolarMes - contaPrimeiroMesComSolar)
+  // Se conta com solar for 0, economia mensal = exatamente consumoKwhMesEfetivo * GD Eco Líquida
+  const economia1Mes = Number(
+    Math.max(0, contaAtualSemSolarMes - contaPrimeiroMesComSolar).toFixed(2),
+  )
+  const economia1Ano = Number((economia1Mes * 12).toFixed(2))
 
   // 4. Projeções com Reajuste Tarifário Anual de 9% ao ano
   const REAJUSTE_ANUAL = 0.09 // 9% a.a.
@@ -933,6 +984,9 @@ export function calcularOrcamentoSolar(input: InputCalculoSolar): CalculosSolarR
     valorTotalCustos,
     valorInvestimento,
     custoPorKwpInstalado,
+    fioBKwh,
+    fatorSimultaneidade,
+    gdEcoLiquidaKwh,
     contaAtualSemSolarMes,
     contaAtualSemSolarAno,
     contaPrimeiroMesComSolar,

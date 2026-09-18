@@ -1097,6 +1097,10 @@ export interface OrcamentoSolar extends RecordModel {
   valor_manual_administracao?: number
   valor_manual_comissao?: number
   valor_manual_indicacao?: number
+  // Fio B e GD Eco Líquida (novo modelo de cálculo)
+  fio_b?: number
+  fator_simultaneidade?: number
+  gd_eco_liquida?: number
   // Cálculos solares
   geracao_anual_kwh?: number
   geracao_mensal_kwh?: number

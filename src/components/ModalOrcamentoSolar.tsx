@@ -170,6 +170,10 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
   // Percentual configurável de indicação em modo automático (em %, ex.: 0 = 0%, 1 = 1%, padrão 0%)
   const [percentualIndicacaoAuto, setPercentualIndicacaoAuto] = useState<number>(0)
 
+  // Parâmetros Fio B e Fator de Simultaneidade (GD Eco Líquida)
+  const [fioBKwh, setFioBKwh] = useState<number>(0.2239)
+  const [fatorSimultaneidadeManual, setFatorSimultaneidadeManual] = useState<number | ''>('')
+
   // Períodos de garantia cadastráveis (padrões solicitados: degradação 30, fabricação 15, inversor 10)
   const [garantiaModulosDegradacaoAnos, setGarantiaModulosDegradacaoAnos] = useState<number>(30)
   const [garantiaModulosFabricacaoAnos, setGarantiaModulosFabricacaoAnos] = useState<number>(15)
@@ -297,6 +301,17 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
       setPadraoFases(initialOrcamento.padrao_fases || 'monofásico')
       setTipoCliente(initialOrcamento.tipo_cliente || 'residencial')
       setTarifaKwh(initialOrcamento.tarifa_kwh || 1.19)
+      setFioBKwh(
+        initialOrcamento.fio_b !== undefined && initialOrcamento.fio_b !== null
+          ? Number(initialOrcamento.fio_b)
+          : 0.2239,
+      )
+      setFatorSimultaneidadeManual(
+        initialOrcamento.fator_simultaneidade !== undefined &&
+          initialOrcamento.fator_simultaneidade !== null
+          ? Number(initialOrcamento.fator_simultaneidade)
+          : '',
+      )
       setPotenciaKwp(initialOrcamento.potencia_kwp || 5.5)
       setNumeroPlacas(initialOrcamento.numero_placas || 10)
       setPotenciaPlacaWp(initialOrcamento.potencia_placa_wp || 550)
@@ -509,6 +524,8 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
       setPadraoFases('monofásico')
       setInstalacoesSelecionadasIds([])
       setTarifaKwh(1.19)
+      setFioBKwh(0.2239)
+      setFatorSimultaneidadeManual('')
       setValorPorPlaca(150)
       setOpcaoImposto(1)
       setDescontoPercentual(0)
@@ -806,6 +823,9 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
       custos,
       valorInvestimentoInformado: valorInvestimentoFinal,
       geracaoSimuladaKwhAno: geracaoSimuladaNum,
+      fioBKwh,
+      fatorSimultaneidade:
+        fatorSimultaneidadeManual !== '' ? Number(fatorSimultaneidadeManual) : undefined,
       configParcelamentos: {
         parcelasCartao,
         jurosCartao,
@@ -828,6 +848,8 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
     custos,
     valorInvestimentoFinal,
     geracaoSimuladaKwhAno,
+    fioBKwh,
+    fatorSimultaneidadeManual,
     parcelasCartao,
     jurosCartao,
     entradaCartao,
@@ -1005,6 +1027,11 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
         valor_manual_administracao: manualAdministracao ? valorManualAdministracao : undefined,
         valor_manual_comissao: manualComissao ? valorManualComissao : undefined,
         valor_manual_indicacao: manualIndicacao ? valorManualIndicacao : undefined,
+
+        // Fio B e GD Eco Líquida
+        fio_b: calculos.fioBKwh,
+        fator_simultaneidade: calculos.fatorSimultaneidade,
+        gd_eco_liquida: calculos.gdEcoLiquidaKwh,
 
         // Cálculos solares
         geracao_anual_kwh: calculos.geracaoAnualEstimadaKwh,
@@ -1533,17 +1560,40 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                   {/* Tarifa concessionária */}
                   <div>
                     <label className="text-[11px] font-semibold text-gray-700 block mb-1">
-                      Tarifa atual (R$ por kWh) *
+                      Tarifa cheia (R$ por kWh) *
                     </label>
                     <input
                       type="number"
                       value={tarifaKwh}
                       min={0.1}
-                      step={0.01}
+                      step={0.0001}
                       onChange={(e) => setTarifaKwh(Number(e.target.value) || 0)}
                       className="w-full text-xs font-semibold px-3 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                      placeholder="Ex: 1.19"
+                      placeholder="Ex: 1.1979"
                     />
+                  </div>
+
+                  {/* Fio B (R$/kWh) */}
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="text-[11px] font-semibold text-gray-700 block">
+                        Fio B (R$/kWh)
+                      </label>
+                      <span className="text-[10px] text-gray-400">Padrão: 0,2239</span>
+                    </div>
+                    <input
+                      type="number"
+                      value={fioBKwh}
+                      min={0}
+                      step={0.0001}
+                      onChange={(e) => setFioBKwh(Number(e.target.value) || 0)}
+                      className="w-full text-xs font-semibold px-3 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      placeholder="0.2239"
+                    />
+                    <span className="text-[10px] text-gray-500 mt-0.5 block">
+                      GD Eco Líquida: {calculos.gdEcoLiquidaKwh.toFixed(4)} R$/kWh (FS:{' '}
+                      {(calculos.fatorSimultaneidade * 100).toFixed(0)}%)
+                    </span>
                   </div>
 
                   {/* Potência do sistema em kWp */}
