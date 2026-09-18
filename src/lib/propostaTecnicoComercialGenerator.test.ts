@@ -105,13 +105,21 @@ describe('Proposta Técnico-Comercial Generator (5 Seções Oficiais)', () => {
     expect(html).not.toContain('id="secao-4-projecao-economia"')
     expect(html).not.toContain('id="secao-6-investimento-pagamento"')
 
-    // SEÇÃO 1: Capa (logo Delfos, cliente, potência kWp, geração, consultor, data)
+    // SEÇÃO 1: Capa (badge oficial, título, subtítulo, cliente, imóvel/cidade, consultor, rodapé, logo Delfos)
+    expect(html).toContain('PROPOSTA TÉCNICO-COMERCIAL')
+    expect(html).toContain('Energia que<br />gera retorno')
+    expect(html).toContain('Sistema fotovoltaico projetado exclusivamente para você')
+    expect(html).toContain('PREPARADA PARA:')
     expect(html).toContain('João Silva Teste')
-    expect(html).toContain('10,50 kWp')
-    expect(html).toContain('1.250 kWh/mês')
-    expect(html).toContain('João Victor Bagetti Fuchs')
-    expect(html).toContain('15/05/2025')
-    expect(html).toContain('Economize')
+    expect(html).toContain('Residência • Erechim / RS')
+    expect(html).toContain(
+      'Consultor: <strong>João Victor Bagetti Fuchs</strong> • (54) 99129-2121',
+    )
+    expect(html).toContain('www.delfos.eng.br • contato@delfos.eng.br')
+    expect(html).toContain('/src/assets/prancheta-1-049a2.png')
+    // Ausência dos textos de contato legados abaixo do logo na capa
+    expect(html).not.toContain('(54) 3712-2460')
+    expect(html).not.toContain('@delfosenergia')
 
     // SEÇÃO 2: Situação Atual (cards de consumo e custo mensal/anual + 3 cards de gastos acumulados sem solar 1/5/25 anos, sem linha reflexiva e sem o box vermelho)
     expect(html).toContain('Situação Atual')
@@ -465,16 +473,14 @@ describe('Proposta Técnico-Comercial Generator (5 Seções Oficiais)', () => {
 
   it('renderiza o novo rodapé limpo e moderno em uma linha com endereço e site sem CREA/responsável e sem slogan', () => {
     const html = gerarHTMLPropostaTecnicoComercial(dadosExemplo)
-    // Novo formato em uma linha
+    // Novo formato em uma linha nas seções internas (doc-footer)
     expect(html).toContain('Delfos Engenharia Solar | CNPJ 21.379.952/0001-38')
     expect(html).toContain('(54) 99129-2121')
     expect(html).toContain('www.delfos.eng.br')
     expect(html).toContain('Rua Espírito Santo, 275 – Centro, Erechim/RS')
     expect(html).toContain('Proposta válida por 5 dias.')
 
-    // O rodapé não deve mais conter o CREA nem o slogan
-    // (A classe doc-footer não exibe nome/CREA/slogan)
-    expect(html).not.toContain('Energia que gera retorno')
+    // O rodapé doc-footer não deve mais conter o CREA nem o slogan
     expect(html).not.toContain('Condições especiais para fechamento imediato')
     expect(html).not.toContain('Seção 1 de 6')
     expect(html).not.toContain('Seção 2 de 6')
@@ -509,5 +515,44 @@ describe('Proposta Técnico-Comercial Generator (5 Seções Oficiais)', () => {
     expect(html).toContain('Inclui IOF de')
     expect(html).toContain('1.759,98')
     expect(html).toContain('2.450,50')
+  })
+
+  it('valida em detalhe a estrutura e asserções da Seção 1 (Capa Oficial)', () => {
+    const html = gerarHTMLPropostaTecnicoComercial(dadosExemplo)
+
+    // 1. Badge com texto "PROPOSTA TÉCNICO-COMERCIAL"
+    expect(html).toContain('capa-badge-amarelo')
+    expect(html).toContain('PROPOSTA TÉCNICO-COMERCIAL')
+
+    // 2. Título e subtítulo
+    expect(html).toContain('capa-titulo-destaque')
+    expect(html).toContain('Energia que<br />gera retorno')
+    expect(html).toContain('capa-subtitulo-cinza')
+    expect(html).toContain('Sistema fotovoltaico projetado exclusivamente para você')
+
+    // 3. Bloco PREPARADA PARA com cliente e tipo de imóvel/cidade
+    expect(html).toContain('capa-preparada-box')
+    expect(html).toContain('PREPARADA PARA:')
+    expect(html).toContain('João Silva Teste')
+    expect(html).toContain('Residência • Erechim / RS')
+
+    // 4. Linha do consultor dinâmica (autor do orçamento)
+    expect(html).toContain('capa-consultor-linha')
+    expect(html).toContain(
+      'Consultor: <strong>João Victor Bagetti Fuchs</strong> • (54) 99129-2121',
+    )
+
+    // 5. Rodapé discreto da capa
+    expect(html).toContain('capa-bottom-site-email')
+    expect(html).toContain('www.delfos.eng.br')
+    expect(html).toContain('contato@delfos.eng.br')
+
+    // 6. Referência ao asset do logo oficial Delfos
+    expect(html).toContain('capa-logo-container')
+    expect(html).toContain('/src/assets/prancheta-1-049a2.png')
+
+    // 7. Ausência dos contatos embutidos legados abaixo do logo
+    expect(html).not.toContain('(54) 3712-2460')
+    expect(html).not.toContain('@delfosenergia')
   })
 })
