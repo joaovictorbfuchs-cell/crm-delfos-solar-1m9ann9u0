@@ -208,13 +208,18 @@ describe('propostaSolarDocxGenerator', () => {
     expect(jsonStr).not.toContain('Geração Mensal Prevista')
   })
 
-  it('renderiza o novo rodapé com slogan "Energia que gera retorno" e validade dinâmica', async () => {
+  it('renderiza o novo rodapé limpo em uma linha sem slogan e sem CREA/responsável no rodapé', async () => {
     const doc = await gerarPropostaSolarDocx(dadosExemploMarceloBecker)
     const jsonStr = JSON.stringify(doc)
-    expect(jsonStr).toContain('Energia que gera retorno')
-    expect(jsonStr).toContain('Condições especiais para fechamento imediato')
-    expect(jsonStr).toContain('João Victor Bagetti Fuchs')
-    expect(jsonStr).toContain('CREA RS151894')
+    expect(jsonStr).toContain('Delfos Engenharia Solar')
+    expect(jsonStr).toContain('21.379.952/0001-38')
+    expect(jsonStr).toContain('(54) 99129-2121')
+    expect(jsonStr).toContain('Erechim / RS')
+    expect(jsonStr).toContain('Proposta válida por 5 dias.')
+
+    // O rodapé não deve conter o slogan nem "Condições especiais..."
+    expect(jsonStr).not.toContain('Energia que gera retorno')
+    expect(jsonStr).not.toContain('Condições especiais para fechamento imediato')
     expect(jsonStr).not.toContain('Seção 1 de 6')
   })
 })

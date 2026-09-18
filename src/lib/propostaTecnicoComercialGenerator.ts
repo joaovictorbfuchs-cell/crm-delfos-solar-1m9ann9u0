@@ -203,34 +203,34 @@ function renderInternalHeader(secaoTitulo: string, numeroSecao: number, idSuffix
 /**
  * Rodapé recorrente para todas as seções.
  */
-function renderInternalFooter(numeroSecao?: number, validadeDias: number = 5): string {
-  const validadeReal = validadeDias && validadeDias > 0 ? validadeDias : 5
+function renderInternalFooter(numeroSecao?: number, validadeDias?: number): string {
+  const hasValidade = typeof validadeDias === 'number' && validadeDias > 0
+  const validadeLinha = hasValidade
+    ? `<div class="doc-footer-validade-bar">Proposta válida por ${validadeDias} dias.</div>`
+    : ''
+
   return `
     <footer class="doc-footer">
-      <div class="doc-footer-grid">
-        <div class="doc-footer-col-left">
-          <div class="doc-footer-logo-row">
-            <div class="doc-footer-logo-card">
-              ${renderLogoSvg('ftr-' + (numeroSecao || 'def'))}
-            </div>
-            <span class="doc-footer-brand-title">DELFOS SOLAR</span>
+      <div class="doc-footer-main-row">
+        <div class="doc-footer-item-left">
+          <div class="doc-footer-logo-card">
+            ${renderLogoSvg('ftr-' + (numeroSecao || 'def'))}
           </div>
-          <span class="doc-footer-slogan">Energia que gera retorno</span>
+          <span>Delfos Engenharia Solar | CNPJ 21.379.952/0001-38</span>
         </div>
-        <div class="doc-footer-col-center">
-          <div><strong>João Victor Bagetti Fuchs</strong> • <span class="doc-footer-highlight">CREA RS151894</span></div>
-          <div>Tel/WhatsApp: <strong>(54) 99129-2121</strong></div>
-          <div>contato@delfos.eng.br</div>
+        <div class="doc-footer-sep">•</div>
+        <div class="doc-footer-item-center">
+          <svg class="doc-footer-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
+          </svg>
+          <span>(54) 99129-2121</span>
         </div>
-        <div class="doc-footer-col-right">
-          <div><strong>Delfos Engenharia Ltda</strong></div>
-          <div>CNPJ: 21.379.952/0001-38</div>
-          <div>Rua Espírito Santo, nº 275 – Centro, Erechim / RS</div>
+        <div class="doc-footer-sep">•</div>
+        <div class="doc-footer-item-right">
+          <span>Erechim / RS</span>
         </div>
       </div>
-      <div class="doc-footer-validade-bar">
-        Proposta válida por <strong>${validadeReal} dias</strong>. Condições especiais para fechamento imediato.
-      </div>
+      ${validadeLinha}
     </footer>
   `
 }
@@ -690,88 +690,78 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
       margin-top: 2px;
     }
 
-    /* RODAPÉ RECORRENTE PROFISSIONAL */
+    /* RODAPÉ RECORRENTE PROFISSIONAL — CLEAN & MODERNO */
     .doc-footer {
-      border-top: 2px solid #16A34A;
-      background: #0B1713;
-      color: #94A3B8;
+      border-top: 1.5px solid #86EFAC;
+      background: #F9FAFB;
+      color: #374151;
       border-radius: 8px;
-      padding: 10px 14px 8px 14px;
+      padding: 7px 12px 6px 12px;
       margin-top: 10px;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
     }
-    .doc-footer-grid {
-      display: grid;
-      grid-template-columns: 1fr 1.3fr 1.3fr;
-      gap: 12px;
+    .doc-footer-main-row {
+      display: flex;
       align-items: center;
-      font-size: 8px;
-      line-height: 1.35;
+      justify-content: center;
+      gap: 10px;
+      font-size: 8.5px;
+      font-weight: 600;
+      color: #374151;
+      line-height: 1.3;
+      text-align: center;
     }
-    .doc-footer-col-left {
-      display: flex;
-      flex-direction: column;
-      gap: 3px;
-    }
-    .doc-footer-logo-row {
-      display: flex;
+    .doc-footer-item-left {
+      display: inline-flex;
       align-items: center;
       gap: 6px;
+      color: #1F2937;
     }
     .doc-footer-logo-card {
       background: #FFFFFF;
-      padding: 2px 6px;
-      border-radius: 6px;
+      padding: 1px 4px;
+      border-radius: 4px;
       display: inline-flex;
       align-items: center;
-      height: 24px;
-      width: 72px;
+      height: 16px;
+      width: 44px;
+      border: 1px solid #E5E7EB;
     }
-    .doc-footer-brand-title {
-      font-size: 9.5px;
+    .doc-footer-logo-card svg {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+    .doc-footer-item-center {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      color: #1F2937;
+      font-weight: 700;
+    }
+    .doc-footer-icon {
+      width: 11px;
+      height: 11px;
+      color: #4ADE80;
+      flex-shrink: 0;
+    }
+    .doc-footer-item-right {
+      display: inline-flex;
+      align-items: center;
+      color: #374151;
+    }
+    .doc-footer-sep {
+      color: #86EFAC;
       font-weight: 800;
-      color: #FFFFFF;
-      letter-spacing: 0.04em;
-    }
-    .doc-footer-slogan {
-      font-size: 8px;
-      font-weight: 700;
-      color: #22C55E;
-      letter-spacing: 0.02em;
-    }
-    .doc-footer-col-center {
-      border-left: 1px solid rgba(255, 255, 255, 0.1);
-      border-right: 1px solid rgba(255, 255, 255, 0.1);
-      padding: 0 10px;
-      display: flex;
-      flex-direction: column;
-      gap: 1.5px;
-    }
-    .doc-footer-col-center strong,
-    .doc-footer-col-right strong {
-      color: #FFFFFF;
-      font-weight: 700;
-    }
-    .doc-footer-highlight {
-      color: #22C55E;
-      font-weight: 700;
-    }
-    .doc-footer-col-right {
-      display: flex;
-      flex-direction: column;
-      gap: 1.5px;
+      font-size: 9px;
     }
     .doc-footer-validade-bar {
-      margin-top: 6px;
-      padding-top: 5px;
-      border-top: 1px solid rgba(255, 255, 255, 0.08);
+      margin-top: 4px;
       text-align: center;
       font-size: 7.5px;
-      color: #94A3B8;
-      letter-spacing: 0.02em;
-    }
-    .doc-footer-validade-bar strong {
-      color: #22C55E;
+      font-weight: 500;
+      color: #065F46;
+      letter-spacing: 0.01em;
     }
 
     /* ==========================================================

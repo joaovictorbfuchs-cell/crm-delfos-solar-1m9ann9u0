@@ -458,14 +458,18 @@ describe('Proposta Técnico-Comercial Generator (5 Seções Oficiais)', () => {
     expect(html).not.toContain('Não informado')
   })
 
-  it('renderiza o novo rodapé profissional com slogan e validade dinâmica e sem numeração "Seção X de 6"', () => {
+  it('renderiza o novo rodapé limpo e moderno em uma linha sem CREA/responsável e sem slogan', () => {
     const html = gerarHTMLPropostaTecnicoComercial(dadosExemplo)
-    expect(html).toContain('Energia que gera retorno')
-    expect(html).toContain('Condições especiais para fechamento imediato')
-    expect(html).toContain('João Victor Bagetti Fuchs')
-    expect(html).toContain('CREA RS151894')
-    expect(html).toContain('Delfos Engenharia Ltda')
-    expect(html).toContain('CNPJ: 21.379.952/0001-38')
+    // Novo formato em uma linha
+    expect(html).toContain('Delfos Engenharia Solar | CNPJ 21.379.952/0001-38')
+    expect(html).toContain('(54) 99129-2121')
+    expect(html).toContain('Erechim / RS')
+    expect(html).toContain('Proposta válida por 5 dias.')
+
+    // O rodapé não deve mais conter o CREA nem o slogan
+    // (A classe doc-footer não exibe nome/CREA/slogan)
+    expect(html).not.toContain('Energia que gera retorno')
+    expect(html).not.toContain('Condições especiais para fechamento imediato')
     expect(html).not.toContain('Seção 1 de 6')
     expect(html).not.toContain('Seção 2 de 6')
     expect(html).not.toContain('de 6')
