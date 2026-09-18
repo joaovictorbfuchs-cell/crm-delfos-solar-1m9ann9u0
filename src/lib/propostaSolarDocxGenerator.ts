@@ -414,38 +414,160 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
     }),
   )
 
-  // Montagem do rodapé de cada página
+  // Montagem do rodapé profissional de cada página (Table 3 colunas + parágrafo de validade)
+  const footerCol1Width = 3000
+  const footerCol2Width = 3450
+  const footerCol3Width = PAGE_CONTENT_WIDTH - footerCol1Width - footerCol2Width // 3450
+
+  const footerTableBorders = {
+    top: { style: BorderStyle.SINGLE, size: 12, color: '16A34A' },
+    bottom: { style: BorderStyle.NONE, size: 0, color: 'auto' },
+    left: { style: BorderStyle.NONE, size: 0, color: 'auto' },
+    right: { style: BorderStyle.NONE, size: 0, color: 'auto' },
+  }
+
   const footerChildren = [
-    new Paragraph({
-      border: {
-        top: { style: BorderStyle.SINGLE, size: 6, color: COLOR_BORDER },
-      },
-      spacing: { before: 80, after: 60 },
-      alignment: AlignmentType.BOTH,
-      children: [
-        new TextRun({
-          text: `${DADOS_EMPRESA_DELFOS_SOLAR.nomeFantasia} | ${DADOS_EMPRESA_DELFOS_SOLAR.endereco} | Responsável: ${DADOS_EMPRESA_DELFOS_SOLAR.responsavelTecnico} (${DADOS_EMPRESA_DELFOS_SOLAR.crea})`,
-          size: 15,
-          color: COLOR_TEXT_MUTED,
-          font: 'Arial',
+    new Table({
+      width: { size: PAGE_CONTENT_WIDTH, type: WidthType.DXA },
+      borders: footerTableBorders,
+      rows: [
+        new TableRow({
+          children: [
+            // Coluna 1 (Esquerda): Logo/Delfos Solar + Slogan
+            new TableCell({
+              width: { size: footerCol1Width, type: WidthType.DXA },
+              shading: { type: ShadingType.CLEAR, fill: '0B1713' },
+              margins: { top: 80, bottom: 80, left: 100, right: 100 },
+              borders: tableBorderNone,
+              children: [
+                new Paragraph({
+                  spacing: { before: 0, after: 20 },
+                  children: [
+                    new TextRun({
+                      text: 'DELFOS SOLAR',
+                      bold: true,
+                      size: 17,
+                      color: 'FFFFFF',
+                      font: 'Arial',
+                    }),
+                  ],
+                }),
+                new Paragraph({
+                  spacing: { before: 0, after: 0 },
+                  children: [
+                    new TextRun({
+                      text: 'Energia que gera retorno',
+                      bold: true,
+                      size: 14,
+                      color: '22C55E',
+                      font: 'Arial',
+                    }),
+                  ],
+                }),
+              ],
+            }),
+            // Coluna 2 (Centro): Responsável Técnico e Contatos
+            new TableCell({
+              width: { size: footerCol2Width, type: WidthType.DXA },
+              shading: { type: ShadingType.CLEAR, fill: '0B1713' },
+              margins: { top: 80, bottom: 80, left: 100, right: 100 },
+              borders: {
+                top: { style: BorderStyle.NONE, size: 0, color: 'auto' },
+                bottom: { style: BorderStyle.NONE, size: 0, color: 'auto' },
+                left: { style: BorderStyle.SINGLE, size: 4, color: '2A3732' },
+                right: { style: BorderStyle.SINGLE, size: 4, color: '2A3732' },
+              },
+              children: [
+                new Paragraph({
+                  spacing: { before: 0, after: 20 },
+                  children: [
+                    new TextRun({
+                      text: 'João Victor Bagetti Fuchs',
+                      bold: true,
+                      size: 14,
+                      color: 'FFFFFF',
+                      font: 'Arial',
+                    }),
+                    new TextRun({
+                      text: ' • ',
+                      size: 14,
+                      color: '94A3B8',
+                      font: 'Arial',
+                    }),
+                    new TextRun({
+                      text: 'CREA RS151894',
+                      bold: true,
+                      size: 14,
+                      color: '22C55E',
+                      font: 'Arial',
+                    }),
+                  ],
+                }),
+                new Paragraph({
+                  spacing: { before: 0, after: 0 },
+                  children: [
+                    new TextRun({
+                      text: 'Tel/WhatsApp: (54) 99129-2121 • contato@delfos.eng.br',
+                      size: 13,
+                      color: '94A3B8',
+                      font: 'Arial',
+                    }),
+                  ],
+                }),
+              ],
+            }),
+            // Coluna 3 (Direita): Razão Social, CNPJ e Endereço
+            new TableCell({
+              width: { size: footerCol3Width, type: WidthType.DXA },
+              shading: { type: ShadingType.CLEAR, fill: '0B1713' },
+              margins: { top: 80, bottom: 80, left: 100, right: 100 },
+              borders: tableBorderNone,
+              children: [
+                new Paragraph({
+                  spacing: { before: 0, after: 20 },
+                  children: [
+                    new TextRun({
+                      text: 'Delfos Engenharia Ltda',
+                      bold: true,
+                      size: 14,
+                      color: 'FFFFFF',
+                      font: 'Arial',
+                    }),
+                    new TextRun({
+                      text: ' • CNPJ: 21.379.952/0001-38',
+                      size: 13,
+                      color: '94A3B8',
+                      font: 'Arial',
+                    }),
+                  ],
+                }),
+                new Paragraph({
+                  spacing: { before: 0, after: 0 },
+                  children: [
+                    new TextRun({
+                      text: 'Rua Espírito Santo, nº 275 – Centro, Erechim / RS',
+                      size: 13,
+                      color: '94A3B8',
+                      font: 'Arial',
+                    }),
+                  ],
+                }),
+              ],
+            }),
+          ],
         }),
       ],
     }),
     new Paragraph({
-      alignment: AlignmentType.RIGHT,
+      alignment: AlignmentType.CENTER,
+      spacing: { before: 50, after: 40 },
       children: [
         new TextRun({
-          text: 'Página ',
-          size: 15,
-          color: COLOR_TEXT_MUTED,
+          text: `Proposta válida por ${validadeEmDias} dias. Condições especiais para fechamento imediato.`,
+          size: 13,
+          color: '64748B',
           font: 'Arial',
-        }),
-        new TextRun({
-          children: [PageNumber.CURRENT],
-          size: 15,
-          color: COLOR_TEXT_MUTED,
-          font: 'Arial',
-          bold: true,
+          italics: true,
         }),
       ],
     }),

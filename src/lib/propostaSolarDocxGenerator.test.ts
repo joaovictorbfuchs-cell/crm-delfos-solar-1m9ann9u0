@@ -207,4 +207,14 @@ describe('propostaSolarDocxGenerator', () => {
     const jsonStr = JSON.stringify(doc)
     expect(jsonStr).not.toContain('Geração Mensal Prevista')
   })
+
+  it('renderiza o novo rodapé com slogan "Energia que gera retorno" e validade dinâmica', async () => {
+    const doc = await gerarPropostaSolarDocx(dadosExemploMarceloBecker)
+    const jsonStr = JSON.stringify(doc)
+    expect(jsonStr).toContain('Energia que gera retorno')
+    expect(jsonStr).toContain('Condições especiais para fechamento imediato')
+    expect(jsonStr).toContain('João Victor Bagetti Fuchs')
+    expect(jsonStr).toContain('CREA RS151894')
+    expect(jsonStr).not.toContain('Seção 1 de 6')
+  })
 })

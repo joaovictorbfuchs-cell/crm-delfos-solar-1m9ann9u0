@@ -457,4 +457,17 @@ describe('Proposta Técnico-Comercial Generator (5 Seções Oficiais)', () => {
     // Não deve conter a expressão "Não informado"
     expect(html).not.toContain('Não informado')
   })
+
+  it('renderiza o novo rodapé profissional com slogan e validade dinâmica e sem numeração "Seção X de 6"', () => {
+    const html = gerarHTMLPropostaTecnicoComercial(dadosExemplo)
+    expect(html).toContain('Energia que gera retorno')
+    expect(html).toContain('Condições especiais para fechamento imediato')
+    expect(html).toContain('João Victor Bagetti Fuchs')
+    expect(html).toContain('CREA RS151894')
+    expect(html).toContain('Delfos Engenharia Ltda')
+    expect(html).toContain('CNPJ: 21.379.952/0001-38')
+    expect(html).not.toContain('Seção 1 de 6')
+    expect(html).not.toContain('Seção 2 de 6')
+    expect(html).not.toContain('de 6')
+  })
 })

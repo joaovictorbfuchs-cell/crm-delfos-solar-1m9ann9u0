@@ -201,14 +201,33 @@ function renderInternalHeader(secaoTitulo: string, numeroSecao: number, idSuffix
 /**
  * Rodapé recorrente para todas as seções.
  */
-function renderInternalFooter(numeroSecao: number): string {
+function renderInternalFooter(numeroSecao?: number, validadeDias: number = 5): string {
+  const validadeReal = validadeDias && validadeDias > 0 ? validadeDias : 5
   return `
     <footer class="doc-footer">
-      <div class="footer-left">
-        <strong>Delfos Engenharia Solar</strong> • CNPJ 21.379.952/0001-38 • Erechim / RS • Tel: (54) 99129-2121 • Responsável: <strong>João Victor Bagetti Fuchs</strong> (CREA RS151894)
+      <div class="doc-footer-grid">
+        <div class="doc-footer-col-left">
+          <div class="doc-footer-logo-row">
+            <div class="doc-footer-logo-card">
+              ${renderLogoSvg('ftr-' + (numeroSecao || 'def'))}
+            </div>
+            <span class="doc-footer-brand-title">DELFOS SOLAR</span>
+          </div>
+          <span class="doc-footer-slogan">Energia que gera retorno</span>
+        </div>
+        <div class="doc-footer-col-center">
+          <div><strong>João Victor Bagetti Fuchs</strong> • <span class="doc-footer-highlight">CREA RS151894</span></div>
+          <div>Tel/WhatsApp: <strong>(54) 99129-2121</strong></div>
+          <div>contato@delfos.eng.br</div>
+        </div>
+        <div class="doc-footer-col-right">
+          <div><strong>Delfos Engenharia Ltda</strong></div>
+          <div>CNPJ: 21.379.952/0001-38</div>
+          <div>Rua Espírito Santo, nº 275 – Centro, Erechim / RS</div>
+        </div>
       </div>
-      <div class="footer-right">
-        Seção <strong>${numeroSecao}</strong> de <strong>6</strong>
+      <div class="doc-footer-validade-bar">
+        Proposta válida por <strong>${validadeReal} dias</strong>. Condições especiais para fechamento imediato.
       </div>
     </footer>
   `
@@ -669,27 +688,88 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
       margin-top: 2px;
     }
 
-    /* RODAPÉ RECORRENTE */
+    /* RODAPÉ RECORRENTE PROFISSIONAL */
     .doc-footer {
-      border-top: 1px solid #E5E7EB;
-      padding-top: 6px;
+      border-top: 2px solid #16A34A;
+      background: #0B1713;
+      color: #94A3B8;
+      border-radius: 8px;
+      padding: 10px 14px 8px 14px;
       margin-top: 10px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    }
+    .doc-footer-grid {
+      display: grid;
+      grid-template-columns: 1fr 1.3fr 1.3fr;
+      gap: 12px;
+      align-items: center;
+      font-size: 8px;
+      line-height: 1.35;
+    }
+    .doc-footer-col-left {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+    .doc-footer-logo-row {
       display: flex;
       align-items: center;
-      justify-content: space-between;
+      gap: 6px;
+    }
+    .doc-footer-logo-card {
+      background: #FFFFFF;
+      padding: 2px 6px;
+      border-radius: 6px;
+      display: inline-flex;
+      align-items: center;
+      height: 24px;
+      width: 72px;
+    }
+    .doc-footer-brand-title {
+      font-size: 9.5px;
+      font-weight: 800;
+      color: #FFFFFF;
+      letter-spacing: 0.04em;
+    }
+    .doc-footer-slogan {
       font-size: 8px;
-      color: #6B7280;
-    }
-    .doc-footer strong {
-      color: #111827;
-    }
-    .doc-footer .footer-right {
       font-weight: 700;
-      color: #166534;
-      background: #F0FDF4;
-      border: 1px solid #BBF7D0;
-      padding: 2px 7px;
-      border-radius: 4px;
+      color: #22C55E;
+      letter-spacing: 0.02em;
+    }
+    .doc-footer-col-center {
+      border-left: 1px solid rgba(255, 255, 255, 0.1);
+      border-right: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 0 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 1.5px;
+    }
+    .doc-footer-col-center strong,
+    .doc-footer-col-right strong {
+      color: #FFFFFF;
+      font-weight: 700;
+    }
+    .doc-footer-highlight {
+      color: #22C55E;
+      font-weight: 700;
+    }
+    .doc-footer-col-right {
+      display: flex;
+      flex-direction: column;
+      gap: 1.5px;
+    }
+    .doc-footer-validade-bar {
+      margin-top: 6px;
+      padding-top: 5px;
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+      text-align: center;
+      font-size: 7.5px;
+      color: #94A3B8;
+      letter-spacing: 0.02em;
+    }
+    .doc-footer-validade-bar strong {
+      color: #22C55E;
     }
 
     /* ==========================================================
@@ -2022,7 +2102,7 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
           </div>
         </div>
       </div>
-      ${renderInternalFooter(1)}
+      ${renderInternalFooter(1, validade)}
     </section>
 
     <!-- ========================================================
@@ -2164,14 +2244,7 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
           </div>
         </div>
       </div>
-      <footer class="doc-footer">
-        <div class="footer-left">
-          <strong>Delfos Engenharia Solar</strong> • CNPJ 21.379.952/0001-38 • Erechim / RS • Tel: (54) 99129-2121 • Responsável: <strong>João Victor Bagetti Fuchs</strong> (CREA RS151894)
-        </div>
-        <div class="footer-right">
-          Apresentação Institucional
-        </div>
-      </footer>
+      ${renderInternalFooter(1, validade)}
     </section>
 
     <!-- ========================================================
@@ -2342,7 +2415,7 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
           </div>
         </div>
       </div>
-      ${renderInternalFooter(2)}
+      ${renderInternalFooter(2, validade)}
     </section>
 
     <!-- ========================================================
@@ -2669,7 +2742,7 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
             </div>
           </div>
         </div>      </div>
-      ${renderInternalFooter(3)}
+      ${renderInternalFooter(3, validade)}
     </section>
 
     <!-- ========================================================
@@ -2718,7 +2791,7 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
           * Projeção baseada na degradação linear de fábrica dos módulos e histórico de reajustes tarifários da rede elétrica.
         </div>
       </div>
-      ${renderInternalFooter(4)}
+      ${renderInternalFooter(4, validade)}
     </section>
 
     <!-- ========================================================
@@ -3040,7 +3113,7 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
             </div>
           </div>
         </div>      </div>
-      ${renderInternalFooter(5)}
+      ${renderInternalFooter(5, validade)}
     </section>
 
   </div>
