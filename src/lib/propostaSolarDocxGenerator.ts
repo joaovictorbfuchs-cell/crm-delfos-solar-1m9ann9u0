@@ -1475,7 +1475,7 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
   )
 
   // ----------------------------------------------------
-  // TABELA: GERAÇÃO MENSAL DETALHADA (JANEIRO A DEZEMBRO — ERECHIM/RS)
+  // TABELA COMPACTA: GERAÇÃO MENSAL PREVISTA (2 LINHAS × 12 COLUNAS)
   // Posicionada IMEDIATAMENTE ABAIXO dos cards da seção "Seu Sistema Fotovoltaico"
   // Fallback: se geracao_detalhada_json for null/vazio, omite a seção
   // ----------------------------------------------------
@@ -1486,368 +1486,145 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
         ? calculos.geracaoAnualEstimadaKwh
         : itensGeracao.reduce((acc, curr) => acc + (Number(curr.geracaoKwh) || 0), 0)
     const maxGeracaoDocx = Math.max(...itensGeracao.map((m) => Number(m.geracaoKwh) || 0))
-    const mediaHspDocx =
-      itensGeracao.reduce((acc, m) => acc + (Number(m.irradiacaoHSP) || 0), 0) / itensGeracao.length
     const mediaMensalDocx =
       totalAnualDocx > 0 ? Math.round(totalAnualDocx / itensGeracao.length) : 0
 
-    // Larguras ajustadas das 5 colunas somando PAGE_CONTENT_WIDTH (9900 dxa)
-    // Mês: 2400, Dias: 1400, HSP: 1900, Fator: 1800, Geração: 2400
-    const colW_Mes = 2400
-    const colW_Dias = 1400
-    const colW_Hsp = 1900
-    const colW_Fator = 1800
-    const colW_Geracao = 2400
+    // 12 colunas somando PAGE_CONTENT_WIDTH (9.900 dxa): 9.900 / 12 = 825 dxa por coluna
+    const colW_12 = 825
 
     docChildren.push(
-      // Título da Tabela
+      // Título da Seção
       new Paragraph({
-        spacing: { before: 140, after: 60 },
+        spacing: { before: 140, after: 40 },
         children: [
           new TextRun({
-            text: 'Geração Mensal Detalhada (Janeiro a Dezembro — Erechim/RS)',
+            text: 'Geração Mensal Prevista (Janeiro a Dezembro — Erechim/RS)',
             bold: true,
             size: 18,
             color: '166534',
             font: 'Arial',
           }),
-          new TextRun({
-            text: `  •  Total Anual: ${Math.round(totalAnualDocx).toLocaleString('pt-BR')} kWh/ano`,
-            bold: true,
-            size: 16,
-            color: COLOR_PRIMARY,
-            font: 'Arial',
-          }),
         ],
       }),
       new Paragraph({
-        spacing: { after: 70 },
+        spacing: { after: 60 },
         children: [
           new TextRun({
-            text: 'Sazonalidade climática e geração estimada com base na irradiação solar diária (HSP) média de Erechim/RS.',
+            text: 'Produção estimada de energia mês a mês em kWh.',
             size: 13,
             color: COLOR_TEXT_MUTED,
             font: 'Arial',
           }),
         ],
       }),
-      // Tabela Nativa DOCX
+      // Tabela Nativa DOCX: 2 linhas × 12 colunas (Linha 1 = Mês, Linha 2 = Geração kWh)
       new Table({
         width: { size: PAGE_CONTENT_WIDTH, type: WidthType.DXA },
         borders: tableBorderDefault,
         rows: [
-          // Cabeçalho da Tabela
+          // Linha 1: Cabeçalho com os 12 meses
           new TableRow({
             tableHeader: true,
             cantSplit: true,
-            children: [
-              new TableCell({
-                width: { size: colW_Mes, type: WidthType.DXA },
-                shading: { type: ShadingType.CLEAR, fill: '064E3B' },
-                margins: { top: 80, bottom: 80, left: 100, right: 100 },
-                children: [
-                  new Paragraph({
-                    children: [
-                      new TextRun({
-                        text: 'MÊS',
-                        bold: true,
-                        size: 14,
-                        color: 'FFFFFF',
-                        font: 'Arial',
-                      }),
-                    ],
-                  }),
-                ],
-              }),
-              new TableCell({
-                width: { size: colW_Dias, type: WidthType.DXA },
-                shading: { type: ShadingType.CLEAR, fill: '064E3B' },
-                margins: { top: 80, bottom: 80, left: 100, right: 100 },
+            children: itensGeracao.map((item) => {
+              const isPico = item.geracaoKwh >= maxGeracaoDocx * 0.98 && item.geracaoKwh > 0
+              return new TableCell({
+                width: { size: colW_12, type: WidthType.DXA },
+                shading: { type: ShadingType.CLEAR, fill: isPico ? '064E3B' : '064E3B' },
+                margins: { top: 60, bottom: 60, left: 40, right: 40 },
                 children: [
                   new Paragraph({
                     alignment: AlignmentType.CENTER,
                     children: [
                       new TextRun({
-                        text: 'DIAS',
-                        bold: true,
-                        size: 14,
-                        color: 'FFFFFF',
-                        font: 'Arial',
-                      }),
-                    ],
-                  }),
-                ],
-              }),
-              new TableCell({
-                width: { size: colW_Hsp, type: WidthType.DXA },
-                shading: { type: ShadingType.CLEAR, fill: '064E3B' },
-                margins: { top: 80, bottom: 80, left: 100, right: 100 },
-                children: [
-                  new Paragraph({
-                    alignment: AlignmentType.RIGHT,
-                    children: [
-                      new TextRun({
-                        text: 'IRRADIAÇÃO (HSP)',
-                        bold: true,
-                        size: 14,
-                        color: 'FFFFFF',
-                        font: 'Arial',
-                      }),
-                    ],
-                  }),
-                ],
-              }),
-              new TableCell({
-                width: { size: colW_Fator, type: WidthType.DXA },
-                shading: { type: ShadingType.CLEAR, fill: '064E3B' },
-                margins: { top: 80, bottom: 80, left: 100, right: 100 },
-                children: [
-                  new Paragraph({
-                    alignment: AlignmentType.RIGHT,
-                    children: [
-                      new TextRun({
-                        text: 'FATOR SAZONAL',
-                        bold: true,
-                        size: 14,
-                        color: 'FFFFFF',
-                        font: 'Arial',
-                      }),
-                    ],
-                  }),
-                ],
-              }),
-              new TableCell({
-                width: { size: colW_Geracao, type: WidthType.DXA },
-                shading: { type: ShadingType.CLEAR, fill: '064E3B' },
-                margins: { top: 80, bottom: 80, left: 100, right: 100 },
-                children: [
-                  new Paragraph({
-                    alignment: AlignmentType.RIGHT,
-                    children: [
-                      new TextRun({
-                        text: 'GERAÇÃO ESTIMADA',
-                        bold: true,
-                        size: 14,
-                        color: 'FFFFFF',
-                        font: 'Arial',
-                      }),
-                    ],
-                  }),
-                ],
-              }),
-            ],
-          }),
-          // Linhas dos 12 meses
-          ...itensGeracao.map((item) => {
-            const isDestaque = item.geracaoKwh >= maxGeracaoDocx * 0.95 && item.geracaoKwh > 0
-            const fillBg = isDestaque ? 'ECFDF5' : 'FFFFFF'
-            return new TableRow({
-              cantSplit: true,
-              children: [
-                new TableCell({
-                  width: { size: colW_Mes, type: WidthType.DXA },
-                  shading: { type: ShadingType.CLEAR, fill: fillBg },
-                  margins: { top: 60, bottom: 60, left: 100, right: 100 },
-                  children: [
-                    new Paragraph({
-                      children: [
-                        new TextRun({
-                          text: item.mesNome,
-                          bold: true,
-                          size: 15,
-                          color: isDestaque ? '065F46' : '111827',
-                          font: 'Arial',
-                        }),
-                        ...(isDestaque
-                          ? [
-                              new TextRun({
-                                text: '  [PICO]',
-                                bold: true,
-                                size: 12,
-                                color: '166534',
-                                font: 'Arial',
-                              }),
-                            ]
-                          : []),
-                      ],
-                    }),
-                  ],
-                }),
-                new TableCell({
-                  width: { size: colW_Dias, type: WidthType.DXA },
-                  shading: { type: ShadingType.CLEAR, fill: fillBg },
-                  margins: { top: 60, bottom: 60, left: 100, right: 100 },
-                  children: [
-                    new Paragraph({
-                      alignment: AlignmentType.CENTER,
-                      children: [
-                        new TextRun({
-                          text: `${item.dias}`,
-                          size: 15,
-                          color: '4B5563',
-                          font: 'Arial',
-                        }),
-                      ],
-                    }),
-                  ],
-                }),
-                new TableCell({
-                  width: { size: colW_Hsp, type: WidthType.DXA },
-                  shading: { type: ShadingType.CLEAR, fill: fillBg },
-                  margins: { top: 60, bottom: 60, left: 100, right: 100 },
-                  children: [
-                    new Paragraph({
-                      alignment: AlignmentType.RIGHT,
-                      children: [
-                        new TextRun({
-                          text: `${(Number(item.irradiacaoHSP) || 0).toFixed(2)} kWh/m²`,
-                          size: 15,
-                          color: '4B5563',
-                          font: 'Arial',
-                        }),
-                      ],
-                    }),
-                  ],
-                }),
-                new TableCell({
-                  width: { size: colW_Fator, type: WidthType.DXA },
-                  shading: { type: ShadingType.CLEAR, fill: fillBg },
-                  margins: { top: 60, bottom: 60, left: 100, right: 100 },
-                  children: [
-                    new Paragraph({
-                      alignment: AlignmentType.RIGHT,
-                      children: [
-                        new TextRun({
-                          text: `${(Number(item.fatorSazonal) || 1).toFixed(2).replace('.', ',')}x`,
-                          size: 15,
-                          color: '4B5563',
-                          font: 'Arial',
-                        }),
-                      ],
-                    }),
-                  ],
-                }),
-                new TableCell({
-                  width: { size: colW_Geracao, type: WidthType.DXA },
-                  shading: { type: ShadingType.CLEAR, fill: fillBg },
-                  margins: { top: 60, bottom: 60, left: 100, right: 100 },
-                  children: [
-                    new Paragraph({
-                      alignment: AlignmentType.RIGHT,
-                      children: [
-                        new TextRun({
-                          text: `${Math.round(Number(item.geracaoKwh) || 0).toLocaleString('pt-BR')} kWh`,
-                          bold: true,
-                          size: 15,
-                          color: '065F46',
-                          font: 'Arial',
-                        }),
-                      ],
-                    }),
-                  ],
-                }),
-              ],
-            })
-          }),
-          // Rodapé com Totais Anuais
-          new TableRow({
-            cantSplit: true,
-            children: [
-              new TableCell({
-                width: { size: colW_Mes, type: WidthType.DXA },
-                shading: { type: ShadingType.CLEAR, fill: 'DCFCE7' },
-                margins: { top: 80, bottom: 80, left: 100, right: 100 },
-                children: [
-                  new Paragraph({
-                    children: [
-                      new TextRun({
-                        text: 'TOTAIS ANUAIS',
-                        bold: true,
-                        size: 15,
-                        color: '065F46',
-                        font: 'Arial',
-                      }),
-                    ],
-                  }),
-                ],
-              }),
-              new TableCell({
-                width: { size: colW_Dias, type: WidthType.DXA },
-                shading: { type: ShadingType.CLEAR, fill: 'DCFCE7' },
-                margins: { top: 80, bottom: 80, left: 100, right: 100 },
-                children: [
-                  new Paragraph({
-                    alignment: AlignmentType.CENTER,
-                    children: [
-                      new TextRun({
-                        text: '365 dias',
-                        bold: true,
-                        size: 14,
-                        color: '374151',
-                        font: 'Arial',
-                      }),
-                    ],
-                  }),
-                ],
-              }),
-              new TableCell({
-                width: { size: colW_Hsp, type: WidthType.DXA },
-                shading: { type: ShadingType.CLEAR, fill: 'DCFCE7' },
-                margins: { top: 80, bottom: 80, left: 100, right: 100 },
-                children: [
-                  new Paragraph({
-                    alignment: AlignmentType.RIGHT,
-                    children: [
-                      new TextRun({
-                        text: `${mediaHspDocx.toFixed(2)} méd.`,
-                        bold: true,
-                        size: 14,
-                        color: '374151',
-                        font: 'Arial',
-                      }),
-                    ],
-                  }),
-                ],
-              }),
-              new TableCell({
-                width: { size: colW_Fator, type: WidthType.DXA },
-                shading: { type: ShadingType.CLEAR, fill: 'DCFCE7' },
-                margins: { top: 80, bottom: 80, left: 100, right: 100 },
-                children: [
-                  new Paragraph({
-                    alignment: AlignmentType.RIGHT,
-                    children: [
-                      new TextRun({
-                        text: `Média: ${mediaMensalDocx.toLocaleString('pt-BR')} kWh/mês`,
+                        text: item.mesNome.toUpperCase(),
                         bold: true,
                         size: 13,
-                        color: '374151',
+                        color: isPico ? 'A7F3D0' : 'FFFFFF',
                         font: 'Arial',
                       }),
                     ],
                   }),
                 ],
-              }),
-              new TableCell({
-                width: { size: colW_Geracao, type: WidthType.DXA },
-                shading: { type: ShadingType.CLEAR, fill: 'DCFCE7' },
-                margins: { top: 80, bottom: 80, left: 100, right: 100 },
+              })
+            }),
+          }),
+          // Linha 2: Geração kWh de cada mês
+          new TableRow({
+            cantSplit: true,
+            children: itensGeracao.map((item) => {
+              const isPico = item.geracaoKwh >= maxGeracaoDocx * 0.98 && item.geracaoKwh > 0
+              const valorKwh = Math.round(Number(item.geracaoKwh) || 0)
+              return new TableCell({
+                width: { size: colW_12, type: WidthType.DXA },
+                shading: { type: ShadingType.CLEAR, fill: isPico ? 'ECFDF5' : 'FFFFFF' },
+                margins: { top: 60, bottom: 60, left: 30, right: 30 },
                 children: [
                   new Paragraph({
-                    alignment: AlignmentType.RIGHT,
+                    alignment: AlignmentType.CENTER,
                     children: [
                       new TextRun({
-                        text: `${Math.round(totalAnualDocx).toLocaleString('pt-BR')} kWh/ano`,
-                        bold: true,
-                        size: 16,
-                        color: '065F46',
+                        text: valorKwh.toLocaleString('pt-BR'),
+                        bold: isPico,
+                        size: 13,
+                        color: isPico ? '065F46' : '1F2937',
                         font: 'Arial',
                       }),
+                      ...(isPico
+                        ? [
+                            new TextRun({
+                              text: '\n[PICO]',
+                              bold: true,
+                              size: 10,
+                              color: '166534',
+                              font: 'Arial',
+                            }),
+                          ]
+                        : []),
                     ],
                   }),
                 ],
-              }),
-            ],
+              })
+            }),
+          }),
+        ],
+      }),
+      // Linha Única de Totais abaixo da tabela
+      new Paragraph({
+        alignment: AlignmentType.CENTER,
+        spacing: { before: 80, after: 120 },
+        children: [
+          new TextRun({
+            text: 'Total anual: ',
+            size: 14,
+            color: COLOR_TEXT_MUTED,
+            font: 'Arial',
+          }),
+          new TextRun({
+            text: `${Math.round(totalAnualDocx).toLocaleString('pt-BR')} kWh`,
+            bold: true,
+            size: 14,
+            color: '065F46',
+            font: 'Arial',
+          }),
+          new TextRun({
+            text: '   ·   ',
+            size: 14,
+            color: 'D1D5DB',
+            font: 'Arial',
+          }),
+          new TextRun({
+            text: 'Média mensal: ',
+            size: 14,
+            color: COLOR_TEXT_MUTED,
+            font: 'Arial',
+          }),
+          new TextRun({
+            text: `${mediaMensalDocx.toLocaleString('pt-BR')} kWh`,
+            bold: true,
+            size: 14,
+            color: '111827',
+            font: 'Arial',
           }),
         ],
       }),

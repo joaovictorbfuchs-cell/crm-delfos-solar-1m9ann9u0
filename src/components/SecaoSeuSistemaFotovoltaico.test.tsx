@@ -104,7 +104,7 @@ describe('SecaoSeuSistemaFotovoltaico - Geração Mensal Detalhada', () => {
     },
   ]
 
-  it('renderiza a tabela de geração mensal detalhada com os 12 meses quando geracaoMensalDetalhada for informada', () => {
+  it('renderiza o gráfico de geração mensal previsto com os 12 meses quando geracaoMensalDetalhada for informada', () => {
     const html = renderToStaticMarkup(
       React.createElement(SecaoSeuSistemaFotovoltaico, {
         potenciaKwp: 12.5,
@@ -114,35 +114,39 @@ describe('SecaoSeuSistemaFotovoltaico - Geração Mensal Detalhada', () => {
     )
 
     // Cabeçalho da seção
-    expect(html).toContain('Geração Mensal Detalhada (Janeiro a Dezembro — Erechim/RS)')
-    expect(html).toContain(
-      'Sazonalidade solar calculada com base na irradiação HSP média diária de Erechim/RS',
-    )
+    expect(html).toContain('Geração Mensal Prevista (Janeiro a Dezembro — Erechim/RS)')
+    expect(html).toContain('Produção estimada de energia mês a mês em kWh')
 
-    // Presença de meses e dados
+    // Presença de meses e dados nas barras
     expect(html).toContain('Jan')
     expect(html).toContain('Fev')
     expect(html).toContain('Dez')
     expect(html).toContain('1.695')
     expect(html).toContain('1.450')
     expect(html).toContain('1.755')
-    expect(html).toContain('5.65')
-    expect(html).toContain('5.85')
+
+    // Colunas de HSP e fator sazonal NÃO devem aparecer
+    expect(html).not.toContain('5.65')
+    expect(html).not.toContain('5.85')
+    expect(html).not.toContain('Irradiação (HSP)')
+    expect(html).not.toContain('Fator Sazonal')
 
     // Totais e destaques
-    expect(html).toContain('15.808')
-    expect(html).toContain('Totais Anuais')
+    expect(html).toContain('Total anual:')
+    expect(html).toContain('15.808 kWh')
+    expect(html).toContain('Média mensal:')
+    expect(html).toContain('1.317 kWh')
     expect(html).toContain('Pico')
   })
 
-  it('omite a tabela de geração mensal quando geracaoMensalDetalhada for vazio ou nulo (fallback)', () => {
+  it('omite a seção de geração mensal quando geracaoMensalDetalhada for vazio ou nulo (fallback)', () => {
     const htmlNulo = renderToStaticMarkup(
       React.createElement(SecaoSeuSistemaFotovoltaico, {
         potenciaKwp: 12.5,
         geracaoMensalDetalhada: null,
       }),
     )
-    expect(htmlNulo).not.toContain('Geração Mensal Detalhada (Janeiro a Dezembro — Erechim/RS)')
+    expect(htmlNulo).not.toContain('Geração Mensal Prevista')
 
     const htmlVazio = renderToStaticMarkup(
       React.createElement(SecaoSeuSistemaFotovoltaico, {
@@ -150,6 +154,6 @@ describe('SecaoSeuSistemaFotovoltaico - Geração Mensal Detalhada', () => {
         geracaoMensalDetalhada: [],
       }),
     )
-    expect(htmlVazio).not.toContain('Geração Mensal Detalhada (Janeiro a Dezembro — Erechim/RS)')
+    expect(htmlVazio).not.toContain('Geração Mensal Prevista')
   })
 })

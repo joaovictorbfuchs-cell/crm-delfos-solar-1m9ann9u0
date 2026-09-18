@@ -448,7 +448,7 @@ export const SecaoSeuSistemaFotovoltaico: React.FC<SecaoSeuSistemaFotovoltaicoPr
         </div>
 
         {/* ========================================================================= */}
-        {/* SEÇÃO: GERAÇÃO MENSAL DETALHADA (JANEIRO A DEZEMBRO — ERECHIM/RS)         */}
+        {/* SEÇÃO: GERAÇÃO MENSAL PREVISTA (GRÁFICO MINIMALISTA DE BARRAS)             */}
         {/* Posicionada IMEDIATAMENTE ABAIXO dos cards da seção Sistema Fotovoltaico   */}
         {/* Fallback: se geracao_detalhada_json for null/vazio, omite a seção          */}
         {/* ========================================================================= */}
@@ -464,6 +464,7 @@ export const SecaoSeuSistemaFotovoltaico: React.FC<SecaoSeuSistemaFotovoltaicoPr
                   )
             const maxGeracao = Math.max(
               ...geracaoMensalDetalhada.map((m) => Number(m.geracaoKwh) || 0),
+              1,
             )
             const mediaMensal =
               totalKwh > 0 ? Math.round(totalKwh / geracaoMensalDetalhada.length) : 0
@@ -473,6 +474,7 @@ export const SecaoSeuSistemaFotovoltaico: React.FC<SecaoSeuSistemaFotovoltaicoPr
                 className="bg-white rounded-2xl border border-emerald-100 p-4 sm:p-6 shadow-xs space-y-4"
                 data-testid="secao-geracao-mensal-detalhada"
               >
+                {/* Cabeçalho minimalista */}
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-gray-100 gap-2">
                   <div className="flex items-center gap-2.5">
                     <div className="w-8 h-8 rounded-lg bg-emerald-50 border border-emerald-200/80 flex items-center justify-center text-emerald-600 shrink-0">
@@ -480,115 +482,95 @@ export const SecaoSeuSistemaFotovoltaico: React.FC<SecaoSeuSistemaFotovoltaicoPr
                     </div>
                     <div>
                       <h3 className="text-sm sm:text-base font-extrabold text-gray-900 tracking-tight">
-                        Geração Mensal Detalhada (Janeiro a Dezembro — Erechim/RS)
+                        Geração Mensal Prevista (Janeiro a Dezembro — Erechim/RS)
                       </h3>
                       <p className="text-[11px] text-gray-500">
-                        Sazonalidade solar calculada com base na irradiação HSP média diária de
-                        Erechim/RS
+                        Produção estimada de energia mês a mês em kWh
                       </p>
                     </div>
                   </div>
+                </div>
 
-                  <div className="flex items-center gap-2 self-start sm:self-auto bg-emerald-50/80 border border-emerald-200 px-3 py-1.5 rounded-xl">
-                    <SunMedium className="w-4 h-4 text-emerald-600 shrink-0" />
-                    <span className="text-xs font-bold text-emerald-900">
-                      Total Anual:{' '}
-                      <strong className="text-emerald-700 text-sm font-black">
-                        {Math.round(totalKwh).toLocaleString('pt-BR')} kWh/ano
-                      </strong>
-                    </span>
+                {/* Gráfico de Barras Verticais (CSS Puro) */}
+                <div className="pt-6 pb-2 px-1">
+                  <div className="flex items-end justify-between gap-1.5 sm:gap-3 h-40 w-full">
+                    {geracaoMensalDetalhada.map((item) => {
+                      const valorKwh = Math.round(Number(item.geracaoKwh) || 0)
+                      const pct = Math.max(
+                        8,
+                        Math.min(100, Math.round((valorKwh / maxGeracao) * 100)),
+                      )
+                      const isPico = valorKwh >= maxGeracao * 0.98 && valorKwh > 0
+
+                      return (
+                        <div
+                          key={item.mesIndex}
+                          className="flex-1 flex flex-col items-center h-full justify-end group min-w-0"
+                          title={`${item.mesNome}: ${valorKwh.toLocaleString('pt-BR')} kWh${isPico ? ' (Mês de Pico)' : ''}`}
+                        >
+                          {/* Badge Pico discreto */}
+                          <div className="h-4 flex items-center justify-center mb-1">
+                            {isPico ? (
+                              <span className="text-[9px] font-black uppercase tracking-wider text-emerald-900 bg-emerald-100 border border-emerald-300 px-1 py-0.2 rounded shadow-2xs">
+                                Pico
+                              </span>
+                            ) : null}
+                          </div>
+
+                          {/* Valor em kWh acima da barra */}
+                          <span
+                            className={`text-[9px] sm:text-[10px] font-mono leading-none mb-1 text-center truncate max-w-full ${
+                              isPico
+                                ? 'font-black text-emerald-900'
+                                : 'font-semibold text-gray-600 group-hover:text-emerald-700'
+                            }`}
+                          >
+                            {valorKwh.toLocaleString('pt-BR')}
+                          </span>
+
+                          {/* Barra do gráfico com cantos arredondados no topo */}
+                          <div className="w-full h-28 flex items-end justify-center">
+                            <div
+                              style={{ height: `${pct}%` }}
+                              className={`w-full max-w-[36px] rounded-t-md transition-all duration-300 ${
+                                isPico
+                                  ? 'bg-emerald-800 group-hover:bg-emerald-900 shadow-xs'
+                                  : 'bg-emerald-300 group-hover:bg-emerald-400'
+                              }`}
+                            />
+                          </div>
+
+                          {/* Mês abreviado abaixo da barra */}
+                          <span
+                            className={`text-[10px] sm:text-xs mt-2 text-center uppercase tracking-wide truncate max-w-full ${
+                              isPico ? 'font-black text-emerald-900' : 'font-medium text-gray-600'
+                            }`}
+                          >
+                            {item.mesNome}
+                          </span>
+                        </div>
+                      )
+                    })}
                   </div>
                 </div>
 
-                {/* Tabela Responsiva Desktop & Tablet */}
-                <div className="overflow-x-auto -mx-2 sm:mx-0">
-                  <div className="inline-block min-w-full align-middle">
-                    <table className="min-w-full divide-y divide-gray-200 text-xs text-left">
-                      <thead>
-                        <tr className="bg-emerald-900 text-white font-bold uppercase tracking-wider text-[10px]">
-                          <th scope="col" className="py-2.5 px-3 rounded-l-lg">
-                            Mês
-                          </th>
-                          <th scope="col" className="py-2.5 px-3 text-center">
-                            Dias
-                          </th>
-                          <th scope="col" className="py-2.5 px-3 text-right">
-                            Irradiação (HSP)
-                          </th>
-                          <th scope="col" className="py-2.5 px-3 text-right">
-                            Fator Sazonal
-                          </th>
-                          <th scope="col" className="py-2.5 px-3 text-right rounded-r-lg">
-                            Geração Estimada
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-100 bg-white">
-                        {geracaoMensalDetalhada.map((item) => {
-                          const isDestaque =
-                            item.geracaoKwh >= maxGeracao * 0.95 && item.geracaoKwh > 0
-                          return (
-                            <tr
-                              key={item.mesIndex}
-                              className={`transition-colors ${
-                                isDestaque
-                                  ? 'bg-emerald-50/70 font-semibold'
-                                  : 'hover:bg-gray-50/70'
-                              }`}
-                            >
-                              <td className="py-2 px-3 text-gray-900 font-bold flex items-center gap-1.5">
-                                <span>{item.mesNome}</span>
-                                {isDestaque && (
-                                  <span className="text-[9px] font-bold uppercase tracking-wider text-emerald-800 bg-emerald-100 px-1.5 py-0.2 rounded border border-emerald-300">
-                                    Pico
-                                  </span>
-                                )}
-                              </td>
-                              <td className="py-2 px-3 text-center text-gray-600">{item.dias}</td>
-                              <td className="py-2 px-3 text-right text-gray-600 font-mono">
-                                {(Number(item.irradiacaoHSP) || 0).toFixed(2)} kWh/m²
-                              </td>
-                              <td className="py-2 px-3 text-right text-gray-600 font-mono">
-                                {(Number(item.fatorSazonal) || 1).toFixed(2).replace('.', ',')}x
-                              </td>
-                              <td className="py-2 px-3 text-right font-extrabold text-emerald-800 font-mono text-[13px]">
-                                {Math.round(Number(item.geracaoKwh) || 0).toLocaleString('pt-BR')}{' '}
-                                <span className="text-[10px] font-semibold text-gray-500">kWh</span>
-                              </td>
-                            </tr>
-                          )
-                        })}
-                      </tbody>
-                      <tfoot>
-                        <tr className="bg-emerald-50/90 border-t-2 border-emerald-300 text-gray-900 font-bold">
-                          <td className="py-2.5 px-3 font-black text-emerald-950 uppercase text-[11px] rounded-l-lg">
-                            Totais Anuais
-                          </td>
-                          <td className="py-2.5 px-3 text-center text-gray-700">365 dias</td>
-                          <td className="py-2.5 px-3 text-right text-gray-700 font-mono">
-                            {(
-                              geracaoMensalDetalhada.reduce(
-                                (acc, m) => acc + (Number(m.irradiacaoHSP) || 0),
-                                0,
-                              ) / geracaoMensalDetalhada.length
-                            ).toFixed(2)}{' '}
-                            <span className="text-[10px] text-gray-500">méd.</span>
-                          </td>
-                          <td className="py-2.5 px-3 text-right text-gray-700 font-mono">
-                            Média: {mediaMensal.toLocaleString('pt-BR')} kWh/mês
-                          </td>
-                          <td className="py-2.5 px-3 text-right font-black text-emerald-800 font-mono text-sm rounded-r-lg">
-                            {Math.round(totalKwh).toLocaleString('pt-BR')} kWh/ano
-                          </td>
-                        </tr>
-                      </tfoot>
-                    </table>
-                  </div>
+                {/* Rodapé: UMA ÚNICA LINHA com Total Anual e Média Mensal */}
+                <div className="pt-3 border-t border-gray-100 flex items-center justify-center text-center">
+                  <p className="text-xs sm:text-sm text-gray-700">
+                    <span className="font-semibold text-gray-500">Total anual: </span>
+                    <strong className="font-black text-emerald-800">
+                      {Math.round(totalKwh).toLocaleString('pt-BR')} kWh
+                    </strong>
+                    <span className="mx-2 text-gray-300">·</span>
+                    <span className="font-semibold text-gray-500">Média mensal: </span>
+                    <strong className="font-bold text-gray-900">
+                      {mediaMensal.toLocaleString('pt-BR')} kWh
+                    </strong>
+                  </p>
                 </div>
               </div>
             )
           })()}
-
         {/* ========================================================================= */}
         {/* FAIXA DE MONITORAMENTO 24/7 INCLUSO                                       */}
         {/* ========================================================================= */}

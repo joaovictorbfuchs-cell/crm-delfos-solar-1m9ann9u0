@@ -306,13 +306,15 @@ describe('Proposta Técnico-Comercial Generator (5 Seções Oficiais)', () => {
     expect(htmlSolar).not.toContain('Como Funciona o Sistema Solar On-Grid')
     expect(htmlSolar).not.toContain('Monitoramento do Sistema Solar em Tempo Real')
 
-    // Confirma a seção Geração Mensal Detalhada (Janeiro a Dezembro — Erechim/RS)
-    expect(htmlSolar).toContain('Geração Mensal Detalhada (Janeiro a Dezembro — Erechim/RS)')
-    expect(htmlSolar).toContain('Total Anual')
-    expect(htmlSolar).toContain('Totais Anuais')
+    // Confirma o gráfico de Geração Mensal Prevista (Janeiro a Dezembro — Erechim/RS)
+    expect(htmlSolar).toContain('Geração Mensal Prevista (Janeiro a Dezembro — Erechim/RS)')
+    expect(htmlSolar).toContain('Total anual:')
+    expect(htmlSolar).toContain('Média mensal:')
+    expect(htmlSolar).not.toContain('Irradiação (HSP)')
+    expect(htmlSolar).not.toContain('Fator Sazonal')
   })
 
-  it('omite a seção de geração mensal detalhada no HTML quando geracaoMensal for nulo/vazio (fallback)', () => {
+  it('omite a seção de geração mensal no HTML quando geracaoMensal for nulo/vazio (fallback)', () => {
     const dadosSemGeracao: PropostaTecnicoComercialDados = {
       ...dadosExemplo,
       producao: {
@@ -322,7 +324,7 @@ describe('Proposta Técnico-Comercial Generator (5 Seções Oficiais)', () => {
     }
 
     const html = gerarHTMLPropostaTecnicoComercial(dadosSemGeracao)
-    expect(html).not.toContain('Geração Mensal Detalhada (Janeiro a Dezembro — Erechim/RS)')
+    expect(html).not.toContain('Geração Mensal Prevista')
   })
 
   it('exibe card do meio dinâmico com período de payback arredondado para cima (22 meses -> Gasto em 2 Anos)', () => {
