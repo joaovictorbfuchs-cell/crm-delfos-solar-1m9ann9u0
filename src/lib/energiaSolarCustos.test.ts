@@ -8,30 +8,64 @@ import {
 } from './energiaSolar'
 
 describe('calcularCustosAba - Formação de Preço Delfos Solar', () => {
-  it('valida exatamente a fixture real da planilha do cliente (Opção 2 com piso de comissão R$ 600, indicação padrão 0%)', () => {
-    // Base de custos diretos: R$ 8.450,00 (materiais/equipamentos R$ 6.431,01 + demais itens R$ 2.018,99)
-    // Impostos (opção 2): R$ 830,99 = 16% × (11.624,70 − 6.431,01)
-    // Administração: R$ 1.743,70 = 15% × 11.624,70
-    // Comissão: R$ 600,00 (piso)
-    // Indicação: 0% por padrão (ou percentualIndicacaoAuto: 0)
-    // Denominador: 1 - 0.16 - 0.15 - 0 = 0.69
-    // Numerador: 8450 - 0.16 * 6431.01 + 600 = 8021.0384
-    // valorTotal: 8021.0384 / 0.69 = 11624.6933... -> R$ 11.624,70
+  it('validação obrigatória: fixture do usuário validada contra Excel (Opção 2, indicação 0%, piso R$ 600)', () => {
+    // Base = 9.050 (Materiais/Equip. 6.200 + Mat. extras 800 + Mão de obra 1.200 + Risco 500 + Terceirização 200 + Marketing 150)
+    // Base_sem_materiais = 9.050 - 6.200 = 2.850
+    // Total esperado = R$ 12.351,09
+    // Impostos esperado = R$ 848,43
+    // Administração esperado = R$ 1.852,66
+    // Comissão esperado = R$ 600,00
+    // Indicação esperado = R$ 0,00
+    const res = calcularCustosAba({
+      materiaisEquipamentos: 6200,
+      materiaisExtras: 800,
+      maoDeObra: 1200,
+      riscoEngenharia: 500,
+      terceirizacao: 200,
+      marketingCombustivel: 150,
+      freteGuincho: 0,
+      subestacao: 0,
+      opcaoImposto: 2,
+      percentualIndicacaoAuto: 0,
+    })
+
+    expect(res.valorTotal).toBe(12351.09)
+    expect(res.impostos).toBe(848.43)
+    expect(res.administracao).toBe(1852.66)
+    expect(res.comissaoComercial).toBe(600)
+    expect(res.indicacao).toBe(0)
+    expect(res.comissaoUsouPisoMinimo).toBe(true)
+
+    // Invariante de soma: Base + Impostos + Admin + Comissão + Indicação == Total
+    const soma = 9050 + res.impostos + res.administracao + res.comissaoComercial + res.indicacao
+    expect(Math.abs(soma - res.valorTotal)).toBeLessThanOrEqual(0.01)
+  })
+
+  it('valida fixture da planilha base R$ 8.450 com a nova regra da Opção 2', () => {
+    // Base de custos diretos: R$ 8.450,00 (materiais/equipamentos R$ 6.431,01 + mão de obra R$ 1.618,99 + risco R$ 400)
+    // Base_sem_materiais = 8.450 - 6.431,01 = 2.018,99
+    // Nova regra Opção 2 com piso R$ 600 e indicação 0%:
+    // Denominador = 1 - 1.16 * 0.15 = 0.826
+    // Numerador = 8450 + 0.16 * 2018.99 + 1.16 * 600 = 8450 + 323.0384 + 696 = 9469.0384
+    // valorTotal = 9469.0384 / 0.826 = 11463.7268... -> R$ 11.463,73
+    // administracao = 15% * 11463.7268... = 1719.559 -> R$ 1.719,56
+    // comissao = R$ 600,00 (piso)
+    // indicacao = R$ 0,00
+    // impostos = 16% * (2018.99 + 1719.559 + 600) = 16% * 4338.549 = 694.1678... -> R$ 694,17
     const resPlanilha = calcularCustosAba({
       materiaisEquipamentos: 6431.01,
       maoDeObra: 1618.99,
-      riscoEngenharia: 400, // 6431.01 + 1618.99 + 400 = 8450.00
+      riscoEngenharia: 400,
       opcaoImposto: 2,
       desconto: 0,
-      // percentualIndicacaoAuto omitido deve assumir 0 por padrão
     })
 
     expect(resPlanilha.percentualIndicacaoAuto).toBe(0)
     expect(resPlanilha.indicacao).toBe(0)
-    expect(resPlanilha.impostos).toBe(830.99)
-    expect(resPlanilha.administracao).toBe(1743.7)
     expect(resPlanilha.comissaoComercial).toBe(600)
-    expect(resPlanilha.valorTotal).toBe(11624.7)
+    expect(resPlanilha.administracao).toBe(1719.56)
+    expect(resPlanilha.impostos).toBe(694.17)
+    expect(resPlanilha.valorTotal).toBe(11463.73)
 
     const somaItens =
       8450 +
@@ -39,18 +73,19 @@ describe('calcularCustosAba - Formação de Preço Delfos Solar', () => {
       resPlanilha.administracao +
       resPlanilha.comissaoComercial +
       resPlanilha.indicacao
-    expect(Math.abs(somaItens - resPlanilha.valorTotal)).toBeLessThanOrEqual(0.02)
+    expect(Math.abs(somaItens - resPlanilha.valorTotal)).toBeLessThanOrEqual(0.01)
   })
 
-  it('permite configurar indicação para 1% (0.01) e recalcula o denominador com precisão', () => {
+  it('permite configurar indicação para 1% (0.01) e recalcula com precisão na nova regra Opção 2', () => {
     // Com indicação 1% (0.01):
-    // Denominador (com piso e 1% indicação): 1 - 0.16 - 0.15 - 0.01 = 0.68
-    // Numerador: 8450 - 0.16 * 6431.01 + 600 = 8021.0384
-    // valorTotal = 8021.0384 / 0.68 = 11795.64
-    // Impostos = 16% * (11795.64 - 6431.01) = 858.34
-    // Administração = 15% * 11795.64 = 1769.35
-    // Comissão = 600.00
-    // Indicação = 1% * 11795.64 = 117.96
+    // Denominador = 1 - 1.16 * (0.15 + 0.01) = 1 - 1.16 * 0.16 = 1 - 0.1856 = 0.8144
+    // Numerador = 8450 + 0.16 * 2018.99 + 1.16 * 600 = 9469.0384
+    // valorTotal = 9469.0384 / 0.8144 = 11627.0117... -> R$ 11.627,01
+    // administracao = 15% * 11627.0117... = 1744.05
+    // comissao = R$ 600,00
+    // indicacao = 1% * 11627.0117... = 116.27
+    // base_imposto = 2018.99 + 1744.0517 + 600 + 116.2701 = 4479.3118
+    // impostos = 16% * 4479.3118 = 716.6898... -> R$ 716.69
     const res1Pct = calcularCustosAba({
       materiaisEquipamentos: 6431.01,
       maoDeObra: 1618.99,
@@ -61,11 +96,11 @@ describe('calcularCustosAba - Formação de Preço Delfos Solar', () => {
     })
 
     expect(res1Pct.percentualIndicacaoAuto).toBe(0.01)
-    expect(res1Pct.valorTotal).toBe(11795.64)
-    expect(res1Pct.impostos).toBe(858.34)
-    expect(res1Pct.administracao).toBe(1769.35)
+    expect(res1Pct.valorTotal).toBe(11627.01)
+    expect(res1Pct.administracao).toBe(1744.05)
     expect(res1Pct.comissaoComercial).toBe(600)
-    expect(res1Pct.indicacao).toBe(117.96)
+    expect(res1Pct.indicacao).toBe(116.27)
+    expect(res1Pct.impostos).toBe(716.69)
 
     const somaItens =
       8450 +
@@ -73,7 +108,7 @@ describe('calcularCustosAba - Formação de Preço Delfos Solar', () => {
       res1Pct.administracao +
       res1Pct.comissaoComercial +
       res1Pct.indicacao
-    expect(Math.abs(somaItens - res1Pct.valorTotal)).toBeLessThanOrEqual(0.02)
+    expect(Math.abs(somaItens - res1Pct.valorTotal)).toBeLessThanOrEqual(0.01)
   })
 
   it('invariante: total do projeto é exatamente a soma dos itens na Opção 1 (9,23% sobre total)', () => {
@@ -114,22 +149,25 @@ describe('calcularCustosAba - Formação de Preço Delfos Solar', () => {
       percentualIndicacaoAuto: 0.01,
     })
 
-    // subtotalBase = 18400, materiais = 15000
-    // Testar se ultrapassa o piso de 600:
-    // Se 3%: total = (18400 - 0.16 * 15000) / 0.65 = 16000 / 0.65 = 24615.38
-    // 3% de 24615.38 = 738.46 > 600 => ultrapassa o piso!
+    // subtotalBase = 18400, materiais = 15000, baseSemMateriais = 3400
+    // Denominador (com comissão 3%): 1 - 1.16 * (0.15 + 0.01 + 0.03) = 1 - 1.16 * 0.19 = 1 - 0.2204 = 0.7796
+    // Numerador = 18400 + 0.16 * 3400 = 18400 + 544 = 18944
+    // valorTotal = 18944 / 0.7796 ≈ 24300.08
+    // 3% de 24300.08 = 729.00 > 600 => ultrapassa o piso!
     expect(res.comissaoUsouPisoMinimo).toBe(false)
     expect(res.comissaoComercial).toBeGreaterThan(600)
-
-    // Impostos = 16% * (Total - Materiais)
-    const expectedImpostos = Math.round((res.valorTotal - 15000) * 0.16 * 100) / 100
-    expect(res.impostos).toBe(expectedImpostos)
+    expect(res.comissaoComercial).toBe(Math.round(res.valorTotal * 0.03 * 100) / 100)
 
     // Administração = 15% do total
     expect(res.administracao).toBe(Math.round(res.valorTotal * 0.15 * 100) / 100)
 
     // Indicação = 1% do total
     expect(res.indicacao).toBe(Math.round(res.valorTotal * 0.01 * 100) / 100)
+
+    // Impostos = 16% * (Base_sem_materiais + Administracao + Comissao + Indicacao)
+    const baseCalculoImpostos = 3400 + res.administracao + res.comissaoComercial + res.indicacao
+    const expectedImpostos = Math.round(0.16 * baseCalculoImpostos * 100) / 100
+    expect(res.impostos).toBe(expectedImpostos)
 
     // Invariante de soma:
     const soma = 18400 + res.impostos + res.administracao + res.comissaoComercial + res.indicacao
@@ -214,7 +252,7 @@ describe('calcularCustosAba - Formação de Preço Delfos Solar', () => {
     expect(res1Pct.impostos).toBe(resBase.impostos)
   })
 
-  it('separa materiaisEquipamentos e materiaisExtras e deduz materiaisEquipamentos na Opção 2', () => {
+  it('separa materiaisEquipamentos e materiaisExtras e deduz apenas materiaisEquipamentos na Opção 2', () => {
     const res = calcularCustosAba({
       materiaisEquipamentos: 10000,
       materiaisExtras: 2000,
@@ -223,8 +261,11 @@ describe('calcularCustosAba - Formação de Preço Delfos Solar', () => {
       opcaoImposto: 2,
     })
 
-    // Imposto Opção 2: 16% sobre (Total - materiaisEquipamentos)
-    const impostoEsperado = Math.round((res.valorTotal - 10000) * 0.16 * 100) / 100
+    // subtotalBase = 10000 + 2000 + 1500 + 400 = 13900
+    // baseSemMateriais = 13900 - 10000 = 3900 (materiaisExtras entra na base de impostos)
+    // Impostos = 16% * (baseSemMateriais + administracao + comissao + indicacao)
+    const baseCalculoImpostos = 3900 + res.administracao + res.comissaoComercial + res.indicacao
+    const impostoEsperado = Math.round(0.16 * baseCalculoImpostos * 100) / 100
     expect(res.impostos).toBe(impostoEsperado)
 
     const soma = 13900 + res.impostos + res.administracao + res.comissaoComercial + res.indicacao
@@ -268,8 +309,14 @@ describe('calcularCustosAba - Formação de Preço Delfos Solar', () => {
     expect(resManualAdminOp2.manualAdministracao).toBe(true)
     expect(resManualAdminOp2.administracao).toBe(3000)
 
-    // Imposto Opção 2 = 16% * (Total - Materiais)
-    const impostoOp2Esperado = Math.round((resManualAdminOp2.valorTotal - 15000) * 0.16 * 100) / 100
+    // Imposto Opção 2 = 16% * (Base_sem_materiais + admin + comissao + indicacao)
+    // Base_sem_materiais = (15000 + 2500 + 400) - 15000 = 2900
+    const baseCalculoImpostosOp2 =
+      2900 +
+      resManualAdminOp2.administracao +
+      resManualAdminOp2.comissaoComercial +
+      resManualAdminOp2.indicacao
+    const impostoOp2Esperado = Math.round(0.16 * baseCalculoImpostosOp2 * 100) / 100
     expect(resManualAdminOp2.impostos).toBe(impostoOp2Esperado)
 
     const somaOp2 =
@@ -324,7 +371,7 @@ describe('calcularCustosAba - Formação de Preço Delfos Solar', () => {
     expect(Math.abs(somaAbaixo - resComissaoAbaixoPiso.valorTotal)).toBeLessThanOrEqual(0.02)
   })
 
-  it('permite edição manual de Indicação e mantém a invariante de soma', () => {
+  it('permite edição manual de Indicação e mantém a invariante de soma na Opção 2', () => {
     // Modo manual de Indicação: R$ 800
     const resManualInd = calcularCustosAba({
       materiaisEquipamentos: 8000,
@@ -338,6 +385,12 @@ describe('calcularCustosAba - Formação de Preço Delfos Solar', () => {
     expect(resManualInd.manualIndicacao).toBe(true)
     expect(resManualInd.indicacao).toBe(800)
     expect(resManualInd.indicacaoSemDesconto).toBe(800)
+
+    // Base sem materiais = 1600
+    const baseCalculoImpostos =
+      1600 + resManualInd.administracao + resManualInd.comissaoComercial + resManualInd.indicacao
+    const impostoEsperado = Math.round(0.16 * baseCalculoImpostos * 100) / 100
+    expect(resManualInd.impostos).toBe(impostoEsperado)
 
     const soma =
       9600 +

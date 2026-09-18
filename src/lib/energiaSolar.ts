@@ -357,7 +357,9 @@ export function somarCustosSolar(custos: Partial<DadosCustosSolar> = {}): number
  * 4. Indicação = 1% do total do projeto
  * 5. Impostos:
  *    - Opção 1: 9,23% sobre o total do projeto
- *    - Opção 2: 16% sobre (total do projeto - materiais/equipamentos)
+ *    - Opção 2: 16% × (Base_sem_materiais + Administração + Comissão + Indicação),
+ *      onde Base_sem_materiais = Base total dos custos diretos − custo de Materiais/Equipamentos.
+ *      (os impostos NÃO entram na sua própria base).
  * 6. Risco de engenharia = padrão R$ 400 (editável)
  * Total do projeto = Base + Impostos + Administração + Comissão + Indicação (soma exata)
  */
@@ -454,15 +456,8 @@ export function calcularCustosAba(params: ParametrosCalculoCustosAba): Resultado
   const fAdmin = manualAdmin ? 0 : 0.15
   const fInd = manualInd ? 0 : pIndAuto
 
-  // Alíquota de imposto sobre Total (tImposto) e termo independente do imposto (constImposto)
-  // Opção 1: Imposto = 0.0923 * Total
-  // Opção 2: Imposto = 0.16 * (Total - Mat) = 0.16 * Total - 0.16 * Mat
-  const tImposto = params.opcaoImposto === 1 ? 0.0923 : 0.16
-  const constImposto = params.opcaoImposto === 1 ? 0 : -0.16 * materiaisDeduziveisImposto
-
-  // Termo fixo que entra no numerador da equação do Total:
-  // Base direta + constImposto + valores manuais informados
-  const termoFixoBase = subtotalBase + constImposto + valManualAdmin + valManualInd
+  // Base de custos diretos sem materiais dedutíveis
+  const baseSemMateriais = Math.max(0, subtotalBase - materiaisDeduziveisImposto)
 
   let valorTotal = 0
   let impostos = 0
@@ -473,41 +468,84 @@ export function calcularCustosAba(params: ParametrosCalculoCustosAba): Resultado
   let indicacaoSemDesconto = 0
 
   if (subtotalBase > 0) {
-    if (manualComiss) {
-      // Comissão é valor manual fixo
-      const termoFixoTotal = termoFixoBase + valManualComiss
-      const denominador = 1 - tImposto - fAdmin - fInd
-      valorTotal = denominador > 0 ? termoFixoTotal / denominador : termoFixoTotal
-      comissaoSemDesconto = valManualComiss
-      comissaoPura3Pct = valorTotal * 0.03
-      comissaoUsouPisoMinimo = false
-    } else {
-      // Comissão é automática: pode ser piso R$ 600 ou 3% do Total
-      // Hipótese 1: Comissão = R$ 600 (piso)
-      const termoFixoPiso = termoFixoBase + 600
-      const denPiso = 1 - tImposto - fAdmin - fInd
-      const totalComPiso = denPiso > 0 ? termoFixoPiso / denPiso : termoFixoPiso
-      const comissao3Pct = totalComPiso * 0.03
-
-      if (comissao3Pct <= 600) {
-        valorTotal = totalComPiso
-        comissaoSemDesconto = 600
-        comissaoPura3Pct = comissao3Pct
-        comissaoUsouPisoMinimo = true
-      } else {
-        // Hipótese 2: Comissão = 3% sobre Total
-        const den3Pct = 1 - tImposto - fAdmin - 0.03 - fInd
-        valorTotal = den3Pct > 0 ? termoFixoBase / den3Pct : termoFixoBase
-        comissaoPura3Pct = valorTotal * 0.03
-        comissaoSemDesconto = comissaoPura3Pct
-        comissaoUsouPisoMinimo = false
-      }
-    }
-
     if (params.opcaoImposto === 1) {
+      // Opção 1: Impostos = 9,23% sobre o Total do projeto
+      const tImposto = 0.0923
+      const termoFixoBase = subtotalBase + valManualAdmin + valManualInd
+
+      if (manualComiss) {
+        const termoFixoTotal = termoFixoBase + valManualComiss
+        const denominador = 1 - tImposto - fAdmin - fInd
+        valorTotal = denominador > 0 ? termoFixoTotal / denominador : termoFixoTotal
+        comissaoSemDesconto = valManualComiss
+        comissaoPura3Pct = valorTotal * 0.03
+        comissaoUsouPisoMinimo = false
+      } else {
+        // Hipótese 1: Comissão = R$ 600 (piso)
+        const termoFixoPiso = termoFixoBase + 600
+        const denPiso = 1 - tImposto - fAdmin - fInd
+        const totalComPiso = denPiso > 0 ? termoFixoPiso / denPiso : termoFixoPiso
+        const comissao3Pct = totalComPiso * 0.03
+
+        if (comissao3Pct <= 600) {
+          valorTotal = totalComPiso
+          comissaoSemDesconto = 600
+          comissaoPura3Pct = comissao3Pct
+          comissaoUsouPisoMinimo = true
+        } else {
+          // Hipótese 2: Comissão = 3% sobre Total
+          const den3Pct = 1 - tImposto - fAdmin - 0.03 - fInd
+          valorTotal = den3Pct > 0 ? termoFixoBase / den3Pct : termoFixoBase
+          comissaoPura3Pct = valorTotal * 0.03
+          comissaoSemDesconto = comissaoPura3Pct
+          comissaoUsouPisoMinimo = false
+        }
+      }
+
       impostos = valorTotal * 0.0923
     } else {
-      impostos = Math.max(0, (valorTotal - materiaisDeduziveisImposto) * 0.16)
+      // Opção 2: Impostos NÃO entram na própria base de cálculo:
+      // impostos = 0.16 * (Base_sem_materiais + Administração + Comissão + Indicação)
+      // Total = subtotalBase + impostos + Administração + Comissão + Indicação
+      //       = subtotalBase + 1.16 * (Administração + Comissão + Indicação) + 0.16 * Base_sem_materiais
+      const kFixoImposto = 0.16 * baseSemMateriais
+      const kManual = 1.16 * (valManualAdmin + valManualInd)
+      const termoFixoBaseOp2 = subtotalBase + kFixoImposto + kManual
+      const somaFAuto = fAdmin + fInd
+
+      if (manualComiss) {
+        const termoFixoTotal = termoFixoBaseOp2 + 1.16 * valManualComiss
+        const denominador = 1 - 1.16 * somaFAuto
+        valorTotal = denominador > 0 ? termoFixoTotal / denominador : termoFixoTotal
+        comissaoSemDesconto = valManualComiss
+        comissaoPura3Pct = valorTotal * 0.03
+        comissaoUsouPisoMinimo = false
+      } else {
+        // Hipótese 1: Comissão = R$ 600 (piso fixo)
+        const termoFixoPiso = termoFixoBaseOp2 + 1.16 * 600
+        const denPiso = 1 - 1.16 * somaFAuto
+        const totalComPiso = denPiso > 0 ? termoFixoPiso / denPiso : termoFixoPiso
+        const comissao3Pct = totalComPiso * 0.03
+
+        if (comissao3Pct <= 600) {
+          valorTotal = totalComPiso
+          comissaoSemDesconto = 600
+          comissaoPura3Pct = comissao3Pct
+          comissaoUsouPisoMinimo = true
+        } else {
+          // Hipótese 2: Comissão = 3% sobre Total
+          const den3Pct = 1 - 1.16 * (somaFAuto + 0.03)
+          valorTotal = den3Pct > 0 ? termoFixoBaseOp2 / den3Pct : termoFixoBaseOp2
+          comissaoPura3Pct = valorTotal * 0.03
+          comissaoSemDesconto = comissaoPura3Pct
+          comissaoUsouPisoMinimo = false
+        }
+      }
+
+      const adminCalc = manualAdmin ? valManualAdmin : valorTotal * 0.15
+      const comissCalc = comissaoSemDesconto
+      const indCalc = manualInd ? valManualInd : valorTotal * pIndAuto
+      impostos = Math.max(0, 0.16 * (baseSemMateriais + adminCalc + comissCalc + indCalc))
     }
 
     administracaoSemDesconto = manualAdmin ? valManualAdmin : valorTotal * 0.15

@@ -2628,7 +2628,7 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                           Opção 2 (16% s/ valores exceto materiais)
                         </span>
                       </div>
-                      <span className="text-[10px] text-gray-500">(Total − Mat) × 16%</span>
+                      <span className="text-[10px] text-gray-500">16% s/ base sem mat.</span>
                     </label>
                   </div>
                 </div>
