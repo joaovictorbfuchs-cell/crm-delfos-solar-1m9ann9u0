@@ -55,6 +55,8 @@ export interface SecaoInvestimentoPagamentoProps {
   paybackTexto?: string | null
   /** Se deve exibir o card de payback integrado ao final da seção (default: true) */
   exibirPaybackAbaixo?: boolean
+  /** Custo de postergação mensal estimado (R$/mês que o cliente perde a cada mês sem energia solar) */
+  custoPostergacao?: number | null
   className?: string
 }
 
@@ -103,6 +105,7 @@ export const SecaoInvestimentoPagamento: React.FC<SecaoInvestimentoPagamentoProp
   paybackMeses,
   paybackTexto,
   exibirPaybackAbaixo = true,
+  custoPostergacao,
   className = '',
 }) => {
   const totalFinal =
@@ -218,6 +221,12 @@ export const SecaoInvestimentoPagamento: React.FC<SecaoInvestimentoPagamentoProp
 
   // Economia mensal líquida à vista (Conta s/ solar - Conta c/ solar)
   const economiaMensalAVista = Math.max(0, contaAtualFinal - faturaComSolarFinal)
+
+  // Custo de postergação mensal (fallback: Math.max(0, contaAtualFinal - faturaComSolarFinal))
+  const custoPostergacaoFinal =
+    custoPostergacao !== undefined && custoPostergacao !== null && custoPostergacao > 0
+      ? custoPostergacao
+      : Math.max(0, contaAtualFinal - faturaComSolarFinal)
 
   // Cálculo e formatação do Payback (anos, meses e mês/ano de quitação)
   const infoPayback = React.useMemo(() => {
@@ -562,6 +571,42 @@ export const SecaoInvestimentoPagamento: React.FC<SecaoInvestimentoPagamentoProp
             </div>
           </div>
         )}
+
+        {/* ========================================================================= */}
+        {/* 3.1 CARD DE CUSTO DE POSTERGAÇÃO (DESTAQUE ÂMBAR / LARANJA)               */}
+        {/* ========================================================================= */}
+        <div className="bg-gradient-to-r from-amber-50 via-orange-50/60 to-amber-50/40 rounded-2xl p-4 sm:p-5 border-2 border-amber-300 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-xs">
+              <AlertTriangle className="w-5 h-5 text-white" />
+            </div>
+            <div className="space-y-0.5">
+              <div className="flex items-center gap-2">
+                <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-wider text-amber-900 bg-amber-200/80 px-2 py-0.5 rounded-md border border-amber-300">
+                  <AlertTriangle className="w-3 h-3 text-amber-800 shrink-0" />
+                  <span>Custo de Postergação</span>
+                </span>
+                <span className="text-xs font-bold text-amber-950">
+                  Cada mês sem energia solar custa dinheiro
+                </span>
+              </div>
+              <p className="text-xs text-gray-700 font-medium">
+                Adiar a decisão significa continuar pagando a conta cheia para a concessionária sem
+                construir patrimônio.
+              </p>
+            </div>
+          </div>
+
+          <div className="shrink-0 self-end sm:self-center bg-white border border-amber-300 px-4 py-2 rounded-xl text-right shadow-2xs">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-amber-800 block">
+              Valor perdido por mês
+            </span>
+            <span className="text-lg sm:text-xl font-black text-amber-700 tracking-tight">
+              {formatCurrency(custoPostergacaoFinal)}
+              <span className="text-xs font-bold text-gray-500">/mês</span>
+            </span>
+          </div>
+        </div>
 
         {/* ========================================================================= */}
         {/* 4. BADGE DE URGÊNCIA NA PARTE INFERIOR                                    */}

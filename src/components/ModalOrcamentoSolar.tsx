@@ -60,7 +60,6 @@ import { ModalGerarPropostaTecnicoComercial } from '@/components/ModalGerarPropo
 import { SecaoCapaProposta } from '@/components/SecaoCapaProposta'
 import { SecaoApresentacaoEmpresa } from '@/components/SecaoApresentacaoEmpresa'
 import { SecaoCustoInercia } from '@/components/SecaoCustoInercia'
-import { SecaoProjecaoEconomia } from '@/components/SecaoProjecaoEconomia'
 import { SecaoProjecao25Anos } from '@/components/SecaoProjecao25Anos'
 import { SecaoSeuSistemaFotovoltaico } from '@/components/SecaoSeuSistemaFotovoltaico'
 import { SecaoInvestimentoPagamento } from '@/components/SecaoInvestimentoPagamento'
@@ -3219,30 +3218,6 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                   />
                 </ErrorBoundary>
 
-                {/* Nova Seção: Projeção de Economia na Conta de Energia (2026-2051) */}
-                <ErrorBoundary
-                  compact
-                  errorMessage="Não foi possível exibir a Projeção de Economia"
-                >
-                  <SecaoProjecaoEconomia
-                    consumoAnualCadastradoKwh={
-                      calculos.geracaoAnualEstimadaKwh > 0
-                        ? Number(calculos.geracaoAnualEstimadaKwh.toFixed(2))
-                        : calculos.geracaoMediaMensalKwh > 0
-                          ? Number((calculos.geracaoMediaMensalKwh * 12).toFixed(2))
-                          : consumoKwhMes && consumoKwhMes > 0
-                            ? Number((consumoKwhMes * 12).toFixed(2))
-                            : 4807.08
-                    }
-                    tipoClienteInicial={tipoCliente === 'comercial' ? 'comercial' : 'residencial'}
-                    tarifaReferenciaInicial={tarifaKwh || 0.985}
-                    nomeCliente={clienteAtual?.nome || 'Cliente'}
-                    permitirAjusteConsumo={true}
-                    paybackMeses={calculos.paybackMeses}
-                    valorInvestimento={valorInvestimentoFinal}
-                  />
-                </ErrorBoundary>
-
                 {/* Nova Seção: Projeção de Economia em 25 Anos (Curva comparativa, Payback, ROI e Tabela 2026-2051) */}
                 <ErrorBoundary compact errorMessage="Não foi possível exibir a Projeção em 25 Anos">
                   <SecaoProjecao25Anos
@@ -3270,6 +3245,7 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                   errorMessage="Não foi possível exibir as Condições de Pagamento"
                 >
                   <SecaoInvestimentoPagamento
+                    custoPostergacao={calculos.economia1Mes}
                     dataOrcamento={initialOrcamento?.data_orcamento}
                     valorInvestimento={valorInvestimentoFinal}
                     valorAVista={

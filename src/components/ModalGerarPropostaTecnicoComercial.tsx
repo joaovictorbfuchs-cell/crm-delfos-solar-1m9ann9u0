@@ -31,7 +31,6 @@ import {
 import { GeracaoMensalItem, DADOS_CLIMATICOS_ERECHIM } from '@/lib/energiaSolar'
 import { SecaoCapaProposta } from '@/components/SecaoCapaProposta'
 import { SecaoCustoInercia } from '@/components/SecaoCustoInercia'
-import { SecaoProjecaoEconomia } from '@/components/SecaoProjecaoEconomia'
 import { SecaoProjecao25Anos } from '@/components/SecaoProjecao25Anos'
 import { SecaoSeuSistemaFotovoltaico } from '@/components/SecaoSeuSistemaFotovoltaico'
 import { SecaoInvestimentoPagamento } from '@/components/SecaoInvestimentoPagamento'
@@ -1061,31 +1060,6 @@ export function ModalGerarPropostaTecnicoComercial({
                 />
               </ErrorBoundary>
 
-              {/* Card 7: Projeção de Economia na Conta de Energia (2026-2051) */}
-              <ErrorBoundary compact errorMessage="Não foi possível exibir a Projeção de Economia">
-                <SecaoProjecaoEconomia
-                  consumoAnualCadastradoKwh={
-                    producaoAnualKwh && producaoAnualKwh > 0
-                      ? Number(producaoAnualKwh.toFixed(2))
-                      : producaoMensalKwh && producaoMensalKwh > 0
-                        ? Number((producaoMensalKwh * 12).toFixed(2))
-                        : orcamento.consumo_mensal_kwh && orcamento.consumo_mensal_kwh > 0
-                          ? Number((orcamento.consumo_mensal_kwh * 12).toFixed(2))
-                          : cliente?.consumo_kwh_mes && cliente.consumo_kwh_mes > 0
-                            ? Number((cliente.consumo_kwh_mes * 12).toFixed(2))
-                            : 4807.08
-                  }
-                  tipoClienteInicial={
-                    cliente?.tipo_cliente === 'comercial' ? 'comercial' : 'residencial'
-                  }
-                  nomeCliente={clienteNome}
-                  permitirAjusteConsumo={true}
-                  paybackMeses={orcamento.payback_meses}
-                  paybackTexto={paybackTexto}
-                  valorInvestimento={investimentoTotal}
-                />
-              </ErrorBoundary>
-
               {/* Nova Seção: Projeção de Economia em 25 Anos (Curva comparativa, Payback, ROI e Tabela 2026-2051) */}
               <ErrorBoundary compact errorMessage="Não foi possível exibir a Projeção em 25 Anos">
                 <SecaoProjecao25Anos
@@ -1145,16 +1119,16 @@ export function ModalGerarPropostaTecnicoComercial({
               </ErrorBoundary>
             </div>
           ) : (
-            /* ETAPA DE PREVIEW COM AS 6 SEÇÕES CANÔNICAS DA PROPOSTA */
+            /* ETAPA DE PREVIEW COM AS 5 SEÇÕES CANÔNICAS DA PROPOSTA */
             <div className="h-full flex flex-col p-3 sm:p-4">
               <div className="mb-2 flex items-center justify-between text-xs text-gray-500">
                 <span className="flex items-center gap-1.5 font-semibold text-emerald-800">
                   <Eye className="w-3.5 h-3.5 text-emerald-600" />
-                  Visualização oficial da proposta (6 seções: Capa, Situação Atual, Sistema,
-                  Projeção Conta, Projeção 25 Anos e Investimento)
+                  Visualização oficial da proposta (5 seções: Capa, Situação Atual, Sistema,
+                  Projeção 25 Anos e Investimento)
                 </span>
                 <span className="text-[11px] bg-emerald-100 text-emerald-800 font-bold px-2.5 py-0.5 rounded-full border border-emerald-300 shadow-2xs">
-                  Documento Completo (6 Seções)
+                  Documento Completo (5 Seções)
                 </span>
               </div>
               <div className="flex-1 bg-slate-200/80 rounded-xl shadow-inner border border-gray-300 overflow-hidden relative">
@@ -1191,7 +1165,7 @@ export function ModalGerarPropostaTecnicoComercial({
               </button>
             )}
             <span className="text-[11px] text-gray-500 hidden sm:inline font-medium">
-              Layout oficial em 6 seções • 100% alinhado à proposta comercial
+              Layout oficial em 5 seções • 100% alinhado à proposta comercial
             </span>
           </div>
 

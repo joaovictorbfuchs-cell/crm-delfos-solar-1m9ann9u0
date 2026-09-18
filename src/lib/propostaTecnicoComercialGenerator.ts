@@ -191,7 +191,7 @@ function renderInternalHeader(secaoTitulo: string, numeroSecao: number, idSuffix
         </div>
       </div>
       <div class="header-tag">
-        <span class="tag-secao">SEÇÃO ${numeroSecao} DE 6</span>
+        <span class="tag-secao">SEÇÃO ${numeroSecao} DE 5</span>
         <span class="tag-desc">${secaoTitulo}</span>
       </div>
     </header>
@@ -216,14 +216,13 @@ function renderInternalFooter(numeroSecao: number): string {
 
 /**
  * Gera o documento HTML oficial da Proposta Comercial Delfos Solar
- * com exatamente as 6 SEÇÕES NOVAS aprovadas pelo usuário:
+ * com exatamente as 5 SEÇÕES NOVAS aprovadas pelo usuário:
  *
  * 1. Capa (logo Delfos, cliente, potência kWp, geração, consultor, data)
  * 2. Situação Atual (consumo/custo mensal e anual + comparativo 1/5/25 anos + box vermelho + linha reflexiva)
  * 3. Seu Sistema Fotovoltaico (cards potência, geração, módulos, inversor, área, garantias 30a/10a/Delfos, faixa 24/7)
- * 4. Projeção de Economia na Conta de Energia (tabela 2026–2051, calculada via calcularProjecaoEconomia)
- * 5. Projeção de Economia em 25 Anos (curvas gasto sem solar vs investimento/economia + marcador payback + cards)
- * 6. Investimento e Condições de Pagamento (cards À vista / Cartão / Finan A / Finan B + comparativo conta + badge validade)
+ * 4. Projeção de Economia em 25 Anos (curvas gasto sem solar vs investimento/economia + marcador payback + cards)
+ * 5. Investimento e Condições de Pagamento (cards À vista / Cartão / Finan A / Finan B + comparativo conta + custo postergação + badge validade)
  */
 export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercialDados): string {
   const {
@@ -508,7 +507,7 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <style>
     /* ==========================================================
-       SETUP DE IMPRESSÃO A4 COM 6 SEÇÕES PRECISAS
+       SETUP DE IMPRESSÃO A4 COM 5 SEÇÕES PRECISAS
        ========================================================== */
     @page {
       size: A4 portrait;
@@ -1560,68 +1559,7 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
     }
 
     /* ==========================================================
-       SEÇÃO 4 — PROJEÇÃO DE ECONOMIA NA CONTA (ESPELHADO DO SecaoProjecaoEconomia.tsx)
-       ========================================================== */
-    .secao-header-card.projecao {
-      background: linear-gradient(135deg, #065F46 0%, #047857 50%, #15803D 100%);
-      color: #FFFFFF;
-      border-radius: 16px;
-      padding: 16px 20px;
-      margin-bottom: 12px;
-      box-shadow: 0 4px 10px rgba(6, 95, 70, 0.15);
-    }
-
-    .tabela-projecao-scroll {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 7.2px;
-      margin: 8px 0;
-      border: 1px solid #E5E7EB;
-      border-radius: 12px;
-      overflow: hidden;
-    }
-    .tabela-projecao-scroll thead {
-      background: #F3F4F6;
-      border-bottom: 2px solid #E5E7EB;
-    }
-    .tabela-projecao-scroll th {
-      padding: 4px 6px;
-      text-align: right;
-      font-size: 7.2px;
-      font-weight: 900;
-      color: #4B5563;
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
-    }
-    .tabela-projecao-scroll th:first-child,
-    .tabela-projecao-scroll td:first-child {
-      text-align: center;
-    }
-    .tabela-projecao-scroll td {
-      padding: 3.5px 6px;
-      border-top: 1px solid #F3F4F6;
-      text-align: right;
-      color: #374151;
-    }
-    .tabela-projecao-scroll tr:nth-child(even) td {
-      background: #F9FAFB;
-    }
-    .tabela-projecao-scroll tr.destaque-5anos td {
-      background: #FEF3C7;
-      font-weight: 800;
-    }
-    .tabela-projecao-scroll tr.destaque-25anos td {
-      background: #DCFCE7;
-      font-weight: 900;
-      color: #065F46;
-    }
-    .destaque-verde {
-      color: #166534;
-      font-weight: 800;
-    }
-
-    /* ==========================================================
-       SEÇÃO 5 — PROJEÇÃO EM 25 ANOS (ESPELHADO DO SecaoProjecao25Anos.tsx)
+       SEÇÃO 4 — PROJEÇÃO EM 25 ANOS (ESPELHADO DO SecaoProjecao25Anos.tsx)
        ========================================================== */
     .grafico-curvas-box {
       background: #FFFFFF;
@@ -1722,7 +1660,7 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
     }
 
     /* ==========================================================
-       SEÇÃO 6 — INVESTIMENTO & CONDIÇÕES DE PAGAMENTO (ESPELHADO DO SecaoInvestimentoPagamento.tsx)
+       SEÇÃO 5 — INVESTIMENTO & CONDIÇÕES DE PAGAMENTO (ESPELHADO DO SecaoInvestimentoPagamento.tsx)
        ========================================================== */
     .hero-investimento-banner {
       background: linear-gradient(135deg, #065F46 0%, #047857 40%, #0D9488 100%);
@@ -1982,8 +1920,8 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
   <!-- BARRA DE AÇÃO FORA DA IMPRESSÃO -->
   <div class="no-print-bar">
     <div class="no-print-bar-info">
-      <strong>Proposta Comercial Oficial Delfos Solar (6 Seções Exclusivas)</strong>
-      <span>Layout 100% alinhado à interface comercial • Capa • Inércia • Sistema • Projeção Conta • Projeção 25 Anos • Pagamento</span>
+      <strong>Proposta Comercial Oficial Delfos Solar (5 Seções Exclusivas)</strong>
+      <span>Layout 100% alinhado à interface comercial • Capa • Inércia • Sistema • Projeção 25 Anos • Pagamento</span>
     </div>
     <button class="btn-action-print" onclick="window.print()">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
@@ -1991,7 +1929,7 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
         <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
         <rect x="6" y="14" width="12" height="8"></rect>
       </svg>
-      Salvar em PDF / Imprimir (6 Seções)
+      Salvar em PDF / Imprimir (5 Seções)
     </button>
   </div>
 
@@ -2638,49 +2576,11 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
     </section>
 
     <!-- ========================================================
-         SEÇÃO 4 — PROJEÇÃO DE ECONOMIA NA CONTA DE ENERGIA (CARDS DE RESUMO + CARD PAYBACK)
+         SEÇÃO 4 — PROJEÇÃO DE ECONOMIA EM 25 ANOS (CURVAS & PAYBACK)
          ======================================================== -->
-    <section class="proposta-secao-page" id="secao-4-projecao-economia">
+    <section class="proposta-secao-page" id="secao-4-projecao-25anos">
       <div class="secao-body">
-        ${renderInternalHeader('Projeção de Economia na Conta de Energia', 4, 'projecao')}
-
-        <!-- CARDS GRANDES DE RESUMO DA PROJEÇÃO DE ECONOMIA (ESPELHADOS DE SecaoProjecaoEconomia.tsx) -->
-        <div class="cards-metricas-25anos" style="margin-top: 18px; margin-bottom: 14px;">
-          <!-- Card 1: Economia Total Acumulada em 25 Anos -->
-          <div class="card-metrica-destaque">
-            <div class="card-metrica-label" style="color: #065F46;">Economia Total em 25 Anos</div>
-            <div class="card-metrica-numero" style="color: #15803D;">${formatBRL(projecaoOficial.economiaTotal25Anos)}</div>
-            <div class="card-metrica-sub">Ciclo completo com degradação considerada</div>
-          </div>
-
-          <!-- Card 2: Gasto Total Sem Solar em 25 Anos -->
-          <div class="card-metrica-destaque" style="border-color: #FECACA; background: #FEF2F2;">
-            <div class="card-metrica-label" style="color: #991B1B;">Gasto Total Sem Solar (25 Anos)</div>
-            <div class="card-metrica-numero" style="color: #B91C1C;">${formatBRL(projecaoOficial.gastoTotalSemSolar25Anos)}</div>
-            <div class="card-metrica-sub">Desembolso acumulado pago à concessionária</div>
-          </div>
-
-          <!-- Card 3: Custo de Postergação (Valor Perdido / Mês) -->
-          <div class="card-metrica-destaque" style="border-color: #FDBA74; background: linear-gradient(135deg, #FFF7ED 0%, #FFEDD5 100%);">
-            <div class="card-metrica-label" style="color: #C2410C;">Custo de Postergação</div>
-            <div class="card-metrica-numero" style="color: #EA580C;">${formatBRL(projecaoOficial.valorPerdidoPorMesPostergacao)} <span style="font-size: 11px; font-weight: 700;">/mês</span></div>
-            <div class="card-metrica-sub">Perda financeira a cada mês sem energia solar</div>
-          </div>
-        </div>
-
-        <div style="font-size: 8px; color: #6B7280; text-align: right; margin-top: 12px;">
-          * Simulação calculada sobre consumo anual de <strong>${formatNumBR(consumoKwhAnoEstimado, 2)} kWh/ano</strong> e tarifa de referência com reajuste médio estimado.
-        </div>
-      </div>
-      ${renderInternalFooter(4)}
-    </section>
-
-    <!-- ========================================================
-         SEÇÃO 5 — PROJEÇÃO DE ECONOMIA EM 25 ANOS (CURVAS & PAYBACK)
-         ======================================================== -->
-    <section class="proposta-secao-page" id="secao-5-projecao-25anos">
-      <div class="secao-body">
-        ${renderInternalHeader('Projeção de Economia em 25 Anos', 5, 'curvas')}
+        ${renderInternalHeader('Projeção de Economia em 25 Anos', 4, 'curvas')}
 
         <!-- Cabeçalho idêntico ao SecaoProjecao25Anos -->
         <div class="secao-header-card inercia" style="background: linear-gradient(90deg, #F0FDF4 0%, #FFFFFF 100%); border-color: #BBF7D0;">
@@ -2721,15 +2621,15 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
           * Projeção baseada na degradação linear de fábrica dos módulos e histórico de reajustes tarifários da rede elétrica.
         </div>
       </div>
-      ${renderInternalFooter(5)}
+      ${renderInternalFooter(4)}
     </section>
 
     <!-- ========================================================
-         SEÇÃO 6 — INVESTIMENTO E CONDIÇÕES DE PAGAMENTO (ESPELHADO DO SecaoInvestimentoPagamento.tsx)
+         SEÇÃO 5 — INVESTIMENTO E CONDIÇÕES DE PAGAMENTO (ESPELHADO DO SecaoInvestimentoPagamento.tsx)
          ======================================================== -->
-    <section class="proposta-secao-page" id="secao-6-investimento-pagamento">
+    <section class="proposta-secao-page" id="secao-5-investimento-pagamento">
       <div class="secao-body">
-        ${renderInternalHeader('Investimento e Condições de Pagamento', 6, 'investimento')}
+        ${renderInternalHeader('Investimento e Condições de Pagamento', 5, 'investimento')}
 
         <!-- HERO DO INVESTIMENTO TOTAL -->
         <div class="hero-investimento-banner">
@@ -2925,6 +2825,38 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
           </div>
         </div>
 
+        <!-- CARD DE CUSTO DE POSTERGAÇÃO (DESTAQUE ÂMBAR / LARANJA) -->
+        <div style="background: linear-gradient(135deg, #FFFBEB 0%, #FEF3C7 50%, #FFF7ED 100%); border: 1.5px solid #F59E0B; border-radius: 12px; padding: 10px 16px; display: flex; align-items: center; justify-content: space-between; gap: 14px; box-shadow: 0 1px 3px rgba(245, 158, 11, 0.1); margin-top: 6px; margin-bottom: 8px;">
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <div style="width: 34px; height: 34px; border-radius: 8px; background: #F59E0B; color: #FFFFFF; display: flex; align-items: center; justify-content: center; font-size: 18px; shrink-0;">
+              ⚠️
+            </div>
+            <div>
+              <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 2px;">
+                <span style="font-size: 8px; font-weight: 900; text-transform: uppercase; background: #FEF3C7; color: #92400E; padding: 1px 6px; border-radius: 4px; border: 1px solid #FDE68A;">
+                  Custo de Postergação
+                </span>
+                <span style="font-size: 8px; font-weight: 800; color: #78350F;">
+                  Cada mês sem energia solar custa dinheiro
+                </span>
+              </div>
+              <div style="font-size: 11.5px; font-weight: 900; color: #1F2937;">Não adie sua economia</div>
+              <p style="margin: 1px 0 0 0; font-size: 8.5px; color: #4B5563; max-width: 440px; line-height: 1.3;">
+                Adiar a decisão significa continuar pagando a conta cheia para a concessionária sem construir patrimônio.
+              </p>
+            </div>
+          </div>
+
+          <div style="background: #FFFFFF; border: 1.5px solid #FCD34D; border-radius: 8px; padding: 6px 12px; text-align: right; shrink-0;">
+            <span style="font-size: 7.5px; font-weight: 800; text-transform: uppercase; color: #92400E; display: block;">
+              Valor perdido por mês
+            </span>
+            <div style="font-size: 15px; font-weight: 900; color: #C2410C; line-height: 1.2; margin: 1px 0;">
+              ${formatBRL(economiaMensal)} <span style="font-size: 9px; font-weight: 700;">/mês</span>
+            </div>
+          </div>
+        </div>
+
         <!-- BADGE DE URGÊNCIA -->
         <div class="badge-urgencia-validade">
           <span>⏰ Condições válidas por <strong>${validade} dias</strong> (${dataFormatada}).</span>
@@ -3016,7 +2948,7 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
           </div>
         </div>
       </div>
-      ${renderInternalFooter(6)}
+      ${renderInternalFooter(5)}
     </section>
 
   </div>
