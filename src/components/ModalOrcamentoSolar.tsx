@@ -2512,7 +2512,7 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                           ? 'border-blue-600 bg-white shadow-2xs ring-1 ring-blue-500/20'
                           : 'border-blue-200 bg-white/70 hover:bg-white text-gray-700'
                       }`}
-                      title="Opção 1: Valor total de materiais e custos multiplicado por 0,09 (9%)"
+                      title="Opção 1: 9,23% sobre o total do projeto"
                     >
                       <div className="flex items-center gap-2">
                         <input
@@ -2523,10 +2523,10 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                           className="w-3.5 h-3.5 text-blue-600 focus:ring-blue-500 cursor-pointer"
                         />
                         <span className="font-bold text-[11px] text-gray-900">
-                          Opção 1 (9% total)
+                          Opção 1 (9,23% s/ total do projeto)
                         </span>
                       </div>
-                      <span className="text-[10px] text-gray-500">Total × 9%</span>
+                      <span className="text-[10px] text-gray-500">Total × 9,23%</span>
                     </label>
 
                     {/* Opção 2 */}
@@ -2536,7 +2536,7 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                           ? 'border-blue-600 bg-white shadow-2xs ring-1 ring-blue-500/20'
                           : 'border-blue-200 bg-white/70 hover:bg-white text-gray-700'
                       }`}
-                      title="Opção 2: (Valor total menos materiais) multiplicado por 0,16 (16%)"
+                      title="Opção 2: 16% sobre todos os valores exceto materiais / equipamentos"
                     >
                       <div className="flex items-center gap-2">
                         <input
@@ -2547,7 +2547,7 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                           className="w-3.5 h-3.5 text-blue-600 focus:ring-blue-500 cursor-pointer"
                         />
                         <span className="font-bold text-[11px] text-gray-900">
-                          Opção 2 (16% s/ s/ materiais)
+                          Opção 2 (16% s/ valores exceto materiais)
                         </span>
                       </div>
                       <span className="text-[10px] text-gray-500">(Total − Mat) × 16%</span>
