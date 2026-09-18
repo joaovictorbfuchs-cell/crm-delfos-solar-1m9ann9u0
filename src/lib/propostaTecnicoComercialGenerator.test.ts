@@ -163,6 +163,8 @@ describe('Proposta Técnico-Comercial Generator (5 Seções Oficiais)', () => {
     expect(html).toContain('CARTÃO')
     expect(html).toContain('FINANCIAMENTO A (60X)')
     expect(html).toContain('FINANCIAMENTO B (120X)')
+    expect(html).toContain('Conta hoje:')
+    expect(html).not.toContain('Conta s/ solar:')
     expect(html).toContain('Custo com energia atual:')
     expect(html).toContain('Fatura c/ solar + parcela:')
     expect(html).not.toContain('Hoje você paga')

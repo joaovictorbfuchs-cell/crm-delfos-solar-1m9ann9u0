@@ -2866,7 +2866,7 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
             </div>
             <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #A7F3D0; font-size: 8.5px; line-height: 1.45;">
               <div style="display: flex; justify-content: space-between; color: #6B7280;">
-                <span>Conta s/ solar:</span>
+                <span>Conta hoje:</span>
                 <strong style="color: #DC2626; font-weight: 800;">${formatBRL(contaHoje)}</strong>
               </div>
               <div style="display: flex; justify-content: space-between; color: #6B7280; margin-top: 2px;">
@@ -2901,7 +2901,7 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
             </div>
             <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #F3F4F6; font-size: 8.5px; line-height: 1.45;">
               <div style="display: flex; justify-content: space-between; color: #6B7280;">
-                <span>Conta s/ solar:</span>
+                <span>Conta hoje:</span>
                 <strong style="color: #DC2626; font-weight: 800;">${formatBRL(cartaoContaSemSolar)}</strong>
               </div>
               <div style="display: flex; justify-content: space-between; color: #6B7280; margin-top: 2px;">
@@ -2936,7 +2936,7 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
             </div>
             <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #F3F4F6; font-size: 8.5px; line-height: 1.45;">
               <div style="display: flex; justify-content: space-between; color: #6B7280;">
-                <span>Conta s/ solar:</span>
+                <span>Conta hoje:</span>
                 <strong style="color: #DC2626; font-weight: 800;">${formatBRL(finanAContaSemSolar)}</strong>
               </div>
               <div style="display: flex; justify-content: space-between; color: #6B7280; margin-top: 2px;">
@@ -2971,7 +2971,7 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
             </div>
             <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #BFDBFE; font-size: 8.5px; line-height: 1.45;">
               <div style="display: flex; justify-content: space-between; color: #6B7280;">
-                <span>Conta s/ solar:</span>
+                <span>Conta hoje:</span>
                 <strong style="color: #DC2626; font-weight: 800;">${formatBRL(finanBContaSemSolar)}</strong>
               </div>
               <div style="display: flex; justify-content: space-between; color: #6B7280; margin-top: 2px;">

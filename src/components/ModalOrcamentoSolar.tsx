@@ -2795,7 +2795,7 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
 
                     <div className="pt-2 border-t border-emerald-200 space-y-1 text-[11px]">
                       <div className="flex justify-between">
-                        <span className="text-gray-500">Conta s/ solar:</span>
+                        <span className="text-gray-500">Conta hoje:</span>
                         <span className="font-bold text-red-600">
                           {formatCurrency(calculos.parcelamentos.aVista.contaSemSolar)}
                         </span>
@@ -2901,7 +2901,7 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
 
                     <div className="pt-2 border-t border-gray-100 space-y-1 text-[11px]">
                       <div className="flex justify-between">
-                        <span className="text-gray-500">Conta s/ solar:</span>
+                        <span className="text-gray-500">Conta hoje:</span>
                         <span className="font-bold text-red-600">
                           {formatCurrency(calculos.parcelamentos.cartao18x.contaSemSolar)}
                         </span>
@@ -3008,7 +3008,7 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
 
                     <div className="pt-2 border-t border-gray-100 space-y-1 text-[11px]">
                       <div className="flex justify-between">
-                        <span className="text-gray-500">Conta s/ solar:</span>
+                        <span className="text-gray-500">Conta hoje:</span>
                         <span className="font-bold text-red-600">
                           {formatCurrency(calculos.parcelamentos.financiamentoBanco1.contaSemSolar)}
                         </span>
@@ -3117,7 +3117,7 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
 
                     <div className="pt-2 border-t border-blue-200 space-y-1 text-[11px]">
                       <div className="flex justify-between">
-                        <span className="text-gray-500">Conta s/ solar:</span>
+                        <span className="text-gray-500">Conta hoje:</span>
                         <span className="font-bold text-red-600">
                           {formatCurrency(calculos.parcelamentos.financiamentoBanco2.contaSemSolar)}
                         </span>

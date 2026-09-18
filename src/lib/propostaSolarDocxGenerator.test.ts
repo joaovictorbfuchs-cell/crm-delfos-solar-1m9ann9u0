@@ -98,6 +98,8 @@ describe('propostaSolarDocxGenerator', () => {
     // Seção 5: Investimento e Condições de Pagamento com Card de Postergação
     expect(jsonStr).toContain('5. Investimento e Condições de Pagamento')
     expect(jsonStr).toContain('Condições de pagamento')
+    expect(jsonStr).toContain('Conta hoje: ')
+    expect(jsonStr).not.toContain('Conta s/ solar: ')
     expect(jsonStr).toContain('Fatura c/ solar + parcela:')
     expect(jsonStr).toContain('Custo atual:')
     expect(jsonStr).toContain('PAYBACK ESTIMADO')
