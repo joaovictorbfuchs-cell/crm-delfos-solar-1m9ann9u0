@@ -354,7 +354,7 @@ export const SecaoInvestimentoPagamento: React.FC<SecaoInvestimentoPagamentoProp
               {/* 3 Linhas comparativas inferiores idênticas à aba de parcelamento */}
               <div className="pt-3 border-t border-emerald-200 space-y-1.5 text-[11px]">
                 <div className="flex justify-between">
-                  <span className="text-gray-500">Conta s/ solar:</span>
+                  <span className="text-gray-500">Conta hoje:</span>
                   <span className="font-bold text-red-600">{formatCurrency(contaAtualFinal)}</span>
                 </div>
                 <div className="flex justify-between">
@@ -415,7 +415,7 @@ export const SecaoInvestimentoPagamento: React.FC<SecaoInvestimentoPagamentoProp
               {/* 3 Linhas comparativas inferiores idênticas à aba de parcelamento */}
               <div className="pt-3 border-t border-gray-100 space-y-1.5 text-[11px]">
                 <div className="flex justify-between">
-                  <span className="text-gray-500">Conta s/ solar:</span>
+                  <span className="text-gray-500">Conta hoje:</span>
                   <span className="font-bold text-red-600">{formatCurrency(contaAtualFinal)}</span>
                 </div>
                 <div className="flex justify-between">
@@ -472,7 +472,7 @@ export const SecaoInvestimentoPagamento: React.FC<SecaoInvestimentoPagamentoProp
               {/* 3 Linhas comparativas inferiores idênticas à aba de parcelamento */}
               <div className="pt-3 border-t border-gray-100 space-y-1.5 text-[11px]">
                 <div className="flex justify-between">
-                  <span className="text-gray-500">Conta s/ solar:</span>
+                  <span className="text-gray-500">Conta hoje:</span>
                   <span className="font-bold text-red-600">{formatCurrency(contaAtualFinal)}</span>
                 </div>
                 <div className="flex justify-between">
@@ -529,7 +529,7 @@ export const SecaoInvestimentoPagamento: React.FC<SecaoInvestimentoPagamentoProp
               {/* 3 Linhas comparativas inferiores idênticas à aba de parcelamento */}
               <div className="pt-3 border-t border-blue-200 space-y-1.5 text-[11px]">
                 <div className="flex justify-between">
-                  <span className="text-gray-500">Conta s/ solar:</span>
+                  <span className="text-gray-500">Conta hoje:</span>
                   <span className="font-bold text-red-600">{formatCurrency(contaAtualFinal)}</span>
                 </div>
                 <div className="flex justify-between">
