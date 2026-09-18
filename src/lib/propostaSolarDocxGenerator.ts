@@ -174,13 +174,12 @@ function createSectionHeader(title: string, sub?: string): Paragraph[] {
 }
 
 /**
- * Gera um Document oficial em formato docx com as 6 SEÇÕES CANÔNICAS:
+ * Gera um Document oficial em formato docx com as 5 SEÇÕES CANÔNICAS:
  * 1. Capa
  * 2. Situação Atual (Consumo & Custos + Gastos Acumulados)
  * 3. Seu Sistema Fotovoltaico
- * 4. Projeção de Economia na Conta de Energia (2026–2051)
- * 5. Projeção de Economia em 25 Anos
- * 6. Investimento e Condições de Pagamento
+ * 4. Projeção de Economia em 25 Anos
+ * 5. Investimento e Condições de Pagamento
  */
 export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Promise<Document> {
   const { cliente, representanteComercial, sistema, calculos } = dados
@@ -453,7 +452,7 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
   ]
 
   // ==========================================
-  // CONTEÚDO PRINCIPAL DO DOCUMENTO (6 SEÇÕES)
+  // CONTEÚDO PRINCIPAL DO DOCUMENTO (5 SEÇÕES)
   // ==========================================
   const docChildren: (Paragraph | Table)[] = []
 
@@ -1662,136 +1661,11 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
   )
 
   // ----------------------------------------------------
-  // SEÇÃO 4: PROJEÇÃO DE ECONOMIA NA CONTA DE ENERGIA
-  // Cards de resumo + Card do Payback abaixo
+  // SEÇÃO 4: PROJEÇÃO DE ECONOMIA EM 25 ANOS
   // ----------------------------------------------------
   docChildren.push(
     ...createSectionHeader(
-      '4. Projeção de Economia na Conta de Energia (2026–2051)',
-      'Simulação de economia líquida acumulada e estimativa de retorno financeiro.',
-    ),
-  )
-
-  // 3 Cards Grandes de Resumo da Projeção de Economia
-  const colWidthResumo = Math.floor(PAGE_CONTENT_WIDTH / 3)
-  docChildren.push(
-    new Table({
-      width: { size: PAGE_CONTENT_WIDTH, type: WidthType.DXA },
-      borders: tableBorderDefault,
-      rows: [
-        new TableRow({
-          children: [
-            // Card 1: Economia Total em 25 Anos
-            new TableCell({
-              width: { size: colWidthResumo, type: WidthType.DXA },
-              shading: { type: ShadingType.CLEAR, fill: 'ECFDF5' },
-              margins: { top: 100, bottom: 100, left: 100, right: 100 },
-              children: [
-                new Paragraph({
-                  alignment: AlignmentType.CENTER,
-                  children: [
-                    new TextRun({
-                      text: 'ECONOMIA TOTAL EM 25 ANOS\n',
-                      bold: true,
-                      size: 14,
-                      color: '065F46',
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: formatBRL(projecaoOficial.economiaTotal25Anos),
-                      bold: true,
-                      size: 20,
-                      color: '15803D',
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: '\nCiclo de 25 anos com degradação',
-                      size: 13,
-                      color: COLOR_TEXT_MUTED,
-                      font: 'Arial',
-                    }),
-                  ],
-                }),
-              ],
-            }),
-            // Card 2: Gasto Total Sem Solar (25 Anos)
-            new TableCell({
-              width: { size: colWidthResumo, type: WidthType.DXA },
-              shading: { type: ShadingType.CLEAR, fill: 'FEF2F2' },
-              margins: { top: 100, bottom: 100, left: 100, right: 100 },
-              children: [
-                new Paragraph({
-                  alignment: AlignmentType.CENTER,
-                  children: [
-                    new TextRun({
-                      text: 'GASTO TOTAL SEM SOLAR (25 ANOS)\n',
-                      bold: true,
-                      size: 14,
-                      color: '991B1B',
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: formatBRL(projecaoOficial.gastoTotalSemSolar25Anos),
-                      bold: true,
-                      size: 20,
-                      color: 'B91C1C',
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: '\nDesembolso sem retorno concessionária',
-                      size: 13,
-                      color: COLOR_TEXT_MUTED,
-                      font: 'Arial',
-                    }),
-                  ],
-                }),
-              ],
-            }),
-            // Card 3: Custo de Postergação
-            new TableCell({
-              width: { size: colWidthResumo, type: WidthType.DXA },
-              shading: { type: ShadingType.CLEAR, fill: 'FFF7ED' },
-              margins: { top: 100, bottom: 100, left: 100, right: 100 },
-              children: [
-                new Paragraph({
-                  alignment: AlignmentType.CENTER,
-                  children: [
-                    new TextRun({
-                      text: 'CUSTO DE POSTERGAÇÃO\n',
-                      bold: true,
-                      size: 14,
-                      color: 'C2410C',
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: `${formatBRL(projecaoOficial.valorPerdidoPorMesPostergacao)} /mês`,
-                      bold: true,
-                      size: 20,
-                      color: 'EA580C',
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: '\nPerda a cada mês sem energia solar',
-                      size: 13,
-                      color: COLOR_TEXT_MUTED,
-                      font: 'Arial',
-                    }),
-                  ],
-                }),
-              ],
-            }),
-          ],
-        }),
-      ],
-    }),
-  )
-
-  // ----------------------------------------------------
-  // SEÇÃO 5: PROJEÇÃO DE ECONOMIA EM 25 ANOS
-  // ----------------------------------------------------
-  docChildren.push(
-    ...createSectionHeader(
-      '5. Projeção de Economia em 25 Anos',
+      '4. Projeção de Economia em 25 Anos',
       'Curva de retorno patrimonial: multiplicação do capital, tempo de retorno e eliminação do gasto tarifário.',
     ),
   )
@@ -1907,11 +1781,11 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
   )
 
   // ----------------------------------------------------
-  // SEÇÃO 6: INVESTIMENTO E CONDIÇÕES DE PAGAMENTO (LAYOUT 4 CARDS)
+  // SEÇÃO 5: INVESTIMENTO E CONDIÇÕES DE PAGAMENTO (LAYOUT 4 CARDS)
   // ----------------------------------------------------
   docChildren.push(
     ...createSectionHeader(
-      '6. Investimento e Condições de Pagamento',
+      '5. Investimento e Condições de Pagamento',
       'Valores transparentes no modelo Turnkey (chave na mão) com homologação completa inclusa.',
     ),
   )
@@ -2493,6 +2367,93 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
     }),
   )
 
+  // Card Custo de Postergação (Âmbar / Laranja) posicionado ABAIXO do Payback Estimado
+  const colWidthPostergacao = Math.floor(PAGE_CONTENT_WIDTH * 0.7)
+  const colWidthPostergacaoValor = PAGE_CONTENT_WIDTH - colWidthPostergacao
+  docChildren.push(
+    new Table({
+      width: { size: PAGE_CONTENT_WIDTH, type: WidthType.DXA },
+      borders: {
+        top: { style: BorderStyle.SINGLE, size: 12, color: 'F59E0B' },
+        bottom: { style: BorderStyle.SINGLE, size: 12, color: 'F59E0B' },
+        left: { style: BorderStyle.SINGLE, size: 12, color: 'F59E0B' },
+        right: { style: BorderStyle.SINGLE, size: 12, color: 'F59E0B' },
+        insideVertical: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
+        insideHorizontal: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
+      },
+      rows: [
+        new TableRow({
+          children: [
+            new TableCell({
+              width: { size: colWidthPostergacao, type: WidthType.DXA },
+              shading: { type: ShadingType.CLEAR, fill: 'FFFBEB' },
+              margins: { top: 100, bottom: 100, left: 140, right: 100 },
+              children: [
+                new Paragraph({
+                  children: [
+                    new TextRun({
+                      text: '⚠️ CUSTO DE POSTERGAÇÃO • NÃO ADIE SUA ECONOMIA\n',
+                      bold: true,
+                      size: 14,
+                      color: 'B45309',
+                      font: 'Arial',
+                    }),
+                    new TextRun({
+                      text: 'Cada mês sem energia solar custa dinheiro real pago à concessionária.\n',
+                      bold: true,
+                      size: 15,
+                      color: '92400E',
+                      font: 'Arial',
+                    }),
+                    new TextRun({
+                      text: 'Adiar a decisão significa continuar pagando a conta cheia sem construir patrimônio.',
+                      size: 13,
+                      color: '78350F',
+                      font: 'Arial',
+                    }),
+                  ],
+                }),
+              ],
+            }),
+            new TableCell({
+              width: { size: colWidthPostergacaoValor, type: WidthType.DXA },
+              shading: { type: ShadingType.CLEAR, fill: 'FEF3C7' },
+              margins: { top: 100, bottom: 100, left: 100, right: 140 },
+              children: [
+                new Paragraph({
+                  alignment: AlignmentType.RIGHT,
+                  children: [
+                    new TextRun({
+                      text: 'VALOR PERDIDO POR MÊS\n',
+                      bold: true,
+                      size: 12,
+                      color: '92400E',
+                      font: 'Arial',
+                    }),
+                    new TextRun({
+                      text: formatBRL(economiaMensal),
+                      bold: true,
+                      size: 22,
+                      color: 'C2410C',
+                      font: 'Arial',
+                    }),
+                    new TextRun({
+                      text: ' /mês',
+                      bold: true,
+                      size: 14,
+                      color: 'C2410C',
+                      font: 'Arial',
+                    }),
+                  ],
+                }),
+              ],
+            }),
+          ],
+        }),
+      ],
+    }),
+  )
+
   if (dados.observacoes) {
     docChildren.push(
       new Paragraph({
@@ -2695,7 +2656,7 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
   return new Document({
     creator: DADOS_EMPRESA_DELFOS_SOLAR.razaoSocial,
     title: `Proposta Solar Delfos - ${cliente.nome}`,
-    description: 'Proposta técnico-comercial oficial de 6 seções gerada pelo CRM Delfos Solar',
+    description: 'Proposta técnico-comercial oficial de 5 seções gerada pelo CRM Delfos Solar',
     sections: [
       {
         properties: {

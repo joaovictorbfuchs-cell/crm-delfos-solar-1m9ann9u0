@@ -1,5 +1,13 @@
 import React from 'react'
-import { Wallet, CreditCard, Building2, Landmark, Clock, Sparkles } from 'lucide-react'
+import {
+  Wallet,
+  CreditCard,
+  Building2,
+  Landmark,
+  Clock,
+  Sparkles,
+  AlertTriangle,
+} from 'lucide-react'
 import { formatCurrency, formatarMesAnoQuitacao } from '@/lib/formatters'
 
 export interface SecaoInvestimentoPagamentoProps {
