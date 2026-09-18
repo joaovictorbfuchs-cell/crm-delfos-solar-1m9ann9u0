@@ -506,6 +506,18 @@ export const Orcamentos: React.FC = () => {
                           <span className="px-1.5 py-0.5 rounded text-[10px] font-black bg-emerald-100 text-emerald-800 border border-emerald-200 shrink-0">
                             Rev. {orc.numero_revisao || 1}
                           </span>
+                          {orc.padrao_fases && (
+                            <span
+                              className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-200 shrink-0"
+                              title={`Padrão de Ligação: ${orc.padrao_fases}`}
+                            >
+                              {orc.padrao_fases.toLowerCase().includes('tri')
+                                ? 'Tri'
+                                : orc.padrao_fases.toLowerCase().includes('bi')
+                                  ? 'Bi'
+                                  : 'Mono'}
+                            </span>
+                          )}
                         </div>
                         <div className="flex items-center gap-1 text-[11px] text-gray-500 mt-0.5">
                           <MapPin className="w-3 h-3 text-gray-400" />
