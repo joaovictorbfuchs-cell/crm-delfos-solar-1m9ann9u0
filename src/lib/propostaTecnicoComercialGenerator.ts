@@ -53,8 +53,10 @@ export interface PropostaTecnicoComercialDados {
     areaNecessariaM2: number
     potenciaPlacaWp?: number
     tecnologiaModulo?: string
+    fotoModuloUrl?: string
     mpptInversor?: number | string
     potenciaInversorKw?: number
+    fotoInversorUrl?: string
   }
   garantias: {
     paineisAnosFabricacao: number // ex: 15
@@ -2476,14 +2478,20 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
           <div class="card-sistema" style="display: flex; flex-direction: column; justify-content: space-between;">
             <div>
               <div class="card-sistema-header">
-                <div class="card-sistema-icon-wrap amber" style="background: #FEF3C7; color: #D97706;">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 18px; height: 18px;">
-                    <rect x="3" y="3" width="18" height="18" rx="2" />
-                    <line x1="12" y1="3" x2="12" y2="21" />
-                    <line x1="3" y1="9" x2="21" y2="9" />
-                    <line x1="3" y1="15" x2="21" y2="15" />
-                  </svg>
-                </div>
+                ${
+                  sistema?.fotoModuloUrl
+                    ? `<div style="width: 38px; height: 38px; border-radius: 8px; border: 1px solid #FDE68A; background: #FEF3C7; padding: 2px; display: flex; align-items: center; justify-content: center; overflow: hidden;">
+                        <img src="${sistema.fotoModuloUrl}" alt="Módulo FV" style="max-width: 100%; max-height: 100%; object-fit: contain;" />
+                      </div>`
+                    : `<div class="card-sistema-icon-wrap amber" style="background: #FEF3C7; color: #D97706;">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 18px; height: 18px;">
+                          <rect x="3" y="3" width="18" height="18" rx="2" />
+                          <line x1="12" y1="3" x2="12" y2="21" />
+                          <line x1="3" y1="9" x2="21" y2="9" />
+                          <line x1="3" y1="15" x2="21" y2="15" />
+                        </svg>
+                      </div>`
+                }
                 <span class="card-sistema-tag blue">Tier-1 Global</span>
               </div>
               <div>
@@ -2514,15 +2522,21 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
           <div class="card-sistema" style="display: flex; flex-direction: column; justify-content: space-between;">
             <div>
               <div class="card-sistema-header">
-                <div class="card-sistema-icon-wrap teal" style="background: #CCFBF1; color: #0F766E;">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 18px; height: 18px;">
-                    <rect width="18" height="18" x="3" y="3" rx="2" />
-                    <path d="M11 9h4a2 2 0 0 0 2-2V3" />
-                    <circle cx="9" cy="9" r="2" />
-                    <path d="M7 21v-4a2 2 0 0 1 2-2h4" />
-                    <circle cx="15" cy="15" r="2" />
-                  </svg>
-                </div>
+                ${
+                  sistema?.fotoInversorUrl
+                    ? `<div style="width: 38px; height: 38px; border-radius: 8px; border: 1px solid #99F6E4; background: #CCFBF1; padding: 2px; display: flex; align-items: center; justify-content: center; overflow: hidden;">
+                        <img src="${sistema.fotoInversorUrl}" alt="Inversor Solar" style="max-width: 100%; max-height: 100%; object-fit: contain;" />
+                      </div>`
+                    : `<div class="card-sistema-icon-wrap teal" style="background: #CCFBF1; color: #0F766E;">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 18px; height: 18px;">
+                          <rect width="18" height="18" x="3" y="3" rx="2" />
+                          <path d="M11 9h4a2 2 0 0 0 2-2V3" />
+                          <circle cx="9" cy="9" r="2" />
+                          <path d="M7 21v-4a2 2 0 0 1 2-2h4" />
+                          <circle cx="15" cy="15" r="2" />
+                        </svg>
+                      </div>`
+                }
                 <span class="card-sistema-tag teal">${inversorQtd} Inversor</span>
               </div>
               <div>

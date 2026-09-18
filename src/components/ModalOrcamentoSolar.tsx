@@ -66,6 +66,12 @@ import { SecaoInvestimentoPagamento } from '@/components/SecaoInvestimentoPagame
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { fetchInstalacoesGaleria, getFotoUrl } from '@/services/instalacoesGaleriaService'
 import type { InstalacaoGaleria } from '@/types/instalacoesGaleria'
+import {
+  fetchEquipamentos,
+  getFotoEquipamentoUrl,
+  formatarPotenciaEquipamento,
+} from '@/services/equipamentosService'
+import type { Equipamento } from '@/types/equipamentos'
 import { CheckSquare, Square } from 'lucide-react'
 
 interface ModalOrcamentoSolarProps {
@@ -170,6 +176,14 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
   const [jurosBanco2, setJurosBanco2] = useState<number>(0.99)
   const [entradaBanco2, setEntradaBanco2] = useState<number>(0)
 
+  // Equipamentos cadastrados no banco para seleção
+  const [equipamentosInversores, setEquipamentosInversores] = useState<Equipamento[]>([])
+  const [equipamentosModulos, setEquipamentosModulos] = useState<Equipamento[]>([])
+  const [selectedInversorId, setSelectedInversorId] = useState<string>('')
+  const [selectedModuloId, setSelectedModuloId] = useState<string>('')
+  const [fotoInversorUrl, setFotoInversorUrl] = useState<string | null>(null)
+  const [fotoModuloUrl, setFotoModuloUrl] = useState<string | null>(null)
+
   // Usinas da galeria e usinas selecionadas para esta proposta
   const [usinasGaleria, setUsinasGaleria] = useState<InstalacaoGaleria[]>([])
   const [instalacoesSelecionadasIds, setInstalacoesSelecionadasIds] = useState<string[]>([])
@@ -187,7 +201,7 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
   // Ref para guardar seleção de fornecedor feita na sessão do modal e evitar reversão de materiais/equipamentos
   const fornecedorAplicadoRef = useRef<{ id: string; valor: number } | null>(null)
 
-  // Carrega as usinas da galeria quando o modal é aberto
+  // Carrega as usinas da galeria e os equipamentos cadastrados quando o modal é aberto
   useEffect(() => {
     if (!isOpen) return
     let cancel = false
@@ -206,6 +220,19 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
           setLoadingGaleria(false)
         }
       })
+
+    // Carregar inversores e módulos FV do banco
+    Promise.all([fetchEquipamentos('inversor'), fetchEquipamentos('modulo_fv')])
+      .then(([inversores, modulos]) => {
+        if (!cancel) {
+          setEquipamentosInversores(inversores || [])
+          setEquipamentosModulos(modulos || [])
+        }
+      })
+      .catch((err) => {
+        console.error('Erro ao buscar equipamentos cadastrados para o orçamento:', err)
+      })
+
     return () => {
       cancel = true
     }
@@ -224,6 +251,12 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
       return
     }
     lastInitializedKeyRef.current = currentKey
+
+    // Reseta dropdowns de equipamentos cadastrados para nova abertura (orçamentos antigos abrem vazios)
+    setSelectedInversorId('')
+    setSelectedModuloId('')
+    setFotoInversorUrl(null)
+    setFotoModuloUrl(null)
 
     if (initialOrcamento) {
       setSelectedClienteId(initialOrcamento.cliente_id)
@@ -761,7 +794,9 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
         numeroPlacas,
         potenciaPlacaWp,
         marcaPlacas: marcaPainel,
+        fotoModuloUrl: fotoModuloUrl || undefined,
         marcaInversor,
+        fotoInversorUrl: fotoInversorUrl || undefined,
         quantidadeInversores,
         tipoEstrutura,
         orientacaoTelhado,
@@ -789,7 +824,9 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
     numeroPlacas,
     potenciaPlacaWp,
     marcaPainel,
+    fotoModuloUrl,
     marcaInversor,
+    fotoInversorUrl,
     quantidadeInversores,
     tipoEstrutura,
     orientacaoTelhado,
@@ -1499,32 +1536,123 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                     />
                   </div>
 
-                  {/* Marca e modelo dos painéis */}
-                  <div className="sm:col-span-2">
-                    <label className="text-[11px] font-semibold text-gray-700 block mb-1">
-                      Marca e modelo dos painéis *
-                    </label>
-                    <input
-                      type="text"
-                      value={marcaPainel}
-                      onChange={(e) => setMarcaPainel(e.target.value)}
-                      className="w-full text-xs font-medium px-3 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                      placeholder="Ex: Canadian Solar 550W BiHiKu7 Monocristalino"
-                    />
+                  {/* Dropdown Módulo FV (cadastrado) + Campo de Edição Manual */}
+                  <div className="sm:col-span-2 space-y-1.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <label className="text-[11px] font-bold text-gray-800 flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" />
+                        Módulo FV (cadastrado)
+                      </label>
+                      <span className="text-[10px] text-gray-400">
+                        Puxa dados do banco e permite edição livre
+                      </span>
+                    </div>
+
+                    <select
+                      value={selectedModuloId}
+                      onChange={(e) => {
+                        const id = e.target.value
+                        setSelectedModuloId(id)
+                        if (!id) {
+                          setFotoModuloUrl(null)
+                          return
+                        }
+                        const mod = equipamentosModulos.find((item) => item.id === id)
+                        if (mod) {
+                          // Preenchimento automático com ponto de partida editável
+                          const nomeComposto = `${mod.marca} ${mod.modelo}${mod.potencia_w ? ` ${mod.potencia_w}W` : ''}`
+                          setMarcaPainel(nomeComposto)
+                          if (mod.potencia_w && mod.potencia_w > 0) {
+                            handlePotenciaPlacaChange(mod.potencia_w)
+                          }
+                          if (mod.garantia_anos && mod.garantia_anos > 0) {
+                            setGarantiaModulosFabricacaoAnos(mod.garantia_anos)
+                          }
+                          const urlFoto = getFotoEquipamentoUrl(mod)
+                          setFotoModuloUrl(urlFoto)
+                        }
+                      }}
+                      className="w-full text-xs font-semibold px-3 py-2 rounded-lg border border-emerald-300 bg-emerald-50/30 text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    >
+                      <option value="">— Selecionar do cadastro —</option>
+                      {equipamentosModulos.map((mod) => (
+                        <option key={mod.id} value={mod.id}>
+                          {mod.marca} {mod.modelo} • {formatarPotenciaEquipamento(mod.potencia_w)}
+                          {mod.garantia_anos ? ` • Garantia: ${mod.garantia_anos}a` : ''}
+                        </option>
+                      ))}
+                    </select>
+
+                    <div>
+                      <label className="text-[10px] font-semibold text-gray-500 block mb-0.5">
+                        Descrição / Marca e modelo dos painéis na proposta (editável) *
+                      </label>
+                      <input
+                        type="text"
+                        value={marcaPainel}
+                        onChange={(e) => setMarcaPainel(e.target.value)}
+                        className="w-full text-xs font-medium px-3 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                        placeholder="Ex: Canadian Solar 550W BiHiKu7 Monocristalino"
+                      />
+                    </div>
                   </div>
 
-                  {/* Marca e modelo do inversor */}
-                  <div className="sm:col-span-2">
-                    <label className="text-[11px] font-semibold text-gray-700 block mb-1">
-                      Marca e modelo do inversor *
-                    </label>
-                    <input
-                      type="text"
-                      value={marcaInversor}
-                      onChange={(e) => setMarcaInversor(e.target.value)}
-                      className="w-full text-xs font-medium px-3 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                      placeholder="Ex: Growatt MIN 5000TL-X / Deye / Huawei"
-                    />
+                  {/* Dropdown Inversor (cadastrado) + Campo de Edição Manual */}
+                  <div className="sm:col-span-2 space-y-1.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <label className="text-[11px] font-bold text-gray-800 flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full bg-teal-500 inline-block" />
+                        Inversor (cadastrado)
+                      </label>
+                      <span className="text-[10px] text-gray-400">
+                        Puxa dados do banco e permite edição livre
+                      </span>
+                    </div>
+
+                    <select
+                      value={selectedInversorId}
+                      onChange={(e) => {
+                        const id = e.target.value
+                        setSelectedInversorId(id)
+                        if (!id) {
+                          setFotoInversorUrl(null)
+                          return
+                        }
+                        const inv = equipamentosInversores.find((item) => item.id === id)
+                        if (inv) {
+                          // Preenchimento automático com ponto de partida editável
+                          const nomeComposto = `${inv.marca} ${inv.modelo}`
+                          setMarcaInversor(nomeComposto)
+                          if (inv.garantia_anos && inv.garantia_anos > 0) {
+                            setGarantiaInversorAnos(inv.garantia_anos)
+                          }
+                          const urlFoto = getFotoEquipamentoUrl(inv)
+                          setFotoInversorUrl(urlFoto)
+                        }
+                      }}
+                      className="w-full text-xs font-semibold px-3 py-2 rounded-lg border border-teal-300 bg-teal-50/30 text-gray-900 focus:outline-none focus:ring-2 focus:ring-teal-500"
+                    >
+                      <option value="">— Selecionar do cadastro —</option>
+                      {equipamentosInversores.map((inv) => (
+                        <option key={inv.id} value={inv.id}>
+                          {inv.marca} {inv.modelo} • {formatarPotenciaEquipamento(inv.potencia_w)}
+                          {inv.garantia_anos ? ` • Garantia: ${inv.garantia_anos}a` : ''}
+                        </option>
+                      ))}
+                    </select>
+
+                    <div>
+                      <label className="text-[10px] font-semibold text-gray-500 block mb-0.5">
+                        Descrição / Marca e modelo do inversor na proposta (editável) *
+                      </label>
+                      <input
+                        type="text"
+                        value={marcaInversor}
+                        onChange={(e) => setMarcaInversor(e.target.value)}
+                        className="w-full text-xs font-medium px-3 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                        placeholder="Ex: Growatt MIN 5000TL-X / Deye / Huawei"
+                      />
+                    </div>
                   </div>
 
                   {/* Quantidade de inversores */}
@@ -3324,7 +3452,9 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                     marcaPainel={marcaPainel}
                     potenciaPlacaWp={potenciaPlacaWp}
                     tecnologiaModulo="bifacial N-type"
+                    fotoModuloUrl={fotoModuloUrl}
                     marcaInversor={marcaInversor}
+                    fotoInversorUrl={fotoInversorUrl}
                     quantidadeInversores={quantidadeInversores}
                     mpptInversor={2}
                     potenciaInversorKw={potenciaKwp ? Math.round(potenciaKwp * 0.8 * 10) / 10 : 6}
@@ -3616,6 +3746,8 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
             garantia_modulos_degradacao_anos: garantiaModulosDegradacaoAnos,
             garantia_modulos_fabricacao_anos: garantiaModulosFabricacaoAnos,
             garantia_inversor_anos: garantiaInversorAnos,
+            foto_modulo_url: fotoModuloUrl || undefined,
+            foto_inversor_url: fotoInversorUrl || undefined,
             consumo_mensal_kwh: consumoKwhMes,
             valor_investimento: valorInvestimentoFinal,
             valor_total_custos: totalCustosCalculado,

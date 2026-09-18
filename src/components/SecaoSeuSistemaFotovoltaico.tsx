@@ -61,8 +61,12 @@ export interface SecaoSeuSistemaFotovoltaicoProps {
   potenciaPlacaWp?: number | null
   /** Tecnologia do módulo (ex: Bifacial N-type, Monocristalino Half-Cell) */
   tecnologiaModulo?: string | null
+  /** URL da foto do módulo fotovoltaico cadastrado */
+  fotoModuloUrl?: string | null
   /** Marca e modelo do inversor */
   marcaInversor?: string | null
+  /** URL da foto do inversor cadastrado */
+  fotoInversorUrl?: string | null
   /** Quantidade de inversores */
   quantidadeInversores?: number | null
   /** Quantidade de MPPT do inversor */
@@ -103,7 +107,9 @@ export const SecaoSeuSistemaFotovoltaico: React.FC<SecaoSeuSistemaFotovoltaicoPr
   marcaPainel,
   potenciaPlacaWp,
   tecnologiaModulo,
+  fotoModuloUrl,
   marcaInversor,
+  fotoInversorUrl,
   quantidadeInversores = 1,
   mpptInversor,
   potenciaInversorKw,
@@ -311,9 +317,19 @@ export const SecaoSeuSistemaFotovoltaico: React.FC<SecaoSeuSistemaFotovoltaicoPr
           <div className="bg-white rounded-2xl p-5 border border-emerald-100 shadow-xs hover:shadow-md transition-all group flex flex-col justify-between">
             <div>
               <div className="flex items-start justify-between gap-3 mb-3">
-                <div className="w-12 h-12 rounded-xl bg-amber-50 border border-amber-200/60 flex items-center justify-center text-amber-600 group-hover:scale-105 transition-transform shadow-2xs">
-                  <ModuloSolarIcon className="w-6 h-6 text-amber-600" />
-                </div>
+                {fotoModuloUrl ? (
+                  <div className="w-14 h-14 rounded-xl border border-amber-200/80 bg-amber-50/40 p-1 flex items-center justify-center overflow-hidden shrink-0 group-hover:scale-105 transition-transform shadow-2xs">
+                    <img
+                      src={fotoModuloUrl}
+                      alt={marcaModuloFinal}
+                      className="w-full h-full object-contain"
+                    />
+                  </div>
+                ) : (
+                  <div className="w-12 h-12 rounded-xl bg-amber-50 border border-amber-200/60 flex items-center justify-center text-amber-600 group-hover:scale-105 transition-transform shadow-2xs">
+                    <ModuloSolarIcon className="w-6 h-6 text-amber-600" />
+                  </div>
+                )}
                 <span className="text-[11px] font-bold uppercase tracking-wider text-blue-700 bg-blue-50 px-2.5 py-0.5 rounded-full border border-blue-200">
                   Tier-1 Global
                 </span>
@@ -359,9 +375,19 @@ export const SecaoSeuSistemaFotovoltaico: React.FC<SecaoSeuSistemaFotovoltaicoPr
           <div className="bg-white rounded-2xl p-5 border border-emerald-100 shadow-xs hover:shadow-md transition-all group flex flex-col justify-between">
             <div>
               <div className="flex items-start justify-between gap-3 mb-3">
-                <div className="w-12 h-12 rounded-xl bg-teal-50 border border-teal-200/60 flex items-center justify-center text-teal-600 group-hover:scale-105 transition-transform shadow-2xs">
-                  <CircuitBoard className="w-6 h-6 text-teal-600" />
-                </div>
+                {fotoInversorUrl ? (
+                  <div className="w-14 h-14 rounded-xl border border-teal-200/80 bg-teal-50/40 p-1 flex items-center justify-center overflow-hidden shrink-0 group-hover:scale-105 transition-transform shadow-2xs">
+                    <img
+                      src={fotoInversorUrl}
+                      alt={marcaInversorFinal}
+                      className="w-full h-full object-contain"
+                    />
+                  </div>
+                ) : (
+                  <div className="w-12 h-12 rounded-xl bg-teal-50 border border-teal-200/60 flex items-center justify-center text-teal-600 group-hover:scale-105 transition-transform shadow-2xs">
+                    <CircuitBoard className="w-6 h-6 text-teal-600" />
+                  </div>
+                )}
                 <span className="text-[11px] font-bold uppercase tracking-wider text-teal-800 bg-teal-50 px-2.5 py-0.5 rounded-full border border-teal-200">
                   {quantidadeInversores} {quantidadeInversores > 1 ? 'Inversores' : 'Inversor'}
                 </span>

@@ -39,6 +39,8 @@ import { ErrorBoundary } from '@/components/ErrorBoundary'
 export interface ModalGerarPropostaTecnicoComercialProps {
   orcamento: OrcamentoSolarCalculado & {
     instalacoes_selecionadas?: string[] | null
+    foto_modulo_url?: string | null
+    foto_inversor_url?: string | null
   }
   cliente?: Cliente | null
   open: boolean
@@ -331,6 +333,9 @@ export function ModalGerarPropostaTecnicoComercial({
           estruturaFixacao: estruturaFixacao || '',
           codigoFiname: codigoFiname || 'Sob consulta',
           areaNecessariaM2: Number(areaNecessariaM2) || 0,
+          potenciaPlacaWp: orcamento.potencia_placa_wp,
+          fotoModuloUrl: (orcamento as any)?.foto_modulo_url || undefined,
+          fotoInversorUrl: (orcamento as any)?.foto_inversor_url || undefined,
         },
         garantias: {
           paineisAnosFabricacao: Number(paineisAnosFab) || 15,
@@ -1046,7 +1051,9 @@ export function ModalGerarPropostaTecnicoComercial({
                   marcaPainel={descricaoPaineis}
                   potenciaPlacaWp={orcamento.potencia_placa_wp || 550}
                   tecnologiaModulo="bifacial N-type"
+                  fotoModuloUrl={(orcamento as any)?.foto_modulo_url || null}
                   marcaInversor={descricaoInversores}
+                  fotoInversorUrl={(orcamento as any)?.foto_inversor_url || null}
                   quantidadeInversores={qtdInversores}
                   mpptInversor={2}
                   potenciaInversorKw={potenciaKwp ? Math.round(potenciaKwp * 0.8 * 10) / 10 : 6}

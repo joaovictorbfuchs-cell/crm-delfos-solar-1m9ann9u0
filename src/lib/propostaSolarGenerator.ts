@@ -51,7 +51,9 @@ export interface PropostaSolarPDFInput {
     numeroPlacas: number
     potenciaPlacaWp: number
     marcaPlacas: string
+    fotoModuloUrl?: string
     marcaInversor: string
+    fotoInversorUrl?: string
     quantidadeInversores: number
     tipoEstrutura: TipoEstruturaSolar
     orientacaoTelhado: OrientacaoTelhadoSolar
@@ -170,6 +172,8 @@ function converterInputParaTemplateComercial(
       areaNecessariaM2: sistema.areaNecessariaM2,
       potenciaPlacaWp: sistema.potenciaPlacaWp,
       potenciaInversorKw: Math.round(sistema.potenciaKwp * 0.8 * 10) / 10,
+      fotoModuloUrl: sistema.fotoModuloUrl,
+      fotoInversorUrl: sistema.fotoInversorUrl,
     },
     garantias: {
       paineisAnosFabricacao: sistema.garantiaModulosFabricacaoAnos || 15,

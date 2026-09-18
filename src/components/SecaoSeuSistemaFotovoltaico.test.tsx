@@ -156,4 +156,18 @@ describe('SecaoSeuSistemaFotovoltaico - Geração Mensal Detalhada', () => {
     )
     expect(htmlVazio).not.toContain('Geração Mensal Prevista')
   })
+
+  it('exibe fotos de módulo FV e inversor quando fornecidas', () => {
+    const html = renderToStaticMarkup(
+      React.createElement(SecaoSeuSistemaFotovoltaico, {
+        potenciaKwp: 10.5,
+        marcaPainel: 'Canadian Solar 550W',
+        fotoModuloUrl: 'https://example.com/modulo.jpg',
+        marcaInversor: 'Growatt 10kW',
+        fotoInversorUrl: 'https://example.com/inversor.jpg',
+      }),
+    )
+    expect(html).toContain('src="https://example.com/modulo.jpg"')
+    expect(html).toContain('src="https://example.com/inversor.jpg"')
+  })
 })
