@@ -78,6 +78,11 @@ describe('propostaSolarDocxGenerator', () => {
     expect(jsonStr).toContain('Garantia contra defeitos de fabricação:')
     expect(jsonStr).toContain('Garantia do inversor:')
     expect(jsonStr).not.toContain('Garantia da instalação:')
+    // Tabela de Geração Mensal Detalhada (Janeiro a Dezembro — Erechim/RS)
+    expect(jsonStr).toContain('Geração Mensal Detalhada (Janeiro a Dezembro — Erechim/RS)')
+    expect(jsonStr).toContain('IRRADIAÇÃO (HSP)')
+    expect(jsonStr).toContain('FATOR SAZONAL')
+    expect(jsonStr).toContain('TOTAIS ANUAIS')
     // Seção legada de Projeção na Conta de Energia removida
     expect(jsonStr).not.toContain('Projeção de Economia na Conta de Energia')
     expect(jsonStr).not.toContain('ECONOMIA TOTAL EM 25 ANOS')
@@ -187,5 +192,18 @@ describe('propostaSolarDocxGenerator', () => {
     expect(jsonStr).toContain('Endereço: ')
     expect(jsonStr).toContain('Contato: ')
     expect(jsonStr).not.toContain('Não informado')
+  })
+
+  it('omite a tabela de geração mensal detalhada quando geracaoMensalDetalhada for vazio ou nulo (fallback)', async () => {
+    const dadosSemGeracao: PropostaSolarPDFInput = {
+      ...dadosExemploMarceloBecker,
+      calculos: {
+        ...dadosExemploMarceloBecker.calculos,
+        geracaoMensalDetalhada: [] as any,
+      },
+    }
+    const doc = await gerarPropostaSolarDocx(dadosSemGeracao)
+    const jsonStr = JSON.stringify(doc)
+    expect(jsonStr).not.toContain('Geração Mensal Detalhada (Janeiro a Dezembro — Erechim/RS)')
   })
 })

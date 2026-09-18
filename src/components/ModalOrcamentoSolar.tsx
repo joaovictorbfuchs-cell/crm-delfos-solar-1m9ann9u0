@@ -3214,6 +3214,19 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                     garantiaInversorAnos={garantiaInversorAnos}
                     garantiaInstalacaoTexto="12 meses"
                     garantiaInstalacaoAnos={1}
+                    geracaoMensalDetalhada={
+                      calculos.geracaoMensalDetalhada ||
+                      (initialOrcamento?.geracao_detalhada_json
+                        ? typeof initialOrcamento.geracao_detalhada_json === 'string'
+                          ? JSON.parse(initialOrcamento.geracao_detalhada_json)
+                          : initialOrcamento.geracao_detalhada_json
+                        : null)
+                    }
+                    geracaoAnualKwh={
+                      calculos.geracaoAnualEstimadaKwh ||
+                      initialOrcamento?.producao_anual_kwh ||
+                      null
+                    }
                     nomeCliente={clienteAtual?.nome}
                   />
                 </ErrorBoundary>

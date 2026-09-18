@@ -1056,6 +1056,10 @@ export function ModalGerarPropostaTecnicoComercial({
                   garantiaInversorAnos={inversorAnosFab || 10}
                   garantiaInstalacaoTexto={`${instalacaoAnos || 1} anos`}
                   garantiaInstalacaoAnos={instalacaoAnos || 1}
+                  geracaoMensalDetalhada={dadosAtuais?.producao?.geracaoMensal || null}
+                  geracaoAnualKwh={
+                    Number(producaoAnualKwh) || dadosAtuais?.producao?.anualKwh || null
+                  }
                   nomeCliente={clienteNome}
                 />
               </ErrorBoundary>

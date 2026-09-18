@@ -11,6 +11,8 @@ import {
 } from 'lucide-react'
 import { formatCurrency } from '@/lib/formatters'
 import { onGridPngAsset, monitoramentoPngAsset } from '@/lib/propostaIlustracoesAssets'
+import type { GeracaoMensalItem } from '@/lib/energiaSolar'
+import { Calendar, SunMedium } from 'lucide-react'
 
 /**
  * Ícone representativo de um módulo/painel solar fotovoltaico:
@@ -79,6 +81,10 @@ export interface SecaoSeuSistemaFotovoltaicoProps {
   garantiaInstalacaoTexto?: string | null
   /** Garantia da instalação em anos numérico */
   garantiaInstalacaoAnos?: number | null
+  /** Geração mensal detalhada mês a mês (12 meses) de Erechim/RS */
+  geracaoMensalDetalhada?: GeracaoMensalItem[] | null
+  /** Geração anual total em kWh/ano */
+  geracaoAnualKwh?: number | null
   /** Nome do cliente para personalização suave */
   nomeCliente?: string | null
   className?: string
@@ -107,6 +113,8 @@ export const SecaoSeuSistemaFotovoltaico: React.FC<SecaoSeuSistemaFotovoltaicoPr
   garantiaInversorAnos,
   garantiaInstalacaoTexto,
   garantiaInstalacaoAnos,
+  geracaoMensalDetalhada,
+  geracaoAnualKwh,
   nomeCliente,
   className = '',
 }) => {
@@ -438,6 +446,148 @@ export const SecaoSeuSistemaFotovoltaico: React.FC<SecaoSeuSistemaFotovoltaicoPr
             </div>
           </div>
         </div>
+
+        {/* ========================================================================= */}
+        {/* SEÇÃO: GERAÇÃO MENSAL DETALHADA (JANEIRO A DEZEMBRO — ERECHIM/RS)         */}
+        {/* Posicionada IMEDIATAMENTE ABAIXO dos cards da seção Sistema Fotovoltaico   */}
+        {/* Fallback: se geracao_detalhada_json for null/vazio, omite a seção          */}
+        {/* ========================================================================= */}
+        {Array.isArray(geracaoMensalDetalhada) &&
+          geracaoMensalDetalhada.length > 0 &&
+          (() => {
+            const totalKwh =
+              geracaoAnualKwh && geracaoAnualKwh > 0
+                ? geracaoAnualKwh
+                : geracaoMensalDetalhada.reduce(
+                    (acc, curr) => acc + (Number(curr.geracaoKwh) || 0),
+                    0,
+                  )
+            const maxGeracao = Math.max(
+              ...geracaoMensalDetalhada.map((m) => Number(m.geracaoKwh) || 0),
+            )
+            const mediaMensal =
+              totalKwh > 0 ? Math.round(totalKwh / geracaoMensalDetalhada.length) : 0
+
+            return (
+              <div
+                className="bg-white rounded-2xl border border-emerald-100 p-4 sm:p-6 shadow-xs space-y-4"
+                data-testid="secao-geracao-mensal-detalhada"
+              >
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-gray-100 gap-2">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-lg bg-emerald-50 border border-emerald-200/80 flex items-center justify-center text-emerald-600 shrink-0">
+                      <Calendar className="w-4 h-4 text-emerald-600" />
+                    </div>
+                    <div>
+                      <h3 className="text-sm sm:text-base font-extrabold text-gray-900 tracking-tight">
+                        Geração Mensal Detalhada (Janeiro a Dezembro — Erechim/RS)
+                      </h3>
+                      <p className="text-[11px] text-gray-500">
+                        Sazonalidade solar calculada com base na irradiação HSP média diária de
+                        Erechim/RS
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 self-start sm:self-auto bg-emerald-50/80 border border-emerald-200 px-3 py-1.5 rounded-xl">
+                    <SunMedium className="w-4 h-4 text-emerald-600 shrink-0" />
+                    <span className="text-xs font-bold text-emerald-900">
+                      Total Anual:{' '}
+                      <strong className="text-emerald-700 text-sm font-black">
+                        {Math.round(totalKwh).toLocaleString('pt-BR')} kWh/ano
+                      </strong>
+                    </span>
+                  </div>
+                </div>
+
+                {/* Tabela Responsiva Desktop & Tablet */}
+                <div className="overflow-x-auto -mx-2 sm:mx-0">
+                  <div className="inline-block min-w-full align-middle">
+                    <table className="min-w-full divide-y divide-gray-200 text-xs text-left">
+                      <thead>
+                        <tr className="bg-emerald-900 text-white font-bold uppercase tracking-wider text-[10px]">
+                          <th scope="col" className="py-2.5 px-3 rounded-l-lg">
+                            Mês
+                          </th>
+                          <th scope="col" className="py-2.5 px-3 text-center">
+                            Dias
+                          </th>
+                          <th scope="col" className="py-2.5 px-3 text-right">
+                            Irradiação (HSP)
+                          </th>
+                          <th scope="col" className="py-2.5 px-3 text-right">
+                            Fator Sazonal
+                          </th>
+                          <th scope="col" className="py-2.5 px-3 text-right rounded-r-lg">
+                            Geração Estimada
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100 bg-white">
+                        {geracaoMensalDetalhada.map((item) => {
+                          const isDestaque =
+                            item.geracaoKwh >= maxGeracao * 0.95 && item.geracaoKwh > 0
+                          return (
+                            <tr
+                              key={item.mesIndex}
+                              className={`transition-colors ${
+                                isDestaque
+                                  ? 'bg-emerald-50/70 font-semibold'
+                                  : 'hover:bg-gray-50/70'
+                              }`}
+                            >
+                              <td className="py-2 px-3 text-gray-900 font-bold flex items-center gap-1.5">
+                                <span>{item.mesNome}</span>
+                                {isDestaque && (
+                                  <span className="text-[9px] font-bold uppercase tracking-wider text-emerald-800 bg-emerald-100 px-1.5 py-0.2 rounded border border-emerald-300">
+                                    Pico
+                                  </span>
+                                )}
+                              </td>
+                              <td className="py-2 px-3 text-center text-gray-600">{item.dias}</td>
+                              <td className="py-2 px-3 text-right text-gray-600 font-mono">
+                                {(Number(item.irradiacaoHSP) || 0).toFixed(2)} kWh/m²
+                              </td>
+                              <td className="py-2 px-3 text-right text-gray-600 font-mono">
+                                {(Number(item.fatorSazonal) || 1).toFixed(2).replace('.', ',')}x
+                              </td>
+                              <td className="py-2 px-3 text-right font-extrabold text-emerald-800 font-mono text-[13px]">
+                                {Math.round(Number(item.geracaoKwh) || 0).toLocaleString('pt-BR')}{' '}
+                                <span className="text-[10px] font-semibold text-gray-500">kWh</span>
+                              </td>
+                            </tr>
+                          )
+                        })}
+                      </tbody>
+                      <tfoot>
+                        <tr className="bg-emerald-50/90 border-t-2 border-emerald-300 text-gray-900 font-bold">
+                          <td className="py-2.5 px-3 font-black text-emerald-950 uppercase text-[11px] rounded-l-lg">
+                            Totais Anuais
+                          </td>
+                          <td className="py-2.5 px-3 text-center text-gray-700">365 dias</td>
+                          <td className="py-2.5 px-3 text-right text-gray-700 font-mono">
+                            {(
+                              geracaoMensalDetalhada.reduce(
+                                (acc, m) => acc + (Number(m.irradiacaoHSP) || 0),
+                                0,
+                              ) / geracaoMensalDetalhada.length
+                            ).toFixed(2)}{' '}
+                            <span className="text-[10px] text-gray-500">méd.</span>
+                          </td>
+                          <td className="py-2.5 px-3 text-right text-gray-700 font-mono">
+                            Média: {mediaMensal.toLocaleString('pt-BR')} kWh/mês
+                          </td>
+                          <td className="py-2.5 px-3 text-right font-black text-emerald-800 font-mono text-sm rounded-r-lg">
+                            {Math.round(totalKwh).toLocaleString('pt-BR')} kWh/ano
+                          </td>
+                        </tr>
+                      </tfoot>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            )
+          })()}
 
         {/* ========================================================================= */}
         {/* FAIXA DE MONITORAMENTO 24/7 INCLUSO                                       */}

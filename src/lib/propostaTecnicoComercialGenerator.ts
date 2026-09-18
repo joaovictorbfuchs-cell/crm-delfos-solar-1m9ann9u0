@@ -2503,6 +2503,104 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
           </div>
         </div>
 
+        ${(() => {
+          const itens = producao?.geracaoMensal
+          if (!Array.isArray(itens) || itens.length === 0) {
+            return ''
+          }
+
+          const totalKwh =
+            producao?.anualKwh && producao.anualKwh > 0
+              ? producao.anualKwh
+              : itens.reduce((acc, curr) => acc + (Number(curr.geracaoKwh) || 0), 0)
+          const maxGeracao = Math.max(...itens.map((m) => Number(m.geracaoKwh) || 0))
+          const mediaHsp =
+            itens.reduce((acc, m) => acc + (Number(m.irradiacaoHSP) || 0), 0) / itens.length
+          const mediaMensal = totalKwh > 0 ? Math.round(totalKwh / itens.length) : 0
+
+          const rowsHtml = itens
+            .map((item) => {
+              const isDestaque = item.geracaoKwh >= maxGeracao * 0.95 && item.geracaoKwh > 0
+              const bgStyle = isDestaque ? 'background: #ECFDF5; font-weight: 700;' : ''
+              const hspVal = (Number(item.irradiacaoHSP) || 0).toFixed(2)
+              const fatVal = (Number(item.fatorSazonal) || 1).toFixed(2).replace('.', ',')
+              const gerVal = Math.round(Number(item.geracaoKwh) || 0).toLocaleString('pt-BR')
+
+              return `
+                <tr style="border-bottom: 1px solid #E5E7EB; ${bgStyle}">
+                  <td style="padding: 4px 8px; color: #111827; font-weight: 700;">
+                    ${item.mesNome}
+                    ${
+                      isDestaque
+                        ? '<span style="font-size: 7.5px; background: #DCFCE7; color: #166534; padding: 1px 4px; border-radius: 3px; border: 1px solid #86EFAC; margin-left: 4px; text-transform: uppercase;">Pico</span>'
+                        : ''
+                    }
+                  </td>
+                  <td style="padding: 4px 8px; text-align: center; color: #4B5563;">${item.dias}</td>
+                  <td style="padding: 4px 8px; text-align: right; color: #4B5563; font-family: monospace;">${hspVal}</td>
+                  <td style="padding: 4px 8px; text-align: right; color: #4B5563; font-family: monospace;">${fatVal}x</td>
+                  <td style="padding: 4px 8px; text-align: right; color: #065F46; font-weight: 800; font-family: monospace; font-size: 10.5px;">${gerVal} kWh</td>
+                </tr>
+              `
+            })
+            .join('')
+
+          return `
+            <!-- ========================================================
+                 TABELA: GERAÇÃO MENSAL DETALHADA (JANEIRO A DEZEMBRO — ERECHIM/RS)
+                 IMEDIATAMENTE ABAIXO dos cards da seção "Seu Sistema Fotovoltaico"
+                 Quebra de página controlada (page-break-inside: avoid)
+                 ======================================================== -->
+            <div style="background: #FFFFFF; border: 1.5px solid #BBF7D0; border-radius: 14px; padding: 10px 14px; margin-top: 10px; margin-bottom: 4px; box-shadow: 0 1px 3px rgba(22, 163, 74, 0.08); page-break-inside: avoid; break-inside: avoid;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; padding-bottom: 6px; border-bottom: 1px solid #E5E7EB;">
+                <div>
+                  <div style="display: flex; align-items: center; gap: 6px;">
+                    <span style="font-size: 8px; font-weight: 800; text-transform: uppercase; background: #DCFCE7; color: #166534; padding: 2px 7px; border-radius: 9999px; border: 1px solid #BBF7D0;">
+                      Sazonalidade Solar
+                    </span>
+                    <strong style="font-size: 11px; font-weight: 900; color: #166534;">
+                      Geração Mensal Detalhada (Janeiro a Dezembro — Erechim/RS)
+                    </strong>
+                  </div>
+                  <div style="font-size: 8px; color: #6B7280; margin-top: 2px;">
+                    Irradiação solar diária (HSP), sazonalidade climática e geração estimada mês a mês em Erechim/RS
+                  </div>
+                </div>
+                <div style="text-align: right; background: #F0FDF4; border: 1px solid #86EFAC; padding: 3px 10px; border-radius: 8px;">
+                  <span style="font-size: 7.5px; font-weight: 700; color: #166534; text-transform: uppercase; display: block;">Total Anual</span>
+                  <strong style="font-size: 12px; font-weight: 900; color: #065F46;">${Math.round(totalKwh).toLocaleString('pt-BR')} kWh/ano</strong>
+                </div>
+              </div>
+
+              <table style="width: 100%; border-collapse: collapse; font-size: 8.5px; page-break-inside: avoid;">
+                <thead>
+                  <tr style="background: #064E3B; color: #FFFFFF; font-size: 8px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em;">
+                    <th style="padding: 5px 8px; text-align: left; border-top-left-radius: 6px;">Mês</th>
+                    <th style="padding: 5px 8px; text-align: center;">Dias</th>
+                    <th style="padding: 5px 8px; text-align: right;">Irradiação (HSP)</th>
+                    <th style="padding: 5px 8px; text-align: right;">Fator Sazonal</th>
+                    <th style="padding: 5px 8px; text-align: right; border-top-right-radius: 6px;">Geração Estimada</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${rowsHtml}
+                </tbody>
+                <tfoot>
+                  <tr style="background: #F0FDF4; border-top: 2px solid #86EFAC; font-weight: 800; color: #064E3B;">
+                    <td style="padding: 5px 8px; text-transform: uppercase; font-size: 8px; border-bottom-left-radius: 6px;">Totais Anuais</td>
+                    <td style="padding: 5px 8px; text-align: center; color: #374151;">365 dias</td>
+                    <td style="padding: 5px 8px; text-align: right; font-family: monospace; color: #374151;">${mediaHsp.toFixed(2)} méd.</td>
+                    <td style="padding: 5px 8px; text-align: right; font-family: monospace; color: #374151;">Média: ${mediaMensal.toLocaleString('pt-BR')} kWh/mês</td>
+                    <td style="padding: 5px 8px; text-align: right; font-family: monospace; font-size: 11px; color: #065F46; border-bottom-right-radius: 6px;">
+                      ${Math.round(totalKwh).toLocaleString('pt-BR')} kWh/ano
+                    </td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          `
+        })()}
+
         <!-- Faixa Verde de Monitoramento Inteligente 24/7 com Ícone de Smartphone -->
         <div class="faixa-monitoramento">
           <div class="faixa-mon-left">

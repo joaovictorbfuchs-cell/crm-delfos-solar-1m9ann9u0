@@ -305,6 +305,24 @@ describe('Proposta Técnico-Comercial Generator (5 Seções Oficiais)', () => {
     expect(htmlSolar).not.toContain('Quem Somos')
     expect(htmlSolar).not.toContain('Como Funciona o Sistema Solar On-Grid')
     expect(htmlSolar).not.toContain('Monitoramento do Sistema Solar em Tempo Real')
+
+    // Confirma a seção Geração Mensal Detalhada (Janeiro a Dezembro — Erechim/RS)
+    expect(htmlSolar).toContain('Geração Mensal Detalhada (Janeiro a Dezembro — Erechim/RS)')
+    expect(htmlSolar).toContain('Total Anual')
+    expect(htmlSolar).toContain('Totais Anuais')
+  })
+
+  it('omite a seção de geração mensal detalhada no HTML quando geracaoMensal for nulo/vazio (fallback)', () => {
+    const dadosSemGeracao: PropostaTecnicoComercialDados = {
+      ...dadosExemplo,
+      producao: {
+        ...dadosExemplo.producao,
+        geracaoMensal: undefined,
+      },
+    }
+
+    const html = gerarHTMLPropostaTecnicoComercial(dadosSemGeracao)
+    expect(html).not.toContain('Geração Mensal Detalhada (Janeiro a Dezembro — Erechim/RS)')
   })
 
   it('exibe card do meio dinâmico com período de payback arredondado para cima (22 meses -> Gasto em 2 Anos)', () => {
