@@ -32,14 +32,21 @@ describe('SecaoInvestimentoPagamento Component', () => {
     expect(html).toContain('Economia/mês:')
     expect(html).toContain('Parcela + Conta:')
 
-    // Linha comparativa
-    expect(html).toContain('Hoje você paga')
-    expect(html).toContain('de energia para a concessionária.')
-    expect(html).toContain('Com solar, sua parcela do financiamento é')
-    expect(html).toContain('— e o sistema passa a ser seu patrimônio.')
+    // Título da seção de condições de pagamento
+    expect(html).toContain('Condições de pagamento')
 
-    // Badge de urgência
-    expect(html).toContain('Condições válidas por 5 dias. Reserve sua usina agora.')
+    // Mini-bloco de payback estimado abaixo dos cards
+    expect(html).toContain('Payback estimado')
+    expect(html).toContain('Quitação prevista:')
+
+    // REMOVER COMPARATIVO: não deve mais conter o bloco de comparativo mensal
+    expect(html).not.toContain('Comparativo de Custo Mensal')
+    expect(html).not.toContain('Troque despesa por patrimônio')
+
+    // CARD DE URGÊNCIA: textos removidos conforme pedido do usuário
+    expect(html).not.toContain('Garantir Condição')
+    expect(html).not.toContain('Reserve sua usina agora')
+    expect(html).toContain('Condições válidas por 5 dias.')
   })
 
   it('respeita os valores reais passados via props', () => {
@@ -103,11 +110,19 @@ describe('SecaoInvestimentoPagamento Component', () => {
     expect(html).toContain('1.450,50')
     expect(html).toContain('850')
 
-    // Validade personalizada
-    expect(html).toContain('Condições válidas por 10 dias. Reserve sua usina agora.')
+    // Validade personalizada sem "Reserve sua usina agora"
+    expect(html).toContain('Condições válidas por 10 dias.')
+    expect(html).not.toContain('Reserve sua usina agora')
+    expect(html).not.toContain('Garantir Condição')
 
-    // Payback estimado integrado junto ao valor de investimento
+    // Título da seção
+    expect(html).toContain('Condições de pagamento')
+
+    // Payback estimado abaixo dos cards
     expect(html).toContain('Payback estimado')
     expect(html).toContain('Quitação prevista:')
+
+    // Ausência do comparativo mensal
+    expect(html).not.toContain('Comparativo de Custo Mensal')
   })
 })

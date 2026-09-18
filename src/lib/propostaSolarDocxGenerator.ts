@@ -1963,6 +1963,22 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
     }),
   )
 
+  // Título da seção de condições de pagamento
+  docChildren.push(
+    new Paragraph({
+      spacing: { before: 160, after: 80 },
+      children: [
+        new TextRun({
+          text: 'Condições de pagamento',
+          bold: true,
+          size: 20,
+          color: '111827',
+          font: 'Arial',
+        }),
+      ],
+    }),
+  )
+
   // Grade 4 modalidades de pagamento com layout e linhas comparativas idênticos à aba de parcelamento
   const colWidthPgto = Math.floor(PAGE_CONTENT_WIDTH / 4)
   const contaComSolarAVista =
@@ -2428,45 +2444,7 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
     }),
   )
 
-  // Linha reflexiva de troca de despesa por patrimônio
-  const menorParcela = Math.min(
-    finanAValor > 0 ? finanAValor : Infinity,
-    finanBValor > 0 ? finanBValor : Infinity,
-  )
-  const parcelaComp = menorParcela !== Infinity ? menorParcela : finanBValor
-
-  docChildren.push(
-    new Table({
-      width: { size: PAGE_CONTENT_WIDTH, type: WidthType.DXA },
-      borders: tableBorderDefault,
-      rows: [
-        new TableRow({
-          children: [
-            new TableCell({
-              width: { size: PAGE_CONTENT_WIDTH, type: WidthType.DXA },
-              shading: { type: ShadingType.CLEAR, fill: COLOR_LIGHT_BG },
-              margins: { top: 80, bottom: 80, left: 120, right: 120 },
-              children: [
-                new Paragraph({
-                  children: [
-                    new TextRun({
-                      text: `Hoje você paga ${formatBRL(contaHoje)} de energia para a concessionária. Com solar, sua parcela de financiamento é ${formatBRL(parcelaComp)} — troque despesa por patrimônio!`,
-                      bold: true,
-                      size: 16,
-                      color: COLOR_PRIMARY,
-                      font: 'Arial',
-                    }),
-                  ],
-                }),
-              ],
-            }),
-          ],
-        }),
-      ],
-    }),
-  )
-
-  // Card de Payback Estimado (Tempo de Retorno do Investimento) posicionado após investimento/pagamento
+  // Card de Payback Estimado (Tempo de Retorno do Investimento) posicionado ABAIXO dos 4 cards de condições de pagamento
   docChildren.push(
     new Table({
       width: { size: PAGE_CONTENT_WIDTH, type: WidthType.DXA },
@@ -2487,7 +2465,7 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
                 new Paragraph({
                   children: [
                     new TextRun({
-                      text: '⏱️ TEMPO DE RETORNO DO INVESTIMENTO (PAYBACK): ',
+                      text: '⏱️ PAYBACK ESTIMADO: ',
                       bold: true,
                       size: 15,
                       color: '92400E',
@@ -2501,7 +2479,7 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
                       font: 'Arial',
                     }),
                     new TextRun({
-                      text: ` (Ano de quitação: ~${anoPayback})`,
+                      text: ` (Quitação prevista: ~${anoPayback})`,
                       bold: true,
                       size: 15,
                       color: '78350F',
@@ -2513,7 +2491,7 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
                   spacing: { before: 40 },
                   children: [
                     new TextRun({
-                      text: 'Tempo necessário para a economia na conta pagar 100% do sistema. A partir daí, toda a geração torna-se patrimônio e lucro líquido.',
+                      text: 'Tempo estimado para que a economia gerada na fatura de energia pague integralmente o investimento.',
                       size: 14,
                       color: '92400E',
                       font: 'Arial',
@@ -2545,88 +2523,176 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
     )
   }
 
-  // Bloco de Assinaturas & Aprovação
+  // Bloco de Assinaturas & Aprovação (empresa de um lado, cliente do outro, dados estruturados)
   const colAssinaturaWidth = Math.floor(PAGE_CONTENT_WIDTH / 2)
   docChildren.push(
     new Table({
       width: { size: PAGE_CONTENT_WIDTH, type: WidthType.DXA },
-      borders: tableBorderNone,
+      borders: tableBorderDefault,
       rows: [
         new TableRow({
           children: [
+            // Bloco Empresa
             new TableCell({
               width: { size: colAssinaturaWidth, type: WidthType.DXA },
-              borders: tableBorderNone,
-              margins: { top: 200, bottom: 80, left: 100, right: 100 },
+              shading: { type: ShadingType.CLEAR, fill: 'F9FAFB' },
+              borders: {
+                top: { style: BorderStyle.SINGLE, size: 8, color: 'E5E7EB' },
+                bottom: { style: BorderStyle.SINGLE, size: 8, color: 'E5E7EB' },
+                left: { style: BorderStyle.SINGLE, size: 8, color: 'E5E7EB' },
+                right: { style: BorderStyle.SINGLE, size: 8, color: 'E5E7EB' },
+              },
+              margins: { top: 120, bottom: 120, left: 120, right: 120 },
               children: [
                 new Paragraph({
-                  alignment: AlignmentType.CENTER,
                   children: [
                     new TextRun({
-                      text: '____________________________________________',
-                      color: COLOR_BORDER,
-                      size: 18,
-                    }),
-                  ],
-                }),
-                new Paragraph({
-                  alignment: AlignmentType.CENTER,
-                  spacing: { before: 40 },
-                  children: [
-                    new TextRun({
-                      text: DADOS_EMPRESA_DELFOS_SOLAR.razaoSocial,
+                      text: 'EMPRESA CONTRATADA\n',
                       bold: true,
-                      size: 18,
+                      size: 13,
+                      color: '065F46',
+                      font: 'Arial',
+                    }),
+                    new TextRun({
+                      text: `${DADOS_EMPRESA_DELFOS_SOLAR.razaoSocial}\n`,
+                      bold: true,
+                      size: 16,
+                      color: '111827',
+                      font: 'Arial',
+                    }),
+                    new TextRun({
+                      text: `CNPJ: ${DADOS_EMPRESA_DELFOS_SOLAR.cnpj}\n`,
+                      size: 13,
+                      color: '374151',
+                      font: 'Arial',
+                    }),
+                    new TextRun({
+                      text: `Resp. Técnico: ${DADOS_EMPRESA_DELFOS_SOLAR.responsavelTecnico} (${DADOS_EMPRESA_DELFOS_SOLAR.crea})\n`,
+                      size: 13,
+                      color: '374151',
+                      font: 'Arial',
+                    }),
+                    new TextRun({
+                      text: `Endereço: ${DADOS_EMPRESA_DELFOS_SOLAR.endereco}\n`,
+                      size: 13,
+                      color: '374151',
+                      font: 'Arial',
+                    }),
+                    new TextRun({
+                      text: `Contato: ${DADOS_EMPRESA_DELFOS_SOLAR.telefone} • ${DADOS_EMPRESA_DELFOS_SOLAR.email}\n`,
+                      size: 13,
+                      color: '374151',
+                      font: 'Arial',
                     }),
                   ],
                 }),
                 new Paragraph({
+                  spacing: { before: 200 },
                   alignment: AlignmentType.CENTER,
                   children: [
                     new TextRun({
-                      text: `${DADOS_EMPRESA_DELFOS_SOLAR.responsavelTecnico} (${DADOS_EMPRESA_DELFOS_SOLAR.crea})`,
-                      size: 16,
-                      color: COLOR_TEXT_MUTED,
+                      text: '____________________________________________\n',
+                      color: '111827',
+                      size: 14,
+                    }),
+                    new TextRun({
+                      text: `${DADOS_EMPRESA_DELFOS_SOLAR.responsavelTecnico}\n`,
+                      bold: true,
+                      size: 14,
+                      color: '111827',
+                      font: 'Arial',
+                    }),
+                    new TextRun({
+                      text: `Responsável Técnico — ${DADOS_EMPRESA_DELFOS_SOLAR.crea}\n`,
+                      size: 12,
+                      color: '6B7280',
+                      font: 'Arial',
+                    }),
+                    new TextRun({
+                      text: `Erechim / RS, ${dataFormatada}`,
+                      size: 11,
+                      color: '9CA3AF',
+                      font: 'Arial',
                     }),
                   ],
                 }),
               ],
             }),
+            // Bloco Cliente
             new TableCell({
               width: { size: PAGE_CONTENT_WIDTH - colAssinaturaWidth, type: WidthType.DXA },
-              borders: tableBorderNone,
-              margins: { top: 200, bottom: 80, left: 100, right: 100 },
+              shading: { type: ShadingType.CLEAR, fill: 'F9FAFB' },
+              borders: {
+                top: { style: BorderStyle.SINGLE, size: 8, color: 'E5E7EB' },
+                bottom: { style: BorderStyle.SINGLE, size: 8, color: 'E5E7EB' },
+                left: { style: BorderStyle.SINGLE, size: 8, color: 'E5E7EB' },
+                right: { style: BorderStyle.SINGLE, size: 8, color: 'E5E7EB' },
+              },
+              margins: { top: 120, bottom: 120, left: 120, right: 120 },
               children: [
                 new Paragraph({
-                  alignment: AlignmentType.CENTER,
                   children: [
                     new TextRun({
-                      text: '____________________________________________',
-                      color: COLOR_BORDER,
-                      size: 18,
-                    }),
-                  ],
-                }),
-                new Paragraph({
-                  alignment: AlignmentType.CENTER,
-                  spacing: { before: 40 },
-                  children: [
-                    new TextRun({
-                      text: cliente.nome,
+                      text: 'CLIENTE / CONTRATANTE\n',
                       bold: true,
-                      size: 18,
+                      size: 13,
+                      color: '1E40AF',
+                      font: 'Arial',
+                    }),
+                    new TextRun({
+                      text: `${cliente.nome.toUpperCase()}\n`,
+                      bold: true,
+                      size: 16,
+                      color: '111827',
+                      font: 'Arial',
+                    }),
+                    new TextRun({
+                      text: `CPF/CNPJ: ${cliente.cpfOuCnpj || 'Não informado'}\n`,
+                      size: 13,
+                      color: '374151',
+                      font: 'Arial',
+                    }),
+                    new TextRun({
+                      text: `Endereço/Cidade: ${cliente.endereco ? `${cliente.endereco}, ` : ''}${cliente.municipio || 'Erechim / RS'}\n`,
+                      size: 13,
+                      color: '374151',
+                      font: 'Arial',
+                    }),
+                    new TextRun({
+                      text: `Contato: ${cliente.telefone || '—'}${cliente.email ? ` • ${cliente.email}` : ''}\n`,
+                      size: 13,
+                      color: '374151',
+                      font: 'Arial',
                     }),
                   ],
                 }),
                 new Paragraph({
+                  spacing: { before: 200 },
                   alignment: AlignmentType.CENTER,
                   children: [
                     new TextRun({
-                      text: cliente.cpfOuCnpj
-                        ? `CPF/CNPJ: ${cliente.cpfOuCnpj}`
-                        : 'Cliente / Contratante',
-                      size: 16,
-                      color: COLOR_TEXT_MUTED,
+                      text: '____________________________________________\n',
+                      color: '111827',
+                      size: 14,
+                    }),
+                    new TextRun({
+                      text: `${cliente.nome.toUpperCase()}\n`,
+                      bold: true,
+                      size: 14,
+                      color: '111827',
+                      font: 'Arial',
+                    }),
+                    new TextRun({
+                      text: 'De acordo com as especificações e valores da proposta\n',
+                      size: 12,
+                      color: '6B7280',
+                      font: 'Arial',
+                    }),
+                    new TextRun({
+                      text: 'Local e data: ______________________, ____/____/________',
+                      size: 11,
+                      color: '9CA3AF',
+                      font: 'Arial',
                     }),
                   ],
                 }),

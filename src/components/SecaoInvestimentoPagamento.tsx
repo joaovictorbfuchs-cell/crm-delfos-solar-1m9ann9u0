@@ -1,15 +1,5 @@
 import React from 'react'
-import {
-  Wallet,
-  CreditCard,
-  Building2,
-  Landmark,
-  PiggyBank,
-  Clock,
-  Sparkles,
-  ArrowRight,
-  ShieldCheck,
-} from 'lucide-react'
+import { Wallet, CreditCard, Building2, Landmark, Clock, Sparkles } from 'lucide-react'
 import { formatCurrency } from '@/lib/formatters'
 
 export interface SecaoInvestimentoPagamentoProps {
@@ -301,312 +291,293 @@ export const SecaoInvestimentoPagamento: React.FC<SecaoInvestimentoPagamentoProp
             <span className="text-xs font-semibold text-gray-600 mt-0.5">
               Investimento único — o sistema é seu
             </span>
-
-            {/* Informações de Payback comprimidas abaixo do investimento */}
-            <div className="w-full mt-3 pt-2.5 border-t border-amber-200/80 flex flex-col items-start sm:items-end gap-1">
-              <div className="flex items-center gap-1.5 flex-wrap">
-                <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-amber-900 bg-amber-100/90 px-2 py-0.5 rounded-md border border-amber-300/80">
-                  <Clock className="w-3 h-3 text-amber-700 shrink-0" />
-                  <span>Payback estimado</span>
-                </span>
-                <span className="text-sm font-black text-amber-800 tracking-tight">
-                  {infoPayback.texto}
-                </span>
-              </div>
-              <span className="text-[11px] font-semibold text-amber-900/85">
-                Quitação prevista: ~{infoPayback.anoCalendario}
-              </span>
-            </div>
           </div>
         </div>
       </div>
 
       <div className="p-6 sm:p-8 space-y-6 sm:space-y-8 bg-[#FAFCFA]">
         {/* ========================================================================= */}
-        {/* 2. GRADE DE 4 CARDS DE PAGAMENTO (1 col mobile, 2 col sm, 4 col lg)      */}
-        {/* Espelhado com fidelidade total à Aba de Parcelamento                      */}
+        {/* 2. TÍTULO E GRADE DE 4 CARDS DE PAGAMENTO (1 col mobile, 2 col sm, 4 col lg) */}
         {/* ========================================================================= */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-xs">
-          {/* CARD 1: À VISTA */}
-          <div className="p-5 sm:p-6 rounded-2xl border-2 border-emerald-400 bg-emerald-50/50 flex flex-col justify-between space-y-4 shadow-sm hover:shadow-md transition-shadow">
-            <div>
-              {/* Cabeçalho com ícone e badge pill superior */}
-              <div className="flex items-center justify-between gap-2 mb-3">
-                <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center shrink-0 border border-emerald-200 shadow-2xs">
-                  <Wallet className="w-5 h-5 text-emerald-700" />
-                </div>
-                <span className="text-[10px] font-bold px-2.5 py-1 rounded-full uppercase bg-emerald-200 text-emerald-900 tracking-wider">
-                  Melhor condição
-                </span>
-              </div>
-
-              <div className="flex items-center justify-between">
-                <span className="font-extrabold text-xs uppercase tracking-wider text-emerald-950">
-                  À Vista
-                </span>
-                <span className="text-[10px] font-bold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full">
-                  Sem Juros
-                </span>
-              </div>
-
-              <div className="text-2xl sm:text-3xl font-black text-emerald-700 tracking-tight mt-2">
-                {formatCurrency(aVistaFinal)}
-              </div>
-              <p className="text-[11px] text-gray-500 mt-1">
-                {descontoAVistaFinal > 0
-                  ? `Desconto de ${formatCurrency(descontoAVistaFinal)} aplicado`
-                  : 'Valor total do projeto à vista'}
-              </p>
-            </div>
-
-            {/* 3 Linhas comparativas inferiores idênticas à aba de parcelamento */}
-            <div className="pt-3 border-t border-emerald-200 space-y-1.5 text-[11px]">
-              <div className="flex justify-between">
-                <span className="text-gray-500">Conta hoje s/ solar:</span>
-                <span className="font-bold text-red-600">{formatCurrency(contaAtualFinal)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-500">Conta c/ solar:</span>
-                <span className="font-bold text-emerald-700">
-                  {formatCurrency(faturaComSolarFinal)}
-                </span>
-              </div>
-              <div className="flex justify-between pt-1 border-t border-emerald-200 font-extrabold text-emerald-900">
-                <span>Economia/mês:</span>
-                <span>{formatCurrency(economiaMensalAVista)}</span>
-              </div>
-            </div>
-          </div>
-
-          {/* CARD 2: CARTÃO */}
-          <div className="p-5 sm:p-6 rounded-2xl border border-gray-200 bg-white flex flex-col justify-between space-y-4 shadow-sm hover:shadow-md transition-shadow">
-            <div>
-              {/* Cabeçalho com ícone e badge pill superior */}
-              <div className="flex items-center justify-between gap-2 mb-3">
-                <div className="w-10 h-10 rounded-xl bg-gray-100 text-gray-800 flex items-center justify-center shrink-0 border border-gray-200 shadow-2xs">
-                  <CreditCard className="w-5 h-5 text-gray-700" />
-                </div>
-                <span className="text-[10px] font-bold px-2.5 py-1 rounded-full uppercase bg-gray-100 text-gray-700 tracking-wider">
-                  Condição facilitada
-                </span>
-              </div>
-
-              <div className="flex items-center justify-between gap-1">
-                <span className="font-extrabold text-xs uppercase tracking-wider text-gray-900 truncate">
-                  Cartão de Crédito
-                </span>
-                <span className="text-[10px] font-bold bg-gray-100 text-gray-700 px-2 py-0.5 rounded-full shrink-0">
-                  {cartaoSemJuros
-                    ? `${parcelasCartaoFinal}x (s/ juros)`
-                    : `${parcelasCartaoFinal}x`}
-                </span>
-              </div>
-
-              <div className="text-2xl sm:text-3xl font-black text-gray-900 tracking-tight mt-2">
-                <span className="text-sm sm:text-base font-bold text-gray-600">
-                  {parcelasCartaoFinal}x de{' '}
-                </span>
-                {formatCurrency(valorParcelaCartaoFinal)}
-              </div>
-              <p className="text-[11px] text-gray-500 mt-1">
-                Total: {formatCurrency(valorParcelaCartaoFinal * parcelasCartaoFinal)}
-              </p>
-            </div>
-
-            {/* 3 Linhas comparativas inferiores idênticas à aba de parcelamento */}
-            <div className="pt-3 border-t border-gray-100 space-y-1.5 text-[11px]">
-              <div className="flex justify-between">
-                <span className="text-gray-500">Conta hoje s/ solar:</span>
-                <span className="font-bold text-red-600">{formatCurrency(contaAtualFinal)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-500">Conta c/ solar:</span>
-                <span className="font-bold text-emerald-700">
-                  {formatCurrency(contaSolarCartao)}
-                </span>
-              </div>
-              <div className="flex justify-between pt-1 border-t border-gray-100 font-bold text-gray-900">
-                <span>Parcela + Conta:</span>
-                <span>{formatCurrency(totalMensalCartao)}</span>
-              </div>
-            </div>
-          </div>
-
-          {/* CARD 3: FINANCIAMENTO A */}
-          <div className="p-5 sm:p-6 rounded-2xl border border-gray-200 bg-white flex flex-col justify-between space-y-4 shadow-sm hover:shadow-md transition-shadow">
-            <div>
-              {/* Cabeçalho com ícone e badge pill superior */}
-              <div className="flex items-center justify-between gap-2 mb-3">
-                <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center shrink-0 border border-amber-200 shadow-2xs">
-                  <Building2 className="w-5 h-5 text-amber-700" />
-                </div>
-                <span className="text-[10px] font-bold px-2.5 py-1 rounded-full uppercase bg-amber-100 text-amber-900 tracking-wider">
-                  Menor parcela
-                </span>
-              </div>
-
-              <div className="flex items-center justify-between gap-1">
-                <span className="font-extrabold text-xs uppercase tracking-wider text-gray-900 truncate">
-                  {nomeFinanciamentoA || 'Financiamento A'}
-                </span>
-                <span className="text-[10px] font-bold bg-amber-100 text-amber-900 px-2 py-0.5 rounded-full shrink-0">
-                  {parcelasFinanAFinal}x
-                </span>
-              </div>
-
-              <div className="text-2xl sm:text-3xl font-black text-gray-900 tracking-tight mt-2">
-                <span className="text-sm sm:text-base font-bold text-gray-600">
-                  {parcelasFinanAFinal}x de{' '}
-                </span>
-                {formatCurrency(valorParcelaFinanAFinal)}
-              </div>
-              <p className="text-[11px] text-gray-500 mt-1">
-                {entradaFinanAFinal > 0 && (
-                  <span className="block text-amber-800 font-semibold">
-                    Entrada: {formatCurrency(entradaFinanAFinal)}
+        <div>
+          <h3 className="text-base sm:text-lg font-black text-gray-900 tracking-tight mb-3">
+            Condições de pagamento
+          </h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-xs">
+            {/* CARD 1: À VISTA */}
+            <div className="p-5 sm:p-6 rounded-2xl border-2 border-emerald-400 bg-emerald-50/50 flex flex-col justify-between space-y-4 shadow-sm hover:shadow-md transition-shadow">
+              <div>
+                {/* Cabeçalho com ícone e badge pill superior */}
+                <div className="flex items-center justify-between gap-2 mb-3">
+                  <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center shrink-0 border border-emerald-200 shadow-2xs">
+                    <Wallet className="w-5 h-5 text-emerald-700" />
+                  </div>
+                  <span className="text-[10px] font-bold px-2.5 py-1 rounded-full uppercase bg-emerald-200 text-emerald-900 tracking-wider">
+                    Melhor condição
                   </span>
-                )}
-                Total:{' '}
-                {formatCurrency(entradaFinanAFinal + valorParcelaFinanAFinal * parcelasFinanAFinal)}
-              </p>
-            </div>
-
-            {/* 3 Linhas comparativas inferiores idênticas à aba de parcelamento */}
-            <div className="pt-3 border-t border-gray-100 space-y-1.5 text-[11px]">
-              <div className="flex justify-between">
-                <span className="text-gray-500">Conta hoje s/ solar:</span>
-                <span className="font-bold text-red-600">{formatCurrency(contaAtualFinal)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-500">Conta c/ solar:</span>
-                <span className="font-bold text-emerald-700">
-                  {formatCurrency(contaSolarFinanA)}
-                </span>
-              </div>
-              <div className="flex justify-between pt-1 border-t border-gray-100 font-bold text-gray-900">
-                <span>Parcela + Conta:</span>
-                <span>{formatCurrency(totalMensalFinanA)}</span>
-              </div>
-            </div>
-          </div>
-
-          {/* CARD 4: FINANCIAMENTO B */}
-          <div className="p-5 sm:p-6 rounded-2xl border-2 border-blue-400 bg-blue-50/50 flex flex-col justify-between space-y-4 shadow-sm hover:shadow-md transition-shadow">
-            <div>
-              {/* Cabeçalho com ícone e badge pill superior */}
-              <div className="flex items-center justify-between gap-2 mb-3">
-                <div className="w-10 h-10 rounded-xl bg-blue-100 text-blue-800 flex items-center justify-center shrink-0 border border-blue-200 shadow-2xs">
-                  <Landmark className="w-5 h-5 text-blue-700" />
                 </div>
-                <span className="text-[10px] font-bold px-2.5 py-1 rounded-full uppercase bg-blue-100 text-blue-900 tracking-wider">
-                  Maior prazo
-                </span>
-              </div>
 
-              <div className="flex items-center justify-between gap-1">
-                <span className="font-extrabold text-xs uppercase tracking-wider text-blue-950 truncate">
-                  {nomeFinanciamentoB || 'Financiamento B'}
-                </span>
-                <span className="text-[10px] font-bold bg-blue-200 text-blue-900 px-2 py-0.5 rounded-full shrink-0">
-                  {parcelasFinanBFinal}x
-                </span>
-              </div>
-
-              <div className="text-2xl sm:text-3xl font-black text-blue-800 tracking-tight mt-2">
-                <span className="text-sm sm:text-base font-bold text-blue-900/80">
-                  {parcelasFinanBFinal}x de{' '}
-                </span>
-                {formatCurrency(valorParcelaFinanBFinal)}
-              </div>
-              <p className="text-[11px] text-gray-500 mt-1">
-                {entradaFinanBFinal > 0 && (
-                  <span className="block text-blue-900 font-semibold">
-                    Entrada: {formatCurrency(entradaFinanBFinal)}
+                <div className="flex items-center justify-between">
+                  <span className="font-extrabold text-xs uppercase tracking-wider text-emerald-950">
+                    À Vista
                   </span>
-                )}
-                Total:{' '}
-                {formatCurrency(entradaFinanBFinal + valorParcelaFinanBFinal * parcelasFinanBFinal)}
-              </p>
+                  <span className="text-[10px] font-bold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full">
+                    Sem Juros
+                  </span>
+                </div>
+
+                <div className="text-2xl sm:text-3xl font-black text-emerald-700 tracking-tight mt-2">
+                  {formatCurrency(aVistaFinal)}
+                </div>
+                <p className="text-[11px] text-gray-500 mt-1">
+                  {descontoAVistaFinal > 0
+                    ? `Desconto de ${formatCurrency(descontoAVistaFinal)} aplicado`
+                    : 'Valor total do projeto à vista'}
+                </p>
+              </div>
+
+              {/* 3 Linhas comparativas inferiores idênticas à aba de parcelamento */}
+              <div className="pt-3 border-t border-emerald-200 space-y-1.5 text-[11px]">
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Conta hoje s/ solar:</span>
+                  <span className="font-bold text-red-600">{formatCurrency(contaAtualFinal)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Conta c/ solar:</span>
+                  <span className="font-bold text-emerald-700">
+                    {formatCurrency(faturaComSolarFinal)}
+                  </span>
+                </div>
+                <div className="flex justify-between pt-1 border-t border-emerald-200 font-extrabold text-emerald-900">
+                  <span>Economia/mês:</span>
+                  <span>{formatCurrency(economiaMensalAVista)}</span>
+                </div>
+              </div>
             </div>
 
-            {/* 3 Linhas comparativas inferiores idênticas à aba de parcelamento */}
-            <div className="pt-3 border-t border-blue-200 space-y-1.5 text-[11px]">
-              <div className="flex justify-between">
-                <span className="text-gray-500">Conta hoje s/ solar:</span>
-                <span className="font-bold text-red-600">{formatCurrency(contaAtualFinal)}</span>
+            {/* CARD 2: CARTÃO */}
+            <div className="p-5 sm:p-6 rounded-2xl border border-gray-200 bg-white flex flex-col justify-between space-y-4 shadow-sm hover:shadow-md transition-shadow">
+              <div>
+                {/* Cabeçalho com ícone e badge pill superior */}
+                <div className="flex items-center justify-between gap-2 mb-3">
+                  <div className="w-10 h-10 rounded-xl bg-gray-100 text-gray-800 flex items-center justify-center shrink-0 border border-gray-200 shadow-2xs">
+                    <CreditCard className="w-5 h-5 text-gray-700" />
+                  </div>
+                  <span className="text-[10px] font-bold px-2.5 py-1 rounded-full uppercase bg-gray-100 text-gray-700 tracking-wider">
+                    Condição facilitada
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between gap-1">
+                  <span className="font-extrabold text-xs uppercase tracking-wider text-gray-900 truncate">
+                    Cartão de Crédito
+                  </span>
+                  <span className="text-[10px] font-bold bg-gray-100 text-gray-700 px-2 py-0.5 rounded-full shrink-0">
+                    {cartaoSemJuros
+                      ? `${parcelasCartaoFinal}x (s/ juros)`
+                      : `${parcelasCartaoFinal}x`}
+                  </span>
+                </div>
+
+                <div className="text-2xl sm:text-3xl font-black text-gray-900 tracking-tight mt-2">
+                  <span className="text-sm sm:text-base font-bold text-gray-600">
+                    {parcelasCartaoFinal}x de{' '}
+                  </span>
+                  {formatCurrency(valorParcelaCartaoFinal)}
+                </div>
+                <p className="text-[11px] text-gray-500 mt-1">
+                  Total: {formatCurrency(valorParcelaCartaoFinal * parcelasCartaoFinal)}
+                </p>
               </div>
-              <div className="flex justify-between">
-                <span className="text-gray-500">Conta c/ solar:</span>
-                <span className="font-bold text-emerald-700">
-                  {formatCurrency(contaSolarFinanB)}
-                </span>
+
+              {/* 3 Linhas comparativas inferiores idênticas à aba de parcelamento */}
+              <div className="pt-3 border-t border-gray-100 space-y-1.5 text-[11px]">
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Conta hoje s/ solar:</span>
+                  <span className="font-bold text-red-600">{formatCurrency(contaAtualFinal)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Conta c/ solar:</span>
+                  <span className="font-bold text-emerald-700">
+                    {formatCurrency(contaSolarCartao)}
+                  </span>
+                </div>
+                <div className="flex justify-between pt-1 border-t border-gray-100 font-bold text-gray-900">
+                  <span>Parcela + Conta:</span>
+                  <span>{formatCurrency(totalMensalCartao)}</span>
+                </div>
               </div>
-              <div className="flex justify-between pt-1 border-t border-blue-200 font-extrabold text-blue-900">
-                <span>Parcela + Conta:</span>
-                <span>{formatCurrency(totalMensalFinanB)}</span>
+            </div>
+
+            {/* CARD 3: FINANCIAMENTO A */}
+            <div className="p-5 sm:p-6 rounded-2xl border border-gray-200 bg-white flex flex-col justify-between space-y-4 shadow-sm hover:shadow-md transition-shadow">
+              <div>
+                {/* Cabeçalho com ícone e badge pill superior */}
+                <div className="flex items-center justify-between gap-2 mb-3">
+                  <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center shrink-0 border border-amber-200 shadow-2xs">
+                    <Building2 className="w-5 h-5 text-amber-700" />
+                  </div>
+                  <span className="text-[10px] font-bold px-2.5 py-1 rounded-full uppercase bg-amber-100 text-amber-900 tracking-wider">
+                    Menor parcela
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between gap-1">
+                  <span className="font-extrabold text-xs uppercase tracking-wider text-gray-900 truncate">
+                    {nomeFinanciamentoA || 'Financiamento A'}
+                  </span>
+                  <span className="text-[10px] font-bold bg-amber-100 text-amber-900 px-2 py-0.5 rounded-full shrink-0">
+                    {parcelasFinanAFinal}x
+                  </span>
+                </div>
+
+                <div className="text-2xl sm:text-3xl font-black text-gray-900 tracking-tight mt-2">
+                  <span className="text-sm sm:text-base font-bold text-gray-600">
+                    {parcelasFinanAFinal}x de{' '}
+                  </span>
+                  {formatCurrency(valorParcelaFinanAFinal)}
+                </div>
+                <p className="text-[11px] text-gray-500 mt-1">
+                  {entradaFinanAFinal > 0 && (
+                    <span className="block text-amber-800 font-semibold">
+                      Entrada: {formatCurrency(entradaFinanAFinal)}
+                    </span>
+                  )}
+                  Total:{' '}
+                  {formatCurrency(
+                    entradaFinanAFinal + valorParcelaFinanAFinal * parcelasFinanAFinal,
+                  )}
+                </p>
+              </div>
+
+              {/* 3 Linhas comparativas inferiores idênticas à aba de parcelamento */}
+              <div className="pt-3 border-t border-gray-100 space-y-1.5 text-[11px]">
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Conta hoje s/ solar:</span>
+                  <span className="font-bold text-red-600">{formatCurrency(contaAtualFinal)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Conta c/ solar:</span>
+                  <span className="font-bold text-emerald-700">
+                    {formatCurrency(contaSolarFinanA)}
+                  </span>
+                </div>
+                <div className="flex justify-between pt-1 border-t border-gray-100 font-bold text-gray-900">
+                  <span>Parcela + Conta:</span>
+                  <span>{formatCurrency(totalMensalFinanA)}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* CARD 4: FINANCIAMENTO B */}
+            <div className="p-5 sm:p-6 rounded-2xl border-2 border-blue-400 bg-blue-50/50 flex flex-col justify-between space-y-4 shadow-sm hover:shadow-md transition-shadow">
+              <div>
+                {/* Cabeçalho com ícone e badge pill superior */}
+                <div className="flex items-center justify-between gap-2 mb-3">
+                  <div className="w-10 h-10 rounded-xl bg-blue-100 text-blue-800 flex items-center justify-center shrink-0 border border-blue-200 shadow-2xs">
+                    <Landmark className="w-5 h-5 text-blue-700" />
+                  </div>
+                  <span className="text-[10px] font-bold px-2.5 py-1 rounded-full uppercase bg-blue-100 text-blue-900 tracking-wider">
+                    Maior prazo
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between gap-1">
+                  <span className="font-extrabold text-xs uppercase tracking-wider text-blue-950 truncate">
+                    {nomeFinanciamentoB || 'Financiamento B'}
+                  </span>
+                  <span className="text-[10px] font-bold bg-blue-200 text-blue-900 px-2 py-0.5 rounded-full shrink-0">
+                    {parcelasFinanBFinal}x
+                  </span>
+                </div>
+
+                <div className="text-2xl sm:text-3xl font-black text-blue-800 tracking-tight mt-2">
+                  <span className="text-sm sm:text-base font-bold text-blue-900/80">
+                    {parcelasFinanBFinal}x de{' '}
+                  </span>
+                  {formatCurrency(valorParcelaFinanBFinal)}
+                </div>
+                <p className="text-[11px] text-gray-500 mt-1">
+                  {entradaFinanBFinal > 0 && (
+                    <span className="block text-blue-900 font-semibold">
+                      Entrada: {formatCurrency(entradaFinanBFinal)}
+                    </span>
+                  )}
+                  Total:{' '}
+                  {formatCurrency(
+                    entradaFinanBFinal + valorParcelaFinanBFinal * parcelasFinanBFinal,
+                  )}
+                </p>
+              </div>
+
+              {/* 3 Linhas comparativas inferiores idênticas à aba de parcelamento */}
+              <div className="pt-3 border-t border-blue-200 space-y-1.5 text-[11px]">
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Conta hoje s/ solar:</span>
+                  <span className="font-bold text-red-600">{formatCurrency(contaAtualFinal)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Conta c/ solar:</span>
+                  <span className="font-bold text-emerald-700">
+                    {formatCurrency(contaSolarFinanB)}
+                  </span>
+                </div>
+                <div className="flex justify-between pt-1 border-t border-blue-200 font-extrabold text-blue-900">
+                  <span>Parcela + Conta:</span>
+                  <span>{formatCurrency(totalMensalFinanB)}</span>
+                </div>
               </div>
             </div>
           </div>
         </div>
 
         {/* ========================================================================= */}
-        {/* 3. LINHA COMPARATIVA (Texto persuasivo fiel aos requisitos)               */}
+        {/* 3. MINI-BLOCO DE PAYBACK ESTIMADO (ABAIXO DOS CARDS DE COND. DE PAGTO)    */}
         {/* ========================================================================= */}
-        <div className="bg-white rounded-2xl p-5 sm:p-6 border border-emerald-200 shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-          <div className="flex items-start gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-emerald-100 text-emerald-800 flex items-center justify-center shrink-0 shadow-2xs">
-              <PiggyBank className="w-6 h-6 text-emerald-700" />
-            </div>
-            <div className="space-y-1.5">
-              <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-emerald-800">
-                <span>Comparativo de Custo Mensal</span>
+        {exibirPaybackAbaixo && (
+          <div className="bg-white rounded-2xl p-4 sm:p-5 border border-amber-200/90 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-gradient-to-r from-amber-50/60 via-amber-50/20 to-white">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-900 flex items-center justify-center shrink-0 border border-amber-200 shadow-2xs">
+                <Clock className="w-5 h-5 text-amber-700 shrink-0" />
               </div>
-              <p className="text-sm sm:text-base text-gray-700 leading-relaxed font-normal">
-                Hoje você paga{' '}
-                <strong className="text-red-600 font-extrabold underline decoration-red-300 decoration-2 underline-offset-2">
-                  {formatCurrency(contaAtualFinal)}
-                </strong>{' '}
-                de energia para a concessionária.
-              </p>
-              <p className="text-sm sm:text-base text-gray-900 leading-relaxed font-bold">
-                Com solar, sua parcela do financiamento é{' '}
-                <span className="text-emerald-700 font-black text-base sm:text-lg">
-                  {formatCurrency(parcelaComparativa)}
-                </span>{' '}
-                — e o sistema passa a ser seu patrimônio.
-              </p>
+              <div className="space-y-0.5">
+                <div className="flex items-center gap-2">
+                  <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-amber-900 bg-amber-100/90 px-2 py-0.5 rounded-md border border-amber-300/80">
+                    <Clock className="w-3 h-3 text-amber-700 shrink-0" />
+                    <span>Payback estimado</span>
+                  </span>
+                  <span className="text-xs font-semibold text-amber-900/85">
+                    Quitação prevista: ~{infoPayback.anoCalendario}
+                  </span>
+                </div>
+                <p className="text-xs text-gray-600 font-medium">
+                  Tempo estimado para que a economia gerada pague integralmente o investimento.
+                </p>
+              </div>
             </div>
-          </div>
 
-          <div className="shrink-0 self-end md:self-center">
-            <div className="px-4 py-2 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold inline-flex items-center gap-2">
-              <ShieldCheck className="w-4 h-4 text-emerald-600" />
-              <span>Troque despesa por patrimônio</span>
+            <div className="shrink-0 self-end sm:self-center bg-amber-100/90 border border-amber-300/80 px-3.5 py-1.5 rounded-xl">
+              <span className="text-base sm:text-lg font-black text-amber-900 tracking-tight">
+                {infoPayback.texto}
+              </span>
             </div>
           </div>
-        </div>
+        )}
 
         {/* ========================================================================= */}
         {/* 4. BADGE DE URGÊNCIA NA PARTE INFERIOR                                    */}
         {/* ========================================================================= */}
-        <div className="bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 text-white rounded-2xl p-4 sm:p-5 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-3 text-center sm:text-left">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-xs flex items-center justify-center shrink-0">
-              <Clock className="w-5 h-5 text-amber-100 animate-pulse" />
-            </div>
-            <div>
-              <span className="text-xs uppercase font-black tracking-widest text-amber-100 block">
-                Oportunidade por Tempo Limitado
-              </span>
-              <p className="text-sm sm:text-base font-extrabold text-white">
-                Condições válidas por {diasValidadeFinal} dias. Reserve sua usina agora.
-              </p>
-            </div>
+        <div className="bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 text-white rounded-2xl p-4 sm:p-5 shadow-sm flex items-center gap-3 text-left">
+          <div className="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-xs flex items-center justify-center shrink-0">
+            <Clock className="w-5 h-5 text-amber-100 animate-pulse" />
           </div>
-
-          <div className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white text-orange-600 font-black text-xs shadow-xs hover:bg-amber-50 transition-colors">
-            <span>Garantir Condição</span>
-            <ArrowRight className="w-4 h-4" />
+          <div>
+            <span className="text-xs uppercase font-black tracking-widest text-amber-100 block">
+              Oportunidade por Tempo Limitado
+            </span>
+            <p className="text-sm sm:text-base font-extrabold text-white">
+              Condições válidas por {diasValidadeFinal} dias.
+            </p>
           </div>
         </div>
       </div>

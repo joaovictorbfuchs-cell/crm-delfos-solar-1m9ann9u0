@@ -1909,16 +1909,32 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
 
     .assinaturas-grid-final {
       border-top: 1.5px solid #E5E7EB;
-      padding-top: 10px;
+      padding-top: 12px;
+      margin-top: 12px;
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 20px;
+      gap: 24px;
       font-size: 8.5px;
     }
+    .assinatura-bloco {
+      background: #F9FAFB;
+      border: 1px solid #E5E7EB;
+      border-radius: 10px;
+      padding: 10px 14px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      min-height: 120px;
+    }
+    .assinatura-dados {
+      font-size: 8px;
+      line-height: 1.5;
+      color: #374151;
+    }
     .linha-assinatura-final {
-      border-bottom: 1px solid #111827;
-      margin-bottom: 4px;
-      width: 90%;
+      border-bottom: 1.5px solid #111827;
+      margin-bottom: 6px;
+      width: 100%;
     }
 
     /* REGRAS DE IMPRESSÃO PURA */
@@ -2720,6 +2736,11 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
           </div>
         </div>
 
+        <!-- TÍTULO DA SEÇÃO DE PAGAMENTO -->
+        <div style="font-size: 12px; font-weight: 900; color: #111827; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 6px;">
+          Condições de pagamento
+        </div>
+
         <!-- 4 CARDS DE PAGAMENTO LADO A LADO -->
         <div class="grid-pagamento-4">
           <!-- Card 1: À Vista -->
@@ -2872,51 +2893,36 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
           </div>
         </div>
 
-        <!-- LINHA COMPARATIVA PARCELA VS CONTA ATUAL -->
-        <div class="linha-comparativa-pagamento">
-          <div class="linha-comp-texto" style="font-size: 10.5px; line-height: 1.4;">
-            <div>
-              Hoje você paga <strong class="red">${formatBRL(contaHoje)}</strong> de energia para a concessionária sem nenhum retorno.
-            </div>
-            <div style="margin-top: 2px;">
-              Com solar, sua parcela estimada é de <strong class="green">${formatBRL(parcelaComparativa)}</strong> — e o sistema passa a ser seu patrimônio.
-            </div>
-          </div>
-          <div style="font-size: 9px; font-weight: 800; color: #166534; background: #DCFCE7; padding: 5px 10px; border-radius: 8px; white-space: nowrap; border: 1px solid #86EFAC;">
-            Troque despesa por patrimônio ➜
-          </div>
-        </div>
-
-        <!-- CARD DO PAYBACK ESTIMADO (TEMPO DE RETORNO DO INVESTIMENTO) -->
-        <div style="background: #FFFFFF; border: 2px solid #F59E0B; border-radius: 12px; padding: 14px 18px; display: flex; align-items: center; justify-content: space-between; gap: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); margin-top: 10px; margin-bottom: 10px;">
-          <div style="display: flex; align-items: center; gap: 12px;">
-            <div style="width: 40px; height: 40px; border-radius: 10px; background: #FEF3C7; border: 1px solid #FDE68A; display: flex; align-items: center; justify-content: center; font-size: 20px; shrink-0;">
+        <!-- CARD DO PAYBACK ESTIMADO (ABAIXO DOS CARDS DE CONDIÇÕES DE PAGAMENTO) -->
+        <div style="background: #FFFFFF; border: 1.5px solid #F59E0B; border-radius: 12px; padding: 10px 16px; display: flex; align-items: center; justify-content: space-between; gap: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); margin-top: 8px; margin-bottom: 8px;">
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <div style="width: 34px; height: 34px; border-radius: 8px; background: #FEF3C7; border: 1px solid #FDE68A; display: flex; align-items: center; justify-content: center; font-size: 18px; shrink-0;">
               ⏱️
             </div>
             <div>
-              <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 3px;">
-                <span style="font-size: 8.5px; font-weight: 900; text-transform: uppercase; background: #FEF3C7; color: #92400E; padding: 2px 7px; border-radius: 4px; border: 1px solid #FDE68A;">
+              <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 2px;">
+                <span style="font-size: 8px; font-weight: 900; text-transform: uppercase; background: #FEF3C7; color: #92400E; padding: 1px 6px; border-radius: 4px; border: 1px solid #FDE68A;">
                   Tempo de Retorno do Investimento
                 </span>
-                <span style="font-size: 8.5px; font-weight: 800; background: #DCFCE7; color: #166534; padding: 2px 7px; border-radius: 4px; border: 1px solid #86EFAC;">
+                <span style="font-size: 8px; font-weight: 800; background: #DCFCE7; color: #166534; padding: 1px 6px; border-radius: 4px; border: 1px solid #86EFAC;">
                   Retorno Garantido
                 </span>
               </div>
-              <div style="font-size: 13px; font-weight: 900; color: #1F2937;">Payback Estimado</div>
-              <p style="margin: 2px 0 0 0; font-size: 9px; color: #4B5563; max-width: 430px; line-height: 1.35;">
+              <div style="font-size: 11.5px; font-weight: 900; color: #1F2937;">Payback Estimado</div>
+              <p style="margin: 1px 0 0 0; font-size: 8.5px; color: #4B5563; max-width: 440px; line-height: 1.3;">
                 Tempo para que a economia na fatura de energia pague 100% do investimento. A partir desse momento, todo o ganho transforma-se em patrimônio e lucro líquido.
               </p>
             </div>
           </div>
 
-          <div style="background: linear-gradient(135deg, #FFFBEB 0%, #FEF3C7 100%); border: 1.5px solid #FCD34D; border-radius: 10px; padding: 8px 14px; text-align: right; shrink-0;">
-            <span style="font-size: 8px; font-weight: 800; text-transform: uppercase; color: #92400E; display: block;">
+          <div style="background: linear-gradient(135deg, #FFFBEB 0%, #FEF3C7 100%); border: 1.5px solid #FCD34D; border-radius: 8px; padding: 6px 12px; text-align: right; shrink-0;">
+            <span style="font-size: 7.5px; font-weight: 800; text-transform: uppercase; color: #92400E; display: block;">
               Payback do Sistema
             </span>
-            <div style="font-size: 18px; font-weight: 900; color: #B45309; line-height: 1.2; margin: 2px 0;">
+            <div style="font-size: 15px; font-weight: 900; color: #B45309; line-height: 1.2; margin: 1px 0;">
               ${paybackTextoFinal}
             </div>
-            <span style="font-size: 8.5px; color: #78350F; font-weight: 700; display: block;">
+            <span style="font-size: 8px; color: #78350F; font-weight: 700; display: block;">
               Ano de quitação: ~${anoPayback}
             </span>
           </div>
@@ -2924,8 +2930,7 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
 
         <!-- BADGE DE URGÊNCIA -->
         <div class="badge-urgencia-validade">
-          <span>⏰ Condições comerciais válidas por <strong>${validade} dias corridos</strong> (${dataFormatada}). Garanta os valores deste projeto.</span>
-          <span style="text-transform: uppercase; font-size: 9px; background: rgba(0,0,0,0.2); padding: 3px 8px; border-radius: 6px;">Garantia de Preço Delfos</span>
+          <span>⏰ Condições válidas por <strong>${validade} dias</strong> (${dataFormatada}).</span>
         </div>
 
         ${
@@ -2940,20 +2945,77 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
 
         <!-- TERMO DE ACEITE & ASSINATURA -->
         <div class="assinaturas-grid-final">
-          <div>
-            <strong>Delfos Engenharia Ltda (Delfos Solar)</strong><br />
-            CNPJ: ${empresa?.cnpj || '21.379.952/0001-38'}<br />
-            Responsável Técnico: <strong>${empresa?.responsavelTecnico || 'João Victor Bagetti Fuchs'}</strong> (${empresa?.crea || 'CREA RS151894'})<br />
-            ${empresa?.endereco || 'Rua Espírito Santo, nº 275 – Erechim / RS'}
+          <!-- Bloco da Empresa -->
+          <div class="assinatura-bloco">
+            <div>
+              <div style="font-size: 7.5px; font-weight: 800; text-transform: uppercase; color: #065F46; letter-spacing: 0.05em; margin-bottom: 4px;">
+                EMPRESA CONTRATADA
+              </div>
+              <strong style="font-size: 9.5px; color: #111827; display: block;">
+                ${empresa?.razaoSocial || 'Delfos Engenharia Ltda'}
+              </strong>
+              <div class="assinatura-dados" style="margin-top: 4px;">
+                <div><strong>CNPJ:</strong> ${empresa?.cnpj || '21.379.952/0001-38'}</div>
+                <div><strong>Resp. Técnico:</strong> ${empresa?.responsavelTecnico || 'João Victor Bagetti Fuchs'} (${empresa?.crea || 'CREA RS151894'})</div>
+                <div><strong>Endereço:</strong> ${empresa?.endereco || 'Rua Espírito Santo, nº 275 – Erechim / RS'}</div>
+                ${
+                  empresa?.telefone || empresa?.email
+                    ? `<div><strong>Contato:</strong> ${empresa?.telefone || '(54) 99129-2121'}${empresa?.email ? ` • ${empresa.email}` : ''}</div>`
+                    : ''
+                }
+              </div>
+            </div>
+
+            <div style="margin-top: 18px; text-align: center;">
+              <div class="linha-assinatura-final"></div>
+              <div style="font-size: 8.5px; font-weight: 800; color: #111827;">
+                ${empresa?.responsavelTecnico || 'João Victor Bagetti Fuchs'}
+              </div>
+              <div style="color: #6B7280; font-size: 7.5px;">
+                Responsável Técnico — ${empresa?.crea || 'CREA RS151894'}
+              </div>
+              <div style="color: #9CA3AF; font-size: 7px; margin-top: 2px;">
+                Erechim / RS, ${dataFormatada}
+              </div>
+            </div>
           </div>
 
-          <div style="display: flex; flex-direction: column; justify-content: flex-end; align-items: center; text-align: center;">
-            <div class="linha-assinatura-final"></div>
-            <strong style="text-transform: uppercase;">${nomeCliente}</strong>
-            <span style="color: #6B7280; font-size: 8px;">
-              CPF/CNPJ: ${cliente?.cpfOuCnpj || '________________________________'}
-            </span>
-            <span style="color: #9CA3AF; font-size: 7.5px; margin-top: 2px;">De acordo com os termos e especificações</span>
+          <!-- Bloco do Cliente -->
+          <div class="assinatura-bloco">
+            <div>
+              <div style="font-size: 7.5px; font-weight: 800; text-transform: uppercase; color: #1E40AF; letter-spacing: 0.05em; margin-bottom: 4px;">
+                CLIENTE / CONTRATANTE
+              </div>
+              <strong style="font-size: 9.5px; color: #111827; display: block; text-transform: uppercase;">
+                ${nomeCliente}
+              </strong>
+              <div class="assinatura-dados" style="margin-top: 4px;">
+                <div><strong>CPF/CNPJ:</strong> ${cliente?.cpfOuCnpj || 'Não informado'}</div>
+                ${
+                  cliente?.endereco || cliente?.municipio
+                    ? `<div><strong>Endereço/Cidade:</strong> ${cliente?.endereco ? `${cliente.endereco}, ` : ''}${cliente?.municipio || ''}</div>`
+                    : ''
+                }
+                ${
+                  cliente?.telefone || cliente?.email
+                    ? `<div><strong>Contato:</strong> ${cliente?.telefone || ''}${cliente?.email ? ` • ${cliente.email}` : ''}</div>`
+                    : ''
+                }
+              </div>
+            </div>
+
+            <div style="margin-top: 18px; text-align: center;">
+              <div class="linha-assinatura-final"></div>
+              <div style="font-size: 8.5px; font-weight: 800; color: #111827; text-transform: uppercase;">
+                ${nomeCliente}
+              </div>
+              <div style="color: #6B7280; font-size: 7.5px;">
+                De acordo com as especificações e valores da proposta
+              </div>
+              <div style="color: #9CA3AF; font-size: 7px; margin-top: 2px;">
+                Local e data: ______________________, ____/____/________
+              </div>
+            </div>
           </div>
         </div>
       </div>

@@ -89,8 +89,11 @@ describe('propostaSolarDocxGenerator', () => {
     expect(jsonStr).toContain('ECONOMIA EM 5 ANOS')
     expect(jsonStr).toContain('ECONOMIA EM 25 ANOS')
     expect(jsonStr).toContain('Investimento e Condições de Pagamento')
+    expect(jsonStr).toContain('Condições de pagamento')
     expect(jsonStr).toContain('Fatura c/ solar + parcela:')
     expect(jsonStr).toContain('Custo atual:')
+    expect(jsonStr).toContain('PAYBACK ESTIMADO')
+    expect(jsonStr).not.toContain('troque despesa por patrimônio')
 
     // Termos legados não devem existir no docx
     expect(jsonStr).not.toContain('Quem Somos')
