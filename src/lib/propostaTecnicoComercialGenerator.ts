@@ -219,15 +219,28 @@ function renderInternalFooter(numeroSecao?: number, validadeDias?: number): stri
           <span>Delfos Engenharia Solar | CNPJ 21.379.952/0001-38</span>
         </div>
         <div class="doc-footer-sep">•</div>
-        <div class="doc-footer-item-center">
+        <div class="doc-footer-item-phone">
           <svg class="doc-footer-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
           </svg>
           <span>(54) 99129-2121</span>
         </div>
         <div class="doc-footer-sep">•</div>
-        <div class="doc-footer-item-right">
-          <span>Erechim / RS</span>
+        <div class="doc-footer-item-site">
+          <svg class="doc-footer-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="2" y1="12" x2="22" y2="12"></line>
+            <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+          </svg>
+          <span>www.delfos.eng.br</span>
+        </div>
+        <div class="doc-footer-sep">•</div>
+        <div class="doc-footer-item-address">
+          <svg class="doc-footer-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+            <circle cx="12" cy="10" r="3"></circle>
+          </svg>
+          <span>Rua Espírito Santo, 275 – Centro, Erechim/RS</span>
         </div>
       </div>
       ${validadeLinha}
@@ -696,7 +709,7 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
       background: #F9FAFB;
       color: #374151;
       border-radius: 8px;
-      padding: 7px 12px 6px 12px;
+      padding: 6px 10px 5px 10px;
       margin-top: 10px;
       box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
     }
@@ -704,17 +717,18 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: 10px;
-      font-size: 8.5px;
+      flex-wrap: wrap;
+      gap: 7px;
+      font-size: 8px;
       font-weight: 600;
       color: #374151;
-      line-height: 1.3;
+      line-height: 1.25;
       text-align: center;
     }
     .doc-footer-item-left {
       display: inline-flex;
       align-items: center;
-      gap: 6px;
+      gap: 5px;
       color: #1F2937;
     }
     .doc-footer-logo-card {
@@ -723,8 +737,8 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
       border-radius: 4px;
       display: inline-flex;
       align-items: center;
-      height: 16px;
-      width: 44px;
+      height: 15px;
+      width: 42px;
       border: 1px solid #E5E7EB;
     }
     .doc-footer-logo-card svg {
@@ -732,31 +746,39 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
       height: 100%;
       display: block;
     }
-    .doc-footer-item-center {
+    .doc-footer-item-phone {
       display: inline-flex;
       align-items: center;
-      gap: 4px;
+      gap: 3px;
       color: #1F2937;
       font-weight: 700;
     }
-    .doc-footer-icon {
-      width: 11px;
-      height: 11px;
-      color: #4ADE80;
-      flex-shrink: 0;
-    }
-    .doc-footer-item-right {
+    .doc-footer-item-site {
       display: inline-flex;
       align-items: center;
+      gap: 3px;
+      color: #065F46;
+      font-weight: 700;
+    }
+    .doc-footer-item-address {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
       color: #374151;
+    }
+    .doc-footer-icon {
+      width: 10.5px;
+      height: 10.5px;
+      color: #4ADE80;
+      flex-shrink: 0;
     }
     .doc-footer-sep {
       color: #86EFAC;
       font-weight: 800;
-      font-size: 9px;
+      font-size: 8.5px;
     }
     .doc-footer-validade-bar {
-      margin-top: 4px;
+      margin-top: 3px;
       text-align: center;
       font-size: 7.5px;
       font-weight: 500;

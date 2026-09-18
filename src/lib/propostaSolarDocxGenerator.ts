@@ -415,9 +415,14 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
   )
 
   // Montagem do rodapé profissional limpo de cada página (Table com filete superior verde claro + fundo claro em uma linha)
-  const footerCol1Width = 4700 // Esquerda: Delfos Engenharia Solar | CNPJ 21.379.952/0001-38
-  const footerCol2Width = 2600 // Centro: (54) 99129-2121
-  const footerCol3Width = PAGE_CONTENT_WIDTH - footerCol1Width - footerCol2Width // 2600 -> Direita: Erechim / RS
+  // Coluna 1 (Esquerda): Delfos Engenharia Solar | CNPJ 21.379.952/0001-38
+  // Coluna 2 (Centro-esquerda): ☎ (54) 99129-2121
+  // Coluna 3 (Centro-direita): 🌐 www.delfos.eng.br
+  // Coluna 4 (Direita): 📍 Rua Espírito Santo, 275 – Centro, Erechim/RS
+  const footerCol1Width = 3400 // Esquerda: Delfos Engenharia Solar | CNPJ 21.379.952/0001-38
+  const footerCol2Width = 1750 // Fone: (54) 99129-2121
+  const footerCol3Width = 1850 // Site: www.delfos.eng.br
+  const footerCol4Width = PAGE_CONTENT_WIDTH - footerCol1Width - footerCol2Width - footerCol3Width // 2900 -> Endereço completo
 
   const footerTableBorders = {
     top: { style: BorderStyle.SINGLE, size: 8, color: '86EFAC' },
@@ -437,7 +442,7 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
             new TableCell({
               width: { size: footerCol1Width, type: WidthType.DXA },
               shading: { type: ShadingType.CLEAR, fill: 'F9FAFB' },
-              margins: { top: 60, bottom: 60, left: 100, right: 60 },
+              margins: { top: 50, bottom: 50, left: 80, right: 40 },
               borders: tableBorderNone,
               children: [
                 new Paragraph({
@@ -447,13 +452,13 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
                     new TextRun({
                       text: 'Delfos Engenharia Solar',
                       bold: true,
-                      size: 14,
+                      size: 13,
                       color: '1F2937',
                       font: 'Arial',
                     }),
                     new TextRun({
                       text: ' | CNPJ 21.379.952/0001-38',
-                      size: 13,
+                      size: 12,
                       color: '4B5563',
                       font: 'Arial',
                     }),
@@ -461,11 +466,11 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
                 }),
               ],
             }),
-            // Coluna 2 (Centro): (54) 99129-2121 com ícone verde claro
+            // Coluna 2 (Centro-esquerda): (54) 99129-2121 com ícone verde claro
             new TableCell({
               width: { size: footerCol2Width, type: WidthType.DXA },
               shading: { type: ShadingType.CLEAR, fill: 'F9FAFB' },
-              margins: { top: 60, bottom: 60, left: 60, right: 60 },
+              margins: { top: 50, bottom: 50, left: 40, right: 40 },
               borders: tableBorderNone,
               children: [
                 new Paragraph({
@@ -474,14 +479,14 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
                   children: [
                     new TextRun({
                       text: '☎ ',
-                      size: 14,
+                      size: 13,
                       color: '4ADE80',
                       font: 'Arial',
                     }),
                     new TextRun({
                       text: '(54) 99129-2121',
                       bold: true,
-                      size: 14,
+                      size: 13,
                       color: '1F2937',
                       font: 'Arial',
                     }),
@@ -489,11 +494,39 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
                 }),
               ],
             }),
-            // Coluna 3 (Direita): Erechim / RS
+            // Coluna 3 (Centro-direita): Site www.delfos.eng.br com ícone verde claro
             new TableCell({
               width: { size: footerCol3Width, type: WidthType.DXA },
               shading: { type: ShadingType.CLEAR, fill: 'F9FAFB' },
-              margins: { top: 60, bottom: 60, left: 60, right: 100 },
+              margins: { top: 50, bottom: 50, left: 40, right: 40 },
+              borders: tableBorderNone,
+              children: [
+                new Paragraph({
+                  spacing: { before: 0, after: 0 },
+                  alignment: AlignmentType.CENTER,
+                  children: [
+                    new TextRun({
+                      text: '🌐 ',
+                      size: 13,
+                      color: '4ADE80',
+                      font: 'Arial',
+                    }),
+                    new TextRun({
+                      text: 'www.delfos.eng.br',
+                      bold: true,
+                      size: 12,
+                      color: '065F46',
+                      font: 'Arial',
+                    }),
+                  ],
+                }),
+              ],
+            }),
+            // Coluna 4 (Direita): Endereço completo
+            new TableCell({
+              width: { size: footerCol4Width, type: WidthType.DXA },
+              shading: { type: ShadingType.CLEAR, fill: 'F9FAFB' },
+              margins: { top: 50, bottom: 50, left: 40, right: 80 },
               borders: tableBorderNone,
               children: [
                 new Paragraph({
@@ -501,9 +534,14 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
                   alignment: AlignmentType.RIGHT,
                   children: [
                     new TextRun({
-                      text: 'Erechim / RS',
-                      bold: true,
-                      size: 13,
+                      text: '📍 ',
+                      size: 12,
+                      color: '4ADE80',
+                      font: 'Arial',
+                    }),
+                    new TextRun({
+                      text: 'Rua Espírito Santo, 275 – Centro, Erechim/RS',
+                      size: 12,
                       color: '374151',
                       font: 'Arial',
                     }),

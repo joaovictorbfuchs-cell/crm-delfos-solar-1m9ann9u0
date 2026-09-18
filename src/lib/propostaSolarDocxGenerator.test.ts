@@ -208,13 +208,14 @@ describe('propostaSolarDocxGenerator', () => {
     expect(jsonStr).not.toContain('Geração Mensal Prevista')
   })
 
-  it('renderiza o novo rodapé limpo em uma linha sem slogan e sem CREA/responsável no rodapé', async () => {
+  it('renderiza o novo rodapé limpo em uma linha com endereço e site sem slogan e sem CREA/responsável no rodapé', async () => {
     const doc = await gerarPropostaSolarDocx(dadosExemploMarceloBecker)
     const jsonStr = JSON.stringify(doc)
     expect(jsonStr).toContain('Delfos Engenharia Solar')
     expect(jsonStr).toContain('21.379.952/0001-38')
     expect(jsonStr).toContain('(54) 99129-2121')
-    expect(jsonStr).toContain('Erechim / RS')
+    expect(jsonStr).toContain('www.delfos.eng.br')
+    expect(jsonStr).toContain('Rua Espírito Santo, 275 – Centro, Erechim/RS')
     expect(jsonStr).toContain('Proposta válida por 5 dias.')
 
     // O rodapé não deve conter o slogan nem "Condições especiais..."

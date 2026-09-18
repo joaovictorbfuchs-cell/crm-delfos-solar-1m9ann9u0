@@ -458,12 +458,13 @@ describe('Proposta Técnico-Comercial Generator (5 Seções Oficiais)', () => {
     expect(html).not.toContain('Não informado')
   })
 
-  it('renderiza o novo rodapé limpo e moderno em uma linha sem CREA/responsável e sem slogan', () => {
+  it('renderiza o novo rodapé limpo e moderno em uma linha com endereço e site sem CREA/responsável e sem slogan', () => {
     const html = gerarHTMLPropostaTecnicoComercial(dadosExemplo)
     // Novo formato em uma linha
     expect(html).toContain('Delfos Engenharia Solar | CNPJ 21.379.952/0001-38')
     expect(html).toContain('(54) 99129-2121')
-    expect(html).toContain('Erechim / RS')
+    expect(html).toContain('www.delfos.eng.br')
+    expect(html).toContain('Rua Espírito Santo, 275 – Centro, Erechim/RS')
     expect(html).toContain('Proposta válida por 5 dias.')
 
     // O rodapé não deve mais conter o CREA nem o slogan
