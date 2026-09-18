@@ -28,6 +28,7 @@ export type TelhadoTipo = 'ceramico' | 'metalico' | 'laje' | 'fibrocimento'
 export type TipoAtendimento = 'aéreo' | 'subterrâneo'
 
 export type NumeroFases = 'monofásico' | 'bifásico' | 'trifásico'
+export type PadraoFasesSolar = 'monofásico' | 'bifásico' | 'trifásico'
 
 export type ManutencaoTipo = 'Limpeza' | 'Revisão Elétrica' | 'Troca de Inversor'
 
@@ -991,6 +992,7 @@ export interface OrcamentoSolarCalculado {
   id?: string
   cliente_id?: string
   cliente_nome?: string
+  padrao_fases?: PadraoFasesSolar
   potencia_kwp?: number
   numero_placas?: number
   potencia_placa_wp?: number
@@ -1048,6 +1050,7 @@ export interface OrcamentoSolar extends RecordModel {
   numero_revisao?: number
   revisao_de?: string
   status_revisao?: PropostaRevisaoStatus
+  padrao_fases?: PadraoFasesSolar
   tipo_cliente: OrcamentoTipoCliente
   consumo_kwh_mes: number
   geracao_pretendida_kwh_ano?: number

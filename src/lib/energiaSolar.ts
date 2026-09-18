@@ -3,6 +3,8 @@
  * Base de irradiação solar e fatores sazonais calibrados para a região de Erechim/RS e Alto Uruguai Gaúcho.
  */
 
+import type { PadraoFasesSolar } from '../types/crm'
+
 export type TipoClienteSolar = 'residencial' | 'comercial' | 'industrial' | 'rural'
 export type TipoEstruturaSolar = 'ceramico' | 'metalico' | 'laje' | 'fibrocimento' | 'solo'
 export type OrientacaoTelhadoSolar = 'leste' | 'oeste' | 'norte' | 'sul'
@@ -258,11 +260,31 @@ export function dimensionarSistemaPorGeracaoPretendida(
   }
 }
 
-// Custo de disponibilidade (taxa mínima em kWh conforme tipo de ligação típica ou classe)
-export function getTaxaMinimaKwh(tipoCliente: TipoClienteSolar): number {
+// Custo de disponibilidade (taxa mínima em kWh conforme tipo de ligação por fases ANEEL RN 1.000/2021 ou classe de cliente)
+export function getTaxaMinimaKwh(
+  tipoCliente?: TipoClienteSolar | string,
+  padraoFases?: PadraoFasesSolar | string,
+): number {
+  if (padraoFases) {
+    const raw = String(padraoFases)
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .trim()
+    if (raw.includes('mono') || raw === '1' || raw === '1f') {
+      return 30
+    }
+    if (raw.includes('bi') || raw === '2' || raw === '2f') {
+      return 50
+    }
+    if (raw.includes('tri') || raw === '3' || raw === '3f') {
+      return 100
+    }
+  }
+
   switch (tipoCliente) {
     case 'residencial':
-      return 30 // Monofásico típico (30) a bifásico (50)
+      return 30 // Monofásico típico
     case 'comercial':
       return 100 // Trifásico
     case 'industrial':
@@ -270,7 +292,7 @@ export function getTaxaMinimaKwh(tipoCliente: TipoClienteSolar): number {
     case 'rural':
       return 50 // Bifásico rural
     default:
-      return 50
+      return 30
   }
 }
 
@@ -489,7 +511,8 @@ export interface ConfiguracaoParcelamentosInput {
 
 export interface InputCalculoSolar {
   consumoKwhMes: number
-  tipoCliente: TipoClienteSolar
+  tipoCliente?: TipoClienteSolar
+  padraoFases?: PadraoFasesSolar | string
   tarifaKwh: number
   potenciaKwp: number
   orientacaoTelhado?: OrientacaoTelhadoSolar
@@ -558,7 +581,7 @@ export function calcularOrcamentoSolar(input: InputCalculoSolar): CalculosSolarR
   const consumoKwhMesEfetivo = geracaoMediaMensalKwh > 0 ? geracaoMediaMensalKwh : consumoKwhMes
   const consumoAnualEfetivo = geracaoAnualTotal > 0 ? geracaoAnualTotal : consumoKwhMesEfetivo * 12
 
-  const taxaMinimaKwh = getTaxaMinimaKwh(tipoCliente)
+  const taxaMinimaKwh = getTaxaMinimaKwh(tipoCliente, input.padraoFases)
   const taxaMinimaReais = taxaMinimaKwh * tarifaKwh
 
   // Conta atual sem solar: baseada na geração real dimensionada * tarifa
