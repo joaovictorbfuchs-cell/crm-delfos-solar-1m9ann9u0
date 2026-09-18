@@ -178,7 +178,10 @@ export function ModalGerarPropostaTecnicoComercial({
       : 950,
   )
   const [contaComSolar, setContaComSolar] = useState<number>(
-    orcamento.conta_primeiro_mes_com_solar || 85,
+    orcamento.conta_primeiro_mes_com_solar !== undefined &&
+      orcamento.conta_primeiro_mes_com_solar !== null
+      ? orcamento.conta_primeiro_mes_com_solar
+      : 0,
   )
 
   // Feedback do e-mail
@@ -1129,10 +1132,16 @@ export function ModalGerarPropostaTecnicoComercial({
                   iofFinanciamentoB={orcamento.iof_financiamento_banco2}
                   contaMensalAtual={contaHoje}
                   contaMensalComSolar={
-                    orcamento.conta_primeiro_mes_com_solar || (contaHoje > 100 ? 70 : 50)
+                    orcamento.conta_primeiro_mes_com_solar !== undefined &&
+                    orcamento.conta_primeiro_mes_com_solar !== null
+                      ? orcamento.conta_primeiro_mes_com_solar
+                      : 0
                   }
                   faturaMensalComSolar={
-                    orcamento.conta_primeiro_mes_com_solar || (contaHoje > 100 ? 70 : 50)
+                    orcamento.conta_primeiro_mes_com_solar !== undefined &&
+                    orcamento.conta_primeiro_mes_com_solar !== null
+                      ? orcamento.conta_primeiro_mes_com_solar
+                      : 0
                   }
                   validadeDias={validadeDias}
                   nomeCliente={clienteNome}

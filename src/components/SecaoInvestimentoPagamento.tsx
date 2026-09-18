@@ -162,7 +162,7 @@ export const SecaoInvestimentoPagamento: React.FC<SecaoInvestimentoPagamentoProp
           contaMensalComSolar !== null &&
           contaMensalComSolar >= 0
         ? contaMensalComSolar
-        : 70
+        : 0
 
   const contaSolarCartao =
     contaComSolarCartao !== undefined && contaComSolarCartao !== null && contaComSolarCartao >= 0

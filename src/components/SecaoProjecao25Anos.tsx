@@ -102,11 +102,10 @@ export const SecaoProjecao25Anos: React.FC<SecaoProjecao25AnosProps> = ({
     })
   }, [tipoCliente, consumoAnual, tarifaReferenciaInicial, dadosTarifariosCustomizados])
 
-  // Taxa mínima da concessionária em kWh conforme critério do energiaSolar.ts
-  // Residencial: 30 kWh | Rural: 50 kWh | Comercial: 100 kWh
-  // Mais 30% referente à CIP (iluminação pública / custo mínimo adicional)
+  // No novo modelo GD Eco Líquida, taxa mínima desativada para a maioria (conta com solar R$ 0)
+  // Aplica taxa mínima apenas se tipoCliente for comercial e compensação for baixa
   const taxaMinimaKwhMes = useMemo(() => {
-    return getTaxaMinimaKwh(tipoCliente)
+    return tipoCliente === 'comercial' ? 100 : 0
   }, [tipoCliente])
 
   // Investimento do sistema: se não fornecido, deduz do padrão ou estimativa
@@ -131,8 +130,11 @@ export const SecaoProjecao25Anos: React.FC<SecaoProjecao25AnosProps> = ({
     let custoConcessionariaAcum = 0
 
     return projecao.linhas.map((linha, idx) => {
-      // Custo anual da taxa mínima da concessionária (taxa mínima kWh/mês * 12 * tarifa * 1.3 CIP)
-      const taxaMinimaAnoReais = taxaMinimaKwhMes * 12 * linha.tarifaKwh * 1.3
+      // Custo anual da taxa mínima da concessionária (quando aplicável no trifásico)
+      const taxaMinimaAnoReais =
+        taxaMinimaKwhMes > 0 && consumoAnual / 12 < 100
+          ? taxaMinimaKwhMes * 12 * linha.tarifaKwh
+          : 0
       custoConcessionariaAcum += taxaMinimaAnoReais
 
       const gastoSemSolarAcum = Number((Number(linha.gastoSemSolarAcumulado) || 0).toFixed(2))

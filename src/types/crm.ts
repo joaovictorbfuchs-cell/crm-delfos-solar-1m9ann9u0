@@ -1032,6 +1032,9 @@ export interface OrcamentoSolarCalculado {
   economia_1_ano?: number
   economia_5_anos?: number
   economia_25_anos?: number
+  fio_b?: number
+  fator_simultaneidade?: number
+  gd_eco_liquida?: number
   conta_primeiro_mes_com_solar?: number
   conta_4_anos_reajuste?: number
   conta_10_anos_reajuste?: number

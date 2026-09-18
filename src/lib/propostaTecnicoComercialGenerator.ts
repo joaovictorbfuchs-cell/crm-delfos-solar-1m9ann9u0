@@ -440,7 +440,7 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
   const cartaoContaSemSolar =
     parcelamento?.cartao18x?.contaHoje !== undefined ? parcelamento.cartao18x.contaHoje : contaHoje
   const cartaoContaComSolar =
-    parcelamento?.cartao18x?.contaComSolar !== undefined ? parcelamento.cartao18x.contaComSolar : 70
+    parcelamento?.cartao18x?.contaComSolar !== undefined ? parcelamento.cartao18x.contaComSolar : 0
   const cartaoDesembolso = cartaoValor + cartaoContaComSolar
 
   const finanANome = parcelamento?.financiamentoA?.nome || 'Financiamento A'
@@ -465,7 +465,7 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
   const finanAContaComSolar =
     parcelamento?.financiamentoA?.contaComSolar !== undefined
       ? parcelamento.financiamentoA.contaComSolar
-      : 70
+      : 0
   const finanADesembolso = finanAValor + finanAContaComSolar
 
   const finanBNome = parcelamento?.financiamentoB?.nome || 'Financiamento B'
@@ -490,7 +490,7 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
   const finanBContaComSolar =
     parcelamento?.financiamentoB?.contaComSolar !== undefined
       ? parcelamento.financiamentoB.contaComSolar
-      : 70
+      : 0
   const finanBDesembolso = finanBValor + finanBContaComSolar
 
   const menorParcela = Math.min(
@@ -507,7 +507,7 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
       : Math.round(contaHoje * Math.pow(1.09, 4))
 
   const contaPrimeiroMesComSolarBase =
-    parcelamento?.aVista?.contaComSolar !== undefined ? parcelamento.aVista.contaComSolar : 70
+    parcelamento?.aVista?.contaComSolar !== undefined ? parcelamento.aVista.contaComSolar : 0
 
   const contaComSolar4AnosFinal =
     projecao?.contaComSolar4AnosComReajuste !== undefined &&
@@ -2915,11 +2915,11 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
               </div>
               <div style="display: flex; justify-content: space-between; color: #6B7280; margin-top: 2px;">
                 <span>Conta c/ solar:</span>
-                <strong style="color: #047857; font-weight: 800;">${formatBRL(parcelamento?.aVista?.contaComSolar !== undefined ? parcelamento.aVista.contaComSolar : 70)}</strong>
+                <strong style="color: #047857; font-weight: 800;">${formatBRL(parcelamento?.aVista?.contaComSolar !== undefined ? parcelamento.aVista.contaComSolar : 0)}</strong>
               </div>
               <div style="display: flex; justify-content: space-between; color: #064E3B; font-weight: 900; margin-top: 4px; padding-top: 4px; border-top: 1px solid #A7F3D0;">
                 <span>Economia/mês:</span>
-                <span>${formatBRL(Math.max(0, contaHoje - (parcelamento?.aVista?.contaComSolar !== undefined ? parcelamento.aVista.contaComSolar : 70)))}</span>
+                <span>${formatBRL(Math.max(0, contaHoje - (parcelamento?.aVista?.contaComSolar !== undefined ? parcelamento.aVista.contaComSolar : 0)))}</span>
               </div>
             </div>
           </div>

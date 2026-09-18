@@ -2154,13 +2154,13 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
   // Grade 4 modalidades de pagamento com layout e linhas comparativas idênticos à aba de parcelamento
   const colWidthPgto = Math.floor(PAGE_CONTENT_WIDTH / 4)
   const contaComSolarAVista =
-    parcelamentos?.aVista?.contaComSolar !== undefined ? parcelamentos.aVista.contaComSolar : 70
+    parcelamentos?.aVista?.contaComSolar !== undefined ? parcelamentos.aVista.contaComSolar : 0
   const economiaMesAVista = Math.max(0, contaHoje - contaComSolarAVista)
 
   const contaComSolarCartao =
     parcelamentos?.cartao18x?.contaComSolar !== undefined
       ? parcelamentos.cartao18x.contaComSolar
-      : 70
+      : 0
   const contaSemSolarCartao =
     parcelamentos?.cartao18x?.contaSemSolar !== undefined
       ? parcelamentos.cartao18x.contaSemSolar
@@ -2170,7 +2170,7 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
   const contaComSolarFinanA =
     parcelamentos?.financiamentoBanco1?.contaComSolar !== undefined
       ? parcelamentos.financiamentoBanco1.contaComSolar
-      : 70
+      : 0
   const contaSemSolarFinanA =
     parcelamentos?.financiamentoBanco1?.contaSemSolar !== undefined
       ? parcelamentos.financiamentoBanco1.contaSemSolar
@@ -2180,7 +2180,7 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
   const contaComSolarFinanB =
     parcelamentos?.financiamentoBanco2?.contaComSolar !== undefined
       ? parcelamentos.financiamentoBanco2.contaComSolar
-      : 70
+      : 0
   const contaSemSolarFinanB =
     parcelamentos?.financiamentoBanco2?.contaSemSolar !== undefined
       ? parcelamentos.financiamentoBanco2.contaSemSolar

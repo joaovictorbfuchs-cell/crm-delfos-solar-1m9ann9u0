@@ -3909,14 +3909,18 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                         : undefined)
                     }
                     contaMensalComSolar={
-                      calculos.contaPrimeiroMesComSolar ||
-                      initialOrcamento?.conta_primeiro_mes_com_solar ||
-                      70
+                      calculos.contaPrimeiroMesComSolar !== undefined
+                        ? calculos.contaPrimeiroMesComSolar
+                        : initialOrcamento?.conta_primeiro_mes_com_solar !== undefined
+                          ? initialOrcamento.conta_primeiro_mes_com_solar
+                          : 0
                     }
                     faturaMensalComSolar={
-                      calculos.contaPrimeiroMesComSolar ||
-                      initialOrcamento?.conta_primeiro_mes_com_solar ||
-                      70
+                      calculos.contaPrimeiroMesComSolar !== undefined
+                        ? calculos.contaPrimeiroMesComSolar
+                        : initialOrcamento?.conta_primeiro_mes_com_solar !== undefined
+                          ? initialOrcamento.conta_primeiro_mes_com_solar
+                          : 0
                     }
                     validadeDias={initialOrcamento?.validade_dias || 5}
                     nomeCliente={clienteAtual?.nome}

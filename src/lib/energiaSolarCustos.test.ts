@@ -609,19 +609,127 @@ describe('Simulações personalizadas de Parcelamento & Financiamento (PRICE)', 
     expect(orc.contaAtualSemSolarMes).toBeCloseTo(contaMesEsperada, 2)
     expect(orc.contaAtualSemSolarAno).toBeCloseTo(orc.geracaoAnualEstimadaKwh * 0.95, 2)
 
-    // Como consumo = geração, energia não compensada = 0
-    // Residencial monofásico: 30 kWh * 0.95 = 28.5
-    // Com solar = 28.5 * 1.30 = 37.05
-    const taxaMinimaReais = 30 * 0.95
-    expect(orc.contaPrimeiroMesComSolar).toBeCloseTo(taxaMinimaReais * 1.3, 2)
+    // Novo modelo GD Eco Líquida:
+    // Monofásico residencial: taxa mínima desativada -> conta com solar = R$ 0,00
+    // Tarifa 0.95, FS 0.30, Fio B 0.2239 -> GD Eco Líquida = 0.95 - (0.30 * 0.2239) = 0.8828
+    expect(orc.contaPrimeiroMesComSolar).toBe(0)
 
-    // Economia mensal
-    expect(orc.economia1Mes).toBeCloseTo(contaMesEsperada - taxaMinimaReais * 1.3, 2)
+    // Economia mensal = consumo * GD Eco Líquida
+    const economiaMesEsperada = orc.geracaoMediaMensalKwh * orc.gdEcoLiquidaKwh
+    expect(orc.economia1Mes).toBeCloseTo(economiaMesEsperada, 2)
     expect(orc.economia1Ano).toBeCloseTo(orc.economia1Mes * 12, 2)
 
     // Parcelamentos usam os valores alinhados
     expect(orc.parcelamentos.aVista.contaSemSolar).toBe(Math.round(orc.contaAtualSemSolarMes))
-    expect(orc.parcelamentos.aVista.contaComSolar).toBe(Math.round(orc.contaPrimeiroMesComSolar))
+    expect(orc.parcelamentos.aVista.contaComSolar).toBe(0)
+  })
+})
+
+describe('calcularOrcamentoSolar - Novo Modelo GD Eco Líquida e Taxa Mínima Condicionada', () => {
+  it('validação com as fixtures da planilha: tarifa 1.1979, FS 30%, Fio B 0.2239 -> GD Eco Líquida 1.1039', () => {
+    // Quando fornecido gdEcoLiquida informado de 1.1039:
+    const orcPlanilhaExata = calcularOrcamentoSolar({
+      consumoKwhMes: 331.43,
+      tarifaKwh: 1.1979,
+      fatorSimultaneidade: 0.3,
+      fioBKwh: 0.2239,
+      gdEcoLiquidaKwh: 1.1039,
+      potenciaKwp: 2.8,
+      padraoFases: 'monofasico',
+      tipoCliente: 'residencial',
+      geracaoSimuladaKwhAno: 331.43 * 12,
+    })
+
+    expect(orcPlanilhaExata.gdEcoLiquidaKwh).toBe(1.1039)
+    expect(orcPlanilhaExata.economia1Mes).toBe(365.87)
+    expect(orcPlanilhaExata.contaPrimeiroMesComSolar).toBe(0)
+
+    // FS 70% comercial/industrial:
+    // Tarifa 1.1979 - (0.70 * 0.2239) = 1.1979 - 0.15673 = 1.04117
+    const orcComercial = calcularOrcamentoSolar({
+      consumoKwhMes: 331.43,
+      tarifaKwh: 1.1979,
+      fioBKwh: 0.2239,
+      potenciaKwp: 2.8,
+      padraoFases: 'trifasico',
+      tipoCliente: 'comercial',
+      geracaoSimuladaKwhAno: 331.43 * 12,
+    })
+
+    expect(Number((1.1979 - 0.7 * 0.2239).toFixed(5))).toBe(1.04117)
+    expect(orcComercial.gdEcoLiquidaKwh).toBeCloseTo(1.04117, 4)
+    expect(orcComercial.fatorSimultaneidade).toBe(0.7)
+    // Como 331.43 * 1.04117 = 345.07 > 100 * 1.1979 (119.79), conta com solar = 0
+    expect(orcComercial.contaPrimeiroMesComSolar).toBe(0)
+
+    // FS 30% residencial quando calculado pela fórmula direta (1.1979 - 0.30 * 0.2239):
+    const orcResidencialCalculado = calcularOrcamentoSolar({
+      consumoKwhMes: 331.43,
+      tarifaKwh: 1.1979,
+      fioBKwh: 0.2239,
+      potenciaKwp: 2.8,
+      padraoFases: 'monofasico',
+      tipoCliente: 'residencial',
+      geracaoSimuladaKwhAno: 331.43 * 12,
+    })
+    expect(orcResidencialCalculado.fatorSimultaneidade).toBe(0.3)
+    expect(orcResidencialCalculado.gdEcoLiquidaKwh).toBeCloseTo(1.1979 - 0.3 * 0.2239, 4)
+    expect(orcResidencialCalculado.contaPrimeiroMesComSolar).toBe(0)
+
+    // Teste específico de 331.43 kWh e GD Eco Líquida 1.1039 -> R$ 365.87
+    const ecoEsperada = Number((331.43 * 1.1039).toFixed(2))
+    expect(ecoEsperada).toBe(365.87)
+  })
+  it('trifásico com compensação < 100 kWh em reais -> conta com solar = 100 * tarifa', () => {
+    // Trifásico com consumo baixo (ex: 50 kWh), tarifa R$ 1,00
+    // 50 kWh * GD Eco Líquida (~0.93) = ~R$ 46.50 < 100 * 1.00 (R$ 100,00)
+    const orcTrifasicoBaixo = calcularOrcamentoSolar({
+      consumoKwhMes: 50,
+      tarifaKwh: 1.0,
+      padraoFases: 'trifasico',
+      tipoCliente: 'comercial',
+      potenciaKwp: 1.0,
+      geracaoSimuladaKwhAno: 50 * 12,
+    })
+
+    expect(orcTrifasicoBaixo.contaPrimeiroMesComSolar).toBe(100 * 1.0)
+  })
+
+  it('trifásico com compensação >= 100 kWh em reais -> conta com solar = R$ 0', () => {
+    // Trifásico com consumo alto (ex: 500 kWh), tarifa R$ 1,00
+    // 500 kWh * GD Eco Líquida > 100 * tarifa -> conta = R$ 0
+    const orcTrifasicoAlto = calcularOrcamentoSolar({
+      consumoKwhMes: 500,
+      tarifaKwh: 1.0,
+      padraoFases: 'trifasico',
+      tipoCliente: 'comercial',
+      potenciaKwp: 5.0,
+      geracaoSimuladaKwhAno: 500 * 12,
+    })
+
+    expect(orcTrifasicoAlto.contaPrimeiroMesComSolar).toBe(0)
+  })
+
+  it('monofásico ou bifásico sempre tem conta com solar = R$ 0 (taxa mínima desativada)', () => {
+    const orcMono = calcularOrcamentoSolar({
+      consumoKwhMes: 50,
+      tarifaKwh: 1.0,
+      padraoFases: 'monofasico',
+      tipoCliente: 'residencial',
+      potenciaKwp: 1.0,
+      geracaoSimuladaKwhAno: 50 * 12,
+    })
+    expect(orcMono.contaPrimeiroMesComSolar).toBe(0)
+
+    const orcBi = calcularOrcamentoSolar({
+      consumoKwhMes: 50,
+      tarifaKwh: 1.0,
+      padraoFases: 'bifasico',
+      tipoCliente: 'residencial',
+      potenciaKwp: 1.0,
+      geracaoSimuladaKwhAno: 50 * 12,
+    })
+    expect(orcBi.contaPrimeiroMesComSolar).toBe(0)
   })
 })
 
@@ -726,11 +834,12 @@ describe('calcularOrcamentoSolar - Geração Simulada Manual (kWh/ano)', () => {
     expect(orc.contaAtualSemSolarMes).toBe(1000 * tarifa)
     expect(orc.contaAtualSemSolarAno).toBe(12000 * tarifa)
 
-    // 3. Conta com solar (taxa mínima bifásica = 50 kWh * 1.0 * 1.30 = 65)
-    expect(orc.contaPrimeiroMesComSolar).toBe(50 * tarifa * 1.3)
+    // 3. Conta com solar (bifásico -> taxa mínima desativada -> conta com solar = R$ 0)
+    expect(orc.contaPrimeiroMesComSolar).toBe(0)
 
     // 4. Economia mensal e anual derivada da base simulada
-    const economiaMesEsperada = 1000 * tarifa - 50 * tarifa * 1.3 // 1000 - 65 = 935
+    // Economia = consumo * GD Eco Líquida. Tarifa 1.0, FS 0.3, Fio B 0.2239 -> GD Eco = 1.0 - 0.06717 = 0.93283
+    const economiaMesEsperada = 1000 * orc.gdEcoLiquidaKwh
     expect(orc.economia1Mes).toBeCloseTo(economiaMesEsperada, 2)
     expect(orc.economia1Ano).toBeCloseTo(economiaMesEsperada * 12, 2)
 
