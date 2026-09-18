@@ -16,6 +16,7 @@ import Clientes from './pages/Clientes'
 import Fornecedores from './pages/Fornecedores'
 import Orcamentos from './pages/Orcamentos'
 import InstalacoesGaleriaPage from './pages/InstalacoesGaleria'
+import EquipamentosPage from './pages/Equipamentos'
 import Atividades from './pages/Atividades'
 import ExecucaoOS from './pages/ExecucaoOS'
 import { CentralAtendimento } from './pages/CentralAtendimento'
@@ -128,6 +129,14 @@ const App = () => (
               element={
                 <ProtectedRoute requiredRole="admin">
                   <Clientes />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/equipamentos"
+              element={
+                <ProtectedRoute requiredRole="admin">
+                  <EquipamentosPage />
                 </ProtectedRoute>
               }
             />

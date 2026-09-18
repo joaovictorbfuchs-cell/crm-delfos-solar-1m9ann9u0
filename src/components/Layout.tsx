@@ -23,6 +23,7 @@ import {
   Settings,
   Shield,
   Images,
+  Cpu,
 } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { useClientes } from '@/contexts/ClientesContext'
@@ -98,6 +99,8 @@ export default function Layout() {
         return 'Central de Atendimento WhatsApp'
       case '/clientes':
         return 'Gestão de Clientes'
+      case '/equipamentos':
+        return 'Cadastro de Equipamentos'
       case '/importar-clientes':
         return 'Importar Clientes (Pipedrive / Conta Azul)'
       case '/importar-acessos':
@@ -130,6 +133,7 @@ export default function Layout() {
         { name: 'Atividades', path: '/atividades', icon: CalendarCheck },
         { name: 'Execução de OS', path: '/execucao-os', icon: ClipboardCheck },
         { name: 'O&M / Manutenções', path: '/manutencoes', icon: Wrench },
+        { name: 'Cadastro de Equipamentos', path: '/equipamentos', icon: Cpu },
         { name: 'Clientes', path: '/clientes', icon: Users },
         { name: 'Galeria Usinas', path: '/instalacoes-galeria', icon: Images },
         { name: 'Gerenciar Usuários', path: '/gerenciar-usuarios', icon: UserCog },
