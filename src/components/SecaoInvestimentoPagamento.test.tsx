@@ -16,15 +16,15 @@ describe('SecaoInvestimentoPagamento Component', () => {
     // Valor padrão R$ 45.000
     expect(html).toContain('45.000')
 
-    // 4 cards de pagamento com suas badges superiores restauradas
+    // 4 cards de pagamento (sem as badges de destaque conforme solicitação)
     expect(html).toContain('À Vista')
-    expect(html).toContain('Melhor condição')
+    expect(html).not.toContain('Melhor condição')
     expect(html).toContain('Cartão de Crédito')
-    expect(html).toContain('Condição facilitada')
+    expect(html).not.toContain('Condição facilitada')
     expect(html).toContain('Financiamento A')
-    expect(html).toContain('Menor parcela')
+    expect(html).not.toContain('Menor parcela')
     expect(html).toContain('Financiamento B')
-    expect(html).toContain('Maior prazo')
+    expect(html).not.toContain('Maior prazo')
 
     // Linhas comparativas inferiores idênticas à aba de parcelamento
     expect(html).toContain('Conta hoje s/ solar:')
@@ -91,17 +91,17 @@ describe('SecaoInvestimentoPagamento Component', () => {
     // Cartão 18x
     expect(html).toContain('18x')
     expect(html).toContain('3.333')
-    expect(html).toContain('Condição facilitada')
+    expect(html).not.toContain('Condição facilitada')
 
     // Financiamentos personalizados e badges
     expect(html).toContain('Banco Santander')
-    expect(html).toContain('Menor parcela')
+    expect(html).not.toContain('Menor parcela')
     expect(html).toContain('48x')
     expect(html).toContain('1.100')
     expect(html).toContain('12.000')
 
     expect(html).toContain('Banco BV')
-    expect(html).toContain('Maior prazo')
+    expect(html).not.toContain('Maior prazo')
     expect(html).toContain('84x')
     expect(html).toContain('850')
     expect(html).toContain('6.000')

@@ -2133,13 +2133,6 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
                 new Paragraph({
                   children: [
                     new TextRun({
-                      text: 'CONDIÇÃO FACILITADA\n',
-                      bold: true,
-                      size: 11,
-                      color: '4B5563',
-                      font: 'Arial',
-                    }),
-                    new TextRun({
                       text: 'CARTÃO DE CRÉDITO',
                       bold: true,
                       size: 15,
@@ -2240,13 +2233,6 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
                 new Paragraph({
                   children: [
                     new TextRun({
-                      text: 'MENOR PARCELA\n',
-                      bold: true,
-                      size: 11,
-                      color: 'B45309',
-                      font: 'Arial',
-                    }),
-                    new TextRun({
                       text: finanANome.toUpperCase(),
                       bold: true,
                       size: 15,
@@ -2346,13 +2332,6 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
               children: [
                 new Paragraph({
                   children: [
-                    new TextRun({
-                      text: 'MAIOR PRAZO\n',
-                      bold: true,
-                      size: 11,
-                      color: '1D4ED8',
-                      font: 'Arial',
-                    }),
                     new TextRun({
                       text: finanBNome.toUpperCase(),
                       bold: true,

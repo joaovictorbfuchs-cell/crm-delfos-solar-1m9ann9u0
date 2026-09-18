@@ -311,14 +311,11 @@ export const SecaoInvestimentoPagamento: React.FC<SecaoInvestimentoPagamentoProp
             {/* CARD 1: À VISTA */}
             <div className="p-5 sm:p-6 rounded-2xl border-2 border-emerald-400 bg-emerald-50/50 flex flex-col justify-between space-y-4 shadow-sm hover:shadow-md transition-shadow">
               <div>
-                {/* Cabeçalho com ícone e badge pill superior */}
+                {/* Cabeçalho com ícone */}
                 <div className="flex items-center justify-between gap-2 mb-3">
                   <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center shrink-0 border border-emerald-200 shadow-2xs">
                     <Wallet className="w-5 h-5 text-emerald-700" />
                   </div>
-                  <span className="text-[10px] font-bold px-2.5 py-1 rounded-full uppercase bg-emerald-200 text-emerald-900 tracking-wider">
-                    Melhor condição
-                  </span>
                 </div>
 
                 <div className="flex items-center justify-between">
@@ -362,14 +359,11 @@ export const SecaoInvestimentoPagamento: React.FC<SecaoInvestimentoPagamentoProp
             {/* CARD 2: CARTÃO */}
             <div className="p-5 sm:p-6 rounded-2xl border border-gray-200 bg-white flex flex-col justify-between space-y-4 shadow-sm hover:shadow-md transition-shadow">
               <div>
-                {/* Cabeçalho com ícone e badge pill superior */}
+                {/* Cabeçalho com ícone */}
                 <div className="flex items-center justify-between gap-2 mb-3">
                   <div className="w-10 h-10 rounded-xl bg-gray-100 text-gray-800 flex items-center justify-center shrink-0 border border-gray-200 shadow-2xs">
                     <CreditCard className="w-5 h-5 text-gray-700" />
                   </div>
-                  <span className="text-[10px] font-bold px-2.5 py-1 rounded-full uppercase bg-gray-100 text-gray-700 tracking-wider">
-                    Condição facilitada
-                  </span>
                 </div>
 
                 <div className="flex items-center justify-between gap-1">
@@ -416,14 +410,11 @@ export const SecaoInvestimentoPagamento: React.FC<SecaoInvestimentoPagamentoProp
             {/* CARD 3: FINANCIAMENTO A */}
             <div className="p-5 sm:p-6 rounded-2xl border border-gray-200 bg-white flex flex-col justify-between space-y-4 shadow-sm hover:shadow-md transition-shadow">
               <div>
-                {/* Cabeçalho com ícone e badge pill superior */}
+                {/* Cabeçalho com ícone */}
                 <div className="flex items-center justify-between gap-2 mb-3">
                   <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center shrink-0 border border-amber-200 shadow-2xs">
                     <Building2 className="w-5 h-5 text-amber-700" />
                   </div>
-                  <span className="text-[10px] font-bold px-2.5 py-1 rounded-full uppercase bg-amber-100 text-amber-900 tracking-wider">
-                    Menor parcela
-                  </span>
                 </div>
 
                 <div className="flex items-center justify-between gap-1">
@@ -476,14 +467,11 @@ export const SecaoInvestimentoPagamento: React.FC<SecaoInvestimentoPagamentoProp
             {/* CARD 4: FINANCIAMENTO B */}
             <div className="p-5 sm:p-6 rounded-2xl border-2 border-blue-400 bg-blue-50/50 flex flex-col justify-between space-y-4 shadow-sm hover:shadow-md transition-shadow">
               <div>
-                {/* Cabeçalho com ícone e badge pill superior */}
+                {/* Cabeçalho com ícone */}
                 <div className="flex items-center justify-between gap-2 mb-3">
                   <div className="w-10 h-10 rounded-xl bg-blue-100 text-blue-800 flex items-center justify-center shrink-0 border border-blue-200 shadow-2xs">
                     <Landmark className="w-5 h-5 text-blue-700" />
                   </div>
-                  <span className="text-[10px] font-bold px-2.5 py-1 rounded-full uppercase bg-blue-100 text-blue-900 tracking-wider">
-                    Maior prazo
-                  </span>
                 </div>
 
                 <div className="flex items-center justify-between gap-1">
