@@ -3282,6 +3282,7 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                         Math.round(valorInvestimentoFinal * 0.95))
                     }
                     parcelasCartao={parcelasCartao}
+                    entradaCartao={entradaCartao}
                     valorParcelaCartao={calculos.parcelamentos?.cartao18x?.valorParcela}
                     cartaoSemJuros={jurosCartao === 0}
                     nomeFinanciamentoA="Financiamento A"

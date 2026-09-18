@@ -392,7 +392,9 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
 
   const cartaoParcelas = parcelamento?.cartao18x?.numeroParcelas || 12
   const cartaoEntrada =
-    parcelamento?.cartao18x?.entrada !== undefined ? parcelamento.cartao18x.entrada : 0
+    parcelamento?.cartao18x?.entrada !== undefined && parcelamento.cartao18x.entrada !== null
+      ? Math.max(0, parcelamento.cartao18x.entrada)
+      : 0
   const cartaoValor =
     parcelamento?.cartao18x?.valorParcela ||
     Math.round(Math.max(0, investimentoTotal - cartaoEntrada) / cartaoParcelas)
@@ -405,7 +407,10 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
   const finanANome = parcelamento?.financiamentoA?.nome || 'Financiamento A'
   const finanAParcelas = parcelamento?.financiamentoA?.numeroParcelas || 60
   const finanAEntrada =
-    parcelamento?.financiamentoA?.entrada !== undefined ? parcelamento.financiamentoA.entrada : 0
+    parcelamento?.financiamentoA?.entrada !== undefined &&
+    parcelamento.financiamentoA.entrada !== null
+      ? Math.max(0, parcelamento.financiamentoA.entrada)
+      : 0
   const finanAValor =
     parcelamento?.financiamentoA?.valorParcela ||
     Math.round(((investimentoTotal - finanAEntrada) * 1.35) / finanAParcelas)
@@ -422,7 +427,10 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
   const finanBNome = parcelamento?.financiamentoB?.nome || 'Financiamento B'
   const finanBParcelas = parcelamento?.financiamentoB?.numeroParcelas || 120
   const finanBEntrada =
-    parcelamento?.financiamentoB?.entrada !== undefined ? parcelamento.financiamentoB.entrada : 0
+    parcelamento?.financiamentoB?.entrada !== undefined &&
+    parcelamento.financiamentoB.entrada !== null
+      ? Math.max(0, parcelamento.financiamentoB.entrada)
+      : 0
   const finanBValor =
     parcelamento?.financiamentoB?.valorParcela ||
     Math.round(((investimentoTotal - finanBEntrada) * 1.6) / finanBParcelas)

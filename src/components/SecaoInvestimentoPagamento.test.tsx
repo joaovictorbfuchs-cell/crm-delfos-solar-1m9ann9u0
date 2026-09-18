@@ -126,4 +126,31 @@ describe('SecaoInvestimentoPagamento Component', () => {
     // Ausência do comparativo mensal
     expect(html).not.toContain('Comparativo de Custo Mensal')
   })
+
+  it('renderiza com entradaCartao={5000} e espera "Entrada: R$ 5.000,00" no card de cartão; e com entrada 0 a linha não aparece', () => {
+    // Com entradaCartao = 5000
+    const htmlComEntrada = renderToStaticMarkup(
+      React.createElement(SecaoInvestimentoPagamento, {
+        valorInvestimento: 40000,
+        parcelasCartao: 10,
+        entradaCartao: 5000,
+      }),
+    )
+
+    expect(htmlComEntrada).toContain('5.000,00')
+    expect(htmlComEntrada).toContain('Entrada:')
+
+    // Com entradaCartao = 0 ou omitida
+    const htmlSemEntrada = renderToStaticMarkup(
+      React.createElement(SecaoInvestimentoPagamento, {
+        valorInvestimento: 40000,
+        parcelasCartao: 10,
+        entradaCartao: 0,
+        entradaFinanciamentoA: 0,
+        entradaFinanciamentoB: 0,
+      }),
+    )
+
+    expect(htmlSemEntrada).not.toContain('Entrada:')
+  })
 })

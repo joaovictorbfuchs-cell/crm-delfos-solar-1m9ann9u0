@@ -284,29 +284,36 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
   const aVistaDesconto = Math.max(0, investimentoTotal - aVistaValor)
 
   const cartaoParcelas = parcelamentos.cartao18x.numeroParcelas || 18
-  const cartaoValor =
-    parcelamentos.cartao18x.valorParcela || Math.round(investimentoTotal / cartaoParcelas)
-
   const cartaoEntrada =
-    parcelamentos.cartao18x.valorEntrada !== undefined ? parcelamentos.cartao18x.valorEntrada : 0
+    parcelamentos.cartao18x.valorEntrada !== undefined &&
+    parcelamentos.cartao18x.valorEntrada !== null
+      ? Math.max(0, parcelamentos.cartao18x.valorEntrada)
+      : 0
+  const cartaoValor =
+    parcelamentos.cartao18x.valorParcela ||
+    Math.round(Math.max(0, investimentoTotal - cartaoEntrada) / cartaoParcelas)
 
   const finanANome = parcelamentos.financiamentoBanco1.titulo || 'Financiamento A'
   const finanAParcelas = parcelamentos.financiamentoBanco1.numeroParcelas || 60
-  const finanAValor =
-    parcelamentos.financiamentoBanco1.valorParcela || Math.round(investimentoTotal * 0.023)
   const finanAEntrada =
-    parcelamentos.financiamentoBanco1.valorEntrada !== undefined
-      ? parcelamentos.financiamentoBanco1.valorEntrada
+    parcelamentos.financiamentoBanco1.valorEntrada !== undefined &&
+    parcelamentos.financiamentoBanco1.valorEntrada !== null
+      ? Math.max(0, parcelamentos.financiamentoBanco1.valorEntrada)
       : 0
+  const finanAValor =
+    parcelamentos.financiamentoBanco1.valorParcela ||
+    Math.round(Math.max(0, investimentoTotal - finanAEntrada) * 0.023)
 
   const finanBNome = parcelamentos.financiamentoBanco2.titulo || 'Financiamento B'
   const finanBParcelas = parcelamentos.financiamentoBanco2.numeroParcelas || 120
-  const finanBValor =
-    parcelamentos.financiamentoBanco2.valorParcela || Math.round(investimentoTotal * 0.02)
   const finanBEntrada =
-    parcelamentos.financiamentoBanco2.valorEntrada !== undefined
-      ? parcelamentos.financiamentoBanco2.valorEntrada
+    parcelamentos.financiamentoBanco2.valorEntrada !== undefined &&
+    parcelamentos.financiamentoBanco2.valorEntrada !== null
+      ? Math.max(0, parcelamentos.financiamentoBanco2.valorEntrada)
       : 0
+  const finanBValor =
+    parcelamentos.financiamentoBanco2.valorParcela ||
+    Math.round(Math.max(0, investimentoTotal - finanBEntrada) * 0.02)
 
   // Montagem do cabeçalho de cada página do Word
   const headerChildren: (Paragraph | Table)[] = []

@@ -13,6 +13,8 @@ export interface SecaoInvestimentoPagamentoProps {
   descontoAVistaReais?: number | null
   /** Quantidade de parcelas no cartão */
   parcelasCartao?: number | null
+  /** Valor da entrada no cartão (R$) */
+  entradaCartao?: number | null
   /** Valor da parcela no cartão (R$) */
   valorParcelaCartao?: number | null
   /** Se o cartão é sem juros (default true no exemplo) */
@@ -79,6 +81,7 @@ export const SecaoInvestimentoPagamento: React.FC<SecaoInvestimentoPagamentoProp
   valorAVista,
   descontoAVistaReais,
   parcelasCartao,
+  entradaCartao,
   valorParcelaCartao,
   cartaoSemJuros = true,
   nomeFinanciamentoA,
@@ -155,10 +158,12 @@ export const SecaoInvestimentoPagamento: React.FC<SecaoInvestimentoPagamentoProp
       ? parcelasCartao
       : 12
 
+  const entradaCartaoFinal = Math.max(0, entradaCartao || 0)
+
   const valorParcelaCartaoFinal =
     valorParcelaCartao !== undefined && valorParcelaCartao !== null && valorParcelaCartao > 0
       ? valorParcelaCartao
-      : Math.round(totalFinal / parcelasCartaoFinal)
+      : Math.round(Math.max(0, totalFinal - entradaCartaoFinal) / parcelasCartaoFinal)
 
   // 3. Financiamento A (Menor parcela / 60x ou banco 1)
   const parcelasFinanAFinal =
@@ -168,11 +173,7 @@ export const SecaoInvestimentoPagamento: React.FC<SecaoInvestimentoPagamentoProp
       ? parcelasFinanciamentoA
       : 60
 
-  // Entrada Financiamento A: se fornecida usa, senão ~20% do investimento ou 9000
-  const entradaFinanAFinal =
-    entradaFinanciamentoA !== undefined && entradaFinanciamentoA !== null
-      ? entradaFinanciamentoA
-      : Math.round(totalFinal * 0.2)
+  const entradaFinanAFinal = Math.max(0, entradaFinanciamentoA || 0)
 
   const valorParcelaFinanAFinal =
     valorParcelaFinanciamentoA !== undefined &&
@@ -189,11 +190,7 @@ export const SecaoInvestimentoPagamento: React.FC<SecaoInvestimentoPagamentoProp
       ? parcelasFinanciamentoB
       : 120
 
-  // Entrada Financiamento B: se fornecida usa, senão ~10% do investimento ou 4500
-  const entradaFinanBFinal =
-    entradaFinanciamentoB !== undefined && entradaFinanciamentoB !== null
-      ? entradaFinanciamentoB
-      : Math.round(totalFinal * 0.1)
+  const entradaFinanBFinal = Math.max(0, entradaFinanciamentoB || 0)
 
   const valorParcelaFinanBFinal =
     valorParcelaFinanciamentoB !== undefined &&
@@ -383,9 +380,19 @@ export const SecaoInvestimentoPagamento: React.FC<SecaoInvestimentoPagamentoProp
                   </span>
                   {formatCurrency(valorParcelaCartaoFinal)}
                 </div>
-                <p className="text-[11px] text-gray-500 mt-1">
-                  Total: {formatCurrency(valorParcelaCartaoFinal * parcelasCartaoFinal)}
-                </p>
+                <div className="text-[11px] text-gray-500 mt-1">
+                  {entradaCartaoFinal > 0 && (
+                    <span className="block text-emerald-800 font-semibold">
+                      Entrada: {formatCurrency(entradaCartaoFinal)}
+                    </span>
+                  )}
+                  <span>
+                    Total:{' '}
+                    {formatCurrency(
+                      entradaCartaoFinal + valorParcelaCartaoFinal * parcelasCartaoFinal,
+                    )}
+                  </span>
+                </div>
               </div>
 
               {/* 3 Linhas comparativas inferiores idênticas à aba de parcelamento */}
