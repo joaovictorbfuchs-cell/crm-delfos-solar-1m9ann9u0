@@ -106,9 +106,8 @@ describe('SecaoInvestimentoPagamento Component', () => {
     // Validade personalizada
     expect(html).toContain('Condições válidas por 10 dias. Reserve sua usina agora.')
 
-    // Payback estimado integrado após investimento
-    expect(html).toContain('Tempo de Retorno do Investimento')
-    expect(html).toContain('Payback Estimado')
-    expect(html).toContain('Payback do Sistema')
+    // Payback estimado integrado junto ao valor de investimento
+    expect(html).toContain('Payback estimado')
+    expect(html).toContain('Quitação prevista:')
   })
 })
