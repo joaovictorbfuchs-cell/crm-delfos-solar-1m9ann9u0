@@ -1,232 +1,259 @@
 import React from 'react'
-import { Sparkles, Calendar, User, ShieldCheck } from 'lucide-react'
-import { DelfosLogo } from '@/components/DelfosLogo'
-import { formatCurrency, formatDate } from '@/lib/formatters'
+import { logoOficialPng } from '@/components/DelfosLogo'
 
 export interface SecaoCapaPropostaProps {
-  /** Nome do cliente em destaque */
+  /** Nome do cliente em destaque (ex: Dr. Roberto Silva Albuquerque) */
   nomeCliente?: string | null
-  /** Economia mensal estimada em R$/mês */
-  economiaMensal?: number | null
-  /** Data da proposta (ISO string ou formatada) */
-  dataOrcamento?: string | null
-  /** Nome do consultor / autor do orçamento */
+  /** Tipo de imóvel / cliente (ex: "Residência", "Comércio", "Indústria", "Rural") */
+  tipoImovel?: string | null
+  /** Cidade e UF (ex: "Passo Fundo - RS") */
+  cidade?: string | null
+  /** Nome do consultor / autor do orçamento (ex: João Victor Bagetti Fuchs) */
   consultor?: string | null
-  /** Potência do sistema em kWp (opcional, para selo complementar) */
+  /** Telefone do consultor (padrão: (54) 99129-2121) */
+  telefoneConsultor?: string | null
+  /** Site oficial (padrão: www.delfos.eng.br) */
+  site?: string | null
+  /** E-mail oficial (padrão: contato@delfos.eng.br) */
+  email?: string | null
+  /** Economia mensal estimada em R$/mês (mantido para retrocompatibilidade) */
+  economiaMensal?: number | null
+  /** Data da proposta */
+  dataOrcamento?: string | null
+  /** Potência do sistema em kWp (mantido para retrocompatibilidade de props) */
   potenciaKwp?: number | null
   className?: string
 }
 
 /**
- * Seção 1 — Capa da Proposta Comercial Delfos Solar.
- * Design visual de alto impacto:
- * - Fundo escuro com gradiente elegante e decoração solar sutil (painéis, brilho e glows esmeralda/dourado)
- * - Nome do cliente em tipografia grande e refinada
- * - Frase principal em verde solar e negrito
- * - Subtítulo oficial
- * - Logo oficial Delfos Solar no topo direito
- * - Metadados: Data da proposta formatada em pt-BR e Consultor responsável
+ * Seção 1 — Capa Oficial da Proposta Técnico-Comercial Delfos Solar.
+ *
+ * Reproduz fielmente a arte solicitada pelo cliente:
+ * - Fundo claro com suave degradê esverdeado (#F3F9F4 -> #E8F5EB -> #FFFFFF)
+ * - Ilustração à direita com o sol amarelo/laranja radiante e ondas verdes orgânicas e suaves
+ * - Logo oficial da Delfos Solar centralizado no topo (com faixa de contatos removida/ocultada via crop seguro)
+ * - Badge arredondado amarelo (#F3BE56 / #F9C349) com "PROPOSTA TÉCNICO-COMERCIAL" em verde bem escuro e espaçado
+ * - Título imponente em verde escuro (#0D382B): "Energia que\ngera retorno"
+ * - Subtítulo: "Sistema fotovoltaico projetado exclusivamente para você" em cinza escuro (#52605B)
+ * - Bloco alinhado à esquerda com filete vertical amarelo ouro (#E9A224):
+ *   - "PREPARADA PARA:" em cinza escuro caixa-alta
+ *   - Nome do cliente em verde escuro grande e em negrito (#0D382B)
+ *   - Sublinha dinâmica: "Residência • Passo Fundo - RS" (ou tipoImovel • cidade)
+ * - Linha do consultor com ícone sutil de pessoa: "Consultor: [Nome do Autor] • (54) 99129-2121"
+ * - Rodapé centralizado discreto: "www.delfos.eng.br • contato@delfos.eng.br"
  */
 export const SecaoCapaProposta: React.FC<SecaoCapaPropostaProps> = ({
   nomeCliente,
-  economiaMensal,
-  dataOrcamento,
+  tipoImovel,
+  cidade,
   consultor,
-  potenciaKwp,
+  telefoneConsultor,
+  site = 'www.delfos.eng.br',
+  email = 'contato@delfos.eng.br',
   className = '',
 }) => {
   const clienteFinal = (nomeCliente && nomeCliente.trim()) || 'Cliente Especial'
-  const economiaFinal =
-    economiaMensal !== undefined && economiaMensal !== null && economiaMensal > 0
-      ? economiaMensal
-      : 928.75
-
-  // Formatação de data em pt-BR (fallback para data de hoje)
-  let dataFormatada = '-'
-  if (dataOrcamento) {
-    dataFormatada = formatDate(dataOrcamento)
-  }
-  if (!dataFormatada || dataFormatada === '-') {
-    const hoje = new Date()
-    const dia = String(hoje.getDate()).padStart(2, '0')
-    const mes = String(hoje.getMonth() + 1).padStart(2, '0')
-    const ano = hoje.getFullYear()
-    dataFormatada = `${dia}/${mes}/${ano}`
-  }
-
-  const consultorFinal = (consultor && consultor.trim()) || 'Consultoria Delfos Solar'
+  const tipoImovelFinal = (tipoImovel && tipoImovel.trim()) || 'Residência'
+  const cidadeFinal = (cidade && cidade.trim()) || 'Passo Fundo - RS'
+  const consultorFinal = (consultor && consultor.trim()) || 'João Victor Bagetti Fuchs'
+  const telefoneFinal = (telefoneConsultor && telefoneConsultor.trim()) || '(54) 99129-2121'
 
   return (
     <section
-      className={`relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#071311] via-[#0b241c] to-[#04100d] text-white border border-emerald-900/60 shadow-xl ${className}`}
-      aria-label="Capa da Proposta Comercial"
+      className={`relative overflow-hidden rounded-3xl bg-[#F6FBF7] text-[#0D382B] border border-emerald-100 shadow-xl select-none ${className}`}
+      aria-label="Capa da Proposta Técnico-Comercial"
+      style={{
+        background: 'linear-gradient(155deg, #F9FCFA 0%, #EFF8F2 45%, #E3F3E8 100%)',
+      }}
     >
       {/* ========================================================================= */}
-      {/* DECORAÇÃO SOLAR DE FUNDO (Painéis solares estilizados, glows e raios)     */}
+      {/* ILUSTRAÇÃO SOLAR E ONDAS VERDES À DIREITA (SVG Vetorial Fiel ao Modelo)   */}
       {/* ========================================================================= */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden" aria-hidden="true">
-        {/* Glows esmeralda e dourado nas pontas */}
-        <div className="absolute -top-24 -left-24 w-96 h-96 rounded-full bg-emerald-500/15 blur-3xl" />
-        <div className="absolute top-1/2 -right-20 w-80 h-80 rounded-full bg-amber-400/10 blur-3xl" />
-        <div className="absolute -bottom-24 left-1/3 w-96 h-96 rounded-full bg-teal-400/10 blur-3xl" />
-
-        {/* Padrão SVG de malha geométrica / células fotovoltaicas */}
         <svg
-          className="absolute inset-0 w-full h-full opacity-20"
+          viewBox="0 0 800 1150"
+          preserveAspectRatio="xMaxYMid slice"
+          className="absolute right-0 top-0 w-full h-full"
+          fill="none"
           xmlns="http://www.w3.org/2000/svg"
         >
           <defs>
-            <pattern
-              id="capa-solar-grid"
-              width="60"
-              height="40"
-              patternUnits="userSpaceOnUse"
-              patternTransform="rotate(12)"
-            >
-              <rect
-                x="2"
-                y="2"
-                width="56"
-                height="36"
-                rx="3"
-                fill="none"
-                stroke="#34D399"
-                strokeWidth="0.8"
-                strokeOpacity="0.4"
-              />
-              <line
-                x1="2"
-                y1="14"
-                x2="58"
-                y2="14"
-                stroke="#34D399"
-                strokeWidth="0.4"
-                strokeOpacity="0.25"
-              />
-              <line
-                x1="2"
-                y1="26"
-                x2="58"
-                y2="26"
-                stroke="#34D399"
-                strokeWidth="0.4"
-                strokeOpacity="0.25"
-              />
-              <line
-                x1="30"
-                y1="2"
-                x2="30"
-                y2="38"
-                stroke="#34D399"
-                strokeWidth="0.4"
-                strokeOpacity="0.25"
-              />
-            </pattern>
-            <linearGradient id="capa-mask-grad" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#ffffff" stopOpacity="0.8" />
-              <stop offset="70%" stopColor="#ffffff" stopOpacity="0.3" />
-              <stop offset="100%" stopColor="#ffffff" stopOpacity="0.05" />
+            {/* Gradiente do Sol Núcleo */}
+            <radialGradient id="capa-sol-core" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stopColor="#F98A28" />
+              <stop offset="45%" stopColor="#FCA429" />
+              <stop offset="85%" stopColor="#FDBF37" />
+              <stop offset="100%" stopColor="#FECD48" />
+            </radialGradient>
+
+            {/* Gradiente Anéis Externos do Sol */}
+            <radialGradient id="capa-sol-ring1" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stopColor="#FECD48" stopOpacity="0.85" />
+              <stop offset="70%" stopColor="#FED867" stopOpacity="0.75" />
+              <stop offset="100%" stopColor="#FFEAA0" stopOpacity="0.6" />
+            </radialGradient>
+
+            <radialGradient id="capa-sol-glow" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stopColor="#FFE79A" stopOpacity="0.45" />
+              <stop offset="60%" stopColor="#FFF2C6" stopOpacity="0.25" />
+              <stop offset="100%" stopColor="#FFF9E6" stopOpacity="0" />
+            </radialGradient>
+
+            {/* Gradientes das Ondas Verdes Suaves */}
+            <linearGradient id="capa-wave-green-1" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#BFE3CE" stopOpacity="0.65" />
+              <stop offset="50%" stopColor="#A8DABF" stopOpacity="0.45" />
+              <stop offset="100%" stopColor="#8FCFAA" stopOpacity="0.25" />
+            </linearGradient>
+
+            <linearGradient id="capa-wave-green-2" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#D4ECD9" stopOpacity="0.75" />
+              <stop offset="60%" stopColor="#C2E6CC" stopOpacity="0.5" />
+              <stop offset="100%" stopColor="#AEE0BD" stopOpacity="0.3" />
+            </linearGradient>
+
+            <linearGradient id="capa-wave-green-3" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#EAF7ED" stopOpacity="0.9" />
+              <stop offset="50%" stopColor="#D8F0DE" stopOpacity="0.7" />
+              <stop offset="100%" stopColor="#C4E9CE" stopOpacity="0.45" />
             </linearGradient>
           </defs>
-          <rect width="100%" height="100%" fill="url(#capa-solar-grid)" />
-        </svg>
 
-        {/* Feixe diagonal sutil de luz solar */}
-        <div
-          className="absolute inset-0 bg-gradient-to-tr from-transparent via-emerald-400/5 to-amber-300/10"
-          style={{ mixBlendMode: 'screen' }}
-        />
+          {/* Halo Solar Amplo */}
+          <circle cx="750" cy="460" r="260" fill="url(#capa-sol-glow)" />
+
+          {/* Raios do Sol em Laranja/Amarelo */}
+          <g stroke="#F8A738" strokeWidth="6" strokeLinecap="round" opacity="0.9">
+            {/* Raio superior */}
+            <line x1="710" y1="285" x2="715" y2="330" />
+            {/* Raio noroeste */}
+            <line x1="595" y1="340" x2="635" y2="368" />
+            {/* Raio oeste horizontal */}
+            <line x1="545" y1="460" x2="598" y2="460" />
+            {/* Raio sudoeste */}
+            <line x1="585" y1="550" x2="628" y2="522" />
+            {/* Raio sul-sudoeste */}
+            <line x1="720" y1="625" x2="724" y2="585" />
+          </g>
+
+          {/* Anel Externo Translúcido do Sol */}
+          <circle cx="750" cy="460" r="160" fill="url(#capa-sol-ring1)" />
+
+          {/* Anel Médio do Sol */}
+          <circle cx="750" cy="460" r="120" fill="#FED867" opacity="0.9" />
+
+          {/* Núcleo Dourado/Laranja Vibrante do Sol */}
+          <circle cx="750" cy="460" r="82" fill="url(#capa-sol-core)" />
+
+          {/* Onda Verde Suave Superior (atrás do sol) */}
+          <path
+            d="M 380 720 C 500 620, 640 540, 800 510 L 800 800 L 380 800 Z"
+            fill="url(#capa-wave-green-1)"
+          />
+
+          {/* Onda Verde Suave Intermediária */}
+          <path
+            d="M 320 800 C 460 670, 620 570, 800 550 L 800 1150 L 320 1150 Z"
+            fill="url(#capa-wave-green-2)"
+          />
+
+          {/* Onda Verde Suave Principal (em primeiro plano da ilustração) */}
+          <path
+            d="M 280 880 C 440 730, 620 620, 800 590 L 800 1150 L 280 1150 Z"
+            fill="url(#capa-wave-green-3)"
+          />
+        </svg>
       </div>
 
       {/* ========================================================================= */}
-      {/* CONTEÚDO PRINCIPAL DA CAPA                                                */}
+      {/* CONTEÚDO PRINCIPAL DA CAPA (Estrutura Fiel ao Modelo)                     */}
       {/* ========================================================================= */}
-      <div className="relative z-10 p-6 sm:p-9 md:p-12 flex flex-col justify-between min-h-[380px] sm:min-h-[420px]">
-        {/* Topo: Tag de Boas-vindas à esquerda + Logo Delfos Solar à direita */}
-        <div className="flex items-start justify-between gap-4 flex-wrap">
-          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-semibold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 backdrop-blur-md shadow-xs">
-            <Sparkles className="w-3.5 h-3.5 text-amber-300 animate-pulse" />
-            <span className="uppercase tracking-widest text-[11px] font-bold">
-              Proposta Comercial Exclusiva
-            </span>
-            {potenciaKwp && potenciaKwp > 0 && (
-              <span className="ml-1 pl-2 border-l border-emerald-500/40 text-emerald-200 font-bold">
-                {potenciaKwp.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} kWp
-              </span>
-            )}
+      <div className="relative z-10 p-7 sm:p-10 md:p-14 flex flex-col justify-between min-h-[580px] sm:min-h-[640px] max-w-4xl mx-auto">
+        {/* Topo Centralizado: Logo Oficial Delfos Solar (sem contatos) + Badge */}
+        <div className="flex flex-col items-center text-center">
+          {/* Logo da Delfos Solar com crop seguro dos contatos inferiores */}
+          <div className="relative overflow-hidden flex items-center justify-center w-[230px] sm:w-[260px] h-[95px] sm:h-[110px]">
+            <img
+              src={logoOficialPng}
+              alt="Delfos Solar"
+              className="w-full h-auto object-cover select-none pointer-events-none"
+              style={{
+                objectPosition: 'center 15%',
+                transform: 'scale(1.02)',
+              }}
+            />
           </div>
 
-          {/* Logo Delfos Solar no Topo Direito em card sutil para contraste elegante */}
-          <div className="bg-white/95 backdrop-blur-md px-3.5 py-2 rounded-2xl shadow-lg border border-white/40 flex items-center shrink-0">
-            <DelfosLogo height={36} width={130} variant="svg" />
+          {/* Badge Amarelo Arredondado */}
+          <div className="mt-4 sm:mt-5 inline-flex items-center px-6 sm:px-8 py-2 rounded-full bg-[#F3BE56] shadow-sm">
+            <span
+              className="text-[#0D382B] text-xs sm:text-sm font-extrabold uppercase tracking-[0.2em]"
+              style={{ fontFamily: 'Arial, -apple-system, BlinkMacSystemFont, sans-serif' }}
+            >
+              PROPOSTA TÉCNICO-COMERCIAL
+            </span>
           </div>
         </div>
 
-        {/* Miolo: Nome do Cliente + Frase Principal em Verde Solar + Subtítulo */}
-        <div className="my-8 sm:my-10 space-y-4 max-w-4xl">
-          {/* Label e Nome do Cliente */}
-          <div className="space-y-1">
-            <span className="text-xs sm:text-sm font-semibold uppercase tracking-wider text-emerald-400/90 flex items-center gap-2">
-              <span className="w-6 h-[2px] bg-emerald-400 inline-block rounded-full" />
-              Proposta preparada para
-            </span>
-            <h1 className="text-2xl sm:text-4xl md:text-5xl font-black text-white tracking-tight leading-[1.15] drop-shadow-sm">
-              {clienteFinal}
+        {/* Miolo: Título Grande + Subtítulo + Bloco Preparada Para + Consultor */}
+        <div className="my-8 sm:my-10 space-y-6 sm:space-y-7 max-w-2xl">
+          {/* Título Grande quebrado em duas linhas */}
+          <div>
+            <h1
+              className="text-4xl sm:text-5xl md:text-6xl font-black text-[#0D382B] tracking-tight leading-[1.08]"
+              style={{ fontFamily: 'Arial, -apple-system, BlinkMacSystemFont, sans-serif' }}
+            >
+              Energia que
+              <br />
+              gera retorno
             </h1>
-          </div>
-
-          {/* Frase Principal em Verde e Negrito */}
-          <div className="pt-2">
-            <p className="text-xl sm:text-2xl md:text-3xl lg:text-[2rem] font-extrabold text-[#22c55e] leading-snug drop-shadow-xs">
-              Economize {formatCurrency(economiaFinal)} por mês com sua própria usina solar
+            <p className="mt-3 sm:mt-4 text-base sm:text-lg md:text-xl text-[#4A5D54] font-medium leading-relaxed">
+              Sistema fotovoltaico projetado exclusivamente para você
             </p>
           </div>
 
-          {/* Subtítulo Solicitado */}
-          <p className="text-sm sm:text-base md:text-lg text-emerald-100/85 font-medium leading-relaxed max-w-2xl">
-            Independência energética projetada exclusivamente para você
-          </p>
+          {/* Bloco Alinhado à Esquerda com Filete Vertical Amarelo */}
+          <div className="pl-4 sm:pl-5 border-l-4 border-[#E9A224] py-1 space-y-1">
+            <div className="text-[11px] sm:text-xs font-bold uppercase tracking-[0.18em] text-[#6E7E76]">
+              PREPARADA PARA:
+            </div>
+            <div
+              className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-[#0D382B] tracking-tight leading-snug"
+              style={{ fontFamily: 'Arial, -apple-system, BlinkMacSystemFont, sans-serif' }}
+            >
+              {clienteFinal}
+            </div>
+            <div className="text-sm sm:text-base text-[#6E7E76] font-medium">
+              {tipoImovelFinal} • {cidadeFinal}
+            </div>
+          </div>
+
+          {/* Linha com Ícone de Pessoa e Dados do Consultor */}
+          <div className="pt-2 flex items-center gap-2.5 text-xs sm:text-sm md:text-base text-[#4A5D54] font-medium">
+            <svg
+              className="w-5 h-5 text-[#5D7066] shrink-0"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
+              <circle cx="12" cy="7" r="4" />
+            </svg>
+            <span>
+              Consultor: <strong className="text-[#0D382B] font-bold">{consultorFinal}</strong> •{' '}
+              {telefoneFinal}
+            </span>
+          </div>
         </div>
 
-        {/* Rodapé da Capa: Data da Proposta e Nome do Consultor */}
-        <div className="pt-5 border-t border-emerald-900/80 flex items-center justify-between flex-wrap gap-4 text-xs sm:text-sm">
-          <div className="flex items-center gap-6 flex-wrap">
-            {/* Consultor */}
-            <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-xl bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-300">
-                <User className="w-4 h-4" />
-              </div>
-              <div>
-                <span className="text-[10px] uppercase font-bold text-emerald-400/80 block leading-none">
-                  Consultor Responsável
-                </span>
-                <span className="text-xs sm:text-sm font-bold text-white mt-0.5 block">
-                  {consultorFinal}
-                </span>
-              </div>
-            </div>
-
-            {/* Data da Proposta */}
-            <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-xl bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-300">
-                <Calendar className="w-4 h-4" />
-              </div>
-              <div>
-                <span className="text-[10px] uppercase font-bold text-emerald-400/80 block leading-none">
-                  Data da Proposta
-                </span>
-                <span className="text-xs sm:text-sm font-bold text-white mt-0.5 block">
-                  {dataFormatada}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* Selo Delfos de Engenharia */}
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/5 border border-white/10 text-emerald-200 text-xs font-semibold">
-            <ShieldCheck className="w-4 h-4 text-emerald-400" />
-            <span>Engenharia Própria Delfos</span>
-          </div>
+        {/* Rodapé Centralizado da Capa (Discreto e Elegante) */}
+        <div className="pt-6 border-t border-[#DDECE2] text-center text-xs sm:text-sm text-[#7D8F85] font-medium tracking-wide">
+          <span>{site}</span>
+          <span className="mx-2 text-[#9FB3A7]">•</span>
+          <span>{email}</span>
         </div>
       </div>
     </section>

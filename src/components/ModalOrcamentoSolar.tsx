@@ -3744,9 +3744,17 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                 <ErrorBoundary compact errorMessage="Não foi possível exibir a Capa da Proposta">
                   <SecaoCapaProposta
                     nomeCliente={clienteAtual?.nome}
+                    tipoImovel={
+                      (clienteAtual as any)?.tipo_imovel ||
+                      (tipoCliente === 'comercial' ? 'Comércio' : 'Residência')
+                    }
+                    cidade={
+                      (clienteAtual as any)?.cidade || clienteAtual?.municipio || 'Passo Fundo - RS'
+                    }
+                    consultor={initialOrcamento?.autor || user?.name || 'João Victor Bagetti Fuchs'}
+                    telefoneConsultor="(54) 99129-2121"
                     economiaMensal={calculos.economia1Mes}
                     dataOrcamento={initialOrcamento?.data_orcamento || initialOrcamento?.created}
-                    consultor={initialOrcamento?.autor || user?.name || 'Equipe Delfos Solar'}
                     potenciaKwp={potenciaKwp}
                   />
                 </ErrorBoundary>

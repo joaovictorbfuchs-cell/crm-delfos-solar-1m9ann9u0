@@ -21,6 +21,8 @@ export interface PropostaTecnicoComercialDados {
     email?: string
     telefone?: string
     tipoCliente?: 'residencial' | 'comercial' | 'rural' | 'industrial'
+    tipoImovel?: string
+    cidade?: string
   }
   representante: {
     nome: string
@@ -286,6 +288,22 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
     (representante?.nome && representante.nome.trim()) || 'Consultor Delfos Solar'
   const consultorContato = representante?.contato || '(54) 99129-2121'
   const dataFormatada = dataProposta || new Date().toLocaleDateString('pt-BR')
+
+  // Dados dinâmicos de tipo de imóvel e cidade para a capa
+  const tipoImovelFormatado =
+    (cliente?.tipoImovel && cliente.tipoImovel.trim()) ||
+    (cliente?.tipoCliente === 'comercial'
+      ? 'Comércio'
+      : cliente?.tipoCliente === 'industrial'
+        ? 'Indústria'
+        : cliente?.tipoCliente === 'rural'
+          ? 'Rural'
+          : 'Residência')
+  const cidadeCliente =
+    (cliente?.cidade && cliente.cidade.trim()) ||
+    (cliente?.municipio && cliente.municipio.trim()) ||
+    'Passo Fundo - RS'
+  const sublinhaClienteCapa = `${tipoImovelFormatado} • ${cidadeCliente}`
   const validade = validadeDias || 5
 
   // Economia mensal prioritária
@@ -831,223 +849,161 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
     }
 
     /* ==========================================================
-       SEÇÃO 1 — CAPA
+       SEÇÃO 1 — CAPA OFICIAL DELFOS SOLAR (DESIGN MODELO A4)
        ========================================================== */
     .capa-wrapper {
-      background: linear-gradient(135deg, #071311 0%, #0b241c 45%, #04100d 100%);
-      color: #FFFFFF;
-      border-radius: 24px;
-      padding: 28px 30px;
-      border: 1px solid rgba(16, 185, 129, 0.4);
+      background: linear-gradient(155deg, #F9FCFA 0%, #EFF8F2 45%, #E3F3E8 100%);
+      color: #0D382B;
+      border-radius: 20px;
+      padding: 36px 42px 28px 42px;
+      border: 1px solid #D1E7D8;
       position: relative;
       overflow: hidden;
       flex: 1;
       display: flex;
       flex-direction: column;
       justify-content: space-between;
-      min-height: 255mm;
-      box-shadow: 0 20px 35px -10px rgba(0, 0, 0, 0.5), inset 0 0 100px rgba(16, 185, 129, 0.12);
+      min-height: 265mm;
+      box-shadow: 0 10px 30px rgba(13, 56, 43, 0.06);
     }
-    .capa-glow-top {
+    .capa-sol-ondas-bg {
       position: absolute;
-      top: -60px;
-      left: -60px;
-      width: 280px;
-      height: 280px;
-      border-radius: 9999px;
-      background: radial-gradient(circle, rgba(16, 185, 129, 0.22) 0%, transparent 70%);
-      pointer-events: none;
-    }
-    .capa-glow-right {
-      position: absolute;
-      top: 35%;
-      right: -60px;
-      width: 240px;
-      height: 240px;
-      border-radius: 9999px;
-      background: radial-gradient(circle, rgba(245, 158, 11, 0.14) 0%, transparent 70%);
-      pointer-events: none;
-    }
-    .capa-grid-svg {
-      position: absolute;
-      inset: 0;
+      right: 0;
+      top: 0;
       width: 100%;
       height: 100%;
-      opacity: 0.18;
       pointer-events: none;
+      overflow: hidden;
     }
-    .capa-top {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 14px;
+    .capa-sol-ondas-svg {
+      position: absolute;
+      right: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+    }
+    .capa-top-center {
       position: relative;
       z-index: 2;
-    }
-    .capa-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 7px;
-      background: rgba(16, 185, 129, 0.18);
-      border: 1px solid rgba(52, 211, 153, 0.35);
-      padding: 6px 14px;
-      border-radius: 9999px;
-      font-size: 10px;
-      font-weight: 800;
-      color: #6EE7B7;
-      text-transform: uppercase;
-      letter-spacing: 0.1em;
-      backdrop-filter: blur(8px);
-    }
-    .capa-badge .sparkle {
-      color: #FCD34D;
-      font-size: 12px;
-    }
-    .capa-badge .kwp-tag {
-      margin-left: 6px;
-      padding-left: 8px;
-      border-left: 1px solid rgba(52, 211, 153, 0.4);
-      color: #A7F3D0;
-      font-weight: 800;
-    }
-    .capa-logo-card {
-      background: rgba(255, 255, 255, 0.98);
-      padding: 6px 16px;
-      border-radius: 16px;
       display: flex;
+      flex-direction: column;
       align-items: center;
-      width: 145px;
-      height: 48px;
-      box-shadow: 0 10px 20px rgba(0, 0, 0, 0.25);
+      text-align: center;
+      padding-top: 6px;
     }
-    .capa-middle {
-      margin: 28px 0;
+    .capa-logo-container {
       position: relative;
-      z-index: 2;
-      max-width: 780px;
-    }
-    .capa-prep-tag {
-      font-size: 11px;
-      font-weight: 700;
-      color: #34D399;
-      text-transform: uppercase;
-      letter-spacing: 0.14em;
-      margin-bottom: 8px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-    .capa-prep-tag::before {
-      content: "";
-      display: inline-block;
-      width: 24px;
-      height: 2.5px;
-      background: #34D399;
-      border-radius: 2px;
-    }
-    .capa-cliente-nome {
-      font-size: 38px;
-      font-weight: 900;
-      color: #FFFFFF;
-      letter-spacing: -0.025em;
-      line-height: 1.12;
-      margin: 0 0 18px 0;
-      text-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
-    }
-    .capa-frase-destaque {
-      font-size: 24px;
-      font-weight: 900;
-      color: #22C55E;
-      line-height: 1.25;
-      margin: 0 0 12px 0;
-      text-shadow: 0 2px 10px rgba(34, 197, 94, 0.3);
-    }
-    .capa-subtitulo {
-      font-size: 14px;
-      color: #D1FAE5;
-      font-weight: 500;
-      margin: 0 0 24px 0;
-      max-width: 620px;
-      line-height: 1.45;
-    }
-    .capa-pills-row {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 12px;
-      margin-top: 18px;
-    }
-    .capa-pill {
-      background: rgba(255, 255, 255, 0.08);
-      border: 1px solid rgba(52, 211, 153, 0.28);
-      border-radius: 14px;
-      padding: 12px 14px;
-      backdrop-filter: blur(8px);
-    }
-    .capa-pill-label {
-      font-size: 9px;
-      font-weight: 800;
-      color: #A7F3D0;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-    }
-    .capa-pill-val {
-      font-size: 18px;
-      font-weight: 900;
-      color: #FFFFFF;
-      margin-top: 3px;
-      letter-spacing: -0.01em;
-    }
-    .capa-bottom {
-      border-top: 1px solid rgba(52, 211, 153, 0.3);
-      padding-top: 16px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 14px;
-      font-size: 10px;
-      position: relative;
-      z-index: 2;
-    }
-    .capa-bottom-col {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-    .capa-bottom-icon {
-      width: 32px;
-      height: 32px;
-      border-radius: 10px;
-      background: rgba(16, 185, 129, 0.2);
-      border: 1px solid rgba(52, 211, 153, 0.35);
+      width: 250px;
+      height: 104px;
+      overflow: hidden;
       display: flex;
       align-items: center;
       justify-content: center;
-      color: #6EE7B7;
-      font-size: 14px;
     }
-    .capa-bottom-info strong {
-      color: #FFFFFF;
-      font-size: 11px;
-    }
-    .capa-bottom-info span {
-      color: #A7F3D0;
-      font-size: 9.5px;
-      text-transform: uppercase;
-      font-weight: 700;
+    .capa-logo-img {
+      width: 100%;
+      height: auto;
+      object-fit: cover;
+      object-position: center 14%;
+      transform: scale(1.02);
       display: block;
-      margin-bottom: 1px;
     }
-    .capa-selo-engenharia {
+    .capa-badge-amarelo {
       display: inline-flex;
       align-items: center;
-      gap: 6px;
-      padding: 6px 12px;
-      border-radius: 12px;
-      background: rgba(255, 255, 255, 0.06);
-      border: 1px solid rgba(255, 255, 255, 0.12);
-      color: #A7F3D0;
-      font-size: 10px;
-      font-weight: 700;
+      justify-content: center;
+      background: #F3BE56;
+      padding: 8px 30px;
+      border-radius: 9999px;
+      font-size: 11.5px;
+      font-weight: 900;
+      color: #0D382B;
+      text-transform: uppercase;
+      letter-spacing: 0.18em;
+      margin-top: 14px;
+      box-shadow: 0 2px 8px rgba(243, 190, 86, 0.35);
+    }
+    .capa-middle-bloco {
+      position: relative;
+      z-index: 2;
+      margin: 40px 0 30px 0;
+      max-width: 580px;
+    }
+    .capa-titulo-destaque {
+      font-size: 50px;
+      font-weight: 900;
+      color: #0D382B;
+      letter-spacing: -0.025em;
+      line-height: 1.08;
+      margin: 0;
+    }
+    .capa-subtitulo-cinza {
+      font-size: 16px;
+      font-weight: 500;
+      color: #4A5D54;
+      line-height: 1.45;
+      margin: 14px 0 0 0;
+      max-width: 480px;
+    }
+    .capa-preparada-box {
+      margin-top: 36px;
+      padding-left: 18px;
+      border-left: 4px solid #E9A224;
+    }
+    .capa-prep-rotulo {
+      font-size: 11px;
+      font-weight: 800;
+      color: #6E7E76;
+      text-transform: uppercase;
+      letter-spacing: 0.18em;
+      margin-bottom: 4px;
+    }
+    .capa-cliente-nome-destaque {
+      font-size: 32px;
+      font-weight: 900;
+      color: #0D382B;
+      letter-spacing: -0.02em;
+      line-height: 1.15;
+      margin: 0 0 4px 0;
+    }
+    .capa-cliente-imovel-cidade {
+      font-size: 14px;
+      font-weight: 500;
+      color: #6E7E76;
+    }
+    .capa-consultor-linha {
+      margin-top: 28px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 13.5px;
+      color: #4A5D54;
+      font-weight: 500;
+    }
+    .capa-consultor-icon {
+      width: 18px;
+      height: 18px;
+      color: #5D7066;
+      flex-shrink: 0;
+    }
+    .capa-consultor-linha strong {
+      color: #0D382B;
+      font-weight: 800;
+    }
+    .capa-bottom-site-email {
+      position: relative;
+      z-index: 2;
+      border-top: 1px solid #DDECE2;
+      padding-top: 14px;
+      text-align: center;
+      font-size: 11.5px;
+      color: #7D8F85;
+      font-weight: 500;
+      letter-spacing: 0.04em;
+    }
+    .capa-bottom-site-email span.sep {
+      margin: 0 8px;
+      color: #9FB3A7;
     }
 
     /* ==========================================================
@@ -2076,91 +2032,108 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
   <div class="proposta-container">
 
     <!-- ========================================================
-         SEÇÃO 1 — CAPA (ESPELHADO DO SecaoCapaProposta.tsx)
+         SEÇÃO 1 — CAPA (DESIGN OFICIAL COM SOL, ONDAS E LOGO DELFOS)
          ======================================================== -->
     <section class="proposta-secao-page" id="secao-1-capa">
       <div class="secao-body">
         <div class="capa-wrapper">
-          <!-- Glows esmeralda e dourado de fundo -->
-          <div class="capa-glow-top"></div>
-          <div class="capa-glow-right"></div>
+          <!-- Ilustração Vetorial com Sol Amarelo/Laranja e Ondas Verdes Suaves -->
+          <div class="capa-sol-ondas-bg" aria-hidden="true">
+            <svg class="capa-sol-ondas-svg" viewBox="0 0 800 1150" preserveAspectRatio="xMaxYMid slice" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <defs>
+                <radialGradient id="capa-html-sol-core" cx="50%" cy="50%" r="50%">
+                  <stop offset="0%" stop-color="#F98A28" />
+                  <stop offset="45%" stop-color="#FCA429" />
+                  <stop offset="85%" stop-color="#FDBF37" />
+                  <stop offset="100%" stop-color="#FECD48" />
+                </radialGradient>
+                <radialGradient id="capa-html-sol-ring1" cx="50%" cy="50%" r="50%">
+                  <stop offset="0%" stop-color="#FECD48" stop-opacity="0.85" />
+                  <stop offset="70%" stop-color="#FED867" stop-opacity="0.75" />
+                  <stop offset="100%" stop-color="#FFEAA0" stop-opacity="0.6" />
+                </radialGradient>
+                <radialGradient id="capa-html-sol-glow" cx="50%" cy="50%" r="50%">
+                  <stop offset="0%" stop-color="#FFE79A" stop-opacity="0.45" />
+                  <stop offset="60%" stop-color="#FFF2C6" stop-opacity="0.25" />
+                  <stop offset="100%" stop-color="#FFF9E6" stop-opacity="0" />
+                </radialGradient>
+                <linearGradient id="capa-html-wave-1" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stop-color="#BFE3CE" stop-opacity="0.65" />
+                  <stop offset="50%" stop-color="#A8DABF" stop-opacity="0.45" />
+                  <stop offset="100%" stop-color="#8FCFAA" stop-opacity="0.25" />
+                </linearGradient>
+                <linearGradient id="capa-html-wave-2" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stop-color="#D4ECD9" stop-opacity="0.75" />
+                  <stop offset="60%" stop-color="#C2E6CC" stop-opacity="0.5" />
+                  <stop offset="100%" stop-color="#AEE0BD" stop-opacity="0.3" />
+                </linearGradient>
+                <linearGradient id="capa-html-wave-3" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stop-color="#EAF7ED" stop-opacity="0.9" />
+                  <stop offset="50%" stop-color="#D8F0DE" stop-opacity="0.7" />
+                  <stop offset="100%" stop-color="#C4E9CE" stop-opacity="0.45" />
+                </linearGradient>
+              </defs>
+              <circle cx="750" cy="460" r="260" fill="url(#capa-html-sol-glow)" />
+              <g stroke="#F8A738" stroke-width="6" stroke-linecap="round" opacity="0.9">
+                <line x1="710" y1="285" x2="715" y2="330" />
+                <line x1="595" y1="340" x2="635" y2="368" />
+                <line x1="545" y1="460" x2="598" y2="460" />
+                <line x1="585" y1="550" x2="628" y2="522" />
+                <line x1="720" y1="625" x2="724" y2="585" />
+              </g>
+              <circle cx="750" cy="460" r="160" fill="url(#capa-html-sol-ring1)" />
+              <circle cx="750" cy="460" r="120" fill="#FED867" opacity="0.9" />
+              <circle cx="750" cy="460" r="82" fill="url(#capa-html-sol-core)" />
+              <path d="M 380 720 C 500 620, 640 540, 800 510 L 800 800 L 380 800 Z" fill="url(#capa-html-wave-1)" />
+              <path d="M 320 800 C 460 670, 620 570, 800 550 L 800 1150 L 320 1150 Z" fill="url(#capa-html-wave-2)" />
+              <path d="M 280 880 C 440 730, 620 620, 800 590 L 800 1150 L 280 1150 Z" fill="url(#capa-html-wave-3)" />
+            </svg>
+          </div>
 
-          <!-- Malha geométrica fotovoltaica SVG exata do SecaoCapaProposta -->
-          <svg class="capa-grid-svg" xmlns="http://www.w3.org/2000/svg">
-            <defs>
-              <pattern id="capa-solar-grid-gen" width="60" height="40" patternUnits="userSpaceOnUse" patternTransform="rotate(12)">
-                <rect x="2" y="2" width="56" height="36" rx="3" fill="none" stroke="#34D399" stroke-width="0.8" stroke-opacity="0.4" />
-                <line x1="2" y1="14" x2="58" y2="14" stroke="#34D399" stroke-width="0.4" stroke-opacity="0.25" />
-                <line x1="2" y1="26" x2="58" y2="26" stroke="#34D399" stroke-width="0.4" stroke-opacity="0.25" />
-                <line x1="30" y1="2" x2="30" y2="38" stroke="#34D399" stroke-width="0.4" stroke-opacity="0.25" />
-              </pattern>
-            </defs>
-            <rect width="100%" height="100%" fill="url(#capa-solar-grid-gen)" />
-          </svg>
-
-          <!-- Topo: Badge Exclusiva + Logo Oficial -->
-          <div class="capa-top">
-            <div class="capa-badge">
-              <span class="sparkle">✦</span>
-              <span>Proposta Comercial Exclusiva</span>
-              <span class="kwp-tag">${formatNumBR(potenciaKwp, 2)} kWp</span>
+          <!-- Topo Centralizado: Logo Oficial Delfos Solar (sem contatos) + Badge Amarelo -->
+          <div class="capa-top-center">
+            <div class="capa-logo-container">
+              <img src="/src/assets/prancheta-1-049a2.png" alt="Delfos Solar" class="capa-logo-img" />
             </div>
-            <div class="capa-logo-card">
-              ${renderLogoSvg('capa')}
+            <div class="capa-badge-amarelo">
+              PROPOSTA TÉCNICO-COMERCIAL
             </div>
           </div>
 
-          <!-- Miolo: Nome do Cliente + Frase Verde + Subtítulo + 3 Pills -->
-          <div class="capa-middle">
-            <div class="capa-prep-tag">Proposta preparada para</div>
-            <h1 class="capa-cliente-nome">${nomeCliente}</h1>
-            <p class="capa-frase-destaque">
-              Economize ${formatBRL(economiaMensal)} por mês com sua própria usina solar
-            </p>
-            <p class="capa-subtitulo">
-              Independência energética projetada exclusivamente para você
+          <!-- Miolo: Título Grande + Subtítulo + Bloco Preparada Para + Consultor -->
+          <div class="capa-middle-bloco">
+            <h1 class="capa-titulo-destaque">
+              Energia que<br />gera retorno
+            </h1>
+            <p class="capa-subtitulo-cinza">
+              Sistema fotovoltaico projetado exclusivamente para você
             </p>
 
-            <div class="capa-pills-row">
-              <div class="capa-pill">
-                <div class="capa-pill-label">Potência Nominal</div>
-                <div class="capa-pill-val">${formatNumBR(potenciaKwp, 2)} kWp</div>
-              </div>
-              <div class="capa-pill">
-                <div class="capa-pill-label">Geração Média Estimada</div>
-                <div class="capa-pill-val">${formatNumBR(producao.mediaMensalKwh, 0)} kWh/mês</div>
-              </div>
-              <div class="capa-pill">
-                <div class="capa-pill-label">Retorno do Investimento</div>
-                <div class="capa-pill-val">${paybackTextoFinal}</div>
-              </div>
+            <!-- Bloco Alinhado à Esquerda com Filete Amarelo -->
+            <div class="capa-preparada-box">
+              <div class="capa-prep-rotulo">PREPARADA PARA:</div>
+              <div class="capa-cliente-nome-destaque">${nomeCliente}</div>
+              <div class="capa-cliente-imovel-cidade">${sublinhaClienteCapa}</div>
+            </div>
+
+            <!-- Linha com Ícone de Consultor -->
+            <div class="capa-consultor-linha">
+              <svg class="capa-consultor-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path>
+                <circle cx="12" cy="7" r="4"></circle>
+              </svg>
+              <span>Consultor: <strong>${consultorNome}</strong> • ${consultorContato}</span>
             </div>
           </div>
 
-          <!-- Rodapé da Capa: Consultor, Data e Selo Engenharia -->
-          <div class="capa-bottom">
-            <div class="capa-bottom-col">
-              <div class="capa-bottom-icon">👤</div>
-              <div class="capa-bottom-info">
-                <span>Consultor Responsável</span>
-                <strong>${consultorNome}</strong> • ${consultorContato}
-              </div>
-            </div>
-            <div class="capa-bottom-col">
-              <div class="capa-bottom-icon">📅</div>
-              <div class="capa-bottom-info">
-                <span>Data da Proposta</span>
-                <strong>${dataFormatada}</strong> • Validade: <strong>${validade} dias corridos</strong>
-              </div>
-            </div>
-            <div class="capa-selo-engenharia">
-              <span>🛡️</span>
-              <span>Engenharia Própria Delfos</span>
-            </div>
+          <!-- Rodapé Discreto da Capa -->
+          <div class="capa-bottom-site-email">
+            <span>www.delfos.eng.br</span>
+            <span class="sep">•</span>
+            <span>contato@delfos.eng.br</span>
           </div>
         </div>
       </div>
-      ${renderInternalFooter(1, validade)}
     </section>
 
     <!-- ========================================================

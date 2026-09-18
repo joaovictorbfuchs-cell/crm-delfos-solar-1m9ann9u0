@@ -314,6 +314,12 @@ export function ModalGerarPropostaTecnicoComercial({
           cpfOuCnpj: clienteDocumento || '',
           endereco: cliente?.endereco || '',
           municipio: cliente?.municipio || '',
+          cidade: (cliente as any)?.cidade || cliente?.municipio || '',
+          tipoCliente: cliente?.tipo_cliente === 'comercial' ? 'comercial' : 'residencial',
+          tipoImovel:
+            (orcamento as any)?.tipo_imovel ||
+            (cliente as any)?.tipo_imovel ||
+            (cliente?.tipo_cliente === 'comercial' ? 'Comércio' : 'Residência'),
           email: cliente?.email || '',
           telefone: cliente?.telefone || '',
         },
@@ -999,10 +1005,17 @@ export function ModalGerarPropostaTecnicoComercial({
               {/* Seção 1: Capa da Proposta Comercial Oficial */}
               <ErrorBoundary compact errorMessage="Não foi possível exibir a Capa da Proposta">
                 <SecaoCapaProposta
-                  nomeCliente={clienteNome}
+                  nomeCliente={clienteNome || 'Cliente'}
+                  tipoImovel={
+                    (orcamento as any)?.tipo_imovel ||
+                    (cliente as any)?.tipo_imovel ||
+                    (cliente?.tipo_cliente === 'comercial' ? 'Comércio' : 'Residência')
+                  }
+                  cidade={(cliente as any)?.cidade || cliente?.municipio || 'Passo Fundo - RS'}
+                  consultor={orcamento.autor || representanteNome || 'João Victor Bagetti Fuchs'}
+                  telefoneConsultor={representanteContato || '(54) 99129-2121'}
                   economiaMensal={orcamento.economia_1_mes || contaHoje - contaComSolar}
                   dataOrcamento={orcamento.data_orcamento || orcamento.created}
-                  consultor={orcamento.autor || representanteNome}
                   potenciaKwp={potenciaKwp}
                 />
               </ErrorBoundary>
