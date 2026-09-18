@@ -3292,6 +3292,23 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                     validadeDias={initialOrcamento?.validade_dias || 5}
                     nomeCliente={clienteAtual?.nome}
                     paybackMeses={calculos.paybackMeses}
+                    dadosEmpresa={{
+                      razaoSocial: 'DELFOS ENGENHARIA LTDA',
+                      cnpj: '21.379.952/0001-38',
+                      responsavelTecnico: 'João Victor Bagetti Fuchs',
+                      crea: 'CREA RS151894',
+                      endereco: 'Rua Espírito Santo, nº 275 – Centro, Erechim/RS',
+                      telefone: '(54) 99129-2121',
+                      email: 'contato@delfos.eng.br',
+                    }}
+                    dadosCliente={{
+                      nome: clienteAtual?.nome,
+                      cpfOuCnpj: clienteAtual?.cpfOuCnpj,
+                      endereco: clienteAtual?.endereco,
+                      municipio: clienteAtual?.municipio,
+                      telefone: clienteAtual?.telefone || clienteAtual?.whatsapp,
+                      email: clienteAtual?.email,
+                    }}
                   />
                 </ErrorBoundary>
 
@@ -3322,24 +3339,6 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                       className="w-full text-xs font-medium px-3 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-emerald-500"
                       placeholder="Ex: Condição especial de pagamento; vistoria estrutural já executada."
                     />
-                  </div>
-                </div>
-
-                {/* Dados da Empresa & Responsável Técnico */}
-                <div className="p-3 bg-gray-50 rounded-xl border border-gray-200 text-[11px] text-gray-600 space-y-1">
-                  <div className="flex justify-between flex-wrap gap-1">
-                    <span>
-                      Empresa: <strong>Delfos Engenharia Ltda (Delfos Solar)</strong> • CNPJ
-                      21.379.952/0001-38
-                    </span>
-                    <span>Erechim / RS • Tel: (54) 99129-2121</span>
-                  </div>
-                  <div className="flex justify-between flex-wrap gap-1 pt-1 border-t border-gray-200/80">
-                    <span>
-                      Responsável Técnico: <strong>João Victor Bagetti Fuchs</strong> (CREA
-                      RS151894)
-                    </span>
-                    <span>Validade oficial: 5 dias corridos</span>
                   </div>
                 </div>
               </div>

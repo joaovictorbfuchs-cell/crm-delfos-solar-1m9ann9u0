@@ -2486,7 +2486,7 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
             // Bloco Empresa
             new TableCell({
               width: { size: colAssinaturaWidth, type: WidthType.DXA },
-              shading: { type: ShadingType.CLEAR, fill: 'F9FAFB' },
+              shading: { type: ShadingType.CLEAR, fill: 'FFFFFF' },
               borders: {
                 top: { style: BorderStyle.SINGLE, size: 8, color: 'E5E7EB' },
                 bottom: { style: BorderStyle.SINGLE, size: 8, color: 'E5E7EB' },
@@ -2495,50 +2495,27 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
               },
               margins: { top: 120, bottom: 120, left: 120, right: 120 },
               children: [
+                // 1º Local e data no topo com identificação da coluna
                 new Paragraph({
                   children: [
                     new TextRun({
-                      text: 'EMPRESA CONTRATADA\n',
+                      text: 'EMPRESA CONTRATADA',
                       bold: true,
                       size: 13,
                       color: '065F46',
                       font: 'Arial',
                     }),
                     new TextRun({
-                      text: `${DADOS_EMPRESA_DELFOS_SOLAR.razaoSocial}\n`,
-                      bold: true,
-                      size: 16,
-                      color: '111827',
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: `CNPJ: ${DADOS_EMPRESA_DELFOS_SOLAR.cnpj}\n`,
-                      size: 13,
-                      color: '374151',
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: `Resp. Técnico: ${DADOS_EMPRESA_DELFOS_SOLAR.responsavelTecnico} (${DADOS_EMPRESA_DELFOS_SOLAR.crea})\n`,
-                      size: 13,
-                      color: '374151',
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: `Endereço: ${DADOS_EMPRESA_DELFOS_SOLAR.endereco}\n`,
-                      size: 13,
-                      color: '374151',
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: `Contato: ${DADOS_EMPRESA_DELFOS_SOLAR.telefone} • ${DADOS_EMPRESA_DELFOS_SOLAR.email}\n`,
-                      size: 13,
-                      color: '374151',
+                      text: `          Erechim / RS, ${dataFormatada}\n`,
+                      size: 12,
+                      color: '6B7280',
                       font: 'Arial',
                     }),
                   ],
                 }),
+                // 2º Linha de assinatura + nome (bold, size 16) + função
                 new Paragraph({
-                  spacing: { before: 200 },
+                  spacing: { before: 140, after: 120 },
                   alignment: AlignmentType.CENTER,
                   children: [
                     new TextRun({
@@ -2547,22 +2524,94 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
                       size: 14,
                     }),
                     new TextRun({
-                      text: `${DADOS_EMPRESA_DELFOS_SOLAR.responsavelTecnico}\n`,
+                      text: `${DADOS_EMPRESA_DELFOS_SOLAR.responsavelTecnico.toUpperCase()}\n`,
                       bold: true,
-                      size: 14,
+                      size: 16,
                       color: '111827',
                       font: 'Arial',
                     }),
                     new TextRun({
-                      text: `Responsável Técnico — ${DADOS_EMPRESA_DELFOS_SOLAR.crea}\n`,
+                      text: `Responsável Técnico — ${DADOS_EMPRESA_DELFOS_SOLAR.crea}`,
                       size: 12,
-                      color: '6B7280',
+                      bold: true,
+                      color: '065F46',
+                      font: 'Arial',
+                    }),
+                  ],
+                }),
+                // 3º Divisor tracejado e bloco de dados cadastrais compactos
+                new Paragraph({
+                  spacing: { before: 80 },
+                  children: [
+                    new TextRun({
+                      text: '- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -\n',
+                      color: 'D1D5DB',
+                      size: 11,
                       font: 'Arial',
                     }),
                     new TextRun({
-                      text: `Erechim / RS, ${dataFormatada}`,
-                      size: 11,
-                      color: '9CA3AF',
+                      text: 'Razão Social: ',
+                      bold: true,
+                      size: 13,
+                      color: '111827',
+                      font: 'Arial',
+                    }),
+                    new TextRun({
+                      text: `${DADOS_EMPRESA_DELFOS_SOLAR.razaoSocial} (Delfos Solar)\n`,
+                      size: 13,
+                      color: '374151',
+                      font: 'Arial',
+                    }),
+                    new TextRun({
+                      text: 'CNPJ: ',
+                      bold: true,
+                      size: 13,
+                      color: '111827',
+                      font: 'Arial',
+                    }),
+                    new TextRun({
+                      text: `${DADOS_EMPRESA_DELFOS_SOLAR.cnpj}\n`,
+                      size: 13,
+                      color: '374151',
+                      font: 'Arial',
+                    }),
+                    new TextRun({
+                      text: 'Resp. Técnico: ',
+                      bold: true,
+                      size: 13,
+                      color: '111827',
+                      font: 'Arial',
+                    }),
+                    new TextRun({
+                      text: `${DADOS_EMPRESA_DELFOS_SOLAR.responsavelTecnico} (${DADOS_EMPRESA_DELFOS_SOLAR.crea})\n`,
+                      size: 13,
+                      color: '374151',
+                      font: 'Arial',
+                    }),
+                    new TextRun({
+                      text: 'Endereço: ',
+                      bold: true,
+                      size: 13,
+                      color: '111827',
+                      font: 'Arial',
+                    }),
+                    new TextRun({
+                      text: `${DADOS_EMPRESA_DELFOS_SOLAR.endereco}\n`,
+                      size: 13,
+                      color: '374151',
+                      font: 'Arial',
+                    }),
+                    new TextRun({
+                      text: 'Contato: ',
+                      bold: true,
+                      size: 13,
+                      color: '111827',
+                      font: 'Arial',
+                    }),
+                    new TextRun({
+                      text: `${DADOS_EMPRESA_DELFOS_SOLAR.telefone} • ${DADOS_EMPRESA_DELFOS_SOLAR.email}`,
+                      size: 13,
+                      color: '374151',
                       font: 'Arial',
                     }),
                   ],
@@ -2572,7 +2621,7 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
             // Bloco Cliente
             new TableCell({
               width: { size: PAGE_CONTENT_WIDTH - colAssinaturaWidth, type: WidthType.DXA },
-              shading: { type: ShadingType.CLEAR, fill: 'F9FAFB' },
+              shading: { type: ShadingType.CLEAR, fill: 'FFFFFF' },
               borders: {
                 top: { style: BorderStyle.SINGLE, size: 8, color: 'E5E7EB' },
                 bottom: { style: BorderStyle.SINGLE, size: 8, color: 'E5E7EB' },
@@ -2581,6 +2630,7 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
               },
               margins: { top: 120, bottom: 120, left: 120, right: 120 },
               children: [
+                // 1º Local e data no topo com identificação da coluna
                 new Paragraph({
                   children: [
                     new TextRun({
@@ -2591,34 +2641,16 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
                       font: 'Arial',
                     }),
                     new TextRun({
-                      text: `${cliente.nome.toUpperCase()}\n`,
-                      bold: true,
-                      size: 16,
-                      color: '111827',
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: `CPF/CNPJ: ${cliente.cpfOuCnpj || 'Não informado'}\n`,
-                      size: 13,
-                      color: '374151',
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: `Endereço/Cidade: ${cliente.endereco ? `${cliente.endereco}, ` : ''}${cliente.municipio || 'Erechim / RS'}\n`,
-                      size: 13,
-                      color: '374151',
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: `Contato: ${cliente.telefone || '—'}${cliente.email ? ` • ${cliente.email}` : ''}\n`,
-                      size: 13,
-                      color: '374151',
+                      text: 'Local e data: ______________________, ____/____/________\n',
+                      size: 11,
+                      color: '6B7280',
                       font: 'Arial',
                     }),
                   ],
                 }),
+                // 2º Linha de assinatura + nome (bold, size 16) + função
                 new Paragraph({
-                  spacing: { before: 200 },
+                  spacing: { before: 140, after: 120 },
                   alignment: AlignmentType.CENTER,
                   children: [
                     new TextRun({
@@ -2629,20 +2661,79 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
                     new TextRun({
                       text: `${cliente.nome.toUpperCase()}\n`,
                       bold: true,
-                      size: 14,
+                      size: 16,
                       color: '111827',
                       font: 'Arial',
                     }),
                     new TextRun({
-                      text: 'De acordo com as especificações e valores da proposta\n',
+                      text: 'De acordo com as especificações e valores da proposta',
                       size: 12,
-                      color: '6B7280',
+                      bold: true,
+                      color: '1E40AF',
+                      font: 'Arial',
+                    }),
+                  ],
+                }),
+                // 3º Divisor tracejado e bloco de dados cadastrais compactos
+                new Paragraph({
+                  spacing: { before: 80 },
+                  children: [
+                    new TextRun({
+                      text: '- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -\n',
+                      color: 'D1D5DB',
+                      size: 11,
                       font: 'Arial',
                     }),
                     new TextRun({
-                      text: 'Local e data: ______________________, ____/____/________',
-                      size: 11,
-                      color: '9CA3AF',
+                      text: 'Nome/Razão Social: ',
+                      bold: true,
+                      size: 13,
+                      color: '111827',
+                      font: 'Arial',
+                    }),
+                    new TextRun({
+                      text: `${cliente.nome}\n`,
+                      size: 13,
+                      color: '374151',
+                      font: 'Arial',
+                    }),
+                    new TextRun({
+                      text: 'CPF/CNPJ: ',
+                      bold: true,
+                      size: 13,
+                      color: '111827',
+                      font: 'Arial',
+                    }),
+                    new TextRun({
+                      text: `${cliente.cpfOuCnpj || 'Não informado'}\n`,
+                      size: 13,
+                      color: '374151',
+                      font: 'Arial',
+                    }),
+                    new TextRun({
+                      text: 'Endereço: ',
+                      bold: true,
+                      size: 13,
+                      color: '111827',
+                      font: 'Arial',
+                    }),
+                    new TextRun({
+                      text: `${cliente.endereco ? `${cliente.endereco}${cliente.municipio ? `, ${cliente.municipio}` : ''}` : cliente.municipio || 'Não informado'}\n`,
+                      size: 13,
+                      color: '374151',
+                      font: 'Arial',
+                    }),
+                    new TextRun({
+                      text: 'Contato: ',
+                      bold: true,
+                      size: 13,
+                      color: '111827',
+                      font: 'Arial',
+                    }),
+                    new TextRun({
+                      text: `${cliente.telefone || cliente.email ? `${cliente.telefone || 'Não informado'}${cliente.email ? ` • ${cliente.email}` : ''}` : 'Não informado'}`,
+                      size: 13,
+                      color: '374151',
                       font: 'Arial',
                     }),
                   ],

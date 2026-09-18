@@ -49,6 +49,13 @@ describe('SecaoInvestimentoPagamento Component', () => {
     expect(html).not.toContain('Garantir Condição')
     expect(html).not.toContain('Reserve sua usina agora')
     expect(html).toContain('Condições válidas por 5 dias.')
+
+    // Bloco de Assinaturas Canônico (2 colunas)
+    expect(html).toContain('EMPRESA CONTRATADA')
+    expect(html).toContain('CLIENTE / CONTRATANTE')
+    expect(html).toContain('DELFOS ENGENHARIA LTDA')
+    expect(html).toContain('João Victor Bagetti Fuchs')
+    expect(html).toContain('De acordo com as especificações e valores da proposta')
   })
 
   it('respeita os valores reais passados via props', () => {
@@ -126,6 +133,10 @@ describe('SecaoInvestimentoPagamento Component', () => {
 
     // Ausência do comparativo mensal
     expect(html).not.toContain('Comparativo de Custo Mensal')
+
+    // Bloco de assinaturas com dados do cliente
+    expect(html).toContain('Carlos Silva')
+    expect(html).toContain('De acordo com as especificações e valores da proposta')
   })
 
   it('renderiza com entradaCartao={5000} e espera "Entrada: R$ 5.000,00" no card de cartão; e com entrada 0 a linha não aparece', () => {

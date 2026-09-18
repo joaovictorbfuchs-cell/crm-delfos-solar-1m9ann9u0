@@ -65,6 +65,25 @@ export interface SecaoInvestimentoPagamentoProps {
   exibirPaybackAbaixo?: boolean
   /** Custo de postergação mensal estimado (R$/mês que o cliente perde a cada mês sem energia solar) */
   custoPostergacao?: number | null
+  /** Dados opcionais da empresa para o bloco de assinaturas (fallback: Delfos Engenharia Ltda) */
+  dadosEmpresa?: {
+    razaoSocial?: string
+    cnpj?: string
+    responsavelTecnico?: string
+    crea?: string
+    endereco?: string
+    telefone?: string
+    email?: string
+  }
+  /** Dados opcionais do cliente para o bloco de assinaturas (fallback: props nomeCliente e não informado) */
+  dadosCliente?: {
+    nome?: string
+    cpfOuCnpj?: string
+    endereco?: string
+    municipio?: string
+    telefone?: string
+    email?: string
+  }
   className?: string
 }
 
@@ -114,6 +133,8 @@ export const SecaoInvestimentoPagamento: React.FC<SecaoInvestimentoPagamentoProp
   paybackTexto,
   exibirPaybackAbaixo = true,
   custoPostergacao,
+  dadosEmpresa,
+  dadosCliente,
   className = '',
 }) => {
   const totalFinal =
@@ -632,6 +653,134 @@ export const SecaoInvestimentoPagamento: React.FC<SecaoInvestimentoPagamentoProp
             </p>
           </div>
         </div>
+
+        {/* ========================================================================= */}
+        {/* 5. BLOCO CANÔNICO DE ASSINATURAS E APROVAÇÃO (2 COLUNAS)                 */}
+        {/* ========================================================================= */}
+        {(() => {
+          const nomeClienteAssinatura = dadosCliente?.nome || nomeCliente || 'Cliente'
+          const dataPropostaFormatada = dataOrcamento
+            ? new Date(dataOrcamento).toLocaleDateString('pt-BR')
+            : new Date().toLocaleDateString('pt-BR')
+
+          const empRazaoSocial = dadosEmpresa?.razaoSocial || 'DELFOS ENGENHARIA LTDA'
+          const empCnpj = dadosEmpresa?.cnpj || '21.379.952/0001-38'
+          const empRespTecnico = dadosEmpresa?.responsavelTecnico || 'João Victor Bagetti Fuchs'
+          const empCrea = dadosEmpresa?.crea || 'CREA RS151894'
+          const empEndereco =
+            dadosEmpresa?.endereco || 'Rua Espírito Santo, nº 275 – Centro, Erechim/RS'
+          const empTelefone = dadosEmpresa?.telefone || '(54) 99129-2121'
+          const empEmail = dadosEmpresa?.email || 'contato@delfos.eng.br'
+
+          const cliCpfCnpj = dadosCliente?.cpfOuCnpj || 'Não informado'
+          const cliEndereco = dadosCliente?.endereco
+            ? `${dadosCliente.endereco}${dadosCliente?.municipio ? `, ${dadosCliente.municipio}` : ''}`
+            : dadosCliente?.municipio || 'Não informado'
+          const cliContato =
+            dadosCliente?.telefone || dadosCliente?.email
+              ? `${dadosCliente.telefone || 'Não informado'}${dadosCliente.email ? ` • ${dadosCliente.email}` : ''}`
+              : 'Não informado'
+
+          return (
+            <div className="pt-2 border-t border-gray-200">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Coluna 1: EMPRESA CONTRATADA */}
+                <div className="bg-white rounded-2xl p-5 border border-gray-200 shadow-2xs flex flex-col justify-between space-y-4">
+                  {/* 1. Topo: Categoria e Local/Data */}
+                  <div className="flex items-center justify-between gap-2 text-xs">
+                    <span className="font-extrabold uppercase tracking-wider text-[#065F46] text-[11px]">
+                      EMPRESA CONTRATADA
+                    </span>
+                    <span className="text-[11px] text-gray-500 font-medium">
+                      Erechim / RS, {dataPropostaFormatada}
+                    </span>
+                  </div>
+
+                  {/* 2. Linha de assinatura */}
+                  <div className="h-[1.5px] bg-gray-900 w-full" />
+
+                  {/* 3. Nome de quem assina + subtítulo */}
+                  <div className="text-center space-y-0.5">
+                    <div className="text-sm font-black text-gray-900 uppercase tracking-wide">
+                      {empRespTecnico}
+                    </div>
+                    <div className="text-[11px] font-bold text-[#065F46]">
+                      Responsável Técnico — {empCrea}
+                    </div>
+                  </div>
+
+                  {/* 4. Divisor tracejado + Bloco de dados compactos */}
+                  <div className="border-t border-dashed border-gray-300 pt-3 text-[11px] text-gray-600 space-y-1">
+                    <div>
+                      <strong className="text-gray-900 font-semibold">Razão Social:</strong>{' '}
+                      {empRazaoSocial} (Delfos Solar)
+                    </div>
+                    <div>
+                      <strong className="text-gray-900 font-semibold">CNPJ:</strong> {empCnpj}
+                    </div>
+                    <div>
+                      <strong className="text-gray-900 font-semibold">Resp. Técnico:</strong>{' '}
+                      {empRespTecnico} ({empCrea})
+                    </div>
+                    <div>
+                      <strong className="text-gray-900 font-semibold">Endereço:</strong>{' '}
+                      {empEndereco}
+                    </div>
+                    <div>
+                      <strong className="text-gray-900 font-semibold">Contato:</strong>{' '}
+                      {empTelefone} • {empEmail}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Coluna 2: CLIENTE / CONTRATANTE */}
+                <div className="bg-white rounded-2xl p-5 border border-gray-200 shadow-2xs flex flex-col justify-between space-y-4">
+                  {/* 1. Topo: Categoria e Local/Data */}
+                  <div className="flex items-center justify-between gap-2 text-xs">
+                    <span className="font-extrabold uppercase tracking-wider text-[#1E40AF] text-[11px]">
+                      CLIENTE / CONTRATANTE
+                    </span>
+                    <span className="text-[11px] text-gray-500 font-medium">
+                      Local e data: ______________________, ____/____/________
+                    </span>
+                  </div>
+
+                  {/* 2. Linha de assinatura */}
+                  <div className="h-[1.5px] bg-gray-900 w-full" />
+
+                  {/* 3. Nome do cliente + subtítulo */}
+                  <div className="text-center space-y-0.5">
+                    <div className="text-sm font-black text-gray-900 uppercase tracking-wide">
+                      {nomeClienteAssinatura}
+                    </div>
+                    <div className="text-[11px] font-bold text-[#1E40AF]">
+                      De acordo com as especificações e valores da proposta
+                    </div>
+                  </div>
+
+                  {/* 4. Divisor tracejado + Bloco de dados compactos */}
+                  <div className="border-t border-dashed border-gray-300 pt-3 text-[11px] text-gray-600 space-y-1">
+                    <div>
+                      <strong className="text-gray-900 font-semibold">Nome/Razão Social:</strong>{' '}
+                      {nomeClienteAssinatura}
+                    </div>
+                    <div>
+                      <strong className="text-gray-900 font-semibold">CPF/CNPJ:</strong>{' '}
+                      {cliCpfCnpj}
+                    </div>
+                    <div>
+                      <strong className="text-gray-900 font-semibold">Endereço:</strong>{' '}
+                      {cliEndereco}
+                    </div>
+                    <div>
+                      <strong className="text-gray-900 font-semibold">Contato:</strong> {cliContato}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )
+        })()}
       </div>
     </section>
   )
