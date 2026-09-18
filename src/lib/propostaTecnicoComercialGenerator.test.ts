@@ -485,4 +485,26 @@ describe('Proposta Técnico-Comercial Generator (5 Seções Oficiais)', () => {
     expect(html).toContain('daqui a 10 anos')
     expect(html).toContain('com solar')
   })
+
+  it('exibe a linha "Inclui IOF de R$ ..." nos blocos de Financiamento A e B quando valorIof for informado', () => {
+    const dadosComIof: PropostaTecnicoComercialDados = {
+      ...dadosExemplo,
+      parcelamento: {
+        ...dadosExemplo.parcelamento,
+        financiamentoA: {
+          ...dadosExemplo.parcelamento.financiamentoA,
+          valorIof: 1759.98,
+        },
+        financiamentoB: {
+          ...dadosExemplo.parcelamento.financiamentoB,
+          valorIof: 2450.5,
+        },
+      },
+    }
+
+    const html = gerarHTMLPropostaTecnicoComercial(dadosComIof)
+    expect(html).toContain('Inclui IOF de')
+    expect(html).toContain('1.759,98')
+    expect(html).toContain('2.450,50')
+  })
 })

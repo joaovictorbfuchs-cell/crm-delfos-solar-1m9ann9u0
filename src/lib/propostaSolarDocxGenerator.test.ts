@@ -234,4 +234,30 @@ describe('propostaSolarDocxGenerator', () => {
     expect(jsonStr).toContain('daqui a 10 anos')
     expect(jsonStr).toContain('com solar')
   })
+
+  it('exibe a linha "Inclui IOF de R$ ..." nos cartões de financiamento quando valorIof for informado', async () => {
+    const dadosComIof: PropostaSolarPDFInput = {
+      ...dadosExemploMarceloBecker,
+      calculos: {
+        ...dadosExemploMarceloBecker.calculos,
+        parcelamentos: {
+          ...dadosExemploMarceloBecker.calculos.parcelamentos,
+          financiamentoBanco1: {
+            ...dadosExemploMarceloBecker.calculos.parcelamentos.financiamentoBanco1,
+            valorIof: 1759.98,
+          },
+          financiamentoBanco2: {
+            ...dadosExemploMarceloBecker.calculos.parcelamentos.financiamentoBanco2,
+            valorIof: 2150.25,
+          },
+        },
+      },
+    }
+
+    const doc = await gerarPropostaSolarDocx(dadosComIof)
+    const jsonStr = JSON.stringify(doc)
+    expect(jsonStr).toContain('Inclui IOF de')
+    expect(jsonStr).toContain('1.759,98')
+    expect(jsonStr).toContain('2.150,25')
+  })
 })

@@ -139,6 +139,26 @@ describe('SecaoInvestimentoPagamento Component', () => {
     expect(html).toContain('De acordo com as especificações e valores da proposta')
   })
 
+  it('exibe a linha "Inclui IOF de R$ X" quando iofFinanciamentoA e iofFinanciamentoB forem informados', () => {
+    const html = renderToStaticMarkup(
+      React.createElement(SecaoInvestimentoPagamento, {
+        valorInvestimento: 40000,
+        nomeFinanciamentoA: 'Financiamento Banco 1',
+        parcelasFinanciamentoA: 60,
+        valorParcelaFinanciamentoA: 850,
+        iofFinanciamentoA: 1759.98,
+        nomeFinanciamentoB: 'Financiamento Banco 2',
+        parcelasFinanciamentoB: 60,
+        valorParcelaFinanciamentoB: 720,
+        iofFinanciamentoB: 1250.5,
+      }),
+    )
+
+    expect(html).toContain('Inclui IOF de')
+    expect(html).toContain('1.759,98')
+    expect(html).toContain('1.250,50')
+  })
+
   it('no bloco de assinaturas, não exibe o texto "Não informado" quando dados do cliente não estão disponíveis', () => {
     const html = renderToStaticMarkup(
       React.createElement(SecaoInvestimentoPagamento, {

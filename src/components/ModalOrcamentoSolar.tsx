@@ -1013,6 +1013,8 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
         parcela_cartao_18x: calculos.parcelamentos.cartao18x.valorParcela,
         parcela_financiamento_banco1: calculos.parcelamentos.financiamentoBanco1.valorParcela,
         parcela_financiamento_banco2: calculos.parcelamentos.financiamentoBanco2.valorParcela,
+        iof_financiamento_banco1: calculos.parcelamentos.financiamentoBanco1.valorIof,
+        iof_financiamento_banco2: calculos.parcelamentos.financiamentoBanco2.valorIof,
         parcelas_cartao: parcelasCartao,
         juros_cartao: jurosCartao,
         entrada_cartao: entradaCartao,
@@ -3246,6 +3248,13 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                       <div className="text-xl font-black text-gray-900 mt-2">
                         {formatCurrency(calculos.parcelamentos.financiamentoBanco1.valorParcela)}
                       </div>
+                      {calculos.parcelamentos.financiamentoBanco1.valorIof !== undefined &&
+                        calculos.parcelamentos.financiamentoBanco1.valorIof > 0 && (
+                          <span className="block text-[10px] font-semibold text-emerald-700 mt-0.5">
+                            Inclui IOF de{' '}
+                            {formatCurrency(calculos.parcelamentos.financiamentoBanco1.valorIof)}
+                          </span>
+                        )}
                       <p className="text-[10px] text-gray-500">
                         {entradaBanco1 > 0 && (
                           <span className="block text-amber-800 font-semibold">
@@ -3355,6 +3364,13 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                       <div className="text-xl font-black text-blue-800 mt-2">
                         {formatCurrency(calculos.parcelamentos.financiamentoBanco2.valorParcela)}
                       </div>
+                      {calculos.parcelamentos.financiamentoBanco2.valorIof !== undefined &&
+                        calculos.parcelamentos.financiamentoBanco2.valorIof > 0 && (
+                          <span className="block text-[10px] font-semibold text-blue-800 mt-0.5">
+                            Inclui IOF de{' '}
+                            {formatCurrency(calculos.parcelamentos.financiamentoBanco2.valorIof)}
+                          </span>
+                        )}
                       <p className="text-[10px] text-gray-500">
                         {entradaBanco2 > 0 && (
                           <span className="block text-blue-900 font-semibold">
@@ -3781,12 +3797,14 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                     valorParcelaFinanciamentoA={
                       calculos.parcelamentos?.financiamentoBanco1?.valorParcela
                     }
+                    iofFinanciamentoA={calculos.parcelamentos?.financiamentoBanco1?.valorIof}
                     nomeFinanciamentoB="Financiamento B"
                     entradaFinanciamentoB={entradaBanco2}
                     parcelasFinanciamentoB={parcelasBanco2}
                     valorParcelaFinanciamentoB={
                       calculos.parcelamentos?.financiamentoBanco2?.valorParcela
                     }
+                    iofFinanciamentoB={calculos.parcelamentos?.financiamentoBanco2?.valorIof}
                     contaMensalAtual={
                       calculos.contaAtualSemSolarMes ||
                       (calculos.geracaoMediaMensalKwh && tarifaKwh
@@ -4013,9 +4031,11 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
             parcela_financiamento_banco1:
               calculos.parcelamentos?.financiamentoBanco1?.valorParcela ||
               Math.round(valorInvestimentoFinal * 0.023),
+            iof_financiamento_banco1: calculos.parcelamentos?.financiamentoBanco1?.valorIof,
             parcela_financiamento_banco2:
               calculos.parcelamentos?.financiamentoBanco2?.valorParcela ||
               Math.round(valorInvestimentoFinal * 0.02),
+            iof_financiamento_banco2: calculos.parcelamentos?.financiamentoBanco2?.valorIof,
             parcelas_cartao: parcelasCartao,
             juros_cartao: jurosCartao,
             entrada_cartao: entradaCartao,

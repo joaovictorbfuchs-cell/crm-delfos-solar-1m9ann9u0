@@ -35,6 +35,8 @@ export interface SecaoInvestimentoPagamentoProps {
   parcelasFinanciamentoA?: number | null
   /** Financiamento A: Valor da parcela (R$) */
   valorParcelaFinanciamentoA?: number | null
+  /** Financiamento A: Valor do IOF (R$) */
+  iofFinanciamentoA?: number | null
   /** Financiamento B: Nome/Rótulo */
   nomeFinanciamentoB?: string
   /** Financiamento B: Valor da entrada (R$) */
@@ -43,6 +45,8 @@ export interface SecaoInvestimentoPagamentoProps {
   parcelasFinanciamentoB?: number | null
   /** Financiamento B: Valor da parcela (R$) */
   valorParcelaFinanciamentoB?: number | null
+  /** Financiamento B: Valor do IOF (R$) */
+  iofFinanciamentoB?: number | null
   /** Valor da conta de energia atual paga à concessionária (R$/mês) */
   contaMensalAtual?: number | null
   /** Valor estimado da fatura de energia pós-solar (taxa mínima / disponibilidade / Fio B) em R$/mês */
@@ -117,10 +121,12 @@ export const SecaoInvestimentoPagamento: React.FC<SecaoInvestimentoPagamentoProp
   entradaFinanciamentoA,
   parcelasFinanciamentoA,
   valorParcelaFinanciamentoA,
+  iofFinanciamentoA,
   nomeFinanciamentoB,
   entradaFinanciamentoB,
   parcelasFinanciamentoB,
   valorParcelaFinanciamentoB,
+  iofFinanciamentoB,
   contaMensalAtual,
   faturaMensalComSolar,
   contaMensalComSolar,
@@ -477,6 +483,13 @@ export const SecaoInvestimentoPagamento: React.FC<SecaoInvestimentoPagamentoProp
                   </span>
                   {formatCurrency(valorParcelaFinanAFinal)}
                 </div>
+                {iofFinanciamentoA !== undefined &&
+                  iofFinanciamentoA !== null &&
+                  iofFinanciamentoA > 0 && (
+                    <span className="block text-[11px] font-semibold text-emerald-700 mt-1">
+                      Inclui IOF de {formatCurrency(iofFinanciamentoA)}
+                    </span>
+                  )}
                 <p className="text-[11px] text-gray-500 mt-1">
                   {entradaFinanAFinal > 0 && (
                     <span className="block text-amber-800 font-semibold">
@@ -534,6 +547,13 @@ export const SecaoInvestimentoPagamento: React.FC<SecaoInvestimentoPagamentoProp
                   </span>
                   {formatCurrency(valorParcelaFinanBFinal)}
                 </div>
+                {iofFinanciamentoB !== undefined &&
+                  iofFinanciamentoB !== null &&
+                  iofFinanciamentoB > 0 && (
+                    <span className="block text-[11px] font-semibold text-blue-800 mt-1">
+                      Inclui IOF de {formatCurrency(iofFinanciamentoB)}
+                    </span>
+                  )}
                 <p className="text-[11px] text-gray-500 mt-1">
                   {entradaFinanBFinal > 0 && (
                     <span className="block text-blue-900 font-semibold">

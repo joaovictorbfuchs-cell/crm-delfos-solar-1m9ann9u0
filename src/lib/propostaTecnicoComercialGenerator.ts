@@ -99,6 +99,7 @@ export interface PropostaTecnicoComercialDados {
       contaHoje: number
       contaComSolar: number
       entrada?: number
+      valorIof?: number
     }
     financiamentoB: {
       nome: string
@@ -107,6 +108,7 @@ export interface PropostaTecnicoComercialDados {
       contaHoje: number
       contaComSolar: number
       entrada?: number
+      valorIof?: number
     }
   }
   projecao: {
@@ -451,6 +453,11 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
   const finanAValor =
     parcelamento?.financiamentoA?.valorParcela ||
     Math.round(((investimentoTotal - finanAEntrada) * 1.35) / finanAParcelas)
+  const finanAIof =
+    parcelamento?.financiamentoA?.valorIof !== undefined &&
+    parcelamento.financiamentoA.valorIof !== null
+      ? Math.max(0, parcelamento.financiamentoA.valorIof)
+      : 0
   const finanAContaSemSolar =
     parcelamento?.financiamentoA?.contaHoje !== undefined
       ? parcelamento.financiamentoA.contaHoje
@@ -471,6 +478,11 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
   const finanBValor =
     parcelamento?.financiamentoB?.valorParcela ||
     Math.round(((investimentoTotal - finanBEntrada) * 1.6) / finanBParcelas)
+  const finanBIof =
+    parcelamento?.financiamentoB?.valorIof !== undefined &&
+    parcelamento.financiamentoB.valorIof !== null
+      ? Math.max(0, parcelamento.financiamentoB.valorIof)
+      : 0
   const finanBContaSemSolar =
     parcelamento?.financiamentoB?.contaHoje !== undefined
       ? parcelamento.financiamentoB.contaHoje
@@ -2957,6 +2969,11 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
               <div class="card-pagamento-valor" style="color: #111827; margin-top: 6px;">
                 <span style="font-size: 11px; font-weight: 700; color: #4B5563;">${finanAParcelas}x de </span>${formatBRL(finanAValor)}
               </div>
+              ${
+                finanAIof > 0
+                  ? `<div style="font-size: 8.5px; font-weight: 700; color: #047857; margin-top: 2px;">Inclui IOF de ${formatBRL(finanAIof)}</div>`
+                  : ''
+              }
               <div class="card-pagamento-desc">
                 ${
                   finanAEntrada > 0
@@ -2992,6 +3009,11 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
               <div class="card-pagamento-valor" style="color: #1E40AF; margin-top: 6px;">
                 <span style="font-size: 11px; font-weight: 700; color: #1E3A8A;">${finanBParcelas}x de </span>${formatBRL(finanBValor)}
               </div>
+              ${
+                finanBIof > 0
+                  ? `<div style="font-size: 8.5px; font-weight: 700; color: #1E40AF; margin-top: 2px;">Inclui IOF de ${formatBRL(finanBIof)}</div>`
+                  : ''
+              }
               <div class="card-pagamento-desc">
                 ${
                   finanBEntrada > 0

@@ -302,6 +302,11 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
   const finanAValor =
     parcelamentos.financiamentoBanco1.valorParcela ||
     Math.round(Math.max(0, investimentoTotal - finanAEntrada) * 0.023)
+  const finanAIof =
+    parcelamentos.financiamentoBanco1.valorIof !== undefined &&
+    parcelamentos.financiamentoBanco1.valorIof !== null
+      ? Math.max(0, parcelamentos.financiamentoBanco1.valorIof)
+      : 0
 
   const finanBNome = parcelamentos.financiamentoBanco2.titulo || 'Financiamento B'
   const finanBParcelas = parcelamentos.financiamentoBanco2.numeroParcelas || 120
@@ -313,6 +318,11 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
   const finanBValor =
     parcelamentos.financiamentoBanco2.valorParcela ||
     Math.round(Math.max(0, investimentoTotal - finanBEntrada) * 0.02)
+  const finanBIof =
+    parcelamentos.financiamentoBanco2.valorIof !== undefined &&
+    parcelamentos.financiamentoBanco2.valorIof !== null
+      ? Math.max(0, parcelamentos.financiamentoBanco2.valorIof)
+      : 0
 
   // Montagem do cabeçalho de cada página do Word
   const headerChildren: (Paragraph | Table)[] = []
@@ -2429,6 +2439,17 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
                       color: '6B7280',
                       font: 'Arial',
                     }),
+                    ...(finanAIof > 0
+                      ? [
+                          new TextRun({
+                            text: `Inclui IOF de ${formatBRL(finanAIof)}\n`,
+                            bold: true,
+                            size: 11,
+                            color: '047857',
+                            font: 'Arial',
+                          }),
+                        ]
+                      : []),
                     new TextRun({
                       text: '-----------------------------\n',
                       size: 10,
@@ -2529,6 +2550,17 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
                       color: '6B7280',
                       font: 'Arial',
                     }),
+                    ...(finanBIof > 0
+                      ? [
+                          new TextRun({
+                            text: `Inclui IOF de ${formatBRL(finanBIof)}\n`,
+                            bold: true,
+                            size: 11,
+                            color: '1E40AF',
+                            font: 'Arial',
+                          }),
+                        ]
+                      : []),
                     new TextRun({
                       text: '-----------------------------\n',
                       size: 10,

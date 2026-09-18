@@ -374,6 +374,7 @@ export function ModalGerarPropostaTecnicoComercial({
             contaHoje: contaHojeNum,
             contaComSolar: contaComSolarNum,
             entrada: Number(entradaFinanA) || 0,
+            valorIof: orcamento?.iof_financiamento_banco1,
           },
           financiamentoB: {
             nome: nomeFinanB || 'FINANCIAMENTO B',
@@ -382,6 +383,7 @@ export function ModalGerarPropostaTecnicoComercial({
             contaHoje: contaHojeNum,
             contaComSolar: contaComSolarNum,
             entrada: Number(entradaFinanB) || 0,
+            valorIof: orcamento?.iof_financiamento_banco2,
           },
         },
         projecao: {
@@ -1119,10 +1121,12 @@ export function ModalGerarPropostaTecnicoComercial({
                   entradaFinanciamentoA={entradaFinanA}
                   parcelasFinanciamentoA={nParcelasFinanA}
                   valorParcelaFinanciamentoA={valorParcelaFinanA}
+                  iofFinanciamentoA={orcamento.iof_financiamento_banco1}
                   nomeFinanciamentoB={nomeFinanB}
                   entradaFinanciamentoB={entradaFinanB}
                   parcelasFinanciamentoB={nParcelasFinanB}
                   valorParcelaFinanciamentoB={valorParcelaFinanB}
+                  iofFinanciamentoB={orcamento.iof_financiamento_banco2}
                   contaMensalAtual={contaHoje}
                   contaMensalComSolar={
                     orcamento.conta_primeiro_mes_com_solar || (contaHoje > 100 ? 70 : 50)
