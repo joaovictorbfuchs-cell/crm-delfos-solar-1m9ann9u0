@@ -164,6 +164,7 @@ export const Orcamentos: React.FC = () => {
       tarifaKwh: orc.tarifa_kwh,
       potenciaKwp: orc.potencia_kwp,
       orientacaoTelhado: orc.orientacao_telhado,
+      geracaoSimuladaKwhAno: orc.geracao_simulada_kwh_ano,
       valorInvestimentoInformado: orc.valor_investimento,
       custos: {
         maoDeObra: orc.custo_mao_de_obra || 0,
@@ -600,6 +601,7 @@ export const Orcamentos: React.FC = () => {
                                 tarifaKwh: orc.tarifa_kwh,
                                 potenciaKwp: orc.potencia_kwp,
                                 orientacaoTelhado: orc.orientacao_telhado,
+                                geracaoSimuladaKwhAno: orc.geracao_simulada_kwh_ano,
                                 custos: {
                                   maoDeObra: orc.custo_mao_de_obra || 0,
                                   materiaisEquipamentos:
@@ -697,6 +699,7 @@ export const Orcamentos: React.FC = () => {
                                 tarifaKwh: orc.tarifa_kwh,
                                 potenciaKwp: orc.potencia_kwp,
                                 orientacaoTelhado: orc.orientacao_telhado,
+                                geracaoSimuladaKwhAno: orc.geracao_simulada_kwh_ano,
                                 custos: {
                                   maoDeObra: orc.custo_mao_de_obra || 0,
                                   materiaisEquipamentos:
@@ -779,6 +782,7 @@ export const Orcamentos: React.FC = () => {
                                 tarifaKwh: orc.tarifa_kwh,
                                 potenciaKwp: orc.potencia_kwp,
                                 orientacaoTelhado: orc.orientacao_telhado,
+                                geracaoSimuladaKwhAno: orc.geracao_simulada_kwh_ano,
                                 custos: {
                                   maoDeObra: orc.custo_mao_de_obra || 0,
                                   materiaisEquipamentos:

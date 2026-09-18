@@ -371,3 +371,84 @@ describe('dimensionarSistemaPorGeracaoPretendida - Calibração dos Fatores de O
     expect(dimensionarSistemaPorGeracaoPretendida(-100, 'sul')).toBeNull()
   })
 })
+
+describe('calcularOrcamentoSolar - Geração Simulada Manual (kWh/ano)', () => {
+  it('quando vazia ou 0, mantém o comportamento atual da geração estimada pelo kit', () => {
+    const padraoSemSimulada = calcularOrcamentoSolar({
+      potenciaKwp: 6.0,
+      consumoKwhMes: 500,
+      tarifaKwh: 1.0,
+      tipoCliente: 'residencial',
+    })
+
+    const comSimuladaZero = calcularOrcamentoSolar({
+      potenciaKwp: 6.0,
+      consumoKwhMes: 500,
+      tarifaKwh: 1.0,
+      tipoCliente: 'residencial',
+      geracaoSimuladaKwhAno: 0,
+    })
+
+    const comSimuladaIndefinida = calcularOrcamentoSolar({
+      potenciaKwp: 6.0,
+      consumoKwhMes: 500,
+      tarifaKwh: 1.0,
+      tipoCliente: 'residencial',
+      geracaoSimuladaKwhAno: undefined,
+    })
+
+    expect(comSimuladaZero.geracaoAnualEstimadaKwh).toBe(padraoSemSimulada.geracaoAnualEstimadaKwh)
+    expect(comSimuladaZero.geracaoMediaMensalKwh).toBe(padraoSemSimulada.geracaoMediaMensalKwh)
+    expect(comSimuladaZero.contaAtualSemSolarMes).toBe(padraoSemSimulada.contaAtualSemSolarMes)
+    expect(comSimuladaZero.economia1Mes).toBe(padraoSemSimulada.economia1Mes)
+    expect(comSimuladaIndefinida.geracaoAnualEstimadaKwh).toBe(
+      padraoSemSimulada.geracaoAnualEstimadaKwh,
+    )
+  })
+
+  it('quando informada (> 0), substitui a geração calculada pelo kit e todos os cálculos derivados', () => {
+    const geracaoSimulada = 12000 // 12000 kWh/ano -> 1000 kWh/mês
+    const tarifa = 1.0
+    const orc = calcularOrcamentoSolar({
+      potenciaKwp: 6.0, // kit geraria ~7700 kWh/ano
+      consumoKwhMes: 400,
+      tarifaKwh: tarifa,
+      tipoCliente: 'residencial',
+      padraoFases: 'bifasico', // taxa mínima 50 kWh
+      valorInvestimentoInformado: 30000,
+      geracaoSimuladaKwhAno: geracaoSimulada,
+    })
+
+    // 1. Geração anual e mensal seguem a simulada
+    expect(orc.geracaoAnualEstimadaKwh).toBe(12000)
+    expect(orc.geracaoMediaMensalKwh).toBe(1000) // 12000 / 12
+
+    // 2. Conta sem solar baseada na geração simulada (paridade total)
+    // consumoEfetivo = 1000 kWh/mês
+    expect(orc.contaAtualSemSolarMes).toBe(1000 * tarifa)
+    expect(orc.contaAtualSemSolarAno).toBe(12000 * tarifa)
+
+    // 3. Conta com solar (taxa mínima bifásica = 50 kWh * 1.0 * 1.30 = 65)
+    expect(orc.contaPrimeiroMesComSolar).toBe(50 * tarifa * 1.3)
+
+    // 4. Economia mensal e anual derivada da base simulada
+    const economiaMesEsperada = 1000 * tarifa - 50 * tarifa * 1.3 // 1000 - 65 = 935
+    expect(orc.economia1Mes).toBeCloseTo(economiaMesEsperada, 2)
+    expect(orc.economia1Ano).toBeCloseTo(economiaMesEsperada * 12, 2)
+
+    // 5. Payback calculado sobre a economia simulada
+    expect(orc.paybackMeses).toBeGreaterThan(0)
+    // 30000 / ~935 com reajuste deve dar em torno de 30-33 meses
+    expect(orc.paybackMeses).toBeLessThan(40)
+
+    // 6. Parcelamentos e modalidades refletem a conta e economia simulada
+    expect(orc.parcelamentos.aVista.contaSemSolar).toBe(orc.contaAtualSemSolarMes)
+    expect(orc.parcelamentos.aVista.economiaMensalLiquida).toBe(orc.economia1Mes)
+    expect(orc.parcelamentos.cartao18x.contaSemSolar).toBe(orc.contaAtualSemSolarMes)
+    expect(orc.parcelamentos.financiamentoBanco1.contaSemSolar).toBe(orc.contaAtualSemSolarMes)
+
+    // 7. Geração mensal detalhada reescalonada soma o valor simulado
+    const somaMeses = orc.geracaoMensalDetalhada.reduce((acc, m) => acc + m.geracaoKwh, 0)
+    expect(Math.abs(somaMeses - geracaoSimulada)).toBeLessThanOrEqual(12) // tolerância de arredondamento por mês
+  })
+})

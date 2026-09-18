@@ -519,6 +519,7 @@ export interface InputCalculoSolar {
   custos?: Partial<DadosCustosSolar>
   valorInvestimentoInformado?: number
   configParcelamentos?: ConfiguracaoParcelamentosInput
+  geracaoSimuladaKwhAno?: number
 }
 
 /**
@@ -531,6 +532,12 @@ export function calcularOrcamentoSolar(input: InputCalculoSolar): CalculosSolarR
   const tipoCliente = input.tipoCliente || 'residencial'
   const orientacao = input.orientacaoTelhado || 'norte'
   const fatorOrientacao = FATORES_ORIENTACAO[orientacao] || 1.0
+  const geracaoSimuladaKwhAno =
+    input.geracaoSimuladaKwhAno !== undefined &&
+    input.geracaoSimuladaKwhAno !== null &&
+    Number(input.geracaoSimuladaKwhAno) > 0
+      ? Number(input.geracaoSimuladaKwhAno)
+      : undefined
 
   // 1. Custos e Investimento
   const valorTotalCustos = somarCustosSolar(input.custos)
@@ -547,13 +554,13 @@ export function calcularOrcamentoSolar(input: InputCalculoSolar): CalculosSolarR
 
   // 2. Geração Mês a Mês (Erechim/RS)
   const pr = DEFAULT_PERFORMANCE_RATIO * fatorOrientacao
-  let geracaoAnualTotal = 0
+  let geracaoAnualCalculadaKit = 0
 
   const geracaoMensalDetalhada: GeracaoMensalItem[] = DADOS_CLIMATICOS_ERECHIM.map(
     (mesData, index) => {
       // Geração mensal = Potência(kWp) * HSP diário * dias * PR
       const geracaoMes = Math.round(potenciaKwp * mesData.hspDiario * mesData.dias * pr)
-      geracaoAnualTotal += geracaoMes
+      geracaoAnualCalculadaKit += geracaoMes
       return {
         mesIndex: index,
         mesNome: mesData.mes.slice(0, 3),
@@ -565,8 +572,32 @@ export function calcularOrcamentoSolar(input: InputCalculoSolar): CalculosSolarR
     },
   )
 
+  // Quando geracaoSimuladaKwhAno for informada (> 0), ela assume como a base de geração:
+  // geração anual = geracaoSimuladaKwhAno, geração mensal = geracaoSimuladaKwhAno / 12.
+  // A curva detalhada sazonal é reescalonada proporcionalmente à simulação (ou uniforme se kit = 0).
+  const geracaoAnualTotal =
+    geracaoSimuladaKwhAno !== undefined ? geracaoSimuladaKwhAno : geracaoAnualCalculadaKit
+
   const geracaoMediaMensalKwh =
-    geracaoMensalDetalhada.length > 0 ? Math.round(geracaoAnualTotal / 12) : 0
+    geracaoSimuladaKwhAno !== undefined
+      ? Math.round(geracaoSimuladaKwhAno / 12)
+      : geracaoMensalDetalhada.length > 0
+        ? Math.round(geracaoAnualTotal / 12)
+        : 0
+
+  if (geracaoSimuladaKwhAno !== undefined) {
+    if (geracaoAnualCalculadaKit > 0) {
+      const fatorEscala = geracaoSimuladaKwhAno / geracaoAnualCalculadaKit
+      geracaoMensalDetalhada.forEach((item) => {
+        item.geracaoKwh = Math.round(item.geracaoKwh * fatorEscala)
+      })
+    } else {
+      const valorMesUniforme = Math.round(geracaoSimuladaKwhAno / 12)
+      geracaoMensalDetalhada.forEach((item) => {
+        item.geracaoKwh = valorMesUniforme
+      })
+    }
+  }
 
   // Atualizar fator sazonal relativo à média
   geracaoMensalDetalhada.forEach((item) => {

@@ -689,6 +689,11 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
 
   // Cálculos solares dinâmicos em tempo real
   const calculos = useMemo(() => {
+    const geracaoSimuladaNum =
+      geracaoSimuladaKwhAno !== '' && Number(geracaoSimuladaKwhAno) > 0
+        ? Number(geracaoSimuladaKwhAno)
+        : undefined
+
     return calcularOrcamentoSolar({
       consumoKwhMes,
       tipoCliente,
@@ -698,6 +703,7 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
       orientacaoTelhado,
       custos,
       valorInvestimentoInformado: valorInvestimentoFinal,
+      geracaoSimuladaKwhAno: geracaoSimuladaNum,
       configParcelamentos: {
         parcelasCartao,
         jurosCartao,
@@ -719,6 +725,7 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
     orientacaoTelhado,
     custos,
     valorInvestimentoFinal,
+    geracaoSimuladaKwhAno,
     parcelasCartao,
     jurosCartao,
     entradaCartao,
