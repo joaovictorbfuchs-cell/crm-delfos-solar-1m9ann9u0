@@ -2548,7 +2548,7 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
 
                     <div className="pt-2 border-t border-emerald-200 space-y-1 text-[11px]">
                       <div className="flex justify-between">
-                        <span className="text-gray-500">Conta hoje s/ solar:</span>
+                        <span className="text-gray-500">Conta s/ solar:</span>
                         <span className="font-bold text-red-600">
                           {formatCurrency(calculos.parcelamentos.aVista.contaSemSolar)}
                         </span>
@@ -2573,7 +2573,7 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                     <div>
                       <div className="flex items-center justify-between gap-1">
                         <span className="font-extrabold text-xs uppercase text-gray-900 truncate">
-                          {calculos.parcelamentos.cartao18x.titulo}
+                          Cartão de Crédito
                         </span>
                         <span className="text-[10px] font-bold bg-gray-100 text-gray-700 px-2 py-0.5 rounded-full shrink-0">
                           {parcelasCartao}x (
@@ -2654,7 +2654,7 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
 
                     <div className="pt-2 border-t border-gray-100 space-y-1 text-[11px]">
                       <div className="flex justify-between">
-                        <span className="text-gray-500">Conta hoje s/ solar:</span>
+                        <span className="text-gray-500">Conta s/ solar:</span>
                         <span className="font-bold text-red-600">
                           {formatCurrency(calculos.parcelamentos.cartao18x.contaSemSolar)}
                         </span>
@@ -2761,7 +2761,7 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
 
                     <div className="pt-2 border-t border-gray-100 space-y-1 text-[11px]">
                       <div className="flex justify-between">
-                        <span className="text-gray-500">Conta hoje s/ solar:</span>
+                        <span className="text-gray-500">Conta s/ solar:</span>
                         <span className="font-bold text-red-600">
                           {formatCurrency(calculos.parcelamentos.financiamentoBanco1.contaSemSolar)}
                         </span>
@@ -2870,7 +2870,7 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
 
                     <div className="pt-2 border-t border-blue-200 space-y-1 text-[11px]">
                       <div className="flex justify-between">
-                        <span className="text-gray-500">Conta hoje s/ solar:</span>
+                        <span className="text-gray-500">Conta s/ solar:</span>
                         <span className="font-bold text-red-600">
                           {formatCurrency(calculos.parcelamentos.financiamentoBanco2.contaSemSolar)}
                         </span>

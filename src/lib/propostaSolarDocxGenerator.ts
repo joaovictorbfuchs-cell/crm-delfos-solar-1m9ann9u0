@@ -2075,7 +2075,7 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
                       font: 'Arial',
                     }),
                     new TextRun({
-                      text: 'Conta hoje s/ solar: ',
+                      text: 'Conta s/ solar: ',
                       size: 12,
                       color: '6B7280',
                       font: 'Arial',
@@ -2175,7 +2175,7 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
                       font: 'Arial',
                     }),
                     new TextRun({
-                      text: 'Conta hoje s/ solar: ',
+                      text: 'Conta s/ solar: ',
                       size: 12,
                       color: '6B7280',
                       font: 'Arial',
@@ -2275,7 +2275,7 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
                       font: 'Arial',
                     }),
                     new TextRun({
-                      text: 'Conta hoje s/ solar: ',
+                      text: 'Conta s/ solar: ',
                       size: 12,
                       color: '6B7280',
                       font: 'Arial',
@@ -2375,7 +2375,7 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
                       font: 'Arial',
                     }),
                     new TextRun({
-                      text: 'Conta hoje s/ solar: ',
+                      text: 'Conta s/ solar: ',
                       size: 12,
                       color: '6B7280',
                       font: 'Arial',

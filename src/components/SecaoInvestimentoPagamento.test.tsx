@@ -27,7 +27,8 @@ describe('SecaoInvestimentoPagamento Component', () => {
     expect(html).not.toContain('Maior prazo')
 
     // Linhas comparativas inferiores idênticas à aba de parcelamento
-    expect(html).toContain('Conta hoje s/ solar:')
+    expect(html).toContain('Conta s/ solar:')
+    expect(html).not.toContain('Conta hoje s/ solar:')
     expect(html).toContain('Conta c/ solar:')
     expect(html).toContain('Economia/mês:')
     expect(html).toContain('Parcela + Conta:')
