@@ -58,11 +58,11 @@ describe('propostaSolarDocxGenerator', () => {
     )
   })
 
-  it('contém referências às 6 seções canônicas e não contém termos legados', async () => {
+  it('contém referências às 5 seções canônicas e não contém termos legados', async () => {
     const doc = await gerarPropostaSolarDocx(dadosExemploMarceloBecker)
     const jsonStr = JSON.stringify(doc)
 
-    // As 6 seções canônicas devem estar presentes
+    // As 5 seções canônicas devem estar presentes
     expect(jsonStr).toContain('PROPOSTA COMERCIAL EXCLUSIVA')
     expect(jsonStr).toContain('Situação Atual')
     expect(jsonStr).toContain('GASTO EM 1 ANO')
@@ -78,21 +78,25 @@ describe('propostaSolarDocxGenerator', () => {
     expect(jsonStr).toContain('Garantia contra defeitos de fabricação:')
     expect(jsonStr).toContain('Garantia do inversor:')
     expect(jsonStr).not.toContain('Garantia da instalação:')
-    expect(jsonStr).toContain('Projeção de Economia na Conta de Energia')
-    expect(jsonStr).toContain('ECONOMIA TOTAL EM 25 ANOS')
-    expect(jsonStr).toContain('GASTO TOTAL SEM SOLAR')
-    expect(jsonStr).toContain('CUSTO DE POSTERGAÇÃO')
+    // Seção legada de Projeção na Conta de Energia removida
+    expect(jsonStr).not.toContain('Projeção de Economia na Conta de Energia')
+    expect(jsonStr).not.toContain('ECONOMIA TOTAL EM 25 ANOS')
+    expect(jsonStr).not.toContain('GASTO TOTAL SEM SOLAR')
     expect(jsonStr).not.toContain('FATOR DE SIMULTANEIDADE')
     expect(jsonStr).not.toContain('MARCO LEGAL DA GD')
-    expect(jsonStr).toContain('Projeção de Economia em 25 Anos')
+    // Seção 4: Projeção de Economia em 25 Anos
+    expect(jsonStr).toContain('4. Projeção de Economia em 25 Anos')
     expect(jsonStr).toContain('ECONOMIA EM 1 ANO')
     expect(jsonStr).toContain('ECONOMIA EM 5 ANOS')
     expect(jsonStr).toContain('ECONOMIA EM 25 ANOS')
-    expect(jsonStr).toContain('Investimento e Condições de Pagamento')
+    // Seção 5: Investimento e Condições de Pagamento com Card de Postergação
+    expect(jsonStr).toContain('5. Investimento e Condições de Pagamento')
     expect(jsonStr).toContain('Condições de pagamento')
     expect(jsonStr).toContain('Fatura c/ solar + parcela:')
     expect(jsonStr).toContain('Custo atual:')
     expect(jsonStr).toContain('PAYBACK ESTIMADO')
+    expect(jsonStr).toContain('CUSTO DE POSTERGAÇÃO')
+    expect(jsonStr).toContain('VALOR PERDIDO POR MÊS')
     expect(jsonStr).not.toContain('troque despesa por patrimônio')
 
     // Termos legados não devem existir no docx

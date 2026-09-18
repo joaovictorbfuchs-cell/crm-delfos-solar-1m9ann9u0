@@ -6,7 +6,7 @@ import {
 } from './propostaTecnicoComercialGenerator'
 import { gerarHTMLPropostaSolar, type PropostaSolarPDFInput } from './propostaSolarGenerator'
 
-describe('Proposta Técnico-Comercial Generator (6 Seções Oficiais)', () => {
+describe('Proposta Técnico-Comercial Generator (5 Seções Oficiais)', () => {
   const dadosExemplo: PropostaTecnicoComercialDados = {
     cliente: {
       nome: 'João Silva Teste',
@@ -93,16 +93,17 @@ describe('Proposta Técnico-Comercial Generator (6 Seções Oficiais)', () => {
     },
   }
 
-  it('deve gerar HTML contendo exatamente as 6 SEÇÕES NOVAS na ordem prescrita', () => {
+  it('deve gerar HTML contendo exatamente as 5 SEÇÕES NOVAS na ordem prescrita', () => {
     const html = gerarHTMLPropostaTecnicoComercial(dadosExemplo)
 
-    // IDs das 6 seções
+    // IDs das 5 seções
     expect(html).toContain('id="secao-1-capa"')
     expect(html).toContain('id="secao-2-custo-inercia"')
     expect(html).toContain('id="secao-3-seu-sistema"')
-    expect(html).toContain('id="secao-4-projecao-economia"')
-    expect(html).toContain('id="secao-5-projecao-25anos"')
-    expect(html).toContain('id="secao-6-investimento-pagamento"')
+    expect(html).toContain('id="secao-4-projecao-25anos"')
+    expect(html).toContain('id="secao-5-investimento-pagamento"')
+    expect(html).not.toContain('id="secao-4-projecao-economia"')
+    expect(html).not.toContain('id="secao-6-investimento-pagamento"')
 
     // SEÇÃO 1: Capa (logo Delfos, cliente, potência kWp, geração, consultor, data)
     expect(html).toContain('João Silva Teste')
@@ -147,23 +148,14 @@ describe('Proposta Técnico-Comercial Generator (6 Seções Oficiais)', () => {
     expect(html).not.toContain('Tranquilidade e Garantias Asseguradas')
     expect(html).toContain('Monitoramento Inteligente 24/7 pelo Smartphone')
 
-    // SEÇÃO 4: Projeção de Economia na Conta de Energia (cards de resumo, sem tabela/gráfico e sem payback)
-    expect(html).toContain('Projeção de Economia na Conta de Energia')
-    expect(html).toContain('Economia Total em 25 Anos')
-    expect(html).toContain('Gasto Total Sem Solar (25 Anos)')
-    expect(html).toContain('Custo de Postergação')
-    // Cabeçalho verde e badge da GD removidos
-    expect(html).not.toContain('Marco Legal da GD (Lei 14.300/2022)')
-    expect(html).not.toContain('secao-header-card projecao')
-
-    // SEÇÃO 5: Projeção de Economia em 25 Anos (cards de economia 1, 5 e 25 anos sem payback ou ROI)
+    // SEÇÃO 4: Projeção de Economia em 25 Anos (cards de economia 1, 5 e 25 anos sem payback ou ROI)
     expect(html).toContain('Projeção de Economia em 25 Anos')
     expect(html).toContain('Economia em 1 ano')
     expect(html).toContain('Economia em 5 anos')
     expect(html).toContain('Economia em 25 anos')
     expect(html).not.toContain('Retorno Sobre Investimento (ROI)')
 
-    // SEÇÃO 6: Investimento e Condições de Pagamento (cards À vista / Cartão / Finan A / Finan B, título "Condições de pagamento", validade E PAYBACK AO FINAL)
+    // SEÇÃO 5: Investimento e Condições de Pagamento (cards À vista / Cartão / Finan A / Finan B, título "Condições de pagamento", validade E PAYBACK AO FINAL + CUSTO DE POSTERGAÇÃO)
     expect(html).toContain('Investimento e Condições de Pagamento')
     expect(html).toContain('Seu Investimento')
     expect(html).toContain('Condições de pagamento')
@@ -177,6 +169,8 @@ describe('Proposta Técnico-Comercial Generator (6 Seções Oficiais)', () => {
     expect(html).not.toContain('Troque despesa por patrimônio')
     expect(html).toContain('Payback Estimado')
     expect(html).toContain('Tempo de Retorno do Investimento')
+    expect(html).toContain('Custo de Postergação')
+    expect(html).toContain('Valor perdido por mês')
     expect(html).toContain('Condições válidas por')
 
     // CSS de impressão A4 obrigatório
@@ -191,7 +185,7 @@ describe('Proposta Técnico-Comercial Generator (6 Seções Oficiais)', () => {
     expect(html).not.toContain('id="pagina-4"')
   })
 
-  it('gerarHTMLPropostaSolar deve redirecionar para o mesmo modelo de 6 seções', () => {
+  it('gerarHTMLPropostaSolar deve redirecionar para o mesmo modelo de 5 seções', () => {
     const inputSolar: PropostaSolarPDFInput = {
       cliente: {
         nome: 'Maria Solar Teste',
@@ -300,9 +294,10 @@ describe('Proposta Técnico-Comercial Generator (6 Seções Oficiais)', () => {
     expect(htmlSolar).toContain('id="secao-1-capa"')
     expect(htmlSolar).toContain('id="secao-2-custo-inercia"')
     expect(htmlSolar).toContain('id="secao-3-seu-sistema"')
-    expect(htmlSolar).toContain('id="secao-4-projecao-economia"')
-    expect(htmlSolar).toContain('id="secao-5-projecao-25anos"')
-    expect(htmlSolar).toContain('id="secao-6-investimento-pagamento"')
+    expect(htmlSolar).toContain('id="secao-4-projecao-25anos"')
+    expect(htmlSolar).toContain('id="secao-5-investimento-pagamento"')
+    expect(htmlSolar).not.toContain('id="secao-4-projecao-economia"')
+    expect(htmlSolar).not.toContain('id="secao-6-investimento-pagamento"')
     expect(htmlSolar).toContain('Maria Solar Teste')
     expect(htmlSolar).toContain('7,20 kWp')
 

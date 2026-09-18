@@ -2368,8 +2368,11 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
   )
 
   // Card Custo de Postergação (Âmbar / Laranja) posicionado ABAIXO do Payback Estimado
+  // Card Custo de Postergação (Âmbar / Laranja) posicionado ABAIXO do Payback Estimado
   const colWidthPostergacao = Math.floor(PAGE_CONTENT_WIDTH * 0.7)
   const colWidthPostergacaoValor = PAGE_CONTENT_WIDTH - colWidthPostergacao
+  const valorPerdidoPostergacao = projecaoOficial?.valorPerdidoPorMesPostergacao || economiaMensal
+
   docChildren.push(
     new Table({
       width: { size: PAGE_CONTENT_WIDTH, type: WidthType.DXA },
@@ -2431,7 +2434,7 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
                       font: 'Arial',
                     }),
                     new TextRun({
-                      text: formatBRL(economiaMensal),
+                      text: formatBRL(valorPerdidoPostergacao),
                       bold: true,
                       size: 22,
                       color: 'C2410C',
