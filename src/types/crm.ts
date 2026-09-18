@@ -1031,6 +1031,8 @@ export interface OrcamentoSolarCalculado {
   economia_5_anos?: number
   economia_25_anos?: number
   conta_primeiro_mes_com_solar?: number
+  conta_4_anos_reajuste?: number
+  conta_10_anos_reajuste?: number
   garantia_modulos_degradacao_anos?: number
   garantia_modulos_fabricacao_anos?: number
   garantia_inversor_anos?: number

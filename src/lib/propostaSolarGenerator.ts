@@ -260,6 +260,10 @@ function converterInputParaTemplateComercial(
       economia5Anos: calculos.economia5Anos,
       economia25Anos: calculos.economia25Anos,
       economia1Mes: calculos.economia1Mes,
+      contaSemSolar4AnosComReajuste: calculos.contaSemSolar4AnosComReajuste,
+      contaComSolar4AnosComReajuste: calculos.contaComSolar4AnosComReajuste,
+      contaSemSolar10AnosComReajuste: calculos.contaSemSolar10AnosComReajuste,
+      contaComSolar10AnosComReajuste: calculos.contaComSolar10AnosComReajuste,
     },
     observacoes,
   }

@@ -119,6 +119,10 @@ export interface PropostaTecnicoComercialDados {
     economia5Anos: number
     economia25Anos: number
     economia1Mes: number
+    contaSemSolar4AnosComReajuste?: number
+    contaComSolar4AnosComReajuste?: number
+    contaSemSolar10AnosComReajuste?: number
+    contaComSolar10AnosComReajuste?: number
   }
   observacoes?: string
 }
@@ -482,6 +486,34 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
     finanBValor > 0 ? finanBValor : Infinity,
   )
   const parcelaComparativa = menorParcela !== Infinity ? menorParcela : finanBValor
+
+  // Projeção com reajuste tarifário de 9% ao ano (Concessionária)
+  const contaSemSolar4AnosFinal =
+    projecao?.contaSemSolar4AnosComReajuste !== undefined &&
+    projecao.contaSemSolar4AnosComReajuste > 0
+      ? projecao.contaSemSolar4AnosComReajuste
+      : Math.round(contaHoje * Math.pow(1.09, 4))
+
+  const contaPrimeiroMesComSolarBase =
+    parcelamento?.aVista?.contaComSolar !== undefined ? parcelamento.aVista.contaComSolar : 70
+
+  const contaComSolar4AnosFinal =
+    projecao?.contaComSolar4AnosComReajuste !== undefined &&
+    projecao.contaComSolar4AnosComReajuste > 0
+      ? projecao.contaComSolar4AnosComReajuste
+      : Math.round(contaPrimeiroMesComSolarBase * Math.pow(1.09, 4))
+
+  const contaSemSolar10AnosFinal =
+    projecao?.contaSemSolar10AnosComReajuste !== undefined &&
+    projecao.contaSemSolar10AnosComReajuste > 0
+      ? projecao.contaSemSolar10AnosComReajuste
+      : Math.round(contaHoje * Math.pow(1.09, 10))
+
+  const contaComSolar10AnosFinal =
+    projecao?.contaComSolar10AnosComReajuste !== undefined &&
+    projecao.contaComSolar10AnosComReajuste > 0
+      ? projecao.contaComSolar10AnosComReajuste
+      : Math.round(contaPrimeiroMesComSolarBase * Math.pow(1.09, 10))
 
   // Equipamentos
   const modulosQtd = sistema?.qtdPaineis || 14
@@ -2981,6 +3013,50 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
               <div style="display: flex; justify-content: space-between; color: #1E3A8A; font-weight: 900; margin-top: 4px; padding-top: 4px; border-top: 1px solid #BFDBFE;">
                 <span>Parcela + Conta:</span>
                 <span>${formatBRL(finanBDesembolso)}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- BLOCO DE PROJEÇÃO COM REAJUSTE TARIFÁRIO DE 9% AO ANO (CONCESSIONÁRIA) -->
+        <div style="background: linear-gradient(135deg, #FFFBEB 0%, #FEF3C7 100%); border: 1.5px solid #FCD34D; border-radius: 10px; padding: 10px 14px; margin-top: 8px; margin-bottom: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.04);">
+          <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+            <div style="width: 22px; height: 22px; border-radius: 6px; background: #F59E0B; color: #FFFFFF; display: flex; align-items: center; justify-content: center; font-size: 12px; shrink-0;">
+              📈
+            </div>
+            <span style="font-size: 9.5px; font-weight: 900; color: #92400E; text-transform: uppercase; letter-spacing: 0.03em;">
+              Projeção com Reajuste Tarifário de 9% ao ano (Concessionária)
+            </span>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+            <!-- Card 4 anos -->
+            <div style="background: #FFFFFF; border: 1px solid #FDE68A; border-radius: 8px; padding: 7px 12px;">
+              <span style="font-size: 8.5px; color: #6B7280; font-weight: 700; display: block; margin-bottom: 3px;">
+                Conta daqui a 4 anos:
+              </span>
+              <div style="display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap;">
+                <span style="font-size: 11px; font-weight: 800; color: #DC2626; text-decoration: line-through;">
+                  ${formatBRL(contaSemSolar4AnosFinal)}
+                </span>
+                <span style="font-size: 12px; font-weight: 900; color: #047857;">
+                  ${formatBRL(contaComSolar4AnosFinal)} <span style="font-size: 9px; font-weight: 700;">com solar</span>
+                </span>
+              </div>
+            </div>
+
+            <!-- Card 10 anos -->
+            <div style="background: #FFFFFF; border: 1px solid #FDE68A; border-radius: 8px; padding: 7px 12px;">
+              <span style="font-size: 8.5px; color: #6B7280; font-weight: 700; display: block; margin-bottom: 3px;">
+                Conta daqui a 10 anos:
+              </span>
+              <div style="display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap;">
+                <span style="font-size: 11px; font-weight: 800; color: #DC2626; text-decoration: line-through;">
+                  ${formatBRL(contaSemSolar10AnosFinal)}
+                </span>
+                <span style="font-size: 12px; font-weight: 900; color: #047857;">
+                  ${formatBRL(contaComSolar10AnosFinal)} <span style="font-size: 9px; font-weight: 700;">com solar</span>
+                </span>
               </div>
             </div>
           </div>

@@ -477,4 +477,12 @@ describe('Proposta Técnico-Comercial Generator (5 Seções Oficiais)', () => {
     expect(html).not.toContain('Seção 2 de 6')
     expect(html).not.toContain('de 6')
   })
+
+  it('renderiza o bloco de Projeção com Reajuste Tarifário de 9% ao ano na Seção 5', () => {
+    const html = gerarHTMLPropostaTecnicoComercial(dadosExemplo)
+    expect(html).toContain('Reajuste Tarifário de 9%')
+    expect(html).toContain('daqui a 4 anos')
+    expect(html).toContain('daqui a 10 anos')
+    expect(html).toContain('com solar')
+  })
 })

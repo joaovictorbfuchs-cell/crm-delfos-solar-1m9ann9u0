@@ -2585,6 +2585,151 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
     }),
   )
 
+  // Projeção com Reajuste Tarifário de 9% ao ano (Concessionária) posicionado ABAIXO dos 4 cards e ANTES do Payback
+  const contaSemSolar4AnosDocx =
+    calculos.contaSemSolar4AnosComReajuste !== undefined &&
+    calculos.contaSemSolar4AnosComReajuste > 0
+      ? calculos.contaSemSolar4AnosComReajuste
+      : Math.round(contaHoje * Math.pow(1.09, 4))
+
+  const contaPrimeiroMesComSolarDocx =
+    calculos.contaPrimeiroMesComSolar !== undefined
+      ? calculos.contaPrimeiroMesComSolar
+      : contaComSolarAVista
+
+  const contaComSolar4AnosDocx =
+    calculos.contaComSolar4AnosComReajuste !== undefined &&
+    calculos.contaComSolar4AnosComReajuste > 0
+      ? calculos.contaComSolar4AnosComReajuste
+      : Math.round(contaPrimeiroMesComSolarDocx * Math.pow(1.09, 4))
+
+  const contaSemSolar10AnosDocx =
+    calculos.contaSemSolar10AnosComReajuste !== undefined &&
+    calculos.contaSemSolar10AnosComReajuste > 0
+      ? calculos.contaSemSolar10AnosComReajuste
+      : Math.round(contaHoje * Math.pow(1.09, 10))
+
+  const contaComSolar10AnosDocx =
+    calculos.contaComSolar10AnosComReajuste !== undefined &&
+    calculos.contaComSolar10AnosComReajuste > 0
+      ? calculos.contaComSolar10AnosComReajuste
+      : Math.round(contaPrimeiroMesComSolarDocx * Math.pow(1.09, 10))
+
+  const colWidthReajuste = Math.floor(PAGE_CONTENT_WIDTH / 2)
+
+  docChildren.push(
+    new Table({
+      width: { size: PAGE_CONTENT_WIDTH, type: WidthType.DXA },
+      borders: {
+        top: { style: BorderStyle.SINGLE, size: 12, color: 'F59E0B' },
+        bottom: { style: BorderStyle.SINGLE, size: 12, color: 'F59E0B' },
+        left: { style: BorderStyle.SINGLE, size: 12, color: 'F59E0B' },
+        right: { style: BorderStyle.SINGLE, size: 12, color: 'F59E0B' },
+        insideVertical: { style: BorderStyle.SINGLE, size: 6, color: 'FDE68A' },
+        insideHorizontal: { style: BorderStyle.SINGLE, size: 6, color: 'FDE68A' },
+      },
+      rows: [
+        // Linha 1: Título com shading fill 'FFFBEB'
+        new TableRow({
+          children: [
+            new TableCell({
+              width: { size: PAGE_CONTENT_WIDTH, type: WidthType.DXA },
+              columnSpan: 2,
+              shading: { type: ShadingType.CLEAR, fill: 'FFFBEB' },
+              margins: { top: 90, bottom: 90, left: 140, right: 140 },
+              children: [
+                new Paragraph({
+                  children: [
+                    new TextRun({
+                      text: '📈 PROJEÇÃO COM REAJUSTE TARIFÁRIO DE 9% AO ANO (CONCESSIONÁRIA)',
+                      bold: true,
+                      size: 15,
+                      color: '92400E',
+                      font: 'Arial',
+                    }),
+                  ],
+                }),
+              ],
+            }),
+          ],
+        }),
+        // Linha 2: 2 células (4 anos e 10 anos)
+        new TableRow({
+          children: [
+            // Célula 1: Daqui a 4 anos
+            new TableCell({
+              width: { size: colWidthReajuste, type: WidthType.DXA },
+              shading: { type: ShadingType.CLEAR, fill: 'FFFFFF' },
+              margins: { top: 80, bottom: 80, left: 120, right: 120 },
+              children: [
+                new Paragraph({
+                  children: [
+                    new TextRun({
+                      text: 'CONTA DAQUI A 4 ANOS: ',
+                      bold: true,
+                      size: 13,
+                      color: '6B7280',
+                      font: 'Arial',
+                    }),
+                    new TextRun({
+                      text: `${formatBRL(contaSemSolar4AnosDocx)} `,
+                      bold: true,
+                      strike: true,
+                      size: 14,
+                      color: 'DC2626',
+                      font: 'Arial',
+                    }),
+                    new TextRun({
+                      text: `${formatBRL(contaComSolar4AnosDocx)} com solar`,
+                      bold: true,
+                      size: 14,
+                      color: '047857',
+                      font: 'Arial',
+                    }),
+                  ],
+                }),
+              ],
+            }),
+            // Célula 2: Daqui a 10 anos
+            new TableCell({
+              width: { size: PAGE_CONTENT_WIDTH - colWidthReajuste, type: WidthType.DXA },
+              shading: { type: ShadingType.CLEAR, fill: 'FFFFFF' },
+              margins: { top: 80, bottom: 80, left: 120, right: 120 },
+              children: [
+                new Paragraph({
+                  children: [
+                    new TextRun({
+                      text: 'CONTA DAQUI A 10 ANOS: ',
+                      bold: true,
+                      size: 13,
+                      color: '6B7280',
+                      font: 'Arial',
+                    }),
+                    new TextRun({
+                      text: `${formatBRL(contaSemSolar10AnosDocx)} `,
+                      bold: true,
+                      strike: true,
+                      size: 14,
+                      color: 'DC2626',
+                      font: 'Arial',
+                    }),
+                    new TextRun({
+                      text: `${formatBRL(contaComSolar10AnosDocx)} com solar`,
+                      bold: true,
+                      size: 14,
+                      color: '047857',
+                      font: 'Arial',
+                    }),
+                  ],
+                }),
+              ],
+            }),
+          ],
+        }),
+      ],
+    }),
+  )
+
   // Card de Payback Estimado (Tempo de Retorno do Investimento) posicionado ABAIXO dos 4 cards de condições de pagamento
   docChildren.push(
     new Table({

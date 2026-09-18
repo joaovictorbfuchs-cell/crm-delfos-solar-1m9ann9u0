@@ -225,4 +225,13 @@ describe('propostaSolarDocxGenerator', () => {
     expect(jsonStr).not.toContain('Condições especiais para fechamento imediato')
     expect(jsonStr).not.toContain('Seção 1 de 6')
   })
+
+  it('renderiza a tabela de Projeção com Reajuste Tarifário de 9% ao ano no DOCX', async () => {
+    const doc = await gerarPropostaSolarDocx(dadosExemploMarceloBecker)
+    const jsonStr = JSON.stringify(doc)
+    expect(jsonStr).toContain('Reajuste Tarifário de 9%')
+    expect(jsonStr).toContain('daqui a 4 anos')
+    expect(jsonStr).toContain('daqui a 10 anos')
+    expect(jsonStr).toContain('com solar')
+  })
 })

@@ -392,6 +392,14 @@ export function ModalGerarPropostaTecnicoComercial({
           economia5Anos: eco5Anos,
           economia25Anos: eco25Anos,
           economia1Mes: eco1Mes,
+          contaSemSolar4AnosComReajuste:
+            Number(orcamento?.conta_4_anos_reajuste) ||
+            Math.round(contaHojeNum * Math.pow(1.09, 4)),
+          contaComSolar4AnosComReajuste: Math.round(contaComSolarNum * Math.pow(1.09, 4)),
+          contaSemSolar10AnosComReajuste:
+            Number(orcamento?.conta_10_anos_reajuste) ||
+            Math.round(contaHojeNum * Math.pow(1.09, 10)),
+          contaComSolar10AnosComReajuste: Math.round(contaComSolarNum * Math.pow(1.09, 10)),
         },
       }
     } catch (err) {
