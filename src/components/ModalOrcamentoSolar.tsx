@@ -112,6 +112,13 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
   const [geracaoPretendidaKwhMes, setGeracaoPretendidaKwhMes] = useState<number | ''>(650)
   const [geracaoPretendidaEditadaManualmente, setGeracaoPretendidaEditadaManualmente] =
     useState<boolean>(false)
+  const [geracaoSimuladaKwhAno, setGeracaoSimuladaKwhAno] = useState<number | ''>(
+    initialOrcamento?.geracao_simulada_kwh_ano !== undefined &&
+      initialOrcamento.geracao_simulada_kwh_ano !== null &&
+      Number(initialOrcamento.geracao_simulada_kwh_ano) > 0
+      ? Number(initialOrcamento.geracao_simulada_kwh_ano)
+      : '',
+  )
   const [padraoFases, setPadraoFases] = useState<PadraoFasesSolar>(
     initialOrcamento?.padrao_fases || 'monofásico',
   )
@@ -234,6 +241,15 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
       } else {
         setGeracaoPretendidaKwhMes(consumoInicial)
         setGeracaoPretendidaEditadaManualmente(false)
+      }
+      if (
+        initialOrcamento.geracao_simulada_kwh_ano !== undefined &&
+        initialOrcamento.geracao_simulada_kwh_ano !== null &&
+        Number(initialOrcamento.geracao_simulada_kwh_ano) > 0
+      ) {
+        setGeracaoSimuladaKwhAno(Number(initialOrcamento.geracao_simulada_kwh_ano))
+      } else {
+        setGeracaoSimuladaKwhAno('')
       }
       setPadraoFases(initialOrcamento.padrao_fases || 'monofásico')
       setTipoCliente(initialOrcamento.tipo_cliente || 'residencial')
@@ -417,6 +433,7 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
       setDescontoPercentual(0)
       setGeracaoPretendidaKwhMes(650)
       setGeracaoPretendidaEditadaManualmente(false)
+      setGeracaoSimuladaKwhAno('')
       setMaoDeObraEditadaManualmente(false)
       setFornecedorSelecionadoId('')
 
@@ -831,6 +848,10 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
         geracao_pretendida_kwh_ano:
           geracaoPretendidaKwhMes && Number(geracaoPretendidaKwhMes) > 0
             ? Math.round(Number(geracaoPretendidaKwhMes) * 12)
+            : undefined,
+        geracao_simulada_kwh_ano:
+          geracaoSimuladaKwhAno !== '' && Number(geracaoSimuladaKwhAno) > 0
+            ? Number(geracaoSimuladaKwhAno)
             : undefined,
         tarifa_kwh: tarifaKwh,
         potencia_kwp: potenciaKwp,
@@ -1832,6 +1853,74 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                   }
                 }}
               />
+
+              {/* Bloco Compacto: Comparativo de Geração do Kit vs. Simulada */}
+              <div className="bg-white p-3.5 sm:p-4 rounded-xl border border-gray-200 shadow-xs">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  {/* 1. Geração Mensal (kit) */}
+                  <div className="p-3 rounded-lg border border-emerald-100 bg-emerald-50/40 flex flex-col justify-between">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-800">
+                      Geração Mensal (kit)
+                    </span>
+                    <div className="mt-1 flex items-baseline gap-1">
+                      <span className="text-base sm:text-lg font-black text-emerald-950">
+                        {calculos.geracaoMediaMensalKwh.toLocaleString('pt-BR')}
+                      </span>
+                      <span className="text-xs font-semibold text-emerald-700">kWh/mês</span>
+                    </div>
+                    <span className="text-[10px] text-gray-500 mt-0.5">
+                      Calculada pela potência ({potenciaKwp.toFixed(2)} kWp)
+                    </span>
+                  </div>
+
+                  {/* 2. Geração Anual (kit) */}
+                  <div className="p-3 rounded-lg border border-emerald-100 bg-emerald-50/40 flex flex-col justify-between">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-800">
+                      Geração Anual (kit)
+                    </span>
+                    <div className="mt-1 flex items-baseline gap-1">
+                      <span className="text-base sm:text-lg font-black text-emerald-950">
+                        {calculos.geracaoAnualEstimadaKwh.toLocaleString('pt-BR')}
+                      </span>
+                      <span className="text-xs font-semibold text-emerald-700">kWh/ano</span>
+                    </div>
+                    <span className="text-[10px] text-gray-500 mt-0.5">
+                      Estimativa anual Erechim/RS
+                    </span>
+                  </div>
+
+                  {/* 3. Campo editável Geração Simulada (kWh/ano) */}
+                  <div className="p-3 rounded-lg border border-gray-200 bg-gray-50/70 flex flex-col justify-between focus-within:border-emerald-500 focus-within:bg-white transition-colors">
+                    <label
+                      htmlFor="input-geracao-simulada"
+                      className="text-[10px] font-bold uppercase tracking-wider text-gray-700"
+                    >
+                      Geração Simulada (kWh/ano)
+                    </label>
+                    <div className="mt-1 relative flex items-center">
+                      <input
+                        id="input-geracao-simulada"
+                        type="number"
+                        min={0}
+                        step={10}
+                        value={geracaoSimuladaKwhAno}
+                        onChange={(e) => {
+                          const val = e.target.value
+                          setGeracaoSimuladaKwhAno(val === '' ? '' : Math.max(0, Number(val)))
+                        }}
+                        placeholder="Ex: 8400"
+                        className="w-full text-sm font-bold text-gray-900 bg-white px-2.5 py-1.5 rounded-md border border-gray-300 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                      />
+                      <span className="text-[11px] font-semibold text-gray-400 ml-2 whitespace-nowrap">
+                        kWh/ano
+                      </span>
+                    </div>
+                    <span className="text-[10px] text-gray-400 mt-0.5">
+                      Digitação manual opcional (salva no orçamento)
+                    </span>
+                  </div>
+                </div>
+              </div>
 
               {/* Tabela de Geração Mensal Sazonal (Janeiro a Dezembro) */}
               <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-xs space-y-3">
