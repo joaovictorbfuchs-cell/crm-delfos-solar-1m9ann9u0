@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-18T15:36:08.599Z",
+  "generatedAt": "2026-09-18T15:57:49.934Z",
   "collections": [
     {
       "name": "users",
@@ -3979,6 +3979,81 @@
       ],
       "indexes": [
         "CREATE INDEX idx_projecao_tarifaria_tipo_ano ON projecao_tarifaria (tipo_cliente, ano)"
+      ]
+    },
+    {
+      "name": "equipamentos",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "tipo",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["inversor", "modulo_fv"]
+        },
+        {
+          "name": "marca",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "modelo",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "potencia_w",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "descricao_padrao",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "garantia_anos",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "foto",
+          "type": "file",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_equipamentos_tipo ON equipamentos (tipo)",
+        "CREATE INDEX idx_equipamentos_marca ON equipamentos (marca)",
+        "CREATE INDEX idx_equipamentos_modelo ON equipamentos (modelo)"
       ]
     }
   ]
