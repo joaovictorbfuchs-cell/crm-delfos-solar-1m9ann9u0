@@ -16,7 +16,7 @@ import pb from '@/lib/pocketbase/client'
 import { DelfosLogo } from '@/components/DelfosLogo'
 
 export default function Login() {
-  const { login, isAuthenticated, isAdmin, isInstalador } = useAuth()
+  const { login, isAuthenticated, isInstalador, isLoading: isAuthLoading } = useAuth()
   const navigate = useNavigate()
 
   const [email, setEmail] = useState('joao@delfosengenharia.com.br')
@@ -32,7 +32,23 @@ export default function Login() {
   const [forgotSuccess, setForgotSuccess] = useState(false)
   const [forgotError, setForgotError] = useState<string | null>(null)
 
-  // Se já autenticado, redireciona conforme o perfil
+  // Inicialização defensiva: enquanto o AuthContext estiver verificando a sessão (isLoading),
+  // exibe o spinner com a identidade visual da Delfos Solar e NÃO tenta redirecionamento condicional prematuro
+  if (isAuthLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-emerald-50/40 via-[#F8FAF9] to-slate-100 flex flex-col justify-center items-center p-4">
+        <div className="flex flex-col items-center gap-4">
+          <DelfosLogo height={64} />
+          <div className="flex items-center gap-2 text-emerald-800 text-sm font-medium">
+            <Loader2 className="w-5 h-5 animate-spin text-[#16A34A]" />
+            <span>Carregando painel de acesso...</span>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // Se já autenticado e o carregamento terminou, redireciona conforme o perfil
   if (isAuthenticated) {
     if (isInstalador) {
       return <Navigate to="/execucao-os" replace />

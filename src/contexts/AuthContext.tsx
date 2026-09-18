@@ -107,7 +107,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               .includes('autocancelled')
           const isNetworkError = err?.status === 0 || !err?.status
 
-          if (isAutocancelled || isNetworkError) {
+          // Erro 400 (Bad Request) ou 401/403 (Unauthorized/Forbidden) indicam token inválido, expirado ou formato incorreto
+          const isInvalidAuthError =
+            err?.status === 400 ||
+            err?.status === 401 ||
+            err?.status === 403 ||
+            (err?.name === 'ClientResponseError' &&
+              (err?.status === 400 || err?.status === 401 || err?.status === 403))
+
+          if (isInvalidAuthError || !pb.authStore.isValid) {
+            // Sessão inválida/expirada: limpar explicitamente authStore e voltar ao estado deslogado
+            pb.authStore.clear()
+            setUser(null)
+            setUserProfile(null)
+            setToken(null)
+          } else if (isAutocancelled || isNetworkError) {
             console.warn(
               'authRefresh cancelado ou erro de rede temporário. Mantendo sessão ativa se ainda válida localmente.',
             )
@@ -117,8 +131,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               setUserProfile(null)
               setToken(null)
             }
-          } else if (err?.status === 401 || err?.status === 403 || !pb.authStore.isValid) {
-            // Token realmente revogado/expirado
+          } else {
+            // Outros erros inesperados: limpar estado de autenticação para evitar inconsistência
             pb.authStore.clear()
             setUser(null)
             setUserProfile(null)
@@ -163,7 +177,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           String(err?.message || '')
             .toLowerCase()
             .includes('autocancelled')
-        if (!isAutocancelled && (err?.status === 401 || err?.status === 403)) {
+        const isInvalidAuthError =
+          err?.status === 400 ||
+          err?.status === 401 ||
+          err?.status === 403 ||
+          (err?.name === 'ClientResponseError' &&
+            (err?.status === 400 || err?.status === 401 || err?.status === 403))
+
+        if (!isAutocancelled && (isInvalidAuthError || !pb.authStore.isValid)) {
           pb.authStore.clear()
           setUser(null)
           setUserProfile(null)
