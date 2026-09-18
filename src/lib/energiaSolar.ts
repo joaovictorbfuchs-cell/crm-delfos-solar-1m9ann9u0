@@ -67,7 +67,21 @@ export interface ParcelamentoItem {
   desembolsoMensal: number // Parcela + Conta com solar
   economiaMensalLiquida: number // Conta sem solar - desembolso
   valorEntrada?: number // Valor de entrada opcional (abatido do principal)
-  valorFinanciado?: number // Valor efetivamente financiado (valorInvestimento - valorEntrada)
+  valorFinanciado?: number // Valor efetivamente financiado
+  valorIof?: number // IOF calculado e embutido no financiamento
+}
+
+/**
+ * Cálculo do IOF sobre operações de crédito / financiamento conforme fórmula do CRM Delfos Solar:
+ * IOF = Valor total a vista * (0,0038 + 0,000082 * 30 * número de parcelas)
+ * (alíquota fixa de 0,38% + alíquota diária de 0,0082% ao dia para 30 dias/mês sem teto de 365 dias)
+ */
+export function calcularIOFFinanciamento(valorTotalAVista: number, numeroParcelas: number): number {
+  const valor = Math.max(0, Number(valorTotalAVista) || 0)
+  const n = Math.max(1, Math.round(Number(numeroParcelas) || 1))
+  if (valor <= 0) return 0
+  const aliquota = 0.0038 + 0.000082 * 30 * n
+  return valor * aliquota
 }
 
 export interface CalculosSolarResultado {
@@ -809,8 +823,10 @@ export function calcularOrcamentoSolar(input: InputCalculoSolar): CalculosSolarR
       : 1.9,
   )
   const entradaBanco1Bruta = Number(input.configParcelamentos?.entradaBanco1) || 0
-  const entradaBanco1 = Math.min(valorInvestimento, Math.max(0, entradaBanco1Bruta))
-  const principalBanco1 = Math.max(0, valorInvestimento - entradaBanco1)
+  const iofBanco1 = calcularIOFFinanciamento(valorInvestimento, parcelasBanco1)
+  const baseFinanciadaBanco1 = valorInvestimento + iofBanco1
+  const entradaBanco1 = Math.min(baseFinanciadaBanco1, Math.max(0, entradaBanco1Bruta))
+  const principalBanco1 = Math.max(0, baseFinanciadaBanco1 - entradaBanco1)
   const parcelaFinancBanco1 = calcularParcelaPrice(principalBanco1, taxaBanco1, parcelasBanco1)
   const financiamentoBanco1: ParcelamentoItem = {
     titulo: 'Financiamento Banco 1',
@@ -825,6 +841,7 @@ export function calcularOrcamentoSolar(input: InputCalculoSolar): CalculosSolarR
     economiaMensalLiquida: contaAtualSemSolarMes - (parcelaFinancBanco1 + contaPrimeiroMesComSolar),
     valorEntrada: entradaBanco1,
     valorFinanciado: principalBanco1,
+    valorIof: iofBanco1,
   }
 
   // 4) Financiamento Banco 2 (padrão: 60x e 0.99% a.m. ou configurado)
@@ -841,8 +858,10 @@ export function calcularOrcamentoSolar(input: InputCalculoSolar): CalculosSolarR
       : 0.99,
   )
   const entradaBanco2Bruta = Number(input.configParcelamentos?.entradaBanco2) || 0
-  const entradaBanco2 = Math.min(valorInvestimento, Math.max(0, entradaBanco2Bruta))
-  const principalBanco2 = Math.max(0, valorInvestimento - entradaBanco2)
+  const iofBanco2 = calcularIOFFinanciamento(valorInvestimento, parcelasBanco2)
+  const baseFinanciadaBanco2 = valorInvestimento + iofBanco2
+  const entradaBanco2 = Math.min(baseFinanciadaBanco2, Math.max(0, entradaBanco2Bruta))
+  const principalBanco2 = Math.max(0, baseFinanciadaBanco2 - entradaBanco2)
   const parcelaFinancBanco2 = calcularParcelaPrice(principalBanco2, taxaBanco2, parcelasBanco2)
   const financiamentoBanco2: ParcelamentoItem = {
     titulo: 'Financiamento Banco 2',
@@ -857,6 +876,7 @@ export function calcularOrcamentoSolar(input: InputCalculoSolar): CalculosSolarR
     economiaMensalLiquida: contaAtualSemSolarMes - (parcelaFinancBanco2 + contaPrimeiroMesComSolar),
     valorEntrada: entradaBanco2,
     valorFinanciado: principalBanco2,
+    valorIof: iofBanco2,
   }
 
   return {

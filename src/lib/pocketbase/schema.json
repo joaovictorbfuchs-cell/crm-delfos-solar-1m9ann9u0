@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-18T18:35:58.031Z",
+  "generatedAt": "2026-09-18T18:46:20.732Z",
   "collections": [
     {
       "name": "users",
@@ -2324,6 +2324,18 @@
         },
         {
           "name": "valor_manual_indicacao",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "iof_financiamento_banco1",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "iof_financiamento_banco2",
           "type": "number",
           "required": false,
           "system": false

@@ -453,6 +453,68 @@ describe('Simulações personalizadas de Parcelamento & Financiamento (PRICE)', 
     )
   })
 
+  it('calcula o IOF e inclui no principal financiado dos dois financiamentos (fixture real validada pelo usuário)', () => {
+    // Caso real validado:
+    // Valor à vista R$ 11.624,70, 60 parcelas a 1,9%
+    // IOF = 11.624,70 * (0,0038 + 0,000082 * 30 * 60) = 11.624,70 * 0,1514 = R$ 1.759,97958 -> R$ 1.759,98
+    // Principal = 11.624,70 + 1.759,97958 = R$ 13.384,67958 -> R$ 13.384,68
+    // Parcela PRICE 60x a 1,9% = R$ 375,78
+    const orc = calcularOrcamentoSolar({
+      consumoKwhMes: 400,
+      tipoCliente: 'residencial',
+      tarifaKwh: 1.0,
+      potenciaKwp: 3.5,
+      valorInvestimentoInformado: 11624.7,
+      configParcelamentos: {
+        parcelasBanco1: 60,
+        jurosBanco1: 1.9,
+        parcelasBanco2: 60,
+        jurosBanco2: 0.99,
+      },
+    })
+
+    const f1 = orc.parcelamentos.financiamentoBanco1
+    expect(f1.valorIof).toBeCloseTo(1759.98, 2)
+    expect(f1.valorFinanciado).toBeCloseTo(13384.68, 2)
+    expect(f1.valorParcela).toBeCloseTo(375.78, 2)
+    expect(f1.valorTotal).toBeCloseTo(375.78 * 60, 1)
+
+    // Banco 2: 60 parcelas a 0.99% a.m. com mesmo valor à vista de R$ 11.624,70
+    // IOF é o mesmo para 60 parcelas: R$ 1.759,98
+    // Principal é o mesmo: R$ 13.384,68
+    // PMT Price: 13.384,68 * (0.0099 * 1.0099^60) / (1.0099^60 - 1) ≈ R$ 299,60
+    const f2 = orc.parcelamentos.financiamentoBanco2
+    expect(f2.valorIof).toBeCloseTo(1759.98, 2)
+    expect(f2.valorFinanciado).toBeCloseTo(13384.68, 2)
+    expect(f2.valorParcela).toBeCloseTo(299.6, 2)
+    expect(f2.valorTotal).toBeCloseTo(f2.valorParcela * 60, 2)
+  })
+
+  it('abate a entrada do principal após somar o IOF', () => {
+    const valorAVista = 20000
+    const entrada = 5000
+    // 60 parcelas -> aliquota IOF = 0,0038 + 0,000082 * 30 * 60 = 0,1514
+    // IOF = 20.000 * 0,1514 = 3.028
+    // Principal = 20.000 + 3.028 - 5.000 = 18.028
+    const orc = calcularOrcamentoSolar({
+      consumoKwhMes: 400,
+      tipoCliente: 'residencial',
+      tarifaKwh: 1.0,
+      potenciaKwp: 3.5,
+      valorInvestimentoInformado: valorAVista,
+      configParcelamentos: {
+        parcelasBanco1: 60,
+        jurosBanco1: 1.9,
+        entradaBanco1: entrada,
+      },
+    })
+
+    const f1 = orc.parcelamentos.financiamentoBanco1
+    expect(f1.valorIof).toBeCloseTo(3028, 2)
+    expect(f1.valorEntrada).toBe(5000)
+    expect(f1.valorFinanciado).toBeCloseTo(18028, 2)
+  })
+
   it('calcula economia e gastos considerando consumo efetivo igual à geração real dimensionada', () => {
     const orc = calcularOrcamentoSolar({
       potenciaKwp: 8.54,
