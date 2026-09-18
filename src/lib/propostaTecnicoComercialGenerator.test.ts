@@ -416,4 +416,25 @@ describe('Proposta Técnico-Comercial Generator (5 Seções Oficiais)', () => {
     expect(html).toContain('Usina Solar Comercial Alpha')
     expect(html).not.toContain('Usina Solar Rural Beta')
   })
+
+  it('no bloco de assinaturas da Proposta Técnico-Comercial, não exibe "Não informado" quando dados cadastrais do cliente faltam', () => {
+    const dadosSemCadastro: PropostaTecnicoComercialDados = {
+      ...dadosExemplo,
+      cliente: {
+        nome: 'Marcos Oliveira',
+      },
+    }
+
+    const html = gerarHTMLPropostaTecnicoComercial(dadosSemCadastro)
+    expect(html).toContain('EMPRESA CONTRATADA')
+    expect(html).toContain('CLIENTE / CONTRATANTE')
+    expect(html).toContain('Marcos Oliveira')
+    expect(html).toContain('De acordo com as especificações e valores da proposta')
+    expect(html).toContain('linha-assinatura-final')
+    expect(html).toContain('<strong>CPF/CNPJ:</strong>')
+    expect(html).toContain('<strong>Endereço:</strong>')
+    expect(html).toContain('<strong>Contato:</strong>')
+    // Não deve conter a expressão "Não informado"
+    expect(html).not.toContain('Não informado')
+  })
 })

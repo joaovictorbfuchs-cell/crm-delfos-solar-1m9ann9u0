@@ -663,29 +663,29 @@ export const SecaoInvestimentoPagamento: React.FC<SecaoInvestimentoPagamentoProp
             ? new Date(dataOrcamento).toLocaleDateString('pt-BR')
             : new Date().toLocaleDateString('pt-BR')
 
-          const empRazaoSocial = dadosEmpresa?.razaoSocial || 'DELFOS ENGENHARIA LTDA'
-          const empCnpj = dadosEmpresa?.cnpj || '21.379.952/0001-38'
-          const empRespTecnico = dadosEmpresa?.responsavelTecnico || 'João Victor Bagetti Fuchs'
-          const empCrea = dadosEmpresa?.crea || 'CREA RS151894'
+          const empRazaoSocial = dadosEmpresa?.razaoSocial ?? 'DELFOS ENGENHARIA LTDA'
+          const empCnpj = dadosEmpresa?.cnpj ?? '21.379.952/0001-38'
+          const empRespTecnico = dadosEmpresa?.responsavelTecnico ?? 'João Victor Bagetti Fuchs'
+          const empCrea = dadosEmpresa?.crea ?? 'CREA RS151894'
           const empEndereco =
-            dadosEmpresa?.endereco || 'Rua Espírito Santo, nº 275 – Centro, Erechim/RS'
-          const empTelefone = dadosEmpresa?.telefone || '(54) 99129-2121'
-          const empEmail = dadosEmpresa?.email || 'contato@delfos.eng.br'
+            dadosEmpresa?.endereco ?? 'Rua Espírito Santo, nº 275 – Centro, Erechim/RS'
+          const empTelefone = dadosEmpresa?.telefone ?? '(54) 99129-2121'
+          const empEmail = dadosEmpresa?.email ?? 'contato@delfos.eng.br'
+          const empContato = [empTelefone, empEmail].filter(Boolean).join(' • ')
 
-          const cliCpfCnpj = dadosCliente?.cpfOuCnpj || 'Não informado'
+          const cliCpfCnpj = dadosCliente?.cpfOuCnpj || ''
           const cliEndereco = dadosCliente?.endereco
             ? `${dadosCliente.endereco}${dadosCliente?.municipio ? `, ${dadosCliente.municipio}` : ''}`
-            : dadosCliente?.municipio || 'Não informado'
-          const cliContato =
-            dadosCliente?.telefone || dadosCliente?.email
-              ? `${dadosCliente.telefone || 'Não informado'}${dadosCliente.email ? ` • ${dadosCliente.email}` : ''}`
-              : 'Não informado'
+            : dadosCliente?.municipio || ''
+          const cliContato = [dadosCliente?.telefone, dadosCliente?.email]
+            .filter(Boolean)
+            .join(' • ')
 
           return (
             <div className="pt-2 border-t border-gray-200">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {/* Coluna 1: EMPRESA CONTRATADA */}
-                <div className="bg-white rounded-2xl p-5 border border-gray-200 shadow-2xs flex flex-col justify-between space-y-4">
+                <div className="bg-white rounded-2xl p-5 border border-gray-200 shadow-2xs flex flex-col justify-between">
                   {/* 1. Topo: Categoria e Local/Data */}
                   <div className="flex items-center justify-between gap-2 text-xs">
                     <span className="font-extrabold uppercase tracking-wider text-[#065F46] text-[11px]">
@@ -696,16 +696,19 @@ export const SecaoInvestimentoPagamento: React.FC<SecaoInvestimentoPagamentoProp
                     </span>
                   </div>
 
+                  {/* Espaço generoso livre para assinatura à mão (~60px) */}
+                  <div className="pt-16" />
+
                   {/* 2. Linha de assinatura */}
                   <div className="h-[1.5px] bg-gray-900 w-full" />
 
-                  {/* 3. Nome de quem assina + subtítulo */}
-                  <div className="text-center space-y-0.5">
+                  {/* 3. Nome de quem assina + subtítulo (espaçamento vertical confortável abaixo da linha) */}
+                  <div className="text-center pt-2.5 pb-3 space-y-0.5">
                     <div className="text-sm font-black text-gray-900 uppercase tracking-wide">
                       {empRespTecnico}
                     </div>
                     <div className="text-[11px] font-bold text-[#065F46]">
-                      Responsável Técnico — {empCrea}
+                      Responsável Técnico{empCrea ? ` — ${empCrea}` : ''}
                     </div>
                   </div>
 
@@ -713,28 +716,31 @@ export const SecaoInvestimentoPagamento: React.FC<SecaoInvestimentoPagamentoProp
                   <div className="border-t border-dashed border-gray-300 pt-3 text-[11px] text-gray-600 space-y-1">
                     <div>
                       <strong className="text-gray-900 font-semibold">Razão Social:</strong>{' '}
-                      {empRazaoSocial} (Delfos Solar)
+                      {empRazaoSocial ? `${empRazaoSocial} (Delfos Solar)` : ''}
                     </div>
                     <div>
                       <strong className="text-gray-900 font-semibold">CNPJ:</strong> {empCnpj}
                     </div>
                     <div>
                       <strong className="text-gray-900 font-semibold">Resp. Técnico:</strong>{' '}
-                      {empRespTecnico} ({empCrea})
+                      {empRespTecnico
+                        ? empCrea
+                          ? `${empRespTecnico} (${empCrea})`
+                          : empRespTecnico
+                        : ''}
                     </div>
                     <div>
                       <strong className="text-gray-900 font-semibold">Endereço:</strong>{' '}
                       {empEndereco}
                     </div>
                     <div>
-                      <strong className="text-gray-900 font-semibold">Contato:</strong>{' '}
-                      {empTelefone} • {empEmail}
+                      <strong className="text-gray-900 font-semibold">Contato:</strong> {empContato}
                     </div>
                   </div>
                 </div>
 
                 {/* Coluna 2: CLIENTE / CONTRATANTE */}
-                <div className="bg-white rounded-2xl p-5 border border-gray-200 shadow-2xs flex flex-col justify-between space-y-4">
+                <div className="bg-white rounded-2xl p-5 border border-gray-200 shadow-2xs flex flex-col justify-between">
                   {/* 1. Topo: Categoria e Local/Data */}
                   <div className="flex items-center justify-between gap-2 text-xs">
                     <span className="font-extrabold uppercase tracking-wider text-[#1E40AF] text-[11px]">
@@ -745,11 +751,14 @@ export const SecaoInvestimentoPagamento: React.FC<SecaoInvestimentoPagamentoProp
                     </span>
                   </div>
 
+                  {/* Espaço generoso livre para assinatura à mão (~60px) */}
+                  <div className="pt-16" />
+
                   {/* 2. Linha de assinatura */}
                   <div className="h-[1.5px] bg-gray-900 w-full" />
 
-                  {/* 3. Nome do cliente + subtítulo */}
-                  <div className="text-center space-y-0.5">
+                  {/* 3. Nome do cliente + subtítulo (espaçamento vertical confortável abaixo da linha) */}
+                  <div className="text-center pt-2.5 pb-3 space-y-0.5">
                     <div className="text-sm font-black text-gray-900 uppercase tracking-wide">
                       {nomeClienteAssinatura}
                     </div>

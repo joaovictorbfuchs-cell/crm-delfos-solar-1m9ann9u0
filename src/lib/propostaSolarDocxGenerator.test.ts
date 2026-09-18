@@ -169,4 +169,23 @@ describe('propostaSolarDocxGenerator', () => {
     expect(jsonStr).toContain('PORTFÓLIO DE USINAS INSTALADAS')
     expect(jsonStr).toContain('Usina Solar Residencial')
   })
+
+  it('no bloco de assinaturas do docx, não exibe "Não informado" quando dados cadastrais do cliente faltam', async () => {
+    const dadosSemCadastro: PropostaSolarPDFInput = {
+      ...dadosExemploMarceloBecker,
+      cliente: {
+        nome: 'Marcelo Becker',
+      },
+    }
+    const doc = await gerarPropostaSolarDocx(dadosSemCadastro)
+    const jsonStr = JSON.stringify(doc)
+    expect(jsonStr).toContain('EMPRESA CONTRATADA')
+    expect(jsonStr).toContain('CLIENTE / CONTRATANTE')
+    expect(jsonStr).toContain('MARCELO BECKER')
+    expect(jsonStr).toContain('De acordo com as especificações e valores da proposta')
+    expect(jsonStr).toContain('CPF/CNPJ: ')
+    expect(jsonStr).toContain('Endereço: ')
+    expect(jsonStr).toContain('Contato: ')
+    expect(jsonStr).not.toContain('Não informado')
+  })
 })

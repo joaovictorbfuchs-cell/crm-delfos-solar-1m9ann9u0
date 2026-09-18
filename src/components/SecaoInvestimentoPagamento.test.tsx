@@ -139,6 +139,29 @@ describe('SecaoInvestimentoPagamento Component', () => {
     expect(html).toContain('De acordo com as especificações e valores da proposta')
   })
 
+  it('no bloco de assinaturas, não exibe o texto "Não informado" quando dados do cliente não estão disponíveis', () => {
+    const html = renderToStaticMarkup(
+      React.createElement(SecaoInvestimentoPagamento, {
+        nomeCliente: 'Ana Souza',
+        dadosCliente: {
+          nome: 'Ana Souza',
+        },
+      }),
+    )
+
+    // A ordem canônica é preservada
+    expect(html).toContain('EMPRESA CONTRATADA')
+    expect(html).toContain('CLIENTE / CONTRATANTE')
+    expect(html).toContain('Ana Souza')
+    expect(html).toContain('De acordo com as especificações e valores da proposta')
+    expect(html).toContain('CPF/CNPJ:')
+    expect(html).toContain('Endereço:')
+    expect(html).toContain('Contato:')
+
+    // NUNCA deve conter o fallback "Não informado"
+    expect(html).not.toContain('Não informado')
+  })
+
   it('renderiza com entradaCartao={5000} e espera "Entrada: R$ 5.000,00" no card de cartão; e com entrada 0 a linha não aparece', () => {
     // Com entradaCartao = 5000
     const htmlComEntrada = renderToStaticMarkup(

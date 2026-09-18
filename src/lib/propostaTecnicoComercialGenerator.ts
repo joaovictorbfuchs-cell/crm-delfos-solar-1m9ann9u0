@@ -1867,11 +1867,11 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
       background: #FFFFFF;
       border: 1px solid #E5E7EB;
       border-radius: 12px;
-      padding: 12px 14px;
+      padding: 14px 16px;
       display: flex;
       flex-direction: column;
       justify-content: flex-start;
-      min-height: 130px;
+      min-height: 175px;
       box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
     }
     .assinatura-dados {
@@ -1881,7 +1881,8 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
     }
     .linha-assinatura-final {
       border-bottom: 1.5px solid #111827;
-      margin-bottom: 6px;
+      margin-top: 55px;
+      margin-bottom: 8px;
       width: 100%;
     }
 
@@ -2878,7 +2879,7 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
           <!-- Bloco da Empresa (EMPRESA CONTRATADA à esquerda) -->
           <div class="assinatura-bloco">
             <!-- 1. Topo: Categoria + Local e data -->
-            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 22px;">
+            <div style="display: flex; align-items: center; justify-content: space-between;">
               <span style="font-size: 7.5px; font-weight: 800; text-transform: uppercase; color: #065F46; letter-spacing: 0.05em;">
                 EMPRESA CONTRATADA
               </span>
@@ -2887,33 +2888,33 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
               </span>
             </div>
 
-            <!-- 2. Linha de assinatura -->
+            <!-- 2. Linha de assinatura com ~55px de espaço livre no topo -->
             <div class="linha-assinatura-final"></div>
 
             <!-- 3. Nome de quem assina + subtítulo -->
             <div style="text-align: center; margin-bottom: 10px;">
               <div style="font-size: 9px; font-weight: 900; color: #111827; text-transform: uppercase; letter-spacing: 0.02em;">
-                ${empresa?.responsavelTecnico || 'João Victor Bagetti Fuchs'}
+                ${empresa?.responsavelTecnico ?? 'João Victor Bagetti Fuchs'}
               </div>
               <div style="font-size: 7.5px; font-weight: 700; color: #065F46; margin-top: 2px;">
-                Responsável Técnico — ${empresa?.crea || 'CREA: RS151894'}
+                Responsável Técnico${empresa?.crea ? ` — ${empresa.crea}` : ''}
               </div>
             </div>
 
             <!-- 4. Divisor tracejado sutil e bloco de dados compactos -->
             <div style="border-top: 1px dashed #E5E7EB; padding-top: 8px; margin-top: 2px;" class="assinatura-dados">
-              <div><strong>Razão Social:</strong> ${empresa?.razaoSocial || 'DELFOS ENGENHARIA LTDA'} (Delfos Solar)</div>
-              <div><strong>CNPJ:</strong> ${empresa?.cnpj || '21.379.952/0001-38'}</div>
-              <div><strong>Resp. Técnico:</strong> ${empresa?.responsavelTecnico || 'João Victor Bagetti Fuchs'} (${empresa?.crea || 'CREA RS151894'})</div>
-              <div><strong>Endereço:</strong> ${empresa?.endereco || 'Rua Espírito Santo, nº 275 – Centro, Erechim/RS'}</div>
-              <div><strong>Contato:</strong> ${empresa?.telefone || '(54) 99129-2121'} • ${empresa?.email || 'contato@delfos.eng.br'}</div>
+              <div><strong>Razão Social:</strong> ${(empresa?.razaoSocial ?? 'DELFOS ENGENHARIA LTDA') ? `${empresa?.razaoSocial ?? 'DELFOS ENGENHARIA LTDA'} (Delfos Solar)` : ''}</div>
+              <div><strong>CNPJ:</strong> ${empresa?.cnpj ?? '21.379.952/0001-38'}</div>
+              <div><strong>Resp. Técnico:</strong> ${empresa?.responsavelTecnico ?? 'João Victor Bagetti Fuchs'}${empresa?.crea ? ` (${empresa.crea})` : ''}</div>
+              <div><strong>Endereço:</strong> ${empresa?.endereco ?? 'Rua Espírito Santo, nº 275 – Centro, Erechim/RS'}</div>
+              <div><strong>Contato:</strong> ${[empresa?.telefone ?? '(54) 99129-2121', empresa?.email ?? 'contato@delfos.eng.br'].filter(Boolean).join(' • ')}</div>
             </div>
           </div>
 
           <!-- Bloco do Cliente (CLIENTE / CONTRATANTE à direita) -->
           <div class="assinatura-bloco">
             <!-- 1. Topo: Categoria + Local e data -->
-            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 22px;">
+            <div style="display: flex; align-items: center; justify-content: space-between;">
               <span style="font-size: 7.5px; font-weight: 800; text-transform: uppercase; color: #1E40AF; letter-spacing: 0.05em;">
                 CLIENTE / CONTRATANTE
               </span>
@@ -2922,7 +2923,7 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
               </span>
             </div>
 
-            <!-- 2. Linha de assinatura -->
+            <!-- 2. Linha de assinatura com ~55px de espaço livre no topo -->
             <div class="linha-assinatura-final"></div>
 
             <!-- 3. Nome do cliente + subtítulo -->
@@ -2938,9 +2939,9 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
             <!-- 4. Divisor tracejado sutil e bloco de dados compactos -->
             <div style="border-top: 1px dashed #E5E7EB; padding-top: 8px; margin-top: 2px;" class="assinatura-dados">
               <div><strong>Nome/Razão Social:</strong> ${nomeCliente}</div>
-              <div><strong>CPF/CNPJ:</strong> ${cliente?.cpfOuCnpj || 'Não informado'}</div>
-              <div><strong>Endereço:</strong> ${cliente?.endereco ? `${cliente.endereco}${cliente?.municipio ? `, ${cliente.municipio}` : ''}` : cliente?.municipio || 'Não informado'}</div>
-              <div><strong>Contato:</strong> ${cliente?.telefone || cliente?.email ? `${cliente?.telefone || 'Não informado'}${cliente?.email ? ` • ${cliente.email}` : ''}` : 'Não informado'}</div>
+              <div><strong>CPF/CNPJ:</strong> ${cliente?.cpfOuCnpj || ''}</div>
+              <div><strong>Endereço:</strong> ${cliente?.endereco ? `${cliente.endereco}${cliente?.municipio ? `, ${cliente.municipio}` : ''}` : cliente?.municipio || ''}</div>
+              <div><strong>Contato:</strong> ${[cliente?.telefone, cliente?.email].filter(Boolean).join(' • ')}</div>
             </div>
           </div>
         </div>      </div>
