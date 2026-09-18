@@ -8,30 +8,31 @@ import {
 } from './energiaSolar'
 
 describe('calcularCustosAba - Formação de Preço Delfos Solar', () => {
-  it('valida exatamente a fixture real da planilha do cliente (Opção 2 com piso de comissão R$ 600)', () => {
+  it('valida exatamente a fixture real da planilha do cliente (Opção 2 com piso de comissão R$ 600, indicação padrão 0%)', () => {
     // Base de custos diretos: R$ 8.450,00 (materiais/equipamentos R$ 6.431,01 + demais itens R$ 2.018,99)
     // Impostos (opção 2): R$ 830,99 = 16% × (11.624,70 − 6.431,01)
     // Administração: R$ 1.743,70 = 15% × 11.624,70
     // Comissão: R$ 600,00 (piso)
-    // Indicação: 0% na planilha real, mas no Skip com taxa existente o cálculo fecha o sistema
-    // Com indicação = 0 no teste da planilha ou comparando com as regras da planilha:
+    // Indicação: 0% por padrão (ou percentualIndicacaoAuto: 0)
+    // Denominador: 1 - 0.16 - 0.15 - 0 = 0.69
+    // Numerador: 8450 - 0.16 * 6431.01 + 600 = 8021.0384
+    // valorTotal: 8021.0384 / 0.69 = 11624.6933... -> R$ 11.624,70
     const resPlanilha = calcularCustosAba({
       materiaisEquipamentos: 6431.01,
       maoDeObra: 1618.99,
       riscoEngenharia: 400, // 6431.01 + 1618.99 + 400 = 8450.00
       opcaoImposto: 2,
       desconto: 0,
+      // percentualIndicacaoAuto omitido deve assumir 0 por padrão
     })
 
-    // Validando o modelo exato da planilha com a fórmula fechada implementada:
-    // Denominador (com piso e 1% indicação): 1 - 0.16 - 0.15 - 0.01 = 0.68
-    // Numerador: 8450 - 0.16 * 6431.01 + 600 = 8021.0384
-    // valorTotal = 8021.0384 / 0.68 = 11795.64 (com 1% indicação)
-    // Impostos = 16% * (11795.64 - 6431.01) = 858.34
-    // Administração = 15% * 11795.64 = 1769.35
-    // Comissão = 600.00
-    // Indicação = 1% * 11795.64 = 117.96
-    // Soma exata dos itens: 8450 + 858.34 + 1769.35 + 600 + 117.96 = 11795.65 (diferença <= 0.01 por centavos)
+    expect(resPlanilha.percentualIndicacaoAuto).toBe(0)
+    expect(resPlanilha.indicacao).toBe(0)
+    expect(resPlanilha.impostos).toBe(830.99)
+    expect(resPlanilha.administracao).toBe(1743.7)
+    expect(resPlanilha.comissaoComercial).toBe(600)
+    expect(resPlanilha.valorTotal).toBe(11624.7)
+
     const somaItens =
       8450 +
       resPlanilha.impostos +
@@ -39,22 +40,40 @@ describe('calcularCustosAba - Formação de Preço Delfos Solar', () => {
       resPlanilha.comissaoComercial +
       resPlanilha.indicacao
     expect(Math.abs(somaItens - resPlanilha.valorTotal)).toBeLessThanOrEqual(0.02)
+  })
 
-    // E se não houver indicação (modelo puro 0% indicação da planilha):
-    // Denominador: 1 - 0.16 - 0.15 = 0.69
+  it('permite configurar indicação para 1% (0.01) e recalcula o denominador com precisão', () => {
+    // Com indicação 1% (0.01):
+    // Denominador (com piso e 1% indicação): 1 - 0.16 - 0.15 - 0.01 = 0.68
     // Numerador: 8450 - 0.16 * 6431.01 + 600 = 8021.0384
-    // 8021.0384 / 0.69 = 11624.6933 -> 11.624,70!
-    const totalPuroPlanilha = (8450 - 0.16 * 6431.01 + 600) / 0.69
-    expect(Math.round(totalPuroPlanilha * 100) / 100).toBe(11624.7)
+    // valorTotal = 8021.0384 / 0.68 = 11795.64
+    // Impostos = 16% * (11795.64 - 6431.01) = 858.34
+    // Administração = 15% * 11795.64 = 1769.35
+    // Comissão = 600.00
+    // Indicação = 1% * 11795.64 = 117.96
+    const res1Pct = calcularCustosAba({
+      materiaisEquipamentos: 6431.01,
+      maoDeObra: 1618.99,
+      riscoEngenharia: 400,
+      opcaoImposto: 2,
+      desconto: 0,
+      percentualIndicacaoAuto: 0.01,
+    })
 
-    const impostosPuros = (11624.7 - 6431.01) * 0.16
-    expect(Math.round(impostosPuros * 100) / 100).toBe(830.99)
+    expect(res1Pct.percentualIndicacaoAuto).toBe(0.01)
+    expect(res1Pct.valorTotal).toBe(11795.64)
+    expect(res1Pct.impostos).toBe(858.34)
+    expect(res1Pct.administracao).toBe(1769.35)
+    expect(res1Pct.comissaoComercial).toBe(600)
+    expect(res1Pct.indicacao).toBe(117.96)
 
-    const adminPura = 11624.7 * 0.15
-    expect(Math.round(adminPura * 100) / 100).toBe(1743.7)
-
-    const somaPura = 8450 + 830.99 + 1743.7 + 600
-    expect(Math.round(somaPura * 100) / 100).toBe(11624.69)
+    const somaItens =
+      8450 +
+      res1Pct.impostos +
+      res1Pct.administracao +
+      res1Pct.comissaoComercial +
+      res1Pct.indicacao
+    expect(Math.abs(somaItens - res1Pct.valorTotal)).toBeLessThanOrEqual(0.02)
   })
 
   it('invariante: total do projeto é exatamente a soma dos itens na Opção 1 (9,23% sobre total)', () => {
@@ -63,6 +82,7 @@ describe('calcularCustosAba - Formação de Preço Delfos Solar', () => {
       maoDeObra: 1500,
       riscoEngenharia: 400,
       opcaoImposto: 1,
+      percentualIndicacaoAuto: 0.01,
     })
 
     // subtotalBase = 11900
@@ -91,6 +111,7 @@ describe('calcularCustosAba - Formação de Preço Delfos Solar', () => {
       maoDeObra: 3000,
       riscoEngenharia: 400,
       opcaoImposto: 2,
+      percentualIndicacaoAuto: 0.01,
     })
 
     // subtotalBase = 18400, materiais = 15000
@@ -137,6 +158,7 @@ describe('calcularCustosAba - Formação de Preço Delfos Solar', () => {
       maoDeObra: 3000,
       riscoEngenharia: 400,
       opcaoImposto: 1,
+      percentualIndicacaoAuto: 0.01,
     })
 
     const resComDesc = calcularCustosAba({
@@ -145,6 +167,7 @@ describe('calcularCustosAba - Formação de Preço Delfos Solar', () => {
       riscoEngenharia: 400,
       opcaoImposto: 1,
       desconto: 500,
+      percentualIndicacaoAuto: 0.01,
     })
 
     // Total e impostos inalterados
@@ -359,13 +382,14 @@ describe('calcularCustosAba - Formação de Preço Delfos Solar', () => {
   })
 
   it('comportamento de desconto quando campos estão em modo manual: desconto atua proporcionalmente nos campos automáticos e preserva os manuais', () => {
-    // Cenário: Administração em modo manual (R$ 2000), Comissão automática, Indicação automática.
+    // Cenário: Administração em modo manual (R$ 2000), Comissão automática, Indicação automática (1%).
     // Desconto de R$ 400 informado.
     const resMisto = calcularCustosAba({
       materiaisEquipamentos: 15000,
       maoDeObra: 2500,
       riscoEngenharia: 400,
       opcaoImposto: 1,
+      percentualIndicacaoAuto: 0.01,
       manualAdministracao: true,
       valorManualAdministracao: 2000,
       desconto: 400,

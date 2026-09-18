@@ -1093,6 +1093,7 @@ export interface OrcamentoSolar extends RecordModel {
   manual_administracao?: boolean
   manual_comissao?: boolean
   manual_indicacao?: boolean
+  percentual_indicacao_auto?: number
   valor_manual_administracao?: number
   valor_manual_comissao?: number
   valor_manual_indicacao?: number

@@ -374,6 +374,7 @@ export interface ParametrosCalculoCustosAba {
   opcaoImposto: 1 | 2
   desconto?: number
   descontoPercentual?: number
+  percentualIndicacaoAuto?: number // fração do total (ex.: 0 = 0%, 0.01 = 1%). Padrão: 0 (0%)
   manualAdministracao?: boolean
   valorManualAdministracao?: number
   manualComissao?: boolean
@@ -398,9 +399,10 @@ export interface ResultadoCalculoCustosAba {
   comissaoDescontada: number
   comissaoUsouPisoMinimo: boolean
   manualComissao: boolean
-  indicacao: number // 1% do total (ou reduzido proporcionalmente por desconto, ou valor manual)
+  indicacao: number // percentual configurável do total (ou reduzido proporcionalmente por desconto, ou valor manual)
   indicacaoSemDesconto: number
   indicacaoDescontada: number
+  percentualIndicacaoAuto: number // fração utilizada quando em modo automático (ex: 0 = 0%, 0.01 = 1%)
   manualIndicacao: boolean
   valorTotal: number
 }
@@ -442,9 +444,15 @@ export function calcularCustosAba(params: ParametrosCalculoCustosAba): Resultado
   const valManualComiss = manualComiss ? Math.max(0, Number(params.valorManualComissao) || 0) : 0
   const valManualInd = manualInd ? Math.max(0, Number(params.valorManualIndicacao) || 0) : 0
 
+  // Percentual de indicação automática configurável por orçamento (fração: 0 = 0%, 0.01 = 1%, padrão 0)
+  const pIndAuto =
+    params.percentualIndicacaoAuto !== undefined && params.percentualIndicacaoAuto !== null
+      ? Math.max(0, Number(params.percentualIndicacaoAuto) || 0)
+      : 0
+
   // Frações dinâmicas de cada item sobre o Total (quando em modo automático)
   const fAdmin = manualAdmin ? 0 : 0.15
-  const fInd = manualInd ? 0 : 0.01
+  const fInd = manualInd ? 0 : pIndAuto
 
   // Alíquota de imposto sobre Total (tImposto) e termo independente do imposto (constImposto)
   // Opção 1: Imposto = 0.0923 * Total
@@ -503,7 +511,7 @@ export function calcularCustosAba(params: ParametrosCalculoCustosAba): Resultado
     }
 
     administracaoSemDesconto = manualAdmin ? valManualAdmin : valorTotal * 0.15
-    indicacaoSemDesconto = manualInd ? valManualInd : valorTotal * 0.01
+    indicacaoSemDesconto = manualInd ? valManualInd : valorTotal * pIndAuto
   }
 
   // Desconto sobre o total do projeto:
@@ -519,12 +527,12 @@ export function calcularCustosAba(params: ParametrosCalculoCustosAba): Resultado
   }
 
   // Redução proporcional pelo desconto:
-  // Aplica sobre os campos em modo AUTOMÁTICO (alíquotas variáveis: 15%, 3% se acima do piso, 1%).
+  // Aplica sobre os campos em modo AUTOMÁTICO (alíquotas variáveis: 15%, 3% se acima do piso, pIndAuto).
   // Campos em modo manual são valores fixos definidos pelo usuário e não sofrem redução de alíquota proporcional.
   // Caso todos estejam em modo manual, a taxa variável é 0.
   const taxaAdminAuto = manualAdmin ? 0 : 0.15
   const taxaComissaoAuto = manualComiss || comissaoUsouPisoMinimo ? 0 : 0.03
-  const taxaIndicacaoAuto = manualInd ? 0 : 0.01
+  const taxaIndicacaoAuto = manualInd ? 0 : pIndAuto
 
   const somaTaxasVariaveis = taxaAdminAuto + taxaComissaoAuto + taxaIndicacaoAuto
 
@@ -570,6 +578,7 @@ export function calcularCustosAba(params: ParametrosCalculoCustosAba): Resultado
     indicacao: Math.round(indicacao * 100) / 100,
     indicacaoSemDesconto: Math.round(indicacaoSemDesconto * 100) / 100,
     indicacaoDescontada: Math.round(indicacaoDescontada * 100) / 100,
+    percentualIndicacaoAuto: pIndAuto,
     manualIndicacao: manualInd,
     valorTotal: Math.round(valorTotal * 100) / 100,
   }

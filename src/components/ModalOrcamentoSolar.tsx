@@ -167,6 +167,8 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
   const [valorManualComissao, setValorManualComissao] = useState<number>(0)
   const [manualIndicacao, setManualIndicacao] = useState<boolean>(false)
   const [valorManualIndicacao, setValorManualIndicacao] = useState<number>(0)
+  // Percentual configurável de indicação em modo automático (em %, ex.: 0 = 0%, 1 = 1%, padrão 0%)
+  const [percentualIndicacaoAuto, setPercentualIndicacaoAuto] = useState<number>(0)
 
   // Períodos de garantia cadastráveis (padrões solicitados: degradação 30, fabricação 15, inversor 10)
   const [garantiaModulosDegradacaoAnos, setGarantiaModulosDegradacaoAnos] = useState<number>(30)
@@ -386,6 +388,16 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
 
       const isManualInd = Boolean(initialOrcamento.manual_indicacao)
       setManualIndicacao(isManualInd)
+      // Percentual de indicação automática: se salvo, converte fração -> % (ou % direto caso > 1)
+      const pIndSalvo =
+        initialOrcamento.percentual_indicacao_auto !== undefined &&
+        initialOrcamento.percentual_indicacao_auto !== null
+          ? Number(initialOrcamento.percentual_indicacao_auto)
+          : 0
+      // Salva como % no input (ex: 0.01 fração -> 1%, 1 -> 1%)
+      const pIndPct =
+        pIndSalvo <= 1 && pIndSalvo > 0 ? Number((pIndSalvo * 100).toFixed(2)) : pIndSalvo
+      setPercentualIndicacaoAuto(pIndPct)
       setValorManualIndicacao(
         initialOrcamento.valor_manual_indicacao !== undefined &&
           initialOrcamento.valor_manual_indicacao !== null
@@ -510,6 +522,7 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
       setValorManualComissao(0)
       setManualIndicacao(false)
       setValorManualIndicacao(0)
+      setPercentualIndicacaoAuto(0)
       setFornecedorSelecionadoId('')
 
       setCustos((prev) => ({
@@ -700,6 +713,7 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
       valorManualAdministracao,
       manualComissao,
       valorManualComissao,
+      percentualIndicacaoAuto: (Number(percentualIndicacaoAuto) || 0) / 100,
       manualIndicacao,
       valorManualIndicacao,
     })
@@ -718,6 +732,7 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
     valorManualAdministracao,
     manualComissao,
     valorManualComissao,
+    percentualIndicacaoAuto,
     manualIndicacao,
     valorManualIndicacao,
   ])
@@ -986,6 +1001,7 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
         manual_administracao: manualAdministracao,
         manual_comissao: manualComissao,
         manual_indicacao: manualIndicacao,
+        percentual_indicacao_auto: (Number(percentualIndicacaoAuto) || 0) / 100,
         valor_manual_administracao: manualAdministracao ? valorManualAdministracao : undefined,
         valor_manual_comissao: manualComissao ? valorManualComissao : undefined,
         valor_manual_indicacao: manualIndicacao ? valorManualIndicacao : undefined,
@@ -2894,11 +2910,11 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                             }`}
                             title={
                               manualIndicacao
-                                ? 'Clique para voltar ao cálculo automático de 1%'
+                                ? 'Clique para voltar ao cálculo automático com percentual configurável'
                                 : 'Clique para editar o valor manualmente em R$'
                             }
                           >
-                            {manualIndicacao ? 'Manual' : 'Auto (1%)'}
+                            {manualIndicacao ? 'Manual' : `Auto (${percentualIndicacaoAuto}%)`}
                           </button>
                         </div>
                       </div>
@@ -2929,12 +2945,43 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                               onClick={() => setManualIndicacao(false)}
                               className="text-blue-700 hover:underline font-semibold"
                             >
-                              Restaurar 1%
+                              Restaurar Auto ({percentualIndicacaoAuto}%)
                             </button>
                           </div>
                         </div>
                       ) : (
-                        <>
+                        <div className="space-y-1">
+                          {/* Campo numérico editável em % do percentual automático */}
+                          <div className="flex items-center justify-between gap-1">
+                            <span className="text-[10px] text-gray-500 font-medium">
+                              Taxa auto:
+                            </span>
+                            <div className="relative w-20">
+                              <input
+                                type="number"
+                                min={0}
+                                max={100}
+                                step={0.1}
+                                value={
+                                  percentualIndicacaoAuto === 0
+                                    ? '0'
+                                    : percentualIndicacaoAuto || ''
+                                }
+                                onChange={(e) =>
+                                  setPercentualIndicacaoAuto(
+                                    Math.max(0, Math.min(100, Number(e.target.value) || 0)),
+                                  )
+                                }
+                                className="w-full text-xs font-bold pl-1.5 pr-5 py-0.5 rounded border border-emerald-300 bg-emerald-50/30 text-emerald-950 focus:outline-none focus:ring-1 focus:ring-emerald-500 text-right"
+                                placeholder="0"
+                                title="Percentual de indicação automática (% sobre o total)"
+                              />
+                              <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[10px] font-bold text-emerald-700 pointer-events-none">
+                                %
+                              </span>
+                            </div>
+                          </div>
+
                           <div className="flex items-baseline gap-1.5 flex-wrap">
                             <span className="text-sm font-black text-emerald-800">
                               {formatCurrency(resultadoCustosAba.indicacao)}
@@ -2953,17 +3000,17 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                             className="text-[9px] text-gray-400 truncate"
                             title={
                               resultadoCustosAba.indicacaoDescontada > 0
-                                ? `Original: ${formatCurrency(resultadoCustosAba.indicacaoSemDesconto)} | Base c/ desc. × 1% = ${formatCurrency(resultadoCustosAba.indicacao)} (redução de ${formatCurrency(resultadoCustosAba.indicacaoDescontada)})`
-                                : '(Soma com materiais e impostos) × 0,01'
+                                ? `Original: ${formatCurrency(resultadoCustosAba.indicacaoSemDesconto)} | Base c/ desc. × ${percentualIndicacaoAuto}% = ${formatCurrency(resultadoCustosAba.indicacao)} (redução de ${formatCurrency(resultadoCustosAba.indicacaoDescontada)})`
+                                : `(Soma com materiais e impostos) × ${((Number(percentualIndicacaoAuto) || 0) / 100).toLocaleString('pt-BR')}`
                             }
                           >
                             {resultadoCustosAba.indicacaoDescontada > 0
-                              ? `Original: ${formatCurrency(resultadoCustosAba.indicacaoSemDesconto)} (Base c/ desc. × 1%)`
+                              ? `Original: ${formatCurrency(resultadoCustosAba.indicacaoSemDesconto)} (Base c/ desc. × ${percentualIndicacaoAuto}%)`
                               : resultadoCustosAba.desconto > 0
-                                ? `Base c/ desc. × 1%`
-                                : `(Soma c/ imposto) × 1%`}
+                                ? `Base c/ desc. × ${percentualIndicacaoAuto}%`
+                                : `(Soma c/ imposto) × ${percentualIndicacaoAuto}%`}
                           </p>
-                        </>
+                        </div>
                       )}
                     </div>
                   </div>
