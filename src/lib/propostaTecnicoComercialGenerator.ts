@@ -140,6 +140,9 @@ export interface PropostaTecnicoComercialDados {
     contaSemSolar10AnosComReajuste?: number
     contaComSolar10AnosComReajuste?: number
   }
+  // Solergo
+  ajusteSolergoAtivo?: boolean
+  geracaoMensalSolergo?: number[]
   // Layout do Telhado
   layoutTelhadoUrl?: string | null
   layoutTelhadoHabilitado?: boolean
@@ -3091,6 +3094,11 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
                 <span style="color: #6B7280;">Média mensal:</span>
                 <strong style="color: #111827; font-weight: 700;">${mediaMensal.toLocaleString('pt-BR')} kWh</strong>
               </div>
+              ${
+                dados.ajusteSolergoAtivo
+                  ? `<div style="font-size:8px; color:#B45309; background:#FEF3C7; border:1px solid #FDE68A; padding:3px 8px; border-radius:6px; margin-top:6px;">⚠️ Geração ajustada conforme relatório Solergo</div>`
+                  : ''
+              }
             </div>
           `
         })()}

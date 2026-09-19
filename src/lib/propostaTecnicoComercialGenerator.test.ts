@@ -917,4 +917,238 @@ describe('Proposta Técnico-Comercial Generator (5 Seções Oficiais)', () => {
       expect(htmlClaitonSemPortfolio.match(/class="card-portfolio-usina"/g)).toBeNull()
     })
   })
+
+  describe('Integração Solergo (ajuste excepcional de curva de geração)', () => {
+    it('com ajusteSolergoAtivo:true + geracaoMensalSolergo somando 4.200, o HTML contém nota e "4.200"', () => {
+      // Usina 3,75 kWp com 12 meses customizados do Solergo somando 4.200 kWh/ano
+      const mesesSolergo = [420, 390, 380, 330, 290, 270, 280, 320, 350, 380, 400, 390]
+      const totalSolergo = mesesSolergo.reduce((acc, curr) => acc + curr, 0)
+      expect(totalSolergo).toBe(4200)
+
+      const dadosSolergo: PropostaTecnicoComercialDados = {
+        ...dadosExemplo,
+        ajusteSolergoAtivo: true,
+        geracaoMensalSolergo: mesesSolergo,
+        producao: {
+          anualKwh: 4200,
+          mediaMensalKwh: 350,
+          geracaoMensal: [
+            {
+              mesIndex: 1,
+              mesNome: 'Jan',
+              geracaoKwh: 420,
+              irradiacaoHSP: 5.2,
+              dias: 31,
+              fatorSazonal: 1.1,
+            },
+            {
+              mesIndex: 2,
+              mesNome: 'Fev',
+              geracaoKwh: 390,
+              irradiacaoHSP: 4.8,
+              dias: 28,
+              fatorSazonal: 1.05,
+            },
+            {
+              mesIndex: 3,
+              mesNome: 'Mar',
+              geracaoKwh: 380,
+              irradiacaoHSP: 4.5,
+              dias: 31,
+              fatorSazonal: 1.0,
+            },
+            {
+              mesIndex: 4,
+              mesNome: 'Abr',
+              geracaoKwh: 330,
+              irradiacaoHSP: 3.9,
+              dias: 30,
+              fatorSazonal: 0.9,
+            },
+            {
+              mesIndex: 5,
+              mesNome: 'Mai',
+              geracaoKwh: 290,
+              irradiacaoHSP: 3.2,
+              dias: 31,
+              fatorSazonal: 0.78,
+            },
+            {
+              mesIndex: 6,
+              mesNome: 'Jun',
+              geracaoKwh: 270,
+              irradiacaoHSP: 2.9,
+              dias: 30,
+              fatorSazonal: 0.72,
+            },
+            {
+              mesIndex: 7,
+              mesNome: 'Jul',
+              geracaoKwh: 280,
+              irradiacaoHSP: 3.1,
+              dias: 31,
+              fatorSazonal: 0.75,
+            },
+            {
+              mesIndex: 8,
+              mesNome: 'Ago',
+              geracaoKwh: 320,
+              irradiacaoHSP: 3.7,
+              dias: 31,
+              fatorSazonal: 0.85,
+            },
+            {
+              mesIndex: 9,
+              mesNome: 'Set',
+              geracaoKwh: 350,
+              irradiacaoHSP: 4.1,
+              dias: 30,
+              fatorSazonal: 0.92,
+            },
+            {
+              mesIndex: 10,
+              mesNome: 'Out',
+              geracaoKwh: 380,
+              irradiacaoHSP: 4.6,
+              dias: 31,
+              fatorSazonal: 1.02,
+            },
+            {
+              mesIndex: 11,
+              mesNome: 'Nov',
+              geracaoKwh: 400,
+              irradiacaoHSP: 5.0,
+              dias: 30,
+              fatorSazonal: 1.1,
+            },
+            {
+              mesIndex: 12,
+              mesNome: 'Dez',
+              geracaoKwh: 390,
+              irradiacaoHSP: 4.9,
+              dias: 31,
+              fatorSazonal: 1.15,
+            },
+          ],
+        },
+      }
+
+      const html = gerarHTMLPropostaTecnicoComercial(dadosSolergo)
+      expect(html).toContain('Geração ajustada conforme relatório Solergo')
+      expect(html).toContain('4.200')
+    })
+
+    it('sem ajuste Solergo, o HTML mantém 4.807 e NÃO contém a nota', () => {
+      const dadosSemSolergo: PropostaTecnicoComercialDados = {
+        ...dadosExemplo,
+        ajusteSolergoAtivo: false,
+        producao: {
+          anualKwh: 4807,
+          mediaMensalKwh: 401,
+          geracaoMensal: [
+            {
+              mesIndex: 1,
+              mesNome: 'Jan',
+              geracaoKwh: 480,
+              irradiacaoHSP: 5.2,
+              dias: 31,
+              fatorSazonal: 1.1,
+            },
+            {
+              mesIndex: 2,
+              mesNome: 'Fev',
+              geracaoKwh: 440,
+              irradiacaoHSP: 4.8,
+              dias: 28,
+              fatorSazonal: 1.05,
+            },
+            {
+              mesIndex: 3,
+              mesNome: 'Mar',
+              geracaoKwh: 430,
+              irradiacaoHSP: 4.5,
+              dias: 31,
+              fatorSazonal: 1.0,
+            },
+            {
+              mesIndex: 4,
+              mesNome: 'Abr',
+              geracaoKwh: 380,
+              irradiacaoHSP: 3.9,
+              dias: 30,
+              fatorSazonal: 0.9,
+            },
+            {
+              mesIndex: 5,
+              mesNome: 'Mai',
+              geracaoKwh: 340,
+              irradiacaoHSP: 3.2,
+              dias: 31,
+              fatorSazonal: 0.78,
+            },
+            {
+              mesIndex: 6,
+              mesNome: 'Jun',
+              geracaoKwh: 310,
+              irradiacaoHSP: 2.9,
+              dias: 30,
+              fatorSazonal: 0.72,
+            },
+            {
+              mesIndex: 7,
+              mesNome: 'Jul',
+              geracaoKwh: 320,
+              irradiacaoHSP: 3.1,
+              dias: 31,
+              fatorSazonal: 0.75,
+            },
+            {
+              mesIndex: 8,
+              mesNome: 'Ago',
+              geracaoKwh: 370,
+              irradiacaoHSP: 3.7,
+              dias: 31,
+              fatorSazonal: 0.85,
+            },
+            {
+              mesIndex: 9,
+              mesNome: 'Set',
+              geracaoKwh: 400,
+              irradiacaoHSP: 4.1,
+              dias: 30,
+              fatorSazonal: 0.92,
+            },
+            {
+              mesIndex: 10,
+              mesNome: 'Out',
+              geracaoKwh: 430,
+              irradiacaoHSP: 4.6,
+              dias: 31,
+              fatorSazonal: 1.02,
+            },
+            {
+              mesIndex: 11,
+              mesNome: 'Nov',
+              geracaoKwh: 450,
+              irradiacaoHSP: 5.0,
+              dias: 30,
+              fatorSazonal: 1.1,
+            },
+            {
+              mesIndex: 12,
+              mesNome: 'Dez',
+              geracaoKwh: 457,
+              irradiacaoHSP: 4.9,
+              dias: 31,
+              fatorSazonal: 1.15,
+            },
+          ],
+        },
+      }
+
+      const html = gerarHTMLPropostaTecnicoComercial(dadosSemSolergo)
+      expect(html).toContain('4.807')
+      expect(html).not.toContain('Geração ajustada conforme relatório Solergo')
+    })
+  })
 })

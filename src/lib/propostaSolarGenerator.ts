@@ -77,6 +77,9 @@ export interface PropostaSolarPDFInput {
   dataEmissao?: string
   validadeDias?: number // 5 dias prescritos
   observacoes?: string
+  // Solergo
+  ajusteSolergoAtivo?: boolean
+  geracaoMensalSolergo?: number[]
   // Layout do Telhado
   layoutTelhadoUrl?: string | null
   layoutTelhadoHabilitado?: boolean
@@ -290,6 +293,8 @@ export function converterInputParaTemplateComercial(
       contaSemSolar10AnosComReajuste: calculos.contaSemSolar10AnosComReajuste,
       contaComSolar10AnosComReajuste: calculos.contaComSolar10AnosComReajuste,
     },
+    ajusteSolergoAtivo: dados.ajusteSolergoAtivo,
+    geracaoMensalSolergo: dados.geracaoMensalSolergo,
     layoutTelhadoUrl: dados.layoutTelhadoUrl,
     layoutTelhadoHabilitado: dados.layoutTelhadoHabilitado,
     secoesHabilitadas: dados.secoesHabilitadas,

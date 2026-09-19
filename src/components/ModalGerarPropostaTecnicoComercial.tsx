@@ -365,6 +365,10 @@ export function ModalGerarPropostaTecnicoComercial({
           inversorAnosFabricacao: Number(inversorAnosFab) || 10,
           instalacaoAnos: Number(instalacaoAnos) || 1,
         },
+        ajusteSolergoAtivo:
+          (orcamento as any)?.ajuste_solergo_ativo ||
+          (orcamento as any)?.geracao_fonte === 'solergo',
+        geracaoMensalSolergo: (orcamento as any)?.geracao_mensal_solergo_json || undefined,
         producao: {
           anualKwh: prodAnual,
           mediaMensalKwh: Number(producaoMensalKwh) || Math.round(prodAnual / 12),

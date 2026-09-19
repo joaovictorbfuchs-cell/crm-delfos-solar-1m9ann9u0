@@ -917,6 +917,10 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
       custos,
       valorInvestimentoInformado: valorInvestimentoFinal,
       geracaoSimuladaKwhAno: geracaoSimuladaNum,
+      geracaoMensalCustomizada:
+        ajusteSolergoAtivo && geracaoMensalSolergo?.length === 12
+          ? geracaoMensalSolergo
+          : undefined,
       fioBKwh,
       fatorSimultaneidade:
         fatorSimultaneidadeManual !== '' ? Number(fatorSimultaneidadeManual) : undefined,
@@ -942,6 +946,8 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
     custos,
     valorInvestimentoFinal,
     geracaoSimuladaKwhAno,
+    ajusteSolergoAtivo,
+    geracaoMensalSolergo,
     fioBKwh,
     fatorSimultaneidadeManual,
     parcelasCartao,
@@ -1006,6 +1012,11 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
       dataEmissao: new Date().toISOString(),
       validadeDias: 5,
       observacoes,
+      ajusteSolergoAtivo,
+      geracaoMensalSolergo:
+        ajusteSolergoAtivo && geracaoMensalSolergo?.length === 12
+          ? geracaoMensalSolergo
+          : undefined,
       layoutTelhadoUrl: layoutTelhadoPreviewUrl,
       layoutTelhadoHabilitado,
       secoesHabilitadas: {
@@ -1040,6 +1051,8 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
     usinasGaleria,
     instalacoesSelecionadasIds,
     observacoes,
+    ajusteSolergoAtivo,
+    geracaoMensalSolergo,
     layoutTelhadoPreviewUrl,
     layoutTelhadoHabilitado,
     secoesHabilitadas,
@@ -1112,6 +1125,10 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
           geracaoSimuladaKwhAno !== '' && Number(geracaoSimuladaKwhAno) > 0
             ? Number(geracaoSimuladaKwhAno)
             : undefined,
+        geracao_fonte: geracaoFonte,
+        ajuste_solergo_ativo: ajusteSolergoAtivo,
+        geracao_mensal_solergo_json:
+          ajusteSolergoAtivo && geracaoMensalSolergo?.length === 12 ? geracaoMensalSolergo : null,
         tarifa_kwh: tarifaKwh,
         potencia_kwp: potenciaKwp,
         numero_placas: numeroPlacas,
@@ -1216,7 +1233,7 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
 
       // Se houver arquivo selecionado ou flags a persistir com binário, empacotar via FormData
       let dataToSend: Partial<OrcamentoSolar> | FormData = payload
-      if (layoutTelhadoFile) {
+      if (layoutTelhadoFile || imagemSolergoFile) {
         const formData = new FormData()
         Object.entries(payload).forEach(([k, v]) => {
           if (v !== undefined && v !== null) {
@@ -1227,7 +1244,12 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
             }
           }
         })
-        formData.append('layout_telhado', layoutTelhadoFile)
+        if (layoutTelhadoFile) {
+          formData.append('layout_telhado', layoutTelhadoFile)
+        }
+        if (imagemSolergoFile) {
+          formData.append('imagem_solergo', imagemSolergoFile)
+        }
         dataToSend = formData
       }
 
@@ -2302,12 +2324,21 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
 
                   {/* 3. Campo editável Geração Simulada (kWh/ano) */}
                   <div className="p-3 rounded-lg border border-gray-200 bg-gray-50/70 flex flex-col justify-between focus-within:border-emerald-500 focus-within:bg-white transition-colors">
-                    <label
-                      htmlFor="input-geracao-simulada"
-                      className="text-[10px] font-bold uppercase tracking-wider text-gray-700"
-                    >
-                      Geração Simulada (kWh/ano)
-                    </label>
+                    <div className="flex items-center justify-between gap-1 flex-wrap">
+                      <label
+                        htmlFor="input-geracao-simulada"
+                        className="text-[10px] font-bold uppercase tracking-wider text-gray-700"
+                      >
+                        Geração Simulada (kWh/ano)
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => setModalSolergoOpen(true)}
+                        className="inline-flex items-center gap-1 text-xs text-emerald-600 hover:text-emerald-700 underline font-medium"
+                      >
+                        <Upload className="w-3.5 h-3.5" /> Importar do Solergo
+                      </button>
+                    </div>
                     <div className="mt-1 relative flex items-center">
                       <input
                         id="input-geracao-simulada"
@@ -2326,9 +2357,30 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                         kWh/ano
                       </span>
                     </div>
-                    <span className="text-[10px] text-gray-400 mt-0.5">
-                      Digitação manual opcional (salva no orçamento)
-                    </span>
+                    {ajusteSolergoAtivo ? (
+                      <div className="mt-1.5 flex items-center gap-1.5 flex-wrap">
+                        <span className="inline-flex items-center text-[10px] font-semibold px-2 py-0.5 rounded bg-amber-100 text-amber-800 border border-amber-200">
+                          Ajustado via Solergo
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setAjusteSolergoAtivo(false)
+                            setGeracaoFonte('automatico')
+                            setGeracaoMensalSolergo(null)
+                            setGeracaoSimuladaKwhAno('')
+                            setImagemSolergoFile(null)
+                          }}
+                          className="text-[10px] text-amber-900 hover:underline font-medium"
+                        >
+                          Voltar para cálculo automático
+                        </button>
+                      </div>
+                    ) : (
+                      <span className="text-[10px] text-gray-400 mt-0.5">
+                        Digitação manual opcional (salva no orçamento)
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>
@@ -4325,6 +4377,12 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
             payback_meses: calculos.paybackMeses,
             producao_anual_kwh: calculos.geracaoAnualEstimadaKwh,
             producao_mensal_kwh: calculos.geracaoMediaMensalKwh,
+            geracao_fonte: geracaoFonte,
+            ajuste_solergo_ativo: ajusteSolergoAtivo,
+            geracao_mensal_solergo_json:
+              ajusteSolergoAtivo && geracaoMensalSolergo?.length === 12
+                ? geracaoMensalSolergo
+                : null,
             geracao_detalhada_json: JSON.stringify(calculos.geracaoMensalDetalhada),
             parcela_a_vista: valorInvestimentoFinal,
             parcela_cartao_18x:
@@ -4370,6 +4428,22 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
           }}
         />
       )}
+
+      {/* Modal de Importação do Solergo */}
+      <ModalImportarSolergo
+        open={modalSolergoOpen}
+        onOpenChange={setModalSolergoOpen}
+        geracaoAutomaticaPadrao={calculos.geracaoAnualEstimadaKwh}
+        potenciaKwp={potenciaKwp}
+        valoresIniciais={geracaoMensalSolergo}
+        onAplicarSolergo={({ valoresMensais, totalAnual, imagemArquivo }) => {
+          setGeracaoMensalSolergo(valoresMensais)
+          setGeracaoSimuladaKwhAno(totalAnual)
+          setAjusteSolergoAtivo(true)
+          setGeracaoFonte('solergo')
+          if (imagemArquivo) setImagemSolergoFile(imagemArquivo)
+        }}
+      />
     </div>
   )
 }
