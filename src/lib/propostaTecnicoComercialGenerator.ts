@@ -621,8 +621,8 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
        SETUP DE IMPRESSÃO A4 COM 5 SEÇÕES PRECISAS
        ========================================================== */
     @page {
-      size: A4 portrait;
-      margin: 10mm 12mm 10mm 12mm;
+      size: 210mm 297mm;
+      margin: 20mm 15mm 20mm 15mm;
     }
 
     * {
@@ -637,8 +637,8 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
       background: #E5E7EB;
       font-family: Arial, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
       color: #1F2937;
-      font-size: 10px;
-      line-height: 1.35;
+      font-size: 10pt;
+      line-height: 1.45;
     }
 
     /* BARRA DE AÇÃO FORA DA IMPRESSÃO */
@@ -686,28 +686,26 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
 
     /* CONTÊINER GERAL */
     .proposta-container {
-      width: 100%;
-      max-width: 900px;
+      width: 210mm;
+      max-width: 100%;
+      box-sizing: border-box;
       margin: 0 auto;
       padding-bottom: 24px;
     }
 
-    /* PÁGINA INDIVIDUAL DA PROPOSTA (FLUXO CONTÍNUO NATURAL COMPACTO) */
+    /* PÁGINA INDIVIDUAL DA PROPOSTA (MODO PREVIEW DE TELA COM PADDING 20mm 15mm) */
     .proposta-secao-page {
       background: #FFFFFF;
       width: 100%;
       min-height: auto;
-      padding: 6mm 10mm 6mm 10mm;
-      margin: 0 auto 10px auto;
+      padding: 20mm 15mm;
+      box-sizing: border-box;
+      margin: 0 auto 14px auto;
       box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
       position: relative;
       display: flex;
       flex-direction: column;
       justify-content: space-between;
-      page-break-before: auto;
-      break-before: auto;
-      page-break-after: auto;
-      break-after: auto;
       border-radius: 6px;
     }
     .proposta-secao-page:first-child {
@@ -718,6 +716,13 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
       page-break-after: always;
       break-after: page;
       min-height: 297mm;
+    }
+    #secao-apresentacao-empresa,
+    #secao-3-seu-sistema,
+    #secao-4-projecao-25anos,
+    #secao-5-investimento-pagamento {
+      page-break-before: always;
+      break-before: page;
     }
 
     .secao-body {
@@ -1413,9 +1418,9 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
 
     .grid-sistema-cards {
       display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 8px;
-      margin: 6px 0;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 12px;
+      margin: 8px 0;
       page-break-inside: avoid;
       break-inside: avoid;
     }
@@ -1423,7 +1428,7 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
       background: #f5f5f5;
       border: 1px solid #d1d5db;
       border-radius: 12px;
-      padding: 8px 10px;
+      padding: 10px 12px;
       display: flex;
       flex-direction: column;
       justify-content: space-between;
@@ -1840,9 +1845,9 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
 
     .grid-pagamento-4 {
       display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 8px;
-      margin-bottom: 8px;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+      margin-bottom: 12px;
       page-break-inside: avoid;
       break-inside: avoid;
     }
@@ -2043,23 +2048,22 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
         display: none !important;
       }
       .proposta-container {
+        width: 210mm !important;
         max-width: 100% !important;
+        box-sizing: border-box !important;
         margin: 0 !important;
         padding: 0 !important;
       }
       .proposta-secao-page {
         margin: 0 !important;
-        padding: 6mm 8mm 6mm 8mm !important;
+        padding: 0 !important;
         box-shadow: none !important;
         border-radius: 0 !important;
         height: auto !important;
         min-height: auto !important;
         max-height: none !important;
         overflow: visible !important;
-        page-break-before: auto !important;
-        break-before: auto !important;
-        page-break-after: auto !important;
-        break-after: auto !important;
+        box-sizing: border-box !important;
       }
       #secao-1-capa {
         min-height: 297mm !important;
@@ -2067,6 +2071,13 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
         max-height: 297mm !important;
         page-break-after: always !important;
         break-after: page !important;
+      }
+      #secao-apresentacao-empresa,
+      #secao-3-seu-sistema,
+      #secao-4-projecao-25anos,
+      #secao-5-investimento-pagamento {
+        page-break-before: always !important;
+        break-before: page !important;
       }
       .proposta-secao-page:last-child {
         page-break-after: avoid !important;
@@ -2706,7 +2717,7 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
           const maxGeracao = Math.max(...itens.map((m) => Number(m.geracaoKwh) || 0), 1)
           const mediaMensal = totalKwh > 0 ? Math.round(totalKwh / itens.length) : 0
 
-          const maxBarHeightPx = 80 // Altura da área de barras para impressão compacta e segura
+          const maxBarHeightPx = 125 // Altura da área de barras otimizada para A4
 
           const barrasHtml = itens
             .map((item) => {
@@ -2841,53 +2852,49 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
         })()}
 
         <!-- BLOCOS EXPLICATIVOS COM ILUSTRAÇÕES OFICIAIS DA PROPOSTA -->
-        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-top: 10px; page-break-inside: avoid; break-inside: avoid;">
-          <!-- Bloco 1: Como funciona o sistema solar (On-Grid) -->
-          <div style="background: #F0FDF4; border: 1.5px solid #BBF7D0; border-radius: 12px; padding: 10px 12px; display: flex; flex-direction: column; justify-content: space-between; box-shadow: 0 1px 3px rgba(22, 163, 74, 0.08); page-break-inside: avoid; break-inside: avoid;">
-            <div>
-              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
-                <span style="font-size: 8px; font-weight: 800; text-transform: uppercase; background: #DCFCE7; color: #166534; padding: 2px 7px; border-radius: 9999px; border: 1px solid #BBF7D0;">
-                  Engenharia On-Grid
-                </span>
-                <span style="font-size: 8px; font-weight: 700; color: #16A34A;">Conexão à Rede</span>
-              </div>
-              <div style="font-size: 11px; font-weight: 900; color: #166534; line-height: 1.25; margin-bottom: 3px;">
-                Como funciona o sistema solar (On-Grid)
-              </div>
-              <p style="font-size: 8px; color: #374151; line-height: 1.35; margin: 0 0 6px 0;">
-                Módulos fotovoltaicos convertem a luz solar em energia limpa contínua e o inversor transforma em corrente alternada para o consumo do imóvel. O excedente é injetado na concessionária gerando créditos energéticos no medidor bidirecional.
-              </p>
-              <div style="border-radius: 8px; overflow: hidden; border: 1px solid #BBF7D0; background: #FFFFFF; display: flex; align-items: center; justify-content: center; padding: 4px;">
-                <img src="${onGridPngAsset}" alt="Como funciona o sistema solar (On-Grid)" style="width: 100%; height: 110px; object-fit: contain; display: block; border-radius: 6px;" />
-              </div>
+        <div style="display: flex; flex-direction: column; gap: 12px; margin-top: 12px;">
+          <!-- Bloco 1: Como Funciona o Sistema Solar (On-Grid) — Linha inteira com imagem ampliada (>=60% largura) -->
+          <div style="width: 100%; background: #F0FDF4; border: 1.5px solid #BBF7D0; border-radius: 12px; padding: 14px 16px; box-shadow: 0 1px 3px rgba(22, 163, 74, 0.08); page-break-inside: avoid; break-inside: avoid;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+              <span style="font-size: 8.5px; font-weight: 800; text-transform: uppercase; background: #DCFCE7; color: #166534; padding: 2px 8px; border-radius: 9999px; border: 1px solid #BBF7D0;">
+                Engenharia On-Grid
+              </span>
+              <span style="font-size: 8.5px; font-weight: 700; color: #16A34A;">Conexão à Rede Concessionária</span>
             </div>
-            <div style="margin-top: 6px; padding-top: 5px; border-top: 1px solid #BBF7D0; display: flex; justify-content: space-between; font-size: 8px; color: #166534; font-weight: 800;">
-              <span>✓ Homologação e ART Inclusa</span>
-              <span style="color: #16A34A;">Turnkey Delfos</span>
+            <div style="font-size: 13px; font-weight: 900; color: #166534; line-height: 1.3; margin-bottom: 4px;">
+              Como Funciona o Sistema Solar (On-Grid)
+            </div>
+            <p style="font-size: 9.5px; color: #374151; line-height: 1.48; margin: 0 0 10px 0;">
+              Módulos fotovoltaicos de alta eficiência convertem a radiação solar em energia elétrica contínua. O inversor inteligente sincroniza e transforma essa energia em corrente alternada para o consumo imediato do seu imóvel. O excedente produzido é injetado na concessionária, gerando créditos energéticos abatidos no seu medidor bidirecional.
+            </p>
+            <div style="border-radius: 10px; overflow: hidden; border: 1px solid #BBF7D0; background: #FFFFFF; display: flex; align-items: center; justify-content: center; padding: 10px;">
+              <img src="${onGridPngAsset}" alt="Como Funciona o Sistema Solar (On-Grid)" style="width: 70%; min-width: 60%; height: auto; max-height: 240px; margin: 0 auto; display: block; object-fit: contain;" />
+            </div>
+            <div style="margin-top: 8px; padding-top: 6px; border-top: 1px solid #BBF7D0; display: flex; justify-content: space-between; font-size: 9px; color: #166534; font-weight: 800;">
+              <span>✓ Homologação Completa e ART de Engenharia Inclusas</span>
+              <span style="color: #16A34A;">Turnkey Delfos Solar</span>
             </div>
           </div>
 
-          <!-- Bloco 2: Monitoramento -->
-          <div style="background: #F0FDF4; border: 1.5px solid #BBF7D0; border-radius: 12px; padding: 10px 12px; display: flex; flex-direction: column; justify-content: space-between; box-shadow: 0 1px 3px rgba(22, 163, 74, 0.08); page-break-inside: avoid; break-inside: avoid;">
-            <div>
-              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
-                <span style="font-size: 8px; font-weight: 800; text-transform: uppercase; background: #DCFCE7; color: #166534; padding: 2px 7px; border-radius: 9999px; border: 1px solid #BBF7D0;">
-                  Telemetria em Tempo Real
-                </span>
-                <span style="font-size: 8px; font-weight: 700; color: #16A34A;">App Mobile Incluso</span>
-              </div>
-              <div style="font-size: 11px; font-weight: 900; color: #166534; line-height: 1.25; margin-bottom: 3px;">
-                Monitoramento
-              </div>
-              <p style="font-size: 8px; color: #374151; line-height: 1.35; margin: 0 0 6px 0;">
-                Acompanhe a geração de energia em tempo real na palma da mão. Gráficos diários em kWh, economia acumulada em reais, status do inversor e alertas inteligentes via aplicativo para celular (Android e iOS).
-              </p>
-              <div style="border-radius: 8px; overflow: hidden; border: 1px solid #BBF7D0; background: #FFFFFF; display: flex; align-items: center; justify-content: center; padding: 4px;">
-                <img src="${monitoramentoPngAsset}" alt="Monitoramento" style="width: 100%; height: 110px; object-fit: contain; display: block; border-radius: 6px;" />
-              </div>
+          <!-- Bloco 2: Monitoramento logo abaixo -->
+          <div style="width: 100%; background: #F0FDF4; border: 1.5px solid #BBF7D0; border-radius: 12px; padding: 12px 16px; box-shadow: 0 1px 3px rgba(22, 163, 74, 0.08); page-break-inside: avoid; break-inside: avoid;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+              <span style="font-size: 8.5px; font-weight: 800; text-transform: uppercase; background: #DCFCE7; color: #166534; padding: 2px 8px; border-radius: 9999px; border: 1px solid #BBF7D0;">
+                Telemetria em Tempo Real
+              </span>
+              <span style="font-size: 8.5px; font-weight: 700; color: #16A34A;">App Mobile Incluso</span>
             </div>
-            <div style="margin-top: 6px; padding-top: 5px; border-top: 1px solid #BBF7D0; display: flex; justify-content: space-between; font-size: 8px; color: #166534; font-weight: 800;">
-              <span>✓ Suporte e Acesso Vitalício</span>
+            <div style="font-size: 13px; font-weight: 900; color: #166534; line-height: 1.3; margin-bottom: 4px;">
+              Monitoramento
+            </div>
+            <p style="font-size: 9.5px; color: #374151; line-height: 1.48; margin: 0 0 8px 0;">
+              Acompanhe a geração de energia em tempo real na palma da mão. Gráficos diários e mensais em kWh, economia acumulada em reais, status de funcionamento do inversor e alertas inteligentes via aplicativo para smartphone (iOS e Android).
+            </p>
+            <div style="border-radius: 8px; overflow: hidden; border: 1px solid #BBF7D0; background: #FFFFFF; display: flex; align-items: center; justify-content: center; padding: 8px;">
+              <img src="${monitoramentoPngAsset}" alt="Monitoramento" style="width: 50%; min-width: 40%; height: auto; max-height: 140px; margin: 0 auto; display: block; object-fit: contain;" />
+            </div>
+            <div style="margin-top: 8px; padding-top: 6px; border-top: 1px solid #BBF7D0; display: flex; justify-content: space-between; font-size: 9px; color: #166534; font-weight: 800;">
+              <span>✓ Suporte Técnico e Acesso Vitalício</span>
               <span style="color: #16A34A;">iOS & Android</span>
             </div>
           </div>
