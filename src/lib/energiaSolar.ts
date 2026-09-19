@@ -654,6 +654,7 @@ export interface InputCalculoSolar {
   geracaoMensalCustomizada?: number[] | null
   fioBKwh?: number // Tarifa do Fio B em R$/kWh (padrão 0.2239)
   fatorSimultaneidade?: number // Fator de simultaneidade (padrão: 0.3 residencial / 0.7 comercial)
+  gdEcoLiquida?: number // Valor opcional customizado de GD Eco Líquida (R$/kWh creditado)
 }
 
 /**
