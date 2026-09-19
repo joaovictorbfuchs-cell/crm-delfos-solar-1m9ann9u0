@@ -68,7 +68,7 @@ import {
   formatarPotenciaEquipamento,
 } from '@/services/equipamentosService'
 import type { Equipamento } from '@/types/equipamentos'
-import { CheckSquare, Square, Image as ImageIcon, Upload, Trash2 } from 'lucide-react'
+import { CheckSquare, Square, Image as ImageIcon, Upload, Trash2, Eye } from 'lucide-react'
 import solergoLayoutPlaceholderSvg from '@/assets/solergo-layout-placeholder.svg'
 
 interface ModalOrcamentoSolarProps {
