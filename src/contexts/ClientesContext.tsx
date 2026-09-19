@@ -347,8 +347,11 @@ interface ClientesContextType {
   updatePropostaOM: (id: string, data: Partial<PropostaOM>) => Promise<PropostaOM>
   removePropostaOM: (id: string) => Promise<void>
   // Orçamentos Solares
-  addOrcamentoSolar: (data: Partial<OrcamentoSolar>) => Promise<OrcamentoSolar>
-  updateOrcamentoSolar: (id: string, data: Partial<OrcamentoSolar>) => Promise<OrcamentoSolar>
+  addOrcamentoSolar: (data: Partial<OrcamentoSolar> | FormData) => Promise<OrcamentoSolar>
+  updateOrcamentoSolar: (
+    id: string,
+    data: Partial<OrcamentoSolar> | FormData,
+  ) => Promise<OrcamentoSolar>
   removeOrcamentoSolar: (id: string) => Promise<void>
   // Fornecedores
   addFornecedor: (
@@ -2086,7 +2089,9 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     setPropostasOM((prev) => prev.filter((p) => p.id !== id))
   }
 
-  const addOrcamentoSolar = async (data: Partial<OrcamentoSolar>): Promise<OrcamentoSolar> => {
+  const addOrcamentoSolar = async (
+    data: Partial<OrcamentoSolar> | FormData,
+  ): Promise<OrcamentoSolar> => {
     const created = await apiCreateOrcamentoSolar(data)
     setOrcamentosSolar((prev) => [created, ...prev.filter((o) => o.id !== created.id)])
     return created
@@ -2094,7 +2099,7 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   const updateOrcamentoSolar = async (
     id: string,
-    data: Partial<OrcamentoSolar>,
+    data: Partial<OrcamentoSolar> | FormData,
   ): Promise<OrcamentoSolar> => {
     const updated = await apiUpdateOrcamentoSolar(id, data)
     setOrcamentosSolar((prev) => prev.map((o) => (o.id === id ? updated : o)))

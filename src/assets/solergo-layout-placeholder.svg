@@ -1,0 +1,151 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 450" width="100%" height="100%">
+  <defs>
+    <!-- Gradiente de Fundo do Telhado -->
+    <linearGradient id="roofGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#334155" />
+      <stop offset="100%" stop-color="#1E293B" />
+    </linearGradient>
+    <!-- Gradiente da Telha / Laje Técnica -->
+    <linearGradient id="pitchGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#475569" />
+      <stop offset="100%" stop-color="#334155" />
+    </linearGradient>
+    <!-- Gradiente dos Módulos FV -->
+    <linearGradient id="pvGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1E3A8A" />
+      <stop offset="60%" stop-color="#172554" />
+      <stop offset="100%" stop-color="#0F172A" />
+    </linearGradient>
+    <!-- Célula do Módulo -->
+    <linearGradient id="cellGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#2563EB" stop-opacity="0.3" />
+      <stop offset="100%" stop-color="#1D4ED8" stop-opacity="0.1" />
+    </linearGradient>
+    <!-- Grade técnica Solergo -->
+    <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse">
+      <path d="M 20 0 L 0 0 0 20" fill="none" stroke="#64748B" stroke-width="0.5" stroke-opacity="0.25" />
+    </pattern>
+    <!-- Sombra dos módulos -->
+    <filter id="moduleShadow" x="-10%" y="-10%" width="130%" height="130%">
+      <feDropShadow dx="3" dy="4" stdDeviation="3" flood-color="#000000" flood-opacity="0.4" />
+    </filter>
+  </defs>
+
+  <!-- Fundo / Background Técnico -->
+  <rect width="800" height="450" fill="url(#roofGrad)" />
+  <rect width="800" height="450" fill="url(#grid)" />
+
+  <!-- Cabeçalho Técnico Solergo Style -->
+  <rect x="24" y="20" width="752" height="38" rx="6" fill="#0F172A" fill-opacity="0.8" stroke="#38BDF8" stroke-width="0.8" />
+  <text x="40" y="44" fill="#38BDF8" font-family="system-ui, -apple-system, sans-serif" font-size="12" font-weight="700" letter-spacing="1">SOLERGO CAD // LAYOUT TÉCNICO PRELIMINAR DE TELHADO</text>
+  <text x="630" y="44" fill="#94A3B8" font-family="monospace" font-size="11">VISTA SUPERIOR (2D/3D)</text>
+
+  <!-- Contorno da Cobertura / Telhado Estrutural em Perspectiva Axonométrica -->
+  <polygon points="120,110 680,110 740,360 60,360" fill="url(#pitchGrad)" stroke="#64748B" stroke-width="2" />
+
+  <!-- Cumeeira / Ridge Line -->
+  <line x1="120" y1="110" x2="680" y2="110" stroke="#94A3B8" stroke-width="3" stroke-dasharray="8 4" />
+  <!-- Beirais / Eaves -->
+  <line x1="60" y1="360" x2="740" y2="360" stroke="#CBD5E1" stroke-width="2" />
+  <line x1="120" y1="110" x2="60" y2="360" stroke="#64748B" stroke-width="1.5" />
+  <line x1="680" y1="110" x2="740" y2="360" stroke="#64748B" stroke-width="1.5" />
+
+  <!-- Linhas das Telhas (Textura técnica Solergo) -->
+  <line x1="180" y1="110" x2="135" y2="360" stroke="#475569" stroke-width="1" stroke-opacity="0.4" />
+  <line x1="240" y1="110" x2="210" y2="360" stroke="#475569" stroke-width="1" stroke-opacity="0.4" />
+  <line x1="300" y1="110" x2="285" y2="360" stroke="#475569" stroke-width="1" stroke-opacity="0.4" />
+  <line x1="360" y1="110" x2="360" y2="360" stroke="#475569" stroke-width="1" stroke-opacity="0.4" />
+  <line x1="420" y1="110" x2="435" y2="360" stroke="#475569" stroke-width="1" stroke-opacity="0.4" />
+  <line x1="480" y1="110" x2="510" y2="360" stroke="#475569" stroke-width="1" stroke-opacity="0.4" />
+  <line x1="540" y1="110" x2="585" y2="360" stroke="#475569" stroke-width="1" stroke-opacity="0.4" />
+  <line x1="600" y1="110" x2="660" y2="360" stroke="#475569" stroke-width="1" stroke-opacity="0.4" />
+
+  <!-- Arranjo Fotovoltaico (String 1 - Superior: 8 módulos) -->
+  <!-- Módulo 1..8 -->
+  <g filter="url(#moduleShadow)">
+    <!-- Fileira 1 (8 módulos) -->
+    <rect x="150" y="140" width="58" height="90" rx="3" fill="url(#pvGrad)" stroke="#38BDF8" stroke-width="1" />
+    <rect x="214" y="140" width="58" height="90" rx="3" fill="url(#pvGrad)" stroke="#38BDF8" stroke-width="1" />
+    <rect x="278" y="140" width="58" height="90" rx="3" fill="url(#pvGrad)" stroke="#38BDF8" stroke-width="1" />
+    <rect x="342" y="140" width="58" height="90" rx="3" fill="url(#pvGrad)" stroke="#38BDF8" stroke-width="1" />
+    <rect x="406" y="140" width="58" height="90" rx="3" fill="url(#pvGrad)" stroke="#38BDF8" stroke-width="1" />
+    <rect x="470" y="140" width="58" height="90" rx="3" fill="url(#pvGrad)" stroke="#38BDF8" stroke-width="1" />
+    <rect x="534" y="140" width="58" height="90" rx="3" fill="url(#pvGrad)" stroke="#38BDF8" stroke-width="1" />
+    <rect x="598" y="140" width="58" height="90" rx="3" fill="url(#pvGrad)" stroke="#38BDF8" stroke-width="1" />
+
+    <!-- Fileira 2 (8 módulos) -->
+    <rect x="150" y="238" width="58" height="90" rx="3" fill="url(#pvGrad)" stroke="#38BDF8" stroke-width="1" />
+    <rect x="214" y="238" width="58" height="90" rx="3" fill="url(#pvGrad)" stroke="#38BDF8" stroke-width="1" />
+    <rect x="278" y="238" width="58" height="90" rx="3" fill="url(#pvGrad)" stroke="#38BDF8" stroke-width="1" />
+    <rect x="342" y="238" width="58" height="90" rx="3" fill="url(#pvGrad)" stroke="#38BDF8" stroke-width="1" />
+    <rect x="406" y="238" width="58" height="90" rx="3" fill="url(#pvGrad)" stroke="#38BDF8" stroke-width="1" />
+    <rect x="470" y="238" width="58" height="90" rx="3" fill="url(#pvGrad)" stroke="#38BDF8" stroke-width="1" />
+    <rect x="534" y="238" width="58" height="90" rx="3" fill="url(#pvGrad)" stroke="#38BDF8" stroke-width="1" />
+    <rect x="598" y="238" width="58" height="90" rx="3" fill="url(#pvGrad)" stroke="#38BDF8" stroke-width="1" />
+  </g>
+
+  <!-- Linhas internas das células dos módulos (detalhe foto-realístico) -->
+  <path d="
+    M 150 170 H 208 M 150 200 H 208 M 179 140 V 230
+    M 214 170 H 272 M 214 200 H 272 M 243 140 V 230
+    M 278 170 H 336 M 278 200 H 336 M 307 140 V 230
+    M 342 170 H 400 M 342 200 H 400 M 371 140 V 230
+    M 406 170 H 464 M 406 200 H 464 M 435 140 V 230
+    M 470 170 H 528 M 470 200 H 528 M 499 140 V 230
+    M 534 170 H 592 M 534 200 H 592 M 563 140 V 230
+    M 598 170 H 656 M 598 200 H 656 M 627 140 V 230
+
+    M 150 268 H 208 M 150 298 H 208 M 179 238 V 328
+    M 214 268 H 272 M 214 298 H 272 M 243 238 V 328
+    M 278 268 H 336 M 278 298 H 336 M 307 238 V 328
+    M 342 268 H 400 M 342 298 H 400 M 371 238 V 328
+    M 406 268 H 464 M 406 298 H 464 M 435 238 V 328
+    M 470 268 H 528 M 470 298 H 528 M 499 238 V 328
+    M 534 268 H 592 M 534 298 H 592 M 563 238 V 328
+    M 598 268 H 656 M 598 298 H 656 M 627 238 V 328
+  " stroke="#60A5FA" stroke-width="0.6" stroke-opacity="0.4" />
+
+  <!-- Cotas Técnicas (Dimensões do Telhado e Arranjo) -->
+  <!-- Cota Horizontal Superior -->
+  <line x1="150" y1="126" x2="656" y2="126" stroke="#F59E0B" stroke-width="1.2" />
+  <line x1="150" y1="121" x2="150" y2="131" stroke="#F59E0B" stroke-width="1.2" />
+  <line x1="656" y1="121" x2="656" y2="131" stroke="#F59E0B" stroke-width="1.2" />
+  <rect x="370" y="118" width="66" height="15" rx="3" fill="#0F172A" />
+  <text x="375" y="129" fill="#FBBF24" font-family="monospace" font-size="10" font-weight="700">9,30 m</text>
+
+  <!-- Cota Vertical Lateral -->
+  <line x1="675" y1="140" x2="675" y2="328" stroke="#F59E0B" stroke-width="1.2" />
+  <line x1="670" y1="140" x2="680" y2="140" stroke="#F59E0B" stroke-width="1.2" />
+  <line x1="670" y1="328" x2="680" y2="328" stroke="#F59E0B" stroke-width="1.2" />
+  <rect x="682" y="226" width="58" height="15" rx="3" fill="#0F172A" />
+  <text x="686" y="238" fill="#FBBF24" font-family="monospace" font-size="10" font-weight="700">4,20 m</text>
+
+  <!-- Rosa dos Ventos / Indicador Norte -->
+  <g transform="translate(68, 160)">
+    <circle cx="20" cy="20" r="18" fill="#0F172A" stroke="#475569" stroke-width="1" />
+    <polygon points="20,5 24,19 16,19" fill="#EF4444" />
+    <polygon points="20,35 24,21 16,21" fill="#94A3B8" />
+    <text x="17" y="3" fill="#EF4444" font-family="system-ui, sans-serif" font-size="9" font-weight="800">N</text>
+  </g>
+
+  <!-- Painel Inferior de Metadados Técnicos Solergo -->
+  <rect x="24" y="380" width="752" height="52" rx="8" fill="#0F172A" stroke="#334155" stroke-width="1" />
+  <g font-family="system-ui, sans-serif" font-size="11">
+    <text x="40" y="402" fill="#94A3B8">GERADOR FV:</text>
+    <text x="125" y="402" fill="#F8FAFC" font-weight="700">16 MÓDULOS FOTOVOLTAICOS</text>
+
+    <text x="320" y="402" fill="#94A3B8">ORIENTAÇÃO:</text>
+    <text x="405" y="402" fill="#38BDF8" font-weight="700">NORTE (AZIMUTE 0°)</text>
+
+    <text x="560" y="402" fill="#94A3B8">INCLINAÇÃO:</text>
+    <text x="645" y="402" fill="#F8FAFC" font-weight="700">22° (OTIMIZADA)</text>
+
+    <text x="40" y="422" fill="#94A3B8">ÁREA OCUPADA:</text>
+    <text x="140" y="422" fill="#34D399" font-weight="700">~ 39,1 m²</text>
+
+    <text x="320" y="422" fill="#94A3B8">ESTRUTURA:</text>
+    <text x="405" y="422" fill="#F8FAFC" font-weight="700">FIXAÇÃO TELHADO CERÂMICO/METÁLICO</text>
+
+    <text x="640" y="422" fill="#F59E0B" font-size="10" font-weight="600">DELFOS ENGENHARIA</text>
+  </g>
+</svg>

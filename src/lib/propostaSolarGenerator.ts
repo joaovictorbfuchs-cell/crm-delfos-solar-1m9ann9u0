@@ -70,6 +70,9 @@ export interface PropostaSolarPDFInput {
   dataEmissao?: string
   validadeDias?: number // 5 dias prescritos
   observacoes?: string
+  // Layout do Telhado
+  layoutTelhadoUrl?: string | null
+  layoutTelhadoHabilitado?: boolean
 }
 
 export function formatarTipoEstrutura(tipo: TipoEstruturaSolar): string {
@@ -265,6 +268,8 @@ function converterInputParaTemplateComercial(
       contaSemSolar10AnosComReajuste: calculos.contaSemSolar10AnosComReajuste,
       contaComSolar10AnosComReajuste: calculos.contaComSolar10AnosComReajuste,
     },
+    layoutTelhadoUrl: dados.layoutTelhadoUrl,
+    layoutTelhadoHabilitado: dados.layoutTelhadoHabilitado,
     observacoes,
   }
 }

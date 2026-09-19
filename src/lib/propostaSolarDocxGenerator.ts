@@ -1803,6 +1803,69 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
   )
 
   // ----------------------------------------------------
+  // SEÇÃO: LAYOUT DO TELHADO (SOLERGO / ENGENHARIA DELFOS)
+  // Renderizada se layoutTelhadoHabilitado !== false e houver layoutTelhadoUrl
+  // Imagem em ImageRun com PAGE_CONTENT_WIDTH = 9900 dxa (aprox 660 px de largura)
+  // ----------------------------------------------------
+  if (dados.layoutTelhadoHabilitado !== false && dados.layoutTelhadoUrl) {
+    const layoutBytes = await loadImageUint8Array(dados.layoutTelhadoUrl)
+    if (layoutBytes) {
+      docChildren.push(
+        new Paragraph({
+          spacing: { before: 180, after: 40 },
+          children: [
+            new TextRun({
+              text: 'Veja como ficará sua usina no telhado',
+              bold: true,
+              size: 20,
+              color: '1E3A8A', // Azul marinho
+              font: 'Arial',
+            }),
+          ],
+        }),
+        new Paragraph({
+          spacing: { after: 100 },
+          children: [
+            new TextRun({
+              text: 'Layout técnico do projeto',
+              size: 14,
+              color: '4B5563', // Cinza escuro #4B5563
+              font: 'Arial',
+            }),
+          ],
+        }),
+        new Table({
+          width: { size: PAGE_CONTENT_WIDTH, type: WidthType.DXA },
+          borders: tableBorderDefault,
+          rows: [
+            new TableRow({
+              children: [
+                new TableCell({
+                  width: { size: PAGE_CONTENT_WIDTH, type: WidthType.DXA },
+                  shading: { type: ShadingType.CLEAR, fill: 'FFFFFF' },
+                  margins: { top: 100, bottom: 100, left: 100, right: 100 },
+                  children: [
+                    new Paragraph({
+                      alignment: AlignmentType.CENTER,
+                      children: [
+                        new ImageRun({
+                          type: 'png',
+                          data: layoutBytes,
+                          transformation: { width: 660, height: 350 },
+                        }),
+                      ],
+                    }),
+                  ],
+                }),
+              ],
+            }),
+          ],
+        }),
+      )
+    }
+  }
+
+  // ----------------------------------------------------
   // BLOCOS: COMO FUNCIONA O SISTEMA SOLAR (ON-GRID) & MONITORAMENTO INTELIGENTE 24/7
   // Utiliza as ilustrações oficiais da proposta (onGridPngAsset e monitoramentoPngAsset)
   // Fundo #F0FDF4, borda #BBF7D0 e acentos verdes (#16A34A / #166534)

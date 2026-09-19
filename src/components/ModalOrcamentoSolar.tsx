@@ -72,7 +72,8 @@ import {
   formatarPotenciaEquipamento,
 } from '@/services/equipamentosService'
 import type { Equipamento } from '@/types/equipamentos'
-import { CheckSquare, Square } from 'lucide-react'
+import { CheckSquare, Square, Image as ImageIcon, Upload, Trash2 } from 'lucide-react'
+import solergoLayoutPlaceholderSvg from '@/assets/solergo-layout-placeholder.svg'
 
 interface ModalOrcamentoSolarProps {
   isOpen: boolean
@@ -202,6 +203,12 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
   const [usinasGaleria, setUsinasGaleria] = useState<InstalacaoGaleria[]>([])
   const [instalacoesSelecionadasIds, setInstalacoesSelecionadasIds] = useState<string[]>([])
   const [loadingGaleria, setLoadingGaleria] = useState<boolean>(false)
+
+  // Layout do Telhado (Solergo / planta técnica)
+  const [layoutTelhadoHabilitado, setLayoutTelhadoHabilitado] = useState<boolean>(true)
+  const [layoutTelhadoFile, setLayoutTelhadoFile] = useState<File | null>(null)
+  const [layoutTelhadoPreviewUrl, setLayoutTelhadoPreviewUrl] = useState<string | null>(null)
+  const layoutInputRef = useRef<HTMLInputElement>(null)
 
   // Ref para acessar a lista de clientes atual sem colocá-la como dependência do efeito de inicialização
   const clientesRef = useRef(clientes)
@@ -519,7 +526,27 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
       } else {
         setInstalacoesSelecionadasIds([])
       }
+
+      // Layout do Telhado
+      setLayoutTelhadoHabilitado(
+        initialOrcamento.layout_telhado_habilitado !== undefined
+          ? Boolean(initialOrcamento.layout_telhado_habilitado)
+          : true,
+      )
+      setLayoutTelhadoFile(null)
+      if (initialOrcamento.layout_telhado) {
+        setLayoutTelhadoPreviewUrl(
+          `/api/files/orcamentos_solar/${initialOrcamento.id}/${initialOrcamento.layout_telhado}`,
+        )
+      } else {
+        setLayoutTelhadoPreviewUrl(null)
+      }
     } else {
+      // Layout do telhado inicial (novo orçamento: habilitado com layoutTelhadoFile vazio)
+      setLayoutTelhadoHabilitado(true)
+      setLayoutTelhadoFile(null)
+      setLayoutTelhadoPreviewUrl(null)
+
       // Novo orçamento: defaults
       setPadraoFases('monofásico')
       setInstalacoesSelecionadasIds([])
@@ -905,6 +932,8 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
       dataEmissao: new Date().toISOString(),
       validadeDias: 5,
       observacoes,
+      layoutTelhadoUrl: layoutTelhadoPreviewUrl,
+      layoutTelhadoHabilitado,
     }
   }, [
     clienteAtual,
@@ -930,6 +959,8 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
     calculos,
     instalacoesSelecionadasIds,
     observacoes,
+    layoutTelhadoPreviewUrl,
+    layoutTelhadoHabilitado,
   ])
 
   if (!isOpen) return null
@@ -1077,21 +1108,39 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
         instalacoes_selecionadas:
           instalacoesSelecionadasIds.length > 0 ? instalacoesSelecionadasIds : null,
 
+        layout_telhado_habilitado: layoutTelhadoHabilitado,
         data_orcamento: new Date().toISOString(),
         validade_dias: 5,
         autor: user?.name || 'Delfos Solar',
         observacoes,
       }
 
+      // Se houver arquivo selecionado ou flags a persistir com binário, empacotar via FormData
+      let dataToSend: Partial<OrcamentoSolar> | FormData = payload
+      if (layoutTelhadoFile) {
+        const formData = new FormData()
+        Object.entries(payload).forEach(([k, v]) => {
+          if (v !== undefined && v !== null) {
+            if (Array.isArray(v) || typeof v === 'object') {
+              formData.append(k, JSON.stringify(v))
+            } else {
+              formData.append(k, String(v))
+            }
+          }
+        })
+        formData.append('layout_telhado', layoutTelhadoFile)
+        dataToSend = formData
+      }
+
       let orcamentoSalvoId = ''
       if (initialOrcamento?.id) {
         // Ao gerar/salvar alterações de um orçamento existente, cria a nova Revisão N para manter o histórico
-        const novaRevisao = await addOrcamentoSolar(payload)
+        const novaRevisao = await addOrcamentoSolar(dataToSend)
         orcamentoSalvoId = novaRevisao.id
         const { toast } = await import('sonner')
         toast.success(`Nova versão salva com sucesso: Revisão ${numeroRevisao}`)
       } else {
-        const created = await addOrcamentoSolar(payload)
+        const created = await addOrcamentoSolar(dataToSend)
         orcamentoSalvoId = created.id
       }
 
@@ -3701,6 +3750,146 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                         <strong>todas as {usinasGaleria.length} usinas</strong> do portfólio (regra
                         de segurança comercial).
                       </span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Card: Layout do Telhado (Solergo / Imagem Técnica) */}
+                <div className="bg-white border border-gray-200 shadow-xs rounded-2xl p-4 space-y-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-3 border-b border-gray-100">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-700 flex items-center justify-center border border-blue-200 shrink-0">
+                        <ImageIcon className="w-4 h-4 text-blue-700" />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h4 className="text-xs font-bold text-gray-900 uppercase tracking-wide">
+                            Layout do Telhado
+                          </h4>
+                          <span className="text-[10px] font-semibold text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.2 rounded-full">
+                            Solergo / Vista Técnica
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-gray-500">
+                          Anexe a planta ou imagem de posicionamento dos módulos extraída do Solergo
+                          para a proposta.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 self-start sm:self-auto">
+                      <label className="relative inline-flex items-center cursor-pointer select-none">
+                        <input
+                          type="checkbox"
+                          className="sr-only peer"
+                          checked={layoutTelhadoHabilitado}
+                          onChange={(e) => setLayoutTelhadoHabilitado(e.target.checked)}
+                        />
+                        <div className="w-11 h-6 bg-gray-200 peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+                        <span className="ml-2 text-xs font-bold text-gray-700">
+                          {layoutTelhadoHabilitado ? 'Incluir na proposta' : 'Omitido na proposta'}
+                        </span>
+                      </label>
+                    </div>
+                  </div>
+
+                  {layoutTelhadoHabilitado ? (
+                    <div className="space-y-3">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <input
+                          ref={layoutInputRef}
+                          type="file"
+                          accept="image/png,image/jpeg"
+                          className="hidden"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0]
+                            if (file) {
+                              setLayoutTelhadoFile(file)
+                              const objectUrl = URL.createObjectURL(file)
+                              setLayoutTelhadoPreviewUrl(objectUrl)
+                            }
+                          }}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => layoutInputRef.current?.click()}
+                          className="text-xs font-bold px-3.5 py-2 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 flex items-center gap-1.5 transition-colors shadow-2xs"
+                        >
+                          <Upload className="w-3.5 h-3.5" />
+                          <span>
+                            {layoutTelhadoPreviewUrl
+                              ? 'Trocar Imagem do Solergo'
+                              : 'Anexar Layout do Solergo (PNG/JPG)'}
+                          </span>
+                        </button>
+                        {layoutTelhadoPreviewUrl && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setLayoutTelhadoFile(null)
+                              setLayoutTelhadoPreviewUrl(null)
+                              if (layoutInputRef.current) layoutInputRef.current.value = ''
+                            }}
+                            className="text-xs font-semibold px-3 py-2 rounded-lg bg-red-50 text-red-700 hover:bg-red-100 border border-red-200 flex items-center gap-1.5 transition-colors"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                            <span>Remover Imagem</span>
+                          </button>
+                        )}
+                        <span className="text-[11px] text-gray-500">
+                          Formatos aceitos: PNG ou JPG (até 10 MB)
+                        </span>
+                      </div>
+
+                      {/* Preview grande da imagem anexada ou placeholder ilustrativo Solergo */}
+                      <div className="w-full rounded-xl overflow-hidden border border-gray-200 bg-gray-900/5 p-2 flex flex-col items-center">
+                        {layoutTelhadoPreviewUrl ? (
+                          <div className="w-full space-y-1">
+                            <div className="flex items-center justify-between px-1">
+                              <span className="text-[11px] font-bold text-gray-700">
+                                Pré-visualização da Imagem Anexada:
+                              </span>
+                              <span className="text-[10px] font-medium text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                                Pronto para a proposta
+                              </span>
+                            </div>
+                            <div className="w-full max-h-[360px] flex items-center justify-center bg-gray-950/40 rounded-lg overflow-hidden border border-gray-200">
+                              <img
+                                src={layoutTelhadoPreviewUrl}
+                                alt="Layout do Telhado anexado"
+                                className="w-full h-auto max-h-[350px] object-contain rounded-lg"
+                              />
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="w-full space-y-1.5">
+                            <div className="flex items-center justify-between px-1">
+                              <span className="text-[11px] font-medium text-gray-500">
+                                Exemplo Ilustrativo de Layout Técnico Solergo (Placeholder):
+                              </span>
+                              <span className="text-[10px] text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded">
+                                Nenhuma imagem anexada ainda
+                              </span>
+                            </div>
+                            <div className="w-full max-h-[260px] flex items-center justify-center bg-slate-900 rounded-lg overflow-hidden border border-slate-700 p-1">
+                              <img
+                                src={solergoLayoutPlaceholderSvg}
+                                alt="Exemplo Ilustrativo Solergo"
+                                className="w-full h-auto max-h-[250px] object-contain rounded opacity-85"
+                              />
+                            </div>
+                            <p className="text-[10px] text-gray-500 italic text-center">
+                              * Anexe a imagem do Solergo acima para que ela apareça na proposta
+                              final do cliente.
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-[11px] text-gray-500 italic bg-gray-50 p-2.5 rounded-lg border border-gray-200">
+                      A seção de layout do telhado está desativada e não será exibida na proposta em
+                      PDF ou Word.
                     </div>
                   )}
                 </div>

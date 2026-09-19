@@ -128,6 +128,9 @@ export interface PropostaTecnicoComercialDados {
     contaSemSolar10AnosComReajuste?: number
     contaComSolar10AnosComReajuste?: number
   }
+  // Layout do Telhado
+  layoutTelhadoUrl?: string | null
+  layoutTelhadoHabilitado?: boolean
   observacoes?: string
 }
 
@@ -2732,6 +2735,35 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
             ✓ iOS & Android Inclusos
           </div>
         </div>
+
+        ${(() => {
+          if (dados.layoutTelhadoHabilitado === false || !dados.layoutTelhadoUrl) {
+            return ''
+          }
+          return `
+            <!-- ========================================================
+                 SEÇÃO: LAYOUT DO TELHADO (SOLERGO / ENGENHARIA DELFOS)
+                 ======================================================== -->
+            <div style="background: #FFFFFF; border: 1.5px solid #E5E7EB; border-radius: 14px; padding: 14px 16px; margin-top: 14px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); page-break-inside: avoid; break-inside: avoid;">
+              <div style="margin-bottom: 10px;">
+                <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 2px;">
+                  <span style="font-size: 8px; font-weight: 800; text-transform: uppercase; background: #DBEAFE; color: #1E3A8A; padding: 2px 7px; border-radius: 9999px; border: 1px solid #BFDBFE;">
+                    Engenharia & Posicionamento
+                  </span>
+                  <h3 style="margin: 0; font-size: 13px; font-weight: 900; color: #1E3A8A; letter-spacing: -0.01em;">
+                    Veja como ficará sua usina no telhado
+                  </h3>
+                </div>
+                <div style="font-size: 9px; color: #4B5563; font-weight: 500;">
+                  Layout técnico do projeto
+                </div>
+              </div>
+              <div style="width: 100%; border-radius: 10px; overflow: hidden; border: 1px solid #E5E7EB; background: #F9FAFB; display: flex; align-items: center; justify-content: center; padding: 6px;">
+                <img src="${dados.layoutTelhadoUrl}" alt="Layout técnico do telhado" style="width: 100%; max-height: 290px; object-fit: contain; border-radius: 10px; display: block;" />
+              </div>
+            </div>
+          `
+        })()}
 
         <!-- BLOCOS EXPLICATIVOS COM ILUSTRAÇÕES OFICIAIS DA PROPOSTA -->
         <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-top: 14px;">

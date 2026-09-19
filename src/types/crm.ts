@@ -1043,6 +1043,8 @@ export interface OrcamentoSolarCalculado {
   garantia_inversor_anos?: number
   garantia_instalacao_anos?: number
   instalacoes_selecionadas?: string[] | null
+  layout_telhado?: string
+  layout_telhado_habilitado?: boolean
   data_orcamento?: string
   autor?: string
   created?: string
@@ -1144,6 +1146,9 @@ export interface OrcamentoSolar extends RecordModel {
   garantia_inversor_anos?: number
   garantia_instalacao_anos?: number
   instalacoes_selecionadas?: string[] | null
+  // Layout do Telhado (Solergo / imagem técnica)
+  layout_telhado?: string
+  layout_telhado_habilitado?: boolean
   // Metadados
   data_orcamento: string
   validade_dias?: number

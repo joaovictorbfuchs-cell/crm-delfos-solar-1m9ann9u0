@@ -1082,18 +1082,21 @@ export async function fetchOrcamentosSolar(): Promise<import('@/types/crm').Orca
 }
 
 export async function createOrcamentoSolar(
-  data: Partial<import('@/types/crm').OrcamentoSolar>,
+  data: Partial<import('@/types/crm').OrcamentoSolar> | FormData,
 ): Promise<import('@/types/crm').OrcamentoSolar> {
-  const payload = {
-    ...data,
-    status: data.status || 'Em elaboração',
-    data_orcamento: data.data_orcamento || new Date().toISOString(),
-    validade_dias: data.validade_dias || 5,
-    autor: data.autor || 'Delfos Solar',
+  let body: any = data
+  if (!(data instanceof FormData)) {
+    body = {
+      ...data,
+      status: data.status || 'Em elaboração',
+      data_orcamento: data.data_orcamento || new Date().toISOString(),
+      validade_dias: data.validade_dias || 5,
+      autor: data.autor || 'Delfos Solar',
+    }
   }
   const record = await pb
     .collection('orcamentos_solar')
-    .create<import('@/types/crm').OrcamentoSolar>(payload, {
+    .create<import('@/types/crm').OrcamentoSolar>(body, {
       expand: 'cliente_id',
     })
   return record
@@ -1101,7 +1104,7 @@ export async function createOrcamentoSolar(
 
 export async function updateOrcamentoSolar(
   id: string,
-  data: Partial<import('@/types/crm').OrcamentoSolar>,
+  data: Partial<import('@/types/crm').OrcamentoSolar> | FormData,
 ): Promise<import('@/types/crm').OrcamentoSolar> {
   const record = await pb
     .collection('orcamentos_solar')
