@@ -708,6 +708,8 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
       flex-direction: column;
       justify-content: space-between;
       border-radius: 6px;
+      page-break-before: auto;
+      break-before: auto;
     }
     .proposta-secao-page:first-child {
       page-break-before: avoid;
@@ -719,11 +721,12 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
       min-height: 297mm;
     }
     #secao-apresentacao-empresa,
+    #secao-2-custo-inercia,
     #secao-3-seu-sistema,
     #secao-4-projecao-25anos,
     #secao-5-investimento-pagamento {
-      page-break-before: always;
-      break-before: page;
+      page-break-before: auto;
+      break-before: auto;
     }
 
     /* ESTILOS DA SEÇÃO QUEM SOMOS & PORTFÓLIO DE USINAS */
@@ -2284,11 +2287,12 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
         break-after: page !important;
       }
       #secao-apresentacao-empresa,
+      #secao-2-custo-inercia,
       #secao-3-seu-sistema,
       #secao-4-projecao-25anos,
       #secao-5-investimento-pagamento {
-        page-break-before: always !important;
-        break-before: page !important;
+        page-break-before: auto !important;
+        break-before: auto !important;
       }
       .proposta-secao-page:last-child {
         page-break-after: avoid !important;
