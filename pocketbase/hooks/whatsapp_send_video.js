@@ -1,5 +1,5 @@
-// Hook para envio de documentos PDF (orçamentos solar e propostas O&M) via Z-API / Gateway WhatsApp
-routerAdd('POST', '/backend/v1/whatsapp/enviar-documento', (e) => {
+// Hook para envio de vídeos via Z-API /send-video e gateway WhatsApp
+routerAdd('POST', '/backend/v1/whatsapp/enviar-video', (e) => {
   try {
     const authUser = e.auth
     if (!authUser) {
@@ -10,13 +10,11 @@ routerAdd('POST', '/backend/v1/whatsapp/enviar-documento', (e) => {
     const clienteId = (body.cliente_id || '').trim()
     const conversaId = (body.conversa_id || '').trim()
     const telefoneDestino = (body.telefone_destino || '').trim()
-    const tipo = (body.tipo || 'documento').trim() // orcamento_solar | proposta_om | documento
-    const referenciaId = (body.referencia_id || '').trim()
-    const legenda = (body.legenda || body.mensagem || '').trim()
-    const nomeArquivo = (body.nome_arquivo || body.fileName || 'documento.pdf').trim()
-    const base64Data = (body.base64 || body.document || '').trim()
-    const documentoUrl = (body.documento_url || body.documentUrl || '').trim()
+    const videoData = (body.video || body.base64 || body.video_url || '').trim()
+    const legenda = (body.legenda || body.caption || body.mensagem || '').trim()
+    const nomeArquivo = (body.nome_arquivo || body.fileName || 'video.mp4').trim()
     const recordId = (body.record_id || body.msg_id || '').trim()
+    const referenciaId = (body.referencia_id || '').trim()
 
     if (!clienteId && !conversaId) {
       return e.json(400, { error: 'cliente_id ou conversa_id é obrigatório', ok: false })
@@ -25,7 +23,7 @@ routerAdd('POST', '/backend/v1/whatsapp/enviar-documento', (e) => {
       return e.json(400, { error: 'Telefone de destino é obrigatório', ok: false })
     }
 
-    // Buscar dados do cliente para registro
+    // Buscar dados do cliente (se clienteId fornecido ou a partir da conversa)
     let finalClienteId = clienteId
     let clienteNome = 'Cliente'
     if (!finalClienteId && conversaId) {
@@ -45,15 +43,9 @@ routerAdd('POST', '/backend/v1/whatsapp/enviar-documento', (e) => {
 
     if (finalClienteId) {
       try {
-        const clienteRec = $app.findRecordsByFilter(
-          'clientes',
-          `id = '${finalClienteId}'`,
-          '',
-          1,
-          0,
-        )[0]
-        if (clienteRec) {
-          clienteNome = clienteRec.getString('nome') || clienteNome
+        const cliRec = $app.findRecordsByFilter('clientes', `id = '${finalClienteId}'`, '', 1, 0)[0]
+        if (cliRec) {
+          clienteNome = cliRec.getString('nome') || clienteNome
         }
       } catch (_) {}
     }
@@ -78,52 +70,48 @@ routerAdd('POST', '/backend/v1/whatsapp/enviar-documento', (e) => {
     if (finalClienteId) msgRecord.set('cliente_id', finalClienteId)
     if (conversaId) msgRecord.set('conversa_id', conversaId)
     msgRecord.set('telefone_destino', telefoneDestino)
-    msgRecord.set('conteudo_final', legenda || `Envio de documento: ${nomeArquivo}`)
+    msgRecord.set('conteudo_final', legenda || '[Vídeo]')
     msgRecord.set('tipo_disparo', 'manual')
-    msgRecord.set('tipo_mensagem', 'documento')
+    msgRecord.set('tipo_mensagem', 'video')
     msgRecord.set('direcao', 'enviada')
     msgRecord.set('nome_arquivo', nomeArquivo)
-    if (documentoUrl) msgRecord.set('documento_url', documentoUrl)
     if (referenciaId) msgRecord.set('referencia_id', referenciaId)
+
+    if (videoData && (videoData.startsWith('http') || videoData.startsWith('data:video'))) {
+      msgRecord.set('documento_url', videoData)
+    }
 
     // Ler secrets do Gateway
     let rawApiUrl = ($os.getenv('WHATSAPP_API_URL') || '').trim().replace(/[\r\n\t]/g, '')
     let apiKey = ($os.getenv('WHATSAPP_API_KEY') || '').trim().replace(/[\r\n\t]/g, '')
     let originNumber = ($os.getenv('WHATSAPP_ORIGIN_NUMBER') || '').trim().replace(/[\r\n\t]/g, '')
 
-    // Título amigável da timeline
-    let timelineTitulo = 'Documento enviado por WhatsApp'
-    if (tipo === 'orcamento_solar') {
-      timelineTitulo = 'Orçamento Solar enviado por WhatsApp'
-    } else if (tipo === 'proposta_om') {
-      timelineTitulo = 'Proposta O&M enviada por WhatsApp'
-    }
+    const autorNome =
+      (authUser && (authUser.getString('name') || authUser.getString('email'))) || 'Atendente'
 
     if (!rawApiUrl) {
-      // Secrets ainda não configurados
       const logErro =
         'Gateway não configurado: adicione WHATSAPP_API_URL e WHATSAPP_API_KEY aos Secrets do backend.'
       msgRecord.set('status', 'falha')
       msgRecord.set('log_erro', logErro)
       $app.save(msgRecord)
 
-      // Registrar atividade na timeline com status de falha graciosa
-      try {
-        const atvCol = $app.findCollectionByNameOrId('atividades')
-        const atvRec = new Record(atvCol)
-        atvRec.set('cliente_id', clienteId)
-        atvRec.set('tipo', 'proposta')
-        atvRec.set('titulo', timelineTitulo)
-        atvRec.set(
-          'descricao',
-          `Arquivo: ${nomeArquivo}\nDestino: ${telefoneDestino}\nStatus: falha (gateway não configurado)\nLegenda: "${legenda}"`,
-        )
-        atvRec.set('data', new Date().toISOString())
-        atvRec.set('status', 'concluida')
-        atvRec.set('autor', (authUser && authUser.getString('name')) || 'Consultor Comercial')
-        $app.save(atvRec)
-      } catch (errAtv) {
-        console.log('[ATV ERRO]', errAtv)
+      if (finalClienteId) {
+        try {
+          const atvCol = $app.findCollectionByNameOrId('atividades')
+          const atvRec = new Record(atvCol)
+          atvRec.set('cliente_id', finalClienteId)
+          atvRec.set('tipo', 'follow_up')
+          atvRec.set('titulo', 'Vídeo por WhatsApp (Falha de Envio)')
+          atvRec.set(
+            'descricao',
+            `Arquivo: ${nomeArquivo}\nDestino: ${telefoneDestino}\nStatus: falha (gateway não configurado)\nLegenda: "${legenda}"`,
+          )
+          atvRec.set('data', new Date().toISOString())
+          atvRec.set('status', 'pendente')
+          atvRec.set('autor', autorNome)
+          $app.save(atvRec)
+        } catch (_) {}
       }
 
       return e.json(200, {
@@ -132,12 +120,11 @@ routerAdd('POST', '/backend/v1/whatsapp/enviar-documento', (e) => {
         sent: false,
         status: 'falha',
         message:
-          'Documento gravado no histórico como "falha", pois os Secrets WHATSAPP_API_URL e WHATSAPP_API_KEY não foram configurados.',
+          'Vídeo registrado no histórico como "falha", pois os Secrets WHATSAPP_API_URL e WHATSAPP_API_KEY não foram preenchidos.',
         data: msgRecord,
       })
     }
 
-    // Normalizar base URL
     let cleanUrl = rawApiUrl.replace(/\/+$/, '')
     if (!cleanUrl.startsWith('http://') && !cleanUrl.startsWith('https://')) {
       cleanUrl = 'https://' + cleanUrl
@@ -149,32 +136,14 @@ routerAdd('POST', '/backend/v1/whatsapp/enviar-documento', (e) => {
     let payloadGateway = {}
     const headers = { 'Content-Type': 'application/json' }
 
-    // Preparar base64 com prefixo correto se fornecido
-    let documentBase64 = base64Data
-    if (
-      documentBase64 &&
-      !documentBase64.startsWith('data:') &&
-      !documentBase64.startsWith('http')
-    ) {
-      documentBase64 = 'data:application/pdf;base64,' + documentBase64
-    }
-
-    // Detectar extensão real do arquivo para a Z-API (send-document/{extension})
-    let fileExtension = 'pdf'
-    if (nomeArquivo.includes('.')) {
-      const parts = nomeArquivo.split('.')
-      fileExtension = parts[parts.length - 1].toLowerCase().replace(/[^a-z0-9]/g, '') || 'pdf'
-    }
-
-    // Se temos URL ou documento prévio no PocketBase e nenhum base64 foi enviado, usar a URL
-    let payloadDocumentValue = documentBase64 || documentoUrl
-    if (!payloadDocumentValue && msgRecord.getString('arquivo')) {
+    let payloadVideoValue = videoData
+    if (!payloadVideoValue && msgRecord.getString('arquivo')) {
       const pbUrl = ($os.getenv('PB_INSTANCE_URL') || $os.getenv('SITE_URL') || '').replace(
         /\/+$/,
         '',
       )
       if (pbUrl) {
-        payloadDocumentValue =
+        payloadVideoValue =
           pbUrl +
           '/api/files/whatsapp_mensagens/' +
           msgRecord.id +
@@ -184,7 +153,6 @@ routerAdd('POST', '/backend/v1/whatsapp/enviar-documento', (e) => {
     }
 
     if (isZApi) {
-      // Remover sufixo /send-text ou /send-document do final da URL configurada
       let baseWithoutSuffix = cleanUrl
         .replace(/\/+send-text\/?$/i, '')
         .replace(/\/+send-document(\/[^/?#]+)?\/?$/i, '')
@@ -201,81 +169,47 @@ routerAdd('POST', '/backend/v1/whatsapp/enviar-documento', (e) => {
         const hostPrefix = zapiMatch[1]
         const instanceId = zapiMatch[2]
         const token = zapiMatch[3]
-        targetUrl =
-          hostPrefix +
-          '/instances/' +
-          instanceId +
-          '/token/' +
-          token +
-          '/send-document/' +
-          fileExtension
+        targetUrl = hostPrefix + '/instances/' + instanceId + '/token/' + token + '/send-video'
       } else {
-        targetUrl = baseWithoutSuffix + '/send-document/' + fileExtension
+        targetUrl = baseWithoutSuffix + '/send-video'
       }
 
       if (apiKey) {
         headers['Client-Token'] = apiKey
       }
 
-      if (payloadDocumentValue) {
-        payloadGateway = {
-          phone: cleanPhone,
-          document: payloadDocumentValue,
-          fileName: nomeArquivo,
-        }
-        if (legenda) {
-          payloadGateway.caption = legenda
-        }
-      } else {
-        // Fallback: se não tiver base64, usar endpoint de texto
-        if (zapiMatch) {
-          targetUrl =
-            zapiMatch[1] + '/instances/' + zapiMatch[2] + '/token/' + zapiMatch[3] + '/send-text'
-        } else {
-          targetUrl = baseWithoutSuffix + '/send-text'
-        }
-        payloadGateway = {
-          phone: cleanPhone,
-          message: legenda || `Olá ${clienteNome}, segue proposta da Delfos Solar.`,
-        }
+      payloadGateway = {
+        phone: cleanPhone,
+        video: payloadVideoValue,
+      }
+      if (legenda) {
+        payloadGateway.caption = legenda
       }
     } else {
-      // Gateway Genérico / Evolution API
-      targetUrl = cleanUrl.replace(/\/+$/, '') + '/send-document'
+      targetUrl = cleanUrl.replace(/\/+$/, '') + '/send-video'
       if (apiKey) {
         headers['apikey'] = apiKey
         headers['Authorization'] = 'Bearer ' + apiKey
       }
 
-      if (documentBase64) {
-        payloadGateway = {
-          number: cleanPhone,
-          phone: cleanPhone,
-          document: documentBase64,
-          fileName: nomeArquivo,
-          caption: legenda,
-          sender: originNumber,
-        }
-      } else {
-        targetUrl = cleanUrl.replace(/\/+$/, '') + '/send-text'
-        payloadGateway = {
-          number: cleanPhone,
-          phone: cleanPhone,
-          message: legenda,
-          text: legenda,
-          sender: originNumber,
-        }
+      payloadGateway = {
+        number: cleanPhone,
+        phone: cleanPhone,
+        video: payloadVideoValue,
+        media: payloadVideoValue,
+        caption: legenda,
+        sender: originNumber,
       }
     }
 
     let maskedTarget = targetUrl.replace(/\/token\/[^/?#]+/i, '/token/••••••••')
     console.log(
-      '[WHATSAPP DOC SEND]',
+      '[WHATSAPP VIDEO SEND INICIADO]',
       JSON.stringify({
         targetUrlMasked: maskedTarget,
         cleanPhone: cleanPhone,
-        hasDocument: Boolean(documentBase64),
         fileName: nomeArquivo,
+        hasVideo: Boolean(payloadVideoValue),
       }),
     )
 
@@ -285,11 +219,11 @@ routerAdd('POST', '/backend/v1/whatsapp/enviar-documento', (e) => {
         method: 'POST',
         headers: headers,
         body: JSON.stringify(payloadGateway),
-        timeout: 30,
+        timeout: 45,
       })
 
       console.log(
-        '[WHATSAPP DOC RESPOSTA]',
+        '[WHATSAPP VIDEO SEND RESPOSTA]',
         JSON.stringify({
           statusCode: res.statusCode,
           hasRaw: Boolean(res.raw),
@@ -313,26 +247,7 @@ routerAdd('POST', '/backend/v1/whatsapp/enviar-documento', (e) => {
         msgRecord.set('log_erro', '')
         $app.save(msgRecord)
 
-        // Registrar atividade na timeline do cliente
-        try {
-          const atvCol = $app.findCollectionByNameOrId('atividades')
-          const atvRec = new Record(atvCol)
-          atvRec.set('cliente_id', clienteId)
-          atvRec.set('tipo', 'proposta')
-          atvRec.set('titulo', timelineTitulo)
-          atvRec.set(
-            'descricao',
-            `Arquivo: ${nomeArquivo}\nDestino: ${telefoneDestino}\nStatus: enviada\nLegenda: "${legenda || 'Sem legenda'}"`,
-          )
-          atvRec.set('data', new Date().toISOString())
-          atvRec.set('status', 'concluida')
-          atvRec.set('autor', (authUser && authUser.getString('name')) || 'Consultor Comercial')
-          $app.save(atvRec)
-        } catch (errAtv) {
-          console.log('[ATV ERRO]', errAtv)
-        }
-
-        // Atualizar status e preview na conversa do chat se houver conversaId
+        // Atualizar status e preview na conversa do chat
         if (conversaId) {
           try {
             const convCol = $app.findCollectionByNameOrId('whatsapp_conversas')
@@ -345,7 +260,7 @@ routerAdd('POST', '/backend/v1/whatsapp/enviar-documento', (e) => {
             )[0]
             if (convRec) {
               convRec.set('status', 'aguardando_cliente')
-              convRec.set('ultima_mensagem_preview', `📄 ${nomeArquivo || 'Documento'}`)
+              convRec.set('ultima_mensagem_preview', legenda ? `🎥 ${legenda}` : '🎥 Vídeo')
               convRec.set('ultima_mensagem_em', new Date().toISOString())
               convRec.set('nao_lidas', 0)
               if (authUser && !convRec.getString('atendente')) {
@@ -355,28 +270,29 @@ routerAdd('POST', '/backend/v1/whatsapp/enviar-documento', (e) => {
               $app.save(convRec)
             }
           } catch (errConv) {
-            console.log('[CONV UPDATE DOC AVISO]', errConv)
+            console.log('[CONV UPDATE VIDEO AVISO]', errConv)
           }
         }
 
-        // Se for proposta O&M, registrar também na timeline_om se existir contrato associado
-        if (tipo === 'proposta_om' && finalClienteId) {
+        // Registrar atividade na timeline se houver cliente
+        if (finalClienteId) {
           try {
-            const timeCol = $app.findCollectionByNameOrId('timeline_om')
-            const timeRec = new Record(timeCol)
-            timeRec.set('cliente_id', finalClienteId)
-            timeRec.set('tipo', 'relatorio')
-            timeRec.set('titulo', 'Proposta O&M enviada por WhatsApp')
-            timeRec.set(
+            const atvCol = $app.findCollectionByNameOrId('atividades')
+            const atvRec = new Record(atvCol)
+            atvRec.set('cliente_id', finalClienteId)
+            atvRec.set('tipo', 'follow_up')
+            atvRec.set('titulo', 'Vídeo enviado por WhatsApp')
+            atvRec.set(
               'descricao',
-              `Documento: ${nomeArquivo} enviado para ${telefoneDestino}. Legenda: "${legenda || '-'}"`,
+              `Vídeo: ${nomeArquivo}\nDestino: ${telefoneDestino}\nStatus: enviada\nLegenda: "${legenda || 'Sem legenda'}"`,
             )
-            timeRec.set('data', new Date().toISOString())
-            timeRec.set('autor', (authUser && authUser.getString('name')) || 'Consultor Comercial')
-            timeRec.set('status_tag', 'Enviado')
-            if (referenciaId) timeRec.set('referencia_id', referenciaId)
-            $app.save(timeRec)
-          } catch (_) {}
+            atvRec.set('data', new Date().toISOString())
+            atvRec.set('status', 'concluida')
+            atvRec.set('autor', autorNome)
+            $app.save(atvRec)
+          } catch (errAtv) {
+            console.log('[ATV ERRO VIDEO SUCESSO]', errAtv)
+          }
         }
 
         return e.json(200, {
@@ -384,7 +300,7 @@ routerAdd('POST', '/backend/v1/whatsapp/enviar-documento', (e) => {
           gatewayConfigured: true,
           sent: true,
           status: 'enviada',
-          message: 'Documento enviado com sucesso via WhatsApp!',
+          message: 'Vídeo enviado com sucesso via WhatsApp!',
           data: msgRecord,
         })
       } else {
@@ -399,28 +315,11 @@ routerAdd('POST', '/backend/v1/whatsapp/enviar-documento', (e) => {
         }
 
         const logMsg = `Gateway HTTP ${res.statusCode}: ${errorText}${contextualHint}`
-        console.log('[WHATSAPP DOC FALHA HTTP]', logMsg)
+        console.log('[WHATSAPP VIDEO FALHA HTTP]', logMsg)
 
         msgRecord.set('status', 'falha')
         msgRecord.set('log_erro', logMsg)
         $app.save(msgRecord)
-
-        // Registrar atividade na timeline indicando a tentativa com falha
-        try {
-          const atvCol = $app.findCollectionByNameOrId('atividades')
-          const atvRec = new Record(atvCol)
-          atvRec.set('cliente_id', clienteId)
-          atvRec.set('tipo', 'proposta')
-          atvRec.set('titulo', timelineTitulo + ' (Falha de Envio)')
-          atvRec.set(
-            'descricao',
-            `Arquivo: ${nomeArquivo}\nDestino: ${telefoneDestino}\nMotivo: ${logMsg}`,
-          )
-          atvRec.set('data', new Date().toISOString())
-          atvRec.set('status', 'pendente')
-          atvRec.set('autor', (authUser && authUser.getString('name')) || 'Consultor Comercial')
-          $app.save(atvRec)
-        } catch (_) {}
 
         return e.json(200, {
           ok: true,
@@ -433,7 +332,7 @@ routerAdd('POST', '/backend/v1/whatsapp/enviar-documento', (e) => {
       }
     } catch (httpErr) {
       const errMsg = httpErr && httpErr.message ? httpErr.message : String(httpErr)
-      console.log('[WHATSAPP DOC EXCECAO HTTP]', errMsg)
+      console.log('[WHATSAPP VIDEO EXCECAO HTTP]', errMsg)
 
       msgRecord.set('status', 'falha')
       msgRecord.set('log_erro', 'Erro de conexão com gateway: ' + errMsg)
@@ -449,9 +348,9 @@ routerAdd('POST', '/backend/v1/whatsapp/enviar-documento', (e) => {
       })
     }
   } catch (err) {
-    let msg = 'Erro interno ao enviar documento'
+    let msg = 'Erro interno ao enviar vídeo'
     if (err && err.message) msg = err.message
-    console.log('[WHATSAPP DOC ERRO INTERNO]', msg)
+    console.log('[WHATSAPP VIDEO ERRO INTERNO]', msg)
     return e.json(500, { error: msg, ok: false })
   }
 })

@@ -26,7 +26,12 @@ import {
   ZoomIn,
   Download,
   AlertTriangle,
+  FileText,
 } from 'lucide-react'
+import {
+  ModalEnviarMidiaWhatsApp,
+  type TipoMidiaEnvio,
+} from '@/components/ModalEnviarMidiaWhatsApp'
 import type { WhatsAppConversa, WhatsAppMensagem, Cliente, WhatsAppTemplate } from '@/types/crm'
 import { useClientes } from '@/contexts/ClientesContext'
 import { useAuth } from '@/contexts/AuthContext'
@@ -180,6 +185,9 @@ export const ConversaChatView: React.FC<ConversaChatViewProps> = ({
   const [showEmojiPicker, setShowEmojiPicker] = useState(false)
   const [showOptionsMenu, setShowOptionsMenu] = useState(false)
   const [showTemplatesDropdown, setShowTemplatesDropdown] = useState(false)
+  const [showAnexosMenu, setShowAnexosMenu] = useState(false)
+  const [modalMidiaOpen, setModalMidiaOpen] = useState(false)
+  const [tipoMidiaModal, setTipoMidiaModal] = useState<TipoMidiaEnvio>('imagem')
   const [callNotice, setCallNotice] = useState(false)
   const [previewMediaModal, setPreviewMediaModal] = useState<{
     tipo: 'imagem' | 'video'
@@ -197,6 +205,7 @@ export const ConversaChatView: React.FC<ConversaChatViewProps> = ({
   const optionsMenuRef = useRef<HTMLDivElement | null>(null)
   const emojiPickerRef = useRef<HTMLDivElement | null>(null)
   const templatesRef = useRef<HTMLDivElement | null>(null)
+  const anexosRef = useRef<HTMLDivElement | null>(null)
 
   // Fechar menus ao clicar fora
   useEffect(() => {
@@ -209,6 +218,9 @@ export const ConversaChatView: React.FC<ConversaChatViewProps> = ({
       }
       if (templatesRef.current && !templatesRef.current.contains(event.target as Node)) {
         setShowTemplatesDropdown(false)
+      }
+      if (anexosRef.current && !anexosRef.current.contains(event.target as Node)) {
+        setShowAnexosMenu(false)
       }
     }
     document.addEventListener('mousedown', handleClickOutside)
@@ -922,30 +934,30 @@ export const ConversaChatView: React.FC<ConversaChatViewProps> = ({
                       {/* Tag de documento caso enviado via anexo */}
                       {isDocumentoMsg && (
                         <div
-                          className={`inline-flex items-center gap-1.5 px-2 py-1 rounded text-[11px] font-semibold mb-1 mr-2 ${
+                          className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold mb-1 mr-2 border ${
                             isRecebida
-                              ? 'bg-[#f0f2f5] text-[#111b21]'
-                              : 'bg-[#c3f2bc] text-[#111b21]'
+                              ? 'bg-[#f0f2f5] border-black/5 text-[#111b21]'
+                              : 'bg-[#c3f2bc] border-emerald-300 text-[#111b21]'
                           }`}
                         >
-                          <FileDown className="w-3.5 h-3.5 text-[#54656f] shrink-0" />
-                          <span className="max-w-[180px] truncate">
+                          <FileDown className="w-4 h-4 text-emerald-800 shrink-0" />
+                          <span className="max-w-[200px] truncate">
                             {msg.nome_arquivo || 'Documento'}
                           </span>
-                          {msg.documento_url && (
+                          {(msg.documento_url || msg.arquivo) && (
                             <a
-                              href={msg.documento_url}
+                              href={getWhatsAppMediaUrl(msg, msg.id)}
                               target="_blank"
                               rel="noreferrer"
-                              className="text-[#027eb5] underline text-[10px] ml-0.5 shrink-0"
-                              title="Abrir anexo"
+                              download={msg.nome_arquivo || 'documento'}
+                              className="text-[#027eb5] hover:text-[#015d86] underline text-[10px] ml-1 shrink-0 font-bold"
+                              title="Baixar ou abrir anexo"
                             >
                               Abrir
                             </a>
                           )}
                         </div>
                       )}
-
                       {/* Renderização de Imagem */}
                       {isImagemMsg && (
                         <div className="mb-1.5 overflow-hidden rounded-lg">
@@ -1262,22 +1274,106 @@ export const ConversaChatView: React.FC<ConversaChatViewProps> = ({
           <Smile className="w-5 h-5" />
         </button>
 
-        {/* Ícone de Anexo à esquerda */}
-        <button
-          type="button"
-          onClick={() => {
-            // Se houver templates, dá atalho também
-            setShowTemplatesDropdown((prev) => !prev)
-          }}
-          className={`p-2 rounded-full transition-colors ${
-            showTemplatesDropdown
-              ? 'bg-black/10 text-[#00a884]'
-              : 'text-[#54656f] hover:text-[#111b21] hover:bg-black/5'
-          }`}
-          title="Anexar arquivo ou usar template rápido"
-        >
-          <Paperclip className="w-5 h-5" />
-        </button>
+        {/* Ícone de Anexo à esquerda com menu flutuante (Imagem, Vídeo, Documento, Templates) */}
+        <div className="relative" ref={anexosRef}>
+          <button
+            type="button"
+            onClick={() => setShowAnexosMenu((prev) => !prev)}
+            className={`p-2 rounded-full transition-colors ${
+              showAnexosMenu
+                ? 'bg-black/10 text-[#00a884]'
+                : 'text-[#54656f] hover:text-[#111b21] hover:bg-black/5'
+            }`}
+            title="Anexar mídia (Imagem, Vídeo, Documento) ou Templates"
+          >
+            <Paperclip className="w-5 h-5" />
+          </button>
+
+          {showAnexosMenu && (
+            <div className="absolute left-0 bottom-full mb-2 w-52 bg-white rounded-2xl shadow-xl border border-gray-100 py-2 z-50 text-xs animate-in fade-in slide-in-from-bottom-2">
+              <div className="px-3 py-1 text-[11px] font-bold text-gray-400 uppercase tracking-wider">
+                Anexar Mídia
+              </div>
+
+              {/* Opção 1: Enviar Imagem */}
+              <button
+                type="button"
+                onClick={() => {
+                  setShowAnexosMenu(false)
+                  setTipoMidiaModal('imagem')
+                  setModalMidiaOpen(true)
+                }}
+                className="w-full text-left px-3.5 py-2 hover:bg-emerald-50 flex items-center gap-2.5 text-gray-800 hover:text-emerald-800 font-medium transition-colors"
+              >
+                <div className="w-7 h-7 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
+                  <ImageIcon className="w-4 h-4" />
+                </div>
+                <div>
+                  <div className="font-semibold leading-tight">Fotos e Imagens</div>
+                  <div className="text-[10px] text-gray-500 font-normal">PNG, JPG, WEBP</div>
+                </div>
+              </button>
+
+              {/* Opção 2: Enviar Vídeo */}
+              <button
+                type="button"
+                onClick={() => {
+                  setShowAnexosMenu(false)
+                  setTipoMidiaModal('video')
+                  setModalMidiaOpen(true)
+                }}
+                className="w-full text-left px-3.5 py-2 hover:bg-emerald-50 flex items-center gap-2.5 text-gray-800 hover:text-emerald-800 font-medium transition-colors"
+              >
+                <div className="w-7 h-7 rounded-full bg-teal-100 text-teal-700 flex items-center justify-center shrink-0">
+                  <Video className="w-4 h-4" />
+                </div>
+                <div>
+                  <div className="font-semibold leading-tight">Vídeo</div>
+                  <div className="text-[10px] text-gray-500 font-normal">MP4, 3GP, MOV</div>
+                </div>
+              </button>
+
+              {/* Opção 3: Enviar Documento */}
+              <button
+                type="button"
+                onClick={() => {
+                  setShowAnexosMenu(false)
+                  setTipoMidiaModal('documento')
+                  setModalMidiaOpen(true)
+                }}
+                className="w-full text-left px-3.5 py-2 hover:bg-emerald-50 flex items-center gap-2.5 text-gray-800 hover:text-emerald-800 font-medium transition-colors"
+              >
+                <div className="w-7 h-7 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center shrink-0">
+                  <FileText className="w-4 h-4" />
+                </div>
+                <div>
+                  <div className="font-semibold leading-tight">Documento</div>
+                  <div className="text-[10px] text-gray-500 font-normal">PDF, DOCX, XLSX, TXT</div>
+                </div>
+              </button>
+
+              <div className="my-1 border-t border-gray-100" />
+
+              {/* Atalho para Templates */}
+              <button
+                type="button"
+                onClick={() => {
+                  setShowAnexosMenu(false)
+                  setShowTemplatesDropdown(true)
+                }}
+                className="w-full text-left px-3.5 py-2 hover:bg-amber-50 flex items-center gap-2.5 text-gray-700 hover:text-amber-800 transition-colors"
+              >
+                <div className="w-7 h-7 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center shrink-0">
+                  <Sparkles className="w-4 h-4" />
+                </div>
+                <div>
+                  <div className="font-semibold leading-tight">Templates Rápidos</div>
+                  <div className="text-[10px] text-gray-500 font-normal">Respostas prontas</div>
+                </div>
+              </button>
+            </div>
+          )}
+        </div>
 
         {/* Campo de Texto centralizado */}
         <div className="flex-1 min-w-0 bg-white rounded-lg border border-transparent focus-within:border-transparent shadow-2xs px-3 py-2 flex items-center">
@@ -1319,6 +1415,17 @@ export const ConversaChatView: React.FC<ConversaChatViewProps> = ({
           />
         )}
       </form>
+
+      {/* Modal de Envio de Mídia WhatsApp (Imagem, Vídeo, Documento) */}
+      <ModalEnviarMidiaWhatsApp
+        isOpen={modalMidiaOpen}
+        onClose={() => setModalMidiaOpen(false)}
+        tipoInicial={tipoMidiaModal}
+        telefoneDestino={conversa.numero}
+        clienteId={cliente?.id}
+        conversaId={conversa.id}
+        clienteNome={cliente?.nome}
+      />
 
       {/* Modal de visualização expandida de imagem / vídeo */}
       {previewMediaModal && (

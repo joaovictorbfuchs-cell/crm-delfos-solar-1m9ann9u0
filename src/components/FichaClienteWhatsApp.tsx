@@ -826,8 +826,10 @@ export const FichaClienteWhatsApp: React.FC<FichaClienteWhatsAppProps> = ({
                               </div>
                             )}
                             <div className="text-[10px] text-emerald-700 font-semibold uppercase tracking-wider flex items-center gap-1.5 mt-0.5">
-                              <span className="px-1.5 py-0.2 rounded bg-rose-100 text-rose-700 font-bold">
-                                PDF
+                              <span className="px-1.5 py-0.2 rounded bg-emerald-100 text-emerald-800 font-bold">
+                                {msg.nome_arquivo && msg.nome_arquivo.includes('.')
+                                  ? msg.nome_arquivo.split('.').pop()?.toUpperCase()
+                                  : 'DOC'}
                               </span>
                               <span>•</span>
                               <span>Documento enviado via WhatsApp</span>

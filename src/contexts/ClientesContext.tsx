@@ -91,6 +91,8 @@ import {
   sendWhatsAppMensagem as apiSendWhatsAppMensagem,
   sendWhatsAppDocumento as apiSendWhatsAppDocumento,
   sendWhatsAppAudio as apiSendWhatsAppAudio,
+  sendWhatsAppImage as apiSendWhatsAppImage,
+  sendWhatsAppVideo as apiSendWhatsAppVideo,
   fetchWhatsAppConfigStatus,
   fetchWhatsAppConversas,
   vincularConversaCliente as apiVincularConversaCliente,
@@ -437,7 +439,8 @@ interface ClientesContextType {
     data?: WhatsAppMensagem
   }>
   sendWhatsAppDocument: (data: {
-    cliente_id: string
+    cliente_id?: string
+    conversa_id?: string
     telefone_destino: string
     tipo: 'orcamento_solar' | 'proposta_om' | 'documento'
     referencia_id?: string
@@ -445,6 +448,7 @@ interface ClientesContextType {
     nome_arquivo?: string
     base64?: string
     documento_url?: string
+    record_id?: string
   }) => Promise<{
     ok: boolean
     sent?: boolean
@@ -459,6 +463,45 @@ interface ClientesContextType {
     telefone_destino: string
     audio: string
     duracao_segundos?: number
+    referencia_id?: string
+  }) => Promise<{
+    ok: boolean
+    sent?: boolean
+    gatewayConfigured?: boolean
+    status?: string
+    message: string
+    data?: WhatsAppMensagem
+  }>
+  sendWhatsAppImageMessage: (data: {
+    cliente_id?: string
+    conversa_id?: string
+    telefone_destino: string
+    imagem?: string
+    image?: string
+    base64?: string
+    imagem_url?: string
+    legenda?: string
+    nome_arquivo?: string
+    record_id?: string
+    referencia_id?: string
+  }) => Promise<{
+    ok: boolean
+    sent?: boolean
+    gatewayConfigured?: boolean
+    status?: string
+    message: string
+    data?: WhatsAppMensagem
+  }>
+  sendWhatsAppVideoMessage: (data: {
+    cliente_id?: string
+    conversa_id?: string
+    telefone_destino: string
+    video?: string
+    base64?: string
+    video_url?: string
+    legenda?: string
+    nome_arquivo?: string
+    record_id?: string
     referencia_id?: string
   }) => Promise<{
     ok: boolean
@@ -2296,7 +2339,8 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   }
 
   const sendWhatsAppDocument = async (data: {
-    cliente_id: string
+    cliente_id?: string
+    conversa_id?: string
     telefone_destino: string
     tipo: 'orcamento_solar' | 'proposta_om' | 'documento'
     referencia_id?: string
@@ -2304,11 +2348,20 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     nome_arquivo?: string
     base64?: string
     documento_url?: string
+    record_id?: string
   }) => {
     const res = await apiSendWhatsAppDocumento(data)
-    // Atualiza mensagens e atividades da timeline
-    const refreshed = await fetchWhatsAppMensagens()
-    setWhatsAppMensagens(refreshed)
+    // Atualiza mensagens, conversas e atividades da timeline
+    const [msgsRes, convsRes] = await Promise.allSettled([
+      fetchWhatsAppMensagens(),
+      fetchWhatsAppConversas(),
+    ])
+    if (msgsRes.status === 'fulfilled') {
+      setWhatsAppMensagens(msgsRes.value)
+    }
+    if (convsRes.status === 'fulfilled') {
+      setWhatsAppConversas(convsRes.value)
+    }
     try {
       const atvs = await fetchAtividades()
       setAtividades(atvs)
@@ -2328,6 +2381,71 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   }) => {
     const res = await apiSendWhatsAppAudio(data)
     // Atualiza mensagens, conversas e atividades do histórico
+    const [msgsRes, convsRes] = await Promise.allSettled([
+      fetchWhatsAppMensagens(),
+      fetchWhatsAppConversas(),
+    ])
+    if (msgsRes.status === 'fulfilled') {
+      setWhatsAppMensagens(msgsRes.value)
+    }
+    if (convsRes.status === 'fulfilled') {
+      setWhatsAppConversas(convsRes.value)
+    }
+    try {
+      const atvs = await fetchAtividades()
+      setAtividades(atvs)
+    } catch {
+      /* intentionally ignored */
+    }
+    return res
+  }
+
+  const sendWhatsAppImageMessage = async (data: {
+    cliente_id?: string
+    conversa_id?: string
+    telefone_destino: string
+    imagem?: string
+    image?: string
+    base64?: string
+    imagem_url?: string
+    legenda?: string
+    nome_arquivo?: string
+    record_id?: string
+    referencia_id?: string
+  }) => {
+    const res = await apiSendWhatsAppImage(data)
+    const [msgsRes, convsRes] = await Promise.allSettled([
+      fetchWhatsAppMensagens(),
+      fetchWhatsAppConversas(),
+    ])
+    if (msgsRes.status === 'fulfilled') {
+      setWhatsAppMensagens(msgsRes.value)
+    }
+    if (convsRes.status === 'fulfilled') {
+      setWhatsAppConversas(convsRes.value)
+    }
+    try {
+      const atvs = await fetchAtividades()
+      setAtividades(atvs)
+    } catch {
+      /* intentionally ignored */
+    }
+    return res
+  }
+
+  const sendWhatsAppVideoMessage = async (data: {
+    cliente_id?: string
+    conversa_id?: string
+    telefone_destino: string
+    video?: string
+    base64?: string
+    video_url?: string
+    legenda?: string
+    nome_arquivo?: string
+    record_id?: string
+    referencia_id?: string
+  }) => {
+    const res = await apiSendWhatsAppVideo(data)
     const [msgsRes, convsRes] = await Promise.allSettled([
       fetchWhatsAppMensagens(),
       fetchWhatsAppConversas(),
@@ -2544,6 +2662,8 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         sendWhatsAppMessage,
         sendWhatsAppDocument,
         sendWhatsAppAudioMessage,
+        sendWhatsAppImageMessage,
+        sendWhatsAppVideoMessage,
         refreshWhatsAppConfig,
         refreshData: loadAllData,
       }}
@@ -2682,6 +2802,8 @@ export function useClientes(): ClientesContextType {
       sendWhatsAppMessage: async () => ({}) as any,
       sendWhatsAppDocument: async () => ({}) as any,
       sendWhatsAppAudioMessage: async () => ({}) as any,
+      sendWhatsAppImageMessage: async () => ({}) as any,
+      sendWhatsAppVideoMessage: async () => ({}) as any,
       refreshWhatsAppConfig: async () => {},
       refreshData: async () => {},
     }

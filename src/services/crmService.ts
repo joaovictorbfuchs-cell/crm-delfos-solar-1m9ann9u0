@@ -1360,7 +1360,8 @@ export async function sendOSWhatsAppManual(osId: string): Promise<{
 }
 
 export async function sendWhatsAppDocumento(data: {
-  cliente_id: string
+  cliente_id?: string
+  conversa_id?: string
   telefone_destino: string
   tipo: 'orcamento_solar' | 'proposta_om' | 'documento'
   referencia_id?: string
@@ -1368,6 +1369,7 @@ export async function sendWhatsAppDocumento(data: {
   nome_arquivo?: string
   base64?: string
   documento_url?: string
+  record_id?: string
 }): Promise<{
   ok: boolean
   sent?: boolean
@@ -1398,6 +1400,61 @@ export async function sendWhatsAppAudio(data: {
   data?: import('@/types/crm').WhatsAppMensagem
 }> {
   return pb.send('/backend/v1/whatsapp/enviar-audio', {
+    method: 'POST',
+    body: data,
+  })
+}
+
+export async function sendWhatsAppImage(data: {
+  cliente_id?: string
+  conversa_id?: string
+  telefone_destino: string
+  imagem?: string
+  image?: string
+  base64?: string
+  imagem_url?: string
+  legenda?: string
+  caption?: string
+  nome_arquivo?: string
+  fileName?: string
+  record_id?: string
+  referencia_id?: string
+}): Promise<{
+  ok: boolean
+  sent?: boolean
+  gatewayConfigured?: boolean
+  status?: string
+  message: string
+  data?: import('@/types/crm').WhatsAppMensagem
+}> {
+  return pb.send('/backend/v1/whatsapp/enviar-imagem', {
+    method: 'POST',
+    body: data,
+  })
+}
+
+export async function sendWhatsAppVideo(data: {
+  cliente_id?: string
+  conversa_id?: string
+  telefone_destino: string
+  video?: string
+  base64?: string
+  video_url?: string
+  legenda?: string
+  caption?: string
+  nome_arquivo?: string
+  fileName?: string
+  record_id?: string
+  referencia_id?: string
+}): Promise<{
+  ok: boolean
+  sent?: boolean
+  gatewayConfigured?: boolean
+  status?: string
+  message: string
+  data?: import('@/types/crm').WhatsAppMensagem
+}> {
+  return pb.send('/backend/v1/whatsapp/enviar-video', {
     method: 'POST',
     body: data,
   })
