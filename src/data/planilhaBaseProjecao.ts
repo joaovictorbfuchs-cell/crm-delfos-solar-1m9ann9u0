@@ -310,7 +310,7 @@ export const PARAMETROS_TARIFARIOS_OFICIAIS: Record<
       tarifa: 1.1979,
       fio_b: 0.2239,
       fs: 0.7,
-      gd_eco_liquida: 1.1576,
+      gd_eco_liquida: 1.1577,
     },
     2027: {
       ano: 2027,

@@ -1135,6 +1135,9 @@ export interface OrcamentoSolar extends RecordModel {
   fio_b?: number
   fator_simultaneidade?: number
   gd_eco_liquida?: number
+  disponibilidade_minima_kwh?: number
+  iluminacao_publica?: number
+  cip?: number
   // Cálculos solares
   geracao_anual_kwh?: number
   geracao_mensal_kwh?: number
