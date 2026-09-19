@@ -215,6 +215,8 @@ export interface MonitoramentoMarca extends RecordModel {
 }
 
 export type UsinaTipoEstrutura = 'solo' | 'telhado'
+export type UsinaStatus = 'ativo' | 'inativo'
+export type UsinaTipo = 'residencial' | 'comercial' | 'industrial' | 'rural' | 'investidor'
 
 export interface UsinaCliente extends RecordModel {
   id: string
@@ -228,6 +230,14 @@ export interface UsinaCliente extends RecordModel {
   inversores_info?: string
   tipo_estrutura?: UsinaTipoEstrutura
   contrato_id?: string
+  geracao_estimada_kwh?: number
+  data_instalacao?: string
+  numero_medidor?: string
+  numero_uc?: string
+  concessionaria?: string
+  status?: UsinaStatus | string
+  tipo_usina?: UsinaTipo | string
+  observacoes?: string
   created: string
   updated: string
   expand?: {
@@ -635,6 +645,7 @@ export interface Atividade extends RecordModel {
   collectionId: string
   collectionName: string
   cliente_id: string
+  usina_id?: string
   tipo: AtividadeTipo
   titulo?: string
   descricao?: string
@@ -647,6 +658,7 @@ export interface Atividade extends RecordModel {
   updated: string
   expand?: {
     cliente_id?: Cliente
+    usina_id?: UsinaCliente
     responsavel_id?: SistemaUsuario
   }
 }

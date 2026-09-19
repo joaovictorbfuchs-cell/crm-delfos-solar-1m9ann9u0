@@ -58,7 +58,7 @@ export async function fetchManutencoes(): Promise<Manutencao[]> {
 export async function fetchAtividades(): Promise<Atividade[]> {
   const records = await pb.collection('atividades').getFullList<Atividade>({
     sort: '-data',
-    expand: 'cliente_id,responsavel_id',
+    expand: 'cliente_id,responsavel_id,usina_id',
     requestKey: null,
   })
   return records
@@ -79,6 +79,7 @@ export async function fetchUsuarios(): Promise<SistemaUsuario[]> {
 
 export async function createAtividade(data: {
   cliente_id: string
+  usina_id?: string
   tipo: AtividadeTipo
   titulo?: string
   descricao?: string
@@ -96,14 +97,14 @@ export async function createAtividade(data: {
     autor: data.autor || 'João Delfos',
   }
   const record = await pb.collection('atividades').create<Atividade>(payload, {
-    expand: 'cliente_id,responsavel_id',
+    expand: 'cliente_id,responsavel_id,usina_id',
   })
   return record
 }
 
 export async function updateAtividade(id: string, data: Partial<Atividade>): Promise<Atividade> {
   const record = await pb.collection('atividades').update<Atividade>(id, data, {
-    expand: 'cliente_id,responsavel_id',
+    expand: 'cliente_id,responsavel_id,usina_id',
   })
   return record
 }

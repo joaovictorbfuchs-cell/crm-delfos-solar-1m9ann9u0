@@ -228,6 +228,7 @@ interface ClientesContextType {
   removeManutencao: (id: string) => Promise<void>
   addAtividade: (data: {
     cliente_id: string
+    usina_id?: string
     tipo: import('@/types/crm').AtividadeTipo
     titulo?: string
     descricao?: string
@@ -1128,6 +1129,7 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   const addAtividade = async (data: {
     cliente_id: string
+    usina_id?: string
     tipo: import('@/types/crm').AtividadeTipo
     titulo?: string
     descricao?: string

@@ -839,11 +839,22 @@ export const LinhaDoTempoUnificada: React.FC<LinhaDoTempoUnificadaProps> = ({
                     </div>
                   </div>
 
-                  {/* Título e Subtítulo */}
+                  {/* Título, Subtítulo e Etiqueta da Usina */}
                   <div>
-                    <h4 className="font-bold text-gray-900 text-sm group-hover:text-emerald-800 transition-colors">
-                      {item.titulo}
-                    </h4>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h4 className="font-bold text-gray-900 text-sm group-hover:text-emerald-800 transition-colors">
+                        {item.titulo}
+                      </h4>
+                      {item.rawAtividade?.expand?.usina_id?.nome && (
+                        <span
+                          className="inline-flex items-center gap-1 font-bold text-[#0F2038] bg-amber-100 border border-amber-300 px-2 py-0.5 rounded-full text-[10px] shadow-2xs"
+                          title={`Vinculada à usina: ${item.rawAtividade.expand.usina_id.nome}`}
+                        >
+                          <Sun className="w-3 h-3 text-[#E0A838] shrink-0" />
+                          <span>{item.rawAtividade.expand.usina_id.nome}</span>
+                        </span>
+                      )}
+                    </div>
                     {item.subtitulo && (
                       <p className="text-[11px] text-gray-500 font-medium">{item.subtitulo}</p>
                     )}

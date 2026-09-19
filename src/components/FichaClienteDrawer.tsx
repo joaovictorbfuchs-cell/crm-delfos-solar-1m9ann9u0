@@ -3357,6 +3357,7 @@ export const FichaClienteDrawer: React.FC = () => {
                   {/* ======================================================== */}
                   <QuickAddAtividade
                     clienteId={selectedCliente.id}
+                    usinas={usinasDoCliente}
                     onOpenGerenciar={() => setModalGerenciarAtividadesOpen(true)}
                     onSelectTipoEspecial={(tipoId) => {
                       if (tipoId === 'anexo_g') {

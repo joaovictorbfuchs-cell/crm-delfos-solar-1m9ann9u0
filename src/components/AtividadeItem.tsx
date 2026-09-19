@@ -1,5 +1,5 @@
 import React from 'react'
-import { Calendar, User, Trash2, CheckCircle2, Circle } from 'lucide-react'
+import { Calendar, User, Trash2, CheckCircle2, Circle, Sun } from 'lucide-react'
 import type { Atividade, AtividadeTipo } from '@/types/crm'
 import { formatDateTime } from '@/lib/formatters'
 
@@ -91,11 +91,21 @@ export const AtividadeItem: React.FC<AtividadeItemProps> = ({
               {config.label}
             </span>
             {showClienteName && atividade.expand?.cliente_id && (
-              <span className="text-xs font-semibold text-gray-900 bg-gray-100 px-2 py-0.5 rounded">
+              <span className="font-semibold text-gray-700 bg-gray-100 px-1.5 py-0.5 rounded truncate max-w-[150px]">
                 {atividade.expand.cliente_id.nome}
               </span>
             )}
 
+            {/* Etiqueta de vínculo com a Usina */}
+            {atividade.expand?.usina_id?.nome && (
+              <span
+                className="inline-flex items-center gap-1 font-bold text-[#0F2038] bg-amber-100/90 border border-amber-300 px-1.5 py-0.5 rounded text-[10px] truncate max-w-[160px]"
+                title={`Vinculada à usina: ${atividade.expand.usina_id.nome}`}
+              >
+                <Sun className="w-3 h-3 text-[#E0A838] shrink-0" />
+                <span className="truncate">{atividade.expand.usina_id.nome}</span>
+              </span>
+            )}
             <div className="flex items-center text-[11px] text-gray-500 gap-1">
               <Calendar className="w-3 h-3 text-gray-400" />
               <span>{formatDateTime(atividade.data || atividade.created)}</span>
