@@ -516,7 +516,7 @@ describe('Proposta Técnico-Comercial Generator (5 Seções Oficiais)', () => {
     expect(html).toContain('com solar')
   })
 
-  it('exibe a linha "Inclui IOF de R$ ..." nos blocos de Financiamento A e B quando valorIof for informado', () => {
+  it('exibe a linha "Inc. IOF R$ ..." nos blocos de Financiamento A e B quando valorIof for informado', () => {
     const dadosComIof: PropostaTecnicoComercialDados = {
       ...dadosExemplo,
       parcelamento: {
@@ -533,7 +533,7 @@ describe('Proposta Técnico-Comercial Generator (5 Seções Oficiais)', () => {
     }
 
     const html = gerarHTMLPropostaTecnicoComercial(dadosComIof)
-    expect(html).toContain('Inclui IOF de')
+    expect(html).toContain('Inc. IOF')
     expect(html).toContain('1.759,98')
     expect(html).toContain('2.450,50')
   })
@@ -739,7 +739,7 @@ describe('Proposta Técnico-Comercial Generator (5 Seções Oficiais)', () => {
       // Identidade estrita entre preview e PDF
       expect(htmlPreview).toBe(htmlPDF)
       expect(htmlPreview).toContain('Veja como ficará sua usina no telhado')
-      expect(htmlPreview).toContain('Inclui IOF de')
+      expect(htmlPreview).toContain('Inc. IOF')
       expect(htmlPreview).toContain('375,78')
     })
 
