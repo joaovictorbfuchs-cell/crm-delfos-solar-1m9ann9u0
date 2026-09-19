@@ -345,38 +345,24 @@ export const SecaoInvestimentoPagamento: React.FC<SecaoInvestimentoPagamentoProp
       aria-label="Investimento e Condições de Pagamento"
     >
       {/* ========================================================================= */}
-      {/* 1. CABEÇALHO & DESTAQUE DO INVESTIMENTO                                   */}
+      {/* 1. CABEÇALHO DO VALOR TOTAL (PREMIUM, CLEAN)                              */}
       {/* ========================================================================= */}
-      <div className="p-6 sm:p-8 border-b border-gray-100 bg-gradient-to-r from-emerald-50/50 via-teal-50/20 to-white">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="space-y-1">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-200 shadow-2xs">
-              <Sparkles className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
-              <span className="uppercase tracking-wider text-[11px]">Proposta Financeira</span>
-            </div>
-            <h2 className="text-2xl sm:text-3xl font-black text-gray-900 tracking-tight">
-              Seu investimento
-            </h2>
-            {nomeCliente && (
-              <p className="text-xs text-gray-500 font-medium">
-                Condições exclusivas para: <strong className="text-gray-700">{nomeCliente}</strong>
-              </p>
-            )}
-          </div>
-
-          {/* Destaque do Valor Total com Informações de Payback abaixo */}
-          <div className="bg-white rounded-2xl p-4 sm:p-5 border border-emerald-200/80 shadow-xs flex flex-col items-start sm:items-end min-w-[260px]">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-gray-500">
-              Valor Total do Sistema
-            </span>
-            <span className="text-3xl sm:text-4xl font-black text-emerald-700 tracking-tight">
-              {formatCurrency(totalFinal)}
-            </span>
-            <span className="text-xs font-semibold text-gray-600 mt-0.5">
-              Investimento único — o sistema é seu
-            </span>
-          </div>
+      <div className="p-6 sm:p-8 bg-white border-t border-b border-[#1a3a5c] text-left">
+        <div className="text-[12pt] font-semibold text-[#374151] leading-tight">
+          Investimento Total
         </div>
+        <div className="text-[24pt] sm:text-[28pt] font-extrabold text-[#1a3a5c] leading-tight tracking-tight mt-1 mb-1">
+          {formatCurrency(totalFinal)}
+        </div>
+        <div className="inline-flex items-center gap-1.5 text-[10pt] font-semibold text-[#166534]">
+          <span className="text-xs leading-none">▲</span>
+          <span>Economia mensal estimada: {formatCurrency(economiaMensalAVista)}</span>
+        </div>
+        {nomeCliente && (
+          <p className="text-xs text-gray-500 font-medium mt-2">
+            Condições exclusivas para: <strong className="text-gray-700">{nomeCliente}</strong>
+          </p>
+        )}
       </div>
 
       <div className="p-6 sm:p-8 space-y-6 sm:space-y-8 bg-[#FAFCFA]">
@@ -450,17 +436,12 @@ export const SecaoInvestimentoPagamento: React.FC<SecaoInvestimentoPagamentoProp
                   <span className="font-extrabold text-xs uppercase tracking-wider text-gray-900 truncate">
                     Cartão de Crédito
                   </span>
-                  <span className="text-[10px] font-bold bg-gray-100 text-gray-700 px-2 py-0.5 rounded-full shrink-0">
-                    {cartaoSemJuros
-                      ? `${parcelasCartaoFinal}x (s/ juros)`
-                      : `${parcelasCartaoFinal}x`}
+                  <span className="text-[10pt] font-bold bg-gray-100 text-gray-700 px-2 py-0.5 rounded-full shrink-0">
+                    {parcelasCartaoFinal}x
                   </span>
                 </div>
 
                 <div className="text-2xl sm:text-3xl font-black text-gray-900 tracking-tight mt-2">
-                  <span className="text-sm sm:text-base font-bold text-gray-600">
-                    {parcelasCartaoFinal}x de{' '}
-                  </span>
                   {formatCurrency(valorParcelaCartaoFinal)}
                 </div>
                 <div className="text-[11px] text-gray-500 mt-1">
@@ -507,19 +488,19 @@ export const SecaoInvestimentoPagamento: React.FC<SecaoInvestimentoPagamentoProp
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between gap-1">
-                  <span className="font-extrabold text-xs uppercase tracking-wider text-gray-900 truncate">
+                <div className="flex items-start justify-between gap-1">
+                  <span
+                    className="font-extrabold text-[10pt] uppercase tracking-wider text-gray-900 break-words leading-tight"
+                    title={nomeFinanciamentoA || 'Financiamento A'}
+                  >
                     {nomeFinanciamentoA || 'Financiamento A'}
                   </span>
-                  <span className="text-[10px] font-bold bg-amber-100 text-amber-900 px-2 py-0.5 rounded-full shrink-0">
+                  <span className="text-[10pt] font-bold bg-amber-100 text-amber-900 px-2 py-0.5 rounded-full shrink-0">
                     {parcelasFinanAFinal}x
                   </span>
                 </div>
 
                 <div className="text-2xl sm:text-3xl font-black text-gray-900 tracking-tight mt-2">
-                  <span className="text-sm sm:text-base font-bold text-gray-600">
-                    {parcelasFinanAFinal}x de{' '}
-                  </span>
                   {formatCurrency(valorParcelaFinanAFinal)}
                 </div>
                 {iofFinanciamentoA !== undefined &&
@@ -571,19 +552,19 @@ export const SecaoInvestimentoPagamento: React.FC<SecaoInvestimentoPagamentoProp
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between gap-1">
-                  <span className="font-extrabold text-xs uppercase tracking-wider text-blue-950 truncate">
+                <div className="flex items-start justify-between gap-1">
+                  <span
+                    className="font-extrabold text-[10pt] uppercase tracking-wider text-blue-950 break-words leading-tight"
+                    title={nomeFinanciamentoB || 'Financiamento B'}
+                  >
                     {nomeFinanciamentoB || 'Financiamento B'}
                   </span>
-                  <span className="text-[10px] font-bold bg-blue-200 text-blue-900 px-2 py-0.5 rounded-full shrink-0">
+                  <span className="text-[10pt] font-bold bg-blue-200 text-blue-900 px-2 py-0.5 rounded-full shrink-0">
                     {parcelasFinanBFinal}x
                   </span>
                 </div>
 
                 <div className="text-2xl sm:text-3xl font-black text-blue-800 tracking-tight mt-2">
-                  <span className="text-sm sm:text-base font-bold text-blue-900/80">
-                    {parcelasFinanBFinal}x de{' '}
-                  </span>
                   {formatCurrency(valorParcelaFinanBFinal)}
                 </div>
                 {iofFinanciamentoB !== undefined &&

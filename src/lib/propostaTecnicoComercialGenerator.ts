@@ -2026,37 +2026,37 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
     /* ==========================================================
        SEÇÃO 5 — INVESTIMENTO & CONDIÇÕES DE PAGAMENTO (ESPELHADO DO SecaoInvestimentoPagamento.tsx)
        ========================================================== */
-    .hero-investimento-banner {
-      background: linear-gradient(135deg, #065F46 0%, #047857 40%, #0D9488 100%);
-      color: #FFFFFF;
-      border-radius: 14px;
-      padding: 10px 16px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 8px;
-      box-shadow: 0 4px 12px rgba(6, 95, 70, 0.2);
+    .hero-investimento-clean {
+      background: #FFFFFF;
+      border-top: 1px solid #1a3a5c;
+      border-bottom: 1px solid #1a3a5c;
+      padding: 12px 0;
+      margin-bottom: 12px;
+      text-align: left;
       page-break-inside: avoid;
       break-inside: avoid;
     }
     .hero-invest-label {
-      font-size: 10px;
-      font-weight: 800;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-      color: #A7F3D0;
+      font-size: 12pt;
+      font-weight: 700;
+      color: #374151;
+      line-height: 1.2;
     }
     .hero-invest-valor {
-      font-size: 32px;
-      font-weight: 900;
-      color: #FDE047;
-      line-height: 1;
-      margin-top: 3px;
-      letter-spacing: -0.02em;
+      font-size: 24pt;
+      font-weight: 800;
+      color: #1a3a5c;
+      line-height: 1.15;
+      margin: 4px 0 2px 0;
+      letter-spacing: -0.01em;
     }
-    .hero-invest-sub {
-      font-size: 9.5px;
-      color: #D1FAE5;
+    .hero-invest-economia {
+      font-size: 10pt;
+      font-weight: 600;
+      color: #166534;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
       margin-top: 2px;
     }
 
@@ -3262,17 +3262,13 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
       <div class="secao-body">
         ${renderInternalHeader('Investimento e Condições de Pagamento', 5, 'investimento')}
 
-        <!-- HERO DO INVESTIMENTO TOTAL -->
-        <div class="hero-investimento-banner">
-          <div>
-            <div class="hero-invest-label">Investimento Total do Sistema Turnkey</div>
-            <div class="hero-invest-valor">${formatBRL(investimentoTotal)}</div>
-          </div>
-          <div style="text-align: right;">
-            <div style="font-size: 11px; font-weight: 800; color: #FFFFFF; text-transform: uppercase; letter-spacing: 0.04em;">
-              Investimento único — o sistema é seu
-            </div>
-            <div class="hero-invest-sub">Projeto Turnkey completo, equipamentos Tier-1 e homologação com ART inclusa</div>
+        <!-- CABEÇALHO DO VALOR TOTAL (PREMIUM & CLEAN) -->
+        <div class="hero-investimento-clean">
+          <div class="hero-invest-label">Investimento Total</div>
+          <div class="hero-invest-valor">${formatBRL(investimentoTotal)}</div>
+          <div class="hero-invest-economia">
+            <span style="font-size: 9pt; line-height: 1;">▲</span>
+            <span>Economia mensal estimada: ${formatBRL(economiaMensal)}</span>
           </div>
         </div>
 
@@ -3323,7 +3319,7 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
                 <span style="font-size: 10pt; font-weight: 800; background: #F3F4F6; color: #374151; padding: 1px 4px; border-radius: 9999px; white-space: nowrap; shrink-0;">${cartaoParcelas}x</span>
               </div>
               <div class="card-pagamento-valor" style="color: #111827; margin-top: 3px; font-size: 10.5pt;">
-                <span style="font-size: 10pt; font-weight: 700; color: #4B5563;">${cartaoParcelas}x </span>${formatBRL(cartaoValor)}
+                ${formatBRL(cartaoValor)}
               </div>
               <div class="card-pagamento-desc" style="font-size: 10pt;">
                 ${
@@ -3353,12 +3349,12 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
           <!-- Card 3: Financiamento A -->
           <div class="card-pagamento">
             <div>
-              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px; gap: 3px;">
-                <span class="card-pagamento-titulo" style="margin: 0; font-size: 10pt; font-weight: 900; color: #111827; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${finanANome}">${finanANome}</span>
+              <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 3px; gap: 3px;">
+                <span class="card-pagamento-titulo" style="margin: 0; font-size: 10pt; font-weight: 900; color: #111827; text-transform: uppercase; word-break: break-word; line-height: 1.25;" title="${finanANome}">${finanANome}</span>
                 <span style="font-size: 10pt; font-weight: 800; background: #FEF3C7; color: #78350F; padding: 1px 4px; border-radius: 9999px; white-space: nowrap; shrink-0;">${finanAParcelas}x</span>
               </div>
               <div class="card-pagamento-valor" style="color: #111827; margin-top: 3px; font-size: 10.5pt;">
-                <span style="font-size: 10pt; font-weight: 700; color: #4B5563;">${finanAParcelas}x </span>${formatBRL(finanAValor)}
+                ${formatBRL(finanAValor)}
               </div>
               ${
                 finanAIof > 0
@@ -3393,12 +3389,12 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
           <!-- Card 4: Financiamento B -->
           <div class="card-pagamento destaque-azul" style="border: 2px solid #60A5FA; background: #F0F9FF;">
             <div>
-              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px; gap: 3px;">
-                <span class="card-pagamento-titulo" style="margin: 0; font-size: 10pt; font-weight: 900; color: #172554; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${finanBNome}">${finanBNome}</span>
+              <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 3px; gap: 3px;">
+                <span class="card-pagamento-titulo" style="margin: 0; font-size: 10pt; font-weight: 900; color: #172554; text-transform: uppercase; word-break: break-word; line-height: 1.25;" title="${finanBNome}">${finanBNome}</span>
                 <span style="font-size: 10pt; font-weight: 800; background: #BFDBFE; color: #1E3A8A; padding: 1px 4px; border-radius: 9999px; white-space: nowrap; shrink-0;">${finanBParcelas}x</span>
               </div>
               <div class="card-pagamento-valor" style="color: #1E40AF; margin-top: 3px; font-size: 10.5pt;">
-                <span style="font-size: 10pt; font-weight: 700; color: #1E3A8A;">${finanBParcelas}x </span>${formatBRL(finanBValor)}
+                ${formatBRL(finanBValor)}
               </div>
               ${
                 finanBIof > 0

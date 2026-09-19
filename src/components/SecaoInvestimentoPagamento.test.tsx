@@ -7,11 +7,9 @@ describe('SecaoInvestimentoPagamento Component', () => {
   it('renderiza com dados de fallback padrão quando nenhum prop é passado', () => {
     const html = renderToStaticMarkup(React.createElement(SecaoInvestimentoPagamento, {}))
 
-    // Título no topo
-    expect(html).toContain('Seu investimento')
-
-    // Subtítulo do valor total
-    expect(html).toContain('Investimento único — o sistema é seu')
+    // Cabeçalho Investimento Total
+    expect(html).toContain('Investimento Total')
+    expect(html).toContain('Economia mensal estimada:')
 
     // Valor padrão R$ 45.000
     expect(html).toContain('45.000')

@@ -181,7 +181,8 @@ describe('Proposta Técnico-Comercial Generator (5 Seções Oficiais)', () => {
 
     // SEÇÃO 5: Investimento e Condições de Pagamento (cards À vista / Cartão / Finan A / Finan B, título "Condições de pagamento", validade E PAYBACK AO FINAL + CUSTO DE POSTERGAÇÃO)
     expect(html).toContain('Investimento e Condições de Pagamento')
-    expect(html).toContain('Seu Investimento')
+    expect(html).toContain('Investimento Total')
+    expect(html).toContain('Economia mensal estimada:')
     expect(html).toContain('Condições de pagamento')
     expect(html).toContain('À VISTA')
     expect(html).toContain('CARTÃO')
