@@ -194,7 +194,13 @@ export function converterInputParaTemplateComercial(
       instalacaoTexto:
         sistema.garantiaInstalacaoTexto || '1 ano de garantia direta Delfos Engenharia',
     },
-    fotosInstalacoes: dados.fotosInstalacoes,
+    fotosInstalacoes: dados.fotosInstalacoes?.map((f) => ({
+      id: f.id,
+      titulo: f.titulo || '',
+      url: f.url || '',
+      cidade: f.cidade,
+      potenciaKwp: f.potenciaKwp,
+    })),
     instalacoesSelecionadasIds,
     producao: {
       anualKwh:
@@ -247,6 +253,7 @@ export function converterInputParaTemplateComercial(
           parcelamentos.financiamentoBanco1.valorEntrada !== null
             ? Math.max(0, parcelamentos.financiamentoBanco1.valorEntrada)
             : 0,
+        valorIof: parcelamentos.financiamentoBanco1.valorIof,
       },
       financiamentoB: {
         nome: parcelamentos.financiamentoBanco2.titulo || 'Financiamento 120x',
@@ -259,6 +266,7 @@ export function converterInputParaTemplateComercial(
           parcelamentos.financiamentoBanco2.valorEntrada !== null
             ? Math.max(0, parcelamentos.financiamentoBanco2.valorEntrada)
             : 0,
+        valorIof: parcelamentos.financiamentoBanco2.valorIof,
       },
     },
     projecao: {

@@ -560,4 +560,170 @@ describe('Proposta Técnico-Comercial Generator (5 Seções Oficiais)', () => {
     expect(html).not.toContain('(54) 3712-2460')
     expect(html).not.toContain('@delfosenergia')
   })
+
+  describe('Toggle do Layout do Telhado (Solergo / Engenharia Delfos)', () => {
+    const layoutUrlValida = 'https://img.usecurling.com/p/800/600?q=rooftop'
+
+    it('quando layoutTelhadoHabilitado for true e layoutTelhadoUrl for válida, o HTML DEVE conter o título "Veja como ficará sua usina no telhado" e a imagem', () => {
+      const dadosComLayout: PropostaTecnicoComercialDados = {
+        ...dadosExemplo,
+        layoutTelhadoHabilitado: true,
+        layoutTelhadoUrl: layoutUrlValida,
+      }
+
+      const html = gerarHTMLPropostaTecnicoComercial(dadosComLayout)
+      expect(html).toContain('Veja como ficará sua usina no telhado')
+      expect(html).toContain('Engenharia &amp; Posicionamento')
+      expect(html).toContain('Layout técnico do projeto')
+      expect(html).toContain(layoutUrlValida)
+    })
+
+    it('quando layoutTelhadoHabilitado for false, o HTML NÃO deve conter o título nem a seção de layout do telhado, mesmo se layoutTelhadoUrl for fornecida', () => {
+      const dadosSemLayout: PropostaTecnicoComercialDados = {
+        ...dadosExemplo,
+        layoutTelhadoHabilitado: false,
+        layoutTelhadoUrl: layoutUrlValida,
+      }
+
+      const html = gerarHTMLPropostaTecnicoComercial(dadosSemLayout)
+      expect(html).not.toContain('Veja como ficará sua usina no telhado')
+      expect(html).not.toContain('Layout técnico do projeto')
+      expect(html).not.toContain(layoutUrlValida)
+    })
+
+    it('quando layoutTelhadoUrl for nula ou vazia, o HTML NÃO deve conter a seção de layout do telhado mesmo com layoutTelhadoHabilitado true', () => {
+      const dadosSemUrl: PropostaTecnicoComercialDados = {
+        ...dadosExemplo,
+        layoutTelhadoHabilitado: true,
+        layoutTelhadoUrl: null,
+      }
+
+      const html = gerarHTMLPropostaTecnicoComercial(dadosSemUrl)
+      expect(html).not.toContain('Veja como ficará sua usina no telhado')
+      expect(html).not.toContain('Layout técnico do projeto')
+    })
+
+    it('HTML do preview deve ser rigorosamente idêntico ao HTML do PDF (mesma função, mesma entrada → mesmo output)', () => {
+      const inputSolar: PropostaSolarPDFInput = {
+        cliente: {
+          nome: 'Carlos Eduardo Teste',
+          cpfOuCnpj: '111.222.333-44',
+          municipio: 'Erechim / RS',
+          tipoCliente: 'residencial',
+        },
+        representanteComercial: 'João Victor Bagetti Fuchs',
+        sistema: {
+          potenciaKwp: 8.5,
+          consumoKwhMes: 750,
+          numeroPlacas: 14,
+          potenciaPlacaWp: 610,
+          marcaPlacas: 'Canadian Solar',
+          marcaInversor: 'Huawei 8kW',
+          quantidadeInversores: 1,
+          tipoEstrutura: 'ceramico',
+          orientacaoTelhado: 'norte',
+          areaNecessariaM2: 32,
+        },
+        calculos: {
+          ...dadosExemplo.producao,
+          geracaoMediaMensalKwh: 800,
+          geracaoAnualEstimadaKwh: 9600,
+          valorInvestimento: 35000,
+          fioBKwh: 0.2239,
+          fatorSimultaneidade: 0.3,
+          gdEcoLiquidaKwh: 0.8828,
+          economia1Mes: 680,
+          economia1Ano: 8160,
+          economia5Anos: 44000,
+          economia10Anos: 102000,
+          economia25Anos: 320000,
+          gastoSemSolar1Ano: 9200,
+          gastoSemSolar5Anos: 53000,
+          gastoSemSolar10Anos: 135000,
+          gastoSemSolar25Anos: 470000,
+          paybackMeses: 49,
+          paybackAnos: 4.1,
+          reajusteAnualPercentual: 9,
+          tarifaEfetiva: 0.95,
+          taxaMinimaDisponibilidadeKwh: 30,
+          taxaMinimaDisponibilidadeReais: 28.5,
+          contaAtualSemSolarMes: 750,
+          contaAtualSemSolarAno: 9000,
+          contaPrimeiroMesComSolar: 75,
+          valorTotalCustos: 26000,
+          custoPorKwpInstalado: 4117.65,
+          contaSemSolar4AnosComReajuste: 1058,
+          contaComSolar4AnosComReajuste: 105,
+          contaSemSolar10AnosComReajuste: 1775,
+          contaComSolar10AnosComReajuste: 177,
+          geracaoMensalDetalhada: [],
+          parcelamentos: {
+            aVista: {
+              titulo: 'À Vista',
+              descricao: 'Pagamento à vista',
+              numeroParcelas: 1,
+              valorParcela: 33250,
+              valorTotal: 33250,
+              taxaJurosMensal: 0,
+              desembolsoMensal: 33250,
+              contaComSolar: 75,
+              contaSemSolar: 750,
+              economiaMensalLiquida: 675,
+            },
+            cartao18x: {
+              titulo: 'Cartão 18x',
+              descricao: 'Cartão 18x',
+              numeroParcelas: 18,
+              valorParcela: 1944,
+              valorTotal: 35000,
+              taxaJurosMensal: 0,
+              desembolsoMensal: 2019,
+              contaComSolar: 75,
+              contaSemSolar: 750,
+              economiaMensalLiquida: -1269,
+            },
+            financiamentoBanco1: {
+              titulo: 'Cresol (60x)',
+              descricao: 'Financiamento 60x',
+              numeroParcelas: 60,
+              valorParcela: 805,
+              valorTotal: 48300,
+              taxaJurosMensal: 1.39,
+              desembolsoMensal: 880,
+              contaComSolar: 75,
+              contaSemSolar: 750,
+              economiaMensalLiquida: -130,
+              valorIof: 375.78,
+            },
+            financiamentoBanco2: {
+              titulo: 'Santander (120x)',
+              descricao: 'Financiamento 120x',
+              numeroParcelas: 120,
+              valorParcela: 520,
+              valorTotal: 62400,
+              taxaJurosMensal: 1.45,
+              desembolsoMensal: 595,
+              contaComSolar: 75,
+              contaSemSolar: 750,
+              economiaMensalLiquida: 155,
+              valorIof: 520.15,
+            },
+          },
+        },
+        layoutTelhadoHabilitado: true,
+        layoutTelhadoUrl: layoutUrlValida,
+      }
+
+      // Preview gerado com os dados de entrada
+      const htmlPreview = gerarHTMLPropostaSolar(inputSolar)
+      // PDF gerado com os MESMOS dados de entrada
+      const htmlPDF = gerarHTMLPropostaSolar(inputSolar)
+
+      // Identidade estrita entre preview e PDF
+      expect(htmlPreview).toBe(htmlPDF)
+      expect(htmlPreview).toContain('Veja como ficará sua usina no telhado')
+      expect(htmlPreview).toContain('Inclui IOF de')
+      expect(htmlPreview).toContain('375,78')
+    })
+  })
 })

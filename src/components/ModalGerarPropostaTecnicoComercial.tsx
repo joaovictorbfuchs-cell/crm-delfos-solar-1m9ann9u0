@@ -29,18 +29,15 @@ import {
   baixarPropostaTecnicoComercialHTML,
 } from '@/lib/propostaTecnicoComercialGenerator'
 import { GeracaoMensalItem, DADOS_CLIMATICOS_ERECHIM } from '@/lib/energiaSolar'
-import { SecaoCapaProposta } from '@/components/SecaoCapaProposta'
-import { SecaoCustoInercia } from '@/components/SecaoCustoInercia'
-import { SecaoProjecao25Anos } from '@/components/SecaoProjecao25Anos'
-import { SecaoSeuSistemaFotovoltaico } from '@/components/SecaoSeuSistemaFotovoltaico'
-import { SecaoInvestimentoPagamento } from '@/components/SecaoInvestimentoPagamento'
-import { ErrorBoundary } from '@/components/ErrorBoundary'
 
 export interface ModalGerarPropostaTecnicoComercialProps {
   orcamento: OrcamentoSolarCalculado & {
     instalacoes_selecionadas?: string[] | null
     foto_modulo_url?: string | null
     foto_inversor_url?: string | null
+    layout_telhado?: string | null
+    layout_telhado_url?: string | null
+    layout_telhado_habilitado?: boolean
   }
   cliente?: Cliente | null
   open: boolean
@@ -183,6 +180,18 @@ export function ModalGerarPropostaTecnicoComercial({
       ? orcamento.conta_primeiro_mes_com_solar
       : 0,
   )
+
+  const layoutTelhadoUrl =
+    orcamento.layout_telhado_url ||
+    (orcamento as any).layoutTelhadoUrl ||
+    orcamento.layout_telhado ||
+    null
+  const layoutTelhadoHabilitado =
+    orcamento.layout_telhado_habilitado !== undefined
+      ? orcamento.layout_telhado_habilitado
+      : (orcamento as any).layoutTelhadoHabilitado !== undefined
+        ? (orcamento as any).layoutTelhadoHabilitado
+        : true
 
   // Feedback do e-mail
   const [emailStatus, setEmailStatus] = useState<string | null>(null)
@@ -412,6 +421,8 @@ export function ModalGerarPropostaTecnicoComercial({
             Math.round(contaHojeNum * Math.pow(1.09, 10)),
           contaComSolar10AnosComReajuste: Math.round(contaComSolarNum * Math.pow(1.09, 10)),
         },
+        layoutTelhadoUrl,
+        layoutTelhadoHabilitado,
       }
     } catch (err) {
       console.error('Erro ao montar dados da proposta técnico-comercial:', err)
@@ -462,6 +473,8 @@ export function ModalGerarPropostaTecnicoComercial({
     nParcelasFinanB,
     valorParcelaFinanB,
     entradaFinanB,
+    layoutTelhadoUrl,
+    layoutTelhadoHabilitado,
   ])
 
   const htmlPreview = useMemo<string>(() => {
@@ -549,7 +562,7 @@ export function ModalGerarPropostaTecnicoComercial({
                 }`}
               >
                 <Edit3 className="w-3.5 h-3.5" />
-                <span>1. Configurar Proposta</span>
+                <span>1. Configurar Parâmetros</span>
               </button>
               <button
                 type="button"
@@ -561,7 +574,7 @@ export function ModalGerarPropostaTecnicoComercial({
                 }`}
               >
                 <Eye className="w-3.5 h-3.5" />
-                <span>2. Pré-visualizar (PDF)</span>
+                <span>2. Preview da Proposta</span>
               </button>
             </div>
 
@@ -1002,186 +1015,48 @@ export function ModalGerarPropostaTecnicoComercial({
                 </div>
               </div>
 
-              {/* Seção 1: Capa da Proposta Comercial Oficial */}
-              <ErrorBoundary compact errorMessage="Não foi possível exibir a Capa da Proposta">
-                <SecaoCapaProposta
-                  nomeCliente={clienteNome || 'Cliente'}
-                  tipoImovel={
-                    (orcamento as any)?.tipo_imovel ||
-                    (cliente as any)?.tipo_imovel ||
-                    (cliente?.tipo_cliente === 'comercial' ? 'Comércio' : 'Residência')
-                  }
-                  cidade={(cliente as any)?.cidade || cliente?.municipio || 'Passo Fundo - RS'}
-                  consultor={orcamento.autor || representanteNome || 'João Victor Bagetti Fuchs'}
-                  telefoneConsultor={representanteContato || '(54) 99129-2121'}
-                  economiaMensal={orcamento.economia_1_mes || contaHoje - contaComSolar}
-                  dataOrcamento={orcamento.data_orcamento || orcamento.created}
-                  potenciaKwp={potenciaKwp}
-                />
-              </ErrorBoundary>
-
-              {/* Seção 2: Situação Atual (Consumo & Custos + Gastos Acumulados) */}
-              <ErrorBoundary compact errorMessage="Não foi possível exibir a Situação Atual">
-                <SecaoCustoInercia
-                  consumoMensalKwh={
-                    producaoMensalKwh && producaoMensalKwh > 0
-                      ? producaoMensalKwh
-                      : orcamento.consumo_mensal_kwh && orcamento.consumo_mensal_kwh > 0
-                        ? orcamento.consumo_mensal_kwh
-                        : cliente?.consumo_kwh_mes && cliente.consumo_kwh_mes > 0
-                          ? cliente.consumo_kwh_mes
-                          : contaHoje > 0
-                            ? Math.round(contaHoje / 0.95)
-                            : 650
-                  }
-                  consumoAnualKwh={
-                    producaoAnualKwh && producaoAnualKwh > 0
-                      ? producaoAnualKwh
-                      : orcamento.consumo_mensal_kwh && orcamento.consumo_mensal_kwh > 0
-                        ? Math.round(orcamento.consumo_mensal_kwh * 12)
-                        : cliente?.consumo_kwh_mes && cliente.consumo_kwh_mes > 0
-                          ? Math.round(cliente.consumo_kwh_mes * 12)
-                          : contaHoje > 0
-                            ? Math.round((contaHoje / 0.95) * 12)
-                            : 7800
-                  }
-                  contaMensal={contaHoje}
-                  contaAnual={orcamento.gasto_sem_solar_1_ano || Math.round(contaHoje * 12)}
-                  gastoSemSolar1Ano={orcamento.gasto_sem_solar_1_ano || Math.round(contaHoje * 12)}
-                  gastoSemSolar5Anos={
-                    orcamento.gasto_sem_solar_5_anos ||
-                    Math.round((orcamento.gasto_sem_solar_1_ano || contaHoje * 12) * 5.8)
-                  }
-                  paybackMeses={orcamento.payback_meses}
-                  gastoSemSolar25Anos={
-                    orcamento.gasto_sem_solar_25_anos ||
-                    Math.round((orcamento.gasto_sem_solar_1_ano || contaHoje * 12) * 38.5)
-                  }
-                  valorInvestimento={investimentoTotal}
-                  economiaMensal={
-                    orcamento.economia_1_mes || Math.max(0, contaHoje - contaComSolar)
-                  }
-                  economia1Ano={orcamento.economia_1_ano}
-                  economia5Anos={orcamento.economia_5_anos}
-                  economia25Anos={orcamento.economia_25_anos}
-                />
-              </ErrorBoundary>
-
-              {/* Seção Visual: Seu Sistema Fotovoltaico */}
-              <ErrorBoundary compact errorMessage="Não foi possível exibir os Dados do Sistema">
-                <SecaoSeuSistemaFotovoltaico
-                  potenciaKwp={potenciaKwp}
-                  geracaoMensalKwh={producaoMensalKwh}
-                  economiaMensal={orcamento.economia_1_mes}
-                  numeroPlacas={qtdPaineis}
-                  marcaPainel={descricaoPaineis}
-                  potenciaPlacaWp={orcamento.potencia_placa_wp || 550}
-                  tecnologiaModulo="bifacial N-type"
-                  fotoModuloUrl={(orcamento as any)?.foto_modulo_url || null}
-                  marcaInversor={descricaoInversores}
-                  fotoInversorUrl={(orcamento as any)?.foto_inversor_url || null}
-                  quantidadeInversores={qtdInversores}
-                  mpptInversor={2}
-                  potenciaInversorKw={potenciaKwp ? Math.round(potenciaKwp * 0.8 * 10) / 10 : 6}
-                  areaNecessariaM2={areaNecessariaM2}
-                  garantiaModulosAnos={paineisAnosDesemp || 30}
-                  garantiaModulosFabricacaoAnos={paineisAnosFab || 15}
-                  garantiaInversorAnos={inversorAnosFab || 10}
-                  garantiaInstalacaoTexto={`${instalacaoAnos || 1} anos`}
-                  garantiaInstalacaoAnos={instalacaoAnos || 1}
-                  geracaoMensalDetalhada={dadosAtuais?.producao?.geracaoMensal || null}
-                  geracaoAnualKwh={
-                    Number(producaoAnualKwh) || dadosAtuais?.producao?.anualKwh || null
-                  }
-                  nomeCliente={clienteNome}
-                />
-              </ErrorBoundary>
-
-              {/* Nova Seção: Projeção de Economia em 25 Anos (Curva comparativa, Payback, ROI e Tabela 2026-2051) */}
-              <ErrorBoundary compact errorMessage="Não foi possível exibir a Projeção em 25 Anos">
-                <SecaoProjecao25Anos
-                  consumoAnualCadastradoKwh={
-                    producaoAnualKwh && producaoAnualKwh > 0
-                      ? Number(producaoAnualKwh.toFixed(2))
-                      : producaoMensalKwh && producaoMensalKwh > 0
-                        ? Number((producaoMensalKwh * 12).toFixed(2))
-                        : orcamento.consumo_mensal_kwh && orcamento.consumo_mensal_kwh > 0
-                          ? Number((orcamento.consumo_mensal_kwh * 12).toFixed(2))
-                          : cliente?.consumo_kwh_mes && cliente.consumo_kwh_mes > 0
-                            ? Number((cliente.consumo_kwh_mes * 12).toFixed(2))
-                            : 4807.08
-                  }
-                  tipoClienteInicial={
-                    cliente?.tipo_cliente === 'comercial' ? 'comercial' : 'residencial'
-                  }
-                  valorInvestimento={investimentoTotal}
-                  paybackMeses={orcamento.payback_meses}
-                  potenciaKwp={potenciaKwp || 8.54}
-                  nomeCliente={clienteNome}
-                />
-              </ErrorBoundary>
-
-              {/* Nova Seção: Investimento e Condições de Pagamento */}
-              <ErrorBoundary
-                compact
-                errorMessage="Não foi possível exibir as Condições de Pagamento"
-              >
-                <SecaoInvestimentoPagamento
-                  valorInvestimento={investimentoTotal}
-                  valorAVista={Math.round(investimentoTotal * 0.95)}
-                  descontoAVistaReais={Math.round(investimentoTotal * 0.05)}
-                  parcelasCartao={nParcelasCartao}
-                  valorParcelaCartao={valorParcelaCartao}
-                  cartaoSemJuros={true}
-                  nomeFinanciamentoA={nomeFinanA}
-                  entradaFinanciamentoA={entradaFinanA}
-                  parcelasFinanciamentoA={nParcelasFinanA}
-                  valorParcelaFinanciamentoA={valorParcelaFinanA}
-                  iofFinanciamentoA={orcamento.iof_financiamento_banco1}
-                  nomeFinanciamentoB={nomeFinanB}
-                  entradaFinanciamentoB={entradaFinanB}
-                  parcelasFinanciamentoB={nParcelasFinanB}
-                  valorParcelaFinanciamentoB={valorParcelaFinanB}
-                  iofFinanciamentoB={orcamento.iof_financiamento_banco2}
-                  contaMensalAtual={contaHoje}
-                  contaMensalComSolar={
-                    orcamento.conta_primeiro_mes_com_solar !== undefined &&
-                    orcamento.conta_primeiro_mes_com_solar !== null
-                      ? orcamento.conta_primeiro_mes_com_solar
-                      : 0
-                  }
-                  faturaMensalComSolar={
-                    orcamento.conta_primeiro_mes_com_solar !== undefined &&
-                    orcamento.conta_primeiro_mes_com_solar !== null
-                      ? orcamento.conta_primeiro_mes_com_solar
-                      : 0
-                  }
-                  validadeDias={validadeDias}
-                  nomeCliente={clienteNome}
-                  paybackMeses={orcamento.payback_meses}
-                  paybackTexto={paybackTexto}
-                />
-              </ErrorBoundary>
+              {/* Preview fiel do PDF gerado com iframe e banner âmbar oficial */}
+              <div className="bg-white border border-amber-200/80 shadow-xs rounded-2xl overflow-hidden">
+                <div className="px-4 py-2.5 bg-amber-50 border-b border-amber-200/80 flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-amber-900 font-semibold text-xs">
+                    <Eye className="w-4 h-4 text-amber-700" />
+                    <span>Preview da Proposta</span>
+                  </div>
+                  <span className="text-[11px] text-amber-800/80 font-medium">
+                    Visualização idêntica ao PDF final • atualiza em tempo real
+                  </span>
+                </div>
+                <div className="p-2 sm:p-4 bg-slate-100 flex justify-center">
+                  <iframe
+                    title="Preview da Proposta"
+                    srcDoc={htmlPreview}
+                    sandbox="allow-same-origin"
+                    className="w-full h-[80vh] min-h-[700px] bg-white border border-gray-300 rounded-xl shadow-inner"
+                  />
+                </div>
+              </div>
             </div>
           ) : (
-            /* ETAPA DE PREVIEW COM AS 5 SEÇÕES CANÔNICAS DA PROPOSTA */
-            <div className="h-full flex flex-col p-3 sm:p-4">
-              <div className="mb-2 flex items-center justify-between text-xs text-gray-500">
-                <span className="flex items-center gap-1.5 font-semibold text-emerald-800">
-                  <Eye className="w-3.5 h-3.5 text-emerald-600" />
-                  Visualização oficial da proposta (5 seções: Capa, Situação Atual, Sistema,
-                  Projeção 25 Anos e Investimento)
-                </span>
-                <span className="text-[11px] bg-emerald-100 text-emerald-800 font-bold px-2.5 py-0.5 rounded-full border border-emerald-300 shadow-2xs">
-                  Documento Completo (5 Seções)
-                </span>
-              </div>
-              <div className="flex-1 bg-slate-200/80 rounded-xl shadow-inner border border-gray-300 overflow-hidden relative">
-                <iframe
-                  title="Pré-visualização da Proposta Técnico-Comercial"
-                  srcDoc={htmlPreview}
-                  className="w-full h-full border-none bg-white"
-                />
+            /* ETAPA DE PREVIEW COM O MESMO PADRÃO DE IFRAME E BANNER ÂMBAR */
+            <div className="p-3 sm:p-5 max-w-5xl mx-auto">
+              <div className="bg-white border border-amber-200/80 shadow-xs rounded-2xl overflow-hidden">
+                <div className="px-4 py-2.5 bg-amber-50 border-b border-amber-200/80 flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-amber-900 font-semibold text-xs">
+                    <Eye className="w-4 h-4 text-amber-700" />
+                    <span>Preview da Proposta</span>
+                  </div>
+                  <span className="text-[11px] text-amber-800/80 font-medium">
+                    Visualização idêntica ao PDF final • atualiza em tempo real
+                  </span>
+                </div>
+                <div className="p-2 sm:p-4 bg-slate-100 flex justify-center">
+                  <iframe
+                    title="Preview da Proposta"
+                    srcDoc={htmlPreview}
+                    sandbox="allow-same-origin"
+                    className="w-full h-[80vh] min-h-[700px] bg-white border border-gray-300 rounded-xl shadow-inner"
+                  />
+                </div>
               </div>
             </div>
           )}
