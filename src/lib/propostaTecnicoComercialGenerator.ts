@@ -680,25 +680,30 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
       padding-bottom: 24px;
     }
 
-    /* PÁGINA INDIVIDUAL DA PROPOSTA (UMA SEÇÃO POR FOLHA A4) */
+    /* PÁGINA INDIVIDUAL DA PROPOSTA (FLUXO CONTÍNUO NATURAL) */
     .proposta-secao-page {
       background: #FFFFFF;
       width: 100%;
-      min-height: 297mm;
+      min-height: auto;
       padding: 10mm 12mm 10mm 12mm;
-      margin: 0 auto 16px auto;
+      margin: 0 auto 14px auto;
       box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
       position: relative;
       display: flex;
       flex-direction: column;
       justify-content: space-between;
+      page-break-before: auto;
+      break-before: auto;
       border-radius: 6px;
-      page-break-before: always;
-      break-before: page;
     }
     .proposta-secao-page:first-child {
       page-break-before: avoid;
       break-before: avoid;
+    }
+    #secao-1-capa {
+      page-break-after: always;
+      break-after: page;
+      min-height: 297mm;
     }
 
     .secao-body {
@@ -1013,10 +1018,12 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
        SEÇÃO 2 — SITUAÇÃO ATUAL (ESPELHADO DO SecaoCustoInercia.tsx)
        ========================================================== */
     .secao-header-card {
-      padding: 16px 20px;
-      border-radius: 16px;
-      margin-bottom: 14px;
+      padding: 10px 14px;
+      border-radius: 14px;
+      margin-bottom: 8px;
       border: 1px solid #E5E7EB;
+      page-break-after: avoid;
+      break-after: avoid;
     }
     .secao-header-card.situacao-atual {
       background: linear-gradient(90deg, rgba(236, 253, 245, 0.6) 0%, rgba(254, 243, 199, 0.35) 45%, #FFFFFF 100%);
@@ -1043,6 +1050,8 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
       font-weight: 900;
       color: #111827;
       letter-spacing: -0.015em;
+      page-break-after: avoid;
+      break-after: avoid;
     }
     .secao-desc-sub {
       margin: 4px 0 0 0;
@@ -1064,12 +1073,14 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
     .card-situacao {
       background: #FFFFFF;
       border: 1px solid #D1FAE5;
-      border-radius: 16px;
-      padding: 14px 16px;
+      border-radius: 14px;
+      padding: 10px 12px;
       box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
       display: flex;
       flex-direction: column;
       justify-content: space-between;
+      page-break-inside: avoid;
+      break-inside: avoid;
     }
     .card-situacao-header {
       display: flex;
@@ -1169,10 +1180,12 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
     .box-barras-inercia {
       background: #FFFFFF;
       border: 1px solid #E5E7EB;
-      border-radius: 16px;
-      padding: 14px 16px;
-      margin-bottom: 12px;
+      border-radius: 14px;
+      padding: 10px 12px;
+      margin-bottom: 10px;
       box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+      page-break-inside: avoid;
+      break-inside: avoid;
     }
     .barras-topo-row {
       display: flex;
@@ -1226,12 +1239,14 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
     .card-marco-inercia {
       border: 2px solid #E5E7EB;
       border-radius: 14px;
-      padding: 14px 12px;
+      padding: 10px 12px;
       background: #FFFFFF;
       display: flex;
       flex-direction: column;
       justify-content: space-between;
-      min-height: 130px;
+      min-height: auto;
+      page-break-inside: avoid;
+      break-inside: avoid;
     }
     .card-marco-inercia.ano1 {
       background: linear-gradient(135deg, #FFFBEB 0%, #FFFFFF 100%);
@@ -1377,19 +1392,21 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
     .grid-sistema-cards {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
-      gap: 10px;
-      margin: 12px 0;
+      gap: 8px;
+      margin: 8px 0;
     }
     .card-sistema {
       background: #f5f5f5;
       border: 1px solid #d1d5db;
       border-radius: 14px;
-      padding: 12px 14px;
+      padding: 8px 12px;
       display: flex;
       flex-direction: column;
       justify-content: space-between;
       box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
-      min-height: 110px;
+      min-height: 85px;
+      page-break-inside: avoid;
+      break-inside: avoid;
     }
     .card-sistema-header {
       display: flex;
@@ -1794,20 +1811,22 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
     .grid-pagamento-4 {
       display: grid;
       grid-template-columns: repeat(4, 1fr);
-      gap: 10px;
-      margin-bottom: 12px;
+      gap: 8px;
+      margin-bottom: 10px;
     }
-    .card-pagamento {
+    .card-pagamento, .card-condicoes-comerciais {
       border: 1px solid #E5E7EB;
-      border-radius: 16px;
+      border-radius: 14px;
       background: #FFFFFF;
-      padding: 12px 10px;
+      padding: 10px 8px;
       display: flex;
       flex-direction: column;
       justify-content: space-between;
       text-align: center;
       box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
-      min-height: 130px;
+      min-height: 110px;
+      page-break-inside: avoid;
+      break-inside: avoid;
     }
     .card-pagamento.destaque-verde {
       border: 2px solid #16A34A;
@@ -2001,9 +2020,15 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
         padding: 8mm 10mm 8mm 10mm !important;
         box-shadow: none !important;
         border-radius: 0 !important;
+        height: auto !important;
+        max-height: none !important;
+        overflow: visible !important;
+        page-break-after: auto !important;
+        break-after: auto !important;
+      }
+      #secao-1-capa {
         height: 297mm !important;
         max-height: 297mm !important;
-        overflow: hidden !important;
         page-break-after: always !important;
         break-after: page !important;
       }

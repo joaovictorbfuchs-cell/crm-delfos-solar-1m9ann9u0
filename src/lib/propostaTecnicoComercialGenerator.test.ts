@@ -183,10 +183,15 @@ describe('Proposta Técnico-Comercial Generator (5 Seções Oficiais)', () => {
     expect(html).toContain('Valor perdido por mês')
     expect(html).toContain('Condições válidas por')
 
-    // CSS de impressão A4 obrigatório
+    // CSS de impressão A4 obrigatório e fluxo natural contínuo
     expect(html).toContain('size: A4 portrait')
     expect(html).toContain('print-color-adjust: exact')
-    expect(html).toContain('page-break-before: always')
+    expect(html).toContain('page-break-before: auto')
+    expect(html).toContain('break-before: auto')
+    expect(html).toContain('break-inside: avoid')
+    expect(html).toContain('background: #f5f5f5')
+    expect(html).toContain('Tier-1 Global')
+    expect(html).toContain('doc-footer')
 
     // Não deve conter modelo antigo ("Quem Somos" corporativo antigo)
     expect(html).not.toContain('A Delfos Solar é especialista em transformar contas de energia')

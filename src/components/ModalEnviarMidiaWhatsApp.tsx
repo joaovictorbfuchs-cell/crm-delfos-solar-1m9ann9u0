@@ -23,7 +23,7 @@ import {
 } from 'lucide-react'
 import { useClientes } from '@/contexts/ClientesContext'
 import { useToast } from '@/hooks/use-toast'
-import { pb } from '@/lib/pocketbase/client'
+import pb from '@/lib/pocketbase/client'
 
 export type TipoMidiaEnvio = 'imagem' | 'video' | 'documento'
 
