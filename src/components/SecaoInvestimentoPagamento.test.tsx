@@ -37,6 +37,12 @@ describe('SecaoInvestimentoPagamento Component', () => {
     // Título da seção de condições de pagamento
     expect(html).toContain('Condições de pagamento')
 
+    // Bloco de Projeção com Reajuste Tarifário 9% a.a.
+    expect(html).toContain('Projeção com Reajuste Tarifário de 9% ao ano (Concessionária)')
+    expect(html).toContain('Conta daqui a 4 anos:')
+    expect(html).toContain('Conta daqui a 10 anos:')
+    expect(html).toContain('com solar')
+
     // Mini-bloco de payback estimado abaixo dos cards
     expect(html).toContain('Payback estimado')
     expect(html).toContain('Quitação prevista:')
@@ -207,5 +213,26 @@ describe('SecaoInvestimentoPagamento Component', () => {
     )
 
     expect(htmlSemEntrada).not.toContain('Entrada:')
+  })
+
+  it('renderiza o bloco de Projeção com Reajuste Tarifário de 9% ao ano com valores calculados e fornecidos via props', () => {
+    const html = renderToStaticMarkup(
+      React.createElement(SecaoInvestimentoPagamento, {
+        valorInvestimento: 45000,
+        contaSemSolar4AnosComReajuste: 1311.08,
+        contaComSolar4AnosComReajuste: 141.16,
+        contaSemSolar10AnosComReajuste: 2198.81,
+        contaComSolar10AnosComReajuste: 236.74,
+      }),
+    )
+
+    expect(html).toContain('Projeção com Reajuste Tarifário de 9% ao ano (Concessionária)')
+    expect(html).toContain('Conta daqui a 4 anos:')
+    expect(html).toContain('Conta daqui a 10 anos:')
+    expect(html).toContain('1.311,08')
+    expect(html).toContain('141,16')
+    expect(html).toContain('2.198,81')
+    expect(html).toContain('236,74')
+    expect(html).toContain('com solar')
   })
 })

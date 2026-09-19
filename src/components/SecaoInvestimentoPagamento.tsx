@@ -7,6 +7,7 @@ import {
   Clock,
   Sparkles,
   AlertTriangle,
+  TrendingUp,
 } from 'lucide-react'
 import { formatCurrency, formatarMesAnoQuitacao } from '@/lib/formatters'
 
@@ -57,6 +58,11 @@ export interface SecaoInvestimentoPagamentoProps {
   contaComSolarCartao?: number | null
   contaComSolarFinanA?: number | null
   contaComSolarFinanB?: number | null
+  /** Valores projetados com reajuste tarifário de 9% a.a. */
+  contaSemSolar4AnosComReajuste?: number | null
+  contaComSolar4AnosComReajuste?: number | null
+  contaSemSolar10AnosComReajuste?: number | null
+  contaComSolar10AnosComReajuste?: number | null
   /** Validade da proposta em dias (fallback: 5 dias) */
   validadeDias?: number | null
   /** Nome do cliente para contextualização */
@@ -133,6 +139,10 @@ export const SecaoInvestimentoPagamento: React.FC<SecaoInvestimentoPagamentoProp
   contaComSolarCartao,
   contaComSolarFinanA,
   contaComSolarFinanB,
+  contaSemSolar4AnosComReajuste,
+  contaComSolar4AnosComReajuste,
+  contaSemSolar10AnosComReajuste,
+  contaComSolar10AnosComReajuste,
   validadeDias,
   nomeCliente,
   paybackMeses,
@@ -241,6 +251,35 @@ export const SecaoInvestimentoPagamento: React.FC<SecaoInvestimentoPagamentoProp
   const totalMensalCartao = contaSolarCartao + valorParcelaCartaoFinal
   const totalMensalFinanA = contaSolarFinanA + valorParcelaFinanAFinal
   const totalMensalFinanB = contaSolarFinanB + valorParcelaFinanBFinal
+
+  // Projeção com reajuste tarifário de 9% a.a. (4 anos e 10 anos)
+  const contaSemSolar4AnosFinal =
+    contaSemSolar4AnosComReajuste !== undefined &&
+    contaSemSolar4AnosComReajuste !== null &&
+    contaSemSolar4AnosComReajuste > 0
+      ? contaSemSolar4AnosComReajuste
+      : contaAtualFinal * Math.pow(1.09, 4)
+
+  const contaComSolar4AnosFinal =
+    contaComSolar4AnosComReajuste !== undefined &&
+    contaComSolar4AnosComReajuste !== null &&
+    contaComSolar4AnosComReajuste >= 0
+      ? contaComSolar4AnosComReajuste
+      : faturaComSolarFinal * Math.pow(1.09, 4)
+
+  const contaSemSolar10AnosFinal =
+    contaSemSolar10AnosComReajuste !== undefined &&
+    contaSemSolar10AnosComReajuste !== null &&
+    contaSemSolar10AnosComReajuste > 0
+      ? contaSemSolar10AnosComReajuste
+      : contaAtualFinal * Math.pow(1.09, 10)
+
+  const contaComSolar10AnosFinal =
+    contaComSolar10AnosComReajuste !== undefined &&
+    contaComSolar10AnosComReajuste !== null &&
+    contaComSolar10AnosComReajuste >= 0
+      ? contaComSolar10AnosComReajuste
+      : faturaComSolarFinal * Math.pow(1.09, 10)
 
   // Validade
   const diasValidadeFinal =
@@ -583,6 +622,41 @@ export const SecaoInvestimentoPagamento: React.FC<SecaoInvestimentoPagamentoProp
                   <span>Parcela + Conta:</span>
                   <span>{formatCurrency(totalMensalFinanB)}</span>
                 </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* ========================================================================= */}
+        {/* 2.1 PROJEÇÃO COM REAJUSTE TARIFÁRIO DE 9% AO ANO (CONCESSIONÁRIA)         */}
+        {/* ========================================================================= */}
+        <div className="p-4 bg-gradient-to-r from-amber-50/80 to-amber-100/50 rounded-xl border border-amber-300 text-xs space-y-2">
+          <div className="flex items-center gap-1.5 font-bold text-amber-950 uppercase tracking-wide">
+            <TrendingUp className="w-4 h-4 text-amber-700 shrink-0" />
+            <span>Projeção com Reajuste Tarifário de 9% ao ano (Concessionária)</span>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+            <div className="bg-white p-3 rounded-lg border border-amber-200">
+              <span className="text-[11px] text-gray-500 block">Conta daqui a 4 anos:</span>
+              <div className="flex items-baseline gap-2 mt-0.5">
+                <span className="text-red-700 font-bold line-through">
+                  {formatCurrency(contaSemSolar4AnosFinal)}
+                </span>
+                <span className="text-emerald-700 font-black text-sm">
+                  {formatCurrency(contaComSolar4AnosFinal)} com solar
+                </span>
+              </div>
+            </div>
+
+            <div className="bg-white p-3 rounded-lg border border-amber-200">
+              <span className="text-[11px] text-gray-500 block">Conta daqui a 10 anos:</span>
+              <div className="flex items-baseline gap-2 mt-0.5">
+                <span className="text-red-700 font-bold line-through">
+                  {formatCurrency(contaSemSolar10AnosFinal)}
+                </span>
+                <span className="text-emerald-700 font-black text-sm">
+                  {formatCurrency(contaComSolar10AnosFinal)} com solar
+                </span>
               </div>
             </div>
           </div>

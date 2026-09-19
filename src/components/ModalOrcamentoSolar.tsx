@@ -3503,41 +3503,6 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                     </div>
                   </div>
                 </div>
-
-                {/* Bloco de Projeção de Reajuste Tarifário 9% a.a. */}
-                <div className="p-4 bg-amber-50/70 rounded-xl border border-amber-200 text-xs space-y-2">
-                  <div className="flex items-center gap-1.5 font-bold text-amber-950 uppercase tracking-wide">
-                    <TrendingUp className="w-4 h-4 text-amber-700" />
-                    Projeção com Reajuste Tarifário de 9% ao ano (Concessionária)
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-                    <div className="bg-white p-3 rounded-lg border border-amber-200">
-                      <span className="text-[11px] text-gray-500 block">Conta daqui a 4 anos:</span>
-                      <div className="flex items-baseline gap-2 mt-0.5">
-                        <span className="text-red-700 font-bold line-through">
-                          {formatCurrency(calculos.contaSemSolar4AnosComReajuste)}
-                        </span>
-                        <span className="text-emerald-700 font-black text-sm">
-                          {formatCurrency(calculos.contaComSolar4AnosComReajuste)} com solar
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="bg-white p-3 rounded-lg border border-amber-200">
-                      <span className="text-[11px] text-gray-500 block">
-                        Conta daqui a 10 anos:
-                      </span>
-                      <div className="flex items-baseline gap-2 mt-0.5">
-                        <span className="text-red-700 font-bold line-through">
-                          {formatCurrency(calculos.contaSemSolar10AnosComReajuste)}
-                        </span>
-                        <span className="text-emerald-700 font-black text-sm">
-                          {formatCurrency(calculos.contaComSolar10AnosComReajuste)} com solar
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
               </div>
             </div>
           )}
@@ -3883,6 +3848,10 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                     custoPostergacao={calculos.economia1Mes}
                     dataOrcamento={initialOrcamento?.data_orcamento}
                     valorInvestimento={valorInvestimentoFinal}
+                    contaSemSolar4AnosComReajuste={calculos.contaSemSolar4AnosComReajuste}
+                    contaComSolar4AnosComReajuste={calculos.contaComSolar4AnosComReajuste}
+                    contaSemSolar10AnosComReajuste={calculos.contaSemSolar10AnosComReajuste}
+                    contaComSolar10AnosComReajuste={calculos.contaComSolar10AnosComReajuste}
                     valorAVista={
                       calculos.parcelamentos?.aVista?.valorTotal ||
                       Math.round(valorInvestimentoFinal * 0.95)
