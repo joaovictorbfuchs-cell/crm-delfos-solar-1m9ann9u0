@@ -7,10 +7,12 @@ import {
   Loader2,
   Building,
   CheckCircle2,
+  Sun,
 } from 'lucide-react'
 import { useClientes } from '@/contexts/ClientesContext'
 import { useAuth } from '@/contexts/AuthContext'
 import { ClienteAutocomplete } from '@/components/ClienteAutocomplete'
+import { fetchUsinasByClienteId } from '@/services/crmService'
 import {
   CATEGORIAS_ATIVIDADES,
   ATIVIDADES_PADRAO,
@@ -18,14 +20,14 @@ import {
   buildCustomTipoDef,
   type TipoAtividadeDef,
 } from '@/constants/atividadesTipos'
-import type { AtividadeCategoriaId } from '@/types/crm'
-import type { AtividadeTipo } from '@/types/crm'
+import type { AtividadeCategoriaId, AtividadeTipo, UsinaCliente } from '@/types/crm'
 
 interface ModalNovaAtividadeProps {
   isOpen: boolean
   onClose: () => void
   initialTipo?: AtividadeTipo | null
   initialClienteId?: string | null
+  usinas?: UsinaCliente[]
 }
 
 export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
@@ -33,6 +35,7 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
   onClose,
   initialTipo,
   initialClienteId,
+  usinas: usinasProp,
 }) => {
   const { clientes, usuarios, addAtividade, tiposAtividadesCustom } = useClientes()
   const { user } = useAuth()
@@ -41,6 +44,8 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
   const [selectedTipo, setSelectedTipo] = useState<AtividadeTipo>(initialTipo || 'contato_ligacao')
   const [titulo, setTitulo] = useState('')
   const [clienteId, setClienteId] = useState(initialClienteId || '')
+  const [usinasDoCliente, setUsinasDoCliente] = useState<UsinaCliente[]>(usinasProp || [])
+  const [selectedUsinaId, setSelectedUsinaId] = useState<string>('')
   const [responsavelId, setResponsavelId] = useState('')
   const [dataHora, setDataHora] = useState(() => {
     const now = new Date()
@@ -80,6 +85,48 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
       setFormSuccess(false)
     }
   }, [isOpen, initialTipo, initialClienteId, clientes, usuarios, user])
+
+  // Carregar ou sincronizar usinas do cliente selecionado
+  useEffect(() => {
+    if (!isOpen) return
+
+    let isMounted = true
+
+    // Se veio via prop e bate com o cliente selecionado
+    if (usinasProp && usinasProp.length > 0 && initialClienteId === clienteId) {
+      setUsinasDoCliente(usinasProp)
+      setSelectedUsinaId(usinasProp.length === 1 ? usinasProp[0].id : '')
+      return
+    }
+
+    if (!clienteId) {
+      setUsinasDoCliente([])
+      setSelectedUsinaId('')
+      return
+    }
+
+    fetchUsinasByClienteId(clienteId)
+      .then((lista) => {
+        if (!isMounted) return
+        setUsinasDoCliente(lista || [])
+        if (lista && lista.length === 1) {
+          setSelectedUsinaId(lista[0].id)
+        } else {
+          setSelectedUsinaId('')
+        }
+      })
+      .catch((err) => {
+        console.warn('Erro ao buscar usinas do cliente no modal de atividade:', err)
+        if (isMounted) {
+          setUsinasDoCliente([])
+          setSelectedUsinaId('')
+        }
+      })
+
+    return () => {
+      isMounted = false
+    }
+  }, [isOpen, clienteId, usinasProp, initialClienteId])
 
   const customDefs = React.useMemo(() => {
     return (tiposAtividadesCustom || []).map((t) => buildCustomTipoDef(t))
@@ -139,6 +186,7 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
         responsavel_nome: responsavelNome,
         status: 'pendente',
         autor: user?.name || 'João Delfos',
+        usina_id: selectedUsinaId || undefined,
       })
 
       setFormSuccess(true)
@@ -323,6 +371,38 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
               </select>
             </div>
           </div>
+
+          {/* Campo de Vínculo de Usina Inteligente */}
+          {usinasDoCliente.length === 1 && (
+            <div className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-50/70 border border-amber-200 text-amber-900 text-xs">
+              <Sun className="w-3.5 h-3.5 text-[#E0A838] shrink-0" />
+              <span className="text-[11px] font-medium">
+                Vinculada automaticamente à usina: <strong>{usinasDoCliente[0].nome}</strong>
+              </span>
+            </div>
+          )}
+
+          {usinasDoCliente.length >= 2 && (
+            <div className="space-y-1">
+              <label className="text-xs font-semibold text-gray-700 flex items-center gap-1">
+                <Sun className="w-3.5 h-3.5 text-[#E0A838]" />
+                <span>Vincular a usina</span>
+                <span className="text-[10px] text-gray-400 font-normal">(opcional)</span>
+              </label>
+              <select
+                value={selectedUsinaId}
+                onChange={(e) => setSelectedUsinaId(e.target.value)}
+                className="w-full text-xs px-3 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white text-gray-900"
+              >
+                <option value="">Nenhuma usina vinculada (geral do cliente)</option>
+                {usinasDoCliente.map((u) => (
+                  <option key={u.id} value={u.id}>
+                    {u.nome} {u.potencia_kwp ? `(${u.potencia_kwp} kWp)` : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           {/* Data e Hora */}
           <div className="space-y-1">

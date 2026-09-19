@@ -607,8 +607,7 @@ export const SecaoUsinasCliente: React.FC<SecaoUsinasClienteProps> = ({
                 <div className="space-y-4 py-2 text-xs">
                   {/* Card no topo: Dados Cadastrais do Cliente */}
                   {(() => {
-                    const docCadastral =
-                      cliente?.cpf || cliente?.cnpj || clienteDocumento || _clienteDocumento
+                    const docCadastral = cliente?.cpf || cliente?.cnpj || clienteDocumento
                     const telefoneCadastral = cliente?.telefone
                     const whatsappCadastral = cliente?.whatsapp || cliente?.telefone
                     const emailCadastral = cliente?.email
