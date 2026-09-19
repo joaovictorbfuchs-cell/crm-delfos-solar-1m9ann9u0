@@ -28,6 +28,7 @@ import {
 import { useAuth } from '@/contexts/AuthContext'
 import { useClientes } from '@/contexts/ClientesContext'
 import { ModalGerenciarWhatsAppTemplates } from '@/components/ModalGerenciarWhatsAppTemplates'
+import { ModalImportarPlanilhaTarifaria } from '@/components/ModalImportarPlanilhaTarifaria'
 import { FichaClienteDrawer } from '@/components/FichaClienteDrawer'
 import { DelfosLogo } from '@/components/DelfosLogo'
 import { NotificacoesBell } from '@/components/NotificacoesBell'
@@ -40,6 +41,7 @@ export default function Layout() {
   const navigate = useNavigate()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [modalWhatsAppTemplatesOpen, setModalWhatsAppTemplatesOpen] = useState(false)
+  const [modalPlanilhaTarifariaOpen, setModalPlanilhaTarifariaOpen] = useState(false)
 
   // Contagem de atendimentos pendentes: Fila de Novos + conversas Em Atendimento com novas mensagens não lidas
   const pendentesWhatsAppCount = React.useMemo(() => {
@@ -465,6 +467,17 @@ export default function Layout() {
                   <span className="hidden xl:inline text-[11px]">Templates</span>
                 </button>
 
+                <button
+                  type="button"
+                  onClick={() => setModalPlanilhaTarifariaOpen(true)}
+                  className="p-1.5 sm:px-2.5 sm:py-1.5 inline-flex items-center gap-1 text-gray-500 hover:text-emerald-700 bg-gray-50 hover:bg-emerald-50 border border-gray-200 hover:border-emerald-200 rounded-lg text-xs font-medium transition-colors shadow-2xs"
+                  title="Configurações: Parâmetros Tarifários (Lei 14.300 / Planilha de Orçamento)"
+                  aria-label="Configurações: Parâmetros Tarifários"
+                >
+                  <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
+                  <span className="hidden xl:inline text-[11px]">Tarifas</span>
+                </button>
+
                 <NotificacoesBell />
               </>
             )}
@@ -526,6 +539,14 @@ export default function Layout() {
         <ModalGerenciarWhatsAppTemplates
           isOpen={modalWhatsAppTemplatesOpen}
           onClose={() => setModalWhatsAppTemplatesOpen(false)}
+        />
+      )}
+
+      {/* Modal Global de Importação de Parâmetros Tarifários (Apenas para Admin) */}
+      {isAdmin && (
+        <ModalImportarPlanilhaTarifaria
+          isOpen={modalPlanilhaTarifariaOpen}
+          onClose={() => setModalPlanilhaTarifariaOpen(false)}
         />
       )}
     </div>

@@ -18,6 +18,11 @@ import {
   saveProjecoesTarifarias,
   clearProjecoesTarifarias,
 } from '@/services/projecaoTarifariaService'
+import {
+  saveParametrosTarifarios,
+  countParametrosTarifarios,
+  type ClasseTarifaria,
+} from '@/services/parametrosTarifariosService'
 import type { TipoClienteProjecao } from '@/data/planilhaBaseProjecao'
 import { formatCurrency } from '@/lib/formatters'
 
@@ -103,13 +108,27 @@ export const ModalImportarPlanilhaTarifaria: React.FC<ModalImportarPlanilhaTarif
     setSalvandoProgresso({ atual: 0, total: todasLinhas.length })
 
     try {
-      // Gravar todas as linhas dos blocos detectados com intervalo seguro e retry
-      const res = await saveProjecoesTarifarias(todasLinhas, {
-        replaceExistingForType: true,
-        delayBetweenItemsMs: 150,
+      // 1. Gravar em parametros_tarifarios (coleção oficial da Lei 14.300 / CRM Delfos)
+      const parametrosPayload = todasLinhas.map((l) => ({
+        ano: l.ano,
+        classe: l.tipo_cliente as ClasseTarifaria,
+        tarifa: l.tarifa_kwh,
+        fio_b: l.fio_b_kwh,
+        fs: l.fs,
+        gd_eco_liquida: l.gd_eco_liquida,
+      }))
+
+      const resParametros = await saveParametrosTarifarios(parametrosPayload, {
+        delayBetweenItemsMs: 60,
         onProgress: (current, total) => {
           setSalvandoProgresso({ atual: current, total })
         },
+      })
+
+      // 2. Gravar também em projecao_tarifaria (retrocompatibilidade da projeção de 25 anos)
+      const res = await saveProjecoesTarifarias(todasLinhas, {
+        replaceExistingForType: true,
+        delayBetweenItemsMs: 100,
       })
 
       if (!res.success && res.errors.length > 0) {
@@ -119,7 +138,7 @@ export const ModalImportarPlanilhaTarifaria: React.FC<ModalImportarPlanilhaTarif
       } else {
         const tipos = blocos.map((b) => b.nome).join(' e ')
         setSucessoMsg(
-          `Importação concluída com sucesso! Todos os ${res.inserted} registros tarifários foram gravados no banco de dados (${tipos}) de forma segura.`,
+          `Importação concluída com sucesso! ${resParametros.insertedOrUpdated} parâmetros tarifários foram gravados/atualizados em 'parametros_tarifarios' (${tipos}) com sucesso!`,
         )
         if (onImportSuccess) {
           onImportSuccess()

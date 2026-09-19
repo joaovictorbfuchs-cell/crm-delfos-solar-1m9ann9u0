@@ -4,6 +4,7 @@
  */
 
 import type { PadraoFasesSolar } from '../types/crm'
+import { PARAMETROS_TARIFARIOS_OFICIAIS } from '../data/planilhaBaseProjecao'
 
 export type TipoClienteSolar = 'residencial' | 'comercial' | 'industrial' | 'rural'
 export type TipoEstruturaSolar = 'ceramico' | 'metalico' | 'laje' | 'fibrocimento' | 'solo'
@@ -769,9 +770,16 @@ export function calcularOrcamentoSolar(input: InputCalculoSolar): CalculosSolarR
       ? Number(input.fioBKwh)
       : 0.2239
 
-  // GD Eco Líquida (R$/kWh creditado): Tarifa - FS * Fio B
-  // Validação: tarifa 1.1979, FS 0.3, Fio B 0.2239 -> 1.1979 - (0.3 * 0.2239) = 1.1039 R$/kWh
-  const gdEcoLiquidaKwh = Number((tarifaKwh - fatorSimultaneidade * fioBKwh).toFixed(4))
+  // GD Eco Líquida (R$/kWh creditado):
+  // Prioriza o valor oficial do ano 2026 da tabela de parâmetros tarifários para a classe do cliente
+  // Se o usuário informar tarifa/fioB personalizados fora do padrão ou ano não cadastrado, faz fallback para: Tarifa - FS * Fio B
+  // Validação: tarifa 1.1979, FS 0.3, Fio B 0.2239 -> 1.1039 R$/kWh (Residencial) e 1.1576 (Comercial)
+  const gdEcoLiquidaKwh =
+    input.gdEcoLiquida !== undefined &&
+    input.gdEcoLiquida !== null &&
+    Number(input.gdEcoLiquida) > 0
+      ? Number(input.gdEcoLiquida)
+      : Number((tarifaKwh - fatorSimultaneidade * fioBKwh).toFixed(4))
 
   // Detecção de cliente Trifásico:
   const padraoNormalizado = String(input.padraoFases || '')
@@ -825,13 +833,42 @@ export function calcularOrcamentoSolar(input: InputCalculoSolar): CalculosSolarR
   }
 
   // Economia acumulada com solar:
-  // Economia anual indexada pelo reajuste da tarifa menos a perda leve de degradação anual de 0.6%
+  // Passa a usar a GD Eco Líquida do ano correspondente da tabela oficial de parâmetros tarifários
+  // (2026 até 2051) para a classe do cliente; fallback para o cálculo atual se o ano não estiver cadastrado.
   function calcularEconomiaAcumulada(anos: number, economiaBaseAnual: number): number {
+    const classeNormalizada: TipoClienteSolar = tipoCliente || 'residencial'
+    const classeTabela: 'residencial' | 'comercial' =
+      classeNormalizada === 'comercial' || classeNormalizada === 'industrial'
+        ? 'comercial'
+        : 'residencial'
+
     let acumulado = 0
-    for (let ano = 0; ano < anos; ano++) {
-      const fatorTarifa = Math.pow(1 + REAJUSTE_ANUAL, ano)
-      const fatorDegradacao = Math.pow(1 - 0.006, ano) // 0.6% de degradação anual dos módulos
-      acumulado += economiaBaseAnual * fatorTarifa * fatorDegradacao
+    const anoInicial = 2026
+
+    for (let i = 0; i < anos; i++) {
+      const anoCorrente = anoInicial + i
+      const fatorDegradacao = Math.pow(1 - 0.006, i) // 0.6% de perda anual padrão dos módulos
+
+      // Busca na tabela oficial PARAMETROS_TARIFARIOS_OFICIAIS
+      const paramAno = PARAMETROS_TARIFARIOS_OFICIAIS[classeTabela]?.[anoCorrente]
+
+      if (paramAno && paramAno.gd_eco_liquida > 0) {
+        // Usa a GD Eco Líquida do ano correspondente da tabela
+        // Se a tarifa inicial informada pelo usuário for personalizada (diferente da base 2026), ajusta proporcionalmente
+        const tarifaBaseAnoInicial = PARAMETROS_TARIFARIOS_OFICIAIS[classeTabela][2026].tarifa
+        const propTarifa =
+          tarifaKwh > 0 && Math.abs(tarifaKwh - tarifaBaseAnoInicial) > 0.001
+            ? tarifaKwh / tarifaBaseAnoInicial
+            : 1.0
+
+        const gdAnoEfetiva = paramAno.gd_eco_liquida * propTarifa
+        const economiaDesteAno = consumoAnualEfetivo * gdAnoEfetiva * fatorDegradacao
+        acumulado += economiaDesteAno
+      } else {
+        // Fallback para o cálculo atual com reajuste anual de 9% caso o ano não esteja cadastrado
+        const fatorTarifa = Math.pow(1 + REAJUSTE_ANUAL, i)
+        acumulado += economiaBaseAnual * fatorTarifa * fatorDegradacao
+      }
     }
     return acumulado
   }

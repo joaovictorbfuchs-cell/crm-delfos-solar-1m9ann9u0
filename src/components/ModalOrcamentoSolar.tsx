@@ -1741,25 +1741,6 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                       className="w-full text-xs font-semibold px-3 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-emerald-500"
                       placeholder="Ex: 1.1979"
                     />
-                  </div>
-
-                  {/* Fio B (R$/kWh) */}
-                  <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <label className="text-[11px] font-semibold text-gray-700 block">
-                        Fio B (R$/kWh)
-                      </label>
-                      <span className="text-[10px] text-gray-400">Padrão: 0,2239</span>
-                    </div>
-                    <input
-                      type="number"
-                      value={fioBKwh}
-                      min={0}
-                      step={0.0001}
-                      onChange={(e) => setFioBKwh(Number(e.target.value) || 0)}
-                      className="w-full text-xs font-semibold px-3 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                      placeholder="0.2239"
-                    />
                     <span className="text-[10px] text-gray-500 mt-0.5 block">
                       GD Eco Líquida: {calculos.gdEcoLiquidaKwh.toFixed(4)} R$/kWh (FS:{' '}
                       {(calculos.fatorSimultaneidade * 100).toFixed(0)}%)
