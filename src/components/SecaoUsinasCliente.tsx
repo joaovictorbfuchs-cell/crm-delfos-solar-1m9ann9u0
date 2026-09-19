@@ -21,8 +21,8 @@ import {
   ChevronRight,
   Info,
 } from 'lucide-react'
-import { UsinaCliente, ContratoOM } from '@/types/crm'
-import { formatCurrency, formatDate } from '@/lib/formatters'
+import { UsinaCliente, ContratoOM, Cliente } from '@/types/crm'
+import { formatCurrency, formatDate, formatWhatsAppPhone } from '@/lib/formatters'
 import { calcularStatusDinamicoContrato } from '@/lib/contratoStatusDinamico'
 import { useAuth } from '@/contexts/AuthContext'
 import {
@@ -37,11 +37,13 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
+import { User, Phone, MessageSquare, Mail } from 'lucide-react'
 
 interface SecaoUsinasClienteProps {
   clienteId: string
   clienteNome: string
   clienteDocumento?: string
+  cliente?: Cliente | null
   isAdmin?: boolean
   usinas: UsinaCliente[]
   contratos: ContratoOM[]
@@ -59,7 +61,8 @@ interface SecaoUsinasClienteProps {
 export const SecaoUsinasCliente: React.FC<SecaoUsinasClienteProps> = ({
   clienteId,
   clienteNome,
-  clienteDocumento: _clienteDocumento,
+  clienteDocumento,
+  cliente,
   isAdmin: isAdminProp,
   usinas,
   contratos,
@@ -602,6 +605,114 @@ export const SecaoUsinasCliente: React.FC<SecaoUsinasClienteProps> = ({
               {/* Corpo da Ficha: Modo Visualização ou Modo Edição */}
               {!isEditingDetalhes ? (
                 <div className="space-y-4 py-2 text-xs">
+                  {/* Card no topo: Dados Cadastrais do Cliente */}
+                  {(() => {
+                    const docCadastral =
+                      cliente?.cpf || cliente?.cnpj || clienteDocumento || _clienteDocumento
+                    const telefoneCadastral = cliente?.telefone
+                    const whatsappCadastral = cliente?.whatsapp || cliente?.telefone
+                    const emailCadastral = cliente?.email
+                    const enderecoPartes = [
+                      cliente?.endereco,
+                      cliente?.numero ? `nº ${cliente.numero}` : null,
+                      cliente?.bairro,
+                      cliente?.cidade && cliente?.estado
+                        ? `${cliente.cidade} - ${cliente.estado}`
+                        : cliente?.cidade || cliente?.estado,
+                    ].filter(Boolean)
+                    const enderecoCompleto = enderecoPartes.join(', ')
+
+                    const whatsappDigits = whatsappCadastral
+                      ? whatsappCadastral.replace(/\D/g, '')
+                      : ''
+
+                    return (
+                      <div className="p-3.5 rounded-2xl bg-gradient-to-br from-slate-50 to-blue-50/30 border border-slate-200 space-y-3">
+                        <div className="flex items-center justify-between border-b border-slate-200/60 pb-2">
+                          <span className="text-[11px] font-extrabold uppercase tracking-wider text-[#0F2038] flex items-center gap-1.5">
+                            <User className="w-3.5 h-3.5 text-[#E0A838]" />
+                            Dados Cadastrais do Cliente
+                          </span>
+                          {docCadastral && (
+                            <Badge
+                              variant="outline"
+                              className="font-mono text-[10px] font-semibold bg-white text-slate-700 border-slate-300"
+                            >
+                              {docCadastral}
+                            </Badge>
+                          )}
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                          <div>
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
+                              Nome / Razão Social
+                            </span>
+                            <span className="font-bold text-slate-900 text-xs">
+                              {cliente?.nome || clienteNome}
+                            </span>
+                          </div>
+
+                          <div>
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
+                              Endereço Cadastral
+                            </span>
+                            <span className="font-medium text-slate-700 text-xs flex items-center gap-1">
+                              <MapPin className="w-3 h-3 text-slate-400 shrink-0 inline" />
+                              <span className="truncate">
+                                {enderecoCompleto || 'Endereço cadastral não informado'}
+                              </span>
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Contatos Clicáveis */}
+                        <div className="flex items-center gap-3 pt-1 border-t border-slate-200/50 flex-wrap">
+                          {telefoneCadastral && (
+                            <a
+                              href={`tel:${telefoneCadastral.replace(/\D/g, '')}`}
+                              className="inline-flex items-center gap-1 text-[11px] font-semibold text-blue-700 hover:underline bg-white px-2 py-1 rounded-lg border border-slate-200"
+                              title="Ligar para telefone cadastral"
+                            >
+                              <Phone className="w-3 h-3 text-blue-600" />
+                              <span>{formatWhatsAppPhone(telefoneCadastral)}</span>
+                            </a>
+                          )}
+
+                          {whatsappCadastral && (
+                            <a
+                              href={`https://wa.me/55${whatsappDigits.replace(/^55/, '')}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 hover:underline bg-white px-2 py-1 rounded-lg border border-slate-200"
+                              title="Abrir conversa no WhatsApp"
+                            >
+                              <MessageSquare className="w-3 h-3 text-emerald-600" />
+                              <span>WhatsApp ({formatWhatsAppPhone(whatsappCadastral)})</span>
+                            </a>
+                          )}
+
+                          {emailCadastral && (
+                            <a
+                              href={`mailto:${emailCadastral}`}
+                              className="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-700 hover:underline bg-white px-2 py-1 rounded-lg border border-slate-200"
+                              title="Enviar e-mail"
+                            >
+                              <Mail className="w-3 h-3 text-slate-500" />
+                              <span>{emailCadastral}</span>
+                            </a>
+                          )}
+
+                          {!telefoneCadastral && !whatsappCadastral && !emailCadastral && (
+                            <span className="text-[11px] text-slate-400 italic">
+                              Nenhum contato cadastrado na ficha do cliente.
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    )
+                  })()}
+
                   {/* Status Banner */}
                   <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-200">
                     <div className="flex items-center gap-2">

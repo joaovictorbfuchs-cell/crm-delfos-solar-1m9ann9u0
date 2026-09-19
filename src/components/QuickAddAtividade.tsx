@@ -18,10 +18,12 @@ import {
 } from '@/constants/atividadesTipos'
 import { useClientes } from '@/contexts/ClientesContext'
 import { useAuth } from '@/contexts/AuthContext'
-import type { AtividadeTipo, AtividadeCategoriaId } from '@/types/crm'
+import type { AtividadeTipo, AtividadeCategoriaId, UsinaCliente } from '@/types/crm'
+import { Sun } from 'lucide-react'
 
 interface QuickAddAtividadeProps {
   clienteId: string
+  usinas?: UsinaCliente[]
   onSuccess?: () => void
   onOpenGerenciar?: () => void
   onSelectTipoEspecial?: (tipoId: string) => void
@@ -29,6 +31,7 @@ interface QuickAddAtividadeProps {
 
 export const QuickAddAtividade: React.FC<QuickAddAtividadeProps> = ({
   clienteId,
+  usinas = [],
   onSuccess,
   onOpenGerenciar,
   onSelectTipoEspecial,
@@ -48,6 +51,17 @@ export const QuickAddAtividade: React.FC<QuickAddAtividadeProps> = ({
   // Form states
   const [titulo, setTitulo] = useState('Entrar em contato')
   const [descricao, setDescricao] = useState('')
+  const [selectedUsinaId, setSelectedUsinaId] = useState<string>(() => {
+    return usinas.length === 1 ? usinas[0].id : ''
+  })
+
+  // Sincronizar se lista de usinas carregar posteriormente
+  useEffect(() => {
+    if (usinas.length === 1 && !selectedUsinaId) {
+      setSelectedUsinaId(usinas[0].id)
+    }
+  }, [usinas, selectedUsinaId])
+
   const [dataHora, setDataHora] = useState(() => {
     const now = new Date()
     now.setHours(now.getHours() + 1, 0, 0, 0)
@@ -146,6 +160,7 @@ export const QuickAddAtividade: React.FC<QuickAddAtividadeProps> = ({
           responsavel_id: responsavelId || user?.id,
           responsavel_nome: responsavelNome,
           status: 'concluida',
+          usina_id: selectedUsinaId || undefined,
         })
         setDescricao('')
       } else {
@@ -162,6 +177,7 @@ export const QuickAddAtividade: React.FC<QuickAddAtividadeProps> = ({
           responsavel_id: responsavelId || user?.id,
           responsavel_nome: responsavelNome,
           status: 'pendente',
+          usina_id: selectedUsinaId || undefined,
         })
         setDescricao('')
       }
@@ -419,6 +435,38 @@ export const QuickAddAtividade: React.FC<QuickAddAtividadeProps> = ({
                 </select>
               </div>
             </div>
+
+            {/* Campo de Vínculo de Usina */}
+            {usinas.length === 1 && (
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-50/70 border border-amber-200 text-amber-900 text-xs">
+                <Sun className="w-3.5 h-3.5 text-[#E0A838] shrink-0" />
+                <span className="text-[11px] font-medium">
+                  Vinculada automaticamente à usina: <strong>{usinas[0].nome}</strong>
+                </span>
+              </div>
+            )}
+
+            {usinas.length >= 2 && (
+              <div>
+                <label className="text-[11px] font-semibold text-gray-600 flex items-center gap-1 mb-1">
+                  <Sun className="w-3 h-3 text-[#E0A838]" />
+                  <span>Vincular a usina</span>
+                  <span className="text-[10px] text-gray-400 font-normal">(opcional)</span>
+                </label>
+                <select
+                  value={selectedUsinaId}
+                  onChange={(e) => setSelectedUsinaId(e.target.value)}
+                  className="w-full text-xs px-2.5 py-2 rounded-xl border border-gray-200 focus:outline-none focus:ring-1 focus:ring-emerald-500 bg-white"
+                >
+                  <option value="">Nenhuma usina vinculada (geral do cliente)</option>
+                  {usinas.map((u) => (
+                    <option key={u.id} value={u.id}>
+                      {u.nome} {u.potencia_kwp ? `(${u.potencia_kwp} kWp)` : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             {/* Descrição Detalhada - Opcional */}
             <div>
