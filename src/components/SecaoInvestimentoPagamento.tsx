@@ -387,9 +387,9 @@ export const SecaoInvestimentoPagamento: React.FC<SecaoInvestimentoPagamentoProp
           <h3 className="text-base sm:text-lg font-black text-gray-900 tracking-tight mb-3">
             Condições de pagamento
           </h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-xs">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
             {/* CARD 1: À VISTA */}
-            <div className="p-5 sm:p-6 rounded-2xl border-2 border-emerald-400 bg-emerald-50/50 flex flex-col justify-between space-y-4 shadow-sm hover:shadow-md transition-shadow">
+            <div className="p-4 sm:p-5 rounded-2xl border-2 border-emerald-400 bg-emerald-50/50 flex flex-col justify-between space-y-4 shadow-sm hover:shadow-md transition-shadow">
               <div>
                 {/* Cabeçalho com ícone */}
                 <div className="flex items-center justify-between gap-2 mb-3">
@@ -437,7 +437,7 @@ export const SecaoInvestimentoPagamento: React.FC<SecaoInvestimentoPagamentoProp
             </div>
 
             {/* CARD 2: CARTÃO */}
-            <div className="p-5 sm:p-6 rounded-2xl border border-gray-200 bg-white flex flex-col justify-between space-y-4 shadow-sm hover:shadow-md transition-shadow">
+            <div className="p-4 sm:p-5 rounded-2xl border border-gray-200 bg-[#f5f5f5] flex flex-col justify-between space-y-4 shadow-sm hover:shadow-md transition-shadow">
               <div>
                 {/* Cabeçalho com ícone */}
                 <div className="flex items-center justify-between gap-2 mb-3">
@@ -498,7 +498,7 @@ export const SecaoInvestimentoPagamento: React.FC<SecaoInvestimentoPagamentoProp
             </div>
 
             {/* CARD 3: FINANCIAMENTO A */}
-            <div className="p-5 sm:p-6 rounded-2xl border border-gray-200 bg-white flex flex-col justify-between space-y-4 shadow-sm hover:shadow-md transition-shadow">
+            <div className="p-4 sm:p-5 rounded-2xl border border-gray-200 bg-[#f5f5f5] flex flex-col justify-between space-y-4 shadow-sm hover:shadow-md transition-shadow">
               <div>
                 {/* Cabeçalho com ícone */}
                 <div className="flex items-center justify-between gap-2 mb-3">
@@ -562,7 +562,7 @@ export const SecaoInvestimentoPagamento: React.FC<SecaoInvestimentoPagamentoProp
             </div>
 
             {/* CARD 4: FINANCIAMENTO B */}
-            <div className="p-5 sm:p-6 rounded-2xl border-2 border-blue-400 bg-blue-50/50 flex flex-col justify-between space-y-4 shadow-sm hover:shadow-md transition-shadow">
+            <div className="p-4 sm:p-5 rounded-2xl border-2 border-blue-400 bg-blue-50/50 flex flex-col justify-between space-y-4 shadow-sm hover:shadow-md transition-shadow">
               <div>
                 {/* Cabeçalho com ícone */}
                 <div className="flex items-center justify-between gap-2 mb-3">
