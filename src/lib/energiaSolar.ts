@@ -650,6 +650,7 @@ export interface InputCalculoSolar {
   valorInvestimentoInformado?: number
   configParcelamentos?: ConfiguracaoParcelamentosInput
   geracaoSimuladaKwhAno?: number
+  geracaoMensalCustomizada?: number[] | null
   fioBKwh?: number // Tarifa do Fio B em R$/kWh (padrão 0.2239)
   fatorSimultaneidade?: number // Fator de simultaneidade (padrão: 0.3 residencial / 0.7 comercial)
 }
@@ -717,7 +718,18 @@ export function calcularOrcamentoSolar(input: InputCalculoSolar): CalculosSolarR
         ? Math.round(geracaoAnualTotal / 12)
         : 0
 
-  if (geracaoSimuladaKwhAno !== undefined) {
+  if (
+    input.geracaoMensalCustomizada &&
+    Array.isArray(input.geracaoMensalCustomizada) &&
+    input.geracaoMensalCustomizada.length === 12
+  ) {
+    // Curva mensal personalizada (ex: importada do Solergo)
+    input.geracaoMensalCustomizada.forEach((val, idx) => {
+      if (geracaoMensalDetalhada[idx]) {
+        geracaoMensalDetalhada[idx].geracaoKwh = Math.round(Number(val) || 0)
+      }
+    })
+  } else if (geracaoSimuladaKwhAno !== undefined) {
     if (geracaoAnualCalculadaKit > 0) {
       const fatorEscala = geracaoSimuladaKwhAno / geracaoAnualCalculadaKit
       geracaoMensalDetalhada.forEach((item) => {

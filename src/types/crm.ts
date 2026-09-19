@@ -1028,6 +1028,11 @@ export interface OrcamentoSolarCalculado {
   payback_meses?: number
   producao_anual_kwh?: number
   producao_mensal_kwh?: number
+  geracao_simulada_kwh_ano?: number
+  geracao_fonte?: 'automatico' | 'solergo'
+  ajuste_solergo_ativo?: boolean
+  geracao_mensal_solergo_json?: number[] | null
+  imagem_solergo?: string
   geracao_detalhada_json?: unknown
   parcela_a_vista?: number
   parcela_cartao_18x?: number
@@ -1084,6 +1089,10 @@ export interface OrcamentoSolar extends RecordModel {
   consumo_kwh_mes: number
   geracao_pretendida_kwh_ano?: number
   geracao_simulada_kwh_ano?: number
+  geracao_fonte?: 'automatico' | 'solergo'
+  ajuste_solergo_ativo?: boolean
+  geracao_mensal_solergo_json?: number[] | null
+  imagem_solergo?: string
   tarifa_kwh: number
   potencia_kwp: number
   numero_placas: number

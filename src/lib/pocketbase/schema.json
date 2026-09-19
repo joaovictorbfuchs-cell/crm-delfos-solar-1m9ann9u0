@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-19T18:18:26.402Z",
+  "generatedAt": "2026-09-19T18:43:18.378Z",
   "collections": [
     {
       "name": "users",
@@ -2389,6 +2389,31 @@
         {
           "name": "secoes_habilitadas",
           "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "geracao_fonte",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["automatico", "solergo"]
+        },
+        {
+          "name": "ajuste_solergo_ativo",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "geracao_mensal_solergo_json",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "imagem_solergo",
+          "type": "file",
           "required": false,
           "system": false
         }

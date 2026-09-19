@@ -63,6 +63,7 @@ import {
   baixarPropostaSolarDocx,
 } from '@/lib/propostaSolarDocxGenerator'
 import { ModalGerarPropostaTecnicoComercial } from '@/components/ModalGerarPropostaTecnicoComercial'
+import { ModalImportarSolergo } from '@/components/ModalImportarSolergo'
 
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { fetchInstalacoesGaleria, getFotoUrl } from '@/services/instalacoesGaleriaService'
@@ -127,6 +128,23 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
       ? Number(initialOrcamento.geracao_simulada_kwh_ano)
       : '',
   )
+  // Estado para Solergo (ajuste de geração simulada para casos excepcionais)
+  const [modalSolergoOpen, setModalSolergoOpen] = useState<boolean>(false)
+  const [ajusteSolergoAtivo, setAjusteSolergoAtivo] = useState<boolean>(
+    Boolean(
+      initialOrcamento?.ajuste_solergo_ativo || initialOrcamento?.geracao_fonte === 'solergo',
+    ),
+  )
+  const [geracaoFonte, setGeracaoFonte] = useState<'automatico' | 'solergo'>(
+    initialOrcamento?.geracao_fonte === 'solergo' ? 'solergo' : 'automatico',
+  )
+  const [geracaoMensalSolergo, setGeracaoMensalSolergo] = useState<number[] | null>(
+    Array.isArray(initialOrcamento?.geracao_mensal_solergo_json) &&
+      initialOrcamento.geracao_mensal_solergo_json.length === 12
+      ? initialOrcamento.geracao_mensal_solergo_json
+      : null,
+  )
+  const [imagemSolergoFile, setImagemSolergoFile] = useState<File | null>(null)
   const [padraoFases, setPadraoFases] = useState<PadraoFasesSolar>(
     initialOrcamento?.padrao_fases || 'monofásico',
   )
@@ -314,6 +332,19 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
       } else {
         setGeracaoSimuladaKwhAno('')
       }
+      setAjusteSolergoAtivo(
+        Boolean(
+          initialOrcamento.ajuste_solergo_ativo || initialOrcamento.geracao_fonte === 'solergo',
+        ),
+      )
+      setGeracaoFonte(initialOrcamento.geracao_fonte === 'solergo' ? 'solergo' : 'automatico')
+      setGeracaoMensalSolergo(
+        Array.isArray(initialOrcamento.geracao_mensal_solergo_json) &&
+          initialOrcamento.geracao_mensal_solergo_json.length === 12
+          ? initialOrcamento.geracao_mensal_solergo_json
+          : null,
+      )
+      setImagemSolergoFile(null)
       setPadraoFases(initialOrcamento.padrao_fases || 'monofásico')
       setTipoCliente(initialOrcamento.tipo_cliente || 'residencial')
       setTarifaKwh(initialOrcamento.tarifa_kwh || 1.19)
@@ -591,6 +622,10 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
       setGeracaoPretendidaKwhMes(650)
       setGeracaoPretendidaEditadaManualmente(false)
       setGeracaoSimuladaKwhAno('')
+      setAjusteSolergoAtivo(false)
+      setGeracaoFonte('automatico')
+      setGeracaoMensalSolergo(null)
+      setImagemSolergoFile(null)
       setMaoDeObraEditadaManualmente(false)
       setManualAdministracao(false)
       setValorManualAdministracao(0)
