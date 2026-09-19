@@ -205,7 +205,7 @@ export const SecaoSeuSistemaFotovoltaico: React.FC<SecaoSeuSistemaFotovoltaicoPr
       {/* ========================================================================= */}
       {/* TOPO: HERO VISUAL COM BACKGROUND SUAVE DE USINA SOLAR & TÍTULO GRANDE     */}
       {/* ========================================================================= */}
-      <div className="relative overflow-hidden bg-gradient-to-br from-emerald-900 via-emerald-800 to-teal-900 text-white p-6 sm:p-8 md:p-10">
+      <div className="relative overflow-hidden bg-gradient-to-br from-emerald-900 via-emerald-800 to-teal-900 text-white p-4 sm:p-6 md:p-7">
         {/* Padrão SVG Decorativo Geométrico de Usina Fotovoltaica / Céu Solar */}
         <div className="absolute inset-0 opacity-15 pointer-events-none" aria-hidden="true">
           <svg className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
@@ -237,17 +237,17 @@ export const SecaoSeuSistemaFotovoltaico: React.FC<SecaoSeuSistemaFotovoltaicoPr
         />
 
         {/* Conteúdo do Topo */}
-        <div className="relative z-10 max-w-3xl space-y-3">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold bg-white/15 backdrop-blur-md text-emerald-100 border border-white/20 shadow-xs">
-            <Sparkles className="w-3.5 h-3.5 text-amber-300 animate-pulse" />
+        <div className="relative z-10 max-w-3xl space-y-2">
+          <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-white/15 backdrop-blur-md text-emerald-100 border border-white/20 shadow-xs">
+            <Sparkles className="w-3 h-3 text-amber-300 animate-pulse" />
             <span className="uppercase tracking-wider">Seu Sistema Fotovoltaico</span>
           </div>
 
-          <h2 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-white tracking-tight leading-tight">
+          <h2 className="text-xl sm:text-2xl md:text-3xl font-extrabold text-white tracking-tight leading-tight">
             Conheça sua usina solar
           </h2>
 
-          <p className="text-sm sm:text-base text-emerald-100/90 leading-relaxed font-normal">
+          <p className="text-xs sm:text-sm text-emerald-100/90 leading-relaxed font-normal">
             Engenharia de precisão planejada sob medida para{' '}
             {nomeCliente ? <strong>{nomeCliente}</strong> : 'você'}. Todos os dados técnicos
             consolidados em uma apresentação clara, moderna e transparente — sem letras miúdas.
@@ -258,67 +258,67 @@ export const SecaoSeuSistemaFotovoltaico: React.FC<SecaoSeuSistemaFotovoltaicoPr
       {/* ========================================================================= */}
       {/* CORPO: GRID DE CARDS VISUAIS COM ÍCONES E FONTES GRANDES                  */}
       {/* ========================================================================= */}
-      <div className="p-6 sm:p-8 space-y-4 sm:space-y-5 bg-[#FBFDFB]">
+      <div className="p-4 sm:p-5 space-y-3 sm:space-y-4 bg-[#FBFDFB]">
         {/* Grid de 6 cards principais (2 ou 3 colunas) */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-3.5">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5 sm:gap-3">
           {/* Card 1: ⚡ Potência do sistema */}
-          <div className="bg-[#f5f5f5] rounded-2xl p-3.5 sm:p-4 border border-gray-300 shadow-xs hover:shadow-md transition-all group flex flex-col justify-between">
-            <div className="flex items-start justify-between gap-3 mb-3">
-              <div className="w-12 h-12 rounded-xl bg-amber-50 border border-amber-200/60 flex items-center justify-center text-amber-600 group-hover:scale-105 transition-transform shadow-2xs">
-                <Zap className="w-6 h-6 fill-amber-500 text-amber-600" />
+          <div className="bg-[#f5f5f5] rounded-xl p-2.5 sm:p-3 border border-gray-300 shadow-xs hover:shadow-md transition-all group flex flex-col justify-between">
+            <div className="flex items-start justify-between gap-2 mb-2">
+              <div className="w-9 h-9 rounded-lg bg-amber-50 border border-amber-200/60 flex items-center justify-center text-amber-600 group-hover:scale-105 transition-transform shadow-2xs">
+                <Zap className="w-4.5 h-4.5 fill-amber-500 text-amber-600" />
               </div>
-              <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
                 Capacidade Nominal
               </span>
             </div>
             <div>
-              <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+              <div className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">
                 Potência do sistema
               </div>
-              <div className="text-2xl sm:text-3xl font-black text-gray-900 mt-1 tracking-tight">
+              <div className="text-xl sm:text-2xl font-black text-gray-900 mt-0.5 tracking-tight">
                 {(Number(potenciaFinal) || 0).toLocaleString('pt-BR', {
                   minimumFractionDigits: 2,
                   maximumFractionDigits: 2,
                 })}{' '}
-                <span className="text-lg font-bold text-emerald-700">kWp</span>
+                <span className="text-base font-bold text-emerald-700">kWp</span>
               </div>
-              <p className="text-xs text-gray-600 mt-1.5 leading-snug">
+              <p className="text-[11px] text-gray-600 mt-1 leading-snug">
                 Potência total instalada com módulos fotovoltaicos de alta eficiência energética.
               </p>
             </div>
           </div>
 
           {/* Card 2: 📊 Geração estimada + economia */}
-          <div className="bg-[#f5f5f5] rounded-2xl p-3.5 sm:p-4 border border-gray-300 shadow-xs hover:shadow-md transition-all group flex flex-col justify-between">
-            <div className="flex items-start justify-between gap-3 mb-3">
-              <div className="w-12 h-12 rounded-xl bg-emerald-50 border border-emerald-200/60 flex items-center justify-center text-emerald-600 group-hover:scale-105 transition-transform shadow-2xs">
-                <TrendingUp className="w-6 h-6 text-emerald-600" />
+          <div className="bg-[#f5f5f5] rounded-xl p-2.5 sm:p-3 border border-gray-300 shadow-xs hover:shadow-md transition-all group flex flex-col justify-between">
+            <div className="flex items-start justify-between gap-2 mb-2">
+              <div className="w-9 h-9 rounded-lg bg-emerald-50 border border-emerald-200/60 flex items-center justify-center text-emerald-600 group-hover:scale-105 transition-transform shadow-2xs">
+                <TrendingUp className="w-4.5 h-4.5 text-emerald-600" />
               </div>
-              <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-800 bg-emerald-100 px-2.5 py-0.5 rounded-full border border-emerald-300">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-full border border-emerald-300">
                 Alta Produção
               </span>
             </div>
             <div>
-              <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+              <div className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">
                 Geração estimada
               </div>
-              <div className="text-2xl sm:text-3xl font-black text-emerald-700 mt-1 tracking-tight">
+              <div className="text-xl sm:text-2xl font-black text-emerald-700 mt-0.5 tracking-tight">
                 {Math.round(Number(geracaoFinal) || 0).toLocaleString('pt-BR')}{' '}
-                <span className="text-lg font-bold text-gray-600">kWh/mês</span>
+                <span className="text-base font-bold text-gray-600">kWh/mês</span>
               </div>
-              <div className="mt-2 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-bold">
-                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+              <div className="mt-1.5 inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-800 border border-emerald-200 text-[11px] font-bold">
+                <CheckCircle2 className="w-3 h-3 text-emerald-600 shrink-0" />
                 <span>Economia de {formatCurrency(economiaFinal)}/mês</span>
               </div>
             </div>
           </div>
 
           {/* Card 3: 🔆 Módulos Fotovoltaicos com ícone representativo e garantias no rodapé */}
-          <div className="bg-[#f5f5f5] rounded-2xl p-3.5 sm:p-4 border border-gray-300 shadow-xs hover:shadow-md transition-all group flex flex-col justify-between">
+          <div className="bg-[#f5f5f5] rounded-xl p-2.5 sm:p-3 border border-gray-300 shadow-xs hover:shadow-md transition-all group flex flex-col justify-between">
             <div>
-              <div className="flex items-start justify-between gap-3 mb-3">
+              <div className="flex items-start justify-between gap-2 mb-2">
                 {fotoModuloUrl ? (
-                  <div className="w-14 h-14 rounded-xl border border-amber-200/80 bg-amber-50/40 p-1 flex items-center justify-center overflow-hidden shrink-0 group-hover:scale-105 transition-transform shadow-2xs">
+                  <div className="w-10 h-10 rounded-lg border border-amber-200/80 bg-amber-50/40 p-1 flex items-center justify-center overflow-hidden shrink-0 group-hover:scale-105 transition-transform shadow-2xs">
                     <img
                       src={fotoModuloUrl}
                       alt={marcaModuloFinal}
@@ -326,45 +326,42 @@ export const SecaoSeuSistemaFotovoltaico: React.FC<SecaoSeuSistemaFotovoltaicoPr
                     />
                   </div>
                 ) : (
-                  <div className="w-12 h-12 rounded-xl bg-amber-50 border border-amber-200/60 flex items-center justify-center text-amber-600 group-hover:scale-105 transition-transform shadow-2xs">
-                    <ModuloSolarIcon className="w-6 h-6 text-amber-600" />
+                  <div className="w-9 h-9 rounded-lg bg-amber-50 border border-amber-200/60 flex items-center justify-center text-amber-600 group-hover:scale-105 transition-transform shadow-2xs">
+                    <ModuloSolarIcon className="w-4.5 h-4.5 text-amber-600" />
                   </div>
                 )}
-                <span className="text-[11px] font-bold uppercase tracking-wider text-blue-700 bg-blue-50 px-2.5 py-0.5 rounded-full border border-blue-200">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200">
                   Tier-1 Global
                 </span>
               </div>
               <div>
-                <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                <div className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">
                   Módulos Fotovoltaicos
                 </div>
-                <div className="text-2xl sm:text-3xl font-black text-gray-900 mt-1 tracking-tight">
-                  {placasQtdFinal} <span className="text-lg font-bold text-gray-600">unidades</span>
+                <div className="text-xl sm:text-2xl font-black text-gray-900 mt-0.5 tracking-tight">
+                  {placasQtdFinal}{' '}
+                  <span className="text-base font-bold text-gray-600">unidades</span>
                 </div>
-                <p className="text-xs text-gray-700 font-semibold mt-1.5 leading-snug">
+                <p className="text-[11px] text-gray-700 font-semibold mt-1 leading-snug">
                   {marcaModuloFinal} — {placasPotenciaWpFinal}W cada
                 </p>
-                <p className="text-[11px] text-gray-500 mt-0.5">
+                <p className="text-[10px] text-gray-500 mt-0.5">
                   Tecnologia {tecnologiaModuloFinal}
                 </p>
               </div>
             </div>
 
             {/* Rodapé do Card: Garantias dos Módulos (Degradação/Performance & Fabricação) */}
-            <div className="mt-4 pt-3 border-t border-gray-300 space-y-1.5">
-              <div className="flex items-center justify-between text-[11px] text-gray-600">
-                <span className="font-medium text-gray-500">
-                  Garantia de performance (degradação):
-                </span>
-                <span className="font-extrabold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200/70">
+            <div className="mt-2.5 pt-2 border-t border-gray-300 space-y-1">
+              <div className="flex items-center justify-between text-[10px] text-gray-600">
+                <span className="font-medium text-gray-500">Garantia de performance:</span>
+                <span className="font-extrabold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded-md border border-emerald-200/70">
                   {garantiaModulosDegradacaoFinal} anos
                 </span>
               </div>
-              <div className="flex items-center justify-between text-[11px] text-gray-600">
-                <span className="font-medium text-gray-500">
-                  Garantia contra defeitos de fabricação:
-                </span>
-                <span className="font-extrabold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200/70">
+              <div className="flex items-center justify-between text-[10px] text-gray-600">
+                <span className="font-medium text-gray-500">Garantia fabricação:</span>
+                <span className="font-extrabold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded-md border border-amber-200/70">
                   {garantiaModulosFabricacaoFinal} anos
                 </span>
               </div>
@@ -372,11 +369,11 @@ export const SecaoSeuSistemaFotovoltaico: React.FC<SecaoSeuSistemaFotovoltaicoPr
           </div>
 
           {/* Card 4: 🔌 Inversor Solar com ícone CircuitBoard e garantias no rodapé */}
-          <div className="bg-[#f5f5f5] rounded-2xl p-3.5 sm:p-4 border border-gray-300 shadow-xs hover:shadow-md transition-all group flex flex-col justify-between">
+          <div className="bg-[#f5f5f5] rounded-xl p-2.5 sm:p-3 border border-gray-300 shadow-xs hover:shadow-md transition-all group flex flex-col justify-between">
             <div>
-              <div className="flex items-start justify-between gap-3 mb-3">
+              <div className="flex items-start justify-between gap-2 mb-2">
                 {fotoInversorUrl ? (
-                  <div className="w-14 h-14 rounded-xl border border-teal-200/80 bg-teal-50/40 p-1 flex items-center justify-center overflow-hidden shrink-0 group-hover:scale-105 transition-transform shadow-2xs">
+                  <div className="w-10 h-10 rounded-lg border border-teal-200/80 bg-teal-50/40 p-1 flex items-center justify-center overflow-hidden shrink-0 group-hover:scale-105 transition-transform shadow-2xs">
                     <img
                       src={fotoInversorUrl}
                       alt={marcaInversorFinal}
@@ -384,26 +381,26 @@ export const SecaoSeuSistemaFotovoltaico: React.FC<SecaoSeuSistemaFotovoltaicoPr
                     />
                   </div>
                 ) : (
-                  <div className="w-12 h-12 rounded-xl bg-teal-50 border border-teal-200/60 flex items-center justify-center text-teal-600 group-hover:scale-105 transition-transform shadow-2xs">
-                    <CircuitBoard className="w-6 h-6 text-teal-600" />
+                  <div className="w-9 h-9 rounded-lg bg-teal-50 border border-teal-200/60 flex items-center justify-center text-teal-600 group-hover:scale-105 transition-transform shadow-2xs">
+                    <CircuitBoard className="w-4.5 h-4.5 text-teal-600" />
                   </div>
                 )}
-                <span className="text-[11px] font-bold uppercase tracking-wider text-teal-800 bg-teal-50 px-2.5 py-0.5 rounded-full border border-teal-200">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-teal-800 bg-teal-50 px-2 py-0.5 rounded-full border border-teal-200">
                   {quantidadeInversores} {quantidadeInversores > 1 ? 'Inversores' : 'Inversor'}
                 </span>
               </div>
               <div>
-                <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                <div className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">
                   Inversor Solar
                 </div>
-                <div className="text-lg sm:text-xl font-black text-gray-900 mt-1 tracking-tight leading-snug">
+                <div className="text-base sm:text-lg font-black text-gray-900 mt-0.5 tracking-tight leading-snug">
                   {marcaInversorFinal}
                 </div>
-                <div className="flex items-center gap-2 mt-2 flex-wrap">
-                  <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-gray-100 text-gray-700 text-xs font-bold border border-gray-200">
+                <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                  <span className="inline-flex items-center px-1.5 py-0.5 rounded-md bg-gray-100 text-gray-700 text-[10px] font-bold border border-gray-200">
                     {mpptFinal} MPPT
                   </span>
-                  <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-800 text-xs font-bold border border-emerald-200">
+                  <span className="inline-flex items-center px-1.5 py-0.5 rounded-md bg-emerald-50 text-emerald-800 text-[10px] font-bold border border-emerald-200">
                     {potenciaInversorFinalKw} kW
                   </span>
                 </div>
@@ -411,10 +408,10 @@ export const SecaoSeuSistemaFotovoltaico: React.FC<SecaoSeuSistemaFotovoltaicoPr
             </div>
 
             {/* Rodapé do Card: Garantia do Inversor */}
-            <div className="mt-4 pt-3 border-t border-gray-300 space-y-1.5">
-              <div className="flex items-center justify-between text-[11px] text-gray-600">
-                <span className="font-medium text-gray-500">Garantia do inversor:</span>
-                <span className="font-extrabold text-teal-800 bg-teal-50 px-2 py-0.5 rounded-md border border-teal-200/70">
+            <div className="mt-2.5 pt-2 border-t border-gray-300 space-y-1">
+              <div className="flex items-center justify-between text-[10px] text-gray-600">
+                <span className="font-medium text-gray-500">Garantia inversor:</span>
+                <span className="font-extrabold text-teal-800 bg-teal-50 px-1.5 py-0.5 rounded-md border border-teal-200/70">
                   {garantiaInversorFinalAnos} anos
                 </span>
               </div>
@@ -422,50 +419,50 @@ export const SecaoSeuSistemaFotovoltaico: React.FC<SecaoSeuSistemaFotovoltaicoPr
           </div>
 
           {/* Card 5: 📐 Área necessária */}
-          <div className="bg-[#f5f5f5] rounded-2xl p-3.5 sm:p-4 border border-gray-300 shadow-xs hover:shadow-md transition-all group flex flex-col justify-between">
-            <div className="flex items-start justify-between gap-3 mb-3">
-              <div className="w-12 h-12 rounded-xl bg-blue-50 border border-blue-200/60 flex items-center justify-center text-blue-600 group-hover:scale-105 transition-transform shadow-2xs">
-                <Maximize2 className="w-6 h-6 text-blue-600" />
+          <div className="bg-[#f5f5f5] rounded-xl p-2.5 sm:p-3 border border-gray-300 shadow-xs hover:shadow-md transition-all group flex flex-col justify-between">
+            <div className="flex items-start justify-between gap-2 mb-2">
+              <div className="w-9 h-9 rounded-lg bg-blue-50 border border-blue-200/60 flex items-center justify-center text-blue-600 group-hover:scale-105 transition-transform shadow-2xs">
+                <Maximize2 className="w-4.5 h-4.5 text-blue-600" />
               </div>
-              <span className="text-[11px] font-bold uppercase tracking-wider text-blue-800 bg-blue-50 px-2.5 py-0.5 rounded-full border border-blue-200">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-blue-800 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200">
                 Telhado / Espaço
               </span>
             </div>
             <div>
-              <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+              <div className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">
                 Área necessária
               </div>
-              <div className="text-2xl sm:text-3xl font-black text-gray-900 mt-1 tracking-tight">
+              <div className="text-xl sm:text-2xl font-black text-gray-900 mt-0.5 tracking-tight">
                 {(Number(areaFinalM2) || 0).toLocaleString('pt-BR', {
                   minimumFractionDigits: 1,
                   maximumFractionDigits: 2,
                 })}{' '}
-                <span className="text-lg font-bold text-gray-600">m²</span>
+                <span className="text-base font-bold text-gray-600">m²</span>
               </div>
-              <p className="text-xs text-gray-600 mt-1.5 leading-snug">
+              <p className="text-[11px] text-gray-600 mt-1 leading-snug">
                 Área útil estimada para disposição e fixação otimizada dos painéis solares.
               </p>
             </div>
           </div>
 
           {/* Card 6: 🛡️ Garantia instalação Delfos */}
-          <div className="bg-[#f5f5f5] rounded-2xl p-3.5 sm:p-4 border border-gray-300 shadow-xs hover:shadow-md transition-all group flex flex-col justify-between">
-            <div className="flex items-start justify-between gap-3 mb-3">
-              <div className="w-12 h-12 rounded-xl bg-emerald-50 border border-emerald-200/60 flex items-center justify-center text-emerald-700 group-hover:scale-105 transition-transform shadow-2xs">
-                <ShieldCheck className="w-6 h-6 text-emerald-700" />
+          <div className="bg-[#f5f5f5] rounded-xl p-2.5 sm:p-3 border border-gray-300 shadow-xs hover:shadow-md transition-all group flex flex-col justify-between">
+            <div className="flex items-start justify-between gap-2 mb-2">
+              <div className="w-9 h-9 rounded-lg bg-emerald-50 border border-emerald-200/60 flex items-center justify-center text-emerald-700 group-hover:scale-105 transition-transform shadow-2xs">
+                <ShieldCheck className="w-4.5 h-4.5 text-emerald-700" />
               </div>
-              <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-800 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
                 Engenharia Própria
               </span>
             </div>
             <div>
-              <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+              <div className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">
                 Garantia de Instalação
               </div>
-              <div className="text-2xl sm:text-3xl font-black text-emerald-800 mt-1 tracking-tight">
+              <div className="text-xl sm:text-2xl font-black text-emerald-800 mt-0.5 tracking-tight">
                 {garantiaInstalacaoFinalTexto}
               </div>
-              <p className="text-xs text-gray-600 mt-1.5 leading-snug">
+              <p className="text-[11px] text-gray-600 mt-1 leading-snug">
                 Garantia integral Delfos sobre mão de obra especializada, cabos, proteções e ART
                 emitida.
               </p>
@@ -600,21 +597,21 @@ export const SecaoSeuSistemaFotovoltaico: React.FC<SecaoSeuSistemaFotovoltaicoPr
         {/* ========================================================================= */}
         {/* FAIXA DE MONITORAMENTO 24/7 INCLUSO                                       */}
         {/* ========================================================================= */}
-        <div className="bg-gradient-to-r from-emerald-600 via-emerald-700 to-teal-700 text-white rounded-2xl p-4 sm:p-5 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-3.5">
-            <div className="w-12 h-12 rounded-2xl bg-white/15 backdrop-blur-md border border-white/25 flex items-center justify-center shrink-0 shadow-2xs">
-              <Smartphone className="w-6 h-6 text-emerald-200" />
+        <div className="bg-gradient-to-r from-emerald-600 via-emerald-700 to-teal-700 text-white rounded-xl p-3 sm:p-4 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-white/15 backdrop-blur-md border border-white/25 flex items-center justify-center shrink-0 shadow-2xs">
+              <Smartphone className="w-5 h-5 text-emerald-200" />
             </div>
             <div>
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-sm sm:text-base font-extrabold text-white">
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <span className="text-sm font-extrabold text-white">
                   Monitoramento 24/7 incluso
                 </span>
                 <span className="text-[10px] font-bold uppercase tracking-wider bg-white/20 px-2 py-0.5 rounded-full text-emerald-100 border border-white/20">
                   Aplicativo Mobile
                 </span>
               </div>
-              <p className="text-xs sm:text-sm text-emerald-100/90 font-medium mt-0.5">
+              <p className="text-xs text-emerald-100/90 font-medium mt-0.5">
                 Acompanhe sua produção em tempo real pelo celular — geração diária, economia
                 acumulada e alertas inteligentes.
               </p>
@@ -622,8 +619,8 @@ export const SecaoSeuSistemaFotovoltaico: React.FC<SecaoSeuSistemaFotovoltaicoPr
           </div>
 
           <div className="shrink-0 flex items-center gap-2">
-            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white text-emerald-800 text-xs font-bold shadow-2xs">
-              <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white text-emerald-800 text-xs font-bold shadow-2xs">
+              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
               <span>iOS & Android</span>
             </span>
           </div>
@@ -634,22 +631,22 @@ export const SecaoSeuSistemaFotovoltaico: React.FC<SecaoSeuSistemaFotovoltaicoPr
         {/* Fundo #F0FDF4, borda #BBF7D0 e acentos #16A34A / #166534                  */}
         {/* Utiliza as ilustrações oficiais da proposta (onGridPngAsset e monitoramentoPngAsset) */}
         {/* ========================================================================= */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5 pt-2">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
           {/* Bloco 1: Como funciona o sistema solar (On-Grid) */}
-          <div className="bg-[#F0FDF4] border border-[#BBF7D0] rounded-2xl p-5 shadow-xs flex flex-col justify-between">
-            <div className="space-y-3">
+          <div className="bg-[#F0FDF4] border border-[#BBF7D0] rounded-xl p-3.5 sm:p-4 shadow-xs flex flex-col justify-between">
+            <div className="space-y-2">
               <div className="flex items-center justify-between gap-2">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-[#166534] bg-emerald-100/80 px-2.5 py-0.5 rounded-full border border-[#BBF7D0]">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-[#166534] bg-emerald-100/80 px-2 py-0.5 rounded-full border border-[#BBF7D0]">
                   Engenharia On-Grid
                 </span>
-                <span className="text-[11px] text-[#16A34A] font-semibold">Conexão à Rede</span>
+                <span className="text-[10px] text-[#16A34A] font-semibold">Conexão à Rede</span>
               </div>
 
               <div>
-                <h3 className="text-base sm:text-lg font-extrabold text-[#166534] tracking-tight">
+                <h3 className="text-sm sm:text-base font-extrabold text-[#166534] tracking-tight">
                   Como funciona o sistema solar (On-Grid)
                 </h3>
-                <p className="text-xs text-gray-700 mt-1 leading-relaxed">
+                <p className="text-[11px] text-gray-700 mt-0.5 leading-relaxed">
                   Os módulos fotovoltaicos captam a radiação solar e geram energia limpa em corrente
                   contínua. O inversor converte para corrente alternada pronta para o consumo
                   imediato no seu imóvel. A energia excedente é injetada na rede da concessionária
@@ -658,7 +655,7 @@ export const SecaoSeuSistemaFotovoltaico: React.FC<SecaoSeuSistemaFotovoltaicoPr
                 </p>
               </div>
 
-              <div className="rounded-xl overflow-hidden border border-[#BBF7D0] bg-white aspect-[16/10] relative shadow-2xs group flex items-center justify-center p-2">
+              <div className="rounded-lg overflow-hidden border border-[#BBF7D0] bg-white aspect-[16/10] relative shadow-2xs group flex items-center justify-center p-2">
                 <img
                   src={onGridPngAsset}
                   alt="Como funciona o sistema solar (On-Grid)"
@@ -668,9 +665,9 @@ export const SecaoSeuSistemaFotovoltaico: React.FC<SecaoSeuSistemaFotovoltaicoPr
               </div>
             </div>
 
-            <div className="mt-4 pt-3 border-t border-[#BBF7D0]/60 flex items-center justify-between text-xs text-[#166534]">
+            <div className="mt-3 pt-2 border-t border-[#BBF7D0]/60 flex items-center justify-between text-[11px] text-[#166534]">
               <span className="inline-flex items-center gap-1 font-semibold">
-                <CheckCircle2 className="w-3.5 h-3.5 text-[#16A34A]" />
+                <CheckCircle2 className="w-3 h-3 text-[#16A34A]" />
                 Homologação e ART Inclusa
               </span>
               <span className="font-bold text-[#16A34A]">Turnkey Delfos</span>
@@ -678,20 +675,20 @@ export const SecaoSeuSistemaFotovoltaico: React.FC<SecaoSeuSistemaFotovoltaicoPr
           </div>
 
           {/* Bloco 2: Monitoramento Inteligente 24/7 */}
-          <div className="bg-[#F0FDF4] border border-[#BBF7D0] rounded-2xl p-5 shadow-xs flex flex-col justify-between">
-            <div className="space-y-3">
+          <div className="bg-[#F0FDF4] border border-[#BBF7D0] rounded-xl p-3.5 sm:p-4 shadow-xs flex flex-col justify-between">
+            <div className="space-y-2">
               <div className="flex items-center justify-between gap-2">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-[#166534] bg-emerald-100/80 px-2.5 py-0.5 rounded-full border border-[#BBF7D0]">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-[#166534] bg-emerald-100/80 px-2 py-0.5 rounded-full border border-[#BBF7D0]">
                   Telemetria em Tempo Real
                 </span>
-                <span className="text-[11px] text-[#16A34A] font-semibold">App Mobile Incluso</span>
+                <span className="text-[10px] text-[#16A34A] font-semibold">App Mobile Incluso</span>
               </div>
 
               <div>
-                <h3 className="text-base sm:text-lg font-extrabold text-[#166534] tracking-tight">
+                <h3 className="text-sm sm:text-base font-extrabold text-[#166534] tracking-tight">
                   Monitoramento Inteligente 24/7
                 </h3>
-                <p className="text-xs text-gray-700 mt-1 leading-relaxed">
+                <p className="text-[11px] text-gray-700 mt-0.5 leading-relaxed">
                   Acompanhe a performance da sua usina solar na palma da mão. Gráficos diários,
                   mensais e anuais de geração em kWh, comparativo de economia em reais, alerta de
                   anomalias e histórico completo de produção em servidores dedicados e seguros para
@@ -699,7 +696,7 @@ export const SecaoSeuSistemaFotovoltaico: React.FC<SecaoSeuSistemaFotovoltaicoPr
                 </p>
               </div>
 
-              <div className="rounded-xl overflow-hidden border border-[#BBF7D0] bg-white aspect-[16/10] relative shadow-2xs group flex items-center justify-center p-2">
+              <div className="rounded-lg overflow-hidden border border-[#BBF7D0] bg-white aspect-[16/10] relative shadow-2xs group flex items-center justify-center p-2">
                 <img
                   src={monitoramentoPngAsset}
                   alt="Monitoramento Inteligente 24/7"
@@ -709,9 +706,9 @@ export const SecaoSeuSistemaFotovoltaico: React.FC<SecaoSeuSistemaFotovoltaicoPr
               </div>
             </div>
 
-            <div className="mt-4 pt-3 border-t border-[#BBF7D0]/60 flex items-center justify-between text-xs text-[#166534]">
+            <div className="mt-3 pt-2 border-t border-[#BBF7D0]/60 flex items-center justify-between text-[11px] text-[#166534]">
               <span className="inline-flex items-center gap-1 font-semibold">
-                <CheckCircle2 className="w-3.5 h-3.5 text-[#16A34A]" />
+                <CheckCircle2 className="w-3 h-3 text-[#16A34A]" />
                 Suporte e Acesso Vitalício
               </span>
               <span className="font-bold text-[#16A34A]">iOS & Android</span>

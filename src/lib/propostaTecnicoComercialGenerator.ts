@@ -680,13 +680,13 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
       padding-bottom: 24px;
     }
 
-    /* PÁGINA INDIVIDUAL DA PROPOSTA (FLUXO CONTÍNUO NATURAL) */
+    /* PÁGINA INDIVIDUAL DA PROPOSTA (FLUXO CONTÍNUO NATURAL COMPACTO) */
     .proposta-secao-page {
       background: #FFFFFF;
       width: 100%;
       min-height: auto;
-      padding: 10mm 12mm 10mm 12mm;
-      margin: 0 auto 14px auto;
+      padding: 6mm 10mm 6mm 10mm;
+      margin: 0 auto 10px auto;
       box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
       position: relative;
       display: flex;
@@ -694,6 +694,8 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
       justify-content: space-between;
       page-break-before: auto;
       break-before: auto;
+      page-break-after: auto;
+      break-after: auto;
       border-radius: 6px;
     }
     .proposta-secao-page:first-child {
@@ -712,14 +714,16 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
       flex-direction: column;
     }
 
-    /* CABEÇALHO RECORRENTE SEÇÕES 2-6 */
+    /* CABEÇALHO RECORRENTE SEÇÕES 2-5 */
     .doc-header {
       display: flex;
       align-items: center;
       justify-content: space-between;
       border-bottom: 2px solid #16A34A;
-      padding-bottom: 6px;
-      margin-bottom: 10px;
+      padding-bottom: 4px;
+      margin-bottom: 8px;
+      page-break-after: avoid;
+      break-after: avoid;
     }
     .header-brand {
       display: flex;
@@ -779,9 +783,11 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
       background: #F9FAFB;
       color: #374151;
       border-radius: 8px;
-      padding: 6px 10px 5px 10px;
-      margin-top: 10px;
+      padding: 5px 10px 4px 10px;
+      margin-top: 8px;
       box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+      page-break-inside: avoid;
+      break-inside: avoid;
     }
     .doc-footer-main-row {
       display: flex;
@@ -1018,12 +1024,14 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
        SEÇÃO 2 — SITUAÇÃO ATUAL (ESPELHADO DO SecaoCustoInercia.tsx)
        ========================================================== */
     .secao-header-card {
-      padding: 10px 14px;
-      border-radius: 14px;
-      margin-bottom: 8px;
+      padding: 8px 12px;
+      border-radius: 12px;
+      margin-bottom: 6px;
       border: 1px solid #E5E7EB;
       page-break-after: avoid;
       break-after: avoid;
+      page-break-inside: avoid;
+      break-inside: avoid;
     }
     .secao-header-card.situacao-atual {
       background: linear-gradient(90deg, rgba(236, 253, 245, 0.6) 0%, rgba(254, 243, 199, 0.35) 45%, #FFFFFF 100%);
@@ -1063,18 +1071,20 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
     /* Grid de 2 Cards Grandes da Situação Atual (Consumo e Custos com valores mensal/anual empilhados) */
     .grid-situacao-wrapper {
       position: relative;
-      margin-bottom: 12px;
+      margin-bottom: 8px;
+      page-break-inside: avoid;
+      break-inside: avoid;
     }
     .grid-situacao-cards {
       display: grid;
       grid-template-columns: repeat(2, 1fr);
-      gap: 12px;
+      gap: 8px;
     }
     .card-situacao {
       background: #FFFFFF;
       border: 1px solid #D1FAE5;
-      border-radius: 14px;
-      padding: 10px 12px;
+      border-radius: 12px;
+      padding: 8px 10px;
       box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
       display: flex;
       flex-direction: column;
@@ -1180,9 +1190,9 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
     .box-barras-inercia {
       background: #FFFFFF;
       border: 1px solid #E5E7EB;
-      border-radius: 14px;
-      padding: 10px 12px;
-      margin-bottom: 10px;
+      border-radius: 12px;
+      padding: 8px 10px;
+      margin-bottom: 8px;
       box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
       page-break-inside: avoid;
       break-inside: avoid;
@@ -1233,13 +1243,13 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
     .grid-marcos-inercia {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
-      gap: 12px;
-      margin-top: 8px;
+      gap: 8px;
+      margin-top: 6px;
     }
     .card-marco-inercia {
       border: 2px solid #E5E7EB;
-      border-radius: 14px;
-      padding: 10px 12px;
+      border-radius: 12px;
+      padding: 8px 10px;
       background: #FFFFFF;
       display: flex;
       flex-direction: column;
@@ -1347,7 +1357,7 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
       border: 1px solid #047857;
       position: relative;
       overflow: hidden;
-      padding: 18px 22px;
+      padding: 12px 16px;
     }
     .secao-header-card.sistema .glow-circle {
       position: absolute;
@@ -1393,18 +1403,20 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
       display: grid;
       grid-template-columns: repeat(3, 1fr);
       gap: 8px;
-      margin: 8px 0;
+      margin: 6px 0;
+      page-break-inside: avoid;
+      break-inside: avoid;
     }
     .card-sistema {
       background: #f5f5f5;
       border: 1px solid #d1d5db;
-      border-radius: 14px;
-      padding: 8px 12px;
+      border-radius: 12px;
+      padding: 8px 10px;
       display: flex;
       flex-direction: column;
       justify-content: space-between;
       box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
-      min-height: 85px;
+      min-height: auto;
       page-break-inside: avoid;
       break-inside: avoid;
     }
@@ -1727,16 +1739,20 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
     .cards-metricas-25anos {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
-      gap: 12px;
-      margin-top: 12px;
+      gap: 8px;
+      margin-top: 8px;
+      page-break-inside: avoid;
+      break-inside: avoid;
     }
     .card-metrica-destaque {
       background: #F0FDF4;
       border: 1.5px solid #86EFAC;
-      border-radius: 14px;
-      padding: 12px 14px;
+      border-radius: 12px;
+      padding: 8px 10px;
       text-align: center;
       box-shadow: 0 2px 6px rgba(22, 163, 74, 0.08);
+      page-break-inside: avoid;
+      break-inside: avoid;
     }
     .card-metrica-destaque.payback-card {
       background: #FFFBEB;
@@ -1779,13 +1795,15 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
     .hero-investimento-banner {
       background: linear-gradient(135deg, #065F46 0%, #047857 40%, #0D9488 100%);
       color: #FFFFFF;
-      border-radius: 18px;
-      padding: 16px 22px;
+      border-radius: 14px;
+      padding: 10px 16px;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      margin-bottom: 14px;
+      margin-bottom: 8px;
       box-shadow: 0 4px 12px rgba(6, 95, 70, 0.2);
+      page-break-inside: avoid;
+      break-inside: avoid;
     }
     .hero-invest-label {
       font-size: 10px;
@@ -1812,19 +1830,21 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
       display: grid;
       grid-template-columns: repeat(4, 1fr);
       gap: 8px;
-      margin-bottom: 10px;
+      margin-bottom: 8px;
+      page-break-inside: avoid;
+      break-inside: avoid;
     }
     .card-pagamento, .card-condicoes-comerciais {
       border: 1px solid #E5E7EB;
-      border-radius: 14px;
+      border-radius: 12px;
       background: #FFFFFF;
-      padding: 10px 8px;
+      padding: 8px 8px;
       display: flex;
       flex-direction: column;
       justify-content: space-between;
       text-align: center;
       box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
-      min-height: 110px;
+      min-height: auto;
       page-break-inside: avoid;
       break-inside: avoid;
     }
@@ -2017,16 +2037,20 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
       }
       .proposta-secao-page {
         margin: 0 !important;
-        padding: 8mm 10mm 8mm 10mm !important;
+        padding: 6mm 8mm 6mm 8mm !important;
         box-shadow: none !important;
         border-radius: 0 !important;
         height: auto !important;
+        min-height: auto !important;
         max-height: none !important;
         overflow: visible !important;
+        page-break-before: auto !important;
+        break-before: auto !important;
         page-break-after: auto !important;
         break-after: auto !important;
       }
       #secao-1-capa {
+        min-height: 297mm !important;
         height: 297mm !important;
         max-height: 297mm !important;
         page-break-after: always !important;
@@ -2184,42 +2208,42 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
         </header>
 
         <!-- Banner Institucional Delfos Solar -->
-        <div style="background: linear-gradient(135deg, #064E3B 0%, #065F46 50%, #0F766E 100%); border-radius: 16px; padding: 18px 22px; color: #FFFFFF; box-shadow: 0 4px 12px rgba(6, 78, 59, 0.2); margin-bottom: 16px;">
-          <div style="display: inline-flex; align-items: center; gap: 6px; padding: 2px 9px; border-radius: 9999px; font-size: 8.5px; font-weight: 800; background: rgba(255, 255, 255, 0.15); border: 1px solid rgba(255, 255, 255, 0.25); color: #D1FAE5; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 6px;">
+        <div style="background: linear-gradient(135deg, #064E3B 0%, #065F46 50%, #0F766E 100%); border-radius: 12px; padding: 12px 16px; color: #FFFFFF; box-shadow: 0 4px 12px rgba(6, 78, 59, 0.2); margin-bottom: 10px; page-break-inside: avoid; break-inside: avoid;">
+          <div style="display: inline-flex; align-items: center; gap: 6px; padding: 2px 8px; border-radius: 9999px; font-size: 8px; font-weight: 800; background: rgba(255, 255, 255, 0.15); border: 1px solid rgba(255, 255, 255, 0.25); color: #D1FAE5; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 4px;">
             <span>🏢</span> Engenharia Própria Especializada
           </div>
-          <h2 style="margin: 0; font-size: 20px; font-weight: 900; color: #FFFFFF; letter-spacing: -0.015em;">
+          <h2 style="margin: 0; font-size: 17px; font-weight: 900; color: #FFFFFF; letter-spacing: -0.015em;">
             Delfos Engenharia Ltda (Delfos Solar)
           </h2>
-          <div style="display: flex; flex-wrap: wrap; gap: 10px; font-size: 9.5px; color: #D1FAE5; margin-top: 6px; font-weight: 600;">
+          <div style="display: flex; flex-wrap: wrap; gap: 8px; font-size: 9px; color: #D1FAE5; margin-top: 4px; font-weight: 600;">
             <span>CNPJ: <strong>${empresa?.cnpj || '21.379.952/0001-38'}</strong></span>
             <span>•</span>
             <span>📍 Erechim / RS</span>
             <span>•</span>
             <span style="color: #FDE047;">Engenheiro Responsável: <strong>Eng. João Victor Bagetti Fuchs — CREA RS151894</strong></span>
           </div>
-          <p style="margin: 8px 0 0 0; font-size: 9.5px; color: #ECFDF5; line-height: 1.45; max-width: 740px;">
+          <p style="margin: 6px 0 0 0; font-size: 9px; color: #ECFDF5; line-height: 1.4; max-width: 740px;">
             Engenharia própria especializada em projetos fotovoltaicos, homologação completa junto à concessionária de energia e rigorosa garantia de desempenho com monitoramento em tempo real. Soluções completas Turnkey (chave na mão) do projeto à aprovação e geração.
           </p>
         </div>
 
         <!-- Grade com 3 Usinas do Portfólio / Galeria Usinas -->
-        <div>
-          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
+        <div style="page-break-inside: avoid; break-inside: avoid;">
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
             <div>
-              <h3 style="margin: 0; font-size: 13px; font-weight: 900; color: #111827;">
+              <h3 style="margin: 0; font-size: 12px; font-weight: 900; color: #111827;">
                 Portfólio de Usinas Solares Instaladas
               </h3>
-              <p style="margin: 2px 0 0 0; font-size: 8.5px; color: #4B5563;">
+              <p style="margin: 2px 0 0 0; font-size: 8px; color: #4B5563;">
                 Conheça algumas usinas projetadas, homologadas e executadas pela equipe da Delfos Solar.
               </p>
             </div>
-            <span style="font-size: 8.5px; font-weight: 800; background: #DCFCE7; color: #166534; padding: 3px 9px; border-radius: 9999px; border: 1px solid #86EFAC;">
+            <span style="font-size: 8px; font-weight: 800; background: #DCFCE7; color: #166534; padding: 2px 8px; border-radius: 9999px; border: 1px solid #86EFAC;">
               Projetos Reais Homologados
             </span>
           </div>
 
-          <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;">
+          <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;">
             ${(() => {
               // Se há fotosInstalacoes fornecidas, respeita a seleção (filtrada se houver instalacoesSelecionadasIds)
               let usinasExibicao = dados.fotosInstalacoes || []
@@ -2769,74 +2793,74 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
             <!-- ========================================================
                  SEÇÃO: LAYOUT DO TELHADO (SOLERGO / ENGENHARIA DELFOS)
                  ======================================================== -->
-            <div style="background: #FFFFFF; border: 1.5px solid #E5E7EB; border-radius: 14px; padding: 14px 16px; margin-top: 14px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); page-break-inside: avoid; break-inside: avoid;">
-              <div style="margin-bottom: 10px;">
+            <div style="background: #FFFFFF; border: 1.5px solid #E5E7EB; border-radius: 12px; padding: 10px 14px; margin-top: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); page-break-inside: avoid; break-inside: avoid;">
+              <div style="margin-bottom: 8px;">
                 <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 2px;">
                   <span style="font-size: 8px; font-weight: 800; text-transform: uppercase; background: #DBEAFE; color: #1E3A8A; padding: 2px 7px; border-radius: 9999px; border: 1px solid #BFDBFE;">
                     Engenharia & Posicionamento
                   </span>
-                  <h3 style="margin: 0; font-size: 13px; font-weight: 900; color: #1E3A8A; letter-spacing: -0.01em;">
+                  <h3 style="margin: 0; font-size: 12px; font-weight: 900; color: #1E3A8A; letter-spacing: -0.01em;">
                     Veja como ficará sua usina no telhado
                   </h3>
                 </div>
-                <div style="font-size: 9px; color: #4B5563; font-weight: 500;">
+                <div style="font-size: 8.5px; color: #4B5563; font-weight: 500;">
                   Layout técnico do projeto
                 </div>
               </div>
-              <div style="width: 100%; border-radius: 10px; overflow: hidden; border: 1px solid #E5E7EB; background: #F9FAFB; display: flex; align-items: center; justify-content: center; padding: 6px;">
-                <img src="${dados.layoutTelhadoUrl}" alt="Layout técnico do telhado" style="width: 100%; max-height: 290px; object-fit: contain; border-radius: 10px; display: block;" />
+              <div style="width: 100%; border-radius: 8px; overflow: hidden; border: 1px solid #E5E7EB; background: #F9FAFB; display: flex; align-items: center; justify-content: center; padding: 4px;">
+                <img src="${dados.layoutTelhadoUrl}" alt="Layout técnico do telhado" style="width: 100%; max-height: 260px; object-fit: contain; border-radius: 8px; display: block;" />
               </div>
             </div>
           `
         })()}
 
         <!-- BLOCOS EXPLICATIVOS COM ILUSTRAÇÕES OFICIAIS DA PROPOSTA -->
-        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-top: 14px;">
+        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-top: 10px; page-break-inside: avoid; break-inside: avoid;">
           <!-- Bloco 1: Como funciona o sistema solar (On-Grid) -->
-          <div style="background: #F0FDF4; border: 1.5px solid #BBF7D0; border-radius: 14px; padding: 12px 14px; display: flex; flex-direction: column; justify-content: space-between; box-shadow: 0 1px 3px rgba(22, 163, 74, 0.08);">
+          <div style="background: #F0FDF4; border: 1.5px solid #BBF7D0; border-radius: 12px; padding: 10px 12px; display: flex; flex-direction: column; justify-content: space-between; box-shadow: 0 1px 3px rgba(22, 163, 74, 0.08); page-break-inside: avoid; break-inside: avoid;">
             <div>
-              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
                 <span style="font-size: 8px; font-weight: 800; text-transform: uppercase; background: #DCFCE7; color: #166534; padding: 2px 7px; border-radius: 9999px; border: 1px solid #BBF7D0;">
                   Engenharia On-Grid
                 </span>
                 <span style="font-size: 8px; font-weight: 700; color: #16A34A;">Conexão à Rede</span>
               </div>
-              <div style="font-size: 11.5px; font-weight: 900; color: #166534; line-height: 1.25; margin-bottom: 4px;">
+              <div style="font-size: 11px; font-weight: 900; color: #166534; line-height: 1.25; margin-bottom: 3px;">
                 Como funciona o sistema solar (On-Grid)
               </div>
-              <p style="font-size: 8.5px; color: #374151; line-height: 1.35; margin: 0 0 8px 0;">
+              <p style="font-size: 8px; color: #374151; line-height: 1.35; margin: 0 0 6px 0;">
                 Módulos fotovoltaicos convertem a luz solar em energia limpa contínua e o inversor transforma em corrente alternada para o consumo do imóvel. O excedente é injetado na concessionária gerando créditos energéticos no medidor bidirecional.
               </p>
-              <div style="border-radius: 10px; overflow: hidden; border: 1px solid #BBF7D0; background: #FFFFFF; display: flex; align-items: center; justify-content: center; padding: 4px;">
-                <img src="${onGridPngAsset}" alt="Como funciona o sistema solar (On-Grid)" style="width: 100%; height: 130px; object-fit: contain; display: block; border-radius: 8px;" />
+              <div style="border-radius: 8px; overflow: hidden; border: 1px solid #BBF7D0; background: #FFFFFF; display: flex; align-items: center; justify-content: center; padding: 4px;">
+                <img src="${onGridPngAsset}" alt="Como funciona o sistema solar (On-Grid)" style="width: 100%; height: 110px; object-fit: contain; display: block; border-radius: 6px;" />
               </div>
             </div>
-            <div style="margin-top: 8px; padding-top: 6px; border-top: 1px solid #BBF7D0; display: flex; justify-content: space-between; font-size: 8px; color: #166534; font-weight: 800;">
+            <div style="margin-top: 6px; padding-top: 5px; border-top: 1px solid #BBF7D0; display: flex; justify-content: space-between; font-size: 8px; color: #166534; font-weight: 800;">
               <span>✓ Homologação e ART Inclusa</span>
               <span style="color: #16A34A;">Turnkey Delfos</span>
             </div>
           </div>
 
           <!-- Bloco 2: Monitoramento Inteligente 24/7 -->
-          <div style="background: #F0FDF4; border: 1.5px solid #BBF7D0; border-radius: 14px; padding: 12px 14px; display: flex; flex-direction: column; justify-content: space-between; box-shadow: 0 1px 3px rgba(22, 163, 74, 0.08);">
+          <div style="background: #F0FDF4; border: 1.5px solid #BBF7D0; border-radius: 12px; padding: 10px 12px; display: flex; flex-direction: column; justify-content: space-between; box-shadow: 0 1px 3px rgba(22, 163, 74, 0.08); page-break-inside: avoid; break-inside: avoid;">
             <div>
-              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
                 <span style="font-size: 8px; font-weight: 800; text-transform: uppercase; background: #DCFCE7; color: #166534; padding: 2px 7px; border-radius: 9999px; border: 1px solid #BBF7D0;">
                   Telemetria em Tempo Real
                 </span>
                 <span style="font-size: 8px; font-weight: 700; color: #16A34A;">App Mobile Incluso</span>
               </div>
-              <div style="font-size: 11.5px; font-weight: 900; color: #166534; line-height: 1.25; margin-bottom: 4px;">
+              <div style="font-size: 11px; font-weight: 900; color: #166534; line-height: 1.25; margin-bottom: 3px;">
                 Monitoramento Inteligente 24/7
               </div>
-              <p style="font-size: 8.5px; color: #374151; line-height: 1.35; margin: 0 0 8px 0;">
+              <p style="font-size: 8px; color: #374151; line-height: 1.35; margin: 0 0 6px 0;">
                 Acompanhe a geração de energia em tempo real na palma da mão. Gráficos diários em kWh, economia acumulada em reais, status do inversor e alertas inteligentes via aplicativo para celular (Android e iOS).
               </p>
-              <div style="border-radius: 10px; overflow: hidden; border: 1px solid #BBF7D0; background: #FFFFFF; display: flex; align-items: center; justify-content: center; padding: 4px;">
-                <img src="${monitoramentoPngAsset}" alt="Monitoramento Inteligente 24/7" style="width: 100%; height: 130px; object-fit: contain; display: block; border-radius: 8px;" />
+              <div style="border-radius: 8px; overflow: hidden; border: 1px solid #BBF7D0; background: #FFFFFF; display: flex; align-items: center; justify-content: center; padding: 4px;">
+                <img src="${monitoramentoPngAsset}" alt="Monitoramento Inteligente 24/7" style="width: 100%; height: 110px; object-fit: contain; display: block; border-radius: 6px;" />
               </div>
             </div>
-            <div style="margin-top: 8px; padding-top: 6px; border-top: 1px solid #BBF7D0; display: flex; justify-content: space-between; font-size: 8px; color: #166534; font-weight: 800;">
+            <div style="margin-top: 6px; padding-top: 5px; border-top: 1px solid #BBF7D0; display: flex; justify-content: space-between; font-size: 8px; color: #166534; font-weight: 800;">
               <span>✓ Suporte e Acesso Vitalício</span>
               <span style="color: #16A34A;">iOS & Android</span>
             </div>
@@ -2864,7 +2888,7 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
         </div>
 
         <!-- 3 CARDS DE MÉTRICAS EXATOS DO SecaoProjecao25Anos -->
-        <div class="cards-metricas-25anos" style="margin-top: 18px;">
+        <div class="cards-metricas-25anos" style="margin-top: 10px;">
           <!-- Card 1: Economia em 1 ano -->
           <div class="card-metrica-destaque">
             <div class="card-metrica-label">Economia em 1 ano</div>
@@ -2887,7 +2911,7 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
           </div>
         </div>
 
-        <div style="font-size: 8px; font-style: italic; color: #6B7280; margin-top: 10px; text-align: center;">
+        <div style="font-size: 8px; font-style: italic; color: #6B7280; margin-top: 8px; text-align: center;">
           * Projeção baseada na degradação linear de fábrica dos módulos e histórico de reajustes tarifários da rede elétrica.
         </div>
       </div>

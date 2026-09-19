@@ -134,7 +134,7 @@ function createSectionHeader(title: string, sub?: string): Paragraph[] {
   const paras: Paragraph[] = [
     new Paragraph({
       heading: HeadingLevel.HEADING_2,
-      spacing: { before: 240, after: sub ? 40 : 100 },
+      spacing: { before: 140, after: sub ? 30 : 60 },
       children: [
         new TextRun({
           text: '■ ',
@@ -156,7 +156,7 @@ function createSectionHeader(title: string, sub?: string): Paragraph[] {
   if (sub) {
     paras.push(
       new Paragraph({
-        spacing: { before: 0, after: 100 },
+        spacing: { before: 0, after: 60 },
         children: [
           new TextRun({
             text: sub,
