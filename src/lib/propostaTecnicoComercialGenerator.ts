@@ -2,7 +2,11 @@ import type { GeracaoMensalItem } from '@/lib/energiaSolar'
 import { calcularProjecaoEconomia } from '@/lib/calculoProjecaoEconomia'
 import { CONSUMO_EXEMPLO_PADRAO_KWH_ANO } from '@/data/planilhaBaseProjecao'
 import { formatarMesAnoQuitacao } from '@/lib/formatters'
-import { onGridPngAsset, monitoramentoPngAsset } from './propostaIlustracoesAssets'
+import {
+  logoOficialPngAsset,
+  onGridPngAsset,
+  monitoramentoPngAsset,
+} from './propostaIlustracoesAssets'
 
 export interface PropostaSecoesHabilitadas {
   layoutTelhado?: boolean
@@ -273,7 +277,7 @@ function renderInternalFooter(numeroSecao?: number, validadeDias?: number): stri
  *
  * 1. Capa (logo Delfos, cliente, potência kWp, geração, consultor, data)
  * 2. Situação Atual (consumo/custo mensal e anual + comparativo 1/5/25 anos + box vermelho + linha reflexiva)
- * 3. Seu Sistema Fotovoltaico (cards potência, geração, módulos, inversor, área, garantias 30a/10a/Delfos, faixa 24/7)
+ * 3. Seu Sistema Fotovoltaico (cards potência, geração, módulos, inversor, área, garantias 30a/10a/Delfos, faixa monitoramento)
  * 4. Projeção de Economia em 25 Anos (curvas gasto sem solar vs investimento/economia + marcador payback + cards)
  * 5. Investimento e Condições de Pagamento (cards À vista / Cartão / Finan A / Finan B + comparativo conta + custo postergação + badge validade)
  */
@@ -1624,7 +1628,7 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
       margin-top: 1px;
     }
 
-    /* Faixa de Monitoramento 24/7 com smartphone e visual esmeralda */
+    /* Faixa de Monitoramento com smartphone e visual esmeralda */
     .faixa-monitoramento {
       background: linear-gradient(90deg, #065F46 0%, #047857 50%, #0D9488 100%);
       color: #FFFFFF;
@@ -2153,7 +2157,7 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
           <!-- Topo Centralizado: Logo Oficial Delfos Solar (sem contatos) + Badge Amarelo -->
           <div class="capa-top-center">
             <div class="capa-logo-container">
-              <img src="/src/assets/prancheta-1-049a2.png" alt="Delfos Solar" class="capa-logo-img" />
+              <img src="${logoOficialPngAsset}" alt="Delfos Solar" class="capa-logo-img" />
             </div>
             <div class="capa-badge-amarelo">
               PROPOSTA TÉCNICO-COMERCIAL
@@ -2784,13 +2788,13 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
           `
         })()}
 
-        <!-- Faixa Verde de Monitoramento Inteligente 24/7 com Ícone de Smartphone -->
+        <!-- Faixa Verde de Monitoramento Inteligente com Ícone de Smartphone -->
         <div class="faixa-monitoramento">
           <div class="faixa-mon-left">
             <div class="faixa-mon-icon-box">📱</div>
             <div>
               <div class="faixa-mon-title-row">
-                <span class="faixa-monitoramento-title">Monitoramento Inteligente 24/7 pelo Smartphone</span>
+                <span class="faixa-monitoramento-title">Monitoramento pelo Smartphone</span>
                 <span class="faixa-mon-pill">Aplicativo Mobile</span>
               </div>
               <div class="faixa-monitoramento-desc">
@@ -2863,7 +2867,7 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
             </div>
           </div>
 
-          <!-- Bloco 2: Monitoramento Inteligente 24/7 -->
+          <!-- Bloco 2: Monitoramento -->
           <div style="background: #F0FDF4; border: 1.5px solid #BBF7D0; border-radius: 12px; padding: 10px 12px; display: flex; flex-direction: column; justify-content: space-between; box-shadow: 0 1px 3px rgba(22, 163, 74, 0.08); page-break-inside: avoid; break-inside: avoid;">
             <div>
               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
@@ -2873,13 +2877,13 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
                 <span style="font-size: 8px; font-weight: 700; color: #16A34A;">App Mobile Incluso</span>
               </div>
               <div style="font-size: 11px; font-weight: 900; color: #166534; line-height: 1.25; margin-bottom: 3px;">
-                Monitoramento Inteligente 24/7
+                Monitoramento
               </div>
               <p style="font-size: 8px; color: #374151; line-height: 1.35; margin: 0 0 6px 0;">
                 Acompanhe a geração de energia em tempo real na palma da mão. Gráficos diários em kWh, economia acumulada em reais, status do inversor e alertas inteligentes via aplicativo para celular (Android e iOS).
               </p>
               <div style="border-radius: 8px; overflow: hidden; border: 1px solid #BBF7D0; background: #FFFFFF; display: flex; align-items: center; justify-content: center; padding: 4px;">
-                <img src="${monitoramentoPngAsset}" alt="Monitoramento Inteligente 24/7" style="width: 100%; height: 110px; object-fit: contain; display: block; border-radius: 6px;" />
+                <img src="${monitoramentoPngAsset}" alt="Monitoramento" style="width: 100%; height: 110px; object-fit: contain; display: block; border-radius: 6px;" />
               </div>
             </div>
             <div style="margin-top: 6px; padding-top: 5px; border-top: 1px solid #BBF7D0; display: flex; justify-content: space-between; font-size: 8px; color: #166534; font-weight: 800;">

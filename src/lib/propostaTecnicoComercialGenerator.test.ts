@@ -5,6 +5,11 @@ import {
   type PropostaTecnicoComercialDados,
 } from './propostaTecnicoComercialGenerator'
 import { gerarHTMLPropostaSolar, type PropostaSolarPDFInput } from './propostaSolarGenerator'
+import {
+  logoOficialPngAsset,
+  onGridPngAsset,
+  monitoramentoPngAsset,
+} from './propostaIlustracoesAssets'
 
 describe('Proposta Técnico-Comercial Generator (5 Seções Oficiais)', () => {
   const dadosExemplo: PropostaTecnicoComercialDados = {
@@ -116,7 +121,8 @@ describe('Proposta Técnico-Comercial Generator (5 Seções Oficiais)', () => {
       'Consultor: <strong>João Victor Bagetti Fuchs</strong> • (54) 99129-2121',
     )
     expect(html).toContain('www.delfos.eng.br • contato@delfos.eng.br')
-    expect(html).toContain('/src/assets/prancheta-1-049a2.png')
+    expect(html).toContain('data:image/png;base64,')
+    expect(html).not.toContain('/src/assets/prancheta-1-049a2.png')
     // Ausência dos textos de contato legados abaixo do logo na capa
     expect(html).not.toContain('(54) 3712-2460')
     expect(html).not.toContain('@delfosenergia')
@@ -154,7 +160,17 @@ describe('Proposta Técnico-Comercial Generator (5 Seções Oficiais)', () => {
     expect(html).not.toContain('Garantia da instalação:')
     expect(html).toContain('Área Necessária')
     expect(html).not.toContain('Tranquilidade e Garantias Asseguradas')
-    expect(html).toContain('Monitoramento Inteligente 24/7 pelo Smartphone')
+    expect(html).toContain('Monitoramento pelo Smartphone')
+    expect(html).not.toContain('24/7')
+
+    // Bloco como funciona e bloco monitoramento com imagens embutidas (data:image)
+    expect(html).toContain('Como funciona o sistema solar (On-Grid)')
+    expect(html).toContain('alt="Como funciona o sistema solar (On-Grid)"')
+    expect(html).toContain('alt="Monitoramento"')
+    // Garante que ambos os blocos possuem imagens em data:image
+    expect(html).toContain(`src="${logoOficialPngAsset}"`)
+    expect(html).toContain(`src="${onGridPngAsset}"`)
+    expect(html).toContain(`src="${monitoramentoPngAsset}"`)
 
     // SEÇÃO 4: Projeção de Economia em 25 Anos (cards de economia 1, 5 e 25 anos sem payback ou ROI)
     expect(html).toContain('Projeção de Economia em 25 Anos')
@@ -552,9 +568,10 @@ describe('Proposta Técnico-Comercial Generator (5 Seções Oficiais)', () => {
     expect(html).toContain('www.delfos.eng.br')
     expect(html).toContain('contato@delfos.eng.br')
 
-    // 6. Referência ao asset do logo oficial Delfos
+    // 6. Referência ao asset do logo oficial Delfos embutido em Base64
     expect(html).toContain('capa-logo-container')
-    expect(html).toContain('/src/assets/prancheta-1-049a2.png')
+    expect(html).toContain('data:image/png;base64,')
+    expect(html).not.toContain('/src/assets/prancheta-1-049a2.png')
 
     // 7. Ausência dos contatos embutidos legados abaixo do logo
     expect(html).not.toContain('(54) 3712-2460')

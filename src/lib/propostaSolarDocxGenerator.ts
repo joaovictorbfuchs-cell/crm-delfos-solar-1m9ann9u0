@@ -1770,7 +1770,7 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
     )
   }
 
-  // Faixa verde de monitoramento 24/7 com smartphone
+  // Faixa verde de monitoramento com smartphone
   docChildren.push(
     new Table({
       width: { size: PAGE_CONTENT_WIDTH, type: WidthType.DXA },
@@ -1786,7 +1786,7 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
                 new Paragraph({
                   children: [
                     new TextRun({
-                      text: '📱 MONITORAMENTO INTELIGENTE 24/7 PELO SMARTPHONE (iOS & ANDROID): ',
+                      text: '📱 MONITORAMENTO PELO SMARTPHONE (iOS & ANDROID): ',
                       bold: true,
                       size: 16,
                       color: 'FFFFFF',
@@ -1872,7 +1872,7 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
   }
 
   // ----------------------------------------------------
-  // BLOCOS: COMO FUNCIONA O SISTEMA SOLAR (ON-GRID) & MONITORAMENTO INTELIGENTE 24/7
+  // BLOCOS: COMO FUNCIONA O SISTEMA SOLAR (ON-GRID) & MONITORAMENTO
   // Utiliza as ilustrações oficiais da proposta (onGridPngAsset e monitoramentoPngAsset)
   // Fundo #F0FDF4, borda #BBF7D0 e acentos verdes (#16A34A / #166534)
   // ----------------------------------------------------
@@ -1955,7 +1955,7 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
               ],
             }),
 
-            // Bloco 2: Monitoramento Inteligente 24/7
+            // Bloco 2: Monitoramento
             new TableCell({
               width: { size: colWidthBlocos, type: WidthType.DXA },
               shading: { type: ShadingType.CLEAR, fill: 'F0FDF4' },
@@ -1971,7 +1971,7 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
                       font: 'Arial',
                     }),
                     new TextRun({
-                      text: 'Monitoramento Inteligente 24/7\n',
+                      text: 'Monitoramento\n',
                       bold: true,
                       size: 16,
                       color: '166534',

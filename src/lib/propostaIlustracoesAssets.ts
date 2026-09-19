@@ -1,7 +1,8 @@
-import onGridPngAsset from '@/assets/editedimage1789566225196-8e828.png'
-import monitoramentoPngAsset from '@/assets/generatedimage1789566526403-a7f37.png'
+import logoOficialPngAsset from '@/assets/prancheta-1-049a2.png?inline'
+import onGridPngAsset from '@/assets/editedimage1789566225196-8e828.png?inline'
+import monitoramentoPngAsset from '@/assets/generatedimage1789566526403-a7f37.png?inline'
 
-export { onGridPngAsset, monitoramentoPngAsset }
+export { logoOficialPngAsset, onGridPngAsset, monitoramentoPngAsset }
 
 /**
  * @deprecated Mantido para compatibilidade seletiva caso necessário,

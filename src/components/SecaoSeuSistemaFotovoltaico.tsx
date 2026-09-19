@@ -595,7 +595,7 @@ export const SecaoSeuSistemaFotovoltaico: React.FC<SecaoSeuSistemaFotovoltaicoPr
             )
           })()}
         {/* ========================================================================= */}
-        {/* FAIXA DE MONITORAMENTO 24/7 INCLUSO                                       */}
+        {/* FAIXA DE MONITORAMENTO INCLUSO                                            */}
         {/* ========================================================================= */}
         <div className="bg-gradient-to-r from-emerald-600 via-emerald-700 to-teal-700 text-white rounded-xl p-3 sm:p-4 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-3">
           <div className="flex items-center gap-3">
@@ -604,9 +604,7 @@ export const SecaoSeuSistemaFotovoltaico: React.FC<SecaoSeuSistemaFotovoltaicoPr
             </div>
             <div>
               <div className="flex items-center gap-1.5 flex-wrap">
-                <span className="text-sm font-extrabold text-white">
-                  Monitoramento 24/7 incluso
-                </span>
+                <span className="text-sm font-extrabold text-white">Monitoramento incluso</span>
                 <span className="text-[10px] font-bold uppercase tracking-wider bg-white/20 px-2 py-0.5 rounded-full text-emerald-100 border border-white/20">
                   Aplicativo Mobile
                 </span>
@@ -627,7 +625,7 @@ export const SecaoSeuSistemaFotovoltaico: React.FC<SecaoSeuSistemaFotovoltaicoPr
         </div>
 
         {/* ========================================================================= */}
-        {/* BLOCOS: COMO FUNCIONA O SISTEMA SOLAR & MONITORAMENTO INTELIGENTE 24/7     */}
+        {/* BLOCOS: COMO FUNCIONA O SISTEMA SOLAR & MONITORAMENTO                      */}
         {/* Fundo #F0FDF4, borda #BBF7D0 e acentos #16A34A / #166534                  */}
         {/* Utiliza as ilustrações oficiais da proposta (onGridPngAsset e monitoramentoPngAsset) */}
         {/* ========================================================================= */}
@@ -674,7 +672,7 @@ export const SecaoSeuSistemaFotovoltaico: React.FC<SecaoSeuSistemaFotovoltaicoPr
             </div>
           </div>
 
-          {/* Bloco 2: Monitoramento Inteligente 24/7 */}
+          {/* Bloco 2: Monitoramento */}
           <div className="bg-[#F0FDF4] border border-[#BBF7D0] rounded-xl p-3.5 sm:p-4 shadow-xs flex flex-col justify-between">
             <div className="space-y-2">
               <div className="flex items-center justify-between gap-2">
@@ -686,7 +684,7 @@ export const SecaoSeuSistemaFotovoltaico: React.FC<SecaoSeuSistemaFotovoltaicoPr
 
               <div>
                 <h3 className="text-sm sm:text-base font-extrabold text-[#166534] tracking-tight">
-                  Monitoramento Inteligente 24/7
+                  Monitoramento
                 </h3>
                 <p className="text-[11px] text-gray-700 mt-0.5 leading-relaxed">
                   Acompanhe a performance da sua usina solar na palma da mão. Gráficos diários,
@@ -699,7 +697,7 @@ export const SecaoSeuSistemaFotovoltaico: React.FC<SecaoSeuSistemaFotovoltaicoPr
               <div className="rounded-lg overflow-hidden border border-[#BBF7D0] bg-white aspect-[16/10] relative shadow-2xs group flex items-center justify-center p-2">
                 <img
                   src={monitoramentoPngAsset}
-                  alt="Monitoramento Inteligente 24/7"
+                  alt="Monitoramento"
                   className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300"
                   loading="lazy"
                 />
