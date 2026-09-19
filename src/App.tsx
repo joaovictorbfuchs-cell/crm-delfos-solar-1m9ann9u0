@@ -17,6 +17,7 @@ import Fornecedores from './pages/Fornecedores'
 import Orcamentos from './pages/Orcamentos'
 import InstalacoesGaleriaPage from './pages/InstalacoesGaleria'
 import EquipamentosPage from './pages/Equipamentos'
+import AutomacoesPage from './pages/Automacoes'
 import Atividades from './pages/Atividades'
 import ExecucaoOS from './pages/ExecucaoOS'
 import { CentralAtendimento } from './pages/CentralAtendimento'
@@ -129,6 +130,14 @@ const App = () => (
               element={
                 <ProtectedRoute requiredRole="admin">
                   <Clientes />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/automacoes"
+              element={
+                <ProtectedRoute requiredRole="admin">
+                  <AutomacoesPage />
                 </ProtectedRoute>
               }
             />
