@@ -1413,6 +1413,7 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
           children: [
             new TableCell({
               width: { size: colWidthHalf, type: WidthType.DXA },
+              shading: { type: ShadingType.CLEAR, fill: 'F5F5F5' },
               margins: { top: 80, bottom: 80, left: 100, right: 100 },
               children: [
                 new Paragraph({
@@ -1436,6 +1437,7 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
             }),
             new TableCell({
               width: { size: colWidthHalf, type: WidthType.DXA },
+              shading: { type: ShadingType.CLEAR, fill: 'F5F5F5' },
               margins: { top: 80, bottom: 80, left: 100, right: 100 },
               children: [
                 new Paragraph({
@@ -1463,6 +1465,7 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
           children: [
             new TableCell({
               width: { size: colWidthHalf, type: WidthType.DXA },
+              shading: { type: ShadingType.CLEAR, fill: 'F5F5F5' },
               margins: { top: 80, bottom: 80, left: 100, right: 100 },
               children: [
                 new Paragraph({
@@ -1522,6 +1525,7 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
             }),
             new TableCell({
               width: { size: colWidthHalf, type: WidthType.DXA },
+              shading: { type: ShadingType.CLEAR, fill: 'F5F5F5' },
               margins: { top: 80, bottom: 80, left: 100, right: 100 },
               children: [
                 new Paragraph({
@@ -1561,6 +1565,7 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
           children: [
             new TableCell({
               width: { size: colWidthHalf, type: WidthType.DXA },
+              shading: { type: ShadingType.CLEAR, fill: 'F5F5F5' },
               margins: { top: 80, bottom: 80, left: 100, right: 100 },
               children: [
                 new Paragraph({
@@ -1582,6 +1587,7 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
             }),
             new TableCell({
               width: { size: colWidthHalf, type: WidthType.DXA },
+              shading: { type: ShadingType.CLEAR, fill: 'F5F5F5' },
               margins: { top: 80, bottom: 80, left: 100, right: 100 },
               children: [
                 new Paragraph({

@@ -1381,8 +1381,8 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
       margin: 12px 0;
     }
     .card-sistema {
-      background: #FFFFFF;
-      border: 1px solid #E5E7EB;
+      background: #f5f5f5;
+      border: 1px solid #d1d5db;
       border-radius: 14px;
       padding: 12px 14px;
       display: flex;
@@ -2538,7 +2538,7 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
             </div>
 
             <!-- Rodapé do Card: Garantias dos Módulos (Degradação & Fabricação) -->
-            <div style="margin-top: 8px; padding-top: 6px; border-top: 1px solid #E5E7EB; font-size: 8px; line-height: 1.4;">
+            <div style="margin-top: 8px; padding-top: 6px; border-top: 1px solid #d1d5db; font-size: 8px; line-height: 1.4;">
               <div style="display: flex; justify-content: space-between; align-items: center; color: #4B5563; margin-bottom: 2px;">
                 <span>Garantia de performance (degradação):</span>
                 <strong style="color: #065F46; background: #DCFCE7; padding: 1px 5px; border-radius: 4px; border: 1px solid #BBF7D0;">${garantiaModulosDesempenho} anos</strong>
@@ -2583,7 +2583,7 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
             </div>
 
             <!-- Rodapé do Card: Garantia do Inversor -->
-            <div style="margin-top: 8px; padding-top: 6px; border-top: 1px solid #E5E7EB; font-size: 8px; line-height: 1.4;">
+            <div style="margin-top: 8px; padding-top: 6px; border-top: 1px solid #d1d5db; font-size: 8px; line-height: 1.4;">
               <div style="display: flex; justify-content: space-between; align-items: center; color: #4B5563;">
                 <span>Garantia do inversor:</span>
                 <strong style="color: #0F766E; background: #CCFBF1; padding: 1px 5px; border-radius: 4px; border: 1px solid #99F6E4;">${garantiaInversor} anos</strong>

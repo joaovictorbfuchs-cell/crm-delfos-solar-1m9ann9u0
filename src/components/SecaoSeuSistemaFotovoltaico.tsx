@@ -262,7 +262,7 @@ export const SecaoSeuSistemaFotovoltaico: React.FC<SecaoSeuSistemaFotovoltaicoPr
         {/* Grid de 6 cards principais (2 ou 3 colunas) */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
           {/* Card 1: ⚡ Potência do sistema */}
-          <div className="bg-white rounded-2xl p-5 border border-emerald-100 shadow-xs hover:shadow-md transition-all group flex flex-col justify-between">
+          <div className="bg-[#f5f5f5] rounded-2xl p-5 border border-gray-300 shadow-xs hover:shadow-md transition-all group flex flex-col justify-between">
             <div className="flex items-start justify-between gap-3 mb-3">
               <div className="w-12 h-12 rounded-xl bg-amber-50 border border-amber-200/60 flex items-center justify-center text-amber-600 group-hover:scale-105 transition-transform shadow-2xs">
                 <Zap className="w-6 h-6 fill-amber-500 text-amber-600" />
@@ -289,7 +289,7 @@ export const SecaoSeuSistemaFotovoltaico: React.FC<SecaoSeuSistemaFotovoltaicoPr
           </div>
 
           {/* Card 2: 📊 Geração estimada + economia */}
-          <div className="bg-white rounded-2xl p-5 border border-emerald-100 shadow-xs hover:shadow-md transition-all group flex flex-col justify-between">
+          <div className="bg-[#f5f5f5] rounded-2xl p-5 border border-gray-300 shadow-xs hover:shadow-md transition-all group flex flex-col justify-between">
             <div className="flex items-start justify-between gap-3 mb-3">
               <div className="w-12 h-12 rounded-xl bg-emerald-50 border border-emerald-200/60 flex items-center justify-center text-emerald-600 group-hover:scale-105 transition-transform shadow-2xs">
                 <TrendingUp className="w-6 h-6 text-emerald-600" />
@@ -314,7 +314,7 @@ export const SecaoSeuSistemaFotovoltaico: React.FC<SecaoSeuSistemaFotovoltaicoPr
           </div>
 
           {/* Card 3: 🔆 Módulos Fotovoltaicos com ícone representativo e garantias no rodapé */}
-          <div className="bg-white rounded-2xl p-5 border border-emerald-100 shadow-xs hover:shadow-md transition-all group flex flex-col justify-between">
+          <div className="bg-[#f5f5f5] rounded-2xl p-5 border border-gray-300 shadow-xs hover:shadow-md transition-all group flex flex-col justify-between">
             <div>
               <div className="flex items-start justify-between gap-3 mb-3">
                 {fotoModuloUrl ? (
@@ -351,7 +351,7 @@ export const SecaoSeuSistemaFotovoltaico: React.FC<SecaoSeuSistemaFotovoltaicoPr
             </div>
 
             {/* Rodapé do Card: Garantias dos Módulos (Degradação/Performance & Fabricação) */}
-            <div className="mt-4 pt-3 border-t border-gray-100 space-y-1.5">
+            <div className="mt-4 pt-3 border-t border-gray-300 space-y-1.5">
               <div className="flex items-center justify-between text-[11px] text-gray-600">
                 <span className="font-medium text-gray-500">
                   Garantia de performance (degradação):
@@ -372,7 +372,7 @@ export const SecaoSeuSistemaFotovoltaico: React.FC<SecaoSeuSistemaFotovoltaicoPr
           </div>
 
           {/* Card 4: 🔌 Inversor Solar com ícone CircuitBoard e garantias no rodapé */}
-          <div className="bg-white rounded-2xl p-5 border border-emerald-100 shadow-xs hover:shadow-md transition-all group flex flex-col justify-between">
+          <div className="bg-[#f5f5f5] rounded-2xl p-5 border border-gray-300 shadow-xs hover:shadow-md transition-all group flex flex-col justify-between">
             <div>
               <div className="flex items-start justify-between gap-3 mb-3">
                 {fotoInversorUrl ? (
@@ -411,7 +411,7 @@ export const SecaoSeuSistemaFotovoltaico: React.FC<SecaoSeuSistemaFotovoltaicoPr
             </div>
 
             {/* Rodapé do Card: Garantia do Inversor */}
-            <div className="mt-4 pt-3 border-t border-gray-100 space-y-1.5">
+            <div className="mt-4 pt-3 border-t border-gray-300 space-y-1.5">
               <div className="flex items-center justify-between text-[11px] text-gray-600">
                 <span className="font-medium text-gray-500">Garantia do inversor:</span>
                 <span className="font-extrabold text-teal-800 bg-teal-50 px-2 py-0.5 rounded-md border border-teal-200/70">
@@ -422,7 +422,7 @@ export const SecaoSeuSistemaFotovoltaico: React.FC<SecaoSeuSistemaFotovoltaicoPr
           </div>
 
           {/* Card 5: 📐 Área necessária */}
-          <div className="bg-white rounded-2xl p-5 border border-emerald-100 shadow-xs hover:shadow-md transition-all group flex flex-col justify-between">
+          <div className="bg-[#f5f5f5] rounded-2xl p-5 border border-gray-300 shadow-xs hover:shadow-md transition-all group flex flex-col justify-between">
             <div className="flex items-start justify-between gap-3 mb-3">
               <div className="w-12 h-12 rounded-xl bg-blue-50 border border-blue-200/60 flex items-center justify-center text-blue-600 group-hover:scale-105 transition-transform shadow-2xs">
                 <Maximize2 className="w-6 h-6 text-blue-600" />
@@ -449,7 +449,7 @@ export const SecaoSeuSistemaFotovoltaico: React.FC<SecaoSeuSistemaFotovoltaicoPr
           </div>
 
           {/* Card 6: 🛡️ Garantia instalação Delfos */}
-          <div className="bg-white rounded-2xl p-5 border border-emerald-100 shadow-xs hover:shadow-md transition-all group flex flex-col justify-between">
+          <div className="bg-[#f5f5f5] rounded-2xl p-5 border border-gray-300 shadow-xs hover:shadow-md transition-all group flex flex-col justify-between">
             <div className="flex items-start justify-between gap-3 mb-3">
               <div className="w-12 h-12 rounded-xl bg-emerald-50 border border-emerald-200/60 flex items-center justify-center text-emerald-700 group-hover:scale-105 transition-transform shadow-2xs">
                 <ShieldCheck className="w-6 h-6 text-emerald-700" />
