@@ -66,6 +66,13 @@ export interface PropostaSolarPDFInput {
     garantiaInstalacaoTexto?: string
   }
   calculos: CalculosSolarResultado
+  fotosInstalacoes?: Array<{
+    id: string
+    titulo?: string
+    url?: string
+    cidade?: string
+    potenciaKwp?: number
+  }>
   instalacoesSelecionadasIds?: string[]
   dataEmissao?: string
   validadeDias?: number // 5 dias prescritos
@@ -111,7 +118,7 @@ export function formatarOrientacao(orientacao: OrientacaoTelhadoSolar): string {
  * Converte a entrada PropostaSolarPDFInput para o formato PropostaTecnicoComercialDados
  * garantindo que toda saída solar utilize o MESMO NOVO TEMPLATE de 6 seções.
  */
-function converterInputParaTemplateComercial(
+export function converterInputParaTemplateComercial(
   dados: PropostaSolarPDFInput,
 ): PropostaTecnicoComercialDados {
   const {
@@ -187,6 +194,7 @@ function converterInputParaTemplateComercial(
       instalacaoTexto:
         sistema.garantiaInstalacaoTexto || '1 ano de garantia direta Delfos Engenharia',
     },
+    fotosInstalacoes: dados.fotosInstalacoes,
     instalacoesSelecionadasIds,
     producao: {
       anualKwh:

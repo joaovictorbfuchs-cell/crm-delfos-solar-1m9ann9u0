@@ -50,6 +50,7 @@ import {
 import {
   abrirPropostaSolarEmNovaAba,
   baixarPropostaSolarHTML,
+  gerarHTMLPropostaSolar,
   type PropostaSolarPDFInput,
 } from '@/lib/propostaSolarGenerator'
 import {
@@ -57,12 +58,7 @@ import {
   baixarPropostaSolarDocx,
 } from '@/lib/propostaSolarDocxGenerator'
 import { ModalGerarPropostaTecnicoComercial } from '@/components/ModalGerarPropostaTecnicoComercial'
-import { SecaoCapaProposta } from '@/components/SecaoCapaProposta'
-import { SecaoApresentacaoEmpresa } from '@/components/SecaoApresentacaoEmpresa'
-import { SecaoCustoInercia } from '@/components/SecaoCustoInercia'
-import { SecaoProjecao25Anos } from '@/components/SecaoProjecao25Anos'
-import { SecaoSeuSistemaFotovoltaico } from '@/components/SecaoSeuSistemaFotovoltaico'
-import { SecaoInvestimentoPagamento } from '@/components/SecaoInvestimentoPagamento'
+
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { fetchInstalacoesGaleria, getFotoUrl } from '@/services/instalacoesGaleriaService'
 import type { InstalacaoGaleria } from '@/types/instalacoesGaleria'
@@ -927,6 +923,13 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
         garantiaInstalacaoTexto: '12 meses',
       },
       calculos,
+      fotosInstalacoes: usinasGaleria.map((u) => ({
+        id: u.id,
+        titulo: u.titulo,
+        url: getFotoUrl(u) || '',
+        cidade: u.cidade || '',
+        potenciaKwp: Number(u.potencia_kwp) || undefined,
+      })),
       instalacoesSelecionadasIds:
         instalacoesSelecionadasIds.length > 0 ? instalacoesSelecionadasIds : undefined,
       dataEmissao: new Date().toISOString(),
@@ -957,11 +960,23 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
     garantiaModulosFabricacaoAnos,
     garantiaInversorAnos,
     calculos,
+    usinasGaleria,
     instalacoesSelecionadasIds,
     observacoes,
     layoutTelhadoPreviewUrl,
     layoutTelhadoHabilitado,
   ])
+
+  // HTML fiel e atualizado em tempo real da proposta técnico-comercial
+  const htmlPropostaPreview = useMemo<string>(() => {
+    if (!propostaPDFData) return ''
+    try {
+      return gerarHTMLPropostaSolar(propostaPDFData)
+    } catch (err) {
+      console.error('Erro ao gerar HTML da proposta para preview fiel:', err)
+      return '<div style="padding:20px;color:#b91c1c;font-family:sans-serif;">Não foi possível carregar o preview da proposta. Verifique os dados preenchidos.</div>'
+    }
+  }, [propostaPDFData])
 
   if (!isOpen) return null
 
@@ -3894,222 +3909,26 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                   )}
                 </div>
 
-                {/* Seção 1: Capa da Proposta Comercial Oficial */}
-                <ErrorBoundary compact errorMessage="Não foi possível exibir a Capa da Proposta">
-                  <SecaoCapaProposta
-                    nomeCliente={clienteAtual?.nome}
-                    tipoImovel={
-                      (clienteAtual as any)?.tipo_imovel ||
-                      (tipoCliente === 'comercial' ? 'Comércio' : 'Residência')
-                    }
-                    cidade={
-                      (clienteAtual as any)?.cidade || clienteAtual?.municipio || 'Passo Fundo - RS'
-                    }
-                    consultor={initialOrcamento?.autor || user?.name || 'João Victor Bagetti Fuchs'}
-                    telefoneConsultor="(54) 99129-2121"
-                    economiaMensal={calculos.economia1Mes}
-                    dataOrcamento={initialOrcamento?.data_orcamento || initialOrcamento?.created}
-                    potenciaKwp={potenciaKwp}
-                  />
-                </ErrorBoundary>
-
-                {/* Página de Apresentação da Empresa & Galeria de Usinas */}
-                <ErrorBoundary
-                  compact
-                  errorMessage="Não foi possível exibir a Apresentação da Empresa"
-                >
-                  <SecaoApresentacaoEmpresa
-                    instalacoesSelecionadasIds={
-                      instalacoesSelecionadasIds.length > 0 ? instalacoesSelecionadasIds : undefined
-                    }
-                  />
-                </ErrorBoundary>
-
-                {/* Seção 2: Situação Atual (Consumo & Custos + Gastos Acumulados) */}
-                <ErrorBoundary compact errorMessage="Não foi possível exibir a Situação Atual">
-                  <SecaoCustoInercia
-                    consumoMensalKwh={
-                      calculos.geracaoMediaMensalKwh ||
-                      consumoKwhMes ||
-                      clienteAtual?.consumo_kwh_mes ||
-                      650
-                    }
-                    consumoAnualKwh={
-                      calculos.geracaoAnualEstimadaKwh ||
-                      (calculos.geracaoMediaMensalKwh
-                        ? Math.round(calculos.geracaoMediaMensalKwh * 12)
-                        : consumoKwhMes
-                          ? Math.round(consumoKwhMes * 12)
-                          : 7800)
-                    }
-                    contaMensal={
-                      calculos.contaAtualSemSolarMes ||
-                      (calculos.geracaoMediaMensalKwh && tarifaKwh
-                        ? calculos.geracaoMediaMensalKwh * tarifaKwh
-                        : undefined)
-                    }
-                    contaAnual={
-                      calculos.contaAtualSemSolarAno ||
-                      (calculos.contaAtualSemSolarMes
-                        ? calculos.contaAtualSemSolarMes * 12
-                        : undefined)
-                    }
-                    gastoSemSolar1Ano={calculos.gastoSemSolar1Ano}
-                    gastoSemSolar5Anos={calculos.gastoSemSolar5Anos}
-                    gastoSemSolarPaybackAnos={calculos.gastoSemSolarPaybackAnos}
-                    paybackMeses={calculos.paybackMeses}
-                    anosPayback={calculos.anosPaybackArredondado}
-                    gastoSemSolar25Anos={calculos.gastoSemSolar25Anos}
-                    valorInvestimento={valorInvestimentoFinal}
-                    economiaMensal={calculos.economia1Mes}
-                    economia1Ano={calculos.economia1Ano}
-                    economia5Anos={calculos.economia5Anos}
-                    economia25Anos={calculos.economia25Anos}
-                  />
-                </ErrorBoundary>
-
-                {/* Nova Seção: Seu Sistema Fotovoltaico (Visão consolidada em cards visuais) */}
-                <ErrorBoundary compact errorMessage="Não foi possível exibir os Dados do Sistema">
-                  <SecaoSeuSistemaFotovoltaico
-                    potenciaKwp={potenciaKwp}
-                    geracaoMensalKwh={calculos.geracaoMediaMensalKwh}
-                    economiaMensal={calculos.economia1Mes}
-                    numeroPlacas={numeroPlacas}
-                    marcaPainel={marcaPainel}
-                    potenciaPlacaWp={potenciaPlacaWp}
-                    tecnologiaModulo="bifacial N-type"
-                    fotoModuloUrl={fotoModuloUrl}
-                    marcaInversor={marcaInversor}
-                    fotoInversorUrl={fotoInversorUrl}
-                    quantidadeInversores={quantidadeInversores}
-                    mpptInversor={2}
-                    potenciaInversorKw={potenciaKwp ? Math.round(potenciaKwp * 0.8 * 10) / 10 : 6}
-                    areaNecessariaM2={areaNecessariaM2}
-                    garantiaModulosAnos={garantiaModulosDegradacaoAnos}
-                    garantiaModulosFabricacaoAnos={garantiaModulosFabricacaoAnos}
-                    garantiaInversorAnos={garantiaInversorAnos}
-                    garantiaInstalacaoTexto="12 meses"
-                    garantiaInstalacaoAnos={1}
-                    geracaoMensalDetalhada={
-                      calculos.geracaoMensalDetalhada ||
-                      (initialOrcamento?.geracao_detalhada_json
-                        ? typeof initialOrcamento.geracao_detalhada_json === 'string'
-                          ? JSON.parse(initialOrcamento.geracao_detalhada_json)
-                          : initialOrcamento.geracao_detalhada_json
-                        : null)
-                    }
-                    geracaoAnualKwh={
-                      calculos.geracaoAnualEstimadaKwh ||
-                      initialOrcamento?.producao_anual_kwh ||
-                      null
-                    }
-                    nomeCliente={clienteAtual?.nome}
-                  />
-                </ErrorBoundary>
-
-                {/* Nova Seção: Projeção de Economia em 25 Anos (Curva comparativa, Payback, ROI e Tabela 2026-2051) */}
-                <ErrorBoundary compact errorMessage="Não foi possível exibir a Projeção em 25 Anos">
-                  <SecaoProjecao25Anos
-                    consumoAnualCadastradoKwh={
-                      calculos.geracaoAnualEstimadaKwh > 0
-                        ? Number(calculos.geracaoAnualEstimadaKwh.toFixed(2))
-                        : calculos.geracaoMediaMensalKwh > 0
-                          ? Number((calculos.geracaoMediaMensalKwh * 12).toFixed(2))
-                          : consumoKwhMes && consumoKwhMes > 0
-                            ? Number((consumoKwhMes * 12).toFixed(2))
-                            : 4807.08
-                    }
-                    tipoClienteInicial={tipoCliente === 'comercial' ? 'comercial' : 'residencial'}
-                    tarifaReferenciaInicial={tarifaKwh || 0.985}
-                    valorInvestimento={valorInvestimentoFinal}
-                    paybackMeses={calculos.paybackMeses}
-                    potenciaKwp={potenciaKwp || 8.54}
-                    nomeCliente={clienteAtual?.nome || 'Cliente'}
-                  />
-                </ErrorBoundary>
-
-                {/* Nova Seção: Investimento e Condições de Pagamento */}
-                <ErrorBoundary
-                  compact
-                  errorMessage="Não foi possível exibir as Condições de Pagamento"
-                >
-                  <SecaoInvestimentoPagamento
-                    custoPostergacao={calculos.economia1Mes}
-                    dataOrcamento={initialOrcamento?.data_orcamento}
-                    valorInvestimento={valorInvestimentoFinal}
-                    contaSemSolar4AnosComReajuste={calculos.contaSemSolar4AnosComReajuste}
-                    contaComSolar4AnosComReajuste={calculos.contaComSolar4AnosComReajuste}
-                    contaSemSolar10AnosComReajuste={calculos.contaSemSolar10AnosComReajuste}
-                    contaComSolar10AnosComReajuste={calculos.contaComSolar10AnosComReajuste}
-                    valorAVista={
-                      calculos.parcelamentos?.aVista?.valorTotal ||
-                      Math.round(valorInvestimentoFinal * 0.95)
-                    }
-                    descontoAVistaReais={
-                      valorInvestimentoFinal -
-                      (calculos.parcelamentos?.aVista?.valorTotal ||
-                        Math.round(valorInvestimentoFinal * 0.95))
-                    }
-                    parcelasCartao={parcelasCartao}
-                    entradaCartao={entradaCartao}
-                    valorParcelaCartao={calculos.parcelamentos?.cartao18x?.valorParcela}
-                    cartaoSemJuros={jurosCartao === 0}
-                    nomeFinanciamentoA="Financiamento A"
-                    entradaFinanciamentoA={entradaBanco1}
-                    parcelasFinanciamentoA={parcelasBanco1}
-                    valorParcelaFinanciamentoA={
-                      calculos.parcelamentos?.financiamentoBanco1?.valorParcela
-                    }
-                    iofFinanciamentoA={calculos.parcelamentos?.financiamentoBanco1?.valorIof}
-                    nomeFinanciamentoB="Financiamento B"
-                    entradaFinanciamentoB={entradaBanco2}
-                    parcelasFinanciamentoB={parcelasBanco2}
-                    valorParcelaFinanciamentoB={
-                      calculos.parcelamentos?.financiamentoBanco2?.valorParcela
-                    }
-                    iofFinanciamentoB={calculos.parcelamentos?.financiamentoBanco2?.valorIof}
-                    contaMensalAtual={
-                      calculos.contaAtualSemSolarMes ||
-                      (calculos.geracaoMediaMensalKwh && tarifaKwh
-                        ? calculos.geracaoMediaMensalKwh * tarifaKwh
-                        : undefined)
-                    }
-                    contaMensalComSolar={
-                      calculos.contaPrimeiroMesComSolar !== undefined
-                        ? calculos.contaPrimeiroMesComSolar
-                        : initialOrcamento?.conta_primeiro_mes_com_solar !== undefined
-                          ? initialOrcamento.conta_primeiro_mes_com_solar
-                          : 0
-                    }
-                    faturaMensalComSolar={
-                      calculos.contaPrimeiroMesComSolar !== undefined
-                        ? calculos.contaPrimeiroMesComSolar
-                        : initialOrcamento?.conta_primeiro_mes_com_solar !== undefined
-                          ? initialOrcamento.conta_primeiro_mes_com_solar
-                          : 0
-                    }
-                    validadeDias={initialOrcamento?.validade_dias || 5}
-                    nomeCliente={clienteAtual?.nome}
-                    paybackMeses={calculos.paybackMeses}
-                    dadosEmpresa={{
-                      razaoSocial: 'DELFOS ENGENHARIA LTDA',
-                      cnpj: '21.379.952/0001-38',
-                      responsavelTecnico: 'João Victor Bagetti Fuchs',
-                      crea: 'CREA RS151894',
-                      endereco: 'Rua Espírito Santo, nº 275 – Centro, Erechim/RS',
-                      telefone: '(54) 99129-2121',
-                      email: 'contato@delfos.eng.br',
-                    }}
-                    dadosCliente={{
-                      nome: clienteAtual?.nome,
-                      cpfOuCnpj: clienteAtual?.cpfOuCnpj,
-                      endereco: clienteAtual?.endereco,
-                      municipio: clienteAtual?.municipio,
-                      telefone: clienteAtual?.telefone || clienteAtual?.whatsapp,
-                      email: clienteAtual?.email,
-                    }}
-                  />
-                </ErrorBoundary>
+                {/* Preview fiel do PDF gerado (HTML idêntico ao do PDF impresso/baixado) */}
+                <div className="bg-white border border-amber-200/80 shadow-xs rounded-2xl overflow-hidden">
+                  <div className="px-4 py-2.5 bg-amber-50 border-b border-amber-200/80 flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-amber-900 font-semibold text-xs">
+                      <Eye className="w-4 h-4 text-amber-700" />
+                      <span>Preview da Proposta</span>
+                    </div>
+                    <span className="text-[11px] text-amber-800/80 font-medium">
+                      Visualização idêntica ao PDF final • atualiza em tempo real
+                    </span>
+                  </div>
+                  <div className="p-2 sm:p-4 bg-slate-100 flex justify-center">
+                    <iframe
+                      title="Preview da Proposta"
+                      srcDoc={htmlPropostaPreview}
+                      sandbox="allow-same-origin"
+                      className="w-full h-[80vh] min-h-[700px] bg-white border border-gray-300 rounded-xl shadow-inner"
+                    />
+                  </div>
+                </div>
 
                 {/* Observações e Prazo */}
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs pt-1">
