@@ -2425,11 +2425,6 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
     <!-- ========================================================
          PÁGINA DE APRESENTAÇÃO DA EMPRESA & PORTFÓLIO DE USINAS
          ======================================================== -->
-    ${(() => {
-      if (dados.secoesHabilitadas?.portfolioUsinas === false) {
-        return ''
-      }
-      return `
     <section class="proposta-secao-page" id="secao-apresentacao-empresa">
       <div class="secao-body">
         <header class="doc-header">
@@ -2446,130 +2441,201 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
           </div>
         </header>
 
-        <!-- Banner Institucional Delfos Solar -->
-        <div style="background: linear-gradient(135deg, #064E3B 0%, #065F46 50%, #0F766E 100%); border-radius: 12px; padding: 12px 16px; color: #FFFFFF; box-shadow: 0 4px 12px rgba(6, 78, 59, 0.2); margin-bottom: 10px; page-break-inside: avoid; break-inside: avoid;">
-          <div style="display: inline-flex; align-items: center; gap: 6px; padding: 2px 8px; border-radius: 9999px; font-size: 8px; font-weight: 800; background: rgba(255, 255, 255, 0.15); border: 1px solid rgba(255, 255, 255, 0.25); color: #D1FAE5; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 4px;">
-            <span>🏢</span> Engenharia Própria Especializada
-          </div>
-          <h2 style="margin: 0; font-size: 17px; font-weight: 900; color: #FFFFFF; letter-spacing: -0.015em;">
-            Delfos Engenharia Ltda (Delfos Solar)
-          </h2>
-          <div style="display: flex; flex-wrap: wrap; gap: 8px; font-size: 9px; color: #D1FAE5; margin-top: 4px; font-weight: 600;">
-            <span>CNPJ: <strong>${empresa?.cnpj || '21.379.952/0001-38'}</strong></span>
-            <span>•</span>
-            <span>📍 Erechim / RS</span>
-            <span>•</span>
-            <span style="color: #FDE047;">Engenheiro Responsável: <strong>Eng. João Victor Bagetti Fuchs — CREA RS151894</strong></span>
-          </div>
-          <p style="margin: 6px 0 0 0; font-size: 9px; color: #ECFDF5; line-height: 1.4; max-width: 740px;">
-            Engenharia própria especializada em projetos fotovoltaicos, homologação completa junto à concessionária de energia e rigorosa garantia de desempenho com monitoramento em tempo real. Soluções completas Turnkey (chave na mão) do projeto à aprovação e geração.
-          </p>
-        </div>
-
-        <!-- Grade com 3 Usinas do Portfólio / Galeria Usinas -->
-        <div style="page-break-inside: avoid; break-inside: avoid;">
-          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
-            <div>
-              <h3 style="margin: 0; font-size: 12px; font-weight: 900; color: #111827;">
-                Portfólio de Usinas Solares Instaladas
-              </h3>
-              <p style="margin: 2px 0 0 0; font-size: 8px; color: #4B5563;">
-                Conheça algumas usinas projetadas, homologadas e executadas pela equipe da Delfos Solar.
-              </p>
-            </div>
-            <span style="font-size: 8px; font-weight: 800; background: #DCFCE7; color: #166534; padding: 2px 8px; border-radius: 9999px; border: 1px solid #86EFAC;">
-              Projetos Reais Homologados
+        <!-- Parte 1 — Quem Somos (Sempre renderizada) -->
+        <div class="secao-header-card institucional" style="margin-bottom: 8px; page-break-inside: avoid; break-inside: avoid;">
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 2px;">
+            <span class="badge-institucional">
+              <span>🏢</span> INSTITUCIONAL
+            </span>
+            <span style="font-size: 8px; font-weight: 800; color: #0A539E; background: #EFF6FF; border: 1px solid #BFDBFE; padding: 2px 8px; border-radius: 9999px;">
+              DESDE 2012
             </span>
           </div>
 
-          <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;">
-            ${(() => {
-              // Se há fotosInstalacoes fornecidas, respeita a seleção (filtrada se houver instalacoesSelecionadasIds)
-              let usinasExibicao = dados.fotosInstalacoes || []
-              if (
-                dados.instalacoesSelecionadasIds &&
-                dados.instalacoesSelecionadasIds.length > 0 &&
-                usinasExibicao.length > 0
-              ) {
-                const filtradas = usinasExibicao.filter((u) =>
-                  dados.instalacoesSelecionadasIds!.includes(u.id),
-                )
-                if (filtradas.length > 0) {
-                  usinasExibicao = filtradas
-                }
-              }
+          <h2 class="titulo-institucional-azul">A Delfos Solar</h2>
+          <div class="subtitulo-institucional-verde">Energia que gera retorno</div>
 
-              if (!usinasExibicao || usinasExibicao.length === 0) {
-                usinasExibicao = [
-                  {
-                    id: '1',
-                    titulo: 'Usina Solar Residencial',
-                    url: '',
-                    cidade: 'Erechim / RS',
-                    potenciaKwp: 10.5,
-                  },
-                  {
-                    id: '2',
-                    titulo: 'Usina Solar Comercial',
-                    url: '',
-                    cidade: 'Passo Fundo / RS',
-                    potenciaKwp: 35.0,
-                  },
-                  {
-                    id: '3',
-                    titulo: 'Usina Solar Agropecuária',
-                    url: '',
-                    cidade: 'Getúlio Vargas / RS',
-                    potenciaKwp: 50.0,
-                  },
-                ]
-              }
+          <p style="margin: 6px 0 0 0; font-size: 8.5px; color: #334155; line-height: 1.45; max-width: 740px;">
+            A Delfos Solar é uma empresa de engenharia especializada no desenvolvimento, homologação e implantação de soluções de energia fotovoltaica de alto rendimento. Nossa missão é transformar contas de energia em ativos estratégicos de rentabilidade, segurança financeira e valorização patrimonial para clientes residenciais, comerciais, industriais e do agronegócio.
+          </p>
 
-              // Exibir até 6 usinas se selecionadas, mantendo grade responsiva
-              return usinasExibicao
-                .map((u) => {
-                  const temFoto = !!(u.url && u.url.trim())
-                  const fotoHtml = temFoto
-                    ? `<img src="${u.url}" alt="${u.titulo || 'Usina Solar'}" style="width: 100%; height: 110px; object-fit: cover; display: block;" />`
-                    : `<div style="width: 100%; height: 110px; background: #F0FDF4; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #166534;">
-                       <span style="font-size: 26px;">☀️</span>
-                       <span style="font-size: 8.5px; font-weight: 800; color: #166534; margin-top: 4px;">Usina Fotovoltaica Delfos</span>
-                     </div>`
+          <!-- Grid de 5 Diferenciais -->
+          <div class="grid-diferenciais-cards">
+            <!-- 1. 12 anos de atuação -->
+            <div class="card-diferencial">
+              <div class="card-diferencial-topo">
+                <div class="card-diferencial-icon">📅</div>
+                <div class="card-diferencial-tit">12 Anos de Atuação</div>
+              </div>
+              <div class="card-diferencial-desc">
+                12 anos de atuação no mercado de energia com solidez e pioneirismo.
+              </div>
+            </div>
 
-                  const potTexto = u.potenciaKwp
-                    ? `${formatNumBR(u.potenciaKwp, 1)} kWp`
-                    : 'Turnkey'
-                  const cidTexto = u.cidade || 'Erechim / RS'
+            <!-- 2. +2.500 projetos -->
+            <div class="card-diferencial">
+              <div class="card-diferencial-topo">
+                <div class="card-diferencial-icon">⚡</div>
+                <div class="card-diferencial-tit">+2.500 Projetos</div>
+              </div>
+              <div class="card-diferencial-desc">
+                +2.500 projetos entregues e homologados com excelência técnica.
+              </div>
+            </div>
 
-                  return `
-                  <div style="border: 1px solid #E5E7EB; border-radius: 12px; overflow: hidden; background: #FFFFFF; box-shadow: 0 1px 3px rgba(0,0,0,0.05); display: flex; flex-direction: column; justify-content: space-between;">
-                    <div style="position: relative;">
-                      ${fotoHtml}
-                      <span style="position: absolute; top: 6px; right: 6px; background: rgba(6, 78, 59, 0.88); color: #FFFFFF; font-size: 8.5px; font-weight: 800; padding: 2px 7px; border-radius: 9999px; border: 1px solid rgba(255, 255, 255, 0.25);">
-                        ⚡ ${potTexto}
-                      </span>
-                    </div>
-                    <div style="padding: 8px 10px;">
-                      <div style="font-size: 10px; font-weight: 800; color: #111827; line-height: 1.25; margin-bottom: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-                        ${u.titulo || 'Usina Solar Delfos'}
-                      </div>
-                      <div style="display: flex; justify-content: space-between; align-items: center; font-size: 8.5px; color: #6B7280;">
-                        <span>📍 ${cidTexto}</span>
-                        <strong style="color: #166534;">${potTexto}</strong>
-                      </div>
-                    </div>
-                  </div>
-                `
-                })
-                .join('')
-            })()}
+            <!-- 3. Engenharia própria turnkey -->
+            <div class="card-diferencial">
+              <div class="card-diferencial-topo">
+                <div class="card-diferencial-icon">📐</div>
+                <div class="card-diferencial-tit">Engenharia Própria</div>
+              </div>
+              <div class="card-diferencial-desc">
+                Engenharia própria — projetos turnkey, do projeto à homologação.
+              </div>
+            </div>
+
+            <!-- 4. Pós-venda estruturado -->
+            <div class="card-diferencial">
+              <div class="card-diferencial-topo">
+                <div class="card-diferencial-icon">🛡️</div>
+                <div class="card-diferencial-tit">Pós-Venda Ativo</div>
+              </div>
+              <div class="card-diferencial-desc">
+                Pós-venda estruturado — monitoramento, manutenção e suporte técnico.
+              </div>
+            </div>
+
+            <!-- 5. Atuação regional Sul -->
+            <div class="card-diferencial">
+              <div class="card-diferencial-topo">
+                <div class="card-diferencial-icon">📍</div>
+                <div class="card-diferencial-tit">Atuação Regional</div>
+              </div>
+              <div class="card-diferencial-desc">
+                Atuação regional — presente nos 3 estados do Sul do Brasil.
+              </div>
+            </div>
           </div>
         </div>
+
+        <!-- Parte 2 — Portfólio de Usinas (Controlada pelo toggle portfolioUsinas com fallback true) -->
+        ${(() => {
+          const portfolioHabilitado = dados.secoesHabilitadas?.portfolioUsinas !== false
+          if (!portfolioHabilitado) {
+            return ''
+          }
+
+          // Se o usuário selecionou fotos customizadas via fotosInstalacoes / instalacoesSelecionadasIds, respeita.
+          // Se não há fotos personalizadas, utiliza USINAS_PORTFOLIO_PADRAO (6 usinas com ilustrações Base64)
+          const temFotosCustom = dados.fotosInstalacoes && dados.fotosInstalacoes.length > 0
+          let usinasParaExibir: Array<{
+            id: string
+            titulo: string
+            tipo?: string
+            cidade: string
+            potenciaKwp: number
+            foto: string
+          }> = []
+
+          if (temFotosCustom) {
+            let filtradas = dados.fotosInstalacoes!
+            if (dados.instalacoesSelecionadasIds && dados.instalacoesSelecionadasIds.length > 0) {
+              const f = filtradas.filter((u) => dados.instalacoesSelecionadasIds!.includes(u.id))
+              if (f.length > 0) {
+                filtradas = f
+              }
+            }
+            usinasParaExibir = filtradas.map((u) => ({
+              id: u.id,
+              titulo: u.titulo || 'Usina Fotovoltaica Delfos',
+              tipo: 'solar',
+              cidade: u.cidade || 'Erechim / RS',
+              potenciaKwp: u.potenciaKwp || 0,
+              foto: u.url || '',
+            }))
+          }
+
+          if (usinasParaExibir.length === 0) {
+            usinasParaExibir = USINAS_PORTFOLIO_PADRAO.map((u) => ({
+              id: u.id,
+              titulo: u.titulo,
+              tipo: u.tipo,
+              cidade: u.cidade,
+              potenciaKwp: u.potenciaKwp,
+              foto: u.fotoBase64,
+            }))
+          }
+
+          const badgeTipoCor: Record<string, { bg: string; color: string; border: string }> = {
+            residencial: {
+              bg: 'rgba(22, 163, 74, 0.92)',
+              color: '#FFFFFF',
+              border: 'rgba(255, 255, 255, 0.3)',
+            },
+            comercial: {
+              bg: 'rgba(10, 83, 158, 0.92)',
+              color: '#FFFFFF',
+              border: 'rgba(255, 255, 255, 0.3)',
+            },
+            industrial: {
+              bg: 'rgba(202, 138, 4, 0.92)',
+              color: '#FFFFFF',
+              border: 'rgba(255, 255, 255, 0.3)',
+            },
+            rural: {
+              bg: 'rgba(21, 128, 61, 0.92)',
+              color: '#FFFFFF',
+              border: 'rgba(255, 255, 255, 0.3)',
+            },
+          }
+
+          return `
+          <div class="portfolio-wrapper">
+            <div class="portfolio-header-row">
+              <div>
+                <h3 class="portfolio-titulo-azul">Conheça algumas de nossas instalações</h3>
+                <p class="portfolio-sub-cinza">Usinas projetadas, homologadas e entregues em operação nos 3 estados do Sul</p>
+              </div>
+              <span class="portfolio-badge-pill">Projetos Reais Homologados</span>
+            </div>
+
+            <div class="grid-portfolio-6">
+              ${usinasParaExibir
+                .slice(0, 6)
+                .map((u) => {
+                  const potFormatada = u.potenciaKwp
+                    ? `${formatNumBR(u.potenciaKwp, u.potenciaKwp % 1 === 0 ? 0 : 2)} kWp`
+                    : 'Turnkey'
+                  const tipoKey = (u.tipo || 'residencial').toLowerCase()
+                  const badgeStyle = badgeTipoCor[tipoKey] || badgeTipoCor.residencial
+
+                  return `
+                <div class="card-portfolio-usina">
+                  <div class="card-portfolio-thumb-wrap">
+                    <img src="${u.foto}" alt="${u.titulo}" class="card-portfolio-thumb-img" />
+                    <span class="card-portfolio-badge-tipo" style="background: ${badgeStyle.bg}; color: ${badgeStyle.color}; border: 1px solid ${badgeStyle.border};">
+                      ${tipoKey}
+                    </span>
+                    <span class="card-portfolio-badge-pot">⚡ ${potFormatada}</span>
+                  </div>
+                  <div class="card-portfolio-info">
+                    <div class="card-portfolio-titulo" title="${u.titulo}">${u.titulo}</div>
+                    <div class="card-portfolio-meta-row">
+                      <span class="card-portfolio-cidade">📍 ${u.cidade}</span>
+                      <span class="card-portfolio-pot-destaque">${potFormatada}</span>
+                    </div>
+                  </div>
+                </div>
+                `
+                })
+                .join('')}
+            </div>
+          </div>
+          `
+        })()}
       </div>
       ${renderInternalFooter(1, validade)}
     </section>
-    `
-    })()}
 
     <!-- ========================================================
          SEÇÃO 2 — SITUAÇÃO ATUAL (ESPELHADO DO SecaoCustoInercia.tsx)

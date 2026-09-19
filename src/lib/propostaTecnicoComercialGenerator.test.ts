@@ -788,21 +788,25 @@ describe('Proposta Técnico-Comercial Generator (5 Seções Oficiais)', () => {
         },
       })
       expect(htmlCompleto).toContain('id="secao-apresentacao-empresa"')
-      expect(htmlCompleto).toContain('Portfólio de Usinas Solares Instaladas')
+      expect(htmlCompleto).toContain('A Delfos Solar')
+      expect(htmlCompleto).toContain('Energia que gera retorno')
+      expect(htmlCompleto).toContain('Conheça algumas de nossas instalações')
       expect(htmlCompleto).toContain('https://exemplo.com/modulo.jpg')
       expect(htmlCompleto).toContain('https://exemplo.com/inversor.jpg')
       expect(htmlCompleto).toContain('Estimativa de Geração Mês a Mês')
       expect(htmlCompleto).toContain('id="secao-layout-telhado"')
 
-      // 2. Portfólio de usinas desligado
+      // 2. Portfólio de usinas desligado (Parte 1 permanece; Parte 2 é omitida)
       const htmlSemPortfolio = gerarHTMLPropostaTecnicoComercial({
         ...baseDados,
         secoesHabilitadas: {
           portfolioUsinas: false,
         },
       })
-      expect(htmlSemPortfolio).not.toContain('id="secao-apresentacao-empresa"')
-      expect(htmlSemPortfolio).not.toContain('Portfólio de Usinas Solares Instaladas')
+      expect(htmlSemPortfolio).toContain('id="secao-apresentacao-empresa"')
+      expect(htmlSemPortfolio).toContain('A Delfos Solar')
+      expect(htmlSemPortfolio).toContain('Energia que gera retorno')
+      expect(htmlSemPortfolio).not.toContain('Conheça algumas de nossas instalações')
       expect(htmlSemPortfolio).toContain('https://exemplo.com/modulo.jpg')
       expect(htmlSemPortfolio).toContain('Estimativa de Geração Mês a Mês')
 
@@ -850,10 +854,67 @@ describe('Proposta Técnico-Comercial Generator (5 Seções Oficiais)', () => {
       const previewDesligado = gerarHTMLPropostaTecnicoComercial(dadosDesligados)
       const pdfDesligado = gerarHTMLPropostaTecnicoComercial(dadosDesligados)
       expect(previewDesligado).toBe(pdfDesligado)
-      expect(previewDesligado).not.toContain('id="secao-apresentacao-empresa"')
+      expect(previewDesligado).toContain('id="secao-apresentacao-empresa"')
+      expect(previewDesligado).toContain('A Delfos Solar')
+      expect(previewDesligado).not.toContain('Conheça algumas de nossas instalações')
       expect(previewDesligado).not.toContain('Estimativa de Geração Mês a Mês')
       expect(previewDesligado).not.toContain('id="secao-layout-telhado"')
       expect(previewDesligado).not.toContain('https://exemplo.com/modulo.jpg')
+    })
+
+    it('validação programática C: proposta comercial de Claiton Gasparetto Filho', () => {
+      // Cenário Claiton Gasparetto Filho: 3,75 kWp, 6 placas 625W, tarifa R$ 1,19, consumo 300 kWh/mês
+      const dadosClaiton: PropostaTecnicoComercialDados = {
+        ...dadosExemplo,
+        cliente: {
+          ...dadosExemplo.cliente,
+          nome: 'Claiton Gasparetto Filho',
+          cidade: 'Erechim / RS',
+        },
+        sistema: {
+          ...dadosExemplo.sistema,
+          potenciaKwp: 3.75,
+          qtdPaineis: 6,
+          potenciaPlacaWp: 625,
+          descricaoPaineis: 'Módulo Fotovoltaico 625W Tier-1',
+          descricaoInversores: 'Inversor 3.0 kW Monofásico',
+          areaNecessariaM2: 18,
+        },
+        producao: {
+          ...dadosExemplo.producao,
+          mediaMensalKwh: 300,
+        },
+      }
+
+      // 1. Gera o HTML com portfólio habilitado (ou omitido, fallback true)
+      const htmlClaiton = gerarHTMLPropostaTecnicoComercial(dadosClaiton)
+
+      // Verificações obrigatórias do item C:
+      expect(htmlClaiton).toContain('A Delfos Solar')
+      expect(htmlClaiton).toContain('Energia que gera retorno')
+      expect(htmlClaiton).toContain('Conheça algumas de nossas instalações')
+      expect(htmlClaiton).toContain('Erechim')
+      expect(htmlClaiton).toContain('Pato Branco')
+
+      // 6 ocorrências de card de usina na grade 3x2 do portfólio
+      const matchesCard = htmlClaiton.match(/class="card-portfolio-usina"/g)
+      expect(matchesCard).not.toBeNull()
+      expect(matchesCard?.length).toBe(6)
+
+      // 2. Confirmação com secoesHabilitadas.portfolioUsinas === false:
+      // A Parte 1 (Quem Somos) DEVE aparecer mesmo com o portfólio desligado
+      const htmlClaitonSemPortfolio = gerarHTMLPropostaTecnicoComercial({
+        ...dadosClaiton,
+        secoesHabilitadas: {
+          portfolioUsinas: false,
+        },
+      })
+      expect(htmlClaitonSemPortfolio).toContain('id="secao-apresentacao-empresa"')
+      expect(htmlClaitonSemPortfolio).toContain('A Delfos Solar')
+      expect(htmlClaitonSemPortfolio).toContain('Energia que gera retorno')
+      expect(htmlClaitonSemPortfolio).toContain('12 anos de atuação no mercado de energia')
+      expect(htmlClaitonSemPortfolio).not.toContain('Conheça algumas de nossas instalações')
+      expect(htmlClaitonSemPortfolio.match(/class="card-portfolio-usina"/g)).toBeNull()
     })
   })
 })
