@@ -17,7 +17,7 @@ describe('SecaoInvestimentoPagamento Component', () => {
     // 4 cards de pagamento (sem as badges de destaque conforme solicitação)
     expect(html).toContain('À Vista')
     expect(html).not.toContain('Melhor condição')
-    expect(html).toContain('Cartão de Crédito')
+    expect(html).toContain('Cartão')
     expect(html).not.toContain('Condição facilitada')
     expect(html).toContain('Financiamento A')
     expect(html).not.toContain('Menor parcela')

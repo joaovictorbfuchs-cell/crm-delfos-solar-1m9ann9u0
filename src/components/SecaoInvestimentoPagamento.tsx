@@ -373,85 +373,75 @@ export const SecaoInvestimentoPagamento: React.FC<SecaoInvestimentoPagamentoProp
           <h3 className="text-base sm:text-lg font-black text-gray-900 tracking-tight mb-3">
             Condições de pagamento
           </h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
+          <div className="grid grid-cols-4 gap-2 text-xs">
             {/* CARD 1: À VISTA */}
-            <div className="p-4 sm:p-5 rounded-2xl border-2 border-emerald-400 bg-emerald-50/50 flex flex-col justify-between space-y-4 shadow-sm hover:shadow-md transition-shadow">
+            <div className="p-3.5 rounded-xl border-2 border-[#16a34a] bg-white flex flex-col justify-between space-y-3 shadow-xs hover:shadow-md transition-shadow min-w-0">
               <div>
-                {/* Cabeçalho com ícone */}
-                <div className="flex items-center justify-between gap-2 mb-3">
-                  <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center shrink-0 border border-emerald-200 shadow-2xs">
-                    <Wallet className="w-5 h-5 text-emerald-700" />
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <span className="font-extrabold text-xs uppercase tracking-wider text-emerald-950">
+                {/* Cabeçalho com título à esquerda e badge Sem Juros no canto sup. direito */}
+                <div className="flex items-center justify-between gap-1 mb-2">
+                  <span className="font-extrabold text-[11px] uppercase tracking-wider text-emerald-950 truncate">
                     À Vista
                   </span>
-                  <span className="text-[10px] font-bold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full">
+                  <span className="text-[10px] font-bold bg-[#ecfdf5] text-[#065f46] px-2 py-0.5 rounded-full shrink-0">
                     Sem Juros
                   </span>
                 </div>
 
-                <div className="text-2xl sm:text-3xl font-black text-emerald-700 tracking-tight mt-2">
+                <div className="text-xl sm:text-2xl font-black text-[#16a34a] tracking-tight mt-1">
                   {formatCurrency(aVistaFinal)}
                 </div>
-                <p className="text-[11px] text-gray-500 mt-1">
+                <p className="text-[10pt] text-gray-500 mt-1 leading-snug">
                   {descontoAVistaFinal > 0
                     ? `Desconto de ${formatCurrency(descontoAVistaFinal)} aplicado`
                     : 'Valor total do projeto à vista'}
                 </p>
               </div>
 
-              {/* 3 Linhas comparativas inferiores idênticas à aba de parcelamento */}
-              <div className="pt-3 border-t border-emerald-200 space-y-1.5 text-[11px]">
-                <div className="flex justify-between">
+              {/* 3 Linhas comparativas inferiores */}
+              <div className="pt-2.5 border-t border-emerald-200 space-y-1 text-[10pt]">
+                <div className="flex justify-between gap-1">
                   <span className="text-gray-500">Conta hoje:</span>
-                  <span className="font-bold text-red-600">{formatCurrency(contaAtualFinal)}</span>
+                  <span className="font-bold text-red-600 text-right">
+                    {formatCurrency(contaAtualFinal)}
+                  </span>
                 </div>
-                <div className="flex justify-between">
+                <div className="flex justify-between gap-1">
                   <span className="text-gray-500">Conta c/ solar:</span>
-                  <span className="font-bold text-emerald-700">
+                  <span className="font-bold text-[#16a34a] text-right">
                     {formatCurrency(faturaComSolarFinal)}
                   </span>
                 </div>
-                <div className="flex justify-between pt-1 border-t border-emerald-200 font-extrabold text-emerald-900">
+                <div className="flex justify-between pt-1 border-t border-emerald-200 font-extrabold text-emerald-900 gap-1">
                   <span>Economia/mês:</span>
-                  <span>{formatCurrency(economiaMensalAVista)}</span>
+                  <span className="text-right">{formatCurrency(economiaMensalAVista)}</span>
                 </div>
               </div>
             </div>
 
             {/* CARD 2: CARTÃO */}
-            <div className="p-4 sm:p-5 rounded-2xl border border-gray-200 bg-[#f5f5f5] flex flex-col justify-between space-y-4 shadow-sm hover:shadow-md transition-shadow">
+            <div className="p-3.5 rounded-xl border border-gray-200 bg-white flex flex-col justify-between space-y-3 shadow-xs hover:shadow-md transition-shadow min-w-0">
               <div>
-                {/* Cabeçalho com ícone */}
-                <div className="flex items-center justify-between gap-2 mb-3">
-                  <div className="w-10 h-10 rounded-xl bg-gray-100 text-gray-800 flex items-center justify-center shrink-0 border border-gray-200 shadow-2xs">
-                    <CreditCard className="w-5 h-5 text-gray-700" />
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between gap-1">
-                  <span className="font-extrabold text-xs uppercase tracking-wider text-gray-900 truncate">
-                    Cartão de Crédito
+                {/* Cabeçalho com título e badge de parcelas no canto superior direito */}
+                <div className="flex items-center justify-between gap-1 mb-2">
+                  <span className="font-extrabold text-[11px] uppercase tracking-wider text-gray-900 truncate">
+                    Cartão
                   </span>
                   <span className="text-[10pt] font-bold bg-gray-100 text-gray-700 px-2 py-0.5 rounded-full shrink-0">
                     {parcelasCartaoFinal}x
                   </span>
                 </div>
 
-                <div className="text-2xl sm:text-3xl font-black text-gray-900 tracking-tight mt-2">
+                <div className="text-xl sm:text-2xl font-black text-gray-900 tracking-tight mt-1">
                   {formatCurrency(valorParcelaCartaoFinal)}
                 </div>
-                <div className="text-[11px] text-gray-500 mt-1">
+                <div className="text-[10pt] text-gray-500 mt-1 leading-snug">
                   {entradaCartaoFinal > 0 && (
                     <span className="block text-emerald-800 font-semibold">
                       Entrada: {formatCurrency(entradaCartaoFinal)}
                     </span>
                   )}
                   <span>
-                    Total:{' '}
+                    Total do projeto:{' '}
                     {formatCurrency(
                       entradaCartaoFinal + valorParcelaCartaoFinal * parcelasCartaoFinal,
                     )}
@@ -459,60 +449,56 @@ export const SecaoInvestimentoPagamento: React.FC<SecaoInvestimentoPagamentoProp
                 </div>
               </div>
 
-              {/* 3 Linhas comparativas inferiores idênticas à aba de parcelamento */}
-              <div className="pt-3 border-t border-gray-100 space-y-1.5 text-[11px]">
-                <div className="flex justify-between">
+              {/* 3 Linhas comparativas inferiores */}
+              <div className="pt-2.5 border-t border-gray-100 space-y-1 text-[10pt]">
+                <div className="flex justify-between gap-1">
                   <span className="text-gray-500">Conta hoje:</span>
-                  <span className="font-bold text-red-600">{formatCurrency(contaAtualFinal)}</span>
+                  <span className="font-bold text-red-600 text-right">
+                    {formatCurrency(contaAtualFinal)}
+                  </span>
                 </div>
-                <div className="flex justify-between">
+                <div className="flex justify-between gap-1">
                   <span className="text-gray-500">Conta c/ solar:</span>
-                  <span className="font-bold text-emerald-700">
+                  <span className="font-bold text-[#16a34a] text-right">
                     {formatCurrency(contaSolarCartao)}
                   </span>
                 </div>
-                <div className="flex justify-between pt-1 border-t border-gray-100 font-bold text-gray-900">
+                <div className="flex justify-between pt-1 border-t border-gray-100 font-bold text-gray-900 gap-1">
                   <span>Parcela + Conta:</span>
-                  <span>{formatCurrency(totalMensalCartao)}</span>
+                  <span className="text-right">{formatCurrency(totalMensalCartao)}</span>
                 </div>
               </div>
             </div>
 
             {/* CARD 3: FINANCIAMENTO A */}
-            <div className="p-4 sm:p-5 rounded-2xl border border-gray-200 bg-[#f5f5f5] flex flex-col justify-between space-y-4 shadow-sm hover:shadow-md transition-shadow">
+            <div className="p-3.5 rounded-xl border border-[#60A5FA] bg-[#F0F9FF] flex flex-col justify-between space-y-3 shadow-xs hover:shadow-md transition-shadow min-w-0">
               <div>
-                {/* Cabeçalho com ícone */}
-                <div className="flex items-center justify-between gap-2 mb-3">
-                  <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center shrink-0 border border-amber-200 shadow-2xs">
-                    <Building2 className="w-5 h-5 text-amber-700" />
-                  </div>
-                </div>
-
-                <div className="flex items-start justify-between gap-1">
+                {/* Cabeçalho com título sem truncamento e badge de parcelas no canto superior direito */}
+                <div className="flex items-start justify-between gap-1 mb-2">
                   <span
-                    className="font-extrabold text-[10pt] uppercase tracking-wider text-gray-900 break-words leading-tight"
+                    className="font-extrabold text-[10pt] uppercase tracking-wider text-blue-950 break-words leading-tight"
                     title={nomeFinanciamentoA || 'Financiamento A'}
                   >
                     {nomeFinanciamentoA || 'Financiamento A'}
                   </span>
-                  <span className="text-[10pt] font-bold bg-amber-100 text-amber-900 px-2 py-0.5 rounded-full shrink-0">
+                  <span className="text-[10pt] font-bold bg-blue-100 text-blue-900 px-2 py-0.5 rounded-full shrink-0">
                     {parcelasFinanAFinal}x
                   </span>
                 </div>
 
-                <div className="text-2xl sm:text-3xl font-black text-gray-900 tracking-tight mt-2">
+                <div className="text-xl sm:text-2xl font-black text-blue-900 tracking-tight mt-1">
                   {formatCurrency(valorParcelaFinanAFinal)}
                 </div>
                 {iofFinanciamentoA !== undefined &&
                   iofFinanciamentoA !== null &&
                   iofFinanciamentoA > 0 && (
-                    <span className="block text-[11px] font-semibold text-emerald-700 mt-1">
+                    <span className="block text-[10pt] font-semibold text-emerald-700 mt-1 leading-snug">
                       Inclui IOF de {formatCurrency(iofFinanciamentoA)}
                     </span>
                   )}
-                <p className="text-[11px] text-gray-500 mt-1">
+                <p className="text-[10pt] text-gray-500 mt-1 leading-snug">
                   {entradaFinanAFinal > 0 && (
-                    <span className="block text-amber-800 font-semibold">
+                    <span className="block text-blue-900 font-semibold">
                       Entrada: {formatCurrency(entradaFinanAFinal)}
                     </span>
                   )}
@@ -523,58 +509,54 @@ export const SecaoInvestimentoPagamento: React.FC<SecaoInvestimentoPagamentoProp
                 </p>
               </div>
 
-              {/* 3 Linhas comparativas inferiores idênticas à aba de parcelamento */}
-              <div className="pt-3 border-t border-gray-100 space-y-1.5 text-[11px]">
-                <div className="flex justify-between">
+              {/* 3 Linhas comparativas inferiores */}
+              <div className="pt-2.5 border-t border-blue-200 space-y-1 text-[10pt]">
+                <div className="flex justify-between gap-1">
                   <span className="text-gray-500">Conta hoje:</span>
-                  <span className="font-bold text-red-600">{formatCurrency(contaAtualFinal)}</span>
+                  <span className="font-bold text-red-600 text-right">
+                    {formatCurrency(contaAtualFinal)}
+                  </span>
                 </div>
-                <div className="flex justify-between">
+                <div className="flex justify-between gap-1">
                   <span className="text-gray-500">Conta c/ solar:</span>
-                  <span className="font-bold text-emerald-700">
+                  <span className="font-bold text-[#16a34a] text-right">
                     {formatCurrency(contaSolarFinanA)}
                   </span>
                 </div>
-                <div className="flex justify-between pt-1 border-t border-gray-100 font-bold text-gray-900">
+                <div className="flex justify-between pt-1 border-t border-blue-200 font-bold text-blue-950 gap-1">
                   <span>Parcela + Conta:</span>
-                  <span>{formatCurrency(totalMensalFinanA)}</span>
+                  <span className="text-right">{formatCurrency(totalMensalFinanA)}</span>
                 </div>
               </div>
             </div>
 
             {/* CARD 4: FINANCIAMENTO B */}
-            <div className="p-4 sm:p-5 rounded-2xl border-2 border-blue-400 bg-blue-50/50 flex flex-col justify-between space-y-4 shadow-sm hover:shadow-md transition-shadow">
+            <div className="p-3.5 rounded-xl border border-[#60A5FA] bg-[#F0F9FF] flex flex-col justify-between space-y-3 shadow-xs hover:shadow-md transition-shadow min-w-0">
               <div>
-                {/* Cabeçalho com ícone */}
-                <div className="flex items-center justify-between gap-2 mb-3">
-                  <div className="w-10 h-10 rounded-xl bg-blue-100 text-blue-800 flex items-center justify-center shrink-0 border border-blue-200 shadow-2xs">
-                    <Landmark className="w-5 h-5 text-blue-700" />
-                  </div>
-                </div>
-
-                <div className="flex items-start justify-between gap-1">
+                {/* Cabeçalho com título sem truncamento e badge de parcelas no canto superior direito */}
+                <div className="flex items-start justify-between gap-1 mb-2">
                   <span
                     className="font-extrabold text-[10pt] uppercase tracking-wider text-blue-950 break-words leading-tight"
                     title={nomeFinanciamentoB || 'Financiamento B'}
                   >
                     {nomeFinanciamentoB || 'Financiamento B'}
                   </span>
-                  <span className="text-[10pt] font-bold bg-blue-200 text-blue-900 px-2 py-0.5 rounded-full shrink-0">
+                  <span className="text-[10pt] font-bold bg-blue-100 text-blue-900 px-2 py-0.5 rounded-full shrink-0">
                     {parcelasFinanBFinal}x
                   </span>
                 </div>
 
-                <div className="text-2xl sm:text-3xl font-black text-blue-800 tracking-tight mt-2">
+                <div className="text-xl sm:text-2xl font-black text-blue-900 tracking-tight mt-1">
                   {formatCurrency(valorParcelaFinanBFinal)}
                 </div>
                 {iofFinanciamentoB !== undefined &&
                   iofFinanciamentoB !== null &&
                   iofFinanciamentoB > 0 && (
-                    <span className="block text-[11px] font-semibold text-blue-800 mt-1">
+                    <span className="block text-[10pt] font-semibold text-blue-800 mt-1 leading-snug">
                       Inclui IOF de {formatCurrency(iofFinanciamentoB)}
                     </span>
                   )}
-                <p className="text-[11px] text-gray-500 mt-1">
+                <p className="text-[10pt] text-gray-500 mt-1 leading-snug">
                   {entradaFinanBFinal > 0 && (
                     <span className="block text-blue-900 font-semibold">
                       Entrada: {formatCurrency(entradaFinanBFinal)}
@@ -587,21 +569,23 @@ export const SecaoInvestimentoPagamento: React.FC<SecaoInvestimentoPagamentoProp
                 </p>
               </div>
 
-              {/* 3 Linhas comparativas inferiores idênticas à aba de parcelamento */}
-              <div className="pt-3 border-t border-blue-200 space-y-1.5 text-[11px]">
-                <div className="flex justify-between">
+              {/* 3 Linhas comparativas inferiores */}
+              <div className="pt-2.5 border-t border-blue-200 space-y-1 text-[10pt]">
+                <div className="flex justify-between gap-1">
                   <span className="text-gray-500">Conta hoje:</span>
-                  <span className="font-bold text-red-600">{formatCurrency(contaAtualFinal)}</span>
+                  <span className="font-bold text-red-600 text-right">
+                    {formatCurrency(contaAtualFinal)}
+                  </span>
                 </div>
-                <div className="flex justify-between">
+                <div className="flex justify-between gap-1">
                   <span className="text-gray-500">Conta c/ solar:</span>
-                  <span className="font-bold text-emerald-700">
+                  <span className="font-bold text-[#16a34a] text-right">
                     {formatCurrency(contaSolarFinanB)}
                   </span>
                 </div>
-                <div className="flex justify-between pt-1 border-t border-blue-200 font-extrabold text-blue-900">
+                <div className="flex justify-between pt-1 border-t border-blue-200 font-bold text-blue-950 gap-1">
                   <span>Parcela + Conta:</span>
-                  <span>{formatCurrency(totalMensalFinanB)}</span>
+                  <span className="text-right">{formatCurrency(totalMensalFinanB)}</span>
                 </div>
               </div>
             </div>
