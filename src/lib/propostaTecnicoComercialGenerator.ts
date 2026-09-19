@@ -7,6 +7,7 @@ import {
   onGridPngAsset,
   monitoramentoPngAsset,
 } from './propostaIlustracoesAssets'
+import { USINAS_PORTFOLIO_PADRAO } from './portfolioUsinasAssets'
 
 export interface PropostaSecoesHabilitadas {
   layoutTelhado?: boolean
@@ -723,6 +724,216 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
     #secao-5-investimento-pagamento {
       page-break-before: always;
       break-before: page;
+    }
+
+    /* ESTILOS DA SEÇÃO QUEM SOMOS & PORTFÓLIO DE USINAS */
+    .secao-header-card.institucional {
+      background: #FFFFFF;
+      border: 1px solid #E2E8F0;
+      border-left: 4px solid #16A34A;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+    }
+    .badge-institucional {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 3px 10px;
+      border-radius: 9999px;
+      font-size: 9.5px;
+      font-weight: 800;
+      background: #DCFCE7;
+      color: #166534;
+      border: 1px solid #86EFAC;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 4px;
+    }
+    .titulo-institucional-azul {
+      margin: 0;
+      font-size: 20px;
+      font-weight: 900;
+      color: #0A539E;
+      letter-spacing: -0.015em;
+      line-height: 1.2;
+    }
+    .subtitulo-institucional-verde {
+      margin: 2px 0 0 0;
+      font-size: 11px;
+      font-weight: 700;
+      color: #16A34A;
+      letter-spacing: -0.01em;
+    }
+    .grid-diferenciais-cards {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 6px;
+      margin-top: 8px;
+    }
+    .card-diferencial {
+      background: #FFFFFF;
+      border: 1px solid #E2E8F0;
+      border-radius: 10px;
+      padding: 7px 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+    }
+    .card-diferencial-topo {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .card-diferencial-icon {
+      width: 22px;
+      height: 22px;
+      border-radius: 6px;
+      background: #EFF6FF;
+      color: #0A539E;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      flex-shrink: 0;
+    }
+    .card-diferencial-tit {
+      font-size: 9px;
+      font-weight: 800;
+      color: #0A539E;
+      line-height: 1.2;
+    }
+    .card-diferencial-desc {
+      font-size: 7.5px;
+      color: #475569;
+      line-height: 1.3;
+    }
+
+    .portfolio-wrapper {
+      margin-top: 10px;
+      page-break-inside: avoid;
+      break-inside: avoid;
+    }
+    .portfolio-header-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 8px;
+      padding-bottom: 4px;
+      border-bottom: 1px solid #E2E8F0;
+    }
+    .portfolio-titulo-azul {
+      margin: 0;
+      font-size: 13px;
+      font-weight: 900;
+      color: #0A539E;
+      letter-spacing: -0.01em;
+    }
+    .portfolio-sub-cinza {
+      margin: 2px 0 0 0;
+      font-size: 8.5px;
+      color: #64748B;
+    }
+    .portfolio-badge-pill {
+      font-size: 8px;
+      font-weight: 800;
+      background: #DCFCE7;
+      color: #166534;
+      padding: 3px 9px;
+      border-radius: 9999px;
+      border: 1px solid #86EFAC;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .grid-portfolio-6 {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      grid-template-rows: repeat(2, auto);
+      gap: 8px;
+    }
+    .card-portfolio-usina {
+      background: #FFFFFF;
+      border: 1px solid #E2E8F0;
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      page-break-inside: avoid;
+      break-inside: avoid;
+    }
+    .card-portfolio-thumb-wrap {
+      position: relative;
+      width: 100%;
+      height: 98px;
+      background: #F1F5F9;
+      overflow: hidden;
+      border-bottom: 1px solid #E2E8F0;
+    }
+    .card-portfolio-thumb-img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+      border-top-left-radius: 9px;
+      border-top-right-radius: 9px;
+    }
+    .card-portfolio-badge-tipo {
+      position: absolute;
+      top: 6px;
+      left: 6px;
+      font-size: 7.5px;
+      font-weight: 800;
+      padding: 2px 6px;
+      border-radius: 9999px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+    }
+    .card-portfolio-badge-pot {
+      position: absolute;
+      bottom: 6px;
+      right: 6px;
+      background: rgba(10, 83, 158, 0.92);
+      color: #FFFFFF;
+      font-size: 8px;
+      font-weight: 800;
+      padding: 2px 7px;
+      border-radius: 9999px;
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+    }
+    .card-portfolio-info {
+      padding: 6px 8px 7px 8px;
+      background: #FFFFFF;
+    }
+    .card-portfolio-titulo {
+      font-size: 9.5px;
+      font-weight: 800;
+      color: #0A539E;
+      line-height: 1.2;
+      margin-bottom: 3px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .card-portfolio-meta-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 8px;
+      color: #64748B;
+    }
+    .card-portfolio-cidade {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      color: #475569;
+      font-weight: 600;
+    }
+    .card-portfolio-pot-destaque {
+      color: #16A34A;
+      font-weight: 800;
     }
 
     .secao-body {
