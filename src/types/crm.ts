@@ -1000,6 +1000,13 @@ export type OrcamentoTipoCliente = 'residencial' | 'comercial' | 'industrial' | 
 export type OrcamentoTipoEstrutura = 'ceramico' | 'metalico' | 'laje' | 'fibrocimento' | 'solo'
 export type OrcamentoOrientacaoTelhado = 'leste' | 'oeste' | 'norte' | 'sul'
 
+export interface PropostaSecoesHabilitadas {
+  layoutTelhado?: boolean
+  fotosProjeto?: boolean
+  sazonalidadeSolar?: boolean
+  portfolioUsinas?: boolean
+}
+
 export interface OrcamentoSolarCalculado {
   id?: string
   cliente_id?: string
@@ -1057,6 +1064,7 @@ export interface OrcamentoSolarCalculado {
   instalacoes_selecionadas?: string[] | null
   layout_telhado?: string
   layout_telhado_habilitado?: boolean
+  secoes_habilitadas?: PropostaSecoesHabilitadas
   data_orcamento?: string
   autor?: string
   created?: string
@@ -1161,6 +1169,7 @@ export interface OrcamentoSolar extends RecordModel {
   // Layout do Telhado (Solergo / imagem técnica)
   layout_telhado?: string
   layout_telhado_habilitado?: boolean
+  secoes_habilitadas?: PropostaSecoesHabilitadas
   // Metadados
   data_orcamento: string
   validade_dias?: number

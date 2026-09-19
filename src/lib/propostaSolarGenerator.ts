@@ -80,6 +80,12 @@ export interface PropostaSolarPDFInput {
   // Layout do Telhado
   layoutTelhadoUrl?: string | null
   layoutTelhadoHabilitado?: boolean
+  secoesHabilitadas?: {
+    layoutTelhado?: boolean
+    fotosProjeto?: boolean
+    sazonalidadeSolar?: boolean
+    portfolioUsinas?: boolean
+  }
 }
 
 export function formatarTipoEstrutura(tipo: TipoEstruturaSolar): string {
@@ -286,6 +292,7 @@ export function converterInputParaTemplateComercial(
     },
     layoutTelhadoUrl: dados.layoutTelhadoUrl,
     layoutTelhadoHabilitado: dados.layoutTelhadoHabilitado,
+    secoesHabilitadas: dados.secoesHabilitadas,
     observacoes,
   }
 }

@@ -725,5 +725,118 @@ describe('Proposta Técnico-Comercial Generator (5 Seções Oficiais)', () => {
       expect(htmlPreview).toContain('Inclui IOF de')
       expect(htmlPreview).toContain('375,78')
     })
+
+    it('controla a visibilidade de seções opcionais via secoesHabilitadas', () => {
+      const baseDados: PropostaTecnicoComercialDados = {
+        ...dadosExemplo,
+        layoutTelhadoHabilitado: true,
+        layoutTelhadoUrl:
+          'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+        sistema: {
+          ...dadosExemplo.sistema,
+          fotoModuloUrl: 'https://exemplo.com/modulo.jpg',
+          fotoInversorUrl: 'https://exemplo.com/inversor.jpg',
+        },
+        producao: {
+          ...dadosExemplo.producao,
+          geracaoMensal: [
+            {
+              mesIndex: 0,
+              mesNome: 'Janeiro',
+              dias: 31,
+              irradiacaoHSP: 5.2,
+              fatorSazonal: 1.15,
+              geracaoKwh: 680,
+            },
+            {
+              mesIndex: 1,
+              mesNome: 'Fevereiro',
+              dias: 28,
+              irradiacaoHSP: 4.8,
+              fatorSazonal: 1.05,
+              geracaoKwh: 620,
+            },
+          ],
+        },
+      }
+
+      // 1. Todas as seções habilitadas (ou padrão)
+      const htmlCompleto = gerarHTMLPropostaTecnicoComercial({
+        ...baseDados,
+        secoesHabilitadas: {
+          layoutTelhado: true,
+          fotosProjeto: true,
+          sazonalidadeSolar: true,
+          portfolioUsinas: true,
+        },
+      })
+      expect(htmlCompleto).toContain('id="secao-apresentacao-empresa"')
+      expect(htmlCompleto).toContain('Portfólio de Usinas Solares Instaladas')
+      expect(htmlCompleto).toContain('https://exemplo.com/modulo.jpg')
+      expect(htmlCompleto).toContain('https://exemplo.com/inversor.jpg')
+      expect(htmlCompleto).toContain('Estimativa de Geração Mês a Mês')
+      expect(htmlCompleto).toContain('id="secao-layout-telhado"')
+
+      // 2. Portfólio de usinas desligado
+      const htmlSemPortfolio = gerarHTMLPropostaTecnicoComercial({
+        ...baseDados,
+        secoesHabilitadas: {
+          portfolioUsinas: false,
+        },
+      })
+      expect(htmlSemPortfolio).not.toContain('id="secao-apresentacao-empresa"')
+      expect(htmlSemPortfolio).not.toContain('Portfólio de Usinas Solares Instaladas')
+      expect(htmlSemPortfolio).toContain('https://exemplo.com/modulo.jpg')
+      expect(htmlSemPortfolio).toContain('Estimativa de Geração Mês a Mês')
+
+      // 3. Fotos do projeto desligadas
+      const htmlSemFotos = gerarHTMLPropostaTecnicoComercial({
+        ...baseDados,
+        secoesHabilitadas: {
+          fotosProjeto: false,
+        },
+      })
+      expect(htmlSemFotos).not.toContain('https://exemplo.com/modulo.jpg')
+      expect(htmlSemFotos).not.toContain('https://exemplo.com/inversor.jpg')
+      expect(htmlSemFotos).toContain('Tier-1 Global')
+      expect(htmlSemFotos).toContain('id="secao-apresentacao-empresa"')
+
+      // 4. Sazonalidade solar desligada
+      const htmlSemSazonalidade = gerarHTMLPropostaTecnicoComercial({
+        ...baseDados,
+        secoesHabilitadas: {
+          sazonalidadeSolar: false,
+        },
+      })
+      expect(htmlSemSazonalidade).not.toContain('Estimativa de Geração Mês a Mês')
+      expect(htmlSemSazonalidade).toContain('id="secao-apresentacao-empresa"')
+
+      // 5. Layout do telhado desligado via secoesHabilitadas
+      const htmlSemLayout = gerarHTMLPropostaTecnicoComercial({
+        ...baseDados,
+        secoesHabilitadas: {
+          layoutTelhado: false,
+        },
+      })
+      expect(htmlSemLayout).not.toContain('id="secao-layout-telhado"')
+
+      // 6. Preview e PDF idênticos para mesmos dados com flags desligadas
+      const dadosDesligados: PropostaTecnicoComercialDados = {
+        ...baseDados,
+        secoesHabilitadas: {
+          layoutTelhado: false,
+          fotosProjeto: false,
+          sazonalidadeSolar: false,
+          portfolioUsinas: false,
+        },
+      }
+      const previewDesligado = gerarHTMLPropostaTecnicoComercial(dadosDesligados)
+      const pdfDesligado = gerarHTMLPropostaTecnicoComercial(dadosDesligados)
+      expect(previewDesligado).toBe(pdfDesligado)
+      expect(previewDesligado).not.toContain('id="secao-apresentacao-empresa"')
+      expect(previewDesligado).not.toContain('Estimativa de Geração Mês a Mês')
+      expect(previewDesligado).not.toContain('id="secao-layout-telhado"')
+      expect(previewDesligado).not.toContain('https://exemplo.com/modulo.jpg')
+    })
   })
 })

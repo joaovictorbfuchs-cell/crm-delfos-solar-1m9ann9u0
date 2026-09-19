@@ -193,6 +193,9 @@ export function ModalGerarPropostaTecnicoComercial({
         ? (orcamento as any).layoutTelhadoHabilitado
         : true
 
+  const secoesHabilitadas =
+    orcamento.secoes_habilitadas || (orcamento as any).secoesHabilitadas || undefined
+
   // Feedback do e-mail
   const [emailStatus, setEmailStatus] = useState<string | null>(null)
 
@@ -423,6 +426,7 @@ export function ModalGerarPropostaTecnicoComercial({
         },
         layoutTelhadoUrl,
         layoutTelhadoHabilitado,
+        secoesHabilitadas,
       }
     } catch (err) {
       console.error('Erro ao montar dados da proposta técnico-comercial:', err)
@@ -475,6 +479,7 @@ export function ModalGerarPropostaTecnicoComercial({
     entradaFinanB,
     layoutTelhadoUrl,
     layoutTelhadoHabilitado,
+    secoesHabilitadas,
   ])
 
   const htmlPreview = useMemo<string>(() => {

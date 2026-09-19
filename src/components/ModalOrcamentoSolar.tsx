@@ -33,7 +33,12 @@ import { useClientes } from '@/contexts/ClientesContext'
 import { useAuth } from '@/contexts/AuthContext'
 import { ClienteAutocomplete } from '@/components/ClienteAutocomplete'
 import { formatCurrency } from '@/lib/formatters'
-import type { OrcamentoSolar, Cliente, PadraoFasesSolar } from '@/types/crm'
+import type {
+  OrcamentoSolar,
+  Cliente,
+  PadraoFasesSolar,
+  PropostaSecoesHabilitadas,
+} from '@/types/crm'
 import {
   calcularOrcamentoSolar,
   somarCustosSolar,
@@ -199,6 +204,14 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
   const [usinasGaleria, setUsinasGaleria] = useState<InstalacaoGaleria[]>([])
   const [instalacoesSelecionadasIds, setInstalacoesSelecionadasIds] = useState<string[]>([])
   const [loadingGaleria, setLoadingGaleria] = useState<boolean>(false)
+
+  // Seções habilitadas na proposta (toggles opcionais)
+  const [secoesHabilitadas, setSecoesHabilitadas] = useState<PropostaSecoesHabilitadas>({
+    layoutTelhado: true,
+    fotosProjeto: true,
+    sazonalidadeSolar: true,
+    portfolioUsinas: true,
+  })
 
   // Layout do Telhado (Solergo / planta técnica)
   const [layoutTelhadoHabilitado, setLayoutTelhadoHabilitado] = useState<boolean>(true)
@@ -523,12 +536,29 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
         setInstalacoesSelecionadasIds([])
       }
 
-      // Layout do Telhado
-      setLayoutTelhadoHabilitado(
-        initialOrcamento.layout_telhado_habilitado !== undefined
-          ? Boolean(initialOrcamento.layout_telhado_habilitado)
-          : true,
-      )
+      // Seções Habilitadas e Layout do Telhado
+      const initialSecoes: PropostaSecoesHabilitadas = {
+        layoutTelhado:
+          initialOrcamento.secoes_habilitadas?.layoutTelhado !== undefined
+            ? Boolean(initialOrcamento.secoes_habilitadas.layoutTelhado)
+            : initialOrcamento.layout_telhado_habilitado !== undefined
+              ? Boolean(initialOrcamento.layout_telhado_habilitado)
+              : true,
+        fotosProjeto:
+          initialOrcamento.secoes_habilitadas?.fotosProjeto !== undefined
+            ? Boolean(initialOrcamento.secoes_habilitadas.fotosProjeto)
+            : true,
+        sazonalidadeSolar:
+          initialOrcamento.secoes_habilitadas?.sazonalidadeSolar !== undefined
+            ? Boolean(initialOrcamento.secoes_habilitadas.sazonalidadeSolar)
+            : true,
+        portfolioUsinas:
+          initialOrcamento.secoes_habilitadas?.portfolioUsinas !== undefined
+            ? Boolean(initialOrcamento.secoes_habilitadas.portfolioUsinas)
+            : true,
+      }
+      setSecoesHabilitadas(initialSecoes)
+      setLayoutTelhadoHabilitado(initialSecoes.layoutTelhado !== false)
       setLayoutTelhadoFile(null)
       if (initialOrcamento.layout_telhado) {
         setLayoutTelhadoPreviewUrl(
@@ -538,7 +568,13 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
         setLayoutTelhadoPreviewUrl(null)
       }
     } else {
-      // Layout do telhado inicial (novo orçamento: habilitado com layoutTelhadoFile vazio)
+      // Seções habilitadas e Layout do telhado inicial (novo orçamento)
+      setSecoesHabilitadas({
+        layoutTelhado: true,
+        fotosProjeto: true,
+        sazonalidadeSolar: true,
+        portfolioUsinas: true,
+      })
       setLayoutTelhadoHabilitado(true)
       setLayoutTelhadoFile(null)
       setLayoutTelhadoPreviewUrl(null)
@@ -937,6 +973,12 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
       observacoes,
       layoutTelhadoUrl: layoutTelhadoPreviewUrl,
       layoutTelhadoHabilitado,
+      secoesHabilitadas: {
+        layoutTelhado: layoutTelhadoHabilitado,
+        fotosProjeto: secoesHabilitadas.fotosProjeto !== false,
+        sazonalidadeSolar: secoesHabilitadas.sazonalidadeSolar !== false,
+        portfolioUsinas: secoesHabilitadas.portfolioUsinas !== false,
+      },
     }
   }, [
     clienteAtual,
@@ -965,6 +1007,7 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
     observacoes,
     layoutTelhadoPreviewUrl,
     layoutTelhadoHabilitado,
+    secoesHabilitadas,
   ])
 
   // HTML fiel e atualizado em tempo real da proposta técnico-comercial
@@ -1124,6 +1167,12 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
           instalacoesSelecionadasIds.length > 0 ? instalacoesSelecionadasIds : null,
 
         layout_telhado_habilitado: layoutTelhadoHabilitado,
+        secoes_habilitadas: {
+          layoutTelhado: layoutTelhadoHabilitado,
+          fotosProjeto: secoesHabilitadas.fotosProjeto !== false,
+          sazonalidadeSolar: secoesHabilitadas.sazonalidadeSolar !== false,
+          portfolioUsinas: secoesHabilitadas.portfolioUsinas !== false,
+        },
         data_orcamento: new Date().toISOString(),
         validade_dias: 5,
         autor: user?.name || 'Delfos Solar',
@@ -3628,6 +3677,134 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                   </div>
                 </div>
 
+                {/* Card de Controle: Seções da Proposta (Toggles Liga/Desliga) */}
+                <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 border-b border-slate-200/80 pb-2.5">
+                    <div className="flex items-center gap-2">
+                      <div className="w-7 h-7 rounded-lg bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold text-xs border border-emerald-200">
+                        ⚙️
+                      </div>
+                      <div>
+                        <h4 className="text-xs font-bold uppercase tracking-wide text-gray-900">
+                          Seções da Proposta
+                        </h4>
+                        <p className="text-[11px] text-gray-500">
+                          Ligue ou desligue as seções opcionais para personalizar o resumo e a
+                          proposta final em PDF.
+                        </p>
+                      </div>
+                    </div>
+                    <span className="text-[10px] font-semibold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full self-start sm:self-auto">
+                      Atualização em tempo real
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+                    {/* Toggle: Layout do Telhado */}
+                    <div className="bg-white border border-slate-200 rounded-xl p-3 flex items-center justify-between gap-2 shadow-2xs">
+                      <div className="min-w-0">
+                        <div className="text-xs font-bold text-gray-800 truncate">
+                          Layout do Telhado
+                        </div>
+                        <div className="text-[10px] text-gray-500 truncate">
+                          Solergo / vista técnica
+                        </div>
+                      </div>
+                      <label className="relative inline-flex items-center cursor-pointer select-none shrink-0">
+                        <input
+                          type="checkbox"
+                          className="sr-only peer"
+                          checked={layoutTelhadoHabilitado}
+                          onChange={(e) => {
+                            const val = e.target.checked
+                            setLayoutTelhadoHabilitado(val)
+                            setSecoesHabilitadas((prev) => ({ ...prev, layoutTelhado: val }))
+                          }}
+                        />
+                        <div className="w-11 h-6 bg-slate-300 peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+                      </label>
+                    </div>
+
+                    {/* Toggle: Fotos do Projeto */}
+                    <div className="bg-white border border-slate-200 rounded-xl p-3 flex items-center justify-between gap-2 shadow-2xs">
+                      <div className="min-w-0">
+                        <div className="text-xs font-bold text-gray-800 truncate">
+                          Fotos do Projeto
+                        </div>
+                        <div className="text-[10px] text-gray-500 truncate">
+                          Vistoria & equipamentos
+                        </div>
+                      </div>
+                      <label className="relative inline-flex items-center cursor-pointer select-none shrink-0">
+                        <input
+                          type="checkbox"
+                          className="sr-only peer"
+                          checked={secoesHabilitadas.fotosProjeto !== false}
+                          onChange={(e) =>
+                            setSecoesHabilitadas((prev) => ({
+                              ...prev,
+                              fotosProjeto: e.target.checked,
+                            }))
+                          }
+                        />
+                        <div className="w-11 h-6 bg-slate-300 peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+                      </label>
+                    </div>
+
+                    {/* Toggle: Sazonalidade Solar */}
+                    <div className="bg-white border border-slate-200 rounded-xl p-3 flex items-center justify-between gap-2 shadow-2xs">
+                      <div className="min-w-0">
+                        <div className="text-xs font-bold text-gray-800 truncate">
+                          Sazonalidade Solar
+                        </div>
+                        <div className="text-[10px] text-gray-500 truncate">
+                          Geração mês a mês (12m)
+                        </div>
+                      </div>
+                      <label className="relative inline-flex items-center cursor-pointer select-none shrink-0">
+                        <input
+                          type="checkbox"
+                          className="sr-only peer"
+                          checked={secoesHabilitadas.sazonalidadeSolar !== false}
+                          onChange={(e) =>
+                            setSecoesHabilitadas((prev) => ({
+                              ...prev,
+                              sazonalidadeSolar: e.target.checked,
+                            }))
+                          }
+                        />
+                        <div className="w-11 h-6 bg-slate-300 peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+                      </label>
+                    </div>
+
+                    {/* Toggle: Portfólio de Usinas */}
+                    <div className="bg-white border border-slate-200 rounded-xl p-3 flex items-center justify-between gap-2 shadow-2xs">
+                      <div className="min-w-0">
+                        <div className="text-xs font-bold text-gray-800 truncate">
+                          Portfólio de Usinas
+                        </div>
+                        <div className="text-[10px] text-gray-500 truncate">
+                          Projetos reais homologados
+                        </div>
+                      </div>
+                      <label className="relative inline-flex items-center cursor-pointer select-none shrink-0">
+                        <input
+                          type="checkbox"
+                          className="sr-only peer"
+                          checked={secoesHabilitadas.portfolioUsinas !== false}
+                          onChange={(e) =>
+                            setSecoesHabilitadas((prev) => ({
+                              ...prev,
+                              portfolioUsinas: e.target.checked,
+                            }))
+                          }
+                        />
+                        <div className="w-11 h-6 bg-slate-300 peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+                      </label>
+                    </div>
+                  </div>
+                </div>
+
                 {/* Seletor de Instalações que Aparecerão na Apresentação da Proposta */}
                 <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-2xs space-y-3">
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 pb-2.5 border-b border-gray-100">
@@ -3798,9 +3975,13 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                           type="checkbox"
                           className="sr-only peer"
                           checked={layoutTelhadoHabilitado}
-                          onChange={(e) => setLayoutTelhadoHabilitado(e.target.checked)}
+                          onChange={(e) => {
+                            const val = e.target.checked
+                            setLayoutTelhadoHabilitado(val)
+                            setSecoesHabilitadas((prev) => ({ ...prev, layoutTelhado: val }))
+                          }}
                         />
-                        <div className="w-11 h-6 bg-gray-200 peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+                        <div className="w-11 h-6 bg-slate-300 peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
                         <span className="ml-2 text-xs font-bold text-gray-700">
                           {layoutTelhadoHabilitado ? 'Incluir na proposta' : 'Omitido na proposta'}
                         </span>
@@ -4133,6 +4314,13 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
             entrada_financiamento_banco2: entradaBanco2,
             instalacoes_selecionadas:
               instalacoesSelecionadasIds.length > 0 ? instalacoesSelecionadasIds : null,
+            layout_telhado_habilitado: layoutTelhadoHabilitado,
+            secoes_habilitadas: {
+              layoutTelhado: layoutTelhadoHabilitado,
+              fotosProjeto: secoesHabilitadas.fotosProjeto !== false,
+              sazonalidadeSolar: secoesHabilitadas.sazonalidadeSolar !== false,
+              portfolioUsinas: secoesHabilitadas.portfolioUsinas !== false,
+            },
             data_orcamento: initialOrcamento?.data_orcamento || new Date().toISOString(),
             autor: initialOrcamento?.autor || user?.name || 'Equipe Delfos Solar',
             gasto_sem_solar_1_ano: calculos.gastoSemSolar1Ano,

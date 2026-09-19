@@ -4,6 +4,13 @@ import { CONSUMO_EXEMPLO_PADRAO_KWH_ANO } from '@/data/planilhaBaseProjecao'
 import { formatarMesAnoQuitacao } from '@/lib/formatters'
 import { onGridPngAsset, monitoramentoPngAsset } from './propostaIlustracoesAssets'
 
+export interface PropostaSecoesHabilitadas {
+  layoutTelhado?: boolean
+  fotosProjeto?: boolean
+  sazonalidadeSolar?: boolean
+  portfolioUsinas?: boolean
+}
+
 export interface FotoInstalacaoProposta {
   id: string
   titulo: string
@@ -131,6 +138,7 @@ export interface PropostaTecnicoComercialDados {
   // Layout do Telhado
   layoutTelhadoUrl?: string | null
   layoutTelhadoHabilitado?: boolean
+  secoesHabilitadas?: PropostaSecoesHabilitadas
   observacoes?: string
 }
 
@@ -2191,6 +2199,11 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
     <!-- ========================================================
          PÁGINA DE APRESENTAÇÃO DA EMPRESA & PORTFÓLIO DE USINAS
          ======================================================== -->
+    ${(() => {
+      if (dados.secoesHabilitadas?.portfolioUsinas === false) {
+        return ''
+      }
+      return `
     <section class="proposta-secao-page" id="secao-apresentacao-empresa">
       <div class="secao-body">
         <header class="doc-header">
@@ -2329,6 +2342,8 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
       </div>
       ${renderInternalFooter(1, validade)}
     </section>
+    `
+    })()}
 
     <!-- ========================================================
          SEÇÃO 2 — SITUAÇÃO ATUAL (ESPELHADO DO SecaoCustoInercia.tsx)
@@ -2560,7 +2575,7 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
             <div>
               <div class="card-sistema-header">
                 ${
-                  sistema?.fotoModuloUrl
+                  dados.secoesHabilitadas?.fotosProjeto !== false && sistema?.fotoModuloUrl
                     ? `<div style="width: 38px; height: 38px; border-radius: 8px; border: 1px solid #FDE68A; background: #FEF3C7; padding: 2px; display: flex; align-items: center; justify-content: center; overflow: hidden;">
                         <img src="${sistema.fotoModuloUrl}" alt="Módulo FV" style="max-width: 100%; max-height: 100%; object-fit: contain;" />
                       </div>`
@@ -2604,7 +2619,7 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
             <div>
               <div class="card-sistema-header">
                 ${
-                  sistema?.fotoInversorUrl
+                  dados.secoesHabilitadas?.fotosProjeto !== false && sistema?.fotoInversorUrl
                     ? `<div style="width: 38px; height: 38px; border-radius: 8px; border: 1px solid #99F6E4; background: #CCFBF1; padding: 2px; display: flex; align-items: center; justify-content: center; overflow: hidden;">
                         <img src="${sistema.fotoInversorUrl}" alt="Inversor Solar" style="max-width: 100%; max-height: 100%; object-fit: contain;" />
                       </div>`
@@ -2672,6 +2687,9 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
         </div>
 
         ${(() => {
+          if (dados.secoesHabilitadas?.sazonalidadeSolar === false) {
+            return ''
+          }
           const itens = producao?.geracaoMensal
           if (!Array.isArray(itens) || itens.length === 0) {
             return ''
@@ -2786,7 +2804,11 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
         </div>
 
         ${(() => {
-          if (dados.layoutTelhadoHabilitado === false || !dados.layoutTelhadoUrl) {
+          if (
+            dados.layoutTelhadoHabilitado === false ||
+            dados.secoesHabilitadas?.layoutTelhado === false ||
+            !dados.layoutTelhadoUrl
+          ) {
             return ''
           }
           return `
