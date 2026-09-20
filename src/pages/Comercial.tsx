@@ -8,6 +8,9 @@ import {
   Send,
   RefreshCw,
   AlertCircle,
+  ArchiveX,
+  RotateCcw,
+  Search,
 } from 'lucide-react'
 import { useClientes } from '@/contexts/ClientesContext'
 import { KanbanBoard } from '@/components/KanbanBoard'
@@ -27,10 +30,20 @@ import { Button } from '@/components/ui/button'
 import { toast } from '@/hooks/use-toast'
 
 export default function Comercial() {
-  const { clientes, isLoading, error, bulkTransferirFechadosPosVendas, refreshData } = useClientes()
+  const {
+    clientes,
+    isLoading,
+    error,
+    bulkTransferirFechadosPosVendas,
+    refreshData,
+    updateClienteStatus,
+    openFichaCliente,
+  } = useClientes()
   const [isNovoLeadOpen, setIsNovoLeadOpen] = useState(false)
-  const [viewMode, setViewMode] = useState<'kanban' | 'list'>('kanban')
+  const [viewMode, setViewMode] = useState<'kanban' | 'list' | 'perdidos'>('kanban')
   const [isRefreshing, setIsRefreshing] = useState(false)
+  const [buscaPerdidos, setBuscaPerdidos] = useState('')
+  const [reativandoId, setReativandoId] = useState<string | null>(null)
 
   const handleRefresh = async () => {
     setIsRefreshing(true)
@@ -44,8 +57,43 @@ export default function Comercial() {
   // Clientes ativos no funil comercial: desconsidera arquivados e negócios já transferidos para Pós-Vendas
   const clientesAtivos = clientes.filter((c) => !c.arquivado && !c.transferido_pos_vendas)
 
+  // Clientes perdidos
+  const clientesPerdidos = clientes.filter((c) => c.status === 'Perdido' && !c.arquivado)
+
+  const clientesPerdidosFiltrados = clientesPerdidos.filter((c) => {
+    if (!buscaPerdidos.trim()) return true
+    const termo = buscaPerdidos.toLowerCase()
+    return (
+      (c.nome || '').toLowerCase().includes(termo) ||
+      (c.motivo_perda || '').toLowerCase().includes(termo) ||
+      (c.observacoes || '').toLowerCase().includes(termo) ||
+      (c.observacoes_perda || '').toLowerCase().includes(termo) ||
+      (c.cidade || '').toLowerCase().includes(termo)
+    )
+  })
+
   const fechados = clientesAtivos.filter((c) => c.status === 'Fechado')
   const totalFechado = fechados.reduce((sum, c) => sum + (c.valor_estimado || 0), 0)
+
+  const handleReativarCliente = async (clienteId: string) => {
+    setReativandoId(clienteId)
+    try {
+      await updateClienteStatus(clienteId, 'Contato Futuro')
+      toast({
+        title: 'Oportunidade reativada!',
+        description: 'O cliente retornou ao funil de vendas na etapa "Contato Futuro".',
+      })
+    } catch (err) {
+      console.error('Erro ao reativar cliente:', err)
+      toast({
+        title: 'Erro ao reativar',
+        description: 'Não foi possível reativar o cliente. Tente novamente.',
+        variant: 'destructive',
+      })
+    } finally {
+      setReativandoId(null)
+    }
+  }
 
   // Modal de transferência em lote dos Fechados para Pós-Vendas
   const [isModalTransferenciaOpen, setIsModalTransferenciaOpen] = useState(false)
@@ -140,17 +188,21 @@ export default function Comercial() {
             <h3 className="text-base font-semibold text-gray-900">
               {viewMode === 'kanban'
                 ? 'Etapas do Funil de Vendas'
-                : 'Visão Geral dos Negócios (Lista)'}
+                : viewMode === 'list'
+                  ? 'Visão Geral dos Negócios (Lista)'
+                  : 'Oportunidades Perdidas'}
             </h3>
             <p className="text-xs text-gray-500">
               {viewMode === 'kanban'
                 ? 'Arraste os cards entre as colunas para atualizar a etapa de cada cliente'
-                : 'Gerencie negócios em formato tabela com seleção múltipla e ações em lote'}
+                : viewMode === 'list'
+                  ? 'Gerencie negócios em formato tabela com seleção múltipla e ações em lote'
+                  : 'Histórico de clientes e negócios desqualificados ou perdidos, com opção de reativação imediata'}
             </p>
           </div>
 
           <div className="flex items-center gap-2.5 flex-wrap">
-            {/* Seletor de Modo de Visualização: Kanban vs Lista */}
+            {/* Seletor de Modo de Visualização: Kanban vs Lista vs Oportunidades Perdidas */}
             <div className="flex items-center bg-gray-100 p-1 rounded-xl border border-gray-200">
               <button
                 type="button"
@@ -177,6 +229,24 @@ export default function Comercial() {
               >
                 <List className="w-4 h-4 text-emerald-600" />
                 <span className="hidden sm:inline">Lista</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode('perdidos')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                  viewMode === 'perdidos'
+                    ? 'bg-white text-rose-800 shadow-xs border border-rose-200/80'
+                    : 'text-gray-600 hover:text-rose-700'
+                }`}
+                title="Oportunidades Perdidas"
+              >
+                <ArchiveX className="w-4 h-4 text-rose-600" />
+                <span className="hidden sm:inline">Oportunidades Perdidas</span>
+                {clientesPerdidos.length > 0 && (
+                  <span className="ml-1 bg-rose-100 text-rose-800 font-bold px-1.5 py-0.2 rounded-full text-[10px]">
+                    {clientesPerdidos.length}
+                  </span>
+                )}
               </button>
             </div>
 
@@ -233,13 +303,168 @@ export default function Comercial() {
           <ErrorBoundary compact errorMessage="Não foi possível exibir o funil de vendas.">
             <KanbanBoard clientes={clientesAtivos} />
           </ErrorBoundary>
-        ) : (
+        ) : viewMode === 'list' ? (
           <ErrorBoundary compact errorMessage="Não foi possível exibir o funil de vendas.">
             <ComercialListView
               clientes={clientesAtivos}
               onBackToKanban={() => setViewMode('kanban')}
             />
           </ErrorBoundary>
+        ) : (
+          /* Aba / Visão de Oportunidades Perdidas */
+          <div className="space-y-4">
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <div className="relative flex-1 min-w-[240px] max-w-md">
+                <Search className="w-4 h-4 text-gray-400 absolute left-3 top-2.5" />
+                <input
+                  type="text"
+                  value={buscaPerdidos}
+                  onChange={(e) => setBuscaPerdidos(e.target.value)}
+                  placeholder="Buscar cliente, motivo ou cidade..."
+                  className="w-full pl-9 pr-3 py-1.5 text-xs rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500"
+                />
+              </div>
+              <div className="text-xs text-gray-500 font-medium">
+                Total de oportunidades perdidas:{' '}
+                <strong className="text-gray-900">{clientesPerdidosFiltrados.length}</strong>
+              </div>
+            </div>
+
+            {clientesPerdidosFiltrados.length === 0 ? (
+              <div className="text-center py-12 bg-gray-50/50 rounded-xl border border-dashed border-gray-200">
+                <ArchiveX className="w-10 h-10 text-gray-300 mx-auto mb-2" />
+                <p className="text-sm font-semibold text-gray-700">
+                  Nenhuma oportunidade perdida encontrada
+                </p>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  {buscaPerdidos
+                    ? 'Nenhum resultado corresponde à busca informada.'
+                    : 'Nenhum cliente foi marcado como perdido no momento.'}
+                </p>
+              </div>
+            ) : (
+              <div className="border border-gray-200 rounded-xl overflow-hidden shadow-2xs">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead className="bg-gray-50/80 text-gray-600 font-semibold border-b border-gray-200">
+                      <tr>
+                        <th className="py-2.5 px-4">Cliente</th>
+                        <th className="py-2.5 px-4">Motivo da Perda</th>
+                        <th className="py-2.5 px-4">Observações</th>
+                        <th className="py-2.5 px-4">Valor Estimado</th>
+                        <th className="py-2.5 px-4">Data</th>
+                        <th className="py-2.5 px-4 text-right">Ação</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100 bg-white">
+                      {clientesPerdidosFiltrados.map((cliente) => {
+                        const rotulosMotivo: Record<string, { label: string; cor: string }> = {
+                          preco: {
+                            label: 'Preço',
+                            cor: 'bg-amber-100 text-amber-800 border-amber-200',
+                          },
+                          concorrente: {
+                            label: 'Concorrente',
+                            cor: 'bg-blue-100 text-blue-800 border-blue-200',
+                          },
+                          desistiu: {
+                            label: 'Desistiu',
+                            cor: 'bg-purple-100 text-purple-800 border-purple-200',
+                          },
+                          nao_respondeu: {
+                            label: 'Não respondeu',
+                            cor: 'bg-rose-100 text-rose-800 border-rose-200',
+                          },
+                          outro: {
+                            label: 'Outro',
+                            cor: 'bg-gray-100 text-gray-800 border-gray-200',
+                          },
+                        }
+                        const motivoInfo = cliente.motivo_perda
+                          ? rotulosMotivo[cliente.motivo_perda] || {
+                              label: cliente.motivo_perda,
+                              cor: 'bg-gray-100 text-gray-800 border-gray-200',
+                            }
+                          : {
+                              label: 'Não informado',
+                              cor: 'bg-gray-100 text-gray-500 border-gray-200',
+                            }
+
+                        const obsExibida = cliente.observacoes_perda || cliente.observacoes || '—'
+
+                        const dataExibida =
+                          cliente.updated || cliente.created
+                            ? new Date(cliente.updated || cliente.created).toLocaleDateString(
+                                'pt-BR',
+                              )
+                            : '—'
+
+                        return (
+                          <tr key={cliente.id} className="hover:bg-gray-50/60 transition-colors">
+                            <td className="py-3 px-4 font-semibold text-gray-900">
+                              <button
+                                type="button"
+                                onClick={() => openFichaCliente(cliente.id)}
+                                className="hover:text-emerald-700 hover:underline text-left"
+                              >
+                                {cliente.nome}
+                              </button>
+                              {cliente.cidade && (
+                                <span className="block text-[11px] font-normal text-gray-500">
+                                  {cliente.cidade} {cliente.estado ? `- ${cliente.estado}` : ''}
+                                </span>
+                              )}
+                            </td>
+                            <td className="py-3 px-4">
+                              <span
+                                className={`inline-block px-2 py-0.5 rounded-full text-[11px] font-semibold border ${motivoInfo.cor}`}
+                              >
+                                {motivoInfo.label}
+                              </span>
+                            </td>
+                            <td
+                              className="py-3 px-4 max-w-xs text-gray-600 truncate"
+                              title={obsExibida}
+                            >
+                              {obsExibida}
+                            </td>
+                            <td className="py-3 px-4 font-semibold text-gray-800 whitespace-nowrap">
+                              {cliente.valor_final
+                                ? formatCurrency(cliente.valor_final)
+                                : cliente.valor_estimado
+                                  ? formatCurrency(cliente.valor_estimado)
+                                  : 'R$ 0,00'}
+                            </td>
+                            <td className="py-3 px-4 text-gray-500 whitespace-nowrap">
+                              {dataExibida}
+                            </td>
+                            <td className="py-3 px-4 text-right">
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                disabled={reativandoId === cliente.id}
+                                onClick={() => handleReativarCliente(cliente.id)}
+                                className="inline-flex items-center gap-1.5 text-xs text-emerald-700 border-emerald-300 hover:bg-emerald-50 hover:text-emerald-800 font-semibold"
+                                title="Devolver oportunidade ao funil na etapa Contato Futuro"
+                              >
+                                {reativandoId === cliente.id ? (
+                                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                ) : (
+                                  <RotateCcw className="w-3.5 h-3.5 text-emerald-600" />
+                                )}
+                                <span>Reativar</span>
+                              </Button>
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </div>
         )}
       </div>
 

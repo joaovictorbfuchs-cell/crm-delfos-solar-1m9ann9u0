@@ -11,17 +11,25 @@ import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
-import { XCircle, AlertCircle, DollarSign, Building2, UserX, HelpCircle } from 'lucide-react'
+import {
+  X,
+  XCircle,
+  AlertCircle,
+  DollarSign,
+  Building2,
+  UserX,
+  PhoneOff,
+  HelpCircle,
+} from 'lucide-react'
 import type { Cliente } from '@/types/crm'
+
+export type MotivoPerdaTipo = 'preco' | 'concorrente' | 'desistiu' | 'nao_respondeu' | 'outro'
 
 interface ModalMarcarPerdidoProps {
   cliente: Cliente | null
   open: boolean
   onOpenChange: (open: boolean) => void
-  onConfirm: (
-    motivo: 'preco' | 'concorrente' | 'desistiu' | 'outro',
-    observacao?: string,
-  ) => Promise<void>
+  onConfirm: (motivo: MotivoPerdaTipo, observacao?: string) => Promise<void>
 }
 
 const MOTIVOS_OPCOES = [
@@ -50,12 +58,20 @@ const MOTIVOS_OPCOES = [
     bgActive: 'bg-purple-50/70 border-purple-500 ring-1 ring-purple-500',
   },
   {
+    id: 'nao_respondeu' as const,
+    label: 'Não respondeu',
+    descricao: 'Cliente não atende ligações, mensagens de WhatsApp ou sumiu.',
+    icon: PhoneOff,
+    iconColor: 'text-rose-600',
+    bgActive: 'bg-rose-50/70 border-rose-500 ring-1 ring-rose-500',
+  },
+  {
     id: 'outro' as const,
     label: 'Outro',
     descricao: 'Outro motivo específico (detalhar no campo abaixo).',
     icon: HelpCircle,
     iconColor: 'text-gray-600',
-    bgActive: 'bg-rose-50/70 border-rose-500 ring-1 ring-rose-500',
+    bgActive: 'bg-gray-100 border-gray-500 ring-1 ring-gray-400',
   },
 ]
 
@@ -65,7 +81,7 @@ export const ModalMarcarPerdido: React.FC<ModalMarcarPerdidoProps> = ({
   onOpenChange,
   onConfirm,
 }) => {
-  const [motivo, setMotivo] = useState<'preco' | 'concorrente' | 'desistiu' | 'outro' | null>(null)
+  const [motivo, setMotivo] = useState<MotivoPerdaTipo | null>(null)
   const [observacao, setObservacao] = useState('')
   const [erro, setErro] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -109,7 +125,7 @@ export const ModalMarcarPerdido: React.FC<ModalMarcarPerdidoProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={(val) => (!val ? handleClose() : onOpenChange(val))}>
-      <DialogContent className="sm:max-w-[520px]">
+      <DialogContent className="sm:max-w-[540px]">
         <DialogHeader>
           <div className="flex items-center gap-2 text-rose-600 mb-1">
             <XCircle className="w-5 h-5 text-rose-600" />
@@ -121,9 +137,9 @@ export const ModalMarcarPerdido: React.FC<ModalMarcarPerdidoProps> = ({
             Marcar negócio como Perdido
           </DialogTitle>
           <DialogDescription className="text-sm text-gray-600">
-            Cliente: <strong className="text-gray-800">{cliente.nome}</strong>. Selecione o motivo
-            principal da perda para manter as métricas comerciais e o histórico de atividades
-            atualizados.
+            Cliente: <strong className="text-gray-800">{cliente.nome}</strong>. O card sairá do
+            kanban de vendas e ficará disponível na lista de oportunidades perdidas para eventual
+            reativação.
           </DialogDescription>
         </DialogHeader>
 
@@ -142,7 +158,7 @@ export const ModalMarcarPerdido: React.FC<ModalMarcarPerdidoProps> = ({
             <RadioGroup
               value={motivo || ''}
               onValueChange={(val) => {
-                setMotivo(val as 'preco' | 'concorrente' | 'desistiu' | 'outro')
+                setMotivo(val as MotivoPerdaTipo)
                 setErro(null)
               }}
               className="grid grid-cols-1 sm:grid-cols-2 gap-2"
@@ -200,7 +216,7 @@ export const ModalMarcarPerdido: React.FC<ModalMarcarPerdidoProps> = ({
               placeholder={
                 motivo === 'outro'
                   ? 'Descreva obrigatoriamente qual foi o motivo da perda...'
-                  : 'Descreva eventuais detalhes adicionais (ex: valor da proposta do concorrente, feedback do cliente)...'
+                  : 'Descreva eventuais detalhes adicionais (ex: feedback do cliente, proposta de concorrente)...'
               }
               rows={3}
               className="text-xs"
@@ -209,16 +225,29 @@ export const ModalMarcarPerdido: React.FC<ModalMarcarPerdidoProps> = ({
         </div>
 
         <DialogFooter className="gap-2 sm:gap-0 mt-2">
-          <Button type="button" variant="outline" onClick={handleClose} disabled={isSubmitting}>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={handleClose}
+            disabled={isSubmitting}
+            className="text-xs"
+          >
             Cancelar
           </Button>
           <Button
             type="button"
             onClick={handleConfirm}
             disabled={!podeConfirmar}
-            className="bg-rose-600 hover:bg-rose-700 text-white"
+            className="bg-rose-600 hover:bg-rose-700 text-white inline-flex items-center gap-1.5 text-xs font-bold rounded-lg shadow-xs"
           >
-            {isSubmitting ? 'Registrando...' : 'Confirmar Perda'}
+            {isSubmitting ? (
+              'Registrando...'
+            ) : (
+              <>
+                <X className="w-4 h-4" />
+                Confirmar perda
+              </>
+            )}
           </Button>
         </DialogFooter>
       </DialogContent>

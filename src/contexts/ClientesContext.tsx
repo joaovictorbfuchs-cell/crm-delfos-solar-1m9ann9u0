@@ -276,10 +276,14 @@ interface ClientesContextType {
     clientesParaTransferir: { id: string; data_fechamento?: string }[] | string[],
     areaDestino?: 'projetos' | 'manutencoes' | 'om',
   ) => Promise<Cliente[]>
-  marcarComoGanho: (clienteId: string, areaDestino: 'projetos' | 'om') => Promise<Cliente>
+  marcarComoGanho: (
+    clienteId: string,
+    areaDestinoOuDados?: 'projetos' | 'om' | import('@/services/crmService').MarcarGanhoDados,
+    dadosExtras?: import('@/services/crmService').MarcarGanhoDados,
+  ) => Promise<Cliente>
   marcarComoPerdido: (
     clienteId: string,
-    motivoPerda: 'preco' | 'concorrente' | 'desistiu' | 'outro' | string,
+    motivoPerda: 'preco' | 'concorrente' | 'desistiu' | 'nao_respondeu' | 'outro' | string,
     observacaoTexto?: string,
   ) => Promise<Cliente>
   bulkArquivar: (ids: string[]) => Promise<void>
@@ -1470,9 +1474,15 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   const marcarComoGanho = async (
     clienteId: string,
-    areaDestino: 'projetos' | 'om',
+    areaDestinoOuDados?: 'projetos' | 'om' | import('@/services/crmService').MarcarGanhoDados,
+    dadosExtras?: import('@/services/crmService').MarcarGanhoDados,
   ): Promise<Cliente> => {
     const agora = new Date().toISOString()
+    const ehObjeto = areaDestinoOuDados && typeof areaDestinoOuDados === 'object'
+    const dados = ehObjeto
+      ? (areaDestinoOuDados as import('@/services/crmService').MarcarGanhoDados)
+      : dadosExtras || {}
+    const contratouOM = Boolean(dados.contratou_om || (!ehObjeto && areaDestinoOuDados === 'om'))
 
     // Optimistic update no estado clientes
     setClientes((prev) =>
@@ -1481,23 +1491,35 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           ? {
               ...c,
               status: 'Fechado',
-              transferido_pos_vendas: true,
-              data_transferencia_pos_vendas: agora,
-              origem_pos_vendas: 'funil_comercial',
+              transferido_pos_vendas: !contratouOM,
+              data_transferencia_pos_vendas: !contratouOM ? agora : undefined,
+              origem_pos_vendas: !contratouOM ? 'funil_comercial' : undefined,
+              status_pos_vendas: contratouOM ? 'Ativo' : c.status_pos_vendas,
               data_fechamento: agora,
-              area_destino: areaDestino,
+              area_destino: contratouOM ? 'om' : 'projetos',
+              valor_final: dados.valor_final !== undefined ? dados.valor_final : c.valor_final,
+              valor_estimado:
+                dados.valor_final !== undefined ? dados.valor_final : c.valor_estimado,
+              condicao_pagamento: dados.condicao_pagamento || c.condicao_pagamento,
+              data_instalacao: dados.data_instalacao || c.data_instalacao,
+              contratou_om: contratouOM,
             }
           : c,
       ),
     )
 
     try {
-      const clienteAtualizado = await apiMarcarClienteComoGanho(clienteId, areaDestino)
+      const clienteAtualizado = await apiMarcarClienteComoGanho(
+        clienteId,
+        areaDestinoOuDados,
+        dadosExtras,
+      )
       setClientes((prev) => prev.map((c) => (c.id === clienteId ? clienteAtualizado : c)))
 
-      // Se área de destino for projetos, recarregar projetos para atualizar Kanban de Projetos e abas
-      if (areaDestino === 'projetos') {
+      if (!contratouOM) {
         fetchProjetos().then(setProjetos).catch(console.error)
+      } else {
+        fetchContratosOM().then(setContratosOM).catch(console.error)
       }
       fetchAtividades().then(setAtividades).catch(console.error)
 
@@ -1511,7 +1533,7 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   const marcarComoPerdido = async (
     clienteId: string,
-    motivoPerda: 'preco' | 'concorrente' | 'desistiu' | 'outro' | string,
+    motivoPerda: 'preco' | 'concorrente' | 'desistiu' | 'nao_respondeu' | 'outro' | string,
     observacaoTexto?: string,
   ): Promise<Cliente> => {
     // Optimistic update no estado clientes
@@ -1522,6 +1544,10 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
               ...c,
               status: 'Perdido',
               motivo_perda: motivoPerda,
+              observacoes_perda:
+                observacaoTexto && observacaoTexto.trim()
+                  ? observacaoTexto.trim()
+                  : c.observacoes_perda,
               observacoes:
                 observacaoTexto && observacaoTexto.trim() ? observacaoTexto.trim() : c.observacoes,
             }

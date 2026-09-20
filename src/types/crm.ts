@@ -177,7 +177,11 @@ export interface Cliente extends RecordModel {
   data_transferencia_pos_vendas?: string
   origem_pos_vendas?: string
   area_destino?: 'projetos' | 'om' | string
-  motivo_perda?: 'preco' | 'concorrente' | 'desistiu' | 'outro' | string
+  motivo_perda?: 'preco' | 'concorrente' | 'desistiu' | 'nao_respondeu' | 'outro' | string
+  observacoes_perda?: string
+  valor_final?: number
+  condicao_pagamento?: string
+  contratou_om?: boolean
   arquivado?: boolean
   pendencias_informacoes?: string[] | null
   dados_importados?: Record<string, string | number | boolean | null> | null
