@@ -30,7 +30,9 @@ describe('SecaoInvestimentoPagamento Component', () => {
     expect(html).not.toContain('Conta hoje s/ solar:')
     expect(html).toContain('Conta c/ solar:')
     expect(html).toContain('Economia/mês:')
-    expect(html).toContain('Parcela + Conta:')
+    expect(html).toContain('Parc. + Conta =')
+    expect(html).toContain('Valor total do projeto')
+    expect(html).toContain('Prazo de entrega:')
 
     // Título da seção de condições de pagamento
     expect(html).toContain('Condições de pagamento')
@@ -211,6 +213,20 @@ describe('SecaoInvestimentoPagamento Component', () => {
     )
 
     expect(htmlSemEntrada).not.toContain('Entrada:')
+  })
+
+  it('exibe prazo de entrega customizado e padrão', () => {
+    const htmlPadrao = renderToStaticMarkup(React.createElement(SecaoInvestimentoPagamento, {}))
+    expect(htmlPadrao).toContain(
+      'Prazo de entrega: <strong class="text-gray-900">30 dias úteis</strong>',
+    )
+
+    const htmlCustom = renderToStaticMarkup(
+      React.createElement(SecaoInvestimentoPagamento, { prazoEntregaDias: 45 }),
+    )
+    expect(htmlCustom).toContain(
+      'Prazo de entrega: <strong class="text-gray-900">45 dias úteis</strong>',
+    )
   })
 
   it('renderiza o bloco de Projeção com Reajuste Tarifário de 9% ao ano com valores calculados e fornecidos via props', () => {

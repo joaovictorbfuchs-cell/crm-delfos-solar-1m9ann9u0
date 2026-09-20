@@ -357,6 +357,12 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
       : Math.round(consumoKwhMesReal * 12)
 
   const investimentoTotal = economia?.investimentoTotal || parcelamento?.aVista?.valorTotal || 45000
+  const prazoEntregaDias =
+    economia?.prazoEntregaDias !== undefined &&
+    economia?.prazoEntregaDias !== null &&
+    economia.prazoEntregaDias > 0
+      ? economia.prazoEntregaDias
+      : 30
 
   // Payback
   const paybackMesesCalculado =
@@ -623,10 +629,11 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
   <style>
     /* ==========================================================
        SETUP DE IMPRESSÃO A4 COM 5 SEÇÕES PRECISAS
+       Margens: ~15mm laterais e 20mm topo/base
        ========================================================== */
     @page {
       size: 210mm 297mm;
-      margin: 8mm;
+      margin: 20mm 15mm 20mm 15mm;
     }
 
     * {
@@ -697,12 +704,12 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
       padding-bottom: 24px;
     }
 
-    /* PÁGINA INDIVIDUAL DA PROPOSTA (MODO PREVIEW DE TELA COM PADDING 8mm) */
+    /* PÁGINA INDIVIDUAL DA PROPOSTA (MODO PREVIEW DE TELA COM MARGENS A4: 20mm topo/base, 15mm laterais) */
     .proposta-secao-page {
       background: #FFFFFF;
       width: 100%;
       min-height: auto;
-      padding: 8mm;
+      padding: 20mm 15mm;
       box-sizing: border-box;
       margin: 0 auto 14px auto;
       box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
@@ -1987,6 +1994,9 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
       box-shadow: 0 2px 6px rgba(22, 163, 74, 0.08);
       page-break-inside: avoid;
       break-inside: avoid;
+      min-width: 0;
+      overflow: hidden;
+      box-sizing: border-box;
     }
     .card-metrica-destaque.payback-card {
       background: #FFFBEB;
@@ -2010,12 +2020,15 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
       color: #1E40AF;
     }
     .card-metrica-numero {
-      font-size: 24px;
+      font-size: 20px;
       font-weight: 900;
       color: #166534;
       margin: 4px 0 2px 0;
-      line-height: 1.1;
+      line-height: 1.15;
       letter-spacing: -0.01em;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
     .card-metrica-sub {
       font-size: 8.5px;
@@ -2063,8 +2076,8 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
     .grid-pagamento-4 {
       display: grid;
       grid-template-columns: repeat(4, 1fr);
-      gap: 6px;
-      margin-bottom: 12px;
+      gap: 8px;
+      margin-bottom: 10px;
       page-break-inside: avoid;
       break-inside: avoid;
       box-sizing: border-box;
@@ -2080,7 +2093,7 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
       border: 1px solid #E5E7EB;
       border-radius: 12px;
       background: #FFFFFF;
-      padding: 8px 7px;
+      padding: 10px 10px;
       display: flex;
       flex-direction: column;
       justify-content: space-between;
@@ -3281,22 +3294,23 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
         <!-- 4 CARDS DE PAGAMENTO LADO A LADO -->
         <div class="grid-pagamento-4">
           <!-- Card 1: À Vista -->
-          <div class="card-pagamento destaque-verde" style="border: 2px solid #16a34a; background: #ffffff; border-radius: 12px;">
+          <div class="card-pagamento destaque-verde" style="border: 2px solid #16a34a; background: #ffffff; border-radius: 12px; padding: 10px 10px;">
             <div>
-              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px; gap: 3px;">
-                <span class="card-pagamento-titulo" style="margin: 0; font-size: 10pt; font-weight: 900; color: #022c22; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">À VISTA</span>
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; gap: 3px;">
+                <span class="card-pagamento-titulo" style="margin: 0; font-size: 11pt; font-weight: 900; color: #022c22; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">À VISTA</span>
                 <span style="font-size: 10pt; font-weight: 800; background: #ecfdf5; color: #065f46; padding: 1px 6px; border-radius: 9999px; white-space: nowrap; shrink-0;">Sem Juros</span>
               </div>
-              <div class="card-pagamento-valor" style="color: #16a34a; margin-top: 3px; font-size: 10.5pt; font-weight: 900;">${formatBRL(aVistaValor)}</div>
-              <div class="card-pagamento-desc" style="font-size: 10pt; color: #6B7280;">
+              <div style="font-size: 10pt; font-weight: 700; color: #4B5563; margin-top: 2px; line-height: 1.2;">Valor total do projeto</div>
+              <div class="card-pagamento-valor" style="color: #16a34a; margin-top: 2px; margin-bottom: 2px; font-size: 13pt; font-weight: 900; line-height: 1.2;">${formatBRL(aVistaValor)}</div>
+              <div class="card-pagamento-desc" style="font-size: 10pt; color: #6B7280; line-height: 1.25;">
                 ${
                   aVistaDesconto > 0
                     ? `Desconto de ${formatBRL(aVistaDesconto)}`
-                    : 'Valor total do projeto à vista'
+                    : 'Pagamento único com desconto'
                 }
               </div>
             </div>
-            <div style="margin-top: 4px; padding-top: 4px; border-top: 1px solid #A7F3D0; font-size: 10pt; line-height: 1.35;">
+            <div style="margin-top: 6px; padding-top: 5px; border-top: 1px solid #A7F3D0; font-size: 10pt; line-height: 1.35;">
               <div style="display: flex; justify-content: space-between; color: #6B7280; gap: 2px;">
                 <span>Conta hoje:</span>
                 <strong style="color: #DC2626; font-weight: 800; text-align: right;">${formatBRL(contaHoje)}</strong>
@@ -3313,25 +3327,25 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
           </div>
 
           <!-- Card 2: Cartão -->
-          <div class="card-pagamento" style="border: 1px solid #E5E7EB; background: #ffffff; border-radius: 12px;">
+          <div class="card-pagamento" style="border: 1px solid #E5E7EB; background: #ffffff; border-radius: 12px; padding: 10px 10px;">
             <div>
-              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px; gap: 3px;">
-                <span class="card-pagamento-titulo" style="margin: 0; font-size: 10pt; font-weight: 900; color: #111827; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">CARTÃO</span>
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; gap: 3px;">
+                <span class="card-pagamento-titulo" style="margin: 0; font-size: 11pt; font-weight: 900; color: #111827; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">CARTÃO</span>
                 <span style="font-size: 10pt; font-weight: 800; background: #F3F4F6; color: #374151; padding: 1px 6px; border-radius: 9999px; white-space: nowrap; shrink-0;">${cartaoParcelas}x</span>
               </div>
-              <div class="card-pagamento-valor" style="color: #111827; margin-top: 3px; font-size: 10.5pt; font-weight: 900;">
+              <div class="card-pagamento-valor" style="color: #111827; margin-top: 4px; font-size: 12pt; font-weight: 900;">
                 ${formatBRL(cartaoValor)}
               </div>
-              <div class="card-pagamento-desc" style="font-size: 10pt; color: #6B7280;">
+              <div class="card-pagamento-desc" style="font-size: 10pt; color: #6B7280; line-height: 1.25;">
                 ${
                   cartaoEntrada > 0
                     ? `<span style="color: #047857; font-weight: 700; display: block;">Entrada: ${formatBRL(cartaoEntrada)}</span>`
                     : ''
                 }
-                Total do projeto: ${formatBRL(cartaoEntrada + cartaoValor * cartaoParcelas)}
+                Total ${formatBRL(cartaoEntrada + cartaoValor * cartaoParcelas)}
               </div>
             </div>
-            <div style="margin-top: 4px; padding-top: 4px; border-top: 1px solid #E5E7EB; font-size: 10pt; line-height: 1.35;">
+            <div style="margin-top: 6px; padding-top: 5px; border-top: 1px solid #E5E7EB; font-size: 10pt; line-height: 1.35;">
               <div style="display: flex; justify-content: space-between; color: #6B7280; gap: 2px;">
                 <span>Conta hoje:</span>
                 <strong style="color: #DC2626; font-weight: 800; text-align: right;">${formatBRL(cartaoContaSemSolar)}</strong>
@@ -3340,21 +3354,21 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
                 <span>Conta c/ solar:</span>
                 <strong style="color: #16a34a; font-weight: 800; text-align: right;">${formatBRL(cartaoContaComSolar)}</strong>
               </div>
-              <div style="display: flex; justify-content: space-between; color: #111827; font-weight: 900; margin-top: 2px; padding-top: 2px; border-top: 1px solid #E5E7EB; gap: 2px;">
-                <span>Parcela + Conta:</span>
+              <div style="display: flex; justify-content: space-between; color: #111827; font-weight: 900; margin-top: 2px; padding-top: 2px; border-top: 1px solid #E5E7EB; gap: 2px; font-size: 9.5pt; white-space: nowrap;">
+                <span>Parc. + Conta =</span>
                 <span style="text-align: right;">${formatBRL(cartaoDesembolso)}</span>
               </div>
             </div>
           </div>
 
           <!-- Card 3: Financiamento A -->
-          <div class="card-pagamento destaque-azul" style="border: 1px solid #60A5FA; background: #F0F9FF; border-radius: 12px;">
+          <div class="card-pagamento destaque-azul" style="border: 1px solid #60A5FA; background: #F0F9FF; border-radius: 12px; padding: 10px 10px;">
             <div>
-              <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 3px; gap: 3px;">
-                <span class="card-pagamento-titulo" style="margin: 0; font-size: 10pt; font-weight: 900; color: #172554; text-transform: uppercase; word-break: break-word; line-height: 1.25;" title="${finanANome}">${finanANome}</span>
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; gap: 3px;">
+                <span class="card-pagamento-titulo" style="margin: 0; font-size: 9.5pt; font-weight: 900; color: #172554; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.2;" title="${finanANome}">${finanANome}</span>
                 <span style="font-size: 10pt; font-weight: 800; background: #BFDBFE; color: #1E3A8A; padding: 1px 6px; border-radius: 9999px; white-space: nowrap; shrink-0;">${finanAParcelas}x</span>
               </div>
-              <div class="card-pagamento-valor" style="color: #1E40AF; margin-top: 3px; font-size: 10.5pt; font-weight: 900;">
+              <div class="card-pagamento-valor" style="color: #1E40AF; margin-top: 4px; font-size: 12pt; font-weight: 900;">
                 ${formatBRL(finanAValor)}
               </div>
               ${
@@ -3362,16 +3376,16 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
                   ? `<div style="font-size: 10pt; font-weight: 700; color: #1E40AF; margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Inc. IOF ${formatBRL(finanAIof)}</div>`
                   : ''
               }
-              <div class="card-pagamento-desc" style="font-size: 10pt; color: #6B7280;">
+              <div class="card-pagamento-desc" style="font-size: 10pt; color: #6B7280; line-height: 1.25;">
                 ${
                   finanAEntrada > 0
                     ? `<span style="color: #1E3A8A; font-weight: 700; display: block;">Entrada: ${formatBRL(finanAEntrada)}</span>`
                     : ''
                 }
-                Total: ${formatBRL(finanAEntrada + finanAValor * finanAParcelas)}
+                Total ${formatBRL(finanAEntrada + finanAValor * finanAParcelas)}
               </div>
             </div>
-            <div style="margin-top: 4px; padding-top: 4px; border-top: 1px solid #BFDBFE; font-size: 10pt; line-height: 1.35;">
+            <div style="margin-top: 6px; padding-top: 5px; border-top: 1px solid #BFDBFE; font-size: 10pt; line-height: 1.35;">
               <div style="display: flex; justify-content: space-between; color: #6B7280; gap: 2px;">
                 <span>Conta hoje:</span>
                 <strong style="color: #DC2626; font-weight: 800; text-align: right;">${formatBRL(finanAContaSemSolar)}</strong>
@@ -3380,21 +3394,21 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
                 <span>Conta c/ solar:</span>
                 <strong style="color: #16a34a; font-weight: 800; text-align: right;">${formatBRL(finanAContaComSolar)}</strong>
               </div>
-              <div style="display: flex; justify-content: space-between; color: #1E3A8A; font-weight: 900; margin-top: 2px; padding-top: 2px; border-top: 1px solid #BFDBFE; gap: 2px;">
-                <span>Parcela + Conta:</span>
+              <div style="display: flex; justify-content: space-between; color: #1E3A8A; font-weight: 900; margin-top: 2px; padding-top: 2px; border-top: 1px solid #BFDBFE; gap: 2px; font-size: 9.5pt; white-space: nowrap;">
+                <span>Parc. + Conta =</span>
                 <span style="text-align: right;">${formatBRL(finanADesembolso)}</span>
               </div>
             </div>
           </div>
 
           <!-- Card 4: Financiamento B -->
-          <div class="card-pagamento destaque-azul" style="border: 1px solid #60A5FA; background: #F0F9FF; border-radius: 12px;">
+          <div class="card-pagamento destaque-azul" style="border: 1px solid #60A5FA; background: #F0F9FF; border-radius: 12px; padding: 10px 10px;">
             <div>
-              <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 3px; gap: 3px;">
-                <span class="card-pagamento-titulo" style="margin: 0; font-size: 10pt; font-weight: 900; color: #172554; text-transform: uppercase; word-break: break-word; line-height: 1.25;" title="${finanBNome}">${finanBNome}</span>
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; gap: 3px;">
+                <span class="card-pagamento-titulo" style="margin: 0; font-size: 9.5pt; font-weight: 900; color: #172554; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.2;" title="${finanBNome}">${finanBNome}</span>
                 <span style="font-size: 10pt; font-weight: 800; background: #BFDBFE; color: #1E3A8A; padding: 1px 6px; border-radius: 9999px; white-space: nowrap; shrink-0;">${finanBParcelas}x</span>
               </div>
-              <div class="card-pagamento-valor" style="color: #1E40AF; margin-top: 3px; font-size: 10.5pt; font-weight: 900;">
+              <div class="card-pagamento-valor" style="color: #1E40AF; margin-top: 4px; font-size: 12pt; font-weight: 900;">
                 ${formatBRL(finanBValor)}
               </div>
               ${
@@ -3402,16 +3416,16 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
                   ? `<div style="font-size: 10pt; font-weight: 700; color: #1E40AF; margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Inc. IOF ${formatBRL(finanBIof)}</div>`
                   : ''
               }
-              <div class="card-pagamento-desc" style="font-size: 10pt; color: #6B7280;">
+              <div class="card-pagamento-desc" style="font-size: 10pt; color: #6B7280; line-height: 1.25;">
                 ${
                   finanBEntrada > 0
                     ? `<span style="color: #1E3A8A; font-weight: 700; display: block;">Entrada: ${formatBRL(finanBEntrada)}</span>`
                     : ''
                 }
-                Total: ${formatBRL(finanBEntrada + finanBValor * finanBParcelas)}
+                Total ${formatBRL(finanBEntrada + finanBValor * finanBParcelas)}
               </div>
             </div>
-            <div style="margin-top: 4px; padding-top: 4px; border-top: 1px solid #BFDBFE; font-size: 10pt; line-height: 1.35;">
+            <div style="margin-top: 6px; padding-top: 5px; border-top: 1px solid #BFDBFE; font-size: 10pt; line-height: 1.35;">
               <div style="display: flex; justify-content: space-between; color: #6B7280; gap: 2px;">
                 <span>Conta hoje:</span>
                 <strong style="color: #DC2626; font-weight: 800; text-align: right;">${formatBRL(finanBContaSemSolar)}</strong>
@@ -3420,12 +3434,20 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
                 <span>Conta c/ solar:</span>
                 <strong style="color: #16a34a; font-weight: 800; text-align: right;">${formatBRL(finanBContaComSolar)}</strong>
               </div>
-              <div style="display: flex; justify-content: space-between; color: #1E3A8A; font-weight: 900; margin-top: 2px; padding-top: 2px; border-top: 1px solid #BFDBFE; gap: 2px;">
-                <span>Parcela + Conta:</span>
+              <div style="display: flex; justify-content: space-between; color: #1E3A8A; font-weight: 900; margin-top: 2px; padding-top: 2px; border-top: 1px solid #BFDBFE; gap: 2px; font-size: 9.5pt; white-space: nowrap;">
+                <span>Parc. + Conta =</span>
                 <span style="text-align: right;">${formatBRL(finanBDesembolso)}</span>
               </div>
             </div>
           </div>
+        </div>
+
+        <!-- LINHA DE PRAZO DE ENTREGA LOGO ABAIXO DOS 4 CARDS -->
+        <div style="background: #FFFFFF; border: 1px solid #E5E7EB; border-radius: 10px; padding: 7px 12px; margin-bottom: 8px; display: flex; align-items: center; justify-content: space-between; font-size: 9pt; color: #374151;">
+          <span style="font-weight: 700; color: #1a3a5c;">
+            Prazo de entrega: <strong style="color: #111827;">${prazoEntregaDias} dias úteis</strong> após aprovação do projeto
+          </span>
+          <span style="color: #6B7280; font-size: 8pt;">Engenharia, homologação na concessionária e instalação turnkey</span>
         </div>
 
         <!-- BLOCO DE PROJEÇÃO COM REAJUSTE TARIFÁRIO DE 9% AO ANO (CONCESSIONÁRIA) -->

@@ -65,6 +65,8 @@ export interface SecaoInvestimentoPagamentoProps {
   contaComSolar10AnosComReajuste?: number | null
   /** Validade da proposta em dias (fallback: 5 dias) */
   validadeDias?: number | null
+  /** Prazo de entrega da usina em dias úteis (default: 30) */
+  prazoEntregaDias?: number | null
   /** Nome do cliente para contextualização */
   nomeCliente?: string | null
   /** Payback em meses (calculado ou persistido no orçamento) */
@@ -144,6 +146,7 @@ export const SecaoInvestimentoPagamento: React.FC<SecaoInvestimentoPagamentoProp
   contaSemSolar10AnosComReajuste,
   contaComSolar10AnosComReajuste,
   validadeDias,
+  prazoEntregaDias,
   nomeCliente,
   paybackMeses,
   paybackTexto,
@@ -281,9 +284,13 @@ export const SecaoInvestimentoPagamento: React.FC<SecaoInvestimentoPagamentoProp
       ? contaComSolar10AnosComReajuste
       : faturaComSolarFinal * Math.pow(1.09, 10)
 
-  // Validade
+  // Validade e Prazo de entrega
   const diasValidadeFinal =
     validadeDias !== undefined && validadeDias !== null && validadeDias > 0 ? validadeDias : 5
+  const prazoEntregaFinal =
+    prazoEntregaDias !== undefined && prazoEntregaDias !== null && prazoEntregaDias > 0
+      ? prazoEntregaDias
+      : 30
 
   // Parcela de comparação: usa a menor parcela do financiamento (Financiamento B ou A)
   const menorParcelaFinanciamento = Math.min(
@@ -375,25 +382,28 @@ export const SecaoInvestimentoPagamento: React.FC<SecaoInvestimentoPagamentoProp
           </h3>
           <div className="grid grid-cols-4 gap-2 text-xs">
             {/* CARD 1: À VISTA */}
-            <div className="p-3.5 rounded-xl border-2 border-[#16a34a] bg-white flex flex-col justify-between space-y-3 shadow-xs hover:shadow-md transition-shadow min-w-0">
+            <div className="p-3.5 sm:p-4 rounded-xl border-2 border-[#16a34a] bg-white flex flex-col justify-between space-y-3 shadow-xs hover:shadow-md transition-shadow min-w-0">
               <div>
                 {/* Cabeçalho com título à esquerda e badge Sem Juros no canto sup. direito */}
                 <div className="flex items-center justify-between gap-1 mb-2">
-                  <span className="font-extrabold text-[11px] uppercase tracking-wider text-emerald-950 truncate">
+                  <span className="font-extrabold text-[11pt] uppercase tracking-wider text-emerald-950 truncate">
                     À Vista
                   </span>
-                  <span className="text-[10px] font-bold bg-[#ecfdf5] text-[#065f46] px-2 py-0.5 rounded-full shrink-0">
+                  <span className="text-[10pt] font-bold bg-[#ecfdf5] text-[#065f46] px-2 py-0.5 rounded-full shrink-0">
                     Sem Juros
                   </span>
                 </div>
 
-                <div className="text-xl sm:text-2xl font-black text-[#16a34a] tracking-tight mt-1">
+                <p className="text-[10.5pt] font-semibold text-gray-600 leading-snug">
+                  Valor total do projeto
+                </p>
+                <div className="text-2xl sm:text-[26pt] font-black text-[#16a34a] tracking-tight mt-1 mb-1 leading-tight">
                   {formatCurrency(aVistaFinal)}
                 </div>
                 <p className="text-[10pt] text-gray-500 mt-1 leading-snug">
                   {descontoAVistaFinal > 0
                     ? `Desconto de ${formatCurrency(descontoAVistaFinal)} aplicado`
-                    : 'Valor total do projeto à vista'}
+                    : 'Pagamento único com desconto'}
                 </p>
               </div>
 
@@ -419,11 +429,11 @@ export const SecaoInvestimentoPagamento: React.FC<SecaoInvestimentoPagamentoProp
             </div>
 
             {/* CARD 2: CARTÃO */}
-            <div className="p-3.5 rounded-xl border border-gray-200 bg-white flex flex-col justify-between space-y-3 shadow-xs hover:shadow-md transition-shadow min-w-0">
+            <div className="p-3.5 sm:p-4 rounded-xl border border-gray-200 bg-white flex flex-col justify-between space-y-3 shadow-xs hover:shadow-md transition-shadow min-w-0">
               <div>
                 {/* Cabeçalho com título e badge de parcelas no canto superior direito */}
                 <div className="flex items-center justify-between gap-1 mb-2">
-                  <span className="font-extrabold text-[11px] uppercase tracking-wider text-gray-900 truncate">
+                  <span className="font-extrabold text-[11pt] uppercase tracking-wider text-gray-900 truncate">
                     Cartão
                   </span>
                   <span className="text-[10pt] font-bold bg-gray-100 text-gray-700 px-2 py-0.5 rounded-full shrink-0">
@@ -441,7 +451,7 @@ export const SecaoInvestimentoPagamento: React.FC<SecaoInvestimentoPagamentoProp
                     </span>
                   )}
                   <span>
-                    Total do projeto:{' '}
+                    Total{' '}
                     {formatCurrency(
                       entradaCartaoFinal + valorParcelaCartaoFinal * parcelasCartaoFinal,
                     )}
@@ -463,20 +473,20 @@ export const SecaoInvestimentoPagamento: React.FC<SecaoInvestimentoPagamentoProp
                     {formatCurrency(contaSolarCartao)}
                   </span>
                 </div>
-                <div className="flex justify-between pt-1 border-t border-gray-100 font-bold text-gray-900 gap-1">
-                  <span>Parcela + Conta:</span>
+                <div className="flex justify-between pt-1 border-t border-gray-100 font-bold text-gray-900 gap-1 text-[9.5pt] sm:text-[10pt] whitespace-nowrap">
+                  <span>Parc. + Conta =</span>
                   <span className="text-right">{formatCurrency(totalMensalCartao)}</span>
                 </div>
               </div>
             </div>
 
             {/* CARD 3: FINANCIAMENTO A */}
-            <div className="p-3.5 rounded-xl border border-[#60A5FA] bg-[#F0F9FF] flex flex-col justify-between space-y-3 shadow-xs hover:shadow-md transition-shadow min-w-0">
+            <div className="p-3.5 sm:p-4 rounded-xl border border-[#60A5FA] bg-[#F0F9FF] flex flex-col justify-between space-y-3 shadow-xs hover:shadow-md transition-shadow min-w-0">
               <div>
-                {/* Cabeçalho com título sem truncamento e badge de parcelas no canto superior direito */}
-                <div className="flex items-start justify-between gap-1 mb-2">
+                {/* Cabeçalho com título em linha única sem quebrar palavra e badge de parcelas */}
+                <div className="flex items-center justify-between gap-1 mb-2">
                   <span
-                    className="font-extrabold text-[10pt] uppercase tracking-wider text-blue-950 break-words leading-tight"
+                    className="font-extrabold text-[9.5pt] sm:text-[10pt] uppercase tracking-tight text-blue-950 whitespace-nowrap overflow-hidden text-ellipsis leading-tight"
                     title={nomeFinanciamentoA || 'Financiamento A'}
                   >
                     {nomeFinanciamentoA || 'Financiamento A'}
@@ -502,7 +512,7 @@ export const SecaoInvestimentoPagamento: React.FC<SecaoInvestimentoPagamentoProp
                       Entrada: {formatCurrency(entradaFinanAFinal)}
                     </span>
                   )}
-                  Total:{' '}
+                  Total{' '}
                   {formatCurrency(
                     entradaFinanAFinal + valorParcelaFinanAFinal * parcelasFinanAFinal,
                   )}
@@ -523,20 +533,20 @@ export const SecaoInvestimentoPagamento: React.FC<SecaoInvestimentoPagamentoProp
                     {formatCurrency(contaSolarFinanA)}
                   </span>
                 </div>
-                <div className="flex justify-between pt-1 border-t border-blue-200 font-bold text-blue-950 gap-1">
-                  <span>Parcela + Conta:</span>
+                <div className="flex justify-between pt-1 border-t border-blue-200 font-bold text-blue-950 gap-1 text-[9.5pt] sm:text-[10pt] whitespace-nowrap">
+                  <span>Parc. + Conta =</span>
                   <span className="text-right">{formatCurrency(totalMensalFinanA)}</span>
                 </div>
               </div>
             </div>
 
             {/* CARD 4: FINANCIAMENTO B */}
-            <div className="p-3.5 rounded-xl border border-[#60A5FA] bg-[#F0F9FF] flex flex-col justify-between space-y-3 shadow-xs hover:shadow-md transition-shadow min-w-0">
+            <div className="p-3.5 sm:p-4 rounded-xl border border-[#60A5FA] bg-[#F0F9FF] flex flex-col justify-between space-y-3 shadow-xs hover:shadow-md transition-shadow min-w-0">
               <div>
-                {/* Cabeçalho com título sem truncamento e badge de parcelas no canto superior direito */}
-                <div className="flex items-start justify-between gap-1 mb-2">
+                {/* Cabeçalho com título em linha única sem quebrar palavra e badge de parcelas */}
+                <div className="flex items-center justify-between gap-1 mb-2">
                   <span
-                    className="font-extrabold text-[10pt] uppercase tracking-wider text-blue-950 break-words leading-tight"
+                    className="font-extrabold text-[9.5pt] sm:text-[10pt] uppercase tracking-tight text-blue-950 whitespace-nowrap overflow-hidden text-ellipsis leading-tight"
                     title={nomeFinanciamentoB || 'Financiamento B'}
                   >
                     {nomeFinanciamentoB || 'Financiamento B'}
@@ -562,7 +572,7 @@ export const SecaoInvestimentoPagamento: React.FC<SecaoInvestimentoPagamentoProp
                       Entrada: {formatCurrency(entradaFinanBFinal)}
                     </span>
                   )}
-                  Total:{' '}
+                  Total{' '}
                   {formatCurrency(
                     entradaFinanBFinal + valorParcelaFinanBFinal * parcelasFinanBFinal,
                   )}
@@ -583,12 +593,24 @@ export const SecaoInvestimentoPagamento: React.FC<SecaoInvestimentoPagamentoProp
                     {formatCurrency(contaSolarFinanB)}
                   </span>
                 </div>
-                <div className="flex justify-between pt-1 border-t border-blue-200 font-bold text-blue-950 gap-1">
-                  <span>Parcela + Conta:</span>
+                <div className="flex justify-between pt-1 border-t border-blue-200 font-bold text-blue-950 gap-1 text-[9.5pt] sm:text-[10pt] whitespace-nowrap">
+                  <span>Parc. + Conta =</span>
                   <span className="text-right">{formatCurrency(totalMensalFinanB)}</span>
                 </div>
               </div>
             </div>
+          </div>
+
+          {/* Linha de Prazo de Entrega logo abaixo dos 4 cards */}
+          <div className="mt-3.5 px-4 py-2.5 bg-white rounded-xl border border-gray-200 flex items-center justify-between text-xs text-gray-700 shadow-2xs">
+            <span className="font-bold text-[#1a3a5c]">
+              Prazo de entrega:{' '}
+              <strong className="text-gray-900">{prazoEntregaFinal} dias úteis</strong> após
+              aprovação do projeto
+            </span>
+            <span className="text-gray-500 text-[11px] hidden sm:inline">
+              Engenharia, homologação na concessionária e instalação turnkey
+            </span>
           </div>
         </div>
 

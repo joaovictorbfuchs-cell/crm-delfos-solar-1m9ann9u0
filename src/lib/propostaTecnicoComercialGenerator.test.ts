@@ -190,8 +190,9 @@ describe('Proposta Técnico-Comercial Generator (5 Seções Oficiais)', () => {
     expect(html).toContain('FINANCIAMENTO B (120X)')
     expect(html).toContain('Conta hoje:')
     expect(html).not.toContain('Conta s/ solar:')
-    expect(html).toContain('Custo com energia atual:')
-    expect(html).toContain('Fatura c/ solar + parcela:')
+    expect(html).toContain('Parc. + Conta =')
+    expect(html).toContain('Valor total do projeto')
+    expect(html).toContain('Prazo de entrega:')
     expect(html).not.toContain('Hoje você paga')
     expect(html).not.toContain('Troque despesa por patrimônio')
     expect(html).toContain('Payback Estimado')
@@ -201,12 +202,11 @@ describe('Proposta Técnico-Comercial Generator (5 Seções Oficiais)', () => {
     expect(html).toContain('Condições válidas por')
 
     // CSS de impressão A4 obrigatório e fluxo natural contínuo
-    expect(html).toContain('size: A4 portrait')
+    expect(html).toContain('size: 210mm 297mm')
     expect(html).toContain('print-color-adjust: exact')
     expect(html).toContain('page-break-before: auto')
     expect(html).toContain('break-before: auto')
     expect(html).toContain('break-inside: avoid')
-    expect(html).toContain('background: #f5f5f5')
     expect(html).toContain('Tier-1 Global')
     expect(html).toContain('doc-footer')
 
