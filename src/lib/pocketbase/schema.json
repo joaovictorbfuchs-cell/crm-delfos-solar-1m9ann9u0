@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-20T02:08:14.054Z",
+  "generatedAt": "2026-09-20T02:21:32.133Z",
   "collections": [
     {
       "name": "users",
@@ -4674,6 +4674,116 @@
         "CREATE INDEX idx_auto_exec_data ON automacoes_execucoes (data_execucao)",
         "CREATE INDEX idx_auto_exec_ref ON automacoes_execucoes (referencia_registro)",
         "CREATE INDEX idx_auto_exec_cliente ON automacoes_execucoes (cliente)"
+      ]
+    },
+    {
+      "name": "notificacoes_internas",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "tipo",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["atividade_atrasada", "lembrete", "sistema"]
+        },
+        {
+          "name": "titulo",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "mensagem",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "atividade_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "atividades"
+        },
+        {
+          "name": "cliente_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "clientes"
+        },
+        {
+          "name": "cliente_nome",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "data_prevista",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "dias_atraso",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "lida",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "lida_em",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "status",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["ativa", "resolvida", "arquivada"]
+        },
+        {
+          "name": "resolvida_em",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_notif_tipo ON notificacoes_internas (tipo)",
+        "CREATE INDEX idx_notif_atividade_id ON notificacoes_internas (atividade_id)",
+        "CREATE INDEX idx_notif_cliente_id ON notificacoes_internas (cliente_id)",
+        "CREATE INDEX idx_notif_status ON notificacoes_internas (status)",
+        "CREATE INDEX idx_notif_lida ON notificacoes_internas (lida)"
       ]
     }
   ]

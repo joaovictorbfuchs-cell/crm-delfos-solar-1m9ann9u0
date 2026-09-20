@@ -130,7 +130,9 @@ import type {
   WhatsAppMensagem,
   WhatsAppConversa,
   WhatsAppConfigStatus,
+  NotificacaoInterna,
 } from '@/types/crm'
+import { notificacoesService } from '@/services/notificacoesService'
 import { useRealtime } from '@/hooks/use-realtime'
 import { useAuth } from '@/contexts/AuthContext'
 
@@ -202,6 +204,10 @@ interface ClientesContextType {
   whatsAppMensagens: WhatsAppMensagem[]
   whatsAppConversas: WhatsAppConversa[]
   whatsAppConfig: WhatsAppConfigStatus | null
+  notificacoes: NotificacaoInterna[]
+  marcarNotificacaoComoLida: (id: string) => Promise<boolean>
+  marcarTodasNotificacoesComoLidas: () => Promise<boolean>
+  refreshNotificacoes: () => Promise<void>
   isLoading: boolean
   error: string | null
   selectedClienteId: string | null
@@ -566,6 +572,7 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [whatsAppMensagens, setWhatsAppMensagens] = useState<WhatsAppMensagem[]>([])
   const [whatsAppConversas, setWhatsAppConversas] = useState<WhatsAppConversa[]>([])
   const [whatsAppConfig, setWhatsAppConfig] = useState<WhatsAppConfigStatus | null>(null)
+  const [notificacoes, setNotificacoes] = useState<NotificacaoInterna[]>([])
   const [isLoading, setIsLoading] = useState<boolean>(true)
   const [error, setError] = useState<string | null>(null)
   const [selectedClienteId, setSelectedClienteId] = useState<string | null>(null)
@@ -705,6 +712,8 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         fetchDocumentosCliente(),
         fetchTiposAtividadesCustom(),
         fetchContatosAdicionais(),
+        notificacoesService.sincronizar().catch(() => ({ ok: false })),
+        notificacoesService.listar(),
       ])
         .then(
           ([
@@ -724,6 +733,8 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             docsRes,
             customAtivRes,
             contAdicRes,
+            _syncRes,
+            notifRes,
           ]) => {
             setProjetoEventos(getValue(evRes, []))
             setAnomaliasOM(getValue(anomRes, []))
@@ -749,6 +760,7 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             setDocumentosCliente(getValue(docsRes, []))
             setTiposAtividadesCustom(getValue(customAtivRes, []))
             setContatosAdicionais(getValue(contAdicRes, []))
+            setNotificacoes(getValue(notifRes, []))
           },
         )
         .catch((bgErr) => {
@@ -970,6 +982,15 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     'contatos_adicionais',
     () => {
       fetchContatosAdicionais().then(setContatosAdicionais).catch(console.error)
+    },
+    isAuthenticated,
+  )
+
+  // Realtime updates for notificacoes_internas
+  useRealtime<NotificacaoInterna>(
+    'notificacoes_internas',
+    () => {
+      notificacoesService.listar().then(setNotificacoes).catch(console.error)
     },
     isAuthenticated,
   )
@@ -1245,13 +1266,44 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const updateAtividadeStatus = async (id: string, status: AtividadeStatus) => {
     // Optimistic update
     setAtividades((prev) => prev.map((a) => (a.id === id ? { ...a, status } : a)))
+    if (status === 'concluida' || status === 'cancelada') {
+      setNotificacoes((prev) =>
+        prev.map((n) =>
+          n.atividade_id === id
+            ? { ...n, status: 'resolvida', resolvida_em: new Date().toISOString() }
+            : n,
+        ),
+      )
+    }
     try {
       await apiUpdateAtividade(id, { status })
+      if (status === 'concluida' || status === 'cancelada') {
+        await notificacoesService.resolverPorAtividade(id).catch(console.warn)
+        notificacoesService.listar().then(setNotificacoes).catch(console.error)
+      }
     } catch (err) {
       console.error('Erro ao atualizar status da atividade:', err)
       fetchAtividades().then(setAtividades).catch(console.error)
       throw err
     }
+  }
+
+  const marcarNotificacaoComoLida = async (id: string) => {
+    setNotificacoes((prev) =>
+      prev.map((n) => (n.id === id ? { ...n, lida: true, lida_em: new Date().toISOString() } : n)),
+    )
+    return await notificacoesService.marcarComoLida(id)
+  }
+
+  const marcarTodasNotificacoesComoLidas = async () => {
+    const now = new Date().toISOString()
+    setNotificacoes((prev) => prev.map((n) => ({ ...n, lida: true, lida_em: now })))
+    return await notificacoesService.marcarTodasComoLidas()
+  }
+
+  const refreshNotificacoes = async () => {
+    const list = await notificacoesService.listar()
+    setNotificacoes(list)
   }
 
   const removeAtividade = async (id: string) => {
@@ -2756,6 +2808,10 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         sendWhatsAppImageMessage,
         sendWhatsAppVideoMessage,
         refreshWhatsAppConfig,
+        notificacoes,
+        marcarNotificacaoComoLida,
+        marcarTodasNotificacoesComoLidas,
+        refreshNotificacoes,
         refreshData: loadAllData,
       }}
     >
@@ -2897,6 +2953,10 @@ export function useClientes(): ClientesContextType {
       sendWhatsAppImageMessage: async () => ({}) as any,
       sendWhatsAppVideoMessage: async () => ({}) as any,
       refreshWhatsAppConfig: async () => {},
+      notificacoes: [],
+      marcarNotificacaoComoLida: async () => true,
+      marcarTodasNotificacoesComoLidas: async () => true,
+      refreshNotificacoes: async () => {},
       refreshData: async () => {},
     }
   }

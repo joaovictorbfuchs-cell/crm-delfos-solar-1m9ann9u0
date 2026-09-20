@@ -664,6 +664,30 @@ export interface Manutencao extends RecordModel {
   }
 }
 
+export interface NotificacaoInterna extends RecordModel {
+  id: string
+  collectionId: string
+  collectionName: string
+  tipo: 'atividade_atrasada' | 'lembrete' | 'sistema' | string
+  titulo: string
+  mensagem?: string
+  atividade_id?: string
+  cliente_id?: string
+  cliente_nome?: string
+  data_prevista?: string
+  dias_atraso?: number
+  lida?: boolean
+  lida_em?: string
+  status: 'ativa' | 'resolvida' | 'arquivada' | string
+  resolvida_em?: string
+  created: string
+  updated: string
+  expand?: {
+    atividade_id?: Atividade
+    cliente_id?: Cliente
+  }
+}
+
 export interface Atividade extends RecordModel {
   id: string
   collectionId: string

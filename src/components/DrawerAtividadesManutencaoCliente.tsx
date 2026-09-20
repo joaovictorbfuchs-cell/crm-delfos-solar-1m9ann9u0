@@ -47,6 +47,7 @@ import {
   Phone,
   Sparkles,
   Info,
+  AlertTriangle,
 } from 'lucide-react'
 
 export interface DrawerAtividadesManutencaoClienteProps {
@@ -108,6 +109,31 @@ function formatDate(dateStr?: string): string {
   } catch {
     return dateStr
   }
+}
+
+function calcularAtrasoAtividade(atv: Atividade): { atrasada: boolean; dias: number } {
+  const status = atv.status || 'pendente'
+  if (status === 'concluida' || status === 'cancelada') {
+    return { atrasada: false, dias: 0 }
+  }
+  const dataStr = atv.data || atv.created
+  if (!dataStr) return { atrasada: false, dias: 0 }
+
+  const dataPrev = new Date(dataStr)
+  const prevTime = dataPrev.getTime()
+  if (isNaN(prevTime)) return { atrasada: false, dias: 0 }
+
+  const agora = new Date()
+  const hojeYmd = agora.toISOString().substring(0, 10)
+  const prevYmd = dataStr.substring(0, 10)
+
+  if (prevYmd < hojeYmd || agora.getTime() - prevTime > 24 * 60 * 60 * 1000) {
+    const diffMs = agora.getTime() - prevTime
+    const dias = Math.max(1, Math.floor(diffMs / (24 * 60 * 60 * 1000)))
+    return { atrasada: true, dias }
+  }
+
+  return { atrasada: false, dias: 0 }
 }
 
 export const DrawerAtividadesManutencaoCliente: React.FC<
@@ -488,18 +514,30 @@ export const DrawerAtividadesManutencaoCliente: React.FC<
 
                   <div className="flex items-center gap-2">
                     {(() => {
+                      const atrasoInfo = calcularAtrasoAtividade(atividadeSelecionada)
                       const st =
                         STATUS_CONFIG[atividadeSelecionada.status || 'pendente'] ||
                         STATUS_CONFIG.pendente
                       const Icon = st.icon
                       return (
-                        <Badge
-                          variant="outline"
-                          className={`px-3 py-1 text-xs font-semibold flex items-center gap-1.5 ${st.badgeClass}`}
-                        >
-                          <Icon className="w-3.5 h-3.5" />
-                          {st.label}
-                        </Badge>
+                        <>
+                          {atrasoInfo.atrasada && (
+                            <Badge
+                              variant="destructive"
+                              className="px-3 py-1 text-xs font-bold flex items-center gap-1.5 bg-red-600 text-white animate-in zoom-in-95"
+                            >
+                              <AlertTriangle className="w-3.5 h-3.5" />
+                              Atrasada — {atrasoInfo.dias} {atrasoInfo.dias === 1 ? 'dia' : 'dias'}
+                            </Badge>
+                          )}
+                          <Badge
+                            variant="outline"
+                            className={`px-3 py-1 text-xs font-semibold flex items-center gap-1.5 ${st.badgeClass}`}
+                          >
+                            <Icon className="w-3.5 h-3.5" />
+                            {st.label}
+                          </Badge>
+                        </>
                       )
                     })()}
                   </div>
@@ -709,23 +747,39 @@ export const DrawerAtividadesManutencaoCliente: React.FC<
                           STATUS_CONFIG[item.status || 'pendente'] || STATUS_CONFIG.pendente
                         const Icon = st.icon
                         const temEquipe = Boolean(item.fornecedor_id || item.equipe_nome)
+                        const atraso = calcularAtrasoAtividade(item)
 
                         return (
                           <div
                             key={item.id}
                             onClick={() => setAtividadeSelecionada(item)}
-                            className="group p-4 bg-white dark:bg-slate-950 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-emerald-300 dark:hover:border-emerald-700 hover:shadow-md transition-all cursor-pointer flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                            className={`group p-4 bg-white dark:bg-slate-950 rounded-xl border transition-all cursor-pointer flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
+                              atraso.atrasada
+                                ? 'border-red-200 dark:border-red-900/40 hover:border-red-400 bg-red-50/10'
+                                : 'border-slate-200 dark:border-slate-800 hover:border-emerald-300 dark:hover:border-emerald-700 hover:shadow-md'
+                            }`}
                           >
                             {/* Bloco Esquerda: Nome e data */}
                             <div className="space-y-1.5 flex-1 min-w-0">
-                              <div className="flex items-center gap-2">
+                              <div className="flex items-center gap-2 flex-wrap">
                                 <h4 className="font-semibold text-slate-900 dark:text-white text-sm group-hover:text-emerald-700 dark:group-hover:text-emerald-400 transition-colors truncate">
                                   {item.titulo || item.tipo || 'Atividade de Manutenção'}
                                 </h4>
+                                {atraso.atrasada && (
+                                  <Badge
+                                    variant="destructive"
+                                    className="bg-red-600 hover:bg-red-700 text-white text-[10px] font-bold px-1.5 py-0 h-5 flex items-center gap-1"
+                                  >
+                                    <AlertTriangle className="w-2.5 h-2.5" />
+                                    Atrasada — {atraso.dias} {atraso.dias === 1 ? 'dia' : 'dias'}
+                                  </Badge>
+                                )}
                               </div>
 
                               <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500">
-                                <span className="flex items-center gap-1">
+                                <span
+                                  className={`flex items-center gap-1 ${atraso.atrasada ? 'text-red-700 dark:text-red-400 font-medium' : ''}`}
+                                >
                                   <Calendar className="w-3.5 h-3.5 text-slate-400" />
                                   Prevista: <strong>{formatDate(item.data)}</strong>
                                 </span>
