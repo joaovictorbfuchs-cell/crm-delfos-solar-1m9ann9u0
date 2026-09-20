@@ -297,7 +297,7 @@ export const SecaoCustoInercia: React.FC<SecaoCustoInerciaProps> = ({
                       <DollarSign className="w-5 h-5 text-red-600" />
                     </div>
                     <div>
-                      <h3 className="text-sm font-bold text-gray-900 tracking-tight">
+                      <h3 className="text-xs font-bold text-gray-900 tracking-tight whitespace-nowrap">
                         Custos com Concessionária
                       </h3>
                       <p className="text-[11px] text-gray-500">
@@ -305,7 +305,7 @@ export const SecaoCustoInercia: React.FC<SecaoCustoInerciaProps> = ({
                       </p>
                     </div>
                   </div>
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-red-700 bg-red-50 px-2.5 py-1 rounded-full border border-red-200">
+                  <span className="text-[9px] font-bold uppercase tracking-wider text-red-700 bg-red-50 px-1.5 py-0.5 rounded-full border border-red-200 whitespace-nowrap shrink-0">
                     R$ Reais
                   </span>
                 </div>
@@ -356,8 +356,8 @@ export const SecaoCustoInercia: React.FC<SecaoCustoInerciaProps> = ({
         <div className="bg-white rounded-2xl p-5 sm:p-6 border border-gray-200 shadow-xs space-y-5">
           <div className="flex items-center justify-between flex-wrap gap-2">
             <div>
-              <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider flex items-center gap-2">
-                <TrendingUp className="w-4 h-4 text-red-600" />
+              <h3 className="text-xs sm:text-sm font-bold text-gray-900 uppercase tracking-tight flex items-center gap-2 whitespace-nowrap shrink-0">
+                <TrendingUp className="w-4 h-4 text-red-600 shrink-0" />
                 Gastos Acumulados Sem Solar: 1, {rotuloPeriodoCardMeio} e 25 Anos
               </h3>
               <p className="text-xs text-gray-500">
@@ -365,8 +365,8 @@ export const SecaoCustoInercia: React.FC<SecaoCustoInerciaProps> = ({
                 tarifário histórico da rede elétrica
               </p>
             </div>
-            <span className="text-[11px] font-bold text-red-800 bg-red-50 px-3 py-1 rounded-lg border border-red-200 flex items-center gap-1.5">
-              <ShieldAlert className="w-3.5 h-3.5 text-red-600" />
+            <span className="text-[9px] sm:text-[10px] font-bold text-red-800 bg-red-50 px-2 py-0.5 rounded-lg border border-red-200 flex items-center gap-1.5 whitespace-nowrap shrink-0">
+              <ShieldAlert className="w-3 h-3 text-red-600 shrink-0" />
               Valores Acumulados em Reais
             </span>
           </div>
@@ -377,16 +377,16 @@ export const SecaoCustoInercia: React.FC<SecaoCustoInerciaProps> = ({
             <div className="rounded-2xl p-5 bg-gradient-to-br from-amber-50/70 via-white to-amber-50/30 border-2 border-amber-200 shadow-xs hover:shadow-md transition-all flex flex-col justify-between relative overflow-hidden group">
               <div className="absolute top-0 right-0 w-24 h-24 bg-amber-400/10 rounded-full blur-xl pointer-events-none group-hover:scale-125 transition-transform" />
               <div className="space-y-3 relative z-10">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-lg bg-amber-100 border border-amber-300 flex items-center justify-center text-amber-800">
+                <div className="flex items-center justify-between gap-1">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div className="w-8 h-8 rounded-lg bg-amber-100 border border-amber-300 flex items-center justify-center text-amber-800 shrink-0">
                       <Calendar className="w-4 h-4 text-amber-700" />
                     </div>
-                    <span className="text-xs font-bold text-amber-900 uppercase tracking-wide">
+                    <span className="text-[10.5px] font-bold text-amber-900 uppercase tracking-tight whitespace-nowrap">
                       Gasto em 1 Ano
                     </span>
                   </div>
-                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-amber-800 bg-amber-100/80 px-2.5 py-0.5 rounded-full border border-amber-200">
+                  <span className="text-[9px] sm:text-[10px] font-extrabold uppercase tracking-tight text-amber-800 bg-amber-100/80 px-1.5 py-0.5 rounded-full border border-amber-200 whitespace-nowrap shrink-0">
                     Curto prazo
                   </span>
                 </div>
@@ -418,16 +418,16 @@ export const SecaoCustoInercia: React.FC<SecaoCustoInerciaProps> = ({
             <div className="rounded-2xl p-5 bg-gradient-to-br from-orange-50/80 via-white to-amber-50/40 border-2 border-orange-300 shadow-xs hover:shadow-md transition-all flex flex-col justify-between relative overflow-hidden group">
               <div className="absolute top-0 right-0 w-24 h-24 bg-orange-500/10 rounded-full blur-xl pointer-events-none group-hover:scale-125 transition-transform" />
               <div className="space-y-3 relative z-10">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-lg bg-orange-100 border border-orange-300 flex items-center justify-center text-orange-800">
+                <div className="flex items-center justify-between gap-1">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div className="w-8 h-8 rounded-lg bg-orange-100 border border-orange-300 flex items-center justify-center text-orange-800 shrink-0">
                       <Clock className="w-4 h-4 text-orange-700" />
                     </div>
-                    <span className="text-xs font-bold text-orange-950 uppercase tracking-wide">
+                    <span className="text-[10.5px] font-bold text-orange-950 uppercase tracking-tight whitespace-nowrap">
                       {tituloCardMeio}
                     </span>
                   </div>
-                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-orange-900 bg-orange-100 px-2.5 py-0.5 rounded-full border border-orange-200">
+                  <span className="text-[9px] sm:text-[10px] font-extrabold uppercase tracking-tight text-orange-900 bg-orange-100 px-1.5 py-0.5 rounded-full border border-orange-200 whitespace-nowrap shrink-0">
                     Médio prazo
                   </span>
                 </div>
@@ -459,16 +459,16 @@ export const SecaoCustoInercia: React.FC<SecaoCustoInerciaProps> = ({
             <div className="rounded-2xl p-5 bg-gradient-to-br from-red-50/90 via-white to-rose-50/40 border-2 border-red-300 shadow-xs hover:shadow-md transition-all flex flex-col justify-between relative overflow-hidden group">
               <div className="absolute top-0 right-0 w-24 h-24 bg-red-600/10 rounded-full blur-xl pointer-events-none group-hover:scale-125 transition-transform" />
               <div className="space-y-3 relative z-10">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-lg bg-red-100 border border-red-300 flex items-center justify-center text-red-800">
+                <div className="flex items-center justify-between gap-1">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div className="w-8 h-8 rounded-lg bg-red-100 border border-red-300 flex items-center justify-center text-red-800 shrink-0">
                       <TrendingDown className="w-4 h-4 text-red-600" />
                     </div>
-                    <span className="text-xs font-bold text-red-950 uppercase tracking-wide">
+                    <span className="text-[10.5px] font-bold text-red-950 uppercase tracking-tight whitespace-nowrap">
                       Gasto em 25 Anos
                     </span>
                   </div>
-                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-red-900 bg-red-100 px-2.5 py-0.5 rounded-full border border-red-200">
+                  <span className="text-[9px] sm:text-[10px] font-extrabold uppercase tracking-tight text-red-900 bg-red-100 px-1.5 py-0.5 rounded-full border border-red-200 whitespace-nowrap shrink-0">
                     Longo prazo
                   </span>
                 </div>

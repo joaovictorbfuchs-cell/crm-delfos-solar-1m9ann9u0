@@ -1367,22 +1367,25 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
     .card-situacao.consumo .card-situacao-header-icon { background: #EFF6FF; color: #2563EB; }
     .card-situacao.custos .card-situacao-header-icon { background: #FEF2F2; color: #DC2626; }
     .card-situacao-header-title {
-      font-size: 11pt;
+      font-size: 8.5pt;
       font-weight: 800;
       color: #111827;
       text-transform: uppercase;
-      letter-spacing: 0.03em;
+      letter-spacing: -0.01em;
+      white-space: nowrap;
     }
     .card-situacao-header-sub {
       font-size: 9.5pt;
       color: #6B7280;
     }
     .card-situacao-header-badge {
-      font-size: 8.5pt;
+      font-size: 7.5pt;
       font-weight: 800;
       text-transform: uppercase;
-      padding: 2px 8px;
+      padding: 1.5px 5px;
       border-radius: 9999px;
+      white-space: nowrap;
+      flex-shrink: 0;
     }
     .card-situacao.consumo .card-situacao-header-badge { background: #EFF6FF; color: #1D4ED8; border: 1px solid #BFDBFE; }
     .card-situacao.custos .card-situacao-header-badge { background: #FEF2F2; color: #B91C1C; border: 1px solid #FECACA; }
@@ -1456,11 +1459,13 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
       border-bottom: 1px solid #F3F4F6;
     }
     .barras-topo-title {
-      font-size: 11pt;
+      font-size: 8.5pt;
       font-weight: 800;
       color: #111827;
       text-transform: uppercase;
-      letter-spacing: 0.03em;
+      letter-spacing: -0.01em;
+      white-space: nowrap;
+      flex-shrink: 0;
       display: flex;
       align-items: center;
       gap: 6px;
@@ -1475,11 +1480,13 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
       gap: 6px;
       background: #FEF2F2;
       border: 1px solid #FECACA;
-      padding: 4px 10px;
+      padding: 2px 6px;
       border-radius: 10px;
-      font-size: 9.5pt;
+      font-size: 7.5pt;
       font-weight: 800;
       color: #991B1B;
+      white-space: nowrap;
+      flex-shrink: 0;
     }
     .leg-bullet-red {
       width: 8px;
@@ -1527,21 +1534,24 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
       margin-bottom: 6px;
     }
     .card-marco-title {
-      font-size: 11pt;
+      font-size: 8.5pt;
       font-weight: 800;
       color: #111827;
       text-transform: uppercase;
-      letter-spacing: 0.02em;
+      letter-spacing: -0.01em;
+      white-space: nowrap;
     }
     .card-marco-tag {
-      font-size: 8.5pt;
+      font-size: 7.5pt;
       font-weight: 800;
       text-transform: uppercase;
-      padding: 2px 6px;
+      padding: 1px 4px;
       border-radius: 4px;
       background: #FFFFFF;
       border: 1px solid #E5E7EB;
       color: #4B5563;
+      white-space: nowrap;
+      flex-shrink: 0;
     }
     .card-marco-inercia.ano1 .card-marco-tag {
       color: #92400E;
