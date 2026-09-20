@@ -174,6 +174,7 @@ export const SecaoSeuSistemaFotovoltaico: React.FC<SecaoSeuSistemaFotovoltaicoPr
       ? areaNecessariaM2
       : 37.8
 
+  // Normalização do tipo de estrutura para exibição no badge do card "Área Necessária"
   const estruturaLabel = (() => {
     if (!tipoEstrutura || !tipoEstrutura.trim()) return 'Telhado / Solo'
     const normalizado = tipoEstrutura.toLowerCase().trim()
