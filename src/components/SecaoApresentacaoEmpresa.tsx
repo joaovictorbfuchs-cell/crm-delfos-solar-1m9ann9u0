@@ -119,7 +119,7 @@ export const SecaoApresentacaoEmpresa: React.FC<SecaoApresentacaoEmpresaProps> =
             <span>🏢</span> INSTITUCIONAL
           </span>
           <span className="text-[11px] font-extrabold text-[#0A539E] bg-blue-50 border border-blue-200 px-2.5 py-0.5 rounded-full uppercase tracking-wider">
-            DESDE 2012
+            DESDE 2014
           </span>
         </div>
 

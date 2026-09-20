@@ -2585,7 +2585,7 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
               <span>🏢</span> INSTITUCIONAL
             </span>
             <span style="font-size: 8px; font-weight: 800; color: #0A539E; background: #EFF6FF; border: 1px solid #BFDBFE; padding: 2px 8px; border-radius: 9999px;">
-              DESDE 2012
+              DESDE 2014
             </span>
           </div>
 
@@ -3599,37 +3599,28 @@ print-color-adjust: exact !important; margin-bottom: 8px; display: flex; align-i
         </div>
 
         <!-- CARD DO PAYBACK ESTIMADO (ABAIXO DOS CARDS DE CONDIÇÕES DE PAGAMENTO) -->
-        <div style="background: #FFFFFF; border: 1.5px solid #F59E0B; border-radius: 12px; padding: 10px 16px; display: flex; align-items: center; justify-content: space-between; gap: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); margin-top: 8px; margin-bottom: 8px;">
+        <div style="background: linear-gradient(135deg, #FFFBEB 0%, #FEF3C7 100%); border: 1.5px solid #F59E0B; border-radius: 10px; padding: 8px 14px; display: flex; align-items: center; justify-content: space-between; gap: 12px; box-shadow: 0 1px 2px rgba(0,0,0,0.04); margin-top: 6px; margin-bottom: 6px;">
           <div style="display: flex; align-items: center; gap: 10px;">
-            <div style="width: 34px; height: 34px; border-radius: 8px; background: #FEF3C7; border: 1px solid #FDE68A; display: flex; align-items: center; justify-content: center; font-size: 18px; shrink-0;">
+            <div style="width: 30px; height: 30px; border-radius: 8px; background: #FEF3C7; border: 1px solid #FDE68A; display: flex; align-items: center; justify-content: center; font-size: 16px; shrink-0;">
               ⏱️
             </div>
             <div>
-              <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 2px;">
-                <span style="font-size: 8.5pt; font-weight: 900; text-transform: uppercase; background: #FEF3C7; color: #92400E; padding: 1px 6px; border-radius: 4px; border: 1px solid #FDE68A;">
-                  Tempo de Retorno do Investimento
+              <div style="display: flex; align-items: baseline; gap: 6px; white-space: nowrap;">
+                <span style="font-size: 9pt; font-weight: 800; text-transform: uppercase; color: #92400E; letter-spacing: 0.02em;">
+                  Payback do Sistema:
                 </span>
-                <span style="font-size: 8.5pt; font-weight: 800; background: #DCFCE7; color: #166534; padding: 1px 6px; border-radius: 4px; border: 1px solid #86EFAC;">
-                  Retorno Garantido
+                <span style="font-size: 13pt; font-weight: 900; color: #B45309; line-height: 1.2;">
+                  ${paybackTextoFinal}
                 </span>
               </div>
-              <div style="font-size: 11.5pt; font-weight: 900; color: #1F2937;">Payback Estimado</div>
-              <p style="margin: 1px 0 0 0; font-size: 9.5pt; color: #4B5563; max-width: 440px; line-height: 1.35;">
-                Tempo para que a economia na fatura de energia pague 100% do investimento. A partir desse momento, todo o ganho transforma-se em patrimônio e lucro líquido.
+              <p style="margin: 2px 0 0 0; font-size: 8.5pt; color: #78350F; line-height: 1.3;">
+                Tempo para que a economia na fatura pague 100% do investimento. Após o retorno, toda a economia torna-se lucro líquido direto.
               </p>
             </div>
           </div>
 
-          <div style="background: linear-gradient(135deg, #FFFBEB 0%, #FEF3C7 100%); border: 1.5px solid #FCD34D; border-radius: 8px; padding: 6px 12px; text-align: right; shrink-0; white-space: nowrap;">
-            <div style="display: flex; align-items: baseline; justify-content: flex-end; gap: 6px; white-space: nowrap;">
-              <span style="font-size: 8.5pt; font-weight: 800; text-transform: uppercase; color: #92400E; white-space: nowrap;">
-                Payback do Sistema:
-              </span>
-              <span style="font-size: 15pt; font-weight: 900; color: #B45309; line-height: 1.2; white-space: nowrap;">
-                ${paybackTextoFinal}
-              </span>
-            </div>
-            <span style="font-size: 9pt; color: #78350F; font-weight: 700; display: block; white-space: nowrap;">
+          <div style="background: #FFFFFF; border: 1px solid #FCD34D; border-radius: 6px; padding: 4px 10px; text-align: right; shrink-0; white-space: nowrap;">
+            <span style="font-size: 8.5pt; color: #78350F; font-weight: 700; display: block; white-space: nowrap;">
               Quitação prevista: ${quitacaoMesAno}
             </span>
           </div>

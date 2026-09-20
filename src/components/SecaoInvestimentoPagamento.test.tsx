@@ -45,7 +45,7 @@ describe('SecaoInvestimentoPagamento Component', () => {
     expect(html).toContain('com solar')
 
     // Mini-bloco de payback estimado abaixo dos cards
-    expect(html).toContain('Payback estimado')
+    expect(html).toContain('Payback do Sistema:')
     expect(html).toContain('Quitação prevista:')
 
     // REMOVER COMPARATIVO: não deve mais conter o bloco de comparativo mensal
@@ -135,7 +135,7 @@ describe('SecaoInvestimentoPagamento Component', () => {
     expect(html).toContain('Condições de pagamento')
 
     // Payback estimado abaixo dos cards
-    expect(html).toContain('Payback estimado')
+    expect(html).toContain('Payback do Sistema:')
     expect(html).toContain('Quitação prevista:')
 
     // Ausência do comparativo mensal

@@ -62,91 +62,72 @@ export const CardPaybackEstimado: React.FC<CardPaybackEstimadoProps> = ({
   if (compacto) {
     return (
       <div
-        className={`bg-white rounded-2xl p-4 sm:p-5 border-2 border-amber-400/80 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 relative overflow-hidden ${className}`}
+        className={`bg-gradient-to-br from-amber-50/80 to-amber-100/50 rounded-xl p-3 sm:p-3.5 border border-amber-400 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 relative overflow-hidden ${className}`}
         aria-label="Payback Estimado"
       >
-        <div className="absolute -right-6 -bottom-6 w-24 h-24 bg-amber-400/10 rounded-full pointer-events-none" />
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-800 border border-amber-300 flex items-center justify-center shrink-0 shadow-2xs">
-            <Clock className="w-5 h-5 text-amber-700" />
+        <div className="flex items-center gap-2.5 min-w-0">
+          <div className="w-8 h-8 rounded-lg bg-amber-100 text-amber-800 border border-amber-300 flex items-center justify-center shrink-0 shadow-2xs">
+            <Clock className="w-4 h-4 text-amber-700" />
           </div>
-          <div>
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-[10px] font-black uppercase tracking-wider text-amber-900 bg-amber-100 px-2 py-0.5 rounded-md border border-amber-200">
-                Tempo de Retorno do Investimento
+          <div className="min-w-0">
+            <div className="flex items-baseline gap-2 whitespace-nowrap">
+              <span className="text-[10px] font-extrabold uppercase tracking-wide text-amber-900 whitespace-nowrap">
+                Payback do Sistema:
               </span>
-              <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
-                Retorno Garantido
+              <span className="text-base sm:text-lg font-black text-amber-700 tracking-tight leading-tight whitespace-nowrap">
+                {infoPayback.texto}
               </span>
             </div>
-            <h4 className="text-xs sm:text-sm font-bold text-gray-800 mt-0.5">Payback Estimado</h4>
-            <p className="text-[11px] text-gray-600 leading-snug">
-              Após o retorno, 100% da economia torna-se lucro líquido direto e patrimônio próprio.
+            <p className="text-[10.5px] text-amber-900/80 leading-snug">
+              Tempo para que a economia na fatura pague 100% do investimento. Após o retorno, todo o
+              ganho vira lucro líquido direto.
             </p>
           </div>
         </div>
 
-        <div className="bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-300 rounded-xl px-4 py-2 text-center sm:text-right shrink-0 w-full sm:w-auto shadow-2xs whitespace-nowrap">
-          <div className="flex items-baseline justify-center sm:justify-end gap-2 whitespace-nowrap">
-            <span className="text-[9px] uppercase font-bold text-amber-800 whitespace-nowrap">
-              Payback do Sistema:
-            </span>
-            <span className="text-xl sm:text-2xl font-black text-amber-700 tracking-tight leading-tight whitespace-nowrap">
-              {infoPayback.texto}
-            </span>
-          </div>
-          {infoPayback.anoCalendario && (
-            <span className="text-[10px] font-semibold text-amber-900 block whitespace-nowrap">
+        {infoPayback.anoCalendario && (
+          <div className="bg-white border border-amber-300 rounded-lg px-2.5 py-1 text-center sm:text-right shrink-0 w-full sm:w-auto shadow-2xs whitespace-nowrap">
+            <span className="text-[10px] font-bold text-amber-900 block whitespace-nowrap">
               Quitação prevista: ~{infoPayback.anoCalendario}
             </span>
-          )}
-        </div>
+          </div>
+        )}
       </div>
     )
   }
 
   return (
     <div
-      className={`bg-white rounded-2xl p-5 sm:p-6 border-2 border-amber-400/80 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 relative overflow-hidden ${className}`}
+      className={`bg-gradient-to-br from-amber-50/70 to-amber-100/40 rounded-2xl p-3.5 sm:p-4 border-2 border-amber-400/90 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 relative overflow-hidden ${className}`}
       aria-label="Payback Estimado"
     >
-      <div className="absolute -right-8 -bottom-8 w-32 h-32 bg-amber-400/10 rounded-full pointer-events-none" />
-      <div className="flex items-start gap-4">
-        <div className="w-12 h-12 rounded-2xl bg-amber-100 text-amber-800 border border-amber-300 flex items-center justify-center shrink-0 shadow-2xs">
-          <Clock className="w-6 h-6 text-amber-700" />
+      <div className="flex items-center gap-3 min-w-0">
+        <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-amber-100 text-amber-800 border border-amber-300 flex items-center justify-center shrink-0 shadow-2xs">
+          <Clock className="w-5 h-5 text-amber-700" />
         </div>
-        <div className="space-y-1">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-[11px] font-black uppercase tracking-wider text-amber-900 bg-amber-100 px-2 py-0.5 rounded-md border border-amber-200">
-              Tempo de Retorno do Investimento
+        <div className="min-w-0 space-y-0.5">
+          <div className="flex items-baseline gap-2 whitespace-nowrap">
+            <span className="text-[11px] uppercase font-black text-amber-900 tracking-wide whitespace-nowrap">
+              Payback do Sistema:
             </span>
-            <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
-              Retorno Garantido
+            <span className="text-xl sm:text-2xl font-black text-amber-700 tracking-tight leading-tight whitespace-nowrap">
+              {infoPayback.texto}
             </span>
           </div>
-          <h4 className="text-sm font-bold text-gray-800">Payback Estimado</h4>
-          <p className="text-xs text-gray-600 max-w-xl leading-relaxed">
-            Tempo necessário para que a economia na conta de energia pague 100% do investimento no
-            sistema solar. Após esse prazo, toda a economia gerada passa a ser lucro líquido direto.
+          <p className="text-xs text-amber-950/80 leading-snug max-w-xl">
+            Tempo para que a economia na fatura pague 100% do investimento. Após esse prazo, toda a
+            economia gerada passa a ser lucro líquido direto.
           </p>
         </div>
       </div>
 
-      <div className="bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-300 rounded-xl p-3.5 sm:p-4 text-center sm:text-right shrink-0 w-full sm:w-auto shadow-2xs whitespace-nowrap">
-        <div className="flex items-baseline justify-center sm:justify-end gap-2 whitespace-nowrap">
-          <span className="text-[10px] uppercase font-bold text-amber-800 whitespace-nowrap">
-            Payback do Sistema:
-          </span>
-          <span className="text-2xl sm:text-3xl font-black text-amber-700 tracking-tight my-0.5 whitespace-nowrap">
-            {infoPayback.texto}
-          </span>
-        </div>
-        {infoPayback.anoCalendario && (
-          <span className="text-[11px] font-semibold text-amber-900 block whitespace-nowrap">
+      {infoPayback.anoCalendario && (
+        <div className="bg-white border border-amber-300 rounded-xl px-3 py-1.5 text-center sm:text-right shrink-0 w-full sm:w-auto shadow-2xs whitespace-nowrap self-end sm:self-center">
+          <span className="text-[11px] font-bold text-amber-900 block whitespace-nowrap">
             Quitação prevista: ~{infoPayback.anoCalendario}
           </span>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   )
 }

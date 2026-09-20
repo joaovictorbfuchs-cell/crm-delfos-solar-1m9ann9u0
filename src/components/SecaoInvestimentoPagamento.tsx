@@ -650,34 +650,28 @@ export const SecaoInvestimentoPagamento: React.FC<SecaoInvestimentoPagamentoProp
         {/* 3. MINI-BLOCO DE PAYBACK ESTIMADO (ABAIXO DOS CARDS DE COND. DE PAGTO)    */}
         {/* ========================================================================= */}
         {exibirPaybackAbaixo && (
-          <div className="bg-white rounded-2xl p-4 sm:p-5 border border-amber-200/90 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-gradient-to-r from-amber-50/60 via-amber-50/20 to-white">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-900 flex items-center justify-center shrink-0 border border-amber-200 shadow-2xs">
-                <Clock className="w-5 h-5 text-amber-700 shrink-0" />
+          <div className="bg-gradient-to-r from-amber-50 via-amber-50/60 to-white rounded-xl p-3 sm:p-3.5 border border-amber-300/90 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="w-8 h-8 rounded-lg bg-amber-100 text-amber-900 flex items-center justify-center shrink-0 border border-amber-200 shadow-2xs">
+                <Clock className="w-4 h-4 text-amber-700 shrink-0" />
               </div>
-              <div className="space-y-0.5">
-                <div className="flex items-center gap-2">
-                  <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-amber-900 bg-amber-100/90 px-2 py-0.5 rounded-md border border-amber-300/80">
-                    <Clock className="w-3 h-3 text-amber-700 shrink-0" />
-                    <span>Payback estimado</span>
+              <div className="space-y-0.5 min-w-0">
+                <div className="flex items-baseline gap-2 whitespace-nowrap">
+                  <span className="text-[11px] font-extrabold uppercase tracking-wide text-amber-900 whitespace-nowrap">
+                    Payback do Sistema:
                   </span>
-                  <span className="text-xs font-semibold text-amber-900/85">
-                    Quitação prevista: {infoPayback.quitacaoMesAno}
+                  <span className="text-base sm:text-lg font-black text-amber-900 tracking-tight whitespace-nowrap">
+                    {infoPayback.texto}
                   </span>
                 </div>
-                <p className="text-xs text-gray-600 font-medium">
+                <p className="text-xs text-gray-600 font-medium leading-snug">
                   Tempo estimado para que a economia gerada pague integralmente o investimento.
                 </p>
               </div>
             </div>
 
-            <div className="shrink-0 self-end sm:self-center bg-amber-100/90 border border-amber-300/80 px-3.5 py-1.5 rounded-xl flex items-center gap-2 whitespace-nowrap">
-              <span className="text-xs font-bold text-amber-800 uppercase tracking-wide whitespace-nowrap">
-                Payback:
-              </span>
-              <span className="text-base sm:text-lg font-black text-amber-900 tracking-tight whitespace-nowrap">
-                {infoPayback.texto}
-              </span>
+            <div className="shrink-0 self-end sm:self-center bg-white border border-amber-300/90 px-3 py-1 rounded-lg text-xs font-semibold text-amber-900 shadow-2xs whitespace-nowrap">
+              Quitação prevista: {infoPayback.quitacaoMesAno}
             </div>
           </div>
         )}
