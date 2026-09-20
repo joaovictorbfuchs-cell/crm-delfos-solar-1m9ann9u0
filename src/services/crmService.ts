@@ -2165,7 +2165,36 @@ export async function createTipoAtividadeCustom(data: {
   icone?: string
   descricao?: string
   is_padrao?: boolean
+  valor_base?: number
+  frequencia_meses?: number
+  tipo_execucao?: import('@/types/crm').CatalogoTipoExecucao
+  orientacoes_tecnicas?: string
+  links_uteis?: string
+  ativo?: boolean
+  documento_modelo?: File | null
 }): Promise<import('@/types/crm').TipoAtividadeCustomItem> {
+  if (data.documento_modelo) {
+    const formData = new FormData()
+    formData.append('nome', data.nome.trim())
+    formData.append('categoria', data.categoria)
+    formData.append('cor', data.cor || '')
+    formData.append('icone', data.icone || '')
+    formData.append('descricao', data.descricao || '')
+    formData.append('is_padrao', String(Boolean(data.is_padrao)))
+    formData.append('valor_base', String(data.valor_base ?? 0))
+    formData.append('frequencia_meses', String(data.frequencia_meses ?? 0))
+    formData.append('tipo_execucao', data.tipo_execucao || 'equipe_interna')
+    formData.append('orientacoes_tecnicas', data.orientacoes_tecnicas || '')
+    formData.append('links_uteis', data.links_uteis || '')
+    formData.append('ativo', String(data.ativo ?? true))
+    formData.append('documento_modelo', data.documento_modelo)
+
+    const record = await pb
+      .collection('tipos_atividades_custom')
+      .create<import('@/types/crm').TipoAtividadeCustomItem>(formData)
+    return record
+  }
+
   const payload = {
     nome: data.nome.trim(),
     categoria: data.categoria,
@@ -2173,10 +2202,57 @@ export async function createTipoAtividadeCustom(data: {
     icone: data.icone || '',
     descricao: data.descricao || '',
     is_padrao: Boolean(data.is_padrao),
+    valor_base: data.valor_base ?? 0,
+    frequencia_meses: data.frequencia_meses ?? 0,
+    tipo_execucao: data.tipo_execucao || 'equipe_interna',
+    orientacoes_tecnicas: data.orientacoes_tecnicas || '',
+    links_uteis: data.links_uteis || '',
+    ativo: data.ativo ?? true,
   }
   const record = await pb
     .collection('tipos_atividades_custom')
     .create<import('@/types/crm').TipoAtividadeCustomItem>(payload)
+  return record
+}
+
+export async function updateTipoAtividadeCustom(
+  id: string,
+  data: Partial<{
+    nome: string
+    categoria: import('@/types/crm').AtividadeCategoriaId
+    cor: string
+    icone: string
+    descricao: string
+    is_padrao: boolean
+    valor_base: number
+    frequencia_meses: number
+    tipo_execucao: import('@/types/crm').CatalogoTipoExecucao
+    orientacoes_tecnicas: string
+    links_uteis: string
+    ativo: boolean
+    documento_modelo?: File | null
+  }>,
+): Promise<import('@/types/crm').TipoAtividadeCustomItem> {
+  if (data.documento_modelo instanceof File) {
+    const formData = new FormData()
+    Object.entries(data).forEach(([key, val]) => {
+      if (val !== undefined && val !== null && key !== 'documento_modelo') {
+        formData.append(key, String(val))
+      }
+    })
+    formData.append('documento_modelo', data.documento_modelo)
+    const record = await pb
+      .collection('tipos_atividades_custom')
+      .update<import('@/types/crm').TipoAtividadeCustomItem>(id, formData)
+    return record
+  }
+
+  const payload: Record<string, any> = { ...data }
+  delete payload.documento_modelo
+
+  const record = await pb
+    .collection('tipos_atividades_custom')
+    .update<import('@/types/crm').TipoAtividadeCustomItem>(id, payload)
   return record
 }
 

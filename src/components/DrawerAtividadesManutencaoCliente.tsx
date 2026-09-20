@@ -157,11 +157,13 @@ export const DrawerAtividadesManutencaoCliente: React.FC<
   const [novoValor, setNovoValor] = useState<string>('')
   const [novaDataPrevista, setNovaDataPrevista] = useState<string>(todayStr)
 
-  // Lista de tipos disponíveis (tipos cadastrados no banco)
+  // Lista de tipos disponíveis (apenas tipos ATIVOS da categoria manutenção para novas ofertas)
   const tiposDisponiveis = useMemo(() => {
-    const list = tiposAtividadesCustom.filter((t) => t.categoria === 'manutencao')
+    const list = tiposAtividadesCustom.filter(
+      (t) => t.categoria === 'manutencao' && t.ativo !== false,
+    )
     if (list.length > 0) return list
-    return tiposAtividadesCustom
+    return tiposAtividadesCustom.filter((t) => t.ativo !== false)
   }, [tiposAtividadesCustom])
 
   // Inicializa o tipo selecionado quando a lista carregar

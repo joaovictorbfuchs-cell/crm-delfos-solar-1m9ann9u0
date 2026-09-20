@@ -19,6 +19,7 @@ import Orcamentos from './pages/Orcamentos'
 import InstalacoesGaleriaPage from './pages/InstalacoesGaleria'
 import EquipamentosPage from './pages/Equipamentos'
 import AutomacoesPage from './pages/Automacoes'
+import CatalogoAtividades from './pages/CatalogoAtividades'
 import Atividades from './pages/Atividades'
 import ExecucaoOS from './pages/ExecucaoOS'
 import { CentralAtendimento } from './pages/CentralAtendimento'
@@ -68,7 +69,6 @@ const App = () => (
           >
             {/* Rota comum ou permitida a ambos */}
             <Route path="/execucao-os" element={<ExecucaoOS />} />
-
             {/* Rotas restritas para Administradores: Layout já tem ProtectedRoute de autenticação geral, aqui apenas requiredRole="admin" se necessário */}
             <Route
               path="/"
@@ -190,6 +190,14 @@ const App = () => (
                 </ProtectedRoute>
               }
             />
+            <Route
+              path="/catalogo-atividades"
+              element={
+                <ProtectedRoute requiredRole="admin">
+                  <CatalogoAtividades />
+                </ProtectedRoute>
+              }
+            />{' '}
             <Route
               path="/gerenciar-usuarios"
               element={

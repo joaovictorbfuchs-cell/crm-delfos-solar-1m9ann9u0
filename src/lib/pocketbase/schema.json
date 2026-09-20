@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-20T02:21:32.133Z",
+  "generatedAt": "2026-09-20T02:46:24.453Z",
   "collections": [
     {
       "name": "users",
@@ -3691,6 +3691,49 @@
           "required": false,
           "system": false,
           "autodateTriggers": ["onCreate", "onUpdate"]
+        },
+        {
+          "name": "valor_base",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "frequencia_meses",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "tipo_execucao",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["equipe_interna", "fornecedor_externo"]
+        },
+        {
+          "name": "orientacoes_tecnicas",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "links_uteis",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "documento_modelo",
+          "type": "file",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "ativo",
+          "type": "bool",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": [

@@ -27,6 +27,7 @@ import {
   Images,
   Cpu,
   Zap,
+  ListChecks,
 } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { useClientes } from '@/contexts/ClientesContext'
@@ -113,6 +114,8 @@ export default function Layout() {
         return 'Gestão de Clientes'
       case '/automacoes':
         return 'Automações do CRM'
+      case '/catalogo-atividades':
+        return 'Catálogo de Atividades'
       case '/equipamentos':
         return 'Cadastro de Equipamentos'
       case '/importar-clientes':
@@ -149,6 +152,7 @@ export default function Layout() {
         { name: 'Planos O&M', path: '/planos-om', icon: ShieldCheck },
         { name: 'Clientes Pós-Vendas', path: '/clientes-pos-vendas', icon: UserCheck },
         { name: 'O&M / Manutenções', path: '/manutencoes', icon: Wrench },
+        { name: 'Catálogo de Atividades', path: '/catalogo-atividades', icon: ListChecks },
         { name: 'Automações', path: '/automacoes', icon: Zap },
         { name: 'Cadastro de Equipamentos', path: '/equipamentos', icon: Cpu },
         { name: 'Clientes', path: '/clientes', icon: Users },

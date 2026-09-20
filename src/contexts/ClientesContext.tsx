@@ -253,7 +253,7 @@ interface ClientesContextType {
   updateAtividade: (id: string, data: Partial<Atividade>) => Promise<Atividade>
   updateAtividadeStatus: (id: string, status: AtividadeStatus) => Promise<void>
   removeAtividade: (id: string) => Promise<void>
-  // Tipos de atividades personalizados
+  // Tipos de atividades personalizados / Catálogo
   tiposAtividadesCustom: import('@/types/crm').TipoAtividadeCustomItem[]
   addTipoAtividadeCustom: (data: {
     nome: string
@@ -261,7 +261,33 @@ interface ClientesContextType {
     cor?: string
     icone?: string
     descricao?: string
+    is_padrao?: boolean
+    valor_base?: number
+    frequencia_meses?: number
+    tipo_execucao?: import('@/types/crm').CatalogoTipoExecucao
+    orientacoes_tecnicas?: string
+    links_uteis?: string
+    ativo?: boolean
+    documento_modelo?: File | null
   }) => Promise<import('@/types/crm').TipoAtividadeCustomItem>
+  updateTipoAtividadeCustom: (
+    id: string,
+    data: Partial<{
+      nome: string
+      categoria: import('@/types/crm').AtividadeCategoriaId
+      cor: string
+      icone: string
+      descricao: string
+      is_padrao: boolean
+      valor_base: number
+      frequencia_meses: number
+      tipo_execucao: import('@/types/crm').CatalogoTipoExecucao
+      orientacoes_tecnicas: string
+      links_uteis: string
+      ativo: boolean
+      documento_modelo?: File | null
+    }>,
+  ) => Promise<import('@/types/crm').TipoAtividadeCustomItem>
   removeTipoAtividadeCustom: (id: string) => Promise<void>
   refreshTiposAtividadesCustom: () => Promise<void>
   updateCliente: (id: string, data: Partial<Cliente>) => Promise<Cliente>
@@ -1323,13 +1349,48 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     cor?: string
     icone?: string
     descricao?: string
+    is_padrao?: boolean
+    valor_base?: number
+    frequencia_meses?: number
+    tipo_execucao?: import('@/types/crm').CatalogoTipoExecucao
+    orientacoes_tecnicas?: string
+    links_uteis?: string
+    ativo?: boolean
+    documento_modelo?: File | null
   }) => {
     const created = await apiCreateTipoAtividadeCustom(data)
     setTiposAtividadesCustom((prev) => {
-      if (prev.some((item) => item.id === created.id)) return prev
+      if (prev.some((item) => item.id === created.id)) {
+        return prev.map((item) => (item.id === created.id ? created : item))
+      }
       return [...prev, created]
     })
     return created
+  }
+
+  const updateTipoAtividadeCustomContext = async (
+    id: string,
+    data: Partial<{
+      nome: string
+      categoria: import('@/types/crm').AtividadeCategoriaId
+      cor: string
+      icone: string
+      descricao: string
+      is_padrao: boolean
+      valor_base: number
+      frequencia_meses: number
+      tipo_execucao: import('@/types/crm').CatalogoTipoExecucao
+      orientacoes_tecnicas: string
+      links_uteis: string
+      ativo: boolean
+      documento_modelo?: File | null
+    }>,
+  ) => {
+    const updated = await import('@/services/crmService').then((m) =>
+      m.updateTipoAtividadeCustom(id, data),
+    )
+    setTiposAtividadesCustom((prev) => prev.map((t) => (t.id === id ? updated : t)))
+    return updated
   }
 
   const removeTipoAtividadeCustom = async (id: string) => {
@@ -2674,6 +2735,7 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         removeAtividade,
         tiposAtividadesCustom,
         addTipoAtividadeCustom,
+        updateTipoAtividadeCustom: updateTipoAtividadeCustomContext,
         removeTipoAtividadeCustom,
         refreshTiposAtividadesCustom,
         updateCliente,
@@ -2879,6 +2941,7 @@ export function useClientes(): ClientesContextType {
       updateAtividadeStatus: async () => {},
       removeAtividade: async () => {},
       addTipoAtividadeCustom: async () => ({}) as any,
+      updateTipoAtividadeCustom: async () => ({}) as any,
       removeTipoAtividadeCustom: async () => {},
       refreshTiposAtividadesCustom: async () => {},
       updateCliente: async () => ({}) as any,

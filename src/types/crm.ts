@@ -36,6 +36,8 @@ export type ManutencaoStatus = 'Agendado' | 'Em andamento' | 'Concluído'
 
 export type AtividadeCategoriaId = 'comercial' | 'manutencao' | 'administrativo_pos_venda'
 
+export type CatalogoTipoExecucao = 'equipe_interna' | 'fornecedor_externo'
+
 export interface TipoAtividadeCustomItem extends RecordModel {
   id: string
   collectionId: string
@@ -46,6 +48,13 @@ export interface TipoAtividadeCustomItem extends RecordModel {
   icone?: string
   descricao?: string
   is_padrao?: boolean
+  valor_base?: number
+  frequencia_meses?: number
+  tipo_execucao?: CatalogoTipoExecucao
+  orientacoes_tecnicas?: string
+  links_uteis?: string
+  documento_modelo?: string
+  ativo?: boolean
   created: string
   updated: string
 }
