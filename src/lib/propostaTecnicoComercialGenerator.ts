@@ -629,11 +629,11 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
   <style>
     /* ==========================================================
        SETUP DE IMPRESSÃO A4 COM 5 SEÇÕES PRECISAS
-       Margens: ~15mm laterais e 20mm topo/base
+       Margens: 0,7cm (7mm) em todos os lados
        ========================================================== */
     @page {
       size: 210mm 297mm;
-      margin: 20mm 15mm 20mm 15mm;
+      margin: 7mm;
     }
 
     * {
@@ -704,12 +704,12 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
       padding-bottom: 24px;
     }
 
-    /* PÁGINA INDIVIDUAL DA PROPOSTA (MODO PREVIEW DE TELA COM MARGENS A4: 20mm topo/base, 15mm laterais) */
+    /* PÁGINA INDIVIDUAL DA PROPOSTA (MODO PREVIEW DE TELA COM MARGENS A4: 7mm em todos os lados) */
     .proposta-secao-page {
       background: #FFFFFF;
       width: 100%;
       min-height: auto;
-      padding: 20mm 15mm;
+      padding: 7mm;
       box-sizing: border-box;
       margin: 0 auto 14px auto;
       box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);

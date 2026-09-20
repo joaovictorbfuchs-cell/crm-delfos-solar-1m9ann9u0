@@ -203,6 +203,8 @@ describe('Proposta Técnico-Comercial Generator (5 Seções Oficiais)', () => {
 
     // CSS de impressão A4 obrigatório e fluxo natural contínuo
     expect(html).toContain('size: 210mm 297mm')
+    expect(html).toContain('margin: 7mm')
+    expect(html).toContain('padding: 7mm')
     expect(html).toContain('print-color-adjust: exact')
     expect(html).toContain('page-break-before: auto')
     expect(html).toContain('break-before: auto')
