@@ -192,6 +192,20 @@ export interface Cliente extends RecordModel {
   solarview_link_ios?: string
   solarview_link_android?: string
   solarview_link_texto?: string
+  // Campos específicos do Pós-Vendas
+  tipo_sistema?: 'On-grid' | 'Off-grid' | 'Híbrido' | string
+  garantia_instalacao_data?: string
+  garantia_instalacao_status?: 'Vigente' | 'Próxima do vencimento' | 'Vencida' | string
+  data_ultima_atividade?: string
+  tipo_ultima_atividade?: string
+  data_proxima_atividade?: string
+  tipo_proxima_atividade?: string
+  status_pos_vendas?:
+    | 'Ativo'
+    | 'Inativo'
+    | 'Com pendência'
+    | 'Garantia próxima do vencimento'
+    | string
   created: string
   updated: string
 }

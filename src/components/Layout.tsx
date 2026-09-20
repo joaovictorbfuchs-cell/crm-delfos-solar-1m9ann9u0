@@ -23,6 +23,7 @@ import {
   Settings,
   Shield,
   ShieldCheck,
+  UserCheck,
   Images,
   Cpu,
   Zap,
@@ -101,6 +102,9 @@ export default function Layout() {
       case '/planos-om':
       case '/planos-monitoramento':
         return 'Planos de Monitoramento & O&M'
+      case '/clientes-pos-vendas':
+      case '/pos-vendas':
+        return 'Clientes Pós-Vendas'
       case '/manutencoes':
         return 'Contratos & Manutenções (O&M)'
       case '/central-atendimento':
@@ -143,6 +147,7 @@ export default function Layout() {
         { name: 'Atividades', path: '/atividades', icon: CalendarCheck },
         { name: 'Execução de OS', path: '/execucao-os', icon: ClipboardCheck },
         { name: 'Planos O&M', path: '/planos-om', icon: ShieldCheck },
+        { name: 'Clientes Pós-Vendas', path: '/clientes-pos-vendas', icon: UserCheck },
         { name: 'O&M / Manutenções', path: '/manutencoes', icon: Wrench },
         { name: 'Automações', path: '/automacoes', icon: Zap },
         { name: 'Cadastro de Equipamentos', path: '/equipamentos', icon: Cpu },
@@ -223,7 +228,10 @@ export default function Layout() {
               (item.path === '/orcamentos' && location.pathname === '/propostas') ||
               (item.path === '/planos-om' &&
                 (location.pathname === '/planos-om' ||
-                  location.pathname === '/planos-monitoramento'))
+                  location.pathname === '/planos-monitoramento')) ||
+              (item.path === '/clientes-pos-vendas' &&
+                (location.pathname === '/clientes-pos-vendas' ||
+                  location.pathname === '/pos-vendas'))
             return (
               <NavLink
                 key={item.path}
@@ -373,7 +381,10 @@ export default function Layout() {
                       isActive ||
                       (item.path === '/planos-om' &&
                         (location.pathname === '/planos-om' ||
-                          location.pathname === '/planos-monitoramento'))
+                          location.pathname === '/planos-monitoramento')) ||
+                      (item.path === '/clientes-pos-vendas' &&
+                        (location.pathname === '/clientes-pos-vendas' ||
+                          location.pathname === '/pos-vendas'))
                         ? 'bg-[#DCFCE7] text-[#166534] font-semibold'
                         : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
                     }`}
