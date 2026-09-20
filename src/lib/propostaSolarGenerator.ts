@@ -229,7 +229,7 @@ export function converterInputParaTemplateComercial(
     economia: {
       investimentoTotal: calculos.valorInvestimento,
       prazoEntregaDias: sistema.prazoEntregaDias || 30,
-      paybackTexto: `${calculos.paybackAnos} anos e ${Math.round(calculos.paybackMeses % 12)} meses`,
+      paybackTexto: `${Math.round(calculos.paybackMeses)} meses`,
       paybackMeses: calculos.paybackMeses,
     },
     parcelamento: {

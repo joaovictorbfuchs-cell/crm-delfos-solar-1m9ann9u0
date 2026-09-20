@@ -454,10 +454,29 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
     consumoKwhAno: consumoKwhAnoEstimado,
   })
 
-  const paybackAnosInt = Math.floor(paybackMesesCalculado / 12)
-  const paybackMesesInt = Math.round(paybackMesesCalculado % 12)
-  const paybackTextoFinal =
-    economia?.paybackTexto || `${paybackAnosInt} anos e ${paybackMesesInt} meses`
+  const mesesFinal = (() => {
+    if (
+      economia?.paybackMeses !== undefined &&
+      economia.paybackMeses !== null &&
+      economia.paybackMeses > 0
+    ) {
+      return Math.round(economia.paybackMeses)
+    }
+    if (economia?.paybackTexto && economia.paybackTexto.trim()) {
+      const matchAnos = economia.paybackTexto.match(/(\d+(?:[.,]\d+)?)\s*(?:anos?|a)/i)
+      const matchMeses = economia.paybackTexto.match(/(\d+)\s*m[eê]s(?:es)?/i)
+      if (matchAnos && matchAnos[1]) {
+        const anos = parseFloat(matchAnos[1].replace(',', '.'))
+        const mesesExtra = matchMeses && matchMeses[1] ? parseInt(matchMeses[1], 10) : 0
+        return Math.round(anos * 12 + mesesExtra)
+      }
+      if (matchMeses && matchMeses[1]) {
+        return parseInt(matchMeses[1], 10)
+      }
+    }
+    return Math.round(paybackMesesCalculado)
+  })()
+  const paybackTextoFinal = `${mesesFinal} meses`
 
   // ROI estimado
   const roiCalculado =
@@ -3601,14 +3620,16 @@ print-color-adjust: exact !important; margin-bottom: 8px; display: flex; align-i
             </div>
           </div>
 
-          <div style="background: linear-gradient(135deg, #FFFBEB 0%, #FEF3C7 100%); border: 1.5px solid #FCD34D; border-radius: 8px; padding: 6px 12px; text-align: right; shrink-0;">
-            <span style="font-size: 8.5pt; font-weight: 800; text-transform: uppercase; color: #92400E; display: block;">
-              Payback do Sistema
-            </span>
-            <div style="font-size: 15pt; font-weight: 900; color: #B45309; line-height: 1.2; margin: 1px 0;">
-              ${paybackTextoFinal}
+          <div style="background: linear-gradient(135deg, #FFFBEB 0%, #FEF3C7 100%); border: 1.5px solid #FCD34D; border-radius: 8px; padding: 6px 12px; text-align: right; shrink-0; white-space: nowrap;">
+            <div style="display: flex; align-items: baseline; justify-content: flex-end; gap: 6px; white-space: nowrap;">
+              <span style="font-size: 8.5pt; font-weight: 800; text-transform: uppercase; color: #92400E; white-space: nowrap;">
+                Payback do Sistema:
+              </span>
+              <span style="font-size: 15pt; font-weight: 900; color: #B45309; line-height: 1.2; white-space: nowrap;">
+                ${paybackTextoFinal}
+              </span>
             </div>
-            <span style="font-size: 9pt; color: #78350F; font-weight: 700; display: block;">
+            <span style="font-size: 9pt; color: #78350F; font-weight: 700; display: block; white-space: nowrap;">
               Quitação prevista: ${quitacaoMesAno}
             </span>
           </div>

@@ -27,47 +27,33 @@ export const CardPaybackEstimado: React.FC<CardPaybackEstimadoProps> = ({
   className = '',
 }) => {
   const infoPayback = useMemo(() => {
-    if (paybackTexto && paybackTexto.trim()) {
-      // Extrair ano estimado se possível ou derivar
-      const anoBase = anoInicial || new Date().getFullYear()
-      let anoCalendario: number | null = null
-      const matchAnos = paybackTexto.match(/(\d+)\s*(?:anos?|a)/i)
-      if (matchAnos && matchAnos[1]) {
-        anoCalendario = anoBase + parseInt(matchAnos[1], 10)
-      } else {
-        anoCalendario = anoBase + 2
-      }
-      return {
-        texto: paybackTexto,
-        anos: null,
-        meses: null,
-        anoCalendario,
-      }
-    }
-
-    const mesesTotais =
+    let mesesTotais =
       paybackMeses !== undefined && paybackMeses !== null && paybackMeses > 0
         ? paybackMeses
         : valorInvestimento && valorInvestimento > 0 && economiaMensal && economiaMensal > 0
           ? Math.round((valorInvestimento / economiaMensal) * 10) / 10
           : 21
 
-    const anos = Math.floor(mesesTotais / 12)
-    const meses = Math.round(mesesTotais % 12)
+    if (paybackTexto && paybackTexto.trim()) {
+      const matchAnos = paybackTexto.match(/(\d+(?:[.,]\d+)?)\s*(?:anos?|a)/i)
+      const matchMeses = paybackTexto.match(/(\d+)\s*m[eê]s(?:es)?/i)
+      if (matchAnos && matchAnos[1]) {
+        const anos = parseFloat(matchAnos[1].replace(',', '.'))
+        const mesesExtra = matchMeses && matchMeses[1] ? parseInt(matchMeses[1], 10) : 0
+        mesesTotais = anos * 12 + mesesExtra
+      } else if (matchMeses && matchMeses[1]) {
+        mesesTotais = parseInt(matchMeses[1], 10)
+      }
+    }
+
     const anoBase = anoInicial || new Date().getFullYear()
     const anoCalendario = anoBase + Math.max(1, Math.ceil(mesesTotais / 12))
-
-    let texto = `${anos} anos`
-    if (anos === 1) texto = '1 ano'
-    if (anos === 0) texto = `${meses} meses`
-    else if (meses > 0) {
-      texto = `${anos} ${anos === 1 ? 'ano' : 'anos'} e ${meses} ${meses === 1 ? 'mês' : 'meses'}`
-    }
+    const texto = `${Math.round(mesesTotais)} meses`
 
     return {
       texto,
-      anos,
-      meses,
+      anos: Math.floor(mesesTotais / 12),
+      meses: Math.round(mesesTotais % 12),
       anoCalendario,
       mesesTotais,
     }
@@ -100,15 +86,17 @@ export const CardPaybackEstimado: React.FC<CardPaybackEstimadoProps> = ({
           </div>
         </div>
 
-        <div className="bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-300 rounded-xl px-4 py-2 text-center sm:text-right shrink-0 w-full sm:w-auto shadow-2xs">
-          <span className="text-[9px] uppercase font-bold text-amber-800 block">
-            Payback do Sistema
-          </span>
-          <div className="text-xl sm:text-2xl font-black text-amber-700 tracking-tight leading-tight">
-            {infoPayback.texto}
+        <div className="bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-300 rounded-xl px-4 py-2 text-center sm:text-right shrink-0 w-full sm:w-auto shadow-2xs whitespace-nowrap">
+          <div className="flex items-baseline justify-center sm:justify-end gap-2 whitespace-nowrap">
+            <span className="text-[9px] uppercase font-bold text-amber-800 whitespace-nowrap">
+              Payback do Sistema:
+            </span>
+            <span className="text-xl sm:text-2xl font-black text-amber-700 tracking-tight leading-tight whitespace-nowrap">
+              {infoPayback.texto}
+            </span>
           </div>
           {infoPayback.anoCalendario && (
-            <span className="text-[10px] font-semibold text-amber-900 block">
+            <span className="text-[10px] font-semibold text-amber-900 block whitespace-nowrap">
               Quitação prevista: ~{infoPayback.anoCalendario}
             </span>
           )}
@@ -144,15 +132,17 @@ export const CardPaybackEstimado: React.FC<CardPaybackEstimadoProps> = ({
         </div>
       </div>
 
-      <div className="bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-300 rounded-xl p-3.5 sm:p-4 text-center sm:text-right shrink-0 w-full sm:w-auto shadow-2xs">
-        <span className="text-[10px] uppercase font-bold text-amber-800 block">
-          Payback do Sistema
-        </span>
-        <div className="text-2xl sm:text-3xl font-black text-amber-700 tracking-tight my-0.5">
-          {infoPayback.texto}
+      <div className="bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-300 rounded-xl p-3.5 sm:p-4 text-center sm:text-right shrink-0 w-full sm:w-auto shadow-2xs whitespace-nowrap">
+        <div className="flex items-baseline justify-center sm:justify-end gap-2 whitespace-nowrap">
+          <span className="text-[10px] uppercase font-bold text-amber-800 whitespace-nowrap">
+            Payback do Sistema:
+          </span>
+          <span className="text-2xl sm:text-3xl font-black text-amber-700 tracking-tight my-0.5 whitespace-nowrap">
+            {infoPayback.texto}
+          </span>
         </div>
         {infoPayback.anoCalendario && (
-          <span className="text-[11px] font-semibold text-amber-900 block">
+          <span className="text-[11px] font-semibold text-amber-900 block whitespace-nowrap">
             Quitação prevista: ~{infoPayback.anoCalendario}
           </span>
         )}

@@ -238,9 +238,7 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
 
   // Payback & ROI
   const paybackMesesCalculado = calculos.paybackMeses || 50
-  const paybackAnosInt = Math.floor(paybackMesesCalculado / 12)
-  const paybackMesesInt = Math.round(paybackMesesCalculado % 12)
-  const paybackTextoFinal = `${paybackAnosInt} anos e ${paybackMesesInt} meses`
+  const paybackTextoFinal = `${Math.round(paybackMesesCalculado)} meses`
   const quitacaoMesAno = formatarMesAnoQuitacao(dados.dataEmissao, paybackMesesCalculado)
 
   // Período de payback arredondado PARA CIMA até fechar um ano inteiro (ex.: 22 meses -> 2 anos; 25 meses -> 3 anos)

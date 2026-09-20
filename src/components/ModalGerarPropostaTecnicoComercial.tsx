@@ -124,9 +124,9 @@ export function ModalGerarPropostaTecnicoComercial({
   const [paybackTexto, setPaybackTexto] = useState<string>(() => {
     const pbMeses = Number(orcamento?.payback_meses)
     if (!isNaN(pbMeses) && pbMeses > 0) {
-      return `${(pbMeses / 12).toFixed(1).replace('.', ',')} anos (${pbMeses} meses)`
+      return `${Math.round(pbMeses)} meses`
     }
-    return '4,2 anos (50 meses)'
+    return '50 meses'
   })
 
   // 7. SIMULAÇÃO DE PARCELAMENTO
@@ -375,7 +375,7 @@ export function ModalGerarPropostaTecnicoComercial({
         economia: {
           investimentoTotal: invTotalNum,
           prazoEntregaDias: Number(prazoEntregaDias) || 40,
-          paybackTexto: paybackTexto || '4,2 anos (50 meses)',
+          paybackTexto: paybackTexto || '50 meses',
         },
         parcelamento: {
           aVista: {

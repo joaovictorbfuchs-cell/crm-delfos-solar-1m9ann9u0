@@ -319,9 +319,8 @@ export const SecaoInvestimentoPagamento: React.FC<SecaoInvestimentoPagamentoProp
       ? custoPostergacao
       : Math.max(0, contaAtualFinal - faturaComSolarFinal)
 
-  // Cálculo e formatação do Payback (anos, meses e mês/ano de quitação)
+  // Cálculo e formatação do Payback (em meses e mês/ano de quitação)
   const infoPayback = React.useMemo(() => {
-    let texto = paybackTexto || ''
     let mesesTotais =
       paybackMeses !== undefined && paybackMeses !== null && paybackMeses > 0
         ? paybackMeses
@@ -330,24 +329,18 @@ export const SecaoInvestimentoPagamento: React.FC<SecaoInvestimentoPagamentoProp
           : 22
 
     if (paybackTexto && paybackTexto.trim()) {
-      const matchAnos = paybackTexto.match(/(\d+)\s*(?:anos?|a)/i)
+      const matchAnos = paybackTexto.match(/(\d+(?:[.,]\d+)?)\s*(?:anos?|a)/i)
       const matchMeses = paybackTexto.match(/(\d+)\s*m[eê]s(?:es)?/i)
       if (matchAnos && matchAnos[1]) {
-        const anos = parseInt(matchAnos[1], 10)
+        const anos = parseFloat(matchAnos[1].replace(',', '.'))
         const mesesExtra = matchMeses && matchMeses[1] ? parseInt(matchMeses[1], 10) : 0
         mesesTotais = anos * 12 + mesesExtra
-      }
-    } else {
-      const anos = Math.floor(mesesTotais / 12)
-      const meses = Math.round(mesesTotais % 12)
-      texto = `${anos} anos`
-      if (anos === 1) texto = '1 ano'
-      if (anos === 0) texto = `${meses} meses`
-      else if (meses > 0) {
-        texto = `${anos} ${anos === 1 ? 'ano' : 'anos'} e ${meses} ${meses === 1 ? 'mês' : 'meses'}`
+      } else if (matchMeses && matchMeses[1]) {
+        mesesTotais = parseInt(matchMeses[1], 10)
       }
     }
 
+    const texto = `${Math.round(mesesTotais)} meses`
     const quitacaoMesAno = formatarMesAnoQuitacao(dataOrcamento, mesesTotais)
 
     return {
@@ -678,8 +671,11 @@ export const SecaoInvestimentoPagamento: React.FC<SecaoInvestimentoPagamentoProp
               </div>
             </div>
 
-            <div className="shrink-0 self-end sm:self-center bg-amber-100/90 border border-amber-300/80 px-3.5 py-1.5 rounded-xl">
-              <span className="text-base sm:text-lg font-black text-amber-900 tracking-tight">
+            <div className="shrink-0 self-end sm:self-center bg-amber-100/90 border border-amber-300/80 px-3.5 py-1.5 rounded-xl flex items-center gap-2 whitespace-nowrap">
+              <span className="text-xs font-bold text-amber-800 uppercase tracking-wide whitespace-nowrap">
+                Payback:
+              </span>
+              <span className="text-base sm:text-lg font-black text-amber-900 tracking-tight whitespace-nowrap">
                 {infoPayback.texto}
               </span>
             </div>

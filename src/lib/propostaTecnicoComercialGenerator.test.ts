@@ -53,7 +53,7 @@ describe('Proposta Técnico-Comercial Generator (5 Seções Oficiais)', () => {
     economia: {
       investimentoTotal: 45000,
       prazoEntregaDias: 40,
-      paybackTexto: '4 anos e 2 meses',
+      paybackTexto: '50 meses',
       paybackMeses: 50,
     },
     parcelamento: {
@@ -373,7 +373,7 @@ describe('Proposta Técnico-Comercial Generator (5 Seções Oficiais)', () => {
       economia: {
         ...dadosExemplo.economia,
         paybackMeses: 22,
-        paybackTexto: '1 ano e 10 meses',
+        paybackTexto: '22 meses',
       },
       projecao: {
         ...dadosExemplo.projecao,
@@ -403,7 +403,7 @@ describe('Proposta Técnico-Comercial Generator (5 Seções Oficiais)', () => {
       economia: {
         ...dadosExemplo.economia,
         paybackMeses: 25,
-        paybackTexto: '2 anos e 1 mês',
+        paybackTexto: '25 meses',
       },
       projecao: {
         ...dadosExemplo.projecao,
