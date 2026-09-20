@@ -38,11 +38,11 @@ const MOTIVOS_REABERTURA = [
 ]
 
 const ETAPAS_DESTINO: { id: ClienteStatus; label: string }[] = [
-  { id: 'Novo Lead', label: 'Novo Lead (Inicial)' },
-  { id: 'Contato Feito', label: 'Contato Feito' },
-  { id: 'Visita Agendada', label: 'Visita Agendada' },
-  { id: 'Proposta Apresentada', label: 'Proposta Apresentada' },
-  { id: 'Negociação', label: 'Negociação' },
+  { id: 'Novo Lead', label: '1 - Novo Lead' },
+  { id: 'Levantamento', label: '2 - Levantamento' },
+  { id: 'Orçamento', label: '3 - Proposta Enviada' },
+  { id: 'Negociação', label: '4 - Negociação' },
+  { id: 'Contato Futuro', label: '5 - Contato Futuro' },
 ]
 
 export const ModalNovaOportunidade: React.FC<ModalNovaOportunidadeProps> = ({
@@ -86,9 +86,7 @@ export const ModalNovaOportunidade: React.FC<ModalNovaOportunidadeProps> = ({
       } else if (usuarios.length > 0) {
         // Encontrar por nome ou pegar o primeiro consultor/vendedor
         const matchingUser =
-          usuarios.find((u) => u.nome === cliente.responsavel_nome) ||
-          usuarios.find((u) => u.cargo === 'consultor' || u.cargo === 'vendedor') ||
-          usuarios[0]
+          usuarios.find((u) => u.name === cliente.responsavel_nome) || usuarios[0]
         setResponsavelId(matchingUser?.id || '')
       } else {
         setResponsavelId('')
@@ -112,7 +110,7 @@ export const ModalNovaOportunidade: React.FC<ModalNovaOportunidadeProps> = ({
     const valorNum = parseFloat(valorLimpo)
 
     const respSelecionado = usuarios.find((u) => u.id === responsavelId)
-    const respNome = respSelecionado ? respSelecionado.nome : cliente.responsavel_nome || ''
+    const respNome = respSelecionado ? respSelecionado.name : cliente.responsavel_nome || ''
 
     setIsSubmitting(true)
     setErro(null)
@@ -290,7 +288,7 @@ export const ModalNovaOportunidade: React.FC<ModalNovaOportunidadeProps> = ({
                 {usuarios.length > 0 ? (
                   usuarios.map((u) => (
                     <SelectItem key={u.id} value={u.id} className="text-xs">
-                      {u.nome} {u.cargo ? `(${u.cargo})` : ''}
+                      {u.name} {u.role ? `(${u.role})` : ''}
                     </SelectItem>
                   ))
                 ) : (

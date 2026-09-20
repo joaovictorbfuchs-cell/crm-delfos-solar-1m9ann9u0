@@ -20,6 +20,7 @@ import {
   ShieldCheck,
   ChevronRight,
   Info,
+  Sparkles,
 } from 'lucide-react'
 import { UsinaCliente, ContratoOM, Cliente } from '@/types/crm'
 import { formatCurrency, formatDate, formatWhatsAppPhone } from '@/lib/formatters'

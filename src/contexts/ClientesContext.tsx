@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react'
 import type {
   Cliente,
+  ClienteStatus,
   Sistema,
   Manutencao,
   Atividade,

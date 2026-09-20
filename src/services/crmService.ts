@@ -1,6 +1,7 @@
 import pb from '@/lib/pocketbase/client'
 import type {
   Cliente,
+  ClienteStatus,
   Sistema,
   Manutencao,
   Atividade,
