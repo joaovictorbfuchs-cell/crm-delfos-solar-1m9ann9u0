@@ -593,17 +593,37 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
     const raw = sistema?.estruturaFixacao
     if (!raw || !raw.trim()) return 'Telhado / Solo'
     const normalizado = raw.toLowerCase().trim()
-    if (normalizado === 'ceramico' || normalizado.includes('cerâmico')) return 'Cerâmico'
+    if (
+      normalizado === 'ceramico' ||
+      normalizado.includes('cerâmico') ||
+      normalizado === 'telhado cerâmico'
+    )
+      return 'Cerâmico'
     if (
       normalizado === 'metalico' ||
       normalizado.includes('metálico') ||
-      normalizado.includes('metalico')
+      normalizado.includes('metalico') ||
+      normalizado === 'telhado metálico'
     )
       return 'Metálico'
-    if (normalizado === 'laje' || normalizado.includes('laje')) return 'Laje'
-    if (normalizado === 'fibrocimento' || normalizado.includes('fibrocimento'))
+    if (
+      normalizado === 'laje' ||
+      normalizado.includes('laje') ||
+      normalizado === 'laje de concreto'
+    )
+      return 'Laje'
+    if (
+      normalizado === 'fibrocimento' ||
+      normalizado.includes('fibrocimento') ||
+      normalizado === 'telhado fibrocimento'
+    )
       return 'Fibrocimento'
-    if (normalizado === 'solo' || normalizado.includes('solo')) return 'Solo'
+    if (
+      normalizado === 'solo' ||
+      normalizado.includes('solo') ||
+      normalizado === 'estrutura de solo'
+    )
+      return 'Solo'
     return raw
   })()
   const garantiaModulosDesempenho = garantias?.paineisAnosDesempenho || 30
@@ -1706,10 +1726,12 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
     }
     .card-sistema-title-group {
       display: flex;
+      flex-direction: row !important;
       align-items: center;
       gap: 8px;
       min-width: 0;
       overflow: hidden;
+      flex: 1;
     }
     .card-sistema-icon-wrap {
       width: 36px;
@@ -1775,14 +1797,15 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
       border: 1px solid #FCD34D;
     }
     .card-sistema-label {
-      font-size: 10pt;
+      font-size: 9.5pt;
       font-weight: 700;
       text-transform: uppercase;
       color: #374151;
-      letter-spacing: 0.03em;
+      letter-spacing: 0.02em;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
+      line-height: 1.2;
     }
     .card-sistema-valor {
       font-size: 19pt;

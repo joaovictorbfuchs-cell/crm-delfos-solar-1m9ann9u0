@@ -213,6 +213,28 @@ describe('SecaoSeuSistemaFotovoltaico - Geração Mensal Detalhada', () => {
     // 4. Card Área Necessária exibe o tipo de estrutura de fixação selecionado
     expect(html).toContain('Cerâmico')
 
+    // 4b. Testar outros tipos de estrutura selecionados na aba Dados Técnicos & Sistema
+    const htmlSolo = renderToStaticMarkup(
+      React.createElement(SecaoSeuSistemaFotovoltaico, {
+        tipoEstrutura: 'solo',
+      }),
+    )
+    expect(htmlSolo).toContain('Solo')
+
+    const htmlMetalico = renderToStaticMarkup(
+      React.createElement(SecaoSeuSistemaFotovoltaico, {
+        tipoEstrutura: 'metalico',
+      }),
+    )
+    expect(htmlMetalico).toContain('Metálico')
+
+    const htmlFibro = renderToStaticMarkup(
+      React.createElement(SecaoSeuSistemaFotovoltaico, {
+        tipoEstrutura: 'fibrocimento',
+      }),
+    )
+    expect(htmlFibro).toContain('Fibrocimento')
+
     // 5. Card Garantia Instalação NÃO contém "Garantia integral sobre mão de obra, cabos e ART."
     expect(html).not.toContain('Garantia integral sobre mão de obra, cabos e ART.')
 

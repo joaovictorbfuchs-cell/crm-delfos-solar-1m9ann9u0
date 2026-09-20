@@ -178,11 +178,37 @@ export const SecaoSeuSistemaFotovoltaico: React.FC<SecaoSeuSistemaFotovoltaicoPr
   const estruturaLabel = (() => {
     if (!tipoEstrutura || !tipoEstrutura.trim()) return 'Telhado / Solo'
     const normalizado = tipoEstrutura.toLowerCase().trim()
-    if (normalizado === 'ceramico') return 'Cerâmico'
-    if (normalizado === 'metalico' || normalizado === 'metálico') return 'Metálico'
-    if (normalizado === 'laje') return 'Laje'
-    if (normalizado === 'fibrocimento') return 'Fibrocimento'
-    if (normalizado === 'solo') return 'Solo'
+    if (
+      normalizado === 'ceramico' ||
+      normalizado.includes('cerâmico') ||
+      normalizado === 'telhado cerâmico'
+    )
+      return 'Cerâmico'
+    if (
+      normalizado === 'metalico' ||
+      normalizado.includes('metálico') ||
+      normalizado.includes('metalico') ||
+      normalizado === 'telhado metálico'
+    )
+      return 'Metálico'
+    if (
+      normalizado === 'laje' ||
+      normalizado.includes('laje') ||
+      normalizado === 'laje de concreto'
+    )
+      return 'Laje'
+    if (
+      normalizado === 'fibrocimento' ||
+      normalizado.includes('fibrocimento') ||
+      normalizado === 'telhado fibrocimento'
+    )
+      return 'Fibrocimento'
+    if (
+      normalizado === 'solo' ||
+      normalizado.includes('solo') ||
+      normalizado === 'estrutura de solo'
+    )
+      return 'Solo'
     return tipoEstrutura
   })()
 
@@ -279,13 +305,13 @@ export const SecaoSeuSistemaFotovoltaico: React.FC<SecaoSeuSistemaFotovoltaicoPr
           {/* Card 1: ⚡ Potência do sistema */}
           <div className="bg-[#f5f5f5] rounded-xl p-2.5 sm:p-3 border border-gray-300 shadow-xs hover:shadow-md transition-all group flex flex-col justify-between">
             <div className="flex items-center justify-between gap-2 mb-2">
-              <div className="flex items-center gap-2 min-w-0">
+              <div className="flex items-center gap-2 min-w-0 flex-1">
                 <div className="w-9 h-9 rounded-lg bg-amber-50 border border-amber-200/60 flex items-center justify-center text-amber-600 shrink-0 group-hover:scale-105 transition-transform shadow-2xs">
                   <Zap className="w-4.5 h-4.5 fill-amber-500 text-amber-600" />
                 </div>
-                <div className="text-[11px] font-bold text-gray-700 uppercase tracking-wide truncate whitespace-nowrap">
+                <span className="text-[11px] font-bold text-gray-700 uppercase tracking-wide truncate whitespace-nowrap">
                   Potência do sistema
-                </div>
+                </span>
               </div>
               <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200 shrink-0 whitespace-nowrap">
                 Capacidade Nominal
@@ -308,13 +334,13 @@ export const SecaoSeuSistemaFotovoltaico: React.FC<SecaoSeuSistemaFotovoltaicoPr
           {/* Card 2: 📊 Geração estimada + economia */}
           <div className="bg-[#f5f5f5] rounded-xl p-2.5 sm:p-3 border border-gray-300 shadow-xs hover:shadow-md transition-all group flex flex-col justify-between">
             <div className="flex items-center justify-between gap-2 mb-2">
-              <div className="flex items-center gap-2 min-w-0">
+              <div className="flex items-center gap-2 min-w-0 flex-1">
                 <div className="w-9 h-9 rounded-lg bg-emerald-50 border border-emerald-200/60 flex items-center justify-center text-emerald-600 shrink-0 group-hover:scale-105 transition-transform shadow-2xs">
                   <TrendingUp className="w-4.5 h-4.5 text-emerald-600" />
                 </div>
-                <div className="text-[11px] font-bold text-gray-700 uppercase tracking-wide truncate whitespace-nowrap">
+                <span className="text-[11px] font-bold text-gray-700 uppercase tracking-wide truncate whitespace-nowrap">
                   Geração estimada
-                </div>
+                </span>
               </div>
               <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-full border border-emerald-300 shrink-0 whitespace-nowrap">
                 Alta Produção
@@ -336,7 +362,7 @@ export const SecaoSeuSistemaFotovoltaico: React.FC<SecaoSeuSistemaFotovoltaicoPr
           <div className="bg-[#f5f5f5] rounded-xl p-2.5 sm:p-3 border border-gray-300 shadow-xs hover:shadow-md transition-all group flex flex-col justify-between">
             <div>
               <div className="flex items-center justify-between gap-2 mb-2">
-                <div className="flex items-center gap-2 min-w-0">
+                <div className="flex items-center gap-2 min-w-0 flex-1">
                   {fotoModuloUrl ? (
                     <div className="w-9 h-9 rounded-lg border border-amber-200/80 bg-amber-50/40 p-1 flex items-center justify-center overflow-hidden shrink-0 group-hover:scale-105 transition-transform shadow-2xs">
                       <img
@@ -350,9 +376,9 @@ export const SecaoSeuSistemaFotovoltaico: React.FC<SecaoSeuSistemaFotovoltaicoPr
                       <ModuloSolarIcon className="w-4.5 h-4.5 text-amber-600" />
                     </div>
                   )}
-                  <div className="text-[11px] font-bold text-gray-700 uppercase tracking-wide truncate whitespace-nowrap">
+                  <span className="text-[11px] font-bold text-gray-700 uppercase tracking-wide truncate whitespace-nowrap">
                     Módulos Fotovoltaicos
-                  </div>
+                  </span>
                 </div>
                 <span className="text-[10px] font-bold uppercase tracking-wider text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200 shrink-0 whitespace-nowrap">
                   Tier-1 Global
@@ -392,7 +418,7 @@ export const SecaoSeuSistemaFotovoltaico: React.FC<SecaoSeuSistemaFotovoltaicoPr
           <div className="bg-[#f5f5f5] rounded-xl p-2.5 sm:p-3 border border-gray-300 shadow-xs hover:shadow-md transition-all group flex flex-col justify-between">
             <div>
               <div className="flex items-center justify-between gap-2 mb-2">
-                <div className="flex items-center gap-2 min-w-0">
+                <div className="flex items-center gap-2 min-w-0 flex-1">
                   {fotoInversorUrl ? (
                     <div className="w-9 h-9 rounded-lg border border-teal-200/80 bg-teal-50/40 p-1 flex items-center justify-center overflow-hidden shrink-0 group-hover:scale-105 transition-transform shadow-2xs">
                       <img
@@ -406,9 +432,9 @@ export const SecaoSeuSistemaFotovoltaico: React.FC<SecaoSeuSistemaFotovoltaicoPr
                       <CircuitBoard className="w-4.5 h-4.5 text-teal-600" />
                     </div>
                   )}
-                  <div className="text-[11px] font-bold text-gray-700 uppercase tracking-wide truncate whitespace-nowrap">
+                  <span className="text-[11px] font-bold text-gray-700 uppercase tracking-wide truncate whitespace-nowrap">
                     Inversor Solar
-                  </div>
+                  </span>
                 </div>
                 <span className="text-[10px] font-bold uppercase tracking-wider text-teal-800 bg-teal-50 px-2 py-0.5 rounded-full border border-teal-200 shrink-0 whitespace-nowrap">
                   {quantidadeInversores} {quantidadeInversores > 1 ? 'Inversores' : 'Inversor'}
@@ -441,13 +467,13 @@ export const SecaoSeuSistemaFotovoltaico: React.FC<SecaoSeuSistemaFotovoltaicoPr
           {/* Card 5: 📐 Área necessária */}
           <div className="bg-[#f5f5f5] rounded-xl p-2.5 sm:p-3 border border-gray-300 shadow-xs hover:shadow-md transition-all group flex flex-col justify-between">
             <div className="flex items-center justify-between gap-2 mb-2">
-              <div className="flex items-center gap-2 min-w-0">
+              <div className="flex items-center gap-2 min-w-0 flex-1">
                 <div className="w-9 h-9 rounded-lg bg-blue-50 border border-blue-200/60 flex items-center justify-center text-blue-600 shrink-0 group-hover:scale-105 transition-transform shadow-2xs">
                   <Maximize2 className="w-4.5 h-4.5 text-blue-600" />
                 </div>
-                <div className="text-[11px] font-bold text-gray-700 uppercase tracking-wide truncate whitespace-nowrap">
+                <span className="text-[11px] font-bold text-gray-700 uppercase tracking-wide truncate whitespace-nowrap">
                   Área necessária
-                </div>
+                </span>
               </div>
               <span className="text-[10px] font-bold uppercase tracking-wider text-amber-800 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200 shrink-0 whitespace-nowrap">
                 {estruturaLabel}
@@ -470,13 +496,13 @@ export const SecaoSeuSistemaFotovoltaico: React.FC<SecaoSeuSistemaFotovoltaicoPr
           {/* Card 6: 🛡️ Garantia instalação Delfos */}
           <div className="bg-[#f5f5f5] rounded-xl p-2.5 sm:p-3 border border-gray-300 shadow-xs hover:shadow-md transition-all group flex flex-col justify-between">
             <div className="flex items-center justify-between gap-2 mb-2">
-              <div className="flex items-center gap-2 min-w-0">
+              <div className="flex items-center gap-2 min-w-0 flex-1">
                 <div className="w-9 h-9 rounded-lg bg-emerald-50 border border-emerald-200/60 flex items-center justify-center text-emerald-700 shrink-0 group-hover:scale-105 transition-transform shadow-2xs">
                   <ShieldCheck className="w-4.5 h-4.5 text-emerald-700" />
                 </div>
-                <div className="text-[11px] font-bold text-gray-700 uppercase tracking-wide truncate whitespace-nowrap">
+                <span className="text-[11px] font-bold text-gray-700 uppercase tracking-wide truncate whitespace-nowrap">
                   Garantia Instalação
-                </div>
+                </span>
               </div>
               <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200 shrink-0 whitespace-nowrap">
                 Engenharia Própria
