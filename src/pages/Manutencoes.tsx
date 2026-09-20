@@ -1,4 +1,5 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
+import { useLocation } from 'react-router-dom'
 import {
   ShieldCheck,
   Loader2,
@@ -35,11 +36,20 @@ export default function Manutencoes() {
     openFichaOM,
   } = useClientes()
 
+  const location = useLocation()
   const [viewMode, setViewMode] = useState<'om' | 'ordens_servico' | 'os_avulsa'>('om')
   const [activeSubTab, setActiveSubTab] = useState<AbaPrincipalOM>('com_plano')
   const [isNovoContratoOpen, setIsNovoContratoOpen] = useState(false)
   const [isNovaManutencaoOpen, setIsNovaManutencaoOpen] = useState(false)
   const [isNovaPropostaOpen, setIsNovaPropostaOpen] = useState(false)
+
+  // Quando acessado via rota direta /planos-om ou /planos-monitoramento, força a aba com_plano (Planos O&M)
+  useEffect(() => {
+    if (location.pathname === '/planos-om' || location.pathname === '/planos-monitoramento') {
+      setViewMode('om')
+      setActiveSubTab('com_plano')
+    }
+  }, [location.pathname])
 
   // Métricas do Módulo O&M unificadas com a categorização por cliente
   const contagens = React.useMemo(
@@ -80,11 +90,13 @@ export default function Manutencoes() {
             </div>
             <div>
               <h2 className="text-lg font-bold text-gray-900 tracking-tight">
-                Gestão de O&M (Operação e Manutenção)
+                {location.pathname === '/planos-om' || location.pathname === '/planos-monitoramento'
+                  ? 'Planos de Monitoramento & O&M'
+                  : 'Gestão de O&M (Operação e Manutenção)'}
               </h2>
               <p className="text-xs text-gray-500">
-                Acompanhamento de planos ativos, oportunidades de O&M e relacionamento pós-vendas
-                com toda a base de clientes
+                Acompanhamento com filtros avançados de planos ativos, lavagens programadas,
+                monitoramento e manutenção preventiva
               </p>
             </div>
           </div>

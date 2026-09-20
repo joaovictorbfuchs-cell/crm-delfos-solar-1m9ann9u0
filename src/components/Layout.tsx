@@ -22,6 +22,7 @@ import {
   MessageSquare,
   Settings,
   Shield,
+  ShieldCheck,
   Images,
   Cpu,
   Zap,
@@ -97,6 +98,9 @@ export default function Layout() {
         return 'Atividades & Calendário'
       case '/execucao-os':
         return 'Execução de OS'
+      case '/planos-om':
+      case '/planos-monitoramento':
+        return 'Planos de Monitoramento & O&M'
       case '/manutencoes':
         return 'Contratos & Manutenções (O&M)'
       case '/central-atendimento':
@@ -138,6 +142,7 @@ export default function Layout() {
         { name: 'Projetos', path: '/projetos', icon: FolderKanban },
         { name: 'Atividades', path: '/atividades', icon: CalendarCheck },
         { name: 'Execução de OS', path: '/execucao-os', icon: ClipboardCheck },
+        { name: 'Planos O&M', path: '/planos-om', icon: ShieldCheck },
         { name: 'O&M / Manutenções', path: '/manutencoes', icon: Wrench },
         { name: 'Automações', path: '/automacoes', icon: Zap },
         { name: 'Cadastro de Equipamentos', path: '/equipamentos', icon: Cpu },
@@ -215,7 +220,10 @@ export default function Layout() {
             const isActive =
               location.pathname === item.path ||
               (item.path === '/propostas' && location.pathname === '/orcamentos') ||
-              (item.path === '/orcamentos' && location.pathname === '/propostas')
+              (item.path === '/orcamentos' && location.pathname === '/propostas') ||
+              (item.path === '/planos-om' &&
+                (location.pathname === '/planos-om' ||
+                  location.pathname === '/planos-monitoramento'))
             return (
               <NavLink
                 key={item.path}
@@ -362,7 +370,10 @@ export default function Layout() {
                     to={item.path}
                     onClick={() => setMobileMenuOpen(false)}
                     className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-colors ${
-                      isActive
+                      isActive ||
+                      (item.path === '/planos-om' &&
+                        (location.pathname === '/planos-om' ||
+                          location.pathname === '/planos-monitoramento'))
                         ? 'bg-[#DCFCE7] text-[#166534] font-semibold'
                         : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
                     }`}

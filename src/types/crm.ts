@@ -775,6 +775,8 @@ export type OMTimelineTipo =
   | 'interacao'
   | 'inspecao'
 
+export type OMPerformanceUsina = 'acima_meta' | 'na_meta' | 'abaixo_meta' | 'sem_monitoramento'
+
 export interface ContratoOM extends RecordModel {
   id: string
   collectionId: string
@@ -789,6 +791,14 @@ export interface ContratoOM extends RecordModel {
   data_vencimento: string
   proxima_atividade_data?: string
   proxima_atividade_titulo?: string
+  tipo_proxima_atividade?: string
+  data_ultima_atividade?: string
+  tipo_ultima_atividade?: string
+  performance_usina?: OMPerformanceUsina | string
+  potencia_kwp?: number
+  qtd_modulos?: number
+  area_telhado_m2?: number
+  dias_desde_ultima_atividade?: number
   servicos_realizados?: string[]
   servicos_agendados?: string[]
   observacoes?: string

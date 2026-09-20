@@ -134,6 +134,22 @@ const App = () => (
               }
             />
             <Route
+              path="/planos-om"
+              element={
+                <ProtectedRoute requiredRole="admin">
+                  <Manutencoes />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/planos-monitoramento"
+              element={
+                <ProtectedRoute requiredRole="admin">
+                  <Manutencoes />
+                </ProtectedRoute>
+              }
+            />
+            <Route
               path="/clientes"
               element={
                 <ProtectedRoute requiredRole="admin">

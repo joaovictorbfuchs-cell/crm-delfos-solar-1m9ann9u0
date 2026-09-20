@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-19T23:55:42.523Z",
+  "generatedAt": "2026-09-20T00:05:40.077Z",
   "collections": [
     {
       "name": "users",
@@ -1328,6 +1328,54 @@
         {
           "name": "numero_contrato",
           "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "tipo_proxima_atividade",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "data_ultima_atividade",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "tipo_ultima_atividade",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "performance_usina",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "potencia_kwp",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "qtd_modulos",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "area_telhado_m2",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "dias_desde_ultima_atividade",
+          "type": "number",
           "required": false,
           "system": false
         }
