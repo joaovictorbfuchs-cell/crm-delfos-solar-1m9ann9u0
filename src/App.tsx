@@ -58,7 +58,7 @@ const App = () => (
           {/* Rotas protegidas (autenticadas): envelopadas pelo ClientesProvider */}
           <Route
             element={
-              <ErrorBoundary errorMessage="Ocorreu um problema ao carregar a página">
+              <ErrorBoundary errorMessage="Ocorreu um problema ao carregar a página inicial do CRM">
                 <ProtectedRoute>
                   <ClientesProvider>
                     <Layout />
@@ -68,13 +68,22 @@ const App = () => (
             }
           >
             {/* Rota comum ou permitida a ambos */}
-            <Route path="/execucao-os" element={<ExecucaoOS />} />
+            <Route
+              path="/execucao-os"
+              element={
+                <ErrorBoundary errorMessage="Ocorreu um problema ao carregar o módulo de Execução de OS">
+                  <ExecucaoOS />
+                </ErrorBoundary>
+              }
+            />
             {/* Rotas restritas para Administradores: Layout já tem ProtectedRoute de autenticação geral, aqui apenas requiredRole="admin" se necessário */}
             <Route
               path="/"
               element={
                 <ProtectedRoute requiredRole="admin">
-                  <Index />
+                  <ErrorBoundary errorMessage="Ocorreu um problema ao carregar o Dashboard">
+                    <Index />
+                  </ErrorBoundary>
                 </ProtectedRoute>
               }
             />

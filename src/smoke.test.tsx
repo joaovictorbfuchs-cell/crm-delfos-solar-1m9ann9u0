@@ -4,6 +4,7 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import Login from './pages/Login'
 import App from './App'
 import { AuthProvider } from './contexts/AuthContext'
+import { ProtectedRoute } from './components/ProtectedRoute'
 import { MemoryRouter } from 'react-router-dom'
 import pb from './lib/pocketbase/client'
 
@@ -42,5 +43,34 @@ describe('Login e App Smoke Tests', () => {
     expect(html).not.toContain('Ops! Algo deu errado')
     // Verifica que renderizou a tela de login
     expect(html).toContain('Painel de Acesso')
+  })
+
+  it('renderiza App na rota raiz / deslogado redirecionando ou sem tela branca', () => {
+    window.history.pushState({}, 'Dashboard', '/')
+    const html = renderToStaticMarkup(React.createElement(App, null))
+    // Quando não autenticado, no SSR/static markup renderiza loader de loading ou redirecionamento
+    expect(html).toBeDefined()
+    expect(html.length).toBeGreaterThan(0)
+  })
+
+  it('renderiza ProtectedRoute com fallback seguro quando deslogado', () => {
+    const html = renderToStaticMarkup(
+      React.createElement(
+        MemoryRouter,
+        { initialEntries: ['/'] },
+        React.createElement(
+          AuthProvider,
+          null,
+          React.createElement(
+            ProtectedRoute,
+            null,
+            React.createElement('div', null, 'Conteúdo Protegido'),
+          ),
+        ),
+      ),
+    )
+    expect(html).toBeDefined()
+    // Como está deslogado no PocketBase mock, deve renderizar ou o loader do ProtectedRoute ou redirecionamento sem tela branca
+    expect(html).not.toContain('Ocorreu um problema ao carregar a página')
   })
 })

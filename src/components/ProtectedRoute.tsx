@@ -49,6 +49,10 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, requir
     return <Navigate to="/execucao-os" replace />
   }
 
+  if (!children) {
+    return <Navigate to="/login" replace />
+  }
+
   return <>{children}</>
 }
 export default ProtectedRoute
