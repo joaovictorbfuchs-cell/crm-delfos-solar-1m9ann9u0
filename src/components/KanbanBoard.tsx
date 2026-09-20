@@ -16,7 +16,6 @@ import type { Cliente, ClienteStatus, Atividade } from '@/types/crm'
 import { formatCurrency } from '@/lib/formatters'
 import { useClientes } from '@/contexts/ClientesContext'
 import { FUNIL_ETAPAS_CONFIG } from '@/components/StatusBadge'
-import { OrigemClienteBadge } from '@/components/OrigemClienteBadge'
 import { useToast } from '@/hooks/use-toast'
 import {
   DropdownMenu,
@@ -561,17 +560,11 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ clientes: clientesProp
                           </div>
                         </div>
 
-                        {/* Linha 2: Valor do negócio: text-xs font-bold em azul marinho (#1a3a5c) ou verde (emerald-600) */}
+                        {/* Linha 2: Valor do negócio: text-xs font-bold em azul marinho (#1a3a5c) */}
                         <div className="mt-1 flex items-center justify-between gap-1 min-w-0">
                           <span className="font-bold text-xs truncate" style={{ color: '#1a3a5c' }}>
                             {formatCurrency(client.valor_estimado || 0)}
                           </span>
-
-                          {/* Tag de origem do lead (colorida por canal) */}
-                          <OrigemClienteBadge
-                            cliente={client}
-                            className="text-[10px] py-0 px-1.5 h-5 shrink-0"
-                          />
                         </div>
 
                         {/* Linha 3: Localização + Potência na mesma linha com ícones Lucide (text-[11px] text-muted-foreground) */}
