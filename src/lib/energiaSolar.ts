@@ -1035,7 +1035,7 @@ export function calcularOrcamentoSolar(input: InputCalculoSolar): CalculosSolarR
   const principalBanco1 = Math.max(0, baseFinanciadaBanco1 - entradaBanco1)
   const parcelaFinancBanco1 = calcularParcelaPrice(principalBanco1, taxaBanco1, parcelasBanco1)
   const financiamentoBanco1: ParcelamentoItem = {
-    titulo: 'Financiamento Banco 1',
+    titulo: 'Financiamento 1',
     descricao: `Até ${parcelasBanco1}x com juros de ${taxaBanco1.toFixed(2).replace('.', ',')}% a.m.`,
     numeroParcelas: parcelasBanco1,
     taxaJurosMensal: taxaBanco1,
@@ -1070,7 +1070,7 @@ export function calcularOrcamentoSolar(input: InputCalculoSolar): CalculosSolarR
   const principalBanco2 = Math.max(0, baseFinanciadaBanco2 - entradaBanco2)
   const parcelaFinancBanco2 = calcularParcelaPrice(principalBanco2, taxaBanco2, parcelasBanco2)
   const financiamentoBanco2: ParcelamentoItem = {
-    titulo: 'Financiamento Banco 2',
+    titulo: 'Financiamento 2',
     descricao: `Até ${parcelasBanco2}x com juros de ${taxaBanco2.toFixed(2).replace('.', ',')}% a.m.`,
     numeroParcelas: parcelasBanco2,
     taxaJurosMensal: taxaBanco2,

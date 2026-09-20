@@ -486,7 +486,11 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
     parcelamento?.cartao18x?.contaComSolar !== undefined ? parcelamento.cartao18x.contaComSolar : 0
   const cartaoDesembolso = cartaoValor + cartaoContaComSolar
 
-  const finanANome = parcelamento?.financiamentoA?.nome || 'Financiamento A'
+  const rawFinanANome = parcelamento?.financiamentoA?.nome || 'Financiamento 1'
+  const finanANome = rawFinanANome
+    .replace(/FINANCIAMENTO\s*BANCO\s*1/i, 'FINANCIAMENTO 1')
+    .replace(/Financiamento\s*Banco\s*1/i, 'Financiamento 1')
+    .replace(/BANCO\s*1/i, 'FINANCIAMENTO 1')
   const finanAParcelas = parcelamento?.financiamentoA?.numeroParcelas || 60
   const finanAEntrada =
     parcelamento?.financiamentoA?.entrada !== undefined &&
@@ -511,7 +515,11 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
       : 0
   const finanADesembolso = finanAValor + finanAContaComSolar
 
-  const finanBNome = parcelamento?.financiamentoB?.nome || 'Financiamento B'
+  const rawFinanBNome = parcelamento?.financiamentoB?.nome || 'Financiamento 2'
+  const finanBNome = rawFinanBNome
+    .replace(/FINANCIAMENTO\s*BANCO\s*2/i, 'FINANCIAMENTO 2')
+    .replace(/Financiamento\s*Banco\s*2/i, 'Financiamento 2')
+    .replace(/BANCO\s*2/i, 'FINANCIAMENTO 2')
   const finanBParcelas = parcelamento?.financiamentoB?.numeroParcelas || 120
   const finanBEntrada =
     parcelamento?.financiamentoB?.entrada !== undefined &&
@@ -2092,9 +2100,9 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
       }
     }
     .card-pagamento, .card-condicoes-comerciais {
-      border: 1px solid #E5E7EB;
+      border: 1.5px solid #9CA3AF;
       border-radius: 10px;
-      background: #FFFFFF;
+      background: #FAFAFA;
       padding: 7px 6px;
       display: flex;
       flex-direction: column;
@@ -2107,12 +2115,22 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
       box-sizing: border-box;
       overflow: hidden;
       min-width: 0;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
     }
     .card-pagamento.destaque-verde {
-      border: 2px solid #16a34a;
+      border: 2px solid #16a34a !important;
       background: #FFFFFF;
       border-radius: 10px;
       box-shadow: 0 3px 10px rgba(22, 163, 74, 0.14);
+    }
+    .card-pagamento.cartao-print-destaque {
+      border: 1.5px solid #9CA3AF !important;
+      background: #F8FAFC !important;
+    }
+    .card-pagamento.destaque-azul {
+      border: 1.5px solid #60A5FA !important;
+      background: #F0F9FF !important;
     }
     .card-pagamento-icon-circle {
       width: 32px;
@@ -3304,13 +3322,11 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
               </div>
               <div style="font-size: 7.5pt; font-weight: 700; color: #4B5563; margin-top: 1px; line-height: 1.15;">Valor total do projeto</div>
               <div class="card-pagamento-valor" style="color: #16a34a; margin-top: 1px; margin-bottom: 1px; font-size: 11.5pt; font-weight: 900; line-height: 1.15; letter-spacing: -0.01em;">${formatBRL(aVistaValor)}</div>
-              <div class="card-pagamento-desc" style="font-size: 7.5pt; color: #6B7280; line-height: 1.2;">
-                ${
-                  aVistaDesconto > 0
-                    ? `Desconto de ${formatBRL(aVistaDesconto)}`
-                    : 'Pagamento único com desconto'
-                }
-              </div>
+              ${
+                aVistaDesconto > 0
+                  ? `<div class="card-pagamento-desc" style="font-size: 7.5pt; color: #6B7280; line-height: 1.2;">Desconto de ${formatBRL(aVistaDesconto)}</div>`
+                  : ''
+              }
             </div>
             <div style="margin-top: 4px; padding-top: 3px; border-top: 1px solid #A7F3D0; font-size: 7.5pt; line-height: 1.25;">
               <div style="display: flex; justify-content: space-between; align-items: baseline; color: #6B7280; gap: 2px;">
@@ -3329,7 +3345,7 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
           </div>
 
           <!-- Card 2: Cartão -->
-          <div class="card-pagamento" style="border: 1px solid #E5E7EB; background: #ffffff; border-radius: 10px; padding: 7px 6px;">
+          <div class="card-pagamento cartao-print-destaque" style="border: 1.5px solid #9CA3AF; background: #F8FAFC; border-radius: 10px; padding: 7px 6px;">
             <div>
               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px; gap: 2px;">
                 <span class="card-pagamento-titulo" style="margin: 0; font-size: 8.5pt; font-weight: 900; color: #111827; text-transform: uppercase; white-space: nowrap; letter-spacing: -0.01em;">CARTÃO</span>
@@ -3364,7 +3380,7 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
           </div>
 
           <!-- Card 3: Financiamento A -->
-          <div class="card-pagamento destaque-azul" style="border: 1px solid #60A5FA; background: #F0F9FF; border-radius: 10px; padding: 7px 6px;">
+          <div class="card-pagamento destaque-azul" style="border: 1.5px solid #60A5FA; background: #F0F9FF; border-radius: 10px; padding: 7px 6px;">
             <div>
               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px; gap: 2px;">
                 <span class="card-pagamento-titulo" style="margin: 0; font-size: 8.5pt; font-weight: 900; color: #172554; text-transform: uppercase; white-space: nowrap; line-height: 1.15; letter-spacing: -0.01em;" title="${finanANome}">${finanANome}</span>
@@ -3373,11 +3389,6 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
               <div class="card-pagamento-valor" style="color: #1E40AF; margin-top: 1px; margin-bottom: 1px; font-size: 11.5pt; font-weight: 900; line-height: 1.15; letter-spacing: -0.01em;">
                 ${formatBRL(finanAValor)}
               </div>
-              ${
-                finanAIof > 0
-                  ? `<div style="font-size: 7.5pt; font-weight: 700; color: #1E40AF; margin-top: 1px; white-space: nowrap;">Inc. IOF ${formatBRL(finanAIof)}</div>`
-                  : ''
-              }
               <div class="card-pagamento-desc" style="font-size: 7.5pt; color: #6B7280; line-height: 1.2;">
                 ${
                   finanAEntrada > 0
@@ -3404,7 +3415,7 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
           </div>
 
           <!-- Card 4: Financiamento B -->
-          <div class="card-pagamento destaque-azul" style="border: 1px solid #60A5FA; background: #F0F9FF; border-radius: 10px; padding: 7px 6px;">
+          <div class="card-pagamento destaque-azul" style="border: 1.5px solid #60A5FA; background: #F0F9FF; border-radius: 10px; padding: 7px 6px;">
             <div>
               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px; gap: 2px;">
                 <span class="card-pagamento-titulo" style="margin: 0; font-size: 8.5pt; font-weight: 900; color: #172554; text-transform: uppercase; white-space: nowrap; line-height: 1.15; letter-spacing: -0.01em;" title="${finanBNome}">${finanBNome}</span>
@@ -3413,11 +3424,6 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
               <div class="card-pagamento-valor" style="color: #1E40AF; margin-top: 1px; margin-bottom: 1px; font-size: 11.5pt; font-weight: 900; line-height: 1.15; letter-spacing: -0.01em;">
                 ${formatBRL(finanBValor)}
               </div>
-              ${
-                finanBIof > 0
-                  ? `<div style="font-size: 7.5pt; font-weight: 700; color: #1E40AF; margin-top: 1px; white-space: nowrap;">Inc. IOF ${formatBRL(finanBIof)}</div>`
-                  : ''
-              }
               <div class="card-pagamento-desc" style="font-size: 7.5pt; color: #6B7280; line-height: 1.2;">
                 ${
                   finanBEntrada > 0
@@ -3445,7 +3451,11 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
         </div>
 
         <!-- LINHA DE PRAZO DE ENTREGA LOGO ABAIXO DOS 4 CARDS -->
-        <div style="background: #FFFFFF; border: 1px solid #E5E7EB; border-radius: 10px; padding: 7px 12px; margin-bottom: 8px; display: flex; align-items: center; justify-content: space-between; font-size: 10pt; color: #374151;">
+        <div style="background: #FFFFFF; border: 1.5px solid #9CA3AF;
+border-radius: 10px;
+padding: 7px 12px;
+-webkit-print-color-adjust: exact !important;
+print-color-adjust: exact !important; margin-bottom: 8px; display: flex; align-items: center; justify-content: space-between; font-size: 10pt; color: #374151;">
           <span style="font-weight: 700; color: #1a3a5c;">
             Prazo de entrega: <strong style="color: #111827;">${prazoEntregaDias} dias úteis</strong> após aprovação do projeto
           </span>

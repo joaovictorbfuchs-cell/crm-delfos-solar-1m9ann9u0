@@ -519,7 +519,7 @@ describe('Proposta Técnico-Comercial Generator (5 Seções Oficiais)', () => {
     expect(html).toContain('com solar')
   })
 
-  it('exibe a linha "Inc. IOF R$ ..." nos blocos de Financiamento A e B quando valorIof for informado', () => {
+  it('NÃO exibe a linha "Inc. IOF R$ ..." nos blocos de financiamento conforme requisito de simplificação', () => {
     const dadosComIof: PropostaTecnicoComercialDados = {
       ...dadosExemplo,
       parcelamento: {
@@ -536,9 +536,9 @@ describe('Proposta Técnico-Comercial Generator (5 Seções Oficiais)', () => {
     }
 
     const html = gerarHTMLPropostaTecnicoComercial(dadosComIof)
-    expect(html).toContain('Inc. IOF')
-    expect(html).toContain('1.759,98')
-    expect(html).toContain('2.450,50')
+    expect(html).not.toContain('Inc. IOF')
+    expect(html).not.toContain('1.759,98')
+    expect(html).not.toContain('2.450,50')
   })
 
   it('valida em detalhe a estrutura e asserções da Seção 1 (Capa Oficial)', () => {
@@ -742,8 +742,7 @@ describe('Proposta Técnico-Comercial Generator (5 Seções Oficiais)', () => {
       // Identidade estrita entre preview e PDF
       expect(htmlPreview).toBe(htmlPDF)
       expect(htmlPreview).toContain('Veja como ficará sua usina no telhado')
-      expect(htmlPreview).toContain('Inc. IOF')
-      expect(htmlPreview).toContain('375,78')
+      expect(htmlPreview).not.toContain('Inc. IOF')
     })
 
     it('controla a visibilidade de seções opcionais via secoesHabilitadas', () => {
@@ -1165,6 +1164,27 @@ describe('Proposta Técnico-Comercial Generator (5 Seções Oficiais)', () => {
       expect(html).toContain('FINANCIAMENTO A (60X)')
       expect(html).not.toContain('FINANCIAME...')
       expect(html).toContain('FINANCIAMENTO B (120X)')
+
+      // Normalização de títulos com Banco 1/2
+      const dadosComBanco = {
+        ...dadosExemplo,
+        parcelamento: {
+          ...dadosExemplo.parcelamento,
+          financiamentoA: {
+            ...dadosExemplo.parcelamento.financiamentoA,
+            nome: 'Financiamento Banco 1',
+          },
+          financiamentoB: {
+            ...dadosExemplo.parcelamento.financiamentoB,
+            nome: 'Financiamento Banco 2',
+          },
+        },
+      }
+      const htmlBanco = gerarHTMLPropostaTecnicoComercial(dadosComBanco)
+      expect(htmlBanco).toContain('Financiamento 1')
+      expect(htmlBanco).toContain('Financiamento 2')
+      expect(htmlBanco).not.toContain('Financiamento Banco 1')
+      expect(htmlBanco).not.toContain('Financiamento Banco 2')
 
       // Linhas finais comparativas completas com Parc. + Conta =
       expect(html).toContain('Parc. + Conta =')

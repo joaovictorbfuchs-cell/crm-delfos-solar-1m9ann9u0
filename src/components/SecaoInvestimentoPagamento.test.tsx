@@ -14,14 +14,15 @@ describe('SecaoInvestimentoPagamento Component', () => {
     // Valor padrão R$ 45.000
     expect(html).toContain('45.000')
 
-    // 4 cards de pagamento (sem as badges de destaque conforme solicitação)
+    // 4 cards de pagamento (sem as badges de destaque conforme solicitação e sem "Pagamento único com desconto" quando desconto for 0)
     expect(html).toContain('À Vista')
     expect(html).not.toContain('Melhor condição')
+    expect(html).not.toContain('Pagamento único com desconto')
     expect(html).toContain('Cartão')
     expect(html).not.toContain('Condição facilitada')
-    expect(html).toContain('Financiamento A')
+    expect(html).toContain('Financiamento 1')
     expect(html).not.toContain('Menor parcela')
-    expect(html).toContain('Financiamento B')
+    expect(html).toContain('Financiamento 2')
     expect(html).not.toContain('Maior prazo')
 
     // Linhas comparativas inferiores idênticas à aba de parcelamento
@@ -145,7 +146,7 @@ describe('SecaoInvestimentoPagamento Component', () => {
     expect(html).toContain('De acordo com as especificações e valores da proposta')
   })
 
-  it('exibe a linha "Inclui IOF de R$ X" quando iofFinanciamentoA e iofFinanciamentoB forem informados', () => {
+  it('NÃO exibe a linha "Inclui IOF de R$ X" e normaliza títulos para Financiamento 1 e Financiamento 2', () => {
     const html = renderToStaticMarkup(
       React.createElement(SecaoInvestimentoPagamento, {
         valorInvestimento: 40000,
@@ -160,9 +161,36 @@ describe('SecaoInvestimentoPagamento Component', () => {
       }),
     )
 
-    expect(html).toContain('Inclui IOF de')
-    expect(html).toContain('1.759,98')
-    expect(html).toContain('1.250,50')
+    expect(html).not.toContain('Inclui IOF de')
+    expect(html).not.toContain('1.759,98')
+    expect(html).not.toContain('1.250,50')
+    expect(html).toContain('Financiamento 1')
+    expect(html).toContain('Financiamento 2')
+    expect(html).not.toContain('Financiamento Banco 1')
+    expect(html).not.toContain('Financiamento Banco 2')
+  })
+
+  it('exibe texto de desconto apenas quando descontoAVistaReais for maior que 0', () => {
+    const htmlComDesconto = renderToStaticMarkup(
+      React.createElement(SecaoInvestimentoPagamento, {
+        valorInvestimento: 40000,
+        valorAVista: 38000,
+        descontoAVistaReais: 2000,
+      }),
+    )
+    expect(htmlComDesconto).toContain('Desconto de')
+    expect(htmlComDesconto).toContain('2.000,00')
+    expect(htmlComDesconto).not.toContain('Pagamento único com desconto')
+
+    const htmlSemDesconto = renderToStaticMarkup(
+      React.createElement(SecaoInvestimentoPagamento, {
+        valorInvestimento: 40000,
+        valorAVista: 40000,
+        descontoAVistaReais: 0,
+      }),
+    )
+    expect(htmlSemDesconto).not.toContain('Desconto de')
+    expect(htmlSemDesconto).not.toContain('Pagamento único com desconto')
   })
 
   it('no bloco de assinaturas, não exibe o texto "Não informado" quando dados do cliente não estão disponíveis', () => {

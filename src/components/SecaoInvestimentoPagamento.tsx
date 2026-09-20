@@ -216,6 +216,16 @@ export const SecaoInvestimentoPagamento: React.FC<SecaoInvestimentoPagamentoProp
       ? valorParcelaCartao
       : Math.round(Math.max(0, totalFinal - entradaCartaoFinal) / parcelasCartaoFinal)
 
+  const tituloFinanciamentoAFinal = (nomeFinanciamentoA || 'Financiamento 1')
+    .replace(/FINANCIAMENTO\s*BANCO\s*1/i, 'Financiamento 1')
+    .replace(/Financiamento\s*Banco\s*1/i, 'Financiamento 1')
+    .replace(/BANCO\s*1/i, 'Financiamento 1')
+
+  const tituloFinanciamentoBFinal = (nomeFinanciamentoB || 'Financiamento 2')
+    .replace(/FINANCIAMENTO\s*BANCO\s*2/i, 'Financiamento 2')
+    .replace(/Financiamento\s*Banco\s*2/i, 'Financiamento 2')
+    .replace(/BANCO\s*2/i, 'Financiamento 2')
+
   // 3. Financiamento A (Menor parcela / 60x ou banco 1)
   const parcelasFinanAFinal =
     parcelasFinanciamentoA !== undefined &&
@@ -382,7 +392,7 @@ export const SecaoInvestimentoPagamento: React.FC<SecaoInvestimentoPagamentoProp
           </h3>
           <div className="grid grid-cols-4 gap-1.5 sm:gap-2 text-xs">
             {/* CARD 1: À VISTA */}
-            <div className="p-2.5 sm:p-3 rounded-xl border-2 border-[#16a34a] bg-white flex flex-col justify-between space-y-2 shadow-xs hover:shadow-md transition-shadow min-w-0">
+            <div className="p-2.5 sm:p-3 rounded-xl border-2 border-[#16a34a] bg-white flex flex-col justify-between space-y-2 shadow-xs hover:shadow-md transition-shadow min-w-0 print:border-2 print:border-[#16a34a] [print-color-adjust:exact]">
               <div>
                 {/* Cabeçalho com título à esquerda e badge Sem Juros no canto sup. direito */}
                 <div className="flex items-center justify-between gap-1 mb-1">
@@ -400,11 +410,11 @@ export const SecaoInvestimentoPagamento: React.FC<SecaoInvestimentoPagamentoProp
                 <div className="text-lg sm:text-[13pt] font-black text-[#16a34a] tracking-tight mt-0.5 mb-0.5 leading-tight">
                   {formatCurrency(aVistaFinal)}
                 </div>
-                <p className="text-[7.5pt] text-gray-500 leading-snug">
-                  {descontoAVistaFinal > 0
-                    ? `Desconto de ${formatCurrency(descontoAVistaFinal)} aplicado`
-                    : 'Pagamento único com desconto'}
-                </p>
+                {descontoAVistaFinal > 0 && (
+                  <p className="text-[7.5pt] text-gray-500 leading-snug">
+                    Desconto de {formatCurrency(descontoAVistaFinal)}
+                  </p>
+                )}
               </div>
 
               {/* 3 Linhas comparativas inferiores */}
@@ -431,7 +441,7 @@ export const SecaoInvestimentoPagamento: React.FC<SecaoInvestimentoPagamentoProp
             </div>
 
             {/* CARD 2: CARTÃO */}
-            <div className="p-2.5 sm:p-3 rounded-xl border border-gray-200 bg-white flex flex-col justify-between space-y-2 shadow-xs hover:shadow-md transition-shadow min-w-0">
+            <div className="p-2.5 sm:p-3 rounded-xl border-[1.5px] border-gray-400 bg-slate-50 flex flex-col justify-between space-y-2 shadow-xs hover:shadow-md transition-shadow min-w-0 print:border-[1.5px] print:border-gray-400 print:bg-slate-50 [print-color-adjust:exact]">
               <div>
                 {/* Cabeçalho com título e badge de parcelas no canto superior direito */}
                 <div className="flex items-center justify-between gap-1 mb-1">
@@ -485,15 +495,15 @@ export const SecaoInvestimentoPagamento: React.FC<SecaoInvestimentoPagamentoProp
             </div>
 
             {/* CARD 3: FINANCIAMENTO A */}
-            <div className="p-2.5 sm:p-3 rounded-xl border border-[#60A5FA] bg-[#F0F9FF] flex flex-col justify-between space-y-2 shadow-xs hover:shadow-md transition-shadow min-w-0">
+            <div className="p-2.5 sm:p-3 rounded-xl border border-[#60A5FA] bg-[#F0F9FF] flex flex-col justify-between space-y-2 shadow-xs hover:shadow-md transition-shadow min-w-0 print:border-[#60A5FA] print:bg-[#F0F9FF] [print-color-adjust:exact]">
               <div>
                 {/* Cabeçalho com título em linha única sem quebrar palavra e badge de parcelas */}
                 <div className="flex items-center justify-between gap-1 mb-1">
                   <span
                     className="font-black text-[8.5pt] uppercase tracking-tight text-blue-950 whitespace-nowrap leading-tight"
-                    title={nomeFinanciamentoA || 'Financiamento A'}
+                    title={tituloFinanciamentoAFinal}
                   >
-                    {nomeFinanciamentoA || 'Financiamento A'}
+                    {tituloFinanciamentoAFinal}
                   </span>
                   <span className="text-[7.5pt] font-bold bg-blue-100 text-blue-900 px-1.5 py-0.5 rounded-full shrink-0 whitespace-nowrap">
                     {parcelasFinanAFinal}x
@@ -503,13 +513,6 @@ export const SecaoInvestimentoPagamento: React.FC<SecaoInvestimentoPagamentoProp
                 <div className="text-lg sm:text-[13pt] font-black text-blue-900 tracking-tight mt-0.5 mb-0.5 leading-tight">
                   {formatCurrency(valorParcelaFinanAFinal)}
                 </div>
-                {iofFinanciamentoA !== undefined &&
-                  iofFinanciamentoA !== null &&
-                  iofFinanciamentoA > 0 && (
-                    <span className="block text-[7.5pt] font-semibold text-emerald-700 leading-snug whitespace-nowrap">
-                      Inclui IOF de {formatCurrency(iofFinanciamentoA)}
-                    </span>
-                  )}
                 <p className="text-[7.5pt] text-gray-500 leading-snug">
                   {entradaFinanAFinal > 0 && (
                     <span className="block text-blue-900 font-semibold">
@@ -547,15 +550,15 @@ export const SecaoInvestimentoPagamento: React.FC<SecaoInvestimentoPagamentoProp
             </div>
 
             {/* CARD 4: FINANCIAMENTO B */}
-            <div className="p-2.5 sm:p-3 rounded-xl border border-[#60A5FA] bg-[#F0F9FF] flex flex-col justify-between space-y-2 shadow-xs hover:shadow-md transition-shadow min-w-0">
+            <div className="p-2.5 sm:p-3 rounded-xl border border-[#60A5FA] bg-[#F0F9FF] flex flex-col justify-between space-y-2 shadow-xs hover:shadow-md transition-shadow min-w-0 print:border-[#60A5FA] print:bg-[#F0F9FF] [print-color-adjust:exact]">
               <div>
                 {/* Cabeçalho com título em linha única sem quebrar palavra e badge de parcelas */}
                 <div className="flex items-center justify-between gap-1 mb-1">
                   <span
                     className="font-black text-[8.5pt] uppercase tracking-tight text-blue-950 whitespace-nowrap leading-tight"
-                    title={nomeFinanciamentoB || 'Financiamento B'}
+                    title={tituloFinanciamentoBFinal}
                   >
-                    {nomeFinanciamentoB || 'Financiamento B'}
+                    {tituloFinanciamentoBFinal}
                   </span>
                   <span className="text-[7.5pt] font-bold bg-blue-100 text-blue-900 px-1.5 py-0.5 rounded-full shrink-0 whitespace-nowrap">
                     {parcelasFinanBFinal}x
@@ -565,13 +568,6 @@ export const SecaoInvestimentoPagamento: React.FC<SecaoInvestimentoPagamentoProp
                 <div className="text-lg sm:text-[13pt] font-black text-blue-900 tracking-tight mt-0.5 mb-0.5 leading-tight">
                   {formatCurrency(valorParcelaFinanBFinal)}
                 </div>
-                {iofFinanciamentoB !== undefined &&
-                  iofFinanciamentoB !== null &&
-                  iofFinanciamentoB > 0 && (
-                    <span className="block text-[7.5pt] font-semibold text-blue-800 leading-snug whitespace-nowrap">
-                      Inclui IOF de {formatCurrency(iofFinanciamentoB)}
-                    </span>
-                  )}
                 <p className="text-[7.5pt] text-gray-500 leading-snug">
                   {entradaFinanBFinal > 0 && (
                     <span className="block text-blue-900 font-semibold">
