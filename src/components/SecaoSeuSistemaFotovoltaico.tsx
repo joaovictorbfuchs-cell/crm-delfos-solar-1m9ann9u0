@@ -73,6 +73,8 @@ export interface SecaoSeuSistemaFotovoltaicoProps {
   mpptInversor?: number | string | null
   /** Potência nominal do inversor em kW */
   potenciaInversorKw?: number | null
+  /** Tipo ou nome da estrutura de fixação (ex: 'ceramico', 'metalico', 'solo', etc.) */
+  tipoEstrutura?: string | null
   /** Área necessária em m² */
   areaNecessariaM2?: number | null
   /** Garantia dos módulos em anos (performance / degradação - padrão 30) */
@@ -113,6 +115,7 @@ export const SecaoSeuSistemaFotovoltaico: React.FC<SecaoSeuSistemaFotovoltaicoPr
   quantidadeInversores = 1,
   mpptInversor,
   potenciaInversorKw,
+  tipoEstrutura,
   areaNecessariaM2,
   garantiaModulosAnos,
   garantiaModulosFabricacaoAnos,
@@ -170,6 +173,17 @@ export const SecaoSeuSistemaFotovoltaico: React.FC<SecaoSeuSistemaFotovoltaicoPr
     areaNecessariaM2 !== undefined && areaNecessariaM2 !== null && areaNecessariaM2 > 0
       ? areaNecessariaM2
       : 37.8
+
+  const estruturaLabel = (() => {
+    if (!tipoEstrutura || !tipoEstrutura.trim()) return 'Telhado / Solo'
+    const normalizado = tipoEstrutura.toLowerCase().trim()
+    if (normalizado === 'ceramico') return 'Cerâmico'
+    if (normalizado === 'metalico' || normalizado === 'metálico') return 'Metálico'
+    if (normalizado === 'laje') return 'Laje'
+    if (normalizado === 'fibrocimento') return 'Fibrocimento'
+    if (normalizado === 'solo') return 'Solo'
+    return tipoEstrutura
+  })()
 
   // Garantias dinâmicas com padrões cadastráveis:
   // - Degradação/performance dos módulos: 30 anos
@@ -263,18 +277,20 @@ export const SecaoSeuSistemaFotovoltaico: React.FC<SecaoSeuSistemaFotovoltaicoPr
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5 sm:gap-3">
           {/* Card 1: ⚡ Potência do sistema */}
           <div className="bg-[#f5f5f5] rounded-xl p-2.5 sm:p-3 border border-gray-300 shadow-xs hover:shadow-md transition-all group flex flex-col justify-between">
-            <div className="flex items-start justify-between gap-2 mb-2">
-              <div className="w-9 h-9 rounded-lg bg-amber-50 border border-amber-200/60 flex items-center justify-center text-amber-600 group-hover:scale-105 transition-transform shadow-2xs">
-                <Zap className="w-4.5 h-4.5 fill-amber-500 text-amber-600" />
+            <div className="flex items-center justify-between gap-2 mb-2">
+              <div className="flex items-center gap-2 min-w-0">
+                <div className="w-9 h-9 rounded-lg bg-amber-50 border border-amber-200/60 flex items-center justify-center text-amber-600 shrink-0 group-hover:scale-105 transition-transform shadow-2xs">
+                  <Zap className="w-4.5 h-4.5 fill-amber-500 text-amber-600" />
+                </div>
+                <div className="text-[11px] font-bold text-gray-700 uppercase tracking-wide truncate whitespace-nowrap">
+                  Potência do sistema
+                </div>
               </div>
-              <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200 shrink-0 whitespace-nowrap">
                 Capacidade Nominal
               </span>
             </div>
             <div>
-              <div className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">
-                Potência do sistema
-              </div>
               <div className="text-xl sm:text-2xl font-black text-gray-900 mt-0.5 tracking-tight">
                 {(Number(potenciaFinal) || 0).toLocaleString('pt-BR', {
                   minimumFractionDigits: 2,
@@ -283,25 +299,27 @@ export const SecaoSeuSistemaFotovoltaico: React.FC<SecaoSeuSistemaFotovoltaicoPr
                 <span className="text-base font-bold text-emerald-700">kWp</span>
               </div>
               <p className="text-[11px] text-gray-600 mt-1 leading-snug">
-                Potência total instalada com módulos fotovoltaicos de alta eficiência energética.
+                Potência total instalada com tecnologia de ponta.
               </p>
             </div>
           </div>
 
           {/* Card 2: 📊 Geração estimada + economia */}
           <div className="bg-[#f5f5f5] rounded-xl p-2.5 sm:p-3 border border-gray-300 shadow-xs hover:shadow-md transition-all group flex flex-col justify-between">
-            <div className="flex items-start justify-between gap-2 mb-2">
-              <div className="w-9 h-9 rounded-lg bg-emerald-50 border border-emerald-200/60 flex items-center justify-center text-emerald-600 group-hover:scale-105 transition-transform shadow-2xs">
-                <TrendingUp className="w-4.5 h-4.5 text-emerald-600" />
+            <div className="flex items-center justify-between gap-2 mb-2">
+              <div className="flex items-center gap-2 min-w-0">
+                <div className="w-9 h-9 rounded-lg bg-emerald-50 border border-emerald-200/60 flex items-center justify-center text-emerald-600 shrink-0 group-hover:scale-105 transition-transform shadow-2xs">
+                  <TrendingUp className="w-4.5 h-4.5 text-emerald-600" />
+                </div>
+                <div className="text-[11px] font-bold text-gray-700 uppercase tracking-wide truncate whitespace-nowrap">
+                  Geração estimada
+                </div>
               </div>
-              <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-full border border-emerald-300">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-full border border-emerald-300 shrink-0 whitespace-nowrap">
                 Alta Produção
               </span>
             </div>
             <div>
-              <div className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">
-                Geração estimada
-              </div>
               <div className="text-xl sm:text-2xl font-black text-emerald-700 mt-0.5 tracking-tight">
                 {Math.round(Number(geracaoFinal) || 0).toLocaleString('pt-BR')}{' '}
                 <span className="text-base font-bold text-gray-600">kWh/mês</span>
@@ -316,53 +334,54 @@ export const SecaoSeuSistemaFotovoltaico: React.FC<SecaoSeuSistemaFotovoltaicoPr
           {/* Card 3: 🔆 Módulos Fotovoltaicos com ícone representativo e garantias no rodapé */}
           <div className="bg-[#f5f5f5] rounded-xl p-2.5 sm:p-3 border border-gray-300 shadow-xs hover:shadow-md transition-all group flex flex-col justify-between">
             <div>
-              <div className="flex items-start justify-between gap-2 mb-2">
-                {fotoModuloUrl ? (
-                  <div className="w-10 h-10 rounded-lg border border-amber-200/80 bg-amber-50/40 p-1 flex items-center justify-center overflow-hidden shrink-0 group-hover:scale-105 transition-transform shadow-2xs">
-                    <img
-                      src={fotoModuloUrl}
-                      alt={marcaModuloFinal}
-                      className="w-full h-full object-contain"
-                    />
+              <div className="flex items-center justify-between gap-2 mb-2">
+                <div className="flex items-center gap-2 min-w-0">
+                  {fotoModuloUrl ? (
+                    <div className="w-9 h-9 rounded-lg border border-amber-200/80 bg-amber-50/40 p-1 flex items-center justify-center overflow-hidden shrink-0 group-hover:scale-105 transition-transform shadow-2xs">
+                      <img
+                        src={fotoModuloUrl}
+                        alt={marcaModuloFinal}
+                        className="w-full h-full object-contain"
+                      />
+                    </div>
+                  ) : (
+                    <div className="w-9 h-9 rounded-lg bg-amber-50 border border-amber-200/60 flex items-center justify-center text-amber-600 shrink-0 group-hover:scale-105 transition-transform shadow-2xs">
+                      <ModuloSolarIcon className="w-4.5 h-4.5 text-amber-600" />
+                    </div>
+                  )}
+                  <div className="text-[11px] font-bold text-gray-700 uppercase tracking-wide truncate whitespace-nowrap">
+                    Módulos Fotovoltaicos
                   </div>
-                ) : (
-                  <div className="w-9 h-9 rounded-lg bg-amber-50 border border-amber-200/60 flex items-center justify-center text-amber-600 group-hover:scale-105 transition-transform shadow-2xs">
-                    <ModuloSolarIcon className="w-4.5 h-4.5 text-amber-600" />
-                  </div>
-                )}
-                <span className="text-[10px] font-bold uppercase tracking-wider text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200">
+                </div>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200 shrink-0 whitespace-nowrap">
                   Tier-1 Global
                 </span>
               </div>
               <div>
-                <div className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">
-                  Módulos Fotovoltaicos
-                </div>
                 <div className="text-xl sm:text-2xl font-black text-gray-900 mt-0.5 tracking-tight">
                   {placasQtdFinal}{' '}
                   <span className="text-base font-bold text-gray-600">unidades</span>
                 </div>
                 <p className="text-[11px] text-gray-700 font-semibold mt-1 leading-snug">
-                  {marcaModuloFinal} — {placasPotenciaWpFinal}W cada
-                </p>
-                <p className="text-[10px] text-gray-500 mt-0.5">
-                  Tecnologia {tecnologiaModuloFinal}
+                  {marcaModuloFinal} ({placasPotenciaWpFinal}W cada • {tecnologiaModuloFinal}).
                 </p>
               </div>
             </div>
 
-            {/* Rodapé do Card: Garantias dos Módulos (Degradação/Performance & Fabricação) */}
+            {/* Rodapé do Card: Garantias dos Módulos (Fabricação em cima, Performance embaixo sem "(degradação)") */}
             <div className="mt-2.5 pt-2 border-t border-gray-300 space-y-1">
+              <div className="flex items-center justify-between text-[10px] text-gray-600">
+                <span className="font-medium text-gray-500">
+                  Garantia contra defeitos de fabricação:
+                </span>
+                <span className="font-extrabold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded-md border border-amber-200/70">
+                  {garantiaModulosFabricacaoFinal} anos
+                </span>
+              </div>
               <div className="flex items-center justify-between text-[10px] text-gray-600">
                 <span className="font-medium text-gray-500">Garantia de performance:</span>
                 <span className="font-extrabold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded-md border border-emerald-200/70">
                   {garantiaModulosDegradacaoFinal} anos
-                </span>
-              </div>
-              <div className="flex items-center justify-between text-[10px] text-gray-600">
-                <span className="font-medium text-gray-500">Garantia fabricação:</span>
-                <span className="font-extrabold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded-md border border-amber-200/70">
-                  {garantiaModulosFabricacaoFinal} anos
                 </span>
               </div>
             </div>
@@ -371,46 +390,46 @@ export const SecaoSeuSistemaFotovoltaico: React.FC<SecaoSeuSistemaFotovoltaicoPr
           {/* Card 4: 🔌 Inversor Solar com ícone CircuitBoard e garantias no rodapé */}
           <div className="bg-[#f5f5f5] rounded-xl p-2.5 sm:p-3 border border-gray-300 shadow-xs hover:shadow-md transition-all group flex flex-col justify-between">
             <div>
-              <div className="flex items-start justify-between gap-2 mb-2">
-                {fotoInversorUrl ? (
-                  <div className="w-10 h-10 rounded-lg border border-teal-200/80 bg-teal-50/40 p-1 flex items-center justify-center overflow-hidden shrink-0 group-hover:scale-105 transition-transform shadow-2xs">
-                    <img
-                      src={fotoInversorUrl}
-                      alt={marcaInversorFinal}
-                      className="w-full h-full object-contain"
-                    />
+              <div className="flex items-center justify-between gap-2 mb-2">
+                <div className="flex items-center gap-2 min-w-0">
+                  {fotoInversorUrl ? (
+                    <div className="w-9 h-9 rounded-lg border border-teal-200/80 bg-teal-50/40 p-1 flex items-center justify-center overflow-hidden shrink-0 group-hover:scale-105 transition-transform shadow-2xs">
+                      <img
+                        src={fotoInversorUrl}
+                        alt={marcaInversorFinal}
+                        className="w-full h-full object-contain"
+                      />
+                    </div>
+                  ) : (
+                    <div className="w-9 h-9 rounded-lg bg-teal-50 border border-teal-200/60 flex items-center justify-center text-teal-600 shrink-0 group-hover:scale-105 transition-transform shadow-2xs">
+                      <CircuitBoard className="w-4.5 h-4.5 text-teal-600" />
+                    </div>
+                  )}
+                  <div className="text-[11px] font-bold text-gray-700 uppercase tracking-wide truncate whitespace-nowrap">
+                    Inversor Solar
                   </div>
-                ) : (
-                  <div className="w-9 h-9 rounded-lg bg-teal-50 border border-teal-200/60 flex items-center justify-center text-teal-600 group-hover:scale-105 transition-transform shadow-2xs">
-                    <CircuitBoard className="w-4.5 h-4.5 text-teal-600" />
-                  </div>
-                )}
-                <span className="text-[10px] font-bold uppercase tracking-wider text-teal-800 bg-teal-50 px-2 py-0.5 rounded-full border border-teal-200">
+                </div>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-teal-800 bg-teal-50 px-2 py-0.5 rounded-full border border-teal-200 shrink-0 whitespace-nowrap">
                   {quantidadeInversores} {quantidadeInversores > 1 ? 'Inversores' : 'Inversor'}
                 </span>
               </div>
               <div>
-                <div className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">
-                  Inversor Solar
+                <div className="text-xl sm:text-2xl font-black text-gray-900 mt-0.5 tracking-tight">
+                  {quantidadeInversores}{' '}
+                  <span className="text-base font-bold text-gray-600">
+                    {quantidadeInversores > 1 ? 'unidades' : 'unidade'}
+                  </span>
                 </div>
-                <div className="text-base sm:text-lg font-black text-gray-900 mt-0.5 tracking-tight leading-snug">
+                <p className="text-[11px] text-gray-700 font-semibold mt-1 leading-snug">
                   {marcaInversorFinal}
-                </div>
-                <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
-                  <span className="inline-flex items-center px-1.5 py-0.5 rounded-md bg-gray-100 text-gray-700 text-[10px] font-bold border border-gray-200">
-                    {mpptFinal} MPPT
-                  </span>
-                  <span className="inline-flex items-center px-1.5 py-0.5 rounded-md bg-emerald-50 text-emerald-800 text-[10px] font-bold border border-emerald-200">
-                    {potenciaInversorFinalKw} kW
-                  </span>
-                </div>
+                </p>
               </div>
             </div>
 
             {/* Rodapé do Card: Garantia do Inversor */}
             <div className="mt-2.5 pt-2 border-t border-gray-300 space-y-1">
               <div className="flex items-center justify-between text-[10px] text-gray-600">
-                <span className="font-medium text-gray-500">Garantia inversor:</span>
+                <span className="font-medium text-gray-500">Garantia do inversor:</span>
                 <span className="font-extrabold text-teal-800 bg-teal-50 px-1.5 py-0.5 rounded-md border border-teal-200/70">
                   {garantiaInversorFinalAnos} anos
                 </span>
@@ -420,18 +439,20 @@ export const SecaoSeuSistemaFotovoltaico: React.FC<SecaoSeuSistemaFotovoltaicoPr
 
           {/* Card 5: 📐 Área necessária */}
           <div className="bg-[#f5f5f5] rounded-xl p-2.5 sm:p-3 border border-gray-300 shadow-xs hover:shadow-md transition-all group flex flex-col justify-between">
-            <div className="flex items-start justify-between gap-2 mb-2">
-              <div className="w-9 h-9 rounded-lg bg-blue-50 border border-blue-200/60 flex items-center justify-center text-blue-600 group-hover:scale-105 transition-transform shadow-2xs">
-                <Maximize2 className="w-4.5 h-4.5 text-blue-600" />
+            <div className="flex items-center justify-between gap-2 mb-2">
+              <div className="flex items-center gap-2 min-w-0">
+                <div className="w-9 h-9 rounded-lg bg-blue-50 border border-blue-200/60 flex items-center justify-center text-blue-600 shrink-0 group-hover:scale-105 transition-transform shadow-2xs">
+                  <Maximize2 className="w-4.5 h-4.5 text-blue-600" />
+                </div>
+                <div className="text-[11px] font-bold text-gray-700 uppercase tracking-wide truncate whitespace-nowrap">
+                  Área necessária
+                </div>
               </div>
-              <span className="text-[10px] font-bold uppercase tracking-wider text-blue-800 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200">
-                Telhado / Espaço
+              <span className="text-[10px] font-bold uppercase tracking-wider text-amber-800 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200 shrink-0 whitespace-nowrap">
+                {estruturaLabel}
               </span>
             </div>
             <div>
-              <div className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">
-                Área necessária
-              </div>
               <div className="text-xl sm:text-2xl font-black text-gray-900 mt-0.5 tracking-tight">
                 {(Number(areaFinalM2) || 0).toLocaleString('pt-BR', {
                   minimumFractionDigits: 1,
@@ -440,32 +461,30 @@ export const SecaoSeuSistemaFotovoltaico: React.FC<SecaoSeuSistemaFotovoltaicoPr
                 <span className="text-base font-bold text-gray-600">m²</span>
               </div>
               <p className="text-[11px] text-gray-600 mt-1 leading-snug">
-                Área útil estimada para disposição e fixação otimizada dos painéis solares.
+                Área útil para fixação otimizada dos painéis.
               </p>
             </div>
           </div>
 
           {/* Card 6: 🛡️ Garantia instalação Delfos */}
           <div className="bg-[#f5f5f5] rounded-xl p-2.5 sm:p-3 border border-gray-300 shadow-xs hover:shadow-md transition-all group flex flex-col justify-between">
-            <div className="flex items-start justify-between gap-2 mb-2">
-              <div className="w-9 h-9 rounded-lg bg-emerald-50 border border-emerald-200/60 flex items-center justify-center text-emerald-700 group-hover:scale-105 transition-transform shadow-2xs">
-                <ShieldCheck className="w-4.5 h-4.5 text-emerald-700" />
+            <div className="flex items-center justify-between gap-2 mb-2">
+              <div className="flex items-center gap-2 min-w-0">
+                <div className="w-9 h-9 rounded-lg bg-emerald-50 border border-emerald-200/60 flex items-center justify-center text-emerald-700 shrink-0 group-hover:scale-105 transition-transform shadow-2xs">
+                  <ShieldCheck className="w-4.5 h-4.5 text-emerald-700" />
+                </div>
+                <div className="text-[11px] font-bold text-gray-700 uppercase tracking-wide truncate whitespace-nowrap">
+                  Garantia Instalação
+                </div>
               </div>
-              <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200 shrink-0 whitespace-nowrap">
                 Engenharia Própria
               </span>
             </div>
             <div>
-              <div className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">
-                Garantia de Instalação
-              </div>
               <div className="text-xl sm:text-2xl font-black text-emerald-800 mt-0.5 tracking-tight">
                 {garantiaInstalacaoFinalTexto}
               </div>
-              <p className="text-[11px] text-gray-600 mt-1 leading-snug">
-                Garantia integral Delfos sobre mão de obra especializada, cabos, proteções e ART
-                emitida.
-              </p>
             </div>
           </div>
         </div>

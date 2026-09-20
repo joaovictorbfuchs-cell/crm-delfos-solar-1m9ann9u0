@@ -86,9 +86,7 @@ export function ModalGerarPropostaTecnicoComercial({
   )
   const [qtdInversores, setQtdInversores] = useState<number>(orcamento.quantidade_inversores || 1)
   const [estruturaFixacao, setEstruturaFixacao] = useState<string>(
-    orcamento.tipo_estrutura
-      ? `Alumínio naval para ${orcamento.tipo_estrutura}`
-      : 'Alumínio de alta resistência mecânica',
+    orcamento.tipo_estrutura || 'ceramico',
   )
   const [codigoFiname, setCodigoFiname] = useState<string>(
     orcamento.codigo_finame || 'Sob consulta',

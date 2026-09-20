@@ -170,4 +170,58 @@ describe('SecaoSeuSistemaFotovoltaico - Geração Mensal Detalhada', () => {
     expect(html).toContain('src="https://example.com/modulo.jpg"')
     expect(html).toContain('src="https://example.com/inversor.jpg"')
   })
+
+  it('renderiza os 6 cards técnicos com título ao lado do ícone, badges e garantias ajustadas', () => {
+    const html = renderToStaticMarkup(
+      React.createElement(SecaoSeuSistemaFotovoltaico, {
+        potenciaKwp: 3.75,
+        geracaoMensalKwh: 417,
+        economiaMensal: 457.28,
+        numeroPlacas: 6,
+        marcaPainel: 'LUXEN 625W BIFACIAL N-TYPE',
+        potenciaPlacaWp: 625,
+        tecnologiaModulo: 'bifacial N-type',
+        marcaInversor: 'TSUNESS 2.5 kW MONOFÁSICO 220 V MICRO TSOL-MX2500D',
+        quantidadeInversores: 1,
+        tipoEstrutura: 'ceramico',
+        areaNecessariaM2: 14.0,
+        garantiaModulosAnos: 30,
+        garantiaModulosFabricacaoAnos: 15,
+        garantiaInversorAnos: 10,
+        garantiaInstalacaoTexto: '12 meses',
+      }),
+    )
+
+    // 1. Títulos e alinhamento
+    expect(html).toContain('Potência do sistema')
+    expect(html).toContain('Geração estimada')
+    expect(html).toContain('Módulos Fotovoltaicos')
+    expect(html).toContain('Inversor Solar')
+    expect(html).toContain('Área necessária')
+    expect(html).toContain('Garantia Instalação')
+
+    // 2. Card Inversor Solar tem mesmo estilo/tamanho do card de módulos (1 unidade)
+    expect(html).toContain(
+      '1</span> <span class="text-base font-bold text-gray-600">unidade</span>',
+    )
+    expect(html).toContain('TSUNESS 2.5 kW MONOFÁSICO 220 V MICRO TSOL-MX2500D')
+
+    // 3. Linha MPPT / Potência homologada removida do card do inversor
+    expect(html).not.toContain('MPPT • Potência:')
+    expect(html).not.toContain('homologado')
+
+    // 4. Card Área Necessária exibe o tipo de estrutura de fixação selecionado
+    expect(html).toContain('Cerâmico')
+
+    // 5. Card Garantia Instalação NÃO contém "Garantia integral sobre mão de obra, cabos e ART."
+    expect(html).not.toContain('Garantia integral sobre mão de obra, cabos e ART.')
+
+    // 6. Garantias dos módulos: fabricação primeiro e sem "(degradação)"
+    const posFabricacao = html.indexOf('Garantia contra defeitos de fabricação:')
+    const posPerformance = html.indexOf('Garantia de performance:')
+    expect(posFabricacao).toBeGreaterThan(-1)
+    expect(posPerformance).toBeGreaterThan(-1)
+    expect(posFabricacao).toBeLessThan(posPerformance)
+    expect(html).not.toContain('(degradação)')
+  })
 })

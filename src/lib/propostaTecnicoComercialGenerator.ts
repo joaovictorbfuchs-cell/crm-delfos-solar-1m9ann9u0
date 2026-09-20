@@ -589,6 +589,23 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
   const inversorKw =
     sistema?.potenciaInversorKw || (potenciaKwp > 0 ? Math.round(potenciaKwp * 0.8 * 10) / 10 : 6)
   const areaM2 = sistema?.areaNecessariaM2 || 37.8
+  const estruturaFixacaoBadge = (() => {
+    const raw = sistema?.estruturaFixacao
+    if (!raw || !raw.trim()) return 'Telhado / Solo'
+    const normalizado = raw.toLowerCase().trim()
+    if (normalizado === 'ceramico' || normalizado.includes('cerâmico')) return 'Cerâmico'
+    if (
+      normalizado === 'metalico' ||
+      normalizado.includes('metálico') ||
+      normalizado.includes('metalico')
+    )
+      return 'Metálico'
+    if (normalizado === 'laje' || normalizado.includes('laje')) return 'Laje'
+    if (normalizado === 'fibrocimento' || normalizado.includes('fibrocimento'))
+      return 'Fibrocimento'
+    if (normalizado === 'solo' || normalizado.includes('solo')) return 'Solo'
+    return raw
+  })()
   const garantiaModulosDesempenho = garantias?.paineisAnosDesempenho || 30
   const garantiaModulosFabricacao = garantias?.paineisAnosFabricacao || 15
   const garantiaInversor = garantias?.inversorAnosFabricacao || 10
@@ -1684,7 +1701,15 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
       display: flex;
       align-items: center;
       justify-content: space-between;
+      gap: 8px;
       margin-bottom: 8px;
+    }
+    .card-sistema-title-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+      overflow: hidden;
     }
     .card-sistema-icon-wrap {
       width: 36px;
@@ -1694,6 +1719,7 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
       align-items: center;
       justify-content: center;
       font-size: 18px;
+      flex-shrink: 0;
     }
     .card-sistema-icon-wrap.amber {
       background: #FEF3C7;
@@ -1752,8 +1778,11 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
       font-size: 10pt;
       font-weight: 700;
       text-transform: uppercase;
-      color: #4B5563;
+      color: #374151;
       letter-spacing: 0.03em;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
     .card-sistema-valor {
       font-size: 19pt;
@@ -2899,11 +2928,13 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
           <!-- Card 1: ⚡ Potência do sistema -->
           <div class="card-sistema">
             <div class="card-sistema-header">
-              <div class="card-sistema-icon-wrap amber">⚡</div>
+              <div class="card-sistema-title-group">
+                <div class="card-sistema-icon-wrap amber">⚡</div>
+                <div class="card-sistema-label">Potência do Sistema</div>
+              </div>
               <span class="card-sistema-tag emerald">Capacidade Nominal</span>
             </div>
             <div>
-              <div class="card-sistema-label">Potência do Sistema</div>
               <div class="card-sistema-valor">
                 ${formatNumBR(potenciaKwp, 2)} <span class="unit">kWp</span>
               </div>
@@ -2914,11 +2945,13 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
           <!-- Card 2: 📈 Geração estimada + economia -->
           <div class="card-sistema">
             <div class="card-sistema-header">
-              <div class="card-sistema-icon-wrap emerald">📈</div>
+              <div class="card-sistema-title-group">
+                <div class="card-sistema-icon-wrap emerald">📈</div>
+                <div class="card-sistema-label">Geração Estimada</div>
+              </div>
               <span class="card-sistema-tag emerald">Alta Produção</span>
             </div>
             <div>
-              <div class="card-sistema-label">Geração Estimada</div>
               <div class="card-sistema-valor" style="color: #15803D;">
                 ${formatNumBR(producao.mediaMensalKwh, 0)} <span class="unit" style="color: #4B5563;">kWh/mês</span>
               </div>
@@ -2932,24 +2965,26 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
           <div class="card-sistema" style="display: flex; flex-direction: column; justify-content: space-between;">
             <div>
               <div class="card-sistema-header">
-                ${
-                  dados.secoesHabilitadas?.fotosProjeto !== false && sistema?.fotoModuloUrl
-                    ? `<div style="width: 38px; height: 38px; border-radius: 8px; border: 1px solid #FDE68A; background: #FEF3C7; padding: 2px; display: flex; align-items: center; justify-content: center; overflow: hidden;">
-                        <img src="${sistema.fotoModuloUrl}" alt="Módulo FV" style="max-width: 100%; max-height: 100%; object-fit: contain;" />
-                      </div>`
-                    : `<div class="card-sistema-icon-wrap amber" style="background: #FEF3C7; color: #D97706;">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 18px; height: 18px;">
-                          <rect x="3" y="3" width="18" height="18" rx="2" />
-                          <line x1="12" y1="3" x2="12" y2="21" />
-                          <line x1="3" y1="9" x2="21" y2="9" />
-                          <line x1="3" y1="15" x2="21" y2="15" />
-                        </svg>
-                      </div>`
-                }
+                <div class="card-sistema-title-group">
+                  ${
+                    dados.secoesHabilitadas?.fotosProjeto !== false && sistema?.fotoModuloUrl
+                      ? `<div style="width: 36px; height: 36px; border-radius: 10px; border: 1px solid #FDE68A; background: #FEF3C7; padding: 2px; display: flex; align-items: center; justify-content: center; overflow: hidden; flex-shrink: 0;">
+                          <img src="${sistema.fotoModuloUrl}" alt="Módulo FV" style="max-width: 100%; max-height: 100%; object-fit: contain;" />
+                        </div>`
+                      : `<div class="card-sistema-icon-wrap amber" style="background: #FEF3C7; color: #D97706;">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 18px; height: 18px;">
+                            <rect x="3" y="3" width="18" height="18" rx="2" />
+                            <line x1="12" y1="3" x2="12" y2="21" />
+                            <line x1="3" y1="9" x2="21" y2="9" />
+                            <line x1="3" y1="15" x2="21" y2="15" />
+                          </svg>
+                        </div>`
+                  }
+                  <div class="card-sistema-label">Módulos Fotovoltaicos</div>
+                </div>
                 <span class="card-sistema-tag blue">Tier-1 Global</span>
               </div>
               <div>
-                <div class="card-sistema-label">Módulos Fotovoltaicos</div>
                 <div class="card-sistema-valor">
                   ${modulosQtd} <span class="unit" style="color: #4B5563;">unidades</span>
                 </div>
@@ -2959,15 +2994,15 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
               </div>
             </div>
 
-            <!-- Rodapé do Card: Garantias dos Módulos (Degradação & Fabricação) -->
+            <!-- Rodapé do Card: Garantias dos Módulos (Fabricação em cima, Performance embaixo sem "(degradação)") -->
             <div style="margin-top: 8px; padding-top: 6px; border-top: 1px solid #d1d5db; font-size: 8.5pt; line-height: 1.4;">
               <div style="display: flex; justify-content: space-between; align-items: center; color: #4B5563; margin-bottom: 2px;">
-                <span>Garantia de performance (degradação):</span>
-                <strong style="color: #065F46; background: #DCFCE7; padding: 1px 6px; border-radius: 4px; border: 1px solid #BBF7D0;">${garantiaModulosDesempenho} anos</strong>
-              </div>
-              <div style="display: flex; justify-content: space-between; align-items: center; color: #4B5563;">
                 <span>Garantia contra defeitos de fabricação:</span>
                 <strong style="color: #92400E; background: #FEF3C7; padding: 1px 6px; border-radius: 4px; border: 1px solid #FDE68A;">${garantiaModulosFabricacao} anos</strong>
+              </div>
+              <div style="display: flex; justify-content: space-between; align-items: center; color: #4B5563;">
+                <span>Garantia de performance:</span>
+                <strong style="color: #065F46; background: #DCFCE7; padding: 1px 6px; border-radius: 4px; border: 1px solid #BBF7D0;">${garantiaModulosDesempenho} anos</strong>
               </div>
             </div>
           </div>
@@ -2976,30 +3011,32 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
           <div class="card-sistema" style="display: flex; flex-direction: column; justify-content: space-between;">
             <div>
               <div class="card-sistema-header">
-                ${
-                  dados.secoesHabilitadas?.fotosProjeto !== false && sistema?.fotoInversorUrl
-                    ? `<div style="width: 38px; height: 38px; border-radius: 8px; border: 1px solid #99F6E4; background: #CCFBF1; padding: 2px; display: flex; align-items: center; justify-content: center; overflow: hidden;">
-                        <img src="${sistema.fotoInversorUrl}" alt="Inversor Solar" style="max-width: 100%; max-height: 100%; object-fit: contain;" />
-                      </div>`
-                    : `<div class="card-sistema-icon-wrap teal" style="background: #CCFBF1; color: #0F766E;">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 18px; height: 18px;">
-                          <rect width="18" height="18" x="3" y="3" rx="2" />
-                          <path d="M11 9h4a2 2 0 0 0 2-2V3" />
-                          <circle cx="9" cy="9" r="2" />
-                          <path d="M7 21v-4a2 2 0 0 1 2-2h4" />
-                          <circle cx="15" cy="15" r="2" />
-                        </svg>
-                      </div>`
-                }
+                <div class="card-sistema-title-group">
+                  ${
+                    dados.secoesHabilitadas?.fotosProjeto !== false && sistema?.fotoInversorUrl
+                      ? `<div style="width: 36px; height: 36px; border-radius: 10px; border: 1px solid #99F6E4; background: #CCFBF1; padding: 2px; display: flex; align-items: center; justify-content: center; overflow: hidden; flex-shrink: 0;">
+                          <img src="${sistema.fotoInversorUrl}" alt="Inversor Solar" style="max-width: 100%; max-height: 100%; object-fit: contain;" />
+                        </div>`
+                      : `<div class="card-sistema-icon-wrap teal" style="background: #CCFBF1; color: #0F766E;">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 18px; height: 18px;">
+                            <rect width="18" height="18" x="3" y="3" rx="2" />
+                            <path d="M11 9h4a2 2 0 0 0 2-2V3" />
+                            <circle cx="9" cy="9" r="2" />
+                            <path d="M7 21v-4a2 2 0 0 1 2-2h4" />
+                            <circle cx="15" cy="15" r="2" />
+                          </svg>
+                        </div>`
+                  }
+                  <div class="card-sistema-label">Inversor Solar</div>
+                </div>
                 <span class="card-sistema-tag teal">${inversorQtd} Inversor</span>
               </div>
               <div>
-                <div class="card-sistema-label">Inversor Solar</div>
-                <div class="card-sistema-valor" style="font-size: 15pt;">
-                  ${inversorDesc}
+                <div class="card-sistema-valor">
+                  ${inversorQtd} <span class="unit" style="color: #4B5563;">${inversorQtd > 1 ? 'unidades' : 'unidade'}</span>
                 </div>
                 <div class="card-sistema-sub">
-                  ${inversorMppt} MPPT • Potência: ${inversorKw} kW homologado.
+                  <strong>${inversorDesc}</strong>
                 </div>
               </div>
             </div>
@@ -3016,11 +3053,13 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
           <!-- Card 5: 📐 Área necessária -->
           <div class="card-sistema">
             <div class="card-sistema-header">
-              <div class="card-sistema-icon-wrap blue">📐</div>
-              <span class="card-sistema-tag amber">Telhado / Solo</span>
+              <div class="card-sistema-title-group">
+                <div class="card-sistema-icon-wrap blue">📐</div>
+                <div class="card-sistema-label">Área Necessária</div>
+              </div>
+              <span class="card-sistema-tag amber">${estruturaFixacaoBadge}</span>
             </div>
             <div>
-              <div class="card-sistema-label">Área Necessária</div>
               <div class="card-sistema-valor">
                 ${formatNumBR(areaM2, 1)} <span class="unit" style="color: #4B5563;">m²</span>
               </div>
@@ -3031,15 +3070,16 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
           <!-- Card 6: 🛡️ Garantia de instalação Delfos -->
           <div class="card-sistema">
             <div class="card-sistema-header">
-              <div class="card-sistema-icon-wrap emerald">🛡️</div>
+              <div class="card-sistema-title-group">
+                <div class="card-sistema-icon-wrap emerald">🛡️</div>
+                <div class="card-sistema-label">Garantia Instalação</div>
+              </div>
               <span class="card-sistema-tag emerald">Engenharia Própria</span>
             </div>
             <div>
-              <div class="card-sistema-label">Garantia Instalação</div>
               <div class="card-sistema-valor" style="color: #065F46;">
                 ${garantiaInstalacao}
               </div>
-              <div class="card-sistema-sub">Garantia integral sobre mão de obra, cabos e ART.</div>
             </div>
           </div>
         </div>
