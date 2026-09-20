@@ -38,6 +38,11 @@ export function formatDateTime(dateString: string | undefined | null): string {
   }
 }
 
+/**
+ * Alias de compatibilidade para formatDateTime / formatação de data
+ */
+export const formatarDataHora = formatDateTime
+
 export function formatWhatsAppPhone(phone: string | undefined | null): string {
   if (!phone) return ''
   let digits = phone.replace(/\D/g, '')
