@@ -56,6 +56,7 @@ interface SecaoUsinasClienteProps {
   onAbrirModalNovoContrato?: (usina: UsinaCliente) => void
   onRenovarContrato?: (usina: UsinaCliente, contrato: ContratoOM) => Promise<void> | void
   onVerDetalhesContrato?: (contrato: ContratoOM, usina?: UsinaCliente) => void
+  onReabrirOportunidade?: () => void
 }
 
 export const SecaoUsinasCliente: React.FC<SecaoUsinasClienteProps> = ({
@@ -73,6 +74,7 @@ export const SecaoUsinasCliente: React.FC<SecaoUsinasClienteProps> = ({
   onAbrirModalNovoContrato,
   onRenovarContrato,
   onVerDetalhesContrato,
+  onReabrirOportunidade,
 }) => {
   const { isAdmin: authIsAdmin, isInstalador } = useAuth()
   const podeVerValoresFinanceiros =
@@ -302,14 +304,28 @@ export const SecaoUsinasCliente: React.FC<SecaoUsinasClienteProps> = ({
           </div>
         </div>
 
-        <Button
-          type="button"
-          onClick={handleOpenNovaUsina}
-          className="bg-[#0F2038] hover:bg-[#1A365D] text-white font-bold text-xs shadow-xs rounded-xl flex items-center gap-2 border border-slate-700"
-        >
-          <Plus className="w-4 h-4 text-[#E0A838]" />
-          <span>+ Nova Usina</span>
-        </Button>
+        <div className="flex items-center gap-2">
+          {onReabrirOportunidade && (
+            <Button
+              type="button"
+              onClick={onReabrirOportunidade}
+              className="bg-amber-600 hover:bg-amber-700 active:bg-amber-800 text-white font-bold text-xs shadow-xs rounded-xl flex items-center gap-1.5 border border-amber-500"
+              title="Reabrir oportunidade comercial para este cliente no Kanban de vendas"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-amber-200" />
+              <span>Nova Oportunidade</span>
+            </Button>
+          )}
+
+          <Button
+            type="button"
+            onClick={handleOpenNovaUsina}
+            className="bg-[#0F2038] hover:bg-[#1A365D] text-white font-bold text-xs shadow-xs rounded-xl flex items-center gap-2 border border-slate-700"
+          >
+            <Plus className="w-4 h-4 text-[#E0A838]" />
+            <span>+ Nova Usina</span>
+          </Button>
+        </div>
       </div>
 
       {/* Cards de Resumo Geral (se houver usinas) */}

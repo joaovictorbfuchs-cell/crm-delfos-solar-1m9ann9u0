@@ -432,6 +432,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ clientes: clientesProp
                     const isLeadFrio = !proximaAcao
                     const diasNaEtapa = getDiasNaEtapa(client)
                     const tempoAlerta = diasNaEtapa > 7
+                    const isReaberto = Boolean(client.reabertura)
 
                     return (
                       <div
@@ -444,6 +445,8 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ clientes: clientesProp
                         onTouchEnd={handleTouchEnd}
                         onClick={() => handleCardClick(client.id)}
                         className={`bg-white rounded-lg p-3 border transition-all duration-150 cursor-pointer active:cursor-grabbing group relative overflow-hidden min-w-0 ${
+                          isReaberto ? 'border-l-4 border-l-amber-500' : ''
+                        } ${
                           isDraggingThis
                             ? 'opacity-40 scale-95 border-emerald-400 shadow-inner'
                             : isLeadFrio
@@ -451,13 +454,24 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ clientes: clientesProp
                               : 'border-slate-200 shadow-xs hover:shadow-md hover:-translate-y-0.5 hover:border-emerald-300'
                         }`}
                       >
-                        {/* Linha 1: Nome do cliente (14pt/text-sm font-bold truncate) + Menu de 3 pontos */}
+                        {/* Linha 1: Nome do cliente (14pt/text-sm font-bold truncate) + Badge Cliente Ativo + Menu de 3 pontos */}
                         <div className="flex items-start justify-between gap-1.5 min-w-0">
-                          <div
-                            className="font-bold text-sm text-slate-900 group-hover:text-emerald-700 transition-colors truncate flex-1 min-w-0 leading-tight"
-                            title={client.nome}
-                          >
-                            {client.nome}
+                          <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                            <div
+                              className="font-bold text-sm text-slate-900 group-hover:text-emerald-700 transition-colors truncate min-w-0 leading-tight"
+                              title={client.nome}
+                            >
+                              {client.nome}
+                            </div>
+                            {isReaberto && (
+                              <span
+                                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-extrabold bg-amber-100 text-amber-900 border border-amber-300 shrink-0"
+                                title={`Cliente Ativo • Oportunidade Reaberta: ${client.motivo_reabertura || 'Nova oportunidade comercial'}`}
+                              >
+                                <span className="w-1.5 h-1.5 rounded-full bg-amber-600 animate-pulse" />
+                                Cliente Ativo
+                              </span>
+                            )}
                           </div>
 
                           <div

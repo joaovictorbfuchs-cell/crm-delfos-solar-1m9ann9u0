@@ -286,6 +286,10 @@ interface ClientesContextType {
     motivoPerda: 'preco' | 'concorrente' | 'desistiu' | 'nao_respondeu' | 'outro' | string,
     observacaoTexto?: string,
   ) => Promise<Cliente>
+  reabrirOportunidade: (
+    clienteId: string,
+    dados: import('@/services/crmService').ReabrirOportunidadeDados,
+  ) => Promise<Cliente>
   bulkArquivar: (ids: string[]) => Promise<void>
   updateSistema: (clienteId: string, data: Partial<Sistema>) => Promise<Sistema>
   // Profissionais
@@ -1550,6 +1554,12 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                   : c.observacoes_perda,
               observacoes:
                 observacaoTexto && observacaoTexto.trim() ? observacaoTexto.trim() : c.observacoes,
+              ...(c.reabertura
+                ? {
+                    status_pos_vendas: 'Ativo',
+                    transferido_pos_vendas: true,
+                  }
+                : {}),
             }
           : c,
       ),
@@ -1566,6 +1576,53 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       return clienteAtualizado
     } catch (err) {
       console.error('Erro ao marcar cliente como perdido:', err)
+      await loadAllData()
+      throw err
+    }
+  }
+
+  const reabrirOportunidade = async (
+    clienteId: string,
+    dados: import('@/services/crmService').ReabrirOportunidadeDados,
+  ): Promise<Cliente> => {
+    const agora = new Date().toISOString()
+    const etapa = (dados.etapa_destino || 'Novo Lead') as ClienteStatus
+
+    // Optimistic update no estado clientes
+    setClientes((prev) =>
+      prev.map((c) =>
+        c.id === clienteId
+          ? {
+              ...c,
+              status: etapa,
+              reabertura: true,
+              motivo_reabertura: dados.motivo_reabertura,
+              descricao_reabertura: dados.descricao_reabertura || '',
+              valor_reabertura: dados.valor_estimado !== undefined ? dados.valor_estimado : 0,
+              data_reabertura: agora,
+              transferido_pos_vendas: false,
+              status_pos_vendas: '',
+              data_fechamento: '',
+              motivo_perda: '',
+              observacoes_perda: '',
+              ...(dados.valor_estimado !== undefined && dados.valor_estimado > 0
+                ? { valor_estimado: dados.valor_estimado }
+                : {}),
+              ...(dados.responsavel_id ? { responsavel_id: dados.responsavel_id } : {}),
+              ...(dados.responsavel_nome ? { responsavel_nome: dados.responsavel_nome } : {}),
+            }
+          : c,
+      ),
+    )
+
+    try {
+      const { reabrirOportunidadeComercial } = await import('@/services/crmService')
+      const clienteAtualizado = await reabrirOportunidadeComercial(clienteId, dados)
+      setClientes((prev) => prev.map((c) => (c.id === clienteId ? clienteAtualizado : c)))
+      fetchAtividades().then(setAtividades).catch(console.error)
+      return clienteAtualizado
+    } catch (err) {
+      console.error('Erro ao reabrir oportunidade comercial:', err)
       await loadAllData()
       throw err
     }
@@ -2568,6 +2625,7 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         bulkTransferirFechadosPosVendas,
         marcarComoGanho,
         marcarComoPerdido,
+        reabrirOportunidade,
         bulkArquivar,
         updateSistema,
         addProfissional,
@@ -2768,6 +2826,7 @@ export function useClientes(): ClientesContextType {
       bulkTransferirFechadosPosVendas: async () => [],
       marcarComoGanho: async () => ({}) as any,
       marcarComoPerdido: async () => ({}) as any,
+      reabrirOportunidade: async () => ({}) as any,
       bulkArquivar: async () => {},
       updateSistema: async () => ({}) as any,
       addProfissional: async () => ({}) as any,

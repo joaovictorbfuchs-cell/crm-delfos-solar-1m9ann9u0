@@ -182,6 +182,12 @@ export interface Cliente extends RecordModel {
   valor_final?: number
   condicao_pagamento?: string
   contratou_om?: boolean
+  // Campos de Reabertura Comercial
+  reabertura?: boolean
+  motivo_reabertura?: string
+  descricao_reabertura?: string
+  valor_reabertura?: number
+  data_reabertura?: string
   arquivado?: boolean
   pendencias_informacoes?: string[] | null
   dados_importados?: Record<string, string | number | boolean | null> | null

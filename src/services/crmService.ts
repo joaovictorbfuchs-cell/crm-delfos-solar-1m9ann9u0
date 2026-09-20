@@ -284,6 +284,79 @@ export interface MarcarGanhoDados {
   contratou_om?: boolean
 }
 
+export interface ReabrirOportunidadeDados {
+  motivo_reabertura: string
+  descricao_reabertura?: string
+  valor_estimado?: number
+  responsavel_id?: string
+  responsavel_nome?: string
+  etapa_destino?: string
+}
+
+export async function reabrirOportunidadeComercial(
+  clienteId: string,
+  dados: ReabrirOportunidadeDados,
+): Promise<Cliente> {
+  const agora = new Date().toISOString()
+  const etapa = (dados.etapa_destino || 'Novo Lead') as ClienteStatus
+
+  const payloadUpdate: Partial<Cliente> = {
+    status: etapa,
+    reabertura: true,
+    motivo_reabertura: dados.motivo_reabertura,
+    descricao_reabertura: dados.descricao_reabertura || '',
+    valor_reabertura: dados.valor_estimado !== undefined ? dados.valor_estimado : 0,
+    data_reabertura: agora,
+    transferido_pos_vendas: false,
+    status_pos_vendas: '',
+    data_fechamento: '',
+    motivo_perda: '',
+    observacoes_perda: '',
+  }
+
+  if (dados.valor_estimado !== undefined && dados.valor_estimado > 0) {
+    payloadUpdate.valor_estimado = dados.valor_estimado
+  }
+
+  if (dados.responsavel_id !== undefined) {
+    payloadUpdate.responsavel_id = dados.responsavel_id
+  }
+  if (dados.responsavel_nome !== undefined) {
+    payloadUpdate.responsavel_nome = dados.responsavel_nome
+  }
+
+  const clienteAtualizado = await updateCliente(clienteId, payloadUpdate)
+
+  // Registrar atividade na timeline unificada do cliente
+  try {
+    const valorFmt =
+      dados.valor_estimado && dados.valor_estimado > 0
+        ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
+            dados.valor_estimado,
+          )
+        : ''
+
+    const respFmt = dados.responsavel_nome ? ` • Consultor: ${dados.responsavel_nome}` : ''
+    const descFmt = dados.descricao_reabertura ? ` • Detalhes: "${dados.descricao_reabertura}"` : ''
+    const valorStr = valorFmt ? ` • Valor estimado: ${valorFmt}` : ''
+
+    await createAtividade({
+      cliente_id: clienteId,
+      tipo: 'mudanca_estagio',
+      titulo: `Reabertura Comercial • ${dados.motivo_reabertura}`,
+      descricao: `Oportunidade comercial reaberta na etapa "${etapa}". Motivo: ${dados.motivo_reabertura}${descFmt}${valorStr}${respFmt}.`,
+      data: agora,
+      status: 'concluida',
+      autor: dados.responsavel_nome || 'CRM Delfos Solar',
+      responsavel_nome: dados.responsavel_nome || 'CRM Delfos Solar',
+    })
+  } catch (ativErr) {
+    console.warn('Erro ao registrar atividade de reabertura comercial:', ativErr)
+  }
+
+  return clienteAtualizado
+}
+
 export async function marcarClienteComoGanho(
   clienteId: string,
   areaDestinoOuDados?: 'projetos' | 'om' | MarcarGanhoDados,
@@ -436,6 +509,13 @@ export async function marcarClienteComoPerdido(
   observacaoTexto?: string,
 ): Promise<Cliente> {
   const agora = new Date().toISOString()
+  // Se o cliente for de reabertura, ao perder ele volta para Pós-Vendas sem perder seus dados/usinas
+  const clienteAtual = await pb
+    .collection('clientes')
+    .getOne<Cliente>(clienteId)
+    .catch(() => null)
+  const ehReabertura = Boolean(clienteAtual?.reabertura)
+
   const payloadUpdate: Partial<Cliente> = {
     status: 'Perdido',
     motivo_perda: motivoPerda,
@@ -444,6 +524,12 @@ export async function marcarClienteComoPerdido(
   }
   if (observacaoTexto && observacaoTexto.trim()) {
     payloadUpdate.observacoes = observacaoTexto.trim()
+  }
+
+  if (ehReabertura) {
+    // Restaura elegibilidade em Pós-Vendas: status_pos_vendas ativo e transferido_pos_vendas
+    payloadUpdate.status_pos_vendas = 'Ativo'
+    payloadUpdate.transferido_pos_vendas = true
   }
 
   const clienteAtualizado = await updateCliente(clienteId, payloadUpdate)

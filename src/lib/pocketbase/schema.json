@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-20T01:05:30.372Z",
+  "generatedAt": "2026-09-20T01:14:07.384Z",
   "collections": [
     {
       "name": "users",
@@ -615,6 +615,36 @@
         },
         {
           "name": "observacoes_perda",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "reabertura",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "motivo_reabertura",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "descricao_reabertura",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "valor_reabertura",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "data_reabertura",
           "type": "text",
           "required": false,
           "system": false

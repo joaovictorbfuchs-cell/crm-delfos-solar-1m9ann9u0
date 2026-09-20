@@ -67,7 +67,8 @@ import { ModalGerarContratoOM } from './ModalGerarContratoOM'
 import { ModalSolicitacaoInformacoes } from './ModalSolicitacaoInformacoes'
 import { ModalMarcarGanho } from './ModalMarcarGanho'
 import { ModalMarcarPerdido } from './ModalMarcarPerdido'
-import { Check, X as IconX } from 'lucide-react'
+import { ModalNovaOportunidade } from './ModalNovaOportunidade'
+import { Check, X as IconX, Sparkles } from 'lucide-react'
 import { SecaoMonitoramentoInversor } from './SecaoMonitoramentoInversor'
 import { SecaoAcessoSolarview } from './SecaoAcessoSolarview'
 import { SecaoUsinasCliente } from './SecaoUsinasCliente'
@@ -191,11 +192,14 @@ export const FichaClienteDrawer: React.FC = () => {
     renovarContratoOM,
     marcarComoGanho,
     marcarComoPerdido,
+    reabrirOportunidade,
+    usuarios,
   } = useClientes()
 
-  // Modais de Ganho / Perdido
+  // Modais de Ganho / Perdido / Nova Oportunidade (Reabertura)
   const [modalGanhoOpen, setModalGanhoOpen] = useState(false)
   const [modalPerdidoOpen, setModalPerdidoOpen] = useState(false)
+  const [modalNovaOportunidadeOpen, setModalNovaOportunidadeOpen] = useState(false)
 
   // Estado e carregamento de usinas do cliente selecionado
   const [usinasDoCliente, setUsinasDoCliente] = useState<UsinaCliente[]>([])
@@ -886,37 +890,58 @@ export const FichaClienteDrawer: React.FC = () => {
             />
           </div>
           <div className="flex items-center gap-2">
-            {/* Botões de Decisão Comercial: Marcar como Ganho e Marcar como Perdido
-                Exibir SOMENTE quando o cliente está em etapa de funil de vendas
-                (status em Novo Lead / Levantamento / Orçamento / Negociação / Contato Futuro)
-                e NÃO transferido_pos_vendas / status_pos_vendas / status Fechado / Perdido */}
+            {/* Botões de Decisão Comercial:
+                1) Marcar como Ganho e Marcar como Perdido
+                   Exibir quando o cliente está em etapa de funil de vendas
+                   (status em Novo Lead / Levantamento / Orçamento / Negociação / Contato Futuro)
+                   e NÃO transferido_pos_vendas / status_pos_vendas / status Fechado / Perdido
+                2) Botão "Nova Oportunidade" (Reabrir no Funil)
+                   Exibir SOMENTE para clientes já fechados (transferido_pos_vendas ou status_pos_vendas ou status Fechado ou com contrato O&M ativo) */}
             {['Novo Lead', 'Levantamento', 'Orçamento', 'Negociação', 'Contato Futuro'].includes(
               selectedCliente.status,
             ) &&
-              !selectedCliente.transferido_pos_vendas &&
-              !selectedCliente.status_pos_vendas && (
-                <>
-                  <button
-                    type="button"
-                    onClick={() => setModalGanhoOpen(true)}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg shadow-xs transition-all hover:scale-[1.02] active:scale-95"
-                    title="Marcar oportunidade como Ganho (confirmar fechamento)"
-                  >
-                    <Check className="w-3.5 h-3.5 shrink-0" />
-                    <span>Marcar como Ganho</span>
-                  </button>
+            !selectedCliente.transferido_pos_vendas &&
+            !selectedCliente.status_pos_vendas ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setModalGanhoOpen(true)}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg shadow-xs transition-all hover:scale-[1.02] active:scale-95"
+                  title="Marcar oportunidade como Ganho (confirmar fechamento)"
+                >
+                  <Check className="w-3.5 h-3.5 shrink-0" />
+                  <span>Marcar como Ganho</span>
+                </button>
 
-                  <button
-                    type="button"
-                    onClick={() => setModalPerdidoOpen(true)}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-300 text-xs font-bold rounded-lg shadow-xs transition-all hover:scale-[1.02] active:scale-95"
-                    title="Marcar oportunidade como Perdido (registrar motivo)"
-                  >
-                    <IconX className="w-3.5 h-3.5 shrink-0 text-rose-700" />
-                    <span>Marcar como Perdido</span>
-                  </button>
-                </>
-              )}
+                <button
+                  type="button"
+                  onClick={() => setModalPerdidoOpen(true)}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-300 text-xs font-bold rounded-lg shadow-xs transition-all hover:scale-[1.02] active:scale-95"
+                  title="Marcar oportunidade como Perdido (registrar motivo)"
+                >
+                  <IconX className="w-3.5 h-3.5 shrink-0 text-rose-700" />
+                  <span>Marcar como Perdido</span>
+                </button>
+              </>
+            ) : (
+              /* Clientes Fechados / Pós-Vendas / Monitoramento: Botão "Nova Oportunidade" */
+              (selectedCliente.transferido_pos_vendas ||
+                Boolean(selectedCliente.status_pos_vendas) ||
+                selectedCliente.status === 'Fechado' ||
+                contratosOM.some(
+                  (c) => c.cliente_id === selectedCliente.id && c.status === 'Ativo',
+                )) && (
+                <button
+                  type="button"
+                  onClick={() => setModalNovaOportunidadeOpen(true)}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-600 hover:bg-amber-700 active:bg-amber-800 text-white text-xs font-bold rounded-lg shadow-xs transition-all hover:scale-[1.02] active:scale-95 ring-1 ring-amber-500/50"
+                  title="Reabrir cliente no Funil de Vendas com uma Nova Oportunidade Comercial"
+                >
+                  <Sparkles className="w-3.5 h-3.5 shrink-0 text-amber-200" />
+                  <span>Nova Oportunidade</span>
+                </button>
+              )
+            )}
 
             <button
               type="button"
@@ -1170,6 +1195,7 @@ export const FichaClienteDrawer: React.FC = () => {
                     isAdmin={isAdmin}
                     usinas={usinasDoCliente}
                     contratos={contratosOM.filter((c) => c.cliente_id === selectedCliente.id)}
+                    onReabrirOportunidade={() => setModalNovaOportunidadeOpen(true)}
                     onCreateUsina={async (data) => {
                       await createUsina(data)
                       await recarregarUsinas()
@@ -4367,6 +4393,30 @@ export const FichaClienteDrawer: React.FC = () => {
             } catch (err) {
               console.error('Erro ao marcar perdido:', err)
               toast.error('Erro ao registrar cliente como perdido. Tente novamente.')
+              throw err
+            }
+          }}
+        />
+      )}
+
+      {/* Modal Nova Oportunidade (Reabertura Comercial de Cliente Fechado) */}
+      {selectedCliente && (
+        <ModalNovaOportunidade
+          cliente={selectedCliente}
+          open={modalNovaOportunidadeOpen}
+          onOpenChange={setModalNovaOportunidadeOpen}
+          usuarios={usuarios}
+          onConfirm={async (dadosReabertura) => {
+            const nomeCli = selectedCliente.nome
+            try {
+              await reabrirOportunidade(selectedCliente.id, dadosReabertura)
+              toast.success(
+                `Oportunidade reaberta com sucesso! Cliente "${nomeCli}" retornado ao funil na etapa "${dadosReabertura.etapa_destino || 'Novo Lead'}" com badge "Cliente Ativo".`,
+              )
+              setModalNovaOportunidadeOpen(false)
+            } catch (err) {
+              console.error('Erro ao reabrir oportunidade:', err)
+              toast.error('Erro ao reabrir oportunidade comercial. Tente novamente.')
               throw err
             }
           }}
