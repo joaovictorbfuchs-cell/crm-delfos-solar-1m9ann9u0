@@ -2370,8 +2370,8 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
       padding: 14px 16px;
       display: flex;
       flex-direction: column;
-      justify-content: flex-start;
-      min-height: 175px;
+      justify-content: space-between;
+      min-height: 220px;
       box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
     }
     .assinatura-dados {
@@ -3704,22 +3704,21 @@ print-color-adjust: exact !important; margin-bottom: 8px; display: flex; align-i
             <div style="border-top: 1px dashed #E5E7EB; padding-top: 8px; margin-top: 2px;" class="assinatura-dados">
               <div><strong>Razão Social:</strong> ${(empresa?.razaoSocial ?? 'DELFOS ENGENHARIA LTDA') ? `${empresa?.razaoSocial ?? 'DELFOS ENGENHARIA LTDA'} (Delfos Solar)` : ''}</div>
               <div><strong>CNPJ:</strong> ${empresa?.cnpj ?? '21.379.952/0001-38'}</div>
-              <div><strong>Resp. Técnico:</strong> ${empresa?.responsavelTecnico ?? 'João Victor Bagetti Fuchs'}${empresa?.crea ? ` (${empresa.crea})` : ''}</div>
-              <div><strong>Endereço:</strong> ${empresa?.endereco ?? 'Rua Espírito Santo, nº 275 – Centro, Erechim/RS'}</div>
-              <div><strong>Contato:</strong> ${[empresa?.telefone ?? '(54) 99129-2121', empresa?.email ?? 'contato@delfos.eng.br'].filter(Boolean).join(' • ')}</div>
             </div>
           </div>
 
           <!-- Bloco do Cliente (CLIENTE / CONTRATANTE à direita) -->
           <div class="assinatura-bloco">
             <!-- 1. Topo: Categoria + Local e data -->
-            <div style="display: flex; align-items: center; justify-content: space-between;">
-              <span style="font-size: 8.5pt; font-weight: 800; text-transform: uppercase; color: #1E40AF; letter-spacing: 0.05em;">
+            <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+              <span style="font-size: 8.5pt; font-weight: 800; text-transform: uppercase; color: #1E40AF; letter-spacing: 0.05em; white-space: nowrap;">
                 CLIENTE / CONTRATANTE
               </span>
-              <span style="font-size: 8.5pt; color: #6B7280; font-weight: 600;">
-                Local e data: ______________________, ____/____/________
-              </span>
+              <div style="font-size: 8.5pt; color: #6B7280; font-weight: 600; display: inline-flex; align-items: center; gap: 4px; white-space: nowrap;">
+                <span>Local e data:</span>
+                <span style="letter-spacing: -0.5px;">______________________</span>,
+                <span style="letter-spacing: 0.5px;">____/____/________</span>
+              </div>
             </div>
 
             <!-- 2. Linha de assinatura com ~55px de espaço livre no topo -->

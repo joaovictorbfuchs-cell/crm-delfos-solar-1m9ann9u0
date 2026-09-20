@@ -496,6 +496,15 @@ describe('Proposta Técnico-Comercial Generator (5 Seções Oficiais)', () => {
     expect(html).toContain('<strong>Contato:</strong>')
     // Não deve conter a expressão "Não informado"
     expect(html).not.toContain('Não informado')
+
+    // Linhas removidas do card EMPRESA CONTRATADA
+    expect(html).not.toContain('Resp. Técnico: JOÃO VICTOR BAGETTI FUCHS')
+    expect(html).not.toContain('RS151894')
+    // Bloco de dados da empresa não deve ter Endereço nem Contato
+    expect(html).toContain('<strong>Razão Social:</strong>')
+    expect(html).toContain('<strong>CNPJ:</strong>')
+    expect(html).toContain('DELFOS ENGENHARIA LTDA')
+    expect(html).toContain('21.379.952/0001-38')
   })
 
   it('renderiza o novo rodapé limpo e moderno em uma linha com endereço e site sem CREA/responsável e sem slogan', () => {

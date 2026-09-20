@@ -796,21 +796,6 @@ export const SecaoInvestimentoPagamento: React.FC<SecaoInvestimentoPagamentoProp
                     <div>
                       <strong className="text-gray-900 font-semibold">CNPJ:</strong> {empCnpj}
                     </div>
-                    <div>
-                      <strong className="text-gray-900 font-semibold">Resp. Técnico:</strong>{' '}
-                      {empRespTecnico
-                        ? empCrea
-                          ? `${empRespTecnico} (${empCrea})`
-                          : empRespTecnico
-                        : ''}
-                    </div>
-                    <div>
-                      <strong className="text-gray-900 font-semibold">Endereço:</strong>{' '}
-                      {empEndereco}
-                    </div>
-                    <div>
-                      <strong className="text-gray-900 font-semibold">Contato:</strong> {empContato}
-                    </div>
                   </div>
                 </div>
 
@@ -818,12 +803,14 @@ export const SecaoInvestimentoPagamento: React.FC<SecaoInvestimentoPagamentoProp
                 <div className="bg-white rounded-2xl p-5 border border-gray-200 shadow-2xs flex flex-col justify-between">
                   {/* 1. Topo: Categoria e Local/Data */}
                   <div className="flex items-center justify-between gap-2 text-xs">
-                    <span className="font-extrabold uppercase tracking-wider text-[#1E40AF] text-[11px]">
+                    <span className="font-extrabold uppercase tracking-wider text-[#1E40AF] text-[11px] whitespace-nowrap">
                       CLIENTE / CONTRATANTE
                     </span>
-                    <span className="text-[11px] text-gray-500 font-medium">
-                      Local e data: ______________________, ____/____/________
-                    </span>
+                    <div className="text-[11px] text-gray-500 font-medium inline-flex items-center gap-1 whitespace-nowrap">
+                      <span>Local e data:</span>
+                      <span className="tracking-tighter">______________________</span>,
+                      <span className="tracking-normal">____/____/________</span>
+                    </div>
                   </div>
 
                   {/* Espaço generoso livre para assinatura à mão (~60px) */}

@@ -3094,46 +3094,7 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
                       font: 'Arial',
                     }),
                     new TextRun({
-                      text: `${DADOS_EMPRESA_DELFOS_SOLAR.cnpj}\n`,
-                      size: 13,
-                      color: '374151',
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: 'Resp. Técnico: ',
-                      bold: true,
-                      size: 13,
-                      color: '111827',
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: `${DADOS_EMPRESA_DELFOS_SOLAR.responsavelTecnico} (${DADOS_EMPRESA_DELFOS_SOLAR.crea})\n`,
-                      size: 13,
-                      color: '374151',
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: 'Endereço: ',
-                      bold: true,
-                      size: 13,
-                      color: '111827',
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: `${DADOS_EMPRESA_DELFOS_SOLAR.endereco}\n`,
-                      size: 13,
-                      color: '374151',
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: 'Contato: ',
-                      bold: true,
-                      size: 13,
-                      color: '111827',
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: `${DADOS_EMPRESA_DELFOS_SOLAR.telefone} • ${DADOS_EMPRESA_DELFOS_SOLAR.email}`,
+                      text: `${DADOS_EMPRESA_DELFOS_SOLAR.cnpj}`,
                       size: 13,
                       color: '374151',
                       font: 'Arial',
@@ -3158,21 +3119,20 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
                 new Paragraph({
                   children: [
                     new TextRun({
-                      text: 'CLIENTE / CONTRATANTE\n',
+                      text: 'CLIENTE / CONTRATANTE',
                       bold: true,
                       size: 13,
                       color: '1E40AF',
                       font: 'Arial',
                     }),
                     new TextRun({
-                      text: 'Local e data: ______________________, ____/____/________\n',
+                      text: '   Local e data: ______________________, ____/____/________\n',
                       size: 11,
                       color: '6B7280',
                       font: 'Arial',
                     }),
                   ],
-                }),
-                // 2º Linha de assinatura + nome (bold, size 16) + função (com ~50-60px de respiro acima da linha e respiro abaixo)
+                }), // 2º Linha de assinatura + nome (bold, size 16) + função (com ~50-60px de respiro acima da linha e respiro abaixo)
                 new Paragraph({
                   spacing: { before: 800, after: 180 },
                   alignment: AlignmentType.CENTER,

@@ -61,8 +61,15 @@ describe('SecaoInvestimentoPagamento Component', () => {
     expect(html).toContain('EMPRESA CONTRATADA')
     expect(html).toContain('CLIENTE / CONTRATANTE')
     expect(html).toContain('DELFOS ENGENHARIA LTDA')
+    expect(html).toContain('21.379.952/0001-38')
     expect(html).toContain('João Victor Bagetti Fuchs')
     expect(html).toContain('De acordo com as especificações e valores da proposta')
+
+    // Linhas removidas do card EMPRESA CONTRATADA
+    expect(html).not.toContain('Resp. Técnico: JOÃO VICTOR BAGETTI FUCHS')
+    expect(html).not.toContain('RS151894')
+    expect(html).not.toContain('Rua Espírito Santo')
+    expect(html).not.toContain('contato@delfos.eng.br')
   })
 
   it('respeita os valores reais passados via props', () => {
