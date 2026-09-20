@@ -65,6 +65,9 @@ import { ModalGerenciarAtividades } from './ModalGerenciarAtividades'
 import { ModalGerarProcuracaoOM } from './ModalGerarProcuracaoOM'
 import { ModalGerarContratoOM } from './ModalGerarContratoOM'
 import { ModalSolicitacaoInformacoes } from './ModalSolicitacaoInformacoes'
+import { ModalMarcarGanho } from './ModalMarcarGanho'
+import { ModalMarcarPerdido } from './ModalMarcarPerdido'
+import { Trophy } from 'lucide-react'
 import { SecaoMonitoramentoInversor } from './SecaoMonitoramentoInversor'
 import { SecaoAcessoSolarview } from './SecaoAcessoSolarview'
 import { SecaoUsinasCliente } from './SecaoUsinasCliente'
@@ -186,7 +189,13 @@ export const FichaClienteDrawer: React.FC = () => {
     updateDocumentoClienteStatus,
     contratosOM,
     renovarContratoOM,
+    marcarComoGanho,
+    marcarComoPerdido,
   } = useClientes()
+
+  // Modais de Ganho / Perdido
+  const [modalGanhoOpen, setModalGanhoOpen] = useState(false)
+  const [modalPerdidoOpen, setModalPerdidoOpen] = useState(false)
 
   // Estado e carregamento de usinas do cliente selecionado
   const [usinasDoCliente, setUsinasDoCliente] = useState<UsinaCliente[]>([])
@@ -877,6 +886,32 @@ export const FichaClienteDrawer: React.FC = () => {
             />
           </div>
           <div className="flex items-center gap-2">
+            {/* Botões de Decisão Comercial: Ganho e Perdido (para clientes ainda não fechados ou perdidos) */}
+            {selectedCliente.status !== 'Fechado' &&
+              (selectedCliente.status as string) !== 'Perdido' && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setModalGanhoOpen(true)}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg shadow-xs transition-all hover:scale-[1.02] active:scale-95"
+                    title="Marcar negócio como Ganho (enviar para Projetos ou O&M)"
+                  >
+                    <Trophy className="w-3.5 h-3.5 shrink-0" />
+                    <span>Ganho</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setModalPerdidoOpen(true)}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-bold rounded-lg shadow-xs transition-all hover:scale-[1.02] active:scale-95"
+                    title="Marcar negócio como Perdido (registrar motivo e retirar do funil)"
+                  >
+                    <XCircle className="w-3.5 h-3.5 shrink-0 text-rose-600" />
+                    <span>Perdido</span>
+                  </button>
+                </>
+              )}
+
             <button
               type="button"
               onClick={() => setImportDocOpen((prev) => !prev)}
@@ -4268,6 +4303,64 @@ export const FichaClienteDrawer: React.FC = () => {
               })
             } catch (err) {
               console.error('Erro ao salvar pendências de informações do cliente:', err)
+            }
+          }}
+        />
+      )}
+
+      {/* Modal Marcar Ganho */}
+      {selectedCliente && (
+        <ModalMarcarGanho
+          cliente={selectedCliente}
+          open={modalGanhoOpen}
+          onOpenChange={setModalGanhoOpen}
+          onConfirm={async (area) => {
+            const nomeCli = selectedCliente.nome
+            try {
+              await marcarComoGanho(selectedCliente.id, area)
+              toast.success(
+                `Negócio Ganho! Cliente "${nomeCli}" fechado e enviado para ${
+                  area === 'projetos'
+                    ? 'a área de Projetos (Levantamento de Informações)'
+                    : 'a área de O&M (Plano de Manutenção)'
+                }.`,
+              )
+              setModalGanhoOpen(false)
+            } catch (err) {
+              console.error('Erro ao marcar ganho:', err)
+              toast.error('Erro ao registrar cliente como ganho. Tente novamente.')
+              throw err
+            }
+          }}
+        />
+      )}
+
+      {/* Modal Marcar Perdido */}
+      {selectedCliente && (
+        <ModalMarcarPerdido
+          cliente={selectedCliente}
+          open={modalPerdidoOpen}
+          onOpenChange={setModalPerdidoOpen}
+          onConfirm={async (motivo, observacao) => {
+            const nomeCli = selectedCliente.nome
+            try {
+              await marcarComoPerdido(selectedCliente.id, motivo, observacao)
+              const rotulos: Record<string, string> = {
+                preco: 'Preço',
+                concorrente: 'Concorrente',
+                desistiu: 'Desistiu',
+                outro: 'Outro',
+              }
+              toast.success(
+                `Negócio marcado como Perdido para "${nomeCli}". Motivo: ${
+                  rotulos[motivo] || motivo
+                }.`,
+              )
+              setModalPerdidoOpen(false)
+            } catch (err) {
+              console.error('Erro ao marcar perdido:', err)
+              toast.error('Erro ao registrar cliente como perdido. Tente novamente.')
+              throw err
             }
           }}
         />

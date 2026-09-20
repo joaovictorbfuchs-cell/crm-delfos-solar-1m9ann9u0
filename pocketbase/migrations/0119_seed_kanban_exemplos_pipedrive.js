@@ -1,12 +1,33 @@
 migrate(
   (app) => {
+    // 1. Atualizar select 'origem_lead' da coleção 'clientes' para aceitar minúsculos e o canal 'google'
     const cliCol = app.findCollectionByNameOrId('clientes')
+    const origemLeadField = cliCol.fields.getByName('origem_lead')
+    if (origemLeadField) {
+      origemLeadField.values = [
+        'Facebook',
+        'Instagram',
+        'Indicação',
+        'Site',
+        'WhatsApp',
+        'Outro',
+        'google',
+        'instagram',
+        'indicacao',
+        'whatsapp',
+        'facebook',
+        'site',
+        'outro',
+      ]
+      app.save(cliCol)
+    }
+
     const atvCol = app.findCollectionByNameOrId('atividades')
 
     // 8 Clientes de exemplo idempotentes
     // Distribuídos em 3 etapas do funil: Novo Lead, Orçamento ("Proposta Enviada"), Negociação
     // Valores de R$ 11.000 a R$ 75.000
-    // Origens variadas: Instagram, Indicação, Google, WhatsApp, Facebook
+    // Origens variadas em minúsculo: instagram, indicacao, google, whatsapp
     // Alguns com próxima ação agendada e alguns sem (para demonstrar lead frio e > 7 dias)
     const seedKanbanData = [
       // --- ETAPA: Novo Lead ---
@@ -16,7 +37,7 @@ migrate(
         valor_estimado: 38000,
         cidade: 'Erechim/RS',
         potencia_kwp: 7.2,
-        origem_lead: 'Instagram',
+        origem_lead: 'instagram',
         status: 'Novo Lead',
         // Criado há 12 dias (tempo na etapa > 7 dias)
         created: '2026-09-08 10:00:00.000Z',
@@ -34,7 +55,7 @@ migrate(
         valor_estimado: 75000,
         cidade: 'Passo Fundo/RS',
         potencia_kwp: 18.4,
-        origem_lead: 'Google',
+        origem_lead: 'google',
         status: 'Novo Lead',
         // Criado há 9 dias (> 7 dias) e SEM próxima ação agendada (LEAD FRIO)
         created: '2026-09-11 15:30:00.000Z',
@@ -46,7 +67,7 @@ migrate(
         valor_estimado: 24500,
         cidade: 'Getúlio Vargas/RS',
         potencia_kwp: 5.1,
-        origem_lead: 'Indicação',
+        origem_lead: 'indicacao',
         status: 'Novo Lead',
         // Criado há 3 dias (< 7 dias)
         created: '2026-09-17 09:15:00.000Z',
@@ -66,7 +87,7 @@ migrate(
         valor_estimado: 64000,
         cidade: 'Barão de Cotegipe/RS',
         potencia_kwp: 15.6,
-        origem_lead: 'Indicação',
+        origem_lead: 'indicacao',
         status: 'Orçamento',
         // Criado há 15 dias (> 7 dias)
         created: '2026-09-05 11:00:00.000Z',
@@ -84,7 +105,7 @@ migrate(
         valor_estimado: 45000,
         cidade: 'Erechim/RS',
         potencia_kwp: 8.54,
-        origem_lead: 'Instagram',
+        origem_lead: 'instagram',
         status: 'Orçamento',
         // Criado há 10 dias (> 7 dias) e SEM atividade (LEAD FRIO)
         created: '2026-09-10 14:00:00.000Z',
@@ -96,7 +117,7 @@ migrate(
         valor_estimado: 18900,
         cidade: 'Marau/RS',
         potencia_kwp: 4.2,
-        origem_lead: 'Google',
+        origem_lead: 'google',
         status: 'Orçamento',
         // Criado há 4 dias (< 7 dias)
         created: '2026-09-16 11:20:00.000Z',
@@ -115,7 +136,7 @@ migrate(
         valor_estimado: 72000,
         cidade: 'Erechim/RS',
         potencia_kwp: 19.8,
-        origem_lead: 'Indicação',
+        origem_lead: 'indicacao',
         status: 'Negociação',
         // Criado há 5 dias (< 7 dias)
         created: '2026-09-15 13:45:00.000Z',
@@ -132,7 +153,7 @@ migrate(
         valor_estimado: 11000,
         cidade: 'Tapejara/RS',
         potencia_kwp: 2.8,
-        origem_lead: 'Google',
+        origem_lead: 'whatsapp',
         status: 'Negociação',
         // Criado há 14 dias (> 7 dias) e SEM atividade agendada (LEAD FRIO)
         created: '2026-09-06 08:30:00.000Z',

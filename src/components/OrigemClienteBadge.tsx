@@ -1,5 +1,17 @@
 import React from 'react'
-import { FileSpreadsheet, Building, Database, UserPlus, Layers } from 'lucide-react'
+import {
+  FileSpreadsheet,
+  Building,
+  Database,
+  UserPlus,
+  Layers,
+  Instagram,
+  Users,
+  Search,
+  MessageCircle,
+  Globe,
+  Share2,
+} from 'lucide-react'
 import { identificarOrigemCliente, OrigemClienteInfo, OrigemClienteTipo } from '@/lib/origemCliente'
 import { Cliente } from '@/types/crm'
 
@@ -20,6 +32,18 @@ export function OrigemClienteBadge({
 
   const renderIcon = () => {
     switch (info.tipo) {
+      case 'instagram':
+        return <Instagram className="w-3 h-3 text-pink-600 shrink-0" />
+      case 'indicacao':
+        return <Users className="w-3 h-3 text-emerald-700 shrink-0" />
+      case 'google':
+        return <Search className="w-3 h-3 text-blue-600 shrink-0" />
+      case 'whatsapp':
+        return <MessageCircle className="w-3 h-3 text-emerald-800 shrink-0" />
+      case 'facebook':
+        return <Share2 className="w-3 h-3 text-blue-700 shrink-0" />
+      case 'site':
+        return <Globe className="w-3 h-3 text-sky-600 shrink-0" />
       case 'conta_azul':
         return <Building className="w-3 h-3 text-blue-600 shrink-0" />
       case 'pipedrive':
@@ -36,6 +60,22 @@ export function OrigemClienteBadge({
 
   const getStyleClasses = () => {
     switch (info.tipo) {
+      case 'instagram':
+        // Tag de origem: Instagram: fúcsia/rosa
+        return 'bg-pink-50 text-pink-800 border-pink-200/80 hover:bg-pink-100/70'
+      case 'indicacao':
+        // Tag de origem: Indicação: esmeralda/verde
+        return 'bg-emerald-50 text-emerald-800 border-emerald-300 hover:bg-emerald-100/70'
+      case 'google':
+        // Tag de origem: Google: azul
+        return 'bg-blue-50 text-blue-800 border-blue-200/80 hover:bg-blue-100/70'
+      case 'whatsapp':
+        // Tag de origem: WhatsApp: verde escuro
+        return 'bg-emerald-100 text-emerald-950 border-emerald-400 hover:bg-emerald-200/70'
+      case 'facebook':
+        return 'bg-indigo-50 text-indigo-800 border-indigo-200/80 hover:bg-indigo-100/70'
+      case 'site':
+        return 'bg-sky-50 text-sky-800 border-sky-200 hover:bg-sky-100/70'
       case 'conta_azul':
         return 'bg-blue-50 text-blue-800 border-blue-200/80 hover:bg-blue-100/70'
       case 'pipedrive':

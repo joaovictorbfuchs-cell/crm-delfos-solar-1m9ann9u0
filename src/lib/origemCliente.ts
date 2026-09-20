@@ -5,13 +5,30 @@ export type OrigemClienteTipo =
   | 'pipedrive'
   | 'pipedrive_conta_azul'
   | 'planilha'
+  | 'instagram'
+  | 'indicacao'
+  | 'google'
+  | 'whatsapp'
+  | 'facebook'
+  | 'site'
   | 'manual'
 
 export interface OrigemClienteInfo {
   tipo: OrigemClienteTipo
   label: string
   sublabel?: string
-  badgeVariant: 'conta_azul' | 'pipedrive' | 'mesclado' | 'planilha' | 'manual'
+  badgeVariant:
+    | 'conta_azul'
+    | 'pipedrive'
+    | 'mesclado'
+    | 'planilha'
+    | 'instagram'
+    | 'indicacao'
+    | 'google'
+    | 'whatsapp'
+    | 'facebook'
+    | 'site'
+    | 'manual'
   iconeCor: string
 }
 
@@ -129,12 +146,78 @@ export function identificarOrigemCliente(
     }
   }
 
-  // 5. Cadastro Manual / Direto
+  // 5. Canais diretos de Marketing / Vendas (Instagram, Indicação, Google, WhatsApp, Facebook, Site)
+  if (origemLead === 'instagram' || comoConheceu.includes('instagram')) {
+    return {
+      tipo: 'instagram',
+      label: 'Instagram',
+      sublabel: 'Canal',
+      badgeVariant: 'instagram',
+      iconeCor: 'text-pink-600',
+    }
+  }
+
+  if (
+    origemLead === 'indicação' ||
+    origemLead === 'indicacao' ||
+    comoConheceu.includes('indicação') ||
+    comoConheceu.includes('indicacao')
+  ) {
+    return {
+      tipo: 'indicacao',
+      label: 'Indicação',
+      sublabel: 'Canal',
+      badgeVariant: 'indicacao',
+      iconeCor: 'text-emerald-700',
+    }
+  }
+
+  if (origemLead === 'google' || comoConheceu.includes('google')) {
+    return {
+      tipo: 'google',
+      label: 'Google',
+      sublabel: 'Canal',
+      badgeVariant: 'google',
+      iconeCor: 'text-blue-600',
+    }
+  }
+
+  if (origemLead === 'whatsapp' || comoConheceu.includes('whatsapp')) {
+    return {
+      tipo: 'whatsapp',
+      label: 'WhatsApp',
+      sublabel: 'Canal',
+      badgeVariant: 'whatsapp',
+      iconeCor: 'text-emerald-800',
+    }
+  }
+
+  if (origemLead === 'facebook' || comoConheceu.includes('facebook')) {
+    return {
+      tipo: 'facebook',
+      label: 'Facebook',
+      sublabel: 'Canal',
+      badgeVariant: 'facebook',
+      iconeCor: 'text-blue-700',
+    }
+  }
+
+  if (origemLead === 'site' || comoConheceu.includes('site')) {
+    return {
+      tipo: 'site',
+      label: 'Site',
+      sublabel: 'Canal',
+      badgeVariant: 'site',
+      iconeCor: 'text-sky-600',
+    }
+  }
+
+  // 6. Cadastro Manual / Direto
   return {
     tipo: 'manual',
     label: 'Manual',
     sublabel:
-      cliente.origem_lead && cliente.origem_lead !== 'Outro'
+      cliente.origem_lead && (cliente.origem_lead as string).toLowerCase() !== 'outro'
         ? cliente.origem_lead
         : 'Cadastro no CRM',
     badgeVariant: 'manual',

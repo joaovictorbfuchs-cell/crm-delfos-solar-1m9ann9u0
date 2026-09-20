@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-20T00:19:53.708Z",
+  "generatedAt": "2026-09-20T00:53:43.143Z",
   "collections": [
     {
       "name": "users",
@@ -211,7 +211,21 @@
           "type": "select",
           "required": false,
           "system": false,
-          "selectValues": ["Facebook", "Instagram", "Indicação", "Site", "WhatsApp", "Outro"]
+          "selectValues": [
+            "Facebook",
+            "Instagram",
+            "Indicação",
+            "Site",
+            "WhatsApp",
+            "Outro",
+            "google",
+            "instagram",
+            "indicacao",
+            "whatsapp",
+            "facebook",
+            "site",
+            "outro"
+          ]
         },
         {
           "name": "nome_fantasia",

@@ -59,13 +59,23 @@ export function runOrigemClienteTests(): boolean {
   // Teste 5: Cliente Manual / CRM direto
   const clienteManual: Partial<Cliente> = {
     nome: 'Maria Santos',
-    origem_lead: 'Indicação',
+    origem_lead: 'Outro',
     como_conheceu: '',
     observacoes: '',
   }
   const infoManual = identificarOrigemCliente(clienteManual)
   if (infoManual.tipo !== 'manual') {
     throw new Error(`Falha no teste manual: esperado manual, obteve ${infoManual.tipo}`)
+  }
+
+  // Teste 5.1: Cliente com canal Indicação
+  const clienteIndicacao: Partial<Cliente> = {
+    nome: 'Carlos Mendes',
+    origem_lead: 'Indicação',
+  }
+  const infoIndicacao = identificarOrigemCliente(clienteIndicacao)
+  if (infoIndicacao.tipo !== 'indicacao') {
+    throw new Error(`Falha no teste indicação: esperado indicacao, obteve ${infoIndicacao.tipo}`)
   }
 
   // Teste 6: Ordenação alfabética com acentuação pt-BR
