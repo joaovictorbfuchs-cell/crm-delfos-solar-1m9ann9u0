@@ -758,92 +758,98 @@ export const SecaoInvestimentoPagamento: React.FC<SecaoInvestimentoPagamentoProp
 
           return (
             <div className="pt-2 border-t border-gray-200">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-stretch">
                 {/* Coluna 1: EMPRESA CONTRATADA */}
-                <div className="bg-white rounded-2xl p-5 border border-gray-200 shadow-2xs flex flex-col justify-between">
-                  {/* 1. Topo: Categoria e Local/Data */}
-                  <div className="flex items-center justify-between gap-2 text-xs">
-                    <span className="font-extrabold uppercase tracking-wider text-[#065F46] text-[11px]">
-                      EMPRESA CONTRATADA
-                    </span>
-                    <span className="text-[11px] text-gray-500 font-medium">
-                      Erechim / RS, {dataPropostaFormatada}
-                    </span>
+                <div className="bg-white rounded-2xl p-5 border border-gray-200 shadow-2xs flex flex-col justify-between h-full">
+                  {/* Bloco Superior: Cabeçalho com Título e Local/Data + Área de Assinatura */}
+                  <div className="flex flex-col flex-1">
+                    {/* 1. Topo: Título na linha 1; Local/Data descendo na linha 2 com pequeno espaçamento */}
+                    <div className="min-h-[46px] flex flex-col justify-start">
+                      <div className="font-extrabold uppercase tracking-wider text-[#065F46] text-[11px] whitespace-nowrap">
+                        EMPRESA CONTRATADA
+                      </div>
+                      <div className="text-[11px] text-gray-500 font-medium mt-1.5 whitespace-nowrap">
+                        Erechim / RS, {dataPropostaFormatada}
+                      </div>
+                    </div>
+
+                    {/* Espaço flexível e livre para assinatura à mão (~55-65px) */}
+                    <div className="flex-1 min-h-[55px]" />
+
+                    {/* 2. Linha de assinatura */}
+                    <div className="h-[1.5px] bg-gray-900 w-full" />
+
+                    {/* 3. Nome de quem assina + subtítulo (altura padronizada para alinhamento horizontal) */}
+                    <div className="text-center pt-2.5 pb-3 space-y-0.5 min-h-[56px] flex flex-col justify-center">
+                      <div className="text-sm font-black text-gray-900 uppercase tracking-wide truncate">
+                        {empRespTecnico}
+                      </div>
+                      <div className="text-[11px] font-bold text-[#065F46] truncate">
+                        Responsável Técnico{empCrea ? ` — ${empCrea}` : ''}
+                      </div>
+                    </div>
                   </div>
 
-                  {/* Espaço generoso livre para assinatura à mão (~60px) */}
-                  <div className="pt-16" />
-
-                  {/* 2. Linha de assinatura */}
-                  <div className="h-[1.5px] bg-gray-900 w-full" />
-
-                  {/* 3. Nome de quem assina + subtítulo (espaçamento vertical confortável abaixo da linha) */}
-                  <div className="text-center pt-2.5 pb-3 space-y-0.5">
-                    <div className="text-sm font-black text-gray-900 uppercase tracking-wide">
-                      {empRespTecnico}
-                    </div>
-                    <div className="text-[11px] font-bold text-[#065F46]">
-                      Responsável Técnico{empCrea ? ` — ${empCrea}` : ''}
-                    </div>
-                  </div>
-
-                  {/* 4. Divisor tracejado + Bloco de dados compactos */}
-                  <div className="border-t border-dashed border-gray-300 pt-3 text-[11px] text-gray-600 space-y-1">
-                    <div>
+                  {/* 4. Divisor tracejado + Bloco de dados cadastrais padronizado */}
+                  <div className="border-t border-dashed border-gray-300 pt-3 text-[11px] text-gray-600 space-y-1 min-h-[96px] flex flex-col justify-start">
+                    <div className="truncate">
                       <strong className="text-gray-900 font-semibold">Razão Social:</strong>{' '}
                       {empRazaoSocial ? `${empRazaoSocial} (Delfos Solar)` : ''}
                     </div>
-                    <div>
+                    <div className="truncate">
                       <strong className="text-gray-900 font-semibold">CNPJ:</strong> {empCnpj}
                     </div>
                   </div>
                 </div>
 
                 {/* Coluna 2: CLIENTE / CONTRATANTE */}
-                <div className="bg-white rounded-2xl p-5 border border-gray-200 shadow-2xs flex flex-col justify-between">
-                  {/* 1. Topo: Categoria e Local/Data */}
-                  <div className="flex items-center justify-between gap-2 text-xs">
-                    <span className="font-extrabold uppercase tracking-wider text-[#1E40AF] text-[11px] whitespace-nowrap">
-                      CLIENTE / CONTRATANTE
-                    </span>
-                    <div className="text-[11px] text-gray-500 font-medium inline-flex items-center gap-1 whitespace-nowrap">
-                      <span>Local e data:</span>
-                      <span className="tracking-tighter">______________________</span>,
-                      <span className="tracking-normal">____/____/________</span>
+                <div className="bg-white rounded-2xl p-5 border border-gray-200 shadow-2xs flex flex-col justify-between h-full">
+                  {/* Bloco Superior: Cabeçalho com Título e Local/Data + Área de Assinatura */}
+                  <div className="flex flex-col flex-1">
+                    {/* 1. Topo: Título na linha 1; Local/Data descendo na linha 2 com pequeno espaçamento */}
+                    <div className="min-h-[46px] flex flex-col justify-start">
+                      <div className="font-extrabold uppercase tracking-wider text-[#1E40AF] text-[11px] whitespace-nowrap">
+                        CLIENTE / CONTRATANTE
+                      </div>
+                      <div className="text-[11px] text-gray-500 font-medium mt-1.5 flex items-center gap-1 whitespace-nowrap overflow-hidden">
+                        <span>Local e data:</span>
+                        <span className="tracking-tighter">______________________</span>,
+                        <span className="tracking-normal">____/____/________</span>
+                      </div>
+                    </div>
+
+                    {/* Espaço flexível e livre para assinatura à mão (~55-65px) */}
+                    <div className="flex-1 min-h-[55px]" />
+
+                    {/* 2. Linha de assinatura */}
+                    <div className="h-[1.5px] bg-gray-900 w-full" />
+
+                    {/* 3. Nome do cliente + subtítulo (altura padronizada para alinhamento horizontal) */}
+                    <div className="text-center pt-2.5 pb-3 space-y-0.5 min-h-[56px] flex flex-col justify-center">
+                      <div className="text-sm font-black text-gray-900 uppercase tracking-wide truncate">
+                        {nomeClienteAssinatura}
+                      </div>
+                      <div className="text-[11px] font-bold text-[#1E40AF] truncate">
+                        De acordo com as especificações e valores da proposta
+                      </div>
                     </div>
                   </div>
 
-                  {/* Espaço generoso livre para assinatura à mão (~60px) */}
-                  <div className="pt-16" />
-
-                  {/* 2. Linha de assinatura */}
-                  <div className="h-[1.5px] bg-gray-900 w-full" />
-
-                  {/* 3. Nome do cliente + subtítulo (espaçamento vertical confortável abaixo da linha) */}
-                  <div className="text-center pt-2.5 pb-3 space-y-0.5">
-                    <div className="text-sm font-black text-gray-900 uppercase tracking-wide">
-                      {nomeClienteAssinatura}
-                    </div>
-                    <div className="text-[11px] font-bold text-[#1E40AF]">
-                      De acordo com as especificações e valores da proposta
-                    </div>
-                  </div>
-
-                  {/* 4. Divisor tracejado + Bloco de dados compactos */}
-                  <div className="border-t border-dashed border-gray-300 pt-3 text-[11px] text-gray-600 space-y-1">
-                    <div>
+                  {/* 4. Divisor tracejado + Bloco de dados cadastrais padronizado */}
+                  <div className="border-t border-dashed border-gray-300 pt-3 text-[11px] text-gray-600 space-y-1 min-h-[96px] flex flex-col justify-start">
+                    <div className="truncate">
                       <strong className="text-gray-900 font-semibold">Nome/Razão Social:</strong>{' '}
                       {nomeClienteAssinatura}
                     </div>
-                    <div>
+                    <div className="truncate">
                       <strong className="text-gray-900 font-semibold">CPF/CNPJ:</strong>{' '}
                       {cliCpfCnpj}
                     </div>
-                    <div>
+                    <div className="truncate">
                       <strong className="text-gray-900 font-semibold">Endereço:</strong>{' '}
                       {cliEndereco}
                     </div>
-                    <div>
+                    <div className="truncate">
                       <strong className="text-gray-900 font-semibold">Contato:</strong> {cliContato}
                     </div>
                   </div>

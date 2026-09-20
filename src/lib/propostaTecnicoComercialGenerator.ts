@@ -2360,6 +2360,7 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
       margin-top: 12px;
       display: grid;
       grid-template-columns: 1fr 1fr;
+      align-items: stretch;
       gap: 24px;
       font-size: 9.5pt;
     }
@@ -2371,13 +2372,22 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
       display: flex;
       flex-direction: column;
       justify-content: space-between;
-      min-height: 220px;
       box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+      height: 100%;
+      box-sizing: border-box;
+    }
+    .assinatura-topo-bloco {
+      min-height: 40px;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-start;
     }
     .assinatura-dados {
       font-size: 8.5pt;
       line-height: 1.5;
       color: #4B5563;
+      min-height: 78px;
+      box-sizing: border-box;
     }
     .linha-assinatura-final {
       border-bottom: 1.5px solid #111827;
@@ -3677,69 +3687,73 @@ print-color-adjust: exact !important; margin-bottom: 8px; display: flex; align-i
         <div class="assinaturas-grid-final">
           <!-- Bloco da Empresa (EMPRESA CONTRATADA à esquerda) -->
           <div class="assinatura-bloco">
-            <!-- 1. Topo: Categoria + Local e data -->
-            <div style="display: flex; align-items: center; justify-content: space-between;">
-              <span style="font-size: 8.5pt; font-weight: 800; text-transform: uppercase; color: #065F46; letter-spacing: 0.05em;">
-                EMPRESA CONTRATADA
-              </span>
-              <span style="font-size: 8.5pt; color: #6B7280; font-weight: 600;">
-                Erechim / RS, ${dataFormatada}
-              </span>
+            <div>
+              <!-- 1. Topo: Categoria na linha 1; Local e data descendo na linha 2 com pequeno espaçamento -->
+              <div class="assinatura-topo-bloco">
+                <div style="font-size: 8.5pt; font-weight: 800; text-transform: uppercase; color: #065F46; letter-spacing: 0.05em; white-space: nowrap;">
+                  EMPRESA CONTRATADA
+                </div>
+                <div style="font-size: 8.5pt; color: #6B7280; font-weight: 600; margin-top: 4px; white-space: nowrap;">
+                  Erechim / RS, ${dataFormatada}
+                </div>
+              </div>
+
+              <!-- 2. Linha de assinatura com ~55px de espaço livre no topo -->
+              <div class="linha-assinatura-final"></div>
+
+              <!-- 3. Nome de quem assina + subtítulo (altura padronizada para alinhamento horizontal) -->
+              <div style="text-align: center; margin-bottom: 10px; min-height: 42px; display: flex; flex-direction: column; justify-content: center;">
+                <div style="font-size: 10pt; font-weight: 900; color: #111827; text-transform: uppercase; letter-spacing: 0.02em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                  ${empresa?.responsavelTecnico ?? 'João Victor Bagetti Fuchs'}
+                </div>
+                <div style="font-size: 8.5pt; font-weight: 700; color: #065F46; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                  Responsável Técnico${empresa?.crea ? ` — ${empresa.crea}` : ''}
+                </div>
+              </div>
             </div>
 
-            <!-- 2. Linha de assinatura com ~55px de espaço livre no topo -->
-            <div class="linha-assinatura-final"></div>
-
-            <!-- 3. Nome de quem assina + subtítulo -->
-            <div style="text-align: center; margin-bottom: 10px;">
-              <div style="font-size: 10pt; font-weight: 900; color: #111827; text-transform: uppercase; letter-spacing: 0.02em;">
-                ${empresa?.responsavelTecnico ?? 'João Victor Bagetti Fuchs'}
-              </div>
-              <div style="font-size: 8.5pt; font-weight: 700; color: #065F46; margin-top: 2px;">
-                Responsável Técnico${empresa?.crea ? ` — ${empresa.crea}` : ''}
-              </div>
-            </div>
-
-            <!-- 4. Divisor tracejado sutil e bloco de dados compactos -->
+            <!-- 4. Divisor tracejado sutil e bloco de dados cadastrais padronizado -->
             <div style="border-top: 1px dashed #E5E7EB; padding-top: 8px; margin-top: 2px;" class="assinatura-dados">
-              <div><strong>Razão Social:</strong> ${(empresa?.razaoSocial ?? 'DELFOS ENGENHARIA LTDA') ? `${empresa?.razaoSocial ?? 'DELFOS ENGENHARIA LTDA'} (Delfos Solar)` : ''}</div>
-              <div><strong>CNPJ:</strong> ${empresa?.cnpj ?? '21.379.952/0001-38'}</div>
+              <div style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"><strong>Razão Social:</strong> ${(empresa?.razaoSocial ?? 'DELFOS ENGENHARIA LTDA') ? `${empresa?.razaoSocial ?? 'DELFOS ENGENHARIA LTDA'} (Delfos Solar)` : ''}</div>
+              <div style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"><strong>CNPJ:</strong> ${empresa?.cnpj ?? '21.379.952/0001-38'}</div>
             </div>
           </div>
 
           <!-- Bloco do Cliente (CLIENTE / CONTRATANTE à direita) -->
           <div class="assinatura-bloco">
-            <!-- 1. Topo: Categoria + Local e data -->
-            <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
-              <span style="font-size: 8.5pt; font-weight: 800; text-transform: uppercase; color: #1E40AF; letter-spacing: 0.05em; white-space: nowrap;">
-                CLIENTE / CONTRATANTE
-              </span>
-              <div style="font-size: 8.5pt; color: #6B7280; font-weight: 600; display: inline-flex; align-items: center; gap: 4px; white-space: nowrap;">
-                <span>Local e data:</span>
-                <span style="letter-spacing: -0.5px;">______________________</span>,
-                <span style="letter-spacing: 0.5px;">____/____/________</span>
+            <div>
+              <!-- 1. Topo: Categoria na linha 1; Local e data descendo na linha 2 com pequeno espaçamento -->
+              <div class="assinatura-topo-bloco">
+                <div style="font-size: 8.5pt; font-weight: 800; text-transform: uppercase; color: #1E40AF; letter-spacing: 0.05em; white-space: nowrap;">
+                  CLIENTE / CONTRATANTE
+                </div>
+                <div style="font-size: 8.5pt; color: #6B7280; font-weight: 600; margin-top: 4px; display: inline-flex; align-items: center; gap: 4px; white-space: nowrap;">
+                  <span>Local e data:</span>
+                  <span style="letter-spacing: -0.5px;">______________________</span>,
+                  <span style="letter-spacing: 0.5px;">____/____/________</span>
+                </div>
+              </div>
+
+              <!-- 2. Linha de assinatura com ~55px de espaço livre no topo -->
+              <div class="linha-assinatura-final"></div>
+
+              <!-- 3. Nome do cliente + subtítulo (altura padronizada para alinhamento horizontal) -->
+              <div style="text-align: center; margin-bottom: 10px; min-height: 42px; display: flex; flex-direction: column; justify-content: center;">
+                <div style="font-size: 10pt; font-weight: 900; color: #111827; text-transform: uppercase; letter-spacing: 0.02em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                  ${nomeCliente}
+                </div>
+                <div style="font-size: 8.5pt; font-weight: 700; color: #1E40AF; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                  De acordo com as especificações e valores da proposta
+                </div>
               </div>
             </div>
 
-            <!-- 2. Linha de assinatura com ~55px de espaço livre no topo -->
-            <div class="linha-assinatura-final"></div>
-
-            <!-- 3. Nome do cliente + subtítulo -->
-            <div style="text-align: center; margin-bottom: 10px;">
-              <div style="font-size: 10pt; font-weight: 900; color: #111827; text-transform: uppercase; letter-spacing: 0.02em;">
-                ${nomeCliente}
-              </div>
-              <div style="font-size: 8.5pt; font-weight: 700; color: #1E40AF; margin-top: 2px;">
-                De acordo com as especificações e valores da proposta
-              </div>
-            </div>
-
-            <!-- 4. Divisor tracejado sutil e bloco de dados compactos -->
+            <!-- 4. Divisor tracejado sutil e bloco de dados cadastrais padronizado -->
             <div style="border-top: 1px dashed #E5E7EB; padding-top: 8px; margin-top: 2px;" class="assinatura-dados">
-              <div><strong>Nome/Razão Social:</strong> ${nomeCliente}</div>
-              <div><strong>CPF/CNPJ:</strong> ${cliente?.cpfOuCnpj || ''}</div>
-              <div><strong>Endereço:</strong> ${cliente?.endereco ? `${cliente.endereco}${cliente?.municipio ? `, ${cliente.municipio}` : ''}` : cliente?.municipio || ''}</div>
-              <div><strong>Contato:</strong> ${[cliente?.telefone, cliente?.email].filter(Boolean).join(' • ')}</div>
+              <div style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"><strong>Nome/Razão Social:</strong> ${nomeCliente}</div>
+              <div style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"><strong>CPF/CNPJ:</strong> ${cliente?.cpfOuCnpj || ''}</div>
+              <div style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"><strong>Endereço:</strong> ${cliente?.endereco ? `${cliente.endereco}${cliente?.municipio ? `, ${cliente.municipio}` : ''}` : cliente?.municipio || ''}</div>
+              <div style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"><strong>Contato:</strong> ${[cliente?.telefone, cliente?.email].filter(Boolean).join(' • ')}</div>
             </div>
           </div>
         </div>      </div>

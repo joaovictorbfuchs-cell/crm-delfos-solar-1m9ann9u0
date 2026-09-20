@@ -3023,14 +3023,14 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
                 new Paragraph({
                   children: [
                     new TextRun({
-                      text: 'EMPRESA CONTRATADA',
+                      text: 'EMPRESA CONTRATADA\n',
                       bold: true,
                       size: 13,
                       color: '065F46',
                       font: 'Arial',
                     }),
                     new TextRun({
-                      text: `          Erechim / RS, ${dataFormatada}\n`,
+                      text: `Erechim / RS, ${dataFormatada}\n`,
                       size: 12,
                       color: '6B7280',
                       font: 'Arial',
@@ -3119,14 +3119,14 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
                 new Paragraph({
                   children: [
                     new TextRun({
-                      text: 'CLIENTE / CONTRATANTE',
+                      text: 'CLIENTE / CONTRATANTE\n',
                       bold: true,
                       size: 13,
                       color: '1E40AF',
                       font: 'Arial',
                     }),
                     new TextRun({
-                      text: '   Local e data: ______________________, ____/____/________\n',
+                      text: 'Local e data: ______________________, ____/____/________\n',
                       size: 11,
                       color: '6B7280',
                       font: 'Arial',
