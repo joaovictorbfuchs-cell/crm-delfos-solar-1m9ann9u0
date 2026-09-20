@@ -810,15 +810,15 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
       flex-shrink: 0;
     }
     .card-diferencial-tit {
-      font-size: 9px;
+      font-size: 9.5pt;
       font-weight: 800;
       color: #0A539E;
       line-height: 1.2;
     }
     .card-diferencial-desc {
-      font-size: 7.5px;
+      font-size: 8.5pt;
       color: #475569;
-      line-height: 1.3;
+      line-height: 1.35;
     }
 
     .portfolio-wrapper {
@@ -836,18 +836,18 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
     }
     .portfolio-titulo-azul {
       margin: 0;
-      font-size: 13px;
+      font-size: 13pt;
       font-weight: 900;
       color: #0A539E;
       letter-spacing: -0.01em;
     }
     .portfolio-sub-cinza {
       margin: 2px 0 0 0;
-      font-size: 8.5px;
+      font-size: 9.5pt;
       color: #64748B;
     }
     .portfolio-badge-pill {
-      font-size: 8px;
+      font-size: 8.5pt;
       font-weight: 800;
       background: #DCFCE7;
       color: #166534;
@@ -895,7 +895,7 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
       position: absolute;
       top: 6px;
       left: 6px;
-      font-size: 7.5px;
+      font-size: 8pt;
       font-weight: 800;
       padding: 2px 6px;
       border-radius: 9999px;
@@ -909,7 +909,7 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
       right: 6px;
       background: rgba(10, 83, 158, 0.92);
       color: #FFFFFF;
-      font-size: 8px;
+      font-size: 8.5pt;
       font-weight: 800;
       padding: 2px 7px;
       border-radius: 9999px;
@@ -921,7 +921,7 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
       background: #FFFFFF;
     }
     .card-portfolio-titulo {
-      font-size: 9.5px;
+      font-size: 10pt;
       font-weight: 800;
       color: #0A539E;
       line-height: 1.2;
@@ -934,7 +934,7 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
       display: flex;
       align-items: center;
       justify-content: space-between;
-      font-size: 8px;
+      font-size: 8.5pt;
       color: #64748B;
     }
     .card-portfolio-cidade {
@@ -1001,20 +1001,21 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
     }
     .tag-secao {
       display: block;
-      font-size: 8px;
+      font-size: 9pt;
       font-weight: 800;
       color: #065F46;
       background: #DCFCE7;
       border: 1px solid #86EFAC;
-      padding: 2px 7px;
+      padding: 2px 8px;
       border-radius: 4px;
       text-transform: uppercase;
+      letter-spacing: 0.03em;
     }
     .tag-desc {
       display: block;
-      font-size: 9px;
+      font-size: 10pt;
       font-weight: 700;
-      color: #4B5563;
+      color: #374151;
       margin-top: 2px;
     }
 
@@ -1035,8 +1036,8 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
       align-items: center;
       justify-content: center;
       flex-wrap: wrap;
-      gap: 7px;
-      font-size: 8px;
+      gap: 8px;
+      font-size: 8.5pt;
       font-weight: 600;
       color: #374151;
       line-height: 1.25;
@@ -1304,7 +1305,7 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
     }
     .secao-desc-sub {
       margin: 4px 0 0 0;
-      font-size: 10px;
+      font-size: 10pt;
       color: #4B5563;
       line-height: 1.4;
     }
@@ -1358,21 +1359,21 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
     .card-situacao.consumo .card-situacao-header-icon { background: #EFF6FF; color: #2563EB; }
     .card-situacao.custos .card-situacao-header-icon { background: #FEF2F2; color: #DC2626; }
     .card-situacao-header-title {
-      font-size: 10px;
+      font-size: 11pt;
       font-weight: 800;
       color: #111827;
       text-transform: uppercase;
-      letter-spacing: 0.04em;
+      letter-spacing: 0.03em;
     }
     .card-situacao-header-sub {
-      font-size: 7.5px;
+      font-size: 9.5pt;
       color: #6B7280;
     }
     .card-situacao-header-badge {
-      font-size: 7.5px;
+      font-size: 8.5pt;
       font-weight: 800;
       text-transform: uppercase;
-      padding: 2px 7px;
+      padding: 2px 8px;
       border-radius: 9999px;
     }
     .card-situacao.consumo .card-situacao-header-badge { background: #EFF6FF; color: #1D4ED8; border: 1px solid #BFDBFE; }
@@ -1395,17 +1396,17 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
       margin-bottom: 2px;
     }
     .card-situacao-label {
-      font-size: 8.5px;
+      font-size: 9.5pt;
       font-weight: 700;
       color: #6B7280;
       text-transform: uppercase;
-      letter-spacing: 0.04em;
+      letter-spacing: 0.03em;
     }
     .card-situacao-tag {
-      font-size: 7px;
+      font-size: 8pt;
       font-weight: 800;
       text-transform: uppercase;
-      padding: 1px 5px;
+      padding: 2px 6px;
       border-radius: 9999px;
     }
     .tag-mensal { background: #EFF6FF; color: #1D4ED8; border: 1px solid #BFDBFE; }
@@ -1413,18 +1414,18 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
     .tag-conta-atual { background: #FEF2F2; color: #B91C1C; border: 1px solid #FECACA; }
     .tag-gasto-anual { background: #FFFBEB; color: #B45309; border: 1px solid #FDE68A; }
     .card-situacao-valor {
-      font-size: 16px;
+      font-size: 16pt;
       font-weight: 900;
       color: #111827;
-      margin: 1px 0;
+      margin: 2px 0;
       line-height: 1.15;
     }
     .card-situacao-valor.red { color: #DC2626; }
     .card-situacao-valor.amber { color: #B45309; }
     .card-situacao-sub {
-      font-size: 8px;
+      font-size: 9.5pt;
       color: #6B7280;
-      line-height: 1.3;
+      line-height: 1.35;
     }
 
     /* Container dos Gastos Acumulados Sem Solar */
@@ -1447,18 +1448,18 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
       border-bottom: 1px solid #F3F4F6;
     }
     .barras-topo-title {
-      font-size: 11px;
+      font-size: 11pt;
       font-weight: 800;
       color: #111827;
       text-transform: uppercase;
-      letter-spacing: 0.04em;
+      letter-spacing: 0.03em;
       display: flex;
       align-items: center;
       gap: 6px;
     }
     .barras-topo-sub {
-      font-size: 9px;
-      color: #6B7280;
+      font-size: 10pt;
+      color: #4B5563;
     }
     .legenda-barras-pill {
       display: inline-flex;
@@ -1468,7 +1469,7 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
       border: 1px solid #FECACA;
       padding: 4px 10px;
       border-radius: 10px;
-      font-size: 9px;
+      font-size: 9.5pt;
       font-weight: 800;
       color: #991B1B;
     }
@@ -1518,14 +1519,14 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
       margin-bottom: 6px;
     }
     .card-marco-title {
-      font-size: 11px;
+      font-size: 11pt;
       font-weight: 800;
       color: #111827;
       text-transform: uppercase;
-      letter-spacing: 0.03em;
+      letter-spacing: 0.02em;
     }
     .card-marco-tag {
-      font-size: 8px;
+      font-size: 8.5pt;
       font-weight: 800;
       text-transform: uppercase;
       padding: 2px 6px;
@@ -1551,15 +1552,15 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
     }
 
     .card-marco-subhead {
-      font-size: 8.5px;
+      font-size: 9.5pt;
       font-weight: 600;
       color: #6B7280;
       text-transform: uppercase;
-      letter-spacing: 0.04em;
+      letter-spacing: 0.03em;
       margin-bottom: 2px;
     }
     .card-marco-valor-grande {
-      font-size: 19px;
+      font-size: 19pt;
       font-weight: 900;
       line-height: 1.15;
       letter-spacing: -0.02em;
@@ -1575,10 +1576,10 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
     }
 
     .card-marco-footer-meta {
-      margin-top: 10px;
-      padding-top: 8px;
+      margin-top: 8px;
+      padding-top: 6px;
       border-top: 1px dashed #E5E7EB;
-      font-size: 8.5px;
+      font-size: 9.5pt;
       color: #4B5563;
       display: flex;
       flex-direction: column;
@@ -1730,41 +1731,41 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
       border: 1px solid #FCD34D;
     }
     .card-sistema-label {
-      font-size: 9px;
+      font-size: 10pt;
       font-weight: 700;
       text-transform: uppercase;
-      color: #6B7280;
-      letter-spacing: 0.04em;
+      color: #4B5563;
+      letter-spacing: 0.03em;
     }
     .card-sistema-valor {
-      font-size: 21px;
+      font-size: 19pt;
       font-weight: 900;
       color: #111827;
       line-height: 1.15;
       margin: 2px 0;
     }
     .card-sistema-valor span.unit {
-      font-size: 13px;
+      font-size: 12pt;
       font-weight: 700;
       color: #166534;
     }
     .card-sistema-sub {
-      font-size: 9px;
+      font-size: 10pt;
       color: #4B5563;
-      line-height: 1.3;
+      line-height: 1.35;
       margin-top: 3px;
     }
     .card-sistema-badge-eco {
-      margin-top: 6px;
+      margin-top: 5px;
       display: inline-flex;
       align-items: center;
       gap: 5px;
-      padding: 3px 7px;
+      padding: 3px 8px;
       border-radius: 6px;
       background: #F0FDF4;
       border: 1px solid #BBF7D0;
       color: #166534;
-      font-size: 8.5px;
+      font-size: 9.5pt;
       font-weight: 800;
     }
 
@@ -1838,20 +1839,20 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
       color: #B45309;
     }
     .garantia-item-anos {
-      font-size: 16px;
+      font-size: 16pt;
       font-weight: 900;
       color: #065F46;
       line-height: 1.1;
     }
     .garantia-item-tipo {
-      font-size: 8px;
+      font-size: 8.5pt;
       font-weight: 800;
       color: #6B7280;
       text-transform: uppercase;
-      letter-spacing: 0.05em;
+      letter-spacing: 0.04em;
     }
     .garantia-item-sub {
-      font-size: 8.5px;
+      font-size: 9.5pt;
       color: #374151;
       font-weight: 600;
       margin-top: 1px;
@@ -1894,30 +1895,31 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
       gap: 8px;
     }
     .faixa-monitoramento-title {
-      font-size: 12px;
+      font-size: 12pt;
       font-weight: 900;
       color: #FFFFFF;
-      letter-spacing: 0.02em;
+      letter-spacing: 0.01em;
     }
     .faixa-mon-pill {
       background: rgba(255, 255, 255, 0.2);
       border: 1px solid rgba(255, 255, 255, 0.25);
       padding: 2px 8px;
       border-radius: 9999px;
-      font-size: 8px;
+      font-size: 8.5pt;
       font-weight: 800;
       text-transform: uppercase;
       color: #D1FAE5;
     }
     .faixa-monitoramento-desc {
-      font-size: 9px;
+      font-size: 10pt;
       color: #D1FAE5;
       margin-top: 2px;
+      line-height: 1.35;
     }
     .faixa-mon-badge-right {
       background: #FFFFFF;
       color: #065F46;
-      font-size: 9.5px;
+      font-size: 10pt;
       font-weight: 800;
       padding: 6px 14px;
       border-radius: 10px;
@@ -1940,7 +1942,7 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
       display: flex;
       align-items: center;
       justify-content: space-between;
-      font-size: 8.5px;
+      font-size: 10pt;
       margin-bottom: 8px;
       border-bottom: 1px dashed #E5E7EB;
       padding-bottom: 8px;
@@ -1974,7 +1976,7 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
       display: inline-flex;
       align-items: center;
       gap: 5px;
-      font-size: 9px;
+      font-size: 9.5pt;
     }
 
     .cards-metricas-25anos {
@@ -2007,11 +2009,11 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
       border-color: #BFDBFE;
     }
     .card-metrica-label {
-      font-size: 9px;
+      font-size: 10.5pt;
       font-weight: 800;
       color: #065F46;
       text-transform: uppercase;
-      letter-spacing: 0.05em;
+      letter-spacing: 0.03em;
     }
     .card-metrica-destaque.payback-card .card-metrica-label {
       color: #92400E;
@@ -2020,7 +2022,7 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
       color: #1E40AF;
     }
     .card-metrica-numero {
-      font-size: 20px;
+      font-size: 20pt;
       font-weight: 900;
       color: #166534;
       margin: 4px 0 2px 0;
@@ -2031,7 +2033,7 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
       text-overflow: ellipsis;
     }
     .card-metrica-sub {
-      font-size: 8.5px;
+      font-size: 10pt;
       color: #4B5563;
       font-weight: 600;
     }
@@ -2050,13 +2052,13 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
       break-inside: avoid;
     }
     .hero-invest-label {
-      font-size: 12pt;
+      font-size: 13pt;
       font-weight: 700;
       color: #374151;
       line-height: 1.2;
     }
     .hero-invest-valor {
-      font-size: 24pt;
+      font-size: 26pt;
       font-weight: 800;
       color: #1a3a5c;
       line-height: 1.15;
@@ -2064,7 +2066,7 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
       letter-spacing: -0.01em;
     }
     .hero-invest-economia {
-      font-size: 10pt;
+      font-size: 11pt;
       font-weight: 600;
       color: #166534;
       display: inline-flex;
@@ -2076,8 +2078,8 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
     .grid-pagamento-4 {
       display: grid;
       grid-template-columns: repeat(4, 1fr);
-      gap: 8px;
-      margin-bottom: 10px;
+      gap: 6px;
+      margin-bottom: 8px;
       page-break-inside: avoid;
       break-inside: avoid;
       box-sizing: border-box;
@@ -2086,14 +2088,14 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
     @media screen and (max-width: 768px) {
       .grid-pagamento-4 {
         grid-template-columns: 1fr;
-        gap: 10px;
+        gap: 8px;
       }
     }
     .card-pagamento, .card-condicoes-comerciais {
       border: 1px solid #E5E7EB;
-      border-radius: 12px;
+      border-radius: 10px;
       background: #FFFFFF;
-      padding: 10px 10px;
+      padding: 7px 6px;
       display: flex;
       flex-direction: column;
       justify-content: space-between;
@@ -2109,8 +2111,8 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
     .card-pagamento.destaque-verde {
       border: 2px solid #16a34a;
       background: #FFFFFF;
-      border-radius: 12px;
-      box-shadow: 0 4px 14px rgba(22, 163, 74, 0.16);
+      border-radius: 10px;
+      box-shadow: 0 3px 10px rgba(22, 163, 74, 0.14);
     }
     .card-pagamento-icon-circle {
       width: 32px;
@@ -2165,27 +2167,27 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
       color: #6B21A8;
     }
     .card-pagamento-titulo {
-      font-size: 10pt;
-      font-weight: 800;
-      color: #6B7280;
-      text-transform: uppercase;
-      letter-spacing: 0.02em;
-      margin-bottom: 2px;
-      line-height: 1.2;
-    }
-    .card-pagamento-valor {
-      font-size: 10.5pt;
+      font-size: 8.5pt;
       font-weight: 900;
       color: #111827;
-      margin: 2px 0 3px 0;
+      text-transform: uppercase;
+      letter-spacing: -0.01em;
+      margin-bottom: 2px;
+      line-height: 1.15;
+    }
+    .card-pagamento-valor {
+      font-size: 11.5pt;
+      font-weight: 900;
+      color: #111827;
+      margin: 2px 0 2px 0;
       line-height: 1.15;
       letter-spacing: -0.01em;
       word-break: break-word;
     }
     .card-pagamento-desc {
-      font-size: 10pt;
+      font-size: 8pt;
       color: #6B7280;
-      margin-bottom: 4px;
+      margin-bottom: 3px;
       line-height: 1.2;
     }
     .card-pagamento-badge-sub {
@@ -2236,7 +2238,7 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
     }
     .linha-comp-texto strong.green {
       color: #15803D;
-      font-size: 13px;
+      font-size: 13pt;
     }
 
     .badge-urgencia-validade {
@@ -2244,7 +2246,7 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
       color: #FFFFFF;
       padding: 10px 18px;
       border-radius: 14px;
-      font-size: 10px;
+      font-size: 10pt;
       font-weight: 800;
       display: flex;
       align-items: center;
@@ -2260,7 +2262,7 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 24px;
-      font-size: 8.5px;
+      font-size: 9.5pt;
     }
     .assinatura-bloco {
       background: #FFFFFF;
@@ -2274,7 +2276,7 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
       box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
     }
     .assinatura-dados {
-      font-size: 8px;
+      font-size: 8.5pt;
       line-height: 1.5;
       color: #4B5563;
     }
@@ -2491,7 +2493,7 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
           <h2 class="titulo-institucional-azul">A Delfos Solar</h2>
           <div class="subtitulo-institucional-verde">Energia que gera retorno</div>
 
-          <p style="margin: 6px 0 0 0; font-size: 8.5px; color: #334155; line-height: 1.45; max-width: 740px;">
+          <p style="margin: 6px 0 0 0; font-size: 10pt; color: #334155; line-height: 1.45; max-width: 740px;">
             A Delfos Solar é uma empresa de engenharia especializada no desenvolvimento, homologação e implantação de soluções de energia fotovoltaica de alto rendimento. Nossa missão é transformar contas de energia em ativos estratégicos de rentabilidade, segurança financeira e valorização patrimonial para clientes residenciais, comerciais, industriais e do agronegócio.
           </p>
 
@@ -2930,14 +2932,14 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
             </div>
 
             <!-- Rodapé do Card: Garantias dos Módulos (Degradação & Fabricação) -->
-            <div style="margin-top: 8px; padding-top: 6px; border-top: 1px solid #d1d5db; font-size: 8px; line-height: 1.4;">
+            <div style="margin-top: 8px; padding-top: 6px; border-top: 1px solid #d1d5db; font-size: 8.5pt; line-height: 1.4;">
               <div style="display: flex; justify-content: space-between; align-items: center; color: #4B5563; margin-bottom: 2px;">
                 <span>Garantia de performance (degradação):</span>
-                <strong style="color: #065F46; background: #DCFCE7; padding: 1px 5px; border-radius: 4px; border: 1px solid #BBF7D0;">${garantiaModulosDesempenho} anos</strong>
+                <strong style="color: #065F46; background: #DCFCE7; padding: 1px 6px; border-radius: 4px; border: 1px solid #BBF7D0;">${garantiaModulosDesempenho} anos</strong>
               </div>
               <div style="display: flex; justify-content: space-between; align-items: center; color: #4B5563;">
                 <span>Garantia contra defeitos de fabricação:</span>
-                <strong style="color: #92400E; background: #FEF3C7; padding: 1px 5px; border-radius: 4px; border: 1px solid #FDE68A;">${garantiaModulosFabricacao} anos</strong>
+                <strong style="color: #92400E; background: #FEF3C7; padding: 1px 6px; border-radius: 4px; border: 1px solid #FDE68A;">${garantiaModulosFabricacao} anos</strong>
               </div>
             </div>
           </div>
@@ -2965,7 +2967,7 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
               </div>
               <div>
                 <div class="card-sistema-label">Inversor Solar</div>
-                <div class="card-sistema-valor" style="font-size: 15px;">
+                <div class="card-sistema-valor" style="font-size: 15pt;">
                   ${inversorDesc}
                 </div>
                 <div class="card-sistema-sub">
@@ -2975,10 +2977,10 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
             </div>
 
             <!-- Rodapé do Card: Garantia do Inversor -->
-            <div style="margin-top: 8px; padding-top: 6px; border-top: 1px solid #d1d5db; font-size: 8px; line-height: 1.4;">
+            <div style="margin-top: 8px; padding-top: 6px; border-top: 1px solid #d1d5db; font-size: 8.5pt; line-height: 1.4;">
               <div style="display: flex; justify-content: space-between; align-items: center; color: #4B5563;">
                 <span>Garantia do inversor:</span>
-                <strong style="color: #0F766E; background: #CCFBF1; padding: 1px 5px; border-radius: 4px; border: 1px solid #99F6E4;">${garantiaInversor} anos</strong>
+                <strong style="color: #0F766E; background: #CCFBF1; padding: 1px 6px; border-radius: 4px; border: 1px solid #99F6E4;">${garantiaInversor} anos</strong>
               </div>
             </div>
           </div>
@@ -3101,10 +3103,10 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
               </div>
 
               <!-- Linha Única de Totais -->
-              <div style="margin-top: 8px; padding-top: 6px; border-top: 1px solid #E5E7EB; text-align: center; font-size: 9px; color: #374151;">
+              <div style="margin-top: 8px; padding-top: 6px; border-top: 1px solid #E5E7EB; text-align: center; font-size: 10pt; color: #374151;">
                 <span style="color: #6B7280;">Total anual:</span>
                 <strong style="color: #065F46; font-weight: 900;">${Math.round(totalKwh).toLocaleString('pt-BR')} kWh</strong>
-                <span style="margin: 0 6px; color: #D1D5DB;">·</span>
+                <span style="margin: 0 8px; color: #D1D5DB;">·</span>
                 <span style="color: #6B7280;">Média mensal:</span>
                 <strong style="color: #111827; font-weight: 700;">${mediaMensal.toLocaleString('pt-BR')} kWh</strong>
               </div>
@@ -3179,16 +3181,16 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
               </span>
               <span style="font-size: 8.5px; font-weight: 700; color: #16A34A;">Conexão à Rede Concessionária</span>
             </div>
-            <div style="font-size: 13px; font-weight: 900; color: #166534; line-height: 1.3; margin-bottom: 4px;">
+            <div style="font-size: 13.5pt; font-weight: 900; color: #166534; line-height: 1.3; margin-bottom: 4px;">
               Como Funciona o Sistema Solar (On-Grid)
             </div>
-            <p style="font-size: 9.5px; color: #374151; line-height: 1.48; margin: 0 0 10px 0;">
+            <p style="font-size: 10pt; color: #374151; line-height: 1.48; margin: 0 0 10px 0;">
               Módulos fotovoltaicos de alta eficiência convertem a radiação solar em energia elétrica contínua. O inversor inteligente sincroniza e transforma essa energia em corrente alternada para o consumo imediato do seu imóvel. O excedente produzido é injetado na concessionária, gerando créditos energéticos abatidos no seu medidor bidirecional.
             </p>
             <div style="border-radius: 10px; overflow: hidden; border: 1px solid #BBF7D0; background: #FFFFFF; display: flex; align-items: center; justify-content: center; padding: 10px;">
               <img src="${onGridPngAsset}" alt="Como Funciona o Sistema Solar (On-Grid)" style="width: 70%; min-width: 60%; height: auto; max-height: 240px; margin: 0 auto; display: block; object-fit: contain;" />
             </div>
-            <div style="margin-top: 8px; padding-top: 6px; border-top: 1px solid #BBF7D0; display: flex; justify-content: space-between; font-size: 9px; color: #166534; font-weight: 800;">
+            <div style="margin-top: 8px; padding-top: 6px; border-top: 1px solid #BBF7D0; display: flex; justify-content: space-between; font-size: 9.5pt; color: #166534; font-weight: 800;">
               <span>✓ Homologação Completa e ART de Engenharia Inclusas</span>
               <span style="color: #16A34A;">Turnkey Delfos Solar</span>
             </div>
@@ -3197,21 +3199,21 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
           <!-- Bloco 2: Monitoramento logo abaixo -->
           <div style="width: 100%; background: #F0FDF4; border: 1.5px solid #BBF7D0; border-radius: 12px; padding: 12px 16px; box-shadow: 0 1px 3px rgba(22, 163, 74, 0.08); page-break-inside: avoid; break-inside: avoid;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-              <span style="font-size: 8.5px; font-weight: 800; text-transform: uppercase; background: #DCFCE7; color: #166534; padding: 2px 8px; border-radius: 9999px; border: 1px solid #BBF7D0;">
+              <span style="font-size: 8.5pt; font-weight: 800; text-transform: uppercase; background: #DCFCE7; color: #166534; padding: 2px 8px; border-radius: 9999px; border: 1px solid #BBF7D0;">
                 Telemetria em Tempo Real
               </span>
-              <span style="font-size: 8.5px; font-weight: 700; color: #16A34A;">App Mobile Incluso</span>
+              <span style="font-size: 8.5pt; font-weight: 700; color: #16A34A;">App Mobile Incluso</span>
             </div>
-            <div style="font-size: 13px; font-weight: 900; color: #166534; line-height: 1.3; margin-bottom: 4px;">
+            <div style="font-size: 13.5pt; font-weight: 900; color: #166534; line-height: 1.3; margin-bottom: 4px;">
               Monitoramento
             </div>
-            <p style="font-size: 9.5px; color: #374151; line-height: 1.48; margin: 0 0 8px 0;">
+            <p style="font-size: 10pt; color: #374151; line-height: 1.48; margin: 0 0 8px 0;">
               Acompanhe a geração de energia em tempo real na palma da mão. Gráficos diários e mensais em kWh, economia acumulada em reais, status de funcionamento do inversor e alertas inteligentes via aplicativo para smartphone (iOS e Android).
             </p>
             <div style="border-radius: 8px; overflow: hidden; border: 1px solid #BBF7D0; background: #FFFFFF; display: flex; align-items: center; justify-content: center; padding: 8px;">
               <img src="${monitoramentoPngAsset}" alt="Monitoramento" style="width: 50%; min-width: 40%; height: auto; max-height: 140px; margin: 0 auto; display: block; object-fit: contain;" />
             </div>
-            <div style="margin-top: 8px; padding-top: 6px; border-top: 1px solid #BBF7D0; display: flex; justify-content: space-between; font-size: 9px; color: #166534; font-weight: 800;">
+            <div style="margin-top: 8px; padding-top: 6px; border-top: 1px solid #BBF7D0; display: flex; justify-content: space-between; font-size: 9.5pt; color: #166534; font-weight: 800;">
               <span>✓ Suporte Técnico e Acesso Vitalício</span>
               <span style="color: #16A34A;">iOS & Android</span>
             </div>
@@ -3262,7 +3264,7 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
           </div>
         </div>
 
-        <div style="font-size: 8px; font-style: italic; color: #6B7280; margin-top: 8px; text-align: center;">
+        <div style="font-size: 9pt; font-style: italic; color: #6B7280; margin-top: 8px; text-align: center;">
           * Projeção baseada na degradação linear de fábrica dos módulos e histórico de reajustes tarifários da rede elétrica.
         </div>
       </div>
@@ -3294,15 +3296,15 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
         <!-- 4 CARDS DE PAGAMENTO LADO A LADO -->
         <div class="grid-pagamento-4">
           <!-- Card 1: À Vista -->
-          <div class="card-pagamento destaque-verde" style="border: 2px solid #16a34a; background: #ffffff; border-radius: 12px; padding: 10px 10px;">
+          <div class="card-pagamento destaque-verde" style="border: 2px solid #16a34a; background: #ffffff; border-radius: 10px; padding: 7px 6px;">
             <div>
-              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; gap: 3px;">
-                <span class="card-pagamento-titulo" style="margin: 0; font-size: 11pt; font-weight: 900; color: #022c22; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">À VISTA</span>
-                <span style="font-size: 10pt; font-weight: 800; background: #ecfdf5; color: #065f46; padding: 1px 6px; border-radius: 9999px; white-space: nowrap; shrink-0;">Sem Juros</span>
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px; gap: 2px;">
+                <span class="card-pagamento-titulo" style="margin: 0; font-size: 8.5pt; font-weight: 900; color: #022c22; text-transform: uppercase; white-space: nowrap; letter-spacing: -0.01em;">À VISTA</span>
+                <span style="font-size: 7.5pt; font-weight: 800; background: #ecfdf5; color: #065f46; padding: 1px 4px; border-radius: 9999px; white-space: nowrap; flex-shrink: 0;">Sem Juros</span>
               </div>
-              <div style="font-size: 10pt; font-weight: 700; color: #4B5563; margin-top: 2px; line-height: 1.2;">Valor total do projeto</div>
-              <div class="card-pagamento-valor" style="color: #16a34a; margin-top: 2px; margin-bottom: 2px; font-size: 13pt; font-weight: 900; line-height: 1.2;">${formatBRL(aVistaValor)}</div>
-              <div class="card-pagamento-desc" style="font-size: 10pt; color: #6B7280; line-height: 1.25;">
+              <div style="font-size: 7.5pt; font-weight: 700; color: #4B5563; margin-top: 1px; line-height: 1.15;">Valor total do projeto</div>
+              <div class="card-pagamento-valor" style="color: #16a34a; margin-top: 1px; margin-bottom: 1px; font-size: 11.5pt; font-weight: 900; line-height: 1.15; letter-spacing: -0.01em;">${formatBRL(aVistaValor)}</div>
+              <div class="card-pagamento-desc" style="font-size: 7.5pt; color: #6B7280; line-height: 1.2;">
                 ${
                   aVistaDesconto > 0
                     ? `Desconto de ${formatBRL(aVistaDesconto)}`
@@ -3310,33 +3312,33 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
                 }
               </div>
             </div>
-            <div style="margin-top: 6px; padding-top: 5px; border-top: 1px solid #A7F3D0; font-size: 10pt; line-height: 1.35;">
-              <div style="display: flex; justify-content: space-between; color: #6B7280; gap: 2px;">
-                <span>Conta hoje:</span>
-                <strong style="color: #DC2626; font-weight: 800; text-align: right;">${formatBRL(contaHoje)}</strong>
+            <div style="margin-top: 4px; padding-top: 3px; border-top: 1px solid #A7F3D0; font-size: 7.5pt; line-height: 1.25;">
+              <div style="display: flex; justify-content: space-between; align-items: baseline; color: #6B7280; gap: 2px;">
+                <span style="white-space: nowrap;">Conta hoje:</span>
+                <strong style="color: #DC2626; font-weight: 800; text-align: right; white-space: nowrap;">${formatBRL(contaHoje)}</strong>
               </div>
-              <div style="display: flex; justify-content: space-between; color: #6B7280; margin-top: 1px; gap: 2px;">
-                <span>Conta c/ solar:</span>
-                <strong style="color: #16a34a; font-weight: 800; text-align: right;">${formatBRL(parcelamento?.aVista?.contaComSolar !== undefined ? parcelamento.aVista.contaComSolar : 0)}</strong>
+              <div style="display: flex; justify-content: space-between; align-items: baseline; color: #6B7280; margin-top: 1px; gap: 2px;">
+                <span style="white-space: nowrap;">Conta c/ solar:</span>
+                <strong style="color: #16a34a; font-weight: 800; text-align: right; white-space: nowrap;">${formatBRL(parcelamento?.aVista?.contaComSolar !== undefined ? parcelamento.aVista.contaComSolar : 0)}</strong>
               </div>
-              <div style="display: flex; justify-content: space-between; color: #064E3B; font-weight: 900; margin-top: 2px; padding-top: 2px; border-top: 1px solid #A7F3D0; gap: 2px;">
-                <span>Economia/mês:</span>
-                <span style="text-align: right;">${formatBRL(Math.max(0, contaHoje - (parcelamento?.aVista?.contaComSolar !== undefined ? parcelamento.aVista.contaComSolar : 0)))}</span>
+              <div style="display: flex; justify-content: space-between; align-items: baseline; color: #064E3B; font-weight: 900; margin-top: 2px; padding-top: 2px; border-top: 1px solid #A7F3D0; gap: 2px; font-size: 7.5pt;">
+                <span style="white-space: nowrap;">Economia/mês:</span>
+                <span style="text-align: right; white-space: nowrap;">${formatBRL(Math.max(0, contaHoje - (parcelamento?.aVista?.contaComSolar !== undefined ? parcelamento.aVista.contaComSolar : 0)))}</span>
               </div>
             </div>
           </div>
 
           <!-- Card 2: Cartão -->
-          <div class="card-pagamento" style="border: 1px solid #E5E7EB; background: #ffffff; border-radius: 12px; padding: 10px 10px;">
+          <div class="card-pagamento" style="border: 1px solid #E5E7EB; background: #ffffff; border-radius: 10px; padding: 7px 6px;">
             <div>
-              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; gap: 3px;">
-                <span class="card-pagamento-titulo" style="margin: 0; font-size: 11pt; font-weight: 900; color: #111827; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">CARTÃO</span>
-                <span style="font-size: 10pt; font-weight: 800; background: #F3F4F6; color: #374151; padding: 1px 6px; border-radius: 9999px; white-space: nowrap; shrink-0;">${cartaoParcelas}x</span>
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px; gap: 2px;">
+                <span class="card-pagamento-titulo" style="margin: 0; font-size: 8.5pt; font-weight: 900; color: #111827; text-transform: uppercase; white-space: nowrap; letter-spacing: -0.01em;">CARTÃO</span>
+                <span style="font-size: 7.5pt; font-weight: 800; background: #F3F4F6; color: #374151; padding: 1px 4px; border-radius: 9999px; white-space: nowrap; flex-shrink: 0;">${cartaoParcelas}x</span>
               </div>
-              <div class="card-pagamento-valor" style="color: #111827; margin-top: 4px; font-size: 12pt; font-weight: 900;">
+              <div class="card-pagamento-valor" style="color: #111827; margin-top: 1px; margin-bottom: 1px; font-size: 11.5pt; font-weight: 900; line-height: 1.15; letter-spacing: -0.01em;">
                 ${formatBRL(cartaoValor)}
               </div>
-              <div class="card-pagamento-desc" style="font-size: 10pt; color: #6B7280; line-height: 1.25;">
+              <div class="card-pagamento-desc" style="font-size: 7.5pt; color: #6B7280; line-height: 1.2;">
                 ${
                   cartaoEntrada > 0
                     ? `<span style="color: #047857; font-weight: 700; display: block;">Entrada: ${formatBRL(cartaoEntrada)}</span>`
@@ -3345,38 +3347,38 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
                 Total ${formatBRL(cartaoEntrada + cartaoValor * cartaoParcelas)}
               </div>
             </div>
-            <div style="margin-top: 6px; padding-top: 5px; border-top: 1px solid #E5E7EB; font-size: 10pt; line-height: 1.35;">
-              <div style="display: flex; justify-content: space-between; color: #6B7280; gap: 2px;">
-                <span>Conta hoje:</span>
-                <strong style="color: #DC2626; font-weight: 800; text-align: right;">${formatBRL(cartaoContaSemSolar)}</strong>
+            <div style="margin-top: 4px; padding-top: 3px; border-top: 1px solid #E5E7EB; font-size: 7.5pt; line-height: 1.25;">
+              <div style="display: flex; justify-content: space-between; align-items: baseline; color: #6B7280; gap: 2px;">
+                <span style="white-space: nowrap;">Conta hoje:</span>
+                <strong style="color: #DC2626; font-weight: 800; text-align: right; white-space: nowrap;">${formatBRL(cartaoContaSemSolar)}</strong>
               </div>
-              <div style="display: flex; justify-content: space-between; color: #6B7280; margin-top: 1px; gap: 2px;">
-                <span>Conta c/ solar:</span>
-                <strong style="color: #16a34a; font-weight: 800; text-align: right;">${formatBRL(cartaoContaComSolar)}</strong>
+              <div style="display: flex; justify-content: space-between; align-items: baseline; color: #6B7280; margin-top: 1px; gap: 2px;">
+                <span style="white-space: nowrap;">Conta c/ solar:</span>
+                <strong style="color: #16a34a; font-weight: 800; text-align: right; white-space: nowrap;">${formatBRL(cartaoContaComSolar)}</strong>
               </div>
-              <div style="display: flex; justify-content: space-between; color: #111827; font-weight: 900; margin-top: 2px; padding-top: 2px; border-top: 1px solid #E5E7EB; gap: 2px; font-size: 9.5pt; white-space: nowrap;">
-                <span>Parc. + Conta =</span>
-                <span style="text-align: right;">${formatBRL(cartaoDesembolso)}</span>
+              <div style="display: flex; justify-content: space-between; align-items: baseline; color: #111827; font-weight: 900; margin-top: 2px; padding-top: 2px; border-top: 1px solid #E5E7EB; gap: 2px; font-size: 7.5pt;">
+                <span style="white-space: nowrap;">Parc. + Conta =</span>
+                <span style="text-align: right; white-space: nowrap;">${formatBRL(cartaoDesembolso)}</span>
               </div>
             </div>
           </div>
 
           <!-- Card 3: Financiamento A -->
-          <div class="card-pagamento destaque-azul" style="border: 1px solid #60A5FA; background: #F0F9FF; border-radius: 12px; padding: 10px 10px;">
+          <div class="card-pagamento destaque-azul" style="border: 1px solid #60A5FA; background: #F0F9FF; border-radius: 10px; padding: 7px 6px;">
             <div>
-              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; gap: 3px;">
-                <span class="card-pagamento-titulo" style="margin: 0; font-size: 9.5pt; font-weight: 900; color: #172554; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.2;" title="${finanANome}">${finanANome}</span>
-                <span style="font-size: 10pt; font-weight: 800; background: #BFDBFE; color: #1E3A8A; padding: 1px 6px; border-radius: 9999px; white-space: nowrap; shrink-0;">${finanAParcelas}x</span>
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px; gap: 2px;">
+                <span class="card-pagamento-titulo" style="margin: 0; font-size: 8.5pt; font-weight: 900; color: #172554; text-transform: uppercase; white-space: nowrap; line-height: 1.15; letter-spacing: -0.01em;" title="${finanANome}">${finanANome}</span>
+                <span style="font-size: 7.5pt; font-weight: 800; background: #BFDBFE; color: #1E3A8A; padding: 1px 4px; border-radius: 9999px; white-space: nowrap; flex-shrink: 0;">${finanAParcelas}x</span>
               </div>
-              <div class="card-pagamento-valor" style="color: #1E40AF; margin-top: 4px; font-size: 12pt; font-weight: 900;">
+              <div class="card-pagamento-valor" style="color: #1E40AF; margin-top: 1px; margin-bottom: 1px; font-size: 11.5pt; font-weight: 900; line-height: 1.15; letter-spacing: -0.01em;">
                 ${formatBRL(finanAValor)}
               </div>
               ${
                 finanAIof > 0
-                  ? `<div style="font-size: 10pt; font-weight: 700; color: #1E40AF; margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Inc. IOF ${formatBRL(finanAIof)}</div>`
+                  ? `<div style="font-size: 7.5pt; font-weight: 700; color: #1E40AF; margin-top: 1px; white-space: nowrap;">Inc. IOF ${formatBRL(finanAIof)}</div>`
                   : ''
               }
-              <div class="card-pagamento-desc" style="font-size: 10pt; color: #6B7280; line-height: 1.25;">
+              <div class="card-pagamento-desc" style="font-size: 7.5pt; color: #6B7280; line-height: 1.2;">
                 ${
                   finanAEntrada > 0
                     ? `<span style="color: #1E3A8A; font-weight: 700; display: block;">Entrada: ${formatBRL(finanAEntrada)}</span>`
@@ -3385,38 +3387,38 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
                 Total ${formatBRL(finanAEntrada + finanAValor * finanAParcelas)}
               </div>
             </div>
-            <div style="margin-top: 6px; padding-top: 5px; border-top: 1px solid #BFDBFE; font-size: 10pt; line-height: 1.35;">
-              <div style="display: flex; justify-content: space-between; color: #6B7280; gap: 2px;">
-                <span>Conta hoje:</span>
-                <strong style="color: #DC2626; font-weight: 800; text-align: right;">${formatBRL(finanAContaSemSolar)}</strong>
+            <div style="margin-top: 4px; padding-top: 3px; border-top: 1px solid #BFDBFE; font-size: 7.5pt; line-height: 1.25;">
+              <div style="display: flex; justify-content: space-between; align-items: baseline; color: #6B7280; gap: 2px;">
+                <span style="white-space: nowrap;">Conta hoje:</span>
+                <strong style="color: #DC2626; font-weight: 800; text-align: right; white-space: nowrap;">${formatBRL(finanAContaSemSolar)}</strong>
               </div>
-              <div style="display: flex; justify-content: space-between; color: #6B7280; margin-top: 1px; gap: 2px;">
-                <span>Conta c/ solar:</span>
-                <strong style="color: #16a34a; font-weight: 800; text-align: right;">${formatBRL(finanAContaComSolar)}</strong>
+              <div style="display: flex; justify-content: space-between; align-items: baseline; color: #6B7280; margin-top: 1px; gap: 2px;">
+                <span style="white-space: nowrap;">Conta c/ solar:</span>
+                <strong style="color: #16a34a; font-weight: 800; text-align: right; white-space: nowrap;">${formatBRL(finanAContaComSolar)}</strong>
               </div>
-              <div style="display: flex; justify-content: space-between; color: #1E3A8A; font-weight: 900; margin-top: 2px; padding-top: 2px; border-top: 1px solid #BFDBFE; gap: 2px; font-size: 9.5pt; white-space: nowrap;">
-                <span>Parc. + Conta =</span>
-                <span style="text-align: right;">${formatBRL(finanADesembolso)}</span>
+              <div style="display: flex; justify-content: space-between; align-items: baseline; color: #1E3A8A; font-weight: 900; margin-top: 2px; padding-top: 2px; border-top: 1px solid #BFDBFE; gap: 2px; font-size: 7.5pt;">
+                <span style="white-space: nowrap;">Parc. + Conta =</span>
+                <span style="text-align: right; white-space: nowrap;">${formatBRL(finanADesembolso)}</span>
               </div>
             </div>
           </div>
 
           <!-- Card 4: Financiamento B -->
-          <div class="card-pagamento destaque-azul" style="border: 1px solid #60A5FA; background: #F0F9FF; border-radius: 12px; padding: 10px 10px;">
+          <div class="card-pagamento destaque-azul" style="border: 1px solid #60A5FA; background: #F0F9FF; border-radius: 10px; padding: 7px 6px;">
             <div>
-              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; gap: 3px;">
-                <span class="card-pagamento-titulo" style="margin: 0; font-size: 9.5pt; font-weight: 900; color: #172554; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.2;" title="${finanBNome}">${finanBNome}</span>
-                <span style="font-size: 10pt; font-weight: 800; background: #BFDBFE; color: #1E3A8A; padding: 1px 6px; border-radius: 9999px; white-space: nowrap; shrink-0;">${finanBParcelas}x</span>
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px; gap: 2px;">
+                <span class="card-pagamento-titulo" style="margin: 0; font-size: 8.5pt; font-weight: 900; color: #172554; text-transform: uppercase; white-space: nowrap; line-height: 1.15; letter-spacing: -0.01em;" title="${finanBNome}">${finanBNome}</span>
+                <span style="font-size: 7.5pt; font-weight: 800; background: #BFDBFE; color: #1E3A8A; padding: 1px 4px; border-radius: 9999px; white-space: nowrap; flex-shrink: 0;">${finanBParcelas}x</span>
               </div>
-              <div class="card-pagamento-valor" style="color: #1E40AF; margin-top: 4px; font-size: 12pt; font-weight: 900;">
+              <div class="card-pagamento-valor" style="color: #1E40AF; margin-top: 1px; margin-bottom: 1px; font-size: 11.5pt; font-weight: 900; line-height: 1.15; letter-spacing: -0.01em;">
                 ${formatBRL(finanBValor)}
               </div>
               ${
                 finanBIof > 0
-                  ? `<div style="font-size: 10pt; font-weight: 700; color: #1E40AF; margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Inc. IOF ${formatBRL(finanBIof)}</div>`
+                  ? `<div style="font-size: 7.5pt; font-weight: 700; color: #1E40AF; margin-top: 1px; white-space: nowrap;">Inc. IOF ${formatBRL(finanBIof)}</div>`
                   : ''
               }
-              <div class="card-pagamento-desc" style="font-size: 10pt; color: #6B7280; line-height: 1.25;">
+              <div class="card-pagamento-desc" style="font-size: 7.5pt; color: #6B7280; line-height: 1.2;">
                 ${
                   finanBEntrada > 0
                     ? `<span style="color: #1E3A8A; font-weight: 700; display: block;">Entrada: ${formatBRL(finanBEntrada)}</span>`
@@ -3425,29 +3427,29 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
                 Total ${formatBRL(finanBEntrada + finanBValor * finanBParcelas)}
               </div>
             </div>
-            <div style="margin-top: 6px; padding-top: 5px; border-top: 1px solid #BFDBFE; font-size: 10pt; line-height: 1.35;">
-              <div style="display: flex; justify-content: space-between; color: #6B7280; gap: 2px;">
-                <span>Conta hoje:</span>
-                <strong style="color: #DC2626; font-weight: 800; text-align: right;">${formatBRL(finanBContaSemSolar)}</strong>
+            <div style="margin-top: 4px; padding-top: 3px; border-top: 1px solid #BFDBFE; font-size: 7.5pt; line-height: 1.25;">
+              <div style="display: flex; justify-content: space-between; align-items: baseline; color: #6B7280; gap: 2px;">
+                <span style="white-space: nowrap;">Conta hoje:</span>
+                <strong style="color: #DC2626; font-weight: 800; text-align: right; white-space: nowrap;">${formatBRL(finanBContaSemSolar)}</strong>
               </div>
-              <div style="display: flex; justify-content: space-between; color: #6B7280; margin-top: 1px; gap: 2px;">
-                <span>Conta c/ solar:</span>
-                <strong style="color: #16a34a; font-weight: 800; text-align: right;">${formatBRL(finanBContaComSolar)}</strong>
+              <div style="display: flex; justify-content: space-between; align-items: baseline; color: #6B7280; margin-top: 1px; gap: 2px;">
+                <span style="white-space: nowrap;">Conta c/ solar:</span>
+                <strong style="color: #16a34a; font-weight: 800; text-align: right; white-space: nowrap;">${formatBRL(finanBContaComSolar)}</strong>
               </div>
-              <div style="display: flex; justify-content: space-between; color: #1E3A8A; font-weight: 900; margin-top: 2px; padding-top: 2px; border-top: 1px solid #BFDBFE; gap: 2px; font-size: 9.5pt; white-space: nowrap;">
-                <span>Parc. + Conta =</span>
-                <span style="text-align: right;">${formatBRL(finanBDesembolso)}</span>
+              <div style="display: flex; justify-content: space-between; align-items: baseline; color: #1E3A8A; font-weight: 900; margin-top: 2px; padding-top: 2px; border-top: 1px solid #BFDBFE; gap: 2px; font-size: 7.5pt;">
+                <span style="white-space: nowrap;">Parc. + Conta =</span>
+                <span style="text-align: right; white-space: nowrap;">${formatBRL(finanBDesembolso)}</span>
               </div>
             </div>
           </div>
         </div>
 
         <!-- LINHA DE PRAZO DE ENTREGA LOGO ABAIXO DOS 4 CARDS -->
-        <div style="background: #FFFFFF; border: 1px solid #E5E7EB; border-radius: 10px; padding: 7px 12px; margin-bottom: 8px; display: flex; align-items: center; justify-content: space-between; font-size: 9pt; color: #374151;">
+        <div style="background: #FFFFFF; border: 1px solid #E5E7EB; border-radius: 10px; padding: 7px 12px; margin-bottom: 8px; display: flex; align-items: center; justify-content: space-between; font-size: 10pt; color: #374151;">
           <span style="font-weight: 700; color: #1a3a5c;">
             Prazo de entrega: <strong style="color: #111827;">${prazoEntregaDias} dias úteis</strong> após aprovação do projeto
           </span>
-          <span style="color: #6B7280; font-size: 8pt;">Engenharia, homologação na concessionária e instalação turnkey</span>
+          <span style="color: #6B7280; font-size: 9pt;">Engenharia, homologação na concessionária e instalação turnkey</span>
         </div>
 
         <!-- BLOCO DE PROJEÇÃO COM REAJUSTE TARIFÁRIO DE 9% AO ANO (CONCESSIONÁRIA) -->
@@ -3456,7 +3458,7 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
             <div style="width: 22px; height: 22px; border-radius: 6px; background: #F59E0B; color: #FFFFFF; display: flex; align-items: center; justify-content: center; font-size: 12px; shrink-0;">
               📈
             </div>
-            <span style="font-size: 9.5px; font-weight: 900; color: #92400E; text-transform: uppercase; letter-spacing: 0.03em;">
+            <span style="font-size: 10pt; font-weight: 900; color: #92400E; text-transform: uppercase; letter-spacing: 0.02em;">
               Projeção com Reajuste Tarifário de 9% ao ano (Concessionária)
             </span>
           </div>
@@ -3464,30 +3466,30 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
             <!-- Card 4 anos -->
             <div style="background: #FFFFFF; border: 1px solid #FDE68A; border-radius: 8px; padding: 7px 12px;">
-              <span style="font-size: 8.5px; color: #6B7280; font-weight: 700; display: block; margin-bottom: 3px;">
+              <span style="font-size: 9.5pt; color: #6B7280; font-weight: 700; display: block; margin-bottom: 3px;">
                 Conta daqui a 4 anos:
               </span>
               <div style="display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap;">
-                <span style="font-size: 11px; font-weight: 800; color: #DC2626; text-decoration: line-through;">
+                <span style="font-size: 11pt; font-weight: 800; color: #DC2626; text-decoration: line-through;">
                   ${formatBRL(contaSemSolar4AnosFinal)}
                 </span>
-                <span style="font-size: 12px; font-weight: 900; color: #047857;">
-                  ${formatBRL(contaComSolar4AnosFinal)} <span style="font-size: 9px; font-weight: 700;">com solar</span>
+                <span style="font-size: 12pt; font-weight: 900; color: #047857;">
+                  ${formatBRL(contaComSolar4AnosFinal)} <span style="font-size: 9.5pt; font-weight: 700;">com solar</span>
                 </span>
               </div>
             </div>
 
             <!-- Card 10 anos -->
             <div style="background: #FFFFFF; border: 1px solid #FDE68A; border-radius: 8px; padding: 7px 12px;">
-              <span style="font-size: 8.5px; color: #6B7280; font-weight: 700; display: block; margin-bottom: 3px;">
+              <span style="font-size: 9.5pt; color: #6B7280; font-weight: 700; display: block; margin-bottom: 3px;">
                 Conta daqui a 10 anos:
               </span>
               <div style="display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap;">
-                <span style="font-size: 11px; font-weight: 800; color: #DC2626; text-decoration: line-through;">
+                <span style="font-size: 11pt; font-weight: 800; color: #DC2626; text-decoration: line-through;">
                   ${formatBRL(contaSemSolar10AnosFinal)}
                 </span>
-                <span style="font-size: 12px; font-weight: 900; color: #047857;">
-                  ${formatBRL(contaComSolar10AnosFinal)} <span style="font-size: 9px; font-weight: 700;">com solar</span>
+                <span style="font-size: 12pt; font-weight: 900; color: #047857;">
+                  ${formatBRL(contaComSolar10AnosFinal)} <span style="font-size: 9.5pt; font-weight: 700;">com solar</span>
                 </span>
               </div>
             </div>
@@ -3502,28 +3504,28 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
             </div>
             <div>
               <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 2px;">
-                <span style="font-size: 8px; font-weight: 900; text-transform: uppercase; background: #FEF3C7; color: #92400E; padding: 1px 6px; border-radius: 4px; border: 1px solid #FDE68A;">
+                <span style="font-size: 8.5pt; font-weight: 900; text-transform: uppercase; background: #FEF3C7; color: #92400E; padding: 1px 6px; border-radius: 4px; border: 1px solid #FDE68A;">
                   Tempo de Retorno do Investimento
                 </span>
-                <span style="font-size: 8px; font-weight: 800; background: #DCFCE7; color: #166534; padding: 1px 6px; border-radius: 4px; border: 1px solid #86EFAC;">
+                <span style="font-size: 8.5pt; font-weight: 800; background: #DCFCE7; color: #166534; padding: 1px 6px; border-radius: 4px; border: 1px solid #86EFAC;">
                   Retorno Garantido
                 </span>
               </div>
-              <div style="font-size: 11.5px; font-weight: 900; color: #1F2937;">Payback Estimado</div>
-              <p style="margin: 1px 0 0 0; font-size: 8.5px; color: #4B5563; max-width: 440px; line-height: 1.3;">
+              <div style="font-size: 11.5pt; font-weight: 900; color: #1F2937;">Payback Estimado</div>
+              <p style="margin: 1px 0 0 0; font-size: 9.5pt; color: #4B5563; max-width: 440px; line-height: 1.35;">
                 Tempo para que a economia na fatura de energia pague 100% do investimento. A partir desse momento, todo o ganho transforma-se em patrimônio e lucro líquido.
               </p>
             </div>
           </div>
 
           <div style="background: linear-gradient(135deg, #FFFBEB 0%, #FEF3C7 100%); border: 1.5px solid #FCD34D; border-radius: 8px; padding: 6px 12px; text-align: right; shrink-0;">
-            <span style="font-size: 7.5px; font-weight: 800; text-transform: uppercase; color: #92400E; display: block;">
+            <span style="font-size: 8.5pt; font-weight: 800; text-transform: uppercase; color: #92400E; display: block;">
               Payback do Sistema
             </span>
-            <div style="font-size: 15px; font-weight: 900; color: #B45309; line-height: 1.2; margin: 1px 0;">
+            <div style="font-size: 15pt; font-weight: 900; color: #B45309; line-height: 1.2; margin: 1px 0;">
               ${paybackTextoFinal}
             </div>
-            <span style="font-size: 8px; color: #78350F; font-weight: 700; display: block;">
+            <span style="font-size: 9pt; color: #78350F; font-weight: 700; display: block;">
               Quitação prevista: ${quitacaoMesAno}
             </span>
           </div>
@@ -3537,26 +3539,26 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
             </div>
             <div>
               <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 2px;">
-                <span style="font-size: 8px; font-weight: 900; text-transform: uppercase; background: #FEF3C7; color: #92400E; padding: 1px 6px; border-radius: 4px; border: 1px solid #FDE68A;">
+                <span style="font-size: 8.5pt; font-weight: 900; text-transform: uppercase; background: #FEF3C7; color: #92400E; padding: 1px 6px; border-radius: 4px; border: 1px solid #FDE68A;">
                   Custo de Postergação
                 </span>
-                <span style="font-size: 8px; font-weight: 800; color: #78350F;">
+                <span style="font-size: 8.5pt; font-weight: 800; color: #78350F;">
                   Cada mês sem energia solar custa dinheiro
                 </span>
               </div>
-              <div style="font-size: 11.5px; font-weight: 900; color: #1F2937;">Não adie sua economia</div>
-              <p style="margin: 1px 0 0 0; font-size: 8.5px; color: #4B5563; max-width: 440px; line-height: 1.3;">
+              <div style="font-size: 11.5pt; font-weight: 900; color: #1F2937;">Não adie sua economia</div>
+              <p style="margin: 1px 0 0 0; font-size: 9.5pt; color: #4B5563; max-width: 440px; line-height: 1.35;">
                 Adiar a decisão significa continuar pagando a conta cheia para a concessionária sem construir patrimônio.
               </p>
             </div>
           </div>
 
           <div style="background: #FFFFFF; border: 1.5px solid #FCD34D; border-radius: 8px; padding: 6px 12px; text-align: right; shrink-0;">
-            <span style="font-size: 7.5px; font-weight: 800; text-transform: uppercase; color: #92400E; display: block;">
+            <span style="font-size: 8.5pt; font-weight: 800; text-transform: uppercase; color: #92400E; display: block;">
               Valor perdido por mês
             </span>
-            <div style="font-size: 15px; font-weight: 900; color: #C2410C; line-height: 1.2; margin: 1px 0;">
-              ${formatBRL(economiaMensal)} <span style="font-size: 9px; font-weight: 700;">/mês</span>
+            <div style="font-size: 15pt; font-weight: 900; color: #C2410C; line-height: 1.2; margin: 1px 0;">
+              ${formatBRL(economiaMensal)} <span style="font-size: 9.5pt; font-weight: 700;">/mês</span>
             </div>
           </div>
         </div>
@@ -3569,7 +3571,7 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
         ${
           observacoes
             ? `
-        <div style="background: #F9FAFB; border: 1px solid #E5E7EB; border-radius: 8px; padding: 6px 10px; font-size: 8.5px; color: #4B5563; margin-bottom: 10px;">
+        <div style="background: #F9FAFB; border: 1px solid #E5E7EB; border-radius: 8px; padding: 8px 12px; font-size: 9.5pt; color: #4B5563; margin-bottom: 10px; line-height: 1.4;">
           <strong>Observações Comerciais:</strong> ${observacoes}
         </div>
         `
@@ -3582,10 +3584,10 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
           <div class="assinatura-bloco">
             <!-- 1. Topo: Categoria + Local e data -->
             <div style="display: flex; align-items: center; justify-content: space-between;">
-              <span style="font-size: 7.5px; font-weight: 800; text-transform: uppercase; color: #065F46; letter-spacing: 0.05em;">
+              <span style="font-size: 8.5pt; font-weight: 800; text-transform: uppercase; color: #065F46; letter-spacing: 0.05em;">
                 EMPRESA CONTRATADA
               </span>
-              <span style="font-size: 7.5px; color: #6B7280; font-weight: 600;">
+              <span style="font-size: 8.5pt; color: #6B7280; font-weight: 600;">
                 Erechim / RS, ${dataFormatada}
               </span>
             </div>
@@ -3595,10 +3597,10 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
 
             <!-- 3. Nome de quem assina + subtítulo -->
             <div style="text-align: center; margin-bottom: 10px;">
-              <div style="font-size: 9px; font-weight: 900; color: #111827; text-transform: uppercase; letter-spacing: 0.02em;">
+              <div style="font-size: 10pt; font-weight: 900; color: #111827; text-transform: uppercase; letter-spacing: 0.02em;">
                 ${empresa?.responsavelTecnico ?? 'João Victor Bagetti Fuchs'}
               </div>
-              <div style="font-size: 7.5px; font-weight: 700; color: #065F46; margin-top: 2px;">
+              <div style="font-size: 8.5pt; font-weight: 700; color: #065F46; margin-top: 2px;">
                 Responsável Técnico${empresa?.crea ? ` — ${empresa.crea}` : ''}
               </div>
             </div>
@@ -3617,10 +3619,10 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
           <div class="assinatura-bloco">
             <!-- 1. Topo: Categoria + Local e data -->
             <div style="display: flex; align-items: center; justify-content: space-between;">
-              <span style="font-size: 7.5px; font-weight: 800; text-transform: uppercase; color: #1E40AF; letter-spacing: 0.05em;">
+              <span style="font-size: 8.5pt; font-weight: 800; text-transform: uppercase; color: #1E40AF; letter-spacing: 0.05em;">
                 CLIENTE / CONTRATANTE
               </span>
-              <span style="font-size: 7.5px; color: #6B7280; font-weight: 600;">
+              <span style="font-size: 8.5pt; color: #6B7280; font-weight: 600;">
                 Local e data: ______________________, ____/____/________
               </span>
             </div>
@@ -3630,10 +3632,10 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
 
             <!-- 3. Nome do cliente + subtítulo -->
             <div style="text-align: center; margin-bottom: 10px;">
-              <div style="font-size: 9px; font-weight: 900; color: #111827; text-transform: uppercase; letter-spacing: 0.02em;">
+              <div style="font-size: 10pt; font-weight: 900; color: #111827; text-transform: uppercase; letter-spacing: 0.02em;">
                 ${nomeCliente}
               </div>
-              <div style="font-size: 7.5px; font-weight: 700; color: #1E40AF; margin-top: 2px;">
+              <div style="font-size: 8.5pt; font-weight: 700; color: #1E40AF; margin-top: 2px;">
                 De acordo com as especificações e valores da proposta
               </div>
             </div>

@@ -1154,4 +1154,41 @@ describe('Proposta Técnico-Comercial Generator (5 Seções Oficiais)', () => {
       expect(html).not.toContain('Geração ajustada conforme relatório Solergo')
     })
   })
+
+  describe('Auditoria de Tipografia e Layout A4 (Frente 1 e Frente 2)', () => {
+    it('garante que os títulos dos cards de pagamento nunca sejam truncados e contenham seus textos completos em linha única', () => {
+      const html = gerarHTMLPropostaTecnicoComercial(dadosExemplo)
+      // Títulos completos
+      expect(html).toContain('À VISTA')
+      expect(html).not.toContain('À VIS...')
+      expect(html).toContain('CARTÃO')
+      expect(html).toContain('FINANCIAMENTO A (60X)')
+      expect(html).not.toContain('FINANCIAME...')
+      expect(html).toContain('FINANCIAMENTO B (120X)')
+
+      // Linhas finais comparativas completas com Parc. + Conta =
+      expect(html).toContain('Parc. + Conta =')
+      expect(html).toContain('Conta hoje:')
+      expect(html).toContain('Conta c/ solar:')
+      expect(html).toContain('Economia/mês:')
+
+      // Grid de pagamento ajustado para não cortar no A4
+      expect(html).toContain('.grid-pagamento-4')
+      expect(html).toContain('grid-template-columns: repeat(4, 1fr)')
+    })
+
+    it('garante fontes confortáveis (>= 10pt nos textos principais) no restante da proposta', () => {
+      const html = gerarHTMLPropostaTecnicoComercial(dadosExemplo)
+      // Corpo de texto geral da proposta em 10pt
+      expect(html).toContain('font-size: 10pt')
+      // Seção de custos / situação atual com fontes legíveis
+      expect(html).toContain('font-size: 11pt')
+      expect(html).toContain('font-size: 16pt')
+      // Hero investimento com destaque
+      expect(html).toContain('font-size: 26pt')
+      // Margens 7mm A4 preservadas
+      expect(html).toContain('margin: 7mm')
+      expect(html).toContain('padding: 7mm')
+    })
+  })
 })

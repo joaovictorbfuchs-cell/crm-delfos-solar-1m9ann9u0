@@ -380,27 +380,27 @@ export const SecaoInvestimentoPagamento: React.FC<SecaoInvestimentoPagamentoProp
           <h3 className="text-base sm:text-lg font-black text-gray-900 tracking-tight mb-3">
             Condições de pagamento
           </h3>
-          <div className="grid grid-cols-4 gap-2 text-xs">
+          <div className="grid grid-cols-4 gap-1.5 sm:gap-2 text-xs">
             {/* CARD 1: À VISTA */}
-            <div className="p-3.5 sm:p-4 rounded-xl border-2 border-[#16a34a] bg-white flex flex-col justify-between space-y-3 shadow-xs hover:shadow-md transition-shadow min-w-0">
+            <div className="p-2.5 sm:p-3 rounded-xl border-2 border-[#16a34a] bg-white flex flex-col justify-between space-y-2 shadow-xs hover:shadow-md transition-shadow min-w-0">
               <div>
                 {/* Cabeçalho com título à esquerda e badge Sem Juros no canto sup. direito */}
-                <div className="flex items-center justify-between gap-1 mb-2">
-                  <span className="font-extrabold text-[11pt] uppercase tracking-wider text-emerald-950 truncate">
+                <div className="flex items-center justify-between gap-1 mb-1">
+                  <span className="font-black text-[8.5pt] uppercase tracking-tight text-emerald-950 whitespace-nowrap">
                     À Vista
                   </span>
-                  <span className="text-[10pt] font-bold bg-[#ecfdf5] text-[#065f46] px-2 py-0.5 rounded-full shrink-0">
+                  <span className="text-[7.5pt] font-bold bg-[#ecfdf5] text-[#065f46] px-1.5 py-0.5 rounded-full shrink-0 whitespace-nowrap">
                     Sem Juros
                   </span>
                 </div>
 
-                <p className="text-[10.5pt] font-semibold text-gray-600 leading-snug">
+                <p className="text-[7.5pt] font-bold text-gray-600 leading-snug">
                   Valor total do projeto
                 </p>
-                <div className="text-2xl sm:text-[26pt] font-black text-[#16a34a] tracking-tight mt-1 mb-1 leading-tight">
+                <div className="text-lg sm:text-[13pt] font-black text-[#16a34a] tracking-tight mt-0.5 mb-0.5 leading-tight">
                   {formatCurrency(aVistaFinal)}
                 </div>
-                <p className="text-[10pt] text-gray-500 mt-1 leading-snug">
+                <p className="text-[7.5pt] text-gray-500 leading-snug">
                   {descontoAVistaFinal > 0
                     ? `Desconto de ${formatCurrency(descontoAVistaFinal)} aplicado`
                     : 'Pagamento único com desconto'}
@@ -408,43 +408,45 @@ export const SecaoInvestimentoPagamento: React.FC<SecaoInvestimentoPagamentoProp
               </div>
 
               {/* 3 Linhas comparativas inferiores */}
-              <div className="pt-2.5 border-t border-emerald-200 space-y-1 text-[10pt]">
-                <div className="flex justify-between gap-1">
-                  <span className="text-gray-500">Conta hoje:</span>
-                  <span className="font-bold text-red-600 text-right">
+              <div className="pt-2 border-t border-emerald-200 space-y-0.5 text-[7.5pt]">
+                <div className="flex justify-between items-baseline gap-1">
+                  <span className="text-gray-500 whitespace-nowrap">Conta hoje:</span>
+                  <span className="font-bold text-red-600 text-right whitespace-nowrap">
                     {formatCurrency(contaAtualFinal)}
                   </span>
                 </div>
-                <div className="flex justify-between gap-1">
-                  <span className="text-gray-500">Conta c/ solar:</span>
-                  <span className="font-bold text-[#16a34a] text-right">
+                <div className="flex justify-between items-baseline gap-1">
+                  <span className="text-gray-500 whitespace-nowrap">Conta c/ solar:</span>
+                  <span className="font-bold text-[#16a34a] text-right whitespace-nowrap">
                     {formatCurrency(faturaComSolarFinal)}
                   </span>
                 </div>
-                <div className="flex justify-between pt-1 border-t border-emerald-200 font-extrabold text-emerald-900 gap-1">
-                  <span>Economia/mês:</span>
-                  <span className="text-right">{formatCurrency(economiaMensalAVista)}</span>
+                <div className="flex justify-between items-baseline pt-1 border-t border-emerald-200 font-extrabold text-emerald-900 gap-1 text-[7.5pt]">
+                  <span className="whitespace-nowrap">Economia/mês:</span>
+                  <span className="text-right whitespace-nowrap">
+                    {formatCurrency(economiaMensalAVista)}
+                  </span>
                 </div>
               </div>
             </div>
 
             {/* CARD 2: CARTÃO */}
-            <div className="p-3.5 sm:p-4 rounded-xl border border-gray-200 bg-white flex flex-col justify-between space-y-3 shadow-xs hover:shadow-md transition-shadow min-w-0">
+            <div className="p-2.5 sm:p-3 rounded-xl border border-gray-200 bg-white flex flex-col justify-between space-y-2 shadow-xs hover:shadow-md transition-shadow min-w-0">
               <div>
                 {/* Cabeçalho com título e badge de parcelas no canto superior direito */}
-                <div className="flex items-center justify-between gap-1 mb-2">
-                  <span className="font-extrabold text-[11pt] uppercase tracking-wider text-gray-900 truncate">
+                <div className="flex items-center justify-between gap-1 mb-1">
+                  <span className="font-black text-[8.5pt] uppercase tracking-tight text-gray-900 whitespace-nowrap">
                     Cartão
                   </span>
-                  <span className="text-[10pt] font-bold bg-gray-100 text-gray-700 px-2 py-0.5 rounded-full shrink-0">
+                  <span className="text-[7.5pt] font-bold bg-gray-100 text-gray-700 px-1.5 py-0.5 rounded-full shrink-0 whitespace-nowrap">
                     {parcelasCartaoFinal}x
                   </span>
                 </div>
 
-                <div className="text-xl sm:text-2xl font-black text-gray-900 tracking-tight mt-1">
+                <div className="text-lg sm:text-[13pt] font-black text-gray-900 tracking-tight mt-0.5 mb-0.5 leading-tight">
                   {formatCurrency(valorParcelaCartaoFinal)}
                 </div>
-                <div className="text-[10pt] text-gray-500 mt-1 leading-snug">
+                <div className="text-[7.5pt] text-gray-500 leading-snug">
                   {entradaCartaoFinal > 0 && (
                     <span className="block text-emerald-800 font-semibold">
                       Entrada: {formatCurrency(entradaCartaoFinal)}
@@ -460,53 +462,55 @@ export const SecaoInvestimentoPagamento: React.FC<SecaoInvestimentoPagamentoProp
               </div>
 
               {/* 3 Linhas comparativas inferiores */}
-              <div className="pt-2.5 border-t border-gray-100 space-y-1 text-[10pt]">
-                <div className="flex justify-between gap-1">
-                  <span className="text-gray-500">Conta hoje:</span>
-                  <span className="font-bold text-red-600 text-right">
+              <div className="pt-2 border-t border-gray-100 space-y-0.5 text-[7.5pt]">
+                <div className="flex justify-between items-baseline gap-1">
+                  <span className="text-gray-500 whitespace-nowrap">Conta hoje:</span>
+                  <span className="font-bold text-red-600 text-right whitespace-nowrap">
                     {formatCurrency(contaAtualFinal)}
                   </span>
                 </div>
-                <div className="flex justify-between gap-1">
-                  <span className="text-gray-500">Conta c/ solar:</span>
-                  <span className="font-bold text-[#16a34a] text-right">
+                <div className="flex justify-between items-baseline gap-1">
+                  <span className="text-gray-500 whitespace-nowrap">Conta c/ solar:</span>
+                  <span className="font-bold text-[#16a34a] text-right whitespace-nowrap">
                     {formatCurrency(contaSolarCartao)}
                   </span>
                 </div>
-                <div className="flex justify-between pt-1 border-t border-gray-100 font-bold text-gray-900 gap-1 text-[9.5pt] sm:text-[10pt] whitespace-nowrap">
-                  <span>Parc. + Conta =</span>
-                  <span className="text-right">{formatCurrency(totalMensalCartao)}</span>
+                <div className="flex justify-between items-baseline pt-1 border-t border-gray-100 font-bold text-gray-900 gap-1 text-[7.5pt]">
+                  <span className="whitespace-nowrap">Parc. + Conta =</span>
+                  <span className="text-right whitespace-nowrap">
+                    {formatCurrency(totalMensalCartao)}
+                  </span>
                 </div>
               </div>
             </div>
 
             {/* CARD 3: FINANCIAMENTO A */}
-            <div className="p-3.5 sm:p-4 rounded-xl border border-[#60A5FA] bg-[#F0F9FF] flex flex-col justify-between space-y-3 shadow-xs hover:shadow-md transition-shadow min-w-0">
+            <div className="p-2.5 sm:p-3 rounded-xl border border-[#60A5FA] bg-[#F0F9FF] flex flex-col justify-between space-y-2 shadow-xs hover:shadow-md transition-shadow min-w-0">
               <div>
                 {/* Cabeçalho com título em linha única sem quebrar palavra e badge de parcelas */}
-                <div className="flex items-center justify-between gap-1 mb-2">
+                <div className="flex items-center justify-between gap-1 mb-1">
                   <span
-                    className="font-extrabold text-[9.5pt] sm:text-[10pt] uppercase tracking-tight text-blue-950 whitespace-nowrap overflow-hidden text-ellipsis leading-tight"
+                    className="font-black text-[8.5pt] uppercase tracking-tight text-blue-950 whitespace-nowrap leading-tight"
                     title={nomeFinanciamentoA || 'Financiamento A'}
                   >
                     {nomeFinanciamentoA || 'Financiamento A'}
                   </span>
-                  <span className="text-[10pt] font-bold bg-blue-100 text-blue-900 px-2 py-0.5 rounded-full shrink-0">
+                  <span className="text-[7.5pt] font-bold bg-blue-100 text-blue-900 px-1.5 py-0.5 rounded-full shrink-0 whitespace-nowrap">
                     {parcelasFinanAFinal}x
                   </span>
                 </div>
 
-                <div className="text-xl sm:text-2xl font-black text-blue-900 tracking-tight mt-1">
+                <div className="text-lg sm:text-[13pt] font-black text-blue-900 tracking-tight mt-0.5 mb-0.5 leading-tight">
                   {formatCurrency(valorParcelaFinanAFinal)}
                 </div>
                 {iofFinanciamentoA !== undefined &&
                   iofFinanciamentoA !== null &&
                   iofFinanciamentoA > 0 && (
-                    <span className="block text-[10pt] font-semibold text-emerald-700 mt-1 leading-snug">
+                    <span className="block text-[7.5pt] font-semibold text-emerald-700 leading-snug whitespace-nowrap">
                       Inclui IOF de {formatCurrency(iofFinanciamentoA)}
                     </span>
                   )}
-                <p className="text-[10pt] text-gray-500 mt-1 leading-snug">
+                <p className="text-[7.5pt] text-gray-500 leading-snug">
                   {entradaFinanAFinal > 0 && (
                     <span className="block text-blue-900 font-semibold">
                       Entrada: {formatCurrency(entradaFinanAFinal)}
@@ -520,53 +524,55 @@ export const SecaoInvestimentoPagamento: React.FC<SecaoInvestimentoPagamentoProp
               </div>
 
               {/* 3 Linhas comparativas inferiores */}
-              <div className="pt-2.5 border-t border-blue-200 space-y-1 text-[10pt]">
-                <div className="flex justify-between gap-1">
-                  <span className="text-gray-500">Conta hoje:</span>
-                  <span className="font-bold text-red-600 text-right">
+              <div className="pt-2 border-t border-blue-200 space-y-0.5 text-[7.5pt]">
+                <div className="flex justify-between items-baseline gap-1">
+                  <span className="text-gray-500 whitespace-nowrap">Conta hoje:</span>
+                  <span className="font-bold text-red-600 text-right whitespace-nowrap">
                     {formatCurrency(contaAtualFinal)}
                   </span>
                 </div>
-                <div className="flex justify-between gap-1">
-                  <span className="text-gray-500">Conta c/ solar:</span>
-                  <span className="font-bold text-[#16a34a] text-right">
+                <div className="flex justify-between items-baseline gap-1">
+                  <span className="text-gray-500 whitespace-nowrap">Conta c/ solar:</span>
+                  <span className="font-bold text-[#16a34a] text-right whitespace-nowrap">
                     {formatCurrency(contaSolarFinanA)}
                   </span>
                 </div>
-                <div className="flex justify-between pt-1 border-t border-blue-200 font-bold text-blue-950 gap-1 text-[9.5pt] sm:text-[10pt] whitespace-nowrap">
-                  <span>Parc. + Conta =</span>
-                  <span className="text-right">{formatCurrency(totalMensalFinanA)}</span>
+                <div className="flex justify-between items-baseline pt-1 border-t border-blue-200 font-bold text-blue-950 gap-1 text-[7.5pt]">
+                  <span className="whitespace-nowrap">Parc. + Conta =</span>
+                  <span className="text-right whitespace-nowrap">
+                    {formatCurrency(totalMensalFinanA)}
+                  </span>
                 </div>
               </div>
             </div>
 
             {/* CARD 4: FINANCIAMENTO B */}
-            <div className="p-3.5 sm:p-4 rounded-xl border border-[#60A5FA] bg-[#F0F9FF] flex flex-col justify-between space-y-3 shadow-xs hover:shadow-md transition-shadow min-w-0">
+            <div className="p-2.5 sm:p-3 rounded-xl border border-[#60A5FA] bg-[#F0F9FF] flex flex-col justify-between space-y-2 shadow-xs hover:shadow-md transition-shadow min-w-0">
               <div>
                 {/* Cabeçalho com título em linha única sem quebrar palavra e badge de parcelas */}
-                <div className="flex items-center justify-between gap-1 mb-2">
+                <div className="flex items-center justify-between gap-1 mb-1">
                   <span
-                    className="font-extrabold text-[9.5pt] sm:text-[10pt] uppercase tracking-tight text-blue-950 whitespace-nowrap overflow-hidden text-ellipsis leading-tight"
+                    className="font-black text-[8.5pt] uppercase tracking-tight text-blue-950 whitespace-nowrap leading-tight"
                     title={nomeFinanciamentoB || 'Financiamento B'}
                   >
                     {nomeFinanciamentoB || 'Financiamento B'}
                   </span>
-                  <span className="text-[10pt] font-bold bg-blue-100 text-blue-900 px-2 py-0.5 rounded-full shrink-0">
+                  <span className="text-[7.5pt] font-bold bg-blue-100 text-blue-900 px-1.5 py-0.5 rounded-full shrink-0 whitespace-nowrap">
                     {parcelasFinanBFinal}x
                   </span>
                 </div>
 
-                <div className="text-xl sm:text-2xl font-black text-blue-900 tracking-tight mt-1">
+                <div className="text-lg sm:text-[13pt] font-black text-blue-900 tracking-tight mt-0.5 mb-0.5 leading-tight">
                   {formatCurrency(valorParcelaFinanBFinal)}
                 </div>
                 {iofFinanciamentoB !== undefined &&
                   iofFinanciamentoB !== null &&
                   iofFinanciamentoB > 0 && (
-                    <span className="block text-[10pt] font-semibold text-blue-800 mt-1 leading-snug">
+                    <span className="block text-[7.5pt] font-semibold text-blue-800 leading-snug whitespace-nowrap">
                       Inclui IOF de {formatCurrency(iofFinanciamentoB)}
                     </span>
                   )}
-                <p className="text-[10pt] text-gray-500 mt-1 leading-snug">
+                <p className="text-[7.5pt] text-gray-500 leading-snug">
                   {entradaFinanBFinal > 0 && (
                     <span className="block text-blue-900 font-semibold">
                       Entrada: {formatCurrency(entradaFinanBFinal)}
@@ -580,22 +586,24 @@ export const SecaoInvestimentoPagamento: React.FC<SecaoInvestimentoPagamentoProp
               </div>
 
               {/* 3 Linhas comparativas inferiores */}
-              <div className="pt-2.5 border-t border-blue-200 space-y-1 text-[10pt]">
-                <div className="flex justify-between gap-1">
-                  <span className="text-gray-500">Conta hoje:</span>
-                  <span className="font-bold text-red-600 text-right">
+              <div className="pt-2 border-t border-blue-200 space-y-0.5 text-[7.5pt]">
+                <div className="flex justify-between items-baseline gap-1">
+                  <span className="text-gray-500 whitespace-nowrap">Conta hoje:</span>
+                  <span className="font-bold text-red-600 text-right whitespace-nowrap">
                     {formatCurrency(contaAtualFinal)}
                   </span>
                 </div>
-                <div className="flex justify-between gap-1">
-                  <span className="text-gray-500">Conta c/ solar:</span>
-                  <span className="font-bold text-[#16a34a] text-right">
+                <div className="flex justify-between items-baseline gap-1">
+                  <span className="text-gray-500 whitespace-nowrap">Conta c/ solar:</span>
+                  <span className="font-bold text-[#16a34a] text-right whitespace-nowrap">
                     {formatCurrency(contaSolarFinanB)}
                   </span>
                 </div>
-                <div className="flex justify-between pt-1 border-t border-blue-200 font-bold text-blue-950 gap-1 text-[9.5pt] sm:text-[10pt] whitespace-nowrap">
-                  <span>Parc. + Conta =</span>
-                  <span className="text-right">{formatCurrency(totalMensalFinanB)}</span>
+                <div className="flex justify-between items-baseline pt-1 border-t border-blue-200 font-bold text-blue-950 gap-1 text-[7.5pt]">
+                  <span className="whitespace-nowrap">Parc. + Conta =</span>
+                  <span className="text-right whitespace-nowrap">
+                    {formatCurrency(totalMensalFinanB)}
+                  </span>
                 </div>
               </div>
             </div>
