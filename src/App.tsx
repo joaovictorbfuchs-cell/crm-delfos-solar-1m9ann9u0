@@ -102,6 +102,14 @@ const App = () => (
               }
             />
             <Route
+              path="/propostas"
+              element={
+                <ProtectedRoute requiredRole="admin">
+                  <Orcamentos />
+                </ProtectedRoute>
+              }
+            />
+            <Route
               path="/projetos"
               element={
                 <ProtectedRoute requiredRole="admin">

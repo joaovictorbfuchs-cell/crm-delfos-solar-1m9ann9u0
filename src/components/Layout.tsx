@@ -89,7 +89,8 @@ export default function Layout() {
       case '/comercial':
         return 'Funil Comercial'
       case '/orcamentos':
-        return 'Orçamentos de Energia Solar'
+      case '/propostas':
+        return 'Propostas & Orçamentos Solares'
       case '/projetos':
         return 'Projetos & Pós-Venda'
       case '/atividades':
@@ -133,7 +134,7 @@ export default function Layout() {
     : [
         { name: 'Dashboard', path: '/', icon: LayoutDashboard },
         { name: 'Comercial', path: '/comercial', icon: KanbanSquare },
-        { name: 'Orçamentos', path: '/orcamentos', icon: Sun },
+        { name: 'Propostas', path: '/propostas', icon: Sun },
         { name: 'Projetos', path: '/projetos', icon: FolderKanban },
         { name: 'Atividades', path: '/atividades', icon: CalendarCheck },
         { name: 'Execução de OS', path: '/execucao-os', icon: ClipboardCheck },
@@ -211,7 +212,10 @@ export default function Layout() {
           )}
           {navItems.map((item) => {
             const Icon = item.icon
-            const isActive = location.pathname === item.path
+            const isActive =
+              location.pathname === item.path ||
+              (item.path === '/propostas' && location.pathname === '/orcamentos') ||
+              (item.path === '/orcamentos' && location.pathname === '/propostas')
             return (
               <NavLink
                 key={item.path}
