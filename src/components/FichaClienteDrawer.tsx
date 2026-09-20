@@ -56,7 +56,7 @@ import { FichaClienteWhatsApp } from './FichaClienteWhatsApp'
 import { ModalGerenciarWhatsAppTemplates } from './ModalGerenciarWhatsAppTemplates'
 import { ModalNovaPropostaOM } from './ModalNovaPropostaOM'
 import { ModalOrcamentoSolar } from './ModalOrcamentoSolar'
-import { ModalRegistrarServicoAvulso } from './ModalRegistrarServicoAvulso'
+import { DrawerAtividadesManutencaoCliente } from './DrawerAtividadesManutencaoCliente'
 import { ModalEnviarDocumentoWhatsApp } from './ModalEnviarDocumentoWhatsApp'
 import { ImportarDadosDocumento } from './ImportarDadosDocumento'
 import { ModalConfirmarDocumentoProjeto } from './ModalConfirmarDocumentoProjeto'
@@ -224,8 +224,8 @@ export const FichaClienteDrawer: React.FC = () => {
   // Estado para Modal de Detalhes / Edição Inline da Linha do Tempo Unificada
   const [timelineItemDetalhes, setTimelineItemDetalhes] = useState<TimelineUnifiedItem | null>(null)
 
-  // Modal de Serviço Avulso
-  const [modalServicoAvulsoOpen, setModalServicoAvulsoOpen] = useState(false)
+  // Drawer / Modal de Atividades de Manutenção do Cliente
+  const [drawerAtividadesManutencaoOpen, setDrawerAtividadesManutencaoOpen] = useState(false)
 
   // Modal de Proposta O&M
   const [isModalPropostaOpen, setIsModalPropostaOpen] = useState(false)
@@ -974,13 +974,13 @@ export const FichaClienteDrawer: React.FC = () => {
 
             <button
               type="button"
-              onClick={() => setModalServicoAvulsoOpen(true)}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 text-xs font-bold rounded-lg shadow-xs transition-all hover:scale-[1.02]"
-              title="Oferecer serviço técnico avulso (limpeza, reparo, visita) e adicionar cliente ao Pós-Vendas O&M"
+              onClick={() => setDrawerAtividadesManutencaoOpen(true)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 text-xs font-bold rounded-lg shadow-xs transition-all hover:scale-[1.02]"
+              title="Visualizar e gerenciar atividades de manutenção, serviços e designar equipes"
             >
-              <Wrench className="w-4 h-4 text-amber-600" />
-              <span className="hidden sm:inline">Oferecer Serviço Avulso</span>
-              <span className="sm:hidden">Serviço Avulso</span>
+              <Wrench className="w-4 h-4 text-emerald-600" />
+              <span className="hidden sm:inline">Atividades de Manutenção</span>
+              <span className="sm:hidden">Atividades Manutenção</span>
             </button>
 
             <button
@@ -3865,11 +3865,11 @@ export const FichaClienteDrawer: React.FC = () => {
         </div>
       </div>
 
-      {/* Modal Oferecer Serviço Avulso */}
+      {/* Drawer / Modal Atividades de Manutenção do Cliente */}
       {selectedCliente && (
-        <ModalRegistrarServicoAvulso
-          open={modalServicoAvulsoOpen}
-          onOpenChange={setModalServicoAvulsoOpen}
+        <DrawerAtividadesManutencaoCliente
+          open={drawerAtividadesManutencaoOpen}
+          onOpenChange={setDrawerAtividadesManutencaoOpen}
           cliente={selectedCliente}
         />
       )}

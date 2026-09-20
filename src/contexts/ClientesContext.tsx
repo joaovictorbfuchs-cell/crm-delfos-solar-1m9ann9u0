@@ -240,6 +240,9 @@ interface ClientesContextType {
     status?: AtividadeStatus
     responsavel_id?: string
     responsavel_nome?: string
+    valor_servico?: number
+    fornecedor_id?: string
+    equipe_nome?: string
   }) => Promise<Atividade>
   updateAtividade: (id: string, data: Partial<Atividade>) => Promise<Atividade>
   updateAtividadeStatus: (id: string, status: AtividadeStatus) => Promise<void>
@@ -1190,6 +1193,9 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     status?: AtividadeStatus
     responsavel_id?: string
     responsavel_nome?: string
+    valor_servico?: number
+    fornecedor_id?: string
+    equipe_nome?: string
   }) => {
     const created = await apiCreateAtividade(data)
     setAtividades((prev) => [created, ...prev.filter((a) => a.id !== created.id)])

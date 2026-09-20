@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-20T01:29:49.410Z",
+  "generatedAt": "2026-09-20T02:08:14.054Z",
   "collections": [
     {
       "name": "users",
@@ -821,7 +821,7 @@
           "type": "select",
           "required": false,
           "system": false,
-          "selectValues": ["pendente", "concluida", "cancelada"]
+          "selectValues": ["pendente", "concluida", "cancelada", "agendada", "em_execucao"]
         },
         {
           "name": "responsavel_id",
@@ -842,6 +842,25 @@
           "required": false,
           "system": false,
           "collectionRef": "usinas"
+        },
+        {
+          "name": "valor_servico",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "fornecedor_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "fornecedores"
+        },
+        {
+          "name": "equipe_nome",
+          "type": "text",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": [

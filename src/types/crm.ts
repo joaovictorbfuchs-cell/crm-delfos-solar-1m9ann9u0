@@ -79,7 +79,7 @@ export type AtividadeTipo =
   // Tipos dinâmicos / personalizados adicionados pelo usuário
   | (string & {})
 
-export type AtividadeStatus = 'pendente' | 'concluida' | 'cancelada'
+export type AtividadeStatus = 'pendente' | 'agendada' | 'em_execucao' | 'concluida' | 'cancelada'
 
 export type UserRole = 'admin' | 'instalador'
 
@@ -678,12 +678,16 @@ export interface Atividade extends RecordModel {
   status?: AtividadeStatus
   responsavel_id?: string
   responsavel_nome?: string
+  valor_servico?: number
+  fornecedor_id?: string
+  equipe_nome?: string
   created: string
   updated: string
   expand?: {
     cliente_id?: Cliente
     usina_id?: UsinaCliente
     responsavel_id?: SistemaUsuario
+    fornecedor_id?: Fornecedor
   }
 }
 
