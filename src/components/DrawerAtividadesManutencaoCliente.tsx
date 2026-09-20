@@ -133,9 +133,7 @@ export const DrawerAtividadesManutencaoCliente: React.FC<
 
   // Lista de tipos disponíveis (tipos cadastrados no banco)
   const tiposDisponiveis = useMemo(() => {
-    const list = tiposAtividadesCustom.filter(
-      (t) => t.categoria === 'manutencao' || t.categoria === 'operacao_manutencao',
-    )
+    const list = tiposAtividadesCustom.filter((t) => t.categoria === 'manutencao')
     if (list.length > 0) return list
     return tiposAtividadesCustom
   }, [tiposAtividadesCustom])
