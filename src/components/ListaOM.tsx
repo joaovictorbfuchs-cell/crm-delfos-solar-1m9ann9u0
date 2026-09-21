@@ -10,6 +10,7 @@ import {
   Filter,
   CheckCircle2,
   ChevronRight,
+  ChevronDown,
   User,
   Plus,
   Wrench,
@@ -101,6 +102,13 @@ export const ListaOM: React.FC<ListaOMProps> = ({
   const [internalSubTab, setInternalSubTab] = useState<AbaPrincipalOM>('com_plano')
   const currentSubTab = externalActiveSubTab !== undefined ? externalActiveSubTab : internalSubTab
 
+  // Estado do painel de filtros de Planos O&M compartilhado para o botão na barra superior
+  const [painelFiltrosOMOpen, setPainelFiltrosOMOpen] = useState(false)
+  const [filtrosInfoOM, setFiltrosInfoOM] = useState({
+    totalFiltrosAtivos: 0,
+    totalPlanosFiltrados: 0,
+  })
+
   const handleSubTabClick = (tab: AbaPrincipalOM) => {
     if (onSubTabChange) {
       onSubTabChange(tab)
@@ -108,6 +116,17 @@ export const ListaOM: React.FC<ListaOMProps> = ({
       setInternalSubTab(tab)
     }
   }
+
+  const handleTogglePainelFiltrosOM = React.useCallback(() => {
+    setPainelFiltrosOMOpen((prev) => !prev)
+  }, [])
+
+  const handleFiltrosInfoChange = React.useCallback(
+    (info: { totalFiltrosAtivos: number; totalPlanosFiltrados: number }) => {
+      setFiltrosInfoOM(info)
+    },
+    [],
+  )
 
   const [busca, setBusca] = useState('')
   const [filtroPosVendas, setFiltroPosVendas] = useState<
@@ -460,12 +479,42 @@ export const ListaOM: React.FC<ListaOMProps> = ({
           </button>
         </div>
 
-        {/* Cards de Métricas compactos à direita */}
-        {metricCards && (
-          <div className="flex items-center self-stretch lg:self-auto justify-end">
-            {metricCards}
-          </div>
-        )}
+        {/* Lado direito: Cards de Métricas e Botão Filtros (extrema direita) */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-2 sm:gap-2.5 self-stretch lg:self-auto">
+          {metricCards && (
+            <div className="flex items-center self-stretch sm:self-auto justify-end">
+              {metricCards}
+            </div>
+          )}
+
+          {/* Botão retrátil de Filtros na extrema direita (quando na sub-aba Planos O&M) */}
+          {currentSubTab === 'com_plano' && (
+            <button
+              type="button"
+              onClick={handleTogglePainelFiltrosOM}
+              aria-expanded={painelFiltrosOMOpen}
+              title={painelFiltrosOMOpen ? 'Recolher filtros' : 'Expandir filtros'}
+              className={`inline-flex items-center justify-center gap-1.5 px-3.5 py-2 sm:py-2.5 rounded-xl text-xs font-bold border transition-all h-10 sm:h-[62px] shrink-0 select-none ${
+                painelFiltrosOMOpen
+                  ? 'bg-emerald-50 border-emerald-300 text-emerald-900 shadow-2xs ring-2 ring-emerald-500/20'
+                  : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50 hover:border-gray-300'
+              }`}
+            >
+              <Filter className="w-4 h-4 text-emerald-600" />
+              <span>Filtros</span>
+              {filtrosInfoOM.totalFiltrosAtivos > 0 && (
+                <span className="w-5 h-5 rounded-full bg-emerald-600 text-white text-[10px] font-black inline-flex items-center justify-center">
+                  {filtrosInfoOM.totalFiltrosAtivos}
+                </span>
+              )}
+              <ChevronDown
+                className={`w-3.5 h-3.5 text-gray-500 transition-transform duration-200 ${
+                  painelFiltrosOMOpen ? 'rotate-180 text-emerald-700' : ''
+                }`}
+              />
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Barra de Filtros e Busca (Apenas para sub-aba pós-vendas) */}
@@ -526,7 +575,13 @@ export const ListaOM: React.FC<ListaOMProps> = ({
       {/* LISTA 1: CLIENTES COM PLANO DE MANUTENÇÃO (PLANOS O&M COM FILTROS AVANÇADOS) */}
       {/* ========================================================================= */}
       {currentSubTab === 'com_plano' && (
-        <PlanosOMView onOpenNovoContrato={onOpenNovoContrato} onOpenFichaOM={onOpenFichaOM} />
+        <PlanosOMView
+          onOpenNovoContrato={onOpenNovoContrato}
+          onOpenFichaOM={onOpenFichaOM}
+          painelAberto={painelFiltrosOMOpen}
+          onTogglePainel={handleTogglePainelFiltrosOM}
+          onFiltrosInfoChange={handleFiltrosInfoChange}
+        />
       )}
 
       {/* ========================================================================= */}
