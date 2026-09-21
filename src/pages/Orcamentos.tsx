@@ -19,12 +19,7 @@ import {
   ArrowUp,
   ArrowDown,
   RotateCcw,
-  SlidersHorizontal,
-  LayoutGrid,
-  Table as TableIcon,
   User,
-  Building2,
-  DollarSign,
   ChevronDown,
   X,
 } from 'lucide-react'
@@ -68,6 +63,7 @@ export const Orcamentos: React.FC = () => {
   const [formValorAte, setFormValorAte] = useState<string>('')
   const [formTipoCliente, setFormTipoCliente] = useState<string>('todos')
   const [formStatusFechamento, setFormStatusFechamento] = useState<string>('todos')
+  const [formFaixaPotencia, setFormFaixaPotencia] = useState<string>('todos')
 
   // Filtros ativos (aplicados)
   const [filtrosAtivos, setFiltrosAtivos] = useState({
@@ -80,12 +76,12 @@ export const Orcamentos: React.FC = () => {
     valorAte: '',
     tipoCliente: 'todos',
     statusFechamento: 'todos',
+    faixaPotencia: 'todos',
   })
 
   // Ordenação: padrão decrescente (mais recentes primeiro) por data de criação
   const [ordemDirecao, setOrdemDirecao] = useState<'desc' | 'asc'>('desc')
-  const [modoVisualizacao, setModoVisualizacao] = useState<'cards' | 'tabela'>('cards')
-  const [painelFiltrosAberto, setPainelFiltrosAberto] = useState(true)
+  const [painelFiltrosAberto, setPainelFiltrosAberto] = useState(false)
 
   const [isRefreshing, setIsRefreshing] = useState(false)
 
@@ -133,6 +129,7 @@ export const Orcamentos: React.FC = () => {
       valorAte: formValorAte,
       tipoCliente: formTipoCliente,
       statusFechamento: formStatusFechamento,
+      faixaPotencia: formFaixaPotencia,
     })
   }
 
@@ -147,6 +144,7 @@ export const Orcamentos: React.FC = () => {
     setFormValorAte('')
     setFormTipoCliente('todos')
     setFormStatusFechamento('todos')
+    setFormFaixaPotencia('todos')
     setFiltrosAtivos({
       busca: '',
       status: 'todos',
@@ -157,6 +155,7 @@ export const Orcamentos: React.FC = () => {
       valorAte: '',
       tipoCliente: 'todos',
       statusFechamento: 'todos',
+      faixaPotencia: 'todos',
     })
   }
 
@@ -305,6 +304,31 @@ export const Orcamentos: React.FC = () => {
         }
       }
 
+      // 8. Faixa de potência do sistema (kWp)
+      let matchPotencia = true
+      if (filtrosAtivos.faixaPotencia !== 'todos') {
+        const kwp = orc.potencia_kwp || 0
+        switch (filtrosAtivos.faixaPotencia) {
+          case 'ate-5':
+            matchPotencia = kwp > 0 && kwp <= 5
+            break
+          case '5-10':
+            matchPotencia = kwp > 5 && kwp <= 10
+            break
+          case '10-20':
+            matchPotencia = kwp > 10 && kwp <= 20
+            break
+          case '20-50':
+            matchPotencia = kwp > 20 && kwp <= 50
+            break
+          case 'acima-50':
+            matchPotencia = kwp > 50
+            break
+          default:
+            matchPotencia = true
+        }
+      }
+
       return (
         matchBusca &&
         matchStatus &&
@@ -312,7 +336,8 @@ export const Orcamentos: React.FC = () => {
         matchData &&
         matchValor &&
         matchTipoCliente &&
-        matchFechamento
+        matchFechamento &&
+        matchPotencia
       )
     })
 
@@ -341,6 +366,7 @@ export const Orcamentos: React.FC = () => {
     if (filtrosAtivos.valorAte) count++
     if (filtrosAtivos.tipoCliente !== 'todos') count++
     if (filtrosAtivos.statusFechamento !== 'todos') count++
+    if (filtrosAtivos.faixaPotencia !== 'todos') count++
     return count
   }, [filtrosAtivos])
 
@@ -528,36 +554,6 @@ export const Orcamentos: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
-          {/* Alternar modo de visualização Cards / Tabela */}
-          <div className="flex items-center bg-gray-100 p-1 rounded-xl border border-gray-200">
-            <button
-              type="button"
-              onClick={() => setModoVisualizacao('cards')}
-              className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                modoVisualizacao === 'cards'
-                  ? 'bg-white text-emerald-800 shadow-2xs'
-                  : 'text-gray-600 hover:text-gray-900'
-              }`}
-              title="Visualização em Cards"
-            >
-              <LayoutGrid className="w-3.5 h-3.5" />
-              <span>Cards</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setModoVisualizacao('tabela')}
-              className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                modoVisualizacao === 'tabela'
-                  ? 'bg-white text-emerald-800 shadow-2xs'
-                  : 'text-gray-600 hover:text-gray-900'
-              }`}
-              title="Visualização em Tabela Detalhada"
-            >
-              <TableIcon className="w-3.5 h-3.5" />
-              <span>Tabela</span>
-            </button>
-          </div>
-
           <button
             type="button"
             onClick={handleRefresh}
@@ -737,22 +733,24 @@ export const Orcamentos: React.FC = () => {
             <button
               type="button"
               onClick={() => setPainelFiltrosAberto((prev) => !prev)}
-              className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border transition-all ${
+              aria-expanded={painelFiltrosAberto}
+              className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold border transition-all ${
                 painelFiltrosAberto
-                  ? 'bg-emerald-50 border-emerald-300 text-emerald-900 shadow-2xs'
-                  : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'
+                  ? 'bg-emerald-50 border-emerald-300 text-emerald-900 shadow-2xs ring-2 ring-emerald-500/20'
+                  : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50 hover:border-gray-300 shadow-2xs'
               }`}
+              title={painelFiltrosAberto ? 'Recolher filtros' : 'Expandir filtros'}
             >
-              <SlidersHorizontal className="w-3.5 h-3.5 text-emerald-600" />
-              <span>Filtros avançados</span>
+              <Filter className="w-3.5 h-3.5 text-emerald-600" />
+              <span>Filtros</span>
               {totalFiltrosAtivos > 0 && (
                 <span className="w-5 h-5 rounded-full bg-emerald-600 text-white text-[10px] font-black inline-flex items-center justify-center">
                   {totalFiltrosAtivos}
                 </span>
               )}
               <ChevronDown
-                className={`w-3.5 h-3.5 transition-transform duration-200 ${
-                  painelFiltrosAberto ? 'rotate-180' : ''
+                className={`w-3.5 h-3.5 text-gray-500 transition-transform duration-200 ${
+                  painelFiltrosAberto ? 'rotate-180 text-emerald-700' : ''
                 }`}
               />
             </button>
@@ -765,8 +763,27 @@ export const Orcamentos: React.FC = () => {
             onSubmit={handleAplicarFiltros}
             className="pt-3 border-t border-gray-100 space-y-3.5 animate-in fade-in duration-200"
           >
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
-              {/* 1. Status: Em Negociação, Aprovada, Recusada, Expirada, Arquivada */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-3">
+              {/* 1. Potência do Sistema (kWp) */}
+              <div>
+                <label className="block text-[11px] font-bold text-gray-700 uppercase tracking-wider mb-1">
+                  Potência (kWp)
+                </label>
+                <select
+                  value={formFaixaPotencia}
+                  onChange={(e) => setFormFaixaPotencia(e.target.value)}
+                  className="w-full text-xs py-2 px-2.5 rounded-lg border border-gray-200 bg-white text-gray-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-medium"
+                >
+                  <option value="todos">Todas as potências</option>
+                  <option value="ate-5">Até 5 kWp</option>
+                  <option value="5-10">5 a 10 kWp</option>
+                  <option value="10-20">10 a 20 kWp</option>
+                  <option value="20-50">20 a 50 kWp</option>
+                  <option value="acima-50">Acima de 50 kWp</option>
+                </select>
+              </div>
+
+              {/* 2. Status: Em Negociação, Aprovada, Recusada, Expirada, Arquivada */}
               <div>
                 <label className="block text-[11px] font-bold text-gray-700 uppercase tracking-wider mb-1">
                   Status
@@ -785,7 +802,7 @@ export const Orcamentos: React.FC = () => {
                 </select>
               </div>
 
-              {/* 2. Consultor: dropdown com os consultores cadastrados */}
+              {/* 3. Consultor: dropdown com os consultores cadastrados */}
               <div>
                 <label className="block text-[11px] font-bold text-gray-700 uppercase tracking-wider mb-1">
                   Consultor
@@ -804,7 +821,7 @@ export const Orcamentos: React.FC = () => {
                 </select>
               </div>
 
-              {/* 3. Período: seletor de data inicial e data final */}
+              {/* 4. Período: seletor de data inicial e data final */}
               <div>
                 <label className="block text-[11px] font-bold text-gray-700 uppercase tracking-wider mb-1">
                   Período (De)
@@ -829,8 +846,8 @@ export const Orcamentos: React.FC = () => {
                 />
               </div>
 
-              {/* 4. Faixa de valor: campo "de" e "até" */}
-              <div className="sm:col-span-2 xl:col-span-1">
+              {/* 5. Faixa de valor: campo "de" e "até" */}
+              <div>
                 <label className="block text-[11px] font-bold text-gray-700 uppercase tracking-wider mb-1">
                   Faixa de Valor (R$)
                 </label>
@@ -856,39 +873,46 @@ export const Orcamentos: React.FC = () => {
                 </div>
               </div>
 
-              {/* 5. Tipo de cliente: Residencial, Comercial, Industrial, Rural */}
-              <div>
-                <label className="block text-[11px] font-bold text-gray-700 uppercase tracking-wider mb-1">
-                  Tipo de Cliente
-                </label>
-                <select
-                  value={formTipoCliente}
-                  onChange={(e) => setFormTipoCliente(e.target.value)}
-                  className="w-full text-xs py-2 px-2.5 rounded-lg border border-gray-200 bg-white text-gray-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-medium"
-                >
-                  <option value="todos">Todos os tipos</option>
-                  <option value="residencial">Residencial</option>
-                  <option value="comercial">Comercial</option>
-                  <option value="industrial">Industrial</option>
-                  <option value="rural">Rural</option>
-                </select>
-              </div>
+              {/* 6. Tipo de cliente & 7. Status de fechamento */}
+              <div className="grid grid-cols-2 gap-2 sm:col-span-2 lg:col-span-2 xl:col-span-1">
+                <div>
+                  <label
+                    className="block text-[11px] font-bold text-gray-700 uppercase tracking-wider mb-1 truncate"
+                    title="Tipo de Cliente"
+                  >
+                    Tipo
+                  </label>
+                  <select
+                    value={formTipoCliente}
+                    onChange={(e) => setFormTipoCliente(e.target.value)}
+                    className="w-full text-xs py-2 px-2 rounded-lg border border-gray-200 bg-white text-gray-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-medium"
+                  >
+                    <option value="todos">Todos</option>
+                    <option value="residencial">Residencial</option>
+                    <option value="comercial">Comercial</option>
+                    <option value="industrial">Industrial</option>
+                    <option value="rural">Rural</option>
+                  </select>
+                </div>
 
-              {/* 6. Status de fechamento: Pendente, Ganho, Perdido */}
-              <div>
-                <label className="block text-[11px] font-bold text-gray-700 uppercase tracking-wider mb-1">
-                  Status Fechamento
-                </label>
-                <select
-                  value={formStatusFechamento}
-                  onChange={(e) => setFormStatusFechamento(e.target.value)}
-                  className="w-full text-xs py-2 px-2.5 rounded-lg border border-gray-200 bg-white text-gray-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-medium"
-                >
-                  <option value="todos">Todos (Fechamento)</option>
-                  <option value="Pendente">Pendente</option>
-                  <option value="Ganho">Ganho (Aprovado)</option>
-                  <option value="Perdido">Perdido (Rejeitado)</option>
-                </select>
+                <div>
+                  <label
+                    className="block text-[11px] font-bold text-gray-700 uppercase tracking-wider mb-1 truncate"
+                    title="Status Fechamento"
+                  >
+                    Fechamento
+                  </label>
+                  <select
+                    value={formStatusFechamento}
+                    onChange={(e) => setFormStatusFechamento(e.target.value)}
+                    className="w-full text-xs py-2 px-2 rounded-lg border border-gray-200 bg-white text-gray-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-medium"
+                  >
+                    <option value="todos">Todos</option>
+                    <option value="Pendente">Pendente</option>
+                    <option value="Ganho">Ganho</option>
+                    <option value="Perdido">Perdido</option>
+                  </select>
+                </div>
               </div>
             </div>
 
@@ -920,6 +944,15 @@ export const Orcamentos: React.FC = () => {
                   {filtrosAtivos.busca && (
                     <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200">
                       Busca: "{filtrosAtivos.busca}"
+                    </span>
+                  )}
+                  {filtrosAtivos.faixaPotencia !== 'todos' && (
+                    <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200">
+                      Potência: {filtrosAtivos.faixaPotencia === 'ate-5' && 'Até 5 kWp'}
+                      {filtrosAtivos.faixaPotencia === '5-10' && '5 a 10 kWp'}
+                      {filtrosAtivos.faixaPotencia === '10-20' && '10 a 20 kWp'}
+                      {filtrosAtivos.faixaPotencia === '20-50' && '20 a 50 kWp'}
+                      {filtrosAtivos.faixaPotencia === 'acima-50' && '> 50 kWp'}
                     </span>
                   )}
                   {filtrosAtivos.status !== 'todos' && (
@@ -981,7 +1014,7 @@ export const Orcamentos: React.FC = () => {
         </div>
       </div>
 
-      {/* Lista / Tabela / Cards de Propostas */}
+      {/* Lista / Tabela de Propostas (Modo Lista Exclusivo) */}
       {orcamentosFiltrados.length === 0 ? (
         <div className="bg-white rounded-2xl border border-dashed border-gray-300 p-12 text-center">
           <Sun className="w-12 h-12 text-emerald-400 mx-auto mb-3 stroke-[1.5]" />
@@ -1021,333 +1054,6 @@ export const Orcamentos: React.FC = () => {
               <span>Criar Nova Proposta</span>
             </button>
           </div>
-        </div>
-      ) : modoVisualizacao === 'cards' ? (
-        /* VISUALIZAÇÃO EM CARDS SOLICITADA */
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {orcamentosFiltrados.map((orc) => {
-            const cliente = orc.expand?.cliente_id || clientes.find((c) => c.id === orc.cliente_id)
-            const nomeCliente = cliente?.nome || 'Cliente não identificado'
-            const cidadeCliente = cliente?.cidade || 'Erechim'
-            const consultorNome = orc.autor || 'João Victor Bagetti Fuchs'
-            const inicialCliente = nomeCliente.charAt(0).toUpperCase()
-
-            // Avatar determinístico via CDN oficial se não houver foto de perfil gravada
-            const seedId = Math.abs(
-              nomeCliente.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) % 50,
-            )
-            const avatarUrl = `https://img.usecurling.com/ppl/thumbnail?seed=${seedId}`
-
-            return (
-              <div
-                key={orc.id}
-                onClick={() => handleEditarOrcamento(orc)}
-                className="bg-white rounded-2xl border border-gray-200 shadow-2xs hover:shadow-md hover:border-emerald-300 transition-all p-4 flex flex-col justify-between cursor-pointer group"
-              >
-                {/* Topo do card: Avatar, Nome, Revisão e Status */}
-                <div>
-                  <div className="flex items-start justify-between gap-3 mb-3">
-                    <div className="flex items-center gap-3 min-w-0">
-                      {/* Foto do cliente / Avatar com fallback gracioso */}
-                      <div className="w-11 h-11 rounded-xl overflow-hidden bg-gradient-to-tr from-emerald-600 to-green-500 text-white font-bold text-sm shrink-0 flex items-center justify-center shadow-xs border border-emerald-100">
-                        <img
-                          src={avatarUrl}
-                          alt={nomeCliente}
-                          className="w-full h-full object-cover"
-                          onError={(e) => {
-                            e.currentTarget.style.display = 'none'
-                          }}
-                        />
-                        <span className="font-black">{inicialCliente}</span>
-                      </div>
-
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          <h3 className="font-extrabold text-gray-900 group-hover:text-emerald-700 transition-colors text-sm truncate">
-                            {nomeCliente}
-                          </h3>
-                        </div>
-                        <div className="flex items-center gap-1 text-[11px] text-gray-500 mt-0.5 truncate">
-                          <MapPin className="w-3 h-3 text-gray-400 shrink-0" />
-                          <span className="truncate">{cidadeCliente}</span>
-                          <span className="text-gray-300">•</span>
-                          <span className="capitalize">{orc.tipo_cliente || 'Residencial'}</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="shrink-0 flex flex-col items-end gap-1">
-                      {renderStatusBadge(orc.status)}
-                      <span className="px-1.5 py-0.5 rounded text-[10px] font-black bg-gray-100 text-gray-600 border border-gray-200">
-                        Rev. {orc.numero_revisao || 1}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Informações centrais: Valor do Investimento, Potência e Economia */}
-                  <div className="grid grid-cols-2 gap-2 p-3 bg-gray-50 rounded-xl mb-3 border border-gray-100">
-                    <div>
-                      <span className="text-[10px] font-bold text-gray-500 uppercase block">
-                        Valor do Investimento
-                      </span>
-                      <span className="text-base font-black text-emerald-700 block">
-                        {formatCurrency(orc.valor_investimento)}
-                      </span>
-                      <span className="text-[10px] text-gray-400">
-                        {orc.custo_por_kwp
-                          ? `${formatCurrency(orc.custo_por_kwp)}/kWp`
-                          : 'À vista / financiado'}
-                      </span>
-                    </div>
-
-                    <div>
-                      <span className="text-[10px] font-bold text-gray-500 uppercase block">
-                        Potência Estimada
-                      </span>
-                      <span className="text-base font-black text-gray-900 block">
-                        {orc.potencia_kwp ? `${orc.potencia_kwp.toFixed(2)} kWp` : '—'}
-                      </span>
-                      <span className="text-[10px] text-gray-500">
-                        {orc.numero_placas ? `${orc.numero_placas} placas fotov.` : ''}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Detalhes de consultor e data */}
-                  <div className="flex items-center justify-between text-[11px] text-gray-500 pt-1 border-t border-gray-100">
-                    <div className="flex items-center gap-1.5 truncate">
-                      <User className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                      <span
-                        className="font-semibold text-gray-700 truncate"
-                        title={`Consultor: ${consultorNome}`}
-                      >
-                        {consultorNome}
-                      </span>
-                    </div>
-
-                    <div className="shrink-0 flex items-center gap-1 text-[10px] font-medium text-gray-400">
-                      <Clock className="w-3 h-3" />
-                      <span>{formatDate(orc.data_orcamento || orc.created)}</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Rodapé com botões de ação do card */}
-                <div
-                  className="flex items-center justify-between gap-1 pt-3 mt-3 border-t border-gray-100"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <div className="flex items-center gap-1">
-                    {/* Gerar Proposta Técnico-Comercial Oficial */}
-                    <button
-                      onClick={() => {
-                        const calc = calcularOrcamentoSolar({
-                          consumoKwhMes: orc.consumo_kwh_mes,
-                          tipoCliente: orc.tipo_cliente || 'residencial',
-                          tarifaKwh: orc.tarifa_kwh,
-                          potenciaKwp: orc.potencia_kwp,
-                          orientacaoTelhado: orc.orientacao_telhado,
-                          geracaoSimuladaKwhAno: orc.geracao_simulada_kwh_ano,
-                          custos: {
-                            maoDeObra: orc.custo_mao_de_obra || 0,
-                            materiaisEquipamentos:
-                              orc.custo_materiais_equipamentos !== undefined &&
-                              orc.custo_materiais_equipamentos !== null
-                                ? orc.custo_materiais_equipamentos
-                                : orc.custo_materiais_extras || 0,
-                            materiaisExtras:
-                              orc.custo_materiais_equipamentos !== undefined &&
-                              orc.custo_materiais_equipamentos !== null
-                                ? orc.custo_materiais_extras || 0
-                                : 0,
-                            freteGuincho: orc.custo_frete_guincho || 0,
-                            subestacao: orc.custo_subestacao || 0,
-                            terceirizacao: orc.custo_terceirizacao || 0,
-                            administracao: orc.custo_administracao || 0,
-                            marketingCombustivel: orc.custo_marketing_combustivel || 0,
-                            riscoEngenharia: orc.custo_risco_engenharia || 0,
-                            comissaoComercial: orc.custo_comissao_comercial || 0,
-                            indicacao: orc.custo_indicacao || 0,
-                            impostos: orc.custo_impostos || 0,
-                            desconto: orc.desconto || 0,
-                          },
-                          valorInvestimentoInformado: orc.valor_investimento,
-                        })
-                        setPropostaTecnicoComercialModal({
-                          orcamento: {
-                            id: orc.id,
-                            cliente_id: orc.cliente_id,
-                            cliente_nome: cliente?.nome || 'Cliente',
-                            potencia_kwp: orc.potencia_kwp,
-                            numero_placas: orc.numero_placas,
-                            potencia_placa_wp: orc.potencia_placa_wp,
-                            marca_painel: orc.marca_painel,
-                            marca_inversor: orc.marca_inversor,
-                            quantidade_inversores: orc.quantidade_inversores,
-                            tipo_estrutura: orc.tipo_estrutura,
-                            codigo_finame: orc.codigo_finame,
-                            area_necessaria_m2: orc.area_necessaria_m2,
-                            consumo_mensal_kwh: orc.consumo_kwh_mes,
-                            valor_conta_atual: calc.contaAtualSemSolarMes,
-                            tarifa_kwh: orc.tarifa_kwh,
-                            valor_investimento: orc.valor_investimento,
-                            valor_total_custos: orc.valor_total_custos || orc.valor_investimento,
-                            payback_meses: orc.payback_meses || calc.paybackMeses,
-                            producao_anual_kwh:
-                              orc.producao_anual_kwh || calc.geracaoAnualEstimadaKwh,
-                            producao_mensal_kwh:
-                              orc.geracao_mensal_kwh || calc.geracaoMediaMensalKwh,
-                            geracao_detalhada_json: JSON.stringify(calc.geracaoMensalDetalhada),
-                            parcela_a_vista: orc.valor_investimento,
-                            parcela_cartao_18x: orc.parcela_cartao_18x,
-                            parcela_financiamento_banco1: orc.parcela_financiamento_banco1,
-                            parcela_financiamento_banco2: orc.parcela_financiamento_banco2,
-                            gasto_sem_solar_1_ano:
-                              orc.gasto_sem_solar_1_ano || calc.gastoSemSolar1Ano,
-                            gasto_sem_solar_5_anos:
-                              orc.gasto_sem_solar_5_anos || calc.gastoSemSolar5Anos,
-                            gasto_sem_solar_25_anos:
-                              orc.gasto_sem_solar_25_anos || calc.gastoSemSolar25Anos,
-                            economia_1_mes: orc.economia_1_mes || calc.economia1Mes,
-                            economia_1_ano: orc.economia_1_ano || calc.economia1Ano,
-                            economia_5_anos: orc.economia_5_anos || calc.economia5Anos,
-                            economia_25_anos: orc.economia_25_anos || calc.economia25Anos,
-                            conta_primeiro_mes_com_solar:
-                              orc.conta_primeiro_mes_com_solar || calc.contaPrimeiroMesComSolar,
-                            created: orc.created,
-                          },
-                          cliente: cliente || null,
-                        })
-                      }}
-                      className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 transition-colors text-xs font-bold"
-                      title="Gerar Proposta Técnico-Comercial Oficial"
-                    >
-                      <FileText className="w-3.5 h-3.5 text-emerald-700" />
-                      <span>Proposta PDF</span>
-                    </button>
-
-                    {/* Enviar WhatsApp */}
-                    <button
-                      disabled={!cliente || (!cliente.whatsapp && !cliente.telefone)}
-                      onClick={() => {
-                        if (!cliente) return
-                        const calculos = calcularOrcamentoSolar({
-                          consumoKwhMes: orc.consumo_kwh_mes,
-                          tipoCliente: orc.tipo_cliente || 'residencial',
-                          tarifaKwh: orc.tarifa_kwh,
-                          potenciaKwp: orc.potencia_kwp,
-                          orientacaoTelhado: orc.orientacao_telhado,
-                          geracaoSimuladaKwhAno: orc.geracao_simulada_kwh_ano,
-                          custos: {
-                            maoDeObra: orc.custo_mao_de_obra || 0,
-                            materiaisEquipamentos:
-                              orc.custo_materiais_equipamentos !== undefined &&
-                              orc.custo_materiais_equipamentos !== null
-                                ? orc.custo_materiais_equipamentos
-                                : orc.custo_materiais_extras || 0,
-                            materiaisExtras:
-                              orc.custo_materiais_equipamentos !== undefined &&
-                              orc.custo_materiais_equipamentos !== null
-                                ? orc.custo_materiais_extras || 0
-                                : 0,
-                            freteGuincho: orc.custo_frete_guincho || 0,
-                            subestacao: orc.custo_subestacao || 0,
-                            terceirizacao: orc.custo_terceirizacao || 0,
-                            administracao: orc.custo_administracao || 0,
-                            marketingCombustivel: orc.custo_marketing_combustivel || 0,
-                            riscoEngenharia: orc.custo_risco_engenharia || 0,
-                            comissaoComercial: orc.custo_comissao_comercial || 0,
-                            indicacao: orc.custo_indicacao || 0,
-                            impostos: orc.custo_impostos || 0,
-                            desconto: orc.desconto || 0,
-                          },
-                          valorInvestimentoInformado: orc.valor_investimento,
-                        })
-                        const payload: PropostaSolarPDFInput = {
-                          cliente: {
-                            nome: cliente.nome_fantasia
-                              ? `${cliente.nome} (${cliente.nome_fantasia})`
-                              : cliente.nome,
-                            cpfOuCnpj: cliente.cnpj || cliente.cpf || '',
-                            endereco: [cliente.endereco, cliente.numero, cliente.bairro]
-                              .filter(Boolean)
-                              .join(', '),
-                            municipio: cliente.cidade || 'Erechim / RS',
-                            email: cliente.email || '',
-                            telefone: cliente.telefone || '',
-                            tipoCliente: orc.tipo_cliente,
-                          },
-                          representanteComercial: orc.autor || 'Delfos Solar',
-                          sistema: {
-                            potenciaKwp: orc.potencia_kwp,
-                            consumoKwhMes: orc.consumo_kwh_mes,
-                            numeroPlacas: orc.numero_placas,
-                            potenciaPlacaWp: orc.potencia_placa_wp,
-                            marcaPlacas: orc.marca_painel,
-                            marcaInversor: orc.marca_inversor,
-                            quantidadeInversores: orc.quantidade_inversores,
-                            tipoEstrutura: orc.tipo_estrutura,
-                            orientacaoTelhado: orc.orientacao_telhado,
-                            areaNecessariaM2: orc.area_necessaria_m2,
-                            codigoFiname: orc.codigo_finame,
-                            prazoEntregaDias: 30,
-                          },
-                          calculos,
-                          dataEmissao: orc.data_orcamento || orc.created,
-                          validadeDias: orc.validade_dias || 5,
-                          observacoes: orc.observacoes,
-                        }
-                        setOrcamentoParaWhatsApp({ cliente, orc, payload })
-                        setModalWhatsAppOpen(true)
-                      }}
-                      className="p-1.5 rounded-lg text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 transition-colors disabled:opacity-40"
-                      title="Enviar por WhatsApp"
-                    >
-                      <Send className="w-3.5 h-3.5 text-emerald-600" />
-                    </button>
-
-                    {/* Baixar HTML */}
-                    <button
-                      onClick={() => gerarPDFParaRegistro(orc, 'baixar')}
-                      className="p-1.5 rounded-lg text-gray-500 hover:text-gray-800 hover:bg-gray-100 transition-colors"
-                      title="Baixar HTML"
-                    >
-                      <Download className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-
-                  {/* Seletor rápido de status */}
-                  <div className="flex items-center gap-1">
-                    <select
-                      value={orc.status}
-                      onChange={(e) =>
-                        handleAlterarStatus(
-                          orc,
-                          e.target.value as OrcamentoSolarStatus,
-                          e as unknown as React.MouseEvent,
-                        )
-                      }
-                      className="text-[11px] font-semibold py-1 px-1.5 rounded border border-gray-200 bg-white text-gray-700 hover:border-gray-300 focus:outline-none"
-                      title="Mudar status rapidamente"
-                    >
-                      <option value="Em elaboração">Em elaboração</option>
-                      <option value="Enviado ao cliente">Enviado</option>
-                      <option value="Aprovado">Aprovado</option>
-                      <option value="Rejeitado">Rejeitado</option>
-                    </select>
-
-                    <button
-                      onClick={(e) => handleExcluir(orc.id, e)}
-                      className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors"
-                      title="Excluir proposta"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )
-          })}
         </div>
       ) : (
         /* VISUALIZAÇÃO EM TABELA COM FOTO E CONSULTOR */
