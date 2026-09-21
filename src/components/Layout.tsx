@@ -15,13 +15,12 @@ import {
   X,
   LogOut,
   ChevronRight,
-  ChevronLeft,
+  ChevronDown,
   PanelLeftClose,
   PanelLeftOpen,
   Sun,
   MessageSquare,
   Settings,
-  Shield,
   Images,
   Cpu,
   Zap,
@@ -44,6 +43,7 @@ export default function Layout() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [modalWhatsAppTemplatesOpen, setModalWhatsAppTemplatesOpen] = useState(false)
   const [modalPlanilhaTarifariaOpen, setModalPlanilhaTarifariaOpen] = useState(false)
+  const [configuracoesExpanded, setConfiguracoesExpanded] = useState(false)
 
   // Contagem de atendimentos pendentes: Fila de Novos + conversas Em Atendimento com novas mensagens não lidas
   const pendentesWhatsAppCount = React.useMemo(() => {
@@ -142,11 +142,24 @@ export default function Layout() {
 
   interface NavItem {
     name: string
-    path: string
+    path?: string
     icon: React.ElementType
     badge?: number
     subItems?: NavSubItem[]
+    isGroup?: boolean
   }
+
+  const configuracoesSubItems: NavSubItem[] = [
+    { name: 'Catálogo de atividades', path: '/catalogo-atividades', icon: ListChecks },
+    { name: 'Automações', path: '/automacoes', icon: Zap },
+    { name: 'Cadastro de equipamentos', path: '/equipamentos', icon: Cpu },
+    { name: 'Galeria de usinas', path: '/instalacoes-galeria', icon: Images },
+    { name: 'Fornecedores', path: '/fornecedores', icon: Truck },
+    { name: 'Importar Clientes', path: '/importar-clientes', icon: FileSpreadsheet },
+    { name: 'Gerenciar usuários', path: '/gerenciar-usuarios', icon: UserCog },
+  ]
+
+  const isConfiguracoesActive = configuracoesSubItems.some((sub) => location.pathname === sub.path)
 
   const navItems: NavItem[] = isInstalador
     ? [{ name: 'Execução de OS', path: '/execucao-os', icon: ClipboardCheck }]
@@ -162,14 +175,13 @@ export default function Layout() {
           path: '/manutencoes',
           icon: Wrench,
         },
-        { name: 'Catálogo de Atividades', path: '/catalogo-atividades', icon: ListChecks },
-        { name: 'Automações', path: '/automacoes', icon: Zap },
-        { name: 'Cadastro de Equipamentos', path: '/equipamentos', icon: Cpu },
         { name: 'Clientes', path: '/clientes', icon: Users },
-        { name: 'Galeria Usinas', path: '/instalacoes-galeria', icon: Images },
-        { name: 'Gerenciar Usuários', path: '/gerenciar-usuarios', icon: UserCog },
-        { name: 'Importar Clientes', path: '/importar-clientes', icon: FileSpreadsheet },
-        { name: 'Fornecedores', path: '/fornecedores', icon: Truck },
+        {
+          name: 'Configurações',
+          icon: Settings,
+          isGroup: true,
+          subItems: configuracoesSubItems,
+        },
       ]
 
   const isManutencoesSectionActive =
@@ -241,22 +253,120 @@ export default function Layout() {
           )}
           {navItems.map((item) => {
             const Icon = item.icon
+
+            // Se for item de agrupamento (Configurações)
+            if (item.isGroup && item.subItems) {
+              const isActive = isConfiguracoesActive
+              const isExpanded = configuracoesExpanded
+
+              return (
+                <div key={item.name} className="space-y-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (isSidebarCollapsed) {
+                        setIsSidebarCollapsed(false)
+                        setConfiguracoesExpanded(true)
+                      } else {
+                        setConfiguracoesExpanded((prev) => !prev)
+                      }
+                    }}
+                    title={isSidebarCollapsed ? item.name : undefined}
+                    aria-expanded={isExpanded}
+                    className={`flex items-center rounded-xl font-medium text-sm transition-all duration-150 relative group w-full text-left cursor-pointer ${
+                      isSidebarCollapsed ? 'justify-center p-3' : 'gap-3 px-3.5 py-2.5'
+                    } ${
+                      isActive
+                        ? 'bg-[#DCFCE7] text-[#166534] font-semibold shadow-xs'
+                        : 'text-gray-600 hover:bg-[#F8FAF9] hover:text-[#166534]'
+                    }`}
+                  >
+                    <Icon
+                      className={`w-5 h-5 shrink-0 ${
+                        isActive ? 'text-[#16A34A]' : 'text-gray-400 group-hover:text-[#16A34A]'
+                      }`}
+                    />
+                    {!isSidebarCollapsed && (
+                      <>
+                        <span className="truncate">{item.name}</span>
+                        {isExpanded ? (
+                          <ChevronDown
+                            className={`w-4 h-4 ml-auto shrink-0 transition-transform ${
+                              isActive ? 'text-[#16A34A]' : 'text-gray-400'
+                            }`}
+                          />
+                        ) : (
+                          <ChevronRight
+                            className={`w-4 h-4 ml-auto shrink-0 transition-transform ${
+                              isActive ? 'text-[#16A34A]' : 'text-gray-400'
+                            }`}
+                          />
+                        )}
+                      </>
+                    )}
+                    {/* Tooltip no modo colapsado para hover */}
+                    {isSidebarCollapsed && (
+                      <span className="absolute left-full ml-2.5 px-2.5 py-1 bg-gray-900 text-white text-xs font-semibold rounded-md shadow-lg whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-50">
+                        {item.name}
+                      </span>
+                    )}
+                  </button>
+
+                  {/* Subitens de Configurações */}
+                  {isExpanded && !isSidebarCollapsed && (
+                    <div className="space-y-0.5 pt-0.5">
+                      {item.subItems.map((sub) => {
+                        const SubIcon = sub.icon
+                        const isSubActive = location.pathname === sub.path
+
+                        return (
+                          <NavLink
+                            key={sub.path}
+                            to={sub.path}
+                            title={sub.name}
+                            className={`flex items-center rounded-lg text-xs font-medium transition-all duration-150 relative group gap-2.5 pl-8 pr-3 py-2 ml-2 ${
+                              isSubActive
+                                ? 'bg-emerald-100/70 text-[#166534] font-bold shadow-2xs'
+                                : 'text-gray-600 hover:bg-emerald-50/60 hover:text-[#166534]'
+                            }`}
+                          >
+                            <SubIcon
+                              className={`w-4 h-4 shrink-0 ${
+                                isSubActive
+                                  ? 'text-[#16A34A]'
+                                  : 'text-gray-400 group-hover:text-[#16A34A]'
+                              }`}
+                            />
+                            <span className="truncate">{sub.name}</span>
+                            {isSubActive && (
+                              <span className="w-1.5 h-1.5 rounded-full bg-[#16A34A] ml-auto shrink-0" />
+                            )}
+                          </NavLink>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+              )
+            }
+
+            const itemPath = item.path || '/'
             const isActive =
-              location.pathname === item.path ||
-              (item.path === '/propostas' && location.pathname === '/orcamentos') ||
-              (item.path === '/orcamentos' && location.pathname === '/propostas') ||
-              (item.path === '/planos-om' &&
+              location.pathname === itemPath ||
+              (itemPath === '/propostas' && location.pathname === '/orcamentos') ||
+              (itemPath === '/orcamentos' && location.pathname === '/propostas') ||
+              (itemPath === '/planos-om' &&
                 (location.pathname === '/planos-om' ||
                   location.pathname === '/planos-monitoramento'))
 
             // Verifica se a seção de Manutenções está ativa para revelar subitens
             const showSubItems =
-              item.path === '/manutencoes' && isManutencoesSectionActive && item.subItems
+              itemPath === '/manutencoes' && isManutencoesSectionActive && item.subItems
 
             return (
-              <div key={item.path} className="space-y-1">
+              <div key={itemPath} className="space-y-1">
                 <NavLink
-                  to={item.path}
+                  to={itemPath}
                   title={isSidebarCollapsed ? item.name : undefined}
                   className={`flex items-center rounded-xl font-medium text-sm transition-all duration-150 relative group ${
                     isSidebarCollapsed ? 'justify-center p-3 w-full' : 'gap-3 px-3.5 py-2.5'
@@ -442,18 +552,96 @@ export default function Layout() {
             <nav className="flex-1 px-4 py-4 space-y-1 overflow-y-auto">
               {navItems.map((item) => {
                 const Icon = item.icon
+
+                // Se for item de agrupamento (Configurações) no mobile
+                if (item.isGroup && item.subItems) {
+                  const isActive = isConfiguracoesActive
+                  const isExpanded = configuracoesExpanded
+
+                  return (
+                    <div key={item.name} className="space-y-1">
+                      <button
+                        type="button"
+                        onClick={() => setConfiguracoesExpanded((prev) => !prev)}
+                        aria-expanded={isExpanded}
+                        className={`w-full flex items-center justify-between gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-colors text-left cursor-pointer ${
+                          isActive
+                            ? 'bg-[#DCFCE7] text-[#166534] font-semibold'
+                            : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          <Icon
+                            className={`w-5 h-5 shrink-0 ${
+                              isActive ? 'text-[#16A34A]' : 'text-gray-400'
+                            }`}
+                          />
+                          <span className="truncate">{item.name}</span>
+                        </div>
+                        {isExpanded ? (
+                          <ChevronDown
+                            className={`w-4 h-4 shrink-0 transition-transform ${
+                              isActive ? 'text-[#16A34A]' : 'text-gray-400'
+                            }`}
+                          />
+                        ) : (
+                          <ChevronRight
+                            className={`w-4 h-4 shrink-0 transition-transform ${
+                              isActive ? 'text-[#16A34A]' : 'text-gray-400'
+                            }`}
+                          />
+                        )}
+                      </button>
+
+                      {isExpanded && (
+                        <div className="space-y-0.5 pt-0.5">
+                          {item.subItems.map((sub) => {
+                            const SubIcon = sub.icon
+                            const isSubActive = location.pathname === sub.path
+
+                            return (
+                              <NavLink
+                                key={sub.path}
+                                to={sub.path}
+                                title={sub.name}
+                                onClick={() => setMobileMenuOpen(false)}
+                                className={`flex items-center gap-2.5 pl-9 pr-3.5 py-2 rounded-lg text-xs font-medium transition-colors ${
+                                  isSubActive
+                                    ? 'bg-emerald-100/70 text-[#166534] font-bold'
+                                    : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                                }`}
+                              >
+                                <SubIcon
+                                  className={`w-4 h-4 shrink-0 ${
+                                    isSubActive ? 'text-[#16A34A]' : 'text-gray-400'
+                                  }`}
+                                />
+                                <span className="truncate">{sub.name}</span>
+                                {isSubActive && (
+                                  <span className="w-1.5 h-1.5 rounded-full bg-[#16A34A] ml-auto shrink-0" />
+                                )}
+                              </NavLink>
+                            )
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  )
+                }
+
+                const itemPath = item.path || '/'
                 const isActive =
-                  location.pathname === item.path ||
-                  (item.path === '/planos-om' &&
+                  location.pathname === itemPath ||
+                  (itemPath === '/planos-om' &&
                     (location.pathname === '/planos-om' ||
                       location.pathname === '/planos-monitoramento'))
                 const showSubItems =
-                  item.path === '/manutencoes' && isManutencoesSectionActive && item.subItems
+                  itemPath === '/manutencoes' && isManutencoesSectionActive && item.subItems
 
                 return (
-                  <div key={item.path} className="space-y-1">
+                  <div key={itemPath} className="space-y-1">
                     <NavLink
-                      to={item.path}
+                      to={itemPath}
                       onClick={() => setMobileMenuOpen(false)}
                       className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-colors ${
                         isActive
