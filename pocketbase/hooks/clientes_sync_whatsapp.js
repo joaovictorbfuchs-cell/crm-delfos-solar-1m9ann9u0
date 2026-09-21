@@ -1,6 +1,7 @@
-// Prevenir recorrência de clientes com telefone preenchido e whatsapp vazio
-// Ao criar ou atualizar um registro na coleção 'clientes', se whatsapp estiver vazio e telefone preenchido,
-// copia automaticamente o valor de telefone para whatsapp sem sobrescrever se já preenchido.
+// Sincronização e prioridade entre campos de telefone e WhatsApp na coleção 'clientes'
+// Regra de negócio (WhatsApp é a fonte da verdade):
+// 1. Se whatsapp preenchido e telefone vazio ou diferente -> telefone = whatsapp (copia WhatsApp para telefone)
+// 2. Se whatsapp vazio e telefone preenchido -> whatsapp = telefone (mantém comportamento de importação/criação onde só existe telefone)
 
 onRecordCreate((e) => {
   try {
@@ -8,7 +9,11 @@ onRecordCreate((e) => {
     const tel = (record.getString('telefone') || '').trim()
     const wpp = (record.getString('whatsapp') || '').trim()
 
-    if (tel && !wpp) {
+    if (wpp) {
+      if (!tel || tel !== wpp) {
+        record.set('telefone', record.getString('whatsapp'))
+      }
+    } else if (tel) {
       record.set('whatsapp', record.getString('telefone'))
     }
   } catch (err) {
@@ -24,7 +29,11 @@ onRecordUpdate((e) => {
     const tel = (record.getString('telefone') || '').trim()
     const wpp = (record.getString('whatsapp') || '').trim()
 
-    if (tel && !wpp) {
+    if (wpp) {
+      if (!tel || tel !== wpp) {
+        record.set('telefone', record.getString('whatsapp'))
+      }
+    } else if (tel) {
       record.set('whatsapp', record.getString('telefone'))
     }
   } catch (err) {
