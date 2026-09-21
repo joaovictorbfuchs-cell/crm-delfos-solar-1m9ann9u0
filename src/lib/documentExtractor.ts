@@ -44,6 +44,161 @@ export function readFileAsBase64(file: File): Promise<string> {
   })
 }
 
+export interface CompressedImageResult {
+  base64: string
+  mimeType: string
+  width: number
+  height: number
+  sizeBytes: number
+}
+
+/**
+ * Redimensiona e comprime uma imagem no navegador para envio seguro ao backend e LLM:
+ * - Lado maior restrito a maxDimension (padrão 1600px)
+ * - Converte para JPEG com qualidade progressiva (0.75 -> 0.6) caso exceda maxSizeBytes (padrão ~500KB)
+ * - Evita explosão de tokens de base64 no modelo de IA
+ */
+export async function compressAndResizeImage(
+  file: File,
+  options: {
+    maxDimension?: number
+    quality?: number
+    maxSizeBytes?: number
+  } = {},
+): Promise<CompressedImageResult> {
+  const maxDimension = options.maxDimension ?? 1600
+  let quality = options.quality ?? 0.75
+  const maxSizeBytes = options.maxSizeBytes ?? 500 * 1024 // 500KB alvo de tamanho binário (~670KB base64)
+
+  // Em ambientes sem suporte a Image/canvas (ex: Node/testes SSR), fallback para leitura direta
+  if (
+    typeof window === 'undefined' ||
+    typeof Image === 'undefined' ||
+    typeof document === 'undefined'
+  ) {
+    const rawBase64 = await readFileAsBase64(file)
+    return {
+      base64: rawBase64,
+      mimeType: file.type || 'image/jpeg',
+      width: 0,
+      height: 0,
+      sizeBytes: file.size,
+    }
+  }
+
+  return new Promise((resolve) => {
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      const dataUrl = e.target?.result as string
+      const img = new Image()
+      img.onload = () => {
+        try {
+          let { width, height } = img
+          const maxSide = Math.max(width, height)
+
+          if (maxSide > maxDimension && maxSide > 0) {
+            const scale = maxDimension / maxSide
+            width = Math.round(width * scale)
+            height = Math.round(height * scale)
+          }
+
+          const canvas = document.createElement('canvas')
+          canvas.width = width
+          canvas.height = height
+          const ctx = canvas.getContext('2d')
+
+          if (!ctx) {
+            const rawBase64 = dataUrl.includes(',') ? dataUrl.split(',')[1] : dataUrl
+            resolve({
+              base64: rawBase64,
+              mimeType: file.type || 'image/jpeg',
+              width: img.width,
+              height: img.height,
+              sizeBytes: file.size,
+            })
+            return
+          }
+
+          // Fundo branco caso a imagem original tenha transparência (PNG convertendo para JPEG)
+          ctx.fillStyle = '#FFFFFF'
+          ctx.fillRect(0, 0, width, height)
+          ctx.drawImage(img, 0, 0, width, height)
+
+          let outputMime = 'image/jpeg'
+          let outputDataUrl = canvas.toDataURL(outputMime, quality)
+          let base64Part = outputDataUrl.split(',')[1] || ''
+
+          // Se ainda exceder o limite de bytes seguro e a qualidade puder ser reduzida, tenta um segundo passe mais agressivo
+          if (base64Part.length * 0.75 > maxSizeBytes && quality > 0.5) {
+            quality = 0.6
+            outputDataUrl = canvas.toDataURL(outputMime, quality)
+            base64Part = outputDataUrl.split(',')[1] || ''
+          }
+
+          // Se mesmo assim ainda for muito grande (ex: imagem densa), escala para 1200px
+          if (base64Part.length * 0.75 > maxSizeBytes && Math.max(width, height) > 1200) {
+            const extraScale = 1200 / Math.max(width, height)
+            const w2 = Math.round(width * extraScale)
+            const h2 = Math.round(height * extraScale)
+            const canvas2 = document.createElement('canvas')
+            canvas2.width = w2
+            canvas2.height = h2
+            const ctx2 = canvas2.getContext('2d')
+            if (ctx2) {
+              ctx2.fillStyle = '#FFFFFF'
+              ctx2.fillRect(0, 0, w2, h2)
+              ctx2.drawImage(canvas, 0, 0, w2, h2)
+              outputDataUrl = canvas2.toDataURL(outputMime, 0.65)
+              base64Part = outputDataUrl.split(',')[1] || ''
+              width = w2
+              height = h2
+            }
+          }
+
+          resolve({
+            base64: base64Part,
+            mimeType: outputMime,
+            width,
+            height,
+            sizeBytes: Math.round(base64Part.length * 0.75),
+          })
+        } catch (err) {
+          console.warn('Falha na compressão de imagem via canvas, usando imagem original:', err)
+          const rawBase64 = dataUrl.includes(',') ? dataUrl.split(',')[1] : dataUrl
+          resolve({
+            base64: rawBase64,
+            mimeType: file.type || 'image/jpeg',
+            width: img.width || 0,
+            height: img.height || 0,
+            sizeBytes: file.size,
+          })
+        }
+      }
+      img.onerror = () => {
+        const rawBase64 = dataUrl.includes(',') ? dataUrl.split(',')[1] : dataUrl
+        resolve({
+          base64: rawBase64,
+          mimeType: file.type || 'image/jpeg',
+          width: 0,
+          height: 0,
+          sizeBytes: file.size,
+        })
+      }
+      img.src = dataUrl
+    }
+    reader.onerror = () => {
+      resolve({
+        base64: '',
+        mimeType: file.type || 'image/jpeg',
+        width: 0,
+        height: 0,
+        sizeBytes: 0,
+      })
+    }
+    reader.readAsDataURL(file)
+  })
+}
+
 /**
  * Extrai texto de arquivos .csv ou .txt
  */
@@ -372,15 +527,19 @@ export async function prepareDocumentForExtraction(file: File): Promise<Document
   const ext = file.name.split('.').pop()?.toLowerCase() || ''
   const mime = file.type || ''
 
-  // Imagens (JPG, PNG, WEBP)
+  // Imagens (JPG, PNG, WEBP, BMP) — comprimir e redimensionar antes do envio
   if (mime.startsWith('image/') || ['jpg', 'jpeg', 'png', 'webp', 'bmp'].includes(ext)) {
-    const base64 = await readFileAsBase64(file)
+    const compressed = await compressAndResizeImage(file, {
+      maxDimension: 1600,
+      quality: 0.75,
+      maxSizeBytes: 500 * 1024,
+    })
     return {
       fileName: file.name,
-      fileSize: file.size,
+      fileSize: compressed.sizeBytes || file.size,
       fileType: 'image',
-      imageBase64: base64,
-      mimeType: mime || `image/${ext === 'jpg' ? 'jpeg' : ext}`,
+      imageBase64: compressed.base64,
+      mimeType: compressed.mimeType || mime || `image/${ext === 'jpg' ? 'jpeg' : ext}`,
     }
   }
 
@@ -439,7 +598,7 @@ export async function prepareDocumentForExtraction(file: File): Promise<Document
         mimeType: 'application/pdf',
       }
     }
-    // Caso contrário (ex: PDF digitalizado/escaneado em imagem), enviar como base64
+    // Caso contrário (ex: PDF digitalizado/escaneado em imagem), enviar como base64 com alerta de tamanho
     const base64 = await readFileAsBase64(file)
     return {
       fileName: file.name,

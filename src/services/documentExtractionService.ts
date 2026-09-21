@@ -97,10 +97,20 @@ export async function extrairDadosDocumento(file: File): Promise<ExtractDocument
     try {
       const errBody = await res.json()
       if (errBody?.error) errMessage = errBody.error
-      if (errBody?.message) errMessage = errBody.message
+      else if (errBody?.message) errMessage = errBody.message
     } catch {
       /* intentionally ignored */
     }
+
+    if (
+      errMessage.includes('context length') ||
+      errMessage.includes('tokens') ||
+      errMessage.includes('longer than')
+    ) {
+      errMessage =
+        'O documento excede o limite de processamento de IA. Reduza a resolução da foto ou envie o arquivo PDF em formato digital.'
+    }
+
     throw new Error(errMessage)
   }
 
@@ -109,7 +119,12 @@ export async function extrairDadosDocumento(file: File): Promise<ExtractDocument
     data: DocumentoExtraidoData | null
     raw_text?: string
     message?: string
+    error?: string
     conversation_id?: string
+  }
+
+  if (json.error && !json.ok) {
+    throw new Error(json.error)
   }
 
   return {
