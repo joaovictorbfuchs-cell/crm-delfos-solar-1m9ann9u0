@@ -25,6 +25,7 @@ interface ModalDetalhesAtividadeProps {
   onClose: () => void
   atividade: Atividade | null
   onSaved?: (updated: Atividade) => void
+  onOpenAutoLeitura?: (atividade: Atividade) => void
 }
 
 /** Converte ISO string (ou Date string) em valor compativel com input datetime-local no fuso horario local */
@@ -42,6 +43,7 @@ export const ModalDetalhesAtividade: React.FC<ModalDetalhesAtividadeProps> = ({
   onClose,
   atividade,
   onSaved,
+  onOpenAutoLeitura,
 }) => {
   const { clientes, usuarios, updateAtividade, openFichaCliente } = useClientes()
 

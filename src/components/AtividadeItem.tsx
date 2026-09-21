@@ -7,6 +7,7 @@ export interface AtividadeItemProps {
   atividade: Atividade
   onDelete?: (id: string) => void
   onToggleStatus?: (id: string, currentStatus: string) => void
+  onOpenDetalhes?: (atividade: Atividade) => void
   showClienteName?: boolean
 }
 
@@ -27,6 +28,7 @@ export const AtividadeItem: React.FC<AtividadeItemProps> = ({
   atividade,
   onDelete,
   onToggleStatus,
+  onOpenDetalhes,
   showClienteName,
 }) => {
   const config = getAtividadeConfig(atividade.tipo)
@@ -137,13 +139,37 @@ export const AtividadeItem: React.FC<AtividadeItemProps> = ({
           </div>
         </div>
 
-        {atividade.titulo && (
-          <h4 className="text-xs font-bold text-gray-900 mb-1 leading-snug">{atividade.titulo}</h4>
-        )}
+        <div
+          onClick={() => {
+            if (onOpenDetalhes) onOpenDetalhes(atividade)
+          }}
+          className={onOpenDetalhes ? 'cursor-pointer group/title' : ''}
+        >
+          {atividade.titulo && (
+            <h4 className="text-xs font-bold text-gray-900 mb-1 leading-snug group-hover/title:text-emerald-700 transition-colors">
+              {atividade.titulo}
+            </h4>
+          )}
 
-        <p className="text-xs text-gray-700 whitespace-pre-wrap leading-relaxed">
-          {atividade.descricao}
-        </p>
+          <p className="text-xs text-gray-700 whitespace-pre-wrap leading-relaxed">
+            {atividade.descricao}
+          </p>
+        </div>
+
+        {atividade.tipo === 'auto_leitura_rge' && onOpenDetalhes && (
+          <div className="mt-2.5 pt-2 border-t border-gray-100 flex items-center justify-between">
+            <span className="text-[10px] text-orange-800 bg-orange-50 font-semibold px-2 py-0.5 rounded border border-orange-200">
+              Cronograma & Leitura RGE
+            </span>
+            <button
+              type="button"
+              onClick={() => onOpenDetalhes(atividade)}
+              className="text-[11px] font-bold text-orange-700 hover:text-orange-900 hover:underline"
+            >
+              Abrir Cronograma e Requisitos →
+            </button>
+          </div>
+        )}
       </div>
     </div>
   )

@@ -21,6 +21,7 @@ interface AtividadesPendentesListProps {
   onSelectUsuario: (id: string) => void
   onToggleStatus: (id: string, currentStatus: string) => void
   onOpenCliente: (clienteId: string) => void
+  onOpenAutoLeitura?: (atividade: Atividade) => void
 }
 
 export const AtividadesPendentesList: React.FC<AtividadesPendentesListProps> = ({
@@ -30,6 +31,7 @@ export const AtividadesPendentesList: React.FC<AtividadesPendentesListProps> = (
   onSelectUsuario,
   onToggleStatus,
   onOpenCliente,
+  onOpenAutoLeitura,
 }) => {
   const [tabStatus, setTabStatus] = useState<'pendentes' | 'concluidas' | 'todas'>('pendentes')
   const [searchTerm, setSearchTerm] = useState('')

@@ -26,7 +26,8 @@ import {
 } from '@/components/ui/alert-dialog'
 import { AtividadesCalendario } from '@/components/AtividadesCalendario'
 import { AtividadesPendentesList } from '@/components/AtividadesPendentesList'
-import type { AtividadeTipo, AtividadeStatus } from '@/types/crm'
+import { ModalAutoLeituraRGE } from '@/components/ModalAutoLeituraRGE'
+import type { Atividade, AtividadeTipo, AtividadeStatus } from '@/types/crm'
 
 export const Atividades: React.FC = () => {
   const {
@@ -64,6 +65,9 @@ export const Atividades: React.FC = () => {
   } | null>(null)
   const [isDeletingAtividade, setIsDeletingAtividade] = useState(false)
 
+  // Modal estendido de Auto Leitura - RGE
+  const [autoLeituraModalAtividade, setAutoLeituraModalAtividade] = useState<Atividade | null>(null)
+
   // Modo de exibição: Calendário vs Fila de Pendentes vs Timeline Geral
   const [activeView, setActiveView] = useState<'calendario' | 'pendentes' | 'timeline'>(
     'calendario',
@@ -76,6 +80,25 @@ export const Atividades: React.FC = () => {
   const [filterStatus, setFilterStatus] = useState<string>('todos')
 
   const handleToggleStatus = async (id: string, currentStatus: string) => {
+    const target = atividades.find((a) => a.id === id)
+    // Se for auto_leitura_rge e for concluir, validar se os 3 requisitos foram atendidos
+    if (target?.tipo === 'auto_leitura_rge' && currentStatus !== 'concluida') {
+      let dados: any = {}
+      if (typeof target.auto_leitura_dados === 'object') dados = target.auto_leitura_dados || {}
+      else if (typeof target.auto_leitura_dados === 'string') {
+        try {
+          dados = JSON.parse(target.auto_leitura_dados)
+        } catch {
+          /* intentionally ignored */
+        }
+      }
+      const atendeu = dados?.fotosEnviadas && dados?.valoresInformados && dados?.protocoloRealizado
+      if (!atendeu) {
+        // Abrir modal de auto leitura para que o usuário informe os 3 requisitos
+        setAutoLeituraModalAtividade(target)
+        return
+      }
+    }
     const nextStatus: AtividadeStatus = currentStatus === 'concluida' ? 'pendente' : 'concluida'
     await updateAtividadeStatus(id, nextStatus)
   }
@@ -298,6 +321,7 @@ export const Atividades: React.FC = () => {
           onSelectUsuario={setUsuarioFiltroId}
           onToggleStatus={handleToggleStatus}
           onOpenCliente={openFichaCliente}
+          onOpenAutoLeitura={(atv) => setAutoLeituraModalAtividade(atv)}
         />
       )}
 
@@ -309,6 +333,7 @@ export const Atividades: React.FC = () => {
           onSelectUsuario={setUsuarioFiltroId}
           onToggleStatus={handleToggleStatus}
           onOpenCliente={openFichaCliente}
+          onOpenAutoLeitura={(atv) => setAutoLeituraModalAtividade(atv)}
         />
       )}
 
@@ -436,6 +461,11 @@ export const Atividades: React.FC = () => {
                         })
                       }}
                       onToggleStatus={handleToggleStatus}
+                      onOpenDetalhes={(item) => {
+                        if (item.tipo === 'auto_leitura_rge') {
+                          setAutoLeituraModalAtividade(item)
+                        }
+                      }}
                       showClienteName={true}
                     />
                     {/* Botão para abrir a ficha do cliente correspondente */}
@@ -466,6 +496,16 @@ export const Atividades: React.FC = () => {
           setModalInitialTipo(null)
         }}
         initialTipo={modalInitialTipo}
+      />
+
+      {/* Modal Estendido de Auto Leitura - RGE */}
+      <ModalAutoLeituraRGE
+        isOpen={Boolean(autoLeituraModalAtividade)}
+        onClose={() => setAutoLeituraModalAtividade(null)}
+        atividade={autoLeituraModalAtividade}
+        onUpdated={() => {
+          refreshData()
+        }}
       />
 
       {/* Confirmação Segura de Exclusão de Atividade */}

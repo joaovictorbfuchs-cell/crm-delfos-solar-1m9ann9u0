@@ -716,6 +716,10 @@ export interface Atividade extends RecordModel {
   valor_servico?: number
   fornecedor_id?: string
   equipe_nome?: string
+  cronograma_arquivo?: string
+  cronograma_datas?: unknown
+  auto_leitura_dados?: unknown
+  auto_leitura_obs?: string
   created: string
   updated: string
   expand?: {

@@ -24,6 +24,7 @@ interface AtividadesCalendarioProps {
   onToggleStatus: (id: string, currentStatus: string) => void
   onOpenCliente: (clienteId: string) => void
   onAddAtividadeDia?: (date: Date) => void
+  onOpenAutoLeitura?: (atividade: Atividade) => void
 }
 
 type CalendarViewMode = 'semana' | 'mes'
@@ -79,6 +80,7 @@ export const AtividadesCalendario: React.FC<AtividadesCalendarioProps> = ({
   onToggleStatus,
   onOpenCliente,
   onAddAtividadeDia,
+  onOpenAutoLeitura,
 }) => {
   // 1. Visualização PADRÃO deve ser SEMANAL
   const [viewMode, setViewMode] = useState<CalendarViewMode>('semana')
