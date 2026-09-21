@@ -20,6 +20,10 @@ import {
   ShieldCheck,
   Trash2,
   Loader2,
+  Contact,
+  MoreVertical,
+  CheckCircle,
+  XCircle,
 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import type { Cliente, ClienteStatus, SistemaUsuario } from '@/types/crm'
@@ -42,6 +46,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
 import { toast } from '@/hooks/use-toast'
 
@@ -74,11 +88,21 @@ export const ComercialListView: React.FC<ComercialListViewProps> = ({
     bulkTransferirFechadosPosVendas,
     bulkArquivar,
     bulkRemoveClientes,
+    moverClienteParaOutrosContatos,
+    bulkMoverClientesParaOutrosContatos,
+    updateClienteStatus,
+    updateCliente,
   } = useClientes()
 
   const [busca, setBusca] = useState('')
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [isProcessing, setIsProcessing] = useState(false)
+
+  // Mover para outros contatos (individual e em lote)
+  const [clienteParaMover, setClienteParaMover] = useState<Cliente | null>(null)
+  const [modalConfirmarMoverContatosLoteOpen, setModalConfirmarMoverContatosLoteOpen] =
+    useState(false)
+  const [isMovingContatos, setIsMovingContatos] = useState(false)
 
   // Modais de confirmação / seleção em lote
   const [modalMoverEtapaOpen, setModalMoverEtapaOpen] = useState(false)
@@ -257,12 +281,60 @@ export const ComercialListView: React.FC<ComercialListViewProps> = ({
     }
   }
 
-  // 6. Ir para Aba de Clientes
+  // 6. Mover Selecionados para Outros Contatos em Lote
+  const handleConfirmMoverContatosLote = async () => {
+    if (selectedIds.length === 0) return
+    const clientesSelecionados = clientesAtivos.filter((c) => selectedIds.includes(c.id))
+    if (clientesSelecionados.length === 0) return
+
+    const total = clientesSelecionados.length
+    setIsMovingContatos(true)
+    setIsProcessing(true)
+
+    try {
+      const { sucesso, falhas } = await bulkMoverClientesParaOutrosContatos(clientesSelecionados)
+      if (falhas === 0) {
+        toast({
+          title: 'Contatos movidos com sucesso',
+          description: `${sucesso} cliente${sucesso > 1 ? 's' : ''} movido${sucesso > 1 ? 's' : ''} para Outros Contatos com sucesso.`,
+        })
+      } else if (sucesso > 0) {
+        toast({
+          title: 'Operação parcialmente concluída',
+          description: `${sucesso} cliente(s) movido(s), porém ${falhas} falharam. Os dados foram recarregados.`,
+          variant: 'destructive',
+        })
+      } else {
+        toast({
+          title: 'Erro ao mover contatos',
+          description: `Não foi possível mover os ${falhas} cliente(s) selecionado(s).`,
+          variant: 'destructive',
+        })
+      }
+      setSelectedIds([])
+      setModalConfirmarMoverContatosLoteOpen(false)
+    } catch (err) {
+      console.error('Erro ao mover clientes em lote para outros contatos:', err)
+      toast({
+        title: 'Erro ao mover clientes',
+        description:
+          err instanceof Error
+            ? err.message
+            : 'Ocorreu um erro ao mover os clientes selecionados para Outros Contatos.',
+        variant: 'destructive',
+      })
+    } finally {
+      setIsMovingContatos(false)
+      setIsProcessing(false)
+    }
+  }
+
+  // 7. Ir para Aba de Clientes
   const handleIrParaClientes = () => {
     navigate('/clientes')
   }
 
-  // 7. Excluir Selecionados em Lote
+  // 8. Excluir Selecionados em Lote
   const handleConfirmExcluirLote = async () => {
     if (selectedIds.length === 0) return
     const count = selectedIds.length
@@ -463,9 +535,127 @@ export const ComercialListView: React.FC<ComercialListViewProps> = ({
                         </div>
                       </td>
 
-                      {/* Seta indicativa para abrir drawer */}
-                      <td className="py-3 px-2 text-center text-gray-300 group-hover:text-emerald-600 transition-colors">
-                        <ChevronRight className="w-4 h-4 mx-auto" />
+                      {/* Ações da linha (Menu 3 pontinhos) e Seta */}
+                      <td className="py-3 px-2 text-center" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex items-center justify-center gap-1">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 w-7 p-0 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-full"
+                                title="Mais opções do cliente"
+                              >
+                                <MoreVertical className="h-4 w-4" />
+                                <span className="sr-only">Opções</span>
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-52">
+                              <DropdownMenuLabel className="text-xs font-semibold text-gray-500">
+                                Ações do Cliente
+                              </DropdownMenuLabel>
+                              <DropdownMenuItem
+                                onClick={() => openFichaCliente(cliente.id)}
+                                className="cursor-pointer gap-2 text-xs"
+                              >
+                                <User className="w-3.5 h-3.5 text-gray-500" />
+                                <span>Ver detalhes completos</span>
+                              </DropdownMenuItem>
+
+                              <DropdownMenuItem
+                                onClick={async () => {
+                                  try {
+                                    await updateClienteStatus(cliente.id, 'Fechado')
+                                    toast({
+                                      title: 'Lead fechado!',
+                                      description: `"${cliente.nome}" foi marcado como Fechado.`,
+                                    })
+                                  } catch (err) {
+                                    console.error('Erro ao marcar fechado:', err)
+                                    toast({
+                                      title: 'Erro ao atualizar',
+                                      description: 'Não foi possível alterar a etapa.',
+                                      variant: 'destructive',
+                                    })
+                                  }
+                                }}
+                                className="cursor-pointer gap-2 text-emerald-700 focus:text-emerald-800 focus:bg-emerald-50 text-xs font-medium"
+                              >
+                                <CheckCircle className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                                <span>Marcar como fechado</span>
+                              </DropdownMenuItem>
+
+                              <DropdownMenuItem
+                                onClick={async () => {
+                                  try {
+                                    await updateClienteStatus(cliente.id, 'Perdido')
+                                    toast({
+                                      title: 'Lead perdido',
+                                      description: `"${cliente.nome}" foi marcado como Perdido.`,
+                                    })
+                                  } catch (err) {
+                                    console.error('Erro ao marcar perdido:', err)
+                                    toast({
+                                      title: 'Erro ao atualizar',
+                                      description: 'Não foi possível alterar a etapa.',
+                                      variant: 'destructive',
+                                    })
+                                  }
+                                }}
+                                className="cursor-pointer gap-2 text-rose-700 focus:text-rose-800 focus:bg-rose-50 text-xs font-medium"
+                              >
+                                <XCircle className="w-3.5 h-3.5 text-rose-600 shrink-0" />
+                                <span>Marcar como perdido</span>
+                              </DropdownMenuItem>
+
+                              <DropdownMenuSeparator />
+
+                              <DropdownMenuItem
+                                onClick={() => setClienteParaMover(cliente)}
+                                className="cursor-pointer gap-2 text-blue-600 focus:text-blue-700 focus:bg-blue-50 text-xs font-medium"
+                              >
+                                <Contact className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                                <span>Mover para contatos</span>
+                              </DropdownMenuItem>
+
+                              <DropdownMenuItem
+                                onClick={async () => {
+                                  const confirmou = window.confirm(
+                                    `Deseja arquivar o cliente "${cliente.nome}"? Ele sairá da visualização do funil comercial.`,
+                                  )
+                                  if (!confirmou) return
+                                  try {
+                                    await updateCliente(cliente.id, { arquivado: true })
+                                    toast({
+                                      title: 'Cliente arquivado',
+                                      description: `"${cliente.nome}" foi arquivado com sucesso.`,
+                                    })
+                                  } catch (err) {
+                                    console.error('Erro ao arquivar:', err)
+                                    toast({
+                                      title: 'Erro ao arquivar',
+                                      description: 'Não foi possível arquivar o cliente.',
+                                      variant: 'destructive',
+                                    })
+                                  }
+                                }}
+                                className="cursor-pointer gap-2 text-rose-600 focus:text-rose-700 focus:bg-rose-50 text-xs"
+                              >
+                                <Archive className="w-3.5 h-3.5 text-rose-600 shrink-0" />
+                                <span>Arquivar lead</span>
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+
+                          <button
+                            type="button"
+                            onClick={() => openFichaCliente(cliente.id)}
+                            className="text-gray-300 hover:text-emerald-600 transition-colors p-1"
+                            title="Abrir ficha"
+                          >
+                            <ChevronRight className="w-4 h-4" />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   )
@@ -534,7 +724,20 @@ export const ComercialListView: React.FC<ComercialListViewProps> = ({
               <span>Atribuir responsável</span>
             </Button>
 
-            {/* 3. Marcar como Fechado */}
+            {/* 3. Mover para Contatos em Lote */}
+            <Button
+              type="button"
+              size="sm"
+              onClick={() => setModalConfirmarMoverContatosLoteOpen(true)}
+              disabled={isProcessing}
+              className="bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-xs gap-1.5 h-8 px-2.5 font-medium shadow-xs"
+              title="Mover os clientes selecionados para a lista de Outros Contatos"
+            >
+              <Contact className="w-3.5 h-3.5 text-blue-200" />
+              <span>Mover para contatos</span>
+            </Button>
+
+            {/* 4. Marcar como Fechado */}
             <Button
               type="button"
               size="sm"
@@ -936,6 +1139,155 @@ export const ComercialListView: React.FC<ComercialListViewProps> = ({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* AlertDialog de Confirmação para Mover Cliente Individual para Outros Contatos */}
+      <AlertDialog
+        open={Boolean(clienteParaMover)}
+        onOpenChange={(open) => {
+          if (!open && !isMovingContatos) {
+            setClienteParaMover(null)
+          }
+        }}
+      >
+        <AlertDialogContent onClick={(e) => e.stopPropagation()}>
+          <AlertDialogHeader>
+            <div className="flex items-center gap-2 mb-1">
+              <div className="p-2 bg-blue-500/10 text-blue-600 rounded-lg">
+                <Contact className="h-5 w-5" />
+              </div>
+              <AlertDialogTitle>Mover para Outros Contatos</AlertDialogTitle>
+            </div>
+            <AlertDialogDescription className="text-sm text-slate-600">
+              Deseja mover o cliente{' '}
+              <strong className="text-slate-900 font-semibold">"{clienteParaMover?.nome}"</strong>{' '}
+              para Outros Contatos? Ele será removido do funil de vendas e seus dados serão
+              preservados na lista de Outros Contatos.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="mt-2">
+            <AlertDialogCancel
+              disabled={isMovingContatos}
+              onClick={() => setClienteParaMover(null)}
+            >
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              disabled={isMovingContatos}
+              onClick={async (e) => {
+                e.preventDefault()
+                if (!clienteParaMover) return
+                const nomeCliente = clienteParaMover.nome
+                try {
+                  setIsMovingContatos(true)
+                  await moverClienteParaOutrosContatos(clienteParaMover)
+                  toast({
+                    title: 'Contato movido com sucesso',
+                    description: `"${nomeCliente}" foi transferido para Outros Contatos e removido do funil.`,
+                  })
+                  setClienteParaMover(null)
+                } catch (err) {
+                  console.error('Erro ao mover cliente para outros contatos:', err)
+                  toast({
+                    title: 'Erro ao mover contato',
+                    description:
+                      err instanceof Error
+                        ? err.message
+                        : 'Não foi possível mover o cliente para Outros Contatos.',
+                    variant: 'destructive',
+                  })
+                } finally {
+                  setIsMovingContatos(false)
+                }
+              }}
+              className="bg-blue-600 hover:bg-blue-700 text-white gap-2"
+            >
+              {isMovingContatos ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span>Movendo...</span>
+                </>
+              ) : (
+                <>
+                  <Contact className="h-4 w-4" />
+                  <span>Sim, mover para contatos</span>
+                </>
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* AlertDialog de Confirmação para Mover Clientes em LOTE para Outros Contatos */}
+      <AlertDialog
+        open={modalConfirmarMoverContatosLoteOpen}
+        onOpenChange={(open) => {
+          if (!open && !isMovingContatos) {
+            setModalConfirmarMoverContatosLoteOpen(false)
+          }
+        }}
+      >
+        <AlertDialogContent onClick={(e) => e.stopPropagation()}>
+          <AlertDialogHeader>
+            <div className="flex items-center gap-2 mb-1">
+              <div className="p-2 bg-blue-500/10 text-blue-600 rounded-lg">
+                <Contact className="h-5 w-5" />
+              </div>
+              <AlertDialogTitle>
+                Mover {selectedIds.length} cliente(s) para Outros Contatos?
+              </AlertDialogTitle>
+            </div>
+            <AlertDialogDescription className="text-sm text-slate-600">
+              Você está prestes a mover{' '}
+              <strong className="text-slate-900 font-semibold">
+                {selectedIds.length} cliente{selectedIds.length > 1 ? 's' : ''}
+              </strong>{' '}
+              selecionado{selectedIds.length > 1 ? 's' : ''} para a lista de Outros Contatos. Eles
+              serão removidos do funil comercial ativo e todos os seus dados e históricos serão
+              preservados.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          <div className="py-2.5 text-xs text-blue-900 bg-blue-50 p-3 rounded-lg border border-blue-200 flex items-start gap-2">
+            <Contact className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
+            <div>
+              <p className="font-semibold">Preservação de Dados</p>
+              <p className="mt-0.5 text-blue-800">
+                Cada contato manterá nome, telefone, etapa anterior no funil, cidade, documentos e
+                histórico de notas.
+              </p>
+            </div>
+          </div>
+
+          <AlertDialogFooter className="mt-2">
+            <AlertDialogCancel
+              disabled={isMovingContatos}
+              onClick={() => setModalConfirmarMoverContatosLoteOpen(false)}
+            >
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              disabled={isMovingContatos}
+              onClick={async (e) => {
+                e.preventDefault()
+                await handleConfirmMoverContatosLote()
+              }}
+              className="bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white gap-2 font-medium"
+            >
+              {isMovingContatos ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span>Movendo {selectedIds.length} clientes...</span>
+                </>
+              ) : (
+                <>
+                  <Contact className="h-4 w-4" />
+                  <span>Sim, mover ({selectedIds.length}) para contatos</span>
+                </>
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

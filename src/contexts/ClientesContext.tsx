@@ -227,6 +227,9 @@ interface ClientesContextType {
   removeCliente: (id: string) => Promise<void>
   bulkRemoveClientes: (ids: string[]) => Promise<void>
   moverClienteParaOutrosContatos: (cliente: Cliente) => Promise<import('@/types/crm').OutroContato>
+  bulkMoverClientesParaOutrosContatos: (
+    clientesParaMover: Cliente[],
+  ) => Promise<{ sucesso: number; falhas: number }>
   mesclarClientes: (opcoes: MesclagemOpcoes) => Promise<Cliente>
   addManutencao: (data: {
     cliente_id: string
@@ -1099,6 +1102,56 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       await loadAllData()
       throw err
     }
+  }
+
+  const bulkMoverClientesParaOutrosContatos = async (
+    clientesParaMover: Cliente[],
+  ): Promise<{ sucesso: number; falhas: number }> => {
+    if (clientesParaMover.length === 0) return { sucesso: 0, falhas: 0 }
+
+    const idsSet = new Set(clientesParaMover.map((c) => c.id))
+
+    if (selectedClienteId && idsSet.has(selectedClienteId)) {
+      setSelectedClienteId(null)
+    }
+    if (selectedOMClienteId && idsSet.has(selectedOMClienteId)) {
+      setSelectedOMClienteId(null)
+    }
+
+    // Optimistic update em lote idêntico ao bulkRemoveClientes
+    setClientes((prev) => prev.filter((c) => !idsSet.has(c.id)))
+    setAtividades((prev) => prev.filter((a) => !idsSet.has(a.cliente_id)))
+    setSistemas((prev) => prev.filter((s) => !idsSet.has(s.cliente_id)))
+    setManutencoes((prev) => prev.filter((m) => !idsSet.has(m.cliente_id)))
+    setProjetos((prev) => prev.filter((p) => !idsSet.has(p.cliente_id)))
+    setContratosOM((prev) => prev.filter((c) => !idsSet.has(c.cliente_id)))
+    setAnomaliasOM((prev) => prev.filter((a) => !idsSet.has(a.cliente_id)))
+    setServicosAdicionaisOM((prev) => prev.filter((s) => !idsSet.has(s.cliente_id)))
+    setTimelineOM((prev) => prev.filter((t) => !idsSet.has(t.cliente_id)))
+    setPropostasOM((prev) => prev.filter((p) => !idsSet.has(p.cliente_id)))
+    setOrcamentosSolar((prev) => prev.filter((o) => !idsSet.has(o.cliente_id)))
+    setServicosAvulsos((prev) => prev.filter((s) => !idsSet.has(s.cliente_id)))
+    setDocumentosCliente((prev) => prev.filter((d) => !idsSet.has(d.cliente_id)))
+
+    let sucesso = 0
+    let falhas = 0
+
+    for (const c of clientesParaMover) {
+      try {
+        await apiMoverClienteParaOutrosContatos(c)
+        sucesso++
+      } catch (err) {
+        console.error(`Erro ao mover cliente "${c.nome}" para outros contatos:`, err)
+        falhas++
+      }
+    }
+
+    if (falhas > 0) {
+      // Recarrega os dados para manter integridade se algum falhou
+      await loadAllData()
+    }
+
+    return { sucesso, falhas }
   }
 
   const bulkRemoveClientes = async (ids: string[]) => {
@@ -2764,6 +2817,7 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         removeCliente,
         bulkRemoveClientes,
         moverClienteParaOutrosContatos,
+        bulkMoverClientesParaOutrosContatos,
         mesclarClientes,
         addManutencao,
         removeManutencao,
@@ -2972,6 +3026,7 @@ export function useClientes(): ClientesContextType {
       removeCliente: async () => {},
       bulkRemoveClientes: async () => {},
       moverClienteParaOutrosContatos: async () => ({}) as any,
+      bulkMoverClientesParaOutrosContatos: async () => ({ sucesso: 0, falhas: 0 }),
       mesclarClientes: async () => ({}) as any,
       addManutencao: async () => ({}) as any,
       removeManutencao: async () => {},
