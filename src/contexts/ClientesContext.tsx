@@ -119,6 +119,7 @@ import {
   updateContatoAdicional as apiUpdateContatoAdicional,
   deleteContatoAdicional as apiDeleteContatoAdicional,
   createOutroContato as apiCreateOutroContato,
+  moverClienteParaOutrosContatos as apiMoverClienteParaOutrosContatos,
   marcarClienteComoGanho as apiMarcarClienteComoGanho,
   marcarClienteComoPerdido as apiMarcarClienteComoPerdido,
 } from '@/services/crmService'
@@ -225,6 +226,7 @@ interface ClientesContextType {
   addCliente: (data: Partial<Cliente> & { nome: string }) => Promise<Cliente>
   removeCliente: (id: string) => Promise<void>
   bulkRemoveClientes: (ids: string[]) => Promise<void>
+  moverClienteParaOutrosContatos: (cliente: Cliente) => Promise<import('@/types/crm').OutroContato>
   mesclarClientes: (opcoes: MesclagemOpcoes) => Promise<Cliente>
   addManutencao: (data: {
     cliente_id: string
@@ -1059,6 +1061,41 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       await apiDeleteCliente(id)
     } catch (err) {
       console.error('Erro ao excluir cliente:', err)
+      await loadAllData()
+      throw err
+    }
+  }
+
+  const moverClienteParaOutrosContatos = async (
+    cliente: Cliente,
+  ): Promise<import('@/types/crm').OutroContato> => {
+    const id = cliente.id
+    if (selectedClienteId === id) {
+      setSelectedClienteId(null)
+    }
+    if (selectedOMClienteId === id) {
+      setSelectedOMClienteId(null)
+    }
+
+    // Optimistic update idêntico ao removeCliente
+    setClientes((prev) => prev.filter((c) => c.id !== id))
+    setAtividades((prev) => prev.filter((a) => a.cliente_id !== id))
+    setSistemas((prev) => prev.filter((s) => s.cliente_id !== id))
+    setManutencoes((prev) => prev.filter((m) => m.cliente_id !== id))
+    setProjetos((prev) => prev.filter((p) => p.cliente_id !== id))
+    setContratosOM((prev) => prev.filter((c) => c.cliente_id !== id))
+    setAnomaliasOM((prev) => prev.filter((a) => a.cliente_id !== id))
+    setServicosAdicionaisOM((prev) => prev.filter((s) => s.cliente_id !== id))
+    setTimelineOM((prev) => prev.filter((t) => t.cliente_id !== id))
+    setPropostasOM((prev) => prev.filter((p) => p.cliente_id !== id))
+    setOrcamentosSolar((prev) => prev.filter((o) => o.cliente_id !== id))
+    setServicosAvulsos((prev) => prev.filter((s) => s.cliente_id !== id))
+    setDocumentosCliente((prev) => prev.filter((d) => d.cliente_id !== id))
+
+    try {
+      return await apiMoverClienteParaOutrosContatos(cliente)
+    } catch (err) {
+      console.error('Erro ao mover cliente para outros contatos:', err)
       await loadAllData()
       throw err
     }
@@ -2726,6 +2763,7 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         addCliente,
         removeCliente,
         bulkRemoveClientes,
+        moverClienteParaOutrosContatos,
         mesclarClientes,
         addManutencao,
         removeManutencao,
@@ -2933,6 +2971,7 @@ export function useClientes(): ClientesContextType {
       addCliente: async () => ({}) as any,
       removeCliente: async () => {},
       bulkRemoveClientes: async () => {},
+      moverClienteParaOutrosContatos: async () => ({}) as any,
       mesclarClientes: async () => ({}) as any,
       addManutencao: async () => ({}) as any,
       removeManutencao: async () => {},

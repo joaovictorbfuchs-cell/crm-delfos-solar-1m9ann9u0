@@ -1706,6 +1706,68 @@ export async function createOutroContato(data: {
   return pb.collection('outros_contatos').create<import('@/types/crm').OutroContato>(data)
 }
 
+/**
+ * Move um lead/cliente do funil para a lista de Outros Contatos:
+ * 1. Cria um registro na collection `outros_contatos` com nome, telefone/WhatsApp (fallback se vazio),
+ *    tipo_contato "outro" e observação consolidando data/hora, status anterior no funil e dados preservados
+ *    (e-mail, endereço/cidade/estado, CPF/CNPJ, observações originais).
+ * 2. Em seguida, exclui o cliente do CRM via `deleteCliente` (com sua cascata limpa).
+ */
+export async function moverClienteParaOutrosContatos(
+  cliente: Cliente,
+): Promise<import('@/types/crm').OutroContato> {
+  const nomeContato = (cliente.nome || '').trim() || 'Contato sem nome'
+  const telefoneContato =
+    (cliente.whatsapp || cliente.telefone || cliente.telefone_secundario || '').trim() ||
+    '00000000000'
+
+  const dataHoraFormatada = new Date().toLocaleString('pt-BR')
+  const linhasObs: string[] = [`[Origem: Movido do Funil de Vendas em ${dataHoraFormatada}]`]
+
+  if (cliente.status) {
+    linhasObs.push(`Etapa anterior: ${cliente.status}`)
+  }
+  if (cliente.email) {
+    linhasObs.push(`E-mail: ${cliente.email}`)
+  }
+  if (cliente.cpf) {
+    linhasObs.push(`CPF: ${cliente.cpf}`)
+  }
+  if (cliente.cnpj) {
+    linhasObs.push(`CNPJ: ${cliente.cnpj}`)
+  }
+  if (cliente.cidade || cliente.estado) {
+    const loc = [cliente.cidade, cliente.estado].filter(Boolean).join(' - ')
+    linhasObs.push(`Cidade/UF: ${loc}`)
+  }
+  if (cliente.endereco) {
+    linhasObs.push(`Endereço: ${cliente.endereco}`)
+  }
+  if (cliente.valor_estimado) {
+    linhasObs.push(`Valor estimado lead: R$ ${cliente.valor_estimado.toLocaleString('pt-BR')}`)
+  }
+  if (cliente.potencia_kwp) {
+    linhasObs.push(`Potência: ${cliente.potencia_kwp} kWp`)
+  }
+  if (cliente.observacoes && cliente.observacoes.trim()) {
+    linhasObs.push(`Observações originais: ${cliente.observacoes.trim()}`)
+  }
+
+  const observacaoFinal = linhasObs.join('\n')
+
+  const outroContatoCriado = await createOutroContato({
+    nome: nomeContato,
+    telefone: telefoneContato,
+    tipo_contato: 'outro',
+    observacao: observacaoFinal,
+  })
+
+  // Exclui o cliente e suas coleções dependentes
+  await deleteCliente(cliente.id)
+
+  return outroContatoCriado
+}
+
 export async function fetchOutrosContatos(): Promise<import('@/types/crm').OutroContato[]> {
   try {
     return await pb.collection('outros_contatos').getFullList<import('@/types/crm').OutroContato>({

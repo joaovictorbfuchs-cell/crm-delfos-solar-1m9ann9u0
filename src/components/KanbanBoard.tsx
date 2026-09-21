@@ -10,6 +10,8 @@ import {
   CheckCircle2,
   XCircle,
   Archive,
+  Contact,
+  Loader2,
   type LucideIcon,
 } from 'lucide-react'
 import type { Cliente, ClienteStatus, Atividade } from '@/types/crm'
@@ -24,6 +26,16 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 
 interface KanbanBoardProps {
   clientes: Cliente[]
@@ -82,8 +94,17 @@ export const KANBAN_COLUMNS: KanbanColumnDef[] = [
 ]
 
 export const KanbanBoard: React.FC<KanbanBoardProps> = ({ clientes: clientesProp }) => {
-  const { openFichaCliente, updateClienteStatus, updateCliente, atividades } = useClientes()
+  const {
+    openFichaCliente,
+    updateClienteStatus,
+    updateCliente,
+    moverClienteParaOutrosContatos,
+    atividades,
+  } = useClientes()
   const { toast } = useToast()
+
+  const [clienteParaMover, setClienteParaMover] = useState<Cliente | null>(null)
+  const [isMovingContato, setIsMovingContato] = useState(false)
 
   // Sanitização e normalização defensiva dos clientes:
   const clientes = useMemo(() => {
@@ -535,6 +556,16 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ clientes: clientesProp
                                 <DropdownMenuSeparator />
 
                                 <DropdownMenuItem
+                                  onClick={() => {
+                                    setClienteParaMover(client)
+                                  }}
+                                  className="cursor-pointer gap-2 text-blue-600 focus:text-blue-700 focus:bg-blue-50 font-medium"
+                                >
+                                  <Contact className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                                  <span>Mover para contatos</span>
+                                </DropdownMenuItem>
+
+                                <DropdownMenuItem
                                   onClick={async () => {
                                     const confirmou = window.confirm(
                                       `Deseja arquivar o cliente "${client.nome}"? Ele sairá da visualização do funil.`,
@@ -659,6 +690,80 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ clientes: clientesProp
           )
         })}
       </div>
+
+      {/* AlertDialog de Confirmação para Mover Cliente para Outros Contatos */}
+      <AlertDialog
+        open={Boolean(clienteParaMover)}
+        onOpenChange={(open) => {
+          if (!open && !isMovingContato) {
+            setClienteParaMover(null)
+          }
+        }}
+      >
+        <AlertDialogContent onClick={(e) => e.stopPropagation()}>
+          <AlertDialogHeader>
+            <div className="flex items-center gap-2 mb-1">
+              <div className="p-2 bg-blue-500/10 text-blue-600 rounded-lg">
+                <Contact className="h-5 w-5" />
+              </div>
+              <AlertDialogTitle>Mover para Outros Contatos</AlertDialogTitle>
+            </div>
+            <AlertDialogDescription className="text-sm text-slate-600">
+              Deseja mover o cliente{' '}
+              <strong className="text-slate-900 font-semibold">"{clienteParaMover?.nome}"</strong>{' '}
+              para Outros Contatos? Ele será removido do funil de vendas e seus dados serão
+              preservados na lista de Outros Contatos.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="mt-2">
+            <AlertDialogCancel disabled={isMovingContato} onClick={() => setClienteParaMover(null)}>
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              disabled={isMovingContato}
+              onClick={async (e) => {
+                e.preventDefault()
+                if (!clienteParaMover) return
+                const nomeCliente = clienteParaMover.nome
+                try {
+                  setIsMovingContato(true)
+                  await moverClienteParaOutrosContatos(clienteParaMover)
+                  toast({
+                    title: 'Contato movido com sucesso',
+                    description: `"${nomeCliente}" foi transferido para Outros Contatos e removido do funil.`,
+                  })
+                  setClienteParaMover(null)
+                } catch (err) {
+                  console.error('Erro ao mover cliente para outros contatos:', err)
+                  toast({
+                    title: 'Erro ao mover contato',
+                    description:
+                      err instanceof Error
+                        ? err.message
+                        : 'Não foi possível mover o cliente para Outros Contatos.',
+                    variant: 'destructive',
+                  })
+                } finally {
+                  setIsMovingContato(false)
+                }
+              }}
+              className="bg-blue-600 hover:bg-blue-700 text-white gap-2"
+            >
+              {isMovingContato ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span>Movendo...</span>
+                </>
+              ) : (
+                <>
+                  <Contact className="h-4 w-4" />
+                  <span>Sim, mover para contatos</span>
+                </>
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
