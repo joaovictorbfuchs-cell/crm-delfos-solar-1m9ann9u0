@@ -10,6 +10,12 @@ import {
   Settings,
   Bell,
   BellOff,
+  Database,
+  ExternalLink,
+  Link as LinkIcon,
+  X,
+  MapPin,
+  Sparkles,
 } from 'lucide-react'
 import { useClientes } from '@/contexts/ClientesContext'
 import { useAuth } from '@/contexts/AuthContext'
@@ -19,7 +25,14 @@ import { ModalCadastrarLeadWhatsApp } from '@/components/ModalCadastrarLeadWhats
 import { ModalCadastrarOutroContatoWhatsApp } from '@/components/ModalCadastrarOutroContatoWhatsApp'
 import { ConversaChatView } from '@/components/ConversaChatView'
 import { useToast } from '@/hooks/use-toast'
-import type { WhatsAppConversa, OutroContatoTipo, ProdutoTipo } from '@/types/crm'
+import type {
+  WhatsAppConversa,
+  OutroContatoTipo,
+  ProdutoTipo,
+  Cliente,
+  ContatoAdicional,
+  OutroContato,
+} from '@/types/crm'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -27,7 +40,8 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { MoreVertical, UserCheck, Building2 } from 'lucide-react'
-import { formatWhatsAppPhone } from '@/lib/formatters'
+import { formatWhatsAppPhone, cleanPhoneDigits } from '@/lib/formatters'
+import { fetchOutrosContatos, createWhatsAppConversa } from '@/services/crmService'
 import {
   playWhatsAppNotificationSound,
   isDesktopNotificationSupported,
@@ -41,6 +55,7 @@ export const CentralAtendimento: React.FC = () => {
     whatsAppConversas,
     whatsAppMensagens,
     clientes,
+    contatosAdicionais,
     refreshConversas,
     vincularConversa,
     cadastrarLeadDeConversa,
@@ -69,9 +84,26 @@ export const CentralAtendimento: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('')
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [modalTemplatesOpen, setModalTemplatesOpen] = useState(false)
+  const [isStartingConversa, setIsStartingConversa] = useState(false)
+  const [outrosContatosLista, setOutrosContatosLista] = useState<OutroContato[]>([])
   const [activeMobileTab, setActiveMobileTab] = useState<'novos' | 'atendimento' | 'resolvidos'>(
     'novos',
   )
+
+  // Carregar outros_contatos uma vez ao montar a tela para busca rápida
+  useEffect(() => {
+    let mounted = true
+    fetchOutrosContatos()
+      .then((data) => {
+        if (mounted) setOutrosContatosLista(data || [])
+      })
+      .catch((err) => {
+        console.warn('Não foi possível pré-carregar outros_contatos:', err)
+      })
+    return () => {
+      mounted = false
+    }
+  }, [])
 
   // Preferência de notificações sonoras e desktop persistida em localStorage
   const [notificacoesAtivas, setNotificacoesAtivas] = useState<boolean>(() => {
@@ -332,6 +364,277 @@ export const CentralAtendimento: React.FC = () => {
         description: err instanceof Error ? err.message : 'Não foi possível vincular a conversa.',
         variant: 'destructive',
       })
+    }
+  }
+
+  // Conjunto de telefones já presentes nas conversas do WhatsApp (normalizados) para deduplicação
+  const conversasTelefonesNormalizados = useMemo(() => {
+    const set = new Set<string>()
+    whatsAppConversas.forEach((conv) => {
+      const digits = cleanPhoneDigits(conv.numero || '')
+      if (digits) {
+        set.add(digits)
+        const sem55 =
+          digits.startsWith('55') && (digits.length === 12 || digits.length === 13)
+            ? digits.slice(2)
+            : digits
+        set.add(sem55)
+        const com55 = digits.startsWith('55') ? digits : `55${digits}`
+        set.add(com55)
+      }
+    })
+    return set
+  }, [whatsAppConversas])
+
+  // Conjunto de IDs de clientes já vinculados a alguma conversa
+  const clientesComConversaIds = useMemo(() => {
+    const set = new Set<string>()
+    whatsAppConversas.forEach((conv) => {
+      if (conv.cliente_id) set.add(conv.cliente_id)
+    })
+    return set
+  }, [whatsAppConversas])
+
+  // Tipo unificado para itens de clientes/contatos encontrados no banco sem conversa
+  interface BancoClienteResultado {
+    id: string
+    origem: 'cliente' | 'contato_adicional' | 'outro_contato'
+    nome: string
+    telefone: string
+    whatsapp: string
+    cidade?: string
+    clienteId?: string // Se for contato adicional ou cliente direto
+    documento?: string
+    tipoBadge: string
+    subtitulo?: string
+  }
+
+  // Busca no banco de clientes, contatos adicionais e outros contatos
+  const clientesBancoFiltrados = useMemo(() => {
+    const rawTerm = searchTerm.trim().toLowerCase()
+    if (!rawTerm || rawTerm.length < 2) return []
+
+    const digitsTerm = cleanPhoneDigits(rawTerm)
+    const digitsTermSem55 =
+      digitsTerm.startsWith('55') && (digitsTerm.length === 12 || digitsTerm.length === 13)
+        ? digitsTerm.slice(2)
+        : digitsTerm
+
+    const matchesQuery = (texto?: string, fone?: string, whats?: string) => {
+      // Comparação por texto / nome
+      if (texto && texto.toLowerCase().includes(rawTerm)) return true
+
+      // Comparação por telefone / WhatsApp
+      const foneDigits = fone ? cleanPhoneDigits(fone) : ''
+      const whatsDigits = whats ? cleanPhoneDigits(whats) : ''
+
+      if (digitsTerm) {
+        if (foneDigits.includes(digitsTerm) || foneDigits.includes(digitsTermSem55)) return true
+        if (whatsDigits.includes(digitsTerm) || whatsDigits.includes(digitsTermSem55)) return true
+        if (
+          digitsTermSem55 &&
+          (foneDigits.endsWith(digitsTermSem55) || whatsDigits.endsWith(digitsTermSem55))
+        )
+          return true
+      }
+
+      if (fone && fone.toLowerCase().includes(rawTerm)) return true
+      if (whats && whats.toLowerCase().includes(rawTerm)) return true
+
+      return false
+    }
+
+    const jaInseridosChaves = new Set<string>()
+    const resultados: BancoClienteResultado[] = []
+
+    // 1. Tabela clientes
+    clientes.forEach((cli) => {
+      // Não duplicar se cliente já possui conversa ativa
+      if (clientesComConversaIds.has(cli.id)) return
+
+      const numWhats = cli.whatsapp || cli.telefone || ''
+      const numClean = cleanPhoneDigits(numWhats)
+      if (numClean && conversasTelefonesNormalizados.has(numClean)) return
+
+      const match =
+        matchesQuery(cli.nome, cli.telefone, cli.whatsapp) ||
+        matchesQuery(cli.razao_social, cli.telefone, cli.whatsapp) ||
+        matchesQuery(cli.nome_fantasia, cli.telefone, cli.whatsapp) ||
+        matchesQuery(cli.cidade) ||
+        matchesQuery(cli.documento || cli.cpf || cli.cnpj)
+
+      if (match) {
+        const chave = `cli_${cli.id}`
+        if (!jaInseridosChaves.has(chave)) {
+          jaInseridosChaves.add(chave)
+          resultados.push({
+            id: cli.id,
+            origem: 'cliente',
+            nome: cli.nome || cli.razao_social || 'Cliente sem nome',
+            telefone: cli.telefone || '',
+            whatsapp: cli.whatsapp || cli.telefone || '',
+            cidade: cli.cidade || (cli.estado ? `${cli.estado}` : undefined),
+            clienteId: cli.id,
+            documento: cli.documento || cli.cpf || cli.cnpj,
+            tipoBadge: cli.tipo === 'pj' ? 'Empresa / PJ' : 'Cliente Cadastrado',
+            subtitulo: cli.email || cli.tipo_cliente || undefined,
+          })
+        }
+      }
+    })
+
+    // 2. Tabela contatos_adicionais
+    contatosAdicionais.forEach((contato) => {
+      const fone = contato.telefone || contato.whatsapp || ''
+      const foneClean = cleanPhoneDigits(fone)
+      if (foneClean && conversasTelefonesNormalizados.has(foneClean)) return
+      if (contato.cliente_id && clientesComConversaIds.has(contato.cliente_id)) {
+        // Se o número do contato adicional for diferente do número da conversa, pode ser relevante,
+        // mas se o contato não tem conversa associada com esse número, exibimos
+      }
+
+      const cliPai = clientesMap.get(contato.cliente_id)
+      const match =
+        matchesQuery(contato.nome, contato.telefone, contato.whatsapp) ||
+        matchesQuery(contato.cargo) ||
+        (cliPai && matchesQuery(cliPai.nome))
+
+      if (match) {
+        const chave = `contato_adic_${contato.id}`
+        if (!jaInseridosChaves.has(chave)) {
+          jaInseridosChaves.add(chave)
+          resultados.push({
+            id: contato.id,
+            origem: 'contato_adicional',
+            nome: contato.nome || 'Contato Adicional',
+            telefone: contato.telefone || '',
+            whatsapp: contato.whatsapp || contato.telefone || '',
+            cidade: cliPai?.cidade,
+            clienteId: contato.cliente_id,
+            tipoBadge: `Contato Adicional${cliPai ? ` (${cliPai.nome})` : ''}`,
+            subtitulo: contato.cargo || (cliPai ? `Cliente: ${cliPai.nome}` : undefined),
+          })
+        }
+      }
+    })
+
+    // 3. Tabela outros_contatos
+    outrosContatosLista.forEach((outro) => {
+      const foneClean = cleanPhoneDigits(outro.telefone || '')
+      if (foneClean && conversasTelefonesNormalizados.has(foneClean)) return
+
+      const match =
+        matchesQuery(outro.nome, outro.telefone) ||
+        matchesQuery(outro.tipo_contato) ||
+        matchesQuery(outro.observacao)
+
+      if (match) {
+        const chave = `outro_${outro.id}`
+        if (!jaInseridosChaves.has(chave)) {
+          jaInseridosChaves.add(chave)
+          resultados.push({
+            id: outro.id,
+            origem: 'outro_contato',
+            nome: outro.nome || 'Outro Contato',
+            telefone: outro.telefone || '',
+            whatsapp: outro.telefone || '',
+            tipoBadge: outro.tipo_contato
+              ? `Outro Contato (${outro.tipo_contato})`
+              : 'Outro Contato',
+            subtitulo: outro.observacao || outro.tipo_contato,
+          })
+        }
+      }
+    })
+
+    return resultados
+  }, [
+    searchTerm,
+    clientes,
+    contatosAdicionais,
+    outrosContatosLista,
+    clientesMap,
+    conversasTelefonesNormalizados,
+    clientesComConversaIds,
+  ])
+
+  // Iniciar nova conversa ou abrir conversa existente com cliente do banco
+  const handleSelecionarClienteBanco = async (item: BancoClienteResultado) => {
+    const rawNumber = item.whatsapp || item.telefone
+    const cleanNum = cleanPhoneDigits(rawNumber)
+    if (!cleanNum) {
+      toast({
+        title: 'Telefone não disponível',
+        description:
+          'Este cadastro não possui número de WhatsApp ou telefone válido para iniciar conversa.',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    // Normalizar para formato E.164 (com DDI 55 se 10 ou 11 dígitos brasileiros)
+    const numeroFinal =
+      cleanNum.length === 10 || cleanNum.length === 11 ? `55${cleanNum}` : cleanNum
+
+    // 1. Verificar se por ventura já existe conversa com esse número (ou número sem DDI 55)
+    const conversaExistente = whatsAppConversas.find((conv) => {
+      const cNum = cleanPhoneDigits(conv.numero || '')
+      if (cNum === numeroFinal || cNum === cleanNum) return true
+      if (numeroFinal.startsWith('55') && cNum === numeroFinal.slice(2)) return true
+      if (cNum.startsWith('55') && cNum.slice(2) === numeroFinal) return true
+      return false
+    })
+
+    if (conversaExistente) {
+      // Se a conversa já existe mas não estava vinculada ao cliente, vincular
+      if (item.clienteId && !conversaExistente.cliente_id) {
+        try {
+          const atendenteNome = user?.name || user?.email || 'João Silva'
+          await vincularConversa(conversaExistente.id, item.clienteId, atendenteNome)
+        } catch (vincErr) {
+          console.warn('Erro ao auto-vincular conversa existente:', vincErr)
+        }
+      }
+      setSelectedConversaId(conversaExistente.id)
+      setSearchTerm('')
+      toast({
+        title: 'Conversa já existente aberta',
+        description: `Abrindo histórico de WhatsApp com ${item.nome}.`,
+      })
+      return
+    }
+
+    // 2. Se não existe conversa, criar no banco via crmService.createWhatsAppConversa()
+    setIsStartingConversa(true)
+    try {
+      const atendenteNome = user?.name || user?.email || 'João Silva'
+      const novaConversa = await createWhatsAppConversa({
+        numero: numeroFinal,
+        cliente_id: item.clienteId || undefined,
+        status: 'em_atendimento',
+        atendente: atendenteNome,
+        ultima_mensagem_preview: 'Conversa iniciada via Central de Atendimento',
+        ultima_mensagem_em: new Date().toISOString(),
+      })
+
+      // Atualizar lista em memória e selecionar a nova conversa
+      await refreshConversas()
+      setSelectedConversaId(novaConversa.id)
+      setSearchTerm('')
+
+      toast({
+        title: 'Nova conversa criada!',
+        description: `Conversa com ${item.nome} (${formatWhatsAppPhone(numeroFinal)}) pronta para envio.`,
+      })
+    } catch (err: unknown) {
+      console.error('Erro ao iniciar conversa de WhatsApp:', err)
+      toast({
+        title: 'Erro ao iniciar conversa',
+        description: err instanceof Error ? err.message : 'Não foi possível criar a conversa.',
+        variant: 'destructive',
+      })
+    } finally {
+      setIsStartingConversa(false)
     }
   }
 
