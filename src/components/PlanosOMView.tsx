@@ -570,26 +570,28 @@ export const PlanosOMView: React.FC<PlanosOMViewProps> = ({
               <option value="performance">Atenção na Performance</option>
             </select>
 
-            {/* Botão retrátil de Filtros Avançados */}
+            {/* Botão retrátil de Filtros */}
             <button
               type="button"
               onClick={() => setPainelAberto((prev) => !prev)}
+              aria-expanded={painelAberto}
+              title={painelAberto ? 'Recolher filtros' : 'Expandir filtros'}
               className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold border transition-all ${
                 painelAberto
-                  ? 'bg-emerald-50 border-emerald-300 text-emerald-900 shadow-2xs'
+                  ? 'bg-emerald-50 border-emerald-300 text-emerald-900 shadow-2xs ring-2 ring-emerald-500/20'
                   : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'
               }`}
             >
-              <SlidersHorizontal className="w-3.5 h-3.5 text-emerald-600" />
-              <span>Filtros avançados</span>
+              <Filter className="w-3.5 h-3.5 text-emerald-600" />
+              <span>Filtros</span>
               {totalFiltrosAtivos > 0 && (
                 <span className="w-5 h-5 rounded-full bg-emerald-600 text-white text-[10px] font-black inline-flex items-center justify-center">
                   {totalFiltrosAtivos}
                 </span>
               )}
               <ChevronDown
-                className={`w-3.5 h-3.5 transition-transform duration-200 ${
-                  painelAberto ? 'rotate-180' : ''
+                className={`w-3.5 h-3.5 text-gray-500 transition-transform duration-200 ${
+                  painelAberto ? 'rotate-180 text-emerald-700' : ''
                 }`}
               />
             </button>
