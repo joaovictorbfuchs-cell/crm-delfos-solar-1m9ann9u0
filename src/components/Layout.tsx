@@ -22,8 +22,6 @@ import {
   MessageSquare,
   Settings,
   Shield,
-  ShieldCheck,
-  UserCheck,
   Images,
   Cpu,
   Zap,
@@ -159,18 +157,10 @@ export default function Layout() {
         { name: 'Projetos', path: '/projetos', icon: FolderKanban },
         { name: 'Atividades', path: '/atividades', icon: CalendarCheck },
         { name: 'Execução de OS', path: '/execucao-os', icon: ClipboardCheck },
-        { name: 'Planos O&M', path: '/planos-om', icon: ShieldCheck },
         {
           name: 'O&M / Manutenções',
           path: '/manutencoes',
           icon: Wrench,
-          subItems: [
-            {
-              name: 'O&M / Pós-vendas',
-              path: '/clientes-pos-vendas',
-              icon: UserCheck,
-            },
-          ],
         },
         { name: 'Catálogo de Atividades', path: '/catalogo-atividades', icon: ListChecks },
         { name: 'Automações', path: '/automacoes', icon: Zap },
