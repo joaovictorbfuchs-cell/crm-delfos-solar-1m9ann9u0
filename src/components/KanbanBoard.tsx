@@ -7,8 +7,8 @@ import {
   AlertCircle,
   MoreVertical,
   Clock,
-  Edit2,
-  ArrowRight,
+  CheckCircle2,
+  XCircle,
   Archive,
   type LucideIcon,
 } from 'lucide-react'
@@ -22,9 +22,6 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
-  DropdownMenuSub,
-  DropdownMenuSubContent,
-  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 
@@ -490,42 +487,50 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ clientes: clientesProp
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end" className="w-48 text-xs">
                                 <DropdownMenuItem
-                                  onClick={() => openFichaCliente(client.id)}
-                                  className="cursor-pointer gap-2"
+                                  onClick={async () => {
+                                    try {
+                                      await updateClienteStatus(client.id, 'Fechado')
+                                      toast({
+                                        title: 'Lead ganho!',
+                                        description: `"${client.nome}" foi marcado como Fechado.`,
+                                      })
+                                    } catch (err) {
+                                      console.error('Erro ao marcar lead como ganho:', err)
+                                      toast({
+                                        title: 'Erro ao marcar ganho',
+                                        description: 'Não foi possível atualizar a etapa do lead.',
+                                        variant: 'destructive',
+                                      })
+                                    }
+                                  }}
+                                  className="cursor-pointer gap-2 text-emerald-700 focus:text-emerald-800 focus:bg-emerald-50 font-medium"
                                 >
-                                  <Edit2 className="w-3.5 h-3.5 text-slate-600" />
-                                  <span>Editar / Ver Ficha</span>
+                                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                                  <span>Marcar como ganho</span>
                                 </DropdownMenuItem>
 
-                                <DropdownMenuSub>
-                                  <DropdownMenuSubTrigger className="cursor-pointer gap-2">
-                                    <ArrowRight className="w-3.5 h-3.5 text-slate-600" />
-                                    <span>Mover etapa</span>
-                                  </DropdownMenuSubTrigger>
-                                  <DropdownMenuSubContent className="w-44 text-xs">
-                                    {KANBAN_COLUMNS.map((c) => (
-                                      <DropdownMenuItem
-                                        key={c.id}
-                                        disabled={client.status === c.id}
-                                        onClick={async () => {
-                                          try {
-                                            await updateClienteStatus(client.id, c.id)
-                                            toast({
-                                              title: 'Etapa atualizada',
-                                              description: `Cliente movido para "${c.title}".`,
-                                            })
-                                          } catch (err) {
-                                            console.error('Falha ao mover etapa via menu:', err)
-                                          }
-                                        }}
-                                        className="cursor-pointer gap-1.5"
-                                      >
-                                        <c.icon className={`w-3 h-3 ${c.iconColorClass}`} />
-                                        <span className="truncate">{c.title}</span>
-                                      </DropdownMenuItem>
-                                    ))}
-                                  </DropdownMenuSubContent>
-                                </DropdownMenuSub>
+                                <DropdownMenuItem
+                                  onClick={async () => {
+                                    try {
+                                      await updateClienteStatus(client.id, 'Perdido')
+                                      toast({
+                                        title: 'Lead perdido',
+                                        description: `"${client.nome}" foi marcado como Perdido.`,
+                                      })
+                                    } catch (err) {
+                                      console.error('Erro ao marcar lead como perdido:', err)
+                                      toast({
+                                        title: 'Erro ao marcar perdido',
+                                        description: 'Não foi possível atualizar a etapa do lead.',
+                                        variant: 'destructive',
+                                      })
+                                    }
+                                  }}
+                                  className="cursor-pointer gap-2 text-rose-700 focus:text-rose-800 focus:bg-rose-50 font-medium"
+                                >
+                                  <XCircle className="w-3.5 h-3.5 text-rose-600 shrink-0" />
+                                  <span>Marcar como perdido</span>
+                                </DropdownMenuItem>
 
                                 <DropdownMenuSeparator />
 
