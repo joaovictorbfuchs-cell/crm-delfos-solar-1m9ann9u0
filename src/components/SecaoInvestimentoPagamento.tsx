@@ -730,6 +730,16 @@ export const SecaoInvestimentoPagamento: React.FC<SecaoInvestimentoPagamentoProp
         </div>
 
         {/* ========================================================================= */}
+        {/* 4.1 NOTA DE RODAPÉ FINANCEIRA                                             */}
+        {/* ========================================================================= */}
+        <div className="text-[10px] text-gray-500 leading-relaxed text-center px-2 py-1">
+          Valores estimados sem iluminação pública. Consumo considerado igual à energia gerada. A
+          taxa mínima (custo de disponibilidade) só é cobrada quando o consumo faturado fica abaixo
+          do mínimo. Fio B progressivo até 2029 conforme Lei 14.300/2021 (GD II). Reajuste tarifário
+          de 9% a.a. é premissa comercial.
+        </div>
+
+        {/* ========================================================================= */}
         {/* 5. BLOCO CANÔNICO DE ASSINATURAS E APROVAÇÃO (2 COLUNAS)                 */}
         {/* ========================================================================= */}
         {(() => {

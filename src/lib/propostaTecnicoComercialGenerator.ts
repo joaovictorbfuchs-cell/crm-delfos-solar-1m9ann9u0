@@ -236,8 +236,14 @@ function renderInternalFooter(numeroSecao?: number, validadeDias?: number): stri
     ? `<div class="doc-footer-validade-bar">Proposta válida por ${validadeDias} dias.</div>`
     : ''
 
+  const notaPremissasFinanceiras =
+    numeroSecao === 4 || numeroSecao === 5
+      ? `<div class="doc-footer-nota-financeira">Valores estimados sem iluminação pública. Consumo considerado igual à energia gerada. A taxa mínima (custo de disponibilidade) só é cobrada quando o consumo faturado fica abaixo do mínimo. Fio B progressivo até 2029 conforme Lei 14.300/2021 (GD II). Reajuste tarifário de 9% a.a. é premissa comercial.</div>`
+      : ''
+
   return `
     <footer class="doc-footer">
+      ${notaPremissasFinanceiras}
       <div class="doc-footer-main-row">
         <div class="doc-footer-item-left">
           <div class="doc-footer-logo-card">
@@ -1158,6 +1164,15 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
       color: #86EFAC;
       font-weight: 800;
       font-size: 8.5px;
+    }
+    .doc-footer-nota-financeira {
+      margin-bottom: 3px;
+      text-align: center;
+      font-size: 6.8px;
+      font-weight: 400;
+      color: #4B5563;
+      line-height: 1.25;
+      letter-spacing: 0.005em;
     }
     .doc-footer-validade-bar {
       margin-top: 3px;

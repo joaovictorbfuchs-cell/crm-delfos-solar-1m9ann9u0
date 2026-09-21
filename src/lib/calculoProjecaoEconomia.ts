@@ -1,30 +1,26 @@
 import {
-  TABELA_REFERENCIA_BASE,
-  FATORES_SIMULTANEIDADE,
   CONSUMO_EXEMPLO_PADRAO_KWH_ANO,
-  getFatorDegradacaoPainel,
   type TipoClienteProjecao,
 } from '@/data/planilhaBaseProjecao'
 import type { ProjecaoTarifariaRecord } from '@/services/projecaoTarifariaService'
+import { pctFioB, getTaxaMinimaKwh, type EnquadramentoSolar } from '@/lib/energiaSolar'
+import type { PadraoFasesSolar } from '@/types/crm'
 
 export interface LinhaProjecaoEconomia {
   ano: number
-  /** Índice do ano no período de projeção (1 a 26) */
+  /** Índice do ano no período de projeção (1 a 25) */
   indiceAno?: number
   consumoKwhAno: number
   tarifaKwh: number
   fioBKwh: number
   gdEcoLiquidaKwh: number
-  /** Fator de degradação do módulo solar aplicado neste ano (ex: 0.98 no ano 1, 0.848 no ano 25) */
   fatorDegradacao: number
-  /** Economia anual nominal sem degradação */
   economiaAnualSemDegradacao?: number
-  /** Economia anual efetiva considerando a degradação dos painéis */
   economiaAnual: number
-  /** Economia acumulada somando a economia anual degradada */
   economiaAcumulada: number
   gastoSemSolarAnual: number
   gastoSemSolarAcumulado: number
+  contaComSolarAnual?: number
 }
 
 export interface ResumoProjecaoEconomia {
@@ -34,19 +30,19 @@ export interface ResumoProjecaoEconomia {
   anoInicial: number
   anoFinal: number
   totalAnos: number
-  /** Economia líquida acumulada em 25 anos (2026-2050) */
+  /** Economia líquida acumulada em 25 anos */
   economiaTotal25Anos: number
-  /** Economia acumulada no período completo de 26 anos (2026-2051) */
+  /** Economia acumulada no período completo */
   economiaTotal26Anos: number
-  /** Gasto acumulado sem solar em 25 anos (2026-2050) */
+  /** Gasto acumulado sem solar em 25 anos */
   gastoTotalSemSolar25Anos: number
-  /** Gasto acumulado sem solar no período completo de 26 anos (2026-2051) */
+  /** Gasto acumulado sem solar no período completo */
   gastoTotalSemSolar26Anos: number
-  /** Economia do primeiro ano (2026) */
+  /** Economia do primeiro ano */
   economiaPrimeiroAno: number
   /** Valor perdido por mês de postergação = economia do 1º ano ÷ 12 */
   valorPerdidoPorMesPostergacao: number
-  /** Indica se os dados vieram do banco (planilha importada) ou do fallback estimado */
+  /** Indica se os dados vieram do banco ou do modelo oficial */
   origemDados: 'banco' | 'estimativa'
   /** Projeção completa linha a linha */
   linhas: LinhaProjecaoEconomia[]
@@ -58,6 +54,9 @@ export interface CalcularProjecaoOptions {
   tarifaPersonalizadaPrimeiroAno?: number
   /** Registros da coleção projecao_tarifaria (quando existirem) */
   dadosTarifariosCustomizados?: ProjecaoTarifariaRecord[] | null
+  padraoFases?: PadraoFasesSolar | string
+  enquadramento?: EnquadramentoSolar
+  anoBase?: number
 }
 
 /**
@@ -80,123 +79,80 @@ export function calcularProjecaoEconomia({
   tipoCliente = 'residencial',
   consumoKwhAno,
   tarifaPersonalizadaPrimeiroAno,
-  dadosTarifariosCustomizados,
+  padraoFases,
+  enquadramento = 'GD_II',
+  anoBase = 2026,
 }: CalcularProjecaoOptions = {}): ResumoProjecaoEconomia {
-  const consumoFinal =
+  const consumoAnual =
     consumoKwhAno !== undefined && consumoKwhAno !== null && consumoKwhAno > 0
       ? consumoKwhAno
       : CONSUMO_EXEMPLO_PADRAO_KWH_ANO
 
-  const fatorSimultaneidade = FATORES_SIMULTANEIDADE[tipoCliente] ?? 0.3
-  const parcelaInjetada = 1 - fatorSimultaneidade
+  const consumoMensal = consumoAnual / 12
 
-  // Verificar se há dados importados no banco válidos para este tipoCliente
-  const dadosBanco = (dadosTarifariosCustomizados || [])
-    .filter((d) => d.tipo_cliente === tipoCliente)
-    .sort((a, b) => a.ano - b.ano)
+  // simult = 0,30 se residencial/rural, 0,70 se comercial/industrial
+  const simult = tipoCliente === 'comercial' || tipoCliente === 'industrial' ? 0.7 : 0.3
 
-  const usarDadosBanco = dadosBanco.length > 0
-  const origemDados: 'banco' | 'estimativa' = usarDadosBanco ? 'banco' : 'estimativa'
+  const taxaBasica = getTaxaMinimaKwh(tipoCliente, padraoFases)
+
+  const tarifaInicial =
+    tarifaPersonalizadaPrimeiroAno && tarifaPersonalizadaPrimeiroAno > 0
+      ? tarifaPersonalizadaPrimeiroAno
+      : 1.1979
+
+  // Regras verbatim do núcleo para mês:
+  const autoconsumo = consumoMensal * simult
+  const injetada = consumoMensal - autoconsumo
+  const consumoRede = consumoMensal - autoconsumo
+  const compensada = Math.min(injetada, consumoRede)
+  const consumoFaturado = consumoRede - compensada
+  const consumoCobrado = Math.max(consumoFaturado, taxaBasica)
+
+  const isGD2 = enquadramento === 'GD_II'
 
   let ecoAcum = 0
   let gastoAcum = 0
   let economiaTotal25Anos = 0
   let gastoTotalSemSolar25Anos = 0
 
-  let linhas: LinhaProjecaoEconomia[] = []
+  const totalAnosProjecao = 25
+  const linhas: LinhaProjecaoEconomia[] = []
 
-  if (usarDadosBanco) {
-    // Usar os dados da planilha oficial importada no banco
-    linhas = dadosBanco.map((rec, idx) => {
-      const indiceAno = idx + 1
-      const fatorDegradacao = getFatorDegradacaoPainel(indiceAno)
-      const tarifaKwh = Number(rec.tarifa_kwh || 0)
-      const fioBKwh = Number(rec.fio_b_kwh || 0)
+  for (let a = 1; a <= totalAnosProjecao; a++) {
+    const anoCalendario = anoBase + a - 1
+    const t = tarifaInicial * Math.pow(1.09, a - 1)
+    const sem = consumoMensal * t * 12
+    const com =
+      consumoCobrado * t * 12 +
+      (isGD2 ? injetada * t * 0.377 * 0.5105 * pctFioB(anoCalendario) * 12 : 0)
+    const ecoAno = sem - com
 
-      // Se a GD Eco Líquida já veio informada na planilha, usamos ela; se zero, calcula pela fórmula
-      let gdEcoLiquidaKwh = Number(rec.gd_eco_liquida || 0)
-      if (!gdEcoLiquidaKwh && tarifaKwh) {
-        gdEcoLiquidaKwh = Number((tarifaKwh - fioBKwh * parcelaInjetada).toFixed(4))
-      }
+    ecoAcum += ecoAno
+    gastoAcum += sem
 
-      // Aplica a degradação anual dos painéis fotovoltaicos sobre a economia anual
-      const economiaAnualSemDegradacao = Number((consumoFinal * gdEcoLiquidaKwh).toFixed(2))
-      const economiaAnual = Number((consumoFinal * gdEcoLiquidaKwh * fatorDegradacao).toFixed(2))
-      const gastoSemSolarAnual = Number((consumoFinal * tarifaKwh).toFixed(2))
-
-      ecoAcum += economiaAnual
-      gastoAcum += gastoSemSolarAnual
-
-      if (idx === 24) {
-        economiaTotal25Anos = ecoAcum
-        gastoTotalSemSolar25Anos = gastoAcum
-      }
-
-      return {
-        ano: rec.ano,
-        indiceAno,
-        consumoKwhAno: consumoFinal,
-        tarifaKwh,
-        fioBKwh,
-        gdEcoLiquidaKwh,
-        fatorDegradacao,
-        economiaAnualSemDegradacao,
-        economiaAnual,
-        economiaAcumulada: Number(ecoAcum.toFixed(2)),
-        gastoSemSolarAnual,
-        gastoSemSolarAcumulado: Number(gastoAcum.toFixed(2)),
-      }
-    })
-  } else {
-    // Usar o fallback da tabela estimada interna (com reajuste de 9% a.a.)
-    let multiplicadorTarifa = 1
-    if (
-      tarifaPersonalizadaPrimeiroAno &&
-      tarifaPersonalizadaPrimeiroAno > 0 &&
-      TABELA_REFERENCIA_BASE[0]
-    ) {
-      multiplicadorTarifa = tarifaPersonalizadaPrimeiroAno / TABELA_REFERENCIA_BASE[0].tarifaBase
+    if (a === 25) {
+      economiaTotal25Anos = ecoAcum
+      gastoTotalSemSolar25Anos = gastoAcum
     }
 
-    linhas = TABELA_REFERENCIA_BASE.map((ref, idx) => {
-      const indiceAno = idx + 1
-      const fatorDegradacao = getFatorDegradacaoPainel(indiceAno)
-      const tarifaKwh = Number((ref.tarifaBase * multiplicadorTarifa).toFixed(4))
-      const fioBKwh = Number((ref.fioBEfetivo * multiplicadorTarifa).toFixed(4))
+    const fioBKwh = t * 0.377 * 0.5105
+    const gdEcoLiquidaKwh = consumoAnual > 0 ? Number((ecoAno / consumoAnual).toFixed(4)) : t
 
-      const gdEcoLiquidaKwh = Number((tarifaKwh - fioBKwh * parcelaInjetada).toFixed(4))
-      const economiaAnualSemDegradacao = Number((consumoFinal * gdEcoLiquidaKwh).toFixed(2))
-      const economiaAnual = Number((consumoFinal * gdEcoLiquidaKwh * fatorDegradacao).toFixed(2))
-      const gastoSemSolarAnual = Number((consumoFinal * tarifaKwh).toFixed(2))
-
-      ecoAcum += economiaAnual
-      gastoAcum += gastoSemSolarAnual
-
-      if (idx === 24) {
-        economiaTotal25Anos = ecoAcum
-        gastoTotalSemSolar25Anos = gastoAcum
-      }
-
-      return {
-        ano: ref.ano,
-        indiceAno,
-        consumoKwhAno: consumoFinal,
-        tarifaKwh,
-        fioBKwh,
-        gdEcoLiquidaKwh,
-        fatorDegradacao,
-        economiaAnualSemDegradacao,
-        economiaAnual,
-        economiaAcumulada: Number(ecoAcum.toFixed(2)),
-        gastoSemSolarAnual,
-        gastoSemSolarAcumulado: Number(gastoAcum.toFixed(2)),
-      }
+    linhas.push({
+      ano: anoCalendario,
+      indiceAno: a,
+      consumoKwhAno: consumoAnual,
+      tarifaKwh: Number(t.toFixed(4)),
+      fioBKwh: Number(fioBKwh.toFixed(4)),
+      gdEcoLiquidaKwh,
+      fatorDegradacao: 1,
+      economiaAnualSemDegradacao: Number(ecoAno.toFixed(2)),
+      economiaAnual: Number(ecoAno.toFixed(2)),
+      economiaAcumulada: Number(ecoAcum.toFixed(2)),
+      gastoSemSolarAnual: Number(sem.toFixed(2)),
+      gastoSemSolarAcumulado: Number(gastoAcum.toFixed(2)),
+      contaComSolarAnual: Number(com.toFixed(2)),
     })
-  }
-
-  if (linhas.length <= 25) {
-    economiaTotal25Anos = ecoAcum
-    gastoTotalSemSolar25Anos = gastoAcum
   }
 
   const economiaPrimeiroAno = linhas[0]?.economiaAnual || 0
@@ -204,18 +160,18 @@ export function calcularProjecaoEconomia({
 
   return {
     tipoCliente,
-    fatorSimultaneidade,
-    consumoKwhAno: consumoFinal,
-    anoInicial: linhas[0]?.ano || 2026,
-    anoFinal: linhas[linhas.length - 1]?.ano || 2051,
-    totalAnos: linhas.length,
+    fatorSimultaneidade: simult,
+    consumoKwhAno: consumoAnual,
+    anoInicial: anoBase,
+    anoFinal: anoBase + totalAnosProjecao - 1,
+    totalAnos: totalAnosProjecao,
     economiaTotal25Anos: Number(economiaTotal25Anos.toFixed(2)),
     economiaTotal26Anos: Number(ecoAcum.toFixed(2)),
     gastoTotalSemSolar25Anos: Number(gastoTotalSemSolar25Anos.toFixed(2)),
     gastoTotalSemSolar26Anos: Number(gastoAcum.toFixed(2)),
     economiaPrimeiroAno,
     valorPerdidoPorMesPostergacao,
-    origemDados,
+    origemDados: 'estimativa',
     linhas,
   }
 }

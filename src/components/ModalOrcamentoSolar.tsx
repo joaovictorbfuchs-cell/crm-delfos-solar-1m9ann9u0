@@ -145,6 +145,9 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
       : null,
   )
   const [imagemSolergoFile, setImagemSolergoFile] = useState<File | null>(null)
+  const [enquadramento, setEnquadramento] = useState<EnquadramentoSolar>(
+    initialOrcamento?.enquadramento || 'GD_II',
+  )
   const [padraoFases, setPadraoFases] = useState<PadraoFasesSolar>(
     initialOrcamento?.padrao_fases || 'monofásico',
   )
@@ -345,6 +348,7 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
           : null,
       )
       setImagemSolergoFile(null)
+      setEnquadramento(initialOrcamento.enquadramento || 'GD_II')
       setPadraoFases(initialOrcamento.padrao_fases || 'monofásico')
       setTipoCliente(initialOrcamento.tipo_cliente || 'residencial')
       setTarifaKwh(initialOrcamento.tarifa_kwh || 1.19)
@@ -611,6 +615,7 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
       setLayoutTelhadoPreviewUrl(null)
 
       // Novo orçamento: defaults
+      setEnquadramento('GD_II')
       setPadraoFases('monofásico')
       setInstalacoesSelecionadasIds([])
       setTarifaKwh(1.19)
@@ -911,6 +916,7 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
       consumoKwhMes,
       tipoCliente,
       padraoFases,
+      enquadramento,
       tarifaKwh,
       potenciaKwp,
       orientacaoTelhado,
@@ -940,6 +946,7 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
     consumoKwhMes,
     tipoCliente,
     padraoFases,
+    enquadramento,
     tarifaKwh,
     potenciaKwp,
     orientacaoTelhado,
@@ -1114,6 +1121,7 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
         numero_revisao: numeroRevisao,
         revisao_de: revisaoDeId,
         status_revisao: statusRevisao,
+        enquadramento: enquadramento,
         padrao_fases: padraoFases,
         tipo_cliente: tipoCliente,
         consumo_kwh_mes: consumoKwhMes,
@@ -1724,6 +1732,21 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                       <option value="monofásico">Monofásico</option>
                       <option value="bifásico">Bifásico</option>
                       <option value="trifásico">Trifásico</option>
+                    </select>
+                  </div>
+
+                  {/* Enquadramento Regulatório */}
+                  <div>
+                    <label className="text-[11px] font-semibold text-gray-700 block mb-1">
+                      Enquadramento *
+                    </label>
+                    <select
+                      value={enquadramento}
+                      onChange={(e) => setEnquadramento(e.target.value as EnquadramentoSolar)}
+                      className="w-full text-xs font-semibold px-3 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    >
+                      <option value="GD_I">GD I — Protegido (sem Fio B)</option>
+                      <option value="GD_II">GD II — Novo Marco Legal (Fio B progressivo)</option>
                     </select>
                   </div>
 

@@ -48,6 +48,12 @@ describe('SecaoInvestimentoPagamento Component', () => {
     expect(html).toContain('Payback do Sistema:')
     expect(html).toContain('Quitação prevista:')
 
+    // Nota de rodapé financeira (Premissas novas)
+    expect(html).toContain('Valores estimados sem iluminação pública.')
+    expect(html).toContain('Consumo considerado igual à energia gerada.')
+    expect(html).toContain('Fio B progressivo até 2029 conforme Lei 14.300/2021 (GD II).')
+    expect(html).toContain('Reajuste tarifário de 9% a.a. é premissa comercial.')
+
     // REMOVER COMPARATIVO: não deve mais conter o bloco de comparativo mensal
     expect(html).not.toContain('Comparativo de Custo Mensal')
     expect(html).not.toContain('Troque despesa por patrimônio')

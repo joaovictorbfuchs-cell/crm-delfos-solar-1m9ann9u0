@@ -89,6 +89,15 @@ export function calcularIOFFinanciamento(valorTotalAVista: number, numeroParcela
   return valor * aliquota
 }
 
+export type EnquadramentoSolar = 'GD_I' | 'GD_II'
+
+export function pctFioB(ano: number): number {
+  if (ano <= 2026) return 0.6
+  if (ano === 2027) return 0.75
+  if (ano === 2028) return 0.9
+  return 1.0
+}
+
 export interface CalculosSolarResultado {
   // Geração
   geracaoAnualEstimadaKwh: number
@@ -100,10 +109,21 @@ export interface CalculosSolarResultado {
   valorInvestimento: number // Valor final do projeto (base payback)
   custoPorKwpInstalado: number
 
-  // Parâmetros GD Eco Líquida & Fio B (novo modelo)
+  // Parâmetros GD & Fio B (novo modelo)
   fioBKwh: number
   fatorSimultaneidade: number
   gdEcoLiquidaKwh: number
+  enquadramento: EnquadramentoSolar
+  autoconsumoKwh: number
+  injetadaKwh: number
+  consumoRedeKwh: number
+  compensadaKwh: number
+  consumoFaturadoKwh: number
+  consumoCobradoKwh: number
+  tarifaFioB: number
+  pctFioBAnoBase: number
+  contaGD1: number
+  contaGD2: number
 
   // Contas de energia
   contaAtualSemSolarMes: number
@@ -662,6 +682,8 @@ export interface InputCalculoSolar {
   disponibilidadeMinimaKwh?: number
   iluminacaoPublica?: number
   cip?: number
+  enquadramento?: EnquadramentoSolar
+  anoBase?: number
 }
 
 /**
@@ -758,215 +780,168 @@ export function calcularOrcamentoSolar(input: InputCalculoSolar): CalculosSolarR
       geracaoMediaMensalKwh > 0 ? Number((item.geracaoKwh / geracaoMediaMensalKwh).toFixed(2)) : 1
   })
 
-  // 3. Contas de Energia - Novo modelo GD Eco Líquida & Fio B
-  // REGRA DE NEGÓCIO: para todos os cálculos de economia e gasto de energia, deve ser considerada
-  // a energia gerada real no dimensionamento, e a consumida também igual à gerada (paridade total).
-  // consumoEfetivo = geracaoReal
-  const consumoKwhMesEfetivo = geracaoMediaMensalKwh > 0 ? geracaoMediaMensalKwh : consumoKwhMes
-  const consumoAnualEfetivo = geracaoAnualTotal > 0 ? geracaoAnualTotal : consumoKwhMesEfetivo * 12
+  // 3. Modelo Estrito de Cálculo de Energia (Verbatim)
+  // 1. Entradas:
+  // consumo = geracaoMediaMensalKwh (fallback: consumo informado)
+  // tarifa = campo "Tarifa cheia" (tarifa_energia)
+  // taxaBasica a partir do campo "Padrão de Ligação (Fases)" (padrao_fases): monofásico=30, bifásico=50, trifásico=100 kWh
+  // reajuste fixo 9% a.a.; simult = 0,30 se segmento residencial/rural, 0,70 se comercial/industrial
+  const consumo = geracaoMediaMensalKwh > 0 ? geracaoMediaMensalKwh : consumoKwhMes
+  const tarifa = tarifaKwh
 
-  // Fator de simultaneidade (FS): 30% (0.3) para residencial / rural, 70% (0.7) para comercial / industrial
-  const fsPadrao = tipoCliente === 'comercial' || tipoCliente === 'industrial' ? 0.7 : 0.3
-  const fatorSimultaneidade =
+  const taxaBasica = (() => {
+    if (
+      input.disponibilidadeMinimaKwh !== undefined &&
+      input.disponibilidadeMinimaKwh !== null &&
+      Number(input.disponibilidadeMinimaKwh) > 0
+    ) {
+      return Number(input.disponibilidadeMinimaKwh)
+    }
+    return getTaxaMinimaKwh(tipoCliente, input.padraoFases)
+  })()
+
+  const simult =
     input.fatorSimultaneidade !== undefined && input.fatorSimultaneidade !== null
       ? Math.max(0, Math.min(1, Number(input.fatorSimultaneidade)))
-      : fsPadrao
+      : tipoCliente === 'comercial' || tipoCliente === 'industrial'
+        ? 0.7
+        : 0.3
 
-  // Fio B (padrão 0.2239 R$/kWh)
-  const fioBKwh =
-    input.fioBKwh !== undefined && input.fioBKwh !== null && Number(input.fioBKwh) >= 0
-      ? Number(input.fioBKwh)
-      : 0.2239
+  const enquadramento: EnquadramentoSolar = input.enquadramento || 'GD_II'
+  const anoBase = input.anoBase || new Date().getFullYear()
 
-  // GD Eco Líquida (R$/kWh creditado):
-  // Buscada da tabela oficial por ano/classe (PARAMETROS_TARIFARIOS_OFICIAIS): residencial 2026 = 1,1039, comercial 2026 = 1,1577 — nunca igual à tarifa cheia.
-  // Se o usuário informar gdEcoLiquida customizada explicitamente, ela é respeitada.
-  // Se a tarifa informada for personalizada (diferente da base 2026 de 1.1979), ajusta proporcionalmente à tabela oficial.
-  const classeTabelaInicial: TipoClienteProjecao =
-    tipoCliente === 'comercial' || tipoCliente === 'industrial' ? 'comercial' : 'residencial'
-  const paramOficial2026 = PARAMETROS_TARIFARIOS_OFICIAIS[classeTabelaInicial]?.[2026]
-  const gdEcoOficialBase2026 = paramOficial2026 ? paramOficial2026.gd_eco_liquida : 1.1039
+  // 2. Núcleo (implementar verbatim):
+  // autoconsumo = consumo * simult
+  // injetada = consumo - autoconsumo
+  // consumoRede = consumo - autoconsumo
+  // compensada = Math.min(injetada, consumoRede)
+  // consumoFaturado = consumoRede - compensada
+  // consumoCobrado = Math.max(consumoFaturado, taxaBasica)
+  // contaSemSolar = consumo * tarifa
+  // tarifaFioB = tarifa * 0.377 * 0.5105
+  // pctFioB(ano): ano<=2026 → 0.60; 2027 → 0.75; 2028 → 0.90; >=2029 → 1.00
+  // contaGD1 = consumoCobrado * tarifa
+  // contaGD2 = consumoCobrado * tarifa + injetada * tarifaFioB * pctFioB(anoBase)
+  // contaExibida = enquadramento === 'GD_I' ? contaGD1 : contaGD2
+  // economiaMensal = contaSemSolar - contaExibida; economiaAnual = economiaMensal * 12
+  const autoconsumo = consumo * simult
+  const injetada = consumo - autoconsumo
+  const consumoRede = consumo - autoconsumo
+  const compensada = Math.min(injetada, consumoRede)
+  const consumoFaturado = consumoRede - compensada
+  const consumoCobrado = Math.max(consumoFaturado, taxaBasica)
+  const contaSemSolar = consumo * tarifa
+  const tarifaFioB = tarifa * 0.377 * 0.5105
+  const pctAnoBase = pctFioB(anoBase)
+  const contaGD1 = consumoCobrado * tarifa
+  const contaGD2 = consumoCobrado * tarifa + injetada * tarifaFioB * pctAnoBase
+  const contaExibida = enquadramento === 'GD_I' ? contaGD1 : contaGD2
+  const economiaMensal = contaSemSolar - contaExibida
+  const economiaAnual = economiaMensal * 12
 
-  let gdEcoLiquidaKwh: number
-  if (
-    input.gdEcoLiquida !== undefined &&
-    input.gdEcoLiquida !== null &&
-    Number(input.gdEcoLiquida) > 0
-  ) {
-    gdEcoLiquidaKwh = Number(input.gdEcoLiquida)
-  } else if (Math.abs(tarifaKwh - 1.1979) <= 0.001) {
-    // Tarifa padrão: usa o valor exato da tabela oficial para a classe (1.1039 residencial, 1.1577 comercial)
-    gdEcoLiquidaKwh = gdEcoOficialBase2026
-  } else {
-    // Tarifa customizada: ajusta proporcionalmente ou aplica fórmula Tarifa - FS * Fio B (garantindo que nunca seja igual à tarifa cheia)
-    const gdCalculada = Number((tarifaKwh - fatorSimultaneidade * fioBKwh).toFixed(4))
-    gdEcoLiquidaKwh =
-      gdCalculada < tarifaKwh
-        ? gdCalculada
-        : Number((tarifaKwh * (gdEcoOficialBase2026 / 1.1979)).toFixed(4))
-  }
+  // Aliases e variáveis retrocompatíveis
+  const contaAtualSemSolarMes = Number(contaSemSolar.toFixed(2))
+  const contaAtualSemSolarAno = Number((contaSemSolar * 12).toFixed(2))
+  const contaPrimeiroMesComSolar = Number(contaExibida.toFixed(2))
+  const economia1Mes = Number(economiaMensal.toFixed(2))
+  const economia1Ano = Number(economiaAnual.toFixed(2))
+  const taxaMinimaKwh = taxaBasica
+  const taxaMinimaReais = Number((taxaBasica * tarifa).toFixed(2))
+  const fatorSimultaneidade = simult
+  const fioBKwh = Number(tarifaFioB.toFixed(4))
+  const gdEcoLiquidaKwh = consumo > 0 ? Number((economiaMensal / consumo).toFixed(4)) : tarifa
 
-  // Taxa de disponibilidade (kWh):
-  // taxaMinimaKwh = input.disponibilidadeMinimaKwh > 0 ? valor : padrão por fases (mono 30, bi 50, tri 100)
-  const taxaMinimaPadraoFases = getTaxaMinimaKwh(tipoCliente, input.padraoFases)
-  const taxaMinimaKwh =
-    input.disponibilidadeMinimaKwh !== undefined &&
-    input.disponibilidadeMinimaKwh !== null &&
-    Number(input.disponibilidadeMinimaKwh) > 0
-      ? Number(input.disponibilidadeMinimaKwh)
-      : taxaMinimaPadraoFases
+  // 3. Projeção 25 anos (implementar verbatim):
+  // para a=1..25, t = tarifa * (1.09)^(a-1); sem = consumo*t*12;
+  // com = consumoCobrado*t*12 + (GD_II ? injetada * t * 0.377 * 0.5105 * pctFioB(anoBase+a-1) * 12 : 0);
+  // acumulado += sem - com.
+  // Alimentar economia 5 anos, economia 25 anos e gastos acumulados sem solar com esses valores.
+  let acumuladoEconomia = 0
+  let acumuladoSemSolar = 0
+  let economia5Anos = 0
+  let economia10Anos = 0
+  let economia25Anos = 0
+  let gastoSemSolar5Anos = 0
+  let gastoSemSolar10Anos = 0
+  let gastoSemSolar25Anos = 0
 
-  const pisoTaxaMinimaReais = Number((taxaMinimaKwh * tarifaKwh).toFixed(2))
-  const taxaMinimaReais = pisoTaxaMinimaReais
+  const isGD2 = enquadramento === 'GD_II'
 
-  // FÓRMULA NOVA da "conta com solar" (sem IP/CIP):
-  // contaCalculada = geracaoMensalKwh × (tarifaCheia − gdEcoLiquida)
-  // Piso: se contaCalculada < taxaMinimaKwh × tarifaCheia, então contaComSolar = taxaMinimaKwh × tarifaCheia. NUNCA zero.
-  const contaCalculada = Number((consumoKwhMesEfetivo * (tarifaKwh - gdEcoLiquidaKwh)).toFixed(2))
-  const contaPrimeiroMesComSolar = Math.max(pisoTaxaMinimaReais, contaCalculada)
+  for (let a = 1; a <= 25; a++) {
+    const t = tarifa * Math.pow(1.09, a - 1)
+    const sem = consumo * t * 12
+    const com =
+      consumoCobrado * t * 12 +
+      (isGD2 ? injetada * t * 0.377 * 0.5105 * pctFioB(anoBase + a - 1) * 12 : 0)
+    const ecoAno = sem - com
 
-  // Conta atual sem solar: consumo * tarifa cheia (ou gasto sem solar no mês)
-  // Gasto sem solar = consumo/geração anual × tarifa cheia do ano
-  const contaAtualSemSolarMes = Number((consumoKwhMesEfetivo * tarifaKwh).toFixed(2))
-  const contaAtualSemSolarAno = Number((consumoAnualEfetivo * tarifaKwh).toFixed(2))
+    acumuladoEconomia += ecoAno
+    acumuladoSemSolar += sem
 
-  // Economia_1_mes calculada com GD Eco Líquida: geração mensal efetiva × GD Eco Líquida
-  // (ex.: 331,43 kWh × 1,1039 = 365,87/mês; ou 417 × 1,1039 = 460,33)
-  const economia1Mes = Number((consumoKwhMesEfetivo * gdEcoLiquidaKwh).toFixed(2))
-  const economia1Ano = Number((economia1Mes * 12).toFixed(2))
-
-  // 4. Projeções com Reajuste Tarifário Anual de 9% ao ano
-  const REAJUSTE_ANUAL = 0.09 // 9% a.a.
-
-  const classeNormalizada: TipoClienteSolar = tipoCliente || 'residencial'
-  const classeTabela: 'residencial' | 'comercial' =
-    classeNormalizada === 'comercial' || classeNormalizada === 'industrial'
-      ? 'comercial'
-      : 'residencial'
-
-  // Gasto sem solar: geração anual × tarifa cheia do ano
-  // Utiliza a tarifa do ano correspondente da tabela oficial (com proporção para tarifa personalizada)
-  function calcularGastoSemSolarAcumulado(anos: number): number {
-    let acumulado = 0
-    const anoInicial = 2026
-    const tarifaBaseAnoInicial = PARAMETROS_TARIFARIOS_OFICIAIS[classeTabela][2026].tarifa
-    const propTarifa =
-      tarifaKwh > 0 && Math.abs(tarifaKwh - tarifaBaseAnoInicial) > 0.001
-        ? tarifaKwh / tarifaBaseAnoInicial
-        : 1.0
-
-    for (let i = 0; i < anos; i++) {
-      const anoCorrente = anoInicial + i
-      const paramAno = PARAMETROS_TARIFARIOS_OFICIAIS[classeTabela]?.[anoCorrente]
-      if (paramAno && paramAno.tarifa > 0) {
-        const tarifaAnoEfetiva = paramAno.tarifa * propTarifa
-        acumulado += consumoAnualEfetivo * tarifaAnoEfetiva
-      } else {
-        const fatorTarifa = Math.pow(1 + REAJUSTE_ANUAL, i)
-        acumulado += contaAtualSemSolarAno * fatorTarifa
-      }
+    if (a === 5) {
+      economia5Anos = Math.round(acumuladoEconomia)
+      gastoSemSolar5Anos = Math.round(acumuladoSemSolar)
     }
-    return Math.round(acumulado)
-  }
-
-  // Economia do ano = geração anual × GD Eco Líquida do ano × fator de degradação
-  // (LID 2% ano 1 [fator 0.98], 0,55% a.a. a partir do ano 2 via getFatorDegradacaoPainel)
-  function calcularEconomiaAcumulada(anos: number): number {
-    let acumulado = 0
-    const anoInicial = 2026
-    const tarifaBaseAnoInicial = PARAMETROS_TARIFARIOS_OFICIAIS[classeTabela][2026].tarifa
-    const propTarifa =
-      tarifaKwh > 0 && Math.abs(tarifaKwh - tarifaBaseAnoInicial) > 0.001
-        ? tarifaKwh / tarifaBaseAnoInicial
-        : 1.0
-
-    for (let i = 0; i < anos; i++) {
-      const anoCorrente = anoInicial + i
-      const indiceAno1 = i + 1 // 1 a 25
-      const fatorDegradacao = getFatorDegradacaoPainel(indiceAno1)
-
-      const paramAno = PARAMETROS_TARIFARIOS_OFICIAIS[classeTabela]?.[anoCorrente]
-      if (paramAno && paramAno.gd_eco_liquida > 0) {
-        const gdAnoEfetiva = paramAno.gd_eco_liquida * propTarifa
-        const economiaDesteAno = consumoAnualEfetivo * gdAnoEfetiva * fatorDegradacao
-        acumulado += economiaDesteAno
-      } else {
-        const fatorTarifa = Math.pow(1 + REAJUSTE_ANUAL, i)
-        acumulado += consumoAnualEfetivo * gdEcoLiquidaKwh * fatorTarifa * fatorDegradacao
-      }
+    if (a === 10) {
+      economia10Anos = Math.round(acumuladoEconomia)
+      gastoSemSolar10Anos = Math.round(acumuladoSemSolar)
     }
-    return Math.round(acumulado)
+    if (a === 25) {
+      economia25Anos = Math.round(acumuladoEconomia)
+      gastoSemSolar25Anos = Math.round(acumuladoSemSolar)
+    }
   }
 
   const gastoSemSolar1Ano = contaAtualSemSolarAno
-  const gastoSemSolar5Anos = calcularGastoSemSolarAcumulado(5)
-  const gastoSemSolar10Anos = calcularGastoSemSolarAcumulado(10)
-  const gastoSemSolar25Anos = calcularGastoSemSolarAcumulado(25)
 
-  const economia5Anos = calcularEconomiaAcumulada(5)
-  const economia10Anos = calcularEconomiaAcumulada(10)
-  const economia25Anos = calcularEconomiaAcumulada(25)
-
-  // Valores de contas futuras reajustadas (mês)
-  // Daqui a 4 anos (2030) e 10 anos (2036):
-  // Mesma regra: geracaoDegradada × (tarifaAno − gdEcoLiquidaAno), com piso = taxaMinimaKwh × tarifaAno
-  const fatorReajuste4Anos = Math.pow(1 + REAJUSTE_ANUAL, 4)
-  const fatorReajuste10Anos = Math.pow(1 + REAJUSTE_ANUAL, 10)
-
-  const contaSemSolar4AnosComReajuste = contaAtualSemSolarMes * fatorReajuste4Anos
-  const contaSemSolar10AnosComReajuste = contaAtualSemSolarMes * fatorReajuste10Anos
-
-  const propTarifaProjecao =
-    tarifaKwh > 0 &&
-    Math.abs(tarifaKwh - PARAMETROS_TARIFARIOS_OFICIAIS[classeTabela][2026].tarifa) > 0.001
-      ? tarifaKwh / PARAMETROS_TARIFARIOS_OFICIAIS[classeTabela][2026].tarifa
-      : 1.0
-
-  // Ano 4 (2030, índice 5 na degradação: ano 1 a 5)
-  const param2030 = PARAMETROS_TARIFARIOS_OFICIAIS[classeTabela]?.[2030]
-  const tarifa2030 =
-    param2030 && param2030.tarifa > 0
-      ? param2030.tarifa * propTarifaProjecao
-      : tarifaKwh * fatorReajuste4Anos
-  const gdEco2030 =
-    param2030 && param2030.gd_eco_liquida > 0
-      ? param2030.gd_eco_liquida * propTarifaProjecao
-      : gdEcoLiquidaKwh * fatorReajuste4Anos
-  const geracaoAno4Mes = consumoKwhMesEfetivo * getFatorDegradacaoPainel(5)
-  const piso4Anos = Number((taxaMinimaKwh * tarifa2030).toFixed(2))
-  const contaCalculada4Anos = Number((geracaoAno4Mes * (tarifa2030 - gdEco2030)).toFixed(2))
-  const contaComSolar4AnosComReajuste = Math.max(piso4Anos, contaCalculada4Anos)
-
-  // Ano 10 (2036, índice 11 na degradação: ano 1 a 11)
-  const param2036 = PARAMETROS_TARIFARIOS_OFICIAIS[classeTabela]?.[2036]
-  const tarifa2036 =
-    param2036 && param2036.tarifa > 0
-      ? param2036.tarifa * propTarifaProjecao
-      : tarifaKwh * fatorReajuste10Anos
-  const gdEco2036 =
-    param2036 && param2036.gd_eco_liquida > 0
-      ? param2036.gd_eco_liquida * propTarifaProjecao
-      : gdEcoLiquidaKwh * fatorReajuste10Anos
-  const geracaoAno10Mes = consumoKwhMesEfetivo * getFatorDegradacaoPainel(11)
-  const piso10Anos = Number((taxaMinimaKwh * tarifa2036).toFixed(2))
-  const contaCalculada10Anos = Number((geracaoAno10Mes * (tarifa2036 - gdEco2036)).toFixed(2))
-  const contaComSolar10AnosComReajuste = Math.max(piso10Anos, contaCalculada10Anos)
-
-  // 5. Payback (em meses)
-  // Payback simples dinâmico considerando a economia mensal inicial
+  // 4. Payback: em MESES (manter layout atual em uma linha),
+  // primeiro mês m em que soma da economia mensal reajustada ≥ investimento total; arredondar para cima.
   let paybackMeses = 0
-  if (valorInvestimento > 0 && economia1Mes > 0) {
-    let saldoInvestimento = valorInvestimento
-    let mes = 0
-    while (saldoInvestimento > 0 && mes < 300) {
-      mes++
-      const anoAtual = Math.floor(mes / 12)
-      const economiaDoMes = economia1Mes * Math.pow(1 + REAJUSTE_ANUAL, anoAtual)
-      saldoInvestimento -= economiaDoMes
+  if (valorInvestimento > 0 && economiaMensal > 0) {
+    let somaEco = 0
+    let m = 0
+    while (somaEco < valorInvestimento && m < 600) {
+      m++
+      const anoM = Math.floor((m - 1) / 12)
+      const tM = tarifa * Math.pow(1.09, anoM)
+      const semM = consumo * tM
+      const comM =
+        consumoCobrado * tM + (isGD2 ? injetada * tM * 0.377 * 0.5105 * pctFioB(anoBase + anoM) : 0)
+      const ecoM = semM - comM
+      somaEco += ecoM
     }
-    paybackMeses = mes
+    paybackMeses = Math.ceil(m)
   }
   const paybackAnos = Number((paybackMeses / 12).toFixed(1))
+
+  // Valores de contas futuras reajustadas (mês)
+  // Daqui a 4 anos (ano 5, reajuste 1.09^4) e 10 anos (ano 11, reajuste 1.09^10)
+  const t4 = tarifa * Math.pow(1.09, 4)
+  const contaSemSolar4AnosComReajuste = Number((consumo * t4).toFixed(2))
+  const contaComSolar4AnosComReajuste = Number(
+    (
+      consumoCobrado * t4 +
+      (isGD2 ? injetada * t4 * 0.377 * 0.5105 * pctFioB(anoBase + 4) : 0)
+    ).toFixed(2),
+  )
+
+  const t10 = tarifa * Math.pow(1.09, 10)
+  const contaSemSolar10AnosComReajuste = Number((consumo * t10).toFixed(2))
+  const contaComSolar10AnosComReajuste = Number(
+    (
+      consumoCobrado * t10 +
+      (isGD2 ? injetada * t10 * 0.377 * 0.5105 * pctFioB(anoBase + 10) : 0)
+    ).toFixed(2),
+  )
+
+  function calcularGastoSemSolarAcumulado(anos: number): number {
+    let acc = 0
+    for (let a = 1; a <= anos; a++) {
+      const t = tarifa * Math.pow(1.09, a - 1)
+      acc += consumo * t * 12
+    }
+    return Math.round(acc)
+  }
 
   // 6. Parcelamentos (4 Opções solicitadas):
   // 1) À vista
@@ -1095,6 +1070,17 @@ export function calcularOrcamentoSolar(input: InputCalculoSolar): CalculosSolarR
     fioBKwh,
     fatorSimultaneidade,
     gdEcoLiquidaKwh,
+    enquadramento,
+    autoconsumoKwh: autoconsumo,
+    injetadaKwh: injetada,
+    consumoRedeKwh: consumoRede,
+    compensadaKwh: compensada,
+    consumoFaturadoKwh: consumoFaturado,
+    consumoCobradoKwh: consumoCobrado,
+    tarifaFioB,
+    pctFioBAnoBase: pctAnoBase,
+    contaGD1,
+    contaGD2,
     contaAtualSemSolarMes,
     contaAtualSemSolarAno,
     contaPrimeiroMesComSolar,

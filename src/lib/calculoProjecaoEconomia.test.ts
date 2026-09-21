@@ -39,72 +39,42 @@ describe('Cálculo da Projeção de Economia na Conta de Energia (2026-2051)', (
     expect(projRes.origemDados).toBe('estimativa')
   })
 
-  it('deve calcular corretamente com dados do banco quando fornecidos', () => {
-    // Dados sintéticos triviais para validação do pipeline
-    const dadosSinteticos: ProjecaoTarifariaRecord[] = [
-      {
-        id: 'rec1',
-        ano: 2026,
-        tipo_cliente: 'residencial',
-        tarifa_kwh: 1.0,
-        fio_b_kwh: 0.2,
-        fs: 0.3,
-        gd_eco_liquida: 0.86,
-      },
-      {
-        id: 'rec2',
-        ano: 2027,
-        tipo_cliente: 'residencial',
-        tarifa_kwh: 1.09,
-        fio_b_kwh: 0.22,
-        fs: 0.3,
-        gd_eco_liquida: 0.936,
-      },
-    ]
-
+  it('calcula o novo modelo verbatim de projeção em 25 anos com reajuste de 9% a.a.', () => {
     const proj = calcularProjecaoEconomia({
       tipoCliente: 'residencial',
-      consumoKwhAno: 1000,
-      dadosTarifariosCustomizados: dadosSinteticos,
+      consumoKwhAno: 4800, // 400 kWh/mês
+      padraoFases: 'monofásico',
+      tarifaPersonalizadaPrimeiroAno: 1.2,
+      enquadramento: 'GD_II',
+      anoBase: 2026,
     })
 
-    expect(proj.origemDados).toBe('banco')
-    expect(proj.linhas).toHaveLength(2)
-    expect(proj.linhas[0].tarifaKwh).toBe(1.0)
-    expect(proj.linhas[0].gdEcoLiquidaKwh).toBe(0.86)
-    // Ano 1 aplica 98% (LID 2%): 1000 * 0.86 * 0.98 = 842.80
-    expect(proj.linhas[0].economiaAnual).toBe(842.8)
-    expect(proj.linhas[0].fatorDegradacao).toBe(0.98)
-    expect(proj.linhas[0].gastoSemSolarAnual).toBe(1000) // 1000 * 1.0 (não sofre degradação)
-
-    // Ano 2 aplica 97.45%: 1000 * 0.936 * 0.9745 = 912.13
-    expect(proj.linhas[1].fatorDegradacao).toBe(0.9745)
-    expect(proj.linhas[1].economiaAnual).toBe(912.13)
-    expect(proj.linhas[1].economiaAcumulada).toBe(Number((842.8 + 912.13).toFixed(2)))
+    expect(proj.linhas).toHaveLength(25)
+    expect(proj.linhas[0].ano).toBe(2026)
+    expect(proj.linhas[0].gastoSemSolarAnual).toBe(5760) // 400 * 1.20 * 12
+    expect(proj.economiaTotal25Anos).toBeGreaterThan(100000)
+    expect(proj.gastoTotalSemSolar25Anos).toBeGreaterThan(proj.economiaTotal25Anos)
   })
 
-  it('deve aplicar corretamente a série de degradação: LID 2% no ano 1 até 84,80% no ano 25', () => {
-    expect(FATORES_DEGRADACAO_PAINEIS[0]).toBe(0.98)
-    expect(FATORES_DEGRADACAO_PAINEIS[1]).toBe(0.9745)
-    expect(FATORES_DEGRADACAO_PAINEIS[2]).toBe(0.969)
-    expect(FATORES_DEGRADACAO_PAINEIS[24]).toBe(0.848) // Ano 25 = 84.80%
-    expect(getFatorDegradacaoPainel(1)).toBe(0.98)
-    expect(getFatorDegradacaoPainel(25)).toBe(0.848)
-
-    const proj = calcularProjecaoEconomia({
+  it('compara GD I vs GD II no novo modelo de projeção', () => {
+    const projGD1 = calcularProjecaoEconomia({
       tipoCliente: 'residencial',
-      consumoKwhAno: 1000,
+      consumoKwhAno: 4800,
+      padraoFases: 'monofásico',
+      tarifaPersonalizadaPrimeiroAno: 1.2,
+      enquadramento: 'GD_I',
+      anoBase: 2026,
+    })
+    const projGD2 = calcularProjecaoEconomia({
+      tipoCliente: 'residencial',
+      consumoKwhAno: 4800,
+      padraoFases: 'monofásico',
+      tarifaPersonalizadaPrimeiroAno: 1.2,
+      enquadramento: 'GD_II',
+      anoBase: 2026,
     })
 
-    // No ano 25 (índice 24), a degradação deve ser 0.8480
-    const linhaAno25 = proj.linhas[24]
-    expect(linhaAno25.fatorDegradacao).toBe(0.848)
-    expect(linhaAno25.economiaAnual).toBe(
-      Number((1000 * linhaAno25.gdEcoLiquidaKwh * 0.848).toFixed(2)),
-    )
-
-    // Gasto sem solar não é degradado
-    expect(linhaAno25.gastoSemSolarAnual).toBe(Number((1000 * linhaAno25.tarifaKwh).toFixed(2)))
+    expect(projGD1.economiaTotal25Anos).toBeGreaterThan(projGD2.economiaTotal25Anos)
   })
 
   it('deve preservar as fórmulas consolidadas: postergação = ecoAno1 / 12', () => {

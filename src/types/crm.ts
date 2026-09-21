@@ -29,6 +29,7 @@ export type TipoAtendimento = 'aéreo' | 'subterrâneo'
 
 export type NumeroFases = 'monofásico' | 'bifásico' | 'trifásico'
 export type PadraoFasesSolar = 'monofásico' | 'bifásico' | 'trifásico'
+export type EnquadramentoSolar = 'GD_I' | 'GD_II'
 
 export type ManutencaoTipo = 'Limpeza' | 'Revisão Elétrica' | 'Troca de Inversor'
 
@@ -1082,6 +1083,7 @@ export interface OrcamentoSolarCalculado {
   id?: string
   cliente_id?: string
   cliente_nome?: string
+  enquadramento?: EnquadramentoSolar
   padrao_fases?: PadraoFasesSolar
   potencia_kwp?: number
   numero_placas?: number
@@ -1155,6 +1157,7 @@ export interface OrcamentoSolar extends RecordModel {
   numero_revisao?: number
   revisao_de?: string
   status_revisao?: PropostaRevisaoStatus
+  enquadramento?: EnquadramentoSolar
   padrao_fases?: PadraoFasesSolar
   tipo_cliente: OrcamentoTipoCliente
   consumo_kwh_mes: number

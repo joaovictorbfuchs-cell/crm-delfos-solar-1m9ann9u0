@@ -515,6 +515,10 @@ describe('Proposta Técnico-Comercial Generator (5 Seções Oficiais)', () => {
     expect(html).toContain('www.delfos.eng.br')
     expect(html).toContain('Rua Espírito Santo, 275 – Centro, Erechim/RS')
     expect(html).toContain('Proposta válida por 5 dias.')
+    expect(html).toContain('Valores estimados sem iluminação pública.')
+    expect(html).toContain('Consumo considerado igual à energia gerada.')
+    expect(html).toContain('Fio B progressivo até 2029 conforme Lei 14.300/2021 (GD II).')
+    expect(html).toContain('Reajuste tarifário de 9% a.a. é premissa comercial.')
 
     // O rodapé doc-footer não deve mais conter o CREA nem o slogan
     expect(html).not.toContain('Condições especiais para fechamento imediato')
