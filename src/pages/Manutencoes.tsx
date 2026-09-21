@@ -1,27 +1,12 @@
 import React, { useState, useEffect } from 'react'
 import { useLocation } from 'react-router-dom'
-import {
-  ShieldCheck,
-  Loader2,
-  CheckCircle2,
-  Clock,
-  Calendar,
-  AlertTriangle,
-  Plus,
-  Wrench,
-  Layers,
-  Sparkles,
-  TrendingUp,
-} from 'lucide-react'
+import { ShieldCheck, Loader2, CheckCircle2, Plus, Layers, Sparkles, FileCheck } from 'lucide-react'
 import { useClientes } from '@/contexts/ClientesContext'
 import { ListaOM, type AbaPrincipalOM } from '@/components/ListaOM'
 import { calcularContagensOM } from '@/lib/omCategorizacao'
 import { ModalNovoContratoOM } from '@/components/ModalNovoContratoOM'
-import { ManutencoesList } from '@/components/ManutencoesList'
 import { GestaoOrdensServico } from '@/components/GestaoOrdensServico'
-import { NovaManutencaoModal } from '@/components/NovaManutencaoModal'
 import { ModalNovaPropostaOM } from '@/components/ModalNovaPropostaOM'
-import { FileCheck } from 'lucide-react'
 
 export default function Manutencoes() {
   const {
@@ -29,7 +14,6 @@ export default function Manutencoes() {
     contratosOM,
     sistemas,
     anomaliasOM,
-    manutencoes,
     servicosAdicionaisOM,
     servicosAvulsos,
     isLoading,
@@ -37,10 +21,9 @@ export default function Manutencoes() {
   } = useClientes()
 
   const location = useLocation()
-  const [viewMode, setViewMode] = useState<'om' | 'ordens_servico' | 'os_avulsa'>('om')
+  const [viewMode, setViewMode] = useState<'om' | 'ordens_servico'>('om')
   const [activeSubTab, setActiveSubTab] = useState<AbaPrincipalOM>('com_plano')
   const [isNovoContratoOpen, setIsNovoContratoOpen] = useState(false)
-  const [isNovaManutencaoOpen, setIsNovaManutencaoOpen] = useState(false)
   const [isNovaPropostaOpen, setIsNovaPropostaOpen] = useState(false)
 
   // Quando acessado via rota direta /planos-om ou /planos-monitoramento, força a aba com_plano (Planos O&M)
@@ -67,8 +50,6 @@ export default function Manutencoes() {
   const totalClientes = contagens.totalClientes
   const contratosAtivos = contagens.planosAtivos
   const posVendasTotal = contagens.posVendas
-  const oportunidadesOM = contagens.oportunidadesOM
-  const servicosAvulsosTotal = contagens.totalServicosAvulsosOcorrencias
 
   if (isLoading) {
     return (
@@ -127,20 +108,9 @@ export default function Manutencoes() {
             >
               Ordens de Serviço (Campo)
             </button>
-            <button
-              type="button"
-              onClick={() => setViewMode('os_avulsa')}
-              className={`px-3 py-1.5 rounded-lg transition-all ${
-                viewMode === 'os_avulsa'
-                  ? 'bg-white text-emerald-800 shadow-xs font-bold'
-                  : 'hover:text-gray-900'
-              }`}
-            >
-              O.S. Avulsas ({manutencoes.length})
-            </button>
           </div>
 
-          {viewMode === 'om' ? (
+          {viewMode === 'om' && (
             <div className="flex items-center gap-2">
               <button
                 type="button"
@@ -160,14 +130,6 @@ export default function Manutencoes() {
                 <span>Novo Contrato O&M</span>
               </button>
             </div>
-          ) : viewMode === 'ordens_servico' ? null : (
-            <button
-              onClick={() => setIsNovaManutencaoOpen(true)}
-              className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#16A34A] hover:bg-[#15803D] text-white text-xs font-bold rounded-xl shadow-xs transition-all hover:scale-[1.02]"
-            >
-              <Plus className="w-4 h-4" />
-              Nova O.S. Avulsa
-            </button>
           )}
         </div>
       </div>
@@ -233,7 +195,7 @@ export default function Manutencoes() {
           </div>
 
           {/* Cards Operacionais de Navegação */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {/* Card 1: Planos Ativos (Lista 1) */}
             <div
               onClick={() => setActiveSubTab('com_plano')}
@@ -249,9 +211,6 @@ export default function Manutencoes() {
                 </span>
                 <div className="text-2xl font-extrabold text-emerald-600 mt-0.5">
                   {contratosAtivos}
-                </div>
-                <div className="text-[11px] text-emerald-700 font-medium mt-0.5">
-                  Contratos vigentes no CRM
                 </div>
               </div>
               <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
@@ -275,54 +234,9 @@ export default function Manutencoes() {
                 <div className="text-2xl font-extrabold text-slate-900 mt-0.5">
                   {posVendasTotal}
                 </div>
-                <div className="text-[11px] text-slate-500 font-medium mt-0.5">
-                  Fechados e monitoramento
-                </div>
               </div>
               <div className="w-10 h-10 rounded-xl bg-slate-100 text-slate-700 flex items-center justify-center shrink-0">
                 <Sparkles className="w-5 h-5" />
-              </div>
-            </div>
-
-            {/* Card 3: Oportunidades de O&M (Solar instalado sem plano) */}
-            <div
-              onClick={() => setActiveSubTab('pos_vendas')}
-              className="bg-white rounded-xl p-4 border border-amber-200 shadow-xs flex items-center justify-between hover:border-amber-300 transition-colors cursor-pointer"
-            >
-              <div>
-                <span className="text-[11px] font-bold text-amber-800 uppercase tracking-wider">
-                  Oportunidades O&M
-                </span>
-                <div className="text-2xl font-extrabold text-amber-600 mt-0.5">
-                  {oportunidadesOM}
-                </div>
-                <div className="text-[11px] text-amber-700 font-medium mt-0.5">
-                  Solar sem manutenção
-                </div>
-              </div>
-              <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
-                <Clock className="w-5 h-5" />
-              </div>
-            </div>
-
-            {/* Card 4: Serviços Avulsos Realizados */}
-            <div
-              onClick={() => setActiveSubTab('pos_vendas')}
-              className="bg-white rounded-xl p-4 border border-blue-200 shadow-xs flex items-center justify-between hover:border-blue-300 transition-colors cursor-pointer"
-            >
-              <div>
-                <span className="text-[11px] font-bold text-blue-800 uppercase tracking-wider">
-                  Serviços Avulsos
-                </span>
-                <div className="text-2xl font-extrabold text-blue-600 mt-0.5">
-                  {servicosAvulsosTotal}
-                </div>
-                <div className="text-[11px] text-blue-600 font-medium mt-0.5">
-                  Limpezas, reparos e visitas
-                </div>
-              </div>
-              <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
-                <Wrench className="w-5 h-5" />
               </div>
             </div>
           </div>
@@ -337,13 +251,9 @@ export default function Manutencoes() {
           activeSubTab={activeSubTab}
           onSubTabChange={setActiveSubTab}
         />
-      ) : viewMode === 'ordens_servico' ? (
+      ) : (
         <div className="bg-white rounded-2xl border border-gray-200/80 p-5 shadow-xs">
           <GestaoOrdensServico />
-        </div>
-      ) : (
-        <div className="bg-white rounded-xl border border-gray-200/80 p-5 shadow-xs">
-          <ManutencoesList onOpenNovaManutencao={() => setIsNovaManutencaoOpen(true)} />
         </div>
       )}
 
@@ -351,12 +261,6 @@ export default function Manutencoes() {
       <ModalNovoContratoOM
         isOpen={isNovoContratoOpen}
         onClose={() => setIsNovoContratoOpen(false)}
-      />
-
-      {/* Modal O.S. Avulsa */}
-      <NovaManutencaoModal
-        isOpen={isNovaManutencaoOpen}
-        onClose={() => setIsNovaManutencaoOpen(false)}
       />
 
       {/* Modal Nova Proposta O&M */}
