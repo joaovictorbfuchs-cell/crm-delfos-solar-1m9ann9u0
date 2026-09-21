@@ -13,7 +13,6 @@ import {
 import { useClientes } from '@/contexts/ClientesContext'
 import { useAuth } from '@/contexts/AuthContext'
 import { AtividadeItem } from '@/components/AtividadeItem'
-import { AtividadesGridIcones } from '@/components/AtividadesGridIcones'
 import { ModalNovaAtividade } from '@/components/ModalNovaAtividade'
 import {
   AlertDialog,
@@ -27,7 +26,6 @@ import {
 } from '@/components/ui/alert-dialog'
 import { AtividadesCalendario } from '@/components/AtividadesCalendario'
 import { AtividadesPendentesList } from '@/components/AtividadesPendentesList'
-import type { TipoAtividadeDef } from '@/constants/atividadesTipos'
 import type { AtividadeTipo, AtividadeStatus } from '@/types/crm'
 
 export const Atividades: React.FC = () => {
@@ -57,7 +55,7 @@ export const Atividades: React.FC = () => {
   // Usuário selecionado no filtro global da página de atividades (padrão: usuário logado ou "todos")
   const [usuarioFiltroId, setUsuarioFiltroId] = useState<string>('todos')
 
-  // Controle do modal de agendamento acionado pelo grid de 12 ícones ou botão novo
+  // Controle do modal de agendamento acionado pelo botão nova atividade
   const [modalOpen, setModalOpen] = useState(false)
   const [modalInitialTipo, setModalInitialTipo] = useState<AtividadeTipo | null>(null)
   const [atividadeParaExcluir, setAtividadeParaExcluir] = useState<{
@@ -76,16 +74,6 @@ export const Atividades: React.FC = () => {
   const [filterClienteId, setFilterClienteId] = useState<string>('todos')
   const [filterTipo, setFilterTipo] = useState<string>('todos')
   const [filterStatus, setFilterStatus] = useState<string>('todos')
-
-  // Ao clicar em qualquer um dos 12 ícones:
-  // "Ao clicar em um ícone de atividade, abrir um formulário para registrar a atividade.
-  // O nome do tipo clicado deve virar AUTOMATICAMENTE o título da atividade.
-  // O campo de descrição detalhada deve existir mas NÃO ser obrigatório.
-  // O formulário deve ter também um campo para selecionar qual usuário do sistema vai ficar responsável"
-  const handleSelectIconeTipo = (item: TipoAtividadeDef) => {
-    setModalInitialTipo(item.id)
-    setModalOpen(true)
-  }
 
   const handleToggleStatus = async (id: string, currentStatus: string) => {
     const nextStatus: AtividadeStatus = currentStatus === 'concluida' ? 'pendente' : 'concluida'
@@ -239,10 +227,7 @@ export const Atividades: React.FC = () => {
         </div>
       )}
 
-      {/* 2. BARRA COM OS 12 ÍCONES DE ATIVIDADES (com tooltip e clique para abrir form com título preenchido automaticamente) */}
-      <AtividadesGridIcones onSelectTipo={handleSelectIconeTipo} tipoAtivo={modalInitialTipo} />
-
-      {/* 3. Alternador de Visões: Calendário Mensal / Lista de Pendências / Timeline Geral */}
+      {/* 2. Alternador de Visões: Calendário Mensal / Lista de Pendências / Timeline Geral */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-gray-200 pb-2">
         <div className="flex items-center gap-1.5 p-1 bg-gray-100 rounded-xl text-xs font-semibold">
           <button
@@ -413,8 +398,8 @@ export const Atividades: React.FC = () => {
               <Clock className="w-10 h-10 text-gray-300 mx-auto mb-3" />
               <h3 className="font-bold text-sm text-gray-800">Nenhuma atividade encontrada</h3>
               <p className="text-xs text-gray-500 mt-1 max-w-sm mx-auto mb-3">
-                Tente alterar os filtros acima ou registre uma nova atividade clicando em um dos 12
-                ícones no topo.
+                Tente alterar os filtros acima ou registre uma nova atividade usando o botão Nova
+                Atividade.
               </p>
               <button
                 type="button"
@@ -473,10 +458,13 @@ export const Atividades: React.FC = () => {
         </div>
       )}
 
-      {/* 5. Modal de criação de atividade (acionado pelos 12 ícones ou pelo botão Nova Atividade) */}
+      {/* 3. Modal de criação de atividade (acionado pelo botão Nova Atividade) */}
       <ModalNovaAtividade
         isOpen={modalOpen}
-        onClose={() => setModalOpen(false)}
+        onClose={() => {
+          setModalOpen(false)
+          setModalInitialTipo(null)
+        }}
         initialTipo={modalInitialTipo}
       />
 
