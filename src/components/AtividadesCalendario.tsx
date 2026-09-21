@@ -518,6 +518,10 @@ export const AtividadesCalendario: React.FC<AtividadesCalendarioProps> = ({
                               key={atv.id}
                               onClick={(e) => {
                                 e.stopPropagation()
+                                if (atv.tipo === 'auto_leitura_rge' && onOpenAutoLeitura) {
+                                  onOpenAutoLeitura(atv)
+                                  return
+                                }
                                 setModalAtividade(atv)
                               }}
                               className={`group relative text-left p-2 rounded-xl border transition-all hover:scale-[1.01] hover:shadow-xs cursor-pointer ${
@@ -702,11 +706,21 @@ export const AtividadesCalendario: React.FC<AtividadesCalendarioProps> = ({
                   return (
                     <div
                       key={atv.id}
-                      onClick={() => setModalAtividade(atv)}
+                      onClick={() => {
+                        if (atv.tipo === 'auto_leitura_rge' && onOpenAutoLeitura) {
+                          onOpenAutoLeitura(atv)
+                          return
+                        }
+                        setModalAtividade(atv)
+                      }}
                       role="button"
                       tabIndex={0}
                       onKeyDown={(e) => {
                         if (e.key === 'Enter' || e.key === ' ') {
+                          if (atv.tipo === 'auto_leitura_rge' && onOpenAutoLeitura) {
+                            onOpenAutoLeitura(atv)
+                            return
+                          }
                           setModalAtividade(atv)
                         }
                       }}
@@ -907,6 +921,10 @@ export const AtividadesCalendario: React.FC<AtividadesCalendarioProps> = ({
                             key={atv.id}
                             onClick={(e) => {
                               e.stopPropagation()
+                              if (atv.tipo === 'auto_leitura_rge' && onOpenAutoLeitura) {
+                                onOpenAutoLeitura(atv)
+                                return
+                              }
                               setModalAtividade(atv)
                             }}
                             className={`flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] truncate font-medium transition-transform hover:scale-[1.02] border ${
@@ -987,11 +1005,21 @@ export const AtividadesCalendario: React.FC<AtividadesCalendarioProps> = ({
                     return (
                       <div
                         key={atv.id}
-                        onClick={() => setModalAtividade(atv)}
+                        onClick={() => {
+                          if (atv.tipo === 'auto_leitura_rge' && onOpenAutoLeitura) {
+                            onOpenAutoLeitura(atv)
+                            return
+                          }
+                          setModalAtividade(atv)
+                        }}
                         role="button"
                         tabIndex={0}
                         onKeyDown={(e) => {
                           if (e.key === 'Enter' || e.key === ' ') {
+                            if (atv.tipo === 'auto_leitura_rge' && onOpenAutoLeitura) {
+                              onOpenAutoLeitura(atv)
+                              return
+                            }
                             setModalAtividade(atv)
                           }
                         }}
@@ -1190,7 +1218,21 @@ export const AtividadesCalendario: React.FC<AtividadesCalendarioProps> = ({
                     )}
                   </div>
 
-                  <div className="flex items-center justify-between pt-2 border-t border-gray-100">
+                  <div className="flex items-center justify-between pt-2 border-t border-gray-100 flex-wrap gap-2">
+                    {modalAtividade.tipo === 'auto_leitura_rge' && onOpenAutoLeitura && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const atv = modalAtividade
+                          setModalAtividade(null)
+                          onOpenAutoLeitura(atv)
+                        }}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-orange-600 text-white hover:bg-orange-700 transition-colors shadow-2xs"
+                      >
+                        Abrir Cronograma e Leitura RGE →
+                      </button>
+                    )}
+
                     <button
                       type="button"
                       onClick={() => {

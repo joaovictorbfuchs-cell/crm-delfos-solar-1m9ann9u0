@@ -2,10 +2,10 @@
 // Em PocketBase JSVM (goja), callbacks de cronAdd e routerAdd são isolados em VM pools distintas.
 // Logo, toda lógica de execução fica inline dentro de cada handler.
 
-// 1. Cron diário às 08:00 UTC (05:00 BRT)
-cronAdd('auto_leitura_rge_worker', '0 8 * * *', () => {
+// 1. Cron diário às 08:00 (cronAdd com 'auto_leitura_rge_cron' e '0 8 * * *')
+cronAdd('auto_leitura_rge_cron', '0 8 * * *', () => {
   console.log(
-    '[AUTO_LEITURA_RGE_CRON] Iniciando varredura diária de cronogramas de Auto Leitura...',
+    '[AUTO_LEITURA_RGE_CRON] Iniciando varredura diária de cronogramas de Auto Leitura RGE...',
   )
   try {
     const atvCol = $app.findCollectionByNameOrId('atividades')
@@ -73,6 +73,7 @@ cronAdd('auto_leitura_rge_worker', '0 8 * * *', () => {
         } catch (_) {}
       }
 
+      // No CRM Delfos Solar o WhatsApp é o número autoritativo do cliente: fallback para telefone
       let telefoneDestino = ''
       if (clienteRec) {
         telefoneDestino = (
@@ -109,6 +110,7 @@ cronAdd('auto_leitura_rge_worker', '0 8 * * *', () => {
         const dataFormatadaBr = `${String(diaP).padStart(2, '0')}/${String(mesP).padStart(2, '0')}/${anoP}`
         const tituloLembrete = `Lembrete Auto Leitura RGE - ${dataFormatadaBr}`
 
+        // Verificação sem duplicatas para a mesma data
         const lembretesExistentes = $app.findRecordsByFilter(
           atvCol.id,
           `cliente_id = '${clienteId}' && titulo = '${tituloLembrete}'`,
@@ -143,8 +145,9 @@ cronAdd('auto_leitura_rge_worker', '0 8 * * *', () => {
           $app.save(novoLembrete)
         }
 
+        // Disparar mensagem via Z-API existente 2 dias antes
         if (ehDiaDeDisparo && telefoneDestino) {
-          const refMsg = `auto_leitura_${atv.id}_${dataPrevistaStr}`
+          const refMsg = `auto_leitura_${clienteId}_${dataPrevistaStr}`
           const msgJaEnviada = $app.findRecordsByFilter(
             msgsCol.id,
             `referencia_id = '${refMsg}' && (status = 'enviada' || status = 'entregue' || status = 'lida')`,
@@ -154,12 +157,15 @@ cronAdd('auto_leitura_rge_worker', '0 8 * * *', () => {
           )
 
           if (msgJaEnviada.length === 0) {
+            // Texto EXATO da mensagem exigido pela especificação:
             const textoMensagem = `Olá, boa tarde!
 Chegou o momento da leitura do seu medidor de energia na instalação da ${nomeUsinaOuCliente}.
 Instalação consumidora: ${numeroInstalacao} Endereço: ${enderecoInstalacao}
+
 Para garantirmos o correto envio das informações à RGE, pedimos que nos encaminhe um vídeo ou fotos do medidor, onde apareçam claramente as seguintes grandezas:
 • 03 – Energia consumida (kWh)
 • 103 – Energia injetada (kWh)
+
 Após o envio das imagens, pedimos também que nos informe por escrito os valores das grandezas 03 e 103, para conferência e validação dos dados antes do envio à RGE.`
 
             const novaMsg = new Record(msgsCol)

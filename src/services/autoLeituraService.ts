@@ -30,6 +30,58 @@ export interface SalvarAutoLeituraParams {
 }
 
 /**
+ * Validação dos 3 requisitos de conclusão da Auto Leitura - RGE:
+ * (1) fotos ou vídeo do medidor enviados
+ * (2) valores das grandezas 03 e 103 informados
+ * (3) protocolo na RGE realizado
+ */
+export function validarRequisitosConclusao(dados?: Partial<AutoLeituraDadosConclusao> | null): {
+  valido: boolean
+  erros: string[]
+} {
+  const erros: string[] = []
+  if (!dados?.fotosEnviadas) {
+    erros.push('Envio das fotos ou vídeo do medidor é obrigatório.')
+  }
+  if (!dados?.valoresInformados) {
+    erros.push('Confirmação por escrito dos valores das grandezas 03 e 103 é obrigatória.')
+  }
+  if (!dados?.protocoloRealizado) {
+    erros.push('Realização e registro do protocolo na RGE é obrigatório.')
+  }
+  return {
+    valido: erros.length === 0,
+    erros,
+  }
+}
+
+/**
+ * Adiciona, atualiza ou remove uma data do cronograma de uma atividade
+ */
+export async function atualizarDatasCronograma(
+  atividadeId: string,
+  atualizador: (datasAtuais: CronogramaDataItem[]) => CronogramaDataItem[],
+): Promise<Atividade> {
+  const atividade = await pb.collection('atividades').getOne<Atividade>(atividadeId)
+  let datas: CronogramaDataItem[] = []
+  if (Array.isArray(atividade.cronograma_datas)) {
+    datas = atividade.cronograma_datas as CronogramaDataItem[]
+  } else if (typeof atividade.cronograma_datas === 'string') {
+    try {
+      datas = JSON.parse(atividade.cronograma_datas)
+    } catch {
+      datas = []
+    }
+  }
+
+  const novasDatas = atualizador(datas)
+  return await salvarAtividadeAutoLeitura({
+    atividadeId,
+    cronogramaDatas: novasDatas,
+  })
+}
+
+/**
  * Salva as alterações da atividade Auto Leitura - RGE no PocketBase
  */
 export async function salvarAtividadeAutoLeitura(

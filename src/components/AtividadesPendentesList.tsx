@@ -197,7 +197,14 @@ export const AtividadesPendentesList: React.FC<AtividadesPendentesListProps> = (
             return (
               <div
                 key={atv.id}
+                onClick={() => {
+                  if (atv.tipo === 'auto_leitura_rge' && onOpenAutoLeitura) {
+                    onOpenAutoLeitura(atv)
+                  }
+                }}
                 className={`p-3.5 rounded-xl border transition-all space-y-2.5 ${
+                  atv.tipo === 'auto_leitura_rge' ? 'cursor-pointer hover:border-orange-400' : ''
+                } ${
                   isConcluida
                     ? 'border-gray-200 bg-gray-50/60 opacity-80'
                     : isOverdue
@@ -205,12 +212,20 @@ export const AtividadesPendentesList: React.FC<AtividadesPendentesListProps> = (
                       : 'border-gray-200 bg-white shadow-2xs hover:border-emerald-300'
                 }`}
               >
+                {' '}
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-start gap-2.5 flex-1 min-w-0">
                     {/* Botão de marcar status */}
                     <button
                       type="button"
-                      onClick={() => onToggleStatus(atv.id, atv.status || 'pendente')}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        if (atv.tipo === 'auto_leitura_rge' && onOpenAutoLeitura && !isConcluida) {
+                          onOpenAutoLeitura(atv)
+                        } else {
+                          onToggleStatus(atv.id, atv.status || 'pendente')
+                        }
+                      }}
                       className="mt-0.5 text-gray-400 hover:text-emerald-600 transition-colors shrink-0"
                       title={isConcluida ? 'Marcar como pendente' : 'Marcar como concluída'}
                     >
@@ -254,10 +269,27 @@ export const AtividadesPendentesList: React.FC<AtividadesPendentesListProps> = (
                           {atv.descricao}
                         </p>
                       )}
+
+                      {atv.tipo === 'auto_leitura_rge' && onOpenAutoLeitura && (
+                        <div className="mt-2 pt-1.5 border-t border-orange-100 flex items-center justify-between">
+                          <span className="text-[10px] text-orange-800 bg-orange-50 font-semibold px-2 py-0.5 rounded border border-orange-200">
+                            Cronograma & Leitura RGE
+                          </span>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              onOpenAutoLeitura(atv)
+                            }}
+                            className="text-[11px] font-bold text-orange-700 hover:text-orange-900 hover:underline"
+                          >
+                            Abrir Cronograma e Requisitos →
+                          </button>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
-
                 {/* Rodapé do card: Cliente vinculado e Usuário Responsável */}
                 <div className="flex items-center justify-between pt-2 border-t border-gray-100 text-[11px] text-gray-600">
                   <div className="flex items-center gap-1.5 truncate">

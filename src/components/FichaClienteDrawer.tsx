@@ -64,6 +64,7 @@ import { ModalTransferenciaCreditos } from './ModalTransferenciaCreditos'
 import { ModalGerenciarAtividades } from './ModalGerenciarAtividades'
 import { ModalGerarProcuracaoOM } from './ModalGerarProcuracaoOM'
 import { ModalGerarContratoOM } from './ModalGerarContratoOM'
+import { ModalAutoLeituraRGE } from './ModalAutoLeituraRGE'
 import { ModalSolicitacaoInformacoes } from './ModalSolicitacaoInformacoes'
 import { ModalMarcarGanho } from './ModalMarcarGanho'
 import { ModalMarcarPerdido } from './ModalMarcarPerdido'
@@ -239,6 +240,7 @@ export const FichaClienteDrawer: React.FC = () => {
 
   // Estado para Modal de Detalhes / Edição Inline da Linha do Tempo Unificada
   const [timelineItemDetalhes, setTimelineItemDetalhes] = useState<TimelineUnifiedItem | null>(null)
+  const [autoLeituraModalAtividade, setAutoLeituraModalAtividade] = useState<Atividade | null>(null)
 
   // Drawer / Modal de Atividades de Manutenção do Cliente
   const [drawerAtividadesManutencaoOpen, setDrawerAtividadesManutencaoOpen] = useState(false)
@@ -3612,7 +3614,13 @@ export const FichaClienteDrawer: React.FC = () => {
                     atividades={atividades}
                     orcamentosSolar={orcamentosSolar}
                     propostasOM={propostasOM}
-                    onItemClick={(item) => setTimelineItemDetalhes(item)}
+                    onItemClick={(item) => {
+                      if (item.rawAtividade?.tipo === 'auto_leitura_rge') {
+                        setAutoLeituraModalAtividade(item.rawAtividade)
+                        return
+                      }
+                      setTimelineItemDetalhes(item)
+                    }}
                     onToggleAtividadeStatus={async (id, current) => {
                       const next = current === 'concluida' ? 'pendente' : 'concluida'
                       await updateAtividadeStatus(id, next as any)
@@ -3940,6 +3948,16 @@ export const FichaClienteDrawer: React.FC = () => {
         }}
         initialClienteId={selectedCliente?.id}
         initialOrcamento={orcamentoSolarVisualizar}
+      />
+
+      {/* Modal Auto Leitura - RGE quando clicado em atividade desse tipo */}
+      <ModalAutoLeituraRGE
+        isOpen={Boolean(autoLeituraModalAtividade)}
+        onClose={() => setAutoLeituraModalAtividade(null)}
+        atividade={autoLeituraModalAtividade}
+        onUpdated={() => {
+          recarregarUsinas()
+        }}
       />
 
       {/* Modal Detalhes e Edição Inline da Linha do Tempo Unificada */}
