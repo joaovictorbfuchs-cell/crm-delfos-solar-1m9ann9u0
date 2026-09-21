@@ -6,6 +6,7 @@ import {
   FolderKanban,
   CalendarCheck,
   ClipboardCheck,
+  ShieldCheck,
   Wrench,
   Users,
   UserCog,
@@ -106,6 +107,8 @@ export default function Layout() {
         return 'O&M / Pós-vendas'
       case '/manutencoes':
         return 'Contratos & Manutenções (O&M)'
+      case '/ordens-servico':
+        return 'Ordens de Serviço'
       case '/central-atendimento':
         return 'Central de Atendimento WhatsApp'
       case '/clientes':
@@ -173,6 +176,11 @@ export default function Layout() {
         {
           name: 'O&M / Manutenções',
           path: '/manutencoes',
+          icon: ShieldCheck,
+        },
+        {
+          name: 'Ordens de Serviço',
+          path: '/ordens-servico',
           icon: Wrench,
         },
         { name: 'Clientes', path: '/clientes', icon: Users },

@@ -432,22 +432,22 @@ export const ListaOM: React.FC<ListaOMProps> = ({
   return (
     <div className="space-y-4">
       {/* Navegação por Sub-Abas Compactas de 2º Nível: Planos O&M vs Clientes Pós-Vendas + Cards Compactos de Métricas */}
-      <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3 bg-white p-2.5 sm:p-3 rounded-2xl border border-gray-200/80 shadow-2xs">
-        {/* Seletor de sub-abas à esquerda */}
-        <div className="bg-gray-100 p-1 rounded-xl flex items-center text-xs font-semibold text-gray-600 self-start sm:self-auto shrink-0">
+      <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-2.5 bg-white p-2 sm:p-2.5 rounded-2xl border border-gray-200/80 shadow-2xs">
+        {/* Seletor de sub-abas compacto à esquerda */}
+        <div className="bg-gray-100 p-1 rounded-xl flex items-center text-xs font-semibold text-gray-600 self-stretch sm:self-start lg:self-auto shrink-0">
           <button
             type="button"
             onClick={() => handleSubTabClick('com_plano')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all ${
+            className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg transition-all ${
               currentSubTab === 'com_plano'
                 ? 'bg-white text-emerald-800 shadow-xs font-bold border border-gray-200/80'
                 : 'hover:text-gray-900'
             }`}
           >
-            <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+            <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
             <span>Planos O&M</span>
             <span
-              className={`ml-1 px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
+              className={`ml-0.5 px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
                 currentSubTab === 'com_plano'
                   ? 'bg-emerald-100 text-emerald-800'
                   : 'bg-gray-200 text-gray-600'
@@ -459,16 +459,16 @@ export const ListaOM: React.FC<ListaOMProps> = ({
           <button
             type="button"
             onClick={() => handleSubTabClick('pos_vendas')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all ${
+            className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg transition-all ${
               currentSubTab === 'pos_vendas'
                 ? 'bg-white text-emerald-800 shadow-xs font-bold border border-gray-200/80'
                 : 'hover:text-gray-900'
             }`}
           >
-            <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+            <Sparkles className="w-3.5 h-3.5 text-amber-600 shrink-0" />
             <span>Clientes Pós-Vendas</span>
             <span
-              className={`ml-1 px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
+              className={`ml-0.5 px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
                 currentSubTab === 'pos_vendas'
                   ? 'bg-amber-100 text-amber-800'
                   : 'bg-gray-200 text-gray-600'
@@ -480,7 +480,7 @@ export const ListaOM: React.FC<ListaOMProps> = ({
         </div>
 
         {/* Lado direito: Cards de Métricas e Botão Filtros (extrema direita) */}
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-2 sm:gap-2.5 self-stretch lg:self-auto">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-2 self-stretch lg:self-auto">
           {metricCards && (
             <div className="flex items-center self-stretch sm:self-auto justify-end">
               {metricCards}
@@ -494,16 +494,16 @@ export const ListaOM: React.FC<ListaOMProps> = ({
               onClick={handleTogglePainelFiltrosOM}
               aria-expanded={painelFiltrosOMOpen}
               title={painelFiltrosOMOpen ? 'Recolher filtros' : 'Expandir filtros'}
-              className={`inline-flex items-center justify-center gap-1.5 px-3.5 py-2 sm:py-2.5 rounded-xl text-xs font-bold border transition-all h-10 sm:h-[62px] shrink-0 select-none ${
+              className={`inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border transition-all h-9 sm:h-[50px] shrink-0 select-none ${
                 painelFiltrosOMOpen
                   ? 'bg-emerald-50 border-emerald-300 text-emerald-900 shadow-2xs ring-2 ring-emerald-500/20'
                   : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50 hover:border-gray-300'
               }`}
             >
-              <Filter className="w-4 h-4 text-emerald-600" />
+              <Filter className="w-3.5 h-3.5 text-emerald-600" />
               <span>Filtros</span>
               {filtrosInfoOM.totalFiltrosAtivos > 0 && (
-                <span className="w-5 h-5 rounded-full bg-emerald-600 text-white text-[10px] font-black inline-flex items-center justify-center">
+                <span className="w-4 h-4 rounded-full bg-emerald-600 text-white text-[10px] font-black inline-flex items-center justify-center">
                   {filtrosInfoOM.totalFiltrosAtivos}
                 </span>
               )}

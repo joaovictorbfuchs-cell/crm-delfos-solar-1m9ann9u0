@@ -12,6 +12,7 @@ import Index from './pages/Index'
 import Comercial from './pages/Comercial'
 import Projetos from './pages/Projetos'
 import Manutencoes from './pages/Manutencoes'
+import OrdensServico from './pages/OrdensServico'
 import Clientes from './pages/Clientes'
 import ClientesPosVendas from './pages/ClientesPosVendas'
 import Fornecedores from './pages/Fornecedores'
@@ -140,6 +141,14 @@ const App = () => (
               element={
                 <ProtectedRoute requiredRole="admin">
                   <Manutencoes />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/ordens-servico"
+              element={
+                <ProtectedRoute requiredRole="admin">
+                  <OrdensServico />
                 </ProtectedRoute>
               }
             />
