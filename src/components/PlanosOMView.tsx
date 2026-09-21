@@ -25,6 +25,7 @@ import { toast } from 'sonner'
 
 export interface FiltrosPlanosOMState {
   busca: string
+  planoTipo: 'todos' | 'Essencial' | 'Prevenção' | 'Completo' | string
   proximaAtividade: 'todos' | 'hoje' | 'esta_semana' | 'este_mes' | 'atrasadas' | 'sem_atividade'
   tiposAtividade: string[] // 'Lavagem', 'Inspeção', 'Troca de componente', 'Auto leitura', 'Relatório de performance', 'Visita técnica'
   tempoUltimaAtividade: 'todos' | 'menos_30' | '30_60' | '60_90' | 'mais_90'
@@ -36,6 +37,7 @@ export interface FiltrosPlanosOMState {
 
 const FILTROS_INICIAIS: FiltrosPlanosOMState = {
   busca: '',
+  planoTipo: 'todos',
   proximaAtividade: 'todos',
   tiposAtividade: [],
   tempoUltimaAtividade: 'todos',
@@ -83,7 +85,7 @@ export const PlanosOMView: React.FC<PlanosOMViewProps> = ({
   const [painelAberto, setPainelAberto] = useState(false)
   // Ordenação
   const [ordenacao, setOrdenacao] = useState<
-    'proxima_atividade' | 'nome' | 'potencia' | 'vencimento' | 'performance'
+    'proxima_atividade' | 'nome' | 'potencia' | 'valor' | 'vencimento' | 'performance'
   >('proxima_atividade')
 
   // Modais de Ação rápida
@@ -113,6 +115,8 @@ export const PlanosOMView: React.FC<PlanosOMViewProps> = ({
       contrato: ContratoOM
       cliente: Cliente
       sistema?: any
+      plano: string
+      valorMensal: number
       potenciaKwp: number
       qtdModulos: number
       areaTelhado: number
@@ -270,10 +274,15 @@ export const PlanosOMView: React.FC<PlanosOMViewProps> = ({
         !cliente?.monitoramento_usuario ||
         cliente.monitoramento_usuario === ''
 
+      const plano = contrato.plano || 'Essencial'
+      const valorMensal = Number(contrato.valor_mensal) || 0
+
       list.push({
         contrato,
         cliente,
         sistema,
+        plano,
+        valorMensal,
         potenciaKwp,
         qtdModulos,
         areaTelhado,
@@ -303,6 +312,7 @@ export const PlanosOMView: React.FC<PlanosOMViewProps> = ({
   const totalFiltrosAtivos = useMemo(() => {
     let count = 0
     if (filtrosAtivos.busca.trim()) count++
+    if (filtrosAtivos.planoTipo !== 'todos') count++
     if (filtrosAtivos.proximaAtividade !== 'todos') count++
     if (filtrosAtivos.tiposAtividade.length > 0) count++
     if (filtrosAtivos.tempoUltimaAtividade !== 'todos') count++
@@ -323,6 +333,13 @@ export const PlanosOMView: React.FC<PlanosOMViewProps> = ({
           const cidade = (item.cliente.cidade || '').toLowerCase()
           const contratoNum = (item.contrato.numero_contrato || '').toLowerCase()
           if (!nome.includes(termo) && !cidade.includes(termo) && !contratoNum.includes(termo)) {
+            return false
+          }
+        }
+
+        // 1.1 Filtro por Tipo de Plano (Essencial, Prevenção, Completo)
+        if (filtrosAtivos.planoTipo !== 'todos') {
+          if (item.plano?.toLowerCase() !== filtrosAtivos.planoTipo.toLowerCase()) {
             return false
           }
         }
@@ -385,6 +402,9 @@ export const PlanosOMView: React.FC<PlanosOMViewProps> = ({
         }
         if (ordenacao === 'potencia') {
           return b.potenciaKwp - a.potenciaKwp
+        }
+        if (ordenacao === 'valor') {
+          return b.valorMensal - a.valorMensal
         }
         if (ordenacao === 'vencimento') {
           const tA = new Date(a.contrato.data_vencimento || '').getTime() || 0
@@ -542,9 +562,10 @@ export const PlanosOMView: React.FC<PlanosOMViewProps> = ({
               onChange={(e) => setOrdenacao(e.target.value as any)}
               className="text-xs py-2 px-2.5 rounded-xl border border-gray-200 bg-white font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-emerald-500"
             >
-              <option value="proxima_atividade">Próxima Atividade</option>
-              <option value="nome">Nome do Cliente (A-Z)</option>
-              <option value="potencia">Maior Potência (kWp)</option>
+              <option value="proxima_atividade">Próxima visita agendada</option>
+              <option value="nome">Nome do cliente (A-Z)</option>
+              <option value="potencia">Maior potência (kWp)</option>
+              <option value="valor">Maior valor mensal (R$)</option>
               <option value="vencimento">Vencimento do Plano</option>
               <option value="performance">Atenção na Performance</option>
             </select>
@@ -581,7 +602,29 @@ export const PlanosOMView: React.FC<PlanosOMViewProps> = ({
             onSubmit={handleAplicarFiltros}
             className="pt-3 border-t border-gray-100 space-y-3.5 animate-in fade-in duration-200"
           >
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
+              {/* 0. Filtro por Tipo de Plano O&M (Essencial / Prevenção / Completo) */}
+              <div>
+                <label className="block text-[11px] font-bold text-gray-700 uppercase tracking-wider mb-1">
+                  Plano O&M
+                </label>
+                <select
+                  value={formFiltros.planoTipo}
+                  onChange={(e) =>
+                    setFormFiltros((prev) => ({
+                      ...prev,
+                      planoTipo: e.target.value as any,
+                    }))
+                  }
+                  className="w-full text-xs py-2 px-2.5 rounded-lg border border-gray-200 bg-white text-gray-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-medium"
+                >
+                  <option value="todos">Todos os Planos</option>
+                  <option value="Essencial">Essencial</option>
+                  <option value="Prevenção">Prevenção</option>
+                  <option value="Completo">Completo</option>
+                </select>
+              </div>
+
               {/* 1. Próxima atividade agendada: dropdown (Hoje, Esta semana, Este mês, Atrasadas, Sem atividade agendada) */}
               <div>
                 <label className="block text-[11px] font-bold text-gray-700 uppercase tracking-wider mb-1">
@@ -775,6 +818,18 @@ export const PlanosOMView: React.FC<PlanosOMViewProps> = ({
                         type="button"
                         onClick={() => handleRemoverTagFiltro('busca')}
                         className="hover:text-emerald-950 font-bold ml-0.5"
+                      >
+                        ×
+                      </button>
+                    </span>
+                  )}
+                  {filtrosAtivos.planoTipo !== 'todos' && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-purple-50 text-purple-800 border border-purple-200">
+                      Plano: {filtrosAtivos.planoTipo}
+                      <button
+                        type="button"
+                        onClick={() => handleRemoverTagFiltro('planoTipo')}
+                        className="hover:text-purple-950 font-bold ml-0.5"
                       >
                         ×
                       </button>

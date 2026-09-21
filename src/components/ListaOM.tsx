@@ -105,7 +105,6 @@ export const ListaOM: React.FC<ListaOMProps> = ({
   }
 
   const [busca, setBusca] = useState('')
-  const [filtroPlano, setFiltroPlano] = useState<string>('todos')
   const [filtroPosVendas, setFiltroPosVendas] = useState<
     'todos' | 'oportunidades' | 'servico_avulso' | 'sem_plano' | 'projetos' | 'om'
   >('todos')
@@ -329,8 +328,7 @@ export const ListaOM: React.FC<ListaOMProps> = ({
           nomeCliente.toLowerCase().includes(busca.toLowerCase()) ||
           cidadeCliente.toLowerCase().includes(busca.toLowerCase()) ||
           numContrato.toLowerCase().includes(busca.toLowerCase())
-        const matchPlano = filtroPlano === 'todos' || item.plano === filtroPlano
-        return matchBusca && matchPlano
+        return matchBusca
       })
       .sort((a, b) => {
         const nomeA = a.cliente?.nome || ''
@@ -345,7 +343,7 @@ export const ListaOM: React.FC<ListaOMProps> = ({
         }
         return 0
       })
-  }, [clientesComPlano, busca, filtroPlano, ordenacao])
+  }, [clientesComPlano, busca, ordenacao])
 
   // Função auxiliar para verificar se o cliente foi transferido do funil há 7 dias ou menos
   const isVindoDoFunilRecente = (cliente: Cliente): boolean => {
@@ -595,97 +593,59 @@ export const ListaOM: React.FC<ListaOMProps> = ({
         </div>
       </div>
 
-      {/* Barra de Filtros e Busca */}
-      <div className="bg-white rounded-xl border border-gray-200/90 p-4 shadow-xs flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
-        {/* Campo Busca */}
-        <div className="relative flex-1 min-w-[220px]">
-          <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
-          <input
-            type="text"
-            value={busca}
-            onChange={(e) => setBusca(e.target.value)}
-            placeholder={
-              currentSubTab === 'com_plano'
-                ? 'Buscar por cliente com plano ou cidade...'
-                : 'Buscar clientes pós-vendas por nome ou cidade...'
-            }
-            className="w-full pl-9 pr-3 py-2 text-xs rounded-lg border border-gray-300 focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500"
-          />
+      {/* Barra de Filtros e Busca (Apenas para sub-aba pós-vendas) */}
+      {currentSubTab === 'pos_vendas' && (
+        <div className="bg-white rounded-xl border border-gray-200/90 p-4 shadow-xs flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
+          {/* Campo Busca */}
+          <div className="relative flex-1 min-w-[220px]">
+            <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              value={busca}
+              onChange={(e) => setBusca(e.target.value)}
+              placeholder="Buscar clientes pós-vendas por nome ou cidade..."
+              className="w-full pl-9 pr-3 py-2 text-xs rounded-lg border border-gray-300 focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500"
+            />
+          </div>
+
+          {/* Filtros específicos de Pós-Vendas */}
+          <div className="flex items-center gap-2 flex-wrap text-xs">
+            {/* Filtro Pós-Vendas */}
+            <div className="flex items-center gap-1.5">
+              <span className="text-gray-500 font-medium hidden sm:inline">Filtrar por:</span>
+              <select
+                value={filtroPosVendas}
+                onChange={(e) => setFiltroPosVendas(e.target.value as any)}
+                className="px-2.5 py-2 rounded-lg border border-gray-300 bg-white font-medium text-gray-700 text-xs"
+              >
+                <option value="todos">Todos os Clientes Pós-Vendas ({countPosVendas})</option>
+                <option value="projetos">📁 Área Projetos (Levantamento de Informações)</option>
+                <option value="om">🔧 Área O&M (Planos de Manutenção)</option>
+                <option value="oportunidades">
+                  ⭐ Oportunidades de O&M (Solar instalado) ({countOportunidadesOM})
+                </option>
+                <option value="sem_plano">Clientes sem plano ativo ({countSemPlano})</option>
+                <option value="servico_avulso">
+                  Com serviço avulso realizado ({countComServicoAvulso})
+                </option>
+              </select>
+            </div>
+
+            {/* Ordenar */}
+            <div className="flex items-center gap-1.5">
+              <span className="text-gray-500 font-medium hidden sm:inline">Ordenar:</span>
+              <select
+                value={ordenacao}
+                onChange={(e) => setOrdenacao(e.target.value as any)}
+                className="px-2.5 py-2 rounded-lg border border-gray-300 bg-white font-medium text-gray-700 text-xs"
+              >
+                <option value="nome">Nome do cliente (A-Z)</option>
+                <option value="potencia">Maior potência instalada (kWp)</option>
+              </select>
+            </div>
+          </div>
         </div>
-
-        {/* Filtros específicos da sub-aba ativa */}
-        <div className="flex items-center gap-2 flex-wrap text-xs">
-          {currentSubTab === 'com_plano' ? (
-            <>
-              {/* Filtro Plano */}
-              <div className="flex items-center gap-1.5">
-                <span className="text-gray-500 font-medium hidden sm:inline">Plano:</span>
-                <select
-                  value={filtroPlano}
-                  onChange={(e) => setFiltroPlano(e.target.value)}
-                  className="px-2.5 py-2 rounded-lg border border-gray-300 bg-white font-medium text-gray-700 text-xs"
-                >
-                  <option value="todos">Todos os Planos</option>
-                  <option value="Essencial">Essencial</option>
-                  <option value="Prevenção">Prevenção</option>
-                  <option value="Completo">Completo</option>
-                </select>
-              </div>
-
-              {/* Ordenar */}
-              <div className="flex items-center gap-1.5">
-                <span className="text-gray-500 font-medium hidden sm:inline">Ordenar:</span>
-                <select
-                  value={ordenacao}
-                  onChange={(e) => setOrdenacao(e.target.value as any)}
-                  className="px-2.5 py-2 rounded-lg border border-gray-300 bg-white font-medium text-gray-700 text-xs"
-                >
-                  <option value="nome">Nome do cliente (A-Z)</option>
-                  <option value="potencia">Maior potência (kWp)</option>
-                  <option value="valor">Maior valor mensal (R$)</option>
-                  <option value="proxima_visita">Próxima visita agendada</option>
-                </select>
-              </div>
-            </>
-          ) : (
-            <>
-              {/* Filtro Pós-Vendas */}
-              <div className="flex items-center gap-1.5">
-                <span className="text-gray-500 font-medium hidden sm:inline">Filtrar por:</span>
-                <select
-                  value={filtroPosVendas}
-                  onChange={(e) => setFiltroPosVendas(e.target.value as any)}
-                  className="px-2.5 py-2 rounded-lg border border-gray-300 bg-white font-medium text-gray-700 text-xs"
-                >
-                  <option value="todos">Todos os Clientes Pós-Vendas ({countPosVendas})</option>
-                  <option value="projetos">📁 Área Projetos (Levantamento de Informações)</option>
-                  <option value="om">🔧 Área O&M (Planos de Manutenção)</option>
-                  <option value="oportunidades">
-                    ⭐ Oportunidades de O&M (Solar instalado) ({countOportunidadesOM})
-                  </option>
-                  <option value="sem_plano">Clientes sem plano ativo ({countSemPlano})</option>
-                  <option value="servico_avulso">
-                    Com serviço avulso realizado ({countComServicoAvulso})
-                  </option>
-                </select>
-              </div>
-
-              {/* Ordenar */}
-              <div className="flex items-center gap-1.5">
-                <span className="text-gray-500 font-medium hidden sm:inline">Ordenar:</span>
-                <select
-                  value={ordenacao}
-                  onChange={(e) => setOrdenacao(e.target.value as any)}
-                  className="px-2.5 py-2 rounded-lg border border-gray-300 bg-white font-medium text-gray-700 text-xs"
-                >
-                  <option value="nome">Nome do cliente (A-Z)</option>
-                  <option value="potencia">Maior potência instalada (kWp)</option>
-                </select>
-              </div>
-            </>
-          )}
-        </div>
-      </div>
+      )}
 
       {/* ========================================================================= */}
       {/* LISTA 1: CLIENTES COM PLANO DE MANUTENÇÃO (PLANOS O&M COM FILTROS AVANÇADOS) */}
