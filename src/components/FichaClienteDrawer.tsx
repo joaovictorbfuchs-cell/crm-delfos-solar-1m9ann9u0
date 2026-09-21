@@ -80,6 +80,16 @@ import {
   updateUsina,
   deleteUsina,
 } from '@/services/crmService'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import type { UsinaCliente } from '@/types/crm'
 import { toast } from 'sonner'
 import type {
@@ -98,6 +108,7 @@ import {
   Loader2,
   CheckCircle2,
   ClipboardList,
+  Trash2,
 } from 'lucide-react'
 import { formatarCNPJ } from '@/lib/orcamentoParser'
 import { formatarCPF } from '@/lib/cpfValidator'
@@ -194,7 +205,12 @@ export const FichaClienteDrawer: React.FC = () => {
     marcarComoPerdido,
     reabrirOportunidade,
     usuarios,
+    removeCliente,
   } = useClientes()
+
+  // Modal e estado para Excluir Cliente
+  const [modalExcluirClienteOpen, setModalExcluirClienteOpen] = useState(false)
+  const [isDeletingCliente, setIsDeletingCliente] = useState(false)
 
   // Modais de Ganho / Perdido / Nova Oportunidade (Reabertura)
   const [modalGanhoOpen, setModalGanhoOpen] = useState(false)
@@ -463,6 +479,23 @@ export const FichaClienteDrawer: React.FC = () => {
   // Handler para acionar o fluxo Gerar Contrato O&M
   const handleDispararGerarContrato = () => {
     setModalContratoOMOpen(true)
+  }
+
+  // Handler para Exclusão Permanente do Cliente
+  const handleConfirmExcluirCliente = async () => {
+    if (!selectedCliente) return
+    const nomeCliente = selectedCliente.nome
+    setIsDeletingCliente(true)
+    try {
+      await removeCliente(selectedCliente.id)
+      toast.success(`Cliente "${nomeCliente}" excluído permanentemente com sucesso.`)
+      setModalExcluirClienteOpen(false)
+    } catch (err) {
+      console.error('Erro ao excluir cliente:', err)
+      toast.error('Erro ao excluir cliente. Tente novamente.')
+    } finally {
+      setIsDeletingCliente(false)
+    }
   }
 
   // Documentos cadastrados/enviados do cliente selecionado
@@ -3861,6 +3894,19 @@ export const FichaClienteDrawer: React.FC = () => {
                 ordem cronológica na timeline à esquerda.
               </p>
             </div>
+
+            {/* Zona de Perigo / Excluir Cliente (Discreto para evitar cliques acidentais) */}
+            <div className="pt-2 border-t border-gray-200/70">
+              <button
+                type="button"
+                onClick={() => setModalExcluirClienteOpen(true)}
+                className="w-full flex items-center justify-center gap-2 px-3 py-2 text-xs font-semibold text-rose-600 hover:text-rose-700 bg-transparent hover:bg-rose-50 border border-transparent hover:border-rose-200 rounded-xl transition-all"
+                title="Excluir cliente e dados vinculados definitivamente"
+              >
+                <Trash2 className="w-3.5 h-3.5 shrink-0" />
+                <span>Excluir cliente</span>
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -4421,6 +4467,55 @@ export const FichaClienteDrawer: React.FC = () => {
             }
           }}
         />
+      )}
+
+      {/* Modal Confirmação de Exclusão Permanente de Cliente */}
+      {selectedCliente && (
+        <AlertDialog
+          open={modalExcluirClienteOpen}
+          onOpenChange={(open) => {
+            if (!isDeletingCliente) setModalExcluirClienteOpen(open)
+          }}
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle className="text-rose-600 flex items-center gap-2">
+                <Trash2 className="w-5 h-5 text-rose-600" />
+                Confirmar Exclusão do Cliente
+              </AlertDialogTitle>
+              <AlertDialogDescription>
+                Tem certeza que deseja excluir permanentemente o cliente{' '}
+                <strong className="text-gray-900 font-semibold">{selectedCliente.nome}</strong>?
+                <br />
+                <br />
+                Esta ação é{' '}
+                <span className="text-rose-600 font-bold">definitiva e irreversível</span>. Todos os
+                dados vinculados a este cliente (atividades, propostas, orçamentos, contratos,
+                manutenções, projetos e histórico) serão removidos permanentemente.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={isDeletingCliente}>Cancelar</AlertDialogCancel>
+              <AlertDialogAction
+                disabled={isDeletingCliente}
+                onClick={async (e) => {
+                  e.preventDefault()
+                  await handleConfirmExcluirCliente()
+                }}
+                className="bg-rose-600 hover:bg-rose-700 active:bg-rose-800 text-white font-bold"
+              >
+                {isDeletingCliente ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                    Excluindo cliente...
+                  </>
+                ) : (
+                  'Sim, Excluir Cliente'
+                )}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       )}
 
       {/* Modal Gerar Contrato O&M a partir da Linha do Tempo / Histórico */}

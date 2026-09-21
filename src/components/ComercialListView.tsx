@@ -18,6 +18,8 @@ import {
   Users,
   Wrench,
   ShieldCheck,
+  Trash2,
+  Loader2,
 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import type { Cliente, ClienteStatus, SistemaUsuario } from '@/types/crm'
@@ -71,6 +73,7 @@ export const ComercialListView: React.FC<ComercialListViewProps> = ({
     bulkMarcarFechado,
     bulkTransferirFechadosPosVendas,
     bulkArquivar,
+    bulkRemoveClientes,
   } = useClientes()
 
   const [busca, setBusca] = useState('')
@@ -87,6 +90,7 @@ export const ComercialListView: React.FC<ComercialListViewProps> = ({
   const [modalConfirmarArquivarOpen, setModalConfirmarArquivarOpen] = useState(false)
   const [modalTransferirPosVendasOpen, setModalTransferirPosVendasOpen] = useState(false)
   const [destinoPosVendas, setDestinoPosVendas] = useState<'projetos' | 'manutencoes'>('projetos')
+  const [modalConfirmarExcluirLoteOpen, setModalConfirmarExcluirLoteOpen] = useState(false)
 
   // Excluir registros já arquivados e negócios já transferidos para Pós-Vendas
   const clientesAtivos = useMemo(() => {
@@ -256,6 +260,31 @@ export const ComercialListView: React.FC<ComercialListViewProps> = ({
   // 6. Ir para Aba de Clientes
   const handleIrParaClientes = () => {
     navigate('/clientes')
+  }
+
+  // 7. Excluir Selecionados em Lote
+  const handleConfirmExcluirLote = async () => {
+    if (selectedIds.length === 0) return
+    const count = selectedIds.length
+    setIsProcessing(true)
+    try {
+      await bulkRemoveClientes(selectedIds)
+      toast({
+        title: 'Clientes excluídos',
+        description: `${count} cliente${count > 1 ? 's' : ''} excluído${count > 1 ? 's' : ''} permanentemente com sucesso.`,
+      })
+      setSelectedIds([])
+      setModalConfirmarExcluirLoteOpen(false)
+    } catch (err) {
+      console.error('Erro ao excluir clientes em lote:', err)
+      toast({
+        title: 'Erro ao excluir clientes',
+        description: 'Ocorreu um erro ao excluir os clientes selecionados.',
+        variant: 'destructive',
+      })
+    } finally {
+      setIsProcessing(false)
+    }
   }
 
   // Cálculos para resumo no topo da lista
@@ -549,10 +578,24 @@ export const ComercialListView: React.FC<ComercialListViewProps> = ({
               size="sm"
               variant="outline"
               onClick={() => setModalConfirmarArquivarOpen(true)}
-              className="bg-gray-800 hover:bg-rose-900/40 text-rose-300 border-rose-700/60 hover:border-rose-600 text-xs gap-1.5 h-8 px-2.5"
+              className="bg-gray-800 hover:bg-amber-900/40 text-amber-300 border-amber-700/60 hover:border-amber-600 text-xs gap-1.5 h-8 px-2.5"
             >
               <Archive className="w-3.5 h-3.5" />
               <span>Arquivar</span>
+            </Button>
+
+            {/* 5. Excluir Selecionados (Destrutivo) */}
+            <Button
+              type="button"
+              size="sm"
+              variant="destructive"
+              onClick={() => setModalConfirmarExcluirLoteOpen(true)}
+              disabled={isProcessing}
+              className="bg-rose-600 hover:bg-rose-700 active:bg-rose-800 text-white text-xs gap-1.5 h-8 px-2.5 font-semibold shadow-xs"
+              title="Excluir permanentemente todos os clientes selecionados"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              <span>Excluir ({selectedIds.length})</span>
             </Button>
 
             {/* Botão fechar seleção (desktop) */}
@@ -735,6 +778,71 @@ export const ComercialListView: React.FC<ComercialListViewProps> = ({
               className="bg-rose-600 hover:bg-rose-700 text-white"
             >
               {isProcessing ? 'Arquivando...' : 'Sim, Arquivar Negócios'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal 5: Confirmar Exclusão em Lote */}
+      <Dialog
+        open={modalConfirmarExcluirLoteOpen}
+        onOpenChange={(open) => {
+          if (!isProcessing) setModalConfirmarExcluirLoteOpen(open)
+        }}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-rose-600">
+              <Trash2 className="w-5 h-5 text-rose-600" />
+              Excluir permanentemente {selectedIds.length} cliente(s)?
+            </DialogTitle>
+            <DialogDescription>
+              Você está prestes a excluir definitivamente{' '}
+              <strong className="text-gray-900 font-semibold">
+                {selectedIds.length} cliente{selectedIds.length > 1 ? 's' : ''}
+              </strong>{' '}
+              do funil de vendas. Esta ação é irreversível e removerá também todos os dados e
+              registros vinculados (orçamentos, propostas, atividades e documentos).
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="py-2.5 text-xs text-rose-800 bg-rose-50 p-3 rounded-lg border border-rose-200 flex items-start gap-2">
+            <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+            <div>
+              <p className="font-semibold">Atenção: Ação permanente (sem lixeira)</p>
+              <p className="mt-0.5 text-rose-700">
+                Os registros serão apagados definitivamente do sistema. Se você deseja apenas
+                retirar os leads do funil sem perder o histórico, utilize a opção
+                &quot;Arquivar&quot;.
+              </p>
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setModalConfirmarExcluirLoteOpen(false)}
+              disabled={isProcessing}
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              onClick={handleConfirmExcluirLote}
+              disabled={isProcessing}
+              className="bg-rose-600 hover:bg-rose-700 active:bg-rose-800 text-white font-bold"
+            >
+              {isProcessing ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Excluindo clientes...
+                </>
+              ) : (
+                `Sim, Excluir (${selectedIds.length})`
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
