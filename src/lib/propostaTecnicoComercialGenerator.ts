@@ -25,6 +25,10 @@ export interface FotoInstalacaoProposta {
 }
 
 export interface PropostaTecnicoComercialDados {
+  orcamento?: {
+    consumo_mensal_kwh?: number
+    [key: string]: any
+  }
   cliente: {
     nome: string
     cpfOuCnpj?: string
@@ -293,6 +297,7 @@ function renderInternalFooter(numeroSecao?: number, validadeDias?: number): stri
  */
 export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercialDados): string {
   const {
+    orcamento,
     cliente,
     representante,
     dataProposta,
@@ -355,7 +360,7 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
   const consumoKwhMesReal =
     producao?.mediaMensalKwh && producao.mediaMensalKwh > 0
       ? producao.mediaMensalKwh
-      : Math.round(contaHoje / 0.95)
+      : (orcamento as any)?.consumo_mensal_kwh || 400
 
   const consumoKwhAnoReal =
     producao?.anualKwh && producao.anualKwh > 0

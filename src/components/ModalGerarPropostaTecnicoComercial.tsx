@@ -172,10 +172,13 @@ export function ModalGerarPropostaTecnicoComercial({
       return orcamento.valor_conta_atual
     }
     const tarifa = orcamento.tarifa_kwh && orcamento.tarifa_kwh > 0 ? orcamento.tarifa_kwh : 1.2
-    if (orcamento.consumo_mensal_kwh && orcamento.consumo_mensal_kwh > 0) {
-      return Number((orcamento.consumo_mensal_kwh * tarifa).toFixed(2))
-    }
-    return 480
+    const kwh =
+      orcamento.producao_mensal_kwh && orcamento.producao_mensal_kwh > 0
+        ? orcamento.producao_mensal_kwh
+        : orcamento.consumo_mensal_kwh && orcamento.consumo_mensal_kwh > 0
+          ? orcamento.consumo_mensal_kwh
+          : 400
+    return Number((kwh * tarifa).toFixed(2))
   })
   const [contaComSolar, setContaComSolar] = useState<number>(
     orcamento.conta_primeiro_mes_com_solar !== undefined &&
@@ -324,6 +327,9 @@ export function ModalGerarPropostaTecnicoComercial({
       const invTotalNum = Number(investimentoTotal) || 0
 
       return {
+        orcamento: {
+          consumo_mensal_kwh: orcamento?.consumo_mensal_kwh,
+        },
         cliente: {
           nome: clienteNome || 'Cliente',
           cpfOuCnpj: clienteDocumento || '',

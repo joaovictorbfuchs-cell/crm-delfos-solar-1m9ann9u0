@@ -792,9 +792,9 @@ describe('calcularOrcamentoSolar - Geração Simulada Manual (kWh/ano)', () => {
     expect(orc.geracaoAnualEstimadaKwh).toBe(12000)
     expect(orc.geracaoMediaMensalKwh).toBe(1000) // 12000 / 12
 
-    // 2. Conta sem solar baseada no consumo informado (400 kWh/mês)
-    expect(orc.contaAtualSemSolarMes).toBe(400 * tarifa)
-    expect(orc.contaAtualSemSolarAno).toBe(400 * 12 * tarifa)
+    // 2. Conta sem solar baseada na geração simulada (1000 kWh/mês)
+    expect(orc.contaAtualSemSolarMes).toBe(1000 * tarifa)
+    expect(orc.contaAtualSemSolarAno).toBe(1000 * 12 * tarifa)
 
     // 3. Conta com solar (bifásico 50 kWh)
     expect(orc.contaPrimeiroMesComSolar).toBeGreaterThan(0)
