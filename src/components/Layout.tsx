@@ -25,6 +25,7 @@ import {
   Cpu,
   Zap,
   ListChecks,
+  Contact,
 } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { useClientes } from '@/contexts/ClientesContext'
@@ -118,6 +119,8 @@ export default function Layout() {
         return 'Cadastro de Equipamentos'
       case '/importar-clientes':
         return 'Importar Clientes (Pipedrive / Conta Azul)'
+      case '/importar-contatos-google':
+        return 'Importar Contatos do Google'
       case '/importar-acessos':
         return 'Importar Acessos & Monitoramento'
       case '/fornecedores':
@@ -156,6 +159,7 @@ export default function Layout() {
     { name: 'Galeria de usinas', path: '/instalacoes-galeria', icon: Images },
     { name: 'Fornecedores', path: '/fornecedores', icon: Truck },
     { name: 'Importar Clientes', path: '/importar-clientes', icon: FileSpreadsheet },
+    { name: 'Importar Contatos Google', path: '/importar-contatos-google', icon: Contact },
     { name: 'Gerenciar usuários', path: '/gerenciar-usuarios', icon: UserCog },
   ]
 

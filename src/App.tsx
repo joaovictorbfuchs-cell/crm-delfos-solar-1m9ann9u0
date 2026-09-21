@@ -25,6 +25,7 @@ import Atividades from './pages/Atividades'
 import ExecucaoOS from './pages/ExecucaoOS'
 import { CentralAtendimento } from './pages/CentralAtendimento'
 import ImportarClientes from './pages/ImportarClientes'
+import ImportarContatosGoogle from './pages/ImportarContatosGoogle'
 import ImportarAcessos from './pages/ImportarAcessos'
 import GerenciarUsuarios from './pages/GerenciarUsuarios'
 import Login from './pages/Login'
@@ -229,6 +230,14 @@ const App = () => (
               element={
                 <ProtectedRoute requiredRole="admin">
                   <ImportarClientes />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/importar-contatos-google"
+              element={
+                <ProtectedRoute requiredRole="admin">
+                  <ImportarContatosGoogle />
                 </ProtectedRoute>
               }
             />
