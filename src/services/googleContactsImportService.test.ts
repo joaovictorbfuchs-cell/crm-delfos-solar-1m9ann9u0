@@ -9,6 +9,7 @@ import {
   extrairTelefonesGoogle,
   parseGoogleContactRow,
   analisarContatoGoogle,
+  ItemComparacaoGoogle,
 } from './googleContactsImportService'
 import { Cliente } from '@/types/crm'
 
@@ -172,6 +173,23 @@ describe('googleContactsImportService', () => {
       expect(secundarios).toHaveLength(2)
       expect(secundarios).toContain('+55 54 3522-1100')
       expect(secundarios).toContain('(54) 98400-9988')
+    })
+  })
+
+  describe('Ações de divergência e novos campos', () => {
+    it('deve suportar tipo AcaoDivergenciaGoogle com vincular e ignorar', () => {
+      const item: Partial<ItemComparacaoGoogle> = {
+        acaoSelecionada: 'vincular',
+        clienteDestinoVinculo: {
+          id: 'cli_123',
+          nome: 'Cliente Escolhido',
+        } as any,
+      }
+      expect(item.acaoSelecionada).toBe('vincular')
+      expect(item.clienteDestinoVinculo?.id).toBe('cli_123')
+
+      item.acaoSelecionada = 'ignorar'
+      expect(item.acaoSelecionada).toBe('ignorar')
     })
   })
 

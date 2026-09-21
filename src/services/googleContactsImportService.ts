@@ -12,9 +12,10 @@
  * - Telefone idêntico ao cadastrado -> "Correto" (não exibe na lista de divergências)
  * - Telefone semelhante (só diferença de +55, DDD 54 regional padrão, espaços, formatação) -> "Formato diferente" (não exibe)
  * - Telefone divergente ou contato não encontrado no banco -> mostra na lista de divergências com opções:
- *   1. "Atualizar telefone e WhatsApp" (substitui telefone no banco e atualiza o WhatsApp principal)
- *   2. "Manter atual" (ignora / mantém dados atuais)
- *   3. "Adicionar como novo contato" (cria novo cliente com o telefone como WhatsApp principal)
+ *   1. "Vincular a um cliente" (associa o número importado a um cliente já existente no CRM)
+ *   2. "Adicionar como novo contato" (cria novo cliente com o telefone como WhatsApp principal)
+ *   3. "Ignorar" (descarta/ignora a divergência e remove da lista de pendentes)
+ *   4. "Atualizar telefone e WhatsApp" (atualiza o cliente identificado automaticamente pelo sistema)
  *
  * Contatos adicionais:
  * - Telefones secundários da linha do CSV (phone_2_value, etc.) podem ser salvos como
@@ -47,9 +48,11 @@ export type StatusComparacaoGoogle =
   | 'nao_encontrado' // Cliente não encontrado no banco
 
 export type AcaoDivergenciaGoogle =
-  | 'atualizar' // Substitui telefone e WhatsApp principal
-  | 'manter_atual' // Ignora alteração
+  | 'atualizar' // Substitui telefone e WhatsApp principal do cliente encontrado
+  | 'vincular' // Vincula o número a um cliente existente escolhido pelo usuário
+  | 'ignorar' // Ignora alteração e descarta da lista pendente
   | 'adicionar_novo' // Cria novo cliente no CRM
+  | 'manter_atual' // Alias mantido para retrocompatibilidade
 
 export interface ItemComparacaoGoogle {
   idTemp: string
@@ -76,6 +79,7 @@ export interface ItemComparacaoGoogle {
 
   // Decisão do usuário
   acaoSelecionada: AcaoDivergenciaGoogle
+  clienteDestinoVinculo?: Cliente // Cliente escolhido para a ação "Vincular a um cliente"
   incluirContatosAdicionais: boolean
   resolvido: boolean
 }
