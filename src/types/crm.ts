@@ -1096,6 +1096,7 @@ export interface OrcamentoSolarCalculado {
   area_necessaria_m2?: number
   consumo_mensal_kwh?: number
   valor_conta_atual?: number
+  tarifa_kwh?: number
   valor_investimento?: number
   valor_total_custos?: number
   payback_meses?: number

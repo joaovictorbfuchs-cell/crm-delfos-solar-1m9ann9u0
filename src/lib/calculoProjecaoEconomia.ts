@@ -24,7 +24,7 @@ export interface LinhaProjecaoEconomia {
 }
 
 export interface ResumoProjecaoEconomia {
-  tipoCliente: TipoClienteProjecao
+  tipoCliente: TipoClienteProjecao | 'industrial' | 'rural'
   fatorSimultaneidade: number
   consumoKwhAno: number
   anoInicial: number
@@ -49,7 +49,7 @@ export interface ResumoProjecaoEconomia {
 }
 
 export interface CalcularProjecaoOptions {
-  tipoCliente?: TipoClienteProjecao
+  tipoCliente?: TipoClienteProjecao | 'industrial' | 'rural'
   consumoKwhAno?: number
   tarifaPersonalizadaPrimeiroAno?: number
   /** Registros da coleção projecao_tarifaria (quando existirem) */

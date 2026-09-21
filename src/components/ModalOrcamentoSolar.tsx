@@ -38,6 +38,7 @@ import type {
   Cliente,
   PadraoFasesSolar,
   PropostaSecoesHabilitadas,
+  EnquadramentoSolar,
 } from '@/types/crm'
 import {
   calcularOrcamentoSolar,

@@ -787,6 +787,7 @@ export function calcularOrcamentoSolar(input: InputCalculoSolar): CalculosSolarR
   // taxaBasica a partir do campo "Padrão de Ligação (Fases)" (padrao_fases): monofásico=30, bifásico=50, trifásico=100 kWh
   // reajuste fixo 9% a.a.; simult = 0,30 se segmento residencial/rural, 0,70 se comercial/industrial
   const consumo = geracaoMediaMensalKwh > 0 ? geracaoMediaMensalKwh : consumoKwhMes
+  const consumoHoje = consumoKwhMes > 0 ? consumoKwhMes : geracaoMediaMensalKwh
   const tarifa = tarifaKwh
 
   const taxaBasica = (() => {
@@ -817,7 +818,7 @@ export function calcularOrcamentoSolar(input: InputCalculoSolar): CalculosSolarR
   // compensada = Math.min(injetada, consumoRede)
   // consumoFaturado = consumoRede - compensada
   // consumoCobrado = Math.max(consumoFaturado, taxaBasica)
-  // contaSemSolar = consumo * tarifa
+  // contaSemSolar = consumoHoje * tarifa
   // tarifaFioB = tarifa * 0.377 * 0.5105
   // pctFioB(ano): ano<=2026 → 0.60; 2027 → 0.75; 2028 → 0.90; >=2029 → 1.00
   // contaGD1 = consumoCobrado * tarifa
@@ -830,7 +831,7 @@ export function calcularOrcamentoSolar(input: InputCalculoSolar): CalculosSolarR
   const compensada = Math.min(injetada, consumoRede)
   const consumoFaturado = consumoRede - compensada
   const consumoCobrado = Math.max(consumoFaturado, taxaBasica)
-  const contaSemSolar = consumo * tarifa
+  const contaSemSolar = consumoHoje * tarifa
   const tarifaFioB = tarifa * 0.377 * 0.5105
   const pctAnoBase = pctFioB(anoBase)
   const contaGD1 = consumoCobrado * tarifa

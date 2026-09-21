@@ -1188,6 +1188,8 @@ export const Orcamentos: React.FC = () => {
                             codigo_finame: orc.codigo_finame,
                             area_necessaria_m2: orc.area_necessaria_m2,
                             consumo_mensal_kwh: orc.consumo_kwh_mes,
+                            valor_conta_atual: calc.contaAtualSemSolarMes,
+                            tarifa_kwh: orc.tarifa_kwh,
                             valor_investimento: orc.valor_investimento,
                             valor_total_custos: orc.valor_total_custos || orc.valor_investimento,
                             payback_meses: orc.payback_meses || calc.paybackMeses,
@@ -1542,6 +1544,8 @@ export const Orcamentos: React.FC = () => {
                                   codigo_finame: orc.codigo_finame,
                                   area_necessaria_m2: orc.area_necessaria_m2,
                                   consumo_mensal_kwh: orc.consumo_kwh_mes,
+                                  valor_conta_atual: calc.contaAtualSemSolarMes,
+                                  tarifa_kwh: orc.tarifa_kwh,
                                   valor_investimento: orc.valor_investimento,
                                   valor_total_custos:
                                     orc.valor_total_custos || orc.valor_investimento,

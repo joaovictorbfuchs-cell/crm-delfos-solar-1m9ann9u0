@@ -592,7 +592,7 @@ describe('Simulações personalizadas de Parcelamento & Financiamento (PRICE)', 
     expect(f1.valorFinanciado).toBeCloseTo(18028, 2)
   })
 
-  it('calcula economia e gastos considerando consumo efetivo igual à geração real dimensionada', () => {
+  it('calcula conta sem solar com base no consumo informado (ou geração se consumo não informado) e economia', () => {
     const orc = calcularOrcamentoSolar({
       potenciaKwp: 8.54,
       consumoKwhMes: 600,
@@ -604,10 +604,10 @@ describe('Simulações personalizadas de Parcelamento & Financiamento (PRICE)', 
     expect(orc.geracaoMediaMensalKwh).toBeGreaterThan(0)
     expect(orc.geracaoAnualEstimadaKwh).toBeGreaterThan(0)
 
-    // Conta sem solar baseada na geração real dimensionada
-    const contaMesEsperada = orc.geracaoMediaMensalKwh * 0.95
+    // Conta sem solar baseada no consumo informado (600 kWh * 0,95)
+    const contaMesEsperada = 600 * 0.95
     expect(orc.contaAtualSemSolarMes).toBeCloseTo(contaMesEsperada, 2)
-    expect(orc.contaAtualSemSolarAno).toBeCloseTo(orc.geracaoAnualEstimadaKwh * 0.95, 2)
+    expect(orc.contaAtualSemSolarAno).toBeCloseTo(contaMesEsperada * 12, 2)
 
     // Novo modelo GD I / GD II: contaComSolar positiva calculada pelo núcleo
     expect(orc.contaPrimeiroMesComSolar).toBeGreaterThan(0)
@@ -639,6 +639,7 @@ describe('calcularOrcamentoSolar - Novo Modelo de Cálculo GD I / GD II (Item 7 
     // contaGD1 = 30 * 1.20 = 36.00 (economia R$ 444,00)
     // contaGD2 = 36.00 + 38.7996... ≈ 74.80 (ou 74.81 arredondado; economia ≈ 405.19 ou 405.20)
     const orcGD1 = calcularOrcamentoSolar({
+      potenciaKwp: 3.5,
       consumoKwhMes: 400,
       tarifaKwh: 1.2,
       padraoFases: 'monofásico',
@@ -654,6 +655,7 @@ describe('calcularOrcamentoSolar - Novo Modelo de Cálculo GD I / GD II (Item 7 
     expect(orcGD1.economia1Mes).toBe(444.0)
 
     const orcGD2 = calcularOrcamentoSolar({
+      potenciaKwp: 3.5,
       consumoKwhMes: 400,
       tarifaKwh: 1.2,
       padraoFases: 'monofásico',
@@ -678,6 +680,7 @@ describe('calcularOrcamentoSolar - Novo Modelo de Cálculo GD I / GD II (Item 7 
     // consumoFaturado = 0 -> consumoCobrado = max(0, 100) = 100
     // contaGD1 = 100 * 1.00 = 100.00
     const orc = calcularOrcamentoSolar({
+      potenciaKwp: 4.5,
       consumoKwhMes: 500,
       tarifaKwh: 1.0,
       padraoFases: 'trifasico',
@@ -789,10 +792,9 @@ describe('calcularOrcamentoSolar - Geração Simulada Manual (kWh/ano)', () => {
     expect(orc.geracaoAnualEstimadaKwh).toBe(12000)
     expect(orc.geracaoMediaMensalKwh).toBe(1000) // 12000 / 12
 
-    // 2. Conta sem solar baseada na geração simulada (paridade total)
-    // consumoEfetivo = 1000 kWh/mês
-    expect(orc.contaAtualSemSolarMes).toBe(1000 * tarifa)
-    expect(orc.contaAtualSemSolarAno).toBe(12000 * tarifa)
+    // 2. Conta sem solar baseada no consumo informado (400 kWh/mês)
+    expect(orc.contaAtualSemSolarMes).toBe(400 * tarifa)
+    expect(orc.contaAtualSemSolarAno).toBe(400 * 12 * tarifa)
 
     // 3. Conta com solar (bifásico 50 kWh)
     expect(orc.contaPrimeiroMesComSolar).toBeGreaterThan(0)
@@ -822,6 +824,7 @@ describe('calcularOrcamentoSolar - Geração Simulada Manual (kWh/ano)', () => {
 describe('calcularOrcamentoSolar - Fórmula Oficial da Conta com Solar (GD I vs GD II)', () => {
   it('a) Valores de referência numéricos conforme item 7: 400 kWh, monofásico, residencial, R$ 1,20, ano <= 2026', () => {
     const orcGD1 = calcularOrcamentoSolar({
+      potenciaKwp: 3.5,
       consumoKwhMes: 400,
       tarifaKwh: 1.2,
       padraoFases: 'monofasico',
@@ -835,6 +838,7 @@ describe('calcularOrcamentoSolar - Fórmula Oficial da Conta com Solar (GD I vs 
     expect(orcGD1.economia1Mes).toBe(444.0)
 
     const orcGD2 = calcularOrcamentoSolar({
+      potenciaKwp: 3.5,
       consumoKwhMes: 400,
       tarifaKwh: 1.2,
       padraoFases: 'monofasico',
@@ -850,6 +854,7 @@ describe('calcularOrcamentoSolar - Fórmula Oficial da Conta com Solar (GD I vs 
 
   it('b) Geração baixa, 10 kWh/mês, monofásico: consumoCobrado = max(0, 30) = 30 -> contaGD1 = 30 * 1.20 = 36.00', () => {
     const orc = calcularOrcamentoSolar({
+      potenciaKwp: 0.2,
       consumoKwhMes: 10,
       tarifaKwh: 1.2,
       padraoFases: 'monofasico',
@@ -863,6 +868,7 @@ describe('calcularOrcamentoSolar - Fórmula Oficial da Conta com Solar (GD I vs 
 
   it('c) IP/CIP ignorados: chamada com iluminacaoPublica: 45 e cip: 25 retorna exatamente o mesmo contaPrimeiroMesComSolar', () => {
     const baseParams = {
+      potenciaKwp: 3.5,
       consumoKwhMes: 400,
       tarifaKwh: 1.2,
       padraoFases: 'monofasico',

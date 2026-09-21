@@ -167,11 +167,16 @@ export function ModalGerarPropostaTecnicoComercial({
   const [valorParcelaFinanB, setValorParcelaFinanB] = useState<number>(
     orcamento.parcela_financiamento_banco2 || Math.round(investimentoTotal * 0.02),
   )
-  const [contaHoje, setContaHoje] = useState<number>(
-    orcamento.valor_conta_atual || orcamento.consumo_mensal_kwh
-      ? (orcamento.consumo_mensal_kwh || 1000) * 0.95
-      : 950,
-  )
+  const [contaHoje, setContaHoje] = useState<number>(() => {
+    if (orcamento.valor_conta_atual && orcamento.valor_conta_atual > 0) {
+      return orcamento.valor_conta_atual
+    }
+    const tarifa = orcamento.tarifa_kwh && orcamento.tarifa_kwh > 0 ? orcamento.tarifa_kwh : 1.2
+    if (orcamento.consumo_mensal_kwh && orcamento.consumo_mensal_kwh > 0) {
+      return Number((orcamento.consumo_mensal_kwh * tarifa).toFixed(2))
+    }
+    return 480
+  })
   const [contaComSolar, setContaComSolar] = useState<number>(
     orcamento.conta_primeiro_mes_com_solar !== undefined &&
       orcamento.conta_primeiro_mes_com_solar !== null
