@@ -76,6 +76,7 @@ interface ListaOMProps {
   onOpenNovoContrato?: () => void
   activeSubTab?: AbaPrincipalOM
   onSubTabChange?: (tab: AbaPrincipalOM) => void
+  metricCards?: React.ReactNode
 }
 
 export const ListaOM: React.FC<ListaOMProps> = ({
@@ -83,6 +84,7 @@ export const ListaOM: React.FC<ListaOMProps> = ({
   onOpenNovoContrato,
   activeSubTab: externalActiveSubTab,
   onSubTabChange,
+  metricCards,
 }) => {
   const {
     clientes,
@@ -163,7 +165,7 @@ export const ListaOM: React.FC<ListaOMProps> = ({
     [anomaliasOM],
   )
 
-  // Clientes Pós-Vendas (apenas clientes qualificados: transferido_pos_vendas = true ou status Fechado ou com credenciais de monitoramento)
+  // Clientes Pós-Vendas: transferido_pos_vendas = true ou status Fechado ou com credenciais de monitoramento
   const clientesPosVendas = useMemo(() => {
     return safeClientes
       .map((cliente) => {
@@ -410,9 +412,10 @@ export const ListaOM: React.FC<ListaOMProps> = ({
 
   return (
     <div className="space-y-4">
-      {/* Navegação por Sub-Abas Compactas de 2º Nível: Planos O&M vs Clientes Pós-Vendas */}
-      <div className="flex items-center justify-between gap-3 flex-wrap bg-white p-2 sm:p-2.5 rounded-2xl border border-gray-200/80 shadow-2xs">
-        <div className="bg-gray-100 p-1 rounded-xl flex items-center text-xs font-semibold text-gray-600">
+      {/* Navegação por Sub-Abas Compactas de 2º Nível: Planos O&M vs Clientes Pós-Vendas + Cards Compactos de Métricas */}
+      <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3 bg-white p-2.5 sm:p-3 rounded-2xl border border-gray-200/80 shadow-2xs">
+        {/* Seletor de sub-abas à esquerda */}
+        <div className="bg-gray-100 p-1 rounded-xl flex items-center text-xs font-semibold text-gray-600 self-start sm:self-auto shrink-0">
           <button
             type="button"
             onClick={() => handleSubTabClick('com_plano')}
@@ -457,11 +460,12 @@ export const ListaOM: React.FC<ListaOMProps> = ({
           </button>
         </div>
 
-        <div className="text-[11px] text-gray-500 font-medium px-2 hidden sm:block">
-          {currentSubTab === 'com_plano'
-            ? 'Carteira de contratos com plano fixo e monitoramento'
-            : 'Base qualificada de pós-vendas para oferta de O&M e manutenções'}
-        </div>
+        {/* Cards de Métricas compactos à direita */}
+        {metricCards && (
+          <div className="flex items-center self-stretch lg:self-auto justify-end">
+            {metricCards}
+          </div>
+        )}
       </div>
 
       {/* Barra de Filtros e Busca (Apenas para sub-aba pós-vendas) */}
@@ -538,7 +542,7 @@ export const ListaOM: React.FC<ListaOMProps> = ({
               </div>
               <div className="text-xs text-slate-700 leading-relaxed">
                 <p className="font-bold text-slate-900 text-sm">
-                  Base de Relacionamento Pós-Vendas (Clientes Qualificados sem Plano O&M)
+                  Base de Relacionamento Pós-Vendas (Clientes sem Plano O&M)
                 </p>
                 <p className="mt-0.5 leading-relaxed">
                   Reúne clientes fechados do funil comercial e clientes com credenciais de

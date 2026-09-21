@@ -132,45 +132,6 @@ export default function Manutencoes() {
         </div>
       </div>
 
-      {/* Cards de Métricas de Contratos O&M */}
-      {viewMode === 'om' && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-xl bg-white p-2.5 sm:p-3 rounded-2xl border border-gray-200/90 shadow-2xs">
-          {/* Ativos */}
-          <div
-            onClick={() => setActiveSubTab('com_plano')}
-            className="bg-emerald-50/70 rounded-xl p-2.5 border-2 border-emerald-500 flex flex-col justify-between cursor-pointer shadow-xs hover:bg-emerald-50 transition-colors"
-          >
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] font-bold text-emerald-900">
-                Ativos ({contratosAtivos})
-              </span>
-              <span className="w-2 h-2 rounded-full bg-emerald-500" />
-            </div>
-            <div className="text-base font-extrabold text-emerald-700 mt-0.5">R$ 6.663,06</div>
-            <span className="text-[9px] text-emerald-700 font-medium mt-0.5">
-              Receita recorrente mensal
-            </span>
-          </div>
-
-          {/* Próximos do término */}
-          <div
-            onClick={() => setActiveSubTab('com_plano')}
-            className="bg-amber-50/70 rounded-xl p-2.5 border border-amber-200/90 flex flex-col justify-between cursor-pointer hover:border-amber-400 transition-colors"
-          >
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] font-semibold text-amber-900">
-                Próximos do término (3)
-              </span>
-              <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
-            </div>
-            <div className="text-base font-extrabold text-amber-600 mt-0.5">R$ 1.252,90</div>
-            <span className="text-[9px] text-amber-700 font-medium mt-0.5">
-              Renovação em até 60 dias
-            </span>
-          </div>
-        </div>
-      )}
-
       {/* Conteúdo Principal de acordo com a aba selecionada */}
       {viewMode === 'om' ? (
         <ListaOM
@@ -178,6 +139,43 @@ export default function Manutencoes() {
           onOpenNovoContrato={() => setIsNovoContratoOpen(true)}
           activeSubTab={activeSubTab}
           onSubTabChange={setActiveSubTab}
+          metricCards={
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-2.5 w-full sm:w-auto sm:min-w-[420px] max-w-xl">
+              {/* Ativos */}
+              <div
+                onClick={() => setActiveSubTab('com_plano')}
+                className="bg-emerald-50/70 rounded-xl p-2 sm:p-2.5 border-2 border-emerald-500 flex flex-col justify-between cursor-pointer shadow-xs hover:bg-emerald-50 transition-colors select-none"
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[11px] font-bold text-emerald-900">
+                    Ativos ({contratosAtivos})
+                  </span>
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
+                </div>
+                <div className="text-base font-extrabold text-emerald-700 mt-0.5">R$ 6.663,06</div>
+                <span className="text-[9px] text-emerald-700 font-medium mt-0.5">
+                  Receita recorrente mensal
+                </span>
+              </div>
+
+              {/* Próximos do término */}
+              <div
+                onClick={() => setActiveSubTab('com_plano')}
+                className="bg-amber-50/70 rounded-xl p-2 sm:p-2.5 border border-amber-200/90 flex flex-col justify-between cursor-pointer hover:border-amber-400 transition-colors select-none"
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[11px] font-semibold text-amber-900">
+                    Próximos do término (3)
+                  </span>
+                  <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse shrink-0" />
+                </div>
+                <div className="text-base font-extrabold text-amber-600 mt-0.5">R$ 1.252,90</div>
+                <span className="text-[9px] text-amber-700 font-medium mt-0.5">
+                  Renovação em até 60 dias
+                </span>
+              </div>
+            </div>
+          }
         />
       ) : (
         <div className="bg-white rounded-2xl border border-gray-200/80 p-5 shadow-xs">
