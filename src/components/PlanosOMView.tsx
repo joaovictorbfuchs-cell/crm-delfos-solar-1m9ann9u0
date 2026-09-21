@@ -5,43 +5,22 @@ import {
   SlidersHorizontal,
   ChevronDown,
   RotateCcw,
-  LayoutGrid,
-  Table as TableIcon,
   ShieldCheck,
   Zap,
-  Calendar,
   AlertTriangle,
-  AlertCircle,
-  Clock,
-  Sparkles,
   MapPin,
-  Maximize2,
-  Layers,
-  CheckCircle2,
-  Settings,
   RefreshCcw,
   XCircle,
-  FileText,
   ChevronRight,
-  ExternalLink,
   Droplets,
-  Wrench,
   Activity,
-  FileCheck2,
   EyeOff,
   TrendingUp,
 } from 'lucide-react'
 import { useClientes } from '@/contexts/ClientesContext'
-import type { ContratoOM, Cliente, OMPlanoTipo } from '@/types/crm'
+import type { ContratoOM, Cliente } from '@/types/crm'
 import { formatCurrency, formatDate } from '@/lib/formatters'
-import { categorizarClienteOM, calcularDiasRestantesDefensivo } from '@/lib/omCategorizacao'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
+import { calcularDiasRestantesDefensivo } from '@/lib/omCategorizacao'
 import { toast } from 'sonner'
 
 export interface FiltrosPlanosOMState {
@@ -102,8 +81,6 @@ export const PlanosOMView: React.FC<PlanosOMViewProps> = ({
   const [filtrosAtivos, setFiltrosAtivos] = useState<FiltrosPlanosOMState>(FILTROS_INICIAIS)
   // Painel retrátil aberto/fechado
   const [painelAberto, setPainelAberto] = useState(false)
-  // Modo de visualização: cards ou tabela
-  const [modoVisualizacao, setModoVisualizacao] = useState<'cards' | 'tabela'>('cards')
   // Ordenação
   const [ordenacao, setOrdenacao] = useState<
     'proxima_atividade' | 'nome' | 'potencia' | 'vencimento' | 'performance'
@@ -122,12 +99,6 @@ export const PlanosOMView: React.FC<PlanosOMViewProps> = ({
   } | null>(null)
   const [isEncerrando, setIsEncerrando] = useState(false)
 
-  const [contratoParaDetalhes, setContratoParaDetalhes] = useState<{
-    contrato: ContratoOM
-    cliente: Cliente
-    potenciaKwp: number
-  } | null>(null)
-
   // Coleções com garantia de array seguro
   const safeClientes = useMemo(() => (Array.isArray(clientes) ? clientes : []), [clientes])
   const safeContratos = useMemo(
@@ -135,18 +106,6 @@ export const PlanosOMView: React.FC<PlanosOMViewProps> = ({
     [contratosOM],
   )
   const safeSistemas = useMemo(() => (Array.isArray(sistemas) ? sistemas : []), [sistemas])
-  const safeServicosAdicionais = useMemo(
-    () => (Array.isArray(servicosAdicionaisOM) ? servicosAdicionaisOM : []),
-    [servicosAdicionaisOM],
-  )
-  const safeServicosAvulsos = useMemo(
-    () => (Array.isArray(servicosAvulsos) ? servicosAvulsos : []),
-    [servicosAvulsos],
-  )
-  const safeAnomalias = useMemo(
-    () => (Array.isArray(anomaliasOM) ? anomaliasOM : []),
-    [anomaliasOM],
-  )
 
   // Normalização unificada da base de planos O&M
   const listaBasePlanos = useMemo(() => {
@@ -552,10 +511,6 @@ export const PlanosOMView: React.FC<PlanosOMViewProps> = ({
     }
   }
 
-  const isFiltroLavagemAtivo =
-    filtrosAtivos.tiposAtividade.includes('Lavagem') ||
-    filtrosAtivos.busca.toLowerCase().includes('lavag')
-
   return (
     <div className="space-y-4">
       {/* ========================================================================= */}
@@ -579,38 +534,8 @@ export const PlanosOMView: React.FC<PlanosOMViewProps> = ({
             />
           </div>
 
-          {/* Controles: Alternador Cards/Tabela, Ordenar e Filtros Avançados */}
+          {/* Controles: Ordenar e Filtros Avançados */}
           <div className="flex items-center gap-2 flex-wrap">
-            {/* Alternador Cards / Tabela */}
-            <div className="flex items-center bg-gray-100 p-1 rounded-xl text-xs font-semibold text-gray-600">
-              <button
-                type="button"
-                onClick={() => setModoVisualizacao('cards')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all ${
-                  modoVisualizacao === 'cards'
-                    ? 'bg-white text-emerald-800 shadow-xs font-bold'
-                    : 'hover:text-gray-900'
-                }`}
-                title="Visualizar em Cards"
-              >
-                <LayoutGrid className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Cards</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setModoVisualizacao('tabela')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all ${
-                  modoVisualizacao === 'tabela'
-                    ? 'bg-white text-emerald-800 shadow-xs font-bold'
-                    : 'hover:text-gray-900'
-                }`}
-                title="Visualizar em Tabela"
-              >
-                <TableIcon className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Tabela</span>
-              </button>
-            </div>
-
             {/* Ordenar */}
             <select
               value={ordenacao}
@@ -963,7 +888,7 @@ export const PlanosOMView: React.FC<PlanosOMViewProps> = ({
       </div>
 
       {/* ========================================================================= */}
-      {/* LISTA DE CARDS OU TABELA DE PLANOS O&M                                     */}
+      {/* TABELA DE PLANOS O&M (VISUALIZAÇÃO ÚNICA E PERMANENTE)                    */}
       {/* ========================================================================= */}
       {planosFiltrados.length === 0 ? (
         <div className="bg-white rounded-2xl border border-dashed border-gray-300 p-12 text-center">
@@ -995,269 +920,7 @@ export const PlanosOMView: React.FC<PlanosOMViewProps> = ({
             )
           )}
         </div>
-      ) : modoVisualizacao === 'cards' ? (
-        /* VISUALIZAÇÃO EM CARDS SOLICITADA */
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {planosFiltrados.map((item) => {
-            const {
-              contrato,
-              cliente,
-              potenciaKwp,
-              qtdModulos,
-              areaTelhado,
-              tipoProximaAtividade,
-              dataProxStr,
-              diffDiasProxima,
-              statusCor,
-              statusMotivo,
-              semMonitoramento,
-              performanceUsina,
-            } = item
-
-            // Borda e indicador de cor por status:
-            // Verde = tudo em dia; Amarelo = atividade nos próximos 7 dias ou plano próximo do vencimento; Vermelho = atividade atrasada ou plano vencido
-            const borderCorClass =
-              statusCor === 'vermelho'
-                ? 'border-rose-400 ring-1 ring-rose-300/40'
-                : statusCor === 'amarelo'
-                  ? 'border-amber-400 ring-1 ring-amber-300/40'
-                  : 'border-emerald-300 hover:border-emerald-500'
-
-            const statusDotClass =
-              statusCor === 'vermelho'
-                ? 'bg-rose-500 animate-pulse'
-                : statusCor === 'amarelo'
-                  ? 'bg-amber-500 animate-pulse'
-                  : 'bg-emerald-500'
-
-            const statusBadgeBg =
-              statusCor === 'vermelho'
-                ? 'bg-rose-50 text-rose-800 border-rose-200'
-                : statusCor === 'amarelo'
-                  ? 'bg-amber-50 text-amber-900 border-amber-200'
-                  : 'bg-emerald-50 text-emerald-800 border-emerald-200'
-
-            const isLavagemCard =
-              tipoProximaAtividade.toLowerCase().includes('lavag') || isFiltroLavagemAtivo
-
-            return (
-              <div
-                key={contrato.id}
-                onClick={() => {
-                  if (openFichaCliente) openFichaCliente(cliente.id, 'om')
-                  else if (onOpenFichaOM) onOpenFichaOM(cliente.id)
-                }}
-                className={`bg-white rounded-2xl border ${borderCorClass} shadow-2xs hover:shadow-md transition-all p-4 flex flex-col justify-between cursor-pointer group relative`}
-              >
-                <div>
-                  {/* Topo do Card: Cliente, Cidade, Contrato e Badges */}
-                  <div className="flex items-start justify-between gap-2 mb-2.5">
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        <h4 className="font-extrabold text-gray-900 group-hover:text-emerald-700 text-sm truncate">
-                          {cliente.nome}
-                        </h4>
-                        {/* Ícone de alerta quando não há monitoramento ativo ou dados de performance */}
-                        {semMonitoramento && (
-                          <span
-                            className="inline-flex items-center text-amber-600 shrink-0"
-                            title="Atenção: Usina sem monitoramento ativo cadastrado!"
-                          >
-                            <AlertTriangle className="w-3.5 h-3.5 fill-amber-500 text-amber-600" />
-                          </span>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-1 text-[11px] text-gray-500 mt-0.5">
-                        <MapPin className="w-3 h-3 text-gray-400 shrink-0" />
-                        <span className="truncate">{cliente.cidade || 'Erechim/RS'}</span>
-                        {contrato.numero_contrato && (
-                          <>
-                            <span className="text-gray-300">•</span>
-                            <span className="font-bold text-slate-700">
-                              Contrato nº {contrato.numero_contrato}
-                            </span>
-                          </>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Status do plano com indicador de cor */}
-                    <div className="shrink-0 flex flex-col items-end gap-1">
-                      <span
-                        className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-black border ${statusBadgeBg}`}
-                      >
-                        <span className={`w-2 h-2 rounded-full ${statusDotClass}`} />
-                        <span>{statusMotivo}</span>
-                      </span>
-                      {contrato.plano && (
-                        <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-200">
-                          {contrato.plano}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Informações Técnicas: Potência (kWp) e Módulos */}
-                  <div className="grid grid-cols-2 gap-2 p-2.5 bg-gray-50 rounded-xl mb-3 border border-gray-100 text-xs">
-                    <div>
-                      <span className="text-[10px] font-bold text-gray-500 uppercase block">
-                        Potência do Sistema
-                      </span>
-                      <span className="font-black text-gray-900 flex items-center gap-1 text-sm mt-0.5">
-                        <Zap className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
-                        {potenciaKwp > 0 ? `${potenciaKwp.toFixed(2)} kWp` : '—'}
-                      </span>
-                    </div>
-
-                    <div>
-                      <span className="text-[10px] font-bold text-gray-500 uppercase block">
-                        Módulos Solares
-                      </span>
-                      <span className="font-extrabold text-emerald-800 text-sm mt-0.5 block">
-                        {qtdModulos} placas
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Destaque especial quando a atividade é Lavagem ou filtrado por Lavagem */}
-                  {isLavagemCard && (
-                    <div className="bg-sky-50/80 rounded-xl p-2.5 border border-sky-200/90 mb-3 text-xs space-y-1">
-                      <div className="flex items-center justify-between text-sky-900 font-bold text-[11px]">
-                        <span className="flex items-center gap-1">
-                          <Droplets className="w-3.5 h-3.5 text-sky-600" />
-                          Dados para Insumos e Mão de Obra (Lavagem)
-                        </span>
-                        <span className="text-[10px] bg-sky-200/70 px-1.5 py-0.5 rounded text-sky-800">
-                          {qtdModulos} placas
-                        </span>
-                      </div>
-                      <div className="grid grid-cols-2 gap-2 text-[11px] text-sky-800 pt-1">
-                        <div>
-                          <span className="text-gray-500 block text-[10px]">
-                            Área Estimada do Telhado:
-                          </span>
-                          <span className="font-bold text-sky-950">
-                            {areaTelhado > 0 ? `${areaTelhado} m²` : 'Não informada'}
-                          </span>
-                        </div>
-                        <div>
-                          <span className="text-gray-500 block text-[10px]">
-                            Consumo Médio Água/Solução:
-                          </span>
-                          <span className="font-semibold text-sky-950">
-                            ~{(qtdModulos * 2.5).toFixed(0)} L água desmin.
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Próxima Atividade Agendada */}
-                  <div className="bg-emerald-50/50 p-2.5 rounded-xl border border-emerald-100/80 text-xs mb-3 space-y-1">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[11px] font-bold text-emerald-900 flex items-center gap-1">
-                        <Calendar className="w-3.5 h-3.5 text-emerald-600" />
-                        Próxima Atividade: {tipoProximaAtividade}
-                      </span>
-                      {dataProxStr ? (
-                        <span
-                          className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
-                            item.isAtrasada
-                              ? 'bg-rose-100 text-rose-800'
-                              : item.isHoje
-                                ? 'bg-amber-100 text-amber-900 animate-pulse'
-                                : 'bg-emerald-100 text-emerald-800'
-                          }`}
-                        >
-                          {formatDate(dataProxStr)}
-                          {diffDiasProxima !== null && (
-                            <span className="ml-1">
-                              (
-                              {item.isAtrasada
-                                ? `${Math.abs(diffDiasProxima)}d atraso`
-                                : `${diffDiasProxima}d`}
-                              )
-                            </span>
-                          )}
-                        </span>
-                      ) : (
-                        <span className="text-[10px] text-gray-400 italic">Sem agendamento</span>
-                      )}
-                    </div>
-                    {contrato.proxima_atividade_titulo && (
-                      <p
-                        className="text-[11px] text-gray-600 truncate"
-                        title={contrato.proxima_atividade_titulo}
-                      >
-                        {contrato.proxima_atividade_titulo}
-                      </p>
-                    )}
-                  </div>
-                </div>
-
-                {/* Rodapé do Card: Performance da Usina, Valor Mensal e Ações */}
-                <div className="pt-2 border-t border-gray-100 flex items-center justify-between text-xs">
-                  <div>{renderBadgePerformance(performanceUsina)}</div>
-
-                  <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <button
-                          type="button"
-                          className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-gray-50 hover:bg-emerald-50 text-emerald-800 border border-gray-200 text-[11px] font-bold transition-all shadow-2xs"
-                        >
-                          <Settings className="w-3 h-3 text-emerald-600" />
-                          <span>Gerenciar</span>
-                        </button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-48">
-                        <DropdownMenuItem
-                          onClick={() => setContratoParaRenovar({ contrato, cliente })}
-                          className="cursor-pointer gap-2 text-xs font-medium text-emerald-800"
-                        >
-                          <RefreshCcw className="w-3.5 h-3.5 text-emerald-600" />
-                          <span>Renovar Plano</span>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => setContratoParaEncerrar({ contrato, cliente })}
-                          className="cursor-pointer gap-2 text-xs font-medium text-rose-700"
-                        >
-                          <XCircle className="w-3.5 h-3.5 text-rose-600" />
-                          <span>Encerrar Plano</span>
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem
-                          onClick={() => {
-                            if (openFichaCliente) openFichaCliente(cliente.id, 'om')
-                            else if (onOpenFichaOM) onOpenFichaOM(cliente.id)
-                          }}
-                          className="cursor-pointer gap-2 text-xs font-medium text-gray-700"
-                        >
-                          <FileText className="w-3.5 h-3.5 text-gray-500" />
-                          <span>Abrir Ficha O&M</span>
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (openFichaCliente) openFichaCliente(cliente.id, 'om')
-                        else if (onOpenFichaOM) onOpenFichaOM(cliente.id)
-                      }}
-                      className="font-bold text-emerald-700 hover:text-emerald-900 flex items-center gap-1 text-[11px] px-1 py-1"
-                    >
-                      <span>Ficha</span>
-                      <ChevronRight className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )
-          })}
-        </div>
       ) : (
-        /* VISUALIZAÇÃO EM TABELA */
         <div className="bg-white rounded-2xl border border-gray-200/90 shadow-2xs overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs">
@@ -1412,7 +1075,6 @@ export const PlanosOMView: React.FC<PlanosOMViewProps> = ({
           </div>
         </div>
       )}
-
       {/* Modal Confirmação de Renovação Rápida */}
       {contratoParaRenovar && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
