@@ -177,7 +177,7 @@ describe('googleContactsImportService', () => {
   })
 
   describe('Ações de divergência e novos campos', () => {
-    it('deve suportar tipo AcaoDivergenciaGoogle com vincular e ignorar', () => {
+    it('deve suportar tipo AcaoDivergenciaGoogle com vincular, ignorar e atualizar', () => {
       const item: Partial<ItemComparacaoGoogle> = {
         acaoSelecionada: 'vincular',
         clienteDestinoVinculo: {
@@ -190,6 +190,9 @@ describe('googleContactsImportService', () => {
 
       item.acaoSelecionada = 'ignorar'
       expect(item.acaoSelecionada).toBe('ignorar')
+
+      item.acaoSelecionada = 'atualizar'
+      expect(item.acaoSelecionada).toBe('atualizar')
     })
   })
 

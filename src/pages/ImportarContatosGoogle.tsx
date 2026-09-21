@@ -47,8 +47,11 @@ export default function ImportarContatosGoogle() {
   )
   const [termoBusca, setTermoBusca] = useState<string>('')
 
-  // Estado para o modal de "Vincular a um cliente"
+  // Estado para o modal de seleção de cliente (usado tanto para "Vincular a um cliente" quanto para "Atualizar contato")
   const [itemParaVincular, setItemParaVincular] = useState<ItemComparacaoGoogle | null>(null)
+  const [modoModalCliente, setModoModalCliente] = useState<
+    'atualizar_principal' | 'contato_adicional'
+  >('contato_adicional')
   const [buscaClienteModal, setBuscaClienteModal] = useState<string>('')
   const [clienteSelecionadoModal, setClienteSelecionadoModal] = useState<Cliente | null>(null)
   const [isVinculandoDireto, setIsVinculandoDireto] = useState<boolean>(false)
@@ -222,11 +225,15 @@ export default function ImportarContatosGoogle() {
     toast.info('Download do arquivo de exemplo concluído!')
   }
 
-  // Ação 1: Abrir modal de seleção de cliente para vincular
-  const handleAbrirModalVincular = (item: ItemComparacaoGoogle) => {
+  // Ação: Abrir modal de seleção de cliente (em modo "contato_adicional" ou "atualizar_principal")
+  const handleAbrirModalVincular = (
+    item: ItemComparacaoGoogle,
+    modo: 'atualizar_principal' | 'contato_adicional' = 'contato_adicional',
+  ) => {
     setItemParaVincular(item)
+    setModoModalCliente(modo)
     // Se o item já tiver clienteDestinoVinculo ou clienteBanco, pré-seleciona ou inicializa a busca com o nome do contato
-    setClienteSelecionadoModal(item.clienteDestinoVinculo || null)
+    setClienteSelecionadoModal(item.clienteDestinoVinculo || item.clienteBanco || null)
     setBuscaClienteModal(
       item.nomeCompleto && item.nomeCompleto !== 'Contato sem nome' ? item.nomeCompleto : '',
     )
@@ -236,10 +243,11 @@ export default function ImportarContatosGoogle() {
     setItemParaVincular(null)
     setClienteSelecionadoModal(null)
     setBuscaClienteModal('')
+    setModoModalCliente('contato_adicional')
   }
 
-  // Confirmação do vínculo de um cliente selecionado: adiciona o contato do CSV como contato adicional
-  const handleConfirmarVinculoModal = async () => {
+  // Confirmação do modal de seleção de cliente
+  const handleConfirmarModalCliente = async () => {
     if (!itemParaVincular || !clienteSelecionadoModal) return
 
     setIsVinculandoDireto(true)
@@ -254,53 +262,97 @@ export default function ImportarContatosGoogle() {
           ? itemParaVincular.nomeCompleto
           : `Contato Google (${telFormatado})`
 
-      // Adiciona o contato do CSV como contato adicional ao cliente escolhido (SEM alterar telefone/WhatsApp principal)
-      await addContatoAdicional({
-        cliente: clienteSelecionadoModal.id,
-        nome: nomeContatoVinculado,
-        telefone: telFormatado,
-        email: itemParaVincular.emailCsv || undefined,
-        cargo: 'Contato Google',
-      })
+      if (modoModalCliente === 'atualizar_principal') {
+        // Modo "atualizar principal": substitui telefone E WhatsApp principal do cliente selecionado pelo número do CSV
+        await updateCliente(clienteSelecionadoModal.id, {
+          telefone: telFormatado,
+          whatsapp: telFormatado,
+        })
 
-      // Se tiver telefones secundários e a opção estiver ativada, salva também como contatos adicionais
-      if (
-        itemParaVincular.incluirContatosAdicionais &&
-        itemParaVincular.telefonesSecundariosCsv.length > 0
-      ) {
-        for (const telSec of itemParaVincular.telefonesSecundariosCsv) {
-          const telSecFormatado = formatWhatsAppPhone(telSec) || telSec
-          await addContatoAdicional({
-            cliente: clienteSelecionadoModal.id,
-            nome: `${nomeContatoVinculado} (Secundário Google)`,
-            telefone: telSecFormatado,
-            email: itemParaVincular.emailCsv || undefined,
-            cargo: 'Telefone Secundário Google',
-          })
+        // Se tiver telefones secundários e a opção estiver ativada, salva também como contatos adicionais
+        if (
+          itemParaVincular.incluirContatosAdicionais &&
+          itemParaVincular.telefonesSecundariosCsv.length > 0
+        ) {
+          for (const telSec of itemParaVincular.telefonesSecundariosCsv) {
+            const telSecFormatado = formatWhatsAppPhone(telSec) || telSec
+            await addContatoAdicional({
+              cliente: clienteSelecionadoModal.id,
+              nome: `${itemParaVincular.nomeCompleto} (Secundário Google)`,
+              telefone: telSecFormatado,
+              email: itemParaVincular.emailCsv || undefined,
+              cargo: 'Telefone Secundário Google',
+            })
+          }
         }
+
+        // Atualiza o item no estado local
+        setItens((prev) =>
+          prev.map((it) =>
+            it.idTemp === itemParaVincular.idTemp
+              ? {
+                  ...it,
+                  acaoSelecionada: 'atualizar',
+                  clienteBanco: clienteSelecionadoModal,
+                  resolvido: true,
+                }
+              : it,
+          ),
+        )
+
+        toast.success(
+          `Cliente "${clienteSelecionadoModal.nome}" atualizado com sucesso! WhatsApp e telefone: ${telFormatado}.`,
+        )
+      } else {
+        // Modo "contato adicional": adiciona o contato do CSV como contato adicional ao cliente escolhido (SEM alterar telefone/WhatsApp principal)
+        await addContatoAdicional({
+          cliente: clienteSelecionadoModal.id,
+          nome: nomeContatoVinculado,
+          telefone: telFormatado,
+          email: itemParaVincular.emailCsv || undefined,
+          cargo: 'Contato Google',
+        })
+
+        // Se tiver telefones secundários e a opção estiver ativada, salva também como contatos adicionais
+        if (
+          itemParaVincular.incluirContatosAdicionais &&
+          itemParaVincular.telefonesSecundariosCsv.length > 0
+        ) {
+          for (const telSec of itemParaVincular.telefonesSecundariosCsv) {
+            const telSecFormatado = formatWhatsAppPhone(telSec) || telSec
+            await addContatoAdicional({
+              cliente: clienteSelecionadoModal.id,
+              nome: `${nomeContatoVinculado} (Secundário Google)`,
+              telefone: telSecFormatado,
+              email: itemParaVincular.emailCsv || undefined,
+              cargo: 'Telefone Secundário Google',
+            })
+          }
+        }
+
+        // Atualiza o item: marca como resolvido e salva a ação e o cliente vinculado
+        setItens((prev) =>
+          prev.map((it) =>
+            it.idTemp === itemParaVincular.idTemp
+              ? {
+                  ...it,
+                  acaoSelecionada: 'vincular',
+                  clienteDestinoVinculo: clienteSelecionadoModal,
+                  resolvido: true,
+                }
+              : it,
+          ),
+        )
+
+        toast.success(
+          `Contato "${nomeContatoVinculado}" vinculado com sucesso como contato adicional de "${clienteSelecionadoModal.nome}"!`,
+        )
       }
 
-      // Atualiza o item: marca como resolvido e salva a ação e o cliente vinculado
-      setItens((prev) =>
-        prev.map((it) =>
-          it.idTemp === itemParaVincular.idTemp
-            ? {
-                ...it,
-                acaoSelecionada: 'vincular',
-                clienteDestinoVinculo: clienteSelecionadoModal,
-                resolvido: true,
-              }
-            : it,
-        ),
-      )
-
-      toast.success(
-        `Contato "${nomeContatoVinculado}" vinculado com sucesso como contato adicional de "${clienteSelecionadoModal.nome}"!`,
-      )
       handleFecharModalVincular()
     } catch (err: any) {
-      console.error('Erro ao vincular contato ao cliente:', err)
-      toast.error(err?.message || 'Falha ao vincular contato ao cliente escolhido.')
+      console.error('Erro na ação do modal de cliente:', err)
+      toast.error(err?.message || 'Falha ao processar operação com o cliente selecionado.')
     } finally {
       setIsVinculandoDireto(false)
     }
@@ -382,55 +434,55 @@ export default function ImportarContatosGoogle() {
     toast.info(`Contato "${item.nomeCompleto}" ignorado e removido das pendências.`)
   }
 
-  // Ação 4: Atualizar telefone e WhatsApp do cliente encontrado automaticamente
-  const handleAtualizarClienteEncontrado = async (item: ItemComparacaoGoogle) => {
-    if (!item.clienteBanco) {
-      toast.error('Nenhum cliente correspondente identificado automaticamente para atualizar.')
-      return
-    }
+  // Ação 4: Atualizar telefone e WhatsApp (se já tem clienteBanco atualiza direto; se não tem, abre modal de busca no modo "atualizar_principal")
+  const handleAcaoAtualizarContato = async (item: ItemComparacaoGoogle) => {
+    if (item.clienteBanco) {
+      try {
+        const telFormatado =
+          item.telefoneNormalizadoCompleto ||
+          formatWhatsAppPhone(item.telefoneCsv) ||
+          item.telefoneCsv
 
-    try {
-      const telFormatado =
-        item.telefoneNormalizadoCompleto ||
-        formatWhatsAppPhone(item.telefoneCsv) ||
-        item.telefoneCsv
+        await updateCliente(item.clienteBanco.id, {
+          telefone: telFormatado,
+          whatsapp: telFormatado,
+        })
 
-      await updateCliente(item.clienteBanco.id, {
-        telefone: telFormatado,
-        whatsapp: telFormatado,
-      })
-
-      if (item.incluirContatosAdicionais && item.telefonesSecundariosCsv.length > 0) {
-        for (const telSec of item.telefonesSecundariosCsv) {
-          const telSecFormatado = formatWhatsAppPhone(telSec) || telSec
-          await addContatoAdicional({
-            cliente: item.clienteBanco.id,
-            nome: `${item.nomeCompleto} (Secundário Google)`,
-            telefone: telSecFormatado,
-            email: item.emailCsv || undefined,
-            cargo: 'Telefone Secundário Google',
-          })
+        if (item.incluirContatosAdicionais && item.telefonesSecundariosCsv.length > 0) {
+          for (const telSec of item.telefonesSecundariosCsv) {
+            const telSecFormatado = formatWhatsAppPhone(telSec) || telSec
+            await addContatoAdicional({
+              cliente: item.clienteBanco.id,
+              nome: `${item.nomeCompleto} (Secundário Google)`,
+              telefone: telSecFormatado,
+              email: item.emailCsv || undefined,
+              cargo: 'Telefone Secundário Google',
+            })
+          }
         }
+
+        setItens((prev) =>
+          prev.map((it) =>
+            it.idTemp === item.idTemp
+              ? {
+                  ...it,
+                  acaoSelecionada: 'atualizar',
+                  resolvido: true,
+                }
+              : it,
+          ),
+        )
+
+        toast.success(
+          `Cliente "${item.clienteBanco.nome}" atualizado com sucesso! WhatsApp e telefone: ${telFormatado}.`,
+        )
+      } catch (err: any) {
+        console.error('Erro ao atualizar cliente:', err)
+        toast.error(err?.message || 'Falha ao atualizar cliente.')
       }
-
-      setItens((prev) =>
-        prev.map((it) =>
-          it.idTemp === item.idTemp
-            ? {
-                ...it,
-                acaoSelecionada: 'atualizar',
-                resolvido: true,
-              }
-            : it,
-        ),
-      )
-
-      toast.success(
-        `Cliente "${item.clienteBanco.nome}" atualizado com sucesso! WhatsApp: ${telFormatado}.`,
-      )
-    } catch (err: any) {
-      console.error('Erro ao atualizar cliente:', err)
-      toast.error(err?.message || 'Falha ao atualizar cliente.')
+    } else {
+      // Abre o modal de busca no modo "atualizar_principal"
+      handleAbrirModalVincular(item, 'atualizar_principal')
     }
   }
 
@@ -467,18 +519,31 @@ export default function ImportarContatosGoogle() {
     setItens((prev) =>
       prev.map((item) => {
         if (!item.ehDivergencia) return item
+        // Se a ação for atualizar e o item não tiver cliente no banco, mantém ou define conforme regra
         return {
           ...item,
           acaoSelecionada: acao,
         }
       }),
     )
-    const labelAcao =
-      acao === 'atualizar'
-        ? 'Atualizar contato'
-        : acao === 'adicionar_novo'
-          ? 'Adicionar como novo contato'
-          : 'Ignorar'
+    if (acao === 'atualizar') {
+      const comCliente = itens.filter(
+        (i) => i.ehDivergencia && !i.resolvido && !!i.clienteBanco,
+      ).length
+      const semCliente = itens.filter(
+        (i) => i.ehDivergencia && !i.resolvido && !i.clienteBanco,
+      ).length
+      if (semCliente > 0) {
+        toast.info(
+          `Ação "Atualizar contato" definida. Aplicará nos ${comCliente} contato(s) com correspondência automática. Para os ${semCliente} sem correspondência, use o botão "Atualizar contato" no próprio card para selecionar o cliente desejado no CRM.`,
+        )
+      } else {
+        toast.success(`Ação "Atualizar contato" pré-selecionada para os clientes correspondentes.`)
+      }
+      return
+    }
+
+    const labelAcao = acao === 'adicionar_novo' ? 'Adicionar como novo contato' : 'Ignorar'
     toast.success(`Ação "${labelAcao}" pré-selecionada para as divergências.`)
   }
 
@@ -527,30 +592,38 @@ export default function ImportarContatosGoogle() {
           formatWhatsAppPhone(item.telefoneCsv) ||
           item.telefoneCsv
 
-        if (item.acaoSelecionada === 'atualizar' && item.clienteBanco) {
-          await updateCliente(item.clienteBanco.id, {
-            telefone: telFormatado,
-            whatsapp: telFormatado,
-          })
-          countAtualizados++
+        if (item.acaoSelecionada === 'atualizar') {
+          const clienteAlvo = item.clienteBanco || item.clienteDestinoVinculo
+          if (clienteAlvo) {
+            await updateCliente(clienteAlvo.id, {
+              telefone: telFormatado,
+              whatsapp: telFormatado,
+            })
+            countAtualizados++
 
-          if (item.incluirContatosAdicionais && item.telefonesSecundariosCsv.length > 0) {
-            for (const telSec of item.telefonesSecundariosCsv) {
-              const telSecFormatado = formatWhatsAppPhone(telSec) || telSec
-              await addContatoAdicional({
-                cliente: item.clienteBanco.id,
-                nome: `${item.nomeCompleto} (Secundário Google)`,
-                telefone: telSecFormatado,
-                email: item.emailCsv || undefined,
-                cargo: 'Telefone Secundário Google',
-              })
-              countContatosAdicionais++
+            if (item.incluirContatosAdicionais && item.telefonesSecundariosCsv.length > 0) {
+              for (const telSec of item.telefonesSecundariosCsv) {
+                const telSecFormatado = formatWhatsAppPhone(telSec) || telSec
+                await addContatoAdicional({
+                  cliente: clienteAlvo.id,
+                  nome: `${item.nomeCompleto} (Secundário Google)`,
+                  telefone: telSecFormatado,
+                  email: item.emailCsv || undefined,
+                  cargo: 'Telefone Secundário Google',
+                })
+                countContatosAdicionais++
+              }
             }
-          }
 
-          setItens((prev) =>
-            prev.map((it) => (it.idTemp === item.idTemp ? { ...it, resolvido: true } : it)),
-          )
+            setItens((prev) =>
+              prev.map((it) => (it.idTemp === item.idTemp ? { ...it, resolvido: true } : it)),
+            )
+          } else {
+            // Se foi marcado em lote como 'atualizar' mas não possui correspondência automática nem cliente selecionado, avisa
+            erros.push(
+              `${item.nomeCompleto}: Selecione o cliente no CRM usando o botão 'Atualizar contato' do card antes de aplicar em lote`,
+            )
+          }
         } else if (item.acaoSelecionada === 'vincular' && item.clienteDestinoVinculo) {
           const nomeContatoVinculado =
             item.nomeCompleto && item.nomeCompleto !== 'Contato sem nome'
@@ -789,42 +862,69 @@ export default function ImportarContatosGoogle() {
         </div>
       </div>
 
-      {/* Modal de Vincular Contato a um Cliente Existente */}
+      {/* Modal de Busca de Cliente: Modo "Atualizar Principal" OU Modo "Contato Adicional" */}
       {itemParaVincular && (
         <div
           role="dialog"
           aria-modal="true"
-          aria-labelledby="modal-vincular-titulo"
+          aria-labelledby="modal-cliente-titulo"
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in duration-200"
         >
           <div className="bg-white w-full max-w-xl rounded-2xl shadow-2xl border border-gray-200 overflow-hidden flex flex-col max-h-[90vh]">
             {/* Cabeçalho do Modal */}
             <div className="p-4 sm:p-5 border-b border-gray-100 bg-gray-50 flex items-start justify-between">
               <div className="flex items-center gap-3">
-                <div className="p-2.5 bg-emerald-100 text-[#166534] rounded-xl">
-                  <UserCheck className="w-5 h-5 text-[#16A34A]" />
+                <div
+                  className={`p-2.5 rounded-xl ${
+                    modoModalCliente === 'atualizar_principal'
+                      ? 'bg-emerald-600 text-white'
+                      : 'bg-emerald-100 text-[#166534]'
+                  }`}
+                >
+                  {modoModalCliente === 'atualizar_principal' ? (
+                    <RefreshCw className="w-5 h-5 text-white" />
+                  ) : (
+                    <UserCheck className="w-5 h-5 text-[#16A34A]" />
+                  )}
                 </div>
                 <div>
-                  <h2 id="modal-vincular-titulo" className="text-base font-bold text-gray-900">
-                    Vincular Contato a um Cliente
+                  <h2 id="modal-cliente-titulo" className="text-base font-bold text-gray-900">
+                    {modoModalCliente === 'atualizar_principal'
+                      ? 'Atualizar Contato: Substituir Telefone e WhatsApp Principal'
+                      : 'Vincular a um Cliente: Gravar como Contato Adicional'}
                   </h2>
                   <p className="text-xs text-gray-500 mt-0.5">
-                    O contato do CSV será adicionado como <strong>Contato Adicional</strong> na
-                    ficha do cliente selecionado, sem alterar o telefone ou WhatsApp principal dele.
+                    {modoModalCliente === 'atualizar_principal' ? (
+                      <>
+                        O cliente selecionado terá o <strong>telefone e WhatsApp principal</strong>{' '}
+                        substituídos pelo número do CSV (
+                        <span className="font-mono font-bold text-emerald-800">
+                          {itemParaVincular.telefoneNormalizadoCompleto ||
+                            itemParaVincular.telefoneCsvFormatado}
+                        </span>
+                        ).
+                      </>
+                    ) : (
+                      <>
+                        O contato do CSV será adicionado como <strong>Contato Adicional</strong> na
+                        ficha do cliente selecionado, <em>sem alterar</em> o telefone ou WhatsApp
+                        principal dele.
+                      </>
+                    )}
                   </p>
                 </div>
               </div>
               <button
                 type="button"
                 onClick={handleFecharModalVincular}
-                aria-label="Fechar modal de vínculo"
+                aria-label="Fechar modal"
                 className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-200 rounded-lg transition-colors"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            {/* Destaque do contato que está sendo vinculado */}
+            {/* Destaque do contato do CSV */}
             <div className="px-5 py-3 bg-emerald-50/70 border-b border-emerald-100 flex flex-wrap items-center justify-between gap-2 text-xs">
               <div>
                 <span className="font-bold text-gray-800">Contato no CSV: </span>
@@ -934,11 +1034,21 @@ export default function ImportarContatosGoogle() {
                             </span>
                             <span className="flex items-center gap-1 font-mono">
                               <Phone className="w-3 h-3 text-gray-400" />
-                              Principal:{' '}
-                              {formatWhatsAppPhone(cliente.telefone || cliente.whatsapp) ||
+                              WhatsApp Atual:{' '}
+                              {formatWhatsAppPhone(cliente.whatsapp || cliente.telefone) ||
                                 'Sem telefone'}
                             </span>
                           </div>
+
+                          {modoModalCliente === 'atualizar_principal' && isSelected && (
+                            <div className="text-[11px] text-emerald-800 font-semibold pt-1">
+                              ➜ O número atual será substituído por:{' '}
+                              <span className="font-mono">
+                                {itemParaVincular.telefoneNormalizadoCompleto ||
+                                  itemParaVincular.telefoneCsvFormatado}
+                              </span>
+                            </div>
+                          )}
                         </div>
 
                         <div className="shrink-0 pt-1">
@@ -971,13 +1081,18 @@ export default function ImportarContatosGoogle() {
               <button
                 type="button"
                 disabled={!clienteSelecionadoModal || isVinculandoDireto}
-                onClick={handleConfirmarVinculoModal}
+                onClick={handleConfirmarModalCliente}
                 className="inline-flex items-center gap-2 px-5 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs font-bold rounded-xl transition-colors shadow-xs"
               >
                 {isVinculandoDireto ? (
                   <>
                     <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                    <span>Vinculando...</span>
+                    <span>Processando...</span>
+                  </>
+                ) : modoModalCliente === 'atualizar_principal' ? (
+                  <>
+                    <RefreshCw className="w-4 h-4" />
+                    <span>Confirmar Atualização de Telefone/WhatsApp</span>
                   </>
                 ) : (
                   <>
@@ -1133,10 +1248,10 @@ export default function ImportarContatosGoogle() {
                     type="button"
                     onClick={() => handleDefinirAcaoEmMassa('atualizar')}
                     className="px-2.5 py-1 text-xs font-semibold rounded-lg bg-emerald-50 text-[#166534] hover:bg-emerald-100 border border-emerald-200"
-                    title="Atualiza somente o telefone e o WhatsApp principal dos clientes detectados automaticamente pelo sistema"
+                    title="Atualiza o telefone e o WhatsApp principal dos clientes detectados automaticamente pelo sistema"
                   >
                     Atualizar contato
-                  </button>
+                  </button>{' '}
                   <button
                     type="button"
                     onClick={() => handleDefinirAcaoEmMassa('adicionar_novo')}
@@ -1272,7 +1387,9 @@ export default function ImportarContatosGoogle() {
                             <span className="text-[10px] uppercase font-bold text-gray-400 block mb-0.5">
                               {item.clienteDestinoVinculo
                                 ? 'Vinculado a Cliente'
-                                : 'Cadastro no CRM'}
+                                : item.clienteBanco
+                                  ? 'Cadastro no CRM'
+                                  : 'Cadastro no CRM'}
                             </span>
                             {item.clienteDestinoVinculo ? (
                               <div className="space-y-0.5">
@@ -1400,24 +1517,26 @@ export default function ImportarContatosGoogle() {
                             </div>
                           ) : (
                             <>
-                              {/* 1. Atualizar contato (se houver cliente correspondente detectado automaticamente) */}
-                              {item.clienteBanco && (
-                                <button
-                                  type="button"
-                                  onClick={() => handleAtualizarClienteEncontrado(item)}
-                                  className="w-full px-3 py-2 rounded-xl text-xs font-bold transition-all text-left flex items-center justify-between bg-emerald-600 text-white hover:bg-emerald-700 shadow-2xs"
-                                  title={`Atualiza o WhatsApp e telefone principal de ${item.clienteBanco.nome} para o número do CSV`}
-                                >
-                                  <span className="flex items-center gap-1.5">
-                                    <RefreshCw className="w-3.5 h-3.5 text-white" />
-                                    Atualizar contato
-                                  </span>
-                                </button>
-                              )}
+                              {/* 1. Atualizar contato (aparece em TODOS os cards de divergência) */}
+                              <button
+                                type="button"
+                                onClick={() => handleAcaoAtualizarContato(item)}
+                                className="w-full px-3 py-2 rounded-xl text-xs font-bold transition-all text-left flex items-center justify-between bg-emerald-600 text-white hover:bg-emerald-700 shadow-2xs"
+                                title={
+                                  item.clienteBanco
+                                    ? `Atualiza o WhatsApp e telefone principal de ${item.clienteBanco.nome} para o número do CSV`
+                                    : 'Selecionar um cliente no CRM para atualizar seu telefone e WhatsApp principal com este número do CSV'
+                                }
+                              >
+                                <span className="flex items-center gap-1.5">
+                                  <RefreshCw className="w-3.5 h-3.5 text-white" />
+                                  Atualizar contato
+                                </span>
+                              </button>
                               {/* 2. Vincular a um cliente (Adiciona como contato adicional a um cliente existente) */}
                               <button
                                 type="button"
-                                onClick={() => handleAbrirModalVincular(item)}
+                                onClick={() => handleAbrirModalVincular(item, 'contato_adicional')}
                                 className="w-full px-3 py-2 rounded-xl text-xs font-bold transition-all text-left flex items-center justify-between bg-emerald-50 text-[#166534] hover:bg-emerald-100 border border-emerald-200 shadow-2xs"
                                 title="Selecionar um cliente existente para adicionar este contato como contato adicional na ficha dele (sem alterar o WhatsApp principal)"
                               >
