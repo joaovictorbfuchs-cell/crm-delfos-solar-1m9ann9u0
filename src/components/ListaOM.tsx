@@ -96,8 +96,16 @@ export const ListaOM: React.FC<ListaOMProps> = ({
     renovarContratoOM,
   } = useClientes()
 
-  const [internalSubTab] = useState<AbaPrincipalOM>('com_plano')
-  const currentSubTab = externalActiveSubTab || internalSubTab
+  const [internalSubTab, setInternalSubTab] = useState<AbaPrincipalOM>('com_plano')
+  const currentSubTab = externalActiveSubTab !== undefined ? externalActiveSubTab : internalSubTab
+
+  const handleSubTabClick = (tab: AbaPrincipalOM) => {
+    if (onSubTabChange) {
+      onSubTabChange(tab)
+    } else {
+      setInternalSubTab(tab)
+    }
+  }
 
   const [busca, setBusca] = useState('')
   const [filtroPosVendas, setFiltroPosVendas] = useState<
@@ -402,6 +410,60 @@ export const ListaOM: React.FC<ListaOMProps> = ({
 
   return (
     <div className="space-y-4">
+      {/* Navegação por Sub-Abas Compactas de 2º Nível: Planos O&M vs Clientes Pós-Vendas */}
+      <div className="flex items-center justify-between gap-3 flex-wrap bg-white p-2 sm:p-2.5 rounded-2xl border border-gray-200/80 shadow-2xs">
+        <div className="bg-gray-100 p-1 rounded-xl flex items-center text-xs font-semibold text-gray-600">
+          <button
+            type="button"
+            onClick={() => handleSubTabClick('com_plano')}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all ${
+              currentSubTab === 'com_plano'
+                ? 'bg-white text-emerald-800 shadow-xs font-bold border border-gray-200/80'
+                : 'hover:text-gray-900'
+            }`}
+          >
+            <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+            <span>Planos O&M</span>
+            <span
+              className={`ml-1 px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
+                currentSubTab === 'com_plano'
+                  ? 'bg-emerald-100 text-emerald-800'
+                  : 'bg-gray-200 text-gray-600'
+              }`}
+            >
+              {safeContratosOM.length}
+            </span>
+          </button>
+          <button
+            type="button"
+            onClick={() => handleSubTabClick('pos_vendas')}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all ${
+              currentSubTab === 'pos_vendas'
+                ? 'bg-white text-emerald-800 shadow-xs font-bold border border-gray-200/80'
+                : 'hover:text-gray-900'
+            }`}
+          >
+            <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+            <span>Clientes Pós-Vendas</span>
+            <span
+              className={`ml-1 px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
+                currentSubTab === 'pos_vendas'
+                  ? 'bg-amber-100 text-amber-800'
+                  : 'bg-gray-200 text-gray-600'
+              }`}
+            >
+              {clientesPosVendas.length}
+            </span>
+          </button>
+        </div>
+
+        <div className="text-[11px] text-gray-500 font-medium px-2 hidden sm:block">
+          {currentSubTab === 'com_plano'
+            ? 'Carteira de contratos com plano fixo e monitoramento'
+            : 'Base qualificada de pós-vendas para oferta de O&M e manutenções'}
+        </div>
+      </div>
+
       {/* Barra de Filtros e Busca (Apenas para sub-aba pós-vendas) */}
       {currentSubTab === 'pos_vendas' && (
         <div className="bg-white rounded-xl border border-gray-200/90 p-4 shadow-xs flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
