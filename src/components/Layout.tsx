@@ -105,7 +105,7 @@ export default function Layout() {
         return 'Planos de Monitoramento & O&M'
       case '/clientes-pos-vendas':
       case '/pos-vendas':
-        return 'Clientes Pós-Vendas'
+        return 'O&M / Pós-vendas'
       case '/manutencoes':
         return 'Contratos & Manutenções (O&M)'
       case '/central-atendimento':
@@ -135,12 +135,22 @@ export default function Layout() {
 
   // Se o usuário for instalador, mostra APENAS "Execução de OS"
   // Se for admin, mostra todos os itens incluindo Gerenciar Usuários
-  const navItems: Array<{
+  interface NavSubItem {
     name: string
     path: string
     icon: React.ElementType
     badge?: number
-  }> = isInstalador
+  }
+
+  interface NavItem {
+    name: string
+    path: string
+    icon: React.ElementType
+    badge?: number
+    subItems?: NavSubItem[]
+  }
+
+  const navItems: NavItem[] = isInstalador
     ? [{ name: 'Execução de OS', path: '/execucao-os', icon: ClipboardCheck }]
     : [
         { name: 'Dashboard', path: '/', icon: LayoutDashboard },
@@ -150,8 +160,18 @@ export default function Layout() {
         { name: 'Atividades', path: '/atividades', icon: CalendarCheck },
         { name: 'Execução de OS', path: '/execucao-os', icon: ClipboardCheck },
         { name: 'Planos O&M', path: '/planos-om', icon: ShieldCheck },
-        { name: 'Clientes Pós-Vendas', path: '/clientes-pos-vendas', icon: UserCheck },
-        { name: 'O&M / Manutenções', path: '/manutencoes', icon: Wrench },
+        {
+          name: 'O&M / Manutenções',
+          path: '/manutencoes',
+          icon: Wrench,
+          subItems: [
+            {
+              name: 'O&M / Pós-vendas',
+              path: '/clientes-pos-vendas',
+              icon: UserCheck,
+            },
+          ],
+        },
         { name: 'Catálogo de Atividades', path: '/catalogo-atividades', icon: ListChecks },
         { name: 'Automações', path: '/automacoes', icon: Zap },
         { name: 'Cadastro de Equipamentos', path: '/equipamentos', icon: Cpu },
@@ -161,6 +181,11 @@ export default function Layout() {
         { name: 'Importar Clientes', path: '/importar-clientes', icon: FileSpreadsheet },
         { name: 'Fornecedores', path: '/fornecedores', icon: Truck },
       ]
+
+  const isManutencoesSectionActive =
+    location.pathname === '/manutencoes' ||
+    location.pathname === '/clientes-pos-vendas' ||
+    location.pathname === '/pos-vendas'
 
   const displayName = userProfile?.name || user?.name || 'Usuário'
   const displayEmail = userProfile?.email || user?.email || 'usuario@delfosengenharia.com.br'
@@ -232,53 +257,105 @@ export default function Layout() {
               (item.path === '/orcamentos' && location.pathname === '/propostas') ||
               (item.path === '/planos-om' &&
                 (location.pathname === '/planos-om' ||
-                  location.pathname === '/planos-monitoramento')) ||
-              (item.path === '/clientes-pos-vendas' &&
-                (location.pathname === '/clientes-pos-vendas' ||
-                  location.pathname === '/pos-vendas'))
+                  location.pathname === '/planos-monitoramento'))
+
+            // Verifica se a seção de Manutenções está ativa para revelar subitens
+            const showSubItems =
+              item.path === '/manutencoes' && isManutencoesSectionActive && item.subItems
+
             return (
-              <NavLink
-                key={item.path}
-                to={item.path}
-                title={isSidebarCollapsed ? item.name : undefined}
-                className={`flex items-center rounded-xl font-medium text-sm transition-all duration-150 relative group ${
-                  isSidebarCollapsed ? 'justify-center p-3 w-full' : 'gap-3 px-3.5 py-2.5'
-                } ${
-                  isActive
-                    ? 'bg-[#DCFCE7] text-[#166534] font-semibold shadow-xs'
-                    : 'text-gray-600 hover:bg-[#F8FAF9] hover:text-[#166534]'
-                }`}
-              >
-                <Icon
-                  className={`w-5 h-5 shrink-0 ${
-                    isActive ? 'text-[#16A34A]' : 'text-gray-400 group-hover:text-[#16A34A]'
+              <div key={item.path} className="space-y-1">
+                <NavLink
+                  to={item.path}
+                  title={isSidebarCollapsed ? item.name : undefined}
+                  className={`flex items-center rounded-xl font-medium text-sm transition-all duration-150 relative group ${
+                    isSidebarCollapsed ? 'justify-center p-3 w-full' : 'gap-3 px-3.5 py-2.5'
+                  } ${
+                    isActive
+                      ? 'bg-[#DCFCE7] text-[#166534] font-semibold shadow-xs'
+                      : 'text-gray-600 hover:bg-[#F8FAF9] hover:text-[#166534]'
                   }`}
-                />
-                {!isSidebarCollapsed && (
-                  <>
-                    <span className="truncate">{item.name}</span>
-                    {item.badge !== undefined && item.badge > 0 && (
-                      <span className="ml-auto px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-600 text-white shadow-2xs">
-                        {item.badge}
-                      </span>
-                    )}
-                    {isActive && !item.badge && (
-                      <ChevronRight className="w-4 h-4 ml-auto text-[#16A34A] shrink-0" />
-                    )}
-                  </>
-                )}
-                {/* Badge no modo colapsado */}
-                {isSidebarCollapsed && item.badge !== undefined && item.badge > 0 && (
-                  <span className="absolute top-2 right-2 w-2.5 h-2.5 rounded-full bg-emerald-600 ring-2 ring-white" />
-                )}
-                {/* Tooltip no modo colapsado para hover */}
-                {isSidebarCollapsed && (
-                  <span className="absolute left-full ml-2.5 px-2.5 py-1 bg-gray-900 text-white text-xs font-semibold rounded-md shadow-lg whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-50">
-                    {item.name}{' '}
-                    {item.badge !== undefined && item.badge > 0 ? `(${item.badge})` : ''}
-                  </span>
-                )}
-              </NavLink>
+                >
+                  <Icon
+                    className={`w-5 h-5 shrink-0 ${
+                      isActive ? 'text-[#16A34A]' : 'text-gray-400 group-hover:text-[#16A34A]'
+                    }`}
+                  />
+                  {!isSidebarCollapsed && (
+                    <>
+                      <span className="truncate">{item.name}</span>
+                      {item.badge !== undefined && item.badge > 0 && (
+                        <span className="ml-auto px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-600 text-white shadow-2xs">
+                          {item.badge}
+                        </span>
+                      )}
+                      {isActive && !item.badge && (
+                        <ChevronRight className="w-4 h-4 ml-auto text-[#16A34A] shrink-0" />
+                      )}
+                    </>
+                  )}
+                  {/* Badge no modo colapsado */}
+                  {isSidebarCollapsed && item.badge !== undefined && item.badge > 0 && (
+                    <span className="absolute top-2 right-2 w-2.5 h-2.5 rounded-full bg-emerald-600 ring-2 ring-white" />
+                  )}
+                  {/* Tooltip no modo colapsado para hover */}
+                  {isSidebarCollapsed && (
+                    <span className="absolute left-full ml-2.5 px-2.5 py-1 bg-gray-900 text-white text-xs font-semibold rounded-md shadow-lg whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-50">
+                      {item.name}{' '}
+                      {item.badge !== undefined && item.badge > 0 ? `(${item.badge})` : ''}
+                    </span>
+                  )}
+                </NavLink>
+
+                {/* Subitens expostos apenas quando a seção Manutenções está ativa */}
+                {showSubItems &&
+                  item.subItems?.map((sub) => {
+                    const SubIcon = sub.icon
+                    const isSubActive =
+                      location.pathname === sub.path ||
+                      (sub.path === '/clientes-pos-vendas' &&
+                        (location.pathname === '/clientes-pos-vendas' ||
+                          location.pathname === '/pos-vendas'))
+                    return (
+                      <NavLink
+                        key={sub.path}
+                        to={sub.path}
+                        title={sub.name}
+                        className={`flex items-center rounded-lg text-xs font-medium transition-all duration-150 relative group ${
+                          isSidebarCollapsed
+                            ? 'justify-center p-2.5 w-full'
+                            : 'gap-2.5 pl-8 pr-3 py-2 ml-2'
+                        } ${
+                          isSubActive
+                            ? 'bg-emerald-100/70 text-[#166534] font-bold shadow-2xs'
+                            : 'text-gray-600 hover:bg-emerald-50/60 hover:text-[#166534]'
+                        }`}
+                      >
+                        <SubIcon
+                          className={`w-4 h-4 shrink-0 ${
+                            isSubActive
+                              ? 'text-[#16A34A]'
+                              : 'text-gray-400 group-hover:text-[#16A34A]'
+                          }`}
+                        />
+                        {!isSidebarCollapsed && (
+                          <>
+                            <span className="truncate">{sub.name}</span>
+                            {isSubActive && (
+                              <span className="w-1.5 h-1.5 rounded-full bg-[#16A34A] ml-auto shrink-0" />
+                            )}
+                          </>
+                        )}
+                        {/* Tooltip no modo colapsado */}
+                        {isSidebarCollapsed && (
+                          <span className="absolute left-full ml-2.5 px-2.5 py-1 bg-gray-900 text-white text-xs font-semibold rounded-md shadow-lg whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-50">
+                            {sub.name}
+                          </span>
+                        )}
+                      </NavLink>
+                    )
+                  })}
+              </div>
             )
           })}
         </nav>
@@ -375,32 +452,64 @@ export default function Layout() {
             <nav className="flex-1 px-4 py-4 space-y-1 overflow-y-auto">
               {navItems.map((item) => {
                 const Icon = item.icon
-                const isActive = location.pathname === item.path
+                const isActive =
+                  location.pathname === item.path ||
+                  (item.path === '/planos-om' &&
+                    (location.pathname === '/planos-om' ||
+                      location.pathname === '/planos-monitoramento'))
+                const showSubItems =
+                  item.path === '/manutencoes' && isManutencoesSectionActive && item.subItems
+
                 return (
-                  <NavLink
-                    key={item.path}
-                    to={item.path}
-                    onClick={() => setMobileMenuOpen(false)}
-                    className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-colors ${
-                      isActive ||
-                      (item.path === '/planos-om' &&
-                        (location.pathname === '/planos-om' ||
-                          location.pathname === '/planos-monitoramento')) ||
-                      (item.path === '/clientes-pos-vendas' &&
-                        (location.pathname === '/clientes-pos-vendas' ||
-                          location.pathname === '/pos-vendas'))
-                        ? 'bg-[#DCFCE7] text-[#166534] font-semibold'
-                        : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
-                    }`}
-                  >
-                    <Icon className={`w-5 h-5 ${isActive ? 'text-[#16A34A]' : 'text-gray-400'}`} />
-                    <span>{item.name}</span>
-                    {item.badge !== undefined && item.badge > 0 && (
-                      <span className="ml-auto px-2 py-0.5 rounded-full text-xs font-black bg-emerald-600 text-white">
-                        {item.badge}
-                      </span>
-                    )}
-                  </NavLink>
+                  <div key={item.path} className="space-y-1">
+                    <NavLink
+                      to={item.path}
+                      onClick={() => setMobileMenuOpen(false)}
+                      className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-colors ${
+                        isActive
+                          ? 'bg-[#DCFCE7] text-[#166534] font-semibold'
+                          : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                      }`}
+                    >
+                      <Icon
+                        className={`w-5 h-5 ${isActive ? 'text-[#16A34A]' : 'text-gray-400'}`}
+                      />
+                      <span>{item.name}</span>
+                      {item.badge !== undefined && item.badge > 0 && (
+                        <span className="ml-auto px-2 py-0.5 rounded-full text-xs font-black bg-emerald-600 text-white">
+                          {item.badge}
+                        </span>
+                      )}
+                    </NavLink>
+
+                    {showSubItems &&
+                      item.subItems?.map((sub) => {
+                        const SubIcon = sub.icon
+                        const isSubActive =
+                          location.pathname === sub.path ||
+                          (sub.path === '/clientes-pos-vendas' &&
+                            (location.pathname === '/clientes-pos-vendas' ||
+                              location.pathname === '/pos-vendas'))
+                        return (
+                          <NavLink
+                            key={sub.path}
+                            to={sub.path}
+                            title={sub.name}
+                            onClick={() => setMobileMenuOpen(false)}
+                            className={`flex items-center gap-2.5 pl-9 pr-3.5 py-2 rounded-lg text-xs font-medium transition-colors ${
+                              isSubActive
+                                ? 'bg-emerald-100/70 text-[#166534] font-bold'
+                                : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                            }`}
+                          >
+                            <SubIcon
+                              className={`w-4 h-4 ${isSubActive ? 'text-[#16A34A]' : 'text-gray-400'}`}
+                            />
+                            <span>{sub.name}</span>
+                          </NavLink>
+                        )
+                      })}
+                  </div>
                 )
               })}
             </nav>

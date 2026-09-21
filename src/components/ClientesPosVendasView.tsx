@@ -5,8 +5,6 @@ import {
   RotateCcw,
   SlidersHorizontal,
   ChevronDown,
-  LayoutGrid,
-  Table as TableIcon,
   Sun,
   Shield,
   ShieldCheck,
@@ -89,7 +87,6 @@ export function ClientesPosVendasView() {
   const [formFiltros, setFormFiltros] = useState<FiltrosPosVendasState>(FILTROS_INICIAIS)
   const [filtrosAtivos, setFiltrosAtivos] = useState<FiltrosPosVendasState>(FILTROS_INICIAIS)
   const [painelAberto, setPainelAberto] = useState(true)
-  const [modoVisualizacao, setModoVisualizacao] = useState<'cards' | 'tabela'>('cards')
   const [ordenacao, setOrdenacao] = useState<
     'nome' | 'potencia' | 'data_instalacao' | 'tempo_inatividade' | 'status'
   >('nome')
@@ -504,8 +501,11 @@ export function ClientesPosVendasView() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-xl sm:text-2xl font-black text-gray-900 tracking-tight">
-              Clientes Pós-Vendas
+            <h1
+              className="text-xl sm:text-2xl font-black text-gray-900 tracking-tight"
+              title="O&M / Pós-vendas"
+            >
+              O&M / Pós-vendas
             </h1>
             <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
               {clientesBase.length} na base
@@ -513,7 +513,7 @@ export function ClientesPosVendasView() {
           </div>
           <p className="text-xs text-gray-500 mt-0.5">
             Gestão de usinas instaladas, controle de garantias, acompanhamento de atividades
-            periódicas e planejamento de equipes.
+            periódicas e planejamento de equipes O&M.
           </p>
         </div>
 
@@ -537,7 +537,7 @@ export function ClientesPosVendasView() {
       {/* BARRA DE FILTROS AVANÇADOS RETRÁTIL (PADRÃO PROPOSTAS E PLANOS O&M)       */}
       {/* ========================================================================= */}
       <div className="bg-white rounded-2xl border border-gray-200/90 p-4 shadow-2xs space-y-3">
-        {/* Linha 1: Busca rápida, Alternador Cards/Tabela, Ordenação e Botão Filtros */}
+        {/* Linha 1: Busca rápida, Ordenação e Botão Filtros */}
         <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
           {/* Campo Busca Rápida: nome, endereço ou número do contrato */}
           <div className="relative flex-1 min-w-[260px]">
@@ -567,38 +567,8 @@ export function ClientesPosVendasView() {
             )}
           </div>
 
-          {/* Controles de Visualização, Ordenação e Filtros Avançados */}
+          {/* Controles de Ordenação e Filtros Avançados */}
           <div className="flex items-center gap-2 flex-wrap">
-            {/* Alternador Cards / Tabela */}
-            <div className="flex items-center bg-gray-100 p-1 rounded-xl text-xs font-semibold text-gray-600">
-              <button
-                type="button"
-                onClick={() => setModoVisualizacao('cards')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all ${
-                  modoVisualizacao === 'cards'
-                    ? 'bg-white text-emerald-800 shadow-xs font-bold'
-                    : 'hover:text-gray-900'
-                }`}
-                title="Visualizar em Cards"
-              >
-                <LayoutGrid className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Cards</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setModoVisualizacao('tabela')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all ${
-                  modoVisualizacao === 'tabela'
-                    ? 'bg-white text-emerald-800 shadow-xs font-bold'
-                    : 'hover:text-gray-900'
-                }`}
-                title="Visualizar em Tabela"
-              >
-                <TableIcon className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Tabela</span>
-              </button>
-            </div>
-
             {/* Ordenação */}
             <select
               value={ordenacao}
@@ -1010,7 +980,7 @@ export function ClientesPosVendasView() {
       </div>
 
       {/* ========================================================================= */}
-      {/* LISTA / CARDS / TABELA DE CLIENTES PÓS-VENDAS                             */}
+      {/* LISTA DE CLIENTES PÓS-VENDAS (MODO LISTA ÚNICO)                           */}
       {/* ========================================================================= */}
       {clientesFiltrados.length === 0 ? (
         <div className="bg-white rounded-2xl border border-dashed border-gray-300 p-12 text-center">
@@ -1033,241 +1003,6 @@ export function ClientesPosVendasView() {
               <span>Limpar filtros</span>
             </button>
           )}
-        </div>
-      ) : modoVisualizacao === 'cards' ? (
-        /* VISUALIZAÇÃO EM CARDS SOLICITADA */
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {clientesFiltrados.map((item) => {
-            const {
-              cliente,
-              cidade,
-              dataInstalacaoStr,
-              potenciaKwp,
-              qtdModulos,
-              tipoSistema,
-              ultimaAtividadeTitulo,
-              ultimaAtividadeDataStr,
-              diasSemAtividade,
-              proximaAtividadeTitulo,
-              proximaAtividadeDataStr,
-              garantiaStatus,
-              statusCor,
-              statusMotivo,
-              semAtividadeRegistrada,
-            } = item
-
-            // Borda e indicador de cor por status:
-            // Verde = ativo, tudo em dia; Amarelo = garantia próxima ou sem atividade 30-60d; Vermelho = vencida, >90d ou pendência
-            const borderCorClass =
-              statusCor === 'vermelho'
-                ? 'border-rose-400 ring-1 ring-rose-300/40 hover:border-rose-500'
-                : statusCor === 'amarelo'
-                  ? 'border-amber-400 ring-1 ring-amber-300/40 hover:border-amber-500'
-                  : 'border-emerald-300 hover:border-emerald-500'
-
-            const statusDotClass =
-              statusCor === 'vermelho'
-                ? 'bg-rose-500'
-                : statusCor === 'amarelo'
-                  ? 'bg-amber-500'
-                  : 'bg-emerald-500'
-
-            const statusBadgeBg =
-              statusCor === 'vermelho'
-                ? 'bg-rose-50 text-rose-800 border-rose-200'
-                : statusCor === 'amarelo'
-                  ? 'bg-amber-50 text-amber-900 border-amber-200'
-                  : 'bg-emerald-50 text-emerald-800 border-emerald-200'
-
-            return (
-              <div
-                key={cliente.id}
-                className={`bg-white rounded-2xl border ${borderCorClass} shadow-2xs hover:shadow-md transition-all p-4 flex flex-col justify-between group relative`}
-              >
-                <div>
-                  {/* Topo do Card: Indicador de Cor, Nome do Cliente e Status Badge */}
-                  <div className="flex items-start justify-between gap-2.5 mb-2.5">
-                    <div className="flex items-center gap-2 min-w-0">
-                      {/* Ponto colorido de status */}
-                      <span
-                        className={`w-3 h-3 rounded-full shrink-0 shadow-xs ${statusDotClass} ${
-                          statusCor !== 'verde' ? 'animate-pulse' : ''
-                        }`}
-                        title={statusMotivo}
-                      />
-                      <div className="min-w-0">
-                        <h3 className="font-extrabold text-sm text-gray-900 truncate group-hover:text-emerald-700 transition-colors">
-                          {cliente.nome}
-                        </h3>
-                        <div className="flex items-center gap-1.5 text-[11px] text-gray-500 mt-0.5 truncate">
-                          <MapPin className="w-3 h-3 text-gray-400 shrink-0" />
-                          <span className="truncate">{cidade}/RS</span>
-                          <span className="text-gray-300">•</span>
-                          <span className="font-medium text-emerald-700">{tipoSistema}</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Badge de Status / Garantia */}
-                    <span
-                      className={`shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border ${statusBadgeBg}`}
-                      title={statusMotivo}
-                    >
-                      {statusCor === 'vermelho' ? (
-                        <AlertTriangle className="w-3 h-3 text-rose-600" />
-                      ) : statusCor === 'amarelo' ? (
-                        <Clock className="w-3 h-3 text-amber-600" />
-                      ) : (
-                        <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                      )}
-                      <span>
-                        {garantiaStatus === 'Vencida'
-                          ? 'Garantia Vencida'
-                          : garantiaStatus === 'Próxima do vencimento'
-                            ? 'Garantia 30d'
-                            : 'Em dia'}
-                      </span>
-                    </span>
-                  </div>
-
-                  {/* Alerta quando NÃO há atividade registrada */}
-                  {semAtividadeRegistrada && (
-                    <div className="mb-3 px-2.5 py-1.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 flex items-center gap-2 text-xs font-semibold">
-                      <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
-                      <span>Nenhuma atividade registrada no histórico!</span>
-                    </div>
-                  )}
-
-                  {/* Informações Técnicas da Usina: Potência, Módulos e Instalação */}
-                  <div className="grid grid-cols-2 gap-2 p-2.5 rounded-xl bg-gray-50/70 border border-gray-100 text-xs mb-3">
-                    <div className="flex items-center gap-2">
-                      <div className="w-7 h-7 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
-                        <Zap className="w-4 h-4" />
-                      </div>
-                      <div>
-                        <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
-                          Potência
-                        </div>
-                        <div className="font-extrabold text-gray-900">
-                          {potenciaKwp.toFixed(2)} kWp
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      <div className="w-7 h-7 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center shrink-0">
-                        <Layers className="w-4 h-4" />
-                      </div>
-                      <div>
-                        <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
-                          Módulos / Placas
-                        </div>
-                        <div className="font-extrabold text-gray-900 flex items-center gap-1">
-                          <span>{qtdModulos} placas</span>
-                          {isFiltroAtividadeEspecifica && (
-                            <span className="px-1 py-0.2 rounded bg-blue-600 text-white text-[9px] font-black uppercase">
-                              Insumos
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Datas e Atividades */}
-                  <div className="space-y-1.5 text-xs text-gray-600 mb-3">
-                    {/* Data da instalação */}
-                    <div className="flex items-center justify-between text-[11px]">
-                      <span className="text-gray-500 flex items-center gap-1">
-                        <Calendar className="w-3 h-3 text-gray-400" />
-                        Instalação:
-                      </span>
-                      <span className="font-bold text-gray-800">
-                        {formatarData(dataInstalacaoStr)}
-                      </span>
-                    </div>
-
-                    {/* Última atividade */}
-                    <div className="flex items-center justify-between text-[11px]">
-                      <span className="text-gray-500 flex items-center gap-1">
-                        <Clock className="w-3 h-3 text-gray-400" />
-                        Última atividade:
-                      </span>
-                      <span className="font-bold text-gray-800 truncate max-w-[170px] text-right">
-                        {ultimaAtividadeTitulo ? (
-                          <>
-                            {ultimaAtividadeTitulo}
-                            {diasSemAtividade !== null && (
-                              <span className="text-gray-400 font-normal">
-                                {' '}
-                                ({diasSemAtividade}d atrás)
-                              </span>
-                            )}
-                          </>
-                        ) : (
-                          <span className="text-rose-600 font-semibold flex items-center gap-0.5 justify-end">
-                            <AlertTriangle className="w-3 h-3 text-rose-500" />
-                            Nunca realizada
-                          </span>
-                        )}
-                      </span>
-                    </div>
-
-                    {/* Próxima atividade agendada (se houver) */}
-                    <div className="flex items-center justify-between text-[11px]">
-                      <span className="text-gray-500 flex items-center gap-1">
-                        <Calendar className="w-3 h-3 text-emerald-600" />
-                        Próxima atividade:
-                      </span>
-                      <span className="font-bold text-emerald-700 truncate max-w-[170px] text-right">
-                        {proximaAtividadeTitulo ? (
-                          `${proximaAtividadeTitulo} (${formatarData(proximaAtividadeDataStr)})`
-                        ) : (
-                          <span className="text-gray-400 font-normal">Não agendada</span>
-                        )}
-                      </span>
-                    </div>
-
-                    {/* Status da Garantia */}
-                    <div className="flex items-center justify-between text-[11px] pt-1 border-t border-gray-100">
-                      <span className="text-gray-500 flex items-center gap-1">
-                        <Shield className="w-3 h-3 text-gray-400" />
-                        Garantia da instalação:
-                      </span>
-                      <span
-                        className={`font-bold ${
-                          garantiaStatus === 'Vencida'
-                            ? 'text-rose-600'
-                            : garantiaStatus === 'Próxima do vencimento'
-                              ? 'text-amber-600'
-                              : 'text-emerald-700'
-                        }`}
-                      >
-                        {garantiaStatus}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Botão de Ação: Visualizar Ficha Completa */}
-                <div className="pt-2.5 border-t border-gray-100 flex items-center justify-between gap-2">
-                  <div className="text-[10px] text-gray-400 font-medium truncate">
-                    {statusMotivo}
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() => openFichaCliente(cliente.id)}
-                    className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-600 text-emerald-800 hover:text-white rounded-xl text-xs font-bold transition-all shadow-2xs group-hover:scale-[1.02]"
-                    title="Visualizar ficha completa do cliente no CRM"
-                  >
-                    <Eye className="w-3.5 h-3.5" />
-                    <span>Visualizar ficha completa</span>
-                  </button>
-                </div>
-              </div>
-            )
-          })}
         </div>
       ) : (
         /* VISUALIZAÇÃO EM TABELA SOLICITADA */
