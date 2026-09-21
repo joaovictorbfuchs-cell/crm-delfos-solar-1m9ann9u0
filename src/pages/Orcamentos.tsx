@@ -1078,11 +1078,11 @@ export const Orcamentos: React.FC = () => {
                   const cliente =
                     orc.expand?.cliente_id || clientes.find((c) => c.id === orc.cliente_id)
                   const nomeCliente = cliente?.nome || 'Cliente não identificado'
-                  const inicialCliente = nomeCliente.charAt(0).toUpperCase()
-                  const seedId = Math.abs(
-                    nomeCliente.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) % 50,
-                  )
-                  const avatarUrl = `https://img.usecurling.com/ppl/thumbnail?seed=${seedId}`
+                  const partesNome = nomeCliente.trim().split(/\s+/).filter(Boolean)
+                  const iniciaisCliente =
+                    partesNome.length >= 2
+                      ? `${partesNome[0].charAt(0)}${partesNome[partesNome.length - 1].charAt(0)}`.toUpperCase()
+                      : nomeCliente.charAt(0).toUpperCase() || 'C'
 
                   return (
                     <tr
@@ -1090,19 +1090,14 @@ export const Orcamentos: React.FC = () => {
                       onClick={() => handleEditarOrcamento(orc)}
                       className="hover:bg-emerald-50/30 cursor-pointer transition-colors group"
                     >
-                      {/* Cliente com Avatar */}
+                      {/* Cliente com Avatar Neutro por Iniciais */}
                       <td className="py-3 px-4">
                         <div className="flex items-center gap-2.5">
-                          <div className="w-8 h-8 rounded-lg overflow-hidden bg-gradient-to-tr from-emerald-600 to-green-500 text-white font-bold text-xs shrink-0 flex items-center justify-center border border-emerald-100">
-                            <img
-                              src={avatarUrl}
-                              alt={nomeCliente}
-                              className="w-full h-full object-cover"
-                              onError={(e) => {
-                                e.currentTarget.style.display = 'none'
-                              }}
-                            />
-                            <span>{inicialCliente}</span>
+                          <div
+                            className="w-8 h-8 rounded-lg bg-gradient-to-tr from-emerald-600 to-green-500 text-white font-bold text-xs shrink-0 flex items-center justify-center border border-emerald-100 shadow-2xs select-none"
+                            aria-hidden="true"
+                          >
+                            <span>{iniciaisCliente}</span>
                           </div>
 
                           <div>
