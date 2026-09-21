@@ -187,6 +187,7 @@ export interface Cliente extends RecordModel {
   data_transferencia_pos_vendas?: string
   origem_pos_vendas?: string
   area_destino?: 'projetos' | 'om' | string
+  tipo_negocio?: 'energia solar' | 'baterias' | 'Planos de O&M' | string
   motivo_perda?: 'preco' | 'concorrente' | 'desistiu' | 'nao_respondeu' | 'outro' | string
   observacoes_perda?: string
   valor_final?: number

@@ -8,7 +8,6 @@ import {
   CheckCircle2,
   Archive,
   X,
-  Calendar,
   User,
   DollarSign,
   Layers,
@@ -24,10 +23,13 @@ import {
   MoreVertical,
   CheckCircle,
   XCircle,
+  RotateCcw,
+  Zap,
+  Battery,
 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import type { Cliente, ClienteStatus, SistemaUsuario } from '@/types/crm'
-import { formatCurrency, formatDate } from '@/lib/formatters'
+import { formatCurrency } from '@/lib/formatters'
 import { StatusBadge } from '@/components/StatusBadge'
 import { useClientes } from '@/contexts/ClientesContext'
 import {
@@ -74,6 +76,48 @@ const ETAPAS_FUNIL: { id: ClienteStatus; label: string }[] = [
   { id: 'Perdido', label: 'Perdido' },
 ]
 
+export type TipoNegocioOpcao = 'energia solar' | 'baterias' | 'Planos de O&M'
+
+const TIPOS_NEGOCIO_OPCOES: { id: TipoNegocioOpcao; label: string }[] = [
+  { id: 'energia solar', label: 'Energia Solar' },
+  { id: 'baterias', label: 'Baterias' },
+  { id: 'Planos de O&M', label: 'Planos de O&M' },
+]
+
+const MOTIVOS_PERDA_OPCOES: { id: string; label: string; cor: string }[] = [
+  { id: 'preco', label: 'Preço', cor: 'bg-amber-100 text-amber-800 border-amber-200' },
+  { id: 'concorrente', label: 'Concorrente', cor: 'bg-blue-100 text-blue-800 border-blue-200' },
+  { id: 'desistiu', label: 'Desistiu', cor: 'bg-purple-100 text-purple-800 border-purple-200' },
+  { id: 'nao_respondeu', label: 'Não respondeu', cor: 'bg-rose-100 text-rose-800 border-rose-200' },
+  { id: 'outro', label: 'Outro', cor: 'bg-gray-100 text-gray-800 border-gray-200' },
+]
+
+/**
+ * Normaliza o tipo de negócio do cliente para uma das 3 categorias do usuário:
+ * 'energia solar', 'baterias' ou 'Planos de O&M'
+ */
+export function normalizarTipoNegocio(cliente: Cliente): TipoNegocioOpcao {
+  const raw = `${cliente.tipo_negocio || ''} ${cliente.produto || ''}`.toLowerCase()
+  if (
+    raw.includes('bateria') ||
+    raw.includes('storage') ||
+    raw.includes('híbrido') ||
+    raw.includes('hibrido')
+  ) {
+    return 'baterias'
+  }
+  if (
+    raw.includes('o&m') ||
+    raw.includes('manuten') ||
+    raw.includes('plano') ||
+    cliente.contratou_om ||
+    cliente.proposta_om_id
+  ) {
+    return 'Planos de O&M'
+  }
+  return 'energia solar'
+}
+
 export const ComercialListView: React.FC<ComercialListViewProps> = ({
   clientes: clientesProp,
   onBackToKanban,
@@ -95,6 +139,11 @@ export const ComercialListView: React.FC<ComercialListViewProps> = ({
   } = useClientes()
 
   const [busca, setBusca] = useState('')
+  const [filtroEtapa, setFiltroEtapa] = useState<string>('todos')
+  const [filtroResponsavel, setFiltroResponsavel] = useState<string>('todos')
+  const [filtroMotivoPerda, setFiltroMotivoPerda] = useState<string>('todos')
+  const [filtroTipoNegocio, setFiltroTipoNegocio] = useState<string>('todos')
+
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [isProcessing, setIsProcessing] = useState(false)
 
@@ -121,17 +170,77 @@ export const ComercialListView: React.FC<ComercialListViewProps> = ({
     return clientesProp.filter((c) => !c.arquivado && !c.transferido_pos_vendas)
   }, [clientesProp])
 
-  // Filtragem rápida pelo nome do cliente (e também por cidade ou responsável se pesquisado)
+  // Filtros ativos contagem e flag
+  const hasActiveFilters =
+    filtroEtapa !== 'todos' ||
+    filtroResponsavel !== 'todos' ||
+    filtroMotivoPerda !== 'todos' ||
+    filtroTipoNegocio !== 'todos' ||
+    busca.trim() !== ''
+
+  const handleLimparFiltros = () => {
+    setBusca('')
+    setFiltroEtapa('todos')
+    setFiltroResponsavel('todos')
+    setFiltroMotivoPerda('todos')
+    setFiltroTipoNegocio('todos')
+  }
+
+  // Filtragem combinada (E): Busca textual + Etapa + Responsável + Motivo da Perda + Tipo de Negócio
   const filteredClientes = useMemo(() => {
     const termo = busca.trim().toLowerCase()
-    if (!termo) return clientesAtivos
-    return clientesAtivos.filter(
-      (c) =>
-        c.nome.toLowerCase().includes(termo) ||
-        (c.cidade && c.cidade.toLowerCase().includes(termo)) ||
-        (c.responsavel_nome && c.responsavel_nome.toLowerCase().includes(termo)),
-    )
-  }, [clientesAtivos, busca])
+
+    return clientesAtivos.filter((c) => {
+      // 1. Busca textual (nome, cidade, responsável)
+      if (termo) {
+        const matchNome = (c.nome || '').toLowerCase().includes(termo)
+        const matchCidade = (c.cidade || '').toLowerCase().includes(termo)
+        const matchResp = (c.responsavel_nome || '').toLowerCase().includes(termo)
+        if (!matchNome && !matchCidade && !matchResp) return false
+      }
+
+      // 2. Filtro Etapa
+      if (filtroEtapa !== 'todos') {
+        if (c.status !== filtroEtapa) return false
+      }
+
+      // 3. Filtro Responsável
+      if (filtroResponsavel !== 'todos') {
+        if (filtroResponsavel === 'sem_responsavel') {
+          if (c.responsavel_id || c.responsavel_nome) return false
+        } else {
+          const matchId = c.responsavel_id === filtroResponsavel
+          const userObj = usuarios.find((u) => u.id === filtroResponsavel)
+          const matchNome =
+            userObj &&
+            c.responsavel_nome &&
+            c.responsavel_nome.toLowerCase() === userObj.name.toLowerCase()
+          if (!matchId && !matchNome) return false
+        }
+      }
+
+      // 4. Filtro Motivo da Perda
+      if (filtroMotivoPerda !== 'todos') {
+        if (c.motivo_perda !== filtroMotivoPerda) return false
+      }
+
+      // 5. Filtro Tipo de Negócio
+      if (filtroTipoNegocio !== 'todos') {
+        const tipoNorm = normalizarTipoNegocio(c)
+        if (tipoNorm !== filtroTipoNegocio) return false
+      }
+
+      return true
+    })
+  }, [
+    clientesAtivos,
+    busca,
+    filtroEtapa,
+    filtroResponsavel,
+    filtroMotivoPerda,
+    filtroTipoNegocio,
+    usuarios,
+  ])
 
   // Seleção rápida
   const allFilteredSelected =
@@ -369,41 +478,176 @@ export const ComercialListView: React.FC<ComercialListViewProps> = ({
   return (
     <div className="space-y-4">
       {/* Barra de Filtros e Busca Rápida */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-gray-50/80 p-3 rounded-xl border border-gray-200">
-        <div className="relative flex-1 max-w-md">
-          <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
-          <input
-            type="text"
-            value={busca}
-            onChange={(e) => setBusca(e.target.value)}
-            placeholder="Busca rápida por nome do cliente ou cidade..."
-            className="w-full pl-9 pr-8 py-2 text-sm bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#16A34A] focus:border-transparent transition-all placeholder:text-gray-400"
-          />
-          {busca && (
-            <button
-              onClick={() => setBusca('')}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-0.5 rounded"
-              title="Limpar busca"
+      <div className="bg-white rounded-xl border border-gray-200/90 p-3.5 shadow-xs space-y-3">
+        {/* Linha 1: Campo de Busca Textual + Contador + Voltar ao Kanban */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+          <div className="relative flex-1 max-w-md">
+            <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              value={busca}
+              onChange={(e) => setBusca(e.target.value)}
+              placeholder="Busca rápida por nome do cliente, cidade ou responsável..."
+              className="w-full pl-9 pr-8 py-2 text-xs sm:text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#16A34A] focus:bg-white focus:border-transparent transition-all placeholder:text-gray-400"
+            />
+            {busca && (
+              <button
+                onClick={() => setBusca('')}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-0.5 rounded"
+                title="Limpar busca"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+
+          <div className="flex items-center gap-2 justify-between sm:justify-end text-xs text-gray-600">
+            <span className="font-medium text-[11px] sm:text-xs">
+              Exibindo{' '}
+              <strong className="text-gray-900 font-bold">{filteredClientes.length}</strong> de{' '}
+              <strong className="text-gray-900 font-bold">{clientesAtivos.length}</strong> negócios
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onBackToKanban}
+              className="border-emerald-300 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800 font-medium text-xs h-8"
             >
-              <X className="w-4 h-4" />
-            </button>
-          )}
+              ← Voltar para Kanban
+            </Button>
+          </div>
         </div>
 
-        <div className="flex items-center gap-2 justify-between sm:justify-end text-xs text-gray-600">
-          <span className="font-medium">
-            Exibindo <strong className="text-gray-900">{filteredClientes.length}</strong> de{' '}
-            {clientesAtivos.length} negócios
-          </span>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onBackToKanban}
-            className="border-emerald-300 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800 font-medium"
-          >
-            ← Voltar para Kanban
-          </Button>
+        {/* Linha 2: 4 Filtros Combináveis (Etapa, Responsável, Motivo da Perda, Tipo de Negócio) + Limpar */}
+        <div className="pt-2 border-t border-gray-100 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 items-end">
+          {/* 1. Filtro Etapa */}
+          <div className="space-y-1">
+            <label className="text-[10px] font-bold uppercase tracking-wider text-gray-500 block">
+              Etapa do Funil
+            </label>
+            <select
+              value={filtroEtapa}
+              onChange={(e) => setFiltroEtapa(e.target.value)}
+              className={`w-full text-xs font-semibold px-2.5 py-1.5 rounded-lg border focus:outline-none focus:ring-1 focus:ring-emerald-500 cursor-pointer shadow-2xs transition-colors ${
+                filtroEtapa !== 'todos'
+                  ? 'bg-emerald-50 text-emerald-900 border-emerald-400 font-bold'
+                  : 'bg-gray-50/80 text-gray-700 border-gray-200 font-medium'
+              }`}
+            >
+              <option value="todos">Todas as Etapas ({clientesAtivos.length})</option>
+              {ETAPAS_FUNIL.map((etapa) => {
+                const count = clientesAtivos.filter((c) => c.status === etapa.id).length
+                return (
+                  <option key={etapa.id} value={etapa.id}>
+                    {etapa.label} ({count})
+                  </option>
+                )
+              })}
+            </select>
+          </div>
+
+          {/* 2. Filtro Responsável */}
+          <div className="space-y-1">
+            <label className="text-[10px] font-bold uppercase tracking-wider text-gray-500 block">
+              Responsável
+            </label>
+            <select
+              value={filtroResponsavel}
+              onChange={(e) => setFiltroResponsavel(e.target.value)}
+              className={`w-full text-xs font-semibold px-2.5 py-1.5 rounded-lg border focus:outline-none focus:ring-1 focus:ring-emerald-500 cursor-pointer shadow-2xs transition-colors ${
+                filtroResponsavel !== 'todos'
+                  ? 'bg-blue-50 text-blue-900 border-blue-400 font-bold'
+                  : 'bg-gray-50/80 text-gray-700 border-gray-200 font-medium'
+              }`}
+            >
+              <option value="todos">Todos os Responsáveis</option>
+              <option value="sem_responsavel">Não atribuído</option>
+              {usuarios.map((u) => {
+                const count = clientesAtivos.filter(
+                  (c) =>
+                    c.responsavel_id === u.id ||
+                    (c.responsavel_nome &&
+                      c.responsavel_nome.toLowerCase() === u.name.toLowerCase()),
+                ).length
+                return (
+                  <option key={u.id} value={u.id}>
+                    {u.name} ({count})
+                  </option>
+                )
+              })}
+            </select>
+          </div>
+
+          {/* 3. Filtro Motivo da Perda */}
+          <div className="space-y-1">
+            <label className="text-[10px] font-bold uppercase tracking-wider text-gray-500 block">
+              Motivo da Perda
+            </label>
+            <select
+              value={filtroMotivoPerda}
+              onChange={(e) => setFiltroMotivoPerda(e.target.value)}
+              className={`w-full text-xs font-semibold px-2.5 py-1.5 rounded-lg border focus:outline-none focus:ring-1 focus:ring-emerald-500 cursor-pointer shadow-2xs transition-colors ${
+                filtroMotivoPerda !== 'todos'
+                  ? 'bg-rose-50 text-rose-900 border-rose-400 font-bold'
+                  : 'bg-gray-50/80 text-gray-700 border-gray-200 font-medium'
+              }`}
+            >
+              <option value="todos">Todos os Motivos</option>
+              {MOTIVOS_PERDA_OPCOES.map((m) => {
+                const count = clientesAtivos.filter((c) => c.motivo_perda === m.id).length
+                return (
+                  <option key={m.id} value={m.id}>
+                    {m.label} ({count})
+                  </option>
+                )
+              })}
+            </select>
+          </div>
+
+          {/* 4. Filtro Tipo de Negócio */}
+          <div className="space-y-1">
+            <label className="text-[10px] font-bold uppercase tracking-wider text-gray-500 block">
+              Tipo de Negócio
+            </label>
+            <select
+              value={filtroTipoNegocio}
+              onChange={(e) => setFiltroTipoNegocio(e.target.value)}
+              className={`w-full text-xs font-semibold px-2.5 py-1.5 rounded-lg border focus:outline-none focus:ring-1 focus:ring-emerald-500 cursor-pointer shadow-2xs transition-colors ${
+                filtroTipoNegocio !== 'todos'
+                  ? 'bg-purple-50 text-purple-900 border-purple-400 font-bold'
+                  : 'bg-gray-50/80 text-gray-700 border-gray-200 font-medium'
+              }`}
+            >
+              <option value="todos">Todos os Tipos</option>
+              {TIPOS_NEGOCIO_OPCOES.map((t) => {
+                const count = clientesAtivos.filter((c) => normalizarTipoNegocio(c) === t.id).length
+                return (
+                  <option key={t.id} value={t.id}>
+                    {t.label} ({count})
+                  </option>
+                )
+              })}
+            </select>
+          </div>
         </div>
+
+        {/* Linha Auxiliar quando houver filtros aplicados */}
+        {hasActiveFilters && (
+          <div className="flex items-center justify-between pt-1 text-xs">
+            <div className="flex items-center gap-1.5 text-gray-500">
+              <Filter className="w-3.5 h-3.5 text-emerald-600" />
+              <span>Filtros ativos na visualização</span>
+            </div>
+            <button
+              type="button"
+              onClick={handleLimparFiltros}
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-semibold text-rose-700 bg-rose-50 hover:bg-rose-100 transition-colors"
+            >
+              <RotateCcw className="w-3 h-3" />
+              <span>Limpar filtros</span>
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Tabela de Negócios */}
@@ -427,17 +671,18 @@ export const ComercialListView: React.FC<ComercialListViewProps> = ({
                   </button>
                 </th>
                 <th className="py-3 px-3">Nome do Cliente</th>
+                <th className="py-3 px-3">Tipo de Negócio</th>
                 <th className="py-3 px-3 text-right">Valor Estimado</th>
                 <th className="py-3 px-3 text-center">Etapa Atual</th>
-                <th className="py-3 px-3">Previsão Fechamento</th>
                 <th className="py-3 px-3">Responsável</th>
+                <th className="py-3 px-3">Motivo da Perda</th>
                 <th className="py-3 px-2 text-center w-12"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 text-sm">
               {filteredClientes.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="py-12 text-center text-gray-400">
+                  <td colSpan={8} className="py-12 text-center text-gray-400">
                     <Filter className="w-8 h-8 mx-auto text-gray-300 mb-2" />
                     <p className="text-sm font-medium text-gray-600">Nenhum negócio encontrado</p>
                     <p className="text-xs text-gray-400 mt-0.5">
@@ -450,10 +695,32 @@ export const ComercialListView: React.FC<ComercialListViewProps> = ({
               ) : (
                 filteredClientes.map((cliente) => {
                   const isSelected = selectedIds.includes(cliente.id)
-                  const previsaoTexto = cliente.data_previsao_fechamento
-                    ? formatDate(cliente.data_previsao_fechamento)
-                    : '—'
                   const responsavelTexto = cliente.responsavel_nome || 'Não atribuído'
+                  const tipoNegocioNorm = normalizarTipoNegocio(cliente)
+
+                  // Detalhes de visualização do Tipo de Negócio
+                  const tipoNegocioBadge =
+                    tipoNegocioNorm === 'baterias' ? (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-sky-100 text-sky-800 border border-sky-200">
+                        <Battery className="w-3 h-3 text-sky-600" />
+                        <span>Baterias</span>
+                      </span>
+                    ) : tipoNegocioNorm === 'Planos de O&M' ? (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-teal-100 text-teal-800 border border-teal-200">
+                        <Wrench className="w-3 h-3 text-teal-600" />
+                        <span>Planos de O&M</span>
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-amber-100 text-amber-800 border border-amber-200">
+                        <Zap className="w-3 h-3 text-amber-600" />
+                        <span>Energia Solar</span>
+                      </span>
+                    )
+
+                  // Motivo da Perda (exibido com badge legível quando houver motivo ou quando for perdido)
+                  const motivoObj = cliente.motivo_perda
+                    ? MOTIVOS_PERDA_OPCOES.find((m) => m.id === cliente.motivo_perda)
+                    : null
 
                   return (
                     <tr
@@ -498,34 +765,29 @@ export const ComercialListView: React.FC<ComercialListViewProps> = ({
                         </div>
                       </td>
 
+                      {/* Tipo de Negócio */}
+                      <td className="py-3 px-3 whitespace-nowrap">{tipoNegocioBadge}</td>
+
                       {/* Valor Estimado */}
-                      <td className="py-3 px-3 text-right font-semibold text-gray-800">
+                      <td className="py-3 px-3 text-right font-semibold text-gray-800 whitespace-nowrap">
                         {cliente.valor_estimado
                           ? formatCurrency(cliente.valor_estimado)
                           : 'R$ 0,00'}
                       </td>
 
                       {/* Etapa Atual */}
-                      <td className="py-3 px-3 text-center">
+                      <td className="py-3 px-3 text-center whitespace-nowrap">
                         <StatusBadge status={cliente.status} />
                       </td>
 
-                      {/* Data de Previsão de Fechamento */}
-                      <td className="py-3 px-3 text-xs text-gray-600">
-                        <div className="flex items-center gap-1.5">
-                          <Calendar className="w-3.5 h-3.5 text-gray-400 shrink-0" />
-                          <span>{previsaoTexto}</span>
-                        </div>
-                      </td>
-
                       {/* Responsável */}
-                      <td className="py-3 px-3 text-xs text-gray-700">
+                      <td className="py-3 px-3 text-xs text-gray-700 whitespace-nowrap">
                         <div className="flex items-center gap-1.5">
                           <div className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold text-[10px] shrink-0 border border-emerald-300">
                             {responsavelTexto.charAt(0).toUpperCase()}
                           </div>
                           <span
-                            className={`truncate max-w-[150px] ${
+                            className={`truncate max-w-[140px] ${
                               cliente.responsavel_nome ? 'font-medium' : 'text-gray-400 italic'
                             }`}
                             title={responsavelTexto}
@@ -533,6 +795,26 @@ export const ComercialListView: React.FC<ComercialListViewProps> = ({
                             {responsavelTexto}
                           </span>
                         </div>
+                      </td>
+
+                      {/* Motivo da Perda */}
+                      <td className="py-3 px-3 text-xs whitespace-nowrap">
+                        {cliente.motivo_perda ? (
+                          <span
+                            className={`inline-block px-2 py-0.5 rounded-full text-[11px] font-semibold border ${
+                              motivoObj
+                                ? motivoObj.cor
+                                : 'bg-gray-100 text-gray-700 border-gray-200'
+                            }`}
+                            title={cliente.observacoes_perda || undefined}
+                          >
+                            {motivoObj ? motivoObj.label : cliente.motivo_perda}
+                          </span>
+                        ) : cliente.status === 'Perdido' ? (
+                          <span className="text-gray-400 text-xs italic">Não informado</span>
+                        ) : (
+                          <span className="text-gray-300 text-xs">—</span>
+                        )}
                       </td>
 
                       {/* Ações da linha (Menu 3 pontinhos) e Seta */}
