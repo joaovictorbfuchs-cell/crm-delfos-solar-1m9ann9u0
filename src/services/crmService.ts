@@ -1780,6 +1780,11 @@ export async function fetchOutrosContatos(): Promise<import('@/types/crm').Outro
   }
 }
 
+export async function deleteOutroContato(id: string): Promise<boolean> {
+  await pb.collection('outros_contatos').delete(id)
+  return true
+}
+
 export async function arquivarConversaComoOutroContato(
   conversaId: string,
 ): Promise<import('@/types/crm').WhatsAppConversa> {

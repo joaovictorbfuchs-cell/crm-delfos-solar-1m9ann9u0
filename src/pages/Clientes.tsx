@@ -1,5 +1,6 @@
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { fetchOutrosContatos } from '@/services/crmService'
 import {
   Search,
   Eye,
@@ -26,6 +27,8 @@ import {
 } from 'lucide-react'
 import { useClientes } from '@/contexts/ClientesContext'
 import { ModalMesclarClientes } from '@/components/ModalMesclarClientes'
+import { OutrosContatosView } from '@/components/OutrosContatosView'
+import { Contact, Sparkles } from 'lucide-react'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -47,9 +50,30 @@ import {
 
 export type SortField = 'nome' | 'origem' | 'produto' | 'cidade' | 'potencia' | 'valor' | 'status'
 export type SortDirection = 'asc' | 'desc'
+export type SubAbaClientes = 'base' | 'outros_contatos'
 
 export default function Clientes() {
   const navigate = useNavigate()
+  const [activeSubTab, setActiveSubTab] = useState<SubAbaClientes>('base')
+  const [totalOutrosContatos, setTotalOutrosContatos] = useState<number>(0)
+
+  // Carrega contagem inicial de outros contatos para o badge da sub-aba
+  useEffect(() => {
+    let mounted = true
+    fetchOutrosContatos()
+      .then((data) => {
+        if (mounted) {
+          setTotalOutrosContatos(data.length)
+        }
+      })
+      .catch((err) => {
+        console.error('Erro ao contar outros contatos:', err)
+      })
+    return () => {
+      mounted = false
+    }
+  }, [])
+
   const {
     clientes,
     isLoading,
@@ -393,682 +417,907 @@ export default function Clientes() {
 
   return (
     <div className="space-y-5">
-      {/* Top Bar with Search & Adicionar Novo em Destaque */}
-      <div className="bg-white rounded-xl border border-gray-200/80 p-5 shadow-xs flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2 flex-wrap">
-            <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-              <Users className="w-5 h-5 text-emerald-600" />
-              Base de Clientes
-            </h2>
-            <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
-              {processedClientes.length} de {clientes.length} clientes
+      {/* Navegação por Sub-Abas Compactas de 2º Nível: Base de Clientes vs Outros Contatos */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 bg-white p-2 sm:p-2.5 rounded-2xl border border-gray-200/80 shadow-2xs">
+        <div className="bg-gray-100 p-1 rounded-xl flex items-center text-xs font-semibold text-gray-600 self-stretch sm:self-start shrink-0">
+          <button
+            type="button"
+            onClick={() => setActiveSubTab('base')}
+            className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg transition-all ${
+              activeSubTab === 'base'
+                ? 'bg-white text-emerald-800 shadow-xs font-bold border border-gray-200/80'
+                : 'hover:text-gray-900'
+            }`}
+          >
+            <Users className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+            <span>Base de Clientes</span>
+            <span
+              className={`ml-0.5 px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
+                activeSubTab === 'base'
+                  ? 'bg-emerald-100 text-emerald-800'
+                  : 'bg-gray-200 text-gray-600'
+              }`}
+            >
+              {clientes.length}
             </span>
-            {sortField === 'nome' && sortDirection === 'asc' && (
-              <span className="text-[11px] font-medium px-2 py-0.5 rounded-md bg-gray-100 text-gray-600 flex items-center gap-1">
-                <ArrowUpAZ className="w-3.5 h-3.5 text-emerald-600" />
-                Ordem Alfabética (A→Z)
-              </span>
-            )}
-          </div>
-          <p className="text-xs text-gray-500 mt-0.5">
-            Total de {clientes.length} clientes cadastrados na região norte do RS e oeste de SC (PF
-            e PJ)
-          </p>
-        </div>
-
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-          {/* Search Input with instant filter */}
-          <div className="relative w-full sm:w-72">
-            <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-400">
-              <Search className="w-4 h-4" />
-            </div>
-            <input
-              type="text"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Buscar nome, CPF/CNPJ, cidade, origem..."
-              className="w-full pl-10 pr-8 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white transition-all"
-            />
-            {searchTerm && (
-              <button
-                type="button"
-                onClick={() => setSearchTerm('')}
-                className="absolute inset-y-0 right-0 pr-2.5 flex items-center text-gray-400 hover:text-gray-600"
-                title="Limpar busca"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            )}
-          </div>
-
-          {/* Botão Importar Acessos (Apps Inversores) */}
+          </button>
           <button
             type="button"
-            onClick={() => navigate('/importar-acessos')}
-            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white text-sm font-bold rounded-xl shadow-xs transition-all shrink-0 cursor-pointer"
-            title="Importar acessos e senhas aos apps de monitoramento (Growatt, Solarman, Solis, etc.)"
+            onClick={() => setActiveSubTab('outros_contatos')}
+            className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg transition-all ${
+              activeSubTab === 'outros_contatos'
+                ? 'bg-white text-blue-800 shadow-xs font-bold border border-gray-200/80'
+                : 'hover:text-gray-900'
+            }`}
           >
-            <Zap className="w-4 h-4" />
-            <span>Importar Acessos</span>
-          </button>
-
-          {/* Botão Importar Planilha e Adicionar Novo */}
-          <button
-            type="button"
-            onClick={() => navigate('/importar-clientes')}
-            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 text-sm font-bold rounded-xl transition-all shrink-0 cursor-pointer"
-            title="Importar do Pipedrive ou Conta Azul"
-          >
-            <Upload className="w-4 h-4 text-emerald-700" />
-            <span>Importar Clientes</span>
-          </button>
-
-          {/* Botão Adicionar Novo em Destaque no Topo */}
-          <button
-            type="button"
-            onClick={() => setIsModalNovoOpen(true)}
-            className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-[#16A34A] hover:bg-[#15803D] active:scale-[0.98] text-white text-sm font-bold rounded-xl shadow-md hover:shadow-lg transition-all shrink-0 cursor-pointer"
-          >
-            <Plus className="w-4 h-4 stroke-[2.5]" />
-            <span>Adicionar Novo</span>
-          </button>
-        </div>
-      </div>
-
-      {/* Barra de Filtros Rápida / Mobile e Indicador de Filtros Ativos */}
-      <div className="bg-white rounded-xl border border-gray-200/80 p-3 sm:p-3.5 shadow-xs space-y-2.5">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-xs font-bold text-gray-700 uppercase tracking-wider flex items-center gap-1.5">
-              <Filter className="w-3.5 h-3.5 text-emerald-600" />
-              Filtros por Coluna:
+            <Contact className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+            <span>Outros Contatos</span>
+            <span
+              className={`ml-0.5 px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
+                activeSubTab === 'outros_contatos'
+                  ? 'bg-blue-100 text-blue-800'
+                  : 'bg-gray-200 text-gray-600'
+              }`}
+            >
+              {totalOutrosContatos}
             </span>
-
-            {/* Ordenação rápida */}
-            <button
-              type="button"
-              onClick={() => handleSortToggle('nome')}
-              className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold border transition-all ${
-                sortField === 'nome'
-                  ? 'bg-emerald-100/70 text-emerald-900 border-emerald-300'
-                  : 'bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100'
-              }`}
-              title="Alternar ordenação alfabética"
-            >
-              {sortField === 'nome' && sortDirection === 'asc' ? (
-                <ArrowUpAZ className="w-3.5 h-3.5 text-emerald-700" />
-              ) : sortField === 'nome' && sortDirection === 'desc' ? (
-                <ArrowDownZA className="w-3.5 h-3.5 text-emerald-700" />
-              ) : (
-                <ArrowUpDown className="w-3.5 h-3.5 text-gray-400" />
-              )}
-              <span>
-                Nome {sortField === 'nome' ? (sortDirection === 'asc' ? '(A→Z)' : '(Z→A)') : ''}
-              </span>
-            </button>
-
-            {hasActiveColumnFilters && (
-              <button
-                type="button"
-                onClick={handleLimparTodosFiltros}
-                className="inline-flex items-center gap-1 text-xs text-red-600 hover:text-red-800 font-semibold px-2 py-1 rounded-md hover:bg-red-50 transition-colors"
-                title="Limpar todos os filtros aplicados"
-              >
-                <RotateCcw className="w-3 h-3" />
-                Limpar Filtros ({activeFiltersCount})
-              </button>
-            )}
-          </div>
-
-          <div className="text-xs text-gray-500 flex items-center gap-1.5 self-end sm:self-auto">
-            <span>Mostrando</span>
-            <strong className="text-gray-800 font-bold">{processedClientes.length}</strong>
-            <span>de</span>
-            <strong className="text-gray-800 font-bold">{clientes.length}</strong>
-            <span>clientes</span>
-          </div>
+          </button>
         </div>
 
-        {/* Barra de Ações em Massa (quando houver seleção) */}
-        {selectedIds.length > 0 && (
-          <div className="bg-emerald-50 border-2 border-emerald-500 rounded-xl p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
-            <div className="flex items-center gap-2">
-              <span className="w-6 h-6 rounded-full bg-emerald-600 text-white flex items-center justify-center text-xs font-bold shrink-0">
-                {selectedIds.length}
-              </span>
-              <span className="text-xs font-bold text-emerald-950">
-                {selectedIds.length === 1
-                  ? '1 cliente selecionado'
-                  : `${selectedIds.length} clientes selecionados`}
-              </span>
-              <button
-                type="button"
-                onClick={() => setSelectedIds([])}
-                className="text-xs text-gray-500 hover:text-gray-700 underline ml-2"
-              >
-                Desmarcar todos
-              </button>
-            </div>
-
-            <div className="flex items-center gap-2 flex-wrap">
-              {/* Botão Mesclar */}
-              <button
-                type="button"
-                onClick={() => handleAbrirMesclagem()}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white text-emerald-800 hover:bg-emerald-100/70 border border-emerald-300 rounded-lg text-xs font-bold transition-colors shadow-2xs"
-                title="Mesclar cadastros selecionados em um só cliente mestre"
-              >
-                <GitMerge className="w-3.5 h-3.5 text-emerald-700" />
-                <span>Mesclar</span>
-              </button>
-
-              {/* Botão Excluir em Lote */}
-              <button
-                type="button"
-                onClick={() => setIsModalExcluirLoteOpen(true)}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-bold transition-colors shadow-2xs"
-                title="Excluir todos os clientes selecionados"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-                <span>Excluir Selecionados ({selectedIds.length})</span>
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Linha de Seletores (Dropdowns de Colunas): Responsivo para Mobile e Desktop */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 pt-2 border-t border-gray-100">
-          {/* 1. Origem */}
-          <div className="space-y-1">
-            <label className="text-[10px] font-bold uppercase tracking-wider text-gray-500 block">
-              Origem / Importação
-            </label>
-            <select
-              value={filtroOrigem}
-              onChange={(e) => setFiltroOrigem(e.target.value)}
-              className={`w-full text-xs font-semibold px-2.5 py-1.5 rounded-lg border focus:outline-none focus:ring-1 focus:ring-emerald-500 cursor-pointer shadow-2xs transition-colors ${
-                filtroOrigem !== 'todos'
-                  ? 'bg-blue-50 text-blue-900 border-blue-300 font-bold'
-                  : 'bg-gray-50/80 text-gray-700 border-gray-200'
-              }`}
-            >
-              <option value="todos">Todas as Origens ({clientes.length})</option>
-              {distinctOrigens.map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label} ({o.count})
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* 2. Cidade */}
-          <div className="space-y-1">
-            <label className="text-[10px] font-bold uppercase tracking-wider text-gray-500 block">
-              Cidade
-            </label>
-            <select
-              value={filtroCidade}
-              onChange={(e) => setFiltroCidade(e.target.value)}
-              className={`w-full text-xs font-semibold px-2.5 py-1.5 rounded-lg border focus:outline-none focus:ring-1 focus:ring-emerald-500 cursor-pointer shadow-2xs transition-colors ${
-                filtroCidade !== 'todos'
-                  ? 'bg-emerald-50 text-emerald-900 border-emerald-300 font-bold'
-                  : 'bg-gray-50/80 text-gray-700 border-gray-200'
-              }`}
-            >
-              <option value="todos">Todas as Cidades ({clientes.length})</option>
-              {distinctCidades.map((c) => (
-                <option key={c.value} value={c.value}>
-                  {c.label} ({c.count})
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* 3. Status Comercial */}
-          <div className="space-y-1">
-            <label className="text-[10px] font-bold uppercase tracking-wider text-gray-500 block">
-              Status Comercial
-            </label>
-            <select
-              value={filtroStatus}
-              onChange={(e) => setFiltroStatus(e.target.value)}
-              className={`w-full text-xs font-semibold px-2.5 py-1.5 rounded-lg border focus:outline-none focus:ring-1 focus:ring-emerald-500 cursor-pointer shadow-2xs transition-colors ${
-                filtroStatus !== 'todos'
-                  ? 'bg-amber-50 text-amber-900 border-amber-300 font-bold'
-                  : 'bg-gray-50/80 text-gray-700 border-gray-200'
-              }`}
-            >
-              <option value="todos">Todos os Status ({clientes.length})</option>
-              {distinctStatuses.map((s) => (
-                <option key={s.value} value={s.value}>
-                  {s.label} ({s.count})
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* 4. Produto */}
-          <div className="space-y-1">
-            <label className="text-[10px] font-bold uppercase tracking-wider text-gray-500 block">
-              Produto
-            </label>
-            <select
-              value={filtroProduto}
-              onChange={(e) => setFiltroProduto(e.target.value)}
-              className={`w-full text-xs font-semibold px-2.5 py-1.5 rounded-lg border focus:outline-none focus:ring-1 focus:ring-emerald-500 cursor-pointer shadow-2xs transition-colors ${
-                filtroProduto !== 'todos'
-                  ? 'bg-purple-50 text-purple-900 border-purple-300 font-bold'
-                  : 'bg-gray-50/80 text-gray-700 border-gray-200'
-              }`}
-            >
-              <option value="todos">Todos os Produtos ({clientes.length})</option>
-              {distinctProdutos.map((p) => (
-                <option key={p.value} value={p.value}>
-                  {p.label} ({p.count})
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-      </div>
-
-      {/* Table / Cards */}
-      {processedClientes.length === 0 ? (
-        <div className="bg-white rounded-xl border border-gray-200 p-12 text-center text-gray-500 space-y-3">
-          <p className="text-sm">Nenhum cliente encontrado com os filtros aplicados.</p>
-          {(searchTerm || hasActiveColumnFilters) && (
-            <button
-              type="button"
-              onClick={handleLimparTodosFiltros}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-50 text-emerald-800 font-bold text-xs rounded-lg border border-emerald-200 hover:bg-emerald-100 transition-colors"
-            >
-              <RotateCcw className="w-3.5 h-3.5" />
-              <span>Limpar Busca e Filtros</span>
-            </button>
+        {/* Informação contextual rápida no topo da navegação */}
+        <div className="text-[11px] text-gray-500 hidden md:flex items-center gap-2 pr-2">
+          {activeSubTab === 'base' ? (
+            <span className="flex items-center gap-1">
+              <Users className="w-3.5 h-3.5 text-emerald-600" />
+              Gestão cadastral completa de clientes ativos e leads do CRM
+            </span>
+          ) : (
+            <span className="flex items-center gap-1 text-blue-700 font-medium">
+              <Sparkles className="w-3.5 h-3.5 text-blue-600" />
+              Contatos movidos do funil comercial e contatos externos
+            </span>
           )}
         </div>
-      ) : (
+      </div>
+
+      {/* Conteúdo da Sub-Aba 2: Outros Contatos */}
+      {activeSubTab === 'outros_contatos' && (
+        <OutrosContatosView onTotalChange={setTotalOutrosContatos} />
+      )}
+
+      {/* Conteúdo da Sub-Aba 1: Base de Clientes */}
+      {activeSubTab === 'base' && (
         <>
-          {/* Desktop Table View com Filtros e Ordenação nos Cabeçalhos */}
-          <div className="hidden md:block bg-white rounded-xl border border-gray-200/80 shadow-xs overflow-hidden">
-            <table className="w-full text-left text-sm border-collapse">
-              {/* LINHA 1 DE CABEÇALHO: Títulos das Colunas com Ordenação */}
-              <thead className="bg-[#F8FAF9] border-b border-gray-200 text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                <tr>
-                  {/* Checkbox Selecionar Todos */}
-                  <th className="py-3 px-3 w-10 text-center select-none">
-                    <button
-                      type="button"
-                      onClick={handleToggleSelectAll}
-                      className="text-gray-500 hover:text-emerald-700 p-0.5 rounded transition-colors"
-                      title={
-                        isAllSelected ? 'Desmarcar todos' : 'Selecionar todos os clientes listados'
-                      }
-                    >
-                      {isAllSelected ? (
-                        <CheckSquare className="w-4 h-4 text-emerald-600" />
-                      ) : isSomeSelected ? (
-                        <MinusSquare className="w-4 h-4 text-emerald-600" />
-                      ) : (
-                        <Square className="w-4 h-4 text-gray-400" />
-                      )}
-                    </button>
-                  </th>
+          <div className="bg-white rounded-xl border border-gray-200/80 p-5 shadow-xs flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                  <Users className="w-5 h-5 text-emerald-600" />
+                  Base de Clientes
+                </h2>
+                <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                  {processedClientes.length} de {clientes.length} clientes
+                </span>
+                {sortField === 'nome' && sortDirection === 'asc' && (
+                  <span className="text-[11px] font-medium px-2 py-0.5 rounded-md bg-gray-100 text-gray-600 flex items-center gap-1">
+                    <ArrowUpAZ className="w-3.5 h-3.5 text-emerald-600" />
+                    Ordem Alfabética (A→Z)
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-gray-500 mt-0.5">
+                Total de {clientes.length} clientes cadastrados na região norte do RS e oeste de SC
+                (PF e PJ)
+              </p>
+            </div>
 
-                  {/* Nome */}
-                  <th
-                    onClick={() => handleSortToggle('nome')}
-                    className="py-3 px-4 cursor-pointer hover:bg-gray-100 transition-colors select-none group"
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+              {/* Search Input with instant filter */}
+              <div className="relative w-full sm:w-72">
+                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-400">
+                  <Search className="w-4 h-4" />
+                </div>
+                <input
+                  type="text"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder="Buscar nome, CPF/CNPJ, cidade, origem..."
+                  className="w-full pl-10 pr-8 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white transition-all"
+                />
+                {searchTerm && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchTerm('')}
+                    className="absolute inset-y-0 right-0 pr-2.5 flex items-center text-gray-400 hover:text-gray-600"
+                    title="Limpar busca"
                   >
-                    <div className="flex items-center gap-1.5">
-                      <span>Nome do Cliente</span>
-                      {sortField === 'nome' ? (
-                        sortDirection === 'asc' ? (
-                          <ArrowUpAZ className="w-4 h-4 text-emerald-600 font-bold" />
-                        ) : (
-                          <ArrowDownZA className="w-4 h-4 text-emerald-600 font-bold" />
-                        )
-                      ) : (
-                        <ArrowUpDown className="w-3.5 h-3.5 text-gray-400 group-hover:text-gray-600" />
-                      )}
-                    </div>
-                  </th>
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
 
-                  {/* Origem */}
-                  <th
-                    onClick={() => handleSortToggle('origem')}
-                    className="py-3 px-4 cursor-pointer hover:bg-gray-100 transition-colors select-none group"
+              {/* Botão Importar Acessos (Apps Inversores) */}
+              <button
+                type="button"
+                onClick={() => navigate('/importar-acessos')}
+                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white text-sm font-bold rounded-xl shadow-xs transition-all shrink-0 cursor-pointer"
+                title="Importar acessos e senhas aos apps de monitoramento (Growatt, Solarman, Solis, etc.)"
+              >
+                <Zap className="w-4 h-4" />
+                <span>Importar Acessos</span>
+              </button>
+
+              {/* Botão Importar Planilha e Adicionar Novo */}
+              <button
+                type="button"
+                onClick={() => navigate('/importar-clientes')}
+                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 text-sm font-bold rounded-xl transition-all shrink-0 cursor-pointer"
+                title="Importar do Pipedrive ou Conta Azul"
+              >
+                <Upload className="w-4 h-4 text-emerald-700" />
+                <span>Importar Clientes</span>
+              </button>
+
+              {/* Botão Adicionar Novo em Destaque no Topo */}
+              <button
+                type="button"
+                onClick={() => setIsModalNovoOpen(true)}
+                className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-[#16A34A] hover:bg-[#15803D] active:scale-[0.98] text-white text-sm font-bold rounded-xl shadow-md hover:shadow-lg transition-all shrink-0 cursor-pointer"
+              >
+                <Plus className="w-4 h-4 stroke-[2.5]" />
+                <span>Adicionar Novo</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Barra de Filtros Rápida / Mobile e Indicador de Filtros Ativos */}
+          <div className="bg-white rounded-xl border border-gray-200/80 p-3 sm:p-3.5 shadow-xs space-y-2.5">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-xs font-bold text-gray-700 uppercase tracking-wider flex items-center gap-1.5">
+                  <Filter className="w-3.5 h-3.5 text-emerald-600" />
+                  Filtros por Coluna:
+                </span>
+
+                {/* Ordenação rápida */}
+                <button
+                  type="button"
+                  onClick={() => handleSortToggle('nome')}
+                  className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold border transition-all ${
+                    sortField === 'nome'
+                      ? 'bg-emerald-100/70 text-emerald-900 border-emerald-300'
+                      : 'bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100'
+                  }`}
+                  title="Alternar ordenação alfabética"
+                >
+                  {sortField === 'nome' && sortDirection === 'asc' ? (
+                    <ArrowUpAZ className="w-3.5 h-3.5 text-emerald-700" />
+                  ) : sortField === 'nome' && sortDirection === 'desc' ? (
+                    <ArrowDownZA className="w-3.5 h-3.5 text-emerald-700" />
+                  ) : (
+                    <ArrowUpDown className="w-3.5 h-3.5 text-gray-400" />
+                  )}
+                  <span>
+                    Nome {sortField === 'nome' ? (sortDirection === 'asc' ? '(A→Z)' : '(Z→A)') : ''}
+                  </span>
+                </button>
+
+                {hasActiveColumnFilters && (
+                  <button
+                    type="button"
+                    onClick={handleLimparTodosFiltros}
+                    className="inline-flex items-center gap-1 text-xs text-red-600 hover:text-red-800 font-semibold px-2 py-1 rounded-md hover:bg-red-50 transition-colors"
+                    title="Limpar todos os filtros aplicados"
                   >
-                    <div className="flex items-center gap-1.5">
-                      <span>Origem</span>
-                      {sortField === 'origem' ? (
-                        <span className="text-emerald-700 font-bold">
-                          {sortDirection === 'asc' ? '↑' : '↓'}
-                        </span>
-                      ) : (
-                        <ArrowUpDown className="w-3.5 h-3.5 text-gray-400 group-hover:text-gray-600" />
-                      )}
-                    </div>
-                  </th>
+                    <RotateCcw className="w-3 h-3" />
+                    Limpar Filtros ({activeFiltersCount})
+                  </button>
+                )}
+              </div>
 
-                  {/* Produto */}
-                  <th
-                    onClick={() => handleSortToggle('produto')}
-                    className="py-3 px-4 cursor-pointer hover:bg-gray-100 transition-colors select-none group"
+              <div className="text-xs text-gray-500 flex items-center gap-1.5 self-end sm:self-auto">
+                <span>Mostrando</span>
+                <strong className="text-gray-800 font-bold">{processedClientes.length}</strong>
+                <span>de</span>
+                <strong className="text-gray-800 font-bold">{clientes.length}</strong>
+                <span>clientes</span>
+              </div>
+            </div>
+
+            {/* Barra de Ações em Massa (quando houver seleção) */}
+            {selectedIds.length > 0 && (
+              <div className="bg-emerald-50 border-2 border-emerald-500 rounded-xl p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
+                <div className="flex items-center gap-2">
+                  <span className="w-6 h-6 rounded-full bg-emerald-600 text-white flex items-center justify-center text-xs font-bold shrink-0">
+                    {selectedIds.length}
+                  </span>
+                  <span className="text-xs font-bold text-emerald-950">
+                    {selectedIds.length === 1
+                      ? '1 cliente selecionado'
+                      : `${selectedIds.length} clientes selecionados`}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedIds([])}
+                    className="text-xs text-gray-500 hover:text-gray-700 underline ml-2"
                   >
-                    <div className="flex items-center gap-1.5">
-                      <span>Produto</span>
-                      {sortField === 'produto' && (
-                        <span className="text-emerald-700 font-bold">
-                          {sortDirection === 'asc' ? '↑' : '↓'}
-                        </span>
-                      )}
-                    </div>
-                  </th>
+                    Desmarcar todos
+                  </button>
+                </div>
 
-                  {/* Cidade */}
-                  <th
-                    onClick={() => handleSortToggle('cidade')}
-                    className="py-3 px-4 cursor-pointer hover:bg-gray-100 transition-colors select-none group"
+                <div className="flex items-center gap-2 flex-wrap">
+                  {/* Botão Mesclar */}
+                  <button
+                    type="button"
+                    onClick={() => handleAbrirMesclagem()}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white text-emerald-800 hover:bg-emerald-100/70 border border-emerald-300 rounded-lg text-xs font-bold transition-colors shadow-2xs"
+                    title="Mesclar cadastros selecionados em um só cliente mestre"
                   >
-                    <div className="flex items-center gap-1.5">
-                      <span>Cidade</span>
-                      {sortField === 'cidade' && (
-                        <span className="text-emerald-700 font-bold">
-                          {sortDirection === 'asc' ? '↑' : '↓'}
-                        </span>
-                      )}
-                    </div>
-                  </th>
+                    <GitMerge className="w-3.5 h-3.5 text-emerald-700" />
+                    <span>Mesclar</span>
+                  </button>
 
-                  {/* Potência */}
-                  <th
-                    onClick={() => handleSortToggle('potencia')}
-                    className="py-3 px-4 cursor-pointer hover:bg-gray-100 transition-colors select-none group"
+                  {/* Botão Excluir em Lote */}
+                  <button
+                    type="button"
+                    onClick={() => setIsModalExcluirLoteOpen(true)}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-bold transition-colors shadow-2xs"
+                    title="Excluir todos os clientes selecionados"
                   >
-                    <div className="flex items-center gap-1.5">
-                      <span>Potência</span>
-                      {sortField === 'potencia' && (
-                        <span className="text-emerald-700 font-bold">
-                          {sortDirection === 'asc' ? '↑' : '↓'}
-                        </span>
-                      )}
-                    </div>
-                  </th>
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Excluir Selecionados ({selectedIds.length})</span>
+                  </button>
+                </div>
+              </div>
+            )}
 
-                  {/* Valor Estimado */}
-                  <th
-                    onClick={() => handleSortToggle('valor')}
-                    className="py-3 px-4 cursor-pointer hover:bg-gray-100 transition-colors select-none group"
-                  >
-                    <div className="flex items-center gap-1.5">
-                      <span>Valor Estimado</span>
-                      {sortField === 'valor' && (
-                        <span className="text-emerald-700 font-bold">
-                          {sortDirection === 'asc' ? '↑' : '↓'}
-                        </span>
-                      )}
-                    </div>
-                  </th>
+            {/* Linha de Seletores (Dropdowns de Colunas): Responsivo para Mobile e Desktop */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 pt-2 border-t border-gray-100">
+              {/* 1. Origem */}
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold uppercase tracking-wider text-gray-500 block">
+                  Origem / Importação
+                </label>
+                <select
+                  value={filtroOrigem}
+                  onChange={(e) => setFiltroOrigem(e.target.value)}
+                  className={`w-full text-xs font-semibold px-2.5 py-1.5 rounded-lg border focus:outline-none focus:ring-1 focus:ring-emerald-500 cursor-pointer shadow-2xs transition-colors ${
+                    filtroOrigem !== 'todos'
+                      ? 'bg-blue-50 text-blue-900 border-blue-300 font-bold'
+                      : 'bg-gray-50/80 text-gray-700 border-gray-200'
+                  }`}
+                >
+                  <option value="todos">Todas as Origens ({clientes.length})</option>
+                  {distinctOrigens.map((o) => (
+                    <option key={o.value} value={o.value}>
+                      {o.label} ({o.count})
+                    </option>
+                  ))}
+                </select>
+              </div>
 
-                  {/* Status Comercial */}
-                  <th
-                    onClick={() => handleSortToggle('status')}
-                    className="py-3 px-4 cursor-pointer hover:bg-gray-100 transition-colors select-none group"
-                  >
-                    <div className="flex items-center gap-1.5">
-                      <span>Status</span>
-                      {sortField === 'status' && (
-                        <span className="text-emerald-700 font-bold">
-                          {sortDirection === 'asc' ? '↑' : '↓'}
-                        </span>
-                      )}
-                    </div>
-                  </th>
+              {/* 2. Cidade */}
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold uppercase tracking-wider text-gray-500 block">
+                  Cidade
+                </label>
+                <select
+                  value={filtroCidade}
+                  onChange={(e) => setFiltroCidade(e.target.value)}
+                  className={`w-full text-xs font-semibold px-2.5 py-1.5 rounded-lg border focus:outline-none focus:ring-1 focus:ring-emerald-500 cursor-pointer shadow-2xs transition-colors ${
+                    filtroCidade !== 'todos'
+                      ? 'bg-emerald-50 text-emerald-900 border-emerald-300 font-bold'
+                      : 'bg-gray-50/80 text-gray-700 border-gray-200'
+                  }`}
+                >
+                  <option value="todos">Todas as Cidades ({clientes.length})</option>
+                  {distinctCidades.map((c) => (
+                    <option key={c.value} value={c.value}>
+                      {c.label} ({c.count})
+                    </option>
+                  ))}
+                </select>
+              </div>
 
-                  {/* Ação */}
-                  <th className="py-3 px-4 text-right">Ação</th>
-                </tr>
+              {/* 3. Status Comercial */}
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold uppercase tracking-wider text-gray-500 block">
+                  Status Comercial
+                </label>
+                <select
+                  value={filtroStatus}
+                  onChange={(e) => setFiltroStatus(e.target.value)}
+                  className={`w-full text-xs font-semibold px-2.5 py-1.5 rounded-lg border focus:outline-none focus:ring-1 focus:ring-emerald-500 cursor-pointer shadow-2xs transition-colors ${
+                    filtroStatus !== 'todos'
+                      ? 'bg-amber-50 text-amber-900 border-amber-300 font-bold'
+                      : 'bg-gray-50/80 text-gray-700 border-gray-200'
+                  }`}
+                >
+                  <option value="todos">Todos os Status ({clientes.length})</option>
+                  {distinctStatuses.map((s) => (
+                    <option key={s.value} value={s.value}>
+                      {s.label} ({s.count})
+                    </option>
+                  ))}
+                </select>
+              </div>
 
-                {/* LINHA 2 DO CABEÇALHO: Filtros por Coluna Diretos na Primeira Linha */}
-                <tr className="bg-emerald-50/30 border-b border-gray-200/90 text-normal lowercase">
-                  {/* Placeholder Checkbox */}
-                  <th className="py-2 px-3 text-center"></th>
+              {/* 4. Produto */}
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold uppercase tracking-wider text-gray-500 block">
+                  Produto
+                </label>
+                <select
+                  value={filtroProduto}
+                  onChange={(e) => setFiltroProduto(e.target.value)}
+                  className={`w-full text-xs font-semibold px-2.5 py-1.5 rounded-lg border focus:outline-none focus:ring-1 focus:ring-emerald-500 cursor-pointer shadow-2xs transition-colors ${
+                    filtroProduto !== 'todos'
+                      ? 'bg-purple-50 text-purple-900 border-purple-300 font-bold'
+                      : 'bg-gray-50/80 text-gray-700 border-gray-200'
+                  }`}
+                >
+                  <option value="todos">Todos os Produtos ({clientes.length})</option>
+                  {distinctProdutos.map((p) => (
+                    <option key={p.value} value={p.value}>
+                      {p.label} ({p.count})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </div>
 
-                  {/* Busca Rápida por Nome */}
-                  <th className="py-2 px-3">
-                    <div className="relative">
-                      <input
-                        type="text"
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        placeholder="Filtrar nome..."
-                        className="w-full text-xs font-normal px-2 py-1 bg-white border border-gray-200 rounded-md focus:outline-none focus:ring-1 focus:ring-emerald-500"
-                      />
-                      {searchTerm && (
+          {/* Table / Cards */}
+          {processedClientes.length === 0 ? (
+            <div className="bg-white rounded-xl border border-gray-200 p-12 text-center text-gray-500 space-y-3">
+              <p className="text-sm">Nenhum cliente encontrado com os filtros aplicados.</p>
+              {(searchTerm || hasActiveColumnFilters) && (
+                <button
+                  type="button"
+                  onClick={handleLimparTodosFiltros}
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-50 text-emerald-800 font-bold text-xs rounded-lg border border-emerald-200 hover:bg-emerald-100 transition-colors"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  <span>Limpar Busca e Filtros</span>
+                </button>
+              )}
+            </div>
+          ) : (
+            <>
+              {/* Desktop Table View com Filtros e Ordenação nos Cabeçalhos */}
+              <div className="hidden md:block bg-white rounded-xl border border-gray-200/80 shadow-xs overflow-hidden">
+                <table className="w-full text-left text-sm border-collapse">
+                  {/* LINHA 1 DE CABEÇALHO: Títulos das Colunas com Ordenação */}
+                  <thead className="bg-[#F8FAF9] border-b border-gray-200 text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                    <tr>
+                      {/* Checkbox Selecionar Todos */}
+                      <th className="py-3 px-3 w-10 text-center select-none">
                         <button
                           type="button"
-                          onClick={() => setSearchTerm('')}
-                          className="absolute right-1.5 top-1.5 text-gray-400 hover:text-gray-600"
+                          onClick={handleToggleSelectAll}
+                          className="text-gray-500 hover:text-emerald-700 p-0.5 rounded transition-colors"
+                          title={
+                            isAllSelected
+                              ? 'Desmarcar todos'
+                              : 'Selecionar todos os clientes listados'
+                          }
                         >
-                          <X className="w-3 h-3" />
+                          {isAllSelected ? (
+                            <CheckSquare className="w-4 h-4 text-emerald-600" />
+                          ) : isSomeSelected ? (
+                            <MinusSquare className="w-4 h-4 text-emerald-600" />
+                          ) : (
+                            <Square className="w-4 h-4 text-gray-400" />
+                          )}
                         </button>
-                      )}
-                    </div>
-                  </th>
+                      </th>
 
-                  {/* Filtro Dropdown: Origem */}
-                  <th className="py-2 px-3">
-                    <select
-                      value={filtroOrigem}
-                      onChange={(e) => setFiltroOrigem(e.target.value)}
-                      className={`w-full text-xs px-2 py-1 rounded-md border focus:outline-none focus:ring-1 focus:ring-emerald-500 cursor-pointer ${
-                        filtroOrigem !== 'todos'
-                          ? 'bg-blue-50 text-blue-900 border-blue-400 font-bold'
-                          : 'bg-white text-gray-700 border-gray-200 font-normal'
-                      }`}
-                      title="Filtrar por Origem"
-                    >
-                      <option value="todos">Todas origens</option>
-                      {distinctOrigens.map((o) => (
-                        <option key={o.value} value={o.value}>
-                          {o.label} ({o.count})
-                        </option>
-                      ))}
-                    </select>
-                  </th>
-
-                  {/* Filtro Dropdown: Produto */}
-                  <th className="py-2 px-3">
-                    <select
-                      value={filtroProduto}
-                      onChange={(e) => setFiltroProduto(e.target.value)}
-                      className={`w-full text-xs px-2 py-1 rounded-md border focus:outline-none focus:ring-1 focus:ring-emerald-500 cursor-pointer ${
-                        filtroProduto !== 'todos'
-                          ? 'bg-purple-50 text-purple-900 border-purple-400 font-bold'
-                          : 'bg-white text-gray-700 border-gray-200 font-normal'
-                      }`}
-                      title="Filtrar por Produto"
-                    >
-                      <option value="todos">Todos produtos</option>
-                      {distinctProdutos.map((p) => (
-                        <option key={p.value} value={p.value}>
-                          {p.label} ({p.count})
-                        </option>
-                      ))}
-                    </select>
-                  </th>
-
-                  {/* Filtro Dropdown: Cidade */}
-                  <th className="py-2 px-3">
-                    <select
-                      value={filtroCidade}
-                      onChange={(e) => setFiltroCidade(e.target.value)}
-                      className={`w-full text-xs px-2 py-1 rounded-md border focus:outline-none focus:ring-1 focus:ring-emerald-500 cursor-pointer ${
-                        filtroCidade !== 'todos'
-                          ? 'bg-emerald-50 text-emerald-900 border-emerald-400 font-bold'
-                          : 'bg-white text-gray-700 border-gray-200 font-normal'
-                      }`}
-                      title="Filtrar por Cidade"
-                    >
-                      <option value="todos">Todas cidades</option>
-                      {distinctCidades.map((c) => (
-                        <option key={c.value} value={c.value}>
-                          {c.label} ({c.count})
-                        </option>
-                      ))}
-                    </select>
-                  </th>
-
-                  {/* Potência (placeholder informativo) */}
-                  <th className="py-2 px-3 text-[11px] text-gray-400 font-normal italic">kWp</th>
-
-                  {/* Valor (placeholder informativo) */}
-                  <th className="py-2 px-3 text-[11px] text-gray-400 font-normal italic">R$</th>
-
-                  {/* Filtro Dropdown: Status */}
-                  <th className="py-2 px-3">
-                    <select
-                      value={filtroStatus}
-                      onChange={(e) => setFiltroStatus(e.target.value)}
-                      className={`w-full text-xs px-2 py-1 rounded-md border focus:outline-none focus:ring-1 focus:ring-emerald-500 cursor-pointer ${
-                        filtroStatus !== 'todos'
-                          ? 'bg-amber-50 text-amber-900 border-amber-400 font-bold'
-                          : 'bg-white text-gray-700 border-gray-200 font-normal'
-                      }`}
-                      title="Filtrar por Status"
-                    >
-                      <option value="todos">Todos status</option>
-                      {distinctStatuses.map((s) => (
-                        <option key={s.value} value={s.value}>
-                          {s.label} ({s.count})
-                        </option>
-                      ))}
-                    </select>
-                  </th>
-
-                  {/* Ação: Botão Limpar se algum filtro estiver ativo */}
-                  <th className="py-2 px-3 text-right">
-                    {hasActiveColumnFilters && (
-                      <button
-                        type="button"
-                        onClick={handleLimparTodosFiltros}
-                        className="text-[11px] font-semibold text-gray-500 hover:text-red-600 underline inline-flex items-center gap-0.5"
-                        title="Limpar todos os seletores"
+                      {/* Nome */}
+                      <th
+                        onClick={() => handleSortToggle('nome')}
+                        className="py-3 px-4 cursor-pointer hover:bg-gray-100 transition-colors select-none group"
                       >
-                        <X className="w-3 h-3" />
-                        Limpar
-                      </button>
-                    )}
-                  </th>
-                </tr>
-              </thead>
+                        <div className="flex items-center gap-1.5">
+                          <span>Nome do Cliente</span>
+                          {sortField === 'nome' ? (
+                            sortDirection === 'asc' ? (
+                              <ArrowUpAZ className="w-4 h-4 text-emerald-600 font-bold" />
+                            ) : (
+                              <ArrowDownZA className="w-4 h-4 text-emerald-600 font-bold" />
+                            )
+                          ) : (
+                            <ArrowUpDown className="w-3.5 h-3.5 text-gray-400 group-hover:text-gray-600" />
+                          )}
+                        </div>
+                      </th>
 
-              <tbody className="divide-y divide-gray-100">
+                      {/* Origem */}
+                      <th
+                        onClick={() => handleSortToggle('origem')}
+                        className="py-3 px-4 cursor-pointer hover:bg-gray-100 transition-colors select-none group"
+                      >
+                        <div className="flex items-center gap-1.5">
+                          <span>Origem</span>
+                          {sortField === 'origem' ? (
+                            <span className="text-emerald-700 font-bold">
+                              {sortDirection === 'asc' ? '↑' : '↓'}
+                            </span>
+                          ) : (
+                            <ArrowUpDown className="w-3.5 h-3.5 text-gray-400 group-hover:text-gray-600" />
+                          )}
+                        </div>
+                      </th>
+
+                      {/* Produto */}
+                      <th
+                        onClick={() => handleSortToggle('produto')}
+                        className="py-3 px-4 cursor-pointer hover:bg-gray-100 transition-colors select-none group"
+                      >
+                        <div className="flex items-center gap-1.5">
+                          <span>Produto</span>
+                          {sortField === 'produto' && (
+                            <span className="text-emerald-700 font-bold">
+                              {sortDirection === 'asc' ? '↑' : '↓'}
+                            </span>
+                          )}
+                        </div>
+                      </th>
+
+                      {/* Cidade */}
+                      <th
+                        onClick={() => handleSortToggle('cidade')}
+                        className="py-3 px-4 cursor-pointer hover:bg-gray-100 transition-colors select-none group"
+                      >
+                        <div className="flex items-center gap-1.5">
+                          <span>Cidade</span>
+                          {sortField === 'cidade' && (
+                            <span className="text-emerald-700 font-bold">
+                              {sortDirection === 'asc' ? '↑' : '↓'}
+                            </span>
+                          )}
+                        </div>
+                      </th>
+
+                      {/* Potência */}
+                      <th
+                        onClick={() => handleSortToggle('potencia')}
+                        className="py-3 px-4 cursor-pointer hover:bg-gray-100 transition-colors select-none group"
+                      >
+                        <div className="flex items-center gap-1.5">
+                          <span>Potência</span>
+                          {sortField === 'potencia' && (
+                            <span className="text-emerald-700 font-bold">
+                              {sortDirection === 'asc' ? '↑' : '↓'}
+                            </span>
+                          )}
+                        </div>
+                      </th>
+
+                      {/* Valor Estimado */}
+                      <th
+                        onClick={() => handleSortToggle('valor')}
+                        className="py-3 px-4 cursor-pointer hover:bg-gray-100 transition-colors select-none group"
+                      >
+                        <div className="flex items-center gap-1.5">
+                          <span>Valor Estimado</span>
+                          {sortField === 'valor' && (
+                            <span className="text-emerald-700 font-bold">
+                              {sortDirection === 'asc' ? '↑' : '↓'}
+                            </span>
+                          )}
+                        </div>
+                      </th>
+
+                      {/* Status Comercial */}
+                      <th
+                        onClick={() => handleSortToggle('status')}
+                        className="py-3 px-4 cursor-pointer hover:bg-gray-100 transition-colors select-none group"
+                      >
+                        <div className="flex items-center gap-1.5">
+                          <span>Status</span>
+                          {sortField === 'status' && (
+                            <span className="text-emerald-700 font-bold">
+                              {sortDirection === 'asc' ? '↑' : '↓'}
+                            </span>
+                          )}
+                        </div>
+                      </th>
+
+                      {/* Ação */}
+                      <th className="py-3 px-4 text-right">Ação</th>
+                    </tr>
+
+                    {/* LINHA 2 DO CABEÇALHO: Filtros por Coluna Diretos na Primeira Linha */}
+                    <tr className="bg-emerald-50/30 border-b border-gray-200/90 text-normal lowercase">
+                      {/* Placeholder Checkbox */}
+                      <th className="py-2 px-3 text-center"></th>
+
+                      {/* Busca Rápida por Nome */}
+                      <th className="py-2 px-3">
+                        <div className="relative">
+                          <input
+                            type="text"
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            placeholder="Filtrar nome..."
+                            className="w-full text-xs font-normal px-2 py-1 bg-white border border-gray-200 rounded-md focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                          />
+                          {searchTerm && (
+                            <button
+                              type="button"
+                              onClick={() => setSearchTerm('')}
+                              className="absolute right-1.5 top-1.5 text-gray-400 hover:text-gray-600"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          )}
+                        </div>
+                      </th>
+
+                      {/* Filtro Dropdown: Origem */}
+                      <th className="py-2 px-3">
+                        <select
+                          value={filtroOrigem}
+                          onChange={(e) => setFiltroOrigem(e.target.value)}
+                          className={`w-full text-xs px-2 py-1 rounded-md border focus:outline-none focus:ring-1 focus:ring-emerald-500 cursor-pointer ${
+                            filtroOrigem !== 'todos'
+                              ? 'bg-blue-50 text-blue-900 border-blue-400 font-bold'
+                              : 'bg-white text-gray-700 border-gray-200 font-normal'
+                          }`}
+                          title="Filtrar por Origem"
+                        >
+                          <option value="todos">Todas origens</option>
+                          {distinctOrigens.map((o) => (
+                            <option key={o.value} value={o.value}>
+                              {o.label} ({o.count})
+                            </option>
+                          ))}
+                        </select>
+                      </th>
+
+                      {/* Filtro Dropdown: Produto */}
+                      <th className="py-2 px-3">
+                        <select
+                          value={filtroProduto}
+                          onChange={(e) => setFiltroProduto(e.target.value)}
+                          className={`w-full text-xs px-2 py-1 rounded-md border focus:outline-none focus:ring-1 focus:ring-emerald-500 cursor-pointer ${
+                            filtroProduto !== 'todos'
+                              ? 'bg-purple-50 text-purple-900 border-purple-400 font-bold'
+                              : 'bg-white text-gray-700 border-gray-200 font-normal'
+                          }`}
+                          title="Filtrar por Produto"
+                        >
+                          <option value="todos">Todos produtos</option>
+                          {distinctProdutos.map((p) => (
+                            <option key={p.value} value={p.value}>
+                              {p.label} ({p.count})
+                            </option>
+                          ))}
+                        </select>
+                      </th>
+
+                      {/* Filtro Dropdown: Cidade */}
+                      <th className="py-2 px-3">
+                        <select
+                          value={filtroCidade}
+                          onChange={(e) => setFiltroCidade(e.target.value)}
+                          className={`w-full text-xs px-2 py-1 rounded-md border focus:outline-none focus:ring-1 focus:ring-emerald-500 cursor-pointer ${
+                            filtroCidade !== 'todos'
+                              ? 'bg-emerald-50 text-emerald-900 border-emerald-400 font-bold'
+                              : 'bg-white text-gray-700 border-gray-200 font-normal'
+                          }`}
+                          title="Filtrar por Cidade"
+                        >
+                          <option value="todos">Todas cidades</option>
+                          {distinctCidades.map((c) => (
+                            <option key={c.value} value={c.value}>
+                              {c.label} ({c.count})
+                            </option>
+                          ))}
+                        </select>
+                      </th>
+
+                      {/* Potência (placeholder informativo) */}
+                      <th className="py-2 px-3 text-[11px] text-gray-400 font-normal italic">
+                        kWp
+                      </th>
+
+                      {/* Valor (placeholder informativo) */}
+                      <th className="py-2 px-3 text-[11px] text-gray-400 font-normal italic">R$</th>
+
+                      {/* Filtro Dropdown: Status */}
+                      <th className="py-2 px-3">
+                        <select
+                          value={filtroStatus}
+                          onChange={(e) => setFiltroStatus(e.target.value)}
+                          className={`w-full text-xs px-2 py-1 rounded-md border focus:outline-none focus:ring-1 focus:ring-emerald-500 cursor-pointer ${
+                            filtroStatus !== 'todos'
+                              ? 'bg-amber-50 text-amber-900 border-amber-400 font-bold'
+                              : 'bg-white text-gray-700 border-gray-200 font-normal'
+                          }`}
+                          title="Filtrar por Status"
+                        >
+                          <option value="todos">Todos status</option>
+                          {distinctStatuses.map((s) => (
+                            <option key={s.value} value={s.value}>
+                              {s.label} ({s.count})
+                            </option>
+                          ))}
+                        </select>
+                      </th>
+
+                      {/* Ação: Botão Limpar se algum filtro estiver ativo */}
+                      <th className="py-2 px-3 text-right">
+                        {hasActiveColumnFilters && (
+                          <button
+                            type="button"
+                            onClick={handleLimparTodosFiltros}
+                            className="text-[11px] font-semibold text-gray-500 hover:text-red-600 underline inline-flex items-center gap-0.5"
+                            title="Limpar todos os seletores"
+                          >
+                            <X className="w-3 h-3" />
+                            Limpar
+                          </button>
+                        )}
+                      </th>
+                    </tr>
+                  </thead>
+
+                  <tbody className="divide-y divide-gray-100">
+                    {processedClientes.map((c) => {
+                      const isChecked = selectedIds.includes(c.id)
+                      return (
+                        <tr
+                          key={c.id}
+                          onClick={() => openFichaCliente(c.id)}
+                          className={`transition-colors cursor-pointer group ${
+                            isChecked
+                              ? 'bg-emerald-50/70 hover:bg-emerald-50'
+                              : 'hover:bg-emerald-50/40'
+                          }`}
+                        >
+                          {/* Checkbox Individual */}
+                          <td
+                            className="py-3 px-3 text-center select-none"
+                            onClick={(e) => handleToggleSelectOne(c.id, e)}
+                          >
+                            <button
+                              type="button"
+                              className="text-gray-400 hover:text-emerald-700 p-0.5 rounded transition-colors"
+                              title={isChecked ? 'Desmarcar' : 'Selecionar'}
+                            >
+                              {isChecked ? (
+                                <CheckSquare className="w-4 h-4 text-emerald-600" />
+                              ) : (
+                                <Square className="w-4 h-4 text-gray-300 group-hover:text-gray-400" />
+                              )}
+                            </button>
+                          </td>
+
+                          {/* Nome & Documentos */}
+                          <td className="py-3 px-4">
+                            <div className="flex items-center gap-2">
+                              <span className="font-semibold text-gray-900 group-hover:text-emerald-700 transition-colors">
+                                {c.nome}
+                              </span>
+                              {c.tipo_pessoa === 'juridica' || c.cnpj ? (
+                                <span className="inline-flex items-center gap-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200">
+                                  <Building2 className="w-2.5 h-2.5" /> PJ
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-50 text-amber-800 border border-amber-200">
+                                  <User className="w-2.5 h-2.5" /> PF
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-xs text-gray-400 font-mono flex items-center gap-1.5 flex-wrap mt-0.5">
+                              {c.cnpj && (
+                                <span className="text-gray-600 font-medium">CNPJ: {c.cnpj}</span>
+                              )}
+                              {c.cpf && (
+                                <span className="text-gray-600 font-medium">CPF: {c.cpf}</span>
+                              )}
+                              {c.whatsapp ? (
+                                <span className="text-emerald-700 font-semibold flex items-center gap-0.5">
+                                  <MessageSquare className="w-3 h-3 text-emerald-600" />
+                                  {c.whatsapp}
+                                </span>
+                              ) : c.telefone ? (
+                                <span>{c.telefone}</span>
+                              ) : null}
+                              {c.uc && <span>• UC: {c.uc}</span>}
+                            </div>
+                          </td>
+
+                          {/* Origem / Importação (Requisito 1) */}
+                          <td className="py-3 px-4 whitespace-nowrap">
+                            <OrigemClienteBadge origemInfo={c.origemInfo} />
+                          </td>
+
+                          {/* Produto */}
+                          <td className="py-3 px-4 whitespace-nowrap">
+                            <ProductBadge produto={c.produto || 'Energia Solar'} />
+                          </td>
+
+                          {/* Cidade */}
+                          <td className="py-3 px-4 text-gray-600 whitespace-nowrap">
+                            <div className="inline-flex items-center gap-1.5">
+                              <MapPin className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                              <span>{c.cidade || 'Não informada'}</span>
+                            </div>
+                          </td>
+
+                          {/* Potência */}
+                          <td className="py-3 px-4 whitespace-nowrap">
+                            <div className="inline-flex items-center gap-1 font-semibold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded text-xs">
+                              <Zap className="w-3.5 h-3.5 text-emerald-600" />
+                              <span>{c.potencia_kwp} kWp</span>
+                            </div>
+                          </td>
+
+                          {/* Valor Estimado */}
+                          <td className="py-3 px-4 text-gray-800 font-medium whitespace-nowrap">
+                            {formatCurrency(c.valor_estimado)}
+                          </td>
+
+                          {/* Status Comercial */}
+                          <td className="py-3 px-4 whitespace-nowrap">
+                            <div className="flex flex-col gap-1 items-start">
+                              <StatusBadge status={c.status} />
+                              {c.status === 'Perdido' && c.motivo_perda && (
+                                <span
+                                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200 capitalize"
+                                  title={`Motivo da perda: ${c.motivo_perda}`}
+                                >
+                                  Motivo:{' '}
+                                  {c.motivo_perda === 'preco'
+                                    ? 'Preço'
+                                    : c.motivo_perda === 'concorrente'
+                                      ? 'Concorrente'
+                                      : c.motivo_perda === 'desistiu'
+                                        ? 'Desistiu'
+                                        : c.motivo_perda === 'outro'
+                                          ? 'Outro'
+                                          : c.motivo_perda}
+                                </span>
+                              )}
+                              {c.status === 'Fechado' && c.area_destino && (
+                                <span
+                                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200"
+                                  title={`Área de destino: ${c.area_destino}`}
+                                >
+                                  {c.area_destino === 'projetos'
+                                    ? 'Projetos (Levantamento)'
+                                    : 'O&M (Manutenção)'}
+                                </span>
+                              )}
+                            </div>
+                          </td>
+
+                          {/* Ações */}
+                          <td className="py-3 px-4 text-right">
+                            <div className="inline-flex items-center gap-1.5">
+                              <button
+                                onClick={(e) => handleAbrirMesclagem(c, e)}
+                                className="inline-flex items-center gap-1 px-2 py-1.5 text-xs font-semibold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 rounded-lg transition-colors border border-emerald-200"
+                                title="Mesclar este cliente com outro da base"
+                              >
+                                <GitMerge className="w-3.5 h-3.5 text-emerald-700" />
+                                <span className="hidden xl:inline">Mesclar</span>
+                              </button>
+                              {c.status === 'Perdido' && (
+                                <button
+                                  onClick={async (e) => {
+                                    e.stopPropagation()
+                                    const confirmou = window.confirm(
+                                      `Deseja reativar o cliente "${c.nome}" e devolver ao funil como Novo Lead?`,
+                                    )
+                                    if (confirmou) {
+                                      await updateClienteStatus(c.id, 'Novo Lead')
+                                    }
+                                  }}
+                                  className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-colors shadow-2xs"
+                                  title="Reativar cliente como Novo Lead"
+                                >
+                                  <RotateCcw className="w-3.5 h-3.5" />
+                                  <span>Reativar</span>
+                                </button>
+                              )}
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  openFichaCliente(c.id, 'whatsapp')
+                                }}
+                                className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold text-emerald-800 bg-emerald-100/70 hover:bg-emerald-200 rounded-lg transition-colors border border-emerald-300"
+                                title="Abrir WhatsApp do cliente"
+                              >
+                                <MessageSquare className="w-3.5 h-3.5 text-emerald-700" />
+                                <span className="hidden sm:inline">WhatsApp</span>
+                              </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  openFichaCliente(c.id)
+                                }}
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-lg transition-colors border border-emerald-200"
+                                title="Ver Ficha Técnica Completa"
+                              >
+                                <Eye className="w-3.5 h-3.5" />
+                                Ver Ficha
+                              </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  setClienteParaExcluir({ id: c.id, nome: c.nome })
+                                }}
+                                className="inline-flex items-center p-1.5 text-xs font-semibold text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors border border-red-200 hover:text-red-700"
+                                title={`Excluir cliente ${c.nome}`}
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                                <span className="sr-only">Excluir</span>
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Mobile Cards View */}
+              <div className="md:hidden space-y-3">
                 {processedClientes.map((c) => {
                   const isChecked = selectedIds.includes(c.id)
                   return (
-                    <tr
+                    <div
                       key={c.id}
                       onClick={() => openFichaCliente(c.id)}
-                      className={`transition-colors cursor-pointer group ${
+                      className={`rounded-xl p-4 border shadow-xs transition-colors cursor-pointer space-y-3 ${
                         isChecked
-                          ? 'bg-emerald-50/70 hover:bg-emerald-50'
-                          : 'hover:bg-emerald-50/40'
+                          ? 'bg-emerald-50/80 border-emerald-400'
+                          : 'bg-white border-gray-200 hover:border-emerald-300'
                       }`}
                     >
-                      {/* Checkbox Individual */}
-                      <td
-                        className="py-3 px-3 text-center select-none"
-                        onClick={(e) => handleToggleSelectOne(c.id, e)}
-                      >
-                        <button
-                          type="button"
-                          className="text-gray-400 hover:text-emerald-700 p-0.5 rounded transition-colors"
-                          title={isChecked ? 'Desmarcar' : 'Selecionar'}
-                        >
-                          {isChecked ? (
-                            <CheckSquare className="w-4 h-4 text-emerald-600" />
-                          ) : (
-                            <Square className="w-4 h-4 text-gray-300 group-hover:text-gray-400" />
-                          )}
-                        </button>
-                      </td>
-
-                      {/* Nome & Documentos */}
-                      <td className="py-3 px-4">
-                        <div className="flex items-center gap-2">
-                          <span className="font-semibold text-gray-900 group-hover:text-emerald-700 transition-colors">
-                            {c.nome}
-                          </span>
-                          {c.tipo_pessoa === 'juridica' || c.cnpj ? (
-                            <span className="inline-flex items-center gap-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200">
-                              <Building2 className="w-2.5 h-2.5" /> PJ
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center gap-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-50 text-amber-800 border border-amber-200">
-                              <User className="w-2.5 h-2.5" /> PF
-                            </span>
-                          )}
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex items-start gap-2">
+                          <button
+                            type="button"
+                            onClick={(e) => handleToggleSelectOne(c.id, e)}
+                            className="text-gray-400 hover:text-emerald-700 p-0.5 rounded transition-colors mt-0.5"
+                          >
+                            {isChecked ? (
+                              <CheckSquare className="w-4 h-4 text-emerald-600" />
+                            ) : (
+                              <Square className="w-4 h-4 text-gray-300" />
+                            )}
+                          </button>
+                          <div className="space-y-0.5">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <h4 className="font-bold text-gray-900 text-sm">{c.nome}</h4>
+                              {c.tipo_pessoa === 'juridica' || c.cnpj ? (
+                                <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-blue-50 text-blue-700 border border-blue-200">
+                                  PJ
+                                </span>
+                              ) : (
+                                <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-amber-50 text-amber-800 border border-amber-200">
+                                  PF
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-xs text-gray-400 font-mono">
+                              {c.cnpj
+                                ? `CNPJ: ${c.cnpj}`
+                                : c.cpf
+                                  ? `CPF: ${c.cpf}`
+                                  : `UC: ${c.uc || '-'}`}
+                            </p>
+                          </div>
                         </div>
-                        <div className="text-xs text-gray-400 font-mono flex items-center gap-1.5 flex-wrap mt-0.5">
-                          {c.cnpj && (
-                            <span className="text-gray-600 font-medium">CNPJ: {c.cnpj}</span>
-                          )}
-                          {c.cpf && <span className="text-gray-600 font-medium">CPF: {c.cpf}</span>}
-                          {c.whatsapp ? (
-                            <span className="text-emerald-700 font-semibold flex items-center gap-0.5">
-                              <MessageSquare className="w-3 h-3 text-emerald-600" />
-                              {c.whatsapp}
-                            </span>
-                          ) : c.telefone ? (
-                            <span>{c.telefone}</span>
-                          ) : null}
-                          {c.uc && <span>• UC: {c.uc}</span>}
-                        </div>
-                      </td>
-
-                      {/* Origem / Importação (Requisito 1) */}
-                      <td className="py-3 px-4 whitespace-nowrap">
-                        <OrigemClienteBadge origemInfo={c.origemInfo} />
-                      </td>
-
-                      {/* Produto */}
-                      <td className="py-3 px-4 whitespace-nowrap">
-                        <ProductBadge produto={c.produto || 'Energia Solar'} />
-                      </td>
-
-                      {/* Cidade */}
-                      <td className="py-3 px-4 text-gray-600 whitespace-nowrap">
-                        <div className="inline-flex items-center gap-1.5">
-                          <MapPin className="w-3.5 h-3.5 text-gray-400 shrink-0" />
-                          <span>{c.cidade || 'Não informada'}</span>
-                        </div>
-                      </td>
-
-                      {/* Potência */}
-                      <td className="py-3 px-4 whitespace-nowrap">
-                        <div className="inline-flex items-center gap-1 font-semibold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded text-xs">
-                          <Zap className="w-3.5 h-3.5 text-emerald-600" />
-                          <span>{c.potencia_kwp} kWp</span>
-                        </div>
-                      </td>
-
-                      {/* Valor Estimado */}
-                      <td className="py-3 px-4 text-gray-800 font-medium whitespace-nowrap">
-                        {formatCurrency(c.valor_estimado)}
-                      </td>
-
-                      {/* Status Comercial */}
-                      <td className="py-3 px-4 whitespace-nowrap">
-                        <div className="flex flex-col gap-1 items-start">
+                        <div className="flex flex-col items-end gap-1">
                           <StatusBadge status={c.status} />
                           {c.status === 'Perdido' && c.motivo_perda && (
-                            <span
-                              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200 capitalize"
-                              title={`Motivo da perda: ${c.motivo_perda}`}
-                            >
+                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200 capitalize">
                               Motivo:{' '}
                               {c.motivo_perda === 'preco'
                                 ? 'Preço'
@@ -1082,28 +1331,43 @@ export default function Clientes() {
                             </span>
                           )}
                           {c.status === 'Fechado' && c.area_destino && (
-                            <span
-                              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200"
-                              title={`Área de destino: ${c.area_destino}`}
-                            >
-                              {c.area_destino === 'projetos'
-                                ? 'Projetos (Levantamento)'
-                                : 'O&M (Manutenção)'}
+                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                              {c.area_destino === 'projetos' ? 'Projetos' : 'O&M'}
                             </span>
                           )}
                         </div>
-                      </td>
+                      </div>
 
-                      {/* Ações */}
-                      <td className="py-3 px-4 text-right">
-                        <div className="inline-flex items-center gap-1.5">
+                      {/* Badge de Origem no Mobile Card */}
+                      <div className="flex items-center justify-between gap-2 text-xs">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-gray-400 text-[11px]">Origem:</span>
+                          <OrigemClienteBadge origemInfo={c.origemInfo} />
+                        </div>
+                        <ProductBadge produto={c.produto || 'Energia Solar'} size="sm" />
+                      </div>
+
+                      <div className="flex items-center justify-between text-xs text-gray-600 pt-2 border-t border-gray-100">
+                        <div className="flex items-center gap-1 text-gray-500">
+                          <MapPin className="w-3.5 h-3.5 text-gray-400" />
+                          <span>{c.cidade || 'Não informada'}</span>
+                        </div>
+                        <div className="font-semibold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded">
+                          {c.potencia_kwp} kWp
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between pt-1">
+                        <span className="font-bold text-gray-900 text-sm">
+                          {formatCurrency(c.valor_estimado)}
+                        </span>
+                        <div className="flex items-center gap-1.5">
                           <button
                             onClick={(e) => handleAbrirMesclagem(c, e)}
-                            className="inline-flex items-center gap-1 px-2 py-1.5 text-xs font-semibold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 rounded-lg transition-colors border border-emerald-200"
-                            title="Mesclar este cliente com outro da base"
+                            className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-800 bg-emerald-50 px-2 py-1 rounded-md border border-emerald-200"
+                            title="Mesclar cliente"
                           >
                             <GitMerge className="w-3.5 h-3.5 text-emerald-700" />
-                            <span className="hidden xl:inline">Mesclar</span>
                           </button>
                           {c.status === 'Perdido' && (
                             <button
@@ -1116,11 +1380,11 @@ export default function Clientes() {
                                   await updateClienteStatus(c.id, 'Novo Lead')
                                 }
                               }}
-                              className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-colors shadow-2xs"
-                              title="Reativar cliente como Novo Lead"
+                              className="inline-flex items-center gap-1 text-xs font-bold text-white bg-emerald-600 px-2.5 py-1 rounded-md shadow-2xs"
+                              title="Reativar cliente"
                             >
                               <RotateCcw className="w-3.5 h-3.5" />
-                              <span>Reativar</span>
+                              Reativar
                             </button>
                           )}
                           <button
@@ -1128,331 +1392,171 @@ export default function Clientes() {
                               e.stopPropagation()
                               openFichaCliente(c.id, 'whatsapp')
                             }}
-                            className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold text-emerald-800 bg-emerald-100/70 hover:bg-emerald-200 rounded-lg transition-colors border border-emerald-300"
-                            title="Abrir WhatsApp do cliente"
+                            className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-800 bg-emerald-100 px-2 py-1 rounded-md border border-emerald-300"
                           >
-                            <MessageSquare className="w-3.5 h-3.5 text-emerald-700" />
-                            <span className="hidden sm:inline">WhatsApp</span>
+                            <MessageSquare className="w-3.5 h-3.5" />
+                            WhatsApp
                           </button>
                           <button
                             onClick={(e) => {
                               e.stopPropagation()
                               openFichaCliente(c.id)
                             }}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-lg transition-colors border border-emerald-200"
-                            title="Ver Ficha Técnica Completa"
+                            className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-md border border-emerald-200"
                           >
                             <Eye className="w-3.5 h-3.5" />
-                            Ver Ficha
+                            Ficha
                           </button>
                           <button
                             onClick={(e) => {
                               e.stopPropagation()
                               setClienteParaExcluir({ id: c.id, nome: c.nome })
                             }}
-                            className="inline-flex items-center p-1.5 text-xs font-semibold text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors border border-red-200 hover:text-red-700"
+                            className="inline-flex items-center p-1.5 text-xs font-semibold text-red-600 bg-red-50 hover:bg-red-100 rounded-md border border-red-200 hover:text-red-700"
                             title={`Excluir cliente ${c.nome}`}
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                             <span className="sr-only">Excluir</span>
                           </button>
                         </div>
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Mobile Cards View */}
-          <div className="md:hidden space-y-3">
-            {processedClientes.map((c) => {
-              const isChecked = selectedIds.includes(c.id)
-              return (
-                <div
-                  key={c.id}
-                  onClick={() => openFichaCliente(c.id)}
-                  className={`rounded-xl p-4 border shadow-xs transition-colors cursor-pointer space-y-3 ${
-                    isChecked
-                      ? 'bg-emerald-50/80 border-emerald-400'
-                      : 'bg-white border-gray-200 hover:border-emerald-300'
-                  }`}
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex items-start gap-2">
-                      <button
-                        type="button"
-                        onClick={(e) => handleToggleSelectOne(c.id, e)}
-                        className="text-gray-400 hover:text-emerald-700 p-0.5 rounded transition-colors mt-0.5"
-                      >
-                        {isChecked ? (
-                          <CheckSquare className="w-4 h-4 text-emerald-600" />
-                        ) : (
-                          <Square className="w-4 h-4 text-gray-300" />
-                        )}
-                      </button>
-                      <div className="space-y-0.5">
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          <h4 className="font-bold text-gray-900 text-sm">{c.nome}</h4>
-                          {c.tipo_pessoa === 'juridica' || c.cnpj ? (
-                            <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-blue-50 text-blue-700 border border-blue-200">
-                              PJ
-                            </span>
-                          ) : (
-                            <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-amber-50 text-amber-800 border border-amber-200">
-                              PF
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-xs text-gray-400 font-mono">
-                          {c.cnpj
-                            ? `CNPJ: ${c.cnpj}`
-                            : c.cpf
-                              ? `CPF: ${c.cpf}`
-                              : `UC: ${c.uc || '-'}`}
-                        </p>
                       </div>
                     </div>
-                    <div className="flex flex-col items-end gap-1">
-                      <StatusBadge status={c.status} />
-                      {c.status === 'Perdido' && c.motivo_perda && (
-                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200 capitalize">
-                          Motivo:{' '}
-                          {c.motivo_perda === 'preco'
-                            ? 'Preço'
-                            : c.motivo_perda === 'concorrente'
-                              ? 'Concorrente'
-                              : c.motivo_perda === 'desistiu'
-                                ? 'Desistiu'
-                                : c.motivo_perda === 'outro'
-                                  ? 'Outro'
-                                  : c.motivo_perda}
-                        </span>
-                      )}
-                      {c.status === 'Fechado' && c.area_destino && (
-                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
-                          {c.area_destino === 'projetos' ? 'Projetos' : 'O&M'}
-                        </span>
-                      )}
-                    </div>
-                  </div>
+                  )
+                })}
+              </div>
+            </>
+          )}
 
-                  {/* Badge de Origem no Mobile Card */}
-                  <div className="flex items-center justify-between gap-2 text-xs">
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-gray-400 text-[11px]">Origem:</span>
-                      <OrigemClienteBadge origemInfo={c.origemInfo} />
-                    </div>
-                    <ProductBadge produto={c.produto || 'Energia Solar'} size="sm" />
-                  </div>
+          {/* Modal de Cadastro Unificado PF/PJ com Consulta CNPJ */}
+          <ModalCadastroClienteFornecedor
+            isOpen={isModalNovoOpen}
+            onClose={() => setIsModalNovoOpen(false)}
+            tipoEntidade="cliente"
+            onSubmit={handleSalvarCliente}
+          />
 
-                  <div className="flex items-center justify-between text-xs text-gray-600 pt-2 border-t border-gray-100">
-                    <div className="flex items-center gap-1 text-gray-500">
-                      <MapPin className="w-3.5 h-3.5 text-gray-400" />
-                      <span>{c.cidade || 'Não informada'}</span>
-                    </div>
-                    <div className="font-semibold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded">
-                      {c.potencia_kwp} kWp
-                    </div>
-                  </div>
+          {/* Modal de Mesclagem Campo a Campo */}
+          <ModalMesclarClientes
+            isOpen={isModalMesclarOpen}
+            onClose={() => {
+              setIsModalMesclarOpen(false)
+              setClienteMesclarInicial(null)
+            }}
+            clienteInicial={clienteMesclarInicial}
+            todosClientes={clientes}
+            onConfirmarMesclagem={async (opcoes) => {
+              await mesclarClientes(opcoes)
+              setSelectedIds((prev) => prev.filter((id) => id !== opcoes.clienteSecundarioId))
+            }}
+          />
 
-                  <div className="flex items-center justify-between pt-1">
-                    <span className="font-bold text-gray-900 text-sm">
-                      {formatCurrency(c.valor_estimado)}
-                    </span>
-                    <div className="flex items-center gap-1.5">
-                      <button
-                        onClick={(e) => handleAbrirMesclagem(c, e)}
-                        className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-800 bg-emerald-50 px-2 py-1 rounded-md border border-emerald-200"
-                        title="Mesclar cliente"
-                      >
-                        <GitMerge className="w-3.5 h-3.5 text-emerald-700" />
-                      </button>
-                      {c.status === 'Perdido' && (
-                        <button
-                          onClick={async (e) => {
-                            e.stopPropagation()
-                            const confirmou = window.confirm(
-                              `Deseja reativar o cliente "${c.nome}" e devolver ao funil como Novo Lead?`,
-                            )
-                            if (confirmou) {
-                              await updateClienteStatus(c.id, 'Novo Lead')
-                            }
-                          }}
-                          className="inline-flex items-center gap-1 text-xs font-bold text-white bg-emerald-600 px-2.5 py-1 rounded-md shadow-2xs"
-                          title="Reativar cliente"
-                        >
-                          <RotateCcw className="w-3.5 h-3.5" />
-                          Reativar
-                        </button>
-                      )}
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          openFichaCliente(c.id, 'whatsapp')
-                        }}
-                        className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-800 bg-emerald-100 px-2 py-1 rounded-md border border-emerald-300"
-                      >
-                        <MessageSquare className="w-3.5 h-3.5" />
-                        WhatsApp
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          openFichaCliente(c.id)
-                        }}
-                        className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-md border border-emerald-200"
-                      >
-                        <Eye className="w-3.5 h-3.5" />
-                        Ficha
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          setClienteParaExcluir({ id: c.id, nome: c.nome })
-                        }}
-                        className="inline-flex items-center p-1.5 text-xs font-semibold text-red-600 bg-red-50 hover:bg-red-100 rounded-md border border-red-200 hover:text-red-700"
-                        title={`Excluir cliente ${c.nome}`}
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                        <span className="sr-only">Excluir</span>
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )
-            })}
-          </div>
+          {/* Confirmação Segura de Exclusão em Lote */}
+          <AlertDialog
+            open={isModalExcluirLoteOpen}
+            onOpenChange={(open) => {
+              if (!open && !isDeletingLote) {
+                setIsModalExcluirLoteOpen(false)
+              }
+            }}
+          >
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle className="text-red-600 flex items-center gap-2">
+                  <Trash2 className="w-5 h-5" />
+                  Confirmar Exclusão de {selectedIds.length} Clientes
+                </AlertDialogTitle>
+                <AlertDialogDescription>
+                  Você está prestes a excluir permanentemente{' '}
+                  <strong className="text-gray-900 font-semibold">
+                    {selectedIds.length}{' '}
+                    {selectedIds.length === 1 ? 'cliente selecionado' : 'clientes selecionados'}
+                  </strong>
+                  . Esta operação removerá também os registros dependentes vinculados (orçamentos,
+                  manutenções, propostas, atividades, etc.).
+                  <br />
+                  <br />
+                  Esta ação <span className="text-red-600 font-bold">não pode ser desfeita</span>.
+                  Deseja continuar?
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel disabled={isDeletingLote}>Cancelar</AlertDialogCancel>
+                <AlertDialogAction
+                  disabled={isDeletingLote}
+                  onClick={async (e) => {
+                    e.preventDefault()
+                    await handleExcluirLote()
+                  }}
+                  className="bg-red-600 hover:bg-red-700 text-white focus:ring-red-600 font-bold"
+                >
+                  {isDeletingLote ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                      Excluindo {selectedIds.length} clientes...
+                    </>
+                  ) : (
+                    `Excluir ${selectedIds.length} Clientes Definitivamente`
+                  )}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+
+          {/* Confirmação Segura de Exclusão de Cliente */}
+          <AlertDialog
+            open={Boolean(clienteParaExcluir)}
+            onOpenChange={(open) => {
+              if (!open && !isDeletingCliente) {
+                setClienteParaExcluir(null)
+              }
+            }}
+          >
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Confirmar Exclusão de Cliente</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Tem certeza que deseja excluir o cliente{' '}
+                  <strong className="text-gray-900 font-semibold">
+                    {clienteParaExcluir?.nome}
+                  </strong>
+                  ? Esta ação é irreversível e excluirá todas as atividades, propostas, orçamentos e
+                  registros vinculados a ele.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel disabled={isDeletingCliente}>Cancelar</AlertDialogCancel>
+                <AlertDialogAction
+                  disabled={isDeletingCliente}
+                  onClick={async (e) => {
+                    e.preventDefault()
+                    if (!clienteParaExcluir) return
+                    try {
+                      setIsDeletingCliente(true)
+                      await removeCliente(clienteParaExcluir.id)
+                      setClienteParaExcluir(null)
+                    } catch (err) {
+                      console.error('Erro ao excluir cliente:', err)
+                      alert('Ocorreu um erro ao excluir o cliente. Tente novamente.')
+                    } finally {
+                      setIsDeletingCliente(false)
+                    }
+                  }}
+                  className="bg-red-600 hover:bg-red-700 text-white focus:ring-red-600"
+                >
+                  {isDeletingCliente ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                      Excluindo...
+                    </>
+                  ) : (
+                    'Confirmar Exclusão'
+                  )}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </>
       )}
-
-      {/* Modal de Cadastro Unificado PF/PJ com Consulta CNPJ */}
-      <ModalCadastroClienteFornecedor
-        isOpen={isModalNovoOpen}
-        onClose={() => setIsModalNovoOpen(false)}
-        tipoEntidade="cliente"
-        onSubmit={handleSalvarCliente}
-      />
-
-      {/* Modal de Mesclagem Campo a Campo */}
-      <ModalMesclarClientes
-        isOpen={isModalMesclarOpen}
-        onClose={() => {
-          setIsModalMesclarOpen(false)
-          setClienteMesclarInicial(null)
-        }}
-        clienteInicial={clienteMesclarInicial}
-        todosClientes={clientes}
-        onConfirmarMesclagem={async (opcoes) => {
-          await mesclarClientes(opcoes)
-          setSelectedIds((prev) => prev.filter((id) => id !== opcoes.clienteSecundarioId))
-        }}
-      />
-
-      {/* Confirmação Segura de Exclusão em Lote */}
-      <AlertDialog
-        open={isModalExcluirLoteOpen}
-        onOpenChange={(open) => {
-          if (!open && !isDeletingLote) {
-            setIsModalExcluirLoteOpen(false)
-          }
-        }}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle className="text-red-600 flex items-center gap-2">
-              <Trash2 className="w-5 h-5" />
-              Confirmar Exclusão de {selectedIds.length} Clientes
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              Você está prestes a excluir permanentemente{' '}
-              <strong className="text-gray-900 font-semibold">
-                {selectedIds.length}{' '}
-                {selectedIds.length === 1 ? 'cliente selecionado' : 'clientes selecionados'}
-              </strong>
-              . Esta operação removerá também os registros dependentes vinculados (orçamentos,
-              manutenções, propostas, atividades, etc.).
-              <br />
-              <br />
-              Esta ação <span className="text-red-600 font-bold">não pode ser desfeita</span>.
-              Deseja continuar?
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={isDeletingLote}>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              disabled={isDeletingLote}
-              onClick={async (e) => {
-                e.preventDefault()
-                await handleExcluirLote()
-              }}
-              className="bg-red-600 hover:bg-red-700 text-white focus:ring-red-600 font-bold"
-            >
-              {isDeletingLote ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                  Excluindo {selectedIds.length} clientes...
-                </>
-              ) : (
-                `Excluir ${selectedIds.length} Clientes Definitivamente`
-              )}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      {/* Confirmação Segura de Exclusão de Cliente */}
-      <AlertDialog
-        open={Boolean(clienteParaExcluir)}
-        onOpenChange={(open) => {
-          if (!open && !isDeletingCliente) {
-            setClienteParaExcluir(null)
-          }
-        }}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Confirmar Exclusão de Cliente</AlertDialogTitle>
-            <AlertDialogDescription>
-              Tem certeza que deseja excluir o cliente{' '}
-              <strong className="text-gray-900 font-semibold">{clienteParaExcluir?.nome}</strong>?
-              Esta ação é irreversível e excluirá todas as atividades, propostas, orçamentos e
-              registros vinculados a ele.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={isDeletingCliente}>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              disabled={isDeletingCliente}
-              onClick={async (e) => {
-                e.preventDefault()
-                if (!clienteParaExcluir) return
-                try {
-                  setIsDeletingCliente(true)
-                  await removeCliente(clienteParaExcluir.id)
-                  setClienteParaExcluir(null)
-                } catch (err) {
-                  console.error('Erro ao excluir cliente:', err)
-                  alert('Ocorreu um erro ao excluir o cliente. Tente novamente.')
-                } finally {
-                  setIsDeletingCliente(false)
-                }
-              }}
-              className="bg-red-600 hover:bg-red-700 text-white focus:ring-red-600"
-            >
-              {isDeletingCliente ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                  Excluindo...
-                </>
-              ) : (
-                'Confirmar Exclusão'
-              )}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   )
 }
