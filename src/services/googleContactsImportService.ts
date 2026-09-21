@@ -83,7 +83,6 @@ export interface ItemComparacaoGoogle {
   incluirContatosAdicionais: boolean
   resolvido: boolean
 }
-
 /**
  * Extrai apenas dígitos de uma string
  */
