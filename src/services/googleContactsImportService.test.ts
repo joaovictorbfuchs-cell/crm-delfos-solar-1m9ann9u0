@@ -348,5 +348,30 @@ describe('googleContactsImportService', () => {
       expect(resultado.acaoSelecionada).toBe('adicionar_novo')
       expect(resultado.clienteBanco).toBeUndefined()
     })
+
+    it('deve permitir configurar decisão de vincular a cliente existente para virar contato adicional', () => {
+      const parsed = parseGoogleContactRow(
+        {
+          first_name: 'Esposa do João',
+          phone_1_value: '(54) 99888-1122',
+          phone_2_value: '(54) 3522-8877',
+          address_1_city: 'Erechim',
+        },
+        4,
+      )
+
+      const resultado = analisarContatoGoogle(parsed, clientesMock)
+      expect(resultado.ehDivergencia).toBe(true)
+      // Pode ser vinculado manualmente pelo usuário ao cliente cli_1
+      const resultadoComVinculo: ItemComparacaoGoogle = {
+        ...resultado,
+        acaoSelecionada: 'vincular',
+        clienteDestinoVinculo: clientesMock[0],
+        resolvido: true,
+      }
+      expect(resultadoComVinculo.acaoSelecionada).toBe('vincular')
+      expect(resultadoComVinculo.clienteDestinoVinculo?.id).toBe('cli_1')
+      expect(resultadoComVinculo.telefoneNormalizadoCompleto).toBe('(54) 99888-1122')
+    })
   })
 })

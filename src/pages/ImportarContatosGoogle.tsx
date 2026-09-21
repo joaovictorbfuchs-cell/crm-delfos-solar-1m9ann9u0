@@ -231,7 +231,7 @@ export default function ImportarContatosGoogle() {
     setBuscaClienteModal('')
   }
 
-  // Confirmação do vínculo de um cliente selecionado
+  // Confirmação do vínculo de um cliente selecionado: adiciona o contato do CSV como contato adicional
   const handleConfirmarVinculoModal = async () => {
     if (!itemParaVincular || !clienteSelecionadoModal) return
 
@@ -242,13 +242,21 @@ export default function ImportarContatosGoogle() {
         formatWhatsAppPhone(itemParaVincular.telefoneCsv) ||
         itemParaVincular.telefoneCsv
 
-      // Grava imediatamente o telefone do CSV como telefone e WhatsApp principal do cliente escolhido
-      await updateCliente(clienteSelecionadoModal.id, {
+      const nomeContatoVinculado =
+        itemParaVincular.nomeCompleto && itemParaVincular.nomeCompleto !== 'Contato sem nome'
+          ? itemParaVincular.nomeCompleto
+          : `Contato Google (${telFormatado})`
+
+      // Adiciona o contato do CSV como contato adicional ao cliente escolhido (SEM alterar telefone/WhatsApp principal)
+      await addContatoAdicional({
+        cliente: clienteSelecionadoModal.id,
+        nome: nomeContatoVinculado,
         telefone: telFormatado,
-        whatsapp: telFormatado,
+        email: itemParaVincular.emailCsv || undefined,
+        cargo: 'Contato Google',
       })
 
-      // Se tiver telefones secundários e a opção estiver ativada, salva como contatos adicionais
+      // Se tiver telefones secundários e a opção estiver ativada, salva também como contatos adicionais
       if (
         itemParaVincular.incluirContatosAdicionais &&
         itemParaVincular.telefonesSecundariosCsv.length > 0
@@ -257,7 +265,7 @@ export default function ImportarContatosGoogle() {
           const telSecFormatado = formatWhatsAppPhone(telSec) || telSec
           await addContatoAdicional({
             cliente: clienteSelecionadoModal.id,
-            nome: `${itemParaVincular.nomeCompleto} (Secundário Google)`,
+            nome: `${nomeContatoVinculado} (Secundário Google)`,
             telefone: telSecFormatado,
             email: itemParaVincular.emailCsv || undefined,
             cargo: 'Telefone Secundário Google',
@@ -280,7 +288,7 @@ export default function ImportarContatosGoogle() {
       )
 
       toast.success(
-        `Contato vinculado com sucesso a "${clienteSelecionadoModal.nome}"! Telefone e WhatsApp atualizados para ${telFormatado}.`,
+        `Contato "${nomeContatoVinculado}" vinculado com sucesso como contato adicional de "${clienteSelecionadoModal.nome}"!`,
       )
       handleFecharModalVincular()
     } catch (err: any) {
@@ -460,7 +468,7 @@ export default function ImportarContatosGoogle() {
     )
     const labelAcao =
       acao === 'atualizar'
-        ? 'Atualizar telefone e WhatsApp'
+        ? 'Atualizar contato'
         : acao === 'adicionar_novo'
           ? 'Adicionar como novo contato'
           : 'Ignorar'
@@ -537,18 +545,28 @@ export default function ImportarContatosGoogle() {
             prev.map((it) => (it.idTemp === item.idTemp ? { ...it, resolvido: true } : it)),
           )
         } else if (item.acaoSelecionada === 'vincular' && item.clienteDestinoVinculo) {
-          await updateCliente(item.clienteDestinoVinculo.id, {
+          const nomeContatoVinculado =
+            item.nomeCompleto && item.nomeCompleto !== 'Contato sem nome'
+              ? item.nomeCompleto
+              : `Contato Google (${telFormatado})`
+
+          // Adiciona como contato adicional ao cliente escolhido (SEM alterar telefone/WhatsApp principal)
+          await addContatoAdicional({
+            cliente: item.clienteDestinoVinculo.id,
+            nome: nomeContatoVinculado,
             telefone: telFormatado,
-            whatsapp: telFormatado,
+            email: item.emailCsv || undefined,
+            cargo: 'Contato Google',
           })
           countVinculados++
+          countContatosAdicionais++
 
           if (item.incluirContatosAdicionais && item.telefonesSecundariosCsv.length > 0) {
             for (const telSec of item.telefonesSecundariosCsv) {
               const telSecFormatado = formatWhatsAppPhone(telSec) || telSec
               await addContatoAdicional({
                 cliente: item.clienteDestinoVinculo.id,
-                nome: `${item.nomeCompleto} (Secundário Google)`,
+                nome: `${nomeContatoVinculado} (Secundário Google)`,
                 telefone: telSecFormatado,
                 email: item.emailCsv || undefined,
                 cargo: 'Telefone Secundário Google',
@@ -779,9 +797,9 @@ export default function ImportarContatosGoogle() {
                     Vincular Contato a um Cliente
                   </h2>
                   <p className="text-xs text-gray-500 mt-0.5">
-                    O número importado será gravado como telefone e WhatsApp principal do cliente
-                    selecionado.
-                  </p>
+                    O contato do CSV será adicionado como <strong>Contato Adicional</strong> na
+                    ficha do cliente selecionado, sem alterar o telefone ou WhatsApp principal dele.
+                  </p>{' '}
                 </div>
               </div>
               <button
@@ -947,7 +965,7 @@ export default function ImportarContatosGoogle() {
                 ) : (
                   <>
                     <Check className="w-4 h-4" />
-                    <span>Confirmar Vínculo</span>
+                    <span>Confirmar Vínculo como Contato Adicional</span>{' '}
                   </>
                 )}
               </button>
@@ -1019,9 +1037,10 @@ export default function ImportarContatosGoogle() {
                   </span>
                   {resultadoFinal.vinculados > 0 && (
                     <span>
-                      • <strong>{resultadoFinal.vinculados}</strong> contatos vinculados a clientes
+                      • <strong>{resultadoFinal.vinculados}</strong> contatos vinculados como
+                      adicionais a clientes
                     </span>
-                  )}
+                  )}{' '}
                   <span>
                     • <strong>{resultadoFinal.ignorados}</strong> contatos ignorados/descartados
                   </span>
@@ -1097,10 +1116,10 @@ export default function ImportarContatosGoogle() {
                     type="button"
                     onClick={() => handleDefinirAcaoEmMassa('atualizar')}
                     className="px-2.5 py-1 text-xs font-semibold rounded-lg bg-emerald-50 text-[#166534] hover:bg-emerald-100 border border-emerald-200"
-                    title="Pré-seleciona Atualizar para itens com cliente detectado"
+                    title="Pré-seleciona Atualizar contato para clientes detectados"
                   >
-                    Marcar Atualizar
-                  </button>
+                    Marcar Atualizar Contato
+                  </button>{' '}
                   <button
                     type="button"
                     onClick={() => handleDefinirAcaoEmMassa('adicionar_novo')}
@@ -1346,13 +1365,13 @@ export default function ImportarContatosGoogle() {
                                 <span className="flex items-center gap-1.5">
                                   <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
                                   {item.acaoSelecionada === 'vincular'
-                                    ? 'Vinculado a cliente'
+                                    ? 'Vinculado como contato adicional'
                                     : item.acaoSelecionada === 'adicionar_novo'
                                       ? 'Novo contato criado'
                                       : item.acaoSelecionada === 'atualizar'
-                                        ? 'Cliente atualizado'
+                                        ? 'Contato atualizado'
                                         : 'Ignorado'}
-                                </span>
+                                </span>{' '}
                               </div>
                               <button
                                 type="button"
@@ -1364,20 +1383,33 @@ export default function ImportarContatosGoogle() {
                             </div>
                           ) : (
                             <>
-                              {/* 1. Vincular a um cliente (NOVA OPÇÃO) */}
+                              {/* 1. Atualizar contato (se houver cliente correspondente detectado automaticamente) */}
+                              {item.clienteBanco && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleAtualizarClienteEncontrado(item)}
+                                  className="w-full px-3 py-2 rounded-xl text-xs font-bold transition-all text-left flex items-center justify-between bg-emerald-600 text-white hover:bg-emerald-700 shadow-2xs"
+                                  title={`Atualiza o WhatsApp e telefone principal de ${item.clienteBanco.nome} para o número do CSV`}
+                                >
+                                  <span className="flex items-center gap-1.5">
+                                    <RefreshCw className="w-3.5 h-3.5 text-white" />
+                                    Atualizar contato
+                                  </span>
+                                </button>
+                              )}
+                              {/* 2. Vincular a um cliente (Adiciona como contato adicional a um cliente existente) */}
                               <button
                                 type="button"
                                 onClick={() => handleAbrirModalVincular(item)}
                                 className="w-full px-3 py-2 rounded-xl text-xs font-bold transition-all text-left flex items-center justify-between bg-emerald-50 text-[#166534] hover:bg-emerald-100 border border-emerald-200 shadow-2xs"
-                                title="Buscar e selecionar um cliente já cadastrado no CRM para receber este número como telefone e WhatsApp"
+                                title="Selecionar um cliente existente para adicionar este contato como contato adicional na ficha dele (sem alterar o WhatsApp principal)"
                               >
                                 <span className="flex items-center gap-1.5">
                                   <UserCheck className="w-3.5 h-3.5 text-[#16A34A]" />
                                   Vincular a um cliente
                                 </span>
                               </button>
-
-                              {/* 2. Adicionar como novo contato */}
+                              {/* 3. Adicionar como novo contato */}
                               <button
                                 type="button"
                                 onClick={() => handleAdicionarComoNovoContato(item)}
@@ -1389,34 +1421,18 @@ export default function ImportarContatosGoogle() {
                                   Adicionar como novo contato
                                 </span>
                               </button>
-
-                              {/* Se houver cliente correspondente detectado automaticamente, oferece também Atualizar */}
-                              {item.clienteBanco && (
-                                <button
-                                  type="button"
-                                  onClick={() => handleAtualizarClienteEncontrado(item)}
-                                  className="w-full px-3 py-2 rounded-xl text-xs font-bold transition-all text-left flex items-center justify-between bg-emerald-50/50 text-emerald-800 hover:bg-emerald-100/70 border border-emerald-200 shadow-2xs"
-                                  title={`Atualiza o telefone e WhatsApp de ${item.clienteBanco.nome} para o número do CSV`}
-                                >
-                                  <span className="flex items-center gap-1.5">
-                                    <RefreshCw className="w-3.5 h-3.5 text-emerald-600" />
-                                    Atualizar telefone e WhatsApp
-                                  </span>
-                                </button>
-                              )}
-
-                              {/* 3. Ignorar (substitui Manter Atual e descarta o item das pendências) */}
+                              {/* 4. Ignorar */}
                               <button
                                 type="button"
                                 onClick={() => handleIgnorarItem(item)}
                                 className="w-full px-3 py-2 rounded-xl text-xs font-semibold transition-all text-left flex items-center justify-between bg-gray-50 text-gray-600 hover:bg-gray-100 hover:text-gray-900 border border-gray-200"
-                                title="Descarta esta divergência sem alterar dados e remove da lista de pendentes"
+                                title="Descarta esta divergência sem alterar dados e move para a aba Resolvidos"
                               >
                                 <span className="flex items-center gap-1.5">
                                   <EyeOff className="w-3.5 h-3.5 text-gray-400" />
                                   Ignorar
                                 </span>
-                              </button>
+                              </button>{' '}
                             </>
                           )}
                         </div>

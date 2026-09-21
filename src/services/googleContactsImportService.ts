@@ -48,10 +48,10 @@ export type StatusComparacaoGoogle =
   | 'nao_encontrado' // Cliente não encontrado no banco
 
 export type AcaoDivergenciaGoogle =
-  | 'atualizar' // Substitui telefone e WhatsApp principal do cliente encontrado
-  | 'vincular' // Vincula o número a um cliente existente escolhido pelo usuário
+  | 'atualizar' // Atualiza telefone e WhatsApp principal do cliente já encontrado automaticamente
+  | 'vincular' // Adiciona o contato do CSV como contato adicional a um cliente existente escolhido, sem alterar o WhatsApp principal dele
   | 'ignorar' // Ignora alteração e descarta da lista pendente
-  | 'adicionar_novo' // Cria novo cliente no CRM
+  | 'adicionar_novo' // Cria novo cliente no CRM com o número do CSV como WhatsApp principal
   | 'manter_atual' // Alias mantido para retrocompatibilidade
 
 export interface ItemComparacaoGoogle {
