@@ -711,16 +711,104 @@ export const CentralAtendimento: React.FC = () => {
     <div className="space-y-6">
       {/* Barra de Ferramentas Compacta */}
       <div className="flex items-center justify-between flex-wrap gap-2.5 bg-white px-3.5 py-2.5 rounded-xl border border-gray-200 shadow-2xs">
-        {/* Campo de Busca */}
-        <div className="relative flex-1 min-w-[200px] max-w-xs sm:w-56">
+        {/* Campo de Busca com Dropdown de Resultados da Base de Clientes */}
+        <div className="relative flex-1 min-w-[220px] max-w-sm sm:w-80">
           <Search className="w-3.5 h-3.5 text-gray-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
           <input
             type="text"
             placeholder="Buscar por telefone, cliente ou mensagem..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-8 pr-3 py-1.5 text-xs bg-gray-50 focus:bg-white border border-gray-200 rounded-lg focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all outline-none"
+            className="w-full pl-8 pr-7 py-1.5 text-xs bg-gray-50 focus:bg-white border border-gray-200 rounded-lg focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all outline-none"
           />
+          {searchTerm.trim().length > 0 && (
+            <button
+              type="button"
+              onClick={() => setSearchTerm('')}
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-0.5 rounded transition-colors"
+              title="Limpar busca"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
+
+          {/* Dropdown de Clientes Encontrados no Banco (sem conversa no WhatsApp) */}
+          {searchTerm.trim().length >= 2 && clientesBancoFiltrados.length > 0 && (
+            <div className="absolute left-0 top-full mt-1.5 w-full sm:w-[380px] max-h-[380px] overflow-y-auto bg-white rounded-xl border border-gray-200 shadow-xl z-50 animate-in fade-in-50 zoom-in-95 duration-100 p-1.5 space-y-1">
+              <div className="px-2 py-1.5 flex items-center justify-between border-b border-gray-100 text-[11px]">
+                <div className="flex items-center gap-1.5 text-emerald-800 font-semibold">
+                  <Database className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>Clientes no Banco ({clientesBancoFiltrados.length})</span>
+                </div>
+                <span className="text-[10px] text-gray-400">Clique para abrir ou iniciar</span>
+              </div>
+
+              <div className="space-y-1 pt-1">
+                {clientesBancoFiltrados.map((item) => {
+                  const numeroEfetivo = item.whatsapp || item.telefone || ''
+                  const numeroFormatado = formatWhatsAppPhone(numeroEfetivo)
+
+                  return (
+                    <button
+                      key={item.id}
+                      type="button"
+                      disabled={isStartingConversa}
+                      onClick={() => handleSelecionarClienteBanco(item)}
+                      className="w-full text-left p-2.5 rounded-lg border border-transparent hover:border-emerald-200 hover:bg-emerald-50/70 transition-all group flex flex-col gap-1 cursor-pointer disabled:opacity-50"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-xs font-bold text-gray-900 group-hover:text-emerald-950 truncate">
+                              {item.nome}
+                            </span>
+                          </div>
+                          {item.subtitulo && (
+                            <p className="text-[10px] text-gray-500 truncate mt-0.5">
+                              {item.subtitulo}
+                            </p>
+                          )}
+                        </div>
+
+                        {/* Selo Visualmente Distinto Obrigatório */}
+                        <span className="shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold tracking-tight bg-amber-50 text-amber-800 border border-amber-200/80 shadow-2xs">
+                          <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                          Cliente cadastrado — sem conversa no WhatsApp
+                        </span>
+                      </div>
+
+                      <div className="flex items-center justify-between gap-2 pt-1 text-[11px] text-gray-600 border-t border-gray-100/70 mt-0.5">
+                        <div className="flex items-center gap-3 truncate">
+                          {numeroFormatado ? (
+                            <span className="inline-flex items-center gap-1 font-mono text-[10px] text-emerald-700 font-medium">
+                              <Phone className="w-3 h-3 text-emerald-600 shrink-0" />
+                              {numeroFormatado}
+                            </span>
+                          ) : (
+                            <span className="text-[10px] text-gray-400 italic">
+                              Sem telefone cadastrado
+                            </span>
+                          )}
+
+                          {item.cidade && (
+                            <span className="inline-flex items-center gap-0.5 text-[10px] text-gray-500 truncate">
+                              <MapPin className="w-3 h-3 text-gray-400 shrink-0" />
+                              {item.cidade}
+                            </span>
+                          )}
+                        </div>
+
+                        <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-700 group-hover:text-emerald-800 shrink-0 ml-auto">
+                          <MessageSquare className="w-3 h-3 text-emerald-600" />
+                          Iniciar Chat
+                        </span>
+                      </div>
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Ações da Barra de Ferramentas */}
