@@ -4,6 +4,7 @@ import {
   maskCurrencyBRL,
   parseCurrencyBRL,
   formatarMesAnoQuitacao,
+  formatWhatsAppPhone,
 } from './formatters'
 
 describe('Formatters - Máscara Monetária em Real (R$)', () => {
@@ -69,6 +70,25 @@ describe('Formatters - Máscara Monetária em Real (R$)', () => {
       const base = new Date(2024, 0, 15) // janeiro/2024
       const resultado = formatarMesAnoQuitacao(base, null)
       expect(resultado).toBe('janeiro/2026')
+    })
+  })
+
+  describe('formatWhatsAppPhone', () => {
+    it('deve formatar número completo com DDD 54', () => {
+      expect(formatWhatsAppPhone('54991234567')).toBe('(54) 99123-4567')
+      expect(formatWhatsAppPhone('5435221234')).toBe('(54) 3522-1234')
+    })
+
+    it('deve formatar número sem DDD assumindo 54 para celular (9 dígitos) e fixo (8 dígitos)', () => {
+      expect(formatWhatsAppPhone('99123-4567')).toBe('(54) 99123-4567')
+      expect(formatWhatsAppPhone('991234567')).toBe('(54) 99123-4567')
+      expect(formatWhatsAppPhone('3522-1234')).toBe('(54) 3522-1234')
+      expect(formatWhatsAppPhone('35221234')).toBe('(54) 3522-1234')
+    })
+
+    it('deve remover DDI 55 e preservar DDD', () => {
+      expect(formatWhatsAppPhone('+55 54 99123-4567')).toBe('(54) 99123-4567')
+      expect(formatWhatsAppPhone('+55 51 98888-7766')).toBe('(51) 98888-7766')
     })
   })
 })

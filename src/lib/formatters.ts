@@ -53,6 +53,12 @@ export function formatWhatsAppPhone(phone: string | undefined | null): string {
     digits = digits.slice(2)
   }
 
+  // Quando o número não tem DDD (8 dígitos para fixo ou 9 dígitos para celular),
+  // assume o DDD padrão regional 54 (Delfos Solar - RS)
+  if (digits.length === 8 || digits.length === 9) {
+    digits = `54${digits}`
+  }
+
   // 1 ou 2 dígitos (início da digitação do DDD)
   if (digits.length <= 2) {
     return `(${digits}`

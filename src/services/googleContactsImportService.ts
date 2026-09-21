@@ -56,6 +56,7 @@ export interface ItemComparacaoGoogle {
   nomeCompleto: string
   telefoneCsv: string
   telefoneCsvFormatado: string
+  telefoneNormalizadoCompleto?: string // Telefone na forma completa padronizada Delfos (+55 54...)
   telefonesSecundariosCsv: string[]
   emailCsv: string
   cidadeCsv: string
@@ -101,11 +102,72 @@ export function removerCodigoPaisBrasil(digitos: string): string {
 }
 
 /**
+ * Normaliza um número telefônico aplicando as regras da Delfos Solar:
+ * 1. Remove qualquer caractere não numérico.
+ * 2. Se tiver DDI 55 (12 ou 13 dígitos), remove o 55 temporariamente para inspecionar DDD + número.
+ * 3. Se NÃO tiver código de região/DDD (8 dígitos para fixo ou 9 dígitos para celular), assume 54 (região padrão Delfos Solar / RS).
+ * 4. Retorna os dígitos nacionais com DDD (10 dígitos para fixo, ex: 5435221234; ou 11 dígitos para celular, ex: 54991234567).
+ */
+export function normalizarTelefoneDelfos(phone: string | null | undefined): {
+  digitosNacionais: string // 10 ou 11 dígitos (com DDD 54 assumido se ausente)
+  digitosCompletos55: string // com 55 na frente: "5554991234567"
+  ddd: string // "54" ou DDD original informado
+  numeroLocal: string // 8 ou 9 dígitos locais
+  formatado: string // "(54) 99123-4567"
+} | null {
+  const digitos = extrairApenasDigitos(phone)
+  if (!digitos || digitos.length < 8) {
+    return null
+  }
+
+  // 1. Remove DDI 55 se vier com 12 ou 13 dígitos
+  let semDdi = digitos
+  if (digitos.startsWith('55') && (digitos.length === 12 || digitos.length === 13)) {
+    semDdi = digitos.slice(2)
+  }
+
+  let ddd = '54'
+  let numeroLocal = semDdi
+
+  if (semDdi.length === 8 || semDdi.length === 9) {
+    // Caso sem DDD: assume 54 padrão regional
+    ddd = '54'
+    numeroLocal = semDdi
+  } else if (semDdi.length === 10 || semDdi.length === 11) {
+    // Caso com DDD explícito (ex: 54, 51, 49, 11...)
+    ddd = semDdi.slice(0, 2)
+    numeroLocal = semDdi.slice(2)
+  } else if (semDdi.length > 11) {
+    // Número longo atípico: preserva os 2 primeiros como DDD e o restante como local
+    ddd = semDdi.slice(0, 2)
+    numeroLocal = semDdi.slice(2)
+  } else {
+    // Menos de 8 dígitos após tratamento
+    return null
+  }
+
+  const digitosNacionais = `${ddd}${numeroLocal}`
+  const digitosCompletos55 = `55${digitosNacionais}`
+  const formatado = formatWhatsAppPhone(digitosNacionais)
+
+  return {
+    digitosNacionais,
+    digitosCompletos55,
+    ddd,
+    numeroLocal,
+    formatado,
+  }
+}
+
+/**
  * Normaliza um número para o core nacional brasileiro (DDD + número)
- * Trata caso de número sem DDD assumindo DDD 54 padrão da região de atuação de Erechim/RS,
- * ou mantendo o número sem o nono dígito para comparação flexível.
+ * Trata caso de número sem DDD assumindo DDD 54 padrão da região de atuação de Erechim/RS.
  */
 export function normalizarCoreTelefone(phone: string | null | undefined): string {
+  const norm = normalizarTelefoneDelfos(phone)
+  if (norm) {
+    return norm.digitosNacionais
+  }
   const digits = extrairApenasDigitos(phone)
   if (!digits) return ''
   return removerCodigoPaisBrasil(digits)
@@ -113,8 +175,8 @@ export function normalizarCoreTelefone(phone: string | null | undefined): string
 
 /**
  * Compara dois números de telefone retornando:
- * - 'identico': dígitos são exatamente iguais
- * - 'semelhante': mesmos dígitos após remover DDI (+55), ou mesmo número com/sem DDD 54 padrão regional
+ * - 'identico': dígitos são exatamente iguais (ou tornam-se iguais após aplicar regra de 55 e DDD 54 padrão)
+ * - 'semelhante': representam a mesma linha telefônica (variação apenas de +55, formatação, DDD padrão regional 54 ou nono dígito celular)
  * - 'diferente': números são realmente divergentes
  */
 export function compararTelefones(
@@ -128,12 +190,43 @@ export function compararTelefones(
     return 'diferente'
   }
 
-  // 1. Idêntico estrito
+  // 1. Idêntico estrito nos dígitos crus
   if (digitosA === digitosB) {
     return 'identico'
   }
 
-  // 2. Sem DDI 55
+  // Normalização completa aplicando regra de 55 (Brasil) e 54 (região Delfos Solar)
+  const normA = normalizarTelefoneDelfos(telA)
+  const normB = normalizarTelefoneDelfos(telB)
+
+  if (normA && normB) {
+    // Se com DDI 55 e DDD 54 assumidos ambos são idênticos em dígitos
+    if (normA.digitosNacionais === normB.digitosNacionais) {
+      // Se um dos lados não tinha 55 ou DDD, é um match semelhante/formato diferente
+      return 'semelhante'
+    }
+
+    // Se ambos são da mesma região/DDD (inclusive com 54 assumido)
+    if (normA.ddd === normB.ddd) {
+      // Compara número local (caso celular de 8 vs 9 dígitos com nono dígito)
+      const locA = normA.numeroLocal
+      const locB = normB.numeroLocal
+
+      if (locA === locB) {
+        return 'semelhante'
+      }
+
+      // Variação de nono dígito celular (ex: 991234567 vs 91234567 onde últimos 8 batem)
+      if (locA.length >= 8 && locB.length >= 8 && locA.slice(-8) === locB.slice(-8)) {
+        return 'semelhante'
+      }
+    }
+
+    // Se DDDs são diferentes, são números de regiões distintas
+    return 'diferente'
+  }
+
+  // Fallback caso normalização completa não se aplique (ex. número com menos de 8 dígitos)
   const coreA = removerCodigoPaisBrasil(digitosA)
   const coreB = removerCodigoPaisBrasil(digitosB)
 
@@ -141,8 +234,6 @@ export function compararTelefones(
     return 'semelhante'
   }
 
-  // 3. Tratar caso de número com 8 vs 9 dígitos (ex: 991234567 vs 91234567)
-  // ou sem DDD (8 ou 9 dígitos) comparado a com DDD (10 ou 11 dígitos)
   const semDddA = coreA.length >= 10 ? coreA.slice(2) : coreA
   const semDddB = coreB.length >= 10 ? coreB.slice(2) : coreB
 
@@ -150,12 +241,10 @@ export function compararTelefones(
     return 'semelhante'
   }
 
-  // Se ambos terminam com os mesmos 8 dígitos finais (número de assinante)
   if (semDddA.length >= 8 && semDddB.length >= 8) {
     const final8A = semDddA.slice(-8)
     const final8B = semDddB.slice(-8)
     if (final8A === final8B) {
-      // Se tem DDD em ambos, eles coincidem ou um é padrão 54
       const dddA = coreA.length >= 10 ? coreA.slice(0, 2) : '54'
       const dddB = coreB.length >= 10 ? coreB.slice(0, 2) : '54'
       if (dddA === dddB) {
@@ -304,9 +393,16 @@ export function analisarContatoGoogle(
   clientesExistentes: Cliente[],
 ): ItemComparacaoGoogle {
   const telCsvLimpo = contato.telefonePrincipalLimpo
-  const telFormatado = contato.telefonePrincipal
-    ? formatWhatsAppPhone(contato.telefonePrincipal)
-    : '-'
+  // Aplica a normalização completa da Delfos Solar (assume 55 e DDD 54 regional)
+  const normPrincipal = normalizarTelefoneDelfos(contato.telefonePrincipal)
+  const telFormatado =
+    normPrincipal?.formatado ||
+    (contato.telefonePrincipal ? formatWhatsAppPhone(contato.telefonePrincipal) : '-')
+  const telefoneCompletoParaGravacao = normPrincipal
+    ? normPrincipal.formatado
+    : contato.telefonePrincipal
+      ? formatWhatsAppPhone(contato.telefonePrincipal)
+      : ''
 
   // 1. Busca por telefone no banco (coluna telefone ou whatsapp)
   let clientePorTelefone: Cliente | undefined
@@ -339,6 +435,7 @@ export function analisarContatoGoogle(
       nomeCompleto: contato.nomeCompleto,
       telefoneCsv: contato.telefonePrincipal,
       telefoneCsvFormatado: telFormatado,
+      telefoneNormalizadoCompleto: telefoneCompletoParaGravacao,
       telefonesSecundariosCsv: contato.telefonesSecundarios,
       emailCsv: contato.email,
       cidadeCsv: contato.cidade,
@@ -355,19 +452,20 @@ export function analisarContatoGoogle(
     }
   }
 
-  // 3. Se encontrou por telefone com formato diferente (+55, pontuação, DDD)
+  // 3. Se encontrou por telefone com formato diferente (+55, pontuação, DDD 54 regional)
   if (clientePorTelefone && matchTipoTelefone === 'semelhante') {
     return {
       idTemp: contato.idTemp,
       nomeCompleto: contato.nomeCompleto,
       telefoneCsv: contato.telefonePrincipal,
       telefoneCsvFormatado: telFormatado,
+      telefoneNormalizadoCompleto: telefoneCompletoParaGravacao,
       telefonesSecundariosCsv: contato.telefonesSecundarios,
       emailCsv: contato.email,
       cidadeCsv: contato.cidade,
       statusComparacao: 'formato_diferente',
       ehDivergencia: false,
-      motivoStatus: 'Mesmo número com formato diferente (com/sem +55 ou espaços)',
+      motivoStatus: 'Mesmo número com formato diferente (com/sem +55, espaços ou DDD 54 regional)',
       clienteBanco: clientePorTelefone,
       telefoneBanco: clientePorTelefone.telefone,
       whatsappBanco: clientePorTelefone.whatsapp,
@@ -417,6 +515,7 @@ export function analisarContatoGoogle(
       nomeCompleto: contato.nomeCompleto,
       telefoneCsv: contato.telefonePrincipal,
       telefoneCsvFormatado: telFormatado,
+      telefoneNormalizadoCompleto: telefoneCompletoParaGravacao,
       telefonesSecundariosCsv: contato.telefonesSecundarios,
       emailCsv: contato.email,
       cidadeCsv: contato.cidade,
@@ -441,6 +540,7 @@ export function analisarContatoGoogle(
     nomeCompleto: contato.nomeCompleto,
     telefoneCsv: contato.telefonePrincipal,
     telefoneCsvFormatado: telFormatado,
+    telefoneNormalizadoCompleto: telefoneCompletoParaGravacao,
     telefonesSecundariosCsv: contato.telefonesSecundarios,
     emailCsv: contato.email,
     cidadeCsv: contato.cidade,
@@ -461,11 +561,11 @@ export function analisarContatoGoogle(
  * CSV de exemplo do Google Contatos para demonstração
  */
 export const CSV_EXEMPLO_GOOGLE_CONTATOS = `first_name,middle_name,last_name,phone_1_value,phone_2_value,e_mail_1_value,address_1_city
-João,,da Silva,+55 54 99123-4567,,joao.silva@exemplo.com.br,Erechim
+João,,da Silva,99123-4567,,joao.silva@exemplo.com.br,Erechim
 Residência,,Família Andrade,54991823400,,andrade.solar@exemplo.com,Erechim
-Marcos,Aurélio,Ferreira,(54) 99876-5432,+55 54 3522-1100,marcos.ferreira@agronegocio.com.br,Passo Fundo
+Marcos,Aurélio,Ferreira,99876-5432,3522-1100,marcos.ferreira@agronegocio.com.br,Passo Fundo
 Juliana,,Menezes Ramos,+55 54 99111-2233,(54) 98400-9988,juliana.ramos@comercial.com,Marau
-Roberto,,Albuquerque Silveira,(54) 99222-8899,,roberto.silveira@agro.com.br,Sertão
+Roberto,,Albuquerque Silveira,99222-8899,,roberto.silveira@agro.com.br,Sertão
 Carlos,Eduardo,Santos,+55 51 98888-7766,,carlos.santos@eng.com.br,Porto Alegre
-Luciana,,Borges Fontana,54999554433,+55 54 99911-0022,luciana.fontana@clinica.com.br,Erechim
+Luciana,,Borges Fontana,999554433,3522-0022,luciana.fontana@clinica.com.br,Erechim
 `

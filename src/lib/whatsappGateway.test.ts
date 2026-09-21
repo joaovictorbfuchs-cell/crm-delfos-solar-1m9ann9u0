@@ -269,6 +269,16 @@ export function runWhatsAppGatewayTests(): { passed: number; total: number; erro
         assertEquals(formatWhatsAppPhone('549'), '(54) 9', 'Parcial: 3 dígitos')
         assertEquals(formatWhatsAppPhone('549811'), '(54) 9811', 'Parcial: 6 dígitos')
         assertEquals(formatWhatsAppPhone('5498110'), '(54) 9811-0', 'Parcial: 7 dígitos')
+        assertEquals(
+          formatWhatsAppPhone('991234567'),
+          '(54) 99123-4567',
+          'Celular 9 dígitos sem DDD assume 54',
+        )
+        assertEquals(
+          formatWhatsAppPhone('35221234'),
+          '(54) 3522-1234',
+          'Fixo 8 dígitos sem DDD assume 54',
+        )
       },
     },
     {

@@ -246,9 +246,14 @@ export default function ImportarContatosGoogle() {
       setProgresso(Math.round(((i + 1) / total) * 100))
 
       try {
+        // Grava sempre na forma completa com 55 e 54 assumidos se ausentes
+        const telFormatado =
+          item.telefoneNormalizadoCompleto ||
+          formatWhatsAppPhone(item.telefoneCsv) ||
+          item.telefoneCsv
+
         if (item.acaoSelecionada === 'atualizar' && item.clienteBanco) {
           // Substitui telefone no banco e atualiza o WhatsApp principal pelo número do CSV
-          const telFormatado = formatWhatsAppPhone(item.telefoneCsv) || item.telefoneCsv
           await updateCliente(item.clienteBanco.id, {
             telefone: telFormatado,
             whatsapp: telFormatado,
@@ -258,10 +263,11 @@ export default function ImportarContatosGoogle() {
           // Se tiver telefones secundários e o toggle estiver marcado, incluir como contatos adicionais
           if (item.incluirContatosAdicionais && item.telefonesSecundariosCsv.length > 0) {
             for (const telSec of item.telefonesSecundariosCsv) {
+              const telSecFormatado = formatWhatsAppPhone(telSec) || telSec
               await addContatoAdicional({
                 cliente: item.clienteBanco.id,
                 nome: `${item.nomeCompleto} (Secundário)`,
-                telefone: formatWhatsAppPhone(telSec) || telSec,
+                telefone: telSecFormatado,
                 email: item.emailCsv || undefined,
                 cargo: 'Telefone Secundário Google',
               })
@@ -275,7 +281,6 @@ export default function ImportarContatosGoogle() {
           )
         } else if (item.acaoSelecionada === 'adicionar_novo') {
           // Cria novo cliente no CRM e salva o telefone do CSV como WhatsApp principal
-          const telFormatado = formatWhatsAppPhone(item.telefoneCsv) || item.telefoneCsv
           const novoCliente = await addCliente({
             nome: item.nomeCompleto,
             telefone: telFormatado,
@@ -298,10 +303,11 @@ export default function ImportarContatosGoogle() {
             item.telefonesSecundariosCsv.length > 0
           ) {
             for (const telSec of item.telefonesSecundariosCsv) {
+              const telSecFormatado = formatWhatsAppPhone(telSec) || telSec
               await addContatoAdicional({
                 cliente: novoCliente.id,
                 nome: `${item.nomeCompleto} (Secundário)`,
-                telefone: formatWhatsAppPhone(telSec) || telSec,
+                telefone: telSecFormatado,
                 email: item.emailCsv || undefined,
                 cargo: 'Telefone Secundário Google',
               })
@@ -450,10 +456,11 @@ export default function ImportarContatosGoogle() {
           <div className="p-3 bg-gray-50 rounded-xl border border-gray-200/70 flex items-start gap-2.5">
             <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
             <div>
-              <p className="font-bold text-gray-800">Números Idênticos ou Semelhantes</p>
+              <p className="font-bold text-gray-800">Normalização Padrão Brasil e RS</p>
               <p className="text-gray-500 mt-0.5">
-                Mesmo número ou variação apenas de formatação, espaços, +55 ou DDD regional são
-                marcados como corretos e ignorados automaticamente.
+                Números sem código de país assumem <strong>+55 (Brasil)</strong> e números sem DDD
+                assumem <strong>54 (região Delfos Solar/RS)</strong>. Isso evita erros com números
+                do Google sem DDD (fixos de 8 dígitos e celulares de 9 dígitos).
               </p>
             </div>
           </div>
