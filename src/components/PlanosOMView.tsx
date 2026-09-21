@@ -11,7 +11,6 @@ import {
   MapPin,
   RefreshCcw,
   XCircle,
-  ChevronRight,
   Droplets,
   Activity,
   EyeOff,
@@ -1034,11 +1033,10 @@ export const PlanosOMView: React.FC<PlanosOMViewProps> = ({
                   <th className="py-3 px-4">Status</th>
                   <th className="py-3 px-4">Cliente & Cidade</th>
                   <th className="py-3 px-4">Contrato O&M</th>
-                  <th className="py-3 px-4">Potência (kWp) / Módulos</th>
+                  <th className="py-3 px-4">Potência</th>
+                  <th className="py-3 px-4">Nº de Placas</th>
                   <th className="py-3 px-4">Próxima Atividade</th>
-                  <th className="py-3 px-4">Performance Usina</th>
                   <th className="py-3 px-4">Valor Mensal</th>
-                  <th className="py-3 px-4 text-right">Ação</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
@@ -1118,9 +1116,24 @@ export const PlanosOMView: React.FC<PlanosOMViewProps> = ({
                           <Zap className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
                           <span>{potenciaKwp > 0 ? `${potenciaKwp} kWp` : '—'}</span>
                         </div>
-                        <div className="text-[11px] text-gray-500">
-                          {qtdModulos} placas {areaTelhado > 0 && `(~${areaTelhado}m²)`}
-                        </div>
+                        {areaTelhado > 0 && (
+                          <div className="text-[11px] text-gray-500">~{areaTelhado}m²</div>
+                        )}
+                      </td>
+
+                      <td className="py-3 px-4 whitespace-nowrap">
+                        {qtdModulos > 0 ? (
+                          <span className="inline-flex items-center gap-1.5 font-bold text-gray-900 text-xs">
+                            <span className="px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-800 border border-emerald-200">
+                              {qtdModulos}
+                            </span>
+                            <span className="text-[11px] text-gray-500 font-normal">
+                              {qtdModulos === 1 ? 'placa' : 'placas'}
+                            </span>
+                          </span>
+                        ) : (
+                          <span className="text-gray-400 font-medium">—</span>
+                        )}
                       </td>
 
                       <td className="py-3 px-4">
@@ -1136,41 +1149,10 @@ export const PlanosOMView: React.FC<PlanosOMViewProps> = ({
                       </td>
 
                       <td className="py-3 px-4 whitespace-nowrap">
-                        <div className="flex items-center gap-1">
-                          {renderBadgePerformance(performanceUsina)}
-                          {semMonitoramento && (
-                            <span
-                              title="Sem monitoramento ativo"
-                              className="inline-flex items-center"
-                            >
-                              <AlertTriangle className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
-                            </span>
-                          )}
-                        </div>
-                      </td>
-
-                      <td className="py-3 px-4 whitespace-nowrap">
                         <div className="font-extrabold text-emerald-700 text-sm">
                           {formatCurrency(Number(contrato.valor_mensal) || 0)}
                           <span className="text-[10px] font-normal text-gray-400">/mês</span>
                         </div>
-                      </td>
-
-                      <td
-                        className="py-3 px-4 text-right whitespace-nowrap"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (openFichaCliente) openFichaCliente(cliente.id, 'om')
-                            else if (onOpenFichaOM) onOpenFichaOM(cliente.id)
-                          }}
-                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold text-emerald-800 hover:bg-emerald-50 border border-emerald-200 transition-colors"
-                        >
-                          <span>Ficha O&M</span>
-                          <ChevronRight className="w-3.5 h-3.5" />
-                        </button>
                       </td>
                     </tr>
                   )
