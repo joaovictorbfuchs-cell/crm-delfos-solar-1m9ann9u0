@@ -290,7 +290,11 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
     parcelamentos.cartao18x.valorParcela ||
     Math.round(Math.max(0, investimentoTotal - cartaoEntrada) / cartaoParcelas)
 
-  const finanANome = parcelamentos.financiamentoBanco1.titulo || 'Financiamento A'
+  const rawFinanANome = parcelamentos.financiamentoBanco1.titulo || 'FINANCIAMENTO 1'
+  const finanANome = rawFinanANome
+    .replace(/FINANCIAMENTO\s*BANCO\s*1/i, 'FINANCIAMENTO 1')
+    .replace(/Financiamento\s*Banco\s*1/i, 'FINANCIAMENTO 1')
+    .replace(/BANCO\s*1/i, 'FINANCIAMENTO 1')
   const finanAParcelas = parcelamentos.financiamentoBanco1.numeroParcelas || 60
   const finanAEntrada =
     parcelamentos.financiamentoBanco1.valorEntrada !== undefined &&
@@ -306,7 +310,11 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
       ? Math.max(0, parcelamentos.financiamentoBanco1.valorIof)
       : 0
 
-  const finanBNome = parcelamentos.financiamentoBanco2.titulo || 'Financiamento B'
+  const rawFinanBNome = parcelamentos.financiamentoBanco2.titulo || 'FINANCIAMENTO 2'
+  const finanBNome = rawFinanBNome
+    .replace(/FINANCIAMENTO\s*BANCO\s*2/i, 'FINANCIAMENTO 2')
+    .replace(/Financiamento\s*Banco\s*2/i, 'FINANCIAMENTO 2')
+    .replace(/BANCO\s*2/i, 'FINANCIAMENTO 2')
   const finanBParcelas = parcelamentos.financiamentoBanco2.numeroParcelas || 120
   const finanBEntrada =
     parcelamentos.financiamentoBanco2.valorEntrada !== undefined &&
@@ -743,6 +751,13 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
               children: [
                 new Paragraph({
                   children: [
+                    new TextRun({
+                      text: '[DESDE 2014] ',
+                      bold: true,
+                      size: 14,
+                      color: '0A539E',
+                      font: 'Arial',
+                    }),
                     new TextRun({
                       text: 'Delfos Engenharia Ltda (Delfos Solar)\n',
                       bold: true,
@@ -2850,23 +2865,16 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
                 new Paragraph({
                   children: [
                     new TextRun({
-                      text: '⏱️ PAYBACK ESTIMADO: ',
+                      text: `Payback do Sistema: ${paybackTextoFinal}`,
                       bold: true,
-                      size: 15,
-                      color: '92400E',
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: paybackTextoFinal,
-                      bold: true,
-                      size: 20,
+                      size: 16,
                       color: 'B45309',
                       font: 'Arial',
                     }),
                     new TextRun({
                       text: ` (Quitação prevista: ${quitacaoMesAno})`,
                       bold: true,
-                      size: 15,
+                      size: 14,
                       color: '78350F',
                       font: 'Arial',
                     }),

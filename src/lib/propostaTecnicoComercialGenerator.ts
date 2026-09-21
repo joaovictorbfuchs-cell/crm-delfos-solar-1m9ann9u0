@@ -516,10 +516,10 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
     parcelamento?.cartao18x?.contaComSolar !== undefined ? parcelamento.cartao18x.contaComSolar : 0
   const cartaoDesembolso = cartaoValor + cartaoContaComSolar
 
-  const rawFinanANome = parcelamento?.financiamentoA?.nome || 'Financiamento 1'
+  const rawFinanANome = parcelamento?.financiamentoA?.nome || 'FINANCIAMENTO 1'
   const finanANome = rawFinanANome
     .replace(/FINANCIAMENTO\s*BANCO\s*1/i, 'FINANCIAMENTO 1')
-    .replace(/Financiamento\s*Banco\s*1/i, 'Financiamento 1')
+    .replace(/Financiamento\s*Banco\s*1/i, 'FINANCIAMENTO 1')
     .replace(/BANCO\s*1/i, 'FINANCIAMENTO 1')
   const finanAParcelas = parcelamento?.financiamentoA?.numeroParcelas || 60
   const finanAEntrada =
@@ -545,10 +545,10 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
       : 0
   const finanADesembolso = finanAValor + finanAContaComSolar
 
-  const rawFinanBNome = parcelamento?.financiamentoB?.nome || 'Financiamento 2'
+  const rawFinanBNome = parcelamento?.financiamentoB?.nome || 'FINANCIAMENTO 2'
   const finanBNome = rawFinanBNome
     .replace(/FINANCIAMENTO\s*BANCO\s*2/i, 'FINANCIAMENTO 2')
-    .replace(/Financiamento\s*Banco\s*2/i, 'Financiamento 2')
+    .replace(/Financiamento\s*Banco\s*2/i, 'FINANCIAMENTO 2')
     .replace(/BANCO\s*2/i, 'FINANCIAMENTO 2')
   const finanBParcelas = parcelamento?.financiamentoB?.numeroParcelas || 120
   const finanBEntrada =
