@@ -7,7 +7,6 @@ import {
   CalendarCheck,
   ClipboardCheck,
   ShieldCheck,
-  Wrench,
   Users,
   UserCog,
   FileSpreadsheet,
@@ -177,11 +176,6 @@ export default function Layout() {
           name: 'O&M / Manutenções',
           path: '/manutencoes',
           icon: ShieldCheck,
-        },
-        {
-          name: 'Ordens de Serviço',
-          path: '/ordens-servico',
-          icon: Wrench,
         },
         { name: 'Clientes', path: '/clientes', icon: Users },
         {
