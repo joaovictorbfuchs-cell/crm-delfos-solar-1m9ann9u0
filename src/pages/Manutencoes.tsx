@@ -60,7 +60,7 @@ export default function Manutencoes() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Top Header com Seletor de Modo: Carteira O&M vs Ordens de Serviço Avulsas */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-white p-4 rounded-2xl border border-gray-200/80 shadow-xs">
         <div>
@@ -75,8 +75,7 @@ export default function Manutencoes() {
                   : 'Gestão de O&M (Operação e Manutenção)'}
               </h2>
               <p className="text-xs text-gray-500">
-                Acompanhamento com filtros avançados de planos ativos, lavagens programadas,
-                monitoramento e manutenção preventiva
+                Planos ativos, manutenções preventivas e ordens de serviço
               </p>
             </div>
           </div>

@@ -96,13 +96,8 @@ export const ListaOM: React.FC<ListaOMProps> = ({
     renovarContratoOM,
   } = useClientes()
 
-  const [internalSubTab, setInternalSubTab] = useState<AbaPrincipalOM>('com_plano')
+  const [internalSubTab] = useState<AbaPrincipalOM>('com_plano')
   const currentSubTab = externalActiveSubTab || internalSubTab
-
-  const setSubTab = (tab: AbaPrincipalOM) => {
-    if (onSubTabChange) onSubTabChange(tab)
-    else setInternalSubTab(tab)
-  }
 
   const [busca, setBusca] = useState('')
   const [filtroPosVendas, setFiltroPosVendas] = useState<
@@ -160,64 +155,7 @@ export const ListaOM: React.FC<ListaOMProps> = ({
     [anomaliasOM],
   )
 
-  // 1. Clientes com Plano de Manutenção
-  const clientesComPlano = useMemo(() => {
-    return safeClientes
-      .map((cliente) => {
-        if (!cliente?.id) return null
-        const sistema = safeSistemas.find((s) => s?.cliente_id === cliente.id)
-        const potencia = Number(sistema?.potencia_total_kwp ?? cliente?.potencia_kwp) || 0
-
-        const { categoria, contratoAtivo } = categorizarClienteOM(
-          cliente.id,
-          safeContratosOM,
-          safeServicosAdicionais,
-          safeAnomalias,
-          safeServicosAvulsos,
-        )
-
-        if (categoria !== 'plano_ativo' || !contratoAtivo) return null
-
-        const diasRestantes = calcularDiasRestantesDefensivo(contratoAtivo.data_vencimento)
-        const isVencendo30Dias = diasRestantes !== null && diasRestantes >= 0 && diasRestantes <= 30
-
-        return {
-          cliente,
-          contrato: contratoAtivo,
-          potenciaKwp: potencia,
-          valorMensal: Number(contratoAtivo.valor_mensal) || 0,
-          statusPlano: isVencendo30Dias ? 'Vencendo em 30 dias' : contratoAtivo.status || 'Ativo',
-          plano: contratoAtivo.plano || 'Essencial',
-          dataVencimento: contratoAtivo.data_vencimento || '',
-          diasRestantes,
-          isVencendo30Dias,
-          proximaVisitaData: contratoAtivo.proxima_atividade_data,
-          proximaVisitaTitulo: contratoAtivo.proxima_atividade_titulo,
-        }
-      })
-      .filter(Boolean) as {
-      cliente: Cliente
-      contrato: NonNullable<ReturnType<typeof categorizarClienteOM>['contratoAtivo']>
-      potenciaKwp: number
-      valorMensal: number
-      statusPlano: string
-      plano: OMPlanoTipo
-      dataVencimento: string
-      diasRestantes: number | null
-      isVencendo30Dias: boolean
-      proximaVisitaData?: string
-      proximaVisitaTitulo?: string
-    }[]
-  }, [
-    safeClientes,
-    safeContratosOM,
-    safeSistemas,
-    safeServicosAdicionais,
-    safeAnomalias,
-    safeServicosAvulsos,
-  ])
-
-  // 2. Clientes Pós-Vendas (apenas clientes qualificados: transferido_pos_vendas = true ou status Fechado ou com credenciais de monitoramento)
+  // Clientes Pós-Vendas (apenas clientes qualificados: transferido_pos_vendas = true ou status Fechado ou com credenciais de monitoramento)
   const clientesPosVendas = useMemo(() => {
     return safeClientes
       .map((cliente) => {
@@ -301,49 +239,13 @@ export const ListaOM: React.FC<ListaOMProps> = ({
     safeServicosAvulsos,
   ])
 
-  // Contagens
-  const countComPlano = clientesComPlano.length
+  // Contagens para os filtros de pós-vendas
   const countPosVendas = clientesPosVendas.length
   const countOportunidadesOM = clientesPosVendas.filter((p) => p.isOportunidadeOM).length
   const countComServicoAvulso = clientesPosVendas.filter((p) => p.temServicoAvulso).length
   const countSemPlano = clientesPosVendas.filter(
     (p) => !p.isOportunidadeOM && !p.temServicoAvulso,
   ).length
-
-  // Filtragem da lista 1 (Com Plano)
-  const itensPlanoFiltrados = useMemo(() => {
-    const safeParseTime = (dateStr?: string | null) => {
-      if (!dateStr) return 0
-      const t = new Date(dateStr).getTime()
-      return isNaN(t) ? 0 : t
-    }
-
-    return clientesComPlano
-      .filter((item) => {
-        const nomeCliente = item.cliente?.nome || 'Cliente'
-        const cidadeCliente = item.cliente?.cidade || ''
-        const numContrato = item.contrato?.numero_contrato || ''
-        const matchBusca =
-          !busca.trim() ||
-          nomeCliente.toLowerCase().includes(busca.toLowerCase()) ||
-          cidadeCliente.toLowerCase().includes(busca.toLowerCase()) ||
-          numContrato.toLowerCase().includes(busca.toLowerCase())
-        return matchBusca
-      })
-      .sort((a, b) => {
-        const nomeA = a.cliente?.nome || ''
-        const nomeB = b.cliente?.nome || ''
-        if (ordenacao === 'nome') return nomeA.localeCompare(nomeB)
-        if (ordenacao === 'potencia') return (b.potenciaKwp || 0) - (a.potenciaKwp || 0)
-        if (ordenacao === 'valor') return (b.valorMensal || 0) - (a.valorMensal || 0)
-        if (ordenacao === 'proxima_visita') {
-          const tA = safeParseTime(a.proximaVisitaData)
-          const tB = safeParseTime(b.proximaVisitaData)
-          return tA - tB
-        }
-        return 0
-      })
-  }, [clientesComPlano, busca, ordenacao])
 
   // Função auxiliar para verificar se o cliente foi transferido do funil há 7 dias ou menos
   const isVindoDoFunilRecente = (cliente: Cliente): boolean => {
@@ -499,100 +401,7 @@ export const ListaOM: React.FC<ListaOMProps> = ({
   }
 
   return (
-    <div className="space-y-5">
-      {/* ========================================================================= */}
-      {/* SELETOR DAS 2 LISTAS PRINCIPAIS EXIGIDAS:                                  */}
-      {/* 1. Clientes com Plano de Manutenção                                       */}
-      {/* 2. Clientes Pós-Vendas                                                    */}
-      {/* ========================================================================= */}
-      <div className="bg-white p-2 rounded-2xl border border-gray-200/90 shadow-xs flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-        <div className="grid grid-cols-2 gap-2 flex-1 max-w-2xl">
-          {/* Sub-aba 1: Clientes com Plano de Manutenção */}
-          <button
-            type="button"
-            onClick={() => setSubTab('com_plano')}
-            className={`flex items-center justify-center sm:justify-start gap-2.5 px-4 py-3 rounded-xl transition-all text-left ${
-              currentSubTab === 'com_plano'
-                ? 'bg-emerald-600 text-white shadow-md font-bold'
-                : 'bg-gray-50/80 text-gray-700 hover:bg-emerald-50 hover:text-emerald-800'
-            }`}
-          >
-            <div
-              className={`p-1.5 rounded-lg shrink-0 ${
-                currentSubTab === 'com_plano'
-                  ? 'bg-white/20 text-white'
-                  : 'bg-emerald-100 text-emerald-700'
-              }`}
-            >
-              <ShieldCheck className="w-5 h-5" />
-            </div>
-            <div className="min-w-0">
-              <div className="text-xs sm:text-sm font-bold truncate">
-                1. Clientes com Plano de Manutenção
-              </div>
-              <div
-                className={`text-[11px] truncate ${
-                  currentSubTab === 'com_plano' ? 'text-emerald-100' : 'text-gray-500'
-                }`}
-              >
-                {countComPlano} {countComPlano === 1 ? 'contrato ativo' : 'contratos ativos'}
-              </div>
-            </div>
-          </button>
-
-          {/* Sub-aba 2: Clientes Pós-Vendas */}
-          <button
-            type="button"
-            onClick={() => setSubTab('pos_vendas')}
-            className={`flex items-center justify-center sm:justify-start gap-2.5 px-4 py-3 rounded-xl transition-all text-left ${
-              currentSubTab === 'pos_vendas'
-                ? 'bg-slate-900 text-white shadow-md font-bold'
-                : 'bg-gray-50/80 text-gray-700 hover:bg-slate-100 hover:text-slate-900'
-            }`}
-          >
-            <div
-              className={`p-1.5 rounded-lg shrink-0 ${
-                currentSubTab === 'pos_vendas'
-                  ? 'bg-white/20 text-white'
-                  : 'bg-amber-100 text-amber-700'
-              }`}
-            >
-              <Sparkles className="w-5 h-5" />
-            </div>
-            <div className="min-w-0">
-              <div className="text-xs sm:text-sm font-bold truncate">2. Clientes Pós-Vendas</div>
-              <div
-                className={`text-[11px] truncate ${
-                  currentSubTab === 'pos_vendas' ? 'text-slate-300' : 'text-gray-500'
-                }`}
-              >
-                {countPosVendas} clientes • {countOportunidadesOM} oportunidades O&M
-              </div>
-            </div>
-          </button>
-        </div>
-
-        {/* Botões de Ação Rápida */}
-        <div className="flex items-center gap-2 self-end sm:self-auto flex-wrap">
-          {currentSubTab === 'com_plano' ? (
-            <button
-              type="button"
-              onClick={onOpenNovoContrato}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-xs transition-all hover:scale-[1.02]"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Novo Contrato O&M</span>
-            </button>
-          ) : (
-            <div className="text-xs text-slate-500 hidden sm:block pr-2">
-              Clique em{' '}
-              <strong className="text-emerald-700 font-semibold">Oferecer Serviço Avulso</strong> em
-              qualquer cliente para registrar atendimentos técnicos.
-            </div>
-          )}
-        </div>
-      </div>
-
+    <div className="space-y-4">
       {/* Barra de Filtros e Busca (Apenas para sub-aba pós-vendas) */}
       {currentSubTab === 'pos_vendas' && (
         <div className="bg-white rounded-xl border border-gray-200/90 p-4 shadow-xs flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">

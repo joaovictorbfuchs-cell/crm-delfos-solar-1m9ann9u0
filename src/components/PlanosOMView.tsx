@@ -536,40 +536,22 @@ export const PlanosOMView: React.FC<PlanosOMViewProps> = ({
       {/* ========================================================================= */}
       {/* BARRA DE FILTROS AVANÇADOS RETRÁTIL (PADRÃO TELA PROPOSTAS)               */}
       {/* ========================================================================= */}
-      <div className="bg-white rounded-2xl border border-gray-200/90 p-4 shadow-2xs space-y-3">
-        {/* Linha 1: Busca rápida, botões principais e alternador de filtros */}
-        <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
-          {/* Campo Busca Rápida */}
-          <div className="relative flex-1 min-w-[260px]">
-            <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
-            <input
-              type="text"
-              value={formFiltros.busca}
-              onChange={(e) => setFormFiltros((prev) => ({ ...prev, busca: e.target.value }))}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') handleAplicarFiltros()
-              }}
-              placeholder="Buscar por cliente, cidade ou número do contrato O&M..."
-              className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-gray-200 bg-gray-50/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all font-medium text-gray-800 placeholder:text-gray-400"
-            />
+      <div className="bg-white rounded-2xl border border-gray-200/90 p-3.5 shadow-2xs space-y-3">
+        {/* Linha 1 (Visualização recolhida): Botão Filtros + Contador de planos encontrados */}
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <div className="flex items-center gap-2">
+            <span className="font-extrabold text-gray-900 text-sm">
+              {planosFiltrados.length === 1
+                ? '1 plano encontrado'
+                : `${planosFiltrados.length} planos encontrados`}
+            </span>
+            <span className="text-gray-400">•</span>
+            <span className="text-gray-500 font-medium text-xs">
+              Base monitorada: {listaBasePlanos.length} planos
+            </span>
           </div>
 
-          {/* Controles: Ordenar e Filtros Avançados */}
-          <div className="flex items-center gap-2 flex-wrap">
-            {/* Ordenar */}
-            <select
-              value={ordenacao}
-              onChange={(e) => setOrdenacao(e.target.value as any)}
-              className="text-xs py-2 px-2.5 rounded-xl border border-gray-200 bg-white font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-            >
-              <option value="proxima_atividade">Próxima visita agendada</option>
-              <option value="nome">Nome do cliente (A-Z)</option>
-              <option value="potencia">Maior potência (kWp)</option>
-              <option value="valor">Maior valor mensal (R$)</option>
-              <option value="vencimento">Vencimento do Plano</option>
-              <option value="performance">Atenção na Performance</option>
-            </select>
-
+          <div className="flex items-center gap-2">
             {/* Botão retrátil de Filtros */}
             <button
               type="button"
@@ -598,12 +580,52 @@ export const PlanosOMView: React.FC<PlanosOMViewProps> = ({
           </div>
         </div>
 
-        {/* Linha 2: Grade de Filtros Avançados Solicitados (Retrátil) */}
+        {/* Linha 2: Grade de Filtros Avançados Solicitados (Retrátil) com Busca e Ordenação integradas */}
         {painelAberto && (
           <form
             onSubmit={handleAplicarFiltros}
             className="pt-3 border-t border-gray-100 space-y-3.5 animate-in fade-in duration-200"
           >
+            {/* Busca Rápida + Ordenação integradas no topo do painel */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div className="md:col-span-2 relative">
+                <label className="block text-[11px] font-bold text-gray-700 uppercase tracking-wider mb-1">
+                  Buscar por cliente ou contrato
+                </label>
+                <div className="relative">
+                  <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    value={formFiltros.busca}
+                    onChange={(e) => setFormFiltros((prev) => ({ ...prev, busca: e.target.value }))}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') handleAplicarFiltros()
+                    }}
+                    placeholder="Buscar por cliente, cidade ou número do contrato O&M..."
+                    className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-gray-200 bg-gray-50/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all font-medium text-gray-800 placeholder:text-gray-400"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-gray-700 uppercase tracking-wider mb-1">
+                  Ordenar por
+                </label>
+                <select
+                  value={ordenacao}
+                  onChange={(e) => setOrdenacao(e.target.value as any)}
+                  className="w-full text-xs py-2 px-2.5 rounded-xl border border-gray-200 bg-white font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                >
+                  <option value="proxima_atividade">Próxima visita agendada</option>
+                  <option value="nome">Nome do cliente (A-Z)</option>
+                  <option value="potencia">Maior potência (kWp)</option>
+                  <option value="valor">Maior valor mensal (R$)</option>
+                  <option value="vencimento">Vencimento do Plano</option>
+                  <option value="performance">Atenção na Performance</option>
+                </select>
+              </div>
+            </div>
+
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
               {/* 0. Filtro por Tipo de Plano O&M (Essencial / Prevenção / Completo) */}
               <div>
@@ -909,39 +931,6 @@ export const PlanosOMView: React.FC<PlanosOMViewProps> = ({
             </div>
           </form>
         )}
-
-        {/* Linha 3: Contador textual solicitado: "X planos encontrados" */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-2 border-t border-gray-100 text-xs">
-          <div className="flex items-center gap-2">
-            <span className="font-extrabold text-gray-900 text-sm">
-              {planosFiltrados.length === 1
-                ? '1 plano encontrado'
-                : `${planosFiltrados.length} planos encontrados`}
-            </span>
-            <span className="text-gray-400">•</span>
-            <span className="text-gray-500 font-medium">
-              Base monitorada: {listaBasePlanos.length} planos
-            </span>
-          </div>
-
-          <div className="flex items-center gap-3 text-[11px] text-gray-500">
-            {/* Legenda visual de cores por status */}
-            <div className="flex items-center gap-3">
-              <span className="inline-flex items-center gap-1">
-                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
-                <span>Em dia</span>
-              </span>
-              <span className="inline-flex items-center gap-1">
-                <span className="w-2.5 h-2.5 rounded-full bg-amber-500" />
-                <span>Atividade próx. 7d / Vencendo</span>
-              </span>
-              <span className="inline-flex items-center gap-1">
-                <span className="w-2.5 h-2.5 rounded-full bg-rose-500" />
-                <span>Atrasado / Vencido</span>
-              </span>
-            </div>
-          </div>
-        </div>
       </div>
 
       {/* ========================================================================= */}
