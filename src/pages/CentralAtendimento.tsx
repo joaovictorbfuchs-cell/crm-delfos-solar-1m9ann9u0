@@ -95,10 +95,11 @@ export const CentralAtendimento: React.FC = () => {
     let mounted = true
     fetchOutrosContatos()
       .then((data) => {
-        if (mounted) setOutrosContatosLista(data || [])
+        if (mounted) setOutrosContatosLista(Array.isArray(data) ? data : [])
       })
       .catch((err) => {
         console.warn('Não foi possível pré-carregar outros_contatos:', err)
+        if (mounted) setOutrosContatosLista([])
       })
     return () => {
       mounted = false
@@ -210,10 +211,23 @@ export const CentralAtendimento: React.FC = () => {
     }
   }
 
+  // Normalizador de texto para busca insensível a acentuação e caracteres especiais
+  const normalizeSearchText = (str?: string | null): string => {
+    if (!str) return ''
+    return str
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .trim()
+  }
+
   // Mapa de clientes para lookup rápido por ID
   const clientesMap = useMemo(() => {
     const map = new Map<string, (typeof clientes)[0]>()
-    clientes.forEach((c) => map.set(c.id, c))
+    if (!Array.isArray(clientes)) return map
+    clientes.forEach((c) => {
+      if (c && c.id) map.set(c.id, c)
+    })
     return map
   }, [clientes])
 
@@ -222,11 +236,14 @@ export const CentralAtendimento: React.FC = () => {
   // 2. Em Atendimento: status === 'em_atendimento' || status === 'aguardando_cliente'
   // 3. Resolvidos: status === 'resolvido' (finalizadas nas últimas 24 horas, ou resolvidas recentemente)
   const conversasClassificadas = useMemo(() => {
-    const rawTerm = searchTerm.trim().toLowerCase()
+    const rawTerm = searchTerm.trim()
+    const normalizedTerm = normalizeSearchText(rawTerm)
     const digitsTerm = rawTerm.replace(/\D/g, '')
 
+    const safeConversas = Array.isArray(whatsAppConversas) ? whatsAppConversas : []
+
     const filterFn = (conv: WhatsAppConversa) => {
-      if (!rawTerm) return true
+      if (!normalizedTerm) return true
       const cli = conv.cliente_id ? clientesMap.get(conv.cliente_id) : null
 
       // Busca por telefone (suporta com/sem DDI 55, formatado com máscara e somente dígitos)
@@ -236,7 +253,7 @@ export const CentralAtendimento: React.FC = () => {
         numDigits.startsWith('55') && (numDigits.length === 12 || numDigits.length === 13)
           ? numDigits.slice(2)
           : numDigits
-      const formattedNumero = formatWhatsAppPhone(rawNumero).toLowerCase()
+      const formattedNumero = normalizeSearchText(formatWhatsAppPhone(rawNumero))
 
       let matchNumero = false
       if (digitsTerm) {
@@ -246,15 +263,22 @@ export const CentralAtendimento: React.FC = () => {
           (digitsTerm.startsWith('55') && numDigits.includes(digitsTerm.slice(2)))
       }
       if (!matchNumero) {
-        matchNumero = formattedNumero.includes(rawTerm) || rawNumero.toLowerCase().includes(rawTerm)
+        matchNumero =
+          formattedNumero.includes(normalizedTerm) ||
+          normalizeSearchText(rawNumero).includes(normalizedTerm)
       }
 
-      // Busca por nome do cliente ou razão social
+      // Busca por nome do cliente, razão social, nome fantasia ou contato (com e sem acento)
+      const cliNomeNorm = normalizeSearchText(cli?.nome)
+      const cliRazaoNorm = normalizeSearchText(cli?.razao_social)
+      const cliFantasiaNorm = normalizeSearchText(cli?.nome_fantasia)
+      const cliContatoNorm = normalizeSearchText(cli?.contato)
+
       const matchNome = Boolean(
-        (cli?.nome && cli.nome.toLowerCase().includes(rawTerm)) ||
-        (cli?.razao_social && cli.razao_social.toLowerCase().includes(rawTerm)) ||
-        (cli?.nome_fantasia && cli.nome_fantasia.toLowerCase().includes(rawTerm)) ||
-        (cli?.contato && cli.contato.toLowerCase().includes(rawTerm)),
+        cliNomeNorm.includes(normalizedTerm) ||
+        cliRazaoNorm.includes(normalizedTerm) ||
+        cliFantasiaNorm.includes(normalizedTerm) ||
+        cliContatoNorm.includes(normalizedTerm),
       )
 
       // Se o cliente tem telefone cadastrado no perfil, verificar também
@@ -268,20 +292,20 @@ export const CentralAtendimento: React.FC = () => {
         }
         if (!matchTelefoneCliente) {
           matchTelefoneCliente =
-            (cli.telefone || '').toLowerCase().includes(rawTerm) ||
-            (cli.whatsapp || '').toLowerCase().includes(rawTerm)
+            normalizeSearchText(cli.telefone).includes(normalizedTerm) ||
+            normalizeSearchText(cli.whatsapp).includes(normalizedTerm)
         }
       }
 
       // Busca por preview da última mensagem
       const matchPreview = Boolean(
         conv.ultima_mensagem_preview &&
-        conv.ultima_mensagem_preview.toLowerCase().includes(rawTerm),
+        normalizeSearchText(conv.ultima_mensagem_preview).includes(normalizedTerm),
       )
 
       // Busca por nome do atendente
       const matchAtendente = Boolean(
-        conv.atendente && conv.atendente.toLowerCase().includes(rawTerm),
+        conv.atendente && normalizeSearchText(conv.atendente).includes(normalizedTerm),
       )
 
       return matchNumero || matchNome || matchTelefoneCliente || matchPreview || matchAtendente
@@ -290,36 +314,31 @@ export const CentralAtendimento: React.FC = () => {
     const agora = Date.now()
     const limite24h = agora - 24 * 60 * 60 * 1000
 
-    const novos = whatsAppConversas
-      .filter((c) => c.status === 'novo' && filterFn(c))
-      .sort(
-        (a, b) =>
-          new Date(b.updated || b.created).getTime() - new Date(a.updated || a.created).getTime(),
-      )
+    const safeTime = (dateStr?: string) => {
+      if (!dateStr) return 0
+      const t = new Date(dateStr).getTime()
+      return isNaN(t) ? 0 : t
+    }
 
-    const emAtendimento = whatsAppConversas
+    const novos = safeConversas
+      .filter((c) => c && c.status === 'novo' && filterFn(c))
+      .sort((a, b) => safeTime(b.updated || b.created) - safeTime(a.updated || a.created))
+
+    const emAtendimento = safeConversas
       .filter(
-        (c) => (c.status === 'em_atendimento' || c.status === 'aguardando_cliente') && filterFn(c),
+        (c) =>
+          c && (c.status === 'em_atendimento' || c.status === 'aguardando_cliente') && filterFn(c),
       )
-      .sort(
-        (a, b) =>
-          new Date(b.updated || b.created).getTime() - new Date(a.updated || a.created).getTime(),
-      )
+      .sort((a, b) => safeTime(b.updated || b.created) - safeTime(a.updated || a.created))
 
-    const resolvidos = whatsAppConversas
+    const resolvidos = safeConversas
       .filter((c) => {
-        if (c.status !== 'resolvido') return false
+        if (!c || c.status !== 'resolvido') return false
         if (!filterFn(c)) return false
-        if (c.resolvida_em) {
-          return new Date(c.resolvida_em).getTime() >= limite24h
-        }
-        return new Date(c.updated || c.created).getTime() >= limite24h
+        const t = c.resolvida_em ? safeTime(c.resolvida_em) : safeTime(c.updated || c.created)
+        return t >= limite24h
       })
-      .sort(
-        (a, b) =>
-          new Date(b.resolvida_em || b.updated).getTime() -
-          new Date(a.resolvida_em || a.updated).getTime(),
-      )
+      .sort((a, b) => safeTime(b.resolvida_em || b.updated) - safeTime(a.resolvida_em || a.updated))
 
     return { novos, emAtendimento, resolvidos }
   }, [whatsAppConversas, searchTerm, clientesMap])
@@ -367,10 +386,13 @@ export const CentralAtendimento: React.FC = () => {
     }
   }
 
-  // Conjunto de telefones já presentes nas conversas do WhatsApp (normalizados) para deduplicação
-  const conversasTelefonesNormalizados = useMemo(() => {
+  // Conjunto de telefones presentes nas conversas ATIVAS (não resolvidas) do WhatsApp (normalizados) para deduplicação
+  const conversasAtivasTelefonesNormalizados = useMemo(() => {
     const set = new Set<string>()
+    if (!Array.isArray(whatsAppConversas)) return set
     whatsAppConversas.forEach((conv) => {
+      // Deduplicar apenas conversas que NÃO estão resolvidas, permitindo reabrir/iniciar caso resolvida
+      if (!conv || conv.status === 'resolvido') return
       const digits = cleanPhoneDigits(conv.numero || '')
       if (digits) {
         set.add(digits)
@@ -386,11 +408,14 @@ export const CentralAtendimento: React.FC = () => {
     return set
   }, [whatsAppConversas])
 
-  // Conjunto de IDs de clientes já vinculados a alguma conversa
-  const clientesComConversaIds = useMemo(() => {
+  // Conjunto de IDs de clientes com conversas ATIVAS (não resolvidas)
+  const clientesComConversaAtivaIds = useMemo(() => {
     const set = new Set<string>()
+    if (!Array.isArray(whatsAppConversas)) return set
     whatsAppConversas.forEach((conv) => {
-      if (conv.cliente_id) set.add(conv.cliente_id)
+      if (conv && conv.cliente_id && conv.status !== 'resolvido') {
+        set.add(conv.cliente_id)
+      }
     })
     return set
   }, [whatsAppConversas])
@@ -411,9 +436,10 @@ export const CentralAtendimento: React.FC = () => {
 
   // Busca no banco de clientes, contatos adicionais e outros contatos
   const clientesBancoFiltrados = useMemo(() => {
-    const rawTerm = searchTerm.trim().toLowerCase()
+    const rawTerm = searchTerm.trim()
     if (!rawTerm || rawTerm.length < 2) return []
 
+    const normalizedTerm = normalizeSearchText(rawTerm)
     const digitsTerm = cleanPhoneDigits(rawTerm)
     const digitsTermSem55 =
       digitsTerm.startsWith('55') && (digitsTerm.length === 12 || digitsTerm.length === 13)
@@ -421,8 +447,8 @@ export const CentralAtendimento: React.FC = () => {
         : digitsTerm
 
     const matchesQuery = (texto?: string, fone?: string, whats?: string) => {
-      // Comparação por texto / nome
-      if (texto && texto.toLowerCase().includes(rawTerm)) return true
+      // Comparação por texto / nome insensível a acentuação
+      if (texto && normalizeSearchText(texto).includes(normalizedTerm)) return true
 
       // Comparação por telefone / WhatsApp
       const foneDigits = fone ? cleanPhoneDigits(fone) : ''
@@ -438,8 +464,8 @@ export const CentralAtendimento: React.FC = () => {
           return true
       }
 
-      if (fone && fone.toLowerCase().includes(rawTerm)) return true
-      if (whats && whats.toLowerCase().includes(rawTerm)) return true
+      if (fone && normalizeSearchText(fone).includes(normalizedTerm)) return true
+      if (whats && normalizeSearchText(whats).includes(normalizedTerm)) return true
 
       return false
     }
@@ -447,14 +473,19 @@ export const CentralAtendimento: React.FC = () => {
     const jaInseridosChaves = new Set<string>()
     const resultados: BancoClienteResultado[] = []
 
+    const safeClientes = Array.isArray(clientes) ? clientes : []
+    const safeContatosAdicionais = Array.isArray(contatosAdicionais) ? contatosAdicionais : []
+    const safeOutrosContatos = Array.isArray(outrosContatosLista) ? outrosContatosLista : []
+
     // 1. Tabela clientes
-    clientes.forEach((cli) => {
-      // Não duplicar se cliente já possui conversa ativa
-      if (clientesComConversaIds.has(cli.id)) return
+    safeClientes.forEach((cli) => {
+      if (!cli) return
+      // Não duplicar se cliente já possui conversa ATIVA
+      if (clientesComConversaAtivaIds.has(cli.id)) return
 
       const numWhats = cli.whatsapp || cli.telefone || ''
       const numClean = cleanPhoneDigits(numWhats)
-      if (numClean && conversasTelefonesNormalizados.has(numClean)) return
+      if (numClean && conversasAtivasTelefonesNormalizados.has(numClean)) return
 
       const match =
         matchesQuery(cli.nome, cli.telefone, cli.whatsapp) ||
@@ -484,16 +515,13 @@ export const CentralAtendimento: React.FC = () => {
     })
 
     // 2. Tabela contatos_adicionais
-    contatosAdicionais.forEach((contato) => {
+    safeContatosAdicionais.forEach((contato) => {
+      if (!contato) return
       const fone = contato.telefone || contato.whatsapp || ''
       const foneClean = cleanPhoneDigits(fone)
-      if (foneClean && conversasTelefonesNormalizados.has(foneClean)) return
-      if (contato.cliente_id && clientesComConversaIds.has(contato.cliente_id)) {
-        // Se o número do contato adicional for diferente do número da conversa, pode ser relevante,
-        // mas se o contato não tem conversa associada com esse número, exibimos
-      }
+      if (foneClean && conversasAtivasTelefonesNormalizados.has(foneClean)) return
 
-      const cliPai = clientesMap.get(contato.cliente_id)
+      const cliPai = contato.cliente_id ? clientesMap.get(contato.cliente_id) : undefined
       const match =
         matchesQuery(contato.nome, contato.telefone, contato.whatsapp) ||
         matchesQuery(contato.cargo) ||
@@ -519,9 +547,10 @@ export const CentralAtendimento: React.FC = () => {
     })
 
     // 3. Tabela outros_contatos
-    outrosContatosLista.forEach((outro) => {
+    safeOutrosContatos.forEach((outro) => {
+      if (!outro) return
       const foneClean = cleanPhoneDigits(outro.telefone || '')
-      if (foneClean && conversasTelefonesNormalizados.has(foneClean)) return
+      if (foneClean && conversasAtivasTelefonesNormalizados.has(foneClean)) return
 
       const match =
         matchesQuery(outro.nome, outro.telefone) ||
@@ -554,8 +583,8 @@ export const CentralAtendimento: React.FC = () => {
     contatosAdicionais,
     outrosContatosLista,
     clientesMap,
-    conversasTelefonesNormalizados,
-    clientesComConversaIds,
+    conversasAtivasTelefonesNormalizados,
+    clientesComConversaAtivaIds,
   ])
 
   // Iniciar nova conversa ou abrir conversa existente com cliente do banco
@@ -733,80 +762,90 @@ export const CentralAtendimento: React.FC = () => {
           )}
 
           {/* Dropdown de Clientes Encontrados no Banco (sem conversa no WhatsApp) */}
-          {searchTerm.trim().length >= 2 && clientesBancoFiltrados.length > 0 && (
+          {searchTerm.trim().length >= 2 && (
             <div className="absolute left-0 top-full mt-1.5 w-full sm:w-[380px] max-h-[380px] overflow-y-auto bg-white rounded-xl border border-gray-200 shadow-xl z-50 animate-in fade-in-50 zoom-in-95 duration-100 p-1.5 space-y-1">
               <div className="px-2 py-1.5 flex items-center justify-between border-b border-gray-100 text-[11px]">
                 <div className="flex items-center gap-1.5 text-emerald-800 font-semibold">
                   <Database className="w-3.5 h-3.5 text-emerald-600" />
                   <span>Clientes no Banco ({clientesBancoFiltrados.length})</span>
                 </div>
-                <span className="text-[10px] text-gray-400">Clique para abrir ou iniciar</span>
+                <span className="text-[10px] text-gray-400">
+                  {clientesBancoFiltrados.length > 0
+                    ? 'Clique para abrir ou iniciar'
+                    : 'Sem outros clientes no banco'}
+                </span>
               </div>
 
-              <div className="space-y-1 pt-1">
-                {clientesBancoFiltrados.map((item) => {
-                  const numeroEfetivo = item.whatsapp || item.telefone || ''
-                  const numeroFormatado = formatWhatsAppPhone(numeroEfetivo)
+              {clientesBancoFiltrados.length === 0 ? (
+                <div className="py-4 px-3 text-center text-xs text-gray-400">
+                  Nenhum cliente adicional encontrado no banco para "{searchTerm.trim()}".
+                </div>
+              ) : (
+                <div className="space-y-1 pt-1">
+                  {clientesBancoFiltrados.map((item) => {
+                    const numeroEfetivo = item.whatsapp || item.telefone || ''
+                    const numeroFormatado = formatWhatsAppPhone(numeroEfetivo)
 
-                  return (
-                    <button
-                      key={item.id}
-                      type="button"
-                      disabled={isStartingConversa}
-                      onClick={() => handleSelecionarClienteBanco(item)}
-                      className="w-full text-left p-2.5 rounded-lg border border-transparent hover:border-emerald-200 hover:bg-emerald-50/70 transition-all group flex flex-col gap-1 cursor-pointer disabled:opacity-50"
-                    >
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-xs font-bold text-gray-900 group-hover:text-emerald-950 truncate">
-                              {item.nome}
-                            </span>
+                    return (
+                      <button
+                        key={item.id}
+                        type="button"
+                        disabled={isStartingConversa}
+                        onClick={() => handleSelecionarClienteBanco(item)}
+                        className="w-full text-left p-2.5 rounded-lg border border-transparent hover:border-emerald-200 hover:bg-emerald-50/70 transition-all group flex flex-col gap-1 cursor-pointer disabled:opacity-50"
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-xs font-bold text-gray-900 group-hover:text-emerald-950 truncate">
+                                {item.nome}
+                              </span>
+                            </div>
+                            {item.subtitulo && (
+                              <p className="text-[10px] text-gray-500 truncate mt-0.5">
+                                {item.subtitulo}
+                              </p>
+                            )}
                           </div>
-                          {item.subtitulo && (
-                            <p className="text-[10px] text-gray-500 truncate mt-0.5">
-                              {item.subtitulo}
-                            </p>
-                          )}
+
+                          {/* Selo Visualmente Distinto Obrigatório */}
+                          <span className="shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold tracking-tight bg-amber-50 text-amber-800 border border-amber-200/80 shadow-2xs">
+                            <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                            Cliente cadastrado — sem conversa no WhatsApp
+                          </span>
                         </div>
 
-                        {/* Selo Visualmente Distinto Obrigatório */}
-                        <span className="shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold tracking-tight bg-amber-50 text-amber-800 border border-amber-200/80 shadow-2xs">
-                          <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-                          Cliente cadastrado — sem conversa no WhatsApp
-                        </span>
-                      </div>
+                        <div className="flex items-center justify-between gap-2 pt-1 text-[11px] text-gray-600 border-t border-gray-100/70 mt-0.5">
+                          <div className="flex items-center gap-3 truncate">
+                            {numeroFormatado ? (
+                              <span className="inline-flex items-center gap-1 font-mono text-[10px] text-emerald-700 font-medium">
+                                <Phone className="w-3 h-3 text-emerald-600 shrink-0" />
+                                {numeroFormatado}
+                              </span>
+                            ) : (
+                              <span className="text-[10px] text-gray-400 italic">
+                                Sem telefone cadastrado
+                              </span>
+                            )}
 
-                      <div className="flex items-center justify-between gap-2 pt-1 text-[11px] text-gray-600 border-t border-gray-100/70 mt-0.5">
-                        <div className="flex items-center gap-3 truncate">
-                          {numeroFormatado ? (
-                            <span className="inline-flex items-center gap-1 font-mono text-[10px] text-emerald-700 font-medium">
-                              <Phone className="w-3 h-3 text-emerald-600 shrink-0" />
-                              {numeroFormatado}
-                            </span>
-                          ) : (
-                            <span className="text-[10px] text-gray-400 italic">
-                              Sem telefone cadastrado
-                            </span>
-                          )}
+                            {item.cidade && (
+                              <span className="inline-flex items-center gap-0.5 text-[10px] text-gray-500 truncate">
+                                <MapPin className="w-3 h-3 text-gray-400 shrink-0" />
+                                {item.cidade}
+                              </span>
+                            )}
+                          </div>
 
-                          {item.cidade && (
-                            <span className="inline-flex items-center gap-0.5 text-[10px] text-gray-500 truncate">
-                              <MapPin className="w-3 h-3 text-gray-400 shrink-0" />
-                              {item.cidade}
-                            </span>
-                          )}
+                          <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-700 group-hover:text-emerald-800 shrink-0 ml-auto">
+                            <MessageSquare className="w-3 h-3 text-emerald-600" />
+                            Iniciar Chat
+                          </span>
                         </div>
-
-                        <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-700 group-hover:text-emerald-800 shrink-0 ml-auto">
-                          <MessageSquare className="w-3 h-3 text-emerald-600" />
-                          Iniciar Chat
-                        </span>
-                      </div>
-                    </button>
-                  )
-                })}
-              </div>
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
             </div>
           )}
         </div>
