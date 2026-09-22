@@ -2670,6 +2670,15 @@ export async function deleteUsina(id: string): Promise<boolean> {
   }
 }
 
+export {
+  fetchNegociosByClienteId,
+  fetchAllNegocios,
+  getNegocioById,
+  createNegocio,
+  updateNegocio,
+  deleteNegocio,
+} from './negociosService'
+
 export const DEFAULT_SOLARVIEW_CONFIG = {
   nome: 'Solarview',
   link_ios: 'https://apps.apple.com/br/app/solarview/id1453416568',

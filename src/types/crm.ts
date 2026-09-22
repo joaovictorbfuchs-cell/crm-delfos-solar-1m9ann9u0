@@ -118,6 +118,41 @@ export interface AtividadeSetorItem extends RecordModel {
   updated: string
 }
 
+export type TipoNegocioSelect = 'venda usina' | 'bateria' | 'expansão' | 'renovação' | 'serviço'
+
+export type EtapaFunilSelect =
+  | 'novo lead'
+  | 'qualificado'
+  | 'proposta enviada'
+  | 'negociação'
+  | 'contrato assinado'
+
+export type NegocioStatus = 'em andamento' | 'ganho' | 'perdido'
+
+export interface Negocio extends RecordModel {
+  id: string
+  collectionId: string
+  collectionName: string
+  cliente_id: string
+  tipo_negocio: TipoNegocioSelect
+  valor_estimado?: number
+  valor_final?: number
+  etapa_funil?: EtapaFunilSelect
+  probabilidade?: number
+  data_previsao_fechamento?: string
+  data_fechamento?: string
+  status?: NegocioStatus
+  motivo_perda?: string
+  reabertura?: boolean
+  motivo_reabertura?: string
+  condicao_pagamento?: string
+  created: string
+  updated: string
+  expand?: {
+    cliente_id?: Cliente
+  }
+}
+
 export interface Cliente extends RecordModel {
   id: string
   collectionId: string

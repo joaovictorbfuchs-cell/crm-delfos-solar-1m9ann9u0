@@ -75,6 +75,7 @@ import { SecaoMonitoramentoInversor } from './SecaoMonitoramentoInversor'
 import { SecaoAcessoSolarview } from './SecaoAcessoSolarview'
 import { SecaoUsinasCliente } from './SecaoUsinasCliente'
 import { SecaoContatosAdicionais } from './SecaoContatosAdicionais'
+import { CardNegociosCliente } from './CardNegociosCliente'
 import { useAuth } from '@/contexts/AuthContext'
 import {
   fetchUsinasByClienteId,
@@ -3261,6 +3262,12 @@ export const FichaClienteDrawer: React.FC = () => {
                           )}
                       </div>
 
+                      {/* Negócios Vinculados ao Cliente (Separação Cadastral vs Oportunidades Comerciais) */}
+                      <CardNegociosCliente
+                        clienteId={selectedCliente.id}
+                        clienteNome={selectedCliente.nome}
+                      />
+
                       {/* Usinas Fotovoltaicas do Cliente integradas na Ficha Cadastral */}
                       <SecaoUsinasCliente
                         clienteId={selectedCliente.id}
@@ -3637,27 +3644,25 @@ export const FichaClienteDrawer: React.FC = () => {
               )}
             </div>
 
-            {/* Card 3: Valor Estimado */}
-            <div className="bg-white rounded-xl p-3.5 border border-gray-200 shadow-xs space-y-1">
-              <div className="flex items-center justify-between text-[10px] uppercase font-bold text-gray-400 tracking-wider">
-                <span>Valor Estimado</span>
-                <DollarSign className="w-3.5 h-3.5 text-emerald-600" />
+            {/* Negócios do Cliente (Card Resumo Lateral Clicável) */}
+            <div className="bg-white rounded-xl p-3.5 border border-amber-200/80 shadow-xs space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] uppercase font-bold text-[#0F2038] tracking-wider flex items-center gap-1">
+                  <Briefcase className="w-3.5 h-3.5 text-[#E0A838]" />
+                  Negócios & Oportunidades
+                </span>
+                <button
+                  type="button"
+                  onClick={handleToggleDetalhes}
+                  className="text-[10px] text-amber-700 hover:text-amber-900 font-bold underline"
+                >
+                  Ver todos
+                </button>
               </div>
-              <InlineEditField
-                value={selectedCliente.valor_estimado || 0}
-                displayValue={
-                  <span className="text-xl font-black text-gray-900 tracking-tight block">
-                    {formatCurrency(selectedCliente.valor_estimado || 0)}
-                  </span>
-                }
-                type="number"
-                unit="R$"
-                step="500"
-                min={0}
-                placeholder="0,00"
-                onSave={async (val) => handleUpdateClienteField('valor_estimado', Number(val) || 0)}
-              />
-              <span className="text-[11px] text-gray-400 block">Receita potencial do negócio</span>
+              <p className="text-[11px] text-slate-500 leading-snug">
+                Gerencie as oportunidades e vendas vinculadas a este cliente na seção "Negócios
+                Vinculados".
+              </p>
             </div>
 
             {/* Card 4: Potência do Sistema */}
