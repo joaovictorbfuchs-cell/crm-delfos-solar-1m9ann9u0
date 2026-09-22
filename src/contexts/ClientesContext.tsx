@@ -818,17 +818,11 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     isAuthenticated,
   )
 
-  // Realtime updates for sistemas
-  useRealtime<Sistema>(
-    'sistemas',
-    (data) => {
-      if (data.action === 'create') {
-        setSistemas((prev) => [data.record, ...prev])
-      } else if (data.action === 'update') {
-        setSistemas((prev) => prev.map((s) => (s.id === data.record.id ? data.record : s)))
-      } else if (data.action === 'delete') {
-        setSistemas((prev) => prev.filter((s) => s.id !== data.record.id))
-      }
+  // Realtime updates for usinas (alimenta sistemas e mantém unificado)
+  useRealtime<import('@/types/crm').UsinaCliente>(
+    'usinas',
+    () => {
+      fetchSistemas().then(setSistemas).catch(console.error)
     },
     isAuthenticated,
   )

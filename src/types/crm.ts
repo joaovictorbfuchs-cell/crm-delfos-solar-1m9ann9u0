@@ -322,6 +322,44 @@ export interface UsinaCliente extends RecordModel {
   status?: UsinaStatus | string
   tipo_usina?: UsinaTipo | string
   observacoes?: string
+
+  // Elétrico
+  padrao_entrada?: string
+  tipo_atendimento?: TipoAtendimento
+  numero_fases?: NumeroFases
+  secao_cabos?: string
+  amperagem_disjuntor?: string
+  tipo_caixa_medicao?: string
+
+  // Localização / Tarifa
+  latitude?: number
+  longitude?: number
+  tarifa?: number
+  classe_consumo?: string
+  geracao_media_mensal_kwh?: number
+
+  // Monitoramento
+  monitoramento_app_nome?: string
+  monitoramento_login?: string
+  monitoramento_senha?: string
+  monitoramento_datalogger_url?: string
+  solarview_login?: string
+  solarview_senha?: string
+  solarview_link_ios?: string
+  solarview_link_android?: string
+  solarview_link_texto?: string
+
+  // Equipamentos
+  fabricante_inversores?: string
+  modelo_inversores?: string
+  potencia_pico_inversores_kwp?: number
+  fabricante_modulos?: string
+  modelo_modulos?: string
+  potencia_pico_modulos_kwp?: number
+  quantidade_placas?: number
+  marca_placas?: string
+  tipo_telhado?: TelhadoTipo
+
   created: string
   updated: string
   expand?: {

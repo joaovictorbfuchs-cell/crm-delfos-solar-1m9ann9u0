@@ -814,6 +814,7 @@ export const FichaClienteDrawer: React.FC = () => {
     } else if (field === 'tipo_telhado') {
       await updateCliente(selectedCliente.id, { telhado_tipo: value as TelhadoTipo })
     }
+    await recarregarUsinas()
   }
 
   const getServiceIcon = (tipo: string) => {
@@ -1210,9 +1211,10 @@ export const FichaClienteDrawer: React.FC = () => {
                       await updateCliente(selectedCliente.id, clienteUpdates)
                     }
 
-                    // 2. Atualizar sistema
+                    // 2. Atualizar sistema / usina
                     if (Object.keys(sistemaUpdates).length > 0) {
                       await updateSistema(selectedCliente.id, sistemaUpdates)
+                      await recarregarUsinas()
                     }
 
                     // 3. Registrar evento na timeline / histórico do cliente

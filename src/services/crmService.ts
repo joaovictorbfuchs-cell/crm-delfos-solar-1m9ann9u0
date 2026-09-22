@@ -28,20 +28,107 @@ export async function fetchClientes(): Promise<Cliente[]> {
   return records
 }
 
+function mapUsinaToSistema(usina: import('@/types/crm').UsinaCliente): Sistema {
+  return {
+    id: usina.id,
+    collectionId: usina.collectionId,
+    collectionName: usina.collectionName,
+    cliente_id: usina.cliente_id,
+    geracao_media_mensal_kwh: usina.geracao_media_mensal_kwh ?? usina.geracao_estimada_kwh,
+    data_instalacao: usina.data_instalacao,
+    potencia_total_kwp: usina.potencia_kwp,
+    quantidade_placas: usina.quantidade_placas ?? usina.qtd_modulos,
+    marca_placas: usina.marca_placas,
+    tipo_telhado: usina.tipo_telhado,
+    numero_uc: usina.numero_uc,
+    latitude: usina.latitude,
+    longitude: usina.longitude,
+    concessionaria: usina.concessionaria,
+    tarifa: usina.tarifa,
+    classe_consumo: usina.classe_consumo,
+    padrao_entrada: usina.padrao_entrada,
+    tipo_atendimento: usina.tipo_atendimento,
+    numero_fases: usina.numero_fases,
+    secao_cabos: usina.secao_cabos,
+    tipo_caixa_medicao: usina.tipo_caixa_medicao,
+    amperagem_disjuntor: usina.amperagem_disjuntor,
+    quantidade_modulos: usina.qtd_modulos ?? usina.quantidade_placas,
+    fabricante_modulos: usina.fabricante_modulos,
+    modelo_modulos: usina.modelo_modulos,
+    fabricante_inversores: usina.fabricante_inversores,
+    modelo_inversores: usina.modelo_inversores,
+    potencia_pico_modulos_kwp: usina.potencia_pico_modulos_kwp ?? usina.potencia_kwp,
+    potencia_pico_inversores_kwp: usina.potencia_pico_inversores_kwp ?? usina.potencia_kwp,
+    monitoramento_app_nome: usina.monitoramento_app_nome,
+    monitoramento_login: usina.monitoramento_login,
+    monitoramento_senha: usina.monitoramento_senha,
+    monitoramento_datalogger_url: usina.monitoramento_datalogger_url,
+    solarview_login: usina.solarview_login,
+    solarview_senha: usina.solarview_senha,
+    solarview_link_ios: usina.solarview_link_ios,
+    solarview_link_android: usina.solarview_link_android,
+    solarview_link_texto: usina.solarview_link_texto,
+    created: usina.created,
+    updated: usina.updated,
+    expand: usina.expand,
+  }
+}
+
+function mapSistemaPayloadToUsina(
+  data: Partial<Sistema>,
+): Partial<import('@/types/crm').UsinaCliente> {
+  const result: Record<string, any> = { ...data }
+
+  if (data.potencia_total_kwp !== undefined) {
+    result.potencia_kwp = data.potencia_total_kwp
+  }
+  if (data.quantidade_modulos !== undefined) {
+    result.qtd_modulos = data.quantidade_modulos
+    result.quantidade_placas = data.quantidade_modulos
+  }
+  if (data.quantidade_placas !== undefined && result.qtd_modulos === undefined) {
+    result.qtd_modulos = data.quantidade_placas
+    result.quantidade_placas = data.quantidade_placas
+  }
+  if (data.geracao_media_mensal_kwh !== undefined) {
+    result.geracao_media_mensal_kwh = data.geracao_media_mensal_kwh
+    if (result.geracao_estimada_kwh === undefined) {
+      result.geracao_estimada_kwh = data.geracao_media_mensal_kwh
+    }
+  }
+
+  // Se atualizou fabricante/modelo inversor, atualiza também inversores_info
+  if (data.fabricante_inversores || data.modelo_inversores) {
+    result.inversores_info = [data.fabricante_inversores, data.modelo_inversores]
+      .filter(Boolean)
+      .join(' ')
+  }
+
+  return result as Partial<import('@/types/crm').UsinaCliente>
+}
+
 export async function fetchSistemas(): Promise<Sistema[]> {
-  const records = await pb.collection('sistemas').getFullList<Sistema>({
-    sort: '-created',
-    requestKey: null,
-  })
-  return records
+  try {
+    const usinas = await pb.collection('usinas').getFullList<import('@/types/crm').UsinaCliente>({
+      sort: 'created',
+      requestKey: null,
+    })
+    return usinas.map(mapUsinaToSistema)
+  } catch (err) {
+    console.warn('Erro ao buscar usinas em fetchSistemas:', err)
+    return []
+  }
 }
 
 export async function fetchSistemaByClienteId(clienteId: string): Promise<Sistema | null> {
+  if (!clienteId) return null
   try {
-    const record = await pb
-      .collection('sistemas')
-      .getFirstListItem<Sistema>(`cliente_id='${clienteId}'`)
-    return record
+    const usina = await pb
+      .collection('usinas')
+      .getFirstListItem<import('@/types/crm').UsinaCliente>(`cliente_id='${clienteId}'`, {
+        sort: 'created',
+      })
+    return mapUsinaToSistema(usina)
   } catch (_) {
     return null
   }
@@ -702,13 +789,59 @@ export async function mesclarClientes({
 export async function createSistema(
   data: Partial<Sistema> & { cliente_id: string },
 ): Promise<Sistema> {
-  const record = await pb.collection('sistemas').create<Sistema>(data)
-  return record
+  const usinaData = mapSistemaPayloadToUsina(data)
+  let nomeUsina = 'Usina Principal'
+  try {
+    const cli = await pb.collection('clientes').getOne<Cliente>(data.cliente_id)
+    if (cli?.nome) {
+      nomeUsina = `Usina Principal - ${cli.nome}`
+    }
+  } catch {
+    /* intentionally ignored */
+  }
+
+  const record = await pb.collection('usinas').create<import('@/types/crm').UsinaCliente>({
+    nome: nomeUsina,
+    status: 'ativo',
+    tipo_estrutura: 'telhado',
+    tipo_usina: 'residencial',
+    ...usinaData,
+    cliente_id: data.cliente_id,
+  })
+  return mapUsinaToSistema(record)
 }
 
-export async function updateSistema(id: string, data: Partial<Sistema>): Promise<Sistema> {
-  const record = await pb.collection('sistemas').update<Sistema>(id, data)
-  return record
+export async function updateSistema(
+  idOrClienteId: string,
+  data: Partial<Sistema>,
+): Promise<Sistema> {
+  const usinaData = mapSistemaPayloadToUsina(data)
+  let usinaId = idOrClienteId
+  try {
+    // Tenta carregar direto por id da usina
+    const existingUsina = await pb
+      .collection('usinas')
+      .getOne<import('@/types/crm').UsinaCliente>(idOrClienteId)
+    usinaId = existingUsina.id
+  } catch {
+    // Se não encontrou por ID de usina, procura usina do cliente com este cliente_id
+    try {
+      const usinaCliente = await pb
+        .collection('usinas')
+        .getFirstListItem<import('@/types/crm').UsinaCliente>(`cliente_id='${idOrClienteId}'`, {
+          sort: 'created',
+        })
+      usinaId = usinaCliente.id
+    } catch {
+      // Se não existir usina ainda, cria uma nova
+      return createSistema({ ...data, cliente_id: idOrClienteId })
+    }
+  }
+
+  const record = await pb
+    .collection('usinas')
+    .update<import('@/types/crm').UsinaCliente>(usinaId, usinaData)
+  return mapUsinaToSistema(record)
 }
 
 export async function upsertSistemaForCliente(
