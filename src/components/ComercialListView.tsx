@@ -10,13 +10,11 @@ import {
   X,
   User,
   DollarSign,
-  Layers,
   ChevronRight,
   Filter,
   AlertCircle,
   Users,
   Wrench,
-  ShieldCheck,
   Trash2,
   Loader2,
   Contact,
@@ -129,7 +127,6 @@ export const ComercialListView: React.FC<ComercialListViewProps> = ({
     bulkUpdateEtapa,
     bulkUpdateResponsavel,
     bulkMarcarFechado,
-    bulkTransferirFechadosPosVendas,
     bulkArquivar,
     bulkRemoveClientes,
     moverClienteParaOutrosContatos,
@@ -161,8 +158,6 @@ export const ComercialListView: React.FC<ComercialListViewProps> = ({
   const [responsavelDestinoId, setResponsavelDestinoId] = useState<string>('')
 
   const [modalConfirmarArquivarOpen, setModalConfirmarArquivarOpen] = useState(false)
-  const [modalTransferirPosVendasOpen, setModalTransferirPosVendasOpen] = useState(false)
-  const [destinoPosVendas, setDestinoPosVendas] = useState<'projetos' | 'manutencoes'>('projetos')
   const [modalConfirmarExcluirLoteOpen, setModalConfirmarExcluirLoteOpen] = useState(false)
 
   // Excluir registros já arquivados e negócios já transferidos para Pós-Vendas
@@ -364,33 +359,7 @@ export const ComercialListView: React.FC<ComercialListViewProps> = ({
     }
   }
 
-  // 5. Transferir para Pós-Vendas (Projetos ou O&M Manutenções)
-  const handleConfirmTransferirPosVendas = async () => {
-    if (selectedIds.length === 0) return
-    setIsProcessing(true)
-    try {
-      await bulkTransferirFechadosPosVendas(selectedIds, destinoPosVendas)
-      toast({
-        title: 'Transferência Concluída!',
-        description: `${selectedIds.length} negócio(s) transferido(s) com sucesso para o pós-vendas (${
-          destinoPosVendas === 'projetos' ? 'Projetos' : 'O&M / Manutenções'
-        }).`,
-      })
-      setSelectedIds([])
-      setModalTransferirPosVendasOpen(false)
-    } catch (err) {
-      console.error('Erro ao transferir para pós-vendas:', err)
-      toast({
-        title: 'Erro ao transferir negócios',
-        description: 'Ocorreu um erro ao transferir para o pós-vendas.',
-        variant: 'destructive',
-      })
-    } finally {
-      setIsProcessing(false)
-    }
-  }
-
-  // 6. Mover Selecionados para Outros Contatos em Lote
+  // 5. Mover Selecionados para Outros Contatos em Lote
   const handleConfirmMoverContatosLote = async () => {
     if (selectedIds.length === 0) return
     const clientesSelecionados = clientesAtivos.filter((c) => selectedIds.includes(c.id))
@@ -1031,19 +1000,6 @@ export const ComercialListView: React.FC<ComercialListViewProps> = ({
               <span>Marcar como fechado</span>
             </Button>
 
-            {/* 4. Mover para Pós-Vendas / Converter */}
-            <Button
-              type="button"
-              size="sm"
-              onClick={() => setModalTransferirPosVendasOpen(true)}
-              disabled={isProcessing}
-              className="bg-teal-600 hover:bg-teal-700 text-white text-xs gap-1.5 h-8 px-2.5 font-medium shadow-xs"
-              title="Transferir negócios selecionados para Pós-Vendas (Projetos ou O&M)"
-            >
-              <ShieldCheck className="w-3.5 h-3.5 text-teal-200" />
-              <span>Mover para Pós-Vendas</span>
-            </Button>
-
             {/* 5. Ver na Aba Clientes */}
             <Button
               type="button"
@@ -1328,95 +1284,6 @@ export const ComercialListView: React.FC<ComercialListViewProps> = ({
               ) : (
                 `Sim, Excluir (${selectedIds.length})`
               )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Modal 4: Transferir para Pós-Vendas (Projetos ou O&M) */}
-      <Dialog open={modalTransferirPosVendasOpen} onOpenChange={setModalTransferirPosVendasOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-teal-700">
-              <ShieldCheck className="w-5 h-5 text-teal-600" />
-              Mover {selectedIds.length} negócio(s) para Pós-Vendas
-            </DialogTitle>
-            <DialogDescription>
-              Os negócios selecionados serão marcados como fechados e transferidos para a operação
-              de pós-vendas correspondente.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-3 py-3">
-            <label className="text-xs font-semibold text-gray-700 block">
-              Escolha a área de destino no Pós-Vendas:
-            </label>
-
-            <div className="grid grid-cols-1 gap-2">
-              <button
-                type="button"
-                onClick={() => setDestinoPosVendas('projetos')}
-                className={`flex items-start gap-3 p-3 rounded-xl border text-left transition-all ${
-                  destinoPosVendas === 'projetos'
-                    ? 'border-emerald-500 bg-emerald-50/70 ring-1 ring-emerald-500'
-                    : 'border-gray-200 bg-white hover:bg-gray-50'
-                }`}
-              >
-                <div className="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-800 flex items-center justify-center shrink-0 mt-0.5">
-                  <Layers className="w-4 h-4" />
-                </div>
-                <div>
-                  <div className="text-xs font-bold text-gray-900">
-                    Projetos de Engenharia Solar
-                  </div>
-                  <div className="text-[11px] text-gray-500 mt-0.5">
-                    Cria automaticamente o projeto na etapa de Levantamento Técnico com os dados de
-                    inversor e placas.
-                  </div>
-                </div>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setDestinoPosVendas('manutencoes')}
-                className={`flex items-start gap-3 p-3 rounded-xl border text-left transition-all ${
-                  destinoPosVendas === 'manutencoes'
-                    ? 'border-teal-500 bg-teal-50/70 ring-1 ring-teal-500'
-                    : 'border-gray-200 bg-white hover:bg-gray-50'
-                }`}
-              >
-                <div className="w-8 h-8 rounded-lg bg-teal-100 text-teal-800 flex items-center justify-center shrink-0 mt-0.5">
-                  <Wrench className="w-4 h-4" />
-                </div>
-                <div>
-                  <div className="text-xs font-bold text-gray-900">
-                    O&M / Manutenções Preventivas
-                  </div>
-                  <div className="text-[11px] text-gray-500 mt-0.5">
-                    Gera a primeira ordem preventiva de O&M agendada para 6 meses e vincula na
-                    Central O&M.
-                  </div>
-                </div>
-              </button>
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setModalTransferirPosVendasOpen(false)}
-              disabled={isProcessing}
-            >
-              Cancelar
-            </Button>
-            <Button
-              size="sm"
-              onClick={handleConfirmTransferirPosVendas}
-              disabled={isProcessing}
-              className="bg-teal-600 hover:bg-teal-700 text-white font-bold"
-            >
-              {isProcessing ? 'Transferindo...' : 'Confirmar Transferência'}
             </Button>
           </DialogFooter>
         </DialogContent>

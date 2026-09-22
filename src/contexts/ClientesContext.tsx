@@ -52,7 +52,6 @@ import {
   bulkUpdateClientesEtapa as apiBulkUpdateClientesEtapa,
   bulkUpdateClientesResponsavel as apiBulkUpdateClientesResponsavel,
   bulkMarcarClientesFechado as apiBulkMarcarClientesFechado,
-  bulkTransferirFechadosParaPosVendas as apiBulkTransferirFechadosParaPosVendas,
   bulkArquivarClientes as apiBulkArquivarClientes,
   deleteCliente as apiDeleteCliente,
   bulkDeleteClientes as apiBulkDeleteClientes,
@@ -120,7 +119,6 @@ import {
   deleteContatoAdicional as apiDeleteContatoAdicional,
   createOutroContato as apiCreateOutroContato,
   moverClienteParaOutrosContatos as apiMoverClienteParaOutrosContatos,
-  marcarClienteComoGanho as apiMarcarClienteComoGanho,
   marcarClienteComoPerdido as apiMarcarClienteComoPerdido,
 } from '@/services/crmService'
 import type {
@@ -313,15 +311,6 @@ interface ClientesContextType {
     responsavelNome: string,
   ) => Promise<void>
   bulkMarcarFechado: (ids: string[]) => Promise<void>
-  bulkTransferirFechadosPosVendas: (
-    clientesParaTransferir: { id: string; data_fechamento?: string }[] | string[],
-    areaDestino?: 'projetos' | 'manutencoes' | 'om',
-  ) => Promise<Cliente[]>
-  marcarComoGanho: (
-    clienteId: string,
-    areaDestinoOuDados?: 'projetos' | 'om' | import('@/services/crmService').MarcarGanhoDados,
-    dadosExtras?: import('@/services/crmService').MarcarGanhoDados,
-  ) => Promise<Cliente>
   marcarComoPerdido: (
     clienteId: string,
     motivoPerda: 'preco' | 'concorrente' | 'desistiu' | 'nao_respondeu' | 'outro' | string,
@@ -1621,130 +1610,6 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
   }
 
-  const bulkTransferirFechadosPosVendas = async (
-    clientesParaTransferir: { id: string; data_fechamento?: string }[] | string[],
-    areaDestino?: 'projetos' | 'manutencoes' | 'om',
-  ): Promise<Cliente[]> => {
-    const agora = new Date().toISOString()
-    const normalizedList: { id: string; data_fechamento?: string }[] = clientesParaTransferir.map(
-      (item) => (typeof item === 'string' ? { id: item, data_fechamento: agora } : item),
-    )
-    const ids = normalizedList.map((c) => c.id)
-
-    // Determinar destino normalizado ('projetos' ou 'om')
-    const finalDestino: 'projetos' | 'om' =
-      areaDestino === 'manutencoes' || areaDestino === 'om' ? 'om' : 'projetos'
-
-    // Optimistic update: marca status Fechado, transferido_pos_vendas e área destino
-    setClientes((prev) =>
-      prev.map((c) => {
-        if (!ids.includes(c.id)) return c
-        const match = normalizedList.find((item) => item.id === c.id)
-        return {
-          ...c,
-          status: 'Fechado',
-          transferido_pos_vendas: true,
-          data_transferencia_pos_vendas: agora,
-          origem_pos_vendas: 'funil_comercial',
-          data_fechamento: match?.data_fechamento || c.data_fechamento || agora,
-          area_destino: finalDestino,
-        }
-      }),
-    )
-
-    try {
-      // Se tiver área de destino explícita, chama marcarClienteComoGanho para cada um
-      // garantindo que projeto ou O&M sejam criados/vinculados
-      const updatedList: Cliente[] = []
-
-      for (const item of normalizedList) {
-        try {
-          const cli = await apiMarcarClienteComoGanho(item.id, finalDestino)
-          updatedList.push(cli)
-        } catch (e) {
-          console.warn(`Erro ao transferir cliente ${item.id} para pós-vendas:`, e)
-        }
-      }
-
-      if (updatedList.length > 0) {
-        const mapUpdated = new Map(updatedList.map((u) => [u.id, u]))
-        setClientes((prev) => prev.map((c) => mapUpdated.get(c.id) || c))
-      }
-
-      if (finalDestino === 'projetos') {
-        fetchProjetos().then(setProjetos).catch(console.error)
-      } else {
-        fetchManutencoes().then(setManutencoes).catch(console.error)
-      }
-      fetchAtividades().then(setAtividades).catch(console.error)
-
-      return updatedList
-    } catch (err) {
-      console.error('Erro ao transferir fechados para pós-vendas em lote:', err)
-      await loadAllData()
-      throw err
-    }
-  }
-
-  const marcarComoGanho = async (
-    clienteId: string,
-    areaDestinoOuDados?: 'projetos' | 'om' | import('@/services/crmService').MarcarGanhoDados,
-    dadosExtras?: import('@/services/crmService').MarcarGanhoDados,
-  ): Promise<Cliente> => {
-    const agora = new Date().toISOString()
-    const ehObjeto = areaDestinoOuDados && typeof areaDestinoOuDados === 'object'
-    const dados = ehObjeto
-      ? (areaDestinoOuDados as import('@/services/crmService').MarcarGanhoDados)
-      : dadosExtras || {}
-    const contratouOM = Boolean(dados.contratou_om || (!ehObjeto && areaDestinoOuDados === 'om'))
-
-    // Optimistic update no estado clientes
-    setClientes((prev) =>
-      prev.map((c) =>
-        c.id === clienteId
-          ? {
-              ...c,
-              status: 'Fechado',
-              transferido_pos_vendas: !contratouOM,
-              data_transferencia_pos_vendas: !contratouOM ? agora : undefined,
-              origem_pos_vendas: !contratouOM ? 'funil_comercial' : undefined,
-              status_pos_vendas: contratouOM ? 'Ativo' : c.status_pos_vendas,
-              data_fechamento: agora,
-              area_destino: contratouOM ? 'om' : 'projetos',
-              valor_final: dados.valor_final !== undefined ? dados.valor_final : c.valor_final,
-              valor_estimado:
-                dados.valor_final !== undefined ? dados.valor_final : c.valor_estimado,
-              condicao_pagamento: dados.condicao_pagamento || c.condicao_pagamento,
-              data_instalacao: dados.data_instalacao || c.data_instalacao,
-              contratou_om: contratouOM,
-            }
-          : c,
-      ),
-    )
-
-    try {
-      const clienteAtualizado = await apiMarcarClienteComoGanho(
-        clienteId,
-        areaDestinoOuDados,
-        dadosExtras,
-      )
-      setClientes((prev) => prev.map((c) => (c.id === clienteId ? clienteAtualizado : c)))
-
-      if (!contratouOM) {
-        fetchProjetos().then(setProjetos).catch(console.error)
-      } else {
-        fetchContratosOM().then(setContratosOM).catch(console.error)
-      }
-      fetchAtividades().then(setAtividades).catch(console.error)
-
-      return clienteAtualizado
-    } catch (err) {
-      console.error('Erro ao marcar cliente como ganho:', err)
-      await loadAllData()
-      throw err
-    }
-  }
-
   const marcarComoPerdido = async (
     clienteId: string,
     motivoPerda: 'preco' | 'concorrente' | 'desistiu' | 'nao_respondeu' | 'outro' | string,
@@ -2835,8 +2700,6 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         bulkUpdateEtapa,
         bulkUpdateResponsavel,
         bulkMarcarFechado,
-        bulkTransferirFechadosPosVendas,
-        marcarComoGanho,
         marcarComoPerdido,
         reabrirOportunidade,
         bulkArquivar,
@@ -3043,8 +2906,6 @@ export function useClientes(): ClientesContextType {
       bulkUpdateEtapa: async () => {},
       bulkUpdateResponsavel: async () => {},
       bulkMarcarFechado: async () => {},
-      bulkTransferirFechadosPosVendas: async () => [],
-      marcarComoGanho: async () => ({}) as any,
       marcarComoPerdido: async () => ({}) as any,
       reabrirOportunidade: async () => ({}) as any,
       bulkArquivar: async () => {},

@@ -67,10 +67,9 @@ import { ModalGerarContratoOM } from './ModalGerarContratoOM'
 import { ModalAutoLeituraRGE } from './ModalAutoLeituraRGE'
 import { isAtividadeAutoLeitura } from '@/services/autoLeituraService'
 import { ModalSolicitacaoInformacoes } from './ModalSolicitacaoInformacoes'
-import { ModalMarcarGanho } from './ModalMarcarGanho'
 import { ModalMarcarPerdido } from './ModalMarcarPerdido'
 import { ModalNovaOportunidade } from './ModalNovaOportunidade'
-import { Check, X as IconX } from 'lucide-react'
+import { X as IconX } from 'lucide-react'
 import { SecaoMonitoramentoInversor } from './SecaoMonitoramentoInversor'
 import { SecaoAcessoSolarview } from './SecaoAcessoSolarview'
 import { SecaoUsinasCliente } from './SecaoUsinasCliente'
@@ -203,7 +202,6 @@ export const FichaClienteDrawer: React.FC = () => {
     updateDocumentoClienteStatus,
     contratosOM,
     renovarContratoOM,
-    marcarComoGanho,
     marcarComoPerdido,
     reabrirOportunidade,
     usuarios,
@@ -215,7 +213,6 @@ export const FichaClienteDrawer: React.FC = () => {
   const [isDeletingCliente, setIsDeletingCliente] = useState(false)
 
   // Modais de Ganho / Perdido / Nova Oportunidade (Reabertura)
-  const [modalGanhoOpen, setModalGanhoOpen] = useState(false)
   const [modalPerdidoOpen, setModalPerdidoOpen] = useState(false)
   const [modalNovaOportunidadeOpen, setModalNovaOportunidadeOpen] = useState(false)
 
@@ -938,27 +935,15 @@ export const FichaClienteDrawer: React.FC = () => {
             ) &&
             !selectedCliente.transferido_pos_vendas &&
             !selectedCliente.status_pos_vendas ? (
-              <>
-                <button
-                  type="button"
-                  onClick={() => setModalGanhoOpen(true)}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg shadow-xs transition-all hover:scale-[1.02] active:scale-95"
-                  title="Marcar oportunidade como Ganho (confirmar fechamento)"
-                >
-                  <Check className="w-3.5 h-3.5 shrink-0" />
-                  <span>Marcar como Ganho</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setModalPerdidoOpen(true)}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-300 text-xs font-bold rounded-lg shadow-xs transition-all hover:scale-[1.02] active:scale-95"
-                  title="Marcar oportunidade como Perdido (registrar motivo)"
-                >
-                  <IconX className="w-3.5 h-3.5 shrink-0 text-rose-700" />
-                  <span>Marcar como Perdido</span>
-                </button>
-              </>
+              <button
+                type="button"
+                onClick={() => setModalPerdidoOpen(true)}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-300 text-xs font-bold rounded-lg shadow-xs transition-all hover:scale-[1.02] active:scale-95"
+                title="Marcar oportunidade como Perdido (registrar motivo)"
+              >
+                <IconX className="w-3.5 h-3.5 shrink-0 text-rose-700" />
+                <span>Marcar como Perdido</span>
+              </button>
             ) : (
               /* Clientes Fechados / Pós-Vendas / Monitoramento: Botão "Nova Oportunidade" */
               (selectedCliente.transferido_pos_vendas ||
@@ -4483,33 +4468,6 @@ export const FichaClienteDrawer: React.FC = () => {
               })
             } catch (err) {
               console.error('Erro ao salvar pendências de informações do cliente:', err)
-            }
-          }}
-        />
-      )}
-
-      {/* Modal Marcar Ganho */}
-      {selectedCliente && (
-        <ModalMarcarGanho
-          cliente={selectedCliente}
-          propostaMaisRecente={clientOrcamentosSolar[0] || null}
-          open={modalGanhoOpen}
-          onOpenChange={setModalGanhoOpen}
-          onConfirm={async (dadosFechamento) => {
-            const nomeCli = selectedCliente.nome
-            try {
-              await marcarComoGanho(selectedCliente.id, dadosFechamento)
-              const destinoMsg = dadosFechamento.contratou_om
-                ? 'enviado para o Monitoramento & O&M com plano ativo'
-                : 'enviado para Clientes Pós-Vendas'
-              toast.success(
-                `Negócio Ganho! Cliente "${nomeCli}" fechado com sucesso e ${destinoMsg}.`,
-              )
-              setModalGanhoOpen(false)
-            } catch (err) {
-              console.error('Erro ao marcar ganho:', err)
-              toast.error('Erro ao registrar cliente como ganho. Tente novamente.')
-              throw err
             }
           }}
         />

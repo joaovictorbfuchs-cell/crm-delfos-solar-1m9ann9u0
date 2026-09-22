@@ -302,14 +302,6 @@ export async function bulkMarcarClientesFechado(ids: string[]): Promise<Cliente[
   return Promise.all(promises)
 }
 
-export interface MarcarGanhoDados {
-  valor_final?: number
-  condicao_pagamento?: string
-  data_instalacao?: string
-  observacoes?: string
-  contratou_om?: boolean
-}
-
 export interface ReabrirOportunidadeDados {
   motivo_reabertura: string
   descricao_reabertura?: string
@@ -383,152 +375,6 @@ export async function reabrirOportunidadeComercial(
   return clienteAtualizado
 }
 
-export async function marcarClienteComoGanho(
-  clienteId: string,
-  areaDestinoOuDados?: 'projetos' | 'om' | MarcarGanhoDados,
-  dadosExtras?: MarcarGanhoDados,
-): Promise<Cliente> {
-  const agora = new Date().toISOString()
-
-  let areaDestino: 'projetos' | 'om' = 'projetos'
-  let dados: MarcarGanhoDados = {}
-
-  if (typeof areaDestinoOuDados === 'string') {
-    areaDestino = areaDestinoOuDados
-    dados = dadosExtras || {}
-  } else if (areaDestinoOuDados && typeof areaDestinoOuDados === 'object') {
-    dados = areaDestinoOuDados
-    areaDestino = dados.contratou_om ? 'om' : 'projetos'
-  }
-
-  const contratouOM = Boolean(dados.contratou_om || areaDestino === 'om')
-
-  const payloadUpdate: Partial<Cliente> = {
-    status: 'Fechado',
-    data_fechamento: agora,
-    area_destino: contratouOM ? 'om' : 'projetos',
-  }
-
-  if (contratouOM) {
-    // Mover para Monitoramento / O&M: status_pos_vendas ativo, não transferido_pos_vendas (não vai para Clientes Pós-Vendas)
-    payloadUpdate.status_pos_vendas = 'Ativo'
-    payloadUpdate.transferido_pos_vendas = false
-    payloadUpdate.contratou_om = true
-  } else {
-    // Senão: transferido_pos_vendas = true (vai para Clientes Pós-Vendas)
-    payloadUpdate.transferido_pos_vendas = true
-    payloadUpdate.data_transferencia_pos_vendas = agora
-    payloadUpdate.origem_pos_vendas = 'funil_comercial'
-    payloadUpdate.contratou_om = false
-  }
-
-  if (dados.valor_final !== undefined) {
-    payloadUpdate.valor_final = dados.valor_final
-    payloadUpdate.valor_estimado = dados.valor_final
-  }
-
-  if (dados.condicao_pagamento) {
-    payloadUpdate.condicao_pagamento = dados.condicao_pagamento
-  }
-
-  if (dados.data_instalacao) {
-    payloadUpdate.data_instalacao = dados.data_instalacao
-  }
-
-  if (dados.observacoes && dados.observacoes.trim()) {
-    payloadUpdate.observacoes = dados.observacoes.trim()
-  }
-
-  const clienteAtualizado = await updateCliente(clienteId, payloadUpdate)
-
-  // Se contratou plano O&M, garantir contrato O&M ativo vinculado
-  if (contratouOM) {
-    try {
-      const contratos = await fetchContratosOM()
-      const contratoExistente = contratos.find(
-        (c) => c.cliente_id === clienteId && c.status === 'Ativo',
-      )
-      if (!contratoExistente) {
-        const dataInicio = agora
-        const dataVenc = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString()
-        const proximaAtiv = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
-        await createContratoOM({
-          cliente_id: clienteId,
-          plano: 'Essencial',
-          status: 'Ativo',
-          status_encerramento: 'vigente',
-          valor_mensal: 99.9,
-          valor_anual: 1198.8,
-          data_inicio: dataInicio,
-          data_vencimento: dataVenc,
-          proxima_atividade_data: proximaAtiv,
-          proxima_atividade_titulo: 'Inspeção preventiva semestral',
-          observacoes: 'Contrato O&M ativo criado na confirmação de fechamento do negócio.',
-          servicos_agendados: ['Monitoramento contínuo', 'Inspeção preventiva semestral'],
-          servicos_realizados: ['Venda concretizada com plano O&M'],
-        })
-      }
-    } catch (omErr) {
-      console.warn('Erro ao criar contrato O&M na conversão:', omErr)
-    }
-  } else {
-    // Área de Projetos / Pós-Vendas: garantir projeto de engenharia se não existir
-    try {
-      const existing = await fetchProjetoByClienteId(clienteId)
-      if (!existing) {
-        await createProjeto({
-          cliente_id: clienteId,
-          etapa: 'Levantamento de Informações',
-          potencia_kwp: clienteAtualizado.potencia_kwp || 0,
-          cidade: clienteAtualizado.cidade || '',
-          observacoes:
-            'Negócio ganho no funil comercial enviado para Projetos (energia solar fotovoltaica).',
-        })
-      }
-    } catch (projErr) {
-      console.warn('Erro ao criar/verificar projeto para cliente ganho:', projErr)
-    }
-  }
-
-  // Registrar na timeline de atividades
-  try {
-    const valorFmt = dados.valor_final
-      ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
-          dados.valor_final,
-        )
-      : clienteAtualizado.valor_estimado
-        ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
-            clienteAtualizado.valor_estimado,
-          )
-        : ''
-
-    const detalheDestino = contratouOM
-      ? 'Destino: Monitoramento & O&M (Contrato Ativo)'
-      : 'Destino: Clientes Pós-Vendas (Levantamento / Homologação)'
-
-    const condFmt = dados.condicao_pagamento ? ` • Condição: ${dados.condicao_pagamento}` : ''
-    const dataInstFmt = dados.data_instalacao
-      ? ` • Previsão Instalação: ${new Date(dados.data_instalacao).toLocaleDateString('pt-BR')}`
-      : ''
-    const obsFmt = dados.observacoes ? ` • Obs: ${dados.observacoes}` : ''
-
-    await createAtividade({
-      cliente_id: clienteId,
-      tipo: 'mudanca_estagio',
-      titulo: 'Negócio Ganho • Fechamento Comercial',
-      descricao: `Negócio fechado com sucesso.${valorFmt ? ` Valor final: ${valorFmt}.` : ''} ${detalheDestino}${condFmt}${dataInstFmt}${obsFmt}.`,
-      data: agora,
-      status: 'concluida',
-      autor: 'CRM Delfos Solar',
-      responsavel_nome: 'CRM Delfos Solar',
-    })
-  } catch (ativErr) {
-    console.warn('Erro ao registrar atividade de ganho:', ativErr)
-  }
-
-  return clienteAtualizado
-}
-
 export async function marcarClienteComoPerdido(
   clienteId: string,
   motivoPerda: 'preco' | 'concorrente' | 'desistiu' | 'nao_respondeu' | 'outro' | string,
@@ -590,21 +436,6 @@ export async function marcarClienteComoPerdido(
   }
 
   return clienteAtualizado
-}
-
-export async function bulkTransferirFechadosParaPosVendas(
-  fechados: { id: string; data_fechamento?: string }[],
-): Promise<Cliente[]> {
-  const agora = new Date().toISOString()
-  const promises = fechados.map((item) =>
-    updateCliente(item.id, {
-      transferido_pos_vendas: true,
-      data_transferencia_pos_vendas: agora,
-      origem_pos_vendas: 'funil_comercial',
-      data_fechamento: item.data_fechamento || agora,
-    }),
-  )
-  return Promise.all(promises)
 }
 
 export async function bulkArquivarClientes(ids: string[]): Promise<Cliente[]> {
