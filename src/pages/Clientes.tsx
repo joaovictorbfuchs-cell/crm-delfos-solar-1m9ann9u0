@@ -12,11 +12,9 @@ import {
   Plus,
   Building2,
   User,
-  Upload,
   ArrowUpDown,
   ArrowUpAZ,
   ArrowDownZA,
-  Filter,
   X,
   RotateCcw,
   Trash2,
@@ -28,7 +26,7 @@ import {
 import { useClientes } from '@/contexts/ClientesContext'
 import { ModalMesclarClientes } from '@/components/ModalMesclarClientes'
 import { OutrosContatosView } from '@/components/OutrosContatosView'
-import { Contact, Sparkles } from 'lucide-react'
+import { Contact } from 'lucide-react'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -186,14 +184,6 @@ export default function Clientes() {
     filtroCidade !== 'todos' ||
     filtroStatus !== 'todos' ||
     filtroProduto !== 'todos'
-
-  const activeFiltersCount = [
-    filtroOrigem !== 'todos',
-    filtroCidade !== 'todos',
-    filtroStatus !== 'todos',
-    filtroProduto !== 'todos',
-    Boolean(searchTerm.trim()),
-  ].filter(Boolean).length
 
   const handleLimparTodosFiltros = () => {
     setSearchTerm('')
@@ -485,202 +475,52 @@ export default function Clientes() {
       {/* Conteúdo da Sub-Aba 1: Base de Clientes */}
       {activeSubTab === 'base' && (
         <>
-          {/* Barra de Filtros Rápida / Mobile e Indicador de Filtros Ativos */}
-          <div className="bg-white rounded-xl border border-gray-200/80 p-3 sm:p-3.5 shadow-xs space-y-2.5">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-xs font-bold text-gray-700 uppercase tracking-wider flex items-center gap-1.5">
-                  <Filter className="w-3.5 h-3.5 text-emerald-600" />
-                  Filtros por Coluna:
+          {/* Barra de Ações em Massa (quando houver seleção) */}
+          {selectedIds.length > 0 && (
+            <div className="bg-emerald-50 border-2 border-emerald-500 rounded-xl p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
+              <div className="flex items-center gap-2">
+                <span className="w-6 h-6 rounded-full bg-emerald-600 text-white flex items-center justify-center text-xs font-bold shrink-0">
+                  {selectedIds.length}
                 </span>
-
-                {/* Ordenação rápida */}
+                <span className="text-xs font-bold text-emerald-950">
+                  {selectedIds.length === 1
+                    ? '1 cliente selecionado'
+                    : `${selectedIds.length} clientes selecionados`}
+                </span>
                 <button
                   type="button"
-                  onClick={() => handleSortToggle('nome')}
-                  className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold border transition-all ${
-                    sortField === 'nome'
-                      ? 'bg-emerald-100/70 text-emerald-900 border-emerald-300'
-                      : 'bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100'
-                  }`}
-                  title="Alternar ordenação alfabética"
+                  onClick={() => setSelectedIds([])}
+                  className="text-xs text-gray-500 hover:text-gray-700 underline ml-2 cursor-pointer"
                 >
-                  {sortField === 'nome' && sortDirection === 'asc' ? (
-                    <ArrowUpAZ className="w-3.5 h-3.5 text-emerald-700" />
-                  ) : sortField === 'nome' && sortDirection === 'desc' ? (
-                    <ArrowDownZA className="w-3.5 h-3.5 text-emerald-700" />
-                  ) : (
-                    <ArrowUpDown className="w-3.5 h-3.5 text-gray-400" />
-                  )}
-                  <span>
-                    Nome {sortField === 'nome' ? (sortDirection === 'asc' ? '(A→Z)' : '(Z→A)') : ''}
-                  </span>
+                  Desmarcar todos
+                </button>
+              </div>
+
+              <div className="flex items-center gap-2 flex-wrap">
+                {/* Botão Mesclar */}
+                <button
+                  type="button"
+                  onClick={() => handleAbrirMesclagem()}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white text-emerald-800 hover:bg-emerald-100/70 border border-emerald-300 rounded-lg text-xs font-bold transition-colors shadow-2xs cursor-pointer"
+                  title="Mesclar cadastros selecionados em um só cliente mestre"
+                >
+                  <GitMerge className="w-3.5 h-3.5 text-emerald-700" />
+                  <span>Mesclar</span>
                 </button>
 
-                {hasActiveColumnFilters && (
-                  <button
-                    type="button"
-                    onClick={handleLimparTodosFiltros}
-                    className="inline-flex items-center gap-1 text-xs text-red-600 hover:text-red-800 font-semibold px-2 py-1 rounded-md hover:bg-red-50 transition-colors"
-                    title="Limpar todos os filtros aplicados"
-                  >
-                    <RotateCcw className="w-3 h-3" />
-                    Limpar Filtros ({activeFiltersCount})
-                  </button>
-                )}
-              </div>
-
-              <div className="text-xs text-gray-500 flex items-center gap-1.5 self-end sm:self-auto">
-                <span>Mostrando</span>
-                <strong className="text-gray-800 font-bold">{processedClientes.length}</strong>
-                <span>de</span>
-                <strong className="text-gray-800 font-bold">{clientes.length}</strong>
-                <span>clientes</span>
+                {/* Botão Excluir em Lote */}
+                <button
+                  type="button"
+                  onClick={() => setIsModalExcluirLoteOpen(true)}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-bold transition-colors shadow-2xs cursor-pointer"
+                  title="Excluir todos os clientes selecionados"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Excluir Selecionados ({selectedIds.length})</span>
+                </button>
               </div>
             </div>
-
-            {/* Barra de Ações em Massa (quando houver seleção) */}
-            {selectedIds.length > 0 && (
-              <div className="bg-emerald-50 border-2 border-emerald-500 rounded-xl p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
-                <div className="flex items-center gap-2">
-                  <span className="w-6 h-6 rounded-full bg-emerald-600 text-white flex items-center justify-center text-xs font-bold shrink-0">
-                    {selectedIds.length}
-                  </span>
-                  <span className="text-xs font-bold text-emerald-950">
-                    {selectedIds.length === 1
-                      ? '1 cliente selecionado'
-                      : `${selectedIds.length} clientes selecionados`}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setSelectedIds([])}
-                    className="text-xs text-gray-500 hover:text-gray-700 underline ml-2"
-                  >
-                    Desmarcar todos
-                  </button>
-                </div>
-
-                <div className="flex items-center gap-2 flex-wrap">
-                  {/* Botão Mesclar */}
-                  <button
-                    type="button"
-                    onClick={() => handleAbrirMesclagem()}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white text-emerald-800 hover:bg-emerald-100/70 border border-emerald-300 rounded-lg text-xs font-bold transition-colors shadow-2xs"
-                    title="Mesclar cadastros selecionados em um só cliente mestre"
-                  >
-                    <GitMerge className="w-3.5 h-3.5 text-emerald-700" />
-                    <span>Mesclar</span>
-                  </button>
-
-                  {/* Botão Excluir em Lote */}
-                  <button
-                    type="button"
-                    onClick={() => setIsModalExcluirLoteOpen(true)}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-bold transition-colors shadow-2xs"
-                    title="Excluir todos os clientes selecionados"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                    <span>Excluir Selecionados ({selectedIds.length})</span>
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* Linha de Seletores (Dropdowns de Colunas): Responsivo para Mobile e Desktop */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 pt-2 border-t border-gray-100">
-              {/* 1. Origem */}
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold uppercase tracking-wider text-gray-500 block">
-                  Origem / Importação
-                </label>
-                <select
-                  value={filtroOrigem}
-                  onChange={(e) => setFiltroOrigem(e.target.value)}
-                  className={`w-full text-xs font-semibold px-2.5 py-1.5 rounded-lg border focus:outline-none focus:ring-1 focus:ring-emerald-500 cursor-pointer shadow-2xs transition-colors ${
-                    filtroOrigem !== 'todos'
-                      ? 'bg-blue-50 text-blue-900 border-blue-300 font-bold'
-                      : 'bg-gray-50/80 text-gray-700 border-gray-200'
-                  }`}
-                >
-                  <option value="todos">Todas as Origens ({clientes.length})</option>
-                  {distinctOrigens.map((o) => (
-                    <option key={o.value} value={o.value}>
-                      {o.label} ({o.count})
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* 2. Cidade */}
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold uppercase tracking-wider text-gray-500 block">
-                  Cidade
-                </label>
-                <select
-                  value={filtroCidade}
-                  onChange={(e) => setFiltroCidade(e.target.value)}
-                  className={`w-full text-xs font-semibold px-2.5 py-1.5 rounded-lg border focus:outline-none focus:ring-1 focus:ring-emerald-500 cursor-pointer shadow-2xs transition-colors ${
-                    filtroCidade !== 'todos'
-                      ? 'bg-emerald-50 text-emerald-900 border-emerald-300 font-bold'
-                      : 'bg-gray-50/80 text-gray-700 border-gray-200'
-                  }`}
-                >
-                  <option value="todos">Todas as Cidades ({clientes.length})</option>
-                  {distinctCidades.map((c) => (
-                    <option key={c.value} value={c.value}>
-                      {c.label} ({c.count})
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* 3. Status Comercial */}
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold uppercase tracking-wider text-gray-500 block">
-                  Status Comercial
-                </label>
-                <select
-                  value={filtroStatus}
-                  onChange={(e) => setFiltroStatus(e.target.value)}
-                  className={`w-full text-xs font-semibold px-2.5 py-1.5 rounded-lg border focus:outline-none focus:ring-1 focus:ring-emerald-500 cursor-pointer shadow-2xs transition-colors ${
-                    filtroStatus !== 'todos'
-                      ? 'bg-amber-50 text-amber-900 border-amber-300 font-bold'
-                      : 'bg-gray-50/80 text-gray-700 border-gray-200'
-                  }`}
-                >
-                  <option value="todos">Todos os Status ({clientes.length})</option>
-                  {distinctStatuses.map((s) => (
-                    <option key={s.value} value={s.value}>
-                      {s.label} ({s.count})
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* 4. Produto */}
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold uppercase tracking-wider text-gray-500 block">
-                  Produto
-                </label>
-                <select
-                  value={filtroProduto}
-                  onChange={(e) => setFiltroProduto(e.target.value)}
-                  className={`w-full text-xs font-semibold px-2.5 py-1.5 rounded-lg border focus:outline-none focus:ring-1 focus:ring-emerald-500 cursor-pointer shadow-2xs transition-colors ${
-                    filtroProduto !== 'todos'
-                      ? 'bg-purple-50 text-purple-900 border-purple-300 font-bold'
-                      : 'bg-gray-50/80 text-gray-700 border-gray-200'
-                  }`}
-                >
-                  <option value="todos">Todos os Produtos ({clientes.length})</option>
-                  {distinctProdutos.map((p) => (
-                    <option key={p.value} value={p.value}>
-                      {p.label} ({p.count})
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-          </div>
+          )}
 
           {/* Table / Cards */}
           {processedClientes.length === 0 ? (
