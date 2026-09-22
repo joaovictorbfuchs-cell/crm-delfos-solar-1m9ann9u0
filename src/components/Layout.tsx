@@ -34,6 +34,9 @@ import { FichaClienteDrawer } from '@/components/FichaClienteDrawer'
 import { DelfosLogo } from '@/components/DelfosLogo'
 import { NotificacoesBell } from '@/components/NotificacoesBell'
 import { BarraBuscaGlobal } from '@/components/BarraBuscaGlobal'
+import packageJson from '../../package.json'
+
+const APP_VERSION = packageJson.version || '0.0.456'
 
 export default function Layout() {
   const { user, userProfile, isAdmin, isInstalador, logout } = useAuth()
@@ -467,7 +470,7 @@ export default function Layout() {
         {/* User Card in Sidebar bottom */}
         <div
           className={`border-t border-[#E5E7EB] bg-gray-50/50 ${
-            isSidebarCollapsed ? 'p-2 flex flex-col items-center gap-2' : 'p-4'
+            isSidebarCollapsed ? 'p-2 flex flex-col items-center gap-2' : 'p-3.5 pb-2.5'
           }`}
         >
           {isSidebarCollapsed ? (
@@ -486,40 +489,52 @@ export default function Layout() {
               >
                 <LogOut className="w-4 h-4" />
               </button>
+              <div
+                className="text-[10px] font-mono text-gray-400 text-center select-none pt-0.5 cursor-default"
+                title={`Delfos Solar v${APP_VERSION}`}
+              >
+                v{APP_VERSION}
+              </div>
             </div>
           ) : (
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3 overflow-hidden">
-                <div
-                  className={`w-9 h-9 rounded-full text-white flex items-center justify-center font-bold text-sm shrink-0 shadow-xs ${
-                    isAdmin ? 'bg-[#16A34A]' : 'bg-blue-600'
-                  }`}
+            <div>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3 overflow-hidden">
+                  <div
+                    className={`w-9 h-9 rounded-full text-white flex items-center justify-center font-bold text-sm shrink-0 shadow-xs ${
+                      isAdmin ? 'bg-[#16A34A]' : 'bg-blue-600'
+                    }`}
+                  >
+                    {userInitial}
+                  </div>
+                  <div className="truncate">
+                    <div className="text-xs font-bold text-gray-900 truncate flex items-center gap-1.5">
+                      <span>{displayName}</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 mt-0.5">
+                      <span
+                        className={`text-[10px] font-extrabold px-1.5 py-0.2 rounded uppercase tracking-wider ${
+                          isAdmin ? 'bg-emerald-100 text-emerald-800' : 'bg-blue-100 text-blue-800'
+                        }`}
+                      >
+                        {isAdmin ? 'Admin' : 'Instalador'}
+                      </span>
+                      <span className="text-[10px] text-gray-400 truncate">{displayEmail}</span>
+                    </div>
+                  </div>
+                </div>
+                <button
+                  onClick={handleLogout}
+                  className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors ml-1"
+                  title="Sair do sistema"
                 >
-                  {userInitial}
-                </div>
-                <div className="truncate">
-                  <div className="text-xs font-bold text-gray-900 truncate flex items-center gap-1.5">
-                    <span>{displayName}</span>
-                  </div>
-                  <div className="flex items-center gap-1.5 mt-0.5">
-                    <span
-                      className={`text-[10px] font-extrabold px-1.5 py-0.2 rounded uppercase tracking-wider ${
-                        isAdmin ? 'bg-emerald-100 text-emerald-800' : 'bg-blue-100 text-blue-800'
-                      }`}
-                    >
-                      {isAdmin ? 'Admin' : 'Instalador'}
-                    </span>
-                    <span className="text-[10px] text-gray-400 truncate">{displayEmail}</span>
-                  </div>
-                </div>
+                  <LogOut className="w-4 h-4" />
+                </button>
               </div>
-              <button
-                onClick={handleLogout}
-                className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors ml-1"
-                title="Sair do sistema"
-              >
-                <LogOut className="w-4 h-4" />
-              </button>
+              <div className="mt-2.5 pt-2 border-t border-gray-200/60 flex items-center justify-between text-[11px] font-mono text-gray-400 px-0.5">
+                <span>Delfos Solar</span>
+                <span>v{APP_VERSION}</span>
+              </div>
             </div>
           )}
         </div>
@@ -697,22 +712,28 @@ export default function Layout() {
             </nav>
 
             {/* Logout on mobile */}
-            <div className="p-4 border-t border-gray-200 bg-gray-50 flex items-center justify-between">
-              <div className="flex items-center gap-2 truncate">
-                <div className="w-8 h-8 rounded-full bg-[#16A34A] text-white flex items-center justify-center font-bold text-xs shrink-0">
-                  {userInitial}
+            <div className="p-4 border-t border-gray-200 bg-gray-50 flex flex-col gap-2.5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 truncate">
+                  <div className="w-8 h-8 rounded-full bg-[#16A34A] text-white flex items-center justify-center font-bold text-xs shrink-0">
+                    {userInitial}
+                  </div>
+                  <div className="truncate text-xs text-gray-800 font-medium">
+                    {user?.name || 'João Silva'}
+                  </div>
                 </div>
-                <div className="truncate text-xs text-gray-800 font-medium">
-                  {user?.name || 'João Silva'}
-                </div>
+                <button
+                  onClick={handleLogout}
+                  className="text-xs text-red-600 font-medium flex items-center gap-1 hover:underline"
+                >
+                  <LogOut className="w-3.5 h-3.5" />
+                  Sair
+                </button>
               </div>
-              <button
-                onClick={handleLogout}
-                className="text-xs text-red-600 font-medium flex items-center gap-1 hover:underline"
-              >
-                <LogOut className="w-3.5 h-3.5" />
-                Sair
-              </button>
+              <div className="flex items-center justify-between text-[11px] font-mono text-gray-400 pt-1 border-t border-gray-200/60">
+                <span>Delfos Solar</span>
+                <span>v{APP_VERSION}</span>
+              </div>
             </div>
           </div>
         </div>
