@@ -34,6 +34,7 @@ import {
   Copy,
   XCircle,
   RotateCcw,
+  Briefcase,
 } from 'lucide-react'
 import { useClientes } from '@/contexts/ClientesContext'
 import {

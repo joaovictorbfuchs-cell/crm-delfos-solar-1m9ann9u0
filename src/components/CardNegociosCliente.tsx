@@ -34,7 +34,7 @@ import {
   fetchNegociosByClienteId,
 } from '@/services/negociosService'
 import { formatCurrency } from '@/lib/formatters'
-import { toast } from '@/hooks/use-toast'
+import { toast } from 'sonner'
 
 export const ETAPAS_FUNIL_OPCOES: {
   value: EtapaFunilSelect
