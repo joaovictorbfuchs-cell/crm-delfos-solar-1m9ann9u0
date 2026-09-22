@@ -464,19 +464,16 @@ export default function Clientes() {
           </button>
         </div>
 
-        {/* Informação contextual rápida no topo da navegação */}
-        <div className="text-[11px] text-gray-500 hidden md:flex items-center gap-2 pr-2">
-          {activeSubTab === 'base' ? (
-            <span className="flex items-center gap-1">
-              <Users className="w-3.5 h-3.5 text-emerald-600" />
-              Gestão cadastral completa de clientes ativos e leads do CRM
-            </span>
-          ) : (
-            <span className="flex items-center gap-1 text-blue-700 font-medium">
-              <Sparkles className="w-3.5 h-3.5 text-blue-600" />
-              Contatos movidos do funil comercial e contatos externos
-            </span>
-          )}
+        {/* Botão Adicionar Novo no canto superior direito / contextual */}
+        <div className="flex items-center justify-end">
+          <button
+            type="button"
+            onClick={() => setIsModalNovoOpen(true)}
+            className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-[#16A34A] hover:bg-[#15803D] active:scale-[0.98] text-white text-sm font-bold rounded-xl shadow-sm hover:shadow-md transition-all shrink-0 cursor-pointer"
+          >
+            <Plus className="w-4 h-4 stroke-[2.5]" />
+            <span>Adicionar Novo</span>
+          </button>
         </div>
       </div>
 
@@ -488,88 +485,6 @@ export default function Clientes() {
       {/* Conteúdo da Sub-Aba 1: Base de Clientes */}
       {activeSubTab === 'base' && (
         <>
-          <div className="bg-white rounded-xl border border-gray-200/80 p-5 shadow-xs flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
-            <div>
-              <div className="flex items-center gap-2 flex-wrap">
-                <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-                  <Users className="w-5 h-5 text-emerald-600" />
-                  Base de Clientes
-                </h2>
-                <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
-                  {processedClientes.length} de {clientes.length} clientes
-                </span>
-                {sortField === 'nome' && sortDirection === 'asc' && (
-                  <span className="text-[11px] font-medium px-2 py-0.5 rounded-md bg-gray-100 text-gray-600 flex items-center gap-1">
-                    <ArrowUpAZ className="w-3.5 h-3.5 text-emerald-600" />
-                    Ordem Alfabética (A→Z)
-                  </span>
-                )}
-              </div>
-              <p className="text-xs text-gray-500 mt-0.5">
-                Total de {clientes.length} clientes cadastrados na região norte do RS e oeste de SC
-                (PF e PJ)
-              </p>
-            </div>
-
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-              {/* Search Input with instant filter */}
-              <div className="relative w-full sm:w-72">
-                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-400">
-                  <Search className="w-4 h-4" />
-                </div>
-                <input
-                  type="text"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  placeholder="Buscar nome, CPF/CNPJ, cidade, origem..."
-                  className="w-full pl-10 pr-8 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white transition-all"
-                />
-                {searchTerm && (
-                  <button
-                    type="button"
-                    onClick={() => setSearchTerm('')}
-                    className="absolute inset-y-0 right-0 pr-2.5 flex items-center text-gray-400 hover:text-gray-600"
-                    title="Limpar busca"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                )}
-              </div>
-
-              {/* Botão Importar Acessos (Apps Inversores) */}
-              <button
-                type="button"
-                onClick={() => navigate('/importar-acessos')}
-                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white text-sm font-bold rounded-xl shadow-xs transition-all shrink-0 cursor-pointer"
-                title="Importar acessos e senhas aos apps de monitoramento (Growatt, Solarman, Solis, etc.)"
-              >
-                <Zap className="w-4 h-4" />
-                <span>Importar Acessos</span>
-              </button>
-
-              {/* Botão Importar Planilha e Adicionar Novo */}
-              <button
-                type="button"
-                onClick={() => navigate('/importar-clientes')}
-                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 text-sm font-bold rounded-xl transition-all shrink-0 cursor-pointer"
-                title="Importar do Pipedrive ou Conta Azul"
-              >
-                <Upload className="w-4 h-4 text-emerald-700" />
-                <span>Importar Clientes</span>
-              </button>
-
-              {/* Botão Adicionar Novo em Destaque no Topo */}
-              <button
-                type="button"
-                onClick={() => setIsModalNovoOpen(true)}
-                className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-[#16A34A] hover:bg-[#15803D] active:scale-[0.98] text-white text-sm font-bold rounded-xl shadow-md hover:shadow-lg transition-all shrink-0 cursor-pointer"
-              >
-                <Plus className="w-4 h-4 stroke-[2.5]" />
-                <span>Adicionar Novo</span>
-              </button>
-            </div>
-          </div>
-
           {/* Barra de Filtros Rápida / Mobile e Indicador de Filtros Ativos */}
           <div className="bg-white rounded-xl border border-gray-200/80 p-3 sm:p-3.5 shadow-xs space-y-2.5">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
