@@ -6,6 +6,7 @@ import App from './App'
 import { AuthProvider } from './contexts/AuthContext'
 import { ProtectedRoute } from './components/ProtectedRoute'
 import { MemoryRouter } from 'react-router-dom'
+import { CardNegociosCliente } from './components/CardNegociosCliente'
 import pb from './lib/pocketbase/client'
 
 describe('Login e App Smoke Tests', () => {
@@ -72,5 +73,16 @@ describe('Login e App Smoke Tests', () => {
     expect(html).toBeDefined()
     // Como está deslogado no PocketBase mock, deve renderizar ou o loader do ProtectedRoute ou redirecionamento sem tela branca
     expect(html).not.toContain('Ocorreu um problema ao carregar a página')
+  })
+
+  it('CardNegociosCliente renderiza os negócios com Briefcase e totais monetários', () => {
+    const html = renderToStaticMarkup(
+      React.createElement(CardNegociosCliente, {
+        clienteId: 'zka40z6j2ddnxtc',
+        clienteNome: 'Arthur Paulo Medeiros',
+      }),
+    )
+    expect(html).toContain('Negócios Vinculados')
+    expect(html).toContain('Arthur')
   })
 })

@@ -307,6 +307,41 @@ export const FichaClienteDrawer: React.FC = () => {
   // Ref para a seção de detalhes cadastrais e técnicos
   const detalhesSectionRef = useRef<HTMLDivElement>(null)
 
+  // Ação para rolar até a seção de Negócios Vinculados
+  const handleRolarParaNegocios = () => {
+    setActiveClientTab('historico')
+    setDetalhesOpen(true)
+
+    const scrollParaSecao = (tentativa = 0) => {
+      const container = scrollContainerRef.current
+      const el =
+        document.getElementById('secao-negocios-cliente') ||
+        detalhesSectionRef.current ||
+        document.getElementById('secao-detalhes-cadastrais-tecnicos')
+
+      if (el && container) {
+        const containerRect = container.getBoundingClientRect()
+        const elRect = el.getBoundingClientRect()
+        const relativeTop = elRect.top - containerRect.top + container.scrollTop
+
+        container.scrollTo({
+          top: Math.max(0, relativeTop - 12),
+          behavior: 'smooth',
+        })
+      } else if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      } else if (tentativa < 10) {
+        requestAnimationFrame(() => scrollParaSecao(tentativa + 1))
+      }
+    }
+
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        scrollParaSecao()
+      })
+    })
+  }
+
   // Ação robusta para alternar/abrir a seção e rolar suavemente até ela
   const handleToggleDetalhes = () => {
     if (activeClientTab === 'historico' && detalhesOpen) {
@@ -3264,10 +3299,12 @@ export const FichaClienteDrawer: React.FC = () => {
                       </div>
 
                       {/* Negócios Vinculados ao Cliente (Separação Cadastral vs Oportunidades Comerciais) */}
-                      <CardNegociosCliente
-                        clienteId={selectedCliente.id}
-                        clienteNome={selectedCliente.nome}
-                      />
+                      <div id="secao-negocios-cliente">
+                        <CardNegociosCliente
+                          clienteId={selectedCliente.id}
+                          clienteNome={selectedCliente.nome}
+                        />
+                      </div>
 
                       {/* Usinas Fotovoltaicas do Cliente integradas na Ficha Cadastral */}
                       <SecaoUsinasCliente
@@ -3654,7 +3691,7 @@ export const FichaClienteDrawer: React.FC = () => {
                 </span>
                 <button
                   type="button"
-                  onClick={handleToggleDetalhes}
+                  onClick={handleRolarParaNegocios}
                   className="text-[10px] text-amber-700 hover:text-amber-900 font-bold underline"
                 >
                   Ver todos

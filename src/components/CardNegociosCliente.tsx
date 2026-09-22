@@ -356,6 +356,7 @@ export const ModalFichaNegocio: React.FC<ModalFichaNegocioProps> = ({
 
   const [isSaving, setIsSaving] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false)
 
   // Atualiza estados quando o negócio selecionado muda
   useEffect(() => {
@@ -412,14 +413,12 @@ export const ModalFichaNegocio: React.FC<ModalFichaNegocioProps> = ({
   }
 
   const handleExcluir = async () => {
-    if (!window.confirm('Tem certeza que deseja excluir este negócio vinculado ao cliente?')) {
-      return
-    }
     setIsDeleting(true)
     try {
       await deleteNegocio(negocio.id)
       toast.success('Negócio excluído com sucesso.')
       onSaved()
+      setConfirmDeleteOpen(false)
       onOpenChange(false)
     } catch (err) {
       console.error('Erro ao excluir negócio:', err)
@@ -656,7 +655,7 @@ export const ModalFichaNegocio: React.FC<ModalFichaNegocioProps> = ({
           <Button
             type="button"
             variant="ghost"
-            onClick={handleExcluir}
+            onClick={() => setConfirmDeleteOpen(true)}
             disabled={isDeleting || isSaving}
             className="text-rose-600 hover:text-rose-700 hover:bg-rose-50 text-xs font-bold"
           >
@@ -684,6 +683,36 @@ export const ModalFichaNegocio: React.FC<ModalFichaNegocioProps> = ({
             </Button>
           </div>
         </DialogFooter>
+
+        {/* Confirmação de exclusão sem depender de window.confirm */}
+        {confirmDeleteOpen && (
+          <div className="mt-2 p-3 bg-rose-50 border border-rose-200 rounded-xl flex items-center justify-between gap-3 text-xs">
+            <span className="font-semibold text-rose-900">
+              Confirmar exclusão deste negócio definitivamente?
+            </span>
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => setConfirmDeleteOpen(false)}
+                className="h-7 text-xs"
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="destructive"
+                disabled={isDeleting}
+                onClick={handleExcluir}
+                className="h-7 text-xs font-bold bg-rose-600 hover:bg-rose-700"
+              >
+                {isDeleting ? 'Excluindo...' : 'Sim, excluir'}
+              </Button>
+            </div>
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   )
