@@ -13,8 +13,9 @@
     "lint:fix": "oxlint src --fix",
     "format": "oxfmt",
     "format:check": "oxfmt --check",
+    "export-schema": "node scripts/exportSchema.js",
     "preview": "vite preview",
-    "test": "echo \"there are no tests for this project\" && exit 0",
+    "test": "node scripts/exportSchema.js && vitest run src/lib/exportSchema.test.ts",
     "test:watch": "echo \"there are no tests for this project\" && exit 0"
   },
   "dependencies": {
