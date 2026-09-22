@@ -1040,24 +1040,24 @@ export const LinhaDoTempoUnificada: React.FC<LinhaDoTempoUnificadaProps> = ({
                           )
                         })()}
 
-                      {/* Botão de abrir detalhes com efeito hover */}
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          onItemClick(item)
-                        }}
-                        className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-bold text-emerald-700 hover:text-emerald-900 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-lg transition-colors"
-                      >
-                        <Pencil className="w-3 h-3 text-emerald-600" />
-                        <span>
-                          {isAtividadeAutoLeitura(item.rawAtividade) ||
-                          (item.titulo && item.titulo.toLowerCase().includes('auto leitura'))
-                            ? 'Cronograma RGE'
-                            : 'Detalhes / Editar'}
-                        </span>
-                        <ChevronRight className="w-3 h-3 ml-0.5" />
-                      </button>
+                      {/* Botão de abrir detalhes com efeito hover (oculto para Auto Leitura RGE conforme solicitado pelo usuário) */}
+                      {!(
+                        isAtividadeAutoLeitura(item.rawAtividade) ||
+                        (item.titulo && item.titulo.toLowerCase().includes('auto leitura'))
+                      ) && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            onItemClick(item)
+                          }}
+                          className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-bold text-emerald-700 hover:text-emerald-900 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-lg transition-colors"
+                        >
+                          <Pencil className="w-3 h-3 text-emerald-600" />
+                          <span>Detalhes / Editar</span>
+                          <ChevronRight className="w-3 h-3 ml-0.5" />
+                        </button>
+                      )}
 
                       {/* Botão Ver PDF com Download para Procuração Particular O&M */}
                       {(item.titulo === 'Procuração Particular O&M Gerada' ||
