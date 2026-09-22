@@ -15,7 +15,6 @@ import {
   Send,
   MapPin,
   AlertCircle,
-  ArrowUpDown,
   ArrowUp,
   ArrowDown,
   RotateCcw,
@@ -177,21 +176,6 @@ export const Orcamentos: React.FC = () => {
     orcamento: OrcamentoSolarCalculado
     cliente: Cliente | null
   } | null>(null)
-
-  // Métricas agregadas
-  const metricas = useMemo(() => {
-    const total = orcamentosSolar.length
-    const aprovados = orcamentosSolar.filter((o) => o.status === 'Aprovado').length
-    const enviados = orcamentosSolar.filter((o) => o.status === 'Enviado ao cliente').length
-    const elaboracao = orcamentosSolar.filter((o) => o.status === 'Em elaboração').length
-    const valorTotalPipeline = orcamentosSolar.reduce(
-      (acc, o) => acc + (o.valor_investimento || 0),
-      0,
-    )
-    const kwpTotal = orcamentosSolar.reduce((acc, o) => acc + (o.potencia_kwp || 0), 0)
-
-    return { total, aprovados, enviados, elaboracao, valorTotalPipeline, kwpTotal }
-  }, [orcamentosSolar])
 
   // Filtragem e Ordenação
   const orcamentosFiltrados = useMemo(() => {
@@ -545,30 +529,11 @@ export const Orcamentos: React.FC = () => {
                   CRM Delfos
                 </span>
               </div>
-              <p className="text-xs text-gray-500">
-                Gestão comercial avançada, acompanhamento de consultores e geração de propostas
-                técnicas
-              </p>
             </div>
           </div>
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
-          <button
-            type="button"
-            onClick={handleRefresh}
-            disabled={isRefreshing}
-            className="inline-flex items-center gap-1.5 px-3 py-2 bg-white hover:bg-gray-50 border border-gray-200 text-gray-700 text-xs font-semibold rounded-xl shadow-2xs transition-colors disabled:opacity-50"
-            title="Recarregar dados do CRM"
-          >
-            <RefreshCw
-              className={`w-3.5 h-3.5 text-emerald-600 ${isRefreshing ? 'animate-spin' : ''}`}
-            />
-            <span className="hidden sm:inline">
-              {isRefreshing ? 'Recarregando...' : 'Recarregar'}
-            </span>
-          </button>
-
           <button
             onClick={() => handleNovoOrcamento()}
             className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-[#16A34A] hover:bg-[#15803D] text-white text-xs font-bold rounded-xl shadow-xs transition-all hover:shadow"
@@ -578,7 +543,6 @@ export const Orcamentos: React.FC = () => {
           </button>
         </div>
       </div>
-
       {/* Banner de erro quando houver falha ao carregar dados do CRM */}
       {error && (
         <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-center justify-between gap-3 text-xs text-red-800">
@@ -622,56 +586,6 @@ export const Orcamentos: React.FC = () => {
           </button>
         </div>
       )}
-
-      {/* Cards de Métricas do Topo */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <div className="bg-white p-3.5 rounded-xl border border-gray-200 shadow-2xs">
-          <span className="text-[11px] font-semibold text-gray-500 uppercase block">
-            Total de Orçamentos
-          </span>
-          <div className="flex items-baseline gap-2 mt-1">
-            <span className="text-2xl font-black text-gray-900">{metricas.total}</span>
-            <span className="text-xs font-bold text-emerald-700">
-              {metricas.kwpTotal.toFixed(1)} kWp total
-            </span>
-          </div>
-        </div>
-
-        <div className="bg-white p-3.5 rounded-xl border border-gray-200 shadow-2xs">
-          <span className="text-[11px] font-semibold text-gray-500 uppercase block">
-            Valor em Negociação
-          </span>
-          <div className="mt-1">
-            <span className="text-xl sm:text-2xl font-black text-emerald-700">
-              {formatCurrency(metricas.valorTotalPipeline)}
-            </span>
-          </div>
-        </div>
-
-        <div className="bg-white p-3.5 rounded-xl border border-gray-200 shadow-2xs">
-          <span className="text-[11px] font-semibold text-gray-500 uppercase block">
-            Enviados / Em Aberto
-          </span>
-          <div className="flex items-baseline gap-2 mt-1">
-            <span className="text-2xl font-black text-blue-700">{metricas.enviados}</span>
-            <span className="text-xs text-gray-500">({metricas.elaboracao} em elaboração)</span>
-          </div>
-        </div>
-
-        <div className="bg-white p-3.5 rounded-xl border border-gray-200 shadow-2xs">
-          <span className="text-[11px] font-semibold text-gray-500 uppercase block">
-            Aprovados / Fechados
-          </span>
-          <div className="flex items-baseline gap-2 mt-1">
-            <span className="text-2xl font-black text-emerald-600">{metricas.aprovados}</span>
-            <span className="text-xs font-bold text-emerald-700">
-              {metricas.total > 0
-                ? `${Math.round((metricas.aprovados / metricas.total) * 100)}% conversão`
-                : '0%'}
-            </span>
-          </div>
-        </div>
-      </div>
 
       {/* Barra de Filtros Avançados e Busca Rápida */}
       <div className="bg-white rounded-2xl border border-gray-200 shadow-2xs p-4 sm:p-5 space-y-4">
