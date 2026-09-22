@@ -55,13 +55,31 @@ export const ModalNovoContratoOM: React.FC<ModalNovoContratoOMProps> = ({ isOpen
       const vMensal = Number(valorMensal) || 0
       const vAnual = vMensal * 12
 
+      // Formatar datas para formato ISO ou vazio se inválida
+      const formatIsoDate = (dStr: string) => {
+        if (!dStr) return undefined
+        const parsed = new Date(dStr)
+        return isNaN(parsed.getTime()) ? undefined : parsed.toISOString()
+      }
+
       // Determinar status inicial baseado no vencimento
-      const diasRestantes = Math.ceil(
-        (new Date(dataVencimento).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24),
-      )
       let status: OMStatusPlano = 'Ativo'
-      if (diasRestantes <= 0) status = 'Vencido'
-      else if (diasRestantes <= 30) status = 'Vencendo em 30 dias'
+      if (dataVencimento) {
+        const dVenc = new Date(dataVencimento)
+        if (!isNaN(dVenc.getTime())) {
+          const diasRestantes = Math.ceil(
+            (dVenc.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24),
+          )
+          if (diasRestantes <= 0) status = 'Vencido'
+          else if (diasRestantes <= 30) status = 'Vencendo em 30 dias'
+        }
+      }
+
+      const isoInicio = formatIsoDate(dataInicio) || new Date().toISOString()
+      const isoVencimento =
+        formatIsoDate(dataVencimento) ||
+        new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString()
+      const isoProxData = formatIsoDate(proximaData)
 
       await addContratoOM({
         cliente_id: clienteId,
@@ -69,11 +87,11 @@ export const ModalNovoContratoOM: React.FC<ModalNovoContratoOMProps> = ({ isOpen
         status,
         valor_mensal: vMensal,
         valor_anual: vAnual,
-        data_inicio: new Date(dataInicio).toISOString(),
-        data_vencimento: new Date(dataVencimento).toISOString(),
-        proxima_atividade_titulo: proximaTitulo,
-        proxima_atividade_data: new Date(proximaData).toISOString(),
-        observacoes,
+        data_inicio: isoInicio,
+        data_vencimento: isoVencimento,
+        proxima_atividade_titulo: proximaTitulo?.trim() || undefined,
+        proxima_atividade_data: isoProxData,
+        observacoes: observacoes?.trim() || undefined,
         servicos_realizados: ['Monitoramento da geração em horários comerciais'],
         servicos_agendados: [
           'Relatório mensal de desempenho',

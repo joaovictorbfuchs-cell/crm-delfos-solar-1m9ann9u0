@@ -1041,12 +1041,12 @@ export async function fetchContratoOMByClienteId(clienteId: string): Promise<Con
 export async function createContratoOM(data: {
   cliente_id: string
   numero_contrato?: string
-  plano: ContratoOM['plano']
-  status: ContratoOM['status']
-  valor_mensal: number
-  valor_anual: number
-  data_inicio: string
-  data_vencimento: string
+  plano?: ContratoOM['plano']
+  status?: ContratoOM['status']
+  valor_mensal?: number
+  valor_anual?: number
+  data_inicio?: string
+  data_vencimento?: string
   proxima_atividade_data?: string
   proxima_atividade_titulo?: string
   servicos_realizados?: string[]
@@ -1057,7 +1057,39 @@ export async function createContratoOM(data: {
   data_encerramento?: string
   observacoes_encerramento?: string
 }): Promise<ContratoOM> {
-  const record = await pb.collection('contratos_om').create<ContratoOM>(data, {
+  // Limpar campos undefined / strings vazias desnecessárias para evitar 400 do PocketBase
+  const payload: Record<string, any> = {
+    cliente_id: data.cliente_id,
+    plano: data.plano || 'Essencial',
+    status: data.status || 'Ativo',
+    valor_mensal: typeof data.valor_mensal === 'number' ? data.valor_mensal : 0,
+    valor_anual:
+      typeof data.valor_anual === 'number'
+        ? data.valor_anual
+        : typeof data.valor_mensal === 'number'
+          ? data.valor_mensal * 12
+          : 0,
+    data_inicio: data.data_inicio || new Date().toISOString(),
+    data_vencimento:
+      data.data_vencimento || new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
+  }
+
+  if (data.numero_contrato?.trim()) payload.numero_contrato = data.numero_contrato.trim()
+  if (data.proxima_atividade_data) payload.proxima_atividade_data = data.proxima_atividade_data
+  if (data.proxima_atividade_titulo?.trim())
+    payload.proxima_atividade_titulo = data.proxima_atividade_titulo.trim()
+  if (data.servicos_realizados && data.servicos_realizados.length > 0)
+    payload.servicos_realizados = data.servicos_realizados
+  if (data.servicos_agendados && data.servicos_agendados.length > 0)
+    payload.servicos_agendados = data.servicos_agendados
+  if (data.observacoes?.trim()) payload.observacoes = data.observacoes.trim()
+  if (data.status_encerramento) payload.status_encerramento = data.status_encerramento
+  if (data.motivo_encerramento) payload.motivo_encerramento = data.motivo_encerramento
+  if (data.data_encerramento) payload.data_encerramento = data.data_encerramento
+  if (data.observacoes_encerramento?.trim())
+    payload.observacoes_encerramento = data.observacoes_encerramento.trim()
+
+  const record = await pb.collection('contratos_om').create<ContratoOM>(payload, {
     expand: 'cliente_id',
   })
   return record
