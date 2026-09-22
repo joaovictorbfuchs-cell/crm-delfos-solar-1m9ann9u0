@@ -82,23 +82,11 @@ export const Atividades: React.FC = () => {
 
   const handleToggleStatus = async (id: string, currentStatus: string) => {
     const target = atividades.find((a) => a.id === id)
-    // Se for auto leitura e for concluir, validar se os 3 requisitos foram atendidos
-    if (target && isAtividadeAutoLeitura(target) && currentStatus !== 'concluida') {
-      let dados: any = {}
-      if (typeof target.auto_leitura_dados === 'object') dados = target.auto_leitura_dados || {}
-      else if (typeof target.auto_leitura_dados === 'string') {
-        try {
-          dados = JSON.parse(target.auto_leitura_dados)
-        } catch {
-          /* intentionally ignored */
-        }
-      }
-      const atendeu = dados?.fotosEnviadas && dados?.valoresInformados && dados?.protocoloRealizado
-      if (!atendeu) {
-        // Abrir modal de auto leitura para que o usuário informe os 3 requisitos
-        setAutoLeituraModalAtividade(target)
-        return
-      }
+    // Se for auto leitura, o toggle sempre deve abrir o ModalAutoLeituraRGE para conferência e validação
+    // dos requisitos, impedindo a conclusão direta desassistida.
+    if (target && isAtividadeAutoLeitura(target)) {
+      setAutoLeituraModalAtividade(target)
+      return
     }
     const nextStatus: AtividadeStatus = currentStatus === 'concluida' ? 'pendente' : 'concluida'
     await updateAtividadeStatus(id, nextStatus)
@@ -454,8 +442,9 @@ export const Atividades: React.FC = () => {
                   <div
                     key={atv.id}
                     className={`relative ${isAtividadeAutoLeitura(atv) ? 'cursor-pointer' : ''}`}
-                    onClick={() => {
+                    onClick={(e) => {
                       if (isAtividadeAutoLeitura(atv)) {
+                        e.stopPropagation()
                         setAutoLeituraModalAtividade(atv)
                       }
                     }}

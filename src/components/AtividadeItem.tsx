@@ -66,7 +66,14 @@ export const AtividadeItem: React.FC<AtividadeItemProps> = ({
             {onToggleStatus && atividade.tipo !== 'mudanca_estagio' && (
               <button
                 type="button"
-                onClick={() => onToggleStatus(atividade.id, atividade.status || 'pendente')}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  if (isAutoLeitura && onOpenDetalhes) {
+                    onOpenDetalhes(atividade)
+                    return
+                  }
+                  onToggleStatus(atividade.id, atividade.status || 'pendente')
+                }}
                 className={`flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded transition-colors ${
                   isConcluida
                     ? 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200'

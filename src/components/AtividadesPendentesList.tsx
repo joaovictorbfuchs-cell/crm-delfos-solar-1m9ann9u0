@@ -222,11 +222,13 @@ export const AtividadesPendentesList: React.FC<AtividadesPendentesListProps> = (
                       type="button"
                       onClick={(e) => {
                         e.stopPropagation()
-                        if (isAutoLeitura && onOpenAutoLeitura && !isConcluida) {
-                          onOpenAutoLeitura(atv)
-                        } else {
-                          onToggleStatus(atv.id, atv.status || 'pendente')
+                        if (isAutoLeitura) {
+                          if (onOpenAutoLeitura) {
+                            onOpenAutoLeitura(atv)
+                          }
+                          return
                         }
+                        onToggleStatus(atv.id, atv.status || 'pendente')
                       }}
                       className="mt-0.5 text-gray-400 hover:text-emerald-600 transition-colors shrink-0"
                       title={isConcluida ? 'Marcar como pendente' : 'Marcar como concluída'}

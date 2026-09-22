@@ -11,11 +11,21 @@ export function isAtividadeAutoLeitura(
 ): boolean {
   if (!atv) return false
   const tipo = (atv.tipo || '').toLowerCase().trim()
-  if (tipo === 'auto_leitura_rge' || tipo.includes('auto_leitura')) {
+  if (
+    tipo === 'auto_leitura_rge' ||
+    tipo.includes('auto_leitura') ||
+    tipo.includes('autoleitura')
+  ) {
     return true
   }
   const titulo = (atv.titulo || '').toLowerCase().trim()
-  if (titulo.includes('auto leitura') || titulo.includes('auto-leitura')) {
+  if (
+    titulo.includes('auto leitura') ||
+    titulo.includes('auto-leitura') ||
+    titulo.includes('autoleitura') ||
+    titulo.includes('leitura rge') ||
+    titulo.includes('leitura - rge')
+  ) {
     return true
   }
   return false
