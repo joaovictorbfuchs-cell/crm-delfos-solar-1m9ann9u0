@@ -31,7 +31,6 @@ import {
   type CronogramaDataItem,
   type AutoLeituraDadosConclusao,
   salvarAtividadeAutoLeitura,
-  dispararGeracaoLembretesBackend,
   buscarHistoricoAutoLeituraCliente,
 } from '@/services/autoLeituraService'
 
@@ -203,7 +202,7 @@ export const ModalAutoLeituraRGE: React.FC<ModalAutoLeituraRGEProps> = ({
     setNovaObs('')
     setFeedbackMsg({
       tipo: 'sucesso',
-      texto: `Data ${novoItem.data} cadastrada com Responsável: ${novoResponsavel}. Lembretes serão gerados automaticamente para o Cliente.`,
+      texto: `Data ${novoItem.data} cadastrada com Responsável: ${novoResponsavel}. Salve as alterações para persistir.`,
     })
   }
 
@@ -251,15 +250,12 @@ export const ModalAutoLeituraRGE: React.FC<ModalAutoLeituraRGEProps> = ({
         status: statusFinal,
       })
 
-      // Disparar sincronização no backend para ler as datas, excluir Distribuidora e gerar lembretes de Cliente
-      await dispararGeracaoLembretesBackend(atividade.id)
-
       setStatus(statusFinal)
       setFeedbackMsg({
         tipo: 'sucesso',
         texto: tentarConcluir
           ? 'Atividade concluída com sucesso!'
-          : 'Alterações salvas e cronograma sincronizado!',
+          : 'Alterações salvas com sucesso!',
       })
 
       if (onUpdated) {
@@ -542,8 +538,8 @@ export const ModalAutoLeituraRGE: React.FC<ModalAutoLeituraRGEProps> = ({
                   Datas do Cronograma ({datasCronograma.length})
                 </span>
                 <span className="text-[11px] text-gray-500">
-                  Datas de <strong>Cliente</strong> geram lembretes 2 dias antes;{' '}
-                  <strong>Distribuidora</strong> são ignoradas.
+                  Controle manual das datas de leitura de <strong>Cliente</strong> e{' '}
+                  <strong>Distribuidora</strong>.
                 </span>
               </div>
 
@@ -559,7 +555,7 @@ export const ModalAutoLeituraRGE: React.FC<ModalAutoLeituraRGEProps> = ({
                       <tr className="bg-gray-50/80 border-b border-gray-200 text-[11px] font-bold text-gray-600 uppercase tracking-wide">
                         <th className="p-2.5">Data Prevista</th>
                         <th className="p-2.5">Responsável</th>
-                        <th className="p-2.5">Lembrete Automático</th>
+                        <th className="p-2.5">Observação</th>
                         <th className="p-2.5 text-right">Ação</th>
                       </tr>
                     </thead>
@@ -582,19 +578,12 @@ export const ModalAutoLeituraRGE: React.FC<ModalAutoLeituraRGEProps> = ({
                               ) : (
                                 <span className="inline-flex items-center gap-1 font-semibold text-slate-700 bg-slate-100 border border-slate-300 px-2 py-0.5 rounded-full text-[11px]">
                                   <Building className="w-3 h-3 text-slate-500" />
-                                  Distribuidora (dispensa lembrete)
+                                  Distribuidora
                                 </span>
                               )}
                             </td>
-                            <td className="p-2.5 text-[11px]">
-                              {isCliente ? (
-                                <span className="text-emerald-800 font-semibold flex items-center gap-1">
-                                  <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                                  Gera lembrete 2 dias antes + WhatsApp
-                                </span>
-                              ) : (
-                                <span className="text-gray-400">Não gera lembrete</span>
-                              )}
+                            <td className="p-2.5 text-[11px] text-gray-600">
+                              {item.observacao || '—'}
                             </td>
                             <td className="p-2.5 text-right">
                               <button
@@ -616,19 +605,17 @@ export const ModalAutoLeituraRGE: React.FC<ModalAutoLeituraRGEProps> = ({
             </div>
           </div>
 
-          {/* SEÇÃO 3 & 4: Regras de Mensagem Z-API e Lembretes */}
-          <div className="bg-emerald-50/70 rounded-2xl border border-emerald-200 p-4 space-y-2 text-xs">
-            <div className="flex items-center gap-2 font-bold text-emerald-950">
-              <MessageSquare className="w-4 h-4 text-emerald-700" />
-              <span>Automação WhatsApp Z-API (Disparo 2 dias antes)</span>
+          {/* Orientações para a Auto Leitura */}
+          <div className="bg-amber-50/60 rounded-2xl border border-amber-200 p-4 space-y-2 text-xs">
+            <div className="flex items-center gap-2 font-bold text-amber-950">
+              <MessageSquare className="w-4 h-4 text-amber-700" />
+              <span>Instruções e Modelo de Solicitação ao Cliente</span>
             </div>
-            <p className="text-emerald-900 leading-relaxed text-[11px]">
-              Quando faltarem <strong>2 dias</strong> para a data da leitura do Cliente, o sistema
-              agenda a tarefa <code>"Lembrete Auto Leitura RGE - [data]"</code> com status{' '}
-              <strong>Pendente</strong> e envia automaticamente a mensagem no WhatsApp oficial do
-              cliente:
+            <p className="text-amber-900 leading-relaxed text-[11px]">
+              Para orientar o cliente ou realizar a conferência manual, solicite os dados do medidor
+              utilizando o modelo de texto abaixo:
             </p>
-            <div className="bg-white/90 p-3 rounded-xl border border-emerald-200/80 font-mono text-[11px] text-gray-800 whitespace-pre-wrap leading-relaxed shadow-2xs">
+            <div className="bg-white/90 p-3 rounded-xl border border-amber-200/80 font-mono text-[11px] text-gray-800 whitespace-pre-wrap leading-relaxed shadow-2xs">
               {`Olá, boa tarde!
 Chegou o momento da leitura do seu medidor de energia na instalação da ${clienteAtual?.nome || '[Nome da Usina ou Cliente]'}.
 Instalação consumidora: ${clienteAtual?.uc || '[Número da Instalação]'} Endereço: ${clienteAtual?.endereco || '[Endereço da Instalação]'}
@@ -639,13 +626,13 @@ Após o envio das imagens, pedimos também que nos informe por escrito os valore
             </div>
           </div>
 
-          {/* SEÇÃO 5: Requisitos Obrigatórios para Conclusão da Atividade */}
+          {/* SEÇÃO: Requisitos Obrigatórios para Conclusão da Atividade */}
           <div className="bg-white rounded-2xl border border-gray-200 p-4 space-y-4 shadow-xs">
             <div className="flex items-center justify-between border-b border-gray-100 pb-2.5">
               <div className="flex items-center gap-2">
                 <ShieldCheck className="w-4 h-4 text-emerald-700" />
                 <h3 className="text-xs sm:text-sm font-bold text-gray-900">
-                  5. Requisitos de Conclusão da Auto Leitura
+                  Requisitos de Conclusão da Auto Leitura
                 </h3>
               </div>
               <span

@@ -175,27 +175,6 @@ export async function salvarAtividadeAutoLeitura(
 }
 
 /**
- * Chama o backend para gerar automaticamente os lembretes para datas onde o responsável é 'Cliente'
- */
-export async function dispararGeracaoLembretesBackend(
-  atividadeId: string,
-): Promise<{ ok: boolean; message: string; lembretesCriados?: number }> {
-  try {
-    const res = await pb.send<{ ok: boolean; message: string; lembretesCriados?: number }>(
-      '/backend/v1/auto-leitura/gerar-lembretes',
-      {
-        method: 'POST',
-        body: { atividade_id: atividadeId },
-      },
-    )
-    return res
-  } catch (err) {
-    console.warn('Erro ao chamar /backend/v1/auto-leitura/gerar-lembretes:', err)
-    return { ok: false, message: 'Não foi possível sincronizar lembretes no backend.' }
-  }
-}
-
-/**
  * Busca o histórico de todas as atividades de Auto Leitura - RGE já realizadas (ou existentes) para um determinado cliente
  */
 export async function buscarHistoricoAutoLeituraCliente(clienteId: string): Promise<Atividade[]> {
