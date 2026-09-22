@@ -26,6 +26,7 @@ import { calcularDiasRestantesDefensivo } from '@/lib/omCategorizacao'
 import type { OMPlanoTipo, OMStatusPlano, PropostaOM } from '@/types/crm'
 import { ModalGerarProcuracaoOM } from './ModalGerarProcuracaoOM'
 import { ModalGerarContratoOM } from './ModalGerarContratoOM'
+import { InlineEditField } from './InlineEditField'
 import { toast } from 'sonner'
 
 interface FichaClienteOMProps {
@@ -58,6 +59,72 @@ export const FichaClienteOM: React.FC<FichaClienteOMProps> = ({ clienteId, onNav
   const [isEditingPlano, setIsEditingPlano] = useState(false)
   const [editPlanoSelecionado, setEditPlanoSelecionado] = useState<OMPlanoTipo>('Essencial')
   const [isSavingPlano, setIsSavingPlano] = useState(false)
+
+  // Salvar datas de vigência do Contrato O&M
+  const handleSaveDataInicio = async (val: string | number) => {
+    if (!contrato) {
+      toast.info('Nenhum contrato O&M ativo para atualizar a data de início.')
+      return
+    }
+    const strVal = String(val).trim()
+    let isoValue = ''
+    if (strVal) {
+      const match = strVal.match(/^\d{4}-\d{2}-\d{2}/)
+      if (match) {
+        // Criar data local a meio-dia UTC para evitar deslocamento de fuso
+        isoValue = new Date(`${match[0]}T12:00:00.000Z`).toISOString()
+      } else {
+        const parsed = new Date(strVal)
+        isoValue = isNaN(parsed.getTime()) ? '' : parsed.toISOString()
+      }
+    }
+    try {
+      await updateContratoOM(contrato.id, {
+        data_inicio: isoValue,
+      })
+      toast.success(
+        isoValue
+          ? `Início da vigência atualizado para ${formatDate(isoValue)}.`
+          : 'Início da vigência limpo com sucesso.',
+      )
+    } catch (err: unknown) {
+      console.error('Erro ao atualizar início da vigência O&M:', err)
+      toast.error(err instanceof Error ? err.message : 'Erro ao atualizar início da vigência.')
+      throw err
+    }
+  }
+
+  const handleSaveDataVencimento = async (val: string | number) => {
+    if (!contrato) {
+      toast.info('Nenhum contrato O&M ativo para atualizar o vencimento da vigência.')
+      return
+    }
+    const strVal = String(val).trim()
+    let isoValue = ''
+    if (strVal) {
+      const match = strVal.match(/^\d{4}-\d{2}-\d{2}/)
+      if (match) {
+        isoValue = new Date(`${match[0]}T12:00:00.000Z`).toISOString()
+      } else {
+        const parsed = new Date(strVal)
+        isoValue = isNaN(parsed.getTime()) ? '' : parsed.toISOString()
+      }
+    }
+    try {
+      await updateContratoOM(contrato.id, {
+        data_vencimento: isoValue,
+      })
+      toast.success(
+        isoValue
+          ? `Vencimento da vigência atualizado para ${formatDate(isoValue)}.`
+          : 'Vencimento da vigência limpo com sucesso.',
+      )
+    } catch (err: unknown) {
+      console.error('Erro ao atualizar vencimento da vigência O&M:', err)
+      toast.error(err instanceof Error ? err.message : 'Erro ao atualizar vencimento da vigência.')
+      throw err
+    }
+  }
 
   // Modal Oferecer / Criar Contrato de Plano
   const [modalOferecerPlano, setModalOferecerPlano] = useState(false)
@@ -730,21 +797,41 @@ export const FichaClienteOM: React.FC<FichaClienteOMProps> = ({ clienteId, onNav
               <span className="text-[10px] text-gray-400 font-semibold uppercase block">
                 Início da Vigência
               </span>
-              <span className="font-semibold text-gray-800">
-                {contrato.data_inicio ? formatDate(contrato.data_inicio) : 'n/d'}
-              </span>
+              <div className="min-h-[24px] flex items-center">
+                <InlineEditField
+                  value={contrato.data_inicio || ''}
+                  displayValue={
+                    <span className="font-semibold text-gray-800">
+                      {contrato.data_inicio ? formatDate(contrato.data_inicio) : 'Não informada'}
+                    </span>
+                  }
+                  type="date"
+                  placeholder="DD/MM/AAAA"
+                  onSave={handleSaveDataInicio}
+                />
+              </div>
             </div>
 
             <div className="p-3 bg-white rounded-xl border border-gray-200 shadow-2xs space-y-1">
               <span className="text-[10px] text-gray-400 font-semibold uppercase block">
                 Vencimento da Vigência
               </span>
-              <div className="flex items-baseline justify-between">
-                <span className="font-semibold text-gray-800">
-                  {contrato.data_vencimento ? formatDate(contrato.data_vencimento) : 'n/d'}
-                </span>
+              <div className="min-h-[24px] flex items-center justify-between gap-1">
+                <InlineEditField
+                  value={contrato.data_vencimento || ''}
+                  displayValue={
+                    <span className="font-semibold text-gray-800">
+                      {contrato.data_vencimento
+                        ? formatDate(contrato.data_vencimento)
+                        : 'Não informada'}
+                    </span>
+                  }
+                  type="date"
+                  placeholder="DD/MM/AAAA"
+                  onSave={handleSaveDataVencimento}
+                />
                 <span
-                  className={`text-[10px] font-bold ${
+                  className={`text-[10px] font-bold shrink-0 ${
                     diasAteVencimento < 0
                       ? 'text-rose-600'
                       : diasAteVencimento <= 30
