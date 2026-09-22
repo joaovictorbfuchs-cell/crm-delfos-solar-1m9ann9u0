@@ -1,8 +1,7 @@
 import React, { useState, useMemo } from 'react'
-import { FolderKanban, Plus, Search, HardHat, Filter } from 'lucide-react'
+import { FolderKanban, Plus, Search } from 'lucide-react'
 import { useClientes } from '@/contexts/ClientesContext'
 import { KanbanProjetos } from '@/components/KanbanProjetos'
-import { ModalGerenciarProfissionais } from '@/components/ModalGerenciarProfissionais'
 import { ModalAtribuirProfissional } from '@/components/ModalAtribuirProfissional'
 import { ModalNovoProjeto } from '@/components/ModalNovoProjeto'
 import type { Projeto, ProjetoEtapa } from '@/types/crm'
@@ -13,19 +12,14 @@ export const Projetos: React.FC = () => {
     clientes,
     profissionais,
     isLoading,
-    addProfissional,
-    updateProfissional,
-    removeProfissional,
     addProjeto,
     assignProjetoProfissional,
     updateProjetoEtapa,
   } = useClientes()
 
   const [searchTerm, setSearchTerm] = useState('')
-  const [selectedProfissionalFilter, setSelectedProfissionalFilter] = useState<string>('all')
 
   // Modais
-  const [isProfissionaisModalOpen, setIsProfissionaisModalOpen] = useState(false)
   const [isNovoProjetoModalOpen, setIsNovoProjetoModalOpen] = useState(false)
   const [atribuirModalState, setAtribuirModalState] = useState<{
     isOpen: boolean
@@ -48,21 +42,15 @@ export const Projetos: React.FC = () => {
       const cidade = (p.cidade || p.expand?.cliente_id?.cidade || '').toLowerCase()
       const profNome = (p.profissional_nome || p.expand?.profissional_id?.nome || '').toLowerCase()
 
-      const matchesSearch =
+      return (
         !q ||
         clienteNome.includes(q) ||
         cidade.includes(q) ||
         profNome.includes(q) ||
         p.etapa.toLowerCase().includes(q)
-
-      const matchesProf =
-        selectedProfissionalFilter === 'all' ||
-        (selectedProfissionalFilter === 'none' && !p.profissional_id) ||
-        p.profissional_id === selectedProfissionalFilter
-
-      return matchesSearch && matchesProf
+      )
     })
-  }, [projetos, searchTerm, selectedProfissionalFilter])
+  }, [projetos, searchTerm])
 
   const handleOpenAtribuirModal = (projeto: Projeto, targetEtapa?: ProjetoEtapa) => {
     setAtribuirModalState({
@@ -113,61 +101,29 @@ export const Projetos: React.FC = () => {
           </div>
         </div>
 
-        {/* Botões de Ação */}
-        <div className="flex items-center gap-2 flex-wrap">
-          {/* Botão para gerenciar profissionais / instaladores */}
-          <button
-            type="button"
-            onClick={() => setIsProfissionaisModalOpen(true)}
-            className="px-3.5 py-2 rounded-xl border border-gray-300 hover:border-emerald-500 hover:bg-emerald-50 text-gray-700 hover:text-emerald-800 text-xs font-semibold transition-all flex items-center gap-1.5 shadow-2xs"
-          >
-            <HardHat className="w-4 h-4 text-emerald-600" />
-            <span>Profissionais & Técnicos ({profissionais.length})</span>
-          </button>
+        {/* Ações e Busca */}
+        <div className="flex items-center gap-2.5 flex-wrap sm:flex-nowrap">
+          {/* Campo de Busca no lugar do botão de profissionais */}
+          <div className="relative w-full sm:w-80">
+            <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Buscar por cliente, cidade ou profissional..."
+              className="w-full text-xs pl-9 pr-3 py-2 rounded-xl border border-gray-300 focus:outline-none focus:ring-1 focus:ring-emerald-500 bg-gray-50/50"
+            />
+          </div>
 
           {/* Botão Novo Projeto */}
           <button
             type="button"
             onClick={() => setIsNovoProjetoModalOpen(true)}
-            className="px-4 py-2 rounded-xl bg-[#16A34A] hover:bg-[#15803D] text-white text-xs font-bold transition-all flex items-center gap-1.5 shadow-xs"
+            className="px-4 py-2 rounded-xl bg-[#16A34A] hover:bg-[#15803D] text-white text-xs font-bold transition-all flex items-center gap-1.5 shadow-xs whitespace-nowrap"
           >
             <Plus className="w-4 h-4" />
             <span>Novo Projeto</span>
           </button>
-        </div>
-      </div>
-
-      {/* Barra de Filtros e Busca */}
-      <div className="bg-white p-3 rounded-xl border border-gray-200 shadow-2xs flex flex-col sm:flex-row items-center justify-between gap-2.5">
-        <div className="relative w-full sm:w-80">
-          <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
-          <input
-            type="text"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Buscar por cliente, cidade ou profissional..."
-            className="w-full text-xs pl-9 pr-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-1 focus:ring-emerald-500 bg-gray-50/50"
-          />
-        </div>
-
-        <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
-          <Filter className="w-3.5 h-3.5 text-gray-400 shrink-0" />
-          <span className="text-xs text-gray-500 font-medium whitespace-nowrap">
-            Filtrar responsável:
-          </span>
-          <select
-            value={selectedProfissionalFilter}
-            onChange={(e) => setSelectedProfissionalFilter(e.target.value)}
-            className="text-xs px-2.5 py-1.5 rounded-lg border border-gray-200 bg-white text-gray-800 font-medium focus:outline-none focus:ring-1 focus:ring-emerald-500 cursor-pointer shadow-2xs"
-          >
-            <option value="all">Todos os profissionais</option>
-            <option value="none">Sem profissional atribuído</option>
-            {profissionais.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.nome} ({p.especialidade})
-              </option>
-            ))}
-          </select>
         </div>
       </div>
 
@@ -187,15 +143,6 @@ export const Projetos: React.FC = () => {
       </div>
 
       {/* Modais */}
-      <ModalGerenciarProfissionais
-        isOpen={isProfissionaisModalOpen}
-        onClose={() => setIsProfissionaisModalOpen(false)}
-        profissionais={profissionais}
-        onAddProfissional={addProfissional}
-        onUpdateProfissional={updateProfissional}
-        onRemoveProfissional={removeProfissional}
-      />
-
       <ModalAtribuirProfissional
         isOpen={atribuirModalState.isOpen}
         onClose={() => setAtribuirModalState({ isOpen: false, projeto: null, targetEtapa: null })}
