@@ -74,12 +74,17 @@ const ETAPAS_FUNIL: { id: ClienteStatus; label: string }[] = [
   { id: 'Perdido', label: 'Perdido' },
 ]
 
-export type TipoNegocioOpcao = 'energia solar' | 'baterias' | 'Planos de O&M'
+export type TipoNegocioOpcao =
+  | 'energia solar'
+  | 'baterias'
+  | 'Planos de O&M'
+  | 'carregadores veiculares'
 
 const TIPOS_NEGOCIO_OPCOES: { id: TipoNegocioOpcao; label: string }[] = [
   { id: 'energia solar', label: 'Energia Solar' },
   { id: 'baterias', label: 'Baterias' },
-  { id: 'Planos de O&M', label: 'Planos de O&M' },
+  { id: 'Planos de O&M', label: 'O&M (Operação e Manutenção)' },
+  { id: 'carregadores veiculares', label: 'Carregadores Veículos Elétricos' },
 ]
 
 const MOTIVOS_PERDA_OPCOES: { id: string; label: string; cor: string }[] = [
@@ -95,7 +100,17 @@ const MOTIVOS_PERDA_OPCOES: { id: string; label: string; cor: string }[] = [
  * 'energia solar', 'baterias' ou 'Planos de O&M'
  */
 export function normalizarTipoNegocio(cliente: Cliente): TipoNegocioOpcao {
-  const raw = `${cliente.tipo_negocio || ''} ${cliente.produto || ''}`.toLowerCase()
+  const raw =
+    `${cliente.tipo_venda || ''} ${cliente.tipo_negocio || ''} ${cliente.produto || ''}`.toLowerCase()
+  if (
+    raw.includes('carregador') ||
+    raw.includes('veículo') ||
+    raw.includes('veiculo') ||
+    raw.includes('wallbox') ||
+    raw.includes('ev')
+  ) {
+    return 'carregadores veiculares'
+  }
   if (
     raw.includes('bateria') ||
     raw.includes('storage') ||
@@ -108,6 +123,7 @@ export function normalizarTipoNegocio(cliente: Cliente): TipoNegocioOpcao {
     raw.includes('o&m') ||
     raw.includes('manuten') ||
     raw.includes('plano') ||
+    raw.includes('opera') ||
     cliente.contratou_om ||
     cliente.proposta_om_id
   ) {

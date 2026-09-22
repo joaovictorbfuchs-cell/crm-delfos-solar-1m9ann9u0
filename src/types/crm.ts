@@ -118,7 +118,19 @@ export interface AtividadeSetorItem extends RecordModel {
   updated: string
 }
 
-export type TipoNegocioSelect = 'venda usina' | 'bateria' | 'expansão' | 'renovação' | 'serviço'
+export type TipoVendaSelect =
+  | 'Energia Solar'
+  | 'O&M (Operação e Manutenção)'
+  | 'Baterias'
+  | 'Carregadores Veículos Elétricos'
+
+export type TipoNegocioSelect =
+  | 'venda usina'
+  | 'bateria'
+  | 'expansão'
+  | 'renovação'
+  | 'serviço'
+  | TipoVendaSelect
 
 export type EtapaFunilSelect =
   | 'novo lead'
@@ -134,7 +146,8 @@ export interface Negocio extends RecordModel {
   collectionId: string
   collectionName: string
   cliente_id: string
-  tipo_negocio: TipoNegocioSelect
+  tipo_negocio?: TipoNegocioSelect
+  tipo_venda?: TipoVendaSelect | string
   valor_estimado?: number
   valor_final?: number
   etapa_funil?: EtapaFunilSelect
@@ -223,6 +236,7 @@ export interface Cliente extends RecordModel {
   origem_pos_vendas?: string
   area_destino?: 'projetos' | 'om' | string
   tipo_negocio?: 'energia solar' | 'baterias' | 'Planos de O&M' | string
+  tipo_venda?: TipoVendaSelect | string
   motivo_perda?: 'preco' | 'concorrente' | 'desistiu' | 'nao_respondeu' | 'outro' | string
   observacoes_perda?: string
   valor_final?: number

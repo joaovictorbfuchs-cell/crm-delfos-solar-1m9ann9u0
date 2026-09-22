@@ -954,13 +954,25 @@ export const FichaClienteDrawer: React.FC = () => {
             )}
             <OrigemClienteBadge cliente={selectedCliente} showSublabel />
             <InlineEditField
-              value={selectedCliente.produto || 'Energia Solar'}
+              value={selectedCliente.tipo_venda || selectedCliente.produto || 'Energia Solar'}
               displayValue={
-                <ProductBadge produto={selectedCliente.produto || 'Energia Solar'} size="sm" />
+                <span className="font-semibold text-xs px-2 py-0.5 rounded-full border bg-slate-100 text-slate-800 border-slate-300">
+                  {selectedCliente.tipo_venda || selectedCliente.produto || 'Energia Solar'}
+                </span>
               }
               type="select"
-              options={PRODUTOS.map((p) => ({ value: p, label: p }))}
-              onSave={async (val) => handleUpdateClienteField('produto', val as ProdutoTipo)}
+              options={[
+                { value: 'Energia Solar', label: 'Energia Solar' },
+                { value: 'O&M (Operação e Manutenção)', label: 'O&M (Operação e Manutenção)' },
+                { value: 'Baterias', label: 'Baterias' },
+                {
+                  value: 'Carregadores Veículos Elétricos',
+                  label: 'Carregadores Veículos Elétricos',
+                },
+              ]}
+              onSave={async (val) => {
+                await handleUpdateClienteField('tipo_venda', val as string)
+              }}
             />
           </div>
           <div className="flex items-center gap-2">

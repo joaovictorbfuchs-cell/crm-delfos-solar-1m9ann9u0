@@ -49,8 +49,12 @@ export const ETAPAS_FUNIL_OPCOES: {
 ]
 
 export const TIPOS_NEGOCIO_OPCOES: { value: TipoNegocioSelect; label: string }[] = [
-  { value: 'venda usina', label: 'Venda Usina' },
-  { value: 'bateria', label: 'Bateria' },
+  { value: 'Energia Solar', label: 'Energia Solar' },
+  { value: 'O&M (Operação e Manutenção)', label: 'O&M (Operação e Manutenção)' },
+  { value: 'Baterias', label: 'Baterias' },
+  { value: 'Carregadores Veículos Elétricos', label: 'Carregadores Veículos Elétricos' },
+  { value: 'venda usina', label: 'Venda Usina (Legado)' },
+  { value: 'bateria', label: 'Bateria (Legado)' },
   { value: 'expansão', label: 'Expansão' },
   { value: 'renovação', label: 'Renovação' },
   { value: 'serviço', label: 'Serviço' },

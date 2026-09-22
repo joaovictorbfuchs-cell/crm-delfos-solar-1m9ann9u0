@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-22T21:16:55.006Z",
+  "generatedAt": "2026-09-22T21:29:07.978Z",
   "collections": [
     {
       "name": "users",
@@ -654,6 +654,18 @@
           "type": "text",
           "required": false,
           "system": false
+        },
+        {
+          "name": "tipo_venda",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": [
+            "Energia Solar",
+            "O&M (Operação e Manutenção)",
+            "Baterias",
+            "Carregadores Veículos Elétricos"
+          ]
         }
       ],
       "indexes": [
@@ -5014,6 +5026,18 @@
           "required": false,
           "system": false,
           "autodateTriggers": ["onCreate", "onUpdate"]
+        },
+        {
+          "name": "tipo_venda",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": [
+            "Energia Solar",
+            "O&M (Operação e Manutenção)",
+            "Baterias",
+            "Carregadores Veículos Elétricos"
+          ]
         }
       ],
       "indexes": [

@@ -2,7 +2,8 @@ import React, { useState } from 'react'
 import { X, UserPlus, AlertCircle, Loader2, Sparkles } from 'lucide-react'
 import { useClientes } from '@/contexts/ClientesContext'
 import { useToast } from '@/hooks/use-toast'
-import type { OrigemLeadTipo, ProdutoTipo } from '@/types/crm'
+import type { OrigemLeadTipo, ProdutoTipo, TipoVendaSelect } from '@/types/crm'
+import { TIPOS_VENDA_OPTIONS, TIPOS_VENDA_CONFIG } from '@/constants/tipoVenda'
 import { formatWhatsAppPhone } from '@/lib/formatters'
 import { useCnpjLookup } from '@/hooks/useCnpjLookup'
 import {
@@ -48,6 +49,7 @@ export const NovoLeadModal: React.FC<NovoLeadModalProps> = ({ isOpen, onClose })
   const [situacaoCadastral, setSituacaoCadastral] = useState('')
   const [dataAbertura, setDataAbertura] = useState('')
   const [consumoKwhMes, setConsumoKwhMes] = useState<string>('')
+  const [tipoVenda, setTipoVenda] = useState<TipoVendaSelect>('Energia Solar')
   const [origem, setOrigem] = useState<OrigemLeadTipo>('Indicação')
   const [produto, setProduto] = useState<ProdutoTipo>('Energia Solar')
   const [cidade, setCidade] = useState('Erechim/RS')
@@ -102,6 +104,7 @@ export const NovoLeadModal: React.FC<NovoLeadModalProps> = ({ isOpen, onClose })
     setSituacaoCadastral('')
     setDataAbertura('')
     setConsumoKwhMes('')
+    setTipoVenda('Energia Solar')
     setOrigem('Indicação')
     setProduto('Energia Solar')
     setCidade('Erechim/RS')
@@ -237,12 +240,14 @@ export const NovoLeadModal: React.FC<NovoLeadModalProps> = ({ isOpen, onClose })
         tipo_cliente: cnpj.replace(/\D/g, '').length === 14 ? 'comercial' : 'residencial',
         consumo_kwh_mes: consumoNum,
         origem_lead: origem,
-        produto,
+        produto:
+          tipoVenda === 'Energia Solar' ? 'Energia Solar' : (tipoVenda as unknown as ProdutoTipo),
+        tipo_venda: tipoVenda,
         status: 'Novo Lead',
         cidade: cidade.trim() || 'Erechim/RS',
         potencia_kwp: potenciaEstimada,
         valor_estimado: valorEstimado,
-      })
+      } as any)
 
       toast({
         title: 'Lead cadastrado com sucesso!',
@@ -298,6 +303,69 @@ export const NovoLeadModal: React.FC<NovoLeadModalProps> = ({ isOpen, onClose })
 
         {/* Form Body */}
         <form onSubmit={handleSubmit} className="p-6 space-y-4 max-h-[80vh] overflow-y-auto">
+          {/* PASSO 1: ESCOLHA O TIPO DE VENDA PRIMEIRO */}
+          <div className="p-3.5 bg-slate-50 rounded-xl border-2 border-emerald-500/40 space-y-2">
+            <div className="flex items-center justify-between">
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-800">
+                1. Tipo de venda{' '}
+                <span className="text-emerald-600 font-extrabold">* (Escolha primeiro)</span>
+              </label>
+              <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">
+                Etapa inicial obrigatória
+              </span>
+            </div>
+            <p className="text-[11px] text-slate-500">
+              Selecione a categoria comercial deste card para definir ícone e cor no funil:
+            </p>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+              {TIPOS_VENDA_OPTIONS.map((opcao) => {
+                const cfg = TIPOS_VENDA_CONFIG[opcao]
+                const IconComponent = cfg.icon
+                const isSelected = tipoVenda === opcao
+
+                return (
+                  <button
+                    key={opcao}
+                    type="button"
+                    onClick={() => {
+                      setTipoVenda(opcao)
+                      // Alinha produto secundário com a seleção
+                      if (opcao === 'O&M (Operação e Manutenção)') {
+                        setProduto('Plano de O&M')
+                      } else if (opcao === 'Carregadores Veículos Elétricos') {
+                        setProduto('Carregadores veiculares')
+                      } else if (opcao === 'Baterias') {
+                        setProduto('Sistemas Híbridos')
+                      } else {
+                        setProduto('Energia Solar')
+                      }
+                    }}
+                    className={`flex items-start gap-2.5 p-2.5 rounded-lg border text-left transition-all ${
+                      isSelected
+                        ? `${cfg.bgLightClass} ring-2 ring-emerald-500 shadow-xs font-semibold`
+                        : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50 hover:border-slate-300'
+                    }`}
+                  >
+                    <div
+                      className={`p-1.5 rounded-md shrink-0 mt-0.5 ${
+                        isSelected ? 'bg-white shadow-2xs' : 'bg-slate-100'
+                      }`}
+                    >
+                      <IconComponent className={`w-4 h-4 ${cfg.iconClass}`} />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="text-xs font-bold leading-tight">{opcao}</div>
+                      <div className="text-[10px] text-slate-500 line-clamp-1 mt-0.5">
+                        {cfg.descricao}
+                      </div>
+                    </div>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
           {/* Campo CNPJ opcional com consulta automática */}
           <div className="p-3.5 bg-gray-50 rounded-xl border border-gray-200/80 space-y-2">
             <CnpjInputWithLookup
@@ -484,7 +552,7 @@ export const NovoLeadModal: React.FC<NovoLeadModalProps> = ({ isOpen, onClose })
             <Sparkles className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
             <span>
               O lead será criado diretamente na etapa <strong>"1 - Novo Lead"</strong> do funil de
-              vendas, com a etiqueta do produto selecionado.
+              vendas com o tipo <strong>"{tipoVenda}"</strong>.
             </span>
           </div>
 
