@@ -63,7 +63,6 @@ import {
   gerarBlobPropostaSolarDocx,
   baixarPropostaSolarDocx,
 } from '@/lib/propostaSolarDocxGenerator'
-import { ModalGerarPropostaTecnicoComercial } from '@/components/ModalGerarPropostaTecnicoComercial'
 import { ModalImportarSolergo } from '@/components/ModalImportarSolergo'
 
 import { ErrorBoundary } from '@/components/ErrorBoundary'
@@ -168,8 +167,6 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
   const [observacoes, setObservacoes] = useState<string>('')
   const [prazoEntregaDias, setPrazoEntregaDias] = useState<number>(30)
   const [modalWhatsAppOpen, setModalWhatsAppOpen] = useState<boolean>(false)
-  const [modalPropostaTecnicoComercialOpen, setModalPropostaTecnicoComercialOpen] =
-    useState<boolean>(false)
   const [isGeneratingWord, setIsGeneratingWord] = useState<boolean>(false)
   const [wordDocxBlob, setWordDocxBlob] = useState<Blob | null>(null)
 
@@ -3734,10 +3731,14 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                   <div className="flex items-center gap-2">
                     <button
                       type="button"
-                      onClick={() => setModalPropostaTecnicoComercialOpen(true)}
-                      disabled={!clienteAtual}
+                      onClick={() => {
+                        if (propostaPDFData) {
+                          abrirPropostaSolarEmNovaAba(propostaPDFData)
+                        }
+                      }}
+                      disabled={!clienteAtual || !propostaPDFData}
                       className="text-xs font-bold px-3.5 py-1.5 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 flex items-center gap-1.5 transition-colors shadow-2xs"
-                      title="Montar e Pré-visualizar Proposta Técnico-Comercial Oficial em PDF"
+                      title="Montar e Pré-visualizar Proposta Oficial em PDF"
                     >
                       <FileText className="w-3.5 h-3.5" />
                       <span>Gerar Proposta Oficial</span>
@@ -4254,8 +4255,12 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
             {/* Botão Gerar Proposta Técnico-Comercial Oficial */}
             <button
               type="button"
-              onClick={() => setModalPropostaTecnicoComercialOpen(true)}
-              disabled={isSubmitting || !clienteAtual}
+              onClick={() => {
+                if (propostaPDFData) {
+                  abrirPropostaSolarEmNovaAba(propostaPDFData)
+                }
+              }}
+              disabled={isSubmitting || !clienteAtual || !propostaPDFData}
               className="px-4 py-2 bg-[#16A34A] hover:bg-[#15803D] text-white text-xs font-bold rounded-xl transition-all inline-flex items-center gap-1.5 shadow-xs hover:shadow"
               title="Abrir gerador e preview da Proposta Técnico-Comercial oficial em PDF"
             >
@@ -4349,90 +4354,6 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
           tipo="orcamento_solar"
           referenciaId={initialOrcamento?.id}
           dadosSolar={propostaPDFData}
-        />
-      )}
-
-      {/* Modal de Montagem e Preview da Proposta Técnico-Comercial */}
-      {modalPropostaTecnicoComercialOpen && (
-        <ModalGerarPropostaTecnicoComercial
-          open={modalPropostaTecnicoComercialOpen}
-          onClose={() => setModalPropostaTecnicoComercialOpen(false)}
-          cliente={clienteAtual}
-          orcamento={{
-            id: initialOrcamento?.id || 'temp',
-            cliente_id: clienteAtual?.id || '',
-            cliente_nome: clienteAtual?.nome || 'Cliente',
-            potencia_kwp: potenciaKwp,
-            numero_placas: numeroPlacas,
-            potencia_placa_wp: potenciaPlacaWp,
-            marca_painel: marcaPainel,
-            marca_inversor: marcaInversor,
-            quantidade_inversores: quantidadeInversores,
-            tipo_estrutura: tipoEstrutura,
-            codigo_finame: codigoFiname,
-            area_necessaria_m2: areaNecessariaM2,
-            garantia_modulos_degradacao_anos: garantiaModulosDegradacaoAnos,
-            garantia_modulos_fabricacao_anos: garantiaModulosFabricacaoAnos,
-            garantia_inversor_anos: garantiaInversorAnos,
-            foto_modulo_url: fotoModuloUrl || undefined,
-            foto_inversor_url: fotoInversorUrl || undefined,
-            tarifa_kwh: tarifaKwh,
-            valor_conta_atual: calculos.contaAtualSemSolarMes,
-            consumo_mensal_kwh: calculos.geracaoMediaMensalKwh,
-            valor_investimento: valorInvestimentoFinal,
-            valor_total_custos: totalCustosCalculado,
-            payback_meses: calculos.paybackMeses,
-            producao_anual_kwh: calculos.geracaoAnualEstimadaKwh,
-            producao_mensal_kwh: calculos.geracaoMediaMensalKwh,
-            geracao_fonte: geracaoFonte,
-            ajuste_solergo_ativo: ajusteSolergoAtivo,
-            geracao_mensal_solergo_json:
-              ajusteSolergoAtivo && geracaoMensalSolergo?.length === 12
-                ? geracaoMensalSolergo
-                : null,
-            geracao_detalhada_json: JSON.stringify(calculos.geracaoMensalDetalhada),
-            parcela_a_vista: valorInvestimentoFinal,
-            parcela_cartao_18x:
-              calculos.parcelamentos?.cartao18x?.valorParcela ||
-              Math.round((valorInvestimentoFinal * 1.12) / 18),
-            parcela_financiamento_banco1:
-              calculos.parcelamentos?.financiamentoBanco1?.valorParcela ||
-              Math.round(valorInvestimentoFinal * 0.023),
-            iof_financiamento_banco1: calculos.parcelamentos?.financiamentoBanco1?.valorIof,
-            parcela_financiamento_banco2:
-              calculos.parcelamentos?.financiamentoBanco2?.valorParcela ||
-              Math.round(valorInvestimentoFinal * 0.02),
-            iof_financiamento_banco2: calculos.parcelamentos?.financiamentoBanco2?.valorIof,
-            parcelas_cartao: parcelasCartao,
-            juros_cartao: jurosCartao,
-            entrada_cartao: entradaCartao,
-            parcelas_financiamento_banco1: parcelasBanco1,
-            juros_financiamento_banco1: jurosBanco1,
-            entrada_financiamento_banco1: entradaBanco1,
-            parcelas_financiamento_banco2: parcelasBanco2,
-            juros_financiamento_banco2: jurosBanco2,
-            entrada_financiamento_banco2: entradaBanco2,
-            instalacoes_selecionadas:
-              instalacoesSelecionadasIds.length > 0 ? instalacoesSelecionadasIds : null,
-            layout_telhado_habilitado: layoutTelhadoHabilitado,
-            secoes_habilitadas: {
-              layoutTelhado: layoutTelhadoHabilitado,
-              fotosProjeto: secoesHabilitadas.fotosProjeto !== false,
-              sazonalidadeSolar: secoesHabilitadas.sazonalidadeSolar !== false,
-              portfolioUsinas: secoesHabilitadas.portfolioUsinas !== false,
-            },
-            data_orcamento: initialOrcamento?.data_orcamento || new Date().toISOString(),
-            autor: initialOrcamento?.autor || user?.name || 'Equipe Delfos Solar',
-            gasto_sem_solar_1_ano: calculos.gastoSemSolar1Ano,
-            gasto_sem_solar_5_anos: calculos.gastoSemSolar5Anos,
-            gasto_sem_solar_25_anos: calculos.gastoSemSolar25Anos,
-            economia_1_mes: calculos.economia1Mes,
-            economia_1_ano: calculos.economia1Ano,
-            economia_5_anos: calculos.economia5Anos,
-            economia_25_anos: calculos.economia25Anos,
-            conta_primeiro_mes_com_solar: calculos.contaPrimeiroMesComSolar,
-            created: initialOrcamento?.created || new Date().toISOString(),
-          }}
         />
       )}
 

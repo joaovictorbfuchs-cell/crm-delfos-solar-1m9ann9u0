@@ -33,8 +33,6 @@ import {
 } from '@/lib/propostaSolarGenerator'
 import { baixarPropostaSolarDocx } from '@/lib/propostaSolarDocxGenerator'
 import { ModalEnviarDocumentoWhatsApp } from '@/components/ModalEnviarDocumentoWhatsApp'
-import { ModalGerarPropostaTecnicoComercial } from '@/components/ModalGerarPropostaTecnicoComercial'
-import type { OrcamentoSolarCalculado } from '@/types/crm'
 import { calcularOrcamentoSolar } from '@/lib/energiaSolar'
 
 export const Orcamentos: React.FC = () => {
@@ -171,10 +169,6 @@ export const Orcamentos: React.FC = () => {
     cliente: Cliente
     orc: OrcamentoSolar
     payload: PropostaSolarPDFInput
-  } | null>(null)
-  const [propostaTecnicoComercialModal, setPropostaTecnicoComercialModal] = useState<{
-    orcamento: OrcamentoSolarCalculado
-    cliente: Cliente | null
   } | null>(null)
 
   // Filtragem e Ordenação
@@ -1126,58 +1120,52 @@ export const Orcamentos: React.FC = () => {
                                 },
                                 valorInvestimentoInformado: orc.valor_investimento,
                               })
-                              setPropostaTecnicoComercialModal({
-                                orcamento: {
-                                  id: orc.id,
-                                  cliente_id: orc.cliente_id,
-                                  cliente_nome: cliente?.nome || 'Cliente',
-                                  potencia_kwp: orc.potencia_kwp,
-                                  numero_placas: orc.numero_placas,
-                                  potencia_placa_wp: orc.potencia_placa_wp,
-                                  marca_painel: orc.marca_painel,
-                                  marca_inversor: orc.marca_inversor,
-                                  quantidade_inversores: orc.quantidade_inversores,
-                                  tipo_estrutura: orc.tipo_estrutura,
-                                  codigo_finame: orc.codigo_finame,
-                                  area_necessaria_m2: orc.area_necessaria_m2,
-                                  consumo_mensal_kwh: orc.consumo_kwh_mes,
-                                  valor_conta_atual: calc.contaAtualSemSolarMes,
-                                  tarifa_kwh: orc.tarifa_kwh,
-                                  valor_investimento: orc.valor_investimento,
-                                  valor_total_custos:
-                                    orc.valor_total_custos || orc.valor_investimento,
-                                  payback_meses: orc.payback_meses || calc.paybackMeses,
-                                  producao_anual_kwh:
-                                    orc.producao_anual_kwh || calc.geracaoAnualEstimadaKwh,
-                                  producao_mensal_kwh:
-                                    orc.geracao_mensal_kwh || calc.geracaoMediaMensalKwh,
-                                  geracao_detalhada_json: JSON.stringify(
-                                    calc.geracaoMensalDetalhada,
-                                  ),
-                                  parcela_a_vista: orc.valor_investimento,
-                                  parcela_cartao_18x: orc.parcela_cartao_18x,
-                                  parcela_financiamento_banco1: orc.parcela_financiamento_banco1,
-                                  parcela_financiamento_banco2: orc.parcela_financiamento_banco2,
-                                  gasto_sem_solar_1_ano:
-                                    orc.gasto_sem_solar_1_ano || calc.gastoSemSolar1Ano,
-                                  gasto_sem_solar_5_anos:
-                                    orc.gasto_sem_solar_5_anos || calc.gastoSemSolar5Anos,
-                                  gasto_sem_solar_25_anos:
-                                    orc.gasto_sem_solar_25_anos || calc.gastoSemSolar25Anos,
-                                  economia_1_mes: orc.economia_1_mes || calc.economia1Mes,
-                                  economia_1_ano: orc.economia_1_ano || calc.economia1Ano,
-                                  economia_5_anos: orc.economia_5_anos || calc.economia5Anos,
-                                  economia_25_anos: orc.economia_25_anos || calc.economia25Anos,
-                                  conta_primeiro_mes_com_solar:
-                                    orc.conta_primeiro_mes_com_solar ||
-                                    calc.contaPrimeiroMesComSolar,
-                                  created: orc.created,
+
+                              const payload: PropostaSolarPDFInput = {
+                                cliente: {
+                                  nome: cliente?.nome_fantasia
+                                    ? `${cliente.nome} (${cliente.nome_fantasia})`
+                                    : cliente?.nome || 'Cliente',
+                                  cpfOuCnpj: cliente?.cnpj || cliente?.cpf || '',
+                                  endereco: [cliente?.endereco, cliente?.numero, cliente?.bairro]
+                                    .filter(Boolean)
+                                    .join(', '),
+                                  municipio: cliente?.cidade || 'Erechim / RS',
+                                  email: cliente?.email || '',
+                                  telefone: cliente?.telefone || '',
+                                  tipoCliente: orc.tipo_cliente,
                                 },
-                                cliente: cliente || null,
-                              })
+                                representanteComercial: orc.autor || 'Delfos Solar',
+                                sistema: {
+                                  potenciaKwp: orc.potencia_kwp,
+                                  consumoKwhMes: orc.consumo_kwh_mes,
+                                  numeroPlacas: orc.numero_placas,
+                                  potenciaPlacaWp: orc.potencia_placa_wp,
+                                  marcaPlacas: orc.marca_painel,
+                                  marcaInversor: orc.marca_inversor,
+                                  quantidadeInversores: orc.quantidade_inversores,
+                                  tipoEstrutura: orc.tipo_estrutura,
+                                  orientacaoTelhado: orc.orientacao_telhado,
+                                  areaNecessariaM2: orc.area_necessaria_m2,
+                                  codigoFiname: orc.codigo_finame,
+                                  prazoEntregaDias: 30,
+                                  fotoModuloUrl: orc.foto_modulo_url || undefined,
+                                  fotoInversorUrl: orc.foto_inversor_url || undefined,
+                                },
+                                calculos: calc,
+                                dataEmissao: orc.data_orcamento || orc.created,
+                                validadeDias: orc.validade_dias || 5,
+                                observacoes: orc.observacoes,
+                                secoesHabilitadas: orc.secoes_habilitadas,
+                                instalacoesSelecionadasIds: orc.instalacoes_selecionadas,
+                                layoutTelhadoUrl: orc.layout_telhado_url || undefined,
+                                layoutTelhadoHabilitado: orc.layout_telhado_habilitado,
+                              }
+
+                              abrirPropostaSolarEmNovaAba(payload)
                             }}
                             className="p-1.5 rounded-lg text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 transition-colors"
-                            title="Gerar Proposta Técnico-Comercial (PDF com galeria e layout oficial)"
+                            title="Gerar Proposta Oficial em PDF"
                           >
                             <FileText className="w-4 h-4 text-emerald-700" />
                           </button>
@@ -1429,16 +1417,6 @@ export const Orcamentos: React.FC = () => {
           tipo="orcamento_solar"
           referenciaId={orcamentoParaWhatsApp.orc.id}
           dadosSolar={orcamentoParaWhatsApp.payload}
-        />
-      )}
-
-      {/* Modal Proposta Técnico-Comercial Oficial */}
-      {propostaTecnicoComercialModal && (
-        <ModalGerarPropostaTecnicoComercial
-          open={!!propostaTecnicoComercialModal}
-          onClose={() => setPropostaTecnicoComercialModal(null)}
-          orcamento={propostaTecnicoComercialModal.orcamento}
-          cliente={propostaTecnicoComercialModal.cliente}
         />
       )}
     </div>

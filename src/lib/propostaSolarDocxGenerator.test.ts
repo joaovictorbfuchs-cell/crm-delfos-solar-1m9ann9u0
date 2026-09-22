@@ -170,15 +170,28 @@ describe('propostaSolarDocxGenerator', () => {
     expect(jsonStr).toContain('GASTO EM 5 ANOS')
   })
 
-  it('respeita instalacoesSelecionadasIds no docx e mantém portfólio', async () => {
-    const dadosComSelecao: PropostaSolarPDFInput = {
+  it('respeita secoesHabilitadas.portfolioUsinas: false omitindo o portfólio no docx', async () => {
+    const dadosSemPortfolio: PropostaSolarPDFInput = {
       ...dadosExemploMarceloBecker,
-      instalacoesSelecionadasIds: ['1'],
+      secoesHabilitadas: {
+        portfolioUsinas: false,
+      },
     }
-    const doc = await gerarPropostaSolarDocx(dadosComSelecao)
+    const doc = await gerarPropostaSolarDocx(dadosSemPortfolio)
     const jsonStr = JSON.stringify(doc)
-    expect(jsonStr).toContain('PORTFÓLIO DE USINAS INSTALADAS')
-    expect(jsonStr).toContain('Usina Solar Residencial')
+    expect(jsonStr).not.toContain('PORTFÓLIO DE USINAS INSTALADAS')
+  })
+
+  it('respeita secoesHabilitadas.sazonalidadeSolar: false omitindo a sazonalidade no docx', async () => {
+    const dadosSemSazonalidade: PropostaSolarPDFInput = {
+      ...dadosExemploMarceloBecker,
+      secoesHabilitadas: {
+        sazonalidadeSolar: false,
+      },
+    }
+    const doc = await gerarPropostaSolarDocx(dadosSemSazonalidade)
+    const jsonStr = JSON.stringify(doc)
+    expect(jsonStr).not.toContain('Geração Mensal Prevista (Janeiro a Dezembro — Erechim/RS)')
   })
 
   it('no bloco de assinaturas do docx, não exibe "Não informado" quando dados cadastrais do cliente faltam', async () => {

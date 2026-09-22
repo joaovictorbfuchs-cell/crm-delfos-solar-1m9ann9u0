@@ -3934,7 +3934,7 @@ export const FichaClienteDrawer: React.FC = () => {
           onUpdateOrcamentoSolar={async (id, data) => updateOrcamentoSolar(id, data)}
           onUpdatePropostaOM={async (id, data) => updatePropostaOM(id, data)}
           onVisualizarPropostaSolar={async (o) => {
-            const { abrirOrcamentoEmNovaAba } = await import('@/lib/orcamentoGenerator')
+            const { abrirPropostaSolarEmNovaAba } = await import('@/lib/propostaSolarGenerator')
             const { calcularOrcamentoSolar } = await import('@/lib/energiaSolar')
             const calc = calcularOrcamentoSolar({
               consumoKwhMes: o.consumo_kwh_mes,
@@ -3966,7 +3966,7 @@ export const FichaClienteDrawer: React.FC = () => {
                 impostos: o.custo_impostos || 0,
               },
             })
-            abrirOrcamentoEmNovaAba({
+            abrirPropostaSolarEmNovaAba({
               cliente: {
                 nome: selectedCliente.nome,
                 cpfOuCnpj: selectedCliente.cnpj || selectedCliente.cpf || '',
@@ -3992,11 +3992,17 @@ export const FichaClienteDrawer: React.FC = () => {
                 areaNecessariaM2: o.area_necessaria_m2,
                 codigoFiname: o.codigo_finame,
                 prazoEntregaDias: 30,
+                fotoModuloUrl: o.foto_modulo_url || undefined,
+                fotoInversorUrl: o.foto_inversor_url || undefined,
               },
               calculos: calc,
               dataEmissao: o.data_orcamento || o.created,
               validadeDias: o.validade_dias || 5,
               observacoes: o.observacoes,
+              secoesHabilitadas: o.secoes_habilitadas,
+              instalacoesSelecionadasIds: o.instalacoes_selecionadas,
+              layoutTelhadoUrl: o.layout_telhado_url || undefined,
+              layoutTelhadoHabilitado: o.layout_telhado_habilitado,
             })
           }}
           onGerarWordPropostaSolar={async (o) => {

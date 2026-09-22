@@ -801,164 +801,144 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
   )
 
   // Portfólio / Tabela de usinas da galeria
-  let usinasGaleria: InstalacaoGaleria[] = []
-  try {
-    usinasGaleria = (await fetchInstalacoesGaleria()) || []
-  } catch (err) {
-    console.warn('Erro ao carregar galeria de usinas para o docx:', err)
-  }
+  if (dados.secoesHabilitadas?.portfolioUsinas !== false) {
+    let usinasGaleria: InstalacaoGaleria[] = []
+    try {
+      usinasGaleria = (await fetchInstalacoesGaleria()) || []
+    } catch (err) {
+      console.warn('Erro ao carregar galeria de usinas para o docx:', err)
+    }
 
-  // Filtragem conforme instalacoesSelecionadasIds; se vazio/nulo, usa todas as disponíveis (fallback)
-  if (
-    dados.instalacoesSelecionadasIds &&
-    dados.instalacoesSelecionadasIds.length > 0 &&
-    usinasGaleria.length > 0
-  ) {
-    const filtradas = usinasGaleria.filter((u) => dados.instalacoesSelecionadasIds!.includes(u.id))
-    if (filtradas.length > 0) {
-      usinasGaleria = filtradas
+    // Filtragem conforme instalacoesSelecionadasIds; se especificado, filtra; não inventa fictícias
+    if (
+      dados.instalacoesSelecionadasIds &&
+      dados.instalacoesSelecionadasIds.length > 0 &&
+      usinasGaleria.length > 0
+    ) {
+      usinasGaleria = usinasGaleria.filter((u) => dados.instalacoesSelecionadasIds!.includes(u.id))
+    }
+
+    const usinasBase = usinasGaleria.slice(0, 6)
+
+    // Se não houver usinas reais disponíveis, a seção não é renderizada
+    if (usinasBase.length > 0) {
+      // Pré-carrega as imagens das usinas selecionadas
+      const usinasDocxComFoto = await Promise.all(
+        usinasBase.map(async (u) => {
+          const url = getFotoUrl(u)
+          let imgBytes: Uint8Array | null = null
+          if (url) {
+            imgBytes = await loadImageUint8Array(url)
+          }
+          return {
+            ...u,
+            imgBytes,
+          }
+        }),
+      )
+
+      docChildren.push(
+        new Paragraph({
+          spacing: { before: 100, after: 60 },
+          children: [
+            new TextRun({
+              text: 'PORTFÓLIO DE USINAS INSTALADAS',
+              bold: true,
+              size: 16,
+              color: COLOR_PRIMARY,
+              font: 'Arial',
+            }),
+          ],
+        }),
+      )
+
+      // Divide as usinas em linhas de 3 colunas para docx limpo
+      const chunksUsinas: (typeof usinasDocxComFoto)[] = []
+      for (let i = 0; i < usinasDocxComFoto.length; i += 3) {
+        chunksUsinas.push(usinasDocxComFoto.slice(i, i + 3))
+      }
+
+      const colWidthGaleria = Math.floor(PAGE_CONTENT_WIDTH / 3)
+      docChildren.push(
+        new Table({
+          width: { size: PAGE_CONTENT_WIDTH, type: WidthType.DXA },
+          borders: tableBorderDefault,
+          rows: chunksUsinas.map(
+            (chunk) =>
+              new TableRow({
+                children: chunk.map((u) => {
+                  const pot = u.potencia_kwp
+                    ? `${formatNumBR(Number(u.potencia_kwp), 1)} kWp`
+                    : 'Turnkey'
+                  const cid = u.cidade || 'Erechim / RS'
+                  const tit = u.titulo || 'Usina Solar Delfos'
+
+                  const cellChildren: (Paragraph | Table)[] = []
+
+                  if (u.imgBytes) {
+                    cellChildren.push(
+                      new Paragraph({
+                        alignment: AlignmentType.CENTER,
+                        spacing: { after: 60 },
+                        children: [
+                          new ImageRun({
+                            type: 'jpg',
+                            data: u.imgBytes,
+                            transformation: { width: 170, height: 105 },
+                          }),
+                        ],
+                      }),
+                    )
+                  }
+
+                  cellChildren.push(
+                    new Paragraph({
+                      children: [
+                        ...(!u.imgBytes
+                          ? [
+                              new TextRun({
+                                text: '☀️ ',
+                                size: 20,
+                              }),
+                            ]
+                          : []),
+                        new TextRun({
+                          text: `${tit}\n`,
+                          bold: true,
+                          size: 16,
+                          color: COLOR_PRIMARY,
+                          font: 'Arial',
+                        }),
+                        new TextRun({
+                          text: `Localização: ${cid}\n`,
+                          size: 14,
+                          color: COLOR_TEXT_MUTED,
+                          font: 'Arial',
+                        }),
+                        new TextRun({
+                          text: `Potência: ${pot}`,
+                          bold: true,
+                          size: 15,
+                          color: COLOR_ACCENT,
+                          font: 'Arial',
+                        }),
+                      ],
+                    }),
+                  )
+
+                  return new TableCell({
+                    width: { size: colWidthGaleria, type: WidthType.DXA },
+                    shading: { type: ShadingType.CLEAR, fill: COLOR_GRAY_BG },
+                    margins: { top: 100, bottom: 100, left: 100, right: 100 },
+                    children: cellChildren,
+                  })
+                }),
+              }),
+          ),
+        }),
+      )
     }
   }
-
-  const usinasBase =
-    usinasGaleria.length > 0
-      ? usinasGaleria.slice(0, 6)
-      : [
-          {
-            id: '1',
-            titulo: 'Usina Solar Residencial',
-            cidade: 'Erechim / RS',
-            potencia_kwp: 10.5,
-          },
-          {
-            id: '2',
-            titulo: 'Usina Solar Comercial',
-            cidade: 'Passo Fundo / RS',
-            potencia_kwp: 35.0,
-          },
-          {
-            id: '3',
-            titulo: 'Usina Solar Agropecuária',
-            cidade: 'Getúlio Vargas / RS',
-            potencia_kwp: 50.0,
-          },
-        ]
-
-  // Pré-carrega as imagens das usinas selecionadas
-  const usinasDocxComFoto = await Promise.all(
-    usinasBase.map(async (u) => {
-      const url = getFotoUrl(u)
-      let imgBytes: Uint8Array | null = null
-      if (url) {
-        imgBytes = await loadImageUint8Array(url)
-      }
-      return {
-        ...u,
-        imgBytes,
-      }
-    }),
-  )
-
-  docChildren.push(
-    new Paragraph({
-      spacing: { before: 100, after: 60 },
-      children: [
-        new TextRun({
-          text: 'PORTFÓLIO DE USINAS INSTALADAS',
-          bold: true,
-          size: 16,
-          color: COLOR_PRIMARY,
-          font: 'Arial',
-        }),
-      ],
-    }),
-  )
-
-  // Divide as usinas em linhas de 3 colunas para docx limpo
-  const chunksUsinas: (typeof usinasDocxComFoto)[] = []
-  for (let i = 0; i < usinasDocxComFoto.length; i += 3) {
-    chunksUsinas.push(usinasDocxComFoto.slice(i, i + 3))
-  }
-
-  const colWidthGaleria = Math.floor(PAGE_CONTENT_WIDTH / 3)
-  docChildren.push(
-    new Table({
-      width: { size: PAGE_CONTENT_WIDTH, type: WidthType.DXA },
-      borders: tableBorderDefault,
-      rows: chunksUsinas.map(
-        (chunk) =>
-          new TableRow({
-            children: chunk.map((u) => {
-              const pot = u.potencia_kwp
-                ? `${formatNumBR(Number(u.potencia_kwp), 1)} kWp`
-                : 'Turnkey'
-              const cid = u.cidade || 'Erechim / RS'
-              const tit = u.titulo || 'Usina Solar Delfos'
-
-              const cellChildren: (Paragraph | Table)[] = []
-
-              if (u.imgBytes) {
-                cellChildren.push(
-                  new Paragraph({
-                    alignment: AlignmentType.CENTER,
-                    spacing: { after: 60 },
-                    children: [
-                      new ImageRun({
-                        type: 'jpg',
-                        data: u.imgBytes,
-                        transformation: { width: 170, height: 105 },
-                      }),
-                    ],
-                  }),
-                )
-              }
-
-              cellChildren.push(
-                new Paragraph({
-                  children: [
-                    ...(!u.imgBytes
-                      ? [
-                          new TextRun({
-                            text: '☀️ ',
-                            size: 20,
-                          }),
-                        ]
-                      : []),
-                    new TextRun({
-                      text: `${tit}\n`,
-                      bold: true,
-                      size: 16,
-                      color: COLOR_PRIMARY,
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: `Localização: ${cid}\n`,
-                      size: 14,
-                      color: COLOR_TEXT_MUTED,
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: `Potência: ${pot}`,
-                      bold: true,
-                      size: 15,
-                      color: COLOR_ACCENT,
-                      font: 'Arial',
-                    }),
-                  ],
-                }),
-              )
-
-              return new TableCell({
-                width: { size: colWidthGaleria, type: WidthType.DXA },
-                shading: { type: ShadingType.CLEAR, fill: COLOR_GRAY_BG },
-                margins: { top: 100, bottom: 100, left: 100, right: 100 },
-                children: cellChildren,
-              })
-            }),
-          }),
-      ),
-    }),
-  )
 
   // ----------------------------------------------------
   // SEÇÃO 2: SITUAÇÃO ATUAL
@@ -1417,6 +1397,136 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
   )
 
   const colWidthHalf = Math.floor(PAGE_CONTENT_WIDTH / 2)
+
+  // Carrega fotos reais do módulo e inversor se habilitadas e existirem
+  const permitirFotos = dados.secoesHabilitadas?.fotosProjeto !== false
+  const fotoModuloBytes =
+    permitirFotos && sistema.fotoModuloUrl ? await loadImageUint8Array(sistema.fotoModuloUrl) : null
+  const fotoInversorBytes =
+    permitirFotos && sistema.fotoInversorUrl
+      ? await loadImageUint8Array(sistema.fotoInversorUrl)
+      : null
+
+  const modulosCellChildren: (Paragraph | Table)[] = []
+  if (fotoModuloBytes) {
+    modulosCellChildren.push(
+      new Paragraph({
+        alignment: AlignmentType.CENTER,
+        spacing: { after: 60 },
+        children: [
+          new ImageRun({
+            type: 'jpg',
+            data: fotoModuloBytes,
+            transformation: { width: 140, height: 90 },
+          }),
+        ],
+      }),
+    )
+  }
+  modulosCellChildren.push(
+    new Paragraph({
+      children: [
+        new TextRun({
+          text: 'Módulos Fotovoltaicos: ',
+          bold: true,
+          size: 17,
+          font: 'Arial',
+        }),
+        new TextRun({
+          text: `${sistema.numeroPlacas}x ${sistema.marcaPlacas || 'Módulos Tier-1'} (${sistema.potenciaPlacaWp}W bifacial N-type)`,
+          size: 17,
+          font: 'Arial',
+        }),
+      ],
+    }),
+    new Paragraph({
+      spacing: { before: 30 },
+      children: [
+        new TextRun({
+          text: '• Garantia de performance (degradação): ',
+          bold: true,
+          color: '065F46',
+          size: 14,
+          font: 'Arial',
+        }),
+        new TextRun({
+          text: `${(sistema as any)?.garantias?.paineisAnosDesempenho || (dados as any)?.garantias?.paineisAnosDesempenho || 30} anos`,
+          bold: true,
+          color: '065F46',
+          size: 14,
+          font: 'Arial',
+        }),
+      ],
+    }),
+    new Paragraph({
+      spacing: { before: 20 },
+      children: [
+        new TextRun({
+          text: '• Garantia contra defeitos de fabricação: ',
+          bold: true,
+          color: '92400E',
+          size: 14,
+          font: 'Arial',
+        }),
+        new TextRun({
+          text: `${(sistema as any)?.garantias?.paineisAnosFabricacao || (dados as any)?.garantias?.paineisAnosFabricacao || 15} anos`,
+          bold: true,
+          color: '92400E',
+          size: 14,
+          font: 'Arial',
+        }),
+      ],
+    }),
+  )
+
+  const inversorCellChildren: (Paragraph | Table)[] = []
+  if (fotoInversorBytes) {
+    inversorCellChildren.push(
+      new Paragraph({
+        alignment: AlignmentType.CENTER,
+        spacing: { after: 60 },
+        children: [
+          new ImageRun({
+            type: 'jpg',
+            data: fotoInversorBytes,
+            transformation: { width: 140, height: 90 },
+          }),
+        ],
+      }),
+    )
+  }
+  inversorCellChildren.push(
+    new Paragraph({
+      children: [
+        new TextRun({ text: 'Inversor Solar: ', bold: true, size: 17, font: 'Arial' }),
+        new TextRun({
+          text: `${sistema.quantidadeInversores}x ${sistema.marcaInversor || 'Inversor Homologado'} com WiFi e telemetria`,
+          size: 17,
+          font: 'Arial',
+        }),
+      ],
+    }),
+    new Paragraph({
+      spacing: { before: 30 },
+      children: [
+        new TextRun({
+          text: '• Garantia do inversor: ',
+          bold: true,
+          color: '0F766E',
+          size: 14,
+          font: 'Arial',
+        }),
+        new TextRun({
+          text: `${(sistema as any)?.garantias?.inversorAnosFabricacao || (dados as any)?.garantias?.inversorAnosFabricacao || 10} anos`,
+          bold: true,
+          color: '0F766E',
+          size: 14,
+          font: 'Arial',
+        }),
+      ],
+    }),
+  )
+
   docChildren.push(
     new Table({
       width: { size: PAGE_CONTENT_WIDTH, type: WidthType.DXA },
@@ -1480,97 +1590,13 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
               width: { size: colWidthHalf, type: WidthType.DXA },
               shading: { type: ShadingType.CLEAR, fill: 'F5F5F5' },
               margins: { top: 80, bottom: 80, left: 100, right: 100 },
-              children: [
-                new Paragraph({
-                  children: [
-                    new TextRun({
-                      text: 'Módulos Fotovoltaicos: ',
-                      bold: true,
-                      size: 17,
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: `${sistema.numeroPlacas}x ${sistema.marcaPlacas || 'Módulos Tier-1'} (${sistema.potenciaPlacaWp}W bifacial N-type)`,
-                      size: 17,
-                      font: 'Arial',
-                    }),
-                  ],
-                }),
-                new Paragraph({
-                  spacing: { before: 30 },
-                  children: [
-                    new TextRun({
-                      text: '• Garantia de performance (degradação): ',
-                      bold: true,
-                      color: '065F46',
-                      size: 14,
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: `${(sistema as any)?.garantias?.paineisAnosDesempenho || (dados as any)?.garantias?.paineisAnosDesempenho || 30} anos`,
-                      bold: true,
-                      color: '065F46',
-                      size: 14,
-                      font: 'Arial',
-                    }),
-                  ],
-                }),
-                new Paragraph({
-                  spacing: { before: 20 },
-                  children: [
-                    new TextRun({
-                      text: '• Garantia contra defeitos de fabricação: ',
-                      bold: true,
-                      color: '92400E',
-                      size: 14,
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: `${(sistema as any)?.garantias?.paineisAnosFabricacao || (dados as any)?.garantias?.paineisAnosFabricacao || 15} anos`,
-                      bold: true,
-                      color: '92400E',
-                      size: 14,
-                      font: 'Arial',
-                    }),
-                  ],
-                }),
-              ],
+              children: modulosCellChildren,
             }),
             new TableCell({
               width: { size: colWidthHalf, type: WidthType.DXA },
               shading: { type: ShadingType.CLEAR, fill: 'F5F5F5' },
               margins: { top: 80, bottom: 80, left: 100, right: 100 },
-              children: [
-                new Paragraph({
-                  children: [
-                    new TextRun({ text: 'Inversor Solar: ', bold: true, size: 17, font: 'Arial' }),
-                    new TextRun({
-                      text: `${sistema.quantidadeInversores}x ${sistema.marcaInversor || 'Inversor Homologado'} com WiFi e telemetria`,
-                      size: 17,
-                      font: 'Arial',
-                    }),
-                  ],
-                }),
-                new Paragraph({
-                  spacing: { before: 30 },
-                  children: [
-                    new TextRun({
-                      text: '• Garantia do inversor: ',
-                      bold: true,
-                      color: '0F766E',
-                      size: 14,
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: `${(sistema as any)?.garantias?.inversorAnosFabricacao || (dados as any)?.garantias?.inversorAnosFabricacao || 10} anos`,
-                      bold: true,
-                      color: '0F766E',
-                      size: 14,
-                      font: 'Arial',
-                    }),
-                  ],
-                }),
-              ],
+              children: inversorCellChildren,
             }),
           ],
         }),
@@ -1629,10 +1655,14 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
   // ----------------------------------------------------
   // TABELA COMPACTA: GERAÇÃO MENSAL PREVISTA (2 LINHAS × 12 COLUNAS)
   // Posicionada IMEDIATAMENTE ABAIXO dos cards da seção "Seu Sistema Fotovoltaico"
-  // Fallback: se geracao_detalhada_json for null/vazio, omite a seção
+  // Fallback: se geracao_detalhada_json for null/vazio ou seções desabilitadas, omite a seção
   // ----------------------------------------------------
   const itensGeracao = calculos.geracaoMensalDetalhada
-  if (Array.isArray(itensGeracao) && itensGeracao.length > 0) {
+  if (
+    dados.secoesHabilitadas?.sazonalidadeSolar !== false &&
+    Array.isArray(itensGeracao) &&
+    itensGeracao.length > 0
+  ) {
     const totalAnualDocx =
       calculos.geracaoAnualEstimadaKwh > 0
         ? calculos.geracaoAnualEstimadaKwh
@@ -1826,7 +1856,11 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
   // Renderizada se layoutTelhadoHabilitado !== false e houver layoutTelhadoUrl
   // Imagem em ImageRun com PAGE_CONTENT_WIDTH = 9900 dxa (aprox 660 px de largura)
   // ----------------------------------------------------
-  if (dados.layoutTelhadoHabilitado !== false && dados.layoutTelhadoUrl) {
+  if (
+    dados.layoutTelhadoHabilitado !== false &&
+    dados.secoesHabilitadas?.layoutTelhado !== false &&
+    dados.layoutTelhadoUrl
+  ) {
     const layoutBytes = await loadImageUint8Array(dados.layoutTelhadoUrl)
     if (layoutBytes) {
       docChildren.push(
