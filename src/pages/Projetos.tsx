@@ -84,20 +84,15 @@ export const Projetos: React.FC = () => {
   return (
     <div className="space-y-4 max-w-[1700px] mx-auto">
       {/* Top Bar com Título, Métricas e Ações */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 bg-white p-4 sm:p-5 rounded-2xl border border-gray-200 shadow-2xs">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 bg-white p-3 sm:p-4 rounded-2xl border border-gray-200 shadow-2xs">
         <div>
           <div className="flex items-center gap-2">
-            <div className="p-2 bg-emerald-100 text-emerald-800 rounded-xl">
-              <FolderKanban className="w-5 h-5 text-emerald-700" />
+            <div className="p-1.5 bg-emerald-100 text-emerald-800 rounded-lg">
+              <FolderKanban className="w-4 h-4 text-emerald-700" />
             </div>
-            <div>
-              <h1 className="text-xl sm:text-2xl font-bold text-gray-900 tracking-tight">
-                Funil de Projetos & Engenharia
-              </h1>
-              <p className="text-xs text-gray-500">
-                Acompanhamento operacional das 6 etapas de execução solar
-              </p>
-            </div>
+            <h1 className="text-base sm:text-lg font-bold text-gray-900 tracking-tight whitespace-nowrap">
+              Funil de Projetos & Engenharia
+            </h1>
           </div>
         </div>
 
