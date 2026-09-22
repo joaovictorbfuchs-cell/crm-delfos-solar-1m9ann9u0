@@ -183,89 +183,73 @@ export default function Comercial() {
 
       {/* Action Bar & Container */}
       <div className="bg-white rounded-xl border border-gray-200/80 p-3 sm:p-5 shadow-xs space-y-4">
-        <div className="flex items-center justify-between gap-4 flex-wrap pb-1">
-          <div>
-            <h3 className="text-base font-semibold text-gray-900">
-              {viewMode === 'kanban'
-                ? 'Etapas do Funil de Vendas'
-                : viewMode === 'list'
-                  ? 'Visão Geral dos Negócios (Lista)'
-                  : 'Oportunidades Perdidas'}
-            </h3>
-            <p className="text-xs text-gray-500">
-              {viewMode === 'kanban'
-                ? 'Arraste os cards entre as colunas para atualizar a etapa de cada cliente'
-                : viewMode === 'list'
-                  ? 'Gerencie negócios em formato tabela com seleção múltipla e ações em lote'
-                  : 'Histórico de clientes e negócios desqualificados ou perdidos, com opção de reativação imediata'}
-            </p>
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          {/* Seletor de Modo de Visualização: Kanban vs Lista vs Oportunidades Perdidas */}
+          <div className="flex items-center bg-gray-100 p-1 rounded-xl border border-gray-200">
+            <button
+              type="button"
+              onClick={() => setViewMode('kanban')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                viewMode === 'kanban'
+                  ? 'bg-white text-emerald-800 shadow-xs border border-gray-200/80 font-bold'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+              title="Visualização Kanban"
+            >
+              <LayoutGrid className="w-4 h-4 text-emerald-600" />
+              <span className="hidden sm:inline">Kanban</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode('list')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                viewMode === 'list'
+                  ? 'bg-white text-emerald-800 shadow-xs border border-gray-200/80 font-bold'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+              title="Visualização em Lista"
+            >
+              <List className="w-4 h-4 text-emerald-600" />
+              <span className="hidden sm:inline">Lista</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode('perdidos')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                viewMode === 'perdidos'
+                  ? 'bg-white text-rose-800 shadow-xs border border-rose-200/80 font-bold'
+                  : 'text-gray-600 hover:text-rose-700'
+              }`}
+              title="Oportunidades Perdidas"
+            >
+              <ArchiveX className="w-4 h-4 text-rose-600" />
+              <span className="hidden sm:inline">Oportunidades Perdidas</span>
+              {clientesPerdidos.length > 0 && (
+                <span className="ml-1 bg-rose-100 text-rose-800 font-bold px-1.5 py-0.2 rounded-full text-[10px]">
+                  {clientesPerdidos.length}
+                </span>
+              )}
+            </button>
           </div>
 
-          <div className="flex items-center gap-2.5 flex-wrap">
-            {/* Seletor de Modo de Visualização: Kanban vs Lista vs Oportunidades Perdidas */}
-            <div className="flex items-center bg-gray-100 p-1 rounded-xl border border-gray-200">
-              <button
-                type="button"
-                onClick={() => setViewMode('kanban')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                  viewMode === 'kanban'
-                    ? 'bg-white text-emerald-800 shadow-xs border border-gray-200/80'
-                    : 'text-gray-600 hover:text-gray-900'
-                }`}
-                title="Visualização Kanban"
-              >
-                <LayoutGrid className="w-4 h-4 text-emerald-600" />
-                <span className="hidden sm:inline">Kanban</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setViewMode('list')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                  viewMode === 'list'
-                    ? 'bg-white text-emerald-800 shadow-xs border border-gray-200/80'
-                    : 'text-gray-600 hover:text-gray-900'
-                }`}
-                title="Visualização em Lista"
-              >
-                <List className="w-4 h-4 text-emerald-600" />
-                <span className="hidden sm:inline">Lista</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setViewMode('perdidos')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                  viewMode === 'perdidos'
-                    ? 'bg-white text-rose-800 shadow-xs border border-rose-200/80'
-                    : 'text-gray-600 hover:text-rose-700'
-                }`}
-                title="Oportunidades Perdidas"
-              >
-                <ArchiveX className="w-4 h-4 text-rose-600" />
-                <span className="hidden sm:inline">Oportunidades Perdidas</span>
-                {clientesPerdidos.length > 0 && (
-                  <span className="ml-1 bg-rose-100 text-rose-800 font-bold px-1.5 py-0.2 rounded-full text-[10px]">
-                    {clientesPerdidos.length}
-                  </span>
-                )}
-              </button>
-            </div>
-
+          <div className="flex items-center gap-2 flex-wrap justify-end">
             {/* Botão Enviar Fechados para Pós-Vendas */}
             <button
               type="button"
               onClick={() => setIsModalTransferenciaOpen(true)}
               disabled={fechados.length === 0}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-emerald-700 hover:bg-emerald-800 disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed text-white text-xs font-semibold rounded-xl shadow-xs transition-all hover:scale-[1.01] active:scale-[0.99]"
+              className="inline-flex items-center gap-1.5 px-3 py-2 bg-emerald-50 hover:bg-emerald-100 disabled:bg-gray-100 disabled:text-gray-400 disabled:border-gray-200 disabled:cursor-not-allowed text-emerald-800 border border-emerald-300 text-xs font-bold rounded-xl shadow-2xs transition-all cursor-pointer"
               title={
                 fechados.length === 0
                   ? 'Nenhum negócio fechado aguardando envio'
                   : `Mover ${fechados.length} negócio(s) fechado(s) para a aba de Clientes Pós-Vendas`
               }
             >
-              <Send className="w-3.5 h-3.5 shrink-0" />
-              <span>Enviar Fechados para Pós-Vendas</span>
+              <Send className="w-3.5 h-3.5 shrink-0 text-emerald-700" />
+              <span className="hidden sm:inline">Enviar Fechados para Pós-Vendas</span>
+              <span className="sm:hidden">Pós-Vendas</span>
               {fechados.length > 0 && (
-                <span className="ml-1 bg-emerald-900/60 text-white text-[11px] font-bold px-1.5 py-0.2 rounded-full border border-emerald-400/40">
+                <span className="ml-0.5 bg-emerald-600 text-white text-[10px] font-bold px-1.5 py-0.2 rounded-full">
                   {fechados.length}
                 </span>
               )}
@@ -276,23 +260,23 @@ export default function Comercial() {
               type="button"
               onClick={handleRefresh}
               disabled={isRefreshing}
-              className="inline-flex items-center gap-1.5 px-3 py-2 bg-white hover:bg-gray-50 border border-gray-200 text-gray-700 text-xs font-semibold rounded-xl shadow-2xs transition-colors disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 px-3 py-2 bg-white hover:bg-gray-50 border border-gray-200/80 text-gray-700 text-xs font-semibold rounded-xl shadow-2xs transition-colors disabled:opacity-50 cursor-pointer"
               title="Recarregar dados do CRM"
             >
               <RefreshCw
                 className={`w-3.5 h-3.5 text-emerald-600 ${isRefreshing ? 'animate-spin' : ''}`}
               />
-              <span className="hidden sm:inline">
-                {isRefreshing ? 'Recarregando...' : 'Recarregar dados'}
+              <span className="hidden md:inline">
+                {isRefreshing ? 'Recarregando...' : 'Recarregar'}
               </span>
             </button>
 
-            {/* Botão Novo Lead */}
+            {/* Botão Novo Lead no padrão exato minimalista */}
             <button
               onClick={() => setIsNovoLeadOpen(true)}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-[#16A34A] hover:bg-[#15803D] text-white text-sm font-semibold rounded-xl shadow-xs hover:shadow-md transition-all duration-150 hover:scale-[1.02]"
+              className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-[#16A34A] hover:bg-[#15803D] active:scale-[0.98] text-white text-sm font-bold rounded-xl shadow-sm hover:shadow-md transition-all shrink-0 cursor-pointer"
             >
-              <UserPlus className="w-4 h-4" />
+              <UserPlus className="w-4 h-4 stroke-[2.5]" />
               <span>+ Novo Lead</span>
             </button>
           </div>

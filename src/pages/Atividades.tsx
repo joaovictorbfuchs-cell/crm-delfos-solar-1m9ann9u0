@@ -1,6 +1,5 @@
 import React, { useState, useMemo } from 'react'
 import {
-  Calendar as CalendarIcon,
   Search,
   Clock,
   User,
@@ -136,24 +135,13 @@ export const Atividades: React.FC = () => {
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto pb-12">
-      {/* 1. Header com resumo e botão de ação rápida */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h2 className="text-xl sm:text-2xl font-bold text-gray-900 tracking-tight flex items-center gap-2.5">
-            <CalendarIcon className="w-6 h-6 text-emerald-600" />
-            Central de Atividades & Tarefas
-          </h2>
-          <p className="text-xs sm:text-sm text-gray-500 mt-1">
-            Planejamento diário, calendário com chips coloridos e acompanhamento de tarefas por
-            responsável.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2.5 flex-wrap">
-          {/* Seletor global do usuário */}
-          <div className="flex items-center gap-1.5 bg-white px-3 py-2 rounded-xl border border-gray-200 text-xs shadow-2xs">
+      {/* 1. Barra de Ações Superior - Minimalista com filtros essenciais e botão de ação alinhado à direita */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+        {/* Filtro essencial de responsável e recarregar */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-1.5 bg-white px-3 py-2 rounded-xl border border-gray-200/80 text-xs shadow-2xs">
             <User className="w-3.5 h-3.5 text-emerald-600" />
-            <span className="text-gray-500 hidden sm:inline">Filtrar por:</span>
+            <span className="text-gray-500 hidden sm:inline">Responsável:</span>
             <select
               value={usuarioFiltroId}
               onChange={(e) => setUsuarioFiltroId(e.target.value)}
@@ -172,24 +160,29 @@ export const Atividades: React.FC = () => {
             type="button"
             onClick={handleRefresh}
             disabled={isRefreshing}
-            className="inline-flex items-center gap-1.5 px-3 py-2 bg-white hover:bg-gray-50 border border-gray-200 text-gray-700 text-xs font-semibold rounded-xl shadow-2xs transition-colors disabled:opacity-50"
+            className="inline-flex items-center gap-1.5 px-3 py-2 bg-white hover:bg-gray-50 border border-gray-200/80 text-gray-700 text-xs font-semibold rounded-xl shadow-2xs transition-colors disabled:opacity-50 cursor-pointer"
             title="Recarregar dados do CRM"
           >
             <RefreshCw
               className={`w-3.5 h-3.5 text-emerald-600 ${isRefreshing ? 'animate-spin' : ''}`}
             />
-            <span>{isRefreshing ? 'Recarregando...' : 'Recarregar dados'}</span>
+            <span className="hidden sm:inline">
+              {isRefreshing ? 'Recarregando...' : 'Recarregar'}
+            </span>
           </button>
+        </div>
 
+        {/* Botão de Ação Primário no canto superior direito */}
+        <div className="flex items-center justify-end">
           <button
             type="button"
             onClick={() => {
               setModalInitialTipo('contato_ligacao')
               setModalOpen(true)
             }}
-            className="inline-flex items-center gap-2 px-4 py-2.5 bg-[#16A34A] hover:bg-[#15803D] text-white rounded-xl text-xs font-bold shadow-xs transition-colors"
+            className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-[#16A34A] hover:bg-[#15803D] active:scale-[0.98] text-white text-sm font-bold rounded-xl shadow-sm hover:shadow-md transition-all shrink-0 cursor-pointer"
           >
-            <Plus className="w-4 h-4" />
+            <Plus className="w-4 h-4 stroke-[2.5]" />
             <span>Nova Atividade</span>
           </button>
         </div>
@@ -252,7 +245,7 @@ export const Atividades: React.FC = () => {
             }`}
           >
             <CalendarDays className="w-4 h-4 text-emerald-600" />
-            <span>Calendário de Atividades</span>
+            <span>Calendário</span>
           </button>
 
           <button
@@ -281,23 +274,11 @@ export const Atividades: React.FC = () => {
             }`}
           >
             <Clock className="w-4 h-4 text-blue-500" />
-            <span>Timeline Completa</span>
+            <span>Timeline</span>
             <span className="text-[10px] bg-gray-200 text-gray-700 px-1.5 py-0.2 rounded-full font-bold">
               {atividades.length}
             </span>
           </button>
-        </div>
-
-        <div className="text-xs text-gray-500 font-medium">
-          {activeView === 'calendario' && (
-            <span>Alterne entre visão semanal (7 dias) e mensal no topo do calendário</span>
-          )}
-          {activeView === 'pendentes' && (
-            <span>Marque as tarefas pelo círculo à esquerda para dar baixa</span>
-          )}
-          {activeView === 'timeline' && (
-            <span>Histórico cronológico detalhado com filtros avançados</span>
-          )}
         </div>
       </div>
 

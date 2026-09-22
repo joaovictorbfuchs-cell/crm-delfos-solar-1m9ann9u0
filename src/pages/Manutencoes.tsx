@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { useLocation } from 'react-router-dom'
-import { ShieldCheck, Loader2, Plus, FileCheck } from 'lucide-react'
+import { Loader2, Plus, FileCheck } from 'lucide-react'
 import { useClientes } from '@/contexts/ClientesContext'
 import { ListaOM, type AbaPrincipalOM } from '@/components/ListaOM'
 import { calcularContagensOM } from '@/lib/omCategorizacao'
@@ -57,44 +57,26 @@ export default function Manutencoes() {
 
   return (
     <div className="space-y-3.5">
-      {/* Top Header compacto e limpo */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-white px-4 py-3 sm:py-3.5 rounded-2xl border border-gray-200/80 shadow-xs">
-        <div className="flex items-center gap-2.5">
-          <div className="p-2 bg-emerald-100 text-emerald-800 rounded-xl shrink-0">
-            <ShieldCheck className="w-5 h-5 text-emerald-700" />
-          </div>
-          <div>
-            <h2 className="text-base sm:text-lg font-bold text-gray-900 tracking-tight leading-tight">
-              {location.pathname === '/planos-om' || location.pathname === '/planos-monitoramento'
-                ? 'Planos de Monitoramento & O&M'
-                : 'Gestão de O&M (Operação e Manutenção)'}
-            </h2>
-            <p className="text-xs text-gray-500">
-              Planos ativos, manutenções preventivas e pós-vendas
-            </p>
-          </div>
-        </div>
+      {/* Barra de Ações Superior - Minimalista alinhada à direita */}
+      <div className="flex items-center justify-end gap-2.5">
+        <button
+          type="button"
+          onClick={() => setIsNovaPropostaOpen(true)}
+          className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 text-xs font-bold rounded-xl shadow-2xs transition-all cursor-pointer"
+          title="Criar proposta O&M com PDF"
+        >
+          <FileCheck className="w-3.5 h-3.5 text-emerald-700" />
+          <span>Nova Proposta O&M</span>
+        </button>
 
-        {/* Botões de Ação */}
-        <div className="flex items-center gap-2 self-stretch sm:self-auto justify-end flex-wrap">
-          <button
-            type="button"
-            onClick={() => setIsNovaPropostaOpen(true)}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 sm:py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 text-xs font-bold rounded-xl shadow-2xs transition-all hover:scale-[1.02]"
-            title="Criar proposta O&M com PDF"
-          >
-            <FileCheck className="w-3.5 h-3.5 text-emerald-700" />
-            <span>Nova Proposta O&M</span>
-          </button>
-
-          <button
-            onClick={() => setIsNovoContratoOpen(true)}
-            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 sm:py-2 bg-[#16A34A] hover:bg-[#15803D] text-white text-xs font-bold rounded-xl shadow-xs transition-all hover:scale-[1.02]"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            <span>Novo Contrato O&M</span>
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={() => setIsNovoContratoOpen(true)}
+          className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-[#16A34A] hover:bg-[#15803D] active:scale-[0.98] text-white text-sm font-bold rounded-xl shadow-sm hover:shadow-md transition-all shrink-0 cursor-pointer"
+        >
+          <Plus className="w-4 h-4 stroke-[2.5]" />
+          <span>Novo Contrato O&M</span>
+        </button>
       </div>
 
       {/* Conteúdo Principal: Base Completa O&M com sub-abas Planos O&M e Clientes Pós-Vendas */}

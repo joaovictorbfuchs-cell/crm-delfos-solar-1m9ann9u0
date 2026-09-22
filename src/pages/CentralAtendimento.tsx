@@ -737,9 +737,9 @@ export const CentralAtendimento: React.FC = () => {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Barra de Ferramentas Compacta */}
-      <div className="flex items-center justify-between flex-wrap gap-2.5 bg-white px-3.5 py-2.5 rounded-xl border border-gray-200 shadow-2xs">
+    <div className="space-y-4">
+      {/* Barra de Ações Superior - Minimalista: Busca com autocomplete e ações funcionais */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-white p-2.5 sm:p-3 rounded-2xl border border-gray-200/80 shadow-2xs">
         {/* Campo de Busca com Dropdown de Resultados da Base de Clientes */}
         <div className="relative flex-1 min-w-[220px] max-w-sm sm:w-80">
           <Search className="w-3.5 h-3.5 text-gray-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
@@ -748,7 +748,7 @@ export const CentralAtendimento: React.FC = () => {
             placeholder="Buscar por telefone, cliente ou mensagem..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-8 pr-7 py-1.5 text-xs bg-gray-50 focus:bg-white border border-gray-200 rounded-lg focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all outline-none"
+            className="w-full pl-8 pr-7 py-2 text-xs bg-gray-50/80 focus:bg-white border border-gray-200 rounded-xl focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all outline-none"
           />
           {searchTerm.trim().length > 0 && (
             <button
@@ -850,13 +850,13 @@ export const CentralAtendimento: React.FC = () => {
           )}
         </div>
 
-        {/* Ações da Barra de Ferramentas */}
-        <div className="flex items-center gap-2">
+        {/* Ações da Barra de Ferramentas alinhadas à direita */}
+        <div className="flex items-center gap-2 justify-end flex-wrap">
           {/* Toggle de Notificações Sonoras e Desktop */}
           <button
             type="button"
             onClick={handleToggleNotificacoes}
-            className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-semibold transition-all shadow-2xs ${
+            className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border text-xs font-semibold transition-all shadow-2xs cursor-pointer ${
               notificacoesAtivas
                 ? 'bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border-emerald-300'
                 : 'bg-gray-50 hover:bg-gray-100 text-gray-500 border-gray-200'
@@ -886,28 +886,32 @@ export const CentralAtendimento: React.FC = () => {
             )}
           </button>
 
+          {/* Botão Recarregar Conversas */}
           <button
             type="button"
             onClick={handleManualRefresh}
             disabled={isRefreshing}
-            className="p-1.5 bg-gray-50 hover:bg-gray-100 text-gray-700 border border-gray-200 rounded-lg transition-colors shadow-2xs"
+            className="inline-flex items-center gap-1.5 px-3 py-2 bg-white hover:bg-gray-50 text-gray-700 border border-gray-200/80 rounded-xl transition-colors shadow-2xs cursor-pointer disabled:opacity-50"
             title="Atualizar lista de conversas agora"
             aria-label="Atualizar lista de conversas"
           >
             <RefreshCw
-              className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin text-emerald-600' : ''}`}
+              className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin text-emerald-600' : 'text-emerald-600'}`}
             />
+            <span className="hidden md:inline">
+              {isRefreshing ? 'Atualizando...' : 'Atualizar'}
+            </span>
           </button>
 
-          {/* Botão de Templates & Configurações de WhatsApp */}
+          {/* Botão de Templates & Configurações de WhatsApp no padrão verde Delfos */}
           <button
             type="button"
             onClick={() => setModalTemplatesOpen(true)}
-            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 rounded-lg text-xs font-semibold transition-all shadow-2xs"
+            className="inline-flex items-center justify-center gap-2 px-3.5 py-2 bg-[#16A34A] hover:bg-[#15803D] active:scale-[0.98] text-white text-xs font-bold rounded-xl shadow-sm hover:shadow-md transition-all shrink-0 cursor-pointer"
             title="Gerenciar templates e credenciais de integração"
           >
-            <Settings className="w-3.5 h-3.5 text-emerald-700" />
-            <span className="hidden sm:inline">Templates & Gateway</span>
+            <Settings className="w-3.5 h-3.5 stroke-[2.5]" />
+            <span>Templates & Gateway</span>
           </button>
         </div>
       </div>
