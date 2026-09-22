@@ -310,7 +310,6 @@ export const FichaClienteDrawer: React.FC = () => {
   // Ação para rolar até a seção de Negócios Vinculados
   const handleRolarParaNegocios = () => {
     setActiveClientTab('historico')
-    setDetalhesOpen(true)
 
     const scrollParaSecao = (tentativa = 0) => {
       const container = scrollContainerRef.current
@@ -3298,14 +3297,6 @@ export const FichaClienteDrawer: React.FC = () => {
                           )}
                       </div>
 
-                      {/* Negócios Vinculados ao Cliente (Separação Cadastral vs Oportunidades Comerciais) */}
-                      <div id="secao-negocios-cliente">
-                        <CardNegociosCliente
-                          clienteId={selectedCliente.id}
-                          clienteNome={selectedCliente.nome}
-                        />
-                      </div>
-
                       {/* Usinas Fotovoltaicas do Cliente integradas na Ficha Cadastral */}
                       <SecaoUsinasCliente
                         clienteId={selectedCliente.id}
@@ -3496,6 +3487,16 @@ export const FichaClienteDrawer: React.FC = () => {
                       }
                     }}
                   />
+
+                  {/* ======================================================== */}
+                  {/* NEGÓCIOS VINCULADOS AO CLIENTE (SEMPRE VISÍVEL)          */}
+                  {/* ======================================================== */}
+                  <div id="secao-negocios-cliente">
+                    <CardNegociosCliente
+                      clienteId={selectedCliente.id}
+                      clienteNome={selectedCliente.nome}
+                    />
+                  </div>
 
                   {/* ======================================================== */}
                   {/* LINHA DO TEMPO CRONOLÓGICA UNIFICADA                      */}
