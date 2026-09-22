@@ -107,58 +107,77 @@ export const AtividadesPendentesList: React.FC<AtividadesPendentesListProps> = (
         <div>
           <h3 className="text-sm sm:text-base font-bold text-gray-900 tracking-tight flex items-center gap-2">
             <Clock className="w-4 h-4 text-emerald-600" />
-            Tarefas & Atividades do Usuário
+            Fila de Pendências & Tarefas
           </h3>
           <p className="text-[11px] text-gray-500 mt-0.5">
-            Fila de trabalho de <strong className="text-emerald-700">{usuarioAtivoNome}</strong>
+            Exibindo atividades de <strong className="text-emerald-700">{usuarioAtivoNome}</strong>
           </p>
         </div>
 
-        {/* Alternador de status (Pendentes / Concluídas) */}
-        <div className="flex items-center gap-1 bg-gray-100 p-1 rounded-xl text-xs font-semibold">
-          <button
-            type="button"
-            onClick={() => setTabStatus('pendentes')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all ${
-              tabStatus === 'pendentes'
-                ? 'bg-white text-emerald-800 shadow-2xs font-bold'
-                : 'text-gray-600 hover:text-gray-900'
-            }`}
-          >
-            <Circle className="w-3.5 h-3.5 text-amber-500" />
-            <span>Pendentes</span>
-            <span className="text-[10px] bg-amber-100 text-amber-800 px-1.5 py-0.2 rounded-full font-bold ml-0.5">
-              {countPendentes}
-            </span>
-          </button>
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* Seletor de usuário responsável na fila de pendências */}
+          <div className="flex items-center gap-1.5 bg-white px-2.5 py-1.5 rounded-xl border border-gray-200 shadow-2xs text-xs">
+            <User className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+            <select
+              value={usuarioSelecionadoId}
+              onChange={(e) => onSelectUsuario(e.target.value)}
+              className="bg-transparent font-semibold text-gray-800 focus:outline-none cursor-pointer max-w-[150px] sm:max-w-none truncate"
+            >
+              <option value="todos">Todos os Responsáveis</option>
+              {usuarios.map((u) => (
+                <option key={u.id} value={u.id}>
+                  {u.name}
+                </option>
+              ))}
+            </select>
+          </div>
 
-          <button
-            type="button"
-            onClick={() => setTabStatus('concluidas')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all ${
-              tabStatus === 'concluidas'
-                ? 'bg-white text-emerald-800 shadow-2xs font-bold'
-                : 'text-gray-600 hover:text-gray-900'
-            }`}
-          >
-            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-            <span>Concluídas</span>
-            <span className="text-[10px] bg-emerald-100 text-emerald-800 px-1.5 py-0.2 rounded-full font-bold ml-0.5">
-              {countConcluidas}
-            </span>
-          </button>
+          {/* Alternador de status (Pendentes / Concluídas) */}
+          <div className="flex items-center gap-1 bg-gray-100 p-1 rounded-xl text-xs font-semibold">
+            <button
+              type="button"
+              onClick={() => setTabStatus('pendentes')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all ${
+                tabStatus === 'pendentes'
+                  ? 'bg-white text-emerald-800 shadow-2xs font-bold'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              <Circle className="w-3.5 h-3.5 text-amber-500" />
+              <span>Pendentes</span>
+              <span className="text-[10px] bg-amber-100 text-amber-800 px-1.5 py-0.2 rounded-full font-bold ml-0.5">
+                {countPendentes}
+              </span>
+            </button>
 
-          <button
-            type="button"
-            onClick={() => setTabStatus('todas')}
-            className={`px-2.5 py-1.5 rounded-lg transition-all ${
-              tabStatus === 'todas'
-                ? 'bg-white text-gray-900 shadow-2xs font-bold'
-                : 'text-gray-600 hover:text-gray-900'
-            }`}
-          >
-            Todas
-          </button>
+            <button
+              type="button"
+              onClick={() => setTabStatus('concluidas')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all ${
+                tabStatus === 'concluidas'
+                  ? 'bg-white text-emerald-800 shadow-2xs font-bold'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+              <span>Concluídas</span>
+              <span className="text-[10px] bg-emerald-100 text-emerald-800 px-1.5 py-0.2 rounded-full font-bold ml-0.5">
+                {countConcluidas}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setTabStatus('todas')}
+              className={`px-2.5 py-1.5 rounded-lg transition-all ${
+                tabStatus === 'todas'
+                  ? 'bg-white text-gray-900 shadow-2xs font-bold'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              Todas
+            </button>
+          </div>
         </div>
       </div>
 

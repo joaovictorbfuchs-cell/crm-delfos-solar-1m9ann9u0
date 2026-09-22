@@ -1,14 +1,5 @@
 import React, { useState, useMemo } from 'react'
-import {
-  Search,
-  Clock,
-  User,
-  ListTodo,
-  CalendarDays,
-  Plus,
-  RefreshCw,
-  AlertCircle,
-} from 'lucide-react'
+import { Search, Clock, ListTodo, CalendarDays, Plus, RefreshCw, AlertCircle } from 'lucide-react'
 import { useClientes } from '@/contexts/ClientesContext'
 import { useAuth } from '@/contexts/AuthContext'
 import { AtividadeItem } from '@/components/AtividadeItem'
@@ -134,33 +125,64 @@ export const Atividades: React.FC = () => {
   }, [atividades])
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto pb-12">
-      {/* 1. Barra de Ações Superior - Minimalista com filtros essenciais e botão de ação alinhado à direita */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-        {/* Filtro essencial de responsável e recarregar */}
-        <div className="flex items-center gap-2 flex-wrap">
-          <div className="flex items-center gap-1.5 bg-white px-3 py-2 rounded-xl border border-gray-200/80 text-xs shadow-2xs">
-            <User className="w-3.5 h-3.5 text-emerald-600" />
-            <span className="text-gray-500 hidden sm:inline">Responsável:</span>
-            <select
-              value={usuarioFiltroId}
-              onChange={(e) => setUsuarioFiltroId(e.target.value)}
-              className="bg-transparent font-bold text-gray-800 focus:outline-none cursor-pointer"
-            >
-              <option value="todos">Todos os Usuários</option>
-              {usuarios.map((u) => (
-                <option key={u.id} value={u.id}>
-                  {u.name}
-                </option>
-              ))}
-            </select>
-          </div>
+    <div className="space-y-4 max-w-7xl mx-auto pb-12">
+      {/* Barra Única Compacta: Abas à esquerda e Ações (Recarregar + Nova Atividade) à direita */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        {/* Abas: Calendário / Fila de Pendências / Timeline */}
+        <div className="inline-flex items-center gap-1 p-1 bg-gray-100/90 rounded-xl text-xs font-semibold border border-gray-200/60 shadow-2xs w-fit">
+          <button
+            type="button"
+            onClick={() => setActiveView('calendario')}
+            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg transition-all cursor-pointer ${
+              activeView === 'calendario'
+                ? 'bg-white text-emerald-800 font-bold shadow-2xs'
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            <CalendarDays className="w-4 h-4 text-emerald-600" />
+            <span>Calendário</span>
+          </button>
 
+          <button
+            type="button"
+            onClick={() => setActiveView('pendentes')}
+            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg transition-all cursor-pointer ${
+              activeView === 'pendentes'
+                ? 'bg-white text-emerald-800 font-bold shadow-2xs'
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            <ListTodo className="w-4 h-4 text-amber-500" />
+            <span>Fila de Pendências</span>
+            <span className="text-[10px] bg-amber-100 text-amber-800 px-1.5 py-0.2 rounded-full font-bold">
+              {totalPendentesGerais}
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveView('timeline')}
+            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg transition-all cursor-pointer ${
+              activeView === 'timeline'
+                ? 'bg-white text-emerald-800 font-bold shadow-2xs'
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            <Clock className="w-4 h-4 text-blue-500" />
+            <span>Timeline</span>
+            <span className="text-[10px] bg-gray-200 text-gray-700 px-1.5 py-0.2 rounded-full font-bold">
+              {atividades.length}
+            </span>
+          </button>
+        </div>
+
+        {/* Controles à direita: Recarregar + Nova Atividade */}
+        <div className="flex items-center gap-2 self-end sm:self-auto">
           <button
             type="button"
             onClick={handleRefresh}
             disabled={isRefreshing}
-            className="inline-flex items-center gap-1.5 px-3 py-2 bg-white hover:bg-gray-50 border border-gray-200/80 text-gray-700 text-xs font-semibold rounded-xl shadow-2xs transition-colors disabled:opacity-50 cursor-pointer"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-gray-50 border border-gray-200 text-gray-700 text-xs font-semibold rounded-xl shadow-2xs transition-colors disabled:opacity-50 cursor-pointer h-9"
             title="Recarregar dados do CRM"
           >
             <RefreshCw
@@ -170,17 +192,14 @@ export const Atividades: React.FC = () => {
               {isRefreshing ? 'Recarregando...' : 'Recarregar'}
             </span>
           </button>
-        </div>
 
-        {/* Botão de Ação Primário no canto superior direito */}
-        <div className="flex items-center justify-end">
           <button
             type="button"
             onClick={() => {
               setModalInitialTipo('contato_ligacao')
               setModalOpen(true)
             }}
-            className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-[#16A34A] hover:bg-[#15803D] active:scale-[0.98] text-white text-sm font-bold rounded-xl shadow-sm hover:shadow-md transition-all shrink-0 cursor-pointer"
+            className="inline-flex items-center justify-center gap-1.5 px-3.5 py-1.5 bg-[#16A34A] hover:bg-[#15803D] active:scale-[0.98] text-white text-xs sm:text-sm font-bold rounded-xl shadow-2xs hover:shadow-xs transition-all shrink-0 cursor-pointer h-9"
           >
             <Plus className="w-4 h-4 stroke-[2.5]" />
             <span>Nova Atividade</span>
@@ -202,7 +221,7 @@ export const Atividades: React.FC = () => {
             type="button"
             onClick={handleRefresh}
             disabled={isRefreshing}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg shrink-0 transition-colors"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg shrink-0 transition-colors cursor-pointer"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
             <span>Tentar novamente</span>
@@ -224,63 +243,13 @@ export const Atividades: React.FC = () => {
             type="button"
             onClick={handleRefresh}
             disabled={isRefreshing}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-lg shrink-0 transition-colors"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-lg shrink-0 transition-colors cursor-pointer"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
             <span>Recarregar dados</span>
           </button>
         </div>
       )}
-
-      {/* 2. Alternador de Visões: Calendário Mensal / Lista de Pendências / Timeline Geral */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-gray-200 pb-2">
-        <div className="flex items-center gap-1.5 p-1 bg-gray-100 rounded-xl text-xs font-semibold">
-          <button
-            type="button"
-            onClick={() => setActiveView('calendario')}
-            className={`flex items-center gap-2 px-3.5 py-2 rounded-lg transition-all ${
-              activeView === 'calendario'
-                ? 'bg-white text-emerald-800 font-bold shadow-2xs'
-                : 'text-gray-600 hover:text-gray-900'
-            }`}
-          >
-            <CalendarDays className="w-4 h-4 text-emerald-600" />
-            <span>Calendário</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveView('pendentes')}
-            className={`flex items-center gap-2 px-3.5 py-2 rounded-lg transition-all ${
-              activeView === 'pendentes'
-                ? 'bg-white text-emerald-800 font-bold shadow-2xs'
-                : 'text-gray-600 hover:text-gray-900'
-            }`}
-          >
-            <ListTodo className="w-4 h-4 text-amber-500" />
-            <span>Fila de Pendências</span>
-            <span className="text-[10px] bg-amber-100 text-amber-800 px-1.5 py-0.2 rounded-full font-bold">
-              {totalPendentesGerais}
-            </span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveView('timeline')}
-            className={`flex items-center gap-2 px-3.5 py-2 rounded-lg transition-all ${
-              activeView === 'timeline'
-                ? 'bg-white text-emerald-800 font-bold shadow-2xs'
-                : 'text-gray-600 hover:text-gray-900'
-            }`}
-          >
-            <Clock className="w-4 h-4 text-blue-500" />
-            <span>Timeline</span>
-            <span className="text-[10px] bg-gray-200 text-gray-700 px-1.5 py-0.2 rounded-full font-bold">
-              {atividades.length}
-            </span>
-          </button>
-        </div>
-      </div>
 
       {/* 4. Conteúdo da visão ativa */}
       {activeView === 'calendario' && (
@@ -324,6 +293,19 @@ export const Atividades: React.FC = () => {
               </div>
 
               <div className="flex items-center gap-2 flex-wrap">
+                <select
+                  value={usuarioFiltroId}
+                  onChange={(e) => setUsuarioFiltroId(e.target.value)}
+                  className="text-xs px-2.5 py-2 rounded-xl border border-gray-200 focus:outline-none focus:ring-1 focus:ring-emerald-500 bg-white max-w-[170px] truncate font-medium text-gray-800"
+                >
+                  <option value="todos">Todos os responsáveis</option>
+                  {usuarios.map((u) => (
+                    <option key={u.id} value={u.id}>
+                      {u.name}
+                    </option>
+                  ))}
+                </select>
+
                 <select
                   value={filterClienteId}
                   onChange={(e) => setFilterClienteId(e.target.value)}
