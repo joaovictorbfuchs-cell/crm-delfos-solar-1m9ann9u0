@@ -217,23 +217,7 @@ export const AtividadeItem: React.FC<AtividadeItemProps> = ({
           </div>
         )}
 
-        {isAutoLeitura && !isAutoLeituraFilha && onOpenDetalhes && (
-          <div className="mt-2.5 pt-2 border-t border-gray-100 flex items-center justify-between">
-            <span className="text-[10px] text-orange-800 bg-orange-50 font-semibold px-2 py-0.5 rounded border border-orange-200">
-              Cronograma & Leitura RGE
-            </span>
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation()
-                onOpenDetalhes(atividade)
-              }}
-              className="text-[11px] font-bold text-orange-700 hover:text-orange-900 hover:underline"
-            >
-              Abrir Cronograma e Requisitos →
-            </button>
-          </div>
-        )}
+
       </div>
     </div>
   )

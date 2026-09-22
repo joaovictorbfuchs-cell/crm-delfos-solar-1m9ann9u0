@@ -1250,20 +1250,6 @@ export const AtividadesCalendario: React.FC<AtividadesCalendarioProps> = ({
                   </div>
 
                   <div className="flex items-center justify-between pt-2 border-t border-gray-100 flex-wrap gap-2">
-                    {isAtividadeAutoLeitura(modalAtividade) && onOpenAutoLeitura && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const atv = modalAtividade
-                          setModalAtividade(null)
-                          onOpenAutoLeitura(atv)
-                        }}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-orange-600 text-white hover:bg-orange-700 transition-colors shadow-2xs"
-                      >
-                        Abrir Cronograma e Leitura RGE →
-                      </button>
-                    )}
-
                     <button
                       type="button"
                       onClick={() => {
