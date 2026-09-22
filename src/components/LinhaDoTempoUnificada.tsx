@@ -24,6 +24,7 @@ import {
 } from 'lucide-react'
 import { ModalGerarProcuracaoOM } from '@/components/ModalGerarProcuracaoOM'
 import { ModalGerarContratoOM } from '@/components/ModalGerarContratoOM'
+import { isAtividadeAutoLeitura } from '@/services/autoLeituraService'
 import type { DadosProcuracaoOM } from '@/lib/procuracaoGenerator'
 import type { DadosContratoOM } from '@/lib/contratoGenerator'
 import type { TimelineUnifiedItem, TimelineFilterTipo } from '@/types/timelineUnified'
@@ -817,8 +818,22 @@ export const LinhaDoTempoUnificada: React.FC<LinhaDoTempoUnificadaProps> = ({
                       )}
 
                       {item.status && item.categoria !== 'anotacao' && (
-                        <span
-                          className={`text-[10px] font-bold px-2 py-0.2 rounded-full border ${
+                        <button
+                          type="button"
+                          onClick={async (e) => {
+                            if (item.rawAtividade && onToggleAtividadeStatus) {
+                              e.stopPropagation()
+                              await onToggleAtividadeStatus(
+                                item.rawAtividade.id,
+                                item.rawAtividade.status || 'pendente',
+                              )
+                            }
+                          }}
+                          className={`text-[10px] font-bold px-2 py-0.2 rounded-full border transition-all ${
+                            item.rawAtividade && onToggleAtividadeStatus
+                              ? 'cursor-pointer hover:opacity-80'
+                              : ''
+                          } ${
                             item.statusVariant === 'success'
                               ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
                               : item.statusVariant === 'danger'
@@ -827,9 +842,14 @@ export const LinhaDoTempoUnificada: React.FC<LinhaDoTempoUnificadaProps> = ({
                                   ? 'bg-amber-100 text-amber-900 border-amber-300'
                                   : 'bg-blue-100 text-blue-800 border-blue-200'
                           }`}
+                          title={
+                            item.rawAtividade && onToggleAtividadeStatus
+                              ? 'Clique para alternar status'
+                              : undefined
+                          }
                         >
                           {item.status}
-                        </span>
+                        </button>
                       )}
                     </div>
 
@@ -990,7 +1010,8 @@ export const LinhaDoTempoUnificada: React.FC<LinhaDoTempoUnificadaProps> = ({
                       >
                         <Pencil className="w-3 h-3 text-emerald-600" />
                         <span>
-                          {item.rawAtividade?.tipo === 'auto_leitura_rge'
+                          {isAtividadeAutoLeitura(item.rawAtividade) ||
+                          (item.titulo && item.titulo.toLowerCase().includes('auto leitura'))
                             ? 'Cronograma RGE'
                             : 'Detalhes / Editar'}
                         </span>

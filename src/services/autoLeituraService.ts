@@ -1,6 +1,26 @@
 import pb from '@/lib/pocketbase/client'
 import type { Atividade } from '@/types/crm'
 
+/**
+ * Helper unificado para detectar se uma atividade é do tipo Auto Leitura - RGE,
+ * seja pelo tipo estrito ('auto_leitura_rge'), subtipo contendo 'auto_leitura' ou
+ * título contendo 'auto leitura' / 'auto-leitura' (legado).
+ */
+export function isAtividadeAutoLeitura(
+  atv?: Partial<Atividade> | { tipo?: string | null; titulo?: string | null } | null,
+): boolean {
+  if (!atv) return false
+  const tipo = (atv.tipo || '').toLowerCase().trim()
+  if (tipo === 'auto_leitura_rge' || tipo.includes('auto_leitura')) {
+    return true
+  }
+  const titulo = (atv.titulo || '').toLowerCase().trim()
+  if (titulo.includes('auto leitura') || titulo.includes('auto-leitura')) {
+    return true
+  }
+  return false
+}
+
 export interface CronogramaDataItem {
   id: string
   data: string // YYYY-MM-DD

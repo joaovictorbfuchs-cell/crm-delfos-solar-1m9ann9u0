@@ -12,6 +12,7 @@ export interface AtividadeItemProps {
 }
 
 import { getTipoAtividadeConfig } from '@/constants/atividadesTipos'
+import { isAtividadeAutoLeitura } from '@/services/autoLeituraService'
 
 export function getAtividadeConfig(tipo: AtividadeTipo | string) {
   const conf = getTipoAtividadeConfig(tipo)
@@ -31,7 +32,8 @@ export const AtividadeItem: React.FC<AtividadeItemProps> = ({
   onOpenDetalhes,
   showClienteName,
 }) => {
-  const config = getAtividadeConfig(atividade.tipo)
+  const isAutoLeitura = isAtividadeAutoLeitura(atividade)
+  const config = getAtividadeConfig(isAutoLeitura ? 'auto_leitura_rge' : atividade.tipo)
   const Icon = config.icon
   const isConcluida = atividade.status === 'concluida'
   const responsavel = atividade.responsavel_nome || atividade.autor
@@ -140,8 +142,11 @@ export const AtividadeItem: React.FC<AtividadeItemProps> = ({
         </div>
 
         <div
-          onClick={() => {
-            if (onOpenDetalhes) onOpenDetalhes(atividade)
+          onClick={(e) => {
+            if (onOpenDetalhes) {
+              e.stopPropagation()
+              onOpenDetalhes(atividade)
+            }
           }}
           className={onOpenDetalhes ? 'cursor-pointer group/title' : ''}
         >
@@ -156,14 +161,17 @@ export const AtividadeItem: React.FC<AtividadeItemProps> = ({
           </p>
         </div>
 
-        {atividade.tipo === 'auto_leitura_rge' && onOpenDetalhes && (
+        {isAutoLeitura && onOpenDetalhes && (
           <div className="mt-2.5 pt-2 border-t border-gray-100 flex items-center justify-between">
             <span className="text-[10px] text-orange-800 bg-orange-50 font-semibold px-2 py-0.5 rounded border border-orange-200">
               Cronograma & Leitura RGE
             </span>
             <button
               type="button"
-              onClick={() => onOpenDetalhes(atividade)}
+              onClick={(e) => {
+                e.stopPropagation()
+                onOpenDetalhes(atividade)
+              }}
               className="text-[11px] font-bold text-orange-700 hover:text-orange-900 hover:underline"
             >
               Abrir Cronograma e Requisitos →

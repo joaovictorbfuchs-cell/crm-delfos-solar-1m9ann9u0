@@ -65,6 +65,7 @@ import { ModalGerenciarAtividades } from './ModalGerenciarAtividades'
 import { ModalGerarProcuracaoOM } from './ModalGerarProcuracaoOM'
 import { ModalGerarContratoOM } from './ModalGerarContratoOM'
 import { ModalAutoLeituraRGE } from './ModalAutoLeituraRGE'
+import { isAtividadeAutoLeitura } from '@/services/autoLeituraService'
 import { ModalSolicitacaoInformacoes } from './ModalSolicitacaoInformacoes'
 import { ModalMarcarGanho } from './ModalMarcarGanho'
 import { ModalMarcarPerdido } from './ModalMarcarPerdido'
@@ -3615,13 +3616,43 @@ export const FichaClienteDrawer: React.FC = () => {
                     orcamentosSolar={orcamentosSolar}
                     propostasOM={propostasOM}
                     onItemClick={(item) => {
-                      if (item.rawAtividade?.tipo === 'auto_leitura_rge') {
+                      if (item.rawAtividade && isAtividadeAutoLeitura(item.rawAtividade)) {
+                        setAutoLeituraModalAtividade(item.rawAtividade)
+                        return
+                      }
+                      if (
+                        item.titulo &&
+                        (item.titulo.toLowerCase().includes('auto leitura') ||
+                          item.titulo.toLowerCase().includes('auto-leitura')) &&
+                        item.rawAtividade
+                      ) {
                         setAutoLeituraModalAtividade(item.rawAtividade)
                         return
                       }
                       setTimelineItemDetalhes(item)
                     }}
                     onToggleAtividadeStatus={async (id, current) => {
+                      const target = atividades.find((a) => a.id === id)
+                      if (target && isAtividadeAutoLeitura(target) && current !== 'concluida') {
+                        let dados: any = {}
+                        if (typeof target.auto_leitura_dados === 'object')
+                          dados = target.auto_leitura_dados || {}
+                        else if (typeof target.auto_leitura_dados === 'string') {
+                          try {
+                            dados = JSON.parse(target.auto_leitura_dados)
+                          } catch {
+                            /* intentionally ignored */
+                          }
+                        }
+                        const atendeu =
+                          dados?.fotosEnviadas &&
+                          dados?.valoresInformados &&
+                          dados?.protocoloRealizado
+                        if (!atendeu) {
+                          setAutoLeituraModalAtividade(target)
+                          return
+                        }
+                      }
                       const next = current === 'concluida' ? 'pendente' : 'concluida'
                       await updateAtividadeStatus(id, next as any)
                     }}
@@ -3713,9 +3744,25 @@ export const FichaClienteDrawer: React.FC = () => {
               </div>
 
               {proximaAtividade ? (
-                <div className="p-2.5 rounded-lg bg-emerald-50/50 border border-emerald-100 space-y-1.5 text-xs">
-                  <div className="font-bold text-gray-900 leading-tight">
-                    {proximaAtividade.titulo || 'Atividade Agendada'}
+                <div
+                  onClick={() => {
+                    if (isAtividadeAutoLeitura(proximaAtividade)) {
+                      setAutoLeituraModalAtividade(proximaAtividade)
+                    }
+                  }}
+                  className={`p-2.5 rounded-lg bg-emerald-50/50 border border-emerald-100 space-y-1.5 text-xs ${
+                    isAtividadeAutoLeitura(proximaAtividade)
+                      ? 'cursor-pointer hover:border-orange-400 hover:bg-orange-50/50 transition-colors'
+                      : ''
+                  }`}
+                >
+                  <div className="font-bold text-gray-900 leading-tight flex items-center justify-between gap-2">
+                    <span>{proximaAtividade.titulo || 'Atividade Agendada'}</span>
+                    {isAtividadeAutoLeitura(proximaAtividade) && (
+                      <span className="text-[10px] font-bold text-orange-700 bg-orange-100 px-1.5 py-0.5 rounded shrink-0">
+                        Abrir Cronograma →
+                      </span>
+                    )}
                   </div>
                   <div className="flex items-center gap-1.5 text-[11px] text-emerald-800 font-medium">
                     <Calendar className="w-3 h-3 text-emerald-600 shrink-0" />

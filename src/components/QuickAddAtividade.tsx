@@ -166,15 +166,21 @@ export const QuickAddAtividade: React.FC<QuickAddAtividadeProps> = ({
       } else {
         const tipoConfig = getTipoAtividadeConfig(subTipo, customDefs)
         const finalTitulo = titulo.trim() || tipoConfig.tituloPadrao
+        const isAutoLeitura =
+          subTipo === 'auto_leitura_rge' ||
+          subTipo.includes('auto_leitura') ||
+          finalTitulo.toLowerCase().includes('auto leitura') ||
+          finalTitulo.toLowerCase().includes('auto-leitura')
+        const finalTipo = isAutoLeitura ? 'auto_leitura_rge' : subTipo
         const finalDescricao =
           descricao.trim() ||
-          (subTipo === 'auto_leitura_rge'
+          (isAutoLeitura
             ? 'Auto Leitura RGE - aguardando leitura do medidor'
             : tipoConfig.descricaoAjuda || tipoConfig.tituloPadrao || 'Atividade sem descrição')
 
         await addAtividade({
           cliente_id: clienteId,
-          tipo: subTipo,
+          tipo: finalTipo,
           titulo: finalTitulo,
           descricao: finalDescricao,
           data: dataHora ? new Date(dataHora).toISOString() : new Date().toISOString(),

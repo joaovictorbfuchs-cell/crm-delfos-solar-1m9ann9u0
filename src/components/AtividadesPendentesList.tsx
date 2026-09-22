@@ -13,6 +13,7 @@ import {
 import type { Atividade, SistemaUsuario } from '@/types/crm'
 import { getTipoAtividadeConfig } from '@/constants/atividadesTipos'
 import { formatDateTime } from '@/lib/formatters'
+import { isAtividadeAutoLeitura } from '@/services/autoLeituraService'
 
 interface AtividadesPendentesListProps {
   atividades: Atividade[]
@@ -188,7 +189,8 @@ export const AtividadesPendentesList: React.FC<AtividadesPendentesListProps> = (
       ) : (
         <div className="space-y-2.5 max-h-[500px] overflow-y-auto pr-1">
           {filteredList.map((atv) => {
-            const conf = getTipoAtividadeConfig(atv.tipo)
+            const isAutoLeitura = isAtividadeAutoLeitura(atv)
+            const conf = getTipoAtividadeConfig(isAutoLeitura ? 'auto_leitura_rge' : atv.tipo)
             const Icon = conf.icon
             const isConcluida = atv.status === 'concluida'
             const isOverdue =
@@ -198,12 +200,12 @@ export const AtividadesPendentesList: React.FC<AtividadesPendentesListProps> = (
               <div
                 key={atv.id}
                 onClick={() => {
-                  if (atv.tipo === 'auto_leitura_rge' && onOpenAutoLeitura) {
+                  if (isAutoLeitura && onOpenAutoLeitura) {
                     onOpenAutoLeitura(atv)
                   }
                 }}
                 className={`p-3.5 rounded-xl border transition-all space-y-2.5 ${
-                  atv.tipo === 'auto_leitura_rge' ? 'cursor-pointer hover:border-orange-400' : ''
+                  isAutoLeitura ? 'cursor-pointer hover:border-orange-400' : ''
                 } ${
                   isConcluida
                     ? 'border-gray-200 bg-gray-50/60 opacity-80'
@@ -220,7 +222,7 @@ export const AtividadesPendentesList: React.FC<AtividadesPendentesListProps> = (
                       type="button"
                       onClick={(e) => {
                         e.stopPropagation()
-                        if (atv.tipo === 'auto_leitura_rge' && onOpenAutoLeitura && !isConcluida) {
+                        if (isAutoLeitura && onOpenAutoLeitura && !isConcluida) {
                           onOpenAutoLeitura(atv)
                         } else {
                           onToggleStatus(atv.id, atv.status || 'pendente')
@@ -270,7 +272,7 @@ export const AtividadesPendentesList: React.FC<AtividadesPendentesListProps> = (
                         </p>
                       )}
 
-                      {atv.tipo === 'auto_leitura_rge' && onOpenAutoLeitura && (
+                      {isAutoLeitura && onOpenAutoLeitura && (
                         <div className="mt-2 pt-1.5 border-t border-orange-100 flex items-center justify-between">
                           <span className="text-[10px] text-orange-800 bg-orange-50 font-semibold px-2 py-0.5 rounded border border-orange-200">
                             Cronograma & Leitura RGE

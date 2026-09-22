@@ -15,6 +15,7 @@ import {
 import type { Atividade, SistemaUsuario } from '@/types/crm'
 import { getTipoAtividadeConfig } from '@/constants/atividadesTipos'
 import { formatDateTime } from '@/lib/formatters'
+import { isAtividadeAutoLeitura } from '@/services/autoLeituraService'
 
 interface AtividadesCalendarioProps {
   atividades: Atividade[]
@@ -518,7 +519,7 @@ export const AtividadesCalendario: React.FC<AtividadesCalendarioProps> = ({
                               key={atv.id}
                               onClick={(e) => {
                                 e.stopPropagation()
-                                if (atv.tipo === 'auto_leitura_rge' && onOpenAutoLeitura) {
+                                if (isAtividadeAutoLeitura(atv) && onOpenAutoLeitura) {
                                   onOpenAutoLeitura(atv)
                                   return
                                 }
@@ -707,7 +708,7 @@ export const AtividadesCalendario: React.FC<AtividadesCalendarioProps> = ({
                     <div
                       key={atv.id}
                       onClick={() => {
-                        if (atv.tipo === 'auto_leitura_rge' && onOpenAutoLeitura) {
+                        if (isAtividadeAutoLeitura(atv) && onOpenAutoLeitura) {
                           onOpenAutoLeitura(atv)
                           return
                         }
@@ -717,7 +718,7 @@ export const AtividadesCalendario: React.FC<AtividadesCalendarioProps> = ({
                       tabIndex={0}
                       onKeyDown={(e) => {
                         if (e.key === 'Enter' || e.key === ' ') {
-                          if (atv.tipo === 'auto_leitura_rge' && onOpenAutoLeitura) {
+                          if (isAtividadeAutoLeitura(atv) && onOpenAutoLeitura) {
                             onOpenAutoLeitura(atv)
                             return
                           }
@@ -921,7 +922,7 @@ export const AtividadesCalendario: React.FC<AtividadesCalendarioProps> = ({
                             key={atv.id}
                             onClick={(e) => {
                               e.stopPropagation()
-                              if (atv.tipo === 'auto_leitura_rge' && onOpenAutoLeitura) {
+                              if (isAtividadeAutoLeitura(atv) && onOpenAutoLeitura) {
                                 onOpenAutoLeitura(atv)
                                 return
                               }
@@ -1006,7 +1007,7 @@ export const AtividadesCalendario: React.FC<AtividadesCalendarioProps> = ({
                       <div
                         key={atv.id}
                         onClick={() => {
-                          if (atv.tipo === 'auto_leitura_rge' && onOpenAutoLeitura) {
+                          if (isAtividadeAutoLeitura(atv) && onOpenAutoLeitura) {
                             onOpenAutoLeitura(atv)
                             return
                           }
@@ -1016,7 +1017,7 @@ export const AtividadesCalendario: React.FC<AtividadesCalendarioProps> = ({
                         tabIndex={0}
                         onKeyDown={(e) => {
                           if (e.key === 'Enter' || e.key === ' ') {
-                            if (atv.tipo === 'auto_leitura_rge' && onOpenAutoLeitura) {
+                            if (isAtividadeAutoLeitura(atv) && onOpenAutoLeitura) {
                               onOpenAutoLeitura(atv)
                               return
                             }
@@ -1219,7 +1220,7 @@ export const AtividadesCalendario: React.FC<AtividadesCalendarioProps> = ({
                   </div>
 
                   <div className="flex items-center justify-between pt-2 border-t border-gray-100 flex-wrap gap-2">
-                    {modalAtividade.tipo === 'auto_leitura_rge' && onOpenAutoLeitura && (
+                    {isAtividadeAutoLeitura(modalAtividade) && onOpenAutoLeitura && (
                       <button
                         type="button"
                         onClick={() => {

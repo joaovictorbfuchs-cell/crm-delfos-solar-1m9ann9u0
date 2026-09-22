@@ -27,6 +27,7 @@ import {
 import { AtividadesCalendario } from '@/components/AtividadesCalendario'
 import { AtividadesPendentesList } from '@/components/AtividadesPendentesList'
 import { ModalAutoLeituraRGE } from '@/components/ModalAutoLeituraRGE'
+import { isAtividadeAutoLeitura } from '@/services/autoLeituraService'
 import type { Atividade, AtividadeTipo, AtividadeStatus } from '@/types/crm'
 
 export const Atividades: React.FC = () => {
@@ -81,8 +82,8 @@ export const Atividades: React.FC = () => {
 
   const handleToggleStatus = async (id: string, currentStatus: string) => {
     const target = atividades.find((a) => a.id === id)
-    // Se for auto_leitura_rge e for concluir, validar se os 3 requisitos foram atendidos
-    if (target?.tipo === 'auto_leitura_rge' && currentStatus !== 'concluida') {
+    // Se for auto leitura e for concluir, validar se os 3 requisitos foram atendidos
+    if (target && isAtividadeAutoLeitura(target) && currentStatus !== 'concluida') {
       let dados: any = {}
       if (typeof target.auto_leitura_dados === 'object') dados = target.auto_leitura_dados || {}
       else if (typeof target.auto_leitura_dados === 'string') {
@@ -450,7 +451,15 @@ export const Atividades: React.FC = () => {
 
               <div className="space-y-1">
                 {filteredTimelineAtividades.map((atv) => (
-                  <div key={atv.id} className="relative">
+                  <div
+                    key={atv.id}
+                    className={`relative ${isAtividadeAutoLeitura(atv) ? 'cursor-pointer' : ''}`}
+                    onClick={() => {
+                      if (isAtividadeAutoLeitura(atv)) {
+                        setAutoLeituraModalAtividade(atv)
+                      }
+                    }}
+                  >
                     <AtividadeItem
                       atividade={atv}
                       onDelete={(id) => {
@@ -462,7 +471,7 @@ export const Atividades: React.FC = () => {
                       }}
                       onToggleStatus={handleToggleStatus}
                       onOpenDetalhes={(item) => {
-                        if (item.tipo === 'auto_leitura_rge') {
+                        if (isAtividadeAutoLeitura(item)) {
                           setAutoLeituraModalAtividade(item)
                         }
                       }}
