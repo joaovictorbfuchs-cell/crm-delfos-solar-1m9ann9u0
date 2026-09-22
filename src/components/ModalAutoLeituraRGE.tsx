@@ -9,10 +9,8 @@ import {
   CheckCircle2,
   AlertTriangle,
   FileText,
-  FileCheck2,
   Clock,
   ShieldCheck,
-  Send,
   Building,
   User,
   History,
@@ -25,7 +23,6 @@ import {
 import { useClientes } from '@/contexts/ClientesContext'
 import { useAuth } from '@/contexts/AuthContext'
 import { formatDateTime } from '@/lib/formatters'
-import pb from '@/lib/pocketbase/client'
 import type { Atividade, Cliente } from '@/types/crm'
 import {
   type CronogramaDataItem,
@@ -543,6 +540,15 @@ export const ModalAutoLeituraRGE: React.FC<ModalAutoLeituraRGEProps> = ({
                 </span>
               </div>
 
+              {/* Aviso informativo de registro manual sem automação */}
+              <div className="flex items-start gap-2 p-2.5 bg-blue-50/80 border border-blue-200/80 rounded-xl text-blue-900 text-xs">
+                <Info className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
+                <span className="text-[11px] leading-relaxed">
+                  As datas registradas aqui servem apenas para consulta e controle manual do
+                  cronograma — não geram lembretes nem mensagens automáticas.
+                </span>
+              </div>
+
               {datasCronograma.length === 0 ? (
                 <div className="p-4 bg-white rounded-xl border border-dashed border-gray-200 text-center text-xs text-gray-500">
                   Nenhuma data cadastrada no cronograma. Adicione as datas acima ou anexe o
@@ -773,14 +779,13 @@ Após o envio das imagens, pedimos também que nos informe por escrito os valore
               <div className="flex items-center gap-2">
                 <History className="w-4 h-4 text-orange-600" />
                 <h3 className="text-xs sm:text-sm font-bold text-gray-900">
-                  6. Histórico de Leituras Deste Cliente
+                  Histórico de Leituras Deste Cliente
                 </h3>
               </div>
               <span className="text-[11px] text-gray-500">
                 {historicoLeituras.length} leitura(s) registradas
               </span>
             </div>
-
             {loadingHistorico ? (
               <div className="py-6 text-center text-xs text-gray-500 flex items-center justify-center gap-2">
                 <Loader2 className="w-4 h-4 animate-spin text-orange-600" />
