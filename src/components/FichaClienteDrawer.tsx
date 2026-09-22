@@ -3609,11 +3609,6 @@ export const FichaClienteDrawer: React.FC = () => {
                 >
                   <div className="font-bold text-gray-900 leading-tight flex items-center justify-between gap-2">
                     <span>{proximaAtividade.titulo || 'Atividade Agendada'}</span>
-                    {isAtividadeAutoLeitura(proximaAtividade) && (
-                      <span className="text-[10px] font-bold text-orange-700 bg-orange-100 px-1.5 py-0.5 rounded shrink-0">
-                        Abrir Cronograma →
-                      </span>
-                    )}
                   </div>
                   <div className="flex items-center gap-1.5 text-[11px] text-emerald-800 font-medium">
                     <Calendar className="w-3 h-3 text-emerald-600 shrink-0" />

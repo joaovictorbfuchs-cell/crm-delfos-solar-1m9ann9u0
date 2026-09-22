@@ -202,22 +202,8 @@ export const AtividadeItem: React.FC<AtividadeItemProps> = ({
                 }
               }}
             />
-            {onOpenDetalhes && (
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  onOpenDetalhes(atividade)
-                }}
-                className="text-[11px] font-bold text-orange-700 hover:text-orange-900 hover:underline ml-auto"
-              >
-                Abrir Validação RGE →
-              </button>
-            )}
           </div>
         )}
-
-
       </div>
     </div>
   )

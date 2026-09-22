@@ -160,6 +160,10 @@ export const ModalDetalhesAtividade: React.FC<ModalDetalhesAtividadeProps> = ({
       cliente?: string
       dataHora?: string
       responsavel?: string
+      protocoloRGE?: string
+      valorGrandeza03?: string
+      valorGrandeza103?: string
+      dataLeitura?: string
     } = {}
 
     if (!titulo.trim()) {

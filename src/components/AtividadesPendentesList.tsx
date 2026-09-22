@@ -307,19 +307,6 @@ export const AtividadesPendentesList: React.FC<AtividadesPendentesListProps> = (
                                 }}
                               />
                             )}
-
-                          {onOpenAutoLeitura && (
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                onOpenAutoLeitura(atv)
-                              }}
-                              className="text-[11px] font-bold text-orange-700 hover:text-orange-900 hover:underline ml-auto"
-                            >
-                              Abrir Cronograma e Validação RGE →
-                            </button>
-                          )}
                         </div>
                       )}
                     </div>
