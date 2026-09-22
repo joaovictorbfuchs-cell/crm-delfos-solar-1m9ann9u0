@@ -8,6 +8,9 @@ import {
   Building,
   CheckCircle2,
   Sun,
+  Plus,
+  Trash2,
+  CalendarDays,
 } from 'lucide-react'
 import { useClientes } from '@/contexts/ClientesContext'
 import { useAuth } from '@/contexts/AuthContext'
@@ -22,12 +25,39 @@ import {
 } from '@/constants/atividadesTipos'
 import type { AtividadeCategoriaId, AtividadeTipo, UsinaCliente } from '@/types/crm'
 
+interface ProgramacaoLeituraItem {
+  id: string
+  dataPrevista: string // Formato YYYY-MM-DD para o input tipo date nativo
+  responsavel: 'Cliente' | 'Distribuidora'
+}
+
+const ITENS_EXEMPLO_PROGRAMACAO: ProgramacaoLeituraItem[] = [
+  { id: 'exemplo-1', dataPrevista: '2026-10-07', responsavel: 'Cliente' },
+  { id: 'exemplo-2', dataPrevista: '2026-11-09', responsavel: 'Cliente' },
+  { id: 'exemplo-3', dataPrevista: '2026-12-09', responsavel: 'Distribuidora' },
+]
+
+const formatarParaDDMMAAAA = (dataStr: string): string => {
+  if (!dataStr) return ''
+  const partes = dataStr.split('-')
+  if (partes.length === 3) {
+    const [ano, mes, dia] = partes
+    return `${dia.padStart(2, '0')}/${mes.padStart(2, '0')}/${ano}`
+  }
+  return dataStr
+}
+
 interface ModalNovaAtividadeProps {
   isOpen: boolean
   onClose: () => void
   initialTipo?: AtividadeTipo | null
   initialClienteId?: string | null
   usinas?: UsinaCliente[]
+}
+
+export interface ProgramarLeituraAnoLinha {
+  dataPrevista: string // DD/MM/AAAA ou YYYY-MM-DD
+  responsavel: 'Cliente' | 'Distribuidora'
 }
 
 export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
@@ -53,6 +83,7 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
     return now.toISOString().slice(0, 16)
   })
   const [descricao, setDescricao] = useState('')
+  const [programacaoLeituras, setProgramacaoLeituras] = useState<ProgramacaoLeituraItem[]>(ITENS_EXEMPLO_PROGRAMACAO)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
   const [formSuccess, setFormSuccess] = useState(false)
@@ -65,6 +96,9 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
       const conf = getTipoAtividadeConfig(tipoParaUsar)
       setSelectedCategoria(conf.categoria || 'comercial')
       setTitulo(conf.tituloPadrao)
+      if (tipoParaUsar === 'auto_leitura_rge') {
+        setProgramacaoLeituras(ITENS_EXEMPLO_PROGRAMACAO.map((it) => ({ ...it })))
+      }
       if (initialClienteId) {
         setClienteId(initialClienteId)
       } else {
@@ -156,6 +190,38 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
     const conf = getTipoAtividadeConfig(novoTipo, customDefs)
     // Regra do usuário: O nome do tipo clicado deve virar AUTOMATICAMENTE o título da atividade
     setTitulo(conf.tituloPadrao)
+    if (novoTipo === 'auto_leitura_rge') {
+      setProgramacaoLeituras(ITENS_EXEMPLO_PROGRAMACAO.map((it) => ({ ...it })))
+    }
+  }
+
+  const handleAddDataProgramacao = () => {
+    const novoItem: ProgramacaoLeituraItem = {
+      id: `prog-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      dataPrevista: '',
+      responsavel: 'Cliente',
+    }
+    setProgramacaoLeituras((prev) => [...prev, novoItem])
+  }
+
+  const handleUpdateItemProgramacao = (
+    id: string,
+    campo: 'dataPrevista' | 'responsavel',
+    valor: string,
+  ) => {
+    setProgramacaoLeituras((prev) =>
+      prev.map((item) => {
+        if (item.id !== id) return item
+        return {
+          ...item,
+          [campo]: valor,
+        }
+      }),
+    )
+  }
+
+  const handleRemoveItemProgramacao = (id: string) => {
+    setProgramacaoLeituras((prev) => prev.filter((item) => item.id !== id))
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -176,7 +242,17 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
       const selectedUser = usuarios.find((u) => u.id === responsavelId)
       const responsavelNome = selectedUser?.name || user?.name || 'João Delfos'
 
-      await addAtividade({
+      // Se for Auto Leitura - RGE, separar linhas da Distribuidora para salvar como consulta
+      const leiturasDistribuidora = selectedTipo === 'auto_leitura_rge'
+        ? programacaoLeituras
+            .filter((item) => item.responsavel === 'Distribuidora' && item.dataPrevista)
+            .map((item) => ({
+              data: formatarParaDDMMAAAA(item.dataPrevista),
+              responsavel: 'Distribuidora' as const,
+            }))
+        : undefined
+
+      const atividadePrincipalPayload: any = {
         cliente_id: clienteId,
         tipo: selectedTipo,
         titulo: finalTitulo,
@@ -187,7 +263,43 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
         status: 'pendente',
         autor: user?.name || 'João Delfos',
         usina_id: selectedUsinaId || undefined,
-      })
+      }
+
+      if (leiturasDistribuidora && leiturasDistribuidora.length > 0) {
+        atividadePrincipalPayload.leituras_programadas_distribuidora = leiturasDistribuidora
+      }
+
+      // Salva a atividade principal normalmente (como já funciona hoje)
+      await addAtividade(atividadePrincipalPayload)
+
+      // Se for Auto Leitura - RGE:
+      // Para cada linha onde o Responsável for 'Cliente', cria automaticamente uma atividade filha
+      // vinculada ao mesmo cliente, com título 'Auto Leitura RGE - [data]' (data em DD/MM/AAAA)
+      if (selectedTipo === 'auto_leitura_rge') {
+        const leiturasCliente = programacaoLeituras.filter(
+          (item) => item.responsavel === 'Cliente' && item.dataPrevista,
+        )
+
+        for (const item of leiturasCliente) {
+          const dataFormatada = formatarParaDDMMAAAA(item.dataPrevista)
+          // Monta data ISO para a atividade filha baseada na data prevista escolhida
+          const [ano, mes, dia] = item.dataPrevista.split('-').map(Number)
+          const dataIsoFilha = new Date(Date.UTC(ano, mes - 1, dia, 12, 0, 0)).toISOString()
+
+          await addAtividade({
+            cliente_id: clienteId,
+            tipo: 'auto_leitura_rge',
+            titulo: `Auto Leitura RGE - ${dataFormatada}`,
+            descricao: `Auto Leitura RGE programada para ${dataFormatada} (Responsável: Cliente)`,
+            data: dataIsoFilha,
+            responsavel_id: responsavelId || undefined,
+            responsavel_nome: responsavelNome,
+            status: 'pendente',
+            autor: user?.name || 'João Delfos',
+            usina_id: selectedUsinaId || undefined,
+          })
+        }
+      }
 
       setFormSuccess(true)
       setTimeout(() => {
@@ -433,6 +545,119 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
               className="w-full text-xs p-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 resize-none bg-white text-gray-900"
             />
           </div>
+
+          {/* Seção Condicional: Programar leituras do ano (quando tipo for Auto Leitura - RGE) */}
+          {selectedTipo === 'auto_leitura_rge' && (
+            <div className="space-y-3 p-4 rounded-xl border border-emerald-200 bg-gradient-to-b from-emerald-50/50 to-white shadow-xs animate-in fade-in duration-200">
+              <div className="flex items-center justify-between flex-wrap gap-2 pb-2 border-b border-emerald-100">
+                <div className="flex items-center gap-2">
+                  <div className="p-1.5 rounded-lg bg-emerald-100 text-emerald-800">
+                    <CalendarDays className="w-4 h-4 text-emerald-700" />
+                  </div>
+                  <div>
+                    <h3 className="text-xs sm:text-sm font-bold text-gray-900 leading-tight">
+                      Programar leituras do ano
+                    </h3>
+                    <p className="text-[11px] text-gray-500">
+                      Datas com responsável "Cliente" gerarão atividades filhas automáticas
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleAddDataProgramacao}
+                  className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-emerald-800 bg-emerald-100 hover:bg-emerald-200 rounded-lg transition-colors border border-emerald-300"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Adicionar data</span>
+                </button>
+              </div>
+
+              {/* Tabela de Programação */}
+              <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-gray-50/90 text-gray-600 font-semibold border-b border-gray-200 text-[11px] uppercase tracking-wider">
+                    <tr>
+                      <th className="py-2 px-3">Data Prevista</th>
+                      <th className="py-2 px-3">Responsável</th>
+                      <th className="py-2 px-2 text-right">Ação</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {programacaoLeituras.length === 0 ? (
+                      <tr>
+                        <td colSpan={3} className="py-4 text-center text-gray-400 italic text-[11px]">
+                          Nenhuma data programada. Clique em "Adicionar data" para incluir.
+                        </td>
+                      </tr>
+                    ) : (
+                      programacaoLeituras.map((item) => (
+                        <tr key={item.id} className="hover:bg-gray-50/70 transition-colors">
+                          <td className="py-2 px-3">
+                            <input
+                              type="date"
+                              value={item.dataPrevista}
+                              onChange={(e) =>
+                                handleUpdateItemProgramacao(item.id, 'dataPrevista', e.target.value)
+                              }
+                              className="w-full sm:w-44 text-xs px-2.5 py-1.5 rounded-lg border border-gray-200 focus:outline-none focus:ring-1 focus:ring-emerald-500 bg-white text-gray-900"
+                            />
+                            {item.dataPrevista && (
+                              <span className="text-[10px] text-gray-400 ml-1.5 hidden sm:inline">
+                                ({formatarParaDDMMAAAA(item.dataPrevista)})
+                              </span>
+                            )}
+                          </td>
+                          <td className="py-2 px-3">
+                            <select
+                              value={item.responsavel}
+                              onChange={(e) =>
+                                handleUpdateItemProgramacao(
+                                  item.id,
+                                  'responsavel',
+                                  e.target.value as 'Cliente' | 'Distribuidora',
+                                )
+                              }
+                              className="w-full sm:w-36 text-xs px-2.5 py-1.5 rounded-lg border border-gray-200 focus:outline-none focus:ring-1 focus:ring-emerald-500 bg-white text-gray-900 font-medium"
+                            >
+                              <option value="Cliente">Cliente</option>
+                              <option value="Distribuidora">Distribuidora</option>
+                            </select>
+                            {item.responsavel === 'Distribuidora' && (
+                              <span className="text-[10px] text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200 ml-1.5 hidden md:inline">
+                                Apenas consulta
+                              </span>
+                            )}
+                          </td>
+                          <td className="py-2 px-2 text-right">
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveItemProgramacao(item.id)}
+                              className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors inline-flex items-center"
+                              title="Remover linha"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                              <span className="sr-only">Remover</span>
+                            </button>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="flex items-center justify-between text-[11px] text-gray-500 pt-1">
+                <span>
+                  Linhas 'Cliente' viram atividades com a tag verde <strong>Aguardando envio</strong>
+                </span>
+                <span className="font-medium text-emerald-800">
+                  {programacaoLeituras.filter((i) => i.responsavel === 'Cliente').length} para o Cliente
+                </span>
+              </div>
+            </div>
+          )}
 
           {formError && (
             <p className="text-xs text-red-600 bg-red-50 p-2.5 rounded-lg border border-red-200">

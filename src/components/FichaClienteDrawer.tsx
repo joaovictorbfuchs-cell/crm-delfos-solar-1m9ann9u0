@@ -65,6 +65,7 @@ import { ModalGerenciarAtividades } from './ModalGerenciarAtividades'
 import { ModalGerarProcuracaoOM } from './ModalGerarProcuracaoOM'
 import { ModalGerarContratoOM } from './ModalGerarContratoOM'
 import { ModalAutoLeituraRGE } from './ModalAutoLeituraRGE'
+import { ModalNovaAtividade } from './ModalNovaAtividade'
 import { isAtividadeAutoLeitura } from '@/services/autoLeituraService'
 import { ModalSolicitacaoInformacoes } from './ModalSolicitacaoInformacoes'
 import { ModalMarcarPerdido } from './ModalMarcarPerdido'
@@ -242,6 +243,9 @@ export const FichaClienteDrawer: React.FC = () => {
 
   // Drawer / Modal de Atividades de Manutenção do Cliente
   const [drawerAtividadesManutencaoOpen, setDrawerAtividadesManutencaoOpen] = useState(false)
+  // Modal Registrar Atividade dentro da ficha do cliente
+  const [modalNovaAtividadeFichaOpen, setModalNovaAtividadeFichaOpen] = useState(false)
+  const [modalNovaAtividadeTipoFicha, setModalNovaAtividadeTipoFicha] = useState<AtividadeTipo | null>(null)
 
   // Modal de Proposta O&M
   const [isModalPropostaOpen, setIsModalPropostaOpen] = useState(false)
@@ -3424,44 +3428,15 @@ export const FichaClienteDrawer: React.FC = () => {
                     clienteId={selectedCliente.id}
                     usinas={usinasDoCliente}
                     onOpenGerenciar={() => setModalGerenciarAtividadesOpen(true)}
+                    onOpenModalCompleto={() => {
+                      setModalNovaAtividadeTipoFicha(null)
+                      setModalNovaAtividadeFichaOpen(true)
+                    }}
                     onSelectTipoEspecial={async (tipoId) => {
                       if (tipoId === 'auto_leitura_rge') {
-                        // 1. Procurar atividade pendente existente de Auto Leitura - RGE para o cliente
-                        const existente = atividades.find(
-                          (a) =>
-                            a.cliente_id === selectedCliente.id &&
-                            a.status === 'pendente' &&
-                            isAtividadeAutoLeitura(a),
-                        )
-                        if (existente) {
-                          setAutoLeituraModalAtividade(existente)
-                          return
-                        }
-
-                        // 2. Se não existir pendente, cria a atividade 'Auto Leitura - RGE' e abre o modal
-                        try {
-                          const respUser = usuarios.find((u) => u.id === user?.id)
-                          const responsavelNome = respUser?.name || user?.name || 'Usuário Delfos'
-                          const usinaPadraoId =
-                            usinasDoCliente.length === 1 ? usinasDoCliente[0].id : undefined
-
-                          const novaAtv = await addAtividade({
-                            cliente_id: selectedCliente.id,
-                            tipo: 'auto_leitura_rge',
-                            titulo: 'Auto Leitura - RGE',
-                            descricao: 'Auto Leitura RGE - aguardando leitura do medidor',
-                            data: new Date().toISOString(),
-                            autor: user?.name || 'Usuário Delfos',
-                            responsavel_id: user?.id,
-                            responsavel_nome: responsavelNome,
-                            status: 'pendente',
-                            usina_id: usinaPadraoId,
-                          })
-                          setAutoLeituraModalAtividade(novaAtv)
-                        } catch (err) {
-                          console.error('Erro ao criar atividade de Auto Leitura RGE:', err)
-                          toast.error('Não foi possível iniciar a Auto Leitura. Tente novamente.')
-                        }
+                        // Abre o modal Registrar Atividade com Auto Leitura - RGE selecionado e pré-carregado
+                        setModalNovaAtividadeTipoFicha('auto_leitura_rge')
+                        setModalNovaAtividadeFichaOpen(true)
                       } else if (tipoId === 'anexo_g') {
                         handleAbrirDocumentoProjeto('anexo_g', propostaAprovada)
                       } else if (tipoId === 'troca_titularidade') {
@@ -3484,6 +3459,10 @@ export const FichaClienteDrawer: React.FC = () => {
                   <LinhaDoTempoUnificada
                     cliente={selectedCliente}
                     atividades={atividades}
+                    onNovaAtividadeClick={() => {
+                      setModalNovaAtividadeTipoFicha(null)
+                      setModalNovaAtividadeFichaOpen(true)
+                    }}
                     orcamentosSolar={orcamentosSolar}
                     propostasOM={propostasOM}
                     onItemClick={(item) => {
@@ -3876,6 +3855,18 @@ export const FichaClienteDrawer: React.FC = () => {
         onUpdated={() => {
           recarregarUsinas()
         }}
+      />
+
+      {/* Modal Registrar Atividade disparado a partir da Ficha do Cliente */}
+      <ModalNovaAtividade
+        isOpen={modalNovaAtividadeFichaOpen}
+        onClose={() => {
+          setModalNovaAtividadeFichaOpen(false)
+          setModalNovaAtividadeTipoFicha(null)
+        }}
+        initialTipo={modalNovaAtividadeTipoFicha}
+        initialClienteId={selectedCliente?.id}
+        usinas={usinasDoCliente}
       />
 
       {/* Modal Detalhes e Edição Inline da Linha do Tempo Unificada */}

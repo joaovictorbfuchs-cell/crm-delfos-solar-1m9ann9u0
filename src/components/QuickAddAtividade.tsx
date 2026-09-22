@@ -27,6 +27,7 @@ interface QuickAddAtividadeProps {
   onSuccess?: () => void
   onOpenGerenciar?: () => void
   onSelectTipoEspecial?: (tipoId: string) => void
+  onOpenModalCompleto?: () => void
 }
 
 export const QuickAddAtividade: React.FC<QuickAddAtividadeProps> = ({
@@ -34,6 +35,7 @@ export const QuickAddAtividade: React.FC<QuickAddAtividadeProps> = ({
   usinas = [],
   onSuccess,
   onOpenGerenciar,
+  onOpenModalCompleto,
   onSelectTipoEspecial,
 }) => {
   const { addAtividade, usuarios, tiposAtividadesCustom } = useClientes()
@@ -243,6 +245,18 @@ export const QuickAddAtividade: React.FC<QuickAddAtividadeProps> = ({
         </div>
 
         <div className="flex items-center gap-2">
+          {onOpenModalCompleto && (
+            <button
+              type="button"
+              onClick={onOpenModalCompleto}
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 rounded-lg border border-emerald-200 transition-colors"
+              title="Abrir modal Registrar Atividade completo"
+            >
+              <Calendar className="w-3.5 h-3.5 text-emerald-600" />
+              <span>Registrar Atividade</span>
+            </button>
+          )}
+
           {onOpenGerenciar && (
             <button
               type="button"
@@ -251,11 +265,11 @@ export const QuickAddAtividade: React.FC<QuickAddAtividadeProps> = ({
               title="Gerenciar tipos de atividades padrão e personalizadas"
             >
               <Settings2 className="w-3.5 h-3.5 text-amber-600" />
-              <span>Gerenciar Atividades</span>
+              <span className="hidden sm:inline">Gerenciar Tipos</span>
             </button>
           )}
 
-          <span className="text-[11px] text-gray-400 font-medium hidden sm:inline">
+          <span className="text-[11px] text-gray-400 font-medium hidden md:inline">
             {mode === 'atividade' ? 'Seleção em 2 etapas' : 'Nota interna rápida'}
           </span>
         </div>

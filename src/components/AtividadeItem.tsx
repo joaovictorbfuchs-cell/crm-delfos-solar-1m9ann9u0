@@ -34,9 +34,14 @@ export const AtividadeItem: React.FC<AtividadeItemProps> = ({
 }) => {
   const isAutoLeitura = isAtividadeAutoLeitura(atividade)
   const config = getAtividadeConfig(isAutoLeitura ? 'auto_leitura_rge' : atividade.tipo)
-  const Icon = config.icon
+
   const isConcluida = atividade.status === 'concluida'
-  const responsavel = atividade.responsavel_nome || atividade.autor
+
+  // Regra da tag verde: atividade filha de auto leitura RGE ou pendente
+  const isAutoLeituraFilha =
+    isAutoLeitura &&
+    (atividade.titulo?.toLowerCase().includes('auto leitura rge -') ||
+      /auto\s*leitura.*rge.*-.*\d{2}\/\d{2}\/\d{4}/i.test(atividade.titulo || ''))  const responsavel = atividade.responsavel_nome || atividade.autor
 
   return (
     <div className="relative pl-7 pb-5 group">

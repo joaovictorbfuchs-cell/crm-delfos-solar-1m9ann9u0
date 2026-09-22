@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-22T12:21:27.689Z",
+  "generatedAt": "2026-09-22T12:30:15.461Z",
   "collections": [
     {
       "name": "users",
@@ -937,6 +937,12 @@
         {
           "name": "auto_leitura_obs",
           "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "leituras_programadas_distribuidora",
+          "type": "json",
           "required": false,
           "system": false
         }
