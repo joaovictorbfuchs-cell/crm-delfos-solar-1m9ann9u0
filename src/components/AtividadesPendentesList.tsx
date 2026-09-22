@@ -13,7 +13,8 @@ import {
 import type { Atividade, SistemaUsuario } from '@/types/crm'
 import { getTipoAtividadeConfig } from '@/constants/atividadesTipos'
 import { formatDateTime } from '@/lib/formatters'
-import { isAtividadeAutoLeitura } from '@/services/autoLeituraService'
+import { isAtividadeAutoLeitura, getAutoLeituraLembreteStatus } from '@/services/autoLeituraService'
+import { BotaoEnviarLembreteAutoLeituraWhatsApp } from './BotaoEnviarLembreteAutoLeituraWhatsApp'
 
 interface AtividadesPendentesListProps {
   atividades: Atividade[]
@@ -248,17 +249,22 @@ export const AtividadesPendentesList: React.FC<AtividadesPendentesListProps> = (
                           {conf.tituloPadrao}
                         </span>
 
-                        {/* Tag verde "Aguardando envio" para filhas de Auto Leitura RGE */}
+                        {/* Tags de status para filhas de Auto Leitura RGE */}
                         {isAutoLeitura &&
                           !isConcluida &&
                           (atv.titulo?.toLowerCase().includes('auto leitura rge -') ||
                             /auto\s*leitura.*rge.*-.*\d{2}\/\d{2}\/\d{4}/i.test(
                               atv.titulo || '',
-                            )) && (
+                            )) &&
+                          (getAutoLeituraLembreteStatus(atv) === 'enviado' ? (
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded border bg-amber-100 text-amber-900 border-amber-300">
+                              Mensagem enviada - aguardando dados
+                            </span>
+                          ) : (
                             <span className="text-[10px] font-bold px-2 py-0.5 rounded border bg-emerald-100 text-emerald-800 border-emerald-300">
                               Aguardando envio
                             </span>
-                          )}
+                          ))}
 
                         {isOverdue && (
                           <span className="text-[10px] font-bold text-amber-800 bg-amber-100 px-1.5 py-0.5 rounded">
@@ -286,21 +292,34 @@ export const AtividadesPendentesList: React.FC<AtividadesPendentesListProps> = (
                         </p>
                       )}
 
-                      {isAutoLeitura && onOpenAutoLeitura && (
-                        <div className="mt-2 pt-1.5 border-t border-orange-100 flex items-center justify-between">
-                          <span className="text-[10px] text-orange-800 bg-orange-50 font-semibold px-2 py-0.5 rounded border border-orange-200">
-                            Cronograma & Leitura RGE
-                          </span>
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              onOpenAutoLeitura(atv)
-                            }}
-                            className="text-[11px] font-bold text-orange-700 hover:text-orange-900 hover:underline"
-                          >
-                            Abrir Cronograma e Requisitos →
-                          </button>
+                      {/* Botão de lembrete WhatsApp e link de abertura */}
+                      {isAutoLeitura && (
+                        <div className="mt-2 pt-1.5 border-t border-orange-100 flex items-center justify-between gap-2 flex-wrap">
+                          {(atv.titulo?.toLowerCase().includes('auto leitura rge -') ||
+                            /auto\s*leitura.*rge.*-.*\d{2}\/\d{2}\/\d{4}/i.test(
+                              atv.titulo || '',
+                            )) &&
+                            !isConcluida && (
+                              <BotaoEnviarLembreteAutoLeituraWhatsApp
+                                atividade={atv}
+                                onEnviado={() => {
+                                  // O realtime ou lista atualizará os dados
+                                }}
+                              />
+                            )}
+
+                          {onOpenAutoLeitura && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                onOpenAutoLeitura(atv)
+                              }}
+                              className="text-[11px] font-bold text-orange-700 hover:text-orange-900 hover:underline ml-auto"
+                            >
+                              Abrir Cronograma e Validação RGE →
+                            </button>
+                          )}
                         </div>
                       )}
                     </div>

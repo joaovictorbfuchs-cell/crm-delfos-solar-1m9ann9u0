@@ -12,7 +12,8 @@ export interface AtividadeItemProps {
 }
 
 import { getTipoAtividadeConfig } from '@/constants/atividadesTipos'
-import { isAtividadeAutoLeitura } from '@/services/autoLeituraService'
+import { isAtividadeAutoLeitura, getAutoLeituraLembreteStatus } from '@/services/autoLeituraService'
+import { BotaoEnviarLembreteAutoLeituraWhatsApp } from './BotaoEnviarLembreteAutoLeituraWhatsApp'
 
 export function getAtividadeConfig(tipo: AtividadeTipo | string) {
   const conf = getTipoAtividadeConfig(tipo)
@@ -42,6 +43,8 @@ export const AtividadeItem: React.FC<AtividadeItemProps> = ({
     isAutoLeitura &&
     (atividade.titulo?.toLowerCase().includes('auto leitura rge -') ||
       /auto\s*leitura.*rge.*-.*\d{2}\/\d{2}\/\d{4}/i.test(atividade.titulo || ''))
+
+  const lembreteStatus = getAutoLeituraLembreteStatus(atividade)
 
   const responsavel = atividade.responsavel_nome || atividade.autor
 
@@ -109,12 +112,18 @@ export const AtividadeItem: React.FC<AtividadeItemProps> = ({
               {config.label}
             </span>
 
-            {/* Tag verde "Aguardando envio" para atividades filhas de Auto Leitura RGE */}
-            {isAutoLeituraFilha && !isConcluida && (
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded border bg-emerald-100 text-emerald-800 border-emerald-300">
-                Aguardando envio
-              </span>
-            )}
+            {/* Tags de status para atividades filhas de Auto Leitura RGE */}
+            {isAutoLeituraFilha &&
+              !isConcluida &&
+              (lembreteStatus === 'enviado' ? (
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded border bg-amber-100 text-amber-900 border-amber-300">
+                  Mensagem enviada - aguardando dados
+                </span>
+              ) : (
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded border bg-emerald-100 text-emerald-800 border-emerald-300">
+                  Aguardando envio
+                </span>
+              ))}
             {showClienteName && atividade.expand?.cliente_id && (
               <span className="font-semibold text-gray-700 bg-gray-100 px-1.5 py-0.5 rounded truncate max-w-[150px]">
                 {atividade.expand.cliente_id.nome}
@@ -182,7 +191,33 @@ export const AtividadeItem: React.FC<AtividadeItemProps> = ({
           </p>
         </div>
 
-        {isAutoLeitura && onOpenDetalhes && (
+        {/* Botão de lembrete WhatsApp e atalho para Auto Leitura */}
+        {isAutoLeituraFilha && !isConcluida && (
+          <div className="mt-2.5 pt-2 border-t border-gray-100 flex items-center justify-between gap-2 flex-wrap">
+            <BotaoEnviarLembreteAutoLeituraWhatsApp
+              atividade={atividade}
+              onEnviado={(updated) => {
+                if (onOpenDetalhes) {
+                  // Pode disparar atualização caso o pai controle estado
+                }
+              }}
+            />
+            {onOpenDetalhes && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onOpenDetalhes(atividade)
+                }}
+                className="text-[11px] font-bold text-orange-700 hover:text-orange-900 hover:underline ml-auto"
+              >
+                Abrir Validação RGE →
+              </button>
+            )}
+          </div>
+        )}
+
+        {isAutoLeitura && !isAutoLeituraFilha && onOpenDetalhes && (
           <div className="mt-2.5 pt-2 border-t border-gray-100 flex items-center justify-between">
             <span className="text-[10px] text-orange-800 bg-orange-50 font-semibold px-2 py-0.5 rounded border border-orange-200">
               Cronograma & Leitura RGE

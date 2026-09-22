@@ -29,7 +29,9 @@ import {
   type AutoLeituraDadosConclusao,
   salvarAtividadeAutoLeitura,
   buscarHistoricoAutoLeituraCliente,
+  getAutoLeituraLembreteStatus,
 } from '@/services/autoLeituraService'
+import { BotaoEnviarLembreteAutoLeituraWhatsApp } from './BotaoEnviarLembreteAutoLeituraWhatsApp'
 
 interface ModalAutoLeituraRGEProps {
   isOpen: boolean
@@ -72,6 +74,8 @@ export const ModalAutoLeituraRGE: React.FC<ModalAutoLeituraRGEProps> = ({
   const [valor03, setValor03] = useState<string>('')
   const [valor103, setValor103] = useState<string>('')
   const [numeroProtocolo, setNumeroProtocolo] = useState<string>('')
+  const [dataLeitura, setDataLeitura] = useState<string>('')
+  const [lembreteEnviadoEm, setLembreteEnviadoEm] = useState<string>('')
   const [autoLeituraObs, setAutoLeituraObs] = useState<string>('')
 
   // Histórico de leituras para este cliente
@@ -132,9 +136,22 @@ export const ModalAutoLeituraRGE: React.FC<ModalAutoLeituraRGEProps> = ({
     setFotosEnviadas(Boolean(parsedDados.fotosEnviadas))
     setValoresInformados(Boolean(parsedDados.valoresInformados))
     setProtocoloRealizado(Boolean(parsedDados.protocoloRealizado))
-    setValor03(parsedDados.valor03Consumo || '')
-    setValor103(parsedDados.valor103Injetada || '')
-    setNumeroProtocolo(parsedDados.protocoloRGE || '')
+    setValor03(atividade.valor_grandeza_03 || parsedDados.valor03Consumo || '')
+    setValor103(atividade.valor_grandeza_103 || parsedDados.valor103Injetada || '')
+    setNumeroProtocolo(atividade.protocolo_rge || parsedDados.protocoloRGE || '')
+    setDataLeitura(
+      atividade.data_leitura
+        ? atividade.data_leitura.split('T')[0]
+        : parsedDados.dataLeitura
+          ? parsedDados.dataLeitura.split('T')[0]
+          : '',
+    )
+    setLembreteEnviadoEm(
+      atividade.lembrete_whatsapp_enviado_em ||
+        (parsedDados as any).lembrete_whatsapp_enviado_em ||
+        parsedDados.lembreteWhatsAppEnviadoEm ||
+        '',
+    )
     setAutoLeituraObs(atividade.auto_leitura_obs || '')
     setFeedbackMsg(null)
 
@@ -153,8 +170,22 @@ export const ModalAutoLeituraRGE: React.FC<ModalAutoLeituraRGEProps> = ({
 
   if (!isOpen || !atividade) return null
 
-  // Validação dos 3 requisitos para poder concluir
-  const todosRequisitosPreenchidos = fotosEnviadas && valoresInformados && protocoloRealizado
+  // Validação estrita dos 4 campos obrigatórios conforme pedido do usuário:
+  // 1. Protocolo RGE
+  // 2. Valor grandeza 03
+  // 3. Valor grandeza 103
+  // 4. Data da leitura
+  const temProtocolo = Boolean(numeroProtocolo.trim())
+  const temValor03 = Boolean(valor03.trim())
+  const temValor103 = Boolean(valor103.trim())
+  const temDataLeitura = Boolean(dataLeitura.trim())
+  const todosCamposPreenchidos = temProtocolo && temValor03 && temValor103 && temDataLeitura
+
+  const camposFaltantes: string[] = []
+  if (!temProtocolo) camposFaltantes.push('Protocolo RGE')
+  if (!temValor03) camposFaltantes.push('Valor grandeza 03')
+  if (!temValor103) camposFaltantes.push('Valor grandeza 103')
+  if (!temDataLeitura) camposFaltantes.push('Data da leitura')
 
   // URL do arquivo existente
   const arquivoUrl = existingFileName
@@ -212,11 +243,10 @@ export const ModalAutoLeituraRGE: React.FC<ModalAutoLeituraRGEProps> = ({
   const handleSalvar = async (tentarConcluir: boolean = false) => {
     if (!atividade) return
 
-    if (tentarConcluir && !todosRequisitosPreenchidos) {
+    if (tentarConcluir && !todosCamposPreenchidos) {
       setFeedbackMsg({
         tipo: 'erro',
-        texto:
-          'Para concluir a atividade é obrigatório cumprir os 3 requisitos: (a) Fotos/vídeos enviados, (b) Valores 03 e 103 informados e (c) Protocolo na RGE realizado.',
+        texto: `Para concluir a atividade é obrigatório preencher os 4 campos: ${camposFaltantes.join(', ')}.`,
       })
       return
     }
@@ -226,12 +256,14 @@ export const ModalAutoLeituraRGE: React.FC<ModalAutoLeituraRGEProps> = ({
       setFeedbackMsg(null)
 
       const dadosConclusao: AutoLeituraDadosConclusao = {
-        fotosEnviadas,
-        valoresInformados,
-        protocoloRealizado,
+        fotosEnviadas: fotosEnviadas || true,
+        valoresInformados: valoresInformados || true,
+        protocoloRealizado: protocoloRealizado || true,
         valor03Consumo: valor03.trim(),
         valor103Injetada: valor103.trim(),
         protocoloRGE: numeroProtocolo.trim(),
+        dataLeitura: dataLeitura.trim() || undefined,
+        lembreteWhatsAppEnviadoEm: lembreteEnviadoEm || undefined,
         concluidoEm: tentarConcluir ? new Date().toISOString() : undefined,
         concluidoPor: tentarConcluir ? user?.name || 'Operador Delfos' : undefined,
       }
@@ -244,6 +276,13 @@ export const ModalAutoLeituraRGE: React.FC<ModalAutoLeituraRGEProps> = ({
         cronogramaArquivo: cronogramaFile,
         autoLeituraDados: dadosConclusao,
         autoLeituraObs: autoLeituraObs.trim(),
+        protocoloRGE: numeroProtocolo.trim(),
+        valor03Consumo: valor03.trim(),
+        valor103Injetada: valor103.trim(),
+        dataLeitura: dataLeitura.trim()
+          ? new Date(dataLeitura + 'T12:00:00Z').toISOString()
+          : undefined,
+        lembreteWhatsAppEnviadoEm: lembreteEnviadoEm || undefined,
         status: statusFinal,
       })
 
@@ -279,6 +318,20 @@ export const ModalAutoLeituraRGE: React.FC<ModalAutoLeituraRGEProps> = ({
     } finally {
       setIsSaving(false)
     }
+  }
+
+  // Atualizar lembrete enviado via botão WhatsApp dentro do modal
+  const handleLembreteEnviado = (updatedAtv: Atividade) => {
+    const dataIso = updatedAtv.lembrete_whatsapp_enviado_em || new Date().toISOString()
+    setLembreteEnviadoEm(dataIso)
+    setFeedbackMsg({
+      tipo: 'sucesso',
+      texto: 'Lembrete enviado via WhatsApp com sucesso!',
+    })
+    if (onUpdated) {
+      onUpdated(updatedAtv)
+    }
+    refreshData()
   }
 
   // Reabrir atividade
@@ -328,10 +381,13 @@ export const ModalAutoLeituraRGE: React.FC<ModalAutoLeituraRGEProps> = ({
                     <CheckCircle2 className="w-3 h-3 text-emerald-600" />
                     Concluída
                   </span>
+                ) : lembreteEnviadoEm ? (
+                  <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-900 bg-amber-100 border border-amber-300 px-2 py-0.5 rounded-full">
+                    Mensagem enviada - aguardando dados
+                  </span>
                 ) : (
-                  <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-800 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">
-                    <Clock className="w-3 h-3 text-amber-600" />
-                    Pendente
+                  <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-800 bg-emerald-100 border border-emerald-300 px-2 py-0.5 rounded-full">
+                    Aguardando envio
                   </span>
                 )}
               </div>
@@ -344,7 +400,16 @@ export const ModalAutoLeituraRGE: React.FC<ModalAutoLeituraRGEProps> = ({
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            {/* Botão de Enviar Lembrete WhatsApp direto do topo do modal */}
+            {status !== 'concluida' && (
+              <BotaoEnviarLembreteAutoLeituraWhatsApp
+                atividade={atividade}
+                onEnviado={handleLembreteEnviado}
+                variant="modal"
+              />
+            )}
+
             {clienteAtual && (
               <button
                 type="button"
@@ -632,144 +697,130 @@ Após o envio das imagens, pedimos também que nos informe por escrito os valore
             </div>
           </div>
 
-          {/* SEÇÃO: Requisitos Obrigatórios para Conclusão da Atividade */}
+          {/* SEÇÃO: 4 Campos Obrigatórios para Conclusão da Auto Leitura RGE */}
           <div className="bg-white rounded-2xl border border-gray-200 p-4 space-y-4 shadow-xs">
             <div className="flex items-center justify-between border-b border-gray-100 pb-2.5">
               <div className="flex items-center gap-2">
                 <ShieldCheck className="w-4 h-4 text-emerald-700" />
                 <h3 className="text-xs sm:text-sm font-bold text-gray-900">
-                  Requisitos de Conclusão da Auto Leitura
+                  Dados Obrigatórios de Validação RGE
                 </h3>
               </div>
               <span
                 className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                  todosRequisitosPreenchidos
-                    ? 'bg-emerald-100 text-emerald-900'
-                    : 'bg-amber-100 text-amber-900'
+                  todosCamposPreenchidos
+                    ? 'bg-emerald-100 text-emerald-900 border border-emerald-300'
+                    : 'bg-amber-100 text-amber-900 border border-amber-300'
                 }`}
               >
-                {todosRequisitosPreenchidos ? 'Requisitos atendidos' : 'Pendente de validação'}
+                {todosCamposPreenchidos
+                  ? 'Os 4 campos estão preenchidos'
+                  : `Faltam: ${camposFaltantes.join(', ')}`}
               </span>
             </div>
 
-            <p className="text-xs text-gray-600">
-              Esta atividade só pode ser marcada como concluída quando todos os 3 requisitos forem
-              confirmados:
+            <p className="text-xs text-gray-600 leading-relaxed">
+              A atividade <strong>só pode ser concluída</strong> quando estes 4 campos estiverem
+              preenchidos:
             </p>
 
-            <div className="space-y-3">
-              {/* Requisito A */}
-              <label className="flex items-start gap-3 p-3 rounded-xl border transition-colors cursor-pointer bg-slate-50/70 hover:bg-slate-50">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+              {/* 1. Protocolo RGE */}
+              <div className="p-3 rounded-xl border bg-slate-50/70 border-slate-200 space-y-1.5">
+                <label className="text-xs font-bold text-gray-900 flex items-center justify-between">
+                  <span>1. Protocolo RGE *</span>
+                  {temProtocolo ? (
+                    <span className="text-[10px] text-emerald-700 font-bold flex items-center gap-0.5">
+                      <CheckCircle2 className="w-3 h-3" /> OK
+                    </span>
+                  ) : (
+                    <span className="text-[10px] text-amber-700 font-semibold">Obrigatório</span>
+                  )}
+                </label>
                 <input
-                  type="checkbox"
-                  checked={fotosEnviadas}
-                  onChange={(e) => setFotosEnviadas(e.target.checked)}
-                  className="mt-0.5 rounded text-emerald-600 focus:ring-emerald-500 w-4 h-4 cursor-pointer"
+                  type="text"
+                  value={numeroProtocolo}
+                  onChange={(e) => setNumeroProtocolo(e.target.value)}
+                  placeholder="Ex: 2026-RGE-9831204"
+                  className="w-full text-xs px-3 py-2 rounded-lg border border-gray-300 bg-white font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 />
-                <div className="text-xs">
-                  <span className="font-bold text-gray-900 block">
-                    (a) O cliente enviou as fotos ou vídeo do medidor
-                  </span>
-                  <span className="text-[11px] text-gray-500">
-                    Conferido imagens com visibilidade nítida do mostrador do relógio bidirecional
-                  </span>
-                </div>
+              </div>
+
+              {/* 2. Data da leitura */}
+              <div className="p-3 rounded-xl border bg-slate-50/70 border-slate-200 space-y-1.5">
+                <label className="text-xs font-bold text-gray-900 flex items-center justify-between">
+                  <span>2. Data da leitura *</span>
+                  {temDataLeitura ? (
+                    <span className="text-[10px] text-emerald-700 font-bold flex items-center gap-0.5">
+                      <CheckCircle2 className="w-3 h-3" /> OK
+                    </span>
+                  ) : (
+                    <span className="text-[10px] text-amber-700 font-semibold">Obrigatório</span>
+                  )}
+                </label>
+                <input
+                  type="date"
+                  value={dataLeitura}
+                  onChange={(e) => setDataLeitura(e.target.value)}
+                  className="w-full text-xs px-3 py-2 rounded-lg border border-gray-300 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                />
+              </div>
+
+              {/* 3. Valor grandeza 03 */}
+              <div className="p-3 rounded-xl border bg-slate-50/70 border-slate-200 space-y-1.5">
+                <label className="text-xs font-bold text-gray-900 flex items-center justify-between">
+                  <span>3. Valor grandeza 03 (kWh consumida) *</span>
+                  {temValor03 ? (
+                    <span className="text-[10px] text-emerald-700 font-bold flex items-center gap-0.5">
+                      <CheckCircle2 className="w-3 h-3" /> OK
+                    </span>
+                  ) : (
+                    <span className="text-[10px] text-amber-700 font-semibold">Obrigatório</span>
+                  )}
+                </label>
+                <input
+                  type="text"
+                  value={valor03}
+                  onChange={(e) => setValor03(e.target.value)}
+                  placeholder="Ex: 12450"
+                  className="w-full text-xs px-3 py-2 rounded-lg border border-gray-300 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 font-medium"
+                />
+              </div>
+
+              {/* 4. Valor grandeza 103 */}
+              <div className="p-3 rounded-xl border bg-slate-50/70 border-slate-200 space-y-1.5">
+                <label className="text-xs font-bold text-gray-900 flex items-center justify-between">
+                  <span>4. Valor grandeza 103 (kWh injetada) *</span>
+                  {temValor103 ? (
+                    <span className="text-[10px] text-emerald-700 font-bold flex items-center gap-0.5">
+                      <CheckCircle2 className="w-3 h-3" /> OK
+                    </span>
+                  ) : (
+                    <span className="text-[10px] text-amber-700 font-semibold">Obrigatório</span>
+                  )}
+                </label>
+                <input
+                  type="text"
+                  value={valor103}
+                  onChange={(e) => setValor103(e.target.value)}
+                  placeholder="Ex: 8930"
+                  className="w-full text-xs px-3 py-2 rounded-lg border border-gray-300 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 font-medium"
+                />
+              </div>
+            </div>
+
+            {/* Campo de texto aberto para observações gerais da atividade */}
+            <div className="space-y-1 pt-1">
+              <label className="text-xs font-semibold text-gray-700 block">
+                Observações gerais da leitura e conferência:
               </label>
-
-              {/* Requisito B */}
-              <div className="p-3 rounded-xl border bg-slate-50/70 space-y-2">
-                <label className="flex items-start gap-3 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={valoresInformados}
-                    onChange={(e) => setValoresInformados(e.target.checked)}
-                    className="mt-0.5 rounded text-emerald-600 focus:ring-emerald-500 w-4 h-4 cursor-pointer"
-                  />
-                  <div className="text-xs">
-                    <span className="font-bold text-gray-900 block">
-                      (b) Os valores das grandezas 03 e 103 foram informados por escrito
-                    </span>
-                    <span className="text-[11px] text-gray-500">
-                      Validação e confronto dos números escritos com as imagens enviadas
-                    </span>
-                  </div>
-                </label>
-
-                {/* Campos de texto para registrar 03 e 103 */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 pl-7">
-                  <div>
-                    <label className="text-[10px] font-semibold text-gray-600 block mb-0.5">
-                      Grandeza 03 – Energia Consumida (kWh):
-                    </label>
-                    <input
-                      type="text"
-                      value={valor03}
-                      onChange={(e) => setValor03(e.target.value)}
-                      placeholder="Ex: 12450"
-                      className="w-full text-xs px-2.5 py-1.5 rounded-lg border border-gray-200 bg-white focus:outline-none focus:ring-1 focus:ring-emerald-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-[10px] font-semibold text-gray-600 block mb-0.5">
-                      Grandeza 103 – Energia Injetada (kWh):
-                    </label>
-                    <input
-                      type="text"
-                      value={valor103}
-                      onChange={(e) => setValor103(e.target.value)}
-                      placeholder="Ex: 8930"
-                      className="w-full text-xs px-2.5 py-1.5 rounded-lg border border-gray-200 bg-white focus:outline-none focus:ring-1 focus:ring-emerald-500"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Requisito C */}
-              <div className="p-3 rounded-xl border bg-slate-50/70 space-y-2">
-                <label className="flex items-start gap-3 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={protocoloRealizado}
-                    onChange={(e) => setProtocoloRealizado(e.target.checked)}
-                    className="mt-0.5 rounded text-emerald-600 focus:ring-emerald-500 w-4 h-4 cursor-pointer"
-                  />
-                  <div className="text-xs">
-                    <span className="font-bold text-gray-900 block">
-                      (c) O protocolo na RGE foi realizado
-                    </span>
-                    <span className="text-[11px] text-gray-500">
-                      Registro de auto leitura concluído com êxito nos canais da concessionária
-                    </span>
-                  </div>
-                </label>
-
-                <div className="pt-1 pl-7">
-                  <label className="text-[10px] font-semibold text-gray-600 block mb-0.5">
-                    Número do Protocolo RGE:
-                  </label>
-                  <input
-                    type="text"
-                    value={numeroProtocolo}
-                    onChange={(e) => setNumeroProtocolo(e.target.value)}
-                    placeholder="Ex: 2026-RGE-9831204"
-                    className="w-full text-xs px-2.5 py-1.5 rounded-lg border border-gray-200 bg-white focus:outline-none focus:ring-1 focus:ring-emerald-500"
-                  />
-                </div>
-              </div>
-
-              {/* Campo de texto aberto para observações gerais da atividade */}
-              <div className="space-y-1">
-                <label className="text-xs font-semibold text-gray-700 block">
-                  Campo de texto para registrar as informações / notas da leitura:
-                </label>
-                <textarea
-                  rows={3}
-                  value={autoLeituraObs}
-                  onChange={(e) => setAutoLeituraObs(e.target.value)}
-                  placeholder="Registre aqui informações adicionais da validação, conferência de créditos ou orientações passadas ao cliente..."
-                  className="w-full text-xs p-3 rounded-xl border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                />
-              </div>
+              <textarea
+                rows={3}
+                value={autoLeituraObs}
+                onChange={(e) => setAutoLeituraObs(e.target.value)}
+                placeholder="Registre aqui notas da validação, conferência de créditos ou orientações passadas ao cliente..."
+                className="w-full text-xs p-3 rounded-xl border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              />
             </div>
           </div>
 
@@ -901,9 +952,9 @@ Após o envio das imagens, pedimos também que nos informe por escrito os valore
               </button>
             ) : (
               <span className="text-xs text-gray-500">
-                {todosRequisitosPreenchidos
-                  ? 'Pronto para concluir: todos os 3 requisitos foram marcados.'
-                  : 'Para concluir, marque todos os 3 requisitos obrigatórios.'}
+                {todosCamposPreenchidos
+                  ? 'Pronto para concluir: os 4 campos estão preenchidos.'
+                  : `Campos pendentes para conclusão: ${camposFaltantes.join(', ')}.`}
               </span>
             )}
           </div>
@@ -929,19 +980,19 @@ Após o envio das imagens, pedimos também que nos informe por escrito os valore
               <span>Salvar Cronograma / Dados</span>
             </button>
 
-            {/* Concluir Atividade (bloqueado se não cumprir os 3 requisitos) */}
+            {/* Concluir Atividade (bloqueado se não cumprir os 4 campos) */}
             {status !== 'concluida' && (
               <button
                 type="button"
                 onClick={() => handleSalvar(true)}
-                disabled={isSaving || !todosRequisitosPreenchidos}
+                disabled={isSaving || !todosCamposPreenchidos}
                 title={
-                  !todosRequisitosPreenchidos
-                    ? 'Bloqueado: Requer (a) Fotos/vídeos, (b) Grandezas 03 e 103 e (c) Protocolo RGE'
+                  !todosCamposPreenchidos
+                    ? `Bloqueado: Preencha obrigatoriamente: ${camposFaltantes.join(', ')}`
                     : 'Concluir atividade'
                 }
                 className={`inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold shadow-xs transition-colors ${
-                  todosRequisitosPreenchidos
+                  todosCamposPreenchidos
                     ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
                     : 'bg-gray-200 text-gray-400 cursor-not-allowed border border-gray-300'
                 }`}

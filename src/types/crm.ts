@@ -720,6 +720,11 @@ export interface Atividade extends RecordModel {
   cronograma_datas?: unknown
   auto_leitura_dados?: unknown
   auto_leitura_obs?: string
+  protocolo_rge?: string
+  valor_grandeza_03?: string
+  valor_grandeza_103?: string
+  data_leitura?: string
+  lembrete_whatsapp_enviado_em?: string
   leituras_programadas_distribuidora?:
     | Array<{ data: string; responsavel: 'Cliente' | 'Distribuidora' }>
     | unknown

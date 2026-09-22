@@ -1423,6 +1423,24 @@ export async function sendWhatsAppMensagem(data: {
   })
 }
 
+export async function sendLembreteAutoLeituraWhatsApp(atividadeId: string): Promise<{
+  ok: boolean
+  sent?: boolean
+  gatewayConfigured?: boolean
+  status?: string
+  mensagem?: string
+  telefone_destino?: string
+  lembrete_whatsapp_enviado_em?: string
+  message: string
+  error?: string
+  atividade?: import('@/types/crm').Atividade
+}> {
+  return pb.send('/backend/v1/whatsapp/enviar-lembrete-auto-leitura', {
+    method: 'POST',
+    body: { atividade_id: atividadeId },
+  })
+}
+
 export async function sendOSWhatsAppManual(osId: string): Promise<{
   ok: boolean
   sent?: boolean

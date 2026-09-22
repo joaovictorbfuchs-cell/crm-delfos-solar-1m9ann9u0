@@ -24,7 +24,8 @@ import {
 } from 'lucide-react'
 import { ModalGerarProcuracaoOM } from '@/components/ModalGerarProcuracaoOM'
 import { ModalGerarContratoOM } from '@/components/ModalGerarContratoOM'
-import { isAtividadeAutoLeitura } from '@/services/autoLeituraService'
+import { isAtividadeAutoLeitura, getAutoLeituraLembreteStatus } from '@/services/autoLeituraService'
+import { BotaoEnviarLembreteAutoLeituraWhatsApp } from './BotaoEnviarLembreteAutoLeituraWhatsApp'
 import type { DadosProcuracaoOM } from '@/lib/procuracaoGenerator'
 import type { DadosContratoOM } from '@/lib/contratoGenerator'
 import type { TimelineUnifiedItem, TimelineFilterTipo } from '@/types/timelineUnified'
@@ -852,7 +853,7 @@ export const LinhaDoTempoUnificada: React.FC<LinhaDoTempoUnificadaProps> = ({
                         </button>
                       )}
 
-                      {/* Tag verde "Aguardando envio" para atividades filhas de Auto Leitura RGE */}
+                      {/* Tags de status para atividades filhas de Auto Leitura RGE */}
                       {item.rawAtividade &&
                         item.rawAtividade.status !== 'concluida' &&
                         (isAtividadeAutoLeitura(item.rawAtividade) ||
@@ -862,11 +863,16 @@ export const LinhaDoTempoUnificada: React.FC<LinhaDoTempoUnificadaProps> = ({
                           item.rawAtividade.titulo?.toLowerCase().includes('auto leitura rge -') ||
                           /auto\s*leitura.*rge.*-.*\d{2}\/\d{2}\/\d{4}/i.test(
                             item.rawAtividade.titulo || '',
-                          )) && (
+                          )) &&
+                        (getAutoLeituraLembreteStatus(item.rawAtividade) === 'enviado' ? (
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded border bg-amber-100 text-amber-900 border-amber-300">
+                            Mensagem enviada - aguardando dados
+                          </span>
+                        ) : (
                           <span className="text-[10px] font-bold px-2 py-0.5 rounded border bg-emerald-100 text-emerald-800 border-emerald-300">
                             Aguardando envio
                           </span>
-                        )}
+                        ))}
                     </div>
 
                     <div className="text-[11px] text-gray-500 font-medium flex items-center gap-1">
@@ -946,7 +952,26 @@ export const LinhaDoTempoUnificada: React.FC<LinhaDoTempoUnificadaProps> = ({
                       )}
                     </div>
 
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {/* Botão de Enviar Lembrete WhatsApp para Auto Leitura RGE */}
+                      {item.rawAtividade &&
+                        item.rawAtividade.status !== 'concluida' &&
+                        (isAtividadeAutoLeitura(item.rawAtividade) ||
+                          item.rawAtividade.tipo === 'auto_leitura_rge') &&
+                        (item.titulo?.toLowerCase().includes('auto leitura rge -') ||
+                          /auto\s*leitura.*rge.*-.*\d{2}\/\d{2}\/\d{4}/i.test(item.titulo || '') ||
+                          item.rawAtividade.titulo?.toLowerCase().includes('auto leitura rge -') ||
+                          /auto\s*leitura.*rge.*-.*\d{2}\/\d{2}\/\d{4}/i.test(
+                            item.rawAtividade.titulo || '',
+                          )) && (
+                          <BotaoEnviarLembreteAutoLeituraWhatsApp
+                            atividade={item.rawAtividade}
+                            onEnviado={() => {
+                              // Atualização refletida no app
+                            }}
+                          />
+                        )}
+
                       {hasValor && (
                         <div className="text-right">
                           <span className="font-black text-gray-900 text-xs sm:text-sm">
