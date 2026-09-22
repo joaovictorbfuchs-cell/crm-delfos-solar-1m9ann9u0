@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-22T21:29:07.978Z",
+  "generatedAt": "2026-09-22T22:04:08.100Z",
   "collections": [
     {
       "name": "users",
@@ -4937,7 +4937,14 @@
           "type": "select",
           "required": false,
           "system": false,
-          "selectValues": ["venda usina", "bateria", "expansão", "renovação", "serviço"]
+          "selectValues": [
+            "venda usina",
+            "bateria",
+            "expansão",
+            "renovação",
+            "serviço",
+            "venda bateria"
+          ]
         },
         {
           "name": "valor_estimado",
@@ -5038,6 +5045,25 @@
             "Baterias",
             "Carregadores Veículos Elétricos"
           ]
+        },
+        {
+          "name": "titulo",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "valor",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "consultor_responsavel",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "users"
         }
       ],
       "indexes": [
