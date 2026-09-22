@@ -1,16 +1,5 @@
 import React, { useState, useMemo } from 'react'
-import {
-  FolderKanban,
-  UserCheck,
-  Plus,
-  Zap,
-  Search,
-  Users,
-  HardHat,
-  Filter,
-  CheckCircle2,
-  AlertCircle,
-} from 'lucide-react'
+import { FolderKanban, Plus, Search, HardHat, Filter } from 'lucide-react'
 import { useClientes } from '@/contexts/ClientesContext'
 import { KanbanProjetos } from '@/components/KanbanProjetos'
 import { ModalGerenciarProfissionais } from '@/components/ModalGerenciarProfissionais'
@@ -74,22 +63,6 @@ export const Projetos: React.FC = () => {
       return matchesSearch && matchesProf
     })
   }, [projetos, searchTerm, selectedProfissionalFilter])
-
-  // Métricas rápidas de topo
-  const totalKwp = useMemo(
-    () => filteredProjetos.reduce((acc, p) => acc + (p.potencia_kwp || 0), 0),
-    [filteredProjetos],
-  )
-
-  const concluidosCount = useMemo(
-    () => filteredProjetos.filter((p) => p.etapa === 'Concluído').length,
-    [filteredProjetos],
-  )
-
-  const instalacaoCount = useMemo(
-    () => filteredProjetos.filter((p) => p.etapa === 'Instalação').length,
-    [filteredProjetos],
-  )
 
   const handleOpenAtribuirModal = (projeto: Projeto, targetEtapa?: ProjetoEtapa) => {
     setAtribuirModalState({
@@ -161,40 +134,6 @@ export const Projetos: React.FC = () => {
             <Plus className="w-4 h-4" />
             <span>Novo Projeto</span>
           </button>
-        </div>
-      </div>
-
-      {/* Mini Cards de Métricas e Filtros */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3">
-        <div className="bg-white p-3 rounded-xl border border-gray-200 shadow-2xs">
-          <div className="text-[11px] font-semibold text-gray-400 uppercase">Total de Projetos</div>
-          <div className="text-xl font-black text-gray-900 mt-0.5">{filteredProjetos.length}</div>
-        </div>
-
-        <div className="bg-white p-3 rounded-xl border border-gray-200 shadow-2xs">
-          <div className="text-[11px] font-semibold text-gray-400 uppercase flex items-center gap-1">
-            <Zap className="w-3.5 h-3.5 text-amber-500" />
-            Potência em Obras
-          </div>
-          <div className="text-xl font-black text-emerald-700 mt-0.5">
-            {totalKwp.toFixed(1)} <span className="text-xs text-gray-500 font-bold">kWp</span>
-          </div>
-        </div>
-
-        <div className="bg-white p-3 rounded-xl border border-orange-200 bg-orange-50/20 shadow-2xs">
-          <div className="text-[11px] font-semibold text-orange-700 uppercase flex items-center gap-1">
-            <HardHat className="w-3.5 h-3.5 text-orange-600" />
-            Em Instalação
-          </div>
-          <div className="text-xl font-black text-orange-700 mt-0.5">{instalacaoCount}</div>
-        </div>
-
-        <div className="bg-white p-3 rounded-xl border border-emerald-200 bg-emerald-50/20 shadow-2xs">
-          <div className="text-[11px] font-semibold text-emerald-700 uppercase flex items-center gap-1">
-            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-            Concluídos / Ligados
-          </div>
-          <div className="text-xl font-black text-emerald-700 mt-0.5">{concluidosCount}</div>
         </div>
       </div>
 
