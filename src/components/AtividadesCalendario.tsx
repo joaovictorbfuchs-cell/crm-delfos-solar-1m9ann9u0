@@ -574,7 +574,8 @@ export const AtividadesCalendario: React.FC<AtividadesCalendarioProps> = ({
                                     }
                                     onToggleStatus(atv.id, atv.status || 'pendente')
                                   }}
-                                  className={`p-0.5 rounded transition-colors shrink-0 ${                                    isConcluida
+                                  className={`p-0.5 rounded transition-colors shrink-0 ${
+                                    isConcluida
                                       ? 'text-emerald-600 hover:bg-emerald-50'
                                       : 'text-gray-300 hover:text-emerald-600 hover:bg-gray-100'
                                   }`}

@@ -9,7 +9,10 @@ migrate(
         )
         .execute()
     } catch (err) {
-      console.log('[0135_normalize_auto_leitura_rge_idempotent] Erro ao atualizar tipo via SQL:', err)
+      console.log(
+        '[0135_normalize_auto_leitura_rge_idempotent] Erro ao atualizar tipo via SQL:',
+        err,
+      )
     }
   },
   (app) => {

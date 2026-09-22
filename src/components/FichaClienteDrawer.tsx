@@ -170,7 +170,7 @@ const FASES: { value: NumeroFases; label: string }[] = [
 ]
 
 export const FichaClienteDrawer: React.FC = () => {
-  const { isAdmin } = useAuth()
+  const { user, isAdmin } = useAuth()
   const {
     selectedCliente,
     selectedClienteId,
@@ -3590,8 +3590,45 @@ export const FichaClienteDrawer: React.FC = () => {
                     clienteId={selectedCliente.id}
                     usinas={usinasDoCliente}
                     onOpenGerenciar={() => setModalGerenciarAtividadesOpen(true)}
-                    onSelectTipoEspecial={(tipoId) => {
-                      if (tipoId === 'anexo_g') {
+                    onSelectTipoEspecial={async (tipoId) => {
+                      if (tipoId === 'auto_leitura_rge') {
+                        // 1. Procurar atividade pendente existente de Auto Leitura - RGE para o cliente
+                        const existente = atividades.find(
+                          (a) =>
+                            a.cliente_id === selectedCliente.id &&
+                            a.status === 'pendente' &&
+                            isAtividadeAutoLeitura(a),
+                        )
+                        if (existente) {
+                          setAutoLeituraModalAtividade(existente)
+                          return
+                        }
+
+                        // 2. Se não existir pendente, cria a atividade 'Auto Leitura - RGE' e abre o modal
+                        try {
+                          const respUser = usuarios.find((u) => u.id === user?.id)
+                          const responsavelNome = respUser?.name || user?.name || 'Usuário Delfos'
+                          const usinaPadraoId =
+                            usinasDoCliente.length === 1 ? usinasDoCliente[0].id : undefined
+
+                          const novaAtv = await addAtividade({
+                            cliente_id: selectedCliente.id,
+                            tipo: 'auto_leitura_rge',
+                            titulo: 'Auto Leitura - RGE',
+                            descricao: 'Auto Leitura RGE - aguardando leitura do medidor',
+                            data: new Date().toISOString(),
+                            autor: user?.name || 'Usuário Delfos',
+                            responsavel_id: user?.id,
+                            responsavel_nome: responsavelNome,
+                            status: 'pendente',
+                            usina_id: usinaPadraoId,
+                          })
+                          setAutoLeituraModalAtividade(novaAtv)
+                        } catch (err) {
+                          console.error('Erro ao criar atividade de Auto Leitura RGE:', err)
+                          toast.error('Não foi possível iniciar a Auto Leitura. Tente novamente.')
+                        }
+                      } else if (tipoId === 'anexo_g') {
                         handleAbrirDocumentoProjeto('anexo_g', propostaAprovada)
                       } else if (tipoId === 'troca_titularidade') {
                         handleAbrirDocumentoProjeto('troca_titularidade', propostaAprovada)

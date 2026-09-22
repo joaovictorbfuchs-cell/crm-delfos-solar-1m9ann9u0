@@ -97,10 +97,12 @@ export const QuickAddAtividade: React.FC<QuickAddAtividadeProps> = ({
       setTitulo(firstOfCat.tituloPadrao)
       if (
         onSelectTipoEspecial &&
-        (firstOfCat.id === 'anexo_g' ||
+        (firstOfCat.id === 'auto_leitura_rge' ||
+          firstOfCat.id === 'anexo_g' ||
           firstOfCat.id === 'troca_titularidade' ||
           firstOfCat.id === 'transferencia_creditos' ||
-          firstOfCat.id === 'gerar_procuracao')
+          firstOfCat.id === 'gerar_procuracao' ||
+          firstOfCat.id === 'gerar_contrato')
       ) {
         onSelectTipoEspecial(firstOfCat.id)
       }
@@ -113,10 +115,12 @@ export const QuickAddAtividade: React.FC<QuickAddAtividadeProps> = ({
     setTitulo(item.tituloPadrao)
     if (
       onSelectTipoEspecial &&
-      (item.id === 'anexo_g' ||
+      (item.id === 'auto_leitura_rge' ||
+        item.id === 'anexo_g' ||
         item.id === 'troca_titularidade' ||
         item.id === 'transferencia_creditos' ||
-        item.id === 'gerar_procuracao')
+        item.id === 'gerar_procuracao' ||
+        item.id === 'gerar_contrato')
     ) {
       onSelectTipoEspecial(item.id)
     }
@@ -357,10 +361,12 @@ export const QuickAddAtividade: React.FC<QuickAddAtividadeProps> = ({
                         >
                           personalizada
                         </span>
-                      ) : item.id === 'anexo_g' ||
+                      ) : item.id === 'auto_leitura_rge' ||
+                        item.id === 'anexo_g' ||
                         item.id === 'troca_titularidade' ||
                         item.id === 'transferencia_creditos' ||
-                        item.id === 'gerar_procuracao' ? (
+                        item.id === 'gerar_procuracao' ||
+                        item.id === 'gerar_contrato' ? (
                         <span
                           className={`text-[9px] font-semibold block ${
                             isSelected ? 'text-emerald-100' : 'text-emerald-700'
