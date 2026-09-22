@@ -22,6 +22,7 @@ import {
   parseCurrencyBRL,
   formatCurrencyBRL,
 } from '@/lib/formatters'
+import { calcularDiasRestantesDefensivo } from '@/lib/omCategorizacao'
 import type { OMPlanoTipo, OMStatusPlano, PropostaOM } from '@/types/crm'
 import { ModalGerarProcuracaoOM } from './ModalGerarProcuracaoOM'
 import { ModalGerarContratoOM } from './ModalGerarContratoOM'
@@ -120,12 +121,7 @@ export const FichaClienteOM: React.FC<FichaClienteOMProps> = ({ clienteId, onNav
   if (!cliente) return null
 
   // Cálculos de dias até vencimento
-  const diasAteVencimento = contrato?.data_vencimento
-    ? Math.ceil(
-        (new Date(contrato.data_vencimento).getTime() - new Date().getTime()) /
-          (1000 * 60 * 60 * 24),
-      )
-    : 0
+  const diasAteVencimento = calcularDiasRestantesDefensivo(contrato?.data_vencimento) ?? 0
 
   const getPlanoColor = (plano?: OMPlanoTipo) => {
     switch (plano) {

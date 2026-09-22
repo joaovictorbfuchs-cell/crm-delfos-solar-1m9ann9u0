@@ -421,7 +421,7 @@ export const BarraBuscaGlobal: React.FC<{ className?: string }> = ({ className =
           id: `contrato-${ct.id}`,
           category: 'contratos_om',
           title: `Contrato O&M: ${cliNome || 'Cliente'} (${ct.plano})`,
-          subtitle: `${ct.numero_contrato ? `Nº ${ct.numero_contrato} • ` : ''}R$ ${ct.valor_mensal}/mês • Status: ${ct.status}`,
+          subtitle: `${ct.numero_contrato ? `Nº ${ct.numero_contrato} • ` : ''}${ct.valor_mensal !== undefined && ct.valor_mensal !== null && !isNaN(Number(ct.valor_mensal)) ? `R$ ${ct.valor_mensal}/mês` : 'Valor a definir'} • Status: ${ct.status || 'Ativo'}`,
           badge: ct.plano,
           badgeColorClass: 'bg-teal-100 text-teal-800 border-teal-200',
           icon: FileSignature,

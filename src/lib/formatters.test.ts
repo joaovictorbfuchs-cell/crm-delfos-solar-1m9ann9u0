@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest'
 import {
+  formatCurrency,
+  formatDate,
+  formatDateTime,
   formatCurrencyBRL,
   maskCurrencyBRL,
   parseCurrencyBRL,
@@ -70,6 +73,36 @@ describe('Formatters - Máscara Monetária em Real (R$)', () => {
       const base = new Date(2024, 0, 15) // janeiro/2024
       const resultado = formatarMesAnoQuitacao(base, null)
       expect(resultado).toBe('janeiro/2026')
+    })
+  })
+
+  describe('formatCurrency, formatDate, formatDateTime (defensivos)', () => {
+    it('formatCurrency deve aceitar number, string, null, undefined sem crashar', () => {
+      expect(formatCurrency(null)).toBe('R$ 0,00')
+      expect(formatCurrency(undefined)).toBe('R$ 0,00')
+      expect(formatCurrency('')).toBe('R$ 0,00')
+      expect(formatCurrency(NaN)).toBe('R$ 0,00')
+      expect(formatCurrency('abc')).toBe('R$ 0,00')
+      expect(formatCurrency(190)).toBe('R$ 190,00')
+      expect(formatCurrency('250.5')).toBe('R$ 250,50')
+    })
+
+    it('formatDate deve tratar null, undefined, vazio e datas inválidas retornando "-"', () => {
+      expect(formatDate(null)).toBe('-')
+      expect(formatDate(undefined)).toBe('-')
+      expect(formatDate('')).toBe('-')
+      expect(formatDate('   ')).toBe('-')
+      expect(formatDate('data-invalida')).toBe('-')
+      expect(formatDate('2025-03-15T00:00:00Z')).toBe('15/03/2025')
+    })
+
+    it('formatDateTime deve tratar null, undefined, vazio e datas inválidas retornando "-"', () => {
+      expect(formatDateTime(null)).toBe('-')
+      expect(formatDateTime(undefined)).toBe('-')
+      expect(formatDateTime('')).toBe('-')
+      expect(formatDateTime('   ')).toBe('-')
+      expect(formatDateTime('data-invalida')).toBe('-')
+      expect(formatDateTime('2025-03-15T12:00:00Z')).toMatch(/\d{2}\/\d{2}\/\d{4}/)
     })
   })
 

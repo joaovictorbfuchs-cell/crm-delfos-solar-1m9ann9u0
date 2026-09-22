@@ -1,5 +1,9 @@
-export function formatCurrency(value: number | undefined | null): string {
-  if (value === undefined || value === null || isNaN(value)) {
+export function formatCurrency(value: number | string | undefined | null): string {
+  if (value === undefined || value === null || value === '') {
+    return 'R$ 0,00'
+  }
+  const num = typeof value === 'number' ? value : Number(value)
+  if (isNaN(num)) {
     return 'R$ 0,00'
   }
   return new Intl.NumberFormat('pt-BR', {
@@ -7,11 +11,11 @@ export function formatCurrency(value: number | undefined | null): string {
     currency: 'BRL',
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
-  }).format(value)
+  }).format(num)
 }
 
 export function formatDate(dateString: string | undefined | null): string {
-  if (!dateString) return '-'
+  if (!dateString || typeof dateString !== 'string' || dateString.trim() === '') return '-'
   try {
     const d = new Date(dateString)
     if (isNaN(d.getTime())) return '-'
@@ -25,7 +29,7 @@ export function formatDate(dateString: string | undefined | null): string {
 }
 
 export function formatDateTime(dateString: string | undefined | null): string {
-  if (!dateString) return '-'
+  if (!dateString || typeof dateString !== 'string' || dateString.trim() === '') return '-'
   try {
     const d = new Date(dateString)
     if (isNaN(d.getTime())) return '-'

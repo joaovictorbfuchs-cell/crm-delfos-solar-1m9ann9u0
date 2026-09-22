@@ -24,6 +24,7 @@ import {
 } from 'lucide-react'
 import { useClientes } from '@/contexts/ClientesContext'
 import { formatCurrency, formatDate } from '@/lib/formatters'
+import { calcularDiasRestantesDefensivo } from '@/lib/omCategorizacao'
 import type {
   OMAnomaliaEtapa,
   OMAnomaliaStatus,
@@ -194,12 +195,7 @@ export const FichaOMDrawer: React.FC = () => {
   }
 
   // Cálculos de dias até vencimento
-  const diasAteVencimento = contrato?.data_vencimento
-    ? Math.ceil(
-        (new Date(contrato.data_vencimento).getTime() - new Date().getTime()) /
-          (1000 * 60 * 60 * 24),
-      )
-    : 0
+  const diasAteVencimento = calcularDiasRestantesDefensivo(contrato?.data_vencimento) ?? 0
 
   // Cores de status do plano
   const getStatusBadge = (status?: OMStatusPlano) => {

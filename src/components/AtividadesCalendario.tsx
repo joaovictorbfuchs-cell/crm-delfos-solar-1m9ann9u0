@@ -609,11 +609,11 @@ export const AtividadesCalendario: React.FC<AtividadesCalendarioProps> = ({
 
                                 {atv.expand?.cliente_id ? (
                                   <span className="font-semibold text-emerald-800 truncate max-w-[80px]">
-                                    {atv.expand.cliente_id.nome.split(' ')[0]}
+                                    {(atv.expand?.cliente_id?.nome || 'Cliente').split(' ')[0]}
                                   </span>
                                 ) : atv.responsavel_nome ? (
                                   <span className="text-gray-600 truncate max-w-[80px]">
-                                    {atv.responsavel_nome.split(' ')[0]}
+                                    {(atv.responsavel_nome || 'Equipe').split(' ')[0]}
                                   </span>
                                 ) : null}
                               </div>
