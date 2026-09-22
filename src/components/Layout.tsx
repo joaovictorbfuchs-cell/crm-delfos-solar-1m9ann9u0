@@ -535,6 +535,32 @@ export default function Layout() {
                 <span>Delfos Solar</span>
                 <span>v{APP_VERSION}</span>
               </div>
+              <div className="mt-1.5 pt-1.5 border-t border-gray-100 flex items-center justify-center">
+                <a
+                  href="/schema-delfos-solar.xlsx"
+                  download="schema-delfos-solar.xlsx"
+                  className="inline-flex items-center gap-1.5 text-[11px] text-gray-400 hover:text-[#166534] transition-colors py-0.5 group"
+                  title="Exportar schema completo do banco PocketBase (38 coleções) em formato XLSX"
+                >
+                  <FileSpreadsheet className="w-3.5 h-3.5 text-gray-400 group-hover:text-[#166534] shrink-0" />
+                  <span className="font-medium underline decoration-gray-300 underline-offset-2 group-hover:decoration-[#166534]">
+                    Exportar Schema (XLSX)
+                  </span>
+                </a>
+              </div>
+            </div>
+          )}
+          {isSidebarCollapsed && (
+            <div className="pt-1.5 border-t border-gray-200/60 w-full flex justify-center">
+              <a
+                href="/schema-delfos-solar.xlsx"
+                download="schema-delfos-solar.xlsx"
+                className="p-1.5 text-gray-400 hover:text-[#166534] hover:bg-emerald-50 rounded-lg transition-colors flex items-center justify-center"
+                title="Exportar Schema (XLSX)"
+                aria-label="Exportar Schema (XLSX)"
+              >
+                <FileSpreadsheet className="w-4 h-4" />
+              </a>
             </div>
           )}
         </div>
@@ -733,6 +759,17 @@ export default function Layout() {
               <div className="flex items-center justify-between text-[11px] font-mono text-gray-400 pt-1 border-t border-gray-200/60">
                 <span>Delfos Solar</span>
                 <span>v{APP_VERSION}</span>
+              </div>
+              <div className="pt-1 flex items-center justify-center">
+                <a
+                  href="/schema-delfos-solar.xlsx"
+                  download="schema-delfos-solar.xlsx"
+                  className="inline-flex items-center gap-1.5 text-xs text-gray-500 hover:text-[#166534] transition-colors py-1"
+                  title="Exportar schema completo do banco PocketBase em formato XLSX"
+                >
+                  <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                  <span className="font-medium">Exportar Schema (XLSX)</span>
+                </a>
               </div>
             </div>
           </div>

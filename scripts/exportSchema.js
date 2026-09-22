@@ -86,13 +86,12 @@ const COLLECTION_DESCRIPTIONS = {
 
 export function generateSchemaWorkbookData() {
   // 1. Aba "Resumo"
-  // Colunas: N° | Coleção | Tipo | Descrição | Qtd. de Campos | Chaves Estrangeiras (FKs) | Índices
+  // Exigência: (coleção, descrição curta, nº de campos)
   const resumoHeaders = [
-    'N°',
     'Coleção',
+    'Descrição Curta',
+    'Nº de Campos',
     'Tipo PocketBase',
-    'Descrição Funcional',
-    'Qtd. Campos',
     'Qtd. Relações (FKs)',
     'Regras de Acesso (RLS)',
   ]
@@ -100,28 +99,27 @@ export function generateSchemaWorkbookData() {
   const resumoRows = [resumoHeaders]
 
   // 2. Aba "Campos"
-  // Colunas: Coleção | Campo | Tipo | Obrigatório | Opções / Valores | Relação / FK | Regras / Triggers | Nota
+  // Exigência: Coleção | Campo | Tipo | Obrigatório | Opções/valores de select | Relação/FK destino | Nota
   const camposHeaders = [
     'Coleção',
-    'Nome do Campo',
-    'Tipo de Dado',
+    'Campo',
+    'Tipo',
     'Obrigatório',
-    'Opções / Valores (Select)',
-    'Relação / FK (Coleção Destino)',
-    'Triggers / Configurações',
+    'Opções/valores de select',
+    'Relação/FK destino',
     'Nota',
   ]
   const camposRows = [camposHeaders]
 
   // 3. Aba "Chaves Estrangeiras"
-  // Colunas: Coleção de Origem | Campo FK | Coleção de Destino | Obrigatório | Cascade Delete | Descrição do Vínculo
+  // Exigência: Coleção → Campo FK → Coleção referenciada
   const fksHeaders = [
-    'Coleção de Origem',
+    'Coleção',
     'Campo FK',
-    'Coleção Referenciada (Destino)',
+    'Coleção referenciada',
     'Obrigatório',
     'Cascade Delete',
-    'Finalidade da Relação',
+    'Descrição da Relação',
   ]
   const fksRows = [fksHeaders]
 
@@ -160,16 +158,11 @@ export function generateSchemaWorkbookData() {
           ''
       }
 
-      let triggers = ''
-      if (fType === 'autodate' && Array.isArray(field.autodateTriggers)) {
-        triggers = field.autodateTriggers.join(', ')
-      } else if (field.system) {
-        triggers = 'Campo do Sistema'
-      }
-
       let nota = ''
-      if (field.system) {
-        nota = 'Gerenciado internamente pelo PocketBase'
+      if (fType === 'autodate' && Array.isArray(field.autodateTriggers)) {
+        nota = `Autodate: ${field.autodateTriggers.join(', ')}`
+      } else if (field.system) {
+        nota = 'Gerenciado internamente pelo PocketBase (campo do sistema)'
       } else if (fName === 'id') {
         nota = 'Identificador único alfanumérico de 15 caracteres'
       } else if (fType === 'json') {
@@ -178,7 +171,7 @@ export function generateSchemaWorkbookData() {
         nota = 'Armazenamento de arquivo / mídia anexada'
       }
 
-      camposRows.push([colName, fName, fType, isReq, opcoes, fkDestino, triggers, nota])
+      camposRows.push([colName, fName, fType, isReq, opcoes, fkDestino, nota])
 
       // Se for FK, adiciona na aba de Chaves Estrangeiras
       if (fType === 'relation') {
@@ -212,16 +205,15 @@ export function generateSchemaWorkbookData() {
 
     const rlsDesc = col.apiRules ? 'Regras RLS configuradas (autenticado)' : 'Acesso superusuário'
 
-    resumoRows.push([cIdx + 1, colName, colType, desc, fields.length, fkCount, rlsDesc])
+    resumoRows.push([colName, desc, fields.length, colType, fkCount, rlsDesc])
   })
 
   // Linha de totalizadores na aba Resumo
   resumoRows.push([
-    '',
     `TOTAL: ${collections.length} coleções`,
-    '',
-    '',
+    'Total geral de campos e relacionamentos no banco PocketBase Delfos Solar',
     totalCamposGeral,
+    '',
     totalFKsGeral,
     '',
   ])
@@ -230,12 +222,12 @@ export function generateSchemaWorkbookData() {
     {
       name: 'Resumo',
       rows: resumoRows,
-      colWidths: [8, 26, 18, 55, 14, 20, 30],
+      colWidths: [26, 55, 16, 18, 20, 30],
     },
     {
       name: 'Campos',
       rows: camposRows,
-      colWidths: [24, 28, 16, 14, 45, 24, 24, 35],
+      colWidths: [24, 28, 16, 14, 45, 26, 40],
     },
     {
       name: 'Chaves Estrangeiras',
