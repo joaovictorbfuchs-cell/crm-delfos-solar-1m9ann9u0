@@ -353,7 +353,7 @@ cronAdd('whatsapp_worker', '*/2 * * * *', () => {
         const seteDiasAtras = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString()
 
         // Buscar clientes com data_instalacao preenchida <= seteDiasAtras
-        const filterInstalados = `data_instalacao != '' && data_instalacao != null && data_instalacao <= '${seteDiasAtras}'`
+        const filterInstalados = `data_instalacao != '' && data_instalacao <= '${seteDiasAtras}'`
         const instalados = $app.findRecordsByFilter(
           'clientes',
           filterInstalados,

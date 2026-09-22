@@ -1484,7 +1484,7 @@ export async function vincularConversaCliente(
     const msgs = await pb
       .collection('whatsapp_mensagens')
       .getFullList<import('@/types/crm').WhatsAppMensagem>({
-        filter: `conversa_id = '${conversaId}' && (cliente_id = '' || cliente_id = null)`,
+        filter: `conversa_id = '${conversaId}' && cliente_id = ''`,
       })
     for (const m of msgs) {
       await pb.collection('whatsapp_mensagens').update(m.id, { cliente_id: clienteId })
