@@ -1,7 +1,6 @@
 import React, { useState, useMemo } from 'react'
 import { Search, Clock, ListTodo, CalendarDays, Plus, RefreshCw, AlertCircle } from 'lucide-react'
 import { useClientes } from '@/contexts/ClientesContext'
-import { useAuth } from '@/contexts/AuthContext'
 import { AtividadeItem } from '@/components/AtividadeItem'
 import { ModalNovaAtividade } from '@/components/ModalNovaAtividade'
 import {
@@ -28,11 +27,9 @@ export const Atividades: React.FC = () => {
     updateAtividadeStatus,
     removeAtividade,
     openFichaCliente,
-    isLoading,
     error,
     refreshData,
   } = useClientes()
-  const { user } = useAuth()
   const [isRefreshing, setIsRefreshing] = useState(false)
 
   const handleRefresh = async () => {
@@ -225,28 +222,6 @@ export const Atividades: React.FC = () => {
           >
             <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
             <span>Tentar novamente</span>
-          </button>
-        </div>
-      )}
-
-      {/* Alerta defensivo quando a lista de atividades estiver vazia */}
-      {!isLoading && !error && atividades.length === 0 && (
-        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-center justify-between gap-3 text-xs text-amber-800">
-          <div>
-            <p className="font-bold">Nenhuma atividade carregada na central.</p>
-            <p className="text-amber-700">
-              Se você já possui tarefas ou agendamentos cadastrados, clique no botão para recarregar
-              os dados do sistema.
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={handleRefresh}
-            disabled={isRefreshing}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-lg shrink-0 transition-colors cursor-pointer"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
-            <span>Recarregar dados</span>
           </button>
         </div>
       )}
