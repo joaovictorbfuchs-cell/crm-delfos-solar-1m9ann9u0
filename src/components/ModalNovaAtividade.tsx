@@ -83,7 +83,8 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
     return now.toISOString().slice(0, 16)
   })
   const [descricao, setDescricao] = useState('')
-  const [programacaoLeituras, setProgramacaoLeituras] = useState<ProgramacaoLeituraItem[]>(ITENS_EXEMPLO_PROGRAMACAO)
+  const [programacaoLeituras, setProgramacaoLeituras] =
+    useState<ProgramacaoLeituraItem[]>(ITENS_EXEMPLO_PROGRAMACAO)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
   const [formSuccess, setFormSuccess] = useState(false)
@@ -243,14 +244,15 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
       const responsavelNome = selectedUser?.name || user?.name || 'João Delfos'
 
       // Se for Auto Leitura - RGE, separar linhas da Distribuidora para salvar como consulta
-      const leiturasDistribuidora = selectedTipo === 'auto_leitura_rge'
-        ? programacaoLeituras
-            .filter((item) => item.responsavel === 'Distribuidora' && item.dataPrevista)
-            .map((item) => ({
-              data: formatarParaDDMMAAAA(item.dataPrevista),
-              responsavel: 'Distribuidora' as const,
-            }))
-        : undefined
+      const leiturasDistribuidora =
+        selectedTipo === 'auto_leitura_rge'
+          ? programacaoLeituras
+              .filter((item) => item.responsavel === 'Distribuidora' && item.dataPrevista)
+              .map((item) => ({
+                data: formatarParaDDMMAAAA(item.dataPrevista),
+                responsavel: 'Distribuidora' as const,
+              }))
+          : undefined
 
       const atividadePrincipalPayload: any = {
         cliente_id: clienteId,
@@ -587,7 +589,10 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
                   <tbody className="divide-y divide-gray-100">
                     {programacaoLeituras.length === 0 ? (
                       <tr>
-                        <td colSpan={3} className="py-4 text-center text-gray-400 italic text-[11px]">
+                        <td
+                          colSpan={3}
+                          className="py-4 text-center text-gray-400 italic text-[11px]"
+                        >
                           Nenhuma data programada. Clique em "Adicionar data" para incluir.
                         </td>
                       </tr>
@@ -650,10 +655,12 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
 
               <div className="flex items-center justify-between text-[11px] text-gray-500 pt-1">
                 <span>
-                  Linhas 'Cliente' viram atividades com a tag verde <strong>Aguardando envio</strong>
+                  Linhas 'Cliente' viram atividades com a tag verde{' '}
+                  <strong>Aguardando envio</strong>
                 </span>
                 <span className="font-medium text-emerald-800">
-                  {programacaoLeituras.filter((i) => i.responsavel === 'Cliente').length} para o Cliente
+                  {programacaoLeituras.filter((i) => i.responsavel === 'Cliente').length} para o
+                  Cliente
                 </span>
               </div>
             </div>

@@ -851,6 +851,22 @@ export const LinhaDoTempoUnificada: React.FC<LinhaDoTempoUnificadaProps> = ({
                           {item.status}
                         </button>
                       )}
+
+                      {/* Tag verde "Aguardando envio" para atividades filhas de Auto Leitura RGE */}
+                      {item.rawAtividade &&
+                        item.rawAtividade.status !== 'concluida' &&
+                        (isAtividadeAutoLeitura(item.rawAtividade) ||
+                          item.rawAtividade.tipo === 'auto_leitura_rge') &&
+                        (item.titulo?.toLowerCase().includes('auto leitura rge -') ||
+                          /auto\s*leitura.*rge.*-.*\d{2}\/\d{2}\/\d{4}/i.test(item.titulo || '') ||
+                          item.rawAtividade.titulo?.toLowerCase().includes('auto leitura rge -') ||
+                          /auto\s*leitura.*rge.*-.*\d{2}\/\d{2}\/\d{4}/i.test(
+                            item.rawAtividade.titulo || '',
+                          )) && (
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded border bg-emerald-100 text-emerald-800 border-emerald-300">
+                            Aguardando envio
+                          </span>
+                        )}
                     </div>
 
                     <div className="text-[11px] text-gray-500 font-medium flex items-center gap-1">

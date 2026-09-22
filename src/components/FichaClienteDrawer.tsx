@@ -245,7 +245,8 @@ export const FichaClienteDrawer: React.FC = () => {
   const [drawerAtividadesManutencaoOpen, setDrawerAtividadesManutencaoOpen] = useState(false)
   // Modal Registrar Atividade dentro da ficha do cliente
   const [modalNovaAtividadeFichaOpen, setModalNovaAtividadeFichaOpen] = useState(false)
-  const [modalNovaAtividadeTipoFicha, setModalNovaAtividadeTipoFicha] = useState<AtividadeTipo | null>(null)
+  const [modalNovaAtividadeTipoFicha, setModalNovaAtividadeTipoFicha] =
+    useState<AtividadeTipo | null>(null)
 
   // Modal de Proposta O&M
   const [isModalPropostaOpen, setIsModalPropostaOpen] = useState(false)

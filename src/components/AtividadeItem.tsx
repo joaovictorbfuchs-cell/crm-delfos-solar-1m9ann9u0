@@ -41,7 +41,9 @@ export const AtividadeItem: React.FC<AtividadeItemProps> = ({
   const isAutoLeituraFilha =
     isAutoLeitura &&
     (atividade.titulo?.toLowerCase().includes('auto leitura rge -') ||
-      /auto\s*leitura.*rge.*-.*\d{2}\/\d{2}\/\d{4}/i.test(atividade.titulo || ''))  const responsavel = atividade.responsavel_nome || atividade.autor
+      /auto\s*leitura.*rge.*-.*\d{2}\/\d{2}\/\d{4}/i.test(atividade.titulo || ''))
+
+  const responsavel = atividade.responsavel_nome || atividade.autor
 
   return (
     <div className="relative pl-7 pb-5 group">
@@ -55,7 +57,7 @@ export const AtividadeItem: React.FC<AtividadeItemProps> = ({
       <div
         className={`absolute left-0 top-0.5 w-7 h-7 rounded-full flex items-center justify-center border shadow-xs ${config.iconBg}`}
       >
-        <Icon className="w-3.5 h-3.5" />
+        <config.icon className="w-3.5 h-3.5" />
       </div>
 
       {/* Conteúdo do Card */}
@@ -106,6 +108,13 @@ export const AtividadeItem: React.FC<AtividadeItemProps> = ({
             >
               {config.label}
             </span>
+
+            {/* Tag verde "Aguardando envio" para atividades filhas de Auto Leitura RGE */}
+            {isAutoLeituraFilha && !isConcluida && (
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded border bg-emerald-100 text-emerald-800 border-emerald-300">
+                Aguardando envio
+              </span>
+            )}
             {showClienteName && atividade.expand?.cliente_id && (
               <span className="font-semibold text-gray-700 bg-gray-100 px-1.5 py-0.5 rounded truncate max-w-[150px]">
                 {atividade.expand.cliente_id.nome}
