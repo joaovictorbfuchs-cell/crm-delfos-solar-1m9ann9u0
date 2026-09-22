@@ -1,23 +1,32 @@
-import React, { useState, useRef, useEffect } from 'react'
+import React, { useState, useRef, useEffect, useMemo } from 'react'
 import {
   MapPin,
   Zap,
   GripVertical,
-  User,
   HardHat,
-  Search,
   CheckCircle2,
   Clock,
-  ArrowRight,
   ClipboardList,
   FileCheck,
   ShoppingCart,
   PackageCheck,
   Hammer,
+  Calendar,
+  AlertCircle,
+  MoreVertical,
+  FolderOpen,
   type LucideIcon,
 } from 'lucide-react'
-import type { Projeto, ProjetoEtapa, Profissional } from '@/types/crm'
+import type { Projeto, ProjetoEtapa, Profissional, Atividade } from '@/types/crm'
+import { formatCurrency } from '@/lib/formatters'
 import { useClientes } from '@/contexts/ClientesContext'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 
 interface KanbanProjetosProps {
   projetos: Projeto[]
@@ -111,10 +120,78 @@ export const KanbanProjetos: React.FC<KanbanProjetosProps> = ({
   profissionais,
   onOpenAtribuirModal,
 }) => {
-  const { openFichaCliente, updateProjetoEtapa, assignProjetoProfissional } = useClientes()
+  const { openFichaCliente, updateProjetoEtapa, atividades } = useClientes()
 
   const [draggedProjetoId, setDraggedProjetoId] = useState<string | null>(null)
   const [dragOverColumnId, setDragOverColumnId] = useState<ProjetoEtapa | null>(null)
+
+  // Mapeamento otimizado de próxima atividade agendada por cliente
+  const proximaAcaoPorCliente = useMemo(() => {
+    const mapa = new Map<string, Atividade>()
+    const now = Date.now()
+
+    const pendentes = (atividades || []).filter(
+      (a) => a.status === 'pendente' && a.tipo !== 'mudanca_estagio',
+    )
+
+    const agrupado = new Map<string, Atividade[]>()
+    for (const a of pendentes) {
+      if (!a.cliente_id) continue
+      const list = agrupado.get(a.cliente_id) || []
+      list.push(a)
+      agrupado.set(a.cliente_id, list)
+    }
+
+    for (const [cliId, list] of agrupado.entries()) {
+      const futuras = list
+        .filter((a) => new Date(a.data || a.created).getTime() >= now - 60 * 60 * 1000)
+        .sort(
+          (a, b) =>
+            new Date(a.data || a.created).getTime() - new Date(b.data || b.created).getTime(),
+        )
+
+      if (futuras.length > 0) {
+        mapa.set(cliId, futuras[0])
+      } else {
+        const atrasadas = [...list].sort(
+          (a, b) =>
+            new Date(b.data || b.created).getTime() - new Date(a.data || a.created).getTime(),
+        )
+        mapa.set(cliId, atrasadas[0])
+      }
+    }
+
+    return mapa
+  }, [atividades])
+
+  // Cálculo de dias na etapa para cada projeto
+  const getDiasNaEtapa = (proj: Projeto) => {
+    const rawDate = proj.updated || proj.created
+    if (!rawDate) return 0
+    const diffMs = Date.now() - new Date(rawDate).getTime()
+    const dias = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+    return Math.max(0, dias)
+  }
+
+  // Formatador conciso para próxima ação agendada
+  const formatProximaAcao = (atv: Atividade) => {
+    const d = atv.data ? new Date(atv.data) : atv.created ? new Date(atv.created) : null
+    let resumoNome = atv.titulo || 'Atividade'
+    if (resumoNome.length > 18) {
+      resumoNome = resumoNome.slice(0, 16) + '...'
+    }
+
+    if (!d || isNaN(d.getTime())) {
+      return resumoNome
+    }
+
+    const dia = String(d.getDate()).padStart(2, '0')
+    const mes = String(d.getMonth() + 1).padStart(2, '0')
+    const hora = String(d.getHours()).padStart(2, '0')
+    const min = d.getMinutes() > 0 ? `:${String(d.getMinutes()).padStart(2, '0')}` : 'h'
+
+    return `${resumoNome} — ${dia}/${mes}, ${hora}${min === 'h' ? 'h' : 'h'}`
+  }
 
   // Touch drag state
   const touchStateRef = useRef<{
@@ -348,12 +425,20 @@ export const KanbanProjetos: React.FC<KanbanProjetosProps> = ({
                 ) : (
                   colProjetos.map((proj) => {
                     const isDraggingThis = draggedProjetoId === proj.id
-                    const clienteNome = proj.expand?.cliente_id?.nome || 'Cliente não vinculado'
-                    const cidade = proj.cidade || proj.expand?.cliente_id?.cidade || 'Erechim/RS'
-                    const potencia = proj.potencia_kwp || proj.expand?.cliente_id?.potencia_kwp || 0
+                    const cliente = proj.expand?.cliente_id
+                    const clienteNome = cliente?.nome || 'Cliente não vinculado'
+                    const cidade = proj.cidade || cliente?.cidade || ''
+                    const potencia = proj.potencia_kwp || cliente?.potencia_kwp || 0
+                    const valorTotal = cliente?.valor_estimado || 0
                     const profNome =
                       proj.profissional_nome || proj.expand?.profissional_id?.nome || null
                     const profInitial = profNome ? profNome.charAt(0).toUpperCase() : '?'
+
+                    const proximaAcao = cliente?.id
+                      ? proximaAcaoPorCliente.get(cliente.id)
+                      : undefined
+                    const diasNaEtapa = getDiasNaEtapa(proj)
+                    const tempoAlerta = diasNaEtapa > 7
 
                     return (
                       <div
@@ -365,36 +450,124 @@ export const KanbanProjetos: React.FC<KanbanProjetosProps> = ({
                         onTouchMove={handleTouchMove}
                         onTouchEnd={handleTouchEnd}
                         onClick={() => handleCardClick(proj)}
-                        className={`bg-white rounded-lg sm:rounded-xl p-2.5 sm:p-3 border transition-all duration-150 cursor-grab active:cursor-grabbing group relative overflow-hidden min-w-0 ${
+                        className={`bg-white rounded-lg p-3 border transition-all duration-150 cursor-pointer active:cursor-grabbing group relative overflow-hidden min-w-0 ${
                           isDraggingThis
                             ? 'opacity-40 scale-95 border-emerald-400 shadow-inner'
-                            : 'border-gray-200 shadow-xs hover:shadow-md hover:-translate-y-0.5 hover:border-emerald-400'
+                            : 'border-slate-200 shadow-xs hover:shadow-md hover:-translate-y-0.5 hover:border-emerald-300'
                         }`}
                       >
-                        {/* Nome do Cliente com Grip */}
-                        <div className="flex items-start justify-between gap-1 min-w-0">
-                          <div
-                            className="font-semibold text-xs sm:text-sm text-gray-900 group-hover:text-emerald-700 transition-colors line-clamp-2 leading-snug break-words flex-1 min-w-0"
-                            title={clienteNome}
-                          >
-                            {clienteNome}
+                        {/* Linha 1: Nome do cliente (14pt/text-sm font-bold truncate) + Menu de 3 pontos */}
+                        <div className="flex items-start justify-between gap-1.5 min-w-0">
+                          <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                            <div
+                              className="font-bold text-sm text-slate-900 group-hover:text-emerald-700 transition-colors truncate min-w-0 leading-tight"
+                              title={clienteNome}
+                            >
+                              {clienteNome}
+                            </div>
                           </div>
-                          <GripVertical className="w-3.5 h-3.5 text-gray-300 group-hover:text-gray-500 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity mt-0.5 hidden sm:block" />
+
+                          <div
+                            className="shrink-0 flex items-center -mr-1 -mt-1"
+                            onClick={(e) => e.stopPropagation()}
+                            onMouseDown={(e) => e.stopPropagation()}
+                          >
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <button
+                                  type="button"
+                                  title="Opções do projeto"
+                                  className="p-1 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors opacity-80 group-hover:opacity-100 focus:opacity-100"
+                                >
+                                  <MoreVertical className="w-3.5 h-3.5" />
+                                </button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end" className="w-48 text-xs">
+                                <DropdownMenuItem
+                                  onClick={() => handleCardClick(proj)}
+                                  className="cursor-pointer gap-2 text-slate-700 focus:text-slate-900 focus:bg-slate-100 font-medium"
+                                >
+                                  <FolderOpen className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                                  <span>Abrir ficha / projeto</span>
+                                </DropdownMenuItem>
+
+                                <DropdownMenuItem
+                                  onClick={() => onOpenAtribuirModal(proj, col.id)}
+                                  className="cursor-pointer gap-2 text-amber-700 focus:text-amber-800 focus:bg-amber-50 font-medium"
+                                >
+                                  <HardHat className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                                  <span>
+                                    {profNome ? 'Alterar profissional' : 'Atribuir profissional'}
+                                  </span>
+                                </DropdownMenuItem>
+
+                                {col.id !== 'Concluído' && (
+                                  <>
+                                    <DropdownMenuSeparator />
+                                    <DropdownMenuItem
+                                      onClick={async () => {
+                                        try {
+                                          await updateProjetoEtapa(proj.id, 'Concluído')
+                                        } catch (err) {
+                                          console.error('Erro ao concluir projeto:', err)
+                                        }
+                                      }}
+                                      className="cursor-pointer gap-2 text-emerald-700 focus:text-emerald-800 focus:bg-emerald-50 font-medium"
+                                    >
+                                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                                      <span>Mover para Concluído</span>
+                                    </DropdownMenuItem>
+                                  </>
+                                )}
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </div>
                         </div>
 
-                        {/* Potência kWp & Cidade */}
+                        {/* Linha 2: Valor formatado em moeda brasileira (R$) - text-xs font-bold em azul marinho (#1a3a5c) */}
+                        <div className="mt-1 flex items-center justify-between gap-1 min-w-0">
+                          <span className="font-bold text-xs truncate" style={{ color: '#1a3a5c' }}>
+                            {formatCurrency(valorTotal)}
+                          </span>
+                        </div>
 
-                        {/* Profissional Responsável pela etapa */}
-                        <div className="mt-2.5 pt-2 border-t border-gray-100 flex items-center justify-between gap-1">
+                        {/* Linha 3: Localização com MapPin + Potência em kWp com Zap */}
+                        <div className="mt-1.5 flex items-center text-[11px] text-muted-foreground gap-1.5 min-w-0 truncate">
+                          {cidade ? (
+                            <span className="inline-flex items-center gap-1 truncate shrink min-w-0">
+                              <MapPin className="w-3 h-3 text-slate-400 shrink-0" />
+                              <span className="truncate">{cidade}</span>
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 text-slate-400">
+                              <MapPin className="w-3 h-3 text-slate-300 shrink-0" />
+                              <span>Sem cidade</span>
+                            </span>
+                          )}
+
+                          <span className="text-slate-300">•</span>
+
+                          {potencia > 0 ? (
+                            <span className="inline-flex items-center gap-1 shrink-0 font-medium text-slate-600">
+                              <Zap className="w-3 h-3 text-amber-500 shrink-0" />
+                              <span>{potencia} kWp</span>
+                            </span>
+                          ) : (
+                            <span className="text-slate-400 text-[10px] shrink-0">— kWp</span>
+                          )}
+                        </div>
+
+                        {/* Linha 4: Responsável Técnico / Profissional da etapa ou Próxima Ação */}
+                        <div className="mt-2 pt-2 border-t border-slate-100 flex items-center justify-between gap-1 min-w-0 text-[10px]">
                           {profNome ? (
                             <div
                               className="flex items-center gap-1.5 min-w-0 flex-1"
-                              title={`Responsável: ${profNome}`}
+                              title={`Responsável técnico: ${profNome}`}
                             >
-                              <div className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold text-[10px] shrink-0 border border-emerald-300">
+                              <div className="w-4 h-4 rounded-full bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold text-[9px] shrink-0 border border-emerald-300">
                                 {profInitial}
                               </div>
-                              <span className="text-[11px] text-gray-700 font-medium truncate">
+                              <span className="text-[11px] text-slate-700 font-medium truncate">
                                 {profNome}
                               </span>
                             </div>
@@ -408,11 +581,11 @@ export const KanbanProjetos: React.FC<KanbanProjetosProps> = ({
                               className="text-[10px] text-amber-700 hover:text-amber-900 bg-amber-50 hover:bg-amber-100 px-2 py-0.5 rounded border border-amber-200 font-medium transition-colors flex items-center gap-1"
                             >
                               <HardHat className="w-3 h-3 text-amber-600 shrink-0" />
-                              <span>Atribuir</span>
+                              <span>Atribuir profissional</span>
                             </button>
                           )}
 
-                          {/* Botão de troca rápida se já tiver profissional */}
+                          {/* Botão sutil para alterar profissional se já tiver */}
                           {profNome && (
                             <button
                               type="button"
@@ -420,12 +593,58 @@ export const KanbanProjetos: React.FC<KanbanProjetosProps> = ({
                                 e.stopPropagation()
                                 onOpenAtribuirModal(proj, col.id)
                               }}
-                              className="p-1 text-gray-300 hover:text-emerald-700 hover:bg-gray-100 rounded transition-colors"
+                              className="p-1 text-slate-400 hover:text-emerald-700 hover:bg-slate-100 rounded transition-colors shrink-0"
                               title="Alterar profissional"
                             >
                               <HardHat className="w-3 h-3" />
                             </button>
                           )}
+                        </div>
+
+                        {/* Linha 5: Próxima ação ou status de atividades */}
+                        <div className="mt-1 flex items-center justify-between gap-1 min-w-0 text-[10px]">
+                          {proximaAcao ? (
+                            <div
+                              className="inline-flex items-center gap-1 text-slate-700 truncate min-w-0 font-medium"
+                              title={proximaAcao.titulo}
+                            >
+                              <Calendar className="w-3 h-3 text-emerald-600 shrink-0" />
+                              <span className="truncate">{formatProximaAcao(proximaAcao)}</span>
+                            </div>
+                          ) : (
+                            <div
+                              className="inline-flex items-center gap-1 text-slate-400 truncate shrink-0"
+                              title="Sem atividade agendada vinculada"
+                            >
+                              <AlertCircle className="w-3 h-3 text-slate-300 shrink-0" />
+                              <span>Sem atividade agendada</span>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Linha 6: Tempo na etapa (discreto, 10pt; alerta se > 7 dias) */}
+                        <div className="mt-1 flex items-center justify-between text-[10px] text-slate-400">
+                          <span
+                            className={`inline-flex items-center gap-1 font-medium ${
+                              tempoAlerta ? 'text-amber-600 font-semibold' : 'text-slate-400'
+                            }`}
+                          >
+                            <Clock
+                              className={`w-2.5 h-2.5 ${tempoAlerta ? 'text-amber-500' : 'text-slate-400'}`}
+                            />
+                            <span>
+                              {diasNaEtapa === 0
+                                ? 'Hoje nesta etapa'
+                                : `${diasNaEtapa} ${diasNaEtapa === 1 ? 'dia' : 'dias'} nesta etapa`}
+                            </span>
+                            {tempoAlerta && (
+                              <span className="text-[9px] px-1 py-0.2 bg-amber-50 text-amber-700 rounded border border-amber-200">
+                                &gt;7d
+                              </span>
+                            )}
+                          </span>
+
+                          <GripVertical className="w-3 h-3 text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity" />
                         </div>
                       </div>
                     )
