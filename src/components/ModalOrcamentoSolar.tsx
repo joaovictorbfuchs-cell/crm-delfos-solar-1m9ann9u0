@@ -15,7 +15,6 @@ import {
   Calculator,
   Compass,
   ArrowRight,
-  ShieldCheck,
   Building,
   Home,
   Factory,
@@ -159,15 +158,14 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
   const [activeTab, setActiveTab] = useState<TabType>('tecnico')
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false)
 
-  // Estados do acordeão da aba "Dados Técnicos & Sistema" (seções 2 e 3 = true; demais = false)
+  // Estados do acordeão da aba "Dados Técnicos & Sistema"
+  // Estrutura: 1. Dados do Cliente (aberta) | 2. Dados de Entrada do Sistema (aberta)
+  // 3. Orçamentos de Fornecedores & Equipamentos (fechada) | 4. Geração Estimada (fechada)
   const [secaoClienteAberta, setSecaoClienteAberta] = useState<boolean>(true)
   const [secaoEntradaAberta, setSecaoEntradaAberta] = useState<boolean>(true)
-  const [secaoEquipamentosAberta, setSecaoEquipamentosAberta] = useState<boolean>(false)
-  const [secaoFornecedoresAberta, setSecaoFornecedoresAberta] = useState<boolean>(false)
-  const [secaoDimensionamentoAberta, setSecaoDimensionamentoAberta] = useState<boolean>(false)
+  const [secaoFornecedoresEquipamentosAberta, setSecaoFornecedoresEquipamentosAberta] =
+    useState<boolean>(false)
   const [secaoGeracaoEstimadaAberta, setSecaoGeracaoEstimadaAberta] = useState<boolean>(false)
-  const [secaoGeracaoDetalhadaAberta, setSecaoGeracaoDetalhadaAberta] = useState<boolean>(false)
-  const [secaoGarantiasAberta, setSecaoGarantiasAberta] = useState<boolean>(false)
 
   // Cliente selecionado
   const [selectedClienteId, setSelectedClienteId] = useState<string>('')
@@ -1850,97 +1848,206 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                       placeholder="Ex: 5.5"
                     />
                     {dimensionamentoSugerido && (
-                      <span className="text-[10px] text-emerald-700 font-medium block mt-1 leading-tight">
-                        Sugerido:{' '}
-                        {geracaoPretendidaKwhMes && (
-                          <>
-                            <strong>
-                              {Number(geracaoPretendidaKwhMes).toLocaleString('pt-BR')} kWh/mês
-                            </strong>{' '}
-                            (~
-                            {dimensionamentoSugerido.geracaoPretendidaKwhAno.toLocaleString(
-                              'pt-BR',
-                            )}{' '}
-                            kWh/ano)
-                          </>
-                        )}{' '}
-                        na orientação{' '}
-                        <strong className="capitalize">{dimensionamentoSugerido.orientacao}</strong>{' '}
-                        ({dimensionamentoSugerido.potenciaKwpNecessaria.toFixed(2)} kWp)
-                      </span>
+                      <div className="flex items-center justify-between gap-2 mt-1 flex-wrap">
+                        <span className="text-[10px] text-emerald-700 font-medium leading-tight">
+                          Sugerido:{' '}
+                          {geracaoPretendidaKwhMes && (
+                            <>
+                              <strong>
+                                {Number(geracaoPretendidaKwhMes).toLocaleString('pt-BR')} kWh/mês
+                              </strong>{' '}
+                              (~
+                              {dimensionamentoSugerido.geracaoPretendidaKwhAno.toLocaleString(
+                                'pt-BR',
+                              )}{' '}
+                              kWh/ano)
+                            </>
+                          )}{' '}
+                          na orientação{' '}
+                          <strong className="capitalize">
+                            {dimensionamentoSugerido.orientacao}
+                          </strong>{' '}
+                          ({dimensionamentoSugerido.potenciaKwpNecessaria.toFixed(2)} kWp)
+                        </span>
+                        <button
+                          type="button"
+                          onClick={handleAplicarDimensionamento}
+                          className="text-[10px] text-emerald-800 hover:text-emerald-950 font-bold underline inline-flex items-center gap-0.5 hover:bg-emerald-100/60 px-1.5 py-0.5 rounded transition-colors"
+                          title="Aplicar potência e placas sugeridas"
+                        >
+                          Aplicar sugerido (
+                          {dimensionamentoSugerido.potenciaKwpNecessaria.toFixed(2)} kWp)
+                        </button>
+                      </div>
                     )}
                   </div>
                 </div>
               </SecaoAcordeao>
 
-              {/* 4. EQUIPAMENTOS E FORNECEDOR (fechado por padrão) */}
+              {/* 3. ORÇAMENTOS DE FORNECEDORES & EQUIPAMENTOS (fechado por padrão) */}
               <SecaoAcordeao
-                titulo="4. Equipamentos e Fornecedor"
-                subtitulo="Cards Módulo FV / Inversor, estrutura de fixação, orientação do telhado, área e FINAME"
-                icone={<Cpu className="w-4 h-4" />}
-                aberta={secaoEquipamentosAberta}
-                onToggle={() => setSecaoEquipamentosAberta((prev) => !prev)}
+                titulo="3. Orçamentos de Fornecedores & Equipamentos"
+                subtitulo="Cotações, fornecedor ativo, equipamentos vinculados, fixação, orientação e área"
+                icone={<Receipt className="w-4 h-4" />}
+                aberta={secaoFornecedoresEquipamentosAberta}
+                onToggle={() => setSecaoFornecedoresEquipamentosAberta((prev) => !prev)}
                 badge={
-                  <span className="text-[10px] font-semibold text-gray-700 bg-gray-100 px-2 py-0.5 rounded border border-gray-200">
-                    {numeroPlacas} placas • {tipoEstrutura}
-                  </span>
+                  fornecedorSelecionadoObj ? (
+                    <span className="text-[10px] font-semibold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                      Ativo: {fornecedorSelecionadoObj.nome_fornecedor} • {numeroPlacas} placas
+                    </span>
+                  ) : (
+                    <span className="text-[10px] font-semibold text-amber-800 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
+                      {numeroPlacas} placas • {tipoEstrutura}
+                    </span>
+                  )
                 }
               >
-                <div className="space-y-4">
-                  {/* Cards Módulo FV e Inversor com botão "Usar estes equipamentos na proposta" */}
-                  <SecaoEquipamentosFornecedorSelecionado
-                    fornecedorOrcamento={fornecedorSelecionadoObj}
-                    equipamentos={[...equipamentosModulos, ...equipamentosInversores]}
-                    equipamentosAtuaisProposta={{
-                      marcaPainel,
-                      potenciaPlacaWp,
-                      numeroPlacas,
-                      marcaInversor,
-                      quantidadeInversores,
-                    }}
-                    onEquipamentoCadastrado={(novo) => {
-                      if (novo.tipo === 'modulo_fv') {
-                        setEquipamentosModulos((prev) => [
-                          novo,
-                          ...prev.filter((e) => e.id !== novo.id),
-                        ])
-                      } else {
-                        setEquipamentosInversores((prev) => [
-                          novo,
-                          ...prev.filter((e) => e.id !== novo.id),
-                        ])
+                <div className="space-y-5">
+                  {/* (a) e (b): Botões e lista de cotações de fornecedores */}
+                  <SecaoOrcamentosFornecedores
+                    clienteId={selectedClienteId}
+                    orcamentoSolarId={initialOrcamento?.id}
+                    fornecedorSelecionadoId={fornecedorSelecionadoId}
+                    onUsarEquipamentos={(equip) => {
+                      if (equip.marcaPainel) setMarcaPainel(equip.marcaPainel)
+                      if (equip.numeroPlacas && equip.numeroPlacas > 0) {
+                        handleNumeroPlacasChange(equip.numeroPlacas)
+                      }
+                      if (equip.marcaInversor) setMarcaInversor(equip.marcaInversor)
+                      if (equip.quantidadeInversores && equip.quantidadeInversores > 0) {
+                        setQuantidadeInversores(equip.quantidadeInversores)
                       }
                     }}
-                    onAplicarEquipamentos={(dados) => {
-                      if (dados.marcaPainel) setMarcaPainel(dados.marcaPainel)
-                      if (dados.potenciaPlacaWp && dados.potenciaPlacaWp > 0) {
-                        handlePotenciaPlacaChange(dados.potenciaPlacaWp)
+                    onAplicarAoProjeto={async (fornOrc) => {
+                      const valorTotalForn = Number(fornOrc.valor_total) || 0
+
+                      // 1. Atualização otimista e imediata do estado local
+                      setFornecedorSelecionadoId(fornOrc.id)
+                      fornecedorAplicadoRef.current = { id: fornOrc.id, valor: valorTotalForn }
+                      updateCustoField('materiaisEquipamentos', valorTotalForn)
+
+                      // Se houver valor manual fixo travando o total, libera para o cálculo em cadeia da planilha de custos fluir
+                      setValorInvestimentoManual(0)
+
+                      // Atualiza também dados dos equipamentos se cadastrados no fornecedor
+                      if (fornOrc.modulos && fornOrc.modulos[0]?.descricao) {
+                        setMarcaPainel(fornOrc.modulos[0].descricao)
                       }
-                      if (dados.numeroPlacas && dados.numeroPlacas > 0) {
-                        handleNumeroPlacasChange(dados.numeroPlacas)
+                      if (
+                        fornOrc.modulos &&
+                        fornOrc.modulos[0]?.quantidade &&
+                        fornOrc.modulos[0].quantidade > 0
+                      ) {
+                        handleNumeroPlacasChange(fornOrc.modulos[0].quantidade)
                       }
-                      if (dados.marcaInversor) setMarcaInversor(dados.marcaInversor)
-                      if (dados.quantidadeInversores && dados.quantidadeInversores > 0) {
-                        setQuantidadeInversores(dados.quantidadeInversores)
+                      if (fornOrc.inversores && fornOrc.inversores[0]?.descricao) {
+                        setMarcaInversor(fornOrc.inversores[0].descricao)
                       }
-                      if (dados.garantiaModulosFabricacaoAnos) {
-                        setGarantiaModulosFabricacaoAnos(dados.garantiaModulosFabricacaoAnos)
-                      }
-                      if (dados.garantiaInversorAnos) {
-                        setGarantiaInversorAnos(dados.garantiaInversorAnos)
-                      }
-                      if (dados.fotoModuloUrl !== undefined) {
-                        setFotoModuloUrl(dados.fotoModuloUrl || null)
-                      }
-                      if (dados.fotoInversorUrl !== undefined) {
-                        setFotoInversorUrl(dados.fotoInversorUrl || null)
+                      if (
+                        fornOrc.inversores &&
+                        fornOrc.inversores[0]?.quantidade &&
+                        fornOrc.inversores[0].quantidade > 0
+                      ) {
+                        setQuantidadeInversores(fornOrc.inversores[0].quantidade)
                       }
 
-                      toast.success('Equipamentos do fornecedor aplicados à proposta com sucesso!')
+                      // 2. Feedback visual claro com ação para navegar imediatamente para a Aba de Custos
+                      const nomeForn = fornOrc.nome_fornecedor || 'Fornecedor'
+                      const valorFormatado = formatCurrency(valorTotalForn)
+
+                      toast.success(
+                        <div className="flex flex-col gap-1 text-xs">
+                          <div className="font-bold text-emerald-950 flex items-center gap-1">
+                            <Check className="w-3.5 h-3.5 text-emerald-600 inline" />
+                            <span>{nomeForn} aplicado ao projeto!</span>
+                          </div>
+                          <div className="text-gray-600">
+                            Materiais atualizado para <strong>{valorFormatado}</strong>. Custos
+                            recalculados em cadeia.
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setActiveTab('custos')}
+                            className="mt-1 px-2.5 py-1 bg-emerald-700 hover:bg-emerald-800 text-white font-bold rounded text-[11px] self-start inline-flex items-center gap-1 transition-colors"
+                          >
+                            <span>Ver Aba de Custos Atualizada</span>
+                            <ArrowRight className="w-3 h-3" />
+                          </button>
+                        </div>,
+                        { duration: 5000 },
+                      )
+
+                      // 3. Persistência assíncrona em segundo plano sem bloquear o recálculo
+                      try {
+                        await selecionarFornecedorOrcamento(fornOrc.id, {
+                          orcamentoSolarId: initialOrcamento?.id,
+                          clienteId: selectedClienteId,
+                        })
+                      } catch (errSync) {
+                        console.warn('Persistência em background do fornecedor ativo:', errSync)
+                      }
                     }}
                   />
 
-                  {/* Campos complementares de estrutura e investimento */}
+                  {/* (c): Cards de Equipamentos do Fornecedor Ativo */}
+                  <div className="pt-4 border-t border-gray-200">
+                    <SecaoEquipamentosFornecedorSelecionado
+                      fornecedorOrcamento={fornecedorSelecionadoObj}
+                      equipamentos={[...equipamentosModulos, ...equipamentosInversores]}
+                      equipamentosAtuaisProposta={{
+                        marcaPainel,
+                        potenciaPlacaWp,
+                        numeroPlacas,
+                        marcaInversor,
+                        quantidadeInversores,
+                      }}
+                      onEquipamentoCadastrado={(novo) => {
+                        if (novo.tipo === 'modulo_fv') {
+                          setEquipamentosModulos((prev) => [
+                            novo,
+                            ...prev.filter((e) => e.id !== novo.id),
+                          ])
+                        } else {
+                          setEquipamentosInversores((prev) => [
+                            novo,
+                            ...prev.filter((e) => e.id !== novo.id),
+                          ])
+                        }
+                      }}
+                      onAplicarEquipamentos={(dados) => {
+                        if (dados.marcaPainel) setMarcaPainel(dados.marcaPainel)
+                        if (dados.potenciaPlacaWp && dados.potenciaPlacaWp > 0) {
+                          handlePotenciaPlacaChange(dados.potenciaPlacaWp)
+                        }
+                        if (dados.numeroPlacas && dados.numeroPlacas > 0) {
+                          handleNumeroPlacasChange(dados.numeroPlacas)
+                        }
+                        if (dados.marcaInversor) setMarcaInversor(dados.marcaInversor)
+                        if (dados.quantidadeInversores && dados.quantidadeInversores > 0) {
+                          setQuantidadeInversores(dados.quantidadeInversores)
+                        }
+                        if (dados.garantiaModulosFabricacaoAnos) {
+                          setGarantiaModulosFabricacaoAnos(dados.garantiaModulosFabricacaoAnos)
+                        }
+                        if (dados.garantiaInversorAnos) {
+                          setGarantiaInversorAnos(dados.garantiaInversorAnos)
+                        }
+                        if (dados.fotoModuloUrl !== undefined) {
+                          setFotoModuloUrl(dados.fotoModuloUrl || null)
+                        }
+                        if (dados.fotoInversorUrl !== undefined) {
+                          setFotoInversorUrl(dados.fotoInversorUrl || null)
+                        }
+
+                        toast.success(
+                          'Equipamentos do fornecedor aplicados à proposta com sucesso!',
+                        )
+                      }}
+                    />
+                  </div>
+
+                  {/* (d): Campos preservados: tipo de estrutura, orientação, área, FINAME e investimento manual */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs pt-3 border-t border-gray-100">
                     {/* Tipo de estrutura de fixação */}
                     <div>
@@ -2039,194 +2146,10 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                 </div>
               </SecaoAcordeao>
 
-              {/* 5. ORÇAMENTOS DE FORNECEDORES (fechado por padrão) */}
+              {/* 4. GERAÇÃO ESTIMADA (fechado por padrão, compacta) */}
               <SecaoAcordeao
-                titulo="5. Orçamentos de Fornecedores"
-                subtitulo="Upload em PDF, imagem/OCR, cadastro manual e comparativo de cotações com fornecedor ativo"
-                icone={<Receipt className="w-4 h-4" />}
-                aberta={secaoFornecedoresAberta}
-                onToggle={() => setSecaoFornecedoresAberta((prev) => !prev)}
-                badge={
-                  fornecedorSelecionadoObj ? (
-                    <span className="text-[10px] font-semibold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
-                      Ativo: {fornecedorSelecionadoObj.nome_fornecedor}
-                    </span>
-                  ) : undefined
-                }
-              >
-                <SecaoOrcamentosFornecedores
-                  clienteId={selectedClienteId}
-                  orcamentoSolarId={initialOrcamento?.id}
-                  fornecedorSelecionadoId={fornecedorSelecionadoId}
-                  onUsarEquipamentos={(equip) => {
-                    if (equip.marcaPainel) setMarcaPainel(equip.marcaPainel)
-                    if (equip.numeroPlacas && equip.numeroPlacas > 0) {
-                      handleNumeroPlacasChange(equip.numeroPlacas)
-                    }
-                    if (equip.marcaInversor) setMarcaInversor(equip.marcaInversor)
-                    if (equip.quantidadeInversores && equip.quantidadeInversores > 0) {
-                      setQuantidadeInversores(equip.quantidadeInversores)
-                    }
-                  }}
-                  onAplicarAoProjeto={async (fornOrc) => {
-                    const valorTotalForn = Number(fornOrc.valor_total) || 0
-
-                    // 1. Atualização otimista e imediata do estado local
-                    setFornecedorSelecionadoId(fornOrc.id)
-                    fornecedorAplicadoRef.current = { id: fornOrc.id, valor: valorTotalForn }
-                    updateCustoField('materiaisEquipamentos', valorTotalForn)
-
-                    // Se houver valor manual fixo travando o total, libera para o cálculo em cadeia da planilha de custos fluir
-                    setValorInvestimentoManual(0)
-
-                    // Atualiza também dados dos equipamentos se cadastrados no fornecedor
-                    if (fornOrc.modulos && fornOrc.modulos[0]?.descricao) {
-                      setMarcaPainel(fornOrc.modulos[0].descricao)
-                    }
-                    if (
-                      fornOrc.modulos &&
-                      fornOrc.modulos[0]?.quantidade &&
-                      fornOrc.modulos[0].quantidade > 0
-                    ) {
-                      handleNumeroPlacasChange(fornOrc.modulos[0].quantidade)
-                    }
-                    if (fornOrc.inversores && fornOrc.inversores[0]?.descricao) {
-                      setMarcaInversor(fornOrc.inversores[0].descricao)
-                    }
-                    if (
-                      fornOrc.inversores &&
-                      fornOrc.inversores[0]?.quantidade &&
-                      fornOrc.inversores[0].quantidade > 0
-                    ) {
-                      setQuantidadeInversores(fornOrc.inversores[0].quantidade)
-                    }
-
-                    // 2. Feedback visual claro com ação para navegar imediatamente para a Aba de Custos
-                    const nomeForn = fornOrc.nome_fornecedor || 'Fornecedor'
-                    const valorFormatado = formatCurrency(valorTotalForn)
-
-                    toast.success(
-                      <div className="flex flex-col gap-1 text-xs">
-                        <div className="font-bold text-emerald-950 flex items-center gap-1">
-                          <Check className="w-3.5 h-3.5 text-emerald-600 inline" />
-                          <span>{nomeForn} aplicado ao projeto!</span>
-                        </div>
-                        <div className="text-gray-600">
-                          Materiais atualizado para <strong>{valorFormatado}</strong>. Custos
-                          recalculados em cadeia.
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => setActiveTab('custos')}
-                          className="mt-1 px-2.5 py-1 bg-emerald-700 hover:bg-emerald-800 text-white font-bold rounded text-[11px] self-start inline-flex items-center gap-1 transition-colors"
-                        >
-                          <span>Ver Aba de Custos Atualizada</span>
-                          <ArrowRight className="w-3 h-3" />
-                        </button>
-                      </div>,
-                      { duration: 5000 },
-                    )
-
-                    // 3. Persistência assíncrona em segundo plano sem bloquear o recálculo
-                    try {
-                      await selecionarFornecedorOrcamento(fornOrc.id, {
-                        orcamentoSolarId: initialOrcamento?.id,
-                        clienteId: selectedClienteId,
-                      })
-                    } catch (errSync) {
-                      console.warn('Persistência em background do fornecedor ativo:', errSync)
-                    }
-                  }}
-                />
-              </SecaoAcordeao>
-
-              {/* 6. DIMENSIONAMENTO AUTOMÁTICO (fechado por padrão) */}
-              <SecaoAcordeao
-                titulo="6. Dimensionamento Automático"
-                subtitulo="Recomendação de potência kWp e sugestão de módulos baseada na geração pretendida"
-                icone={<Sparkles className="w-4 h-4" />}
-                aberta={secaoDimensionamentoAberta}
-                onToggle={() => setSecaoDimensionamentoAberta((prev) => !prev)}
-                badge={
-                  dimensionamentoSugerido ? (
-                    <span className="text-[10px] font-semibold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
-                      {dimensionamentoSugerido.potenciaKwpNecessaria.toFixed(2)} kWp sugerido
-                    </span>
-                  ) : undefined
-                }
-              >
-                {dimensionamentoSugerido ? (
-                  <div className="p-3.5 sm:p-4 rounded-xl bg-gradient-to-r from-emerald-50 via-emerald-100/40 to-teal-50 border border-emerald-300 shadow-xs">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                      <div className="space-y-1.5">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wide bg-emerald-600 text-white">
-                            Dimensionamento Automático
-                          </span>
-                          <span className="text-xs font-bold text-emerald-950">
-                            Sistema dimensionado:{' '}
-                            <strong className="text-emerald-800 text-sm font-black">
-                              {dimensionamentoSugerido.potenciaKwpNecessaria.toFixed(2)} kWp
-                            </strong>{' '}
-                            (orientação{' '}
-                            <span className="capitalize">{dimensionamentoSugerido.orientacao}</span>
-                            )
-                          </span>
-                        </div>
-                        <p className="text-[11px] text-emerald-800 leading-snug">
-                          Geração pretendida de{' '}
-                          <strong>
-                            {geracaoPretendidaKwhMes
-                              ? Number(geracaoPretendidaKwhMes).toLocaleString('pt-BR')
-                              : Math.round(
-                                  dimensionamentoSugerido.geracaoPretendidaKwhAno / 12,
-                                ).toLocaleString('pt-BR')}{' '}
-                            kWh/mês
-                          </strong>{' '}
-                          (~
-                          {dimensionamentoSugerido.geracaoPretendidaKwhAno.toLocaleString(
-                            'pt-BR',
-                          )}{' '}
-                          kWh/ano) ÷ fator de{' '}
-                          {dimensionamentoSugerido.fatorKwhPorKwpAno.toLocaleString('pt-BR')}{' '}
-                          kWh/kWp/ano (telhado {dimensionamentoSugerido.orientacao}). Sugestão de
-                          placas:{' '}
-                          <strong className="text-emerald-900">
-                            {dimensionamentoSugerido.numeroPlacasSugerido} módulos
-                          </strong>{' '}
-                          de {potenciaPlacaWp} Wp (área aprox.{' '}
-                          {Math.round(dimensionamentoSugerido.numeroPlacasSugerido * 2.4)} m²).
-                        </p>
-                      </div>
-
-                      <div className="flex items-center gap-2 shrink-0">
-                        <button
-                          type="button"
-                          onClick={handleAplicarDimensionamento}
-                          className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-sm transition-all active:scale-95 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-1"
-                          title="Atualiza a potência em kWp, número de placas e mão de obra calculada"
-                        >
-                          <Sun className="w-4 h-4 text-emerald-100" />
-                          <span>
-                            Aplicar {dimensionamentoSugerido.potenciaKwpNecessaria.toFixed(2)} kWp
-                            ao Sistema
-                          </span>
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <p className="text-xs text-gray-500">
-                    Preencha o consumo ou geração pretendida para calcular a recomendação de
-                    dimensionamento.
-                  </p>
-                )}
-              </SecaoAcordeao>
-
-              {/* 7. GERAÇÃO ESTIMADA (fechado por padrão) */}
-              <SecaoAcordeao
-                titulo="7. Geração Estimada"
-                subtitulo="Geração mensal do kit, anual do kit, geração simulada personalizada e Solergo"
+                titulo="4. Geração Estimada"
+                subtitulo="Geração mensal e anual do kit, geração simulada personalizada/Solergo e safra detalhada mês a mês"
                 icone={<Sun className="w-4 h-4" />}
                 aberta={secaoGeracaoEstimadaAberta}
                 onToggle={() => setSecaoGeracaoEstimadaAberta((prev) => !prev)}
@@ -2236,217 +2159,140 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                   </span>
                 }
               >
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  {/* 1. Geração Mensal (kit) */}
-                  <div className="p-3 rounded-lg border border-emerald-100 bg-emerald-50/40 flex flex-col justify-between">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-800">
-                      Geração Mensal (kit)
-                    </span>
-                    <div className="mt-1 flex items-baseline gap-1">
-                      <span className="text-base sm:text-lg font-black text-emerald-950">
-                        {calculos.geracaoMediaMensalKwh.toLocaleString('pt-BR')}
+                <div className="space-y-3.5">
+                  {/* Linha superior de cards densos/compactos */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                    {/* 1. Geração Mensal (kit) */}
+                    <div className="p-2.5 rounded-lg border border-emerald-150 bg-emerald-50/50 flex flex-col justify-between">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-800">
+                        Geração Mensal (kit)
                       </span>
-                      <span className="text-xs font-semibold text-emerald-700">kWh/mês</span>
+                      <div className="mt-1 flex items-baseline gap-1">
+                        <span className="text-base font-black text-emerald-950">
+                          {calculos.geracaoMediaMensalKwh.toLocaleString('pt-BR')}
+                        </span>
+                        <span className="text-[11px] font-semibold text-emerald-700">kWh/mês</span>
+                      </div>
+                      <span className="text-[10px] text-gray-500 mt-0.5">
+                        Potência {potenciaKwp.toFixed(2)} kWp
+                      </span>
                     </div>
-                    <span className="text-[10px] text-gray-500 mt-0.5">
-                      Calculada pela potência ({potenciaKwp.toFixed(2)} kWp)
-                    </span>
+
+                    {/* 2. Geração Anual (kit) */}
+                    <div className="p-2.5 rounded-lg border border-emerald-150 bg-emerald-50/50 flex flex-col justify-between">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-800">
+                        Geração Anual (kit)
+                      </span>
+                      <div className="mt-1 flex items-baseline gap-1">
+                        <span className="text-base font-black text-emerald-950">
+                          {calculos.geracaoAnualEstimadaKwh.toLocaleString('pt-BR')}
+                        </span>
+                        <span className="text-[11px] font-semibold text-emerald-700">kWh/ano</span>
+                      </div>
+                      <span className="text-[10px] text-gray-500 mt-0.5">
+                        Estimativa Erechim/RS
+                      </span>
+                    </div>
+
+                    {/* 3. Campo editável Geração Simulada + Importar do Solergo */}
+                    <div className="p-2.5 rounded-lg border border-gray-200 bg-gray-50/80 flex flex-col justify-between focus-within:border-emerald-500 focus-within:bg-white transition-colors">
+                      <div className="flex items-center justify-between gap-1 flex-wrap">
+                        <label
+                          htmlFor="input-geracao-simulada"
+                          className="text-[10px] font-bold uppercase tracking-wider text-gray-700"
+                        >
+                          Geração Simulada
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => setModalSolergoOpen(true)}
+                          className="inline-flex items-center gap-1 text-[11px] text-emerald-600 hover:text-emerald-700 underline font-semibold"
+                        >
+                          <Upload className="w-3 h-3" /> Importar do Solergo
+                        </button>
+                      </div>
+                      <div className="mt-1 relative flex items-center">
+                        <input
+                          id="input-geracao-simulada"
+                          type="number"
+                          min={0}
+                          step={10}
+                          value={geracaoSimuladaKwhAno}
+                          onChange={(e) => {
+                            const val = e.target.value
+                            setGeracaoSimuladaKwhAno(val === '' ? '' : Math.max(0, Number(val)))
+                          }}
+                          placeholder="Ex: 8400"
+                          className="w-full text-xs font-bold text-gray-900 bg-white px-2 py-1 rounded-md border border-gray-300 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                        />
+                        <span className="text-[10px] font-semibold text-gray-400 ml-1.5 whitespace-nowrap">
+                          kWh/ano
+                        </span>
+                      </div>
+                      {ajusteSolergoAtivo ? (
+                        <div className="mt-1 flex items-center gap-1.5 flex-wrap">
+                          <span className="inline-flex items-center text-[9px] font-semibold px-1.5 py-0.2 rounded bg-amber-100 text-amber-800 border border-amber-200">
+                            Ajustado via Solergo
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setAjusteSolergoAtivo(false)
+                              setGeracaoFonte('automatico')
+                              setGeracaoMensalSolergo(null)
+                              setGeracaoSimuladaKwhAno('')
+                              setImagemSolergoFile(null)
+                            }}
+                            className="text-[9px] text-amber-900 hover:underline font-medium"
+                          >
+                            Voltar ao automático
+                          </button>
+                        </div>
+                      ) : (
+                        <span className="text-[9px] text-gray-400 mt-0.5">
+                          Opcional (salva no orçamento)
+                        </span>
+                      )}
+                    </div>
                   </div>
 
-                  {/* 2. Geração Anual (kit) */}
-                  <div className="p-3 rounded-lg border border-emerald-100 bg-emerald-50/40 flex flex-col justify-between">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-800">
-                      Geração Anual (kit)
-                    </span>
-                    <div className="mt-1 flex items-baseline gap-1">
-                      <span className="text-base sm:text-lg font-black text-emerald-950">
-                        {calculos.geracaoAnualEstimadaKwh.toLocaleString('pt-BR')}
+                  {/* Safra mês a mês JAN–DEZ compacta (kWh + HSP) */}
+                  <div className="p-2.5 rounded-lg border border-gray-200 bg-gray-50/50 space-y-2">
+                    <div className="flex items-center justify-between text-[11px] pb-1 border-b border-gray-200/60">
+                      <span className="text-gray-600 font-medium flex items-center gap-1">
+                        <Calendar className="w-3 h-3 text-emerald-600" />
+                        Geração Mensal Detalhada (Jan a Dez) — Irradiância Erechim/RS
                       </span>
-                      <span className="text-xs font-semibold text-emerald-700">kWh/ano</span>
-                    </div>
-                    <span className="text-[10px] text-gray-500 mt-0.5">
-                      Estimativa anual Erechim/RS
-                    </span>
-                  </div>
-
-                  {/* 3. Campo editável Geração Simulada (kWh/ano) */}
-                  <div className="p-3 rounded-lg border border-gray-200 bg-gray-50/70 flex flex-col justify-between focus-within:border-emerald-500 focus-within:bg-white transition-colors">
-                    <div className="flex items-center justify-between gap-1 flex-wrap">
-                      <label
-                        htmlFor="input-geracao-simulada"
-                        className="text-[10px] font-bold uppercase tracking-wider text-gray-700"
-                      >
-                        Geração Simulada (kWh/ano)
-                      </label>
-                      <button
-                        type="button"
-                        onClick={() => setModalSolergoOpen(true)}
-                        className="inline-flex items-center gap-1 text-xs text-emerald-600 hover:text-emerald-700 underline font-medium"
-                      >
-                        <Upload className="w-3.5 h-3.5" /> Importar do Solergo
-                      </button>
-                    </div>
-                    <div className="mt-1 relative flex items-center">
-                      <input
-                        id="input-geracao-simulada"
-                        type="number"
-                        min={0}
-                        step={10}
-                        value={geracaoSimuladaKwhAno}
-                        onChange={(e) => {
-                          const val = e.target.value
-                          setGeracaoSimuladaKwhAno(val === '' ? '' : Math.max(0, Number(val)))
-                        }}
-                        placeholder="Ex: 8400"
-                        className="w-full text-sm font-bold text-gray-900 bg-white px-2.5 py-1.5 rounded-md border border-gray-300 focus:outline-none focus:ring-1 focus:ring-emerald-500"
-                      />
-                      <span className="text-[11px] font-semibold text-gray-400 ml-2 whitespace-nowrap">
+                      <span className="font-extrabold text-emerald-700">
+                        Total:{' '}
+                        {(
+                          calculos.geracaoMensalDetalhada.reduce(
+                            (acc, i) => acc + (i.geracaoKwh || 0),
+                            0,
+                          ) || calculos.geracaoAnualEstimadaKwh
+                        ).toLocaleString('pt-BR')}{' '}
                         kWh/ano
                       </span>
                     </div>
-                    {ajusteSolergoAtivo ? (
-                      <div className="mt-1.5 flex items-center gap-1.5 flex-wrap">
-                        <span className="inline-flex items-center text-[10px] font-semibold px-2 py-0.5 rounded bg-amber-100 text-amber-800 border border-amber-200">
-                          Ajustado via Solergo
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setAjusteSolergoAtivo(false)
-                            setGeracaoFonte('automatico')
-                            setGeracaoMensalSolergo(null)
-                            setGeracaoSimuladaKwhAno('')
-                            setImagemSolergoFile(null)
-                          }}
-                          className="text-[10px] text-amber-900 hover:underline font-medium"
+
+                    <div className="grid grid-cols-3 sm:grid-cols-6 lg:grid-cols-12 gap-1.5">
+                      {calculos.geracaoMensalDetalhada.map((item) => (
+                        <div
+                          key={item.mesIndex}
+                          className="px-1.5 py-1.5 rounded-md border border-gray-200/80 bg-white text-center hover:border-emerald-300 transition-colors shadow-2xs"
                         >
-                          Voltar para cálculo automático
-                        </button>
-                      </div>
-                    ) : (
-                      <span className="text-[10px] text-gray-400 mt-0.5">
-                        Digitação manual opcional (salva no orçamento)
-                      </span>
-                    )}
-                  </div>
-                </div>
-              </SecaoAcordeao>
-
-              {/* 8. GERAÇÃO MENSAL DETALHADA (fechado por padrão) */}
-              <SecaoAcordeao
-                titulo="8. Geração Mensal Detalhada"
-                subtitulo="Estimativa de geração mês a mês de Janeiro a Dezembro com irradiância solar (HSP)"
-                icone={<Calendar className="w-4 h-4" />}
-                aberta={secaoGeracaoDetalhadaAberta}
-                onToggle={() => setSecaoGeracaoDetalhadaAberta((prev) => !prev)}
-                badge={
-                  <span className="text-[10px] font-semibold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
-                    Total: {calculos.geracaoAnualEstimadaKwh.toLocaleString('pt-BR')} kWh/ano
-                  </span>
-                }
-              >
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between pb-1 text-xs">
-                    <span className="text-gray-500 text-[11px]">
-                      Comportamento de safra e irradiância solar em Erechim/RS
-                    </span>
-                    <span className="font-bold text-emerald-700">
-                      Total: {calculos.geracaoAnualEstimadaKwh.toLocaleString('pt-BR')} kWh/ano
-                    </span>
-                  </div>
-
-                  <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-2">
-                    {calculos.geracaoMensalDetalhada.map((item) => (
-                      <div
-                        key={item.mesIndex}
-                        className="p-2.5 rounded-lg border border-gray-200 bg-gray-50/60 text-center hover:border-emerald-300 transition-colors"
-                      >
-                        <div className="text-[10px] font-bold uppercase text-gray-500">
-                          {item.mesNome}
+                          <div className="text-[9px] font-bold uppercase text-gray-500 tracking-wider">
+                            {item.mesNome.slice(0, 3)}
+                          </div>
+                          <div className="text-[11px] font-black text-emerald-800 leading-tight mt-0.5">
+                            {item.geracaoKwh.toLocaleString('pt-BR')}
+                          </div>
+                          <div className="text-[8.5px] text-gray-400 leading-none mt-0.5">
+                            {item.irradiacaoHSP.toFixed(2)}h
+                          </div>
                         </div>
-                        <div className="text-xs font-extrabold text-emerald-800 mt-0.5">
-                          {item.geracaoKwh.toLocaleString('pt-BR')} kWh
-                        </div>
-                        <div className="text-[10px] text-gray-400">
-                          {item.irradiacaoHSP.toFixed(2)} HSP
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </SecaoAcordeao>
-
-              {/* 9. GARANTIAS (fechado por padrão) */}
-              <SecaoAcordeao
-                titulo="9. Prazos de Garantia do Sistema"
-                subtitulo="Garantia de performance/degradação dos módulos, fabricação e garantia do inversor"
-                icone={<ShieldCheck className="w-4 h-4" />}
-                aberta={secaoGarantiasAberta}
-                onToggle={() => setSecaoGarantiasAberta((prev) => !prev)}
-                badge={
-                  <span className="text-[10px] font-semibold text-gray-700 bg-gray-100 px-2 py-0.5 rounded border border-gray-200">
-                    {garantiaModulosDegradacaoAnos}a / {garantiaModulosFabricacaoAnos}a /{' '}
-                    {garantiaInversorAnos}a
-                  </span>
-                }
-              >
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <div className="bg-emerald-50/50 p-2.5 rounded-xl border border-emerald-150">
-                    <label className="text-[11px] font-semibold text-emerald-950 block mb-1">
-                      Garantia de Performance Módulos (anos) *
-                    </label>
-                    <input
-                      type="number"
-                      min={1}
-                      max={50}
-                      value={garantiaModulosDegradacaoAnos}
-                      onChange={(e) =>
-                        setGarantiaModulosDegradacaoAnos(Number(e.target.value) || 30)
-                      }
-                      className="w-full text-xs font-bold text-emerald-900 px-3 py-1.5 rounded-lg border border-emerald-300 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                      placeholder="Padrão: 30"
-                    />
-                    <span className="text-[10px] text-emerald-700 mt-0.5 block">
-                      Degradação de geração linear (padrão 30 anos)
-                    </span>
-                  </div>
-
-                  <div className="bg-amber-50/50 p-2.5 rounded-xl border border-amber-150">
-                    <label className="text-[11px] font-semibold text-amber-950 block mb-1">
-                      Garantia Fabricação Módulos (anos) *
-                    </label>
-                    <input
-                      type="number"
-                      min={1}
-                      max={50}
-                      value={garantiaModulosFabricacaoAnos}
-                      onChange={(e) =>
-                        setGarantiaModulosFabricacaoAnos(Number(e.target.value) || 15)
-                      }
-                      className="w-full text-xs font-bold text-amber-900 px-3 py-1.5 rounded-lg border border-amber-300 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                      placeholder="Padrão: 15"
-                    />
-                    <span className="text-[10px] text-amber-700 mt-0.5 block">
-                      Contra defeitos de fabricação (padrão 15 anos)
-                    </span>
-                  </div>
-
-                  <div className="bg-teal-50/50 p-2.5 rounded-xl border border-teal-150">
-                    <label className="text-[11px] font-semibold text-teal-950 block mb-1">
-                      Garantia Inversor (anos) *
-                    </label>
-                    <input
-                      type="number"
-                      min={1}
-                      max={50}
-                      value={garantiaInversorAnos}
-                      onChange={(e) => setGarantiaInversorAnos(Number(e.target.value) || 10)}
-                      className="w-full text-xs font-bold text-teal-900 px-3 py-1.5 rounded-lg border border-teal-300 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                      placeholder="Padrão: 10"
-                    />
-                    <span className="text-[10px] text-teal-700 mt-0.5 block">
-                      Garantia de fábrica do inversor (padrão 10 anos)
-                    </span>
+                      ))}
+                    </div>
                   </div>
                 </div>
               </SecaoAcordeao>

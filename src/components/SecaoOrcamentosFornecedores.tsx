@@ -914,21 +914,6 @@ export function SecaoOrcamentosFornecedores({
                     </span>
                   </div>
 
-                  <div className="text-[11px] text-gray-600 space-y-0.5">
-                    {orc.modulos && orc.modulos.length > 0 && (
-                      <div className="truncate">
-                        <strong>Módulos:</strong> {orc.modulos[0].quantidade}x{' '}
-                        {orc.modulos[0].descricao}
-                      </div>
-                    )}
-                    {orc.inversores && orc.inversores.length > 0 && (
-                      <div className="truncate">
-                        <strong>Inversor:</strong> {orc.inversores[0].quantidade}x{' '}
-                        {orc.inversores[0].descricao}
-                      </div>
-                    )}
-                  </div>
-
                   <div className="pt-2 border-t border-gray-100 flex items-center justify-between text-[11px] flex-wrap gap-2">
                     <div className="flex items-center gap-2">
                       <button
