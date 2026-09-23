@@ -9,7 +9,12 @@ import {
 } from './propostaIlustracoesAssets'
 import { USINAS_PORTFOLIO_PADRAO } from './portfolioUsinasAssets'
 import { formatarTextoModuloCard } from './equipamentoFormatters'
-import { normalizarConteudoProposta, type ConteudoProposta } from '@/lib/conteudoProposta'
+import {
+  normalizarConteudoProposta,
+  ORDEM_BLOCOS_PADRAO,
+  type BlocoPropostaId,
+  type ConteudoProposta,
+} from '@/lib/conteudoProposta'
 
 export interface PropostaSecoesHabilitadas {
   layoutTelhado?: boolean

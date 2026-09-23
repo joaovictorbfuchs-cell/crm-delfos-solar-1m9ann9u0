@@ -93,6 +93,62 @@ export interface ConteudoSecaoInvestimento {
   avisoLegalRodape: string
 }
 
+export type BlocoPropostaId =
+  | 'capa'
+  | 'apresentacao'
+  | 'situacaoAtual'
+  | 'seuSistema'
+  | 'projecao25Anos'
+  | 'investimento'
+
+export const ORDEM_BLOCOS_PADRAO: BlocoPropostaId[] = [
+  'capa',
+  'apresentacao',
+  'situacaoAtual',
+  'seuSistema',
+  'projecao25Anos',
+  'investimento',
+]
+
+export interface BlocoPropostaMetadata {
+  id: BlocoPropostaId
+  titulo: string
+  descricao: string
+}
+
+export const BLOCOS_METADATA: Record<BlocoPropostaId, BlocoPropostaMetadata> = {
+  capa: {
+    id: 'capa',
+    titulo: 'Capa da Proposta',
+    descricao: 'Design visual oficial com sol, dados do cliente e consultor',
+  },
+  apresentacao: {
+    id: 'apresentacao',
+    titulo: 'Apresentação Institucional & Diferenciais',
+    descricao: 'Histórico da Delfos Solar, diferenciais técnicos e portfólio',
+  },
+  situacaoAtual: {
+    id: 'situacaoAtual',
+    titulo: 'Situação Atual & Custo de Inércia',
+    descricao: 'Consumo, despesas atuais e projeção de gastos sem energia solar',
+  },
+  seuSistema: {
+    id: 'seuSistema',
+    titulo: 'Seu Sistema Fotovoltaico',
+    descricao: 'Especificações técnicas dos módulos, inversor, garantias e telemetria',
+  },
+  projecao25Anos: {
+    id: 'projecao25Anos',
+    titulo: 'Projeção de Economia em 25 Anos',
+    descricao: 'Curva de retorno financeiro acumulado em 1, 5 e 25 anos',
+  },
+  investimento: {
+    id: 'investimento',
+    titulo: 'Investimento & Condições de Pagamento',
+    descricao: 'Modalidades à vista, cartão, financiamentos bancários e termo de aceite',
+  },
+}
+
 export interface ConteudoProposta {
   capa: ConteudoCapa
   dadosCliente: ConteudoDadosCliente
@@ -101,6 +157,8 @@ export interface ConteudoProposta {
   secaoSeuSistema: ConteudoSecaoSeuSistema
   secaoProjecao25Anos: ConteudoSecaoProjecao25Anos
   secaoInvestimento: ConteudoSecaoInvestimento
+  ordemBlocos?: BlocoPropostaId[]
+  blocosVisiveis?: Partial<Record<BlocoPropostaId, boolean>>
 }
 
 export const PALETA_CORES_DESTAQUE = [
@@ -117,6 +175,15 @@ export const PALETA_CORES_DESTAQUE = [
  */
 export function getConteudoPropostaDefaults(): ConteudoProposta {
   return {
+    ordemBlocos: [...ORDEM_BLOCOS_PADRAO],
+    blocosVisiveis: {
+      capa: true,
+      apresentacao: true,
+      situacaoAtual: true,
+      seuSistema: true,
+      projecao25Anos: true,
+      investimento: true,
+    },
     capa: {
       badge: 'PROPOSTA TÉCNICO-COMERCIAL',
       titulo: 'Energia que\ngera retorno',
@@ -260,7 +327,59 @@ export function normalizarConteudoProposta(
   const padrao = getConteudoPropostaDefaults()
   if (!salvo) return padrao
 
+  // Normalização defensiva da ordem dos blocos:
+  // Preserva a ordem salva válida (filtrando desconhecidos e duplicados)
+  // e anexa no final os blocos padrão faltantes.
+  const blocosSalvos = Array.isArray(salvo.ordemBlocos) ? salvo.ordemBlocos : []
+  const ordemLimpa: BlocoPropostaId[] = []
+  const jaVistos = new Set<BlocoPropostaId>()
+
+  for (const id of blocosSalvos) {
+    if (ORDEM_BLOCOS_PADRAO.includes(id) && !jaVistos.has(id)) {
+      ordemLimpa.push(id)
+      jaVistos.add(id)
+    }
+  }
+
+  for (const id of ORDEM_BLOCOS_PADRAO) {
+    if (!jaVistos.has(id)) {
+      ordemLimpa.push(id)
+      jaVistos.add(id)
+    }
+  }
+
+  // Normalização defensiva da visibilidade dos blocos:
+  // Se o bloco foi explicitamente definido como false, mantém false.
+  // Blocos ausentes ficam true por padrão (retrocompatibilidade com propostas antigas).
+  // Além disso, sincroniza com o visivel interno de cada seção existente se houver.
+  const blocosVisiveisSalvo = salvo.blocosVisiveis || {}
+  const blocosVisiveis: Record<BlocoPropostaId, boolean> = {
+    capa: blocosVisiveisSalvo.capa !== false,
+    apresentacao:
+      blocosVisiveisSalvo.apresentacao !== undefined
+        ? blocosVisiveisSalvo.apresentacao !== false
+        : salvo.secaoApresentacao?.visivel !== false,
+    situacaoAtual:
+      blocosVisiveisSalvo.situacaoAtual !== undefined
+        ? blocosVisiveisSalvo.situacaoAtual !== false
+        : salvo.secaoSituacaoAtual?.visivel !== false,
+    seuSistema:
+      blocosVisiveisSalvo.seuSistema !== undefined
+        ? blocosVisiveisSalvo.seuSistema !== false
+        : salvo.secaoSeuSistema?.visivel !== false,
+    projecao25Anos:
+      blocosVisiveisSalvo.projecao25Anos !== undefined
+        ? blocosVisiveisSalvo.projecao25Anos !== false
+        : salvo.secaoProjecao25Anos?.visivel !== false,
+    investimento:
+      blocosVisiveisSalvo.investimento !== undefined
+        ? blocosVisiveisSalvo.investimento !== false
+        : salvo.secaoInvestimento?.visivel !== false,
+  }
+
   return {
+    ordemBlocos: ordemLimpa,
+    blocosVisiveis,
     capa: { ...padrao.capa, ...(salvo.capa || {}) },
     dadosCliente: { ...padrao.dadosCliente, ...(salvo.dadosCliente || {}) },
     secaoApresentacao: {

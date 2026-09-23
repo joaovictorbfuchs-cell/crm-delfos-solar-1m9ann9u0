@@ -2,6 +2,8 @@ import React, { useState } from 'react'
 import {
   ChevronDown,
   ChevronUp,
+  ArrowUp,
+  ArrowDown,
   Plus,
   Trash2,
   RotateCcw,
@@ -17,10 +19,14 @@ import {
   TrendingUp,
   DollarSign,
   Sparkles,
+  Layers,
 } from 'lucide-react'
 import {
   PALETA_CORES_DESTAQUE,
+  ORDEM_BLOCOS_PADRAO,
+  BLOCOS_METADATA,
   getConteudoPropostaDefaults,
+  type BlocoPropostaId,
   type ConteudoProposta,
   type DiferencialInstitucional,
 } from '@/lib/conteudoProposta'
@@ -290,6 +296,115 @@ export const PainelEdicaoConteudoProposta: React.FC<PainelEdicaoConteudoProposta
     setSecoesAbertas((prev) => ({ ...prev, [id]: !prev[id] }))
   }
 
+  const ordemAtual: BlocoPropostaId[] =
+    conteudo.ordemBlocos && conteudo.ordemBlocos.length === ORDEM_BLOCOS_PADRAO.length
+      ? conteudo.ordemBlocos
+      : [...ORDEM_BLOCOS_PADRAO]
+
+  const blocosVisiveis: Record<BlocoPropostaId, boolean> = {
+    capa: conteudo.blocosVisiveis?.capa !== false,
+    apresentacao:
+      conteudo.blocosVisiveis?.apresentacao !== undefined
+        ? conteudo.blocosVisiveis.apresentacao !== false
+        : conteudo.secaoApresentacao?.visivel !== false,
+    situacaoAtual:
+      conteudo.blocosVisiveis?.situacaoAtual !== undefined
+        ? conteudo.blocosVisiveis.situacaoAtual !== false
+        : conteudo.secaoSituacaoAtual?.visivel !== false,
+    seuSistema:
+      conteudo.blocosVisiveis?.seuSistema !== undefined
+        ? conteudo.blocosVisiveis.seuSistema !== false
+        : conteudo.secaoSeuSistema?.visivel !== false,
+    projecao25Anos:
+      conteudo.blocosVisiveis?.projecao25Anos !== undefined
+        ? conteudo.blocosVisiveis.projecao25Anos !== false
+        : conteudo.secaoProjecao25Anos?.visivel !== false,
+    investimento:
+      conteudo.blocosVisiveis?.investimento !== undefined
+        ? conteudo.blocosVisiveis.investimento !== false
+        : conteudo.secaoInvestimento?.visivel !== false,
+  }
+
+  const totalAtivos = ORDEM_BLOCOS_PADRAO.filter((id) => blocosVisiveis[id]).length
+
+  const handleMoverBloco = (index: number, direcao: 'cima' | 'baixo') => {
+    const novoIndex = direcao === 'cima' ? index - 1 : index + 1
+    if (novoIndex < 0 || novoIndex >= ordemAtual.length) return
+    const novaOrdem = [...ordemAtual]
+    const [removido] = novaOrdem.splice(index, 1)
+    novaOrdem.splice(novoIndex, 0, removido)
+    onChange({
+      ...conteudo,
+      ordemBlocos: novaOrdem,
+      blocosVisiveis,
+    })
+  }
+
+  const handleToggleVisibilidadeBloco = (id: BlocoPropostaId, visivel: boolean) => {
+    const novosBlocosVisiveis = {
+      ...blocosVisiveis,
+      [id]: visivel,
+    }
+
+    // Sincroniza também com os campos legados internos se aplicável
+    let novoConteudo: ConteudoProposta = {
+      ...conteudo,
+      ordemBlocos: ordemAtual,
+      blocosVisiveis: novosBlocosVisiveis,
+    }
+
+    if (id === 'apresentacao') {
+      novoConteudo = {
+        ...novoConteudo,
+        secaoApresentacao: { ...novoConteudo.secaoApresentacao, visivel },
+      }
+    } else if (id === 'situacaoAtual') {
+      novoConteudo = {
+        ...novoConteudo,
+        secaoSituacaoAtual: { ...novoConteudo.secaoSituacaoAtual, visivel },
+      }
+    } else if (id === 'seuSistema') {
+      novoConteudo = {
+        ...novoConteudo,
+        secaoSeuSistema: { ...novoConteudo.secaoSeuSistema, visivel },
+      }
+    } else if (id === 'projecao25Anos') {
+      novoConteudo = {
+        ...novoConteudo,
+        secaoProjecao25Anos: { ...novoConteudo.secaoProjecao25Anos, visivel },
+      }
+    } else if (id === 'investimento') {
+      novoConteudo = {
+        ...novoConteudo,
+        secaoInvestimento: { ...novoConteudo.secaoInvestimento, visivel },
+      }
+    }
+
+    onChange(novoConteudo)
+  }
+
+  const handleRedefinirOrdemEVisibilidade = () => {
+    const visiveisTodosLigados: Record<BlocoPropostaId, boolean> = {
+      capa: true,
+      apresentacao: true,
+      situacaoAtual: true,
+      seuSistema: true,
+      projecao25Anos: true,
+      investimento: true,
+    }
+
+    onChange({
+      ...conteudo,
+      ordemBlocos: [...ORDEM_BLOCOS_PADRAO],
+      blocosVisiveis: visiveisTodosLigados,
+      secaoApresentacao: { ...conteudo.secaoApresentacao, visivel: true },
+      secaoSituacaoAtual: { ...conteudo.secaoSituacaoAtual, visivel: true },
+      secaoSeuSistema: { ...conteudo.secaoSeuSistema, visivel: true },
+      secaoProjecao25Anos: { ...conteudo.secaoProjecao25Anos, visivel: true },
+      secaoInvestimento: { ...conteudo.secaoInvestimento, visivel: true },
+    })
+  }
+
   const handleRestaurarPadroes = () => {
     if (
       window.confirm(
@@ -425,6 +540,132 @@ export const PainelEdicaoConteudoProposta: React.FC<PainelEdicaoConteudoProposta
             <RotateCcw className="w-3.5 h-3.5 text-gray-500" />
             <span>Restaurar Padrões</span>
           </button>
+        </div>
+      </div>
+
+      {/* ========================================================================= */}
+      {/* SEÇÃO: ESTRUTURA E ORDEM DAS SEÇÕES DA PROPOSTA                           */}
+      {/* ========================================================================= */}
+      <div className="bg-white border border-slate-200 rounded-xl p-3.5 shadow-2xs space-y-3">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 pb-2.5 border-b border-slate-100">
+          <div className="flex items-center gap-2">
+            <div className="w-6 h-6 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center justify-center shrink-0">
+              <Layers className="w-3.5 h-3.5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h5 className="text-xs font-bold text-gray-900">
+                  Estrutura e Ordem das Seções da Proposta
+                </h5>
+                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200">
+                  {totalAtivos} de {ORDEM_BLOCOS_PADRAO.length} seções ativas na proposta
+                </span>
+              </div>
+              <p className="text-[11px] text-gray-500">
+                Use as setas para reorganizar a sequência dos blocos no PDF/Word/Preview e ative ou
+                oculte seções conforme o perfil do cliente.
+              </p>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={handleRedefinirOrdemEVisibilidade}
+            className="text-[11px] font-semibold px-2.5 py-1.5 rounded-lg border border-gray-200 bg-gray-50 hover:bg-gray-100 text-gray-700 flex items-center gap-1.5 transition-colors shadow-2xs self-start sm:self-auto shrink-0"
+            title="Restaura a ordem original padrão e reativa todos os 6 blocos"
+          >
+            <RotateCcw className="w-3.5 h-3.5 text-gray-500" />
+            <span>Redefinir Ordem e Visibilidade</span>
+          </button>
+        </div>
+
+        {/* Lista interativa dos blocos na ordem atual */}
+        <div className="space-y-1.5">
+          {ordemAtual.map((blocoId, index) => {
+            const meta = BLOCOS_METADATA[blocoId] || {
+              id: blocoId,
+              titulo: blocoId,
+              descricao: '',
+            }
+            const isVisivel = blocosVisiveis[blocoId]
+            const isPrimeiro = index === 0
+            const isUltimo = index === ordemAtual.length - 1
+
+            return (
+              <div
+                key={blocoId}
+                className={`flex items-center justify-between gap-3 p-2.5 rounded-lg border transition-all ${
+                  isVisivel
+                    ? 'bg-slate-50/70 border-slate-200 hover:border-slate-300'
+                    : 'bg-slate-100/60 border-slate-200 opacity-60'
+                }`}
+              >
+                <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                  {/* Posição ordinal */}
+                  <span
+                    className={`w-5 h-5 rounded-md flex items-center justify-center text-[10px] font-bold shrink-0 ${
+                      isVisivel ? 'bg-emerald-100 text-emerald-800' : 'bg-gray-200 text-gray-600'
+                    }`}
+                  >
+                    {index + 1}
+                  </span>
+
+                  {/* Nome e descrição do bloco */}
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-bold text-gray-900 truncate">
+                        {meta.titulo}
+                      </span>
+                      {!isVisivel && (
+                        <span className="text-[9.5px] font-bold px-1.5 py-0.2 rounded-full bg-gray-200 text-gray-600 border border-gray-300 shrink-0">
+                          Oculto
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-[10px] text-gray-500 truncate">{meta.descricao}</p>
+                  </div>
+                </div>
+
+                {/* Controles: mover para cima, mover para baixo e switch de visibilidade */}
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <div className="flex items-center bg-white border border-gray-200 rounded-md shadow-2xs overflow-hidden">
+                    <button
+                      type="button"
+                      disabled={isPrimeiro}
+                      onClick={() => handleMoverBloco(index, 'cima')}
+                      className="p-1 text-gray-600 hover:text-emerald-700 hover:bg-emerald-50 disabled:opacity-30 disabled:hover:bg-white disabled:hover:text-gray-400 transition-colors"
+                      title={isPrimeiro ? 'Já é o primeiro bloco' : 'Mover para cima'}
+                    >
+                      <ArrowUp className="w-3.5 h-3.5" />
+                    </button>
+                    <div className="w-[1px] h-3.5 bg-gray-200" />
+                    <button
+                      type="button"
+                      disabled={isUltimo}
+                      onClick={() => handleMoverBloco(index, 'baixo')}
+                      className="p-1 text-gray-600 hover:text-emerald-700 hover:bg-emerald-50 disabled:opacity-30 disabled:hover:bg-white disabled:hover:text-gray-400 transition-colors"
+                      title={isUltimo ? 'Já é o último bloco' : 'Mover para baixo'}
+                    >
+                      <ArrowDown className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+
+                  <label
+                    className="relative inline-flex items-center cursor-pointer select-none ml-1"
+                    title={isVisivel ? 'Ocultar bloco da proposta' : 'Exibir bloco na proposta'}
+                  >
+                    <input
+                      type="checkbox"
+                      className="sr-only peer"
+                      checked={isVisivel}
+                      onChange={(e) => handleToggleVisibilidadeBloco(blocoId, e.target.checked)}
+                    />
+                    <div className="w-8 h-4.5 bg-slate-300 peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3.5 after:w-3.5 after:transition-all peer-checked:bg-emerald-600" />
+                  </label>
+                </div>
+              </div>
+            )
+          })}
         </div>
       </div>
 
