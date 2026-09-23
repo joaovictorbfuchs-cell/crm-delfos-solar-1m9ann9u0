@@ -23,6 +23,13 @@ import {
   FileDown,
   RotateCcw,
   Check,
+  ChevronDown,
+  ChevronUp,
+  User,
+  Sliders,
+  Cpu,
+  Receipt,
+  Sparkles,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { SecaoOrcamentosFornecedores } from './SecaoOrcamentosFornecedores'
@@ -76,6 +83,56 @@ interface ModalOrcamentoSolarProps {
 
 type TabType = 'tecnico' | 'custos' | 'parcelamentos' | 'proposta'
 
+interface SecaoAcordeaoProps {
+  titulo: string
+  subtitulo?: string
+  icone?: React.ReactNode
+  aberta: boolean
+  onToggle: () => void
+  badge?: React.ReactNode
+  children: React.ReactNode
+}
+
+const SecaoAcordeao: React.FC<SecaoAcordeaoProps> = ({
+  titulo,
+  subtitulo,
+  icone,
+  aberta,
+  onToggle,
+  badge,
+  children,
+}) => {
+  return (
+    <div className="bg-white rounded-xl border border-gray-200 shadow-xs overflow-hidden transition-all">
+      <button
+        type="button"
+        onClick={onToggle}
+        className="w-full flex items-center justify-between p-3.5 sm:p-4 text-left hover:bg-gray-50/70 transition-colors focus:outline-none"
+      >
+        <div className="flex items-center gap-2.5 min-w-0">
+          {icone && <div className="shrink-0 text-emerald-600">{icone}</div>}
+          <div className="min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-xs font-bold uppercase tracking-wider text-gray-800">
+                {titulo}
+              </span>
+              {badge}
+            </div>
+            {subtitulo && (
+              <p className="text-[11px] text-gray-400 font-normal truncate mt-0.5">{subtitulo}</p>
+            )}
+          </div>
+        </div>
+        <div className="shrink-0 ml-2 text-gray-500 hover:text-gray-700">
+          {aberta ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+        </div>
+      </button>
+
+      {aberta && <div className="p-4 pt-1 sm:p-5 sm:pt-2 border-t border-gray-100">{children}</div>}
+    </div>
+  )
+}
+
 export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
   isOpen,
   onClose,
@@ -99,6 +156,16 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
 
   const [activeTab, setActiveTab] = useState<TabType>('tecnico')
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false)
+
+  // Estados do acordeão da aba "Dados Técnicos & Sistema" (seções 2 e 3 = true; demais = false)
+  const [secaoClienteAberta, setSecaoClienteAberta] = useState<boolean>(true)
+  const [secaoEntradaAberta, setSecaoEntradaAberta] = useState<boolean>(true)
+  const [secaoEquipamentosAberta, setSecaoEquipamentosAberta] = useState<boolean>(false)
+  const [secaoFornecedoresAberta, setSecaoFornecedoresAberta] = useState<boolean>(false)
+  const [secaoDimensionamentoAberta, setSecaoDimensionamentoAberta] = useState<boolean>(false)
+  const [secaoGeracaoEstimadaAberta, setSecaoGeracaoEstimadaAberta] = useState<boolean>(false)
+  const [secaoGeracaoDetalhadaAberta, setSecaoGeracaoDetalhadaAberta] = useState<boolean>(false)
+  const [secaoGarantiasAberta, setSecaoGarantiasAberta] = useState<boolean>(false)
 
   // Cliente selecionado
   const [selectedClienteId, setSelectedClienteId] = useState<string>('')
@@ -1468,112 +1535,111 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
 
         {/* Scrollable Content Body */}
         <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4 bg-[#F8FAF9]/80">
-          {/* PAINEL DE CÁLCULO EM TEMPO REAL (SEMPRE VISÍVEL NO TOPO - PADRÃO VISUAL DO CRM) */}
-          <div className="bg-gradient-to-r from-emerald-700 via-emerald-800 to-teal-800 text-white rounded-2xl p-4 shadow-sm border border-emerald-600">
-            <div className="flex items-center justify-between flex-wrap gap-2 pb-2 border-b border-emerald-600/50">
-              <div className="flex items-center gap-2">
-                <Calculator className="w-4 h-4 text-amber-300" />
-                <span className="text-xs font-extrabold uppercase tracking-wider text-emerald-100">
-                  Cálculo Instantâneo em Tempo Real (Erechim/RS)
-                </span>
-              </div>
-              <div className="text-[11px] font-semibold text-emerald-200">
-                Potência: <strong className="text-white">{potenciaKwp.toFixed(2)} kWp</strong> •
-                Investimento:{' '}
-                <strong className="text-white">{formatCurrency(valorInvestimentoFinal)}</strong>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 pt-3">
-              <div className="bg-white/10 p-2.5 rounded-xl backdrop-blur-xs border border-white/10">
-                <span className="text-[10px] text-emerald-200 uppercase font-semibold block">
-                  Geração Média
-                </span>
-                <span className="text-base font-extrabold text-white">
-                  {calculos.geracaoMediaMensalKwh.toLocaleString('pt-BR')} kWh
-                </span>
-                <span className="text-[10px] text-emerald-300 block">/mês estimada</span>
-              </div>
-
-              <div className="bg-white/10 p-2.5 rounded-xl backdrop-blur-xs border border-white/10">
-                <span className="text-[10px] text-emerald-200 uppercase font-semibold block">
-                  Geração Anual
-                </span>
-                <span className="text-base font-extrabold text-white">
-                  {calculos.geracaoAnualEstimadaKwh.toLocaleString('pt-BR')} kWh
-                </span>
-                <span className="text-[10px] text-emerald-300 block">no primeiro ano</span>
-              </div>
-
-              <div className="bg-white/10 p-2.5 rounded-xl backdrop-blur-xs border border-white/10">
-                <span className="text-[10px] text-emerald-200 uppercase font-semibold block">
-                  Economia Mensal
-                </span>
-                <span className="text-base font-extrabold text-amber-300">
-                  {formatCurrency(calculos.economia1Mes)}
-                </span>
-                <span className="text-[10px] text-emerald-300 block">
-                  {formatCurrency(calculos.economia1Ano)} /ano
-                </span>
-              </div>
-
-              <div className="bg-white/10 p-2.5 rounded-xl backdrop-blur-xs border border-white/10">
-                <span className="text-[10px] text-emerald-200 uppercase font-semibold block">
-                  Conta após Solar
-                </span>
-                <span className="text-base font-extrabold text-white">
-                  {formatCurrency(calculos.contaPrimeiroMesComSolar)}
-                </span>
-                <span className="text-[10px] text-emerald-300 block">
-                  antes: {formatCurrency(calculos.contaAtualSemSolarMes)}
-                </span>
-              </div>
-
-              <div className="bg-white/10 p-2.5 rounded-xl backdrop-blur-xs border border-white/10">
-                <span className="text-[10px] text-emerald-200 uppercase font-semibold block">
-                  Payback Estimado
-                </span>
-                <span className="text-base font-extrabold text-white">
-                  {calculos.paybackMeses} meses
-                </span>
-                <span className="text-[10px] text-emerald-300 block">
-                  (~{calculos.paybackAnos} anos)
-                </span>
-              </div>
-
-              <div className="bg-white/10 p-2.5 rounded-xl backdrop-blur-xs border border-white/10">
-                <span className="text-[10px] text-emerald-200 uppercase font-semibold block">
-                  Custo por kWp
-                </span>
-                <span className="text-base font-extrabold text-white">
-                  {formatCurrency(calculos.custoPorKwpInstalado)}
-                </span>
-                <span className="text-[10px] text-emerald-300 block">instalado</span>
-              </div>
-            </div>
-          </div>
-
           {/* ========================================================================= */}
           {/* ABA 1: DADOS TÉCNICOS & SISTEMA                                           */}
           {/* ========================================================================= */}
           {activeTab === 'tecnico' && (
-            <div className="space-y-4 animate-in fade-in duration-150">
-              {/* Seleção de Cliente com busca automática */}
-              <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-xs space-y-3">
-                <div className="flex items-center justify-between">
-                  <label className="text-xs font-bold uppercase tracking-wider text-gray-700 flex items-center gap-1.5">
-                    <span className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-800 flex items-center justify-center text-[11px] font-extrabold">
-                      1
+            <div className="space-y-4 animate-in fade-in duration-150 relative">
+              {/* 1. BARRA FIXA SUPERIOR (sticky top-0 z-20, não colapsável) */}
+              <div className="sticky top-0 z-20 bg-gradient-to-r from-emerald-700 via-emerald-800 to-teal-800 text-white rounded-2xl p-3.5 sm:p-4 shadow-md border border-emerald-600 backdrop-blur-md">
+                <div className="flex items-center justify-between flex-wrap gap-2 pb-2 border-b border-emerald-600/50">
+                  <div className="flex items-center gap-2">
+                    <Calculator className="w-4 h-4 text-amber-300" />
+                    <span className="text-xs font-extrabold uppercase tracking-wider text-emerald-100">
+                      Resumo Instantâneo do Sistema Solar (Erechim/RS)
                     </span>
-                    Cliente do CRM (Busca Automática)
-                  </label>
-                  {clienteAtual && (
-                    <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
-                      UC: {clienteAtual.uc || 'Não informada'}
-                    </span>
-                  )}
+                  </div>
+                  <div className="text-[11px] font-semibold text-emerald-200">
+                    Potência: <strong className="text-white">{potenciaKwp.toFixed(2)} kWp</strong> •
+                    Investimento:{' '}
+                    <strong className="text-white">{formatCurrency(valorInvestimentoFinal)}</strong>
+                  </div>
                 </div>
 
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 pt-2.5">
+                  <div className="bg-white/10 p-2 sm:p-2.5 rounded-xl backdrop-blur-xs border border-white/10">
+                    <span className="text-[10px] text-emerald-200 uppercase font-semibold block">
+                      Geração Média
+                    </span>
+                    <span className="text-sm sm:text-base font-extrabold text-white">
+                      {calculos.geracaoMediaMensalKwh.toLocaleString('pt-BR')} kWh
+                    </span>
+                    <span className="text-[10px] text-emerald-300 block">/mês estimada</span>
+                  </div>
+
+                  <div className="bg-white/10 p-2 sm:p-2.5 rounded-xl backdrop-blur-xs border border-white/10">
+                    <span className="text-[10px] text-emerald-200 uppercase font-semibold block">
+                      Geração Anual
+                    </span>
+                    <span className="text-sm sm:text-base font-extrabold text-white">
+                      {calculos.geracaoAnualEstimadaKwh.toLocaleString('pt-BR')} kWh
+                    </span>
+                    <span className="text-[10px] text-emerald-300 block">no primeiro ano</span>
+                  </div>
+
+                  <div className="bg-white/10 p-2 sm:p-2.5 rounded-xl backdrop-blur-xs border border-white/10">
+                    <span className="text-[10px] text-emerald-200 uppercase font-semibold block">
+                      Economia Mensal
+                    </span>
+                    <span className="text-sm sm:text-base font-extrabold text-amber-300">
+                      {formatCurrency(calculos.economia1Mes)}
+                    </span>
+                    <span className="text-[10px] text-emerald-300 block">
+                      {formatCurrency(calculos.economia1Ano)}/ano
+                    </span>
+                  </div>
+
+                  <div className="bg-white/10 p-2 sm:p-2.5 rounded-xl backdrop-blur-xs border border-white/10">
+                    <span className="text-[10px] text-emerald-200 uppercase font-semibold block">
+                      Conta após Solar
+                    </span>
+                    <span className="text-sm sm:text-base font-extrabold text-white">
+                      {formatCurrency(calculos.contaPrimeiroMesComSolar)}
+                    </span>
+                    <span className="text-[10px] text-emerald-300 block">
+                      antes: {formatCurrency(calculos.contaAtualSemSolarMes)}
+                    </span>
+                  </div>
+
+                  <div className="bg-white/10 p-2 sm:p-2.5 rounded-xl backdrop-blur-xs border border-white/10">
+                    <span className="text-[10px] text-emerald-200 uppercase font-semibold block">
+                      Payback
+                    </span>
+                    <span className="text-sm sm:text-base font-extrabold text-white">
+                      {calculos.paybackMeses} meses
+                    </span>
+                    <span className="text-[10px] text-emerald-300 block">
+                      ~ {calculos.paybackAnos} anos
+                    </span>
+                  </div>
+
+                  <div className="bg-white/10 p-2 sm:p-2.5 rounded-xl backdrop-blur-xs border border-white/10">
+                    <span className="text-[10px] text-emerald-200 uppercase font-semibold block">
+                      Custo por kWp
+                    </span>
+                    <span className="text-sm sm:text-base font-extrabold text-white">
+                      {formatCurrency(calculos.custoPorKwpInstalado)}
+                    </span>
+                    <span className="text-[10px] text-emerald-300 block">instalado</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* 2. DADOS DO CLIENTE (aberto por padrão) */}
+              <SecaoAcordeao
+                titulo="2. Dados do Cliente"
+                subtitulo="Busca automática de cliente, documento, cidade e endereço"
+                icone={<User className="w-4 h-4" />}
+                aberta={secaoClienteAberta}
+                onToggle={() => setSecaoClienteAberta((prev) => !prev)}
+                badge={
+                  clienteAtual ? (
+                    <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                      UC: {clienteAtual.uc || 'Não informada'}
+                    </span>
+                  ) : undefined
+                }
+              >
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3 items-start">
                   <div>
                     <label className="text-[11px] font-semibold text-gray-600 mb-1 block">
@@ -1621,20 +1687,21 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                     </div>
                   )}
                 </div>
-              </div>
+              </SecaoAcordeao>
 
-              {/* Formulário de Dados Técnicos */}
-              <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-xs space-y-4">
-                <div className="flex items-center justify-between pb-2 border-b border-gray-100">
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-gray-800 flex items-center gap-1.5">
-                    <Sun className="w-4 h-4 text-emerald-600" />
-                    Campos Técnicos do Sistema Solar
-                  </h3>
-                  <span className="text-[11px] text-gray-400">
-                    Todos os campos afetam os cálculos em tempo real
+              {/* 3. DADOS DE ENTRADA DO SISTEMA (aberto por padrão) */}
+              <SecaoAcordeao
+                titulo="3. Dados de Entrada do Sistema"
+                subtitulo="Consumo médio, geração pretendida, tipo, padrão, enquadramento, tarifa e potência"
+                icone={<Sliders className="w-4 h-4" />}
+                aberta={secaoEntradaAberta}
+                onToggle={() => setSecaoEntradaAberta((prev) => !prev)}
+                badge={
+                  <span className="text-[10px] font-semibold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                    {potenciaKwp.toFixed(2)} kWp • {consumoKwhMes} kWh/mês
                   </span>
-                </div>
-
+                }
+              >
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
                   {/* Consumo médio */}
                   <div>
@@ -1658,7 +1725,7 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                     />
                   </div>
 
-                  {/* Geração pretendida (kWh/mês) - Permite dimensionar quando o cliente quer gerar mais do que consome */}
+                  {/* Geração pretendida (kWh/mês) */}
                   <div>
                     <div className="flex items-center justify-between mb-1">
                       <label className="text-[11px] font-semibold text-gray-700 block">
@@ -1753,7 +1820,7 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                   </div>
 
                   {/* Potência do sistema em kWp */}
-                  <div>
+                  <div className="sm:col-span-2">
                     <label className="text-[11px] font-semibold text-gray-700 block mb-1">
                       Potência do sistema (kWp) *
                     </label>
@@ -1787,238 +1854,296 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                       </span>
                     )}
                   </div>
-
-                  {/* Seção Equipamentos do Fornecedor Selecionado (Módulo FV e Inversor) */}
-                  <div className="sm:col-span-2">
-                    <SecaoEquipamentosFornecedorSelecionado
-                      fornecedorOrcamento={fornecedorSelecionadoObj}
-                      equipamentos={[...equipamentosModulos, ...equipamentosInversores]}
-                      equipamentosAtuaisProposta={{
-                        marcaPainel,
-                        potenciaPlacaWp,
-                        numeroPlacas,
-                        marcaInversor,
-                        quantidadeInversores,
-                      }}
-                      onEquipamentoCadastrado={(novo) => {
-                        if (novo.tipo === 'modulo_fv') {
-                          setEquipamentosModulos((prev) => [
-                            novo,
-                            ...prev.filter((e) => e.id !== novo.id),
-                          ])
-                        } else {
-                          setEquipamentosInversores((prev) => [
-                            novo,
-                            ...prev.filter((e) => e.id !== novo.id),
-                          ])
-                        }
-                      }}
-                      onAplicarEquipamentos={(dados) => {
-                        if (dados.marcaPainel) setMarcaPainel(dados.marcaPainel)
-                        if (dados.potenciaPlacaWp && dados.potenciaPlacaWp > 0) {
-                          handlePotenciaPlacaChange(dados.potenciaPlacaWp)
-                        }
-                        if (dados.numeroPlacas && dados.numeroPlacas > 0) {
-                          handleNumeroPlacasChange(dados.numeroPlacas)
-                        }
-                        if (dados.marcaInversor) setMarcaInversor(dados.marcaInversor)
-                        if (dados.quantidadeInversores && dados.quantidadeInversores > 0) {
-                          setQuantidadeInversores(dados.quantidadeInversores)
-                        }
-                        if (dados.garantiaModulosFabricacaoAnos) {
-                          setGarantiaModulosFabricacaoAnos(dados.garantiaModulosFabricacaoAnos)
-                        }
-                        if (dados.garantiaInversorAnos) {
-                          setGarantiaInversorAnos(dados.garantiaInversorAnos)
-                        }
-                        if (dados.fotoModuloUrl !== undefined) {
-                          setFotoModuloUrl(dados.fotoModuloUrl || null)
-                        }
-                        if (dados.fotoInversorUrl !== undefined) {
-                          setFotoInversorUrl(dados.fotoInversorUrl || null)
-                        }
-
-                        toast.success(
-                          'Equipamentos do fornecedor aplicados à proposta com sucesso!',
-                        )
-                      }}
-                    />
-                  </div>
-
-                  {/* Tipo de estrutura de fixação */}
-                  <div>
-                    <label className="text-[11px] font-semibold text-gray-700 block mb-1">
-                      Tipo de estrutura de fixação *
-                    </label>
-                    <select
-                      value={tipoEstrutura}
-                      onChange={(e) => setTipoEstrutura(e.target.value as TipoEstruturaSolar)}
-                      className="w-full text-xs font-semibold px-3 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                    >
-                      <option value="ceramico">Cerâmico</option>
-                      <option value="metalico">Metálico</option>
-                      <option value="laje">Laje</option>
-                      <option value="fibrocimento">Fibrocimento</option>
-                      <option value="solo">Solo</option>
-                    </select>
-                  </div>
-
-                  {/* Orientação do telhado */}
-                  <div>
-                    <label className="text-[11px] font-semibold text-gray-700 block mb-1">
-                      Orientação do telhado *
-                    </label>
-                    <select
-                      value={orientacaoTelhado}
-                      onChange={(e) =>
-                        setOrientacaoTelhado(e.target.value as OrientacaoTelhadoSolar)
-                      }
-                      className="w-full text-xs font-semibold px-3 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                    >
-                      <option value="norte">Norte (Máxima geração)</option>
-                      <option value="leste">Leste</option>
-                      <option value="oeste">Oeste</option>
-                      <option value="sul">Sul</option>
-                    </select>
-                  </div>
-
-                  {/* Área necessária em m² */}
-                  <div>
-                    <label className="text-[11px] font-semibold text-gray-700 block mb-1">
-                      Área necessária (m²) *
-                    </label>
-                    <input
-                      type="number"
-                      value={areaNecessariaM2}
-                      min={1}
-                      step={1}
-                      onChange={(e) => setAreaNecessariaM2(Number(e.target.value) || 0)}
-                      className="w-full text-xs font-semibold px-3 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                      placeholder="Ex: 26"
-                    />
-                  </div>
-
-                  {/* Código FINAME */}
-                  <div>
-                    <label className="text-[11px] font-semibold text-gray-700 block mb-1">
-                      Código FINAME (opcional)
-                    </label>
-                    <input
-                      type="text"
-                      value={codigoFiname}
-                      onChange={(e) => setCodigoFiname(e.target.value)}
-                      className="w-full text-xs font-medium px-3 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                      placeholder="Ex: 3.456.789"
-                    />
-                  </div>
-
-                  {/* Valor de investimento do projeto */}
-                  <div>
-                    <label className="text-[11px] font-semibold text-gray-700 block mb-1">
-                      Valor de Investimento (R$)
-                    </label>
-                    <input
-                      type="number"
-                      value={valorInvestimentoManual || ''}
-                      min={0}
-                      step={100}
-                      onChange={(e) => setValorInvestimentoManual(Number(e.target.value) || 0)}
-                      className="w-full text-xs font-bold text-gray-900 px-3 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                      placeholder={
-                        totalCustosCalculado > 0
-                          ? `Calculado da aba custos (${formatCurrency(totalCustosCalculado)})`
-                          : 'Ou preencha na aba de custos'
-                      }
-                    />
-                    <span className="text-[10px] text-gray-400 mt-0.5 block">
-                      {valorInvestimentoManual > 0
-                        ? 'Valor fixado manualmente'
-                        : totalCustosCalculado > 0
-                          ? 'Calculado da soma da Aba de Custos'
-                          : 'Estimado por kWp'}
-                    </span>
-                  </div>
                 </div>
+              </SecaoAcordeao>
 
-                {/* Sub-bloco de Garantias Cadastráveis do Sistema */}
-                <div className="mt-3 pt-3 border-t border-gray-100">
-                  <div className="flex items-center gap-1.5 mb-2.5">
-                    <ShieldCheck className="w-4 h-4 text-emerald-600" />
-                    <span className="text-xs font-bold text-gray-800 uppercase tracking-wide">
-                      Prazos de Garantia do Sistema (Anos)
-                    </span>
-                    <span className="text-[10px] text-gray-400 font-normal">
-                      — exibidos no rodapé dos cards de módulos e inversores
-                    </span>
-                  </div>
+              {/* 4. EQUIPAMENTOS E FORNECEDOR (fechado por padrão) */}
+              <SecaoAcordeao
+                titulo="4. Equipamentos e Fornecedor"
+                subtitulo="Cards Módulo FV / Inversor, estrutura de fixação, orientação do telhado, área e FINAME"
+                icone={<Cpu className="w-4 h-4" />}
+                aberta={secaoEquipamentosAberta}
+                onToggle={() => setSecaoEquipamentosAberta((prev) => !prev)}
+                badge={
+                  <span className="text-[10px] font-semibold text-gray-700 bg-gray-100 px-2 py-0.5 rounded border border-gray-200">
+                    {numeroPlacas} placas • {tipoEstrutura}
+                  </span>
+                }
+              >
+                <div className="space-y-4">
+                  {/* Cards Módulo FV e Inversor com botão "Usar estes equipamentos na proposta" */}
+                  <SecaoEquipamentosFornecedorSelecionado
+                    fornecedorOrcamento={fornecedorSelecionadoObj}
+                    equipamentos={[...equipamentosModulos, ...equipamentosInversores]}
+                    equipamentosAtuaisProposta={{
+                      marcaPainel,
+                      potenciaPlacaWp,
+                      numeroPlacas,
+                      marcaInversor,
+                      quantidadeInversores,
+                    }}
+                    onEquipamentoCadastrado={(novo) => {
+                      if (novo.tipo === 'modulo_fv') {
+                        setEquipamentosModulos((prev) => [
+                          novo,
+                          ...prev.filter((e) => e.id !== novo.id),
+                        ])
+                      } else {
+                        setEquipamentosInversores((prev) => [
+                          novo,
+                          ...prev.filter((e) => e.id !== novo.id),
+                        ])
+                      }
+                    }}
+                    onAplicarEquipamentos={(dados) => {
+                      if (dados.marcaPainel) setMarcaPainel(dados.marcaPainel)
+                      if (dados.potenciaPlacaWp && dados.potenciaPlacaWp > 0) {
+                        handlePotenciaPlacaChange(dados.potenciaPlacaWp)
+                      }
+                      if (dados.numeroPlacas && dados.numeroPlacas > 0) {
+                        handleNumeroPlacasChange(dados.numeroPlacas)
+                      }
+                      if (dados.marcaInversor) setMarcaInversor(dados.marcaInversor)
+                      if (dados.quantidadeInversores && dados.quantidadeInversores > 0) {
+                        setQuantidadeInversores(dados.quantidadeInversores)
+                      }
+                      if (dados.garantiaModulosFabricacaoAnos) {
+                        setGarantiaModulosFabricacaoAnos(dados.garantiaModulosFabricacaoAnos)
+                      }
+                      if (dados.garantiaInversorAnos) {
+                        setGarantiaInversorAnos(dados.garantiaInversorAnos)
+                      }
+                      if (dados.fotoModuloUrl !== undefined) {
+                        setFotoModuloUrl(dados.fotoModuloUrl || null)
+                      }
+                      if (dados.fotoInversorUrl !== undefined) {
+                        setFotoInversorUrl(dados.fotoInversorUrl || null)
+                      }
 
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    <div className="bg-emerald-50/50 p-2.5 rounded-xl border border-emerald-150">
-                      <label className="text-[11px] font-semibold text-emerald-950 block mb-1">
-                        Garantia de Performance Módulos (anos) *
+                      toast.success('Equipamentos do fornecedor aplicados à proposta com sucesso!')
+                    }}
+                  />
+
+                  {/* Campos complementares de estrutura e investimento */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs pt-3 border-t border-gray-100">
+                    {/* Tipo de estrutura de fixação */}
+                    <div>
+                      <label className="text-[11px] font-semibold text-gray-700 block mb-1">
+                        Tipo de estrutura de fixação *
                       </label>
-                      <input
-                        type="number"
-                        min={1}
-                        max={50}
-                        value={garantiaModulosDegradacaoAnos}
-                        onChange={(e) =>
-                          setGarantiaModulosDegradacaoAnos(Number(e.target.value) || 30)
-                        }
-                        className="w-full text-xs font-bold text-emerald-900 px-3 py-1.5 rounded-lg border border-emerald-300 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                        placeholder="Padrão: 30"
-                      />
-                      <span className="text-[10px] text-emerald-700 mt-0.5 block">
-                        Degradação de geração linear (padrão 30 anos)
-                      </span>
+                      <select
+                        value={tipoEstrutura}
+                        onChange={(e) => setTipoEstrutura(e.target.value as TipoEstruturaSolar)}
+                        className="w-full text-xs font-semibold px-3 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      >
+                        <option value="ceramico">Cerâmico</option>
+                        <option value="metalico">Metálico</option>
+                        <option value="laje">Laje</option>
+                        <option value="fibrocimento">Fibrocimento</option>
+                        <option value="solo">Solo</option>
+                      </select>
                     </div>
 
-                    <div className="bg-amber-50/50 p-2.5 rounded-xl border border-amber-150">
-                      <label className="text-[11px] font-semibold text-amber-950 block mb-1">
-                        Garantia Fabricação Módulos (anos) *
+                    {/* Orientação do telhado */}
+                    <div>
+                      <label className="text-[11px] font-semibold text-gray-700 block mb-1">
+                        Orientação do telhado *
                       </label>
-                      <input
-                        type="number"
-                        min={1}
-                        max={50}
-                        value={garantiaModulosFabricacaoAnos}
+                      <select
+                        value={orientacaoTelhado}
                         onChange={(e) =>
-                          setGarantiaModulosFabricacaoAnos(Number(e.target.value) || 15)
+                          setOrientacaoTelhado(e.target.value as OrientacaoTelhadoSolar)
                         }
-                        className="w-full text-xs font-bold text-amber-900 px-3 py-1.5 rounded-lg border border-amber-300 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                        placeholder="Padrão: 15"
-                      />
-                      <span className="text-[10px] text-amber-700 mt-0.5 block">
-                        Contra defeitos de fabricação (padrão 15 anos)
-                      </span>
+                        className="w-full text-xs font-semibold px-3 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      >
+                        <option value="norte">Norte (Máxima geração)</option>
+                        <option value="leste">Leste</option>
+                        <option value="oeste">Oeste</option>
+                        <option value="sul">Sul</option>
+                      </select>
                     </div>
 
-                    <div className="bg-teal-50/50 p-2.5 rounded-xl border border-teal-150">
-                      <label className="text-[11px] font-semibold text-teal-950 block mb-1">
-                        Garantia Inversor (anos) *
+                    {/* Área necessária em m² */}
+                    <div>
+                      <label className="text-[11px] font-semibold text-gray-700 block mb-1">
+                        Área necessária (m²) *
                       </label>
                       <input
                         type="number"
+                        value={areaNecessariaM2}
                         min={1}
-                        max={50}
-                        value={garantiaInversorAnos}
-                        onChange={(e) => setGarantiaInversorAnos(Number(e.target.value) || 10)}
-                        className="w-full text-xs font-bold text-teal-900 px-3 py-1.5 rounded-lg border border-teal-300 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                        placeholder="Padrão: 10"
+                        step={1}
+                        onChange={(e) => setAreaNecessariaM2(Number(e.target.value) || 0)}
+                        className="w-full text-xs font-semibold px-3 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                        placeholder="Ex: 26"
                       />
-                      <span className="text-[10px] text-teal-700 mt-0.5 block">
-                        Garantia de fábrica do inversor (padrão 10 anos)
+                    </div>
+
+                    {/* Código FINAME */}
+                    <div>
+                      <label className="text-[11px] font-semibold text-gray-700 block mb-1">
+                        Código FINAME (opcional)
+                      </label>
+                      <input
+                        type="text"
+                        value={codigoFiname}
+                        onChange={(e) => setCodigoFiname(e.target.value)}
+                        className="w-full text-xs font-medium px-3 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                        placeholder="Ex: 3.456.789"
+                      />
+                    </div>
+
+                    {/* Valor de investimento do projeto */}
+                    <div className="sm:col-span-2 lg:col-span-4">
+                      <label className="text-[11px] font-semibold text-gray-700 block mb-1">
+                        Valor de Investimento (R$)
+                      </label>
+                      <input
+                        type="number"
+                        value={valorInvestimentoManual || ''}
+                        min={0}
+                        step={100}
+                        onChange={(e) => setValorInvestimentoManual(Number(e.target.value) || 0)}
+                        className="w-full text-xs font-bold text-gray-900 px-3 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                        placeholder={
+                          totalCustosCalculado > 0
+                            ? `Calculado da aba custos (${formatCurrency(totalCustosCalculado)})`
+                            : 'Ou preencha na aba de custos'
+                        }
+                      />
+                      <span className="text-[10px] text-gray-400 mt-0.5 block">
+                        {valorInvestimentoManual > 0
+                          ? 'Valor fixado manualmente'
+                          : totalCustosCalculado > 0
+                            ? 'Calculado da soma da Aba de Custos'
+                            : 'Estimado por kWp'}
                       </span>
                     </div>
                   </div>
                 </div>
+              </SecaoAcordeao>
 
-                {/* Banner de Dimensionamento Automático baseado na Geração Pretendida */}
-                {dimensionamentoSugerido && (
-                  <div className="mt-3 p-3 rounded-xl bg-gradient-to-r from-emerald-50 via-emerald-100/50 to-teal-50 border border-emerald-300 shadow-xs animate-in fade-in duration-200">
+              {/* 5. ORÇAMENTOS DE FORNECEDORES (fechado por padrão) */}
+              <SecaoAcordeao
+                titulo="5. Orçamentos de Fornecedores"
+                subtitulo="Upload em PDF, imagem/OCR, cadastro manual e comparativo de cotações com fornecedor ativo"
+                icone={<Receipt className="w-4 h-4" />}
+                aberta={secaoFornecedoresAberta}
+                onToggle={() => setSecaoFornecedoresAberta((prev) => !prev)}
+                badge={
+                  fornecedorSelecionadoObj ? (
+                    <span className="text-[10px] font-semibold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                      Ativo: {fornecedorSelecionadoObj.nome_fornecedor}
+                    </span>
+                  ) : undefined
+                }
+              >
+                <SecaoOrcamentosFornecedores
+                  clienteId={selectedClienteId}
+                  orcamentoSolarId={initialOrcamento?.id}
+                  fornecedorSelecionadoId={fornecedorSelecionadoId}
+                  onUsarEquipamentos={(equip) => {
+                    if (equip.marcaPainel) setMarcaPainel(equip.marcaPainel)
+                    if (equip.numeroPlacas && equip.numeroPlacas > 0) {
+                      handleNumeroPlacasChange(equip.numeroPlacas)
+                    }
+                    if (equip.marcaInversor) setMarcaInversor(equip.marcaInversor)
+                    if (equip.quantidadeInversores && equip.quantidadeInversores > 0) {
+                      setQuantidadeInversores(equip.quantidadeInversores)
+                    }
+                  }}
+                  onAplicarAoProjeto={async (fornOrc) => {
+                    const valorTotalForn = Number(fornOrc.valor_total) || 0
+
+                    // 1. Atualização otimista e imediata do estado local
+                    setFornecedorSelecionadoId(fornOrc.id)
+                    fornecedorAplicadoRef.current = { id: fornOrc.id, valor: valorTotalForn }
+                    updateCustoField('materiaisEquipamentos', valorTotalForn)
+
+                    // Se houver valor manual fixo travando o total, libera para o cálculo em cadeia da planilha de custos fluir
+                    setValorInvestimentoManual(0)
+
+                    // Atualiza também dados dos equipamentos se cadastrados no fornecedor
+                    if (fornOrc.modulos && fornOrc.modulos[0]?.descricao) {
+                      setMarcaPainel(fornOrc.modulos[0].descricao)
+                    }
+                    if (
+                      fornOrc.modulos &&
+                      fornOrc.modulos[0]?.quantidade &&
+                      fornOrc.modulos[0].quantidade > 0
+                    ) {
+                      handleNumeroPlacasChange(fornOrc.modulos[0].quantidade)
+                    }
+                    if (fornOrc.inversores && fornOrc.inversores[0]?.descricao) {
+                      setMarcaInversor(fornOrc.inversores[0].descricao)
+                    }
+                    if (
+                      fornOrc.inversores &&
+                      fornOrc.inversores[0]?.quantidade &&
+                      fornOrc.inversores[0].quantidade > 0
+                    ) {
+                      setQuantidadeInversores(fornOrc.inversores[0].quantidade)
+                    }
+
+                    // 2. Feedback visual claro com ação para navegar imediatamente para a Aba de Custos
+                    const nomeForn = fornOrc.nome_fornecedor || 'Fornecedor'
+                    const valorFormatado = formatCurrency(valorTotalForn)
+
+                    toast.success(
+                      <div className="flex flex-col gap-1 text-xs">
+                        <div className="font-bold text-emerald-950 flex items-center gap-1">
+                          <Check className="w-3.5 h-3.5 text-emerald-600 inline" />
+                          <span>{nomeForn} aplicado ao projeto!</span>
+                        </div>
+                        <div className="text-gray-600">
+                          Materiais atualizado para <strong>{valorFormatado}</strong>. Custos
+                          recalculados em cadeia.
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setActiveTab('custos')}
+                          className="mt-1 px-2.5 py-1 bg-emerald-700 hover:bg-emerald-800 text-white font-bold rounded text-[11px] self-start inline-flex items-center gap-1 transition-colors"
+                        >
+                          <span>Ver Aba de Custos Atualizada</span>
+                          <ArrowRight className="w-3 h-3" />
+                        </button>
+                      </div>,
+                      { duration: 5000 },
+                    )
+
+                    // 3. Persistência assíncrona em segundo plano sem bloquear o recálculo
+                    try {
+                      await selecionarFornecedorOrcamento(fornOrc.id, {
+                        orcamentoSolarId: initialOrcamento?.id,
+                        clienteId: selectedClienteId,
+                      })
+                    } catch (errSync) {
+                      console.warn('Persistência em background do fornecedor ativo:', errSync)
+                    }
+                  }}
+                />
+              </SecaoAcordeao>
+
+              {/* 6. DIMENSIONAMENTO AUTOMÁTICO (fechado por padrão) */}
+              <SecaoAcordeao
+                titulo="6. Dimensionamento Automático"
+                subtitulo="Recomendação de potência kWp e sugestão de módulos baseada na geração pretendida"
+                icone={<Sparkles className="w-4 h-4" />}
+                aberta={secaoDimensionamentoAberta}
+                onToggle={() => setSecaoDimensionamentoAberta((prev) => !prev)}
+                badge={
+                  dimensionamentoSugerido ? (
+                    <span className="text-[10px] font-semibold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                      {dimensionamentoSugerido.potenciaKwpNecessaria.toFixed(2)} kWp sugerido
+                    </span>
+                  ) : undefined
+                }
+              >
+                {dimensionamentoSugerido ? (
+                  <div className="p-3.5 sm:p-4 rounded-xl bg-gradient-to-r from-emerald-50 via-emerald-100/40 to-teal-50 border border-emerald-300 shadow-xs">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2">
+                      <div className="space-y-1.5">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wide bg-emerald-600 text-white">
                             Dimensionamento Automático
                           </span>
@@ -2074,97 +2199,27 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                       </div>
                     </div>
                   </div>
+                ) : (
+                  <p className="text-xs text-gray-500">
+                    Preencha o consumo ou geração pretendida para calcular a recomendação de
+                    dimensionamento.
+                  </p>
                 )}
-              </div>
+              </SecaoAcordeao>
 
-              {/* Seção Orçamentos de Fornecedores com Upload de PDF e Tabela de Revisão */}
-              <SecaoOrcamentosFornecedores
-                clienteId={selectedClienteId}
-                orcamentoSolarId={initialOrcamento?.id}
-                fornecedorSelecionadoId={fornecedorSelecionadoId}
-                onUsarEquipamentos={(equip) => {
-                  if (equip.marcaPainel) setMarcaPainel(equip.marcaPainel)
-                  if (equip.numeroPlacas && equip.numeroPlacas > 0) {
-                    handleNumeroPlacasChange(equip.numeroPlacas)
-                  }
-                  if (equip.marcaInversor) setMarcaInversor(equip.marcaInversor)
-                  if (equip.quantidadeInversores && equip.quantidadeInversores > 0) {
-                    setQuantidadeInversores(equip.quantidadeInversores)
-                  }
-                }}
-                onAplicarAoProjeto={async (fornOrc) => {
-                  const valorTotalForn = Number(fornOrc.valor_total) || 0
-
-                  // 1. Atualização otimista e imediata do estado local
-                  setFornecedorSelecionadoId(fornOrc.id)
-                  fornecedorAplicadoRef.current = { id: fornOrc.id, valor: valorTotalForn }
-                  updateCustoField('materiaisEquipamentos', valorTotalForn)
-
-                  // Se houver valor manual fixo travando o total, libera para o cálculo em cadeia da planilha de custos fluir
-                  setValorInvestimentoManual(0)
-
-                  // Atualiza também dados dos equipamentos se cadastrados no fornecedor
-                  if (fornOrc.modulos && fornOrc.modulos[0]?.descricao) {
-                    setMarcaPainel(fornOrc.modulos[0].descricao)
-                  }
-                  if (
-                    fornOrc.modulos &&
-                    fornOrc.modulos[0]?.quantidade &&
-                    fornOrc.modulos[0].quantidade > 0
-                  ) {
-                    handleNumeroPlacasChange(fornOrc.modulos[0].quantidade)
-                  }
-                  if (fornOrc.inversores && fornOrc.inversores[0]?.descricao) {
-                    setMarcaInversor(fornOrc.inversores[0].descricao)
-                  }
-                  if (
-                    fornOrc.inversores &&
-                    fornOrc.inversores[0]?.quantidade &&
-                    fornOrc.inversores[0].quantidade > 0
-                  ) {
-                    setQuantidadeInversores(fornOrc.inversores[0].quantidade)
-                  }
-
-                  // 2. Feedback visual claro com ação para navegar imediatamente para a Aba de Custos
-                  const nomeForn = fornOrc.nome_fornecedor || 'Fornecedor'
-                  const valorFormatado = formatCurrency(valorTotalForn)
-
-                  toast.success(
-                    <div className="flex flex-col gap-1 text-xs">
-                      <div className="font-bold text-emerald-950 flex items-center gap-1">
-                        <Check className="w-3.5 h-3.5 text-emerald-600 inline" />
-                        <span>{nomeForn} aplicado ao projeto!</span>
-                      </div>
-                      <div className="text-gray-600">
-                        Materiais atualizado para <strong>{valorFormatado}</strong>. Custos
-                        recalculados em cadeia.
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => setActiveTab('custos')}
-                        className="mt-1 px-2.5 py-1 bg-emerald-700 hover:bg-emerald-800 text-white font-bold rounded text-[11px] self-start inline-flex items-center gap-1 transition-colors"
-                      >
-                        <span>Ver Aba de Custos Atualizada</span>
-                        <ArrowRight className="w-3 h-3" />
-                      </button>
-                    </div>,
-                    { duration: 5000 },
-                  )
-
-                  // 3. Persistência assíncrona em segundo plano sem bloquear o recálculo
-                  try {
-                    await selecionarFornecedorOrcamento(fornOrc.id, {
-                      orcamentoSolarId: initialOrcamento?.id,
-                      clienteId: selectedClienteId,
-                    })
-                  } catch (errSync) {
-                    console.warn('Persistência em background do fornecedor ativo:', errSync)
-                  }
-                }}
-              />
-
-              {/* Bloco Compacto: Comparativo de Geração do Kit vs. Simulada */}
-              <div className="bg-white p-3.5 sm:p-4 rounded-xl border border-gray-200 shadow-xs">
+              {/* 7. GERAÇÃO ESTIMADA (fechado por padrão) */}
+              <SecaoAcordeao
+                titulo="7. Geração Estimada"
+                subtitulo="Geração mensal do kit, anual do kit, geração simulada personalizada e Solergo"
+                icone={<Sun className="w-4 h-4" />}
+                aberta={secaoGeracaoEstimadaAberta}
+                onToggle={() => setSecaoGeracaoEstimadaAberta((prev) => !prev)}
+                badge={
+                  <span className="text-[10px] font-semibold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                    {calculos.geracaoAnualEstimadaKwh.toLocaleString('pt-BR')} kWh/ano
+                  </span>
+                }
+              >
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   {/* 1. Geração Mensal (kit) */}
                   <div className="p-3 rounded-lg border border-emerald-100 bg-emerald-50/40 flex flex-col justify-between">
@@ -2259,41 +2314,126 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                     )}
                   </div>
                 </div>
-              </div>
+              </SecaoAcordeao>
 
-              {/* Tabela de Geração Mensal Sazonal (Janeiro a Dezembro) */}
-              <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-xs space-y-3">
-                <div className="flex items-center justify-between pb-2 border-b border-gray-100">
-                  <div className="flex items-center gap-2">
-                    <Calendar className="w-4 h-4 text-emerald-600" />
-                    <h3 className="text-xs font-bold uppercase tracking-wider text-gray-800">
-                      Geração Mensal Detalhada (Janeiro a Dezembro — Erechim/RS)
-                    </h3>
-                  </div>
-                  <span className="text-xs font-bold text-emerald-700">
+              {/* 8. GERAÇÃO MENSAL DETALHADA (fechado por padrão) */}
+              <SecaoAcordeao
+                titulo="8. Geração Mensal Detalhada"
+                subtitulo="Estimativa de geração mês a mês de Janeiro a Dezembro com irradiância solar (HSP)"
+                icone={<Calendar className="w-4 h-4" />}
+                aberta={secaoGeracaoDetalhadaAberta}
+                onToggle={() => setSecaoGeracaoDetalhadaAberta((prev) => !prev)}
+                badge={
+                  <span className="text-[10px] font-semibold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
                     Total: {calculos.geracaoAnualEstimadaKwh.toLocaleString('pt-BR')} kWh/ano
                   </span>
-                </div>
+                }
+              >
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between pb-1 text-xs">
+                    <span className="text-gray-500 text-[11px]">
+                      Comportamento de safra e irradiância solar em Erechim/RS
+                    </span>
+                    <span className="font-bold text-emerald-700">
+                      Total: {calculos.geracaoAnualEstimadaKwh.toLocaleString('pt-BR')} kWh/ano
+                    </span>
+                  </div>
 
-                <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-2">
-                  {calculos.geracaoMensalDetalhada.map((item) => (
-                    <div
-                      key={item.mesIndex}
-                      className="p-2.5 rounded-lg border border-gray-200 bg-gray-50/60 text-center hover:border-emerald-300 transition-colors"
-                    >
-                      <div className="text-[10px] font-bold uppercase text-gray-500">
-                        {item.mesNome}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-2">
+                    {calculos.geracaoMensalDetalhada.map((item) => (
+                      <div
+                        key={item.mesIndex}
+                        className="p-2.5 rounded-lg border border-gray-200 bg-gray-50/60 text-center hover:border-emerald-300 transition-colors"
+                      >
+                        <div className="text-[10px] font-bold uppercase text-gray-500">
+                          {item.mesNome}
+                        </div>
+                        <div className="text-xs font-extrabold text-emerald-800 mt-0.5">
+                          {item.geracaoKwh.toLocaleString('pt-BR')} kWh
+                        </div>
+                        <div className="text-[10px] text-gray-400">
+                          {item.irradiacaoHSP.toFixed(2)} HSP
+                        </div>
                       </div>
-                      <div className="text-xs font-extrabold text-emerald-800 mt-0.5">
-                        {item.geracaoKwh.toLocaleString('pt-BR')} kWh
-                      </div>
-                      <div className="text-[10px] text-gray-400">
-                        {item.irradiacaoHSP.toFixed(2)} HSP
-                      </div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
-              </div>
+              </SecaoAcordeao>
+
+              {/* 9. GARANTIAS (fechado por padrão) */}
+              <SecaoAcordeao
+                titulo="9. Prazos de Garantia do Sistema"
+                subtitulo="Garantia de performance/degradação dos módulos, fabricação e garantia do inversor"
+                icone={<ShieldCheck className="w-4 h-4" />}
+                aberta={secaoGarantiasAberta}
+                onToggle={() => setSecaoGarantiasAberta((prev) => !prev)}
+                badge={
+                  <span className="text-[10px] font-semibold text-gray-700 bg-gray-100 px-2 py-0.5 rounded border border-gray-200">
+                    {garantiaModulosDegradacaoAnos}a / {garantiaModulosFabricacaoAnos}a /{' '}
+                    {garantiaInversorAnos}a
+                  </span>
+                }
+              >
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div className="bg-emerald-50/50 p-2.5 rounded-xl border border-emerald-150">
+                    <label className="text-[11px] font-semibold text-emerald-950 block mb-1">
+                      Garantia de Performance Módulos (anos) *
+                    </label>
+                    <input
+                      type="number"
+                      min={1}
+                      max={50}
+                      value={garantiaModulosDegradacaoAnos}
+                      onChange={(e) =>
+                        setGarantiaModulosDegradacaoAnos(Number(e.target.value) || 30)
+                      }
+                      className="w-full text-xs font-bold text-emerald-900 px-3 py-1.5 rounded-lg border border-emerald-300 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      placeholder="Padrão: 30"
+                    />
+                    <span className="text-[10px] text-emerald-700 mt-0.5 block">
+                      Degradação de geração linear (padrão 30 anos)
+                    </span>
+                  </div>
+
+                  <div className="bg-amber-50/50 p-2.5 rounded-xl border border-amber-150">
+                    <label className="text-[11px] font-semibold text-amber-950 block mb-1">
+                      Garantia Fabricação Módulos (anos) *
+                    </label>
+                    <input
+                      type="number"
+                      min={1}
+                      max={50}
+                      value={garantiaModulosFabricacaoAnos}
+                      onChange={(e) =>
+                        setGarantiaModulosFabricacaoAnos(Number(e.target.value) || 15)
+                      }
+                      className="w-full text-xs font-bold text-amber-900 px-3 py-1.5 rounded-lg border border-amber-300 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      placeholder="Padrão: 15"
+                    />
+                    <span className="text-[10px] text-amber-700 mt-0.5 block">
+                      Contra defeitos de fabricação (padrão 15 anos)
+                    </span>
+                  </div>
+
+                  <div className="bg-teal-50/50 p-2.5 rounded-xl border border-teal-150">
+                    <label className="text-[11px] font-semibold text-teal-950 block mb-1">
+                      Garantia Inversor (anos) *
+                    </label>
+                    <input
+                      type="number"
+                      min={1}
+                      max={50}
+                      value={garantiaInversorAnos}
+                      onChange={(e) => setGarantiaInversorAnos(Number(e.target.value) || 10)}
+                      className="w-full text-xs font-bold text-teal-900 px-3 py-1.5 rounded-lg border border-teal-300 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      placeholder="Padrão: 10"
+                    />
+                    <span className="text-[10px] text-teal-700 mt-0.5 block">
+                      Garantia de fábrica do inversor (padrão 10 anos)
+                    </span>
+                  </div>
+                </div>
+              </SecaoAcordeao>
             </div>
           )}
 
