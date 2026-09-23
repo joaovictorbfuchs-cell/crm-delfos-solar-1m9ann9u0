@@ -26,6 +26,7 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { SecaoOrcamentosFornecedores } from './SecaoOrcamentosFornecedores'
+import { SecaoEquipamentosFornecedorSelecionado } from './SecaoEquipamentosFornecedorSelecionado'
 import { useClientes } from '@/contexts/ClientesContext'
 import { useAuth } from '@/contexts/AuthContext'
 import { ClienteAutocomplete } from '@/components/ClienteAutocomplete'
@@ -61,11 +62,7 @@ import { ModalImportarSolergo } from '@/components/ModalImportarSolergo'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { fetchInstalacoesGaleria, getFotoUrl } from '@/services/instalacoesGaleriaService'
 import type { InstalacaoGaleria } from '@/types/instalacoesGaleria'
-import {
-  fetchEquipamentos,
-  getFotoEquipamentoUrl,
-  formatarPotenciaEquipamento,
-} from '@/services/equipamentosService'
+import { fetchEquipamentos } from '@/services/equipamentosService'
 import type { Equipamento } from '@/types/equipamentos'
 import { CheckSquare, Square, Image as ImageIcon, Upload, Trash2, Eye } from 'lucide-react'
 import solergoLayoutPlaceholderSvg from '@/assets/solergo-layout-placeholder.svg'
@@ -206,8 +203,6 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
   // Equipamentos cadastrados no banco para seleção
   const [equipamentosInversores, setEquipamentosInversores] = useState<Equipamento[]>([])
   const [equipamentosModulos, setEquipamentosModulos] = useState<Equipamento[]>([])
-  const [selectedInversorId, setSelectedInversorId] = useState<string>('')
-  const [selectedModuloId, setSelectedModuloId] = useState<string>('')
   const [fotoInversorUrl, setFotoInversorUrl] = useState<string | null>(null)
   const [fotoModuloUrl, setFotoModuloUrl] = useState<string | null>(null)
 
@@ -293,9 +288,7 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
     }
     lastInitializedKeyRef.current = currentKey
 
-    // Reseta dropdowns de equipamentos cadastrados para nova abertura (orçamentos antigos abrem vazios)
-    setSelectedInversorId('')
-    setSelectedModuloId('')
+    // Reseta fotos de equipamentos para nova abertura
     setFotoInversorUrl(null)
     setFotoModuloUrl(null)
 
@@ -1070,7 +1063,14 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
   // Salvar no PocketBase com controle de revisões
   const handleSalvar = async () => {
     if (!clienteAtual) {
-      alert('Selecione um cliente para vincular o orçamento.')
+      toast.error('Selecione um cliente para vincular o orçamento.')
+      return
+    }
+
+    // Validação obrigatória: Fornecedor de equipamentos vinculado
+    if (!fornecedorSelecionadoId) {
+      toast.error('É obrigatório vincular um fornecedor de equipamentos para salvar o orçamento.')
+      setActiveTab('tecnico')
       return
     }
 
@@ -1788,170 +1788,60 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                     )}
                   </div>
 
-                  {/* Número de placas */}
-                  <div>
-                    <label className="text-[11px] font-semibold text-gray-700 block mb-1">
-                      Número de placas solares *
-                    </label>
-                    <input
-                      type="number"
-                      value={numeroPlacas}
-                      min={1}
-                      step={1}
-                      onChange={(e) => handleNumeroPlacasChange(Number(e.target.value) || 0)}
-                      className="w-full text-xs font-semibold px-3 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                      placeholder="Ex: 10"
-                    />
-                  </div>
-
-                  {/* Potência de cada placa Wp */}
-                  <div>
-                    <label className="text-[11px] font-semibold text-gray-700 block mb-1">
-                      Potência de cada placa (Wp) *
-                    </label>
-                    <input
-                      type="number"
-                      value={potenciaPlacaWp}
-                      min={100}
-                      step={10}
-                      onChange={(e) => handlePotenciaPlacaChange(Number(e.target.value) || 0)}
-                      className="w-full text-xs font-semibold px-3 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                      placeholder="Ex: 550"
-                    />
-                  </div>
-
-                  {/* Dropdown Módulo FV (cadastrado) + Campo de Edição Manual */}
-                  <div className="sm:col-span-2 space-y-1.5">
-                    <div className="flex items-center justify-between gap-2">
-                      <label className="text-[11px] font-bold text-gray-800 flex items-center gap-1.5">
-                        <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" />
-                        Módulo FV (cadastrado)
-                      </label>
-                      <span className="text-[10px] text-gray-400">
-                        Puxa dados do banco e permite edição livre
-                      </span>
-                    </div>
-
-                    <select
-                      value={selectedModuloId}
-                      onChange={(e) => {
-                        const id = e.target.value
-                        setSelectedModuloId(id)
-                        if (!id) {
-                          setFotoModuloUrl(null)
-                          return
-                        }
-                        const mod = equipamentosModulos.find((item) => item.id === id)
-                        if (mod) {
-                          // Preenchimento automático com ponto de partida editável
-                          const nomeComposto = `${mod.marca} ${mod.modelo}${mod.potencia_w ? ` ${mod.potencia_w}W` : ''}`
-                          setMarcaPainel(nomeComposto)
-                          if (mod.potencia_w && mod.potencia_w > 0) {
-                            handlePotenciaPlacaChange(mod.potencia_w)
-                          }
-                          if (mod.garantia_anos && mod.garantia_anos > 0) {
-                            setGarantiaModulosFabricacaoAnos(mod.garantia_anos)
-                          }
-                          const urlFoto = getFotoEquipamentoUrl(mod)
-                          setFotoModuloUrl(urlFoto)
+                  {/* Seção Equipamentos do Fornecedor Selecionado (Módulo FV e Inversor) */}
+                  <div className="sm:col-span-2">
+                    <SecaoEquipamentosFornecedorSelecionado
+                      fornecedorOrcamento={fornecedorSelecionadoObj}
+                      equipamentos={[...equipamentosModulos, ...equipamentosInversores]}
+                      equipamentosAtuaisProposta={{
+                        marcaPainel,
+                        potenciaPlacaWp,
+                        numeroPlacas,
+                        marcaInversor,
+                        quantidadeInversores,
+                      }}
+                      onEquipamentoCadastrado={(novo) => {
+                        if (novo.tipo === 'modulo_fv') {
+                          setEquipamentosModulos((prev) => [
+                            novo,
+                            ...prev.filter((e) => e.id !== novo.id),
+                          ])
+                        } else {
+                          setEquipamentosInversores((prev) => [
+                            novo,
+                            ...prev.filter((e) => e.id !== novo.id),
+                          ])
                         }
                       }}
-                      className="w-full text-xs font-semibold px-3 py-2 rounded-lg border border-emerald-300 bg-emerald-50/30 text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                    >
-                      <option value="">— Selecionar do cadastro —</option>
-                      {equipamentosModulos.map((mod) => (
-                        <option key={mod.id} value={mod.id}>
-                          {mod.marca} {mod.modelo} • {formatarPotenciaEquipamento(mod.potencia_w)}
-                          {mod.garantia_anos ? ` • Garantia: ${mod.garantia_anos}a` : ''}
-                        </option>
-                      ))}
-                    </select>
-
-                    <div>
-                      <label className="text-[10px] font-semibold text-gray-500 block mb-0.5">
-                        Descrição / Marca e modelo dos painéis na proposta (editável) *
-                      </label>
-                      <input
-                        type="text"
-                        value={marcaPainel}
-                        onChange={(e) => setMarcaPainel(e.target.value)}
-                        className="w-full text-xs font-medium px-3 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                        placeholder="Ex: Canadian Solar 550W BiHiKu7 Monocristalino"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Dropdown Inversor (cadastrado) + Campo de Edição Manual */}
-                  <div className="sm:col-span-2 space-y-1.5">
-                    <div className="flex items-center justify-between gap-2">
-                      <label className="text-[11px] font-bold text-gray-800 flex items-center gap-1.5">
-                        <span className="w-2 h-2 rounded-full bg-teal-500 inline-block" />
-                        Inversor (cadastrado)
-                      </label>
-                      <span className="text-[10px] text-gray-400">
-                        Puxa dados do banco e permite edição livre
-                      </span>
-                    </div>
-
-                    <select
-                      value={selectedInversorId}
-                      onChange={(e) => {
-                        const id = e.target.value
-                        setSelectedInversorId(id)
-                        if (!id) {
-                          setFotoInversorUrl(null)
-                          return
+                      onAplicarEquipamentos={(dados) => {
+                        if (dados.marcaPainel) setMarcaPainel(dados.marcaPainel)
+                        if (dados.potenciaPlacaWp && dados.potenciaPlacaWp > 0) {
+                          handlePotenciaPlacaChange(dados.potenciaPlacaWp)
                         }
-                        const inv = equipamentosInversores.find((item) => item.id === id)
-                        if (inv) {
-                          // Preenchimento automático com ponto de partida editável
-                          const nomeComposto = `${inv.marca} ${inv.modelo}`
-                          setMarcaInversor(nomeComposto)
-                          if (inv.garantia_anos && inv.garantia_anos > 0) {
-                            setGarantiaInversorAnos(inv.garantia_anos)
-                          }
-                          const urlFoto = getFotoEquipamentoUrl(inv)
-                          setFotoInversorUrl(urlFoto)
+                        if (dados.numeroPlacas && dados.numeroPlacas > 0) {
+                          handleNumeroPlacasChange(dados.numeroPlacas)
                         }
+                        if (dados.marcaInversor) setMarcaInversor(dados.marcaInversor)
+                        if (dados.quantidadeInversores && dados.quantidadeInversores > 0) {
+                          setQuantidadeInversores(dados.quantidadeInversores)
+                        }
+                        if (dados.garantiaModulosFabricacaoAnos) {
+                          setGarantiaModulosFabricacaoAnos(dados.garantiaModulosFabricacaoAnos)
+                        }
+                        if (dados.garantiaInversorAnos) {
+                          setGarantiaInversorAnos(dados.garantiaInversorAnos)
+                        }
+                        if (dados.fotoModuloUrl !== undefined) {
+                          setFotoModuloUrl(dados.fotoModuloUrl || null)
+                        }
+                        if (dados.fotoInversorUrl !== undefined) {
+                          setFotoInversorUrl(dados.fotoInversorUrl || null)
+                        }
+
+                        toast.success(
+                          'Equipamentos do fornecedor aplicados à proposta com sucesso!',
+                        )
                       }}
-                      className="w-full text-xs font-semibold px-3 py-2 rounded-lg border border-teal-300 bg-teal-50/30 text-gray-900 focus:outline-none focus:ring-2 focus:ring-teal-500"
-                    >
-                      <option value="">— Selecionar do cadastro —</option>
-                      {equipamentosInversores.map((inv) => (
-                        <option key={inv.id} value={inv.id}>
-                          {inv.marca} {inv.modelo} • {formatarPotenciaEquipamento(inv.potencia_w)}
-                          {inv.garantia_anos ? ` • Garantia: ${inv.garantia_anos}a` : ''}
-                        </option>
-                      ))}
-                    </select>
-
-                    <div>
-                      <label className="text-[10px] font-semibold text-gray-500 block mb-0.5">
-                        Descrição / Marca e modelo do inversor na proposta (editável) *
-                      </label>
-                      <input
-                        type="text"
-                        value={marcaInversor}
-                        onChange={(e) => setMarcaInversor(e.target.value)}
-                        className="w-full text-xs font-medium px-3 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                        placeholder="Ex: Growatt MIN 5000TL-X / Deye / Huawei"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Quantidade de inversores */}
-                  <div>
-                    <label className="text-[11px] font-semibold text-gray-700 block mb-1">
-                      Quantidade de inversores *
-                    </label>
-                    <input
-                      type="number"
-                      value={quantidadeInversores}
-                      min={1}
-                      step={1}
-                      onChange={(e) => setQuantidadeInversores(Number(e.target.value) || 1)}
-                      className="w-full text-xs font-semibold px-3 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                      placeholder="Ex: 1"
                     />
                   </div>
 
