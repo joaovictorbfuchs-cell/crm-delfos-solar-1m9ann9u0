@@ -2409,14 +2409,19 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
       width: 100%;
     }
 
-    /* REGRAS DE IMPRESSÃO PURA */
+    /* RODAPÉ FIXO REPETIDO EM TODAS AS PÁGINAS IMPRESSAS (OCULTO NA TELA / PREVIEW) */
+    .print-fixed-footer {
+      display: none;
+    }
+
+    /* REGRAS DE IMPRESSÃO PURA (FLUXO CONTÍNUO NATURAL EM A4) */
     @media print {
       *, *::before, *::after {
         -webkit-print-color-adjust: exact !important;
         print-color-adjust: exact !important;
         color-adjust: exact !important;
       }
-      .no-print-bar, .btn-imprimir, header, nav {
+      .no-print-bar, .btn-imprimir, header.no-print, nav {
         display: none !important;
       }
       html, body {
@@ -2433,72 +2438,110 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
       .proposta-container {
         max-width: 100% !important;
         box-sizing: border-box !important;
+        padding-bottom: 12mm !important;
       }
 
-      /* Página A4 flex com rodapé padronizado em TODAS as páginas */
+      /* Fluxo contínuo sem containers A4 de altura fixa e sem quebras forçadas entre seções */
       .proposta-secao-page {
         width: 100% !important;
         max-width: 100% !important;
-        min-height: 275mm !important;
+        min-height: auto !important;
         box-sizing: border-box !important;
-        display: flex !important;
-        flex-direction: column !important;
-        page-break-after: always !important;
-        break-after: page !important;
-        margin: 0 !important;
+        display: block !important;
+        page-break-after: auto !important;
+        break-after: auto !important;
+        margin: 0 0 16px 0 !important;
         padding: 0 !important;
         box-shadow: none !important;
         border-radius: 0 !important;
         overflow: visible !important;
       }
-      .proposta-secao-page:last-child {
-        page-break-after: auto !important;
-        break-after: auto !important;
-      }
       .secao-body {
-        flex: 1 0 auto !important;
         width: 100% !important;
-      }
-      .doc-footer {
-        margin-top: auto !important;
-        flex-shrink: 0 !important;
-        width: 100% !important;
+        display: block !important;
       }
 
-      /* Quebra de página APENAS entre seções principais */
-      #secao-1-capa,
+      /* A capa mantém sua própria página inicial se couber como capa visual */
+      #secao-1-capa {
+        page-break-after: always !important;
+        break-after: page !important;
+        min-height: auto !important;
+      }
+
+      /* Seções internas fluem continuamente sem quebra forçada */
       #secao-apresentacao-empresa,
       #secao-2-custo-inercia,
       #secao-3-seu-sistema,
-      #secao-4-projecao-25anos {
-        page-break-after: always !important;
-        break-after: page !important;
-      }
+      #secao-4-projecao-25anos,
       #secao-5-investimento-pagamento {
         page-break-after: auto !important;
         break-after: auto !important;
       }
 
-      /* Manter page-break-inside: avoid APENAS nos quadros individuais */
+      /* Oculta os rodapés intermediários no fluxo de impressão (substituídos pelo rodapé fixo) */
+      .doc-footer {
+        display: none !important;
+      }
+
+      /* Rodapé fixo na base da página repetido em todas as páginas impressas */
+      .print-fixed-footer {
+        display: flex !important;
+        position: fixed !important;
+        bottom: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        width: 100% !important;
+        box-sizing: border-box !important;
+        background: #FFFFFF !important;
+        border-top: 1px solid #86EFAC !important;
+        padding: 3mm 0 1mm 0 !important;
+        font-size: 7pt !important;
+        font-weight: 600 !important;
+        color: #374151 !important;
+        line-height: 1.3 !important;
+        text-align: center !important;
+        align-items: center !important;
+        justify-content: center !important;
+        z-index: 9999 !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+
+      /* Títulos e cabeçalhos de seção nunca ficam órfãos no fim da página */
+      h1, h2, h3, h4, h5, h6,
+      .doc-header,
+      .secao-header-card,
+      .secao-titulo-h2,
+      .titulo-institucional-azul,
+      .portfolio-header-row,
+      .barras-topo-row,
+      .hero-investimento-clean {
+        page-break-after: avoid !important;
+        break-after: avoid !important;
+      }
+
+      /* page-break-inside: avoid em cada BLOCO INDIVIDUAL (cards, quadros de economia, caixas de destaque, assinaturas) */
       .card-marco-inercia,
       .quadro-resumo-economia,
       .card-projecao,
       .card-portfolio-usina,
       .card-pagamento,
+      .card-condicoes-comerciais,
       .card-sistema,
       .card-situacao,
+      .card-metrica-destaque,
+      .card-diferencial,
       .bloco-assinaturas,
+      .assinaturas-grid-final,
       .destaque-verde,
       .assinatura-bloco,
-      .secao-header-card,
       .tabela-equipamentos,
+      .badge-urgencia-validade,
+      .box-barras-inercia,
+      .grafico-curvas-box,
       table, tr, td, th {
         page-break-inside: avoid !important;
         break-inside: avoid !important;
-      }
-
-      #secao-1-capa {
-        min-height: 275mm !important;
       }
     }
   </style>
@@ -3831,6 +3874,11 @@ print-color-adjust: exact !important; margin-bottom: 8px; display: flex; align-i
     .filter(Boolean)
     .join('\n')
 })()}
+  </div>
+
+  <!-- RODAPÉ FIXO NA BASE REPETIDO EM TODAS AS PÁGINAS IMPRESSAS -->
+  <div class="print-fixed-footer" aria-hidden="true">
+    Delfos Engenharia Solar | CNPJ 21.379.952/0001-38 | (54) 99129-2121 | www.delfos.eng.br | Rua Espirito Santo, 275 – Centro, Erechim/RS
   </div>
 
 </body>
