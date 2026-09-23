@@ -4,10 +4,7 @@ import {
   Plus,
   Search,
   Filter,
-  FileText,
   RefreshCw,
-  Printer,
-  Download,
   Trash2,
   CheckCircle2,
   Clock,
@@ -25,15 +22,7 @@ import {
 import { useClientes } from '@/contexts/ClientesContext'
 import { ModalOrcamentoSolar } from '@/components/ModalOrcamentoSolar'
 import { formatCurrency, formatDate } from '@/lib/formatters'
-import type { Cliente, OrcamentoSolar, OrcamentoSolarStatus } from '@/types/crm'
-import {
-  type PropostaSolarPDFInput,
-  abrirPropostaSolarEmNovaAba,
-  baixarPropostaSolarHTML,
-} from '@/lib/propostaSolarGenerator'
-import { baixarPropostaSolarDocx } from '@/lib/propostaSolarDocxGenerator'
-import { ModalEnviarDocumentoWhatsApp } from '@/components/ModalEnviarDocumentoWhatsApp'
-import { calcularOrcamentoSolar } from '@/lib/energiaSolar'
+import type { OrcamentoSolar, OrcamentoSolarStatus } from '@/types/crm'
 
 export const Orcamentos: React.FC = () => {
   const {
@@ -164,12 +153,6 @@ export const Orcamentos: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false)
   const [editingOrcamento, setEditingOrcamento] = useState<OrcamentoSolar | null>(null)
   const [clienteParaNovoOrcamento, setClienteParaNovoOrcamento] = useState<string>('')
-  const [modalWhatsAppOpen, setModalWhatsAppOpen] = useState<boolean>(false)
-  const [orcamentoParaWhatsApp, setOrcamentoParaWhatsApp] = useState<{
-    cliente: Cliente
-    orc: OrcamentoSolar
-    payload: PropostaSolarPDFInput
-  } | null>(null)
 
   // Filtragem e Ordenação
   const orcamentosFiltrados = useMemo(() => {
@@ -382,86 +365,6 @@ export const Orcamentos: React.FC = () => {
     } catch (err) {
       console.error('Erro ao excluir orçamento:', err)
       alert('Não foi possível excluir o orçamento.')
-    }
-  }
-
-  // Gera o PDF a partir do registro gravado
-  const gerarPDFParaRegistro = (orc: OrcamentoSolar, modo: 'abrir' | 'baixar') => {
-    const cliente = orc.expand?.cliente_id || clientes.find((c) => c.id === orc.cliente_id)
-    if (!cliente) {
-      alert('Cliente não localizado para este orçamento.')
-      return
-    }
-
-    // Recalcula métricas consistentes
-    const calculos = calcularOrcamentoSolar({
-      consumoKwhMes: orc.consumo_kwh_mes,
-      tipoCliente: orc.tipo_cliente || 'residencial',
-      tarifaKwh: orc.tarifa_kwh,
-      potenciaKwp: orc.potencia_kwp,
-      orientacaoTelhado: orc.orientacao_telhado,
-      geracaoSimuladaKwhAno: orc.geracao_simulada_kwh_ano,
-      valorInvestimentoInformado: orc.valor_investimento,
-      custos: {
-        maoDeObra: orc.custo_mao_de_obra || 0,
-        materiaisEquipamentos:
-          orc.custo_materiais_equipamentos !== undefined &&
-          orc.custo_materiais_equipamentos !== null
-            ? orc.custo_materiais_equipamentos
-            : orc.custo_materiais_extras || 0,
-        materiaisExtras:
-          orc.custo_materiais_equipamentos !== undefined &&
-          orc.custo_materiais_equipamentos !== null
-            ? orc.custo_materiais_extras || 0
-            : 0,
-        freteGuincho: orc.custo_frete_guincho || 0,
-        subestacao: orc.custo_subestacao || 0,
-        terceirizacao: orc.custo_terceirizacao || 0,
-        administracao: orc.custo_administracao || 0,
-        marketingCombustivel: orc.custo_marketing_combustivel || 0,
-        riscoEngenharia: orc.custo_risco_engenharia || 0,
-        comissaoComercial: orc.custo_comissao_comercial || 0,
-        indicacao: orc.custo_indicacao || 0,
-        impostos: orc.custo_impostos || 0,
-        desconto: orc.desconto || 0,
-      },
-    })
-
-    const payload: PropostaSolarPDFInput = {
-      cliente: {
-        nome: cliente.nome_fantasia ? `${cliente.nome} (${cliente.nome_fantasia})` : cliente.nome,
-        cpfOuCnpj: cliente.cnpj || cliente.cpf || '',
-        endereco: [cliente.endereco, cliente.numero, cliente.bairro].filter(Boolean).join(', '),
-        municipio: cliente.cidade || 'Erechim / RS',
-        email: cliente.email || '',
-        telefone: cliente.telefone || '',
-        tipoCliente: orc.tipo_cliente,
-      },
-      representanteComercial: orc.autor || 'Delfos Solar',
-      sistema: {
-        potenciaKwp: orc.potencia_kwp,
-        consumoKwhMes: orc.consumo_kwh_mes,
-        numeroPlacas: orc.numero_placas,
-        potenciaPlacaWp: orc.potencia_placa_wp,
-        marcaPlacas: orc.marca_painel,
-        marcaInversor: orc.marca_inversor,
-        quantidadeInversores: orc.quantidade_inversores,
-        tipoEstrutura: orc.tipo_estrutura,
-        orientacaoTelhado: orc.orientacao_telhado,
-        areaNecessariaM2: orc.area_necessaria_m2,
-        codigoFiname: orc.codigo_finame,
-        prazoEntregaDias: 30,
-      },
-      calculos,
-      dataEmissao: orc.data_orcamento || orc.created,
-      validadeDias: orc.validade_dias || 5,
-      observacoes: orc.observacoes,
-    }
-
-    if (modo === 'abrir') {
-      abrirPropostaSolarEmNovaAba(payload)
-    } else {
-      baixarPropostaSolarHTML(payload)
     }
   }
 
@@ -1085,276 +988,6 @@ export const Orcamentos: React.FC = () => {
                           className="flex items-center justify-end gap-1.5"
                           onClick={(e) => e.stopPropagation()}
                         >
-                          {/* Gerar Proposta Técnico-Comercial Oficial */}
-                          <button
-                            onClick={() => {
-                              const calc = calcularOrcamentoSolar({
-                                consumoKwhMes: orc.consumo_kwh_mes,
-                                tipoCliente: orc.tipo_cliente || 'residencial',
-                                tarifaKwh: orc.tarifa_kwh,
-                                potenciaKwp: orc.potencia_kwp,
-                                orientacaoTelhado: orc.orientacao_telhado,
-                                geracaoSimuladaKwhAno: orc.geracao_simulada_kwh_ano,
-                                custos: {
-                                  maoDeObra: orc.custo_mao_de_obra || 0,
-                                  materiaisEquipamentos:
-                                    orc.custo_materiais_equipamentos !== undefined &&
-                                    orc.custo_materiais_equipamentos !== null
-                                      ? orc.custo_materiais_equipamentos
-                                      : orc.custo_materiais_extras || 0,
-                                  materiaisExtras:
-                                    orc.custo_materiais_equipamentos !== undefined &&
-                                    orc.custo_materiais_equipamentos !== null
-                                      ? orc.custo_materiais_extras || 0
-                                      : 0,
-                                  freteGuincho: orc.custo_frete_guincho || 0,
-                                  subestacao: orc.custo_subestacao || 0,
-                                  terceirizacao: orc.custo_terceirizacao || 0,
-                                  administracao: orc.custo_administracao || 0,
-                                  marketingCombustivel: orc.custo_marketing_combustivel || 0,
-                                  riscoEngenharia: orc.custo_risco_engenharia || 0,
-                                  comissaoComercial: orc.custo_comissao_comercial || 0,
-                                  indicacao: orc.custo_indicacao || 0,
-                                  impostos: orc.custo_impostos || 0,
-                                  desconto: orc.desconto || 0,
-                                },
-                                valorInvestimentoInformado: orc.valor_investimento,
-                              })
-
-                              const payload: PropostaSolarPDFInput = {
-                                cliente: {
-                                  nome: cliente?.nome_fantasia
-                                    ? `${cliente.nome} (${cliente.nome_fantasia})`
-                                    : cliente?.nome || 'Cliente',
-                                  cpfOuCnpj: cliente?.cnpj || cliente?.cpf || '',
-                                  endereco: [cliente?.endereco, cliente?.numero, cliente?.bairro]
-                                    .filter(Boolean)
-                                    .join(', '),
-                                  municipio: cliente?.cidade || 'Erechim / RS',
-                                  email: cliente?.email || '',
-                                  telefone: cliente?.telefone || '',
-                                  tipoCliente: orc.tipo_cliente,
-                                },
-                                representanteComercial: orc.autor || 'Delfos Solar',
-                                sistema: {
-                                  potenciaKwp: orc.potencia_kwp,
-                                  consumoKwhMes: orc.consumo_kwh_mes,
-                                  numeroPlacas: orc.numero_placas,
-                                  potenciaPlacaWp: orc.potencia_placa_wp,
-                                  marcaPlacas: orc.marca_painel,
-                                  marcaInversor: orc.marca_inversor,
-                                  quantidadeInversores: orc.quantidade_inversores,
-                                  tipoEstrutura: orc.tipo_estrutura,
-                                  orientacaoTelhado: orc.orientacao_telhado,
-                                  areaNecessariaM2: orc.area_necessaria_m2,
-                                  codigoFiname: orc.codigo_finame,
-                                  prazoEntregaDias: 30,
-                                  fotoModuloUrl: orc.foto_modulo_url || undefined,
-                                  fotoInversorUrl: orc.foto_inversor_url || undefined,
-                                },
-                                calculos: calc,
-                                dataEmissao: orc.data_orcamento || orc.created,
-                                validadeDias: orc.validade_dias || 5,
-                                observacoes: orc.observacoes,
-                                secoesHabilitadas: orc.secoes_habilitadas,
-                                instalacoesSelecionadasIds: orc.instalacoes_selecionadas,
-                                layoutTelhadoUrl: orc.layout_telhado_url || undefined,
-                                layoutTelhadoHabilitado: orc.layout_telhado_habilitado,
-                              }
-
-                              abrirPropostaSolarEmNovaAba(payload)
-                            }}
-                            className="p-1.5 rounded-lg text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 transition-colors"
-                            title="Gerar Proposta Oficial em PDF"
-                          >
-                            <FileText className="w-4 h-4 text-emerald-700" />
-                          </button>
-
-                          {/* Abrir Proposta PDF Rápida */}
-                          <button
-                            onClick={() => gerarPDFParaRegistro(orc, 'abrir')}
-                            className="p-1.5 rounded-lg text-gray-500 hover:text-gray-900 hover:bg-gray-100 transition-colors"
-                            title="Visualizar Proposta Resumida"
-                          >
-                            <Printer className="w-4 h-4" />
-                          </button>
-
-                          {/* Gerar e Baixar Proposta em Word (.docx) */}
-                          <button
-                            onClick={async () => {
-                              const calculos = calcularOrcamentoSolar({
-                                consumoKwhMes: orc.consumo_kwh_mes,
-                                tipoCliente: orc.tipo_cliente || 'residencial',
-                                tarifaKwh: orc.tarifa_kwh,
-                                potenciaKwp: orc.potencia_kwp,
-                                orientacaoTelhado: orc.orientacao_telhado,
-                                geracaoSimuladaKwhAno: orc.geracao_simulada_kwh_ano,
-                                custos: {
-                                  maoDeObra: orc.custo_mao_de_obra || 0,
-                                  materiaisEquipamentos:
-                                    orc.custo_materiais_equipamentos !== undefined &&
-                                    orc.custo_materiais_equipamentos !== null
-                                      ? orc.custo_materiais_equipamentos
-                                      : orc.custo_materiais_extras || 0,
-                                  materiaisExtras:
-                                    orc.custo_materiais_equipamentos !== undefined &&
-                                    orc.custo_materiais_equipamentos !== null
-                                      ? orc.custo_materiais_extras || 0
-                                      : 0,
-                                  freteGuincho: orc.custo_frete_guincho || 0,
-                                  subestacao: orc.custo_subestacao || 0,
-                                  terceirizacao: orc.custo_terceirizacao || 0,
-                                  administracao: orc.custo_administracao || 0,
-                                  marketingCombustivel: orc.custo_marketing_combustivel || 0,
-                                  riscoEngenharia: orc.custo_risco_engenharia || 0,
-                                  comissaoComercial: orc.custo_comissao_comercial || 0,
-                                  indicacao: orc.custo_indicacao || 0,
-                                  impostos: orc.custo_impostos || 0,
-                                  desconto: orc.desconto || 0,
-                                },
-                                valorInvestimentoInformado: orc.valor_investimento,
-                              })
-
-                              const docxInput: PropostaSolarPDFInput = {
-                                cliente: {
-                                  nome: cliente?.nome_fantasia
-                                    ? `${cliente.nome} (${cliente.nome_fantasia})`
-                                    : cliente?.nome || 'Cliente',
-                                  cpfOuCnpj: cliente?.cnpj || cliente?.cpf || '',
-                                  endereco: [cliente?.endereco, cliente?.numero, cliente?.bairro]
-                                    .filter(Boolean)
-                                    .join(', '),
-                                  municipio: cliente?.cidade || 'Erechim / RS',
-                                  email: cliente?.email || '',
-                                  telefone: cliente?.telefone || '',
-                                  tipoCliente: orc.tipo_cliente,
-                                },
-                                representanteComercial: orc.autor || 'Delfos Solar',
-                                sistema: {
-                                  potenciaKwp: orc.potencia_kwp,
-                                  consumoKwhMes: orc.consumo_kwh_mes,
-                                  numeroPlacas: orc.numero_placas,
-                                  potenciaPlacaWp: orc.potencia_placa_wp,
-                                  marcaPlacas: orc.marca_painel,
-                                  marcaInversor: orc.marca_inversor,
-                                  quantidadeInversores: orc.quantidade_inversores,
-                                  tipoEstrutura: orc.tipo_estrutura,
-                                  orientacaoTelhado: orc.orientacao_telhado,
-                                  areaNecessariaM2: orc.area_necessaria_m2,
-                                  codigoFiname: orc.codigo_finame,
-                                  prazoEntregaDias: 30,
-                                },
-                                calculos,
-                                dataEmissao: orc.data_orcamento || orc.created,
-                                validadeDias: orc.validade_dias || 5,
-                                observacoes: orc.observacoes,
-                              }
-
-                              await baixarPropostaSolarDocx(docxInput)
-                            }}
-                            className="p-1.5 rounded-lg text-blue-700 hover:text-blue-900 hover:bg-blue-100 transition-colors"
-                            title="Gerar Proposta em Word (.docx)"
-                          >
-                            <FileText className="w-4 h-4 text-blue-600" />
-                          </button>
-
-                          {/* Enviar Proposta por WhatsApp */}
-                          <button
-                            disabled={!cliente || (!cliente.whatsapp && !cliente.telefone)}
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              if (!cliente) return
-
-                              const calculos = calcularOrcamentoSolar({
-                                consumoKwhMes: orc.consumo_kwh_mes,
-                                tipoCliente: orc.tipo_cliente || 'residencial',
-                                tarifaKwh: orc.tarifa_kwh,
-                                potenciaKwp: orc.potencia_kwp,
-                                orientacaoTelhado: orc.orientacao_telhado,
-                                geracaoSimuladaKwhAno: orc.geracao_simulada_kwh_ano,
-                                custos: {
-                                  maoDeObra: orc.custo_mao_de_obra || 0,
-                                  materiaisEquipamentos:
-                                    orc.custo_materiais_equipamentos !== undefined &&
-                                    orc.custo_materiais_equipamentos !== null
-                                      ? orc.custo_materiais_equipamentos
-                                      : orc.custo_materiais_extras || 0,
-                                  materiaisExtras:
-                                    orc.custo_materiais_equipamentos !== undefined &&
-                                    orc.custo_materiais_equipamentos !== null
-                                      ? orc.custo_materiais_extras || 0
-                                      : 0,
-                                  freteGuincho: orc.custo_frete_guincho || 0,
-                                  subestacao: orc.custo_subestacao || 0,
-                                  terceirizacao: orc.custo_terceirizacao || 0,
-                                  administracao: orc.custo_administracao || 0,
-                                  marketingCombustivel: orc.custo_marketing_combustivel || 0,
-                                  riscoEngenharia: orc.custo_risco_engenharia || 0,
-                                  comissaoComercial: orc.custo_comissao_comercial || 0,
-                                  indicacao: orc.custo_indicacao || 0,
-                                  impostos: orc.custo_impostos || 0,
-                                  desconto: orc.desconto || 0,
-                                },
-                                valorInvestimentoInformado: orc.valor_investimento,
-                              })
-
-                              const payload: PropostaSolarPDFInput = {
-                                cliente: {
-                                  nome: cliente.nome_fantasia
-                                    ? `${cliente.nome} (${cliente.nome_fantasia})`
-                                    : cliente.nome,
-                                  cpfOuCnpj: cliente.cnpj || cliente.cpf || '',
-                                  endereco: [cliente.endereco, cliente.numero, cliente.bairro]
-                                    .filter(Boolean)
-                                    .join(', '),
-                                  municipio: cliente.cidade || 'Erechim / RS',
-                                  email: cliente.email || '',
-                                  telefone: cliente.telefone || '',
-                                  tipoCliente: orc.tipo_cliente,
-                                },
-                                representanteComercial: orc.autor || 'Delfos Solar',
-                                sistema: {
-                                  potenciaKwp: orc.potencia_kwp,
-                                  consumoKwhMes: orc.consumo_kwh_mes,
-                                  numeroPlacas: orc.numero_placas,
-                                  potenciaPlacaWp: orc.potencia_placa_wp,
-                                  marcaPlacas: orc.marca_painel,
-                                  marcaInversor: orc.marca_inversor,
-                                  quantidadeInversores: orc.quantidade_inversores,
-                                  tipoEstrutura: orc.tipo_estrutura,
-                                  orientacaoTelhado: orc.orientacao_telhado,
-                                  areaNecessariaM2: orc.area_necessaria_m2,
-                                  codigoFiname: orc.codigo_finame,
-                                  prazoEntregaDias: 30,
-                                },
-                                calculos,
-                                dataEmissao: orc.data_orcamento || orc.created,
-                                validadeDias: orc.validade_dias || 5,
-                                observacoes: orc.observacoes,
-                              }
-
-                              setOrcamentoParaWhatsApp({ cliente, orc, payload })
-                              setModalWhatsAppOpen(true)
-                            }}
-                            className="p-1.5 rounded-lg text-emerald-800 hover:text-emerald-950 bg-emerald-50 hover:bg-emerald-100 transition-colors border border-emerald-200 disabled:opacity-40"
-                            title={
-                              !cliente?.whatsapp && !cliente?.telefone
-                                ? 'Cadastre o WhatsApp do cliente para enviar'
-                                : 'Enviar orçamento PDF por WhatsApp'
-                            }
-                          >
-                            <Send className="w-3.5 h-3.5 text-emerald-600" />
-                          </button>
-
-                          {/* Baixar HTML */}
-                          <button
-                            onClick={() => gerarPDFParaRegistro(orc, 'baixar')}
-                            className="p-1.5 rounded-lg text-gray-500 hover:text-gray-800 hover:bg-gray-100 transition-colors"
-                            title="Baixar Proposta em HTML"
-                          >
-                            <Download className="w-4 h-4" />
-                          </button>
-
                           {/* Seletor Rápido de Status */}
                           <select
                             value={orc.status}
@@ -1404,21 +1037,6 @@ export const Orcamentos: React.FC = () => {
         initialClienteId={clienteParaNovoOrcamento}
         initialOrcamento={editingOrcamento}
       />
-
-      {/* Modal Enviar Orçamento por WhatsApp */}
-      {orcamentoParaWhatsApp && (
-        <ModalEnviarDocumentoWhatsApp
-          isOpen={modalWhatsAppOpen}
-          onClose={() => {
-            setModalWhatsAppOpen(false)
-            setOrcamentoParaWhatsApp(null)
-          }}
-          cliente={orcamentoParaWhatsApp.cliente}
-          tipo="orcamento_solar"
-          referenciaId={orcamentoParaWhatsApp.orc.id}
-          dadosSolar={orcamentoParaWhatsApp.payload}
-        />
-      )}
     </div>
   )
 }
