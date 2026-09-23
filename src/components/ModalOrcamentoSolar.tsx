@@ -65,6 +65,8 @@ import {
 } from '@/lib/propostaSolarGenerator'
 import { baixarPropostaSolarDocx } from '@/lib/propostaSolarDocxGenerator'
 import { ModalImportarSolergo } from '@/components/ModalImportarSolergo'
+import { PainelEdicaoConteudoProposta } from '@/components/PainelEdicaoConteudoProposta'
+import { normalizarConteudoProposta, type ConteudoProposta } from '@/lib/conteudoProposta'
 
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { fetchInstalacoesGaleria, getFotoUrl } from '@/services/instalacoesGaleriaService'
@@ -278,6 +280,11 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
   const [instalacoesSelecionadasIds, setInstalacoesSelecionadasIds] = useState<string[]>([])
   const [loadingGaleria, setLoadingGaleria] = useState<boolean>(false)
 
+  // Conteúdo 100% editável da proposta técnico-comercial
+  const [conteudoProposta, setConteudoProposta] = useState<ConteudoProposta>(() =>
+    normalizarConteudoProposta(initialOrcamento?.conteudo_proposta),
+  )
+
   // Seções habilitadas na proposta (toggles opcionais)
   const [secoesHabilitadas, setSecoesHabilitadas] = useState<PropostaSecoesHabilitadas>({
     layoutTelhado: true,
@@ -448,6 +455,9 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
           ? (initialOrcamento as any).garantia_inversor_anos
           : 10,
       )
+
+      // Carrega conteúdo editável salvo ou inicializa com valores padrão
+      setConteudoProposta(normalizarConteudoProposta(initialOrcamento.conteudo_proposta))
 
       const initialValPlaca =
         initialOrcamento.valor_por_placa !== undefined ? initialOrcamento.valor_por_placa : 150
@@ -715,6 +725,9 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
       setGarantiaModulosDegradacaoAnos(30)
       setGarantiaModulosFabricacaoAnos(15)
       setGarantiaInversorAnos(10)
+
+      // Conteúdo editável padrão para novos orçamentos
+      setConteudoProposta(normalizarConteudoProposta(null))
 
       const listaClientes = clientesRef.current
       if (initialClienteId) {
@@ -1081,8 +1094,10 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
         sazonalidadeSolar: secoesHabilitadas.sazonalidadeSolar !== false,
         portfolioUsinas: secoesHabilitadas.portfolioUsinas !== false,
       },
+      conteudo: conteudoProposta,
     }
   }, [
+    conteudoProposta,
     clienteAtual,
     tipoCliente,
     user,
@@ -1289,6 +1304,7 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
           sazonalidadeSolar: secoesHabilitadas.sazonalidadeSolar !== false,
           portfolioUsinas: secoesHabilitadas.portfolioUsinas !== false,
         },
+        conteudo_proposta: conteudoProposta,
         data_orcamento: new Date().toISOString(),
         validade_dias: 5,
         autor: user?.name || 'Delfos Solar',
@@ -3896,6 +3912,12 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                     </div>
                   </div>
                 </div>
+
+                {/* Painel de Edição de Conteúdo 100% Personalizável da Proposta */}
+                <PainelEdicaoConteudoProposta
+                  conteudo={conteudoProposta}
+                  onChange={setConteudoProposta}
+                />
 
                 {/* Seletor de Instalações que Aparecerão na Apresentação da Proposta */}
                 <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-2xs space-y-3">
