@@ -934,7 +934,9 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
         dados.instalacoesSelecionadasIds.length > 0 &&
         usinasGaleria.length > 0
       ) {
-        usinasGaleria = usinasGaleria.filter((u) => dados.instalacoesSelecionadasIds!.includes(u.id))
+        usinasGaleria = usinasGaleria.filter((u) =>
+          dados.instalacoesSelecionadasIds!.includes(u.id),
+        )
       }
 
       const usinasBase = usinasGaleria.slice(0, 6)
@@ -1504,7 +1506,6 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
         ],
       }),
     )
-  }
 
     return itens
   }
@@ -3418,10 +3419,7 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
   }
 
   // Mapeamento dos geradores por id de bloco
-  const mapRenderBlocosDocx: Record<
-    BlocoPropostaId,
-    () => Promise<(Paragraph | Table)[]>
-  > = {
+  const mapRenderBlocosDocx: Record<BlocoPropostaId, () => Promise<(Paragraph | Table)[]>> = {
     capa: gerarBlocoCapaDocx,
     apresentacao: gerarBlocoApresentacaoDocx,
     situacaoAtual: gerarBlocoSituacaoAtualDocx,

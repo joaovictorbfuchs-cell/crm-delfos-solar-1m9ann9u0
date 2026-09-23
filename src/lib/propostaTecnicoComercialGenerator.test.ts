@@ -1281,7 +1281,7 @@ describe('Proposta Técnico-Comercial Generator (5 Seções Oficiais)', () => {
   describe('Ordem Personalizada e Ocultação de Blocos (HTML)', () => {
     it('(a) ordem personalizada refletida na saída HTML', () => {
       // Inverte investimento antes de seuSistema
-      const dadosOrdemCustomizada: DadosPropostaTecnicoComercial = {
+      const dadosOrdemCustomizada: PropostaTecnicoComercialDados = {
         ...dadosExemplo,
         conteudo: {
           ...dadosExemplo.conteudo!,
@@ -1309,7 +1309,7 @@ describe('Proposta Técnico-Comercial Generator (5 Seções Oficiais)', () => {
     })
 
     it('(b) bloco oculto ausente do HTML (sem tags nem quebras vazias)', () => {
-      const dadosComBlocoOculto: DadosPropostaTecnicoComercial = {
+      const dadosComBlocoOculto: PropostaTecnicoComercialDados = {
         ...dadosExemplo,
         conteudo: {
           ...dadosExemplo.conteudo!,
@@ -1338,7 +1338,7 @@ describe('Proposta Técnico-Comercial Generator (5 Seções Oficiais)', () => {
       delete (conteudoSemOrdem as any).ordemBlocos
       delete (conteudoSemOrdem as any).blocosVisiveis
 
-      const dadosSemOrdem: DadosPropostaTecnicoComercial = {
+      const dadosSemOrdem: PropostaTecnicoComercialDados = {
         ...dadosExemplo,
         conteudo: conteudoSemOrdem,
       }
