@@ -26,6 +26,8 @@ import { UsinaCliente, ContratoOM, Cliente } from '@/types/crm'
 import { formatCurrency, formatDate, formatWhatsAppPhone } from '@/lib/formatters'
 import { calcularStatusDinamicoContrato } from '@/lib/contratoStatusDinamico'
 import { useAuth } from '@/contexts/AuthContext'
+import { fetchEquipamentos, getDatasheetEquipamentoUrl } from '@/services/equipamentosService'
+import type { Equipamento } from '@/types/equipamentos'
 import {
   Dialog,
   DialogContent,
@@ -103,6 +105,29 @@ export const SecaoUsinasCliente: React.FC<SecaoUsinasClienteProps> = ({
   const [editObservacoes, setEditObservacoes] = useState('')
 
   // Modal Nova Usina
+  // Catálogo de equipamentos para conferência de datasheet
+  const [catalogoEquipamentos, setCatalogoEquipamentos] = useState<Equipamento[]>([])
+
+  React.useEffect(() => {
+    fetchEquipamentos()
+      .then(setCatalogoEquipamentos)
+      .catch(() => {})
+  }, [])
+
+  // Helper para buscar datasheet correspondente ao texto do inversor ou módulos
+  const encontrarEquipamentoComDatasheet = (texto: string) => {
+    if (!texto || !catalogoEquipamentos.length) return null
+    const txtLower = texto.toLowerCase()
+    return (
+      catalogoEquipamentos.find((eq) => {
+        if (!eq.datasheet_pdf) return false
+        const modeloMatch = eq.modelo && txtLower.includes(eq.modelo.toLowerCase())
+        const marcaMatch = eq.marca && txtLower.includes(eq.marca.toLowerCase())
+        return modeloMatch || (marcaMatch && txtLower.includes(String(eq.potencia_w)))
+      }) || null
+    )
+  }
+
   const [modalNovaUsinaOpen, setModalNovaUsinaOpen] = useState(false)
   const [novaUsinaNome, setNovaUsinaNome] = useState('')
   const [novaUsinaEndereco, setNovaUsinaEndereco] = useState('')
@@ -510,11 +535,33 @@ export const SecaoUsinasCliente: React.FC<SecaoUsinasClienteProps> = ({
                   </div>
 
                   <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 truncate">
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-                      Inversor
-                    </span>
+                    <div className="flex items-center justify-between gap-1">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                        Inversor
+                      </span>
+                      {(() => {
+                        const eq = encontrarEquipamentoComDatasheet(usina.inversores_info || '')
+                        if (!eq || !eq.datasheet_pdf) return null
+                        const url = getDatasheetEquipamentoUrl(eq)
+                        if (!url) return null
+                        return (
+                          <a
+                            href={url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                            className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100 px-1.5 py-0.5 rounded border border-emerald-200 transition-colors shrink-0"
+                            title={`Abrir Datasheet PDF (${eq.marca} ${eq.modelo})`}
+                          >
+                            <FileText className="w-2.5 h-2.5" />
+                            <span>Datasheet</span>
+                            <ExternalLink className="w-2 h-2" />
+                          </a>
+                        )
+                      })()}
+                    </div>
                     <span
-                      className="font-medium text-slate-800 text-xs truncate block"
+                      className="font-medium text-slate-800 text-xs truncate block mt-0.5"
                       title={usina.inversores_info}
                     >
                       {usina.inversores_info || 'Não informado'}
@@ -826,10 +873,34 @@ export const SecaoUsinasCliente: React.FC<SecaoUsinasClienteProps> = ({
                   {/* Equipamentos & Medição */}
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
                     <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-1 sm:col-span-2">
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1">
-                        <Cpu className="w-3.5 h-3.5 text-purple-600" />
-                        Inversor(es)
-                      </span>
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1">
+                          <Cpu className="w-3.5 h-3.5 text-purple-600" />
+                          Inversor(es)
+                        </span>
+
+                        {(() => {
+                          const eq = encontrarEquipamentoComDatasheet(
+                            usinaDetalhes.inversores_info || '',
+                          )
+                          if (!eq || !eq.datasheet_pdf) return null
+                          const url = getDatasheetEquipamentoUrl(eq)
+                          if (!url) return null
+                          return (
+                            <a
+                              href={url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-700 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100 px-2 py-1 rounded-lg border border-emerald-200 transition-colors shadow-2xs"
+                              title={`Abrir Datasheet PDF em nova aba (${eq.marca} ${eq.modelo})`}
+                            >
+                              <FileText className="w-3.5 h-3.5 text-emerald-600" />
+                              <span>Ver Datasheet (PDF)</span>
+                              <ExternalLink className="w-3 h-3 text-emerald-600" />
+                            </a>
+                          )
+                        })()}
+                      </div>
                       <p className="font-semibold text-slate-800 text-xs">
                         {usinaDetalhes.inversores_info || 'Inversor não especificado'}
                       </p>

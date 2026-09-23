@@ -18,6 +18,7 @@ export async function fetchEquipamentos(tipo?: TipoEquipamento): Promise<Equipam
 export async function createEquipamento(
   dados: SalvarEquipamentoDados,
   arquivoFoto?: File,
+  arquivoDatasheet?: File,
 ): Promise<Equipamento> {
   const cleaned: Record<string, any> = {
     tipo: dados.tipo,
@@ -35,12 +36,17 @@ export async function createEquipamento(
     cleaned.garantia_anos = Number(dados.garantia_anos)
   }
 
-  if (arquivoFoto) {
+  if (arquivoFoto || arquivoDatasheet) {
     const formData = new FormData()
     Object.entries(cleaned).forEach(([k, v]) => {
       formData.append(k, String(v))
     })
-    formData.append('foto', arquivoFoto)
+    if (arquivoFoto) {
+      formData.append('foto', arquivoFoto)
+    }
+    if (arquivoDatasheet) {
+      formData.append('datasheet_pdf', arquivoDatasheet)
+    }
     return await pb.collection('equipamentos').create<Equipamento>(formData)
   }
 
@@ -52,6 +58,8 @@ export async function updateEquipamento(
   dados: Partial<SalvarEquipamentoDados>,
   arquivoFoto?: File,
   removerFoto?: boolean,
+  arquivoDatasheet?: File,
+  removerDatasheet?: boolean,
 ): Promise<Equipamento> {
   const cleaned: Record<string, any> = {}
 
@@ -81,15 +89,23 @@ export async function updateEquipamento(
   if (removerFoto && !arquivoFoto) {
     cleaned.foto = null
   }
+  if (removerDatasheet && !arquivoDatasheet) {
+    cleaned.datasheet_pdf = null
+  }
 
-  if (arquivoFoto) {
+  if (arquivoFoto || arquivoDatasheet) {
     const formData = new FormData()
     Object.entries(cleaned).forEach(([k, v]) => {
       if (v !== undefined) {
         formData.append(k, v === null ? '' : String(v))
       }
     })
-    formData.append('foto', arquivoFoto)
+    if (arquivoFoto) {
+      formData.append('foto', arquivoFoto)
+    }
+    if (arquivoDatasheet) {
+      formData.append('datasheet_pdf', arquivoDatasheet)
+    }
     return await pb.collection('equipamentos').update<Equipamento>(id, formData)
   }
 
@@ -104,6 +120,13 @@ export async function deleteEquipamento(id: string): Promise<boolean> {
 export function getFotoEquipamentoUrl(equipamento: Equipamento): string | null {
   if (equipamento.foto) {
     return pb.files.getURL(equipamento, equipamento.foto)
+  }
+  return null
+}
+
+export function getDatasheetEquipamentoUrl(equipamento: Equipamento): string | null {
+  if (equipamento.datasheet_pdf) {
+    return pb.files.getURL(equipamento, equipamento.datasheet_pdf)
   }
   return null
 }

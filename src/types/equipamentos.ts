@@ -11,6 +11,7 @@ export interface Equipamento {
   descricao_padrao?: string
   garantia_anos?: number | null
   foto?: string
+  datasheet_pdf?: string
   created: string
   updated: string
 }
@@ -22,4 +23,5 @@ export interface SalvarEquipamentoDados {
   potencia_w: number
   descricao_padrao?: string
   garantia_anos?: number | null
+  datasheet_pdf?: string
 }

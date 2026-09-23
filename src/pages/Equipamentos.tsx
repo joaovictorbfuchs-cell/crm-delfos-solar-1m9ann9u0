@@ -16,6 +16,10 @@ import {
   Layers,
   Sparkles,
   Info,
+  FileText,
+  ExternalLink,
+  CheckCircle2,
+  FileUp,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import type { Equipamento, TipoEquipamento } from '@/types/equipamentos'
@@ -25,8 +29,10 @@ import {
   updateEquipamento,
   deleteEquipamento,
   getFotoEquipamentoUrl,
+  getDatasheetEquipamentoUrl,
   formatarPotenciaEquipamento,
 } from '@/services/equipamentosService'
+import { extractDatasheetFromPdf } from '@/lib/datasheetExtractor'
 import { extractFieldErrors } from '@/lib/pocketbase/errors'
 
 type TabFiltro = 'todos' | 'inversor' | 'modulo_fv'
@@ -53,6 +59,14 @@ export function EquipamentosPage() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [removerFotoExistente, setRemoverFotoExistente] = useState<boolean>(false)
+
+  // Datasheet PDF
+  const [selectedDatasheetFile, setSelectedDatasheetFile] = useState<File | null>(null)
+  const [datasheetExistenteUrl, setDatasheetExistenteUrl] = useState<string | null>(null)
+  const [removerDatasheetExistente, setRemoverDatasheetExistente] = useState<boolean>(false)
+  const [isExtractingPdf, setIsExtractingPdf] = useState<boolean>(false)
+  const [extracaoConcluida, setExtracaoConcluida] = useState<boolean>(false)
+  const datasheetInputRef = useRef<HTMLInputElement>(null)
 
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false)
   const [isDeleting, setIsDeleting] = useState<boolean>(false)
@@ -87,6 +101,10 @@ export function EquipamentosPage() {
     setSelectedFile(null)
     setPreviewUrl(null)
     setRemoverFotoExistente(false)
+    setSelectedDatasheetFile(null)
+    setDatasheetExistenteUrl(null)
+    setRemoverDatasheetExistente(false)
+    setExtracaoConcluida(false)
     setErrorMessage(null)
     setModalOpen(true)
   }
@@ -109,6 +127,13 @@ export function EquipamentosPage() {
     setRemoverFotoExistente(false)
     const urlAtual = getFotoEquipamentoUrl(item)
     setPreviewUrl(urlAtual)
+
+    setSelectedDatasheetFile(null)
+    const urlDatasheet = getDatasheetEquipamentoUrl(item)
+    setDatasheetExistenteUrl(urlDatasheet)
+    setRemoverDatasheetExistente(false)
+    setExtracaoConcluida(false)
+
     setErrorMessage(null)
     setModalOpen(true)
   }
@@ -142,6 +167,90 @@ export function EquipamentosPage() {
     setRemoverFotoExistente(true)
     if (fileInputRef.current) {
       fileInputRef.current.value = ''
+    }
+  }
+
+  const handleDatasheetFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
+      toast.error('Por favor, selecione um arquivo em formato PDF.')
+      return
+    }
+
+    const maxBytes = 10 * 1024 * 1024
+    if (file.size > maxBytes) {
+      toast.error('O arquivo PDF ultrapassa o limite de 10 MB.')
+      return
+    }
+
+    setSelectedDatasheetFile(file)
+    setRemoverDatasheetExistente(false)
+
+    // Extração automática via PDF
+    setIsExtractingPdf(true)
+    setExtracaoConcluida(false)
+
+    try {
+      const extraidos = await extractDatasheetFromPdf(file)
+
+      let alterouAlgo = false
+
+      if (extraidos.marca) {
+        setMarca(extraidos.marca)
+        alterouAlgo = true
+      }
+      if (extraidos.modelo) {
+        setModelo(extraidos.modelo)
+        alterouAlgo = true
+      }
+      if (extraidos.potencia_w) {
+        setPotenciaW(String(extraidos.potencia_w))
+        alterouAlgo = true
+      }
+      if (extraidos.garantia_anos !== undefined && extraidos.garantia_anos !== null) {
+        setGarantiaAnos(String(extraidos.garantia_anos))
+        alterouAlgo = true
+      }
+      if (extraidos.descricao_padrao) {
+        setDescricaoPadrao(extraidos.descricao_padrao)
+        alterouAlgo = true
+      }
+      if (extraidos.tipo) {
+        setTipo(extraidos.tipo)
+      }
+
+      setExtracaoConcluida(true)
+
+      if (alterouAlgo) {
+        toast.success(
+          'Dados do datasheet extraídos com sucesso! Revise e corrija os campos antes de salvar.',
+          { duration: 5000 },
+        )
+      } else {
+        toast.info(
+          'Datasheet anexado. Não foi possível identificar todos os campos automaticamente; preencha os dados restantes manualmente.',
+          { duration: 5000 },
+        )
+      }
+    } catch (err) {
+      console.error('Erro na extração do datasheet PDF:', err)
+      toast.warning(
+        'Datasheet anexado, mas houve falha na leitura dos dados. Preencha os campos manualmente.',
+      )
+    } finally {
+      setIsExtractingPdf(false)
+    }
+  }
+
+  const handleRemoveDatasheet = () => {
+    setSelectedDatasheetFile(null)
+    setDatasheetExistenteUrl(null)
+    setRemoverDatasheetExistente(true)
+    setExtracaoConcluida(false)
+    if (datasheetInputRef.current) {
+      datasheetInputRef.current.value = ''
     }
   }
 
@@ -193,13 +302,18 @@ export function EquipamentosPage() {
           payload,
           selectedFile || undefined,
           removerFotoExistente,
+          selectedDatasheetFile || undefined,
+          removerDatasheetExistente,
         )
         toast.success('Equipamento atualizado com sucesso!')
       } else {
-        await createEquipamento(payload, selectedFile || undefined)
+        await createEquipamento(
+          payload,
+          selectedFile || undefined,
+          selectedDatasheetFile || undefined,
+        )
         toast.success('Equipamento cadastrado com sucesso!')
       }
-
       setModalOpen(false)
       await carregar()
     } catch (err: any) {
@@ -538,8 +652,8 @@ export function EquipamentosPage() {
                       {item.modelo}
                     </h3>
 
-                    {/* Metadados Técnicos: Garantia */}
-                    <div className="flex items-center gap-2 mt-2.5">
+                    {/* Metadados Técnicos: Garantia e Datasheet */}
+                    <div className="flex items-center flex-wrap gap-2 mt-2.5">
                       {item.garantia_anos !== undefined && item.garantia_anos !== null ? (
                         <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-200">
                           <Shield className="w-3 h-3 text-emerald-600" />
@@ -550,6 +664,20 @@ export function EquipamentosPage() {
                           <Shield className="w-3 h-3 text-gray-300" />
                           Garantia não informada
                         </span>
+                      )}
+
+                      {item.datasheet_pdf && (
+                        <a
+                          href={getDatasheetEquipamentoUrl(item) || '#'}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-800 bg-emerald-100/70 hover:bg-emerald-200/80 px-2.5 py-0.5 rounded-lg border border-emerald-300 transition-colors"
+                          title="Abrir datasheet oficial em PDF"
+                        >
+                          <FileText className="w-3 h-3 text-emerald-700" />
+                          <span>Datasheet (PDF)</span>
+                          <ExternalLink className="w-2.5 h-2.5 ml-0.5 text-emerald-600" />
+                        </a>
                       )}
                     </div>
 
@@ -842,6 +970,101 @@ export function EquipamentosPage() {
                         className="w-full h-full object-contain"
                       />
                     </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Upload do Datasheet (PDF) com Extração Automática */}
+              <div className="p-3.5 bg-emerald-50/50 rounded-2xl border border-emerald-200/80 space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-[11px] font-bold text-emerald-950 uppercase flex items-center gap-1.5">
+                    <FileText className="w-3.5 h-3.5 text-emerald-700" />
+                    <span>Upload do Datasheet Técnico (PDF)</span>
+                  </label>
+                  <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-full border border-emerald-200">
+                    Extração Automática
+                  </span>
+                </div>
+
+                <p className="text-[11px] text-emerald-900 leading-relaxed">
+                  Envie o PDF do datasheet para preencher automaticamente marca, modelo, potência
+                  (W), garantia, eficiência e descrição técnica priorizando a tabela técnica. Você
+                  poderá revisar e corrigir antes de salvar.
+                </p>
+
+                <input
+                  type="file"
+                  ref={datasheetInputRef}
+                  accept="application/pdf"
+                  onChange={handleDatasheetFileChange}
+                  className="hidden"
+                />
+
+                <div className="flex flex-wrap items-center gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => datasheetInputRef.current?.click()}
+                    disabled={isExtractingPdf}
+                    className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl inline-flex items-center gap-1.5 transition-colors shadow-2xs active:scale-95 disabled:opacity-50"
+                  >
+                    {isExtractingPdf ? (
+                      <>
+                        <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                        <span>Extraindo dados do PDF...</span>
+                      </>
+                    ) : (
+                      <>
+                        <FileUp className="w-3.5 h-3.5" />
+                        <span>Selecionar PDF do Datasheet</span>
+                      </>
+                    )}
+                  </button>
+
+                  {(selectedDatasheetFile ||
+                    (datasheetExistenteUrl && !removerDatasheetExistente)) && (
+                    <button
+                      type="button"
+                      onClick={handleRemoveDatasheet}
+                      className="px-3 py-2 text-xs font-semibold text-red-600 hover:bg-red-50 rounded-xl transition-colors border border-red-200"
+                    >
+                      Remover PDF
+                    </button>
+                  )}
+
+                  {datasheetExistenteUrl &&
+                    !selectedDatasheetFile &&
+                    !removerDatasheetExistente && (
+                      <a
+                        href={datasheetExistenteUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="px-3 py-2 text-xs font-bold text-emerald-800 bg-white hover:bg-emerald-50 rounded-xl transition-colors border border-emerald-300 inline-flex items-center gap-1"
+                      >
+                        <ExternalLink className="w-3.5 h-3.5 text-emerald-600" />
+                        <span>Ver PDF Atual</span>
+                      </a>
+                    )}
+                </div>
+
+                {/* Status do Arquivo Selecionado */}
+                {selectedDatasheetFile && (
+                  <div className="mt-2 p-2.5 bg-white rounded-xl border border-emerald-200 flex items-center justify-between text-xs">
+                    <div className="flex items-center gap-2 truncate">
+                      <FileText className="w-4 h-4 text-emerald-600 shrink-0" />
+                      <span className="font-semibold text-gray-800 truncate">
+                        {selectedDatasheetFile.name}
+                      </span>
+                      <span className="text-[10px] text-gray-400 shrink-0">
+                        ({(selectedDatasheetFile.size / (1024 * 1024)).toFixed(2)} MB)
+                      </span>
+                    </div>
+
+                    {extracaoConcluida && (
+                      <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200 shrink-0">
+                        <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                        Dados extraídos
+                      </span>
+                    )}
                   </div>
                 )}
               </div>
