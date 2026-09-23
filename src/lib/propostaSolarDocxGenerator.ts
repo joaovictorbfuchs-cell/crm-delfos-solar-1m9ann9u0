@@ -1116,396 +1116,396 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
                         font: 'Arial',
                       }),
                     ],
-                  }),                // Bloco 1: Consumo Mensal
-                new Paragraph({
-                  spacing: { after: 60 },
-                  children: [
-                    new TextRun({
-                      text: '• Consumo Mensal (Média):\n',
-                      bold: true,
-                      color: '4B5563',
-                      size: 14,
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: `${formatNumBR(consumoKwhMesDocx, 0)} `,
-                      bold: true,
-                      color: '111827',
-                      size: 22,
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: 'kWh/mês\n',
-                      bold: true,
-                      color: '2563EB',
-                      size: 14,
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: 'Média mensal de energia consumida da rede',
-                      color: '6B7280',
-                      size: 13,
-                      font: 'Arial',
-                    }),
-                  ],
-                }),
-                // Bloco 2: Consumo no Ano (logo abaixo)
-                new Paragraph({
-                  spacing: { before: 40 },
-                  children: [
-                    new TextRun({
-                      text: '• Consumo no Ano (12 meses):\n',
-                      bold: true,
-                      color: '4B5563',
-                      size: 14,
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: `${formatNumBR(consumoKwhAnoDocx, 0)} `,
-                      bold: true,
-                      color: '111827',
-                      size: 22,
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: 'kWh/ano\n',
-                      bold: true,
-                      color: '4F46E5',
-                      size: 14,
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: 'Volume total faturado em 12 faturas',
-                      color: '6B7280',
-                      size: 13,
-                      font: 'Arial',
-                    }),
-                  ],
-                }),
-              ],
-            }),
+                  }), // Bloco 1: Consumo Mensal
+                  new Paragraph({
+                    spacing: { after: 60 },
+                    children: [
+                      new TextRun({
+                        text: '• Consumo Mensal (Média):\n',
+                        bold: true,
+                        color: '4B5563',
+                        size: 14,
+                        font: 'Arial',
+                      }),
+                      new TextRun({
+                        text: `${formatNumBR(consumoKwhMesDocx, 0)} `,
+                        bold: true,
+                        color: '111827',
+                        size: 22,
+                        font: 'Arial',
+                      }),
+                      new TextRun({
+                        text: 'kWh/mês\n',
+                        bold: true,
+                        color: '2563EB',
+                        size: 14,
+                        font: 'Arial',
+                      }),
+                      new TextRun({
+                        text: 'Média mensal de energia consumida da rede',
+                        color: '6B7280',
+                        size: 13,
+                        font: 'Arial',
+                      }),
+                    ],
+                  }),
+                  // Bloco 2: Consumo no Ano (logo abaixo)
+                  new Paragraph({
+                    spacing: { before: 40 },
+                    children: [
+                      new TextRun({
+                        text: '• Consumo no Ano (12 meses):\n',
+                        bold: true,
+                        color: '4B5563',
+                        size: 14,
+                        font: 'Arial',
+                      }),
+                      new TextRun({
+                        text: `${formatNumBR(consumoKwhAnoDocx, 0)} `,
+                        bold: true,
+                        color: '111827',
+                        size: 22,
+                        font: 'Arial',
+                      }),
+                      new TextRun({
+                        text: 'kWh/ano\n',
+                        bold: true,
+                        color: '4F46E5',
+                        size: 14,
+                        font: 'Arial',
+                      }),
+                      new TextRun({
+                        text: 'Volume total faturado em 12 faturas',
+                        color: '6B7280',
+                        size: 13,
+                        font: 'Arial',
+                      }),
+                    ],
+                  }),
+                ],
+              }),
 
-            // Card 2 — Custos com Concessionária: Mensal em cima e Anual logo abaixo
-            new TableCell({
-              width: { size: colWidth2, type: WidthType.DXA },
-              shading: { type: ShadingType.CLEAR, fill: 'F8FAFC' },
-              margins: { top: 100, bottom: 100, left: 110, right: 110 },
-              children: [
-                // Topo do card: Custos
-                new Paragraph({
-                  spacing: { after: 60 },
-                  children: [
-                    new TextRun({
-                      text: `💲 ${conteudo.secaoSituacaoAtual.custoTitulo.toUpperCase()}\n`,
-                      bold: true,
-                      color: 'DC2626',
-                      size: 16,
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: `${conteudo.secaoSituacaoAtual.custoSubtitulo}\n`,
-                      size: 13,
-                      color: COLOR_TEXT_MUTED,
-                      font: 'Arial',
-                    }),
-                  ],
-                }),                // Bloco 1: Custo Mensal (Conta Atual)
-                new Paragraph({
-                  spacing: { after: 60 },
-                  children: [
-                    new TextRun({
-                      text: '• Custo Mensal (Conta Atual):\n',
-                      bold: true,
-                      color: '4B5563',
-                      size: 14,
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: `${formatBRL(contaHoje)}\n`,
-                      bold: true,
-                      color: COLOR_RED,
-                      size: 22,
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: 'Despesa média paga todo mês à concessionária',
-                      color: '6B7280',
-                      size: 13,
-                      font: 'Arial',
-                    }),
-                  ],
-                }),
-                // Bloco 2: Custo no Ano (logo abaixo)
-                new Paragraph({
-                  spacing: { before: 40 },
-                  children: [
-                    new TextRun({
-                      text: '• Custo no Ano (Gasto Anual):\n',
-                      bold: true,
-                      color: '4B5563',
-                      size: 14,
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: `${formatBRL(contaAnualDocx)}\n`,
-                      bold: true,
-                      color: 'B45309',
-                      size: 22,
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: 'Total desembolsado em 12 faturas sem retorno',
-                      color: '6B7280',
-                      size: 13,
-                      font: 'Arial',
-                    }),
-                  ],
-                }),
-              ],
-            }),
-          ],
-        }),
-      ],
-    }),
-  )
+              // Card 2 — Custos com Concessionária: Mensal em cima e Anual logo abaixo
+              new TableCell({
+                width: { size: colWidth2, type: WidthType.DXA },
+                shading: { type: ShadingType.CLEAR, fill: 'F8FAFC' },
+                margins: { top: 100, bottom: 100, left: 110, right: 110 },
+                children: [
+                  // Topo do card: Custos
+                  new Paragraph({
+                    spacing: { after: 60 },
+                    children: [
+                      new TextRun({
+                        text: `💲 ${conteudo.secaoSituacaoAtual.custoTitulo.toUpperCase()}\n`,
+                        bold: true,
+                        color: 'DC2626',
+                        size: 16,
+                        font: 'Arial',
+                      }),
+                      new TextRun({
+                        text: `${conteudo.secaoSituacaoAtual.custoSubtitulo}\n`,
+                        size: 13,
+                        color: COLOR_TEXT_MUTED,
+                        font: 'Arial',
+                      }),
+                    ],
+                  }), // Bloco 1: Custo Mensal (Conta Atual)
+                  new Paragraph({
+                    spacing: { after: 60 },
+                    children: [
+                      new TextRun({
+                        text: '• Custo Mensal (Conta Atual):\n',
+                        bold: true,
+                        color: '4B5563',
+                        size: 14,
+                        font: 'Arial',
+                      }),
+                      new TextRun({
+                        text: `${formatBRL(contaHoje)}\n`,
+                        bold: true,
+                        color: COLOR_RED,
+                        size: 22,
+                        font: 'Arial',
+                      }),
+                      new TextRun({
+                        text: 'Despesa média paga todo mês à concessionária',
+                        color: '6B7280',
+                        size: 13,
+                        font: 'Arial',
+                      }),
+                    ],
+                  }),
+                  // Bloco 2: Custo no Ano (logo abaixo)
+                  new Paragraph({
+                    spacing: { before: 40 },
+                    children: [
+                      new TextRun({
+                        text: '• Custo no Ano (Gasto Anual):\n',
+                        bold: true,
+                        color: '4B5563',
+                        size: 14,
+                        font: 'Arial',
+                      }),
+                      new TextRun({
+                        text: `${formatBRL(contaAnualDocx)}\n`,
+                        bold: true,
+                        color: 'B45309',
+                        size: 22,
+                        font: 'Arial',
+                      }),
+                      new TextRun({
+                        text: 'Total desembolsado em 12 faturas sem retorno',
+                        color: '6B7280',
+                        size: 13,
+                        font: 'Arial',
+                      }),
+                    ],
+                  }),
+                ],
+              }),
+            ],
+          }),
+        ],
+      }),
+    )
 
-  docChildren.push(
-    new Paragraph({
-      spacing: { before: 80, after: 40 },
-      children: [
-        new TextRun({
-          text: `📈 ${conteudo.secaoSituacaoAtual.avisoInerciaTitulo.replace('{periodo}', rotuloPeriodoCardMeio)}`,
-          bold: true,
-          size: 18,
-          color: COLOR_RED,
-          font: 'Arial',
-        }),
-      ],
-    }),
-    new Paragraph({
-      spacing: { before: 0, after: 60 },
-      children: [
-        new TextRun({
-          text: conteudo.secaoSituacaoAtual.avisoInerciaSubtitulo,
-          size: 15,
-          color: COLOR_TEXT_MUTED,
-          font: 'Arial',
-        }),
-      ],
-    }),
-  )
+    docChildren.push(
+      new Paragraph({
+        spacing: { before: 80, after: 40 },
+        children: [
+          new TextRun({
+            text: `📈 ${conteudo.secaoSituacaoAtual.avisoInerciaTitulo.replace('{periodo}', rotuloPeriodoCardMeio)}`,
+            bold: true,
+            size: 18,
+            color: COLOR_RED,
+            font: 'Arial',
+          }),
+        ],
+      }),
+      new Paragraph({
+        spacing: { before: 0, after: 60 },
+        children: [
+          new TextRun({
+            text: conteudo.secaoSituacaoAtual.avisoInerciaSubtitulo,
+            size: 15,
+            color: COLOR_TEXT_MUTED,
+            font: 'Arial',
+          }),
+        ],
+      }),
+    )
 
-  const colWidthInercia = Math.floor(PAGE_CONTENT_WIDTH / 3)
-  docChildren.push(
-    new Table({
-      width: { size: PAGE_CONTENT_WIDTH, type: WidthType.DXA },
-      borders: tableBorderDefault,
-      rows: [
-        new TableRow({
-          children: [
-            // Card 1: 1 Ano
-            new TableCell({
-              width: { size: colWidthInercia, type: WidthType.DXA },
-              shading: { type: ShadingType.CLEAR, fill: 'FFFBEB' },
-              margins: { top: 90, bottom: 90, left: 100, right: 100 },
-              children: [
-                new Paragraph({
-                  children: [
-                    new TextRun({
-                      text: 'GASTO EM 1 ANO',
-                      bold: true,
-                      size: 15,
-                      color: '78350F',
-                      font: 'Arial',
-                    }),
-                  ],
-                }),
-                new Paragraph({
-                  spacing: { before: 20 },
-                  children: [
-                    new TextRun({
-                      text: 'Curto Prazo (12 faturas)',
-                      size: 13,
-                      color: COLOR_TEXT_MUTED,
-                      font: 'Arial',
-                    }),
-                  ],
-                }),
-                new Paragraph({
-                  spacing: { before: 60 },
-                  children: [
-                    new TextRun({
-                      text: `${formatBRL(gasto1Ano)}`,
-                      bold: true,
-                      color: '78350F',
-                      size: 24,
-                      font: 'Arial',
-                    }),
-                  ],
-                }),
-                new Paragraph({
-                  spacing: { before: 40 },
-                  children: [
-                    new TextRun({
-                      text: `≈ ${formatBRL(Math.round(gasto1Ano / 12))}/mês`,
-                      bold: true,
-                      size: 14,
-                      color: COLOR_TEXT_DARK,
-                      font: 'Arial',
-                    }),
-                  ],
-                }),
-                new Paragraph({
-                  spacing: { before: 20 },
-                  children: [
-                    new TextRun({
-                      text: 'Sem retorno patrimonial',
-                      size: 13,
-                      color: COLOR_TEXT_MUTED,
-                      font: 'Arial',
-                    }),
-                  ],
-                }),
-              ],
-            }),
+    const colWidthInercia = Math.floor(PAGE_CONTENT_WIDTH / 3)
+    docChildren.push(
+      new Table({
+        width: { size: PAGE_CONTENT_WIDTH, type: WidthType.DXA },
+        borders: tableBorderDefault,
+        rows: [
+          new TableRow({
+            children: [
+              // Card 1: 1 Ano
+              new TableCell({
+                width: { size: colWidthInercia, type: WidthType.DXA },
+                shading: { type: ShadingType.CLEAR, fill: 'FFFBEB' },
+                margins: { top: 90, bottom: 90, left: 100, right: 100 },
+                children: [
+                  new Paragraph({
+                    children: [
+                      new TextRun({
+                        text: 'GASTO EM 1 ANO',
+                        bold: true,
+                        size: 15,
+                        color: '78350F',
+                        font: 'Arial',
+                      }),
+                    ],
+                  }),
+                  new Paragraph({
+                    spacing: { before: 20 },
+                    children: [
+                      new TextRun({
+                        text: 'Curto Prazo (12 faturas)',
+                        size: 13,
+                        color: COLOR_TEXT_MUTED,
+                        font: 'Arial',
+                      }),
+                    ],
+                  }),
+                  new Paragraph({
+                    spacing: { before: 60 },
+                    children: [
+                      new TextRun({
+                        text: `${formatBRL(gasto1Ano)}`,
+                        bold: true,
+                        color: '78350F',
+                        size: 24,
+                        font: 'Arial',
+                      }),
+                    ],
+                  }),
+                  new Paragraph({
+                    spacing: { before: 40 },
+                    children: [
+                      new TextRun({
+                        text: `≈ ${formatBRL(Math.round(gasto1Ano / 12))}/mês`,
+                        bold: true,
+                        size: 14,
+                        color: COLOR_TEXT_DARK,
+                        font: 'Arial',
+                      }),
+                    ],
+                  }),
+                  new Paragraph({
+                    spacing: { before: 20 },
+                    children: [
+                      new TextRun({
+                        text: 'Sem retorno patrimonial',
+                        size: 13,
+                        color: COLOR_TEXT_MUTED,
+                        font: 'Arial',
+                      }),
+                    ],
+                  }),
+                ],
+              }),
 
-            // Card 2: Período de Payback Arredondado para Cima (ex: 2 Anos)
-            new TableCell({
-              width: { size: colWidthInercia, type: WidthType.DXA },
-              shading: { type: ShadingType.CLEAR, fill: 'FFF7ED' },
-              margins: { top: 90, bottom: 90, left: 100, right: 100 },
-              children: [
-                new Paragraph({
-                  children: [
-                    new TextRun({
-                      text: tituloCardMeio,
-                      bold: true,
-                      size: 15,
-                      color: '9A3412',
-                      font: 'Arial',
-                    }),
-                  ],
-                }),
-                new Paragraph({
-                  spacing: { before: 20 },
-                  children: [
-                    new TextRun({
-                      text: `Médio Prazo (${totalMesesCardMeio} faturas)`,
-                      size: 13,
-                      color: COLOR_TEXT_MUTED,
-                      font: 'Arial',
-                    }),
-                  ],
-                }),
-                new Paragraph({
-                  spacing: { before: 60 },
-                  children: [
-                    new TextRun({
-                      text: `${formatBRL(gastoCardMeio)}`,
-                      bold: true,
-                      color: '9A3412',
-                      size: 24,
-                      font: 'Arial',
-                    }),
-                  ],
-                }),
-                new Paragraph({
-                  spacing: { before: 40 },
-                  children: [
-                    new TextRun({
-                      text: `≈ ${formatBRL(mediaMensalCardMeio)}/mês`,
-                      bold: true,
-                      size: 14,
-                      color: COLOR_TEXT_DARK,
-                      font: 'Arial',
-                    }),
-                  ],
-                }),
-                new Paragraph({
-                  spacing: { before: 20 },
-                  children: [
-                    new TextRun({
-                      text: 'Supera o valor de uma usina',
-                      size: 13,
-                      color: 'C2410C',
-                      bold: true,
-                      font: 'Arial',
-                    }),
-                  ],
-                }),
-              ],
-            }),
-            // Card 3: 25 Anos
-            new TableCell({
-              width: { size: colWidthInercia, type: WidthType.DXA },
-              shading: { type: ShadingType.CLEAR, fill: COLOR_RED_BG },
-              margins: { top: 90, bottom: 90, left: 100, right: 100 },
-              children: [
-                new Paragraph({
-                  children: [
-                    new TextRun({
-                      text: 'GASTO EM 25 ANOS',
-                      bold: true,
-                      size: 15,
-                      color: COLOR_RED,
-                      font: 'Arial',
-                    }),
-                  ],
-                }),
-                new Paragraph({
-                  spacing: { before: 20 },
-                  children: [
-                    new TextRun({
-                      text: 'Longo Prazo (300 faturas)',
-                      size: 13,
-                      color: COLOR_TEXT_MUTED,
-                      font: 'Arial',
-                    }),
-                  ],
-                }),
-                new Paragraph({
-                  spacing: { before: 60 },
-                  children: [
-                    new TextRun({
-                      text: `${formatBRL(gasto25Anos)}`,
-                      bold: true,
-                      color: COLOR_RED,
-                      size: 24,
-                      font: 'Arial',
-                    }),
-                  ],
-                }),
-                new Paragraph({
-                  spacing: { before: 40 },
-                  children: [
-                    new TextRun({
-                      text: `≈ ${formatBRL(Math.round(gasto25Anos / 300))}/mês`,
-                      bold: true,
-                      size: 14,
-                      color: COLOR_TEXT_DARK,
-                      font: 'Arial',
-                    }),
-                  ],
-                }),
-                new Paragraph({
-                  spacing: { before: 20 },
-                  children: [
-                    new TextRun({
-                      text: 'Desembolso com inflação da rede',
-                      size: 13,
-                      color: COLOR_RED,
-                      bold: true,
-                      font: 'Arial',
-                    }),
-                  ],
-                }),
-              ],
-            }),
-          ],
-        }),
-      ],
-    }),
-  )
+              // Card 2: Período de Payback Arredondado para Cima (ex: 2 Anos)
+              new TableCell({
+                width: { size: colWidthInercia, type: WidthType.DXA },
+                shading: { type: ShadingType.CLEAR, fill: 'FFF7ED' },
+                margins: { top: 90, bottom: 90, left: 100, right: 100 },
+                children: [
+                  new Paragraph({
+                    children: [
+                      new TextRun({
+                        text: tituloCardMeio,
+                        bold: true,
+                        size: 15,
+                        color: '9A3412',
+                        font: 'Arial',
+                      }),
+                    ],
+                  }),
+                  new Paragraph({
+                    spacing: { before: 20 },
+                    children: [
+                      new TextRun({
+                        text: `Médio Prazo (${totalMesesCardMeio} faturas)`,
+                        size: 13,
+                        color: COLOR_TEXT_MUTED,
+                        font: 'Arial',
+                      }),
+                    ],
+                  }),
+                  new Paragraph({
+                    spacing: { before: 60 },
+                    children: [
+                      new TextRun({
+                        text: `${formatBRL(gastoCardMeio)}`,
+                        bold: true,
+                        color: '9A3412',
+                        size: 24,
+                        font: 'Arial',
+                      }),
+                    ],
+                  }),
+                  new Paragraph({
+                    spacing: { before: 40 },
+                    children: [
+                      new TextRun({
+                        text: `≈ ${formatBRL(mediaMensalCardMeio)}/mês`,
+                        bold: true,
+                        size: 14,
+                        color: COLOR_TEXT_DARK,
+                        font: 'Arial',
+                      }),
+                    ],
+                  }),
+                  new Paragraph({
+                    spacing: { before: 20 },
+                    children: [
+                      new TextRun({
+                        text: 'Supera o valor de uma usina',
+                        size: 13,
+                        color: 'C2410C',
+                        bold: true,
+                        font: 'Arial',
+                      }),
+                    ],
+                  }),
+                ],
+              }),
+              // Card 3: 25 Anos
+              new TableCell({
+                width: { size: colWidthInercia, type: WidthType.DXA },
+                shading: { type: ShadingType.CLEAR, fill: COLOR_RED_BG },
+                margins: { top: 90, bottom: 90, left: 100, right: 100 },
+                children: [
+                  new Paragraph({
+                    children: [
+                      new TextRun({
+                        text: 'GASTO EM 25 ANOS',
+                        bold: true,
+                        size: 15,
+                        color: COLOR_RED,
+                        font: 'Arial',
+                      }),
+                    ],
+                  }),
+                  new Paragraph({
+                    spacing: { before: 20 },
+                    children: [
+                      new TextRun({
+                        text: 'Longo Prazo (300 faturas)',
+                        size: 13,
+                        color: COLOR_TEXT_MUTED,
+                        font: 'Arial',
+                      }),
+                    ],
+                  }),
+                  new Paragraph({
+                    spacing: { before: 60 },
+                    children: [
+                      new TextRun({
+                        text: `${formatBRL(gasto25Anos)}`,
+                        bold: true,
+                        color: COLOR_RED,
+                        size: 24,
+                        font: 'Arial',
+                      }),
+                    ],
+                  }),
+                  new Paragraph({
+                    spacing: { before: 40 },
+                    children: [
+                      new TextRun({
+                        text: `≈ ${formatBRL(Math.round(gasto25Anos / 300))}/mês`,
+                        bold: true,
+                        size: 14,
+                        color: COLOR_TEXT_DARK,
+                        font: 'Arial',
+                      }),
+                    ],
+                  }),
+                  new Paragraph({
+                    spacing: { before: 20 },
+                    children: [
+                      new TextRun({
+                        text: 'Desembolso com inflação da rede',
+                        size: 13,
+                        color: COLOR_RED,
+                        bold: true,
+                        font: 'Arial',
+                      }),
+                    ],
+                  }),
+                ],
+              }),
+            ],
+          }),
+        ],
+      }),
+    )
   }
 
   // ----------------------------------------------------
@@ -1519,683 +1519,682 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
       ),
     )
 
-  const colWidthHalf = Math.floor(PAGE_CONTENT_WIDTH / 2)
+    const colWidthHalf = Math.floor(PAGE_CONTENT_WIDTH / 2)
 
-  // Carrega fotos reais do módulo e inversor se habilitadas e existirem com compressão (600px, qualidade 0.78)
-  const permitirFotos = dados.secoesHabilitadas?.fotosProjeto !== false
-  const fotoModuloBytes =
-    permitirFotos && sistema.fotoModuloUrl
-      ? await compressImageToUint8Array(sistema.fotoModuloUrl, 600, 0.78, false)
-      : null
-  const fotoInversorBytes =
-    permitirFotos && sistema.fotoInversorUrl
-      ? await compressImageToUint8Array(sistema.fotoInversorUrl, 600, 0.78, false)
-      : null
+    // Carrega fotos reais do módulo e inversor se habilitadas e existirem com compressão (600px, qualidade 0.78)
+    const permitirFotos = dados.secoesHabilitadas?.fotosProjeto !== false
+    const fotoModuloBytes =
+      permitirFotos && sistema.fotoModuloUrl
+        ? await compressImageToUint8Array(sistema.fotoModuloUrl, 600, 0.78, false)
+        : null
+    const fotoInversorBytes =
+      permitirFotos && sistema.fotoInversorUrl
+        ? await compressImageToUint8Array(sistema.fotoInversorUrl, 600, 0.78, false)
+        : null
 
-  const modulosCellChildren: (Paragraph | Table)[] = []
-  if (fotoModuloBytes) {
-    modulosCellChildren.push(
-      new Paragraph({
-        alignment: AlignmentType.CENTER,
-        spacing: { after: 60 },
-        children: [
-          new ImageRun({
-            type: 'jpg',
-            data: fotoModuloBytes,
-            transformation: { width: 140, height: 90 },
-          }),
-        ],
-      }),
-    )
-  }
-  modulosCellChildren.push(
-    new Paragraph({
-      children: [
-        new TextRun({
-          text: 'Módulos Fotovoltaicos: ',
-          bold: true,
-          size: 17,
-          font: 'Arial',
-        }),
-        new TextRun({
-          text: formatarTextoModuloDocx({
-            quantidade: sistema.numeroPlacas,
-            descricao: sistema.marcaPlacas || 'Módulos Tier-1',
-            potenciaWp: sistema.potenciaPlacaWp,
-            caracteristicas: 'bifacial N-type',
-          }),
-          size: 17,
-          font: 'Arial',
-        }),
-      ],
-    }),
-    new Paragraph({
-      spacing: { before: 30 },
-      children: [
-        new TextRun({
-          text: '• Garantia de performance (degradação): ',
-          bold: true,
-          color: '065F46',
-          size: 14,
-          font: 'Arial',
-        }),
-        new TextRun({
-          text: `${(sistema as any)?.garantias?.paineisAnosDesempenho || (dados as any)?.garantias?.paineisAnosDesempenho || 30} anos`,
-          bold: true,
-          color: '065F46',
-          size: 14,
-          font: 'Arial',
-        }),
-      ],
-    }),
-    new Paragraph({
-      spacing: { before: 20 },
-      children: [
-        new TextRun({
-          text: '• Garantia contra defeitos de fabricação: ',
-          bold: true,
-          color: '92400E',
-          size: 14,
-          font: 'Arial',
-        }),
-        new TextRun({
-          text: `${(sistema as any)?.garantias?.paineisAnosFabricacao || (dados as any)?.garantias?.paineisAnosFabricacao || 15} anos`,
-          bold: true,
-          color: '92400E',
-          size: 14,
-          font: 'Arial',
-        }),
-      ],
-    }),
-  )
-
-  const inversorCellChildren: (Paragraph | Table)[] = []
-  if (fotoInversorBytes) {
-    inversorCellChildren.push(
-      new Paragraph({
-        alignment: AlignmentType.CENTER,
-        spacing: { after: 60 },
-        children: [
-          new ImageRun({
-            type: 'jpg',
-            data: fotoInversorBytes,
-            transformation: { width: 140, height: 90 },
-          }),
-        ],
-      }),
-    )
-  }
-  inversorCellChildren.push(
-    new Paragraph({
-      children: [
-        new TextRun({ text: 'Inversor Solar: ', bold: true, size: 17, font: 'Arial' }),
-        new TextRun({
-          text: `${sistema.quantidadeInversores}x ${sistema.marcaInversor || 'Inversor Homologado'} com WiFi e telemetria`,
-          size: 17,
-          font: 'Arial',
-        }),
-      ],
-    }),
-    new Paragraph({
-      spacing: { before: 30 },
-      children: [
-        new TextRun({
-          text: '• Garantia do inversor: ',
-          bold: true,
-          color: '0F766E',
-          size: 14,
-          font: 'Arial',
-        }),
-        new TextRun({
-          text: `${(sistema as any)?.garantias?.inversorAnosFabricacao || (dados as any)?.garantias?.inversorAnosFabricacao || 10} anos`,
-          bold: true,
-          color: '0F766E',
-          size: 14,
-          font: 'Arial',
-        }),
-      ],
-    }),
-  )
-
-  docChildren.push(
-    new Table({
-      width: { size: PAGE_CONTENT_WIDTH, type: WidthType.DXA },
-      borders: tableBorderDefault,
-      rows: [
-        new TableRow({
-          children: [
-            new TableCell({
-              width: { size: colWidthHalf, type: WidthType.DXA },
-              shading: { type: ShadingType.CLEAR, fill: 'F5F5F5' },
-              margins: { top: 80, bottom: 80, left: 100, right: 100 },
-              children: [
-                new Paragraph({
-                  children: [
-                    new TextRun({
-                      text: 'Potência Nominal: ',
-                      bold: true,
-                      size: 17,
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: `${formatNumBR(potenciaKwp, 2)} kWp`,
-                      bold: true,
-                      color: COLOR_PRIMARY,
-                      size: 17,
-                      font: 'Arial',
-                    }),
-                  ],
-                }),
-              ],
-            }),
-            new TableCell({
-              width: { size: colWidthHalf, type: WidthType.DXA },
-              shading: { type: ShadingType.CLEAR, fill: 'F5F5F5' },
-              margins: { top: 80, bottom: 80, left: 100, right: 100 },
-              children: [
-                new Paragraph({
-                  children: [
-                    new TextRun({
-                      text: 'Geração Média Estimada: ',
-                      bold: true,
-                      size: 17,
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: `${formatNumBR(calculos.geracaoMediaMensalKwh, 0)} kWh/mês (${formatBRL(economiaMensal)}/mês)`,
-                      bold: true,
-                      color: COLOR_ACCENT,
-                      size: 17,
-                      font: 'Arial',
-                    }),
-                  ],
-                }),
-              ],
-            }),
-          ],
-        }),
-        new TableRow({
-          children: [
-            new TableCell({
-              width: { size: colWidthHalf, type: WidthType.DXA },
-              shading: { type: ShadingType.CLEAR, fill: 'F5F5F5' },
-              margins: { top: 80, bottom: 80, left: 100, right: 100 },
-              children: modulosCellChildren,
-            }),
-            new TableCell({
-              width: { size: colWidthHalf, type: WidthType.DXA },
-              shading: { type: ShadingType.CLEAR, fill: 'F5F5F5' },
-              margins: { top: 80, bottom: 80, left: 100, right: 100 },
-              children: inversorCellChildren,
-            }),
-          ],
-        }),
-        new TableRow({
-          children: [
-            new TableCell({
-              width: { size: colWidthHalf, type: WidthType.DXA },
-              shading: { type: ShadingType.CLEAR, fill: 'F5F5F5' },
-              margins: { top: 80, bottom: 80, left: 100, right: 100 },
-              children: [
-                new Paragraph({
-                  children: [
-                    new TextRun({
-                      text: 'Estrutura de Fixação: ',
-                      bold: true,
-                      size: 17,
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: formatarTipoEstrutura(sistema.tipoEstrutura),
-                      size: 17,
-                      font: 'Arial',
-                    }),
-                  ],
-                }),
-              ],
-            }),
-            new TableCell({
-              width: { size: colWidthHalf, type: WidthType.DXA },
-              shading: { type: ShadingType.CLEAR, fill: 'F5F5F5' },
-              margins: { top: 80, bottom: 80, left: 100, right: 100 },
-              children: [
-                new Paragraph({
-                  children: [
-                    new TextRun({
-                      text: 'Área Necessária / Orientação: ',
-                      bold: true,
-                      size: 17,
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: `~${sistema.areaNecessariaM2} m² • ${formatarOrientacao(sistema.orientacaoTelhado)}`,
-                      size: 17,
-                      font: 'Arial',
-                    }),
-                  ],
-                }),
-              ],
-            }),
-          ],
-        }),
-      ],
-    }),
-  )
-
-  // ----------------------------------------------------
-  // TABELA COMPACTA: GERAÇÃO MENSAL PREVISTA (2 LINHAS × 12 COLUNAS)
-  // Posicionada IMEDIATAMENTE ABAIXO dos cards da seção "Seu Sistema Fotovoltaico"
-  // Fallback: se geracao_detalhada_json for null/vazio ou seções desabilitadas, omite a seção
-  // ----------------------------------------------------
-  const itensGeracao = calculos.geracaoMensalDetalhada
-  if (
-    dados.secoesHabilitadas?.sazonalidadeSolar !== false &&
-    Array.isArray(itensGeracao) &&
-    itensGeracao.length > 0
-  ) {
-    const totalAnualDocx =
-      calculos.geracaoAnualEstimadaKwh > 0
-        ? calculos.geracaoAnualEstimadaKwh
-        : itensGeracao.reduce((acc, curr) => acc + (Number(curr.geracaoKwh) || 0), 0)
-    const maxGeracaoDocx = Math.max(...itensGeracao.map((m) => Number(m.geracaoKwh) || 0))
-    const mediaMensalDocx =
-      totalAnualDocx > 0 ? Math.round(totalAnualDocx / itensGeracao.length) : 0
-
-    // 12 colunas somando PAGE_CONTENT_WIDTH (9.900 dxa): 9.900 / 12 = 825 dxa por coluna
-    const colW_12 = 825
-
-    docChildren.push(
-      // Título da Seção
-      new Paragraph({
-        spacing: { before: 140, after: 40 },
-        children: [
-          new TextRun({
-            text: 'Geração Mensal Prevista (Janeiro a Dezembro — Erechim/RS)',
-            bold: true,
-            size: 18,
-            color: '166534',
-            font: 'Arial',
-          }),
-        ],
-      }),
-      new Paragraph({
-        spacing: { after: 60 },
-        children: [
-          new TextRun({
-            text: 'Produção estimada de energia mês a mês em kWh.',
-            size: 13,
-            color: COLOR_TEXT_MUTED,
-            font: 'Arial',
-          }),
-        ],
-      }),
-      // Tabela Nativa DOCX: 2 linhas × 12 colunas (Linha 1 = Mês, Linha 2 = Geração kWh)
-      new Table({
-        width: { size: PAGE_CONTENT_WIDTH, type: WidthType.DXA },
-        borders: tableBorderDefault,
-        rows: [
-          // Linha 1: Cabeçalho com os 12 meses
-          new TableRow({
-            tableHeader: true,
-            cantSplit: true,
-            children: itensGeracao.map((item) => {
-              const isPico = item.geracaoKwh >= maxGeracaoDocx * 0.98 && item.geracaoKwh > 0
-              return new TableCell({
-                width: { size: colW_12, type: WidthType.DXA },
-                shading: { type: ShadingType.CLEAR, fill: isPico ? '064E3B' : '064E3B' },
-                margins: { top: 60, bottom: 60, left: 40, right: 40 },
-                children: [
-                  new Paragraph({
-                    alignment: AlignmentType.CENTER,
-                    children: [
-                      new TextRun({
-                        text: item.mesNome.toUpperCase(),
-                        bold: true,
-                        size: 13,
-                        color: isPico ? 'A7F3D0' : 'FFFFFF',
-                        font: 'Arial',
-                      }),
-                    ],
-                  }),
-                ],
-              })
-            }),
-          }),
-          // Linha 2: Geração kWh de cada mês
-          new TableRow({
-            cantSplit: true,
-            children: itensGeracao.map((item) => {
-              const isPico = item.geracaoKwh >= maxGeracaoDocx * 0.98 && item.geracaoKwh > 0
-              const valorKwh = Math.round(Number(item.geracaoKwh) || 0)
-              return new TableCell({
-                width: { size: colW_12, type: WidthType.DXA },
-                shading: { type: ShadingType.CLEAR, fill: isPico ? 'ECFDF5' : 'FFFFFF' },
-                margins: { top: 60, bottom: 60, left: 30, right: 30 },
-                children: [
-                  new Paragraph({
-                    alignment: AlignmentType.CENTER,
-                    children: [
-                      new TextRun({
-                        text: valorKwh.toLocaleString('pt-BR'),
-                        bold: isPico,
-                        size: 13,
-                        color: isPico ? '065F46' : '1F2937',
-                        font: 'Arial',
-                      }),
-                      ...(isPico
-                        ? [
-                            new TextRun({
-                              text: '\n[PICO]',
-                              bold: true,
-                              size: 10,
-                              color: '166534',
-                              font: 'Arial',
-                            }),
-                          ]
-                        : []),
-                    ],
-                  }),
-                ],
-              })
-            }),
-          }),
-        ],
-      }),
-      // Linha Única de Totais abaixo da tabela
-      new Paragraph({
-        alignment: AlignmentType.CENTER,
-        spacing: { before: 80, after: 120 },
-        children: [
-          new TextRun({
-            text: 'Total anual: ',
-            size: 14,
-            color: COLOR_TEXT_MUTED,
-            font: 'Arial',
-          }),
-          new TextRun({
-            text: `${Math.round(totalAnualDocx).toLocaleString('pt-BR')} kWh`,
-            bold: true,
-            size: 14,
-            color: '065F46',
-            font: 'Arial',
-          }),
-          new TextRun({
-            text: '   ·   ',
-            size: 14,
-            color: 'D1D5DB',
-            font: 'Arial',
-          }),
-          new TextRun({
-            text: 'Média mensal: ',
-            size: 14,
-            color: COLOR_TEXT_MUTED,
-            font: 'Arial',
-          }),
-          new TextRun({
-            text: `${mediaMensalDocx.toLocaleString('pt-BR')} kWh`,
-            bold: true,
-            size: 14,
-            color: '111827',
-            font: 'Arial',
-          }),
-        ],
-      }),
-    )
-  }
-
-  // Faixa verde de monitoramento com smartphone
-  docChildren.push(
-    new Table({
-      width: { size: PAGE_CONTENT_WIDTH, type: WidthType.DXA },
-      borders: tableBorderNone,
-      rows: [
-        new TableRow({
-          children: [
-            new TableCell({
-              width: { size: PAGE_CONTENT_WIDTH, type: WidthType.DXA },
-              shading: { type: ShadingType.CLEAR, fill: '065F46' },
-              margins: { top: 80, bottom: 80, left: 120, right: 120 },
-              children: [
-                new Paragraph({
-                  children: [
-                    new TextRun({
-                      text: '📱 MONITORAMENTO PELO SMARTPHONE (iOS & ANDROID): ',
-                      bold: true,
-                      size: 16,
-                      color: 'FFFFFF',
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: 'Acompanhe geração diária, curva solar em kWh e economia acumulada em tempo real direto na tela do seu celular.',
-                      size: 15,
-                      color: 'D1FAE5',
-                      font: 'Arial',
-                    }),
-                  ],
-                }),
-              ],
-            }),
-          ],
-        }),
-      ],
-    }),
-  )
-
-  // ----------------------------------------------------
-  // SEÇÃO: LAYOUT DO TELHADO (SOLERGO / ENGENHARIA DELFOS)
-  // Renderizada se layoutTelhadoHabilitado !== false e houver layoutTelhadoUrl
-  // Imagem em ImageRun com PAGE_CONTENT_WIDTH = 9900 dxa (aprox 660 px de largura)
-  // ----------------------------------------------------
-  if (
-    dados.layoutTelhadoHabilitado !== false &&
-    dados.secoesHabilitadas?.layoutTelhado !== false &&
-    dados.layoutTelhadoUrl
-  ) {
-    const layoutBytes = await compressImageToUint8Array(dados.layoutTelhadoUrl, 800, 0.78, false)
-    if (layoutBytes) {
-      docChildren.push(
+    const modulosCellChildren: (Paragraph | Table)[] = []
+    if (fotoModuloBytes) {
+      modulosCellChildren.push(
         new Paragraph({
-          spacing: { before: 180, after: 40 },
+          alignment: AlignmentType.CENTER,
+          spacing: { after: 60 },
           children: [
-            new TextRun({
-              text: 'Veja como ficará sua usina no telhado',
-              bold: true,
-              size: 20,
-              color: '1E3A8A', // Azul marinho
-              font: 'Arial',
-            }),
-          ],
-        }),
-        new Paragraph({
-          spacing: { after: 100 },
-          children: [
-            new TextRun({
-              text: 'Layout técnico do projeto',
-              size: 14,
-              color: '4B5563', // Cinza escuro #4B5563
-              font: 'Arial',
-            }),
-          ],
-        }),
-        new Table({
-          width: { size: PAGE_CONTENT_WIDTH, type: WidthType.DXA },
-          borders: tableBorderDefault,
-          rows: [
-            new TableRow({
-              children: [
-                new TableCell({
-                  width: { size: PAGE_CONTENT_WIDTH, type: WidthType.DXA },
-                  shading: { type: ShadingType.CLEAR, fill: 'FFFFFF' },
-                  margins: { top: 100, bottom: 100, left: 100, right: 100 },
-                  children: [
-                    new Paragraph({
-                      alignment: AlignmentType.CENTER,
-                      children: [
-                        new ImageRun({
-                          type: 'png',
-                          data: layoutBytes,
-                          transformation: { width: 660, height: 350 },
-                        }),
-                      ],
-                    }),
-                  ],
-                }),
-              ],
+            new ImageRun({
+              type: 'jpg',
+              data: fotoModuloBytes,
+              transformation: { width: 140, height: 90 },
             }),
           ],
         }),
       )
     }
-  }
-
-  // ----------------------------------------------------
-  // BLOCOS: COMO FUNCIONA O SISTEMA SOLAR (ON-GRID) & MONITORAMENTO
-  // Utiliza as ilustrações oficiais da proposta (onGridPngAsset e monitoramentoPngAsset)
-  // Fundo #F0FDF4, borda #BBF7D0 e acentos verdes (#16A34A / #166534)
-  // ----------------------------------------------------
-  const [imgOnGridBytes, imgMonitoramentoBytes] = await Promise.all([
-    compressImageToUint8Array(onGridPngAsset, 800, 0.78, false),
-    compressImageToUint8Array(monitoramentoPngAsset, 800, 0.78, false),
-  ])
-
-  const colWidthBlocos = Math.floor(PAGE_CONTENT_WIDTH / 2)
-  docChildren.push(
-    new Table({
-      width: { size: PAGE_CONTENT_WIDTH, type: WidthType.DXA },
-      borders: {
-        top: { style: BorderStyle.SINGLE, size: 8, color: 'BBF7D0' },
-        bottom: { style: BorderStyle.SINGLE, size: 8, color: 'BBF7D0' },
-        left: { style: BorderStyle.SINGLE, size: 8, color: 'BBF7D0' },
-        right: { style: BorderStyle.SINGLE, size: 8, color: 'BBF7D0' },
-        insideVertical: { style: BorderStyle.SINGLE, size: 8, color: 'BBF7D0' },
-        insideHorizontal: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
-      },
-      rows: [
-        new TableRow({
-          children: [
-            // Bloco 1: Como Funciona o Sistema Solar (On-Grid)
-            new TableCell({
-              width: { size: colWidthBlocos, type: WidthType.DXA },
-              shading: { type: ShadingType.CLEAR, fill: 'F0FDF4' },
-              margins: { top: 100, bottom: 100, left: 110, right: 110 },
-              children: [
-                new Paragraph({
-                  children: [
-                    new TextRun({
-                      text: '⚡ ENGENHARIA ON-GRID • CONEXÃO À REDE\n',
-                      bold: true,
-                      size: 13,
-                      color: '166534',
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: 'Como funciona o sistema solar (On-Grid)\n',
-                      bold: true,
-                      size: 16,
-                      color: '166534',
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: 'Módulos solares convertem luz em energia contínua e o inversor transforma em corrente alternada para seu imóvel. O excedente gera créditos no medidor bidirecional.',
-                      size: 13,
-                      color: COLOR_TEXT_MUTED,
-                      font: 'Arial',
-                    }),
-                  ],
-                }),
-                ...(imgOnGridBytes
-                  ? [
-                      new Paragraph({
-                        spacing: { before: 80, after: 60 },
-                        alignment: AlignmentType.CENTER,
-                        children: [
-                          new ImageRun({
-                            type: 'png',
-                            data: imgOnGridBytes,
-                            transformation: { width: 230, height: 110 },
-                          }),
-                        ],
-                      }),
-                    ]
-                  : []),
-                new Paragraph({
-                  children: [
-                    new TextRun({
-                      text: '✓ Homologação e ART Inclusa • Turnkey Delfos',
-                      bold: true,
-                      size: 12,
-                      color: '166534',
-                      font: 'Arial',
-                    }),
-                  ],
-                }),
-              ],
+    modulosCellChildren.push(
+      new Paragraph({
+        children: [
+          new TextRun({
+            text: 'Módulos Fotovoltaicos: ',
+            bold: true,
+            size: 17,
+            font: 'Arial',
+          }),
+          new TextRun({
+            text: formatarTextoModuloDocx({
+              quantidade: sistema.numeroPlacas,
+              descricao: sistema.marcaPlacas || 'Módulos Tier-1',
+              potenciaWp: sistema.potenciaPlacaWp,
+              caracteristicas: 'bifacial N-type',
             }),
+            size: 17,
+            font: 'Arial',
+          }),
+        ],
+      }),
+      new Paragraph({
+        spacing: { before: 30 },
+        children: [
+          new TextRun({
+            text: '• Garantia de performance (degradação): ',
+            bold: true,
+            color: '065F46',
+            size: 14,
+            font: 'Arial',
+          }),
+          new TextRun({
+            text: `${(sistema as any)?.garantias?.paineisAnosDesempenho || (dados as any)?.garantias?.paineisAnosDesempenho || 30} anos`,
+            bold: true,
+            color: '065F46',
+            size: 14,
+            font: 'Arial',
+          }),
+        ],
+      }),
+      new Paragraph({
+        spacing: { before: 20 },
+        children: [
+          new TextRun({
+            text: '• Garantia contra defeitos de fabricação: ',
+            bold: true,
+            color: '92400E',
+            size: 14,
+            font: 'Arial',
+          }),
+          new TextRun({
+            text: `${(sistema as any)?.garantias?.paineisAnosFabricacao || (dados as any)?.garantias?.paineisAnosFabricacao || 15} anos`,
+            bold: true,
+            color: '92400E',
+            size: 14,
+            font: 'Arial',
+          }),
+        ],
+      }),
+    )
 
-            // Bloco 2: Monitoramento
-            new TableCell({
-              width: { size: colWidthBlocos, type: WidthType.DXA },
-              shading: { type: ShadingType.CLEAR, fill: 'F0FDF4' },
-              margins: { top: 100, bottom: 100, left: 110, right: 110 },
-              children: [
-                new Paragraph({
-                  children: [
-                    new TextRun({
-                      text: '📱 TELEMETRIA EM TEMPO REAL • APP MOBILE\n',
-                      bold: true,
-                      size: 13,
-                      color: '166534',
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: 'Monitoramento\n',
-                      bold: true,
-                      size: 16,
-                      color: '166534',
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: 'Acompanhe sua geração diária em tempo real na palma da mão: gráficos em kWh, economia acumulada em reais e histórico completo de performance.',
-                      size: 13,
-                      color: COLOR_TEXT_MUTED,
-                      font: 'Arial',
-                    }),
-                  ],
-                }),
-                ...(imgMonitoramentoBytes
-                  ? [
-                      new Paragraph({
-                        spacing: { before: 80, after: 60 },
-                        alignment: AlignmentType.CENTER,
-                        children: [
-                          new ImageRun({
-                            type: 'png',
-                            data: imgMonitoramentoBytes,
-                            transformation: { width: 230, height: 110 },
-                          }),
-                        ],
-                      }),
-                    ]
-                  : []),
-                new Paragraph({
-                  children: [
-                    new TextRun({
-                      text: '✓ Suporte e Acesso Vitalício • iOS & Android',
-                      bold: true,
-                      size: 12,
-                      color: '166534',
-                      font: 'Arial',
-                    }),
-                  ],
-                }),
-              ],
+    const inversorCellChildren: (Paragraph | Table)[] = []
+    if (fotoInversorBytes) {
+      inversorCellChildren.push(
+        new Paragraph({
+          alignment: AlignmentType.CENTER,
+          spacing: { after: 60 },
+          children: [
+            new ImageRun({
+              type: 'jpg',
+              data: fotoInversorBytes,
+              transformation: { width: 140, height: 90 },
             }),
           ],
         }),
-      ],
-    }),
-  )
+      )
+    }
+    inversorCellChildren.push(
+      new Paragraph({
+        children: [
+          new TextRun({ text: 'Inversor Solar: ', bold: true, size: 17, font: 'Arial' }),
+          new TextRun({
+            text: `${sistema.quantidadeInversores}x ${sistema.marcaInversor || 'Inversor Homologado'} com WiFi e telemetria`,
+            size: 17,
+            font: 'Arial',
+          }),
+        ],
+      }),
+      new Paragraph({
+        spacing: { before: 30 },
+        children: [
+          new TextRun({
+            text: '• Garantia do inversor: ',
+            bold: true,
+            color: '0F766E',
+            size: 14,
+            font: 'Arial',
+          }),
+          new TextRun({
+            text: `${(sistema as any)?.garantias?.inversorAnosFabricacao || (dados as any)?.garantias?.inversorAnosFabricacao || 10} anos`,
+            bold: true,
+            color: '0F766E',
+            size: 14,
+            font: 'Arial',
+          }),
+        ],
+      }),
+    )
 
+    docChildren.push(
+      new Table({
+        width: { size: PAGE_CONTENT_WIDTH, type: WidthType.DXA },
+        borders: tableBorderDefault,
+        rows: [
+          new TableRow({
+            children: [
+              new TableCell({
+                width: { size: colWidthHalf, type: WidthType.DXA },
+                shading: { type: ShadingType.CLEAR, fill: 'F5F5F5' },
+                margins: { top: 80, bottom: 80, left: 100, right: 100 },
+                children: [
+                  new Paragraph({
+                    children: [
+                      new TextRun({
+                        text: 'Potência Nominal: ',
+                        bold: true,
+                        size: 17,
+                        font: 'Arial',
+                      }),
+                      new TextRun({
+                        text: `${formatNumBR(potenciaKwp, 2)} kWp`,
+                        bold: true,
+                        color: COLOR_PRIMARY,
+                        size: 17,
+                        font: 'Arial',
+                      }),
+                    ],
+                  }),
+                ],
+              }),
+              new TableCell({
+                width: { size: colWidthHalf, type: WidthType.DXA },
+                shading: { type: ShadingType.CLEAR, fill: 'F5F5F5' },
+                margins: { top: 80, bottom: 80, left: 100, right: 100 },
+                children: [
+                  new Paragraph({
+                    children: [
+                      new TextRun({
+                        text: 'Geração Média Estimada: ',
+                        bold: true,
+                        size: 17,
+                        font: 'Arial',
+                      }),
+                      new TextRun({
+                        text: `${formatNumBR(calculos.geracaoMediaMensalKwh, 0)} kWh/mês (${formatBRL(economiaMensal)}/mês)`,
+                        bold: true,
+                        color: COLOR_ACCENT,
+                        size: 17,
+                        font: 'Arial',
+                      }),
+                    ],
+                  }),
+                ],
+              }),
+            ],
+          }),
+          new TableRow({
+            children: [
+              new TableCell({
+                width: { size: colWidthHalf, type: WidthType.DXA },
+                shading: { type: ShadingType.CLEAR, fill: 'F5F5F5' },
+                margins: { top: 80, bottom: 80, left: 100, right: 100 },
+                children: modulosCellChildren,
+              }),
+              new TableCell({
+                width: { size: colWidthHalf, type: WidthType.DXA },
+                shading: { type: ShadingType.CLEAR, fill: 'F5F5F5' },
+                margins: { top: 80, bottom: 80, left: 100, right: 100 },
+                children: inversorCellChildren,
+              }),
+            ],
+          }),
+          new TableRow({
+            children: [
+              new TableCell({
+                width: { size: colWidthHalf, type: WidthType.DXA },
+                shading: { type: ShadingType.CLEAR, fill: 'F5F5F5' },
+                margins: { top: 80, bottom: 80, left: 100, right: 100 },
+                children: [
+                  new Paragraph({
+                    children: [
+                      new TextRun({
+                        text: 'Estrutura de Fixação: ',
+                        bold: true,
+                        size: 17,
+                        font: 'Arial',
+                      }),
+                      new TextRun({
+                        text: formatarTipoEstrutura(sistema.tipoEstrutura),
+                        size: 17,
+                        font: 'Arial',
+                      }),
+                    ],
+                  }),
+                ],
+              }),
+              new TableCell({
+                width: { size: colWidthHalf, type: WidthType.DXA },
+                shading: { type: ShadingType.CLEAR, fill: 'F5F5F5' },
+                margins: { top: 80, bottom: 80, left: 100, right: 100 },
+                children: [
+                  new Paragraph({
+                    children: [
+                      new TextRun({
+                        text: 'Área Necessária / Orientação: ',
+                        bold: true,
+                        size: 17,
+                        font: 'Arial',
+                      }),
+                      new TextRun({
+                        text: `~${sistema.areaNecessariaM2} m² • ${formatarOrientacao(sistema.orientacaoTelhado)}`,
+                        size: 17,
+                        font: 'Arial',
+                      }),
+                    ],
+                  }),
+                ],
+              }),
+            ],
+          }),
+        ],
+      }),
+    )
+
+    // ----------------------------------------------------
+    // TABELA COMPACTA: GERAÇÃO MENSAL PREVISTA (2 LINHAS × 12 COLUNAS)
+    // Posicionada IMEDIATAMENTE ABAIXO dos cards da seção "Seu Sistema Fotovoltaico"
+    // Fallback: se geracao_detalhada_json for null/vazio ou seções desabilitadas, omite a seção
+    // ----------------------------------------------------
+    const itensGeracao = calculos.geracaoMensalDetalhada
+    if (
+      dados.secoesHabilitadas?.sazonalidadeSolar !== false &&
+      Array.isArray(itensGeracao) &&
+      itensGeracao.length > 0
+    ) {
+      const totalAnualDocx =
+        calculos.geracaoAnualEstimadaKwh > 0
+          ? calculos.geracaoAnualEstimadaKwh
+          : itensGeracao.reduce((acc, curr) => acc + (Number(curr.geracaoKwh) || 0), 0)
+      const maxGeracaoDocx = Math.max(...itensGeracao.map((m) => Number(m.geracaoKwh) || 0))
+      const mediaMensalDocx =
+        totalAnualDocx > 0 ? Math.round(totalAnualDocx / itensGeracao.length) : 0
+
+      // 12 colunas somando PAGE_CONTENT_WIDTH (9.900 dxa): 9.900 / 12 = 825 dxa por coluna
+      const colW_12 = 825
+
+      docChildren.push(
+        // Título da Seção
+        new Paragraph({
+          spacing: { before: 140, after: 40 },
+          children: [
+            new TextRun({
+              text: 'Geração Mensal Prevista (Janeiro a Dezembro — Erechim/RS)',
+              bold: true,
+              size: 18,
+              color: '166534',
+              font: 'Arial',
+            }),
+          ],
+        }),
+        new Paragraph({
+          spacing: { after: 60 },
+          children: [
+            new TextRun({
+              text: 'Produção estimada de energia mês a mês em kWh.',
+              size: 13,
+              color: COLOR_TEXT_MUTED,
+              font: 'Arial',
+            }),
+          ],
+        }),
+        // Tabela Nativa DOCX: 2 linhas × 12 colunas (Linha 1 = Mês, Linha 2 = Geração kWh)
+        new Table({
+          width: { size: PAGE_CONTENT_WIDTH, type: WidthType.DXA },
+          borders: tableBorderDefault,
+          rows: [
+            // Linha 1: Cabeçalho com os 12 meses
+            new TableRow({
+              tableHeader: true,
+              cantSplit: true,
+              children: itensGeracao.map((item) => {
+                const isPico = item.geracaoKwh >= maxGeracaoDocx * 0.98 && item.geracaoKwh > 0
+                return new TableCell({
+                  width: { size: colW_12, type: WidthType.DXA },
+                  shading: { type: ShadingType.CLEAR, fill: isPico ? '064E3B' : '064E3B' },
+                  margins: { top: 60, bottom: 60, left: 40, right: 40 },
+                  children: [
+                    new Paragraph({
+                      alignment: AlignmentType.CENTER,
+                      children: [
+                        new TextRun({
+                          text: item.mesNome.toUpperCase(),
+                          bold: true,
+                          size: 13,
+                          color: isPico ? 'A7F3D0' : 'FFFFFF',
+                          font: 'Arial',
+                        }),
+                      ],
+                    }),
+                  ],
+                })
+              }),
+            }),
+            // Linha 2: Geração kWh de cada mês
+            new TableRow({
+              cantSplit: true,
+              children: itensGeracao.map((item) => {
+                const isPico = item.geracaoKwh >= maxGeracaoDocx * 0.98 && item.geracaoKwh > 0
+                const valorKwh = Math.round(Number(item.geracaoKwh) || 0)
+                return new TableCell({
+                  width: { size: colW_12, type: WidthType.DXA },
+                  shading: { type: ShadingType.CLEAR, fill: isPico ? 'ECFDF5' : 'FFFFFF' },
+                  margins: { top: 60, bottom: 60, left: 30, right: 30 },
+                  children: [
+                    new Paragraph({
+                      alignment: AlignmentType.CENTER,
+                      children: [
+                        new TextRun({
+                          text: valorKwh.toLocaleString('pt-BR'),
+                          bold: isPico,
+                          size: 13,
+                          color: isPico ? '065F46' : '1F2937',
+                          font: 'Arial',
+                        }),
+                        ...(isPico
+                          ? [
+                              new TextRun({
+                                text: '\n[PICO]',
+                                bold: true,
+                                size: 10,
+                                color: '166534',
+                                font: 'Arial',
+                              }),
+                            ]
+                          : []),
+                      ],
+                    }),
+                  ],
+                })
+              }),
+            }),
+          ],
+        }),
+        // Linha Única de Totais abaixo da tabela
+        new Paragraph({
+          alignment: AlignmentType.CENTER,
+          spacing: { before: 80, after: 120 },
+          children: [
+            new TextRun({
+              text: 'Total anual: ',
+              size: 14,
+              color: COLOR_TEXT_MUTED,
+              font: 'Arial',
+            }),
+            new TextRun({
+              text: `${Math.round(totalAnualDocx).toLocaleString('pt-BR')} kWh`,
+              bold: true,
+              size: 14,
+              color: '065F46',
+              font: 'Arial',
+            }),
+            new TextRun({
+              text: '   ·   ',
+              size: 14,
+              color: 'D1D5DB',
+              font: 'Arial',
+            }),
+            new TextRun({
+              text: 'Média mensal: ',
+              size: 14,
+              color: COLOR_TEXT_MUTED,
+              font: 'Arial',
+            }),
+            new TextRun({
+              text: `${mediaMensalDocx.toLocaleString('pt-BR')} kWh`,
+              bold: true,
+              size: 14,
+              color: '111827',
+              font: 'Arial',
+            }),
+          ],
+        }),
+      )
+    }
+
+    // Faixa verde de monitoramento com smartphone
+    docChildren.push(
+      new Table({
+        width: { size: PAGE_CONTENT_WIDTH, type: WidthType.DXA },
+        borders: tableBorderNone,
+        rows: [
+          new TableRow({
+            children: [
+              new TableCell({
+                width: { size: PAGE_CONTENT_WIDTH, type: WidthType.DXA },
+                shading: { type: ShadingType.CLEAR, fill: '065F46' },
+                margins: { top: 80, bottom: 80, left: 120, right: 120 },
+                children: [
+                  new Paragraph({
+                    children: [
+                      new TextRun({
+                        text: '📱 MONITORAMENTO PELO SMARTPHONE (iOS & ANDROID): ',
+                        bold: true,
+                        size: 16,
+                        color: 'FFFFFF',
+                        font: 'Arial',
+                      }),
+                      new TextRun({
+                        text: 'Acompanhe geração diária, curva solar em kWh e economia acumulada em tempo real direto na tela do seu celular.',
+                        size: 15,
+                        color: 'D1FAE5',
+                        font: 'Arial',
+                      }),
+                    ],
+                  }),
+                ],
+              }),
+            ],
+          }),
+        ],
+      }),
+    )
+
+    // ----------------------------------------------------
+    // SEÇÃO: LAYOUT DO TELHADO (SOLERGO / ENGENHARIA DELFOS)
+    // Renderizada se layoutTelhadoHabilitado !== false e houver layoutTelhadoUrl
+    // Imagem em ImageRun com PAGE_CONTENT_WIDTH = 9900 dxa (aprox 660 px de largura)
+    // ----------------------------------------------------
+    if (
+      dados.layoutTelhadoHabilitado !== false &&
+      dados.secoesHabilitadas?.layoutTelhado !== false &&
+      dados.layoutTelhadoUrl
+    ) {
+      const layoutBytes = await compressImageToUint8Array(dados.layoutTelhadoUrl, 800, 0.78, false)
+      if (layoutBytes) {
+        docChildren.push(
+          new Paragraph({
+            spacing: { before: 180, after: 40 },
+            children: [
+              new TextRun({
+                text: 'Veja como ficará sua usina no telhado',
+                bold: true,
+                size: 20,
+                color: '1E3A8A', // Azul marinho
+                font: 'Arial',
+              }),
+            ],
+          }),
+          new Paragraph({
+            spacing: { after: 100 },
+            children: [
+              new TextRun({
+                text: 'Layout técnico do projeto',
+                size: 14,
+                color: '4B5563', // Cinza escuro #4B5563
+                font: 'Arial',
+              }),
+            ],
+          }),
+          new Table({
+            width: { size: PAGE_CONTENT_WIDTH, type: WidthType.DXA },
+            borders: tableBorderDefault,
+            rows: [
+              new TableRow({
+                children: [
+                  new TableCell({
+                    width: { size: PAGE_CONTENT_WIDTH, type: WidthType.DXA },
+                    shading: { type: ShadingType.CLEAR, fill: 'FFFFFF' },
+                    margins: { top: 100, bottom: 100, left: 100, right: 100 },
+                    children: [
+                      new Paragraph({
+                        alignment: AlignmentType.CENTER,
+                        children: [
+                          new ImageRun({
+                            type: 'png',
+                            data: layoutBytes,
+                            transformation: { width: 660, height: 350 },
+                          }),
+                        ],
+                      }),
+                    ],
+                  }),
+                ],
+              }),
+            ],
+          }),
+        )
+      }
+    }
+
+    // ----------------------------------------------------
+    // BLOCOS: COMO FUNCIONA O SISTEMA SOLAR (ON-GRID) & MONITORAMENTO
+    // Utiliza as ilustrações oficiais da proposta (onGridPngAsset e monitoramentoPngAsset)
+    // Fundo #F0FDF4, borda #BBF7D0 e acentos verdes (#16A34A / #166534)
+    // ----------------------------------------------------
+    const [imgOnGridBytes, imgMonitoramentoBytes] = await Promise.all([
+      compressImageToUint8Array(onGridPngAsset, 800, 0.78, false),
+      compressImageToUint8Array(monitoramentoPngAsset, 800, 0.78, false),
+    ])
+
+    const colWidthBlocos = Math.floor(PAGE_CONTENT_WIDTH / 2)
+    docChildren.push(
+      new Table({
+        width: { size: PAGE_CONTENT_WIDTH, type: WidthType.DXA },
+        borders: {
+          top: { style: BorderStyle.SINGLE, size: 8, color: 'BBF7D0' },
+          bottom: { style: BorderStyle.SINGLE, size: 8, color: 'BBF7D0' },
+          left: { style: BorderStyle.SINGLE, size: 8, color: 'BBF7D0' },
+          right: { style: BorderStyle.SINGLE, size: 8, color: 'BBF7D0' },
+          insideVertical: { style: BorderStyle.SINGLE, size: 8, color: 'BBF7D0' },
+          insideHorizontal: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
+        },
+        rows: [
+          new TableRow({
+            children: [
+              // Bloco 1: Como Funciona o Sistema Solar (On-Grid)
+              new TableCell({
+                width: { size: colWidthBlocos, type: WidthType.DXA },
+                shading: { type: ShadingType.CLEAR, fill: 'F0FDF4' },
+                margins: { top: 100, bottom: 100, left: 110, right: 110 },
+                children: [
+                  new Paragraph({
+                    children: [
+                      new TextRun({
+                        text: '⚡ ENGENHARIA ON-GRID • CONEXÃO À REDE\n',
+                        bold: true,
+                        size: 13,
+                        color: '166534',
+                        font: 'Arial',
+                      }),
+                      new TextRun({
+                        text: 'Como funciona o sistema solar (On-Grid)\n',
+                        bold: true,
+                        size: 16,
+                        color: '166534',
+                        font: 'Arial',
+                      }),
+                      new TextRun({
+                        text: 'Módulos solares convertem luz em energia contínua e o inversor transforma em corrente alternada para seu imóvel. O excedente gera créditos no medidor bidirecional.',
+                        size: 13,
+                        color: COLOR_TEXT_MUTED,
+                        font: 'Arial',
+                      }),
+                    ],
+                  }),
+                  ...(imgOnGridBytes
+                    ? [
+                        new Paragraph({
+                          spacing: { before: 80, after: 60 },
+                          alignment: AlignmentType.CENTER,
+                          children: [
+                            new ImageRun({
+                              type: 'png',
+                              data: imgOnGridBytes,
+                              transformation: { width: 230, height: 110 },
+                            }),
+                          ],
+                        }),
+                      ]
+                    : []),
+                  new Paragraph({
+                    children: [
+                      new TextRun({
+                        text: '✓ Homologação e ART Inclusa • Turnkey Delfos',
+                        bold: true,
+                        size: 12,
+                        color: '166534',
+                        font: 'Arial',
+                      }),
+                    ],
+                  }),
+                ],
+              }),
+
+              // Bloco 2: Monitoramento
+              new TableCell({
+                width: { size: colWidthBlocos, type: WidthType.DXA },
+                shading: { type: ShadingType.CLEAR, fill: 'F0FDF4' },
+                margins: { top: 100, bottom: 100, left: 110, right: 110 },
+                children: [
+                  new Paragraph({
+                    children: [
+                      new TextRun({
+                        text: '📱 TELEMETRIA EM TEMPO REAL • APP MOBILE\n',
+                        bold: true,
+                        size: 13,
+                        color: '166534',
+                        font: 'Arial',
+                      }),
+                      new TextRun({
+                        text: 'Monitoramento\n',
+                        bold: true,
+                        size: 16,
+                        color: '166534',
+                        font: 'Arial',
+                      }),
+                      new TextRun({
+                        text: 'Acompanhe sua geração diária em tempo real na palma da mão: gráficos em kWh, economia acumulada em reais e histórico completo de performance.',
+                        size: 13,
+                        color: COLOR_TEXT_MUTED,
+                        font: 'Arial',
+                      }),
+                    ],
+                  }),
+                  ...(imgMonitoramentoBytes
+                    ? [
+                        new Paragraph({
+                          spacing: { before: 80, after: 60 },
+                          alignment: AlignmentType.CENTER,
+                          children: [
+                            new ImageRun({
+                              type: 'png',
+                              data: imgMonitoramentoBytes,
+                              transformation: { width: 230, height: 110 },
+                            }),
+                          ],
+                        }),
+                      ]
+                    : []),
+                  new Paragraph({
+                    children: [
+                      new TextRun({
+                        text: '✓ Suporte e Acesso Vitalício • iOS & Android',
+                        bold: true,
+                        size: 12,
+                        color: '166534',
+                        font: 'Arial',
+                      }),
+                    ],
+                  }),
+                ],
+              }),
+            ],
+          }),
+        ],
+      }),
+    )
   }
 
   // ----------------------------------------------------
@@ -2208,115 +2207,116 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
         conteudo.secaoProjecao25Anos.subtitulo,
       ),
     )
-  const colWidthMetricas = Math.floor(PAGE_CONTENT_WIDTH / 3)
-  docChildren.push(
-    new Table({
-      width: { size: PAGE_CONTENT_WIDTH, type: WidthType.DXA },
-      borders: tableBorderDefault,
-      rows: [
-        new TableRow({
-          children: [
-            new TableCell({
-              width: { size: colWidthMetricas, type: WidthType.DXA },
-              shading: { type: ShadingType.CLEAR, fill: COLOR_LIGHT_BG },
-              margins: { top: 100, bottom: 100, left: 100, right: 100 },
-              children: [
-                new Paragraph({
-                  alignment: AlignmentType.CENTER,
-                  children: [
-                    new TextRun({
-                      text: 'ECONOMIA EM 1 ANO\n',
-                      bold: true,
-                      size: 15,
-                      color: COLOR_PRIMARY,
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: formatBRL(eco1Ano),
-                      bold: true,
-                      size: 22,
-                      color: COLOR_ACCENT,
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: '\nPrimeiro ano de geração',
-                      size: 14,
-                      color: COLOR_TEXT_MUTED,
-                      font: 'Arial',
-                    }),
-                  ],
-                }),
-              ],
-            }),
-            new TableCell({
-              width: { size: colWidthMetricas, type: WidthType.DXA },
-              shading: { type: ShadingType.CLEAR, fill: COLOR_LIGHT_BG },
-              margins: { top: 100, bottom: 100, left: 100, right: 100 },
-              children: [
-                new Paragraph({
-                  alignment: AlignmentType.CENTER,
-                  children: [
-                    new TextRun({
-                      text: 'ECONOMIA EM 5 ANOS\n',
-                      bold: true,
-                      size: 15,
-                      color: COLOR_PRIMARY,
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: formatBRL(eco5Anos),
-                      bold: true,
-                      size: 22,
-                      color: 'B45309',
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: '\nConsolidação em 5 anos',
-                      size: 14,
-                      color: COLOR_TEXT_MUTED,
-                      font: 'Arial',
-                    }),
-                  ],
-                }),
-              ],
-            }),
-            new TableCell({
-              width: { size: colWidthMetricas, type: WidthType.DXA },
-              shading: { type: ShadingType.CLEAR, fill: COLOR_LIGHT_BG },
-              margins: { top: 100, bottom: 100, left: 100, right: 100 },
-              children: [
-                new Paragraph({
-                  alignment: AlignmentType.CENTER,
-                  children: [
-                    new TextRun({
-                      text: 'ECONOMIA EM 25 ANOS\n',
-                      bold: true,
-                      size: 15,
-                      color: COLOR_PRIMARY,
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: formatBRL(eco25Anos),
-                      bold: true,
-                      size: 22,
-                      color: '1E40AF',
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: '\nTotal poupado na vida útil',
-                      size: 14,
-                      color: COLOR_TEXT_MUTED,
-                      font: 'Arial',
-                    }),
-                  ],
-                }),
-              ],
-            }),
-          ],
-        }),
-      ],
-    }),
-  )
+    const colWidthMetricas = Math.floor(PAGE_CONTENT_WIDTH / 3)
+    docChildren.push(
+      new Table({
+        width: { size: PAGE_CONTENT_WIDTH, type: WidthType.DXA },
+        borders: tableBorderDefault,
+        rows: [
+          new TableRow({
+            children: [
+              new TableCell({
+                width: { size: colWidthMetricas, type: WidthType.DXA },
+                shading: { type: ShadingType.CLEAR, fill: COLOR_LIGHT_BG },
+                margins: { top: 100, bottom: 100, left: 100, right: 100 },
+                children: [
+                  new Paragraph({
+                    alignment: AlignmentType.CENTER,
+                    children: [
+                      new TextRun({
+                        text: 'ECONOMIA EM 1 ANO\n',
+                        bold: true,
+                        size: 15,
+                        color: COLOR_PRIMARY,
+                        font: 'Arial',
+                      }),
+                      new TextRun({
+                        text: formatBRL(eco1Ano),
+                        bold: true,
+                        size: 22,
+                        color: COLOR_ACCENT,
+                        font: 'Arial',
+                      }),
+                      new TextRun({
+                        text: '\nPrimeiro ano de geração',
+                        size: 14,
+                        color: COLOR_TEXT_MUTED,
+                        font: 'Arial',
+                      }),
+                    ],
+                  }),
+                ],
+              }),
+              new TableCell({
+                width: { size: colWidthMetricas, type: WidthType.DXA },
+                shading: { type: ShadingType.CLEAR, fill: COLOR_LIGHT_BG },
+                margins: { top: 100, bottom: 100, left: 100, right: 100 },
+                children: [
+                  new Paragraph({
+                    alignment: AlignmentType.CENTER,
+                    children: [
+                      new TextRun({
+                        text: 'ECONOMIA EM 5 ANOS\n',
+                        bold: true,
+                        size: 15,
+                        color: COLOR_PRIMARY,
+                        font: 'Arial',
+                      }),
+                      new TextRun({
+                        text: formatBRL(eco5Anos),
+                        bold: true,
+                        size: 22,
+                        color: 'B45309',
+                        font: 'Arial',
+                      }),
+                      new TextRun({
+                        text: '\nConsolidação em 5 anos',
+                        size: 14,
+                        color: COLOR_TEXT_MUTED,
+                        font: 'Arial',
+                      }),
+                    ],
+                  }),
+                ],
+              }),
+              new TableCell({
+                width: { size: colWidthMetricas, type: WidthType.DXA },
+                shading: { type: ShadingType.CLEAR, fill: COLOR_LIGHT_BG },
+                margins: { top: 100, bottom: 100, left: 100, right: 100 },
+                children: [
+                  new Paragraph({
+                    alignment: AlignmentType.CENTER,
+                    children: [
+                      new TextRun({
+                        text: 'ECONOMIA EM 25 ANOS\n',
+                        bold: true,
+                        size: 15,
+                        color: COLOR_PRIMARY,
+                        font: 'Arial',
+                      }),
+                      new TextRun({
+                        text: formatBRL(eco25Anos),
+                        bold: true,
+                        size: 22,
+                        color: '1E40AF',
+                        font: 'Arial',
+                      }),
+                      new TextRun({
+                        text: '\nTotal poupado na vida útil',
+                        size: 14,
+                        color: COLOR_TEXT_MUTED,
+                        font: 'Arial',
+                      }),
+                    ],
+                  }),
+                ],
+              }),
+            ],
+          }),
+        ],
+      }),
+    )
+  }
 
   // ----------------------------------------------------
   // SEÇÃO 5: INVESTIMENTO E CONDIÇÕES DE PAGAMENTO (LAYOUT 4 CARDS)
