@@ -296,4 +296,92 @@ describe('propostaSolarDocxGenerator', () => {
     expect(jsonStr).toContain('1.759,98')
     expect(jsonStr).toContain('2.150,25')
   })
+
+  describe('Ordem Personalizada e Ocultação de Blocos (DOCX)', () => {
+    it('(a) ordem personalizada refletida no documento Word (.docx)', async () => {
+      // Inverte: coloca investimento antes de seuSistema
+      const dadosOrdemCustomizada: PropostaSolarPDFInput = {
+        ...dadosExemploMarceloBecker,
+        conteudo: {
+          ...dadosExemploMarceloBecker.conteudo!,
+          ordemBlocos: [
+            'capa',
+            'investimento',
+            'seuSistema',
+            'situacaoAtual',
+            'apresentacao',
+            'projecao25Anos',
+          ],
+        },
+      }
+      const doc = await gerarPropostaSolarDocx(dadosOrdemCustomizada)
+      const jsonStr = JSON.stringify(doc)
+
+      const posInvestimento = jsonStr.indexOf('5. Investimento e Condições de Pagamento')
+      const posSeuSistema = jsonStr.indexOf('3. Seu Sistema Fotovoltaico')
+      const posSituacaoAtual = jsonStr.indexOf('2. Situação Atual')
+      const posApresentacao = jsonStr.indexOf('DELFOS ENGENHARIA SOLAR')
+
+      expect(posInvestimento).toBeGreaterThan(-1)
+      expect(posSeuSistema).toBeGreaterThan(-1)
+      expect(posInvestimento).toBeLessThan(posSeuSistema)
+      expect(posSeuSistema).toBeLessThan(posSituacaoAtual)
+      expect(posSituacaoAtual).toBeLessThan(posApresentacao)
+    })
+
+    it('(b) bloco oculto ausente do documento Word (.docx)', async () => {
+      const dadosComBlocoOculto: PropostaSolarPDFInput = {
+        ...dadosExemploMarceloBecker,
+        conteudo: {
+          ...dadosExemploMarceloBecker.conteudo!,
+          blocosVisiveis: {
+            capa: true,
+            apresentacao: false,
+            situacaoAtual: false,
+            seuSistema: true,
+            projecao25Anos: false,
+            investimento: true,
+          },
+        },
+      }
+      const doc = await gerarPropostaSolarDocx(dadosComBlocoOculto)
+      const jsonStr = JSON.stringify(doc)
+
+      // Blocos visíveis devem estar presentes
+      expect(jsonStr).toContain('MELHOR CONDIÇÃO')
+      expect(jsonStr).toContain('3. Seu Sistema Fotovoltaico')
+      expect(jsonStr).toContain('5. Investimento e Condições de Pagamento')
+
+      // Blocos ocultos não devem estar presentes
+      expect(jsonStr).not.toContain('DELFOS ENGENHARIA SOLAR')
+      expect(jsonStr).not.toContain('2. Situação Atual')
+      expect(jsonStr).not.toContain('4. Projeção de Economia')
+    })
+
+    it('(c) ordemBlocos/blocosVisiveis omitidos = saída idêntica à ordem padrão (retrocompatibilidade)', async () => {
+      const conteudoSemOrdem = { ...dadosExemploMarceloBecker.conteudo! }
+      delete (conteudoSemOrdem as any).ordemBlocos
+      delete (conteudoSemOrdem as any).blocosVisiveis
+
+      const dadosSemOrdem: PropostaSolarPDFInput = {
+        ...dadosExemploMarceloBecker,
+        conteudo: conteudoSemOrdem,
+      }
+      const doc = await gerarPropostaSolarDocx(dadosSemOrdem)
+      const jsonStr = JSON.stringify(doc)
+
+      const posCapa = jsonStr.indexOf('MELHOR CONDIÇÃO')
+      const posApresentacao = jsonStr.indexOf('DELFOS ENGENHARIA SOLAR')
+      const posSituacaoAtual = jsonStr.indexOf('2. Situação Atual')
+      const posSeuSistema = jsonStr.indexOf('3. Seu Sistema Fotovoltaico')
+      const posProjecao = jsonStr.indexOf('4. Projeção de Economia')
+      const posInvestimento = jsonStr.indexOf('5. Investimento e Condições de Pagamento')
+
+      expect(posCapa).toBeLessThan(posApresentacao)
+      expect(posApresentacao).toBeLessThan(posSituacaoAtual)
+      expect(posSituacaoAtual).toBeLessThan(posSeuSistema)
+      expect(posSeuSistema).toBeLessThan(posProjecao)
+      expect(posProjecao).toBeLessThan(posInvestimento)
+    })
+  })
 })

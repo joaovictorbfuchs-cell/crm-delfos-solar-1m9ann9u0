@@ -2522,7 +2522,8 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
   </div>
 
   <div class="proposta-container">
-
+${(() => {
+  const renderBlocoCapa = (): string => `
     <!-- ========================================================
          SEÇÃO 1 — CAPA (DESIGN OFICIAL COM SOL, ONDAS E LOGO DELFOS)
          ======================================================== -->
@@ -2624,14 +2625,12 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
           </div>
         </div>
       </div>
-    </section>
+    </section>`
 
+  const renderBlocoApresentacao = (): string => `
     <!-- ========================================================
          PÁGINA DE APRESENTAÇÃO DA EMPRESA & PORTFÓLIO DE USINAS
          ======================================================== -->
-    ${
-      conteudo.secaoApresentacao.visivel
-        ? `
     <section class="proposta-secao-page" id="secao-apresentacao-empresa">
       <div class="secao-body">
         <header class="doc-header">
@@ -2802,17 +2801,12 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
         })()}
       </div>
       ${renderInternalFooter(1, validade)}
-    </section>
-    `
-        : ''
-    }
+    </section>`
 
+  const renderBlocoSituacaoAtual = (): string => `
     <!-- ========================================================
          SEÇÃO 2 — SITUAÇÃO ATUAL (ESPELHADO DO SecaoCustoInercia.tsx)
          ======================================================== -->
-    ${
-      conteudo.secaoSituacaoAtual.visivel
-        ? `
     <section class="proposta-secao-page" id="secao-2-custo-inercia">
       <div class="secao-body">
         ${renderInternalHeader(conteudo.secaoSituacaoAtual.titulo || 'Situação Atual', 2, 'situacao-atual')}
@@ -2978,17 +2972,12 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
         </div>
       </div>
       ${renderInternalFooter(2, validade)}
-    </section>
-    `
-        : ''
-    }
+    </section>`
 
+  const renderBlocoSeuSistema = (): string => `
     <!-- ========================================================
          SEÇÃO 3 — SEU SISTEMA FOTOVOLTAICO (ESPELHADO DO SecaoSeuSistemaFotovoltaico.tsx)
          ======================================================== -->
-    ${
-      conteudo.secaoSeuSistema.visivel
-        ? `
     <section class="proposta-secao-page" id="secao-3-seu-sistema">
       <div class="secao-body">
         ${renderInternalHeader(conteudo.secaoSeuSistema.titulo || 'Seu Sistema Fotovoltaico', 3, 'sistema')}
@@ -3395,17 +3384,12 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
           }
         </div>      </div>
       ${renderInternalFooter(3, validade)}
-    </section>
-    `
-        : ''
-    }
+    </section>`
 
+  const renderBlocoProjecao25Anos = (): string => `
     <!-- ========================================================
          SEÇÃO 4 — PROJEÇÃO DE ECONOMIA EM 25 ANOS (CURVAS & PAYBACK)
          ======================================================== -->
-    ${
-      conteudo.secaoProjecao25Anos.visivel
-        ? `
     <section class="proposta-secao-page" id="secao-4-projecao-25anos">
       <div class="secao-body">
         ${renderInternalHeader(conteudo.secaoProjecao25Anos.titulo || 'Projeção de Economia em 25 Anos', 4, 'curvas')}
@@ -3450,17 +3434,12 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
         </div>
       </div>
       ${renderInternalFooter(4, validade)}
-    </section>
-    `
-        : ''
-    }
+    </section>`
 
+  const renderBlocoInvestimento = (): string => `
     <!-- ========================================================
          SEÇÃO 5 — INVESTIMENTO E CONDIÇÕES DE PAGAMENTO (ESPELHADO DO SecaoInvestimentoPagamento.tsx)
          ======================================================== -->
-    ${
-      conteudo.secaoInvestimento.visivel
-        ? `
     <section class="proposta-secao-page" id="secao-5-investimento-pagamento">
       <div class="secao-body">
         ${renderInternalHeader(conteudo.secaoInvestimento.titulo || 'Investimento e Condições de Pagamento', 5, 'investimento')}
@@ -3825,11 +3804,33 @@ print-color-adjust: exact !important; margin-bottom: 8px; display: flex; align-i
           </div>
         </div>      </div>
       ${renderInternalFooter(5, validade)}
-    </section>
-    `
-        : ''
-    }
+    </section>`
 
+  const mapRenderBlocos: Record<BlocoPropostaId, () => string> = {
+    capa: renderBlocoCapa,
+    apresentacao: renderBlocoApresentacao,
+    situacaoAtual: renderBlocoSituacaoAtual,
+    seuSistema: renderBlocoSeuSistema,
+    projecao25Anos: renderBlocoProjecao25Anos,
+    investimento: renderBlocoInvestimento,
+  }
+
+  const ordem =
+    conteudo.ordemBlocos && conteudo.ordemBlocos.length > 0
+      ? conteudo.ordemBlocos
+      : ORDEM_BLOCOS_PADRAO
+
+  const blocosVisiveis = conteudo.blocosVisiveis || {}
+
+  return ordem
+    .map((id) => {
+      if (blocosVisiveis[id] === false) return ''
+      const renderer = mapRenderBlocos[id]
+      return renderer ? renderer() : ''
+    })
+    .filter(Boolean)
+    .join('\n')
+})()}
   </div>
 
 </body>

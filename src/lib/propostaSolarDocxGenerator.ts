@@ -28,7 +28,12 @@ import {
 import { calcularProjecaoEconomia } from '@/lib/calculoProjecaoEconomia'
 import { CONSUMO_EXEMPLO_PADRAO_KWH_ANO } from '@/data/planilhaBaseProjecao'
 import { formatarMesAnoQuitacao } from '@/lib/formatters'
-import { normalizarConteudoProposta, type ConteudoProposta } from './conteudoProposta'
+import {
+  normalizarConteudoProposta,
+  ORDEM_BLOCOS_PADRAO,
+  type BlocoPropostaId,
+  type ConteudoProposta,
+} from './conteudoProposta'
 import logoPng from '@/assets/delfos-solar-09ea2.png'
 import { getFotoUrl } from '@/services/instalacoesGaleriaService'
 import { onGridPngAsset, monitoramentoPngAsset } from './propostaIlustracoesAssets'
@@ -693,380 +698,373 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
   }
 
   // ==========================================
-  // CONTEÚDO PRINCIPAL DO DOCUMENTO (5 SEÇÕES)
+  // FUNÇÕES DE RENDERIZAÇÃO POR BLOCO (DOCX)
   // ==========================================
-  const docChildren: (Paragraph | Table)[] = []
 
-  // ----------------------------------------------------
-  // SEÇÃO 1: CAPA DA PROPOSTA COMERCIAL (ESTILO MODERNO ESPELHADO DO SecaoCapaProposta)
-  // ----------------------------------------------------
-  docChildren.push(
-    new Table({
-      width: { size: PAGE_CONTENT_WIDTH, type: WidthType.DXA },
-      borders: {
-        top: { style: BorderStyle.SINGLE, size: 12, color: COLOR_ACCENT },
-        bottom: { style: BorderStyle.SINGLE, size: 12, color: COLOR_ACCENT },
-        left: { style: BorderStyle.SINGLE, size: 36, color: COLOR_PRIMARY },
-        right: { style: BorderStyle.SINGLE, size: 12, color: COLOR_ACCENT },
-      },
-      rows: [
-        new TableRow({
-          children: [
-            new TableCell({
-              width: { size: PAGE_CONTENT_WIDTH, type: WidthType.DXA },
-              shading: { type: ShadingType.CLEAR, fill: '071A15' },
-              margins: { top: 200, bottom: 200, left: 220, right: 220 },
-              children: [
-                new Paragraph({
-                  children: [
-                    new TextRun({
-                      text: 'MELHOR CONDIÇÃO\n',
-                      bold: true,
-                      size: 11,
-                      color: '047857',
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: 'À VISTA',
-                      bold: true,
-                      size: 15,
-                      color: '064E3B',
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: ' [SEM JUROS]\n',
-                      bold: true,
-                      size: 12,
-                      color: '047857',
-                      font: 'Arial',
-                    }),
-                  ],
-                }),
-                new Paragraph({
-                  spacing: { before: 100 },
-                  children: [
-                    new TextRun({
-                      text: `${conteudo.capa.rotuloPreparadaPara}\n`,
-                      bold: true,
-                      size: 16,
-                      color: '34D399',
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: cliente.nome,
-                      bold: true,
-                      size: 32,
-                      color: 'FFFFFF',
-                      font: 'Arial',
-                    }),
-                  ],
-                }),
-                new Paragraph({
-                  spacing: { before: 100 },
-                  children: [
-                    new TextRun({
-                      text: conteudo.capa.titulo.replace(/\n/g, ' — '),
-                      bold: true,
-                      size: 22,
-                      color: '22C55E',
-                      font: 'Arial',
-                    }),
-                  ],
-                }),
-                new Paragraph({
-                  spacing: { before: 40 },
-                  children: [
-                    new TextRun({
-                      text: conteudo.capa.subtitulo,
-                      size: 16,
-                      color: 'D1FAE5',
-                      font: 'Arial',
-                    }),
-                  ],
-                }),
-                new Paragraph({
-                  spacing: { before: 120 },
-                  children: [
-                    new TextRun({
-                      text: `⚡ Potência: ${formatNumBR(potenciaKwp, 2)} kWp   |   📈 Geração: ${formatNumBR(calculos.geracaoMediaMensalKwh, 0)} kWh/mês   |   ⏳ Payback: ${paybackTextoFinal}`,
-                      size: 16,
-                      color: 'FFFFFF',
-                      font: 'Arial',
-                      bold: true,
-                    }),
-                  ],
-                }),
-                new Paragraph({
-                  spacing: { before: 120 },
-                  border: { top: { style: BorderStyle.SINGLE, size: 6, color: '065F46' } },
-                  children: [
-                    new TextRun({
-                      text: `👤 ${conteudo.capa.rotuloConsultor} ${repNome}   •   📅 Data: ${dataFormatada}   •   ⏰ Validade: ${validadeEmDias} dias corridos`,
-                      size: 15,
-                      color: 'A7F3D0',
-                      font: 'Arial',
-                    }),
-                  ],
-                }),
-              ],
-            }),
-          ],
-        }),
-      ],
-    }),
-  )
-
-  // Quebra de página após a Capa
-  docChildren.push(
-    new Paragraph({
-      children: [new PageBreak()],
-    }),
-  )
-
-  // ----------------------------------------------------
-  // SEÇÃO: APRESENTAÇÃO INSTITUCIONAL & ENGENHARIA
-  // ----------------------------------------------------
-  if (conteudo.secaoApresentacao.visivel) {
-    docChildren.push(
-      ...createSectionHeader(
-        conteudo.secaoApresentacao.titulo,
-        conteudo.secaoApresentacao.subtitulo,
-      ),
-    )
-
-    // Card institucional com dados da Delfos Engenharia e Engenheiro Responsável
-    docChildren.push(
+  // Bloco 1: Capa
+  const gerarBlocoCapaDocx = async (): Promise<(Paragraph | Table)[]> => {
+    return [
       new Table({
         width: { size: PAGE_CONTENT_WIDTH, type: WidthType.DXA },
         borders: {
-          top: { style: BorderStyle.SINGLE, size: 8, color: COLOR_ACCENT },
-          bottom: { style: BorderStyle.SINGLE, size: 8, color: COLOR_ACCENT },
-          left: { style: BorderStyle.SINGLE, size: 24, color: COLOR_PRIMARY },
-          right: { style: BorderStyle.SINGLE, size: 8, color: COLOR_ACCENT },
+          top: { style: BorderStyle.SINGLE, size: 12, color: COLOR_ACCENT },
+          bottom: { style: BorderStyle.SINGLE, size: 12, color: COLOR_ACCENT },
+          left: { style: BorderStyle.SINGLE, size: 36, color: COLOR_PRIMARY },
+          right: { style: BorderStyle.SINGLE, size: 12, color: COLOR_ACCENT },
         },
         rows: [
           new TableRow({
             children: [
               new TableCell({
                 width: { size: PAGE_CONTENT_WIDTH, type: WidthType.DXA },
-                shading: { type: ShadingType.CLEAR, fill: COLOR_LIGHT_BG },
-                margins: { top: 120, bottom: 120, left: 140, right: 140 },
+                shading: { type: ShadingType.CLEAR, fill: '071A15' },
+                margins: { top: 200, bottom: 200, left: 220, right: 220 },
                 children: [
                   new Paragraph({
                     children: [
                       new TextRun({
-                        text: `[${conteudo.secaoApresentacao.tempoAtuacaoBadge}] `,
+                        text: 'MELHOR CONDIÇÃO\n',
                         bold: true,
-                        size: 14,
-                        color: '0A539E',
+                        size: 11,
+                        color: '047857',
                         font: 'Arial',
                       }),
                       new TextRun({
-                        text: `${conteudo.secaoApresentacao.titulo}\n`,
+                        text: 'À VISTA',
                         bold: true,
-                        size: 22,
-                        color: COLOR_PRIMARY,
+                        size: 15,
+                        color: '064E3B',
                         font: 'Arial',
                       }),
                       new TextRun({
-                        text: `${conteudo.secaoApresentacao.subtitulo}\n`,
+                        text: ' [SEM JUROS]\n',
                         bold: true,
-                        size: 16,
-                        color: COLOR_ACCENT,
+                        size: 12,
+                        color: '047857',
                         font: 'Arial',
                       }),
                     ],
                   }),
                   new Paragraph({
-                    spacing: { before: 60 },
+                    spacing: { before: 100 },
                     children: [
                       new TextRun({
-                        text: conteudo.secaoApresentacao.textoDescritivo,
-                        size: 15,
-                        color: COLOR_TEXT_MUTED,
+                        text: `${conteudo.capa.rotuloPreparadaPara}\n`,
+                        bold: true,
+                        size: 16,
+                        color: '34D399',
+                        font: 'Arial',
+                      }),
+                      new TextRun({
+                        text: cliente.nome,
+                        bold: true,
+                        size: 32,
+                        color: 'FFFFFF',
                         font: 'Arial',
                       }),
                     ],
                   }),
-                  ...(conteudo.secaoApresentacao.diferenciais.length > 0
-                    ? [
-                        new Paragraph({
-                          spacing: { before: 80, after: 40 },
-                          children: [
-                            new TextRun({
-                              text: 'DIFERENCIAIS DELFOS SOLAR:\n',
-                              bold: true,
-                              size: 14,
-                              color: COLOR_PRIMARY,
-                              font: 'Arial',
-                            }),
-                            ...conteudo.secaoApresentacao.diferenciais.map(
-                              (dif) =>
-                                new TextRun({
-                                  text: `• ${dif.titulo}: ${dif.descricao}\n`,
-                                  size: 13,
-                                  color: COLOR_TEXT_DARK,
-                                  font: 'Arial',
-                                }),
-                            ),
-                          ],
-                        }),
-                      ]
-                    : []),
+                  new Paragraph({
+                    spacing: { before: 100 },
+                    children: [
+                      new TextRun({
+                        text: conteudo.capa.titulo.replace(/\n/g, ' — '),
+                        bold: true,
+                        size: 22,
+                        color: '22C55E',
+                        font: 'Arial',
+                      }),
+                    ],
+                  }),
+                  new Paragraph({
+                    spacing: { before: 40 },
+                    children: [
+                      new TextRun({
+                        text: conteudo.capa.subtitulo,
+                        size: 16,
+                        color: 'D1FAE5',
+                        font: 'Arial',
+                      }),
+                    ],
+                  }),
+                  new Paragraph({
+                    spacing: { before: 120 },
+                    children: [
+                      new TextRun({
+                        text: `⚡ Potência: ${formatNumBR(potenciaKwp, 2)} kWp   |   📈 Geração: ${formatNumBR(calculos.geracaoMediaMensalKwh, 0)} kWh/mês   |   ⏳ Payback: ${paybackTextoFinal}`,
+                        size: 16,
+                        color: 'FFFFFF',
+                        font: 'Arial',
+                        bold: true,
+                      }),
+                    ],
+                  }),
+                  new Paragraph({
+                    spacing: { before: 120 },
+                    border: { top: { style: BorderStyle.SINGLE, size: 6, color: '065F46' } },
+                    children: [
+                      new TextRun({
+                        text: `👤 ${conteudo.capa.rotuloConsultor} ${repNome}   •   📅 Data: ${dataFormatada}   •   ⏰ Validade: ${validadeEmDias} dias corridos`,
+                        size: 15,
+                        color: 'A7F3D0',
+                        font: 'Arial',
+                      }),
+                    ],
+                  }),
                 ],
               }),
             ],
           }),
         ],
       }),
-    )
+    ]
   }
 
-  // Portfólio / Tabela de usinas da galeria
-  if (dados.secoesHabilitadas?.portfolioUsinas !== false) {
-    let usinasGaleria: InstalacaoGaleria[] = []
-    try {
-      usinasGaleria = (await fetchInstalacoesGaleria()) || []
-    } catch (err) {
-      console.warn('Erro ao carregar galeria de usinas para o docx:', err)
-    }
+  // Bloco: Apresentação & Portfólio
+  const gerarBlocoApresentacaoDocx = async (): Promise<(Paragraph | Table)[]> => {
+    const itens: (Paragraph | Table)[] = []
 
-    // Filtragem conforme instalacoesSelecionadasIds; se especificado, filtra; não inventa fictícias
-    if (
-      dados.instalacoesSelecionadasIds &&
-      dados.instalacoesSelecionadasIds.length > 0 &&
-      usinasGaleria.length > 0
-    ) {
-      usinasGaleria = usinasGaleria.filter((u) => dados.instalacoesSelecionadasIds!.includes(u.id))
-    }
-
-    const usinasBase = usinasGaleria.slice(0, 6)
-
-    // Se não houver usinas reais disponíveis, a seção não é renderizada
-    if (usinasBase.length > 0) {
-      // Pré-carrega as imagens das usinas selecionadas com compressão (600px, qualidade 0.78)
-      const usinasDocxComFoto = await Promise.all(
-        usinasBase.map(async (u) => {
-          const url = getFotoUrl(u)
-          let imgBytes: Uint8Array | null = null
-          if (url) {
-            imgBytes = await compressImageToUint8Array(url, 600, 0.78, false)
-          }
-          return {
-            ...u,
-            imgBytes,
-          }
-        }),
+    if (conteudo.secaoApresentacao.visivel) {
+      itens.push(
+        ...createSectionHeader(
+          conteudo.secaoApresentacao.titulo,
+          conteudo.secaoApresentacao.subtitulo,
+        ),
       )
 
-      docChildren.push(
-        new Paragraph({
-          spacing: { before: 100, after: 60 },
-          children: [
-            new TextRun({
-              text: 'PORTFÓLIO DE USINAS INSTALADAS',
-              bold: true,
-              size: 16,
-              color: COLOR_PRIMARY,
-              font: 'Arial',
-            }),
-          ],
-        }),
-      )
-
-      // Divide as usinas em linhas de 3 colunas para docx limpo
-      const chunksUsinas: (typeof usinasDocxComFoto)[] = []
-      for (let i = 0; i < usinasDocxComFoto.length; i += 3) {
-        chunksUsinas.push(usinasDocxComFoto.slice(i, i + 3))
-      }
-
-      const colWidthGaleria = Math.floor(PAGE_CONTENT_WIDTH / 3)
-      docChildren.push(
+      // Card institucional com dados da Delfos Engenharia e Engenheiro Responsável
+      itens.push(
         new Table({
           width: { size: PAGE_CONTENT_WIDTH, type: WidthType.DXA },
-          borders: tableBorderDefault,
-          rows: chunksUsinas.map(
-            (chunk) =>
-              new TableRow({
-                children: chunk.map((u) => {
-                  const pot = u.potencia_kwp
-                    ? `${formatNumBR(Number(u.potencia_kwp), 1)} kWp`
-                    : 'Turnkey'
-                  const cid = u.cidade || 'Erechim / RS'
-                  const tit = u.titulo || 'Usina Solar Delfos'
-
-                  const cellChildren: (Paragraph | Table)[] = []
-
-                  if (u.imgBytes) {
-                    cellChildren.push(
-                      new Paragraph({
-                        alignment: AlignmentType.CENTER,
-                        spacing: { after: 60 },
-                        children: [
-                          new ImageRun({
-                            type: 'jpg',
-                            data: u.imgBytes,
-                            transformation: { width: 170, height: 105 },
-                          }),
-                        ],
-                      }),
-                    )
-                  }
-
-                  cellChildren.push(
+          borders: {
+            top: { style: BorderStyle.SINGLE, size: 8, color: COLOR_ACCENT },
+            bottom: { style: BorderStyle.SINGLE, size: 8, color: COLOR_ACCENT },
+            left: { style: BorderStyle.SINGLE, size: 24, color: COLOR_PRIMARY },
+            right: { style: BorderStyle.SINGLE, size: 8, color: COLOR_ACCENT },
+          },
+          rows: [
+            new TableRow({
+              children: [
+                new TableCell({
+                  width: { size: PAGE_CONTENT_WIDTH, type: WidthType.DXA },
+                  shading: { type: ShadingType.CLEAR, fill: COLOR_LIGHT_BG },
+                  margins: { top: 120, bottom: 120, left: 140, right: 140 },
+                  children: [
                     new Paragraph({
                       children: [
-                        ...(!u.imgBytes
-                          ? [
-                              new TextRun({
-                                text: '☀️ ',
-                                size: 20,
-                              }),
-                            ]
-                          : []),
                         new TextRun({
-                          text: `${tit}\n`,
+                          text: `[${conteudo.secaoApresentacao.tempoAtuacaoBadge}] `,
                           bold: true,
-                          size: 16,
+                          size: 14,
+                          color: '0A539E',
+                          font: 'Arial',
+                        }),
+                        new TextRun({
+                          text: `${conteudo.secaoApresentacao.titulo}\n`,
+                          bold: true,
+                          size: 22,
                           color: COLOR_PRIMARY,
                           font: 'Arial',
                         }),
                         new TextRun({
-                          text: `Localização: ${cid}\n`,
-                          size: 14,
-                          color: COLOR_TEXT_MUTED,
-                          font: 'Arial',
-                        }),
-                        new TextRun({
-                          text: `Potência: ${pot}`,
+                          text: `${conteudo.secaoApresentacao.subtitulo}\n`,
                           bold: true,
-                          size: 15,
+                          size: 16,
                           color: COLOR_ACCENT,
                           font: 'Arial',
                         }),
                       ],
                     }),
-                  )
-
-                  return new TableCell({
-                    width: { size: colWidthGaleria, type: WidthType.DXA },
-                    shading: { type: ShadingType.CLEAR, fill: COLOR_GRAY_BG },
-                    margins: { top: 100, bottom: 100, left: 100, right: 100 },
-                    children: cellChildren,
-                  })
+                    new Paragraph({
+                      spacing: { before: 60 },
+                      children: [
+                        new TextRun({
+                          text: conteudo.secaoApresentacao.textoDescritivo,
+                          size: 15,
+                          color: COLOR_TEXT_MUTED,
+                          font: 'Arial',
+                        }),
+                      ],
+                    }),
+                    ...(conteudo.secaoApresentacao.diferenciais.length > 0
+                      ? [
+                          new Paragraph({
+                            spacing: { before: 80, after: 40 },
+                            children: [
+                              new TextRun({
+                                text: 'DIFERENCIAIS DELFOS SOLAR:\n',
+                                bold: true,
+                                size: 14,
+                                color: COLOR_PRIMARY,
+                                font: 'Arial',
+                              }),
+                              ...conteudo.secaoApresentacao.diferenciais.map(
+                                (dif) =>
+                                  new TextRun({
+                                    text: `• ${dif.titulo}: ${dif.descricao}\n`,
+                                    size: 13,
+                                    color: COLOR_TEXT_DARK,
+                                    font: 'Arial',
+                                  }),
+                              ),
+                            ],
+                          }),
+                        ]
+                      : []),
+                  ],
                 }),
-              }),
-          ),
+              ],
+            }),
+          ],
         }),
       )
     }
+
+    // Portfólio / Tabela de usinas da galeria
+    if (dados.secoesHabilitadas?.portfolioUsinas !== false) {
+      let usinasGaleria: InstalacaoGaleria[] = []
+      try {
+        usinasGaleria = (await fetchInstalacoesGaleria()) || []
+      } catch (err) {
+        console.warn('Erro ao carregar galeria de usinas para o docx:', err)
+      }
+
+      if (
+        dados.instalacoesSelecionadasIds &&
+        dados.instalacoesSelecionadasIds.length > 0 &&
+        usinasGaleria.length > 0
+      ) {
+        usinasGaleria = usinasGaleria.filter((u) => dados.instalacoesSelecionadasIds!.includes(u.id))
+      }
+
+      const usinasBase = usinasGaleria.slice(0, 6)
+
+      if (usinasBase.length > 0) {
+        const usinasDocxComFoto = await Promise.all(
+          usinasBase.map(async (u) => {
+            const url = getFotoUrl(u)
+            let imgBytes: Uint8Array | null = null
+            if (url) {
+              imgBytes = await compressImageToUint8Array(url, 600, 0.78, false)
+            }
+            return {
+              ...u,
+              imgBytes,
+            }
+          }),
+        )
+
+        itens.push(
+          new Paragraph({
+            spacing: { before: 100, after: 60 },
+            children: [
+              new TextRun({
+                text: 'PORTFÓLIO DE USINAS INSTALADAS',
+                bold: true,
+                size: 16,
+                color: COLOR_PRIMARY,
+                font: 'Arial',
+              }),
+            ],
+          }),
+        )
+
+        const chunksUsinas: (typeof usinasDocxComFoto)[] = []
+        for (let i = 0; i < usinasDocxComFoto.length; i += 3) {
+          chunksUsinas.push(usinasDocxComFoto.slice(i, i + 3))
+        }
+
+        const colWidthGaleria = Math.floor(PAGE_CONTENT_WIDTH / 3)
+        itens.push(
+          new Table({
+            width: { size: PAGE_CONTENT_WIDTH, type: WidthType.DXA },
+            borders: tableBorderDefault,
+            rows: chunksUsinas.map(
+              (chunk) =>
+                new TableRow({
+                  children: chunk.map((u) => {
+                    const pot = u.potencia_kwp
+                      ? `${formatNumBR(Number(u.potencia_kwp), 1)} kWp`
+                      : 'Turnkey'
+                    const cid = u.cidade || 'Erechim / RS'
+                    const tit = u.titulo || 'Usina Solar Delfos'
+
+                    const cellChildren: (Paragraph | Table)[] = []
+
+                    if (u.imgBytes) {
+                      cellChildren.push(
+                        new Paragraph({
+                          alignment: AlignmentType.CENTER,
+                          spacing: { after: 60 },
+                          children: [
+                            new ImageRun({
+                              type: 'jpg',
+                              data: u.imgBytes,
+                              transformation: { width: 170, height: 105 },
+                            }),
+                          ],
+                        }),
+                      )
+                    }
+
+                    cellChildren.push(
+                      new Paragraph({
+                        children: [
+                          ...(!u.imgBytes
+                            ? [
+                                new TextRun({
+                                  text: '☀️ ',
+                                  size: 20,
+                                }),
+                              ]
+                            : []),
+                          new TextRun({
+                            text: `${tit}\n`,
+                            bold: true,
+                            size: 16,
+                            color: COLOR_PRIMARY,
+                            font: 'Arial',
+                          }),
+                          new TextRun({
+                            text: `Localização: ${cid}\n`,
+                            size: 14,
+                            color: COLOR_TEXT_MUTED,
+                            font: 'Arial',
+                          }),
+                          new TextRun({
+                            text: `Potência: ${pot}`,
+                            bold: true,
+                            size: 15,
+                            color: COLOR_ACCENT,
+                            font: 'Arial',
+                          }),
+                        ],
+                      }),
+                    )
+
+                    return new TableCell({
+                      width: { size: colWidthGaleria, type: WidthType.DXA },
+                      shading: { type: ShadingType.CLEAR, fill: COLOR_GRAY_BG },
+                      margins: { top: 100, bottom: 100, left: 100, right: 100 },
+                      children: cellChildren,
+                    })
+                  }),
+                }),
+            ),
+          }),
+        )
+      }
+    }
+
+    return itens
   }
 
-  // ----------------------------------------------------
-  // SEÇÃO 2: SITUAÇÃO ATUAL
-  // ----------------------------------------------------
-  if (conteudo.secaoSituacaoAtual.visivel) {
-    docChildren.push(
+  // Bloco 2: Situação Atual
+  const gerarBlocoSituacaoAtualDocx = async (): Promise<(Paragraph | Table)[]> => {
+    const itens: (Paragraph | Table)[] = []
+    if (!conteudo.secaoSituacaoAtual.visivel) return itens
+
+    itens.push(
       ...createSectionHeader(
         `2. ${conteudo.secaoSituacaoAtual.titulo}`,
         conteudo.secaoSituacaoAtual.subtitulo,
@@ -1085,7 +1083,7 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
     const consumoKwhAnoDocx =
       consumoKwhAnoEstimado > 0 ? consumoKwhAnoEstimado : Math.round(consumoKwhMesDocx * 12)
 
-    docChildren.push(
+    itens.push(
       new Table({
         width: { size: PAGE_CONTENT_WIDTH, type: WidthType.DXA },
         borders: tableBorderDefault,
@@ -1269,7 +1267,7 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
       }),
     )
 
-    docChildren.push(
+    itens.push(
       new Paragraph({
         spacing: { before: 80, after: 40 },
         children: [
@@ -1296,7 +1294,7 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
     )
 
     const colWidthInercia = Math.floor(PAGE_CONTENT_WIDTH / 3)
-    docChildren.push(
+    itens.push(
       new Table({
         width: { size: PAGE_CONTENT_WIDTH, type: WidthType.DXA },
         borders: tableBorderDefault,
@@ -1508,11 +1506,15 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
     )
   }
 
-  // ----------------------------------------------------
-  // SEÇÃO 3: SEU SISTEMA FOTOVOLTAICO
-  // ----------------------------------------------------
-  if (conteudo.secaoSeuSistema.visivel) {
-    docChildren.push(
+    return itens
+  }
+
+  // Bloco 3: Seu Sistema Fotovoltaico
+  const gerarBlocoSeuSistemaDocx = async (): Promise<(Paragraph | Table)[]> => {
+    const itens: (Paragraph | Table)[] = []
+    if (!conteudo.secaoSeuSistema.visivel) return itens
+
+    itens.push(
       ...createSectionHeader(
         `3. ${conteudo.secaoSeuSistema.titulo}`,
         conteudo.secaoSeuSistema.subtitulo,
@@ -1657,7 +1659,7 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
       }),
     )
 
-    docChildren.push(
+    itens.push(
       new Table({
         width: { size: PAGE_CONTENT_WIDTH, type: WidthType.DXA },
         borders: tableBorderDefault,
@@ -1804,7 +1806,7 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
       // 12 colunas somando PAGE_CONTENT_WIDTH (9.900 dxa): 9.900 / 12 = 825 dxa por coluna
       const colW_12 = 825
 
-      docChildren.push(
+      itens.push(
         // Título da Seção
         new Paragraph({
           spacing: { before: 140, after: 40 },
@@ -1944,7 +1946,7 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
     }
 
     // Faixa verde de monitoramento com smartphone
-    docChildren.push(
+    itens.push(
       new Table({
         width: { size: PAGE_CONTENT_WIDTH, type: WidthType.DXA },
         borders: tableBorderNone,
@@ -1993,7 +1995,7 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
     ) {
       const layoutBytes = await compressImageToUint8Array(dados.layoutTelhadoUrl, 800, 0.78, false)
       if (layoutBytes) {
-        docChildren.push(
+        itens.push(
           new Paragraph({
             spacing: { before: 180, after: 40 },
             children: [
@@ -2059,7 +2061,7 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
     ])
 
     const colWidthBlocos = Math.floor(PAGE_CONTENT_WIDTH / 2)
-    docChildren.push(
+    itens.push(
       new Table({
         width: { size: PAGE_CONTENT_WIDTH, type: WidthType.DXA },
         borders: {
@@ -2195,20 +2197,25 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
         ],
       }),
     )
+
+    return itens
   }
 
   // ----------------------------------------------------
   // SEÇÃO 4: PROJEÇÃO DE ECONOMIA EM 25 ANOS
   // ----------------------------------------------------
-  if (conteudo.secaoProjecao25Anos.visivel) {
-    docChildren.push(
+  const gerarBlocoProjecao25AnosDocx = async (): Promise<(Paragraph | Table)[]> => {
+    const itens: (Paragraph | Table)[] = []
+    if (!conteudo.secaoProjecao25Anos.visivel) return itens
+
+    itens.push(
       ...createSectionHeader(
         `4. ${conteudo.secaoProjecao25Anos.titulo}`,
         conteudo.secaoProjecao25Anos.subtitulo,
       ),
     )
     const colWidthMetricas = Math.floor(PAGE_CONTENT_WIDTH / 3)
-    docChildren.push(
+    itens.push(
       new Table({
         width: { size: PAGE_CONTENT_WIDTH, type: WidthType.DXA },
         borders: tableBorderDefault,
@@ -2316,1093 +2323,1144 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
         ],
       }),
     )
+
+    return itens
   }
 
-  // ----------------------------------------------------
-  // SEÇÃO 5: INVESTIMENTO E CONDIÇÕES DE PAGAMENTO (LAYOUT 4 CARDS)
-  // ----------------------------------------------------
-  docChildren.push(
-    ...createSectionHeader(
-      '5. Investimento e Condições de Pagamento',
-      'Valores transparentes no modelo Turnkey (chave na mão) com homologação completa inclusa.',
-    ),
-  )
+  // Bloco 5: Investimento e Condições de Pagamento
+  const gerarBlocoInvestimentoDocx = async (): Promise<(Paragraph | Table)[]> => {
+    const itens: (Paragraph | Table)[] = []
+    if (!conteudo.secaoInvestimento.visivel) return itens
 
-  // Banner do Investimento Total com fundo escuro/esmeralda e valor dourado
-  docChildren.push(
-    new Table({
-      width: { size: PAGE_CONTENT_WIDTH, type: WidthType.DXA },
-      borders: {
-        top: { style: BorderStyle.SINGLE, size: 8, color: COLOR_ACCENT },
-        bottom: { style: BorderStyle.SINGLE, size: 8, color: COLOR_ACCENT },
-        left: { style: BorderStyle.SINGLE, size: 24, color: COLOR_PRIMARY },
-        right: { style: BorderStyle.SINGLE, size: 8, color: COLOR_ACCENT },
-      },
-      rows: [
-        new TableRow({
-          children: [
-            new TableCell({
-              width: { size: PAGE_CONTENT_WIDTH, type: WidthType.DXA },
-              shading: { type: ShadingType.CLEAR, fill: '064E3B' },
-              margins: { top: 120, bottom: 120, left: 160, right: 160 },
-              children: [
-                new Paragraph({
-                  children: [
-                    new TextRun({
-                      text: 'INVESTIMENTO TOTAL TURNKEY (SISTEMA COMPLETO): ',
-                      bold: true,
-                      size: 17,
-                      color: 'A7F3D0',
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: formatBRL(investimentoTotal),
-                      bold: true,
-                      size: 28,
-                      color: 'FDE047',
-                      font: 'Arial',
-                    }),
-                  ],
-                }),
-                new Paragraph({
-                  spacing: { before: 40 },
-                  children: [
-                    new TextRun({
-                      text: 'Investimento único — o sistema é seu. Equipamentos Tier-1, projeto, ART, instalação e homologação inclusos.',
-                      size: 15,
-                      color: 'D1FAE5',
-                      font: 'Arial',
-                    }),
-                  ],
-                }),
-              ],
-            }),
-          ],
-        }),
-      ],
-    }),
-  )
+    itens.push(
+      ...createSectionHeader(
+        '5. Investimento e Condições de Pagamento',
+        'Valores transparentes no modelo Turnkey (chave na mão) com homologação completa inclusa.',
+      ),
+    )
 
-  // Título da seção de condições de pagamento
-  docChildren.push(
-    new Paragraph({
-      spacing: { before: 160, after: 80 },
-      children: [
-        new TextRun({
-          text: 'Condições de pagamento',
-          bold: true,
-          size: 20,
-          color: '111827',
-          font: 'Arial',
-        }),
-      ],
-    }),
-  )
-
-  // Grade 4 modalidades de pagamento com layout e linhas comparativas idênticos à aba de parcelamento
-  const colWidthPgto = Math.floor(PAGE_CONTENT_WIDTH / 4)
-  const contaComSolarAVista =
-    parcelamentos?.aVista?.contaComSolar !== undefined ? parcelamentos.aVista.contaComSolar : 0
-  const economiaMesAVista = Math.max(0, contaHoje - contaComSolarAVista)
-
-  const contaComSolarCartao =
-    parcelamentos?.cartao18x?.contaComSolar !== undefined
-      ? parcelamentos.cartao18x.contaComSolar
-      : 0
-  const contaSemSolarCartao =
-    parcelamentos?.cartao18x?.contaSemSolar !== undefined
-      ? parcelamentos.cartao18x.contaSemSolar
-      : contaHoje
-  const parcelaMaisContaCartao = cartaoValor + contaComSolarCartao
-
-  const contaComSolarFinanA =
-    parcelamentos?.financiamentoBanco1?.contaComSolar !== undefined
-      ? parcelamentos.financiamentoBanco1.contaComSolar
-      : 0
-  const contaSemSolarFinanA =
-    parcelamentos?.financiamentoBanco1?.contaSemSolar !== undefined
-      ? parcelamentos.financiamentoBanco1.contaSemSolar
-      : contaHoje
-  const parcelaMaisContaFinanA = finanAValor + contaComSolarFinanA
-
-  const contaComSolarFinanB =
-    parcelamentos?.financiamentoBanco2?.contaComSolar !== undefined
-      ? parcelamentos.financiamentoBanco2.contaComSolar
-      : 0
-  const contaSemSolarFinanB =
-    parcelamentos?.financiamentoBanco2?.contaSemSolar !== undefined
-      ? parcelamentos.financiamentoBanco2.contaSemSolar
-      : contaHoje
-  const parcelaMaisContaFinanB = finanBValor + contaComSolarFinanB
-
-  docChildren.push(
-    new Table({
-      width: { size: PAGE_CONTENT_WIDTH, type: WidthType.DXA },
-      borders: tableBorderDefault,
-      rows: [
-        new TableRow({
-          children: [
-            // À Vista (Destaque Verde)
-            new TableCell({
-              width: { size: colWidthPgto, type: WidthType.DXA },
-              shading: { type: ShadingType.CLEAR, fill: 'ECFDF5' },
-              borders: {
-                top: { style: BorderStyle.SINGLE, size: 16, color: '10B981' },
-                bottom: { style: BorderStyle.SINGLE, size: 16, color: '10B981' },
-                left: { style: BorderStyle.SINGLE, size: 16, color: '10B981' },
-                right: { style: BorderStyle.SINGLE, size: 16, color: '10B981' },
-              },
-              margins: { top: 90, bottom: 90, left: 80, right: 80 },
-              children: [
-                new Paragraph({
-                  children: [
-                    new TextRun({
-                      text: 'À VISTA',
-                      bold: true,
-                      size: 15,
-                      color: '065F46',
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: ' [Sem Juros]\n',
-                      bold: true,
-                      size: 12,
-                      color: '047857',
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: `${formatBRL(aVistaValor)}\n`,
-                      bold: true,
-                      size: 20,
-                      color: '047857',
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: `${
-                        aVistaDesconto > 0
-                          ? `Desconto de ${formatBRL(aVistaDesconto)} aplicado\n`
-                          : 'Valor total do projeto à vista\n'
-                      }`,
-                      size: 11,
-                      color: '6B7280',
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: '-----------------------------\n',
-                      size: 10,
-                      color: 'A7F3D0',
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: 'Conta hoje: ',
-                      size: 12,
-                      color: '6B7280',
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: `${formatBRL(contaHoje)}\n`,
-                      bold: true,
-                      size: 12,
-                      color: 'DC2626',
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: 'Conta c/ solar: ',
-                      size: 12,
-                      color: '6B7280',
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: `${formatBRL(contaComSolarAVista)}\n`,
-                      bold: true,
-                      size: 12,
-                      color: '047857',
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: 'Economia/mês: ',
-                      bold: true,
-                      size: 13,
-                      color: '064E3B',
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: `${formatBRL(economiaMesAVista)}`,
-                      bold: true,
-                      size: 13,
-                      color: '064E3B',
-                      font: 'Arial',
-                    }),
-                  ],
-                }),
-              ],
-            }),
-            // Cartão
-            new TableCell({
-              width: { size: colWidthPgto, type: WidthType.DXA },
-              shading: { type: ShadingType.CLEAR, fill: 'FFFFFF' },
-              borders: {
-                top: { style: BorderStyle.SINGLE, size: 8, color: 'E5E7EB' },
-                bottom: { style: BorderStyle.SINGLE, size: 8, color: 'E5E7EB' },
-                left: { style: BorderStyle.SINGLE, size: 8, color: 'E5E7EB' },
-                right: { style: BorderStyle.SINGLE, size: 8, color: 'E5E7EB' },
-              },
-              margins: { top: 90, bottom: 90, left: 80, right: 80 },
-              children: [
-                new Paragraph({
-                  children: [
-                    new TextRun({
-                      text: 'CARTÃO DE CRÉDITO',
-                      bold: true,
-                      size: 15,
-                      color: '111827',
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: ` [${cartaoParcelas}x]\n`,
-                      bold: true,
-                      size: 12,
-                      color: '4B5563',
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: `${cartaoParcelas}x de `,
-                      bold: true,
-                      size: 13,
-                      color: '4B5563',
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: `${formatBRL(cartaoValor)}\n`,
-                      bold: true,
-                      size: 20,
-                      color: '111827',
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: `${
-                        cartaoEntrada > 0 ? `Entrada: ${formatBRL(cartaoEntrada)} | ` : ''
-                      }Total: ${formatBRL(cartaoEntrada + cartaoValor * cartaoParcelas)}\n`,
-                      size: 11,
-                      color: '6B7280',
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: '-----------------------------\n',
-                      size: 10,
-                      color: 'E5E7EB',
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: 'Conta hoje: ',
-                      size: 12,
-                      color: '6B7280',
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: `${formatBRL(contaSemSolarCartao)}\n`,
-                      bold: true,
-                      size: 12,
-                      color: 'DC2626',
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: 'Conta c/ solar: ',
-                      size: 12,
-                      color: '6B7280',
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: `${formatBRL(contaComSolarCartao)}\n`,
-                      bold: true,
-                      size: 12,
-                      color: '047857',
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: 'Parcela + Conta: ',
-                      bold: true,
-                      size: 13,
-                      color: '111827',
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: `${formatBRL(parcelaMaisContaCartao)}`,
-                      bold: true,
-                      size: 13,
-                      color: '111827',
-                      font: 'Arial',
-                    }),
-                  ],
-                }),
-              ],
-            }),
-            // Financiamento A (Menor Parcela)
-            new TableCell({
-              width: { size: colWidthPgto, type: WidthType.DXA },
-              shading: { type: ShadingType.CLEAR, fill: 'FFFFFF' },
-              borders: {
-                top: { style: BorderStyle.SINGLE, size: 8, color: 'E5E7EB' },
-                bottom: { style: BorderStyle.SINGLE, size: 8, color: 'E5E7EB' },
-                left: { style: BorderStyle.SINGLE, size: 8, color: 'E5E7EB' },
-                right: { style: BorderStyle.SINGLE, size: 8, color: 'E5E7EB' },
-              },
-              margins: { top: 90, bottom: 90, left: 80, right: 80 },
-              children: [
-                new Paragraph({
-                  children: [
-                    new TextRun({
-                      text: finanANome.toUpperCase(),
-                      bold: true,
-                      size: 15,
-                      color: '111827',
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: ` [${finanAParcelas}x]\n`,
-                      bold: true,
-                      size: 12,
-                      color: '92400E',
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: `${finanAParcelas}x de `,
-                      bold: true,
-                      size: 13,
-                      color: '4B5563',
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: `${formatBRL(finanAValor)}\n`,
-                      bold: true,
-                      size: 20,
-                      color: '111827',
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: `${
-                        finanAEntrada > 0 ? `Entrada: ${formatBRL(finanAEntrada)} | ` : ''
-                      }Total: ${formatBRL(finanAEntrada + finanAValor * finanAParcelas)}\n`,
-                      size: 11,
-                      color: '6B7280',
-                      font: 'Arial',
-                    }),
-                    ...(finanAIof > 0
-                      ? [
-                          new TextRun({
-                            text: `Inclui IOF de ${formatBRL(finanAIof)}\n`,
-                            bold: true,
-                            size: 11,
-                            color: '047857',
-                            font: 'Arial',
-                          }),
-                        ]
-                      : []),
-                    new TextRun({
-                      text: '-----------------------------\n',
-                      size: 10,
-                      color: 'E5E7EB',
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: 'Conta hoje: ',
-                      size: 12,
-                      color: '6B7280',
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: `${formatBRL(contaSemSolarFinanA)}\n`,
-                      bold: true,
-                      size: 12,
-                      color: 'DC2626',
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: 'Conta c/ solar: ',
-                      size: 12,
-                      color: '6B7280',
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: `${formatBRL(contaComSolarFinanA)}\n`,
-                      bold: true,
-                      size: 12,
-                      color: '047857',
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: 'Parcela + Conta: ',
-                      bold: true,
-                      size: 13,
-                      color: '111827',
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: `${formatBRL(parcelaMaisContaFinanA)}`,
-                      bold: true,
-                      size: 13,
-                      color: '111827',
-                      font: 'Arial',
-                    }),
-                  ],
-                }),
-              ],
-            }),
-            // Financiamento B (Maior Prazo)
-            new TableCell({
-              width: { size: colWidthPgto, type: WidthType.DXA },
-              shading: { type: ShadingType.CLEAR, fill: 'EFF6FF' },
-              borders: {
-                top: { style: BorderStyle.SINGLE, size: 16, color: '60A5FA' },
-                bottom: { style: BorderStyle.SINGLE, size: 16, color: '60A5FA' },
-                left: { style: BorderStyle.SINGLE, size: 16, color: '60A5FA' },
-                right: { style: BorderStyle.SINGLE, size: 16, color: '60A5FA' },
-              },
-              margins: { top: 90, bottom: 90, left: 80, right: 80 },
-              children: [
-                new Paragraph({
-                  children: [
-                    new TextRun({
-                      text: finanBNome.toUpperCase(),
-                      bold: true,
-                      size: 15,
-                      color: '1E3A8A',
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: ` [${finanBParcelas}x]\n`,
-                      bold: true,
-                      size: 12,
-                      color: '1D4ED8',
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: `${finanBParcelas}x de `,
-                      bold: true,
-                      size: 13,
-                      color: '1E3A8A',
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: `${formatBRL(finanBValor)}\n`,
-                      bold: true,
-                      size: 20,
-                      color: '1E40AF',
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: `${
-                        finanBEntrada > 0 ? `Entrada: ${formatBRL(finanBEntrada)} | ` : ''
-                      }Total: ${formatBRL(finanBEntrada + finanBValor * finanBParcelas)}\n`,
-                      size: 11,
-                      color: '6B7280',
-                      font: 'Arial',
-                    }),
-                    ...(finanBIof > 0
-                      ? [
-                          new TextRun({
-                            text: `Inclui IOF de ${formatBRL(finanBIof)}\n`,
-                            bold: true,
-                            size: 11,
-                            color: '1E40AF',
-                            font: 'Arial',
-                          }),
-                        ]
-                      : []),
-                    new TextRun({
-                      text: '-----------------------------\n',
-                      size: 10,
-                      color: 'BFDBFE',
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: 'Conta hoje: ',
-                      size: 12,
-                      color: '6B7280',
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: `${formatBRL(contaSemSolarFinanB)}\n`,
-                      bold: true,
-                      size: 12,
-                      color: 'DC2626',
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: 'Conta c/ solar: ',
-                      size: 12,
-                      color: '6B7280',
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: `${formatBRL(contaComSolarFinanB)}\n`,
-                      bold: true,
-                      size: 12,
-                      color: '047857',
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: 'Parcela + Conta: ',
-                      bold: true,
-                      size: 13,
-                      color: '1E3A8A',
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: `${formatBRL(parcelaMaisContaFinanB)}`,
-                      bold: true,
-                      size: 13,
-                      color: '1E3A8A',
-                      font: 'Arial',
-                    }),
-                  ],
-                }),
-              ],
-            }),
-          ],
-        }),
-      ],
-    }),
-  )
-
-  // Projeção com Reajuste Tarifário de 9% ao ano (Concessionária) posicionado ABAIXO dos 4 cards e ANTES do Payback
-  const contaSemSolar4AnosDocx =
-    calculos.contaSemSolar4AnosComReajuste !== undefined &&
-    calculos.contaSemSolar4AnosComReajuste > 0
-      ? calculos.contaSemSolar4AnosComReajuste
-      : Math.round(contaHoje * Math.pow(1.09, 4))
-
-  const contaPrimeiroMesComSolarDocx =
-    calculos.contaPrimeiroMesComSolar !== undefined
-      ? calculos.contaPrimeiroMesComSolar
-      : contaComSolarAVista
-
-  const contaComSolar4AnosDocx =
-    calculos.contaComSolar4AnosComReajuste !== undefined &&
-    calculos.contaComSolar4AnosComReajuste > 0
-      ? calculos.contaComSolar4AnosComReajuste
-      : Math.round(contaPrimeiroMesComSolarDocx * Math.pow(1.09, 4))
-
-  const contaSemSolar10AnosDocx =
-    calculos.contaSemSolar10AnosComReajuste !== undefined &&
-    calculos.contaSemSolar10AnosComReajuste > 0
-      ? calculos.contaSemSolar10AnosComReajuste
-      : Math.round(contaHoje * Math.pow(1.09, 10))
-
-  const contaComSolar10AnosDocx =
-    calculos.contaComSolar10AnosComReajuste !== undefined &&
-    calculos.contaComSolar10AnosComReajuste > 0
-      ? calculos.contaComSolar10AnosComReajuste
-      : Math.round(contaPrimeiroMesComSolarDocx * Math.pow(1.09, 10))
-
-  const colWidthReajuste = Math.floor(PAGE_CONTENT_WIDTH / 2)
-
-  docChildren.push(
-    new Table({
-      width: { size: PAGE_CONTENT_WIDTH, type: WidthType.DXA },
-      borders: {
-        top: { style: BorderStyle.SINGLE, size: 12, color: 'F59E0B' },
-        bottom: { style: BorderStyle.SINGLE, size: 12, color: 'F59E0B' },
-        left: { style: BorderStyle.SINGLE, size: 12, color: 'F59E0B' },
-        right: { style: BorderStyle.SINGLE, size: 12, color: 'F59E0B' },
-        insideVertical: { style: BorderStyle.SINGLE, size: 6, color: 'FDE68A' },
-        insideHorizontal: { style: BorderStyle.SINGLE, size: 6, color: 'FDE68A' },
-      },
-      rows: [
-        // Linha 1: Título com shading fill 'FFFBEB'
-        new TableRow({
-          children: [
-            new TableCell({
-              width: { size: PAGE_CONTENT_WIDTH, type: WidthType.DXA },
-              columnSpan: 2,
-              shading: { type: ShadingType.CLEAR, fill: 'FFFBEB' },
-              margins: { top: 90, bottom: 90, left: 140, right: 140 },
-              children: [
-                new Paragraph({
-                  children: [
-                    new TextRun({
-                      text: '📈 PROJEÇÃO COM REAJUSTE TARIFÁRIO DE 9% AO ANO (CONCESSIONÁRIA)',
-                      bold: true,
-                      size: 15,
-                      color: '92400E',
-                      font: 'Arial',
-                    }),
-                  ],
-                }),
-              ],
-            }),
-          ],
-        }),
-        // Linha 2: 2 células (4 anos e 10 anos)
-        new TableRow({
-          children: [
-            // Célula 1: Daqui a 4 anos
-            new TableCell({
-              width: { size: colWidthReajuste, type: WidthType.DXA },
-              shading: { type: ShadingType.CLEAR, fill: 'FFFFFF' },
-              margins: { top: 80, bottom: 80, left: 120, right: 120 },
-              children: [
-                new Paragraph({
-                  children: [
-                    new TextRun({
-                      text: 'CONTA DAQUI A 4 ANOS: ',
-                      bold: true,
-                      size: 13,
-                      color: '6B7280',
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: `${formatBRL(contaSemSolar4AnosDocx)} `,
-                      bold: true,
-                      strike: true,
-                      size: 14,
-                      color: 'DC2626',
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: `${formatBRL(contaComSolar4AnosDocx)} com solar`,
-                      bold: true,
-                      size: 14,
-                      color: '047857',
-                      font: 'Arial',
-                    }),
-                  ],
-                }),
-              ],
-            }),
-            // Célula 2: Daqui a 10 anos
-            new TableCell({
-              width: { size: PAGE_CONTENT_WIDTH - colWidthReajuste, type: WidthType.DXA },
-              shading: { type: ShadingType.CLEAR, fill: 'FFFFFF' },
-              margins: { top: 80, bottom: 80, left: 120, right: 120 },
-              children: [
-                new Paragraph({
-                  children: [
-                    new TextRun({
-                      text: 'CONTA DAQUI A 10 ANOS: ',
-                      bold: true,
-                      size: 13,
-                      color: '6B7280',
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: `${formatBRL(contaSemSolar10AnosDocx)} `,
-                      bold: true,
-                      strike: true,
-                      size: 14,
-                      color: 'DC2626',
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: `${formatBRL(contaComSolar10AnosDocx)} com solar`,
-                      bold: true,
-                      size: 14,
-                      color: '047857',
-                      font: 'Arial',
-                    }),
-                  ],
-                }),
-              ],
-            }),
-          ],
-        }),
-      ],
-    }),
-  )
-
-  // Card de Payback Estimado (Tempo de Retorno do Investimento) posicionado ABAIXO dos 4 cards de condições de pagamento
-  docChildren.push(
-    new Table({
-      width: { size: PAGE_CONTENT_WIDTH, type: WidthType.DXA },
-      borders: {
-        top: { style: BorderStyle.SINGLE, size: 12, color: 'F59E0B' },
-        bottom: { style: BorderStyle.SINGLE, size: 12, color: 'F59E0B' },
-        left: { style: BorderStyle.SINGLE, size: 12, color: 'F59E0B' },
-        right: { style: BorderStyle.SINGLE, size: 12, color: 'F59E0B' },
-      },
-      rows: [
-        new TableRow({
-          children: [
-            new TableCell({
-              width: { size: PAGE_CONTENT_WIDTH, type: WidthType.DXA },
-              shading: { type: ShadingType.CLEAR, fill: 'FFFBEB' },
-              margins: { top: 120, bottom: 120, left: 140, right: 140 },
-              children: [
-                new Paragraph({
-                  children: [
-                    new TextRun({
-                      text: `Payback do Sistema: ${paybackTextoFinal}`,
-                      bold: true,
-                      size: 16,
-                      color: 'B45309',
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: ` (Quitação prevista: ${quitacaoMesAno})`,
-                      bold: true,
-                      size: 14,
-                      color: '78350F',
-                      font: 'Arial',
-                    }),
-                  ],
-                }),
-                new Paragraph({
-                  spacing: { before: 40 },
-                  children: [
-                    new TextRun({
-                      text: 'Tempo estimado para que a economia gerada na fatura de energia pague integralmente o investimento.',
-                      size: 14,
-                      color: '92400E',
-                      font: 'Arial',
-                    }),
-                  ],
-                }),
-              ],
-            }),
-          ],
-        }),
-      ],
-    }),
-  )
-
-  // Card Custo de Postergação (Âmbar / Laranja) posicionado ABAIXO do Payback Estimado
-  // Card Custo de Postergação (Âmbar / Laranja) posicionado ABAIXO do Payback Estimado
-  const colWidthPostergacao = Math.floor(PAGE_CONTENT_WIDTH * 0.7)
-  const colWidthPostergacaoValor = PAGE_CONTENT_WIDTH - colWidthPostergacao
-  const valorPerdidoPostergacao = projecaoOficial?.valorPerdidoPorMesPostergacao || economiaMensal
-
-  docChildren.push(
-    new Table({
-      width: { size: PAGE_CONTENT_WIDTH, type: WidthType.DXA },
-      borders: {
-        top: { style: BorderStyle.SINGLE, size: 12, color: 'F59E0B' },
-        bottom: { style: BorderStyle.SINGLE, size: 12, color: 'F59E0B' },
-        left: { style: BorderStyle.SINGLE, size: 12, color: 'F59E0B' },
-        right: { style: BorderStyle.SINGLE, size: 12, color: 'F59E0B' },
-        insideVertical: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
-        insideHorizontal: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
-      },
-      rows: [
-        new TableRow({
-          children: [
-            new TableCell({
-              width: { size: colWidthPostergacao, type: WidthType.DXA },
-              shading: { type: ShadingType.CLEAR, fill: 'FFFBEB' },
-              margins: { top: 100, bottom: 100, left: 140, right: 100 },
-              children: [
-                new Paragraph({
-                  children: [
-                    new TextRun({
-                      text: '⚠️ CUSTO DE POSTERGAÇÃO • NÃO ADIE SUA ECONOMIA\n',
-                      bold: true,
-                      size: 14,
-                      color: 'B45309',
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: 'Cada mês sem energia solar custa dinheiro real pago à concessionária.\n',
-                      bold: true,
-                      size: 15,
-                      color: '92400E',
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: 'Adiar a decisão significa continuar pagando a conta cheia sem construir patrimônio.',
-                      size: 13,
-                      color: '78350F',
-                      font: 'Arial',
-                    }),
-                  ],
-                }),
-              ],
-            }),
-            new TableCell({
-              width: { size: colWidthPostergacaoValor, type: WidthType.DXA },
-              shading: { type: ShadingType.CLEAR, fill: 'FEF3C7' },
-              margins: { top: 100, bottom: 100, left: 100, right: 140 },
-              children: [
-                new Paragraph({
-                  alignment: AlignmentType.RIGHT,
-                  children: [
-                    new TextRun({
-                      text: 'VALOR PERDIDO POR MÊS\n',
-                      bold: true,
-                      size: 12,
-                      color: '92400E',
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: formatBRL(valorPerdidoPostergacao),
-                      bold: true,
-                      size: 22,
-                      color: 'C2410C',
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: ' /mês',
-                      bold: true,
-                      size: 14,
-                      color: 'C2410C',
-                      font: 'Arial',
-                    }),
-                  ],
-                }),
-              ],
-            }),
-          ],
-        }),
-      ],
-    }),
-  )
-
-  if (dados.observacoes) {
-    docChildren.push(
-      new Paragraph({
-        spacing: { before: 100 },
-        children: [
-          new TextRun({ text: 'Observações Comerciais: ', bold: true, size: 16, font: 'Arial' }),
-          new TextRun({
-            text: dados.observacoes,
-            size: 16,
-            font: 'Arial',
-            color: COLOR_TEXT_MUTED,
+    // Banner do Investimento Total com fundo escuro/esmeralda e valor dourado
+    itens.push(
+      new Table({
+        width: { size: PAGE_CONTENT_WIDTH, type: WidthType.DXA },
+        borders: {
+          top: { style: BorderStyle.SINGLE, size: 8, color: COLOR_ACCENT },
+          bottom: { style: BorderStyle.SINGLE, size: 8, color: COLOR_ACCENT },
+          left: { style: BorderStyle.SINGLE, size: 24, color: COLOR_PRIMARY },
+          right: { style: BorderStyle.SINGLE, size: 8, color: COLOR_ACCENT },
+        },
+        rows: [
+          new TableRow({
+            children: [
+              new TableCell({
+                width: { size: PAGE_CONTENT_WIDTH, type: WidthType.DXA },
+                shading: { type: ShadingType.CLEAR, fill: '064E3B' },
+                margins: { top: 120, bottom: 120, left: 160, right: 160 },
+                children: [
+                  new Paragraph({
+                    children: [
+                      new TextRun({
+                        text: 'INVESTIMENTO TOTAL TURNKEY (SISTEMA COMPLETO): ',
+                        bold: true,
+                        size: 17,
+                        color: 'A7F3D0',
+                        font: 'Arial',
+                      }),
+                      new TextRun({
+                        text: formatBRL(investimentoTotal),
+                        bold: true,
+                        size: 28,
+                        color: 'FDE047',
+                        font: 'Arial',
+                      }),
+                    ],
+                  }),
+                  new Paragraph({
+                    spacing: { before: 40 },
+                    children: [
+                      new TextRun({
+                        text: 'Investimento único — o sistema é seu. Equipamentos Tier-1, projeto, ART, instalação e homologação inclusos.',
+                        size: 15,
+                        color: 'D1FAE5',
+                        font: 'Arial',
+                      }),
+                    ],
+                  }),
+                ],
+              }),
+            ],
           }),
         ],
       }),
     )
-  }
 
-  // Bloco de Assinaturas & Aprovação (empresa de um lado, cliente do outro, dados estruturados)
-  const colAssinaturaWidth = Math.floor(PAGE_CONTENT_WIDTH / 2)
-  docChildren.push(
-    new Table({
-      width: { size: PAGE_CONTENT_WIDTH, type: WidthType.DXA },
-      borders: tableBorderDefault,
-      rows: [
-        new TableRow({
+    // Título da seção de condições de pagamento
+    itens.push(
+      new Paragraph({
+        spacing: { before: 160, after: 80 },
+        children: [
+          new TextRun({
+            text: 'Condições de pagamento',
+            bold: true,
+            size: 20,
+            color: '111827',
+            font: 'Arial',
+          }),
+        ],
+      }),
+    )
+
+    // Grade 4 modalidades de pagamento com layout e linhas comparativas idênticos à aba de parcelamento
+    const colWidthPgto = Math.floor(PAGE_CONTENT_WIDTH / 4)
+    const contaComSolarAVista =
+      parcelamentos?.aVista?.contaComSolar !== undefined ? parcelamentos.aVista.contaComSolar : 0
+    const economiaMesAVista = Math.max(0, contaHoje - contaComSolarAVista)
+
+    const contaComSolarCartao =
+      parcelamentos?.cartao18x?.contaComSolar !== undefined
+        ? parcelamentos.cartao18x.contaComSolar
+        : 0
+    const contaSemSolarCartao =
+      parcelamentos?.cartao18x?.contaSemSolar !== undefined
+        ? parcelamentos.cartao18x.contaSemSolar
+        : contaHoje
+    const parcelaMaisContaCartao = cartaoValor + contaComSolarCartao
+
+    const contaComSolarFinanA =
+      parcelamentos?.financiamentoBanco1?.contaComSolar !== undefined
+        ? parcelamentos.financiamentoBanco1.contaComSolar
+        : 0
+    const contaSemSolarFinanA =
+      parcelamentos?.financiamentoBanco1?.contaSemSolar !== undefined
+        ? parcelamentos.financiamentoBanco1.contaSemSolar
+        : contaHoje
+    const parcelaMaisContaFinanA = finanAValor + contaComSolarFinanA
+
+    const contaComSolarFinanB =
+      parcelamentos?.financiamentoBanco2?.contaComSolar !== undefined
+        ? parcelamentos.financiamentoBanco2.contaComSolar
+        : 0
+    const contaSemSolarFinanB =
+      parcelamentos?.financiamentoBanco2?.contaSemSolar !== undefined
+        ? parcelamentos.financiamentoBanco2.contaSemSolar
+        : contaHoje
+    const parcelaMaisContaFinanB = finanBValor + contaComSolarFinanB
+
+    itens.push(
+      new Table({
+        width: { size: PAGE_CONTENT_WIDTH, type: WidthType.DXA },
+        borders: tableBorderDefault,
+        rows: [
+          new TableRow({
+            children: [
+              // À Vista (Destaque Verde)
+              new TableCell({
+                width: { size: colWidthPgto, type: WidthType.DXA },
+                shading: { type: ShadingType.CLEAR, fill: 'ECFDF5' },
+                borders: {
+                  top: { style: BorderStyle.SINGLE, size: 16, color: '10B981' },
+                  bottom: { style: BorderStyle.SINGLE, size: 16, color: '10B981' },
+                  left: { style: BorderStyle.SINGLE, size: 16, color: '10B981' },
+                  right: { style: BorderStyle.SINGLE, size: 16, color: '10B981' },
+                },
+                margins: { top: 90, bottom: 90, left: 80, right: 80 },
+                children: [
+                  new Paragraph({
+                    children: [
+                      new TextRun({
+                        text: 'À VISTA',
+                        bold: true,
+                        size: 15,
+                        color: '065F46',
+                        font: 'Arial',
+                      }),
+                      new TextRun({
+                        text: ' [Sem Juros]\n',
+                        bold: true,
+                        size: 12,
+                        color: '047857',
+                        font: 'Arial',
+                      }),
+                      new TextRun({
+                        text: `${formatBRL(aVistaValor)}\n`,
+                        bold: true,
+                        size: 20,
+                        color: '047857',
+                        font: 'Arial',
+                      }),
+                      new TextRun({
+                        text: `${
+                          aVistaDesconto > 0
+                            ? `Desconto de ${formatBRL(aVistaDesconto)} aplicado\n`
+                            : 'Valor total do projeto à vista\n'
+                        }`,
+                        size: 11,
+                        color: '6B7280',
+                        font: 'Arial',
+                      }),
+                      new TextRun({
+                        text: '-----------------------------\n',
+                        size: 10,
+                        color: 'A7F3D0',
+                        font: 'Arial',
+                      }),
+                      new TextRun({
+                        text: 'Conta hoje: ',
+                        size: 12,
+                        color: '6B7280',
+                        font: 'Arial',
+                      }),
+                      new TextRun({
+                        text: `${formatBRL(contaHoje)}\n`,
+                        bold: true,
+                        size: 12,
+                        color: 'DC2626',
+                        font: 'Arial',
+                      }),
+                      new TextRun({
+                        text: 'Conta c/ solar: ',
+                        size: 12,
+                        color: '6B7280',
+                        font: 'Arial',
+                      }),
+                      new TextRun({
+                        text: `${formatBRL(contaComSolarAVista)}\n`,
+                        bold: true,
+                        size: 12,
+                        color: '047857',
+                        font: 'Arial',
+                      }),
+                      new TextRun({
+                        text: 'Economia/mês: ',
+                        bold: true,
+                        size: 13,
+                        color: '064E3B',
+                        font: 'Arial',
+                      }),
+                      new TextRun({
+                        text: `${formatBRL(economiaMesAVista)}`,
+                        bold: true,
+                        size: 13,
+                        color: '064E3B',
+                        font: 'Arial',
+                      }),
+                    ],
+                  }),
+                ],
+              }),
+              // Cartão
+              new TableCell({
+                width: { size: colWidthPgto, type: WidthType.DXA },
+                shading: { type: ShadingType.CLEAR, fill: 'FFFFFF' },
+                borders: {
+                  top: { style: BorderStyle.SINGLE, size: 8, color: 'E5E7EB' },
+                  bottom: { style: BorderStyle.SINGLE, size: 8, color: 'E5E7EB' },
+                  left: { style: BorderStyle.SINGLE, size: 8, color: 'E5E7EB' },
+                  right: { style: BorderStyle.SINGLE, size: 8, color: 'E5E7EB' },
+                },
+                margins: { top: 90, bottom: 90, left: 80, right: 80 },
+                children: [
+                  new Paragraph({
+                    children: [
+                      new TextRun({
+                        text: 'CARTÃO DE CRÉDITO',
+                        bold: true,
+                        size: 15,
+                        color: '111827',
+                        font: 'Arial',
+                      }),
+                      new TextRun({
+                        text: ` [${cartaoParcelas}x]\n`,
+                        bold: true,
+                        size: 12,
+                        color: '4B5563',
+                        font: 'Arial',
+                      }),
+                      new TextRun({
+                        text: `${cartaoParcelas}x de `,
+                        bold: true,
+                        size: 13,
+                        color: '4B5563',
+                        font: 'Arial',
+                      }),
+                      new TextRun({
+                        text: `${formatBRL(cartaoValor)}\n`,
+                        bold: true,
+                        size: 20,
+                        color: '111827',
+                        font: 'Arial',
+                      }),
+                      new TextRun({
+                        text: `${
+                          cartaoEntrada > 0 ? `Entrada: ${formatBRL(cartaoEntrada)} | ` : ''
+                        }Total: ${formatBRL(cartaoEntrada + cartaoValor * cartaoParcelas)}\n`,
+                        size: 11,
+                        color: '6B7280',
+                        font: 'Arial',
+                      }),
+                      new TextRun({
+                        text: '-----------------------------\n',
+                        size: 10,
+                        color: 'E5E7EB',
+                        font: 'Arial',
+                      }),
+                      new TextRun({
+                        text: 'Conta hoje: ',
+                        size: 12,
+                        color: '6B7280',
+                        font: 'Arial',
+                      }),
+                      new TextRun({
+                        text: `${formatBRL(contaSemSolarCartao)}\n`,
+                        bold: true,
+                        size: 12,
+                        color: 'DC2626',
+                        font: 'Arial',
+                      }),
+                      new TextRun({
+                        text: 'Conta c/ solar: ',
+                        size: 12,
+                        color: '6B7280',
+                        font: 'Arial',
+                      }),
+                      new TextRun({
+                        text: `${formatBRL(contaComSolarCartao)}\n`,
+                        bold: true,
+                        size: 12,
+                        color: '047857',
+                        font: 'Arial',
+                      }),
+                      new TextRun({
+                        text: 'Parcela + Conta: ',
+                        bold: true,
+                        size: 13,
+                        color: '111827',
+                        font: 'Arial',
+                      }),
+                      new TextRun({
+                        text: `${formatBRL(parcelaMaisContaCartao)}`,
+                        bold: true,
+                        size: 13,
+                        color: '111827',
+                        font: 'Arial',
+                      }),
+                    ],
+                  }),
+                ],
+              }),
+              // Financiamento A (Menor Parcela)
+              new TableCell({
+                width: { size: colWidthPgto, type: WidthType.DXA },
+                shading: { type: ShadingType.CLEAR, fill: 'FFFFFF' },
+                borders: {
+                  top: { style: BorderStyle.SINGLE, size: 8, color: 'E5E7EB' },
+                  bottom: { style: BorderStyle.SINGLE, size: 8, color: 'E5E7EB' },
+                  left: { style: BorderStyle.SINGLE, size: 8, color: 'E5E7EB' },
+                  right: { style: BorderStyle.SINGLE, size: 8, color: 'E5E7EB' },
+                },
+                margins: { top: 90, bottom: 90, left: 80, right: 80 },
+                children: [
+                  new Paragraph({
+                    children: [
+                      new TextRun({
+                        text: finanANome.toUpperCase(),
+                        bold: true,
+                        size: 15,
+                        color: '111827',
+                        font: 'Arial',
+                      }),
+                      new TextRun({
+                        text: ` [${finanAParcelas}x]\n`,
+                        bold: true,
+                        size: 12,
+                        color: '92400E',
+                        font: 'Arial',
+                      }),
+                      new TextRun({
+                        text: `${finanAParcelas}x de `,
+                        bold: true,
+                        size: 13,
+                        color: '4B5563',
+                        font: 'Arial',
+                      }),
+                      new TextRun({
+                        text: `${formatBRL(finanAValor)}\n`,
+                        bold: true,
+                        size: 20,
+                        color: '111827',
+                        font: 'Arial',
+                      }),
+                      new TextRun({
+                        text: `${
+                          finanAEntrada > 0 ? `Entrada: ${formatBRL(finanAEntrada)} | ` : ''
+                        }Total: ${formatBRL(finanAEntrada + finanAValor * finanAParcelas)}\n`,
+                        size: 11,
+                        color: '6B7280',
+                        font: 'Arial',
+                      }),
+                      ...(finanAIof > 0
+                        ? [
+                            new TextRun({
+                              text: `Inclui IOF de ${formatBRL(finanAIof)}\n`,
+                              bold: true,
+                              size: 11,
+                              color: '047857',
+                              font: 'Arial',
+                            }),
+                          ]
+                        : []),
+                      new TextRun({
+                        text: '-----------------------------\n',
+                        size: 10,
+                        color: 'E5E7EB',
+                        font: 'Arial',
+                      }),
+                      new TextRun({
+                        text: 'Conta hoje: ',
+                        size: 12,
+                        color: '6B7280',
+                        font: 'Arial',
+                      }),
+                      new TextRun({
+                        text: `${formatBRL(contaSemSolarFinanA)}\n`,
+                        bold: true,
+                        size: 12,
+                        color: 'DC2626',
+                        font: 'Arial',
+                      }),
+                      new TextRun({
+                        text: 'Conta c/ solar: ',
+                        size: 12,
+                        color: '6B7280',
+                        font: 'Arial',
+                      }),
+                      new TextRun({
+                        text: `${formatBRL(contaComSolarFinanA)}\n`,
+                        bold: true,
+                        size: 12,
+                        color: '047857',
+                        font: 'Arial',
+                      }),
+                      new TextRun({
+                        text: 'Parcela + Conta: ',
+                        bold: true,
+                        size: 13,
+                        color: '111827',
+                        font: 'Arial',
+                      }),
+                      new TextRun({
+                        text: `${formatBRL(parcelaMaisContaFinanA)}`,
+                        bold: true,
+                        size: 13,
+                        color: '111827',
+                        font: 'Arial',
+                      }),
+                    ],
+                  }),
+                ],
+              }),
+              // Financiamento B (Maior Prazo)
+              new TableCell({
+                width: { size: colWidthPgto, type: WidthType.DXA },
+                shading: { type: ShadingType.CLEAR, fill: 'EFF6FF' },
+                borders: {
+                  top: { style: BorderStyle.SINGLE, size: 16, color: '60A5FA' },
+                  bottom: { style: BorderStyle.SINGLE, size: 16, color: '60A5FA' },
+                  left: { style: BorderStyle.SINGLE, size: 16, color: '60A5FA' },
+                  right: { style: BorderStyle.SINGLE, size: 16, color: '60A5FA' },
+                },
+                margins: { top: 90, bottom: 90, left: 80, right: 80 },
+                children: [
+                  new Paragraph({
+                    children: [
+                      new TextRun({
+                        text: finanBNome.toUpperCase(),
+                        bold: true,
+                        size: 15,
+                        color: '1E3A8A',
+                        font: 'Arial',
+                      }),
+                      new TextRun({
+                        text: ` [${finanBParcelas}x]\n`,
+                        bold: true,
+                        size: 12,
+                        color: '1D4ED8',
+                        font: 'Arial',
+                      }),
+                      new TextRun({
+                        text: `${finanBParcelas}x de `,
+                        bold: true,
+                        size: 13,
+                        color: '1E3A8A',
+                        font: 'Arial',
+                      }),
+                      new TextRun({
+                        text: `${formatBRL(finanBValor)}\n`,
+                        bold: true,
+                        size: 20,
+                        color: '1E40AF',
+                        font: 'Arial',
+                      }),
+                      new TextRun({
+                        text: `${
+                          finanBEntrada > 0 ? `Entrada: ${formatBRL(finanBEntrada)} | ` : ''
+                        }Total: ${formatBRL(finanBEntrada + finanBValor * finanBParcelas)}\n`,
+                        size: 11,
+                        color: '6B7280',
+                        font: 'Arial',
+                      }),
+                      ...(finanBIof > 0
+                        ? [
+                            new TextRun({
+                              text: `Inclui IOF de ${formatBRL(finanBIof)}\n`,
+                              bold: true,
+                              size: 11,
+                              color: '1E40AF',
+                              font: 'Arial',
+                            }),
+                          ]
+                        : []),
+                      new TextRun({
+                        text: '-----------------------------\n',
+                        size: 10,
+                        color: 'BFDBFE',
+                        font: 'Arial',
+                      }),
+                      new TextRun({
+                        text: 'Conta hoje: ',
+                        size: 12,
+                        color: '6B7280',
+                        font: 'Arial',
+                      }),
+                      new TextRun({
+                        text: `${formatBRL(contaSemSolarFinanB)}\n`,
+                        bold: true,
+                        size: 12,
+                        color: 'DC2626',
+                        font: 'Arial',
+                      }),
+                      new TextRun({
+                        text: 'Conta c/ solar: ',
+                        size: 12,
+                        color: '6B7280',
+                        font: 'Arial',
+                      }),
+                      new TextRun({
+                        text: `${formatBRL(contaComSolarFinanB)}\n`,
+                        bold: true,
+                        size: 12,
+                        color: '047857',
+                        font: 'Arial',
+                      }),
+                      new TextRun({
+                        text: 'Parcela + Conta: ',
+                        bold: true,
+                        size: 13,
+                        color: '1E3A8A',
+                        font: 'Arial',
+                      }),
+                      new TextRun({
+                        text: `${formatBRL(parcelaMaisContaFinanB)}`,
+                        bold: true,
+                        size: 13,
+                        color: '1E3A8A',
+                        font: 'Arial',
+                      }),
+                    ],
+                  }),
+                ],
+              }),
+            ],
+          }),
+        ],
+      }),
+    )
+
+    // Projeção com Reajuste Tarifário de 9% ao ano (Concessionária) posicionado ABAIXO dos 4 cards e ANTES do Payback
+    const contaSemSolar4AnosDocx =
+      calculos.contaSemSolar4AnosComReajuste !== undefined &&
+      calculos.contaSemSolar4AnosComReajuste > 0
+        ? calculos.contaSemSolar4AnosComReajuste
+        : Math.round(contaHoje * Math.pow(1.09, 4))
+
+    const contaPrimeiroMesComSolarDocx =
+      calculos.contaPrimeiroMesComSolar !== undefined
+        ? calculos.contaPrimeiroMesComSolar
+        : contaComSolarAVista
+
+    const contaComSolar4AnosDocx =
+      calculos.contaComSolar4AnosComReajuste !== undefined &&
+      calculos.contaComSolar4AnosComReajuste > 0
+        ? calculos.contaComSolar4AnosComReajuste
+        : Math.round(contaPrimeiroMesComSolarDocx * Math.pow(1.09, 4))
+
+    const contaSemSolar10AnosDocx =
+      calculos.contaSemSolar10AnosComReajuste !== undefined &&
+      calculos.contaSemSolar10AnosComReajuste > 0
+        ? calculos.contaSemSolar10AnosComReajuste
+        : Math.round(contaHoje * Math.pow(1.09, 10))
+
+    const contaComSolar10AnosDocx =
+      calculos.contaComSolar10AnosComReajuste !== undefined &&
+      calculos.contaComSolar10AnosComReajuste > 0
+        ? calculos.contaComSolar10AnosComReajuste
+        : Math.round(contaPrimeiroMesComSolarDocx * Math.pow(1.09, 10))
+
+    const colWidthReajuste = Math.floor(PAGE_CONTENT_WIDTH / 2)
+
+    itens.push(
+      new Table({
+        width: { size: PAGE_CONTENT_WIDTH, type: WidthType.DXA },
+        borders: {
+          top: { style: BorderStyle.SINGLE, size: 12, color: 'F59E0B' },
+          bottom: { style: BorderStyle.SINGLE, size: 12, color: 'F59E0B' },
+          left: { style: BorderStyle.SINGLE, size: 12, color: 'F59E0B' },
+          right: { style: BorderStyle.SINGLE, size: 12, color: 'F59E0B' },
+          insideVertical: { style: BorderStyle.SINGLE, size: 6, color: 'FDE68A' },
+          insideHorizontal: { style: BorderStyle.SINGLE, size: 6, color: 'FDE68A' },
+        },
+        rows: [
+          // Linha 1: Título com shading fill 'FFFBEB'
+          new TableRow({
+            children: [
+              new TableCell({
+                width: { size: PAGE_CONTENT_WIDTH, type: WidthType.DXA },
+                columnSpan: 2,
+                shading: { type: ShadingType.CLEAR, fill: 'FFFBEB' },
+                margins: { top: 90, bottom: 90, left: 140, right: 140 },
+                children: [
+                  new Paragraph({
+                    children: [
+                      new TextRun({
+                        text: '📈 PROJEÇÃO COM REAJUSTE TARIFÁRIO DE 9% AO ANO (CONCESSIONÁRIA)',
+                        bold: true,
+                        size: 15,
+                        color: '92400E',
+                        font: 'Arial',
+                      }),
+                    ],
+                  }),
+                ],
+              }),
+            ],
+          }),
+          // Linha 2: 2 células (4 anos e 10 anos)
+          new TableRow({
+            children: [
+              // Célula 1: Daqui a 4 anos
+              new TableCell({
+                width: { size: colWidthReajuste, type: WidthType.DXA },
+                shading: { type: ShadingType.CLEAR, fill: 'FFFFFF' },
+                margins: { top: 80, bottom: 80, left: 120, right: 120 },
+                children: [
+                  new Paragraph({
+                    children: [
+                      new TextRun({
+                        text: 'CONTA DAQUI A 4 ANOS: ',
+                        bold: true,
+                        size: 13,
+                        color: '6B7280',
+                        font: 'Arial',
+                      }),
+                      new TextRun({
+                        text: `${formatBRL(contaSemSolar4AnosDocx)} `,
+                        bold: true,
+                        strike: true,
+                        size: 14,
+                        color: 'DC2626',
+                        font: 'Arial',
+                      }),
+                      new TextRun({
+                        text: `${formatBRL(contaComSolar4AnosDocx)} com solar`,
+                        bold: true,
+                        size: 14,
+                        color: '047857',
+                        font: 'Arial',
+                      }),
+                    ],
+                  }),
+                ],
+              }),
+              // Célula 2: Daqui a 10 anos
+              new TableCell({
+                width: { size: PAGE_CONTENT_WIDTH - colWidthReajuste, type: WidthType.DXA },
+                shading: { type: ShadingType.CLEAR, fill: 'FFFFFF' },
+                margins: { top: 80, bottom: 80, left: 120, right: 120 },
+                children: [
+                  new Paragraph({
+                    children: [
+                      new TextRun({
+                        text: 'CONTA DAQUI A 10 ANOS: ',
+                        bold: true,
+                        size: 13,
+                        color: '6B7280',
+                        font: 'Arial',
+                      }),
+                      new TextRun({
+                        text: `${formatBRL(contaSemSolar10AnosDocx)} `,
+                        bold: true,
+                        strike: true,
+                        size: 14,
+                        color: 'DC2626',
+                        font: 'Arial',
+                      }),
+                      new TextRun({
+                        text: `${formatBRL(contaComSolar10AnosDocx)} com solar`,
+                        bold: true,
+                        size: 14,
+                        color: '047857',
+                        font: 'Arial',
+                      }),
+                    ],
+                  }),
+                ],
+              }),
+            ],
+          }),
+        ],
+      }),
+    )
+
+    // Card de Payback Estimado (Tempo de Retorno do Investimento) posicionado ABAIXO dos 4 cards de condições de pagamento
+    itens.push(
+      new Table({
+        width: { size: PAGE_CONTENT_WIDTH, type: WidthType.DXA },
+        borders: {
+          top: { style: BorderStyle.SINGLE, size: 12, color: 'F59E0B' },
+          bottom: { style: BorderStyle.SINGLE, size: 12, color: 'F59E0B' },
+          left: { style: BorderStyle.SINGLE, size: 12, color: 'F59E0B' },
+          right: { style: BorderStyle.SINGLE, size: 12, color: 'F59E0B' },
+        },
+        rows: [
+          new TableRow({
+            children: [
+              new TableCell({
+                width: { size: PAGE_CONTENT_WIDTH, type: WidthType.DXA },
+                shading: { type: ShadingType.CLEAR, fill: 'FFFBEB' },
+                margins: { top: 120, bottom: 120, left: 140, right: 140 },
+                children: [
+                  new Paragraph({
+                    children: [
+                      new TextRun({
+                        text: `Payback do Sistema: ${paybackTextoFinal}`,
+                        bold: true,
+                        size: 16,
+                        color: 'B45309',
+                        font: 'Arial',
+                      }),
+                      new TextRun({
+                        text: ` (Quitação prevista: ${quitacaoMesAno})`,
+                        bold: true,
+                        size: 14,
+                        color: '78350F',
+                        font: 'Arial',
+                      }),
+                    ],
+                  }),
+                  new Paragraph({
+                    spacing: { before: 40 },
+                    children: [
+                      new TextRun({
+                        text: 'Tempo estimado para que a economia gerada na fatura de energia pague integralmente o investimento.',
+                        size: 14,
+                        color: '92400E',
+                        font: 'Arial',
+                      }),
+                    ],
+                  }),
+                ],
+              }),
+            ],
+          }),
+        ],
+      }),
+    )
+
+    // Card Custo de Postergação (Âmbar / Laranja) posicionado ABAIXO do Payback Estimado
+    const colWidthPostergacao = Math.floor(PAGE_CONTENT_WIDTH * 0.7)
+    const colWidthPostergacaoValor = PAGE_CONTENT_WIDTH - colWidthPostergacao
+    const valorPerdidoPostergacao = projecaoOficial?.valorPerdidoPorMesPostergacao || economiaMensal
+
+    itens.push(
+      new Table({
+        width: { size: PAGE_CONTENT_WIDTH, type: WidthType.DXA },
+        borders: {
+          top: { style: BorderStyle.SINGLE, size: 12, color: 'F59E0B' },
+          bottom: { style: BorderStyle.SINGLE, size: 12, color: 'F59E0B' },
+          left: { style: BorderStyle.SINGLE, size: 12, color: 'F59E0B' },
+          right: { style: BorderStyle.SINGLE, size: 12, color: 'F59E0B' },
+          insideVertical: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
+          insideHorizontal: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
+        },
+        rows: [
+          new TableRow({
+            children: [
+              new TableCell({
+                width: { size: colWidthPostergacao, type: WidthType.DXA },
+                shading: { type: ShadingType.CLEAR, fill: 'FFFBEB' },
+                margins: { top: 100, bottom: 100, left: 140, right: 100 },
+                children: [
+                  new Paragraph({
+                    children: [
+                      new TextRun({
+                        text: '⚠️ CUSTO DE POSTERGAÇÃO • NÃO ADIE SUA ECONOMIA\n',
+                        bold: true,
+                        size: 14,
+                        color: 'B45309',
+                        font: 'Arial',
+                      }),
+                      new TextRun({
+                        text: 'Cada mês sem energia solar custa dinheiro real pago à concessionária.\n',
+                        bold: true,
+                        size: 15,
+                        color: '92400E',
+                        font: 'Arial',
+                      }),
+                      new TextRun({
+                        text: 'Adiar a decisão significa continuar pagando a conta cheia sem construir patrimônio.',
+                        size: 13,
+                        color: '78350F',
+                        font: 'Arial',
+                      }),
+                    ],
+                  }),
+                ],
+              }),
+              new TableCell({
+                width: { size: colWidthPostergacaoValor, type: WidthType.DXA },
+                shading: { type: ShadingType.CLEAR, fill: 'FEF3C7' },
+                margins: { top: 100, bottom: 100, left: 100, right: 140 },
+                children: [
+                  new Paragraph({
+                    alignment: AlignmentType.RIGHT,
+                    children: [
+                      new TextRun({
+                        text: 'VALOR PERDIDO POR MÊS\n',
+                        bold: true,
+                        size: 12,
+                        color: '92400E',
+                        font: 'Arial',
+                      }),
+                      new TextRun({
+                        text: formatBRL(valorPerdidoPostergacao),
+                        bold: true,
+                        size: 22,
+                        color: 'C2410C',
+                        font: 'Arial',
+                      }),
+                      new TextRun({
+                        text: ' /mês',
+                        bold: true,
+                        size: 14,
+                        color: 'C2410C',
+                        font: 'Arial',
+                      }),
+                    ],
+                  }),
+                ],
+              }),
+            ],
+          }),
+        ],
+      }),
+    )
+
+    if (dados.observacoes) {
+      itens.push(
+        new Paragraph({
+          spacing: { before: 100 },
           children: [
-            // Bloco Empresa
-            new TableCell({
-              width: { size: colAssinaturaWidth, type: WidthType.DXA },
-              shading: { type: ShadingType.CLEAR, fill: 'FFFFFF' },
-              borders: {
-                top: { style: BorderStyle.SINGLE, size: 8, color: 'E5E7EB' },
-                bottom: { style: BorderStyle.SINGLE, size: 8, color: 'E5E7EB' },
-                left: { style: BorderStyle.SINGLE, size: 8, color: 'E5E7EB' },
-                right: { style: BorderStyle.SINGLE, size: 8, color: 'E5E7EB' },
-              },
-              margins: { top: 180, bottom: 180, left: 160, right: 160 },
-              children: [
-                // 1º Local e data no topo com identificação da coluna
-                new Paragraph({
-                  children: [
-                    new TextRun({
-                      text: 'EMPRESA CONTRATADA\n',
-                      bold: true,
-                      size: 13,
-                      color: '065F46',
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: `Erechim / RS, ${dataFormatada}\n`,
-                      size: 12,
-                      color: '6B7280',
-                      font: 'Arial',
-                    }),
-                  ],
-                }),
-                // 2º Linha de assinatura + nome (bold, size 16) + função (com ~50-60px de respiro acima da linha e respiro abaixo)
-                new Paragraph({
-                  spacing: { before: 800, after: 180 },
-                  alignment: AlignmentType.CENTER,
-                  children: [
-                    new TextRun({
-                      text: '____________________________________________\n\n',
-                      color: '111827',
-                      size: 14,
-                    }),
-                    new TextRun({
-                      text: `${DADOS_EMPRESA_DELFOS_SOLAR.responsavelTecnico.toUpperCase()}\n`,
-                      bold: true,
-                      size: 16,
-                      color: '111827',
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: `Responsável Técnico — ${DADOS_EMPRESA_DELFOS_SOLAR.crea}`,
-                      size: 12,
-                      bold: true,
-                      color: '065F46',
-                      font: 'Arial',
-                    }),
-                  ],
-                }),
-                // 3º Divisor tracejado e bloco de dados cadastrais compactos
-                new Paragraph({
-                  spacing: { before: 120 },
-                  children: [
-                    new TextRun({
-                      text: '- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -\n',
-                      color: 'D1D5DB',
-                      size: 11,
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: 'Razão Social: ',
-                      bold: true,
-                      size: 13,
-                      color: '111827',
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: `${DADOS_EMPRESA_DELFOS_SOLAR.razaoSocial} (Delfos Solar)\n`,
-                      size: 13,
-                      color: '374151',
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: 'CNPJ: ',
-                      bold: true,
-                      size: 13,
-                      color: '111827',
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: `${DADOS_EMPRESA_DELFOS_SOLAR.cnpj}`,
-                      size: 13,
-                      color: '374151',
-                      font: 'Arial',
-                    }),
-                  ],
-                }),
-              ],
-            }),
-            // Bloco Cliente
-            new TableCell({
-              width: { size: PAGE_CONTENT_WIDTH - colAssinaturaWidth, type: WidthType.DXA },
-              shading: { type: ShadingType.CLEAR, fill: 'FFFFFF' },
-              borders: {
-                top: { style: BorderStyle.SINGLE, size: 8, color: 'E5E7EB' },
-                bottom: { style: BorderStyle.SINGLE, size: 8, color: 'E5E7EB' },
-                left: { style: BorderStyle.SINGLE, size: 8, color: 'E5E7EB' },
-                right: { style: BorderStyle.SINGLE, size: 8, color: 'E5E7EB' },
-              },
-              margins: { top: 180, bottom: 180, left: 160, right: 160 },
-              children: [
-                // 1º Local e data no topo com identificação da coluna
-                new Paragraph({
-                  children: [
-                    new TextRun({
-                      text: 'CLIENTE / CONTRATANTE\n',
-                      bold: true,
-                      size: 13,
-                      color: '1E40AF',
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: 'Local e data: ______________________, ____/____/________\n',
-                      size: 11,
-                      color: '6B7280',
-                      font: 'Arial',
-                    }),
-                  ],
-                }), // 2º Linha de assinatura + nome (bold, size 16) + função (com ~50-60px de respiro acima da linha e respiro abaixo)
-                new Paragraph({
-                  spacing: { before: 800, after: 180 },
-                  alignment: AlignmentType.CENTER,
-                  children: [
-                    new TextRun({
-                      text: '____________________________________________\n\n',
-                      color: '111827',
-                      size: 14,
-                    }),
-                    new TextRun({
-                      text: `${cliente.nome.toUpperCase()}\n`,
-                      bold: true,
-                      size: 16,
-                      color: '111827',
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: 'De acordo com as especificações e valores da proposta',
-                      size: 12,
-                      bold: true,
-                      color: '1E40AF',
-                      font: 'Arial',
-                    }),
-                  ],
-                }),
-                // 3º Divisor tracejado e bloco de dados cadastrais compactos
-                new Paragraph({
-                  spacing: { before: 120 },
-                  children: [
-                    new TextRun({
-                      text: '- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -\n',
-                      color: 'D1D5DB',
-                      size: 11,
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: 'Nome/Razão Social: ',
-                      bold: true,
-                      size: 13,
-                      color: '111827',
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: `${cliente.nome}\n`,
-                      size: 13,
-                      color: '374151',
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: 'CPF/CNPJ: ',
-                      bold: true,
-                      size: 13,
-                      color: '111827',
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: `${cliente.cpfOuCnpj || ''}\n`,
-                      size: 13,
-                      color: '374151',
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: 'Endereço: ',
-                      bold: true,
-                      size: 13,
-                      color: '111827',
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: `${cliente.endereco ? `${cliente.endereco}${cliente.municipio ? `, ${cliente.municipio}` : ''}` : cliente.municipio || ''}\n`,
-                      size: 13,
-                      color: '374151',
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: 'Contato: ',
-                      bold: true,
-                      size: 13,
-                      color: '111827',
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: `${[cliente.telefone, cliente.email].filter(Boolean).join(' • ')}`,
-                      size: 13,
-                      color: '374151',
-                      font: 'Arial',
-                    }),
-                  ],
-                }),
-              ],
+            new TextRun({ text: 'Observações Comerciais: ', bold: true, size: 16, font: 'Arial' }),
+            new TextRun({
+              text: dados.observacoes,
+              size: 16,
+              font: 'Arial',
+              color: COLOR_TEXT_MUTED,
             }),
           ],
         }),
-      ],
-    }),
-  )
+      )
+    }
+
+    // Bloco de Assinaturas & Aprovação (empresa de um lado, cliente do outro, dados estruturados)
+    const colAssinaturaWidth = Math.floor(PAGE_CONTENT_WIDTH / 2)
+    itens.push(
+      new Table({
+        width: { size: PAGE_CONTENT_WIDTH, type: WidthType.DXA },
+        borders: tableBorderDefault,
+        rows: [
+          new TableRow({
+            children: [
+              // Bloco Empresa
+              new TableCell({
+                width: { size: colAssinaturaWidth, type: WidthType.DXA },
+                shading: { type: ShadingType.CLEAR, fill: 'FFFFFF' },
+                borders: {
+                  top: { style: BorderStyle.SINGLE, size: 8, color: 'E5E7EB' },
+                  bottom: { style: BorderStyle.SINGLE, size: 8, color: 'E5E7EB' },
+                  left: { style: BorderStyle.SINGLE, size: 8, color: 'E5E7EB' },
+                  right: { style: BorderStyle.SINGLE, size: 8, color: 'E5E7EB' },
+                },
+                margins: { top: 180, bottom: 180, left: 160, right: 160 },
+                children: [
+                  // 1º Local e data no topo com identificação da coluna
+                  new Paragraph({
+                    children: [
+                      new TextRun({
+                        text: 'EMPRESA CONTRATADA\n',
+                        bold: true,
+                        size: 13,
+                        color: '065F46',
+                        font: 'Arial',
+                      }),
+                      new TextRun({
+                        text: `Erechim / RS, ${dataFormatada}\n`,
+                        size: 12,
+                        color: '6B7280',
+                        font: 'Arial',
+                      }),
+                    ],
+                  }),
+                  // 2º Linha de assinatura + nome (bold, size 16) + função (com ~50-60px de respiro acima da linha e respiro abaixo)
+                  new Paragraph({
+                    spacing: { before: 800, after: 180 },
+                    alignment: AlignmentType.CENTER,
+                    children: [
+                      new TextRun({
+                        text: '____________________________________________\n\n',
+                        color: '111827',
+                        size: 14,
+                      }),
+                      new TextRun({
+                        text: `${DADOS_EMPRESA_DELFOS_SOLAR.responsavelTecnico.toUpperCase()}\n`,
+                        bold: true,
+                        size: 16,
+                        color: '111827',
+                        font: 'Arial',
+                      }),
+                      new TextRun({
+                        text: `Responsável Técnico — ${DADOS_EMPRESA_DELFOS_SOLAR.crea}`,
+                        size: 12,
+                        bold: true,
+                        color: '065F46',
+                        font: 'Arial',
+                      }),
+                    ],
+                  }),
+                  // 3º Divisor tracejado e bloco de dados cadastrais compactos
+                  new Paragraph({
+                    spacing: { before: 120 },
+                    children: [
+                      new TextRun({
+                        text: '- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -\n',
+                        color: 'D1D5DB',
+                        size: 11,
+                        font: 'Arial',
+                      }),
+                      new TextRun({
+                        text: 'Razão Social: ',
+                        bold: true,
+                        size: 13,
+                        color: '111827',
+                        font: 'Arial',
+                      }),
+                      new TextRun({
+                        text: `${DADOS_EMPRESA_DELFOS_SOLAR.razaoSocial} (Delfos Solar)\n`,
+                        size: 13,
+                        color: '374151',
+                        font: 'Arial',
+                      }),
+                      new TextRun({
+                        text: 'CNPJ: ',
+                        bold: true,
+                        size: 13,
+                        color: '111827',
+                        font: 'Arial',
+                      }),
+                      new TextRun({
+                        text: `${DADOS_EMPRESA_DELFOS_SOLAR.cnpj}`,
+                        size: 13,
+                        color: '374151',
+                        font: 'Arial',
+                      }),
+                    ],
+                  }),
+                ],
+              }),
+              // Bloco Cliente
+              new TableCell({
+                width: { size: PAGE_CONTENT_WIDTH - colAssinaturaWidth, type: WidthType.DXA },
+                shading: { type: ShadingType.CLEAR, fill: 'FFFFFF' },
+                borders: {
+                  top: { style: BorderStyle.SINGLE, size: 8, color: 'E5E7EB' },
+                  bottom: { style: BorderStyle.SINGLE, size: 8, color: 'E5E7EB' },
+                  left: { style: BorderStyle.SINGLE, size: 8, color: 'E5E7EB' },
+                  right: { style: BorderStyle.SINGLE, size: 8, color: 'E5E7EB' },
+                },
+                margins: { top: 180, bottom: 180, left: 160, right: 160 },
+                children: [
+                  // 1º Local e data no topo com identificação da coluna
+                  new Paragraph({
+                    children: [
+                      new TextRun({
+                        text: 'CLIENTE / CONTRATANTE\n',
+                        bold: true,
+                        size: 13,
+                        color: '1E40AF',
+                        font: 'Arial',
+                      }),
+                      new TextRun({
+                        text: 'Local e data: ______________________, ____/____/________\n',
+                        size: 11,
+                        color: '6B7280',
+                        font: 'Arial',
+                      }),
+                    ],
+                  }),
+                  new Paragraph({
+                    spacing: { before: 800, after: 180 },
+                    alignment: AlignmentType.CENTER,
+                    children: [
+                      new TextRun({
+                        text: '____________________________________________\n\n',
+                        color: '111827',
+                        size: 14,
+                      }),
+                      new TextRun({
+                        text: `${cliente.nome.toUpperCase()}\n`,
+                        bold: true,
+                        size: 16,
+                        color: '111827',
+                        font: 'Arial',
+                      }),
+                      new TextRun({
+                        text: 'De acordo com as especificações e valores da proposta',
+                        size: 12,
+                        bold: true,
+                        color: '1E40AF',
+                        font: 'Arial',
+                      }),
+                    ],
+                  }),
+                  // 3º Divisor tracejado e bloco de dados cadastrais compactos
+                  new Paragraph({
+                    spacing: { before: 120 },
+                    children: [
+                      new TextRun({
+                        text: '- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -\n',
+                        color: 'D1D5DB',
+                        size: 11,
+                        font: 'Arial',
+                      }),
+                      new TextRun({
+                        text: 'Nome/Razão Social: ',
+                        bold: true,
+                        size: 13,
+                        color: '111827',
+                        font: 'Arial',
+                      }),
+                      new TextRun({
+                        text: `${cliente.nome}\n`,
+                        size: 13,
+                        color: '374151',
+                        font: 'Arial',
+                      }),
+                      new TextRun({
+                        text: 'CPF/CNPJ: ',
+                        bold: true,
+                        size: 13,
+                        color: '111827',
+                        font: 'Arial',
+                      }),
+                      new TextRun({
+                        text: `${cliente.cpfOuCnpj || ''}\n`,
+                        size: 13,
+                        color: '374151',
+                        font: 'Arial',
+                      }),
+                      new TextRun({
+                        text: 'Endereço: ',
+                        bold: true,
+                        size: 13,
+                        color: '111827',
+                        font: 'Arial',
+                      }),
+                      new TextRun({
+                        text: `${cliente.endereco ? `${cliente.endereco}${cliente.municipio ? `, ${cliente.municipio}` : ''}` : cliente.municipio || ''}\n`,
+                        size: 13,
+                        color: '374151',
+                        font: 'Arial',
+                      }),
+                      new TextRun({
+                        text: 'Contato: ',
+                        bold: true,
+                        size: 13,
+                        color: '111827',
+                        font: 'Arial',
+                      }),
+                      new TextRun({
+                        text: `${[cliente.telefone, cliente.email].filter(Boolean).join(' • ')}`,
+                        size: 13,
+                        color: '374151',
+                        font: 'Arial',
+                      }),
+                    ],
+                  }),
+                ],
+              }),
+            ],
+          }),
+        ],
+      }),
+    )
+
+    return itens
+  }
+
+  // Mapeamento dos geradores por id de bloco
+  const mapRenderBlocosDocx: Record<
+    BlocoPropostaId,
+    () => Promise<(Paragraph | Table)[]>
+  > = {
+    capa: gerarBlocoCapaDocx,
+    apresentacao: gerarBlocoApresentacaoDocx,
+    situacaoAtual: gerarBlocoSituacaoAtualDocx,
+    seuSistema: gerarBlocoSeuSistemaDocx,
+    projecao25Anos: gerarBlocoProjecao25AnosDocx,
+    investimento: gerarBlocoInvestimentoDocx,
+  }
+
+  const ordem =
+    conteudo.ordemBlocos && conteudo.ordemBlocos.length > 0
+      ? conteudo.ordemBlocos
+      : ORDEM_BLOCOS_PADRAO
+
+  const blocosVisiveis = conteudo.blocosVisiveis || {}
+
+  const docChildren: (Paragraph | Table)[] = []
+  const blocosParaProcessar: (Paragraph | Table)[][] = []
+
+  for (const id of ordem) {
+    if (blocosVisiveis[id] === false) continue
+    const gerador = mapRenderBlocosDocx[id]
+    if (gerador) {
+      const conteudoBloco = await gerador()
+      if (conteudoBloco && conteudoBloco.length > 0) {
+        blocosParaProcessar.push(conteudoBloco)
+      }
+    }
+  }
+
+  for (let i = 0; i < blocosParaProcessar.length; i++) {
+    if (i > 0) {
+      docChildren.push(
+        new Paragraph({
+          children: [new PageBreak()],
+        }),
+      )
+    }
+    docChildren.push(...blocosParaProcessar[i])
+  }
 
   // Criar o Document completo
   return new Document({

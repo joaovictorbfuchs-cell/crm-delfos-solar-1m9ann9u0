@@ -1277,4 +1277,85 @@ describe('Proposta Técnico-Comercial Generator (5 Seções Oficiais)', () => {
       expect(html).toContain('padding: 7mm')
     })
   })
+
+  describe('Ordem Personalizada e Ocultação de Blocos (HTML)', () => {
+    it('(a) ordem personalizada refletida na saída HTML', () => {
+      // Inverte investimento antes de seuSistema
+      const dadosOrdemCustomizada: DadosPropostaTecnicoComercial = {
+        ...dadosExemplo,
+        conteudo: {
+          ...dadosExemplo.conteudo!,
+          ordemBlocos: [
+            'capa',
+            'investimento',
+            'seuSistema',
+            'situacaoAtual',
+            'apresentacao',
+            'projecao25Anos',
+          ],
+        },
+      }
+      const html = gerarHTMLPropostaTecnicoComercial(dadosOrdemCustomizada)
+      const posInvestimento = html.indexOf('id="secao-5-investimento-pagamento"')
+      const posSeuSistema = html.indexOf('id="secao-3-seu-sistema"')
+      const posSituacaoAtual = html.indexOf('id="secao-2-custo-inercia"')
+      const posApresentacao = html.indexOf('id="secao-apresentacao-empresa"')
+
+      expect(posInvestimento).toBeGreaterThan(-1)
+      expect(posSeuSistema).toBeGreaterThan(-1)
+      expect(posInvestimento).toBeLessThan(posSeuSistema)
+      expect(posSeuSistema).toBeLessThan(posSituacaoAtual)
+      expect(posSituacaoAtual).toBeLessThan(posApresentacao)
+    })
+
+    it('(b) bloco oculto ausente do HTML (sem tags nem quebras vazias)', () => {
+      const dadosComBlocoOculto: DadosPropostaTecnicoComercial = {
+        ...dadosExemplo,
+        conteudo: {
+          ...dadosExemplo.conteudo!,
+          blocosVisiveis: {
+            capa: true,
+            apresentacao: false,
+            situacaoAtual: false,
+            seuSistema: true,
+            projecao25Anos: false,
+            investimento: true,
+          },
+        },
+      }
+      const html = gerarHTMLPropostaTecnicoComercial(dadosComBlocoOculto)
+      expect(html).toContain('id="secao-1-capa"')
+      expect(html).toContain('id="secao-3-seu-sistema"')
+      expect(html).toContain('id="secao-5-investimento-pagamento"')
+
+      expect(html).not.toContain('id="secao-apresentacao-empresa"')
+      expect(html).not.toContain('id="secao-2-custo-inercia"')
+      expect(html).not.toContain('id="secao-4-projecao-25anos"')
+    })
+
+    it('(c) ordemBlocos/blocosVisiveis omitidos = saída idêntica à ordem padrão (retrocompatibilidade)', () => {
+      const conteudoSemOrdem = { ...dadosExemplo.conteudo! }
+      delete (conteudoSemOrdem as any).ordemBlocos
+      delete (conteudoSemOrdem as any).blocosVisiveis
+
+      const dadosSemOrdem: DadosPropostaTecnicoComercial = {
+        ...dadosExemplo,
+        conteudo: conteudoSemOrdem,
+      }
+      const html = gerarHTMLPropostaTecnicoComercial(dadosSemOrdem)
+
+      const posCapa = html.indexOf('id="secao-1-capa"')
+      const posApresentacao = html.indexOf('id="secao-apresentacao-empresa"')
+      const posSituacaoAtual = html.indexOf('id="secao-2-custo-inercia"')
+      const posSeuSistema = html.indexOf('id="secao-3-seu-sistema"')
+      const posProjecao = html.indexOf('id="secao-4-projecao-25anos"')
+      const posInvestimento = html.indexOf('id="secao-5-investimento-pagamento"')
+
+      expect(posCapa).toBeLessThan(posApresentacao)
+      expect(posApresentacao).toBeLessThan(posSituacaoAtual)
+      expect(posSituacaoAtual).toBeLessThan(posSeuSistema)
+      expect(posSeuSistema).toBeLessThan(posProjecao)
+      expect(posProjecao).toBeLessThan(posInvestimento)
+    })
+  })
 })
