@@ -212,6 +212,9 @@ describe('Proposta Técnico-Comercial Generator (5 Seções Oficiais)', () => {
     expect(html).toContain('page-break-after: always')
     expect(html).toContain('break-after: page')
     expect(html).toContain('break-inside: avoid')
+    expect(html).toContain('min-height: 275mm')
+    expect(html).toContain('flex: 1 0 auto')
+    expect(html).toContain('margin-top: auto')
     expect(html).toContain('Tier-1 Global')
     expect(html).toContain('doc-footer')
 
@@ -616,10 +619,12 @@ describe('Proposta Técnico-Comercial Generator (5 Seções Oficiais)', () => {
       'Consultor: <strong>João Victor Bagetti Fuchs</strong> • (54) 99129-2121',
     )
 
-    // 5. Rodapé discreto da capa
+    // 5. Rodapé unificado e padronizado na capa
     expect(html).toContain('capa-bottom-site-email')
+    expect(html).toContain('Delfos Engenharia Solar | CNPJ 21.379.952/0001-38')
+    expect(html).toContain('(54) 99129-2121')
     expect(html).toContain('www.delfos.eng.br')
-    expect(html).toContain('contato@delfos.eng.br')
+    expect(html).toContain('Rua Espírito Santo, 275 – Centro, Erechim/RS')
 
     // 6. Referência ao asset do logo oficial Delfos embutido em Base64
     expect(html).toContain('capa-logo-container')

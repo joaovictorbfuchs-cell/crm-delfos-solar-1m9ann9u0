@@ -1325,17 +1325,9 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
     .capa-bottom-site-email {
       position: relative;
       z-index: 2;
-      border-top: 1px solid #DDECE2;
-      padding-top: 14px;
-      text-align: center;
-      font-size: 11.5px;
-      color: #7D8F85;
-      font-weight: 500;
-      letter-spacing: 0.04em;
-    }
-    .capa-bottom-site-email span.sep {
-      margin: 0 8px;
-      color: #9FB3A7;
+      margin-top: auto;
+      flex-shrink: 0;
+      width: 100%;
     }
 
     /* ==========================================================
@@ -2433,8 +2425,40 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
         max-width: 100% !important;
         box-sizing: border-box !important;
       }
-      .proposta-secao-page,
+
+      /* Página A4 flex com rodapé padronizado em TODAS as páginas */
+      .proposta-secao-page {
+        width: 100% !important;
+        max-width: 100% !important;
+        min-height: 275mm !important;
+        box-sizing: border-box !important;
+        display: flex !important;
+        flex-direction: column !important;
+        page-break-after: always !important;
+        break-after: page !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        box-shadow: none !important;
+        border-radius: 0 !important;
+        overflow: visible !important;
+      }
+      .proposta-secao-page:last-child {
+        page-break-after: auto !important;
+        break-after: auto !important;
+      }
+      .secao-body {
+        flex: 1 0 auto !important;
+        width: 100% !important;
+      }
+      .doc-footer {
+        margin-top: auto !important;
+        flex-shrink: 0 !important;
+        width: 100% !important;
+      }
+
+      /* Quebra de página APENAS entre seções principais */
       #secao-1-capa,
+      #secao-apresentacao-empresa,
       #secao-2-custo-inercia,
       #secao-3-seu-sistema,
       #secao-4-projecao-25anos {
@@ -2445,53 +2469,27 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
         page-break-after: auto !important;
         break-after: auto !important;
       }
-      .card-sistema, .card-pagamento, .card-projecao, .quadro-resumo-economia,
-      .secao-header-card, .bloco-assinaturas, .tabela-equipamentos {
-        page-break-inside: avoid !important;
-        break-inside: avoid !important;
-      }
-      .proposta-secao-page {
-        width: 100% !important;
-        max-width: 100% !important;
-        margin: 0 !important;
-        padding: 0 !important;
-        box-shadow: none !important;
-        border-radius: 0 !important;
-        height: auto !important;
-        min-height: auto !important;
-        max-height: none !important;
-        overflow: visible !important;
-        box-sizing: border-box !important;
-        page-break-inside: avoid !important;
-        break-inside: avoid !important;
-      }
+
+      /* Manter page-break-inside: avoid APENAS nos quadros individuais */
+      .card-marco-inercia,
+      .quadro-resumo-economia,
+      .card-projecao,
+      .card-portfolio-usina,
+      .card-pagamento,
+      .card-sistema,
+      .card-situacao,
+      .bloco-assinaturas,
+      .destaque-verde,
+      .assinatura-bloco,
+      .secao-header-card,
+      .tabela-equipamentos,
       table, tr, td, th {
         page-break-inside: avoid !important;
         break-inside: avoid !important;
       }
-      .grid-pagamento-4,
-      .grid-sistema-cards,
-      .grid-marcos-inercia,
-      .card-marco-inercia,
-      .faixa-monitoramento,
-      .assinaturas-grid-final,
-      .assinatura-bloco,
-      .portfolio-wrapper,
-      .card-portfolio-usina,
-      .capa-wrapper,
-      .badge {
-        page-break-inside: avoid !important;
-        break-inside: avoid !important;
-      }
+
       #secao-1-capa {
-        min-height: 245mm !important;
-        height: auto !important;
-        page-break-inside: avoid !important;
-        break-inside: avoid !important;
-      }
-      .proposta-secao-page:last-child {
-        page-break-after: avoid !important;
-        break-after: avoid !important;
+        min-height: 275mm !important;
       }
     }
   </style>
@@ -2613,9 +2611,7 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
 
           <!-- Rodapé Discreto da Capa -->
           <div class="capa-bottom-site-email">
-            <span>www.delfos.eng.br</span>
-            <span class="sep">•</span>
-            <span>contato@delfos.eng.br</span>
+            ${renderInternalFooter(undefined, validade)}
           </div>
         </div>
       </div>
