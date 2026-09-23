@@ -1506,6 +1506,7 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
       ],
     }),
   )
+  }
 
   // ----------------------------------------------------
   // SEÇÃO 3: SEU SISTEMA FOTOVOLTAICO
