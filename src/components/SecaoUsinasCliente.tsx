@@ -26,7 +26,11 @@ import { UsinaCliente, ContratoOM, Cliente } from '@/types/crm'
 import { formatCurrency, formatDate, formatWhatsAppPhone } from '@/lib/formatters'
 import { calcularStatusDinamicoContrato } from '@/lib/contratoStatusDinamico'
 import { useAuth } from '@/contexts/AuthContext'
-import { fetchEquipamentos, getDatasheetEquipamentoUrl } from '@/services/equipamentosService'
+import {
+  fetchEquipamentos,
+  getDatasheetEquipamentoUrl,
+  encontrarEquipamentoCorrespondente,
+} from '@/services/equipamentosService'
 import type { Equipamento } from '@/types/equipamentos'
 import {
   Dialog,
@@ -115,17 +119,50 @@ export const SecaoUsinasCliente: React.FC<SecaoUsinasClienteProps> = ({
   }, [])
 
   // Helper para buscar datasheet correspondente ao texto do inversor ou módulos
-  const encontrarEquipamentoComDatasheet = (texto: string) => {
+  const encontrarEquipamentoComDatasheet = (texto: string, tipo?: 'inversor' | 'modulo_fv') => {
     if (!texto || !catalogoEquipamentos.length) return null
+    // Tenta primeiro correspondência tolerante estruturada
+    const correspondente = encontrarEquipamentoCorrespondente(catalogoEquipamentos, {
+      modelo: texto,
+      marca: texto,
+      tipo,
+      apenasComDatasheet: true,
+    })
+    if (correspondente) return correspondente
+
+    // Fallback legado com substring simples
     const txtLower = texto.toLowerCase()
     return (
       catalogoEquipamentos.find((eq) => {
         if (!eq.datasheet_pdf) return false
+        if (tipo && eq.tipo !== tipo) return false
         const modeloMatch = eq.modelo && txtLower.includes(eq.modelo.toLowerCase())
         const marcaMatch = eq.marca && txtLower.includes(eq.marca.toLowerCase())
         return modeloMatch || (marcaMatch && txtLower.includes(String(eq.potencia_w)))
       }) || null
     )
+  }
+
+  // Helper para encontrar datasheet específico de módulo para a usina
+  const encontrarDatasheetModuloUsina = (usina: UsinaCliente) => {
+    if (!catalogoEquipamentos.length) return null
+    const fabricante = usina.fabricante_modulos || usina.marca_placas || ''
+    const modelo = usina.modelo_modulos || ''
+    if (fabricante || modelo) {
+      const match = encontrarEquipamentoCorrespondente(catalogoEquipamentos, {
+        marca: fabricante,
+        modelo: modelo,
+        tipo: 'modulo_fv',
+        apenasComDatasheet: true,
+      })
+      if (match) return match
+    }
+    // Tentar fallback se houver texto nos campos
+    const textoFallback = `${fabricante} ${modelo}`.trim()
+    if (textoFallback) {
+      return encontrarEquipamentoComDatasheet(textoFallback, 'modulo_fv')
+    }
+    return null
   }
 
   const [modalNovaUsinaOpen, setModalNovaUsinaOpen] = useState(false)
@@ -515,10 +552,32 @@ export const SecaoUsinasCliente: React.FC<SecaoUsinasClienteProps> = ({
                   </div>
 
                   <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200">
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-                      Módulos
-                    </span>
-                    <span className="font-bold text-slate-800 text-sm">
+                    <div className="flex items-center justify-between gap-1">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                        Módulos
+                      </span>
+                      {(() => {
+                        const eqModulo = encontrarDatasheetModuloUsina(usina)
+                        if (!eqModulo || !eqModulo.datasheet_pdf) return null
+                        const url = getDatasheetEquipamentoUrl(eqModulo)
+                        if (!url) return null
+                        return (
+                          <a
+                            href={url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                            className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100 px-1.5 py-0.5 rounded border border-emerald-200 transition-colors shrink-0"
+                            title={`Abrir Datasheet PDF (${eqModulo.marca} ${eqModulo.modelo})`}
+                          >
+                            <FileText className="w-2.5 h-2.5" />
+                            <span>Datasheet</span>
+                            <ExternalLink className="w-2 h-2" />
+                          </a>
+                        )
+                      })()}
+                    </div>
+                    <span className="font-bold text-slate-800 text-sm block mt-0.5">
                       {usina.qtd_modulos || 0} un
                     </span>
                   </div>
@@ -835,10 +894,32 @@ export const SecaoUsinasCliente: React.FC<SecaoUsinasClienteProps> = ({
                     </div>
 
                     <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
-                      <span className="text-[10px] font-bold uppercase text-slate-500 block flex items-center gap-1">
-                        <Layers className="w-3 h-3 text-blue-600" />
-                        Qtd. Módulos
-                      </span>
+                      <div className="flex items-center justify-between gap-1">
+                        <span className="text-[10px] font-bold uppercase text-slate-500 block flex items-center gap-1">
+                          <Layers className="w-3 h-3 text-blue-600" />
+                          Qtd. Módulos
+                        </span>
+                        {(() => {
+                          const eqModulo = encontrarDatasheetModuloUsina(usinaDetalhes)
+                          if (!eqModulo || !eqModulo.datasheet_pdf) return null
+                          const url = getDatasheetEquipamentoUrl(eqModulo)
+                          if (!url) return null
+                          return (
+                            <a
+                              href={url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              onClick={(e) => e.stopPropagation()}
+                              className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100 px-1.5 py-0.5 rounded border border-emerald-200 transition-colors shrink-0"
+                              title={`Abrir Datasheet PDF (${eqModulo.marca} ${eqModulo.modelo})`}
+                            >
+                              <FileText className="w-2.5 h-2.5" />
+                              <span>Datasheet</span>
+                              <ExternalLink className="w-2 h-2" />
+                            </a>
+                          )
+                        })()}
+                      </div>
                       <div className="text-base font-bold text-slate-800 mt-0.5">
                         {usinaDetalhes.qtd_modulos || 0}{' '}
                         <span className="text-xs font-normal text-slate-500">placas</span>

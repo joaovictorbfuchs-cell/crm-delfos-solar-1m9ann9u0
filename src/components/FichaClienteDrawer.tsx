@@ -74,6 +74,7 @@ import { ModalNovaOportunidade } from './ModalNovaOportunidade'
 import { X as IconX } from 'lucide-react'
 import { SecaoMonitoramentoInversor } from './SecaoMonitoramentoInversor'
 import { SecaoAcessoSolarview } from './SecaoAcessoSolarview'
+import { DatasheetBadge } from './DatasheetBadge'
 import { SecaoUsinasCliente } from './SecaoUsinasCliente'
 import { SecaoContatosAdicionais } from './SecaoContatosAdicionais'
 import { CardNegociosCliente } from './CardNegociosCliente'
@@ -3176,24 +3177,37 @@ export const FichaClienteDrawer: React.FC = () => {
                             </div>
                           </div>
 
-                          <div className="flex items-center gap-2 pt-1 border-t border-gray-100">
-                            <span className="text-gray-500 w-16 shrink-0">Modelo:</span>
-                            <InlineEditField
-                              value={
-                                selectedSistema?.modelo_modulos || 'CS3W-455MS MONOCRISTAL 455Wp'
+                          <div className="flex items-center justify-between gap-2 pt-1 border-t border-gray-100 flex-wrap">
+                            <div className="flex items-center gap-2 flex-1 min-w-[200px]">
+                              <span className="text-gray-500 w-16 shrink-0">Modelo:</span>
+                              <InlineEditField
+                                value={
+                                  selectedSistema?.modelo_modulos || 'CS3W-455MS MONOCRISTAL 455Wp'
+                                }
+                                displayValue={
+                                  <span className="font-mono text-gray-800 text-[11px] bg-white px-2 py-0.5 rounded border border-gray-200">
+                                    {selectedSistema?.modelo_modulos ||
+                                      'CS3W-455MS MONOCRISTAL 455Wp'}
+                                  </span>
+                                }
+                                type="text"
+                                placeholder="Modelo do módulo"
+                                className="flex-1"
+                                onSave={async (val) =>
+                                  handleUpdateSistemaField('modelo_modulos', String(val))
+                                }
+                              />
+                            </div>
+                            <DatasheetBadge
+                              marca={
+                                selectedSistema?.fabricante_modulos ||
+                                selectedSistema?.marca_placas ||
+                                selectedCliente.placas_marca ||
+                                ''
                               }
-                              displayValue={
-                                <span className="font-mono text-gray-800 text-[11px] bg-white px-2 py-0.5 rounded border border-gray-200">
-                                  {selectedSistema?.modelo_modulos ||
-                                    'CS3W-455MS MONOCRISTAL 455Wp'}
-                                </span>
-                              }
-                              type="text"
-                              placeholder="Modelo do módulo"
-                              className="flex-1"
-                              onSave={async (val) =>
-                                handleUpdateSistemaField('modelo_modulos', String(val))
-                              }
+                              modelo={selectedSistema?.modelo_modulos || ''}
+                              tipo="modulo_fv"
+                              mostrarLinkBusca={true}
                             />
                           </div>
                         </div>

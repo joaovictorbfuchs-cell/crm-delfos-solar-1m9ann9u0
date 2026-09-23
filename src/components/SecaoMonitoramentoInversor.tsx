@@ -36,6 +36,7 @@ import {
 } from '@/services/crmService'
 import { cleanPhoneDigits } from '@/lib/formatters'
 import { getFriendlyWhatsAppErrorMessage } from '@/lib/whatsappGateway'
+import { DatasheetBadge } from './DatasheetBadge'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -669,11 +670,19 @@ export const SecaoMonitoramentoInversor: React.FC<SecaoMonitoramentoInversorProp
                       </div>
                     </div>
 
-                    {/* Modelo do Inversor */}
+                    {/* Modelo do Inversor com Datasheet */}
                     <div className="space-y-1">
-                      <label className="text-[11px] font-semibold text-gray-700">
-                        Modelo do Inversor
-                      </label>
+                      <div className="flex items-center justify-between gap-1">
+                        <label className="text-[11px] font-semibold text-gray-700">
+                          Modelo do Inversor
+                        </label>
+                        <DatasheetBadge
+                          marca={inv.marca_inversor}
+                          modelo={inv.modelo_inversor}
+                          tipo="inversor"
+                          mostrarLinkBusca={true}
+                        />
+                      </div>
                       <input
                         type="text"
                         value={inv.modelo_inversor}
