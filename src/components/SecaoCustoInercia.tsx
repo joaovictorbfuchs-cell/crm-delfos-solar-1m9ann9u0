@@ -109,20 +109,24 @@ export const SecaoCustoInercia: React.FC<SecaoCustoInerciaProps> = ({
       ? consumoAnualKwh
       : Math.round(consumoMensalFinal * 12)
 
-  // Determinação dos anos de payback arredondados para cima até fechar o ano (fallback: 5 anos)
-  const anosPaybackFinal = (() => {
-    if (anosPayback !== undefined && anosPayback !== null && anosPayback > 0) {
-      return Math.max(1, Math.round(anosPayback))
-    }
+  // Determinação dos anos de payback arredondados para cima até fechar o ano (fallback: 5 anos; se <= 1 ano, usa 5 para evitar duplicar com 1 Ano)
+  const anosCalculadosInercia = (() => {
     if (paybackMeses !== undefined && paybackMeses !== null && paybackMeses > 0) {
-      return Math.max(1, Math.ceil(paybackMeses / 12))
+      return Math.ceil(paybackMeses / 12)
     }
     const invest = Number(valorInvestimento) || 0
     const eco = Number(economiaMensal) || 0
     if (invest > 0 && eco > 0) {
-      return Math.max(1, Math.ceil(invest / eco / 12))
+      return Math.ceil(invest / eco / 12)
     }
     return 5
+  })()
+
+  const anosPaybackFinal = (() => {
+    if (anosPayback !== undefined && anosPayback !== null && anosPayback > 1) {
+      return Math.round(anosPayback)
+    }
+    return anosCalculadosInercia <= 1 ? 5 : anosCalculadosInercia
   })()
 
   // Gasto acumulado em 1 ano
@@ -139,23 +143,17 @@ export const SecaoCustoInercia: React.FC<SecaoCustoInerciaProps> = ({
 
   // Gasto acumulado no período do payback arredondado (card do meio)
   const gastoCardMeioFinal = (() => {
-    // Se veio prop direta de gasto sem solar no payback e o período bate com anosPayback
-    if (
-      gastoSemSolarPaybackAnos !== undefined &&
-      gastoSemSolarPaybackAnos !== null &&
-      gastoSemSolarPaybackAnos > 0
-    ) {
-      return gastoSemSolarPaybackAnos
-    }
-    // Se o período for exatamente 5 anos e tivermos gastoSemSolar5Anos
     if (anosPaybackFinal === 5 && gastoSemSolar5Anos && gastoSemSolar5Anos > 0) {
       return gastoSemSolar5Anos
     }
-    // Se o período for 1 ano
-    if (anosPaybackFinal === 1 && gasto1AnoFinal > 0) {
-      return gasto1AnoFinal
+    if (
+      gastoSemSolarPaybackAnos !== undefined &&
+      gastoSemSolarPaybackAnos !== null &&
+      gastoSemSolarPaybackAnos > 0 &&
+      anosPaybackFinal !== 5
+    ) {
+      return gastoSemSolarPaybackAnos
     }
-    // Calcular acumulação ano a ano com a taxa de reajuste de 9% a.a. (mesma fórmula oficial)
     let acumulado = 0
     for (let ano = 0; ano < anosPaybackFinal; ano++) {
       acumulado += contaAnualFinal * Math.pow(1 + 0.09, ano)
@@ -169,7 +167,7 @@ export const SecaoCustoInercia: React.FC<SecaoCustoInerciaProps> = ({
       : Math.round(gasto5AnosFinal * 11.9) // ~845.000
 
   // Título e label do período do card do meio dinâmico
-  const rotuloPeriodoCardMeio = anosPaybackFinal === 1 ? '1 Ano' : `${anosPaybackFinal} Anos`
+  const rotuloPeriodoCardMeio = `${anosPaybackFinal} Anos`
   const tituloCardMeio = `Gasto em ${rotuloPeriodoCardMeio}`
   const totalMesesCardMeio = anosPaybackFinal * 12
 

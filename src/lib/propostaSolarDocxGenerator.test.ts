@@ -170,6 +170,26 @@ describe('propostaSolarDocxGenerator', () => {
     expect(jsonStr).toContain('GASTO EM 5 ANOS')
   })
 
+  it('evita duplicidade de "GASTO EM 1 ANO" quando payback for menor que 12 meses (ex.: 5 meses -> GASTO EM 5 ANOS)', async () => {
+    const dados5Meses: PropostaSolarPDFInput = {
+      ...dadosExemploMarceloBecker,
+      calculos: {
+        ...dadosExemploMarceloBecker.calculos,
+        paybackMeses: 5,
+        anosPaybackArredondado: undefined,
+        gastoSemSolarPaybackAnos: undefined,
+      },
+    }
+
+    const doc = await gerarPropostaSolarDocx(dados5Meses)
+    const jsonStr = JSON.stringify(doc)
+
+    expect(jsonStr).toContain('Gastos Acumulados Sem Solar: 1, 5 Anos e 25 Anos')
+    expect(jsonStr).toContain('GASTO EM 1 ANO')
+    expect(jsonStr).toContain('GASTO EM 5 ANOS')
+    expect(jsonStr).toContain('GASTO EM 25 ANOS')
+  })
+
   it('respeita secoesHabilitadas.portfolioUsinas: false omitindo o portfólio no docx', async () => {
     const dadosSemPortfolio: PropostaSolarPDFInput = {
       ...dadosExemploMarceloBecker,

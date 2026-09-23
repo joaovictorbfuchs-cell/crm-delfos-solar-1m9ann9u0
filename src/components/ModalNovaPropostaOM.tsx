@@ -19,8 +19,15 @@ export const ModalNovaPropostaOM: React.FC<ModalNovaPropostaOMProps> = ({
   initialClienteId,
   initialProposta,
 }) => {
-  const { clientes, sistemas, addPropostaOM, addAtividade, addTimelineOM, updateClienteStatus } =
-    useClientes()
+  const {
+    clientes,
+    sistemas,
+    addPropostaOM,
+    updatePropostaOM,
+    addAtividade,
+    addTimelineOM,
+    updateClienteStatus,
+  } = useClientes()
   const { user } = useAuth()
 
   // Seletor de Cliente

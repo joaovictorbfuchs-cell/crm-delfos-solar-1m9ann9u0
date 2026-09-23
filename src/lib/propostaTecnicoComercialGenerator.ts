@@ -383,16 +383,14 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
         ? Math.round((investimentoTotal / economiaMensal) * 10) / 10
         : 50
 
-  // Anos de payback arredondados PARA CIMA até fechar um ano inteiro (ex: 22 meses -> 2 anos; 25 meses -> 3 anos)
-  const anosPaybackArredondado = (() => {
-    if (projecao?.anosPaybackArredondado && projecao.anosPaybackArredondado > 0) {
-      return Math.max(1, Math.round(projecao.anosPaybackArredondado))
-    }
-    if (paybackMesesCalculado > 0) {
-      return Math.max(1, Math.ceil(paybackMesesCalculado / 12))
-    }
-    return 5
-  })()
+  // Anos de payback arredondados PARA CIMA até fechar um ano inteiro (ex: 22 meses -> 2 anos; 25 meses -> 3 anos; <= 1 ano -> fallback 5 anos para evitar card duplicado com 1 Ano)
+  const anosCalculadosHtml = paybackMesesCalculado > 0 ? Math.ceil(paybackMesesCalculado / 12) : 5
+  const anosPaybackArredondado =
+    projecao?.anosPaybackArredondado && projecao.anosPaybackArredondado > 1
+      ? Math.round(projecao.anosPaybackArredondado)
+      : anosCalculadosHtml <= 1
+        ? 5
+        : anosCalculadosHtml
 
   // Valores de inércia
   const gasto1Ano =
@@ -406,19 +404,13 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
 
   // Gasto acumulado no período do payback arredondado (card do meio)
   const gastoCardMeio = (() => {
+    if (anosPaybackArredondado === 5 && gasto5Anos > 0) return gasto5Anos
     if (
       projecao?.gastoSemSolarPaybackAnos &&
       projecao.gastoSemSolarPaybackAnos > 0 &&
-      (!projecao.anosPaybackArredondado ||
-        projecao.anosPaybackArredondado === anosPaybackArredondado)
+      anosPaybackArredondado !== 5
     ) {
       return projecao.gastoSemSolarPaybackAnos
-    }
-    if (anosPaybackArredondado === 5 && gasto5Anos > 0) {
-      return gasto5Anos
-    }
-    if (anosPaybackArredondado === 1 && gasto1Ano > 0) {
-      return gasto1Ano
     }
     let acumulado = 0
     for (let ano = 0; ano < anosPaybackArredondado; ano++) {
@@ -427,8 +419,7 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
     return Math.round(acumulado)
   })()
 
-  const rotuloPeriodoCardMeio =
-    anosPaybackArredondado === 1 ? '1 Ano' : `${anosPaybackArredondado} Anos`
+  const rotuloPeriodoCardMeio = `${anosPaybackArredondado} Anos`
   const tituloCardMeio = `Gasto em ${rotuloPeriodoCardMeio}`
   const totalMesesCardMeio = anosPaybackArredondado * 12
   const mediaMensalCardMeio = Math.round(gastoCardMeio / totalMesesCardMeio)
@@ -2433,14 +2424,14 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
       }
       .proposta-container {
         width: 100% !important;
-        max-width: 210mm !important;
+        max-width: 100% !important;
         box-sizing: border-box !important;
-        margin: 0 auto !important;
+        margin: 0 !important;
         padding: 0 !important;
       }
       .proposta-secao-page {
         width: 100% !important;
-        max-width: 210mm !important;
+        max-width: 100% !important;
         margin: 0 !important;
         padding: 0 !important;
         box-shadow: none !important;
@@ -2450,20 +2441,32 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
         max-height: none !important;
         overflow: visible !important;
         box-sizing: border-box !important;
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
       }
       table, tr, td, th {
         page-break-inside: avoid !important;
         break-inside: avoid !important;
       }
+      .grid-pagamento-4,
+      .card-pagamento,
+      .grid-sistema-cards,
+      .card-sistema,
+      .grid-marcos-inercia,
+      .card-marco-inercia,
+      .faixa-monitoramento,
       .assinaturas-grid-final,
       .assinatura-bloco {
         page-break-inside: avoid !important;
         break-inside: avoid !important;
       }
       #secao-1-capa {
-        min-height: 270mm !important;
+        min-height: 245mm !important;
+        height: auto !important;
         page-break-after: always !important;
         break-after: page !important;
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
       }
       #secao-apresentacao-empresa,
       #secao-2-custo-inercia,

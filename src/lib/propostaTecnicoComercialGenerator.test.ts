@@ -461,6 +461,29 @@ describe('Proposta Técnico-Comercial Generator (5 Seções Oficiais)', () => {
     expect(html).toContain('Gasto em 5 Anos')
   })
 
+  it('evita duplicidade de "Gasto em 1 Ano" quando payback for menor que 12 meses (ex.: 5 meses -> Gasto em 5 Anos)', () => {
+    const dados5Meses: PropostaTecnicoComercialDados = {
+      ...dadosExemplo,
+      economia: {
+        ...dadosExemplo.economia,
+        paybackTexto: '5 meses',
+        paybackMeses: 5,
+      },
+      projecao: {
+        ...dadosExemplo.projecao,
+        anosPaybackArredondado: undefined,
+        gastoSemSolarPaybackAnos: undefined,
+      },
+    }
+
+    const html = gerarHTMLPropostaTecnicoComercial(dados5Meses)
+
+    expect(html).toContain('Gastos Acumulados Sem Solar: 1, 5 Anos e 25 Anos')
+    expect(html).toContain('Gasto em 1 Ano')
+    expect(html).toContain('Gasto em 5 Anos')
+    expect(html).toContain('Gasto em 25 Anos')
+  })
+
   it('filtra as usinas de acordo com instalacoesSelecionadasIds', () => {
     const dadosComFiltro: PropostaTecnicoComercialDados = {
       ...dadosExemplo,

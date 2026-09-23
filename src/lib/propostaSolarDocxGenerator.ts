@@ -68,21 +68,6 @@ function formatDateBR(iso?: string): string {
 }
 
 /**
- * Tenta carregar o PNG do logotipo como Uint8Array para embutir no cabeçalho do documento Word.
- */
-async function loadLogoUint8Array(): Promise<Uint8Array | null> {
-  try {
-    const response = await fetch(logoPng)
-    if (!response.ok) return null
-    const arrayBuffer = await response.arrayBuffer()
-    return new Uint8Array(arrayBuffer)
-  } catch (err) {
-    console.warn('Não foi possível carregar o arquivo de logotipo para o docx:', err)
-    return null
-  }
-}
-
-/**
  * Tenta carregar uma imagem (URL remota ou data-URI base64) para Uint8Array para embutir no docx
  */
 async function loadImageUint8Array(urlOrDataUri?: string | null): Promise<Uint8Array | null> {
@@ -106,6 +91,120 @@ async function loadImageUint8Array(urlOrDataUri?: string | null): Promise<Uint8A
     return new Uint8Array(arrayBuffer)
   } catch (err) {
     console.warn('Não foi possível carregar imagem para o docx:', err)
+    return null
+  }
+}
+
+/**
+ * Comprime uma imagem (URL remota ou data-URI) redimensionando via Canvas HTML5
+ * para reduzir drasticamente o tamanho do arquivo .docx final mantendo alta nitidez.
+ * Possui fallback automático para loadImageUint8Array em ambientes sem DOM ou em caso de erro.
+ */
+export async function compressImageToUint8Array(
+  urlOrDataUri?: string | null,
+  maxWidth = 800,
+  quality = 0.78,
+  preservePng = false,
+): Promise<Uint8Array | null> {
+  if (!urlOrDataUri || !urlOrDataUri.trim()) return null
+
+  // Se não houver suporte a DOM/Image/document (ex: Node/SSR/ambiente de teste puro), usa fallback
+  if (
+    typeof window === 'undefined' ||
+    typeof document === 'undefined' ||
+    typeof Image === 'undefined'
+  ) {
+    return loadImageUint8Array(urlOrDataUri)
+  }
+
+  try {
+    const rawBytes = await loadImageUint8Array(urlOrDataUri)
+    if (!rawBytes) return null
+
+    // Monta blob e Image a partir dos bytes carregados
+    const mimeDetect = preservePng ? 'image/png' : 'image/jpeg'
+    const blob = new Blob([rawBytes as unknown as BlobPart])
+    const objectUrl = URL.createObjectURL(blob)
+
+    return await new Promise<Uint8Array | null>((resolve) => {
+      const img = new Image()
+      img.crossOrigin = 'anonymous'
+      img.onload = () => {
+        try {
+          URL.revokeObjectURL(objectUrl)
+          let targetWidth = img.naturalWidth || img.width
+          let targetHeight = img.naturalHeight || img.height
+
+          if (targetWidth <= 0 || targetHeight <= 0) {
+            resolve(rawBytes)
+            return
+          }
+
+          if (targetWidth > maxWidth) {
+            const scale = maxWidth / targetWidth
+            targetWidth = Math.round(targetWidth * scale)
+            targetHeight = Math.round(targetHeight * scale)
+          }
+
+          const canvas = document.createElement('canvas')
+          canvas.width = targetWidth
+          canvas.height = targetHeight
+          const ctx = canvas.getContext('2d')
+          if (!ctx) {
+            resolve(rawBytes)
+            return
+          }
+
+          // Se for JPEG, pinta fundo branco para evitar transparência preta
+          if (!preservePng) {
+            ctx.fillStyle = '#FFFFFF'
+            ctx.fillRect(0, 0, targetWidth, targetHeight)
+          }
+
+          ctx.drawImage(img, 0, 0, targetWidth, targetHeight)
+
+          canvas.toBlob(
+            async (compressedBlob) => {
+              if (!compressedBlob) {
+                resolve(rawBytes)
+                return
+              }
+              const buffer = await compressedBlob.arrayBuffer()
+              const compressedBytes = new Uint8Array(buffer)
+              // Usa o comprimido se for menor que o original, senão usa o original
+              if (compressedBytes.length > 0 && compressedBytes.length < rawBytes.length) {
+                resolve(compressedBytes)
+              } else {
+                resolve(rawBytes)
+              }
+            },
+            mimeDetect,
+            quality,
+          )
+        } catch {
+          resolve(rawBytes)
+        }
+      }
+      img.onerror = () => {
+        URL.revokeObjectURL(objectUrl)
+        resolve(rawBytes)
+      }
+      img.src = objectUrl
+    })
+  } catch (err) {
+    console.warn('compressImageToUint8Array fallback para loadImageUint8Array:', err)
+    return loadImageUint8Array(urlOrDataUri)
+  }
+}
+
+/**
+ * Tenta carregar o PNG do logotipo como Uint8Array comprimido para embutir no cabeçalho do Word.
+ */
+async function loadLogoUint8Array(): Promise<Uint8Array | null> {
+  try {
+    return await compressImageToUint8Array(logoPng, 400, 0.85, true)
+  } catch (err) {
+    console.warn('Não foi possível carregar o arquivo de logotipo para o docx:', err)
     return null
   }
 }
@@ -241,21 +340,22 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
   const paybackTextoFinal = `${Math.round(paybackMesesCalculado)} meses`
   const quitacaoMesAno = formatarMesAnoQuitacao(dados.dataEmissao, paybackMesesCalculado)
 
-  // Período de payback arredondado PARA CIMA até fechar um ano inteiro (ex.: 22 meses -> 2 anos; 25 meses -> 3 anos)
+  const anosCalculados = paybackMesesCalculado > 0 ? Math.ceil(paybackMesesCalculado / 12) : 5
   const anosPaybackArredondado =
-    calculos.anosPaybackArredondado ||
-    (paybackMesesCalculado > 0 ? Math.max(1, Math.ceil(paybackMesesCalculado / 12)) : 5)
+    calculos.anosPaybackArredondado && calculos.anosPaybackArredondado > 1
+      ? calculos.anosPaybackArredondado
+      : anosCalculados <= 1
+        ? 5
+        : anosCalculados
 
-  // Gasto acumulado no período do payback arredondado (card do meio)
   const gastoCardMeio = (() => {
-    if (calculos.gastoSemSolarPaybackAnos && calculos.gastoSemSolarPaybackAnos > 0) {
+    if (anosPaybackArredondado === 5 && gasto5Anos > 0) return gasto5Anos
+    if (
+      calculos.gastoSemSolarPaybackAnos &&
+      calculos.gastoSemSolarPaybackAnos > 0 &&
+      anosPaybackArredondado !== 5
+    ) {
       return calculos.gastoSemSolarPaybackAnos
-    }
-    if (anosPaybackArredondado === 5 && gasto5Anos > 0) {
-      return gasto5Anos
-    }
-    if (anosPaybackArredondado === 1 && gasto1Ano > 0) {
-      return gasto1Ano
     }
     let acumulado = 0
     for (let ano = 0; ano < anosPaybackArredondado; ano++) {
@@ -264,8 +364,7 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
     return Math.round(acumulado)
   })()
 
-  const rotuloPeriodoCardMeio =
-    anosPaybackArredondado === 1 ? '1 Ano' : `${anosPaybackArredondado} Anos`
+  const rotuloPeriodoCardMeio = `${anosPaybackArredondado} Anos`
   const tituloCardMeio = `GASTO EM ${rotuloPeriodoCardMeio.toUpperCase()}`
   const totalMesesCardMeio = anosPaybackArredondado * 12
   const mediaMensalCardMeio = Math.round(gastoCardMeio / totalMesesCardMeio)
@@ -822,13 +921,13 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
 
     // Se não houver usinas reais disponíveis, a seção não é renderizada
     if (usinasBase.length > 0) {
-      // Pré-carrega as imagens das usinas selecionadas
+      // Pré-carrega as imagens das usinas selecionadas com compressão (600px, qualidade 0.78)
       const usinasDocxComFoto = await Promise.all(
         usinasBase.map(async (u) => {
           const url = getFotoUrl(u)
           let imgBytes: Uint8Array | null = null
           if (url) {
-            imgBytes = await loadImageUint8Array(url)
+            imgBytes = await compressImageToUint8Array(url, 600, 0.78, false)
           }
           return {
             ...u,
@@ -1398,13 +1497,15 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
 
   const colWidthHalf = Math.floor(PAGE_CONTENT_WIDTH / 2)
 
-  // Carrega fotos reais do módulo e inversor se habilitadas e existirem
+  // Carrega fotos reais do módulo e inversor se habilitadas e existirem com compressão (600px, qualidade 0.78)
   const permitirFotos = dados.secoesHabilitadas?.fotosProjeto !== false
   const fotoModuloBytes =
-    permitirFotos && sistema.fotoModuloUrl ? await loadImageUint8Array(sistema.fotoModuloUrl) : null
+    permitirFotos && sistema.fotoModuloUrl
+      ? await compressImageToUint8Array(sistema.fotoModuloUrl, 600, 0.78, false)
+      : null
   const fotoInversorBytes =
     permitirFotos && sistema.fotoInversorUrl
-      ? await loadImageUint8Array(sistema.fotoInversorUrl)
+      ? await compressImageToUint8Array(sistema.fotoInversorUrl, 600, 0.78, false)
       : null
 
   const modulosCellChildren: (Paragraph | Table)[] = []
@@ -1861,7 +1962,7 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
     dados.secoesHabilitadas?.layoutTelhado !== false &&
     dados.layoutTelhadoUrl
   ) {
-    const layoutBytes = await loadImageUint8Array(dados.layoutTelhadoUrl)
+    const layoutBytes = await compressImageToUint8Array(dados.layoutTelhadoUrl, 800, 0.78, false)
     if (layoutBytes) {
       docChildren.push(
         new Paragraph({
@@ -1924,8 +2025,8 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
   // Fundo #F0FDF4, borda #BBF7D0 e acentos verdes (#16A34A / #166534)
   // ----------------------------------------------------
   const [imgOnGridBytes, imgMonitoramentoBytes] = await Promise.all([
-    loadImageUint8Array(onGridPngAsset),
-    loadImageUint8Array(monitoramentoPngAsset),
+    compressImageToUint8Array(onGridPngAsset, 800, 0.78, false),
+    compressImageToUint8Array(monitoramentoPngAsset, 800, 0.78, false),
   ])
 
   const colWidthBlocos = Math.floor(PAGE_CONTENT_WIDTH / 2)

@@ -144,6 +144,23 @@ describe('SecaoCustoInercia Component', () => {
     expect(htmlSemPayback).toContain('Gasto em 5 Anos')
   })
 
+  it('evita duplicidade de "Gasto em 1 Ano" no card do meio quando payback for menor que 12 meses (ex.: 5 meses -> 5 Anos)', () => {
+    const html5Meses = renderToStaticMarkup(
+      React.createElement(SecaoCustoInercia, {
+        contaMensal: 1000,
+        contaAnual: 12000,
+        paybackMeses: 5,
+        valorInvestimento: 5000,
+        economiaMensal: 1000,
+      }),
+    )
+
+    expect(html5Meses).toContain('Gastos Acumulados Sem Solar: 1, 5 Anos e 25 Anos')
+    expect(html5Meses).toContain('Gasto em 1 Ano')
+    expect(html5Meses).toContain('Gasto em 5 Anos')
+    expect(html5Meses).toContain('Gasto em 25 Anos')
+  })
+
   it('calcula o período dinâmico a partir de valorInvestimento e economiaMensal se paybackMeses não for passado', () => {
     // 30.000 / 1.000 = 30 meses -> 30 / 12 = 2.5 anos -> arredonda para cima para 3 anos
     const htmlCalculado = renderToStaticMarkup(
