@@ -1,16 +1,10 @@
 import React, { useState, useMemo, useEffect } from 'react'
-import { X, FileCheck, Download, ExternalLink, Sparkles, Info, Send } from 'lucide-react'
+import { X, FileCheck, Sparkles, Info, Save } from 'lucide-react'
 import { useClientes } from '@/contexts/ClientesContext'
-import { ModalEnviarDocumentoWhatsApp } from './ModalEnviarDocumentoWhatsApp'
 import { useAuth } from '@/contexts/AuthContext'
 import { formatCurrency, getTelhadoLabel } from '@/lib/formatters'
 import type { PropostaOM } from '@/types/crm'
-import {
-  calcularPropostaOM,
-  abrirPropostaEmNovaAba,
-  baixarPropostaHTML,
-  type PropostaPDFInput,
-} from '@/lib/propostaOMGenerator'
+import { calcularPropostaOM, type PropostaPDFInput } from '@/lib/propostaOMGenerator'
 
 interface ModalNovaPropostaOMProps {
   isOpen: boolean
@@ -38,7 +32,6 @@ export const ModalNovaPropostaOM: React.FC<ModalNovaPropostaOMProps> = ({
   const [valorKm, setValorKm] = useState<number>(2.5)
   const [observacoes, setObservacoes] = useState<string>('')
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false)
-  const [modalWhatsAppOpen, setModalWhatsAppOpen] = useState<boolean>(false)
 
   // Cliente atual selecionado
   useEffect(() => {
@@ -168,13 +161,17 @@ export const ModalNovaPropostaOM: React.FC<ModalNovaPropostaOMProps> = ({
 
   if (!isOpen) return null
 
-  const handleGerarEGravarProposta = async (acao: 'abrir' | 'baixar') => {
-    if (!clienteAtual || !propostaPDFData) return
+  // Salvar registro de proposta O&M no banco de dados
+  const handleSalvarProposta = async () => {
+    if (!clienteAtual) {
+      alert('Selecione um cliente para vincular a proposta.')
+      return
+    }
     setIsSubmitting(true)
 
     try {
-      // 1. Gravar registro em propostas_om (sem exigir plano escolhido, o cliente escolhe após apresentação)
-      const nova = await addPropostaOM({
+      // 1. Gravar registro em propostas_om
+      const dadosProposta = {
         cliente_id: clienteAtual.id,
         potencia_kwp: potenciaKwp,
         geracao_mensal_kwh: geracaoMensalKwh,
@@ -193,15 +190,22 @@ export const ModalNovaPropostaOM: React.FC<ModalNovaPropostaOMProps> = ({
         autor: user?.name || 'Equipe Comercial Delfos Solar',
         status: 'Proposta Enviada',
         observacoes,
-      })
+      }
 
-      // 2. Gravar atividade na timeline unificada do cliente com tipo "proposta" (sem citar plano específico)
+      let nova: any
+      if (initialProposta?.id) {
+        nova = await updatePropostaOM(initialProposta.id, dadosProposta)
+      } else {
+        nova = await addPropostaOM(dadosProposta)
+      }
+
+      // 2. Gravar atividade na timeline unificada do cliente com tipo "proposta"
       try {
         await addAtividade({
           cliente_id: clienteAtual.id,
           tipo: 'proposta',
-          titulo: 'Proposta O&M Gerada',
-          descricao: `Proposta técnica e comercial de Gestão e Manutenção gerada para usina de ${potenciaKwp} kWp com comparativo dos 3 planos (Essencial, Prevenção e Completo).\nAtivo protegido: ${formatCurrency(
+          titulo: 'Proposta O&M Salva',
+          descricao: `Proposta técnica e comercial de Gestão e Manutenção salva para usina de ${potenciaKwp} kWp com comparativo dos 3 planos (Essencial, Prevenção e Completo).\nAtivo protegido: ${formatCurrency(
             calculos.valorAtivoProtegido,
           )}/mês. Perda evitada por prevenção: até ${formatCurrency(calculos.perda20Ano)}/ano.`,
           data: new Date().toISOString(),
@@ -212,13 +216,13 @@ export const ModalNovaPropostaOM: React.FC<ModalNovaPropostaOMProps> = ({
         console.error('Erro ao adicionar atividade de proposta:', errAtv)
       }
 
-      // 3. Gravar na timeline O&M (sem citar plano específico)
+      // 3. Gravar na timeline O&M
       try {
         await addTimelineOM({
           cliente_id: clienteAtual.id,
           tipo: 'interacao',
-          titulo: 'Proposta O&M Emitida',
-          descricao: `Documento PDF oficial emitido para o cliente com os cenários de perda e comparativo dos 3 planos (Essencial, Prevenção e Completo). Status: Proposta Enviada.`,
+          titulo: 'Proposta O&M Registrada',
+          descricao: `Proposta O&M salva no sistema para o cliente com os cenários de perda e comparativo dos 3 planos (Essencial, Prevenção e Completo). Status: Proposta Enviada.`,
           data: new Date().toISOString(),
           autor: user?.name || 'Equipe Comercial Delfos Solar',
           status_tag: 'Proposta Enviada',
@@ -237,28 +241,12 @@ export const ModalNovaPropostaOM: React.FC<ModalNovaPropostaOMProps> = ({
         console.error('Erro ao atualizar status do cliente:', errStatus)
       }
 
-      // 5. Executar ação de PDF
-      if (acao === 'abrir') {
-        abrirPropostaEmNovaAba(propostaPDFData)
-      } else {
-        baixarPropostaHTML(propostaPDFData)
-      }
-
       onClose()
     } catch (err) {
-      console.error('Erro ao gerar proposta:', err)
+      console.error('Erro ao salvar proposta:', err)
       alert('Falha ao gravar a proposta no banco de dados. Tente novamente.')
     } finally {
       setIsSubmitting(false)
-    }
-  }
-
-  const handleSomenteVisualizarOuBaixar = (acao: 'abrir' | 'baixar') => {
-    if (!propostaPDFData) return
-    if (acao === 'abrir') {
-      abrirPropostaEmNovaAba(propostaPDFData)
-    } else {
-      baixarPropostaHTML(propostaPDFData)
     }
   }
 
@@ -653,68 +641,27 @@ export const ModalNovaPropostaOM: React.FC<ModalNovaPropostaOMProps> = ({
           </div>
 
           <div className="flex items-center gap-2">
-            {initialProposta && (
-              <button
-                type="button"
-                onClick={() => handleSomenteVisualizarOuBaixar('abrir')}
-                className="px-3.5 py-2 text-xs font-semibold text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors flex items-center gap-1.5"
-              >
-                <ExternalLink className="w-3.5 h-3.5" />
-                Ver PDF Existente
-              </button>
-            )}
-
             <button
               type="button"
-              disabled={
-                isSubmitting || !clienteAtual || (!clienteAtual.whatsapp && !clienteAtual.telefone)
-              }
-              onClick={() => setModalWhatsAppOpen(true)}
-              title={
-                !clienteAtual?.whatsapp && !clienteAtual?.telefone
-                  ? 'Cadastre o WhatsApp do cliente para enviar'
-                  : 'Enviar proposta O&M por WhatsApp'
-              }
-              className="px-3.5 py-2 text-xs font-bold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 rounded-xl transition-colors flex items-center gap-1.5 disabled:opacity-40"
+              onClick={onClose}
+              disabled={isSubmitting}
+              className="px-4 py-2 border border-gray-300 text-gray-700 text-xs font-bold rounded-xl hover:bg-gray-50 transition-colors"
             >
-              <Send className="w-3.5 h-3.5 text-emerald-600" />
-              <span>WhatsApp</span>
+              Cancelar
             </button>
 
             <button
               type="button"
               disabled={isSubmitting || !clienteAtual}
-              onClick={() => handleGerarEGravarProposta('baixar')}
-              className="px-4 py-2 text-xs font-semibold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-xl transition-colors flex items-center gap-1.5 disabled:opacity-50"
-            >
-              <Download className="w-3.5 h-3.5" />
-              Baixar Documento
-            </button>
-
-            <button
-              type="button"
-              disabled={isSubmitting || !clienteAtual}
-              onClick={() => handleGerarEGravarProposta('abrir')}
+              onClick={handleSalvarProposta}
               className="px-5 py-2 text-xs font-bold text-white bg-[#16A34A] hover:bg-[#15803D] rounded-xl shadow-xs transition-all hover:scale-[1.01] flex items-center gap-1.5 disabled:opacity-50"
             >
-              <FileCheck className="w-4 h-4" />
-              <span>{isSubmitting ? 'Gerando Documento...' : 'Gerar Proposta Oficial'}</span>
+              <Save className="w-4 h-4" />
+              <span>{isSubmitting ? 'Salvando Proposta...' : 'Salvar Proposta'}</span>
             </button>
           </div>
         </div>
       </div>
-
-      {/* Modal de envio direto por WhatsApp */}
-      {clienteAtual && propostaPDFData && (
-        <ModalEnviarDocumentoWhatsApp
-          isOpen={modalWhatsAppOpen}
-          onClose={() => setModalWhatsAppOpen(false)}
-          cliente={clienteAtual}
-          tipo="proposta_om"
-          referenciaId={initialProposta?.id}
-          dadosOM={propostaPDFData}
-        />
-      )}
     </div>
   )
 }

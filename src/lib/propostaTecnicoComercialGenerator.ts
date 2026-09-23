@@ -704,11 +704,11 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
   <style>
     /* ==========================================================
        SETUP DE IMPRESSÃO A4 COM 5 SEÇÕES PRECISAS
-       Margens: 0,7cm (7mm) em todos os lados
+       Margens: 12mm 10mm 15mm 10mm
        ========================================================== */
     @page {
-      size: 210mm 297mm;
-      margin: 7mm;
+      size: A4 portrait;
+      margin: 12mm 10mm 15mm 10mm;
     }
 
     * {
@@ -2418,20 +2418,29 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
 
     /* REGRAS DE IMPRESSÃO PURA */
     @media print {
+      * {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
       html, body {
         background: #FFFFFF !important;
+        width: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
       }
       .no-print-bar {
         display: none !important;
       }
       .proposta-container {
-        width: 210mm !important;
-        max-width: 100% !important;
+        width: 100% !important;
+        max-width: 210mm !important;
         box-sizing: border-box !important;
-        margin: 0 !important;
+        margin: 0 auto !important;
         padding: 0 !important;
       }
       .proposta-secao-page {
+        width: 100% !important;
+        max-width: 210mm !important;
         margin: 0 !important;
         padding: 0 !important;
         box-shadow: none !important;
@@ -2442,10 +2451,17 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
         overflow: visible !important;
         box-sizing: border-box !important;
       }
+      table, tr, td, th {
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+      }
+      .assinaturas-grid-final,
+      .assinatura-bloco {
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+      }
       #secao-1-capa {
-        min-height: 297mm !important;
-        height: 297mm !important;
-        max-height: 297mm !important;
+        min-height: 270mm !important;
         page-break-after: always !important;
         break-after: page !important;
       }

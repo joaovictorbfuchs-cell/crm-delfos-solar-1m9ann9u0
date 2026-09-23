@@ -51,13 +51,8 @@ interface ModalDetalhesTimelineProps {
   onUpdateAtividade: (id: string, data: any) => Promise<any>
   onUpdateOrcamentoSolar: (id: string, data: any) => Promise<any>
   onUpdatePropostaOM: (id: string, data: any) => Promise<any>
-  onVisualizarPropostaSolar?: (orc: any) => void
-  onVisualizarPropostaOM?: (prop: any) => void
   onAlterarRegenerarOM?: (prop: any) => void
-  onGerarWordPropostaSolar?: (orc: any) => void
   onAlterarNovaRevisaoSolar?: (orc: any) => void
-  onEnviarWhatsAppSolar?: (orc: any) => void
-  onEnviarWhatsAppOM?: (prop: any) => void
 }
 
 export const ModalDetalhesTimeline: React.FC<ModalDetalhesTimelineProps> = ({
@@ -68,13 +63,8 @@ export const ModalDetalhesTimeline: React.FC<ModalDetalhesTimelineProps> = ({
   onUpdateAtividade,
   onUpdateOrcamentoSolar,
   onUpdatePropostaOM,
-  onVisualizarPropostaSolar,
-  onVisualizarPropostaOM,
   onAlterarRegenerarOM,
-  onGerarWordPropostaSolar,
   onAlterarNovaRevisaoSolar,
-  onEnviarWhatsAppSolar,
-  onEnviarWhatsAppOM,
 }) => {
   const [isEditing, setIsEditing] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
@@ -584,33 +574,9 @@ export const ModalDetalhesTimeline: React.FC<ModalDetalhesTimelineProps> = ({
                 </p>
               </div>
 
-              {/* Ações de Documento / WhatsApp se for proposta */}
+              {/* Ações se for proposta solar */}
               {item.categoria === 'proposta_solar' && item.rawOrcamentoSolar && (
                 <div className="flex items-center justify-end gap-2 pt-2 border-t border-gray-100 flex-wrap">
-                  {onVisualizarPropostaSolar && (
-                    <button
-                      type="button"
-                      onClick={() => onVisualizarPropostaSolar(item.rawOrcamentoSolar)}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 font-bold text-xs rounded-lg transition-colors shadow-2xs"
-                      title="Visualizar proposta fotovoltaica"
-                    >
-                      <FileText className="w-3.5 h-3.5 text-emerald-700" />
-                      <span>Visualizar Proposta</span>
-                    </button>
-                  )}
-
-                  {onGerarWordPropostaSolar && (
-                    <button
-                      type="button"
-                      onClick={() => onGerarWordPropostaSolar(item.rawOrcamentoSolar)}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-800 border border-blue-300 font-bold text-xs rounded-lg transition-colors shadow-2xs"
-                      title="Gerar e baixar proposta em Word (.docx)"
-                    >
-                      <FileText className="w-3.5 h-3.5 text-blue-700" />
-                      <span>Gerar Word</span>
-                    </button>
-                  )}
-
                   {onAlterarNovaRevisaoSolar && (
                     <button
                       type="button"
@@ -620,18 +586,6 @@ export const ModalDetalhesTimeline: React.FC<ModalDetalhesTimelineProps> = ({
                     >
                       <Pencil className="w-3.5 h-3.5 text-gray-600" />
                       <span>Alterar / Nova Rev.</span>
-                    </button>
-                  )}
-
-                  {onEnviarWhatsAppSolar && (
-                    <button
-                      type="button"
-                      disabled={!cliente.whatsapp && !cliente.telefone}
-                      onClick={() => onEnviarWhatsAppSolar(item.rawOrcamentoSolar)}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-lg transition-colors shadow-2xs disabled:opacity-40 disabled:cursor-not-allowed"
-                    >
-                      <Send className="w-3.5 h-3.5" />
-                      <span>WhatsApp</span>
                     </button>
                   )}
                 </div>
@@ -759,33 +713,6 @@ export const ModalDetalhesTimeline: React.FC<ModalDetalhesTimelineProps> = ({
                     >
                       <Pencil className="w-3.5 h-3.5 text-gray-600" />
                       <span>Parâmetros / Regenerar</span>
-                    </button>
-                  )}
-                  {onVisualizarPropostaOM && (
-                    <button
-                      type="button"
-                      onClick={() => onVisualizarPropostaOM(item.rawPropostaOM)}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 font-bold text-xs rounded-lg transition-colors shadow-2xs"
-                      title="Ver proposta formal O&M formatada para impressão/PDF"
-                    >
-                      <ExternalLink className="w-3.5 h-3.5 text-emerald-700" />
-                      <span>Ver PDF / Proposta</span>
-                    </button>
-                  )}
-                  {onEnviarWhatsAppOM && (
-                    <button
-                      type="button"
-                      disabled={!cliente.whatsapp && !cliente.telefone}
-                      title={
-                        !cliente.whatsapp && !cliente.telefone
-                          ? 'Cadastre o WhatsApp do cliente para enviar'
-                          : 'Enviar proposta O&M por WhatsApp'
-                      }
-                      onClick={() => onEnviarWhatsAppOM(item.rawPropostaOM)}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-lg transition-colors shadow-2xs disabled:opacity-40 disabled:cursor-not-allowed"
-                    >
-                      <Send className="w-3.5 h-3.5" />
-                      <span>WhatsApp</span>
                     </button>
                   )}
                 </div>
