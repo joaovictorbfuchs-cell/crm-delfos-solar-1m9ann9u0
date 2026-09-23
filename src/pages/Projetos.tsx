@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react'
-import { FolderKanban, Plus, Search } from 'lucide-react'
+import { FolderKanban, Plus, Search, RefreshCw } from 'lucide-react'
 import { useClientes } from '@/contexts/ClientesContext'
+import { Button } from '@/components/ui/button'
 import { KanbanProjetos } from '@/components/KanbanProjetos'
 import { ModalAtribuirProfissional } from '@/components/ModalAtribuirProfissional'
 import { ModalNovoProjeto } from '@/components/ModalNovoProjeto'
@@ -15,7 +16,19 @@ export const Projetos: React.FC = () => {
     addProjeto,
     assignProjetoProfissional,
     updateProjetoEtapa,
+    refreshData,
   } = useClientes()
+
+  const [isRefreshing, setIsRefreshing] = useState(false)
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true)
+    try {
+      await refreshData()
+    } finally {
+      setIsRefreshing(false)
+    }
+  }
 
   const [searchTerm, setSearchTerm] = useState('')
 
@@ -110,11 +123,23 @@ export const Projetos: React.FC = () => {
             />
           </div>
 
+          {/* Botão padronizado Atualizar */}
+          <Button
+            type="button"
+            variant="outline"
+            onClick={handleRefresh}
+            disabled={isRefreshing || isLoading}
+            className="h-10 px-3 rounded-xl border-gray-200 hover:bg-gray-50 text-gray-700"
+            title="Atualizar dados"
+          >
+            <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+          </Button>
+
           {/* Botão Novo Projeto */}
           <button
             type="button"
             onClick={() => setIsNovoProjetoModalOpen(true)}
-            className="px-4 py-2 rounded-xl bg-[#16A34A] hover:bg-[#15803D] text-white text-xs font-bold transition-all flex items-center gap-1.5 shadow-xs whitespace-nowrap"
+            className="h-10 px-4 rounded-xl bg-[#16A34A] hover:bg-[#15803D] text-white text-xs font-bold transition-all flex items-center gap-1.5 shadow-xs whitespace-nowrap"
           >
             <Plus className="w-4 h-4" />
             <span>Novo Projeto</span>

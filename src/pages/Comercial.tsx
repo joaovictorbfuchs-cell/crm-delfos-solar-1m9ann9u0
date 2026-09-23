@@ -182,26 +182,22 @@ export default function Comercial() {
           </div>
 
           <div className="flex items-center gap-2 flex-wrap justify-end">
-            {/* Botão Recarregar dados */}
-            <button
+            {/* Botão padronizado Atualizar */}
+            <Button
               type="button"
+              variant="outline"
               onClick={handleRefresh}
               disabled={isRefreshing}
-              className="inline-flex items-center gap-1.5 px-3 py-2 bg-white hover:bg-gray-50 border border-gray-200/80 text-gray-700 text-xs font-semibold rounded-xl shadow-2xs transition-colors disabled:opacity-50 cursor-pointer"
-              title="Recarregar dados do CRM"
+              className="h-10 px-3 rounded-xl border-gray-200 hover:bg-gray-50 text-gray-700"
+              title="Atualizar dados"
             >
-              <RefreshCw
-                className={`w-3.5 h-3.5 text-emerald-600 ${isRefreshing ? 'animate-spin' : ''}`}
-              />
-              <span className="hidden md:inline">
-                {isRefreshing ? 'Recarregando...' : 'Recarregar'}
-              </span>
-            </button>
+              <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+            </Button>
 
             {/* Botão Novo Lead no padrão exato minimalista */}
             <button
               onClick={() => setIsNovoLeadOpen(true)}
-              className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-[#16A34A] hover:bg-[#15803D] active:scale-[0.98] text-white text-sm font-bold rounded-xl shadow-sm hover:shadow-md transition-all shrink-0 cursor-pointer"
+              className="h-10 inline-flex items-center justify-center gap-2 px-4 bg-[#16A34A] hover:bg-[#15803D] active:scale-[0.98] text-white text-sm font-bold rounded-xl shadow-sm hover:shadow-md transition-all shrink-0 cursor-pointer"
             >
               <UserPlus className="w-4 h-4 stroke-[2.5]" />
               <span>+ Novo Lead</span>
