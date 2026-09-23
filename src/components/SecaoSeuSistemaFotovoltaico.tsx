@@ -13,6 +13,7 @@ import { formatCurrency } from '@/lib/formatters'
 import { onGridPngAsset, monitoramentoPngAsset } from '@/lib/propostaIlustracoesAssets'
 import type { GeracaoMensalItem } from '@/lib/energiaSolar'
 import { Calendar, SunMedium } from 'lucide-react'
+import { formatarTextoModuloCard } from '@/lib/equipamentoFormatters'
 
 /**
  * Ícone representativo de um módulo/painel solar fotovoltaico:
@@ -390,7 +391,11 @@ export const SecaoSeuSistemaFotovoltaico: React.FC<SecaoSeuSistemaFotovoltaicoPr
                   <span className="text-base font-bold text-gray-600">unidades</span>
                 </div>
                 <p className="text-[11px] text-gray-700 font-semibold mt-1 leading-snug">
-                  {marcaModuloFinal} ({placasPotenciaWpFinal}W cada • {tecnologiaModuloFinal}).
+                  {formatarTextoModuloCard({
+                    descricao: marcaModuloFinal,
+                    potenciaWp: placasPotenciaWpFinal,
+                    caracteristicas: tecnologiaModuloFinal,
+                  })}
                 </p>
               </div>
             </div>

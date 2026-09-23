@@ -9,6 +9,7 @@ import {
   type PropostaTecnicoComercialDados,
   DADOS_FIXOS_EMPRESA_DELFOS,
 } from '@/lib/propostaTecnicoComercialGenerator'
+import { descricaoContemPotencia, deduplicarPotenciaTexto } from '@/lib/equipamentoFormatters'
 
 export interface DadosEmpresaDelfosCompleto {
   razaoSocial: string
@@ -182,7 +183,9 @@ export function converterInputParaTemplateComercial(
     },
     sistema: {
       potenciaKwp: sistema.potenciaKwp,
-      descricaoPaineis: `${sistema.marcaPlacas || 'Módulos Tier-1'} ${sistema.potenciaPlacaWp}W`,
+      descricaoPaineis: descricaoContemPotencia(sistema.marcaPlacas, sistema.potenciaPlacaWp)
+        ? deduplicarPotenciaTexto(sistema.marcaPlacas || 'Módulos Tier-1', sistema.potenciaPlacaWp)
+        : `${sistema.marcaPlacas || 'Módulos Tier-1'} ${sistema.potenciaPlacaWp}W`,
       qtdPaineis: sistema.numeroPlacas,
       descricaoInversores: sistema.marcaInversor || 'Inversor Homologado',
       qtdInversores: sistema.quantidadeInversores || 1,

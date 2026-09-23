@@ -8,6 +8,7 @@ import {
   monitoramentoPngAsset,
 } from './propostaIlustracoesAssets'
 import { USINAS_PORTFOLIO_PADRAO } from './portfolioUsinasAssets'
+import { formatarTextoModuloCard } from './equipamentoFormatters'
 
 export interface PropostaSecoesHabilitadas {
   layoutTelhado?: boolean
@@ -3080,7 +3081,19 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
                   ${modulosQtd} <span class="unit" style="color: #4B5563;">unidades</span>
                 </div>
                 <div class="card-sistema-sub">
-                  <strong>${modulosDesc}</strong> (${modulosWp}W cada • ${modulosTecnologia}).
+                  ${(() => {
+                    const textoFormatado = formatarTextoModuloCard({
+                      descricao: modulosDesc,
+                      potenciaWp: modulosWp,
+                      caracteristicas: modulosTecnologia,
+                    })
+                    // Extrai a descrição inicial antes do parênteses para manter a tag <strong> se desejado
+                    const matchParen = textoFormatado.match(/^(.*?)\s*\((.*)\)\.?$/)
+                    if (matchParen) {
+                      return `<strong>${matchParen[1]}</strong> (${matchParen[2]}).`
+                    }
+                    return textoFormatado
+                  })()}
                 </div>
               </div>
             </div>

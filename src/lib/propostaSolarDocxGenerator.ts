@@ -31,6 +31,7 @@ import { formatarMesAnoQuitacao } from '@/lib/formatters'
 import logoPng from '@/assets/delfos-solar-09ea2.png'
 import { getFotoUrl } from '@/services/instalacoesGaleriaService'
 import { onGridPngAsset, monitoramentoPngAsset } from './propostaIlustracoesAssets'
+import { formatarTextoModuloDocx } from './equipamentoFormatters'
 
 // Cores da identidade visual Delfos Solar
 const COLOR_PRIMARY = '065F46' // Verde Escuro Delfos (#065F46)
@@ -1534,7 +1535,12 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
           font: 'Arial',
         }),
         new TextRun({
-          text: `${sistema.numeroPlacas}x ${sistema.marcaPlacas || 'Módulos Tier-1'} (${sistema.potenciaPlacaWp}W bifacial N-type)`,
+          text: formatarTextoModuloDocx({
+            quantidade: sistema.numeroPlacas,
+            descricao: sistema.marcaPlacas || 'Módulos Tier-1',
+            potenciaWp: sistema.potenciaPlacaWp,
+            caracteristicas: 'bifacial N-type',
+          }),
           size: 17,
           font: 'Arial',
         }),
