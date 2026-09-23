@@ -696,11 +696,11 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
   <style>
     /* ==========================================================
        SETUP DE IMPRESSÃO A4 COM 5 SEÇÕES PRECISAS
-       Margens: 12mm 10mm 15mm 10mm
+       Margens: 10mm 7mm 12mm 7mm
        ========================================================== */
     @page {
-      size: A4 portrait;
-      margin: 12mm 10mm 15mm 10mm;
+      size: A4;
+      margin: 10mm 7mm 12mm 7mm;
     }
 
     * {
@@ -2410,9 +2410,13 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
 
     /* REGRAS DE IMPRESSÃO PURA */
     @media print {
-      * {
+      *, *::before, *::after {
         -webkit-print-color-adjust: exact !important;
         print-color-adjust: exact !important;
+        color-adjust: exact !important;
+      }
+      .no-print-bar, .btn-imprimir, header, nav {
+        display: none !important;
       }
       html, body {
         background: #FFFFFF !important;
@@ -2420,15 +2424,31 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
         margin: 0 !important;
         padding: 0 !important;
       }
-      .no-print-bar {
-        display: none !important;
-      }
-      .proposta-container {
+      body, .proposta-container {
         width: 100% !important;
-        max-width: 100% !important;
-        box-sizing: border-box !important;
         margin: 0 !important;
         padding: 0 !important;
+      }
+      .proposta-container {
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+      }
+      .proposta-secao-page,
+      #secao-1-capa,
+      #secao-2-custo-inercia,
+      #secao-3-seu-sistema,
+      #secao-4-projecao-25anos {
+        page-break-after: always !important;
+        break-after: page !important;
+      }
+      #secao-5-investimento-pagamento {
+        page-break-after: auto !important;
+        break-after: auto !important;
+      }
+      .card-sistema, .card-pagamento, .card-projecao, .quadro-resumo-economia,
+      .secao-header-card, .bloco-assinaturas, .tabela-equipamentos {
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
       }
       .proposta-secao-page {
         width: 100% !important;
@@ -2450,32 +2470,24 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
         break-inside: avoid !important;
       }
       .grid-pagamento-4,
-      .card-pagamento,
       .grid-sistema-cards,
-      .card-sistema,
       .grid-marcos-inercia,
       .card-marco-inercia,
       .faixa-monitoramento,
       .assinaturas-grid-final,
-      .assinatura-bloco {
+      .assinatura-bloco,
+      .portfolio-wrapper,
+      .card-portfolio-usina,
+      .capa-wrapper,
+      .badge {
         page-break-inside: avoid !important;
         break-inside: avoid !important;
       }
       #secao-1-capa {
         min-height: 245mm !important;
         height: auto !important;
-        page-break-after: always !important;
-        break-after: page !important;
         page-break-inside: avoid !important;
         break-inside: avoid !important;
-      }
-      #secao-apresentacao-empresa,
-      #secao-2-custo-inercia,
-      #secao-3-seu-sistema,
-      #secao-4-projecao-25anos,
-      #secao-5-investimento-pagamento {
-        page-break-before: auto !important;
-        break-before: auto !important;
       }
       .proposta-secao-page:last-child {
         page-break-after: avoid !important;

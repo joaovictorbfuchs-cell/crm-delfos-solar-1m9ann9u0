@@ -205,12 +205,12 @@ describe('Proposta Técnico-Comercial Generator (5 Seções Oficiais)', () => {
     expect(html).toContain('Condições válidas por')
 
     // CSS de impressão A4 obrigatório e fluxo natural contínuo
-    expect(html).toContain('size: 210mm 297mm')
-    expect(html).toContain('margin: 7mm')
+    expect(html).toContain('size: A4;')
+    expect(html).toContain('margin: 10mm 7mm 12mm 7mm')
     expect(html).toContain('padding: 7mm')
     expect(html).toContain('print-color-adjust: exact')
-    expect(html).toContain('page-break-before: auto')
-    expect(html).toContain('break-before: auto')
+    expect(html).toContain('page-break-after: always')
+    expect(html).toContain('break-after: page')
     expect(html).toContain('break-inside: avoid')
     expect(html).toContain('Tier-1 Global')
     expect(html).toContain('doc-footer')
@@ -1268,7 +1268,7 @@ describe('Proposta Técnico-Comercial Generator (5 Seções Oficiais)', () => {
       // Hero investimento com destaque
       expect(html).toContain('font-size: 26pt')
       // Margens 7mm A4 preservadas
-      expect(html).toContain('margin: 7mm')
+      expect(html).toContain('margin: 10mm 7mm 12mm 7mm')
       expect(html).toContain('padding: 7mm')
     })
   })
