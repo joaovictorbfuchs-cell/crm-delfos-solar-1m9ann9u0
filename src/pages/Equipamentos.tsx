@@ -20,6 +20,7 @@ import {
   ExternalLink,
   CheckCircle2,
   FileUp,
+  AlertTriangle,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import type { Equipamento, TipoEquipamento } from '@/types/equipamentos'
@@ -65,7 +66,11 @@ export function EquipamentosPage() {
   const [datasheetExistenteUrl, setDatasheetExistenteUrl] = useState<string | null>(null)
   const [removerDatasheetExistente, setRemoverDatasheetExistente] = useState<boolean>(false)
   const [isExtractingPdf, setIsExtractingPdf] = useState<boolean>(false)
-  const [extracaoConcluida, setExtracaoConcluida] = useState<boolean>(false)
+  const [extracaoStatus, setExtracaoStatus] = useState<
+    | { tipo: 'sucesso'; camposQtd: number; campos: string }
+    | { tipo: 'aviso'; mensagem: string }
+    | null
+  >(null)
   const datasheetInputRef = useRef<HTMLInputElement>(null)
 
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false)
@@ -104,7 +109,7 @@ export function EquipamentosPage() {
     setSelectedDatasheetFile(null)
     setDatasheetExistenteUrl(null)
     setRemoverDatasheetExistente(false)
-    setExtracaoConcluida(false)
+    setExtracaoStatus(null)
     setErrorMessage(null)
     setModalOpen(true)
   }
@@ -132,7 +137,7 @@ export function EquipamentosPage() {
     const urlDatasheet = getDatasheetEquipamentoUrl(item)
     setDatasheetExistenteUrl(urlDatasheet)
     setRemoverDatasheetExistente(false)
-    setExtracaoConcluida(false)
+    setExtracaoStatus(null)
 
     setErrorMessage(null)
     setModalOpen(true)
@@ -190,52 +195,72 @@ export function EquipamentosPage() {
 
     // Extração automática via PDF
     setIsExtractingPdf(true)
-    setExtracaoConcluida(false)
+    setExtracaoStatus(null)
 
     try {
       const extraidos = await extractDatasheetFromPdf(file)
 
-      let alterouAlgo = false
+      const camposPreenchidos: string[] = []
 
       if (extraidos.marca) {
         setMarca(extraidos.marca)
-        alterouAlgo = true
+        camposPreenchidos.push('Marca')
       }
       if (extraidos.modelo) {
         setModelo(extraidos.modelo)
-        alterouAlgo = true
+        camposPreenchidos.push('Modelo')
       }
       if (extraidos.potencia_w) {
         setPotenciaW(String(extraidos.potencia_w))
-        alterouAlgo = true
+        camposPreenchidos.push('Potência')
       }
       if (extraidos.garantia_anos !== undefined && extraidos.garantia_anos !== null) {
         setGarantiaAnos(String(extraidos.garantia_anos))
-        alterouAlgo = true
+        camposPreenchidos.push('Garantia')
       }
       if (extraidos.descricao_padrao) {
         setDescricaoPadrao(extraidos.descricao_padrao)
-        alterouAlgo = true
+        camposPreenchidos.push('Descrição')
       }
       if (extraidos.tipo) {
         setTipo(extraidos.tipo)
       }
 
-      setExtracaoConcluida(true)
-
-      if (alterouAlgo) {
+      if (camposPreenchidos.length > 0) {
+        setExtracaoStatus({
+          tipo: 'sucesso',
+          camposQtd: camposPreenchidos.length,
+          campos: camposPreenchidos.join(', '),
+        })
         toast.success(
-          'Dados do datasheet extraídos com sucesso! Revise e corrija os campos antes de salvar.',
+          `Dados extraídos (${camposPreenchidos.join(', ')})! Revise os campos antes de salvar.`,
           { duration: 5000 },
         )
+      } else if (extraidos.isScanSemTexto) {
+        setExtracaoStatus({
+          tipo: 'aviso',
+          mensagem: 'PDF parece ser digitalizado/imagem — preencha manualmente',
+        })
+        toast.warning(
+          'Não foi possível ler o PDF automaticamente — o arquivo parece ser digitalizado/imagem; preencha os dados manualmente.',
+          { duration: 6000 },
+        )
       } else {
+        setExtracaoStatus({
+          tipo: 'aviso',
+          mensagem: 'PDF lido, mas nenhum dado foi reconhecido — preencha manualmente',
+        })
         toast.info(
-          'Datasheet anexado. Não foi possível identificar todos os campos automaticamente; preencha os dados restantes manualmente.',
-          { duration: 5000 },
+          'Datasheet lido, mas nenhum dado técnico foi reconhecido com certeza. Preencha os campos manualmente.',
+          { duration: 6000 },
         )
       }
     } catch (err) {
       console.error('Erro na extração do datasheet PDF:', err)
+      setExtracaoStatus({
+        tipo: 'aviso',
+        mensagem: 'Falha na leitura automática do PDF — preencha manualmente',
+      })
       toast.warning(
         'Datasheet anexado, mas houve falha na leitura dos dados. Preencha os campos manualmente.',
       )
@@ -248,7 +273,7 @@ export function EquipamentosPage() {
     setSelectedDatasheetFile(null)
     setDatasheetExistenteUrl(null)
     setRemoverDatasheetExistente(true)
-    setExtracaoConcluida(false)
+    setExtracaoStatus(null)
     if (datasheetInputRef.current) {
       datasheetInputRef.current.value = ''
     }
@@ -1059,10 +1084,23 @@ export function EquipamentosPage() {
                       </span>
                     </div>
 
-                    {extracaoConcluida && (
-                      <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200 shrink-0">
+                    {extracaoStatus?.tipo === 'sucesso' && (
+                      <span
+                        className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200 shrink-0"
+                        title={`Campos extraídos: ${extracaoStatus.campos}`}
+                      >
                         <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                        Dados extraídos
+                        Dados extraídos ({extracaoStatus.camposQtd})
+                      </span>
+                    )}
+
+                    {extracaoStatus?.tipo === 'aviso' && (
+                      <span
+                        className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-800 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-300 shrink-0 max-w-[240px] truncate"
+                        title={extracaoStatus.mensagem}
+                      >
+                        <AlertTriangle className="w-3 h-3 text-amber-600 shrink-0" />
+                        <span className="truncate">{extracaoStatus.mensagem}</span>
                       </span>
                     )}
                   </div>
