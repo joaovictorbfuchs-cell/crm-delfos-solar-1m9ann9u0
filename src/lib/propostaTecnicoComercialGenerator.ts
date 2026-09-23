@@ -9,6 +9,7 @@ import {
 } from './propostaIlustracoesAssets'
 import { USINAS_PORTFOLIO_PADRAO } from './portfolioUsinasAssets'
 import { formatarTextoModuloCard } from './equipamentoFormatters'
+import { normalizarConteudoProposta, type ConteudoProposta } from '@/lib/conteudoProposta'
 
 export interface PropostaSecoesHabilitadas {
   layoutTelhado?: boolean
@@ -153,6 +154,7 @@ export interface PropostaTecnicoComercialDados {
   layoutTelhadoHabilitado?: boolean
   secoesHabilitadas?: PropostaSecoesHabilitadas
   observacoes?: string
+  conteudo?: import('@/lib/conteudoProposta').ConteudoProposta
 }
 
 export const DADOS_FIXOS_EMPRESA_DELFOS = {
@@ -312,6 +314,8 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
     projecao,
     observacoes,
   } = dados
+
+  const conteudo = normalizarConteudoProposta(dados.conteudo)
 
   const nomeCliente = (cliente?.nome && cliente.nome.trim()) || 'Cliente Especial'
   const potenciaKwp = sistema?.potenciaKwp || 0
@@ -2578,23 +2582,23 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
             <div class="capa-logo-container">
               <img src="${logoOficialPngAsset}" alt="Delfos Solar" class="capa-logo-img" />
             </div>
-            <div class="capa-badge-amarelo">
-              PROPOSTA TÉCNICO-COMERCIAL
+            <div class="capa-badge-amarelo" style="${conteudo.capa.corDestaque ? `background-color: ${conteudo.capa.corDestaque};` : ''}">
+              ${conteudo.capa.badge}
             </div>
           </div>
 
           <!-- Miolo: Título Grande + Subtítulo + Bloco Preparada Para + Consultor -->
           <div class="capa-middle-bloco">
             <h1 class="capa-titulo-destaque">
-              Energia que<br />gera retorno
+              ${conteudo.capa.titulo.replace(/\n/g, '<br />')}
             </h1>
             <p class="capa-subtitulo-cinza">
-              Sistema fotovoltaico projetado exclusivamente para você
+              ${conteudo.capa.subtitulo}
             </p>
 
             <!-- Bloco Alinhado à Esquerda com Filete Amarelo -->
-            <div class="capa-preparada-box">
-              <div class="capa-prep-rotulo">PREPARADA PARA:</div>
+            <div class="capa-preparada-box" style="${conteudo.capa.corDestaque ? `border-left-color: ${conteudo.capa.corDestaque};` : ''}">
+              <div class="capa-prep-rotulo">${conteudo.capa.rotuloPreparadaPara}</div>
               <div class="capa-cliente-nome-destaque">${nomeCliente}</div>
               <div class="capa-cliente-imovel-cidade">${sublinhaClienteCapa}</div>
             </div>
@@ -2605,7 +2609,7 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
                 <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path>
                 <circle cx="12" cy="7" r="4"></circle>
               </svg>
-              <span>Consultor: <strong>${consultorNome}</strong> • ${consultorContato}</span>
+              <span>${conteudo.capa.rotuloConsultor} <strong>${consultorNome}</strong> • ${consultorContato}</span>
             </div>
           </div>
 
@@ -2620,6 +2624,9 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
     <!-- ========================================================
          PÁGINA DE APRESENTAÇÃO DA EMPRESA & PORTFÓLIO DE USINAS
          ======================================================== -->
+    ${
+      conteudo.secaoApresentacao.visivel
+        ? `
     <section class="proposta-secao-page" id="secao-apresentacao-empresa">
       <div class="secao-body">
         <header class="doc-header">
@@ -2631,85 +2638,45 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
             </div>
           </div>
           <div class="header-tag">
-            <span class="tag-secao">INSTITUCIONAL</span>
+            <span class="tag-secao">${conteudo.secaoApresentacao.badge || 'INSTITUCIONAL'}</span>
             <span class="tag-desc">Apresentação & Engenharia</span>
           </div>
         </header>
 
-        <!-- Parte 1 — Quem Somos (Sempre renderizada) -->
-        <div class="secao-header-card institucional" style="margin-bottom: 8px; page-break-inside: avoid; break-inside: avoid;">
+        <!-- Parte 1 — Quem Somos -->
+        <div class="secao-header-card institucional" style="margin-bottom: 8px; page-break-inside: avoid; break-inside: avoid; border-left: 4px solid ${conteudo.secaoApresentacao.corDestaque || '#16A34A'};">
           <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 2px;">
-            <span class="badge-institucional">
-              <span>🏢</span> INSTITUCIONAL
+            <span class="badge-institucional" style="background: ${conteudo.secaoApresentacao.corDestaque ? `${conteudo.secaoApresentacao.corDestaque}15` : '#DCFCE7'}; color: ${conteudo.secaoApresentacao.corDestaque || '#166534'}; border-color: ${conteudo.secaoApresentacao.corDestaque ? `${conteudo.secaoApresentacao.corDestaque}33` : '#86EFAC'};">
+              <span>🏢</span> ${conteudo.secaoApresentacao.badge}
             </span>
             <span style="font-size: 8px; font-weight: 800; color: #0A539E; background: #EFF6FF; border: 1px solid #BFDBFE; padding: 2px 8px; border-radius: 9999px;">
-              DESDE 2014
+              ${conteudo.secaoApresentacao.tempoAtuacaoBadge}
             </span>
           </div>
 
-          <h2 class="titulo-institucional-azul">A Delfos Solar</h2>
-          <div class="subtitulo-institucional-verde">Energia que gera retorno</div>
+          <h2 class="titulo-institucional-azul">${conteudo.secaoApresentacao.titulo}</h2>
+          <div class="subtitulo-institucional-verde" style="color: ${conteudo.secaoApresentacao.corDestaque || '#15803D'};">${conteudo.secaoApresentacao.subtitulo}</div>
 
           <p style="margin: 6px 0 0 0; font-size: 10pt; color: #334155; line-height: 1.45; max-width: 740px;">
-            A Delfos Solar é uma empresa de engenharia especializada no desenvolvimento, homologação e implantação de soluções de energia fotovoltaica de alto rendimento. Nossa missão é transformar contas de energia em ativos estratégicos de rentabilidade, segurança financeira e valorização patrimonial para clientes residenciais, comerciais, industriais e do agronegócio.
+            ${conteudo.secaoApresentacao.textoDescritivo}
           </p>
 
-          <!-- Grid de 5 Diferenciais -->
+          <!-- Grid de Diferenciais Dinâmico -->
           <div class="grid-diferenciais-cards">
-            <!-- 1. 12 anos de atuação -->
+            ${conteudo.secaoApresentacao.diferenciais
+              .map(
+                (dif) => `
             <div class="card-diferencial">
               <div class="card-diferencial-topo">
-                <div class="card-diferencial-icon">📅</div>
-                <div class="card-diferencial-tit">12 Anos de Atuação</div>
+                <div class="card-diferencial-icon">${dif.icone}</div>
+                <div class="card-diferencial-tit">${dif.titulo}</div>
               </div>
               <div class="card-diferencial-desc">
-                12 anos de atuação no mercado de energia com solidez e pioneirismo.
+                ${dif.descricao}
               </div>
-            </div>
-
-            <!-- 2. +2.500 projetos -->
-            <div class="card-diferencial">
-              <div class="card-diferencial-topo">
-                <div class="card-diferencial-icon">⚡</div>
-                <div class="card-diferencial-tit">+2.500 Projetos</div>
-              </div>
-              <div class="card-diferencial-desc">
-                +2.500 projetos entregues e homologados com excelência técnica.
-              </div>
-            </div>
-
-            <!-- 3. Engenharia própria turnkey -->
-            <div class="card-diferencial">
-              <div class="card-diferencial-topo">
-                <div class="card-diferencial-icon">📐</div>
-                <div class="card-diferencial-tit">Engenharia Própria</div>
-              </div>
-              <div class="card-diferencial-desc">
-                Engenharia própria — projetos turnkey, do projeto à homologação.
-              </div>
-            </div>
-
-            <!-- 4. Pós-venda estruturado -->
-            <div class="card-diferencial">
-              <div class="card-diferencial-topo">
-                <div class="card-diferencial-icon">🛡️</div>
-                <div class="card-diferencial-tit">Pós-Venda Ativo</div>
-              </div>
-              <div class="card-diferencial-desc">
-                Pós-venda estruturado — monitoramento, manutenção e suporte técnico.
-              </div>
-            </div>
-
-            <!-- 5. Atuação regional Sul -->
-            <div class="card-diferencial">
-              <div class="card-diferencial-topo">
-                <div class="card-diferencial-icon">📍</div>
-                <div class="card-diferencial-tit">Atuação Regional</div>
-              </div>
-              <div class="card-diferencial-desc">
-                Atuação regional — presente nos 3 estados do Sul do Brasil.
-              </div>
-            </div>
+            </div>`,
+              )
+              .join('')}
           </div>
         </div>
 
@@ -2831,23 +2798,28 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
       </div>
       ${renderInternalFooter(1, validade)}
     </section>
+    `
+        : ''
+    }
 
     <!-- ========================================================
          SEÇÃO 2 — SITUAÇÃO ATUAL (ESPELHADO DO SecaoCustoInercia.tsx)
          ======================================================== -->
+    ${
+      conteudo.secaoSituacaoAtual.visivel
+        ? `
     <section class="proposta-secao-page" id="secao-2-custo-inercia">
       <div class="secao-body">
-        ${renderInternalHeader('Situação Atual', 2, 'situacao-atual')}
+        ${renderInternalHeader(conteudo.secaoSituacaoAtual.titulo || 'Situação Atual', 2, 'situacao-atual')}
 
         <!-- Cabeçalho Situação Atual -->
-        <div class="secao-header-card situacao-atual">
-          <div class="badge-situacao-atual">
-            <span>📊</span> Situação Atual
+        <div class="secao-header-card situacao-atual" style="${conteudo.secaoSituacaoAtual.corDestaque ? `border-left: 4px solid ${conteudo.secaoSituacaoAtual.corDestaque};` : ''}">
+          <div class="badge-situacao-atual" style="${conteudo.secaoSituacaoAtual.corDestaque ? `color: ${conteudo.secaoSituacaoAtual.corDestaque}; border-color: ${conteudo.secaoSituacaoAtual.corDestaque}33; background: ${conteudo.secaoSituacaoAtual.corDestaque}15;` : ''}">
+            <span>📊</span> ${conteudo.secaoSituacaoAtual.badge}
           </div>
-          <h2 class="secao-titulo-h2">Situação Atual</h2>
+          <h2 class="secao-titulo-h2">${conteudo.secaoSituacaoAtual.titulo}</h2>
           <p class="secao-desc-sub">
-            Panorama do seu padrão de consumo energético e despesas recorrentes pagas à concessionária
-            sem qualquer retorno patrimonial, além da projeção de gastos futuros sem a tecnologia solar.
+            ${conteudo.secaoSituacaoAtual.subtitulo}
           </p>
         </div>
 
@@ -2860,8 +2832,8 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
                 <div class="card-situacao-header-left">
                   <div class="card-situacao-header-icon">⚡</div>
                   <div>
-                    <div class="card-situacao-header-title">Consumo de Energia</div>
-                    <div class="card-situacao-header-sub">Volume consumido da concessionária</div>
+                    <div class="card-situacao-header-title">${conteudo.secaoSituacaoAtual.consumoTitulo}</div>
+                    <div class="card-situacao-header-sub">${conteudo.secaoSituacaoAtual.consumoSubtitulo}</div>
                   </div>
                 </div>
                 <span class="card-situacao-header-badge">kWh</span>
@@ -2898,8 +2870,8 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
                 <div class="card-situacao-header-left">
                   <div class="card-situacao-header-icon">💲</div>
                   <div>
-                    <div class="card-situacao-header-title">Custos com Concessionária</div>
-                    <div class="card-situacao-header-sub">Desembolso financeiro sem retorno</div>
+                    <div class="card-situacao-header-title">${conteudo.secaoSituacaoAtual.custoTitulo}</div>
+                    <div class="card-situacao-header-sub">${conteudo.secaoSituacaoAtual.custoSubtitulo}</div>
                   </div>
                 </div>
                 <span class="card-situacao-header-badge">R$ Reais</span>
@@ -2937,10 +2909,10 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
           <div class="barras-topo-row">
             <div>
               <div class="barras-topo-title">
-                <span style="color: #DC2626;">📈</span> Gastos Acumulados Sem Solar: 1, ${rotuloPeriodoCardMeio} e 25 Anos
+                <span style="color: #DC2626;">📈</span> ${conteudo.secaoSituacaoAtual.avisoInerciaTitulo.replace('{periodo}', rotuloPeriodoCardMeio)}
               </div>
               <div class="barras-topo-sub">
-                Total faturado pela concessionária ao longo do tempo considerando o reajuste tarifário histórico da rede elétrica
+                ${conteudo.secaoSituacaoAtual.avisoInerciaSubtitulo}
               </div>
             </div>
             <div class="legenda-barras-pill">
@@ -3002,24 +2974,29 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
       </div>
       ${renderInternalFooter(2, validade)}
     </section>
+    `
+        : ''
+    }
 
     <!-- ========================================================
          SEÇÃO 3 — SEU SISTEMA FOTOVOLTAICO (ESPELHADO DO SecaoSeuSistemaFotovoltaico.tsx)
          ======================================================== -->
+    ${
+      conteudo.secaoSeuSistema.visivel
+        ? `
     <section class="proposta-secao-page" id="secao-3-seu-sistema">
       <div class="secao-body">
-        ${renderInternalHeader('Seu Sistema Fotovoltaico', 3, 'sistema')}
+        ${renderInternalHeader(conteudo.secaoSeuSistema.titulo || 'Seu Sistema Fotovoltaico', 3, 'sistema')}
 
-        <!-- Topo da seção com fundo verde esmeralda com malha fotovoltaica -->
-        <div class="secao-header-card sistema">
+        <!-- Topo da seção com fundo personalizável -->
+        <div class="secao-header-card sistema" style="${conteudo.secaoSeuSistema.corDestaque ? `background: linear-gradient(135deg, ${conteudo.secaoSeuSistema.corDestaque} 0%, #064E3B 100%);` : ''}">
           <div class="glow-circle"></div>
           <div class="badge-sistema">
-            <span>✨</span> Seu Sistema Fotovoltaico
+            <span>✨</span> ${conteudo.secaoSeuSistema.badge}
           </div>
-          <h2>Conheça sua usina solar</h2>
+          <h2>${conteudo.secaoSeuSistema.titulo}</h2>
           <p>
-            Engenharia de precisão planejada sob medida para <strong>${nomeCliente}</strong>.
-            Todos os dados técnicos consolidados em uma apresentação clara, moderna e transparente.
+            ${conteudo.secaoSeuSistema.subtitulo}
           </p>
         </div>
 
@@ -3300,23 +3277,28 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
         })()}
 
         <!-- Faixa Verde de Monitoramento Inteligente com Ícone de Smartphone -->
-        <div class="faixa-monitoramento">
+        ${
+          conteudo.secaoSeuSistema.blocoMonitoramentoBarra?.visivel !== false
+            ? `
+        <div class="faixa-monitoramento" style="${conteudo.secaoSeuSistema.blocoMonitoramentoBarra.corDestaque ? `border-left: 4px solid ${conteudo.secaoSeuSistema.blocoMonitoramentoBarra.corDestaque};` : ''}">
           <div class="faixa-mon-left">
             <div class="faixa-mon-icon-box">📱</div>
             <div>
               <div class="faixa-mon-title-row">
-                <span class="faixa-monitoramento-title">Monitoramento pelo Smartphone</span>
-                <span class="faixa-mon-pill">Aplicativo Mobile</span>
+                <span class="faixa-monitoramento-title">${conteudo.secaoSeuSistema.blocoMonitoramentoBarra.titulo}</span>
+                <span class="faixa-mon-pill">${conteudo.secaoSeuSistema.blocoMonitoramentoBarra.tagDireita}</span>
               </div>
               <div class="faixa-monitoramento-desc">
-                Acompanhe geração diária em tempo real, curva solar em kWh, economia mensal acumulada e alertas de desempenho.
+                ${conteudo.secaoSeuSistema.blocoMonitoramentoBarra.descricao}
               </div>
             </div>
           </div>
           <div class="faixa-mon-badge-right">
-            ✓ iOS & Android Inclusos
+            ${(conteudo.secaoSeuSistema.blocoMonitoramentoBarra.checklist || []).map((it) => `✓ ${it}`).join(' • ') || '✓ iOS & Android Inclusos'}
           </div>
-        </div>
+        </div>`
+            : ''
+        }
 
         ${(() => {
           if (
@@ -3353,70 +3335,84 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
 
         <!-- BLOCOS EXPLICATIVOS COM ILUSTRAÇÕES OFICIAIS DA PROPOSTA -->
         <div style="display: flex; flex-direction: column; gap: 12px; margin-top: 12px;">
-          <!-- Bloco 1: Como Funciona o Sistema Solar (On-Grid) — Linha inteira com imagem ampliada (>=60% largura) -->
-          <div style="width: 100%; background: #F0FDF4; border: 1.5px solid #BBF7D0; border-radius: 12px; padding: 14px 16px; box-shadow: 0 1px 3px rgba(22, 163, 74, 0.08); page-break-inside: avoid; break-inside: avoid;">
+          <!-- Bloco 1: Como Funciona o Sistema Solar (On-Grid) -->
+          ${
+            conteudo.secaoSeuSistema.blocoComoFunciona?.visivel !== false
+              ? `
+          <div style="width: 100%; background: #F0FDF4; border: 1.5px solid #BBF7D0; border-radius: 12px; padding: 14px 16px; box-shadow: 0 1px 3px rgba(22, 163, 74, 0.08); page-break-inside: avoid; break-inside: avoid; ${conteudo.secaoSeuSistema.blocoComoFunciona.corDestaque ? `border-left: 4px solid ${conteudo.secaoSeuSistema.blocoComoFunciona.corDestaque};` : ''}">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
               <span style="font-size: 8.5px; font-weight: 800; text-transform: uppercase; background: #DCFCE7; color: #166534; padding: 2px 8px; border-radius: 9999px; border: 1px solid #BBF7D0;">
-                Engenharia On-Grid
+                ${conteudo.secaoSeuSistema.blocoComoFunciona.badge}
               </span>
-              <span style="font-size: 8.5px; font-weight: 700; color: #16A34A;">Conexão à Rede Concessionária</span>
+              <span style="font-size: 8.5px; font-weight: 700; color: #16A34A;">${conteudo.secaoSeuSistema.blocoComoFunciona.tagDireita}</span>
             </div>
             <div style="font-size: 13.5pt; font-weight: 900; color: #166534; line-height: 1.3; margin-bottom: 4px;">
-              Como Funciona o Sistema Solar (On-Grid)
+              ${conteudo.secaoSeuSistema.blocoComoFunciona.titulo}
             </div>
             <p style="font-size: 10pt; color: #374151; line-height: 1.48; margin: 0 0 10px 0;">
-              Módulos fotovoltaicos de alta eficiência convertem a radiação solar em energia elétrica contínua. O inversor inteligente sincroniza e transforma essa energia em corrente alternada para o consumo imediato do seu imóvel. O excedente produzido é injetado na concessionária, gerando créditos energéticos abatidos no seu medidor bidirecional.
+              ${conteudo.secaoSeuSistema.blocoComoFunciona.descricao}
             </p>
             <div style="border-radius: 10px; overflow: hidden; border: 1px solid #BBF7D0; background: #FFFFFF; display: flex; align-items: center; justify-content: center; padding: 10px;">
-              <img src="${onGridPngAsset}" alt="Como Funciona o Sistema Solar (On-Grid)" style="width: 70%; min-width: 60%; height: auto; max-height: 240px; margin: 0 auto; display: block; object-fit: contain;" />
+              <img src="${onGridPngAsset}" alt="${conteudo.secaoSeuSistema.blocoComoFunciona.titulo}" style="width: 70%; min-width: 60%; height: auto; max-height: 240px; margin: 0 auto; display: block; object-fit: contain;" />
             </div>
             <div style="margin-top: 8px; padding-top: 6px; border-top: 1px solid #BBF7D0; display: flex; justify-content: space-between; font-size: 9.5pt; color: #166534; font-weight: 800;">
-              <span>✓ Homologação Completa e ART de Engenharia Inclusas</span>
-              <span style="color: #16A34A;">Turnkey Delfos Solar</span>
+              ${(conteudo.secaoSeuSistema.blocoComoFunciona.checklist || []).map((it) => `<span>✓ ${it}</span>`).join('')}
             </div>
-          </div>
+          </div>`
+              : ''
+          }
 
           <!-- Bloco 2: Monitoramento logo abaixo -->
-          <div style="width: 100%; background: #F0FDF4; border: 1.5px solid #BBF7D0; border-radius: 12px; padding: 12px 16px; box-shadow: 0 1px 3px rgba(22, 163, 74, 0.08); page-break-inside: avoid; break-inside: avoid;">
+          ${
+            conteudo.secaoSeuSistema.blocoMonitoramentoDetalhado?.visivel !== false
+              ? `
+          <div style="width: 100%; background: #F0FDF4; border: 1.5px solid #BBF7D0; border-radius: 12px; padding: 12px 16px; box-shadow: 0 1px 3px rgba(22, 163, 74, 0.08); page-break-inside: avoid; break-inside: avoid; ${conteudo.secaoSeuSistema.blocoMonitoramentoDetalhado.corDestaque ? `border-left: 4px solid ${conteudo.secaoSeuSistema.blocoMonitoramentoDetalhado.corDestaque};` : ''}">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
               <span style="font-size: 8.5pt; font-weight: 800; text-transform: uppercase; background: #DCFCE7; color: #166534; padding: 2px 8px; border-radius: 9999px; border: 1px solid #BBF7D0;">
-                Telemetria em Tempo Real
+                ${conteudo.secaoSeuSistema.blocoMonitoramentoDetalhado.badge}
               </span>
-              <span style="font-size: 8.5pt; font-weight: 700; color: #16A34A;">App Mobile Incluso</span>
+              <span style="font-size: 8.5pt; font-weight: 700; color: #16A34A;">${conteudo.secaoSeuSistema.blocoMonitoramentoDetalhado.tagDireita}</span>
             </div>
             <div style="font-size: 13.5pt; font-weight: 900; color: #166534; line-height: 1.3; margin-bottom: 4px;">
-              Monitoramento
+              ${conteudo.secaoSeuSistema.blocoMonitoramentoDetalhado.titulo}
             </div>
             <p style="font-size: 10pt; color: #374151; line-height: 1.48; margin: 0 0 8px 0;">
-              Acompanhe a geração de energia em tempo real na palma da mão. Gráficos diários e mensais em kWh, economia acumulada em reais, status de funcionamento do inversor e alertas inteligentes via aplicativo para smartphone (iOS e Android).
+              ${conteudo.secaoSeuSistema.blocoMonitoramentoDetalhado.descricao}
             </p>
             <div style="border-radius: 8px; overflow: hidden; border: 1px solid #BBF7D0; background: #FFFFFF; display: flex; align-items: center; justify-content: center; padding: 8px;">
-              <img src="${monitoramentoPngAsset}" alt="Monitoramento" style="width: 50%; min-width: 40%; height: auto; max-height: 140px; margin: 0 auto; display: block; object-fit: contain;" />
+              <img src="${monitoramentoPngAsset}" alt="${conteudo.secaoSeuSistema.blocoMonitoramentoDetalhado.titulo}" style="width: 50%; min-width: 40%; height: auto; max-height: 140px; margin: 0 auto; display: block; object-fit: contain;" />
             </div>
             <div style="margin-top: 8px; padding-top: 6px; border-top: 1px solid #BBF7D0; display: flex; justify-content: space-between; font-size: 9.5pt; color: #166534; font-weight: 800;">
-              <span>✓ Suporte Técnico e Acesso Vitalício</span>
-              <span style="color: #16A34A;">iOS & Android</span>
+              ${(conteudo.secaoSeuSistema.blocoMonitoramentoDetalhado.checklist || []).map((it) => `<span>✓ ${it}</span>`).join('')}
             </div>
-          </div>
+          </div>`
+              : ''
+          }
         </div>      </div>
       ${renderInternalFooter(3, validade)}
     </section>
+    `
+        : ''
+    }
 
     <!-- ========================================================
          SEÇÃO 4 — PROJEÇÃO DE ECONOMIA EM 25 ANOS (CURVAS & PAYBACK)
          ======================================================== -->
+    ${
+      conteudo.secaoProjecao25Anos.visivel
+        ? `
     <section class="proposta-secao-page" id="secao-4-projecao-25anos">
       <div class="secao-body">
-        ${renderInternalHeader('Projeção de Economia em 25 Anos', 4, 'curvas')}
+        ${renderInternalHeader(conteudo.secaoProjecao25Anos.titulo || 'Projeção de Economia em 25 Anos', 4, 'curvas')}
 
         <!-- Cabeçalho idêntico ao SecaoProjecao25Anos -->
-        <div class="secao-header-card inercia" style="background: linear-gradient(90deg, #F0FDF4 0%, #FFFFFF 100%); border-color: #BBF7D0;">
-          <div class="badge-diagnostico" style="background: #DCFCE7; color: #166534; border-color: #86EFAC;">
-            <span>📈</span> Curva de Retorno e Payback
+        <div class="secao-header-card inercia" style="background: linear-gradient(90deg, #F0FDF4 0%, #FFFFFF 100%); border-color: #BBF7D0; ${conteudo.secaoProjecao25Anos.corDestaque ? `border-left: 4px solid ${conteudo.secaoProjecao25Anos.corDestaque};` : ''}">
+          <div class="badge-diagnostico" style="background: #DCFCE7; color: ${conteudo.secaoProjecao25Anos.corDestaque || '#166534'}; border-color: #86EFAC;">
+            <span>📈</span> ${conteudo.secaoProjecao25Anos.badge}
           </div>
-          <h2 class="secao-titulo-h2">Sua economia ao longo do tempo</h2>
+          <h2 class="secao-titulo-h2">${conteudo.secaoProjecao25Anos.titulo}</h2>
           <p class="secao-desc-sub">
-            Veja o quanto você vai economizar ao longo da vida útil do sistema solar em comparação com o dinheiro pago à concessionária.
+            ${conteudo.secaoProjecao25Anos.subtitulo}
           </p>
         </div>
 
@@ -3445,22 +3441,28 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
         </div>
 
         <div style="font-size: 9pt; font-style: italic; color: #6B7280; margin-top: 8px; text-align: center;">
-          * Projeção baseada na degradação linear de fábrica dos módulos e histórico de reajustes tarifários da rede elétrica.
+          ${conteudo.secaoProjecao25Anos.avisoLegal}
         </div>
       </div>
       ${renderInternalFooter(4, validade)}
     </section>
+    `
+        : ''
+    }
 
     <!-- ========================================================
          SEÇÃO 5 — INVESTIMENTO E CONDIÇÕES DE PAGAMENTO (ESPELHADO DO SecaoInvestimentoPagamento.tsx)
          ======================================================== -->
+    ${
+      conteudo.secaoInvestimento.visivel
+        ? `
     <section class="proposta-secao-page" id="secao-5-investimento-pagamento">
       <div class="secao-body">
-        ${renderInternalHeader('Investimento e Condições de Pagamento', 5, 'investimento')}
+        ${renderInternalHeader(conteudo.secaoInvestimento.titulo || 'Investimento e Condições de Pagamento', 5, 'investimento')}
 
         <!-- CABEÇALHO DO VALOR TOTAL (PREMIUM & CLEAN) -->
-        <div class="hero-investimento-clean">
-          <div class="hero-invest-label">Investimento Total</div>
+        <div class="hero-investimento-clean" style="${conteudo.secaoInvestimento.corDestaque ? `background: linear-gradient(135deg, ${conteudo.secaoInvestimento.corDestaque} 0%, #064E3B 100%);` : ''}">
+          <div class="hero-invest-label">${conteudo.secaoInvestimento.titulo}</div>
           <div class="hero-invest-valor">${formatBRL(investimentoTotal)}</div>
           <div class="hero-invest-economia">
             <span style="font-size: 9pt; line-height: 1;">▲</span>
@@ -3470,7 +3472,7 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
 
         <!-- TÍTULO DA SEÇÃO DE PAGAMENTO -->
         <div style="font-size: 12px; font-weight: 900; color: #111827; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 6px;">
-          Condições de pagamento
+          ${conteudo.secaoInvestimento.subtituloCondicoes}
         </div>
 
         <!-- 4 CARDS DE PAGAMENTO LADO A LADO -->
@@ -3621,7 +3623,7 @@ print-color-adjust: exact !important; margin-bottom: 8px; display: flex; align-i
           <span style="font-weight: 700; color: #1a3a5c;">
             Prazo de entrega: <strong style="color: #111827;">${prazoEntregaDias} dias úteis</strong> após aprovação do projeto
           </span>
-          <span style="color: #6B7280; font-size: 9pt;">Engenharia, homologação na concessionária e instalação turnkey</span>
+          <span style="color: #6B7280; font-size: 9pt;">${conteudo.secaoInvestimento.prazoTextoComplementar}</span>
         </div>
 
         <!-- BLOCO DE PROJEÇÃO COM REAJUSTE TARIFÁRIO DE 9% AO ANO (CONCESSIONÁRIA) -->
@@ -3705,15 +3707,15 @@ print-color-adjust: exact !important; margin-bottom: 8px; display: flex; align-i
             <div>
               <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 2px;">
                 <span style="font-size: 8.5pt; font-weight: 900; text-transform: uppercase; background: #FEF3C7; color: #92400E; padding: 1px 6px; border-radius: 4px; border: 1px solid #FDE68A;">
-                  Custo de Postergação
+                  ${conteudo.secaoInvestimento.avisoPostergacaoTitulo}
                 </span>
                 <span style="font-size: 8.5pt; font-weight: 800; color: #78350F;">
-                  Cada mês sem energia solar custa dinheiro
+                  ${conteudo.secaoInvestimento.avisoPostergacaoSubtitulo}
                 </span>
               </div>
               <div style="font-size: 11.5pt; font-weight: 900; color: #1F2937;">Não adie sua economia</div>
               <p style="margin: 1px 0 0 0; font-size: 9.5pt; color: #4B5563; max-width: 440px; line-height: 1.35;">
-                Adiar a decisão significa continuar pagando a conta cheia para a concessionária sem construir patrimônio.
+                ${conteudo.secaoInvestimento.avisoPostergacaoTexto}
               </p>
             </div>
           </div>
@@ -3803,7 +3805,7 @@ print-color-adjust: exact !important; margin-bottom: 8px; display: flex; align-i
                   ${nomeCliente}
                 </div>
                 <div style="font-size: 8.5pt; font-weight: 700; color: #1E40AF; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-                  De acordo com as especificações e valores da proposta
+                  ${conteudo.secaoInvestimento.avisoLegalRodape}
                 </div>
               </div>
             </div>
@@ -3811,14 +3813,17 @@ print-color-adjust: exact !important; margin-bottom: 8px; display: flex; align-i
             <!-- 4. Divisor tracejado sutil e bloco de dados cadastrais padronizado -->
             <div style="border-top: 1px dashed #E5E7EB; padding-top: 8px; margin-top: 2px;" class="assinatura-dados">
               <div style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"><strong>Nome/Razão Social:</strong> ${nomeCliente}</div>
-              <div style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"><strong>CPF/CNPJ:</strong> ${cliente?.cpfOuCnpj || ''}</div>
-              <div style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"><strong>Endereço:</strong> ${cliente?.endereco ? `${cliente.endereco}${cliente?.municipio ? `, ${cliente.municipio}` : ''}` : cliente?.municipio || ''}</div>
+              <div style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"><strong>${conteudo.dadosCliente.rotuloDocumento}</strong> ${cliente?.cpfOuCnpj || ''}</div>
+              <div style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"><strong>${conteudo.dadosCliente.rotuloEndereco}</strong> ${cliente?.endereco ? `${cliente.endereco}${cliente?.municipio ? `, ${cliente.municipio}` : ''}` : cliente?.municipio || ''}</div>
               <div style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"><strong>Contato:</strong> ${[cliente?.telefone, cliente?.email].filter(Boolean).join(' • ')}</div>
             </div>
           </div>
         </div>      </div>
       ${renderInternalFooter(5, validade)}
     </section>
+    `
+        : ''
+    }
 
   </div>
 

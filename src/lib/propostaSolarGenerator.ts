@@ -90,6 +90,7 @@ export interface PropostaSolarPDFInput {
     sazonalidadeSolar?: boolean
     portfolioUsinas?: boolean
   }
+  conteudo?: import('@/lib/conteudoProposta').ConteudoProposta
 }
 
 export function formatarTipoEstrutura(tipo: TipoEstruturaSolar): string {
@@ -302,6 +303,7 @@ export function converterInputParaTemplateComercial(
     layoutTelhadoHabilitado: dados.layoutTelhadoHabilitado,
     secoesHabilitadas: dados.secoesHabilitadas,
     observacoes,
+    conteudo: dados.conteudo,
   }
 }
 

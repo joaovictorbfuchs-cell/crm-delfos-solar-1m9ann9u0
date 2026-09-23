@@ -28,6 +28,7 @@ import {
 import { calcularProjecaoEconomia } from '@/lib/calculoProjecaoEconomia'
 import { CONSUMO_EXEMPLO_PADRAO_KWH_ANO } from '@/data/planilhaBaseProjecao'
 import { formatarMesAnoQuitacao } from '@/lib/formatters'
+import { normalizarConteudoProposta, type ConteudoProposta } from './conteudoProposta'
 import logoPng from '@/assets/delfos-solar-09ea2.png'
 import { getFotoUrl } from '@/services/instalacoesGaleriaService'
 import { onGridPngAsset, monitoramentoPngAsset } from './propostaIlustracoesAssets'
@@ -283,6 +284,7 @@ function createSectionHeader(title: string, sub?: string): Paragraph[] {
  */
 export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Promise<Document> {
   const { cliente, representanteComercial, sistema, calculos } = dados
+  const conteudo = normalizarConteudoProposta(dados.conteudo)
   const validadeEmDias = dados.validadeDias ?? 5
   const repNome = representanteComercial || 'Equipe Comercial Delfos Solar'
   const prazoEntrega = sistema.prazoEntregaDias ?? 30
@@ -744,7 +746,7 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
                   spacing: { before: 100 },
                   children: [
                     new TextRun({
-                      text: 'PROPOSTA PREPARADA PARA\n',
+                      text: `${conteudo.capa.rotuloPreparadaPara}\n`,
                       bold: true,
                       size: 16,
                       color: '34D399',
@@ -763,7 +765,7 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
                   spacing: { before: 100 },
                   children: [
                     new TextRun({
-                      text: `Economize ${formatBRL(economiaMensal)} por mês com sua própria usina solar.`,
+                      text: conteudo.capa.titulo.replace(/\n/g, ' — '),
                       bold: true,
                       size: 22,
                       color: '22C55E',
@@ -775,7 +777,7 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
                   spacing: { before: 40 },
                   children: [
                     new TextRun({
-                      text: 'Independência energética projetada exclusivamente para você com tecnologia de ponta.',
+                      text: conteudo.capa.subtitulo,
                       size: 16,
                       color: 'D1FAE5',
                       font: 'Arial',
@@ -799,7 +801,7 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
                   border: { top: { style: BorderStyle.SINGLE, size: 6, color: '065F46' } },
                   children: [
                     new TextRun({
-                      text: `👤 Consultor: ${repNome}   •   📅 Data: ${dataFormatada}   •   ⏰ Validade: ${validadeEmDias} dias corridos`,
+                      text: `👤 ${conteudo.capa.rotuloConsultor} ${repNome}   •   📅 Data: ${dataFormatada}   •   ⏰ Validade: ${validadeEmDias} dias corridos`,
                       size: 15,
                       color: 'A7F3D0',
                       font: 'Arial',
@@ -824,81 +826,101 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
   // ----------------------------------------------------
   // SEÇÃO: APRESENTAÇÃO INSTITUCIONAL & ENGENHARIA
   // ----------------------------------------------------
-  docChildren.push(
-    ...createSectionHeader(
-      'Apresentação Institucional & Engenharia',
-      'Delfos Engenharia Solar — Projetos fotovoltaicos de alta eficiência e homologação completa.',
-    ),
-  )
+  if (conteudo.secaoApresentacao.visivel) {
+    docChildren.push(
+      ...createSectionHeader(
+        conteudo.secaoApresentacao.titulo,
+        conteudo.secaoApresentacao.subtitulo,
+      ),
+    )
 
-  // Card institucional com dados da Delfos Engenharia e Engenheiro Responsável
-  docChildren.push(
-    new Table({
-      width: { size: PAGE_CONTENT_WIDTH, type: WidthType.DXA },
-      borders: {
-        top: { style: BorderStyle.SINGLE, size: 8, color: COLOR_ACCENT },
-        bottom: { style: BorderStyle.SINGLE, size: 8, color: COLOR_ACCENT },
-        left: { style: BorderStyle.SINGLE, size: 24, color: COLOR_PRIMARY },
-        right: { style: BorderStyle.SINGLE, size: 8, color: COLOR_ACCENT },
-      },
-      rows: [
-        new TableRow({
-          children: [
-            new TableCell({
-              width: { size: PAGE_CONTENT_WIDTH, type: WidthType.DXA },
-              shading: { type: ShadingType.CLEAR, fill: COLOR_LIGHT_BG },
-              margins: { top: 120, bottom: 120, left: 140, right: 140 },
-              children: [
-                new Paragraph({
-                  children: [
-                    new TextRun({
-                      text: '[DESDE 2014] ',
-                      bold: true,
-                      size: 14,
-                      color: '0A539E',
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: 'Delfos Engenharia Ltda (Delfos Solar)\n',
-                      bold: true,
-                      size: 22,
-                      color: COLOR_PRIMARY,
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: 'CNPJ: 21.379.952/0001-38  •  Erechim / RS\n',
-                      bold: true,
-                      size: 16,
-                      color: COLOR_TEXT_DARK,
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: 'Responsável Técnico: Eng. João Victor Bagetti Fuchs — CREA RS151894\n',
-                      bold: true,
-                      size: 16,
-                      color: COLOR_ACCENT,
-                      font: 'Arial',
-                    }),
-                  ],
-                }),
-                new Paragraph({
-                  spacing: { before: 60 },
-                  children: [
-                    new TextRun({
-                      text: 'Engenharia própria especializada em projetos fotovoltaicos, homologação e garantia de desempenho. Atuação completa Turnkey com equipe de engenharia habilitada e suporte contínuo.',
-                      size: 15,
-                      color: COLOR_TEXT_MUTED,
-                      font: 'Arial',
-                    }),
-                  ],
-                }),
-              ],
-            }),
-          ],
-        }),
-      ],
-    }),
-  )
+    // Card institucional com dados da Delfos Engenharia e Engenheiro Responsável
+    docChildren.push(
+      new Table({
+        width: { size: PAGE_CONTENT_WIDTH, type: WidthType.DXA },
+        borders: {
+          top: { style: BorderStyle.SINGLE, size: 8, color: COLOR_ACCENT },
+          bottom: { style: BorderStyle.SINGLE, size: 8, color: COLOR_ACCENT },
+          left: { style: BorderStyle.SINGLE, size: 24, color: COLOR_PRIMARY },
+          right: { style: BorderStyle.SINGLE, size: 8, color: COLOR_ACCENT },
+        },
+        rows: [
+          new TableRow({
+            children: [
+              new TableCell({
+                width: { size: PAGE_CONTENT_WIDTH, type: WidthType.DXA },
+                shading: { type: ShadingType.CLEAR, fill: COLOR_LIGHT_BG },
+                margins: { top: 120, bottom: 120, left: 140, right: 140 },
+                children: [
+                  new Paragraph({
+                    children: [
+                      new TextRun({
+                        text: `[${conteudo.secaoApresentacao.tempoAtuacaoBadge}] `,
+                        bold: true,
+                        size: 14,
+                        color: '0A539E',
+                        font: 'Arial',
+                      }),
+                      new TextRun({
+                        text: `${conteudo.secaoApresentacao.titulo}\n`,
+                        bold: true,
+                        size: 22,
+                        color: COLOR_PRIMARY,
+                        font: 'Arial',
+                      }),
+                      new TextRun({
+                        text: `${conteudo.secaoApresentacao.subtitulo}\n`,
+                        bold: true,
+                        size: 16,
+                        color: COLOR_ACCENT,
+                        font: 'Arial',
+                      }),
+                    ],
+                  }),
+                  new Paragraph({
+                    spacing: { before: 60 },
+                    children: [
+                      new TextRun({
+                        text: conteudo.secaoApresentacao.textoDescritivo,
+                        size: 15,
+                        color: COLOR_TEXT_MUTED,
+                        font: 'Arial',
+                      }),
+                    ],
+                  }),
+                  ...(conteudo.secaoApresentacao.diferenciais.length > 0
+                    ? [
+                        new Paragraph({
+                          spacing: { before: 80, after: 40 },
+                          children: [
+                            new TextRun({
+                              text: 'DIFERENCIAIS DELFOS SOLAR:\n',
+                              bold: true,
+                              size: 14,
+                              color: COLOR_PRIMARY,
+                              font: 'Arial',
+                            }),
+                            ...conteudo.secaoApresentacao.diferenciais.map(
+                              (dif) =>
+                                new TextRun({
+                                  text: `• ${dif.titulo}: ${dif.descricao}\n`,
+                                  size: 13,
+                                  color: COLOR_TEXT_DARK,
+                                  font: 'Arial',
+                                }),
+                            ),
+                          ],
+                        }),
+                      ]
+                    : []),
+                ],
+              }),
+            ],
+          }),
+        ],
+      }),
+    )
+  }
 
   // Portfólio / Tabela de usinas da galeria
   if (dados.secoesHabilitadas?.portfolioUsinas !== false) {
@@ -1043,58 +1065,58 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
   // ----------------------------------------------------
   // SEÇÃO 2: SITUAÇÃO ATUAL
   // ----------------------------------------------------
-  docChildren.push(
-    ...createSectionHeader(
-      '2. Situação Atual',
-      'Diagnóstico do padrão de consumo e despesas recorrentes pagas à concessionária sem retorno, seguido do comparativo acumulado sem solar.',
-    ),
-  )
+  if (conteudo.secaoSituacaoAtual.visivel) {
+    docChildren.push(
+      ...createSectionHeader(
+        `2. ${conteudo.secaoSituacaoAtual.titulo}`,
+        conteudo.secaoSituacaoAtual.subtitulo,
+      ),
+    )
 
-  // 1. Grid Visual em 2 Cards Grandes de Situação Atual (Consumo mensal/anual empilhados e Custo mensal/anual empilhados)
-  // REGRA DE NEGÓCIO: consumo = geração real dimensionada
-  const colWidth2 = Math.floor(PAGE_CONTENT_WIDTH / 2)
-  const consumoKwhMesDocx =
-    calculos.geracaoMediaMensalKwh > 0
-      ? calculos.geracaoMediaMensalKwh
-      : sistema.consumoKwhMes && sistema.consumoKwhMes > 0
-        ? sistema.consumoKwhMes
-        : Math.round(contaHoje / 0.95)
-  const consumoKwhAnoDocx =
-    consumoKwhAnoEstimado > 0 ? consumoKwhAnoEstimado : Math.round(consumoKwhMesDocx * 12)
+    // 1. Grid Visual em 2 Cards Grandes de Situação Atual (Consumo mensal/anual empilhados e Custo mensal/anual empilhados)
+    // REGRA DE NEGÓCIO: consumo = geração real dimensionada
+    const colWidth2 = Math.floor(PAGE_CONTENT_WIDTH / 2)
+    const consumoKwhMesDocx =
+      calculos.geracaoMediaMensalKwh > 0
+        ? calculos.geracaoMediaMensalKwh
+        : sistema.consumoKwhMes && sistema.consumoKwhMes > 0
+          ? sistema.consumoKwhMes
+          : Math.round(contaHoje / 0.95)
+    const consumoKwhAnoDocx =
+      consumoKwhAnoEstimado > 0 ? consumoKwhAnoEstimado : Math.round(consumoKwhMesDocx * 12)
 
-  docChildren.push(
-    new Table({
-      width: { size: PAGE_CONTENT_WIDTH, type: WidthType.DXA },
-      borders: tableBorderDefault,
-      rows: [
-        new TableRow({
-          children: [
-            // Card 1 — Consumo de Energia: Mensal em cima e Anual logo abaixo
-            new TableCell({
-              width: { size: colWidth2, type: WidthType.DXA },
-              shading: { type: ShadingType.CLEAR, fill: 'F8FAFC' },
-              margins: { top: 100, bottom: 100, left: 110, right: 110 },
-              children: [
-                // Topo do card: Consumo
-                new Paragraph({
-                  spacing: { after: 60 },
-                  children: [
-                    new TextRun({
-                      text: '⚡ CONSUMO DE ENERGIA\n',
-                      bold: true,
-                      color: '1D4ED8',
-                      size: 16,
-                      font: 'Arial',
-                    }),
-                    new TextRun({
-                      text: 'Volume consumido da concessionária',
-                      color: '6B7280',
-                      size: 13,
-                      font: 'Arial',
-                    }),
-                  ],
-                }),
-                // Bloco 1: Consumo Mensal
+    docChildren.push(
+      new Table({
+        width: { size: PAGE_CONTENT_WIDTH, type: WidthType.DXA },
+        borders: tableBorderDefault,
+        rows: [
+          new TableRow({
+            children: [
+              // Card 1 — Consumo de Energia: Mensal em cima e Anual logo abaixo
+              new TableCell({
+                width: { size: colWidth2, type: WidthType.DXA },
+                shading: { type: ShadingType.CLEAR, fill: 'F8FAFC' },
+                margins: { top: 100, bottom: 100, left: 110, right: 110 },
+                children: [
+                  // Topo do card: Consumo
+                  new Paragraph({
+                    spacing: { after: 60 },
+                    children: [
+                      new TextRun({
+                        text: `⚡ ${conteudo.secaoSituacaoAtual.consumoTitulo.toUpperCase()}\n`,
+                        bold: true,
+                        color: '1D4ED8',
+                        size: 16,
+                        font: 'Arial',
+                      }),
+                      new TextRun({
+                        text: `${conteudo.secaoSituacaoAtual.consumoSubtitulo}\n`,
+                        size: 13,
+                        color: COLOR_TEXT_MUTED,
+                        font: 'Arial',
+                      }),
+                    ],
+                  }),                // Bloco 1: Consumo Mensal
                 new Paragraph({
                   spacing: { after: 60 },
                   children: [
@@ -1174,21 +1196,20 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
                   spacing: { after: 60 },
                   children: [
                     new TextRun({
-                      text: '💲 CUSTOS COM CONCESSIONÁRIA\n',
+                      text: `💲 ${conteudo.secaoSituacaoAtual.custoTitulo.toUpperCase()}\n`,
                       bold: true,
-                      color: 'B91C1C',
+                      color: 'DC2626',
                       size: 16,
                       font: 'Arial',
                     }),
                     new TextRun({
-                      text: 'Desembolso financeiro sem retorno',
-                      color: '6B7280',
+                      text: `${conteudo.secaoSituacaoAtual.custoSubtitulo}\n`,
                       size: 13,
+                      color: COLOR_TEXT_MUTED,
                       font: 'Arial',
                     }),
                   ],
-                }),
-                // Bloco 1: Custo Mensal (Conta Atual)
+                }),                // Bloco 1: Custo Mensal (Conta Atual)
                 new Paragraph({
                   spacing: { after: 60 },
                   children: [
@@ -1253,7 +1274,7 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
       spacing: { before: 80, after: 40 },
       children: [
         new TextRun({
-          text: `📈 Gastos Acumulados Sem Solar: 1, ${rotuloPeriodoCardMeio} e 25 Anos`,
+          text: `📈 ${conteudo.secaoSituacaoAtual.avisoInerciaTitulo.replace('{periodo}', rotuloPeriodoCardMeio)}`,
           bold: true,
           size: 18,
           color: COLOR_RED,
@@ -1265,7 +1286,7 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
       spacing: { before: 0, after: 60 },
       children: [
         new TextRun({
-          text: 'Total faturado pela concessionária ao longo do tempo considerando o reajuste tarifário histórico da rede elétrica (sem geração própria).',
+          text: conteudo.secaoSituacaoAtual.avisoInerciaSubtitulo,
           size: 15,
           color: COLOR_TEXT_MUTED,
           font: 'Arial',
@@ -1489,12 +1510,13 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
   // ----------------------------------------------------
   // SEÇÃO 3: SEU SISTEMA FOTOVOLTAICO
   // ----------------------------------------------------
-  docChildren.push(
-    ...createSectionHeader(
-      '3. Seu Sistema Fotovoltaico',
-      'Conheça sua usina solar: equipamentos homologados Tier-1 com engenharia própria Delfos Solar.',
-    ),
-  )
+  if (conteudo.secaoSeuSistema.visivel) {
+    docChildren.push(
+      ...createSectionHeader(
+        `3. ${conteudo.secaoSeuSistema.titulo}`,
+        conteudo.secaoSeuSistema.subtitulo,
+      ),
+    )
 
   const colWidthHalf = Math.floor(PAGE_CONTENT_WIDTH / 2)
 
@@ -2173,16 +2195,18 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
     }),
   )
 
+  }
+
   // ----------------------------------------------------
   // SEÇÃO 4: PROJEÇÃO DE ECONOMIA EM 25 ANOS
   // ----------------------------------------------------
-  docChildren.push(
-    ...createSectionHeader(
-      '4. Projeção de Economia em 25 Anos',
-      'Curva de retorno patrimonial: multiplicação do capital, tempo de retorno e eliminação do gasto tarifário.',
-    ),
-  )
-
+  if (conteudo.secaoProjecao25Anos.visivel) {
+    docChildren.push(
+      ...createSectionHeader(
+        `4. ${conteudo.secaoProjecao25Anos.titulo}`,
+        conteudo.secaoProjecao25Anos.subtitulo,
+      ),
+    )
   const colWidthMetricas = Math.floor(PAGE_CONTENT_WIDTH / 3)
   docChildren.push(
     new Table({

@@ -1353,6 +1353,8 @@ export interface OrcamentoSolar extends RecordModel {
   garantia_inversor_anos?: number
   garantia_instalacao_anos?: number
   instalacoes_selecionadas?: string[] | null
+  // Conteúdo customizável da proposta oficial (textos, blocos, checklists e cores)
+  conteudo_proposta?: import('@/lib/conteudoProposta').ConteudoProposta
   // Layout do Telhado (Solergo / imagem técnica)
   layout_telhado?: string
   layout_telhado_habilitado?: boolean
