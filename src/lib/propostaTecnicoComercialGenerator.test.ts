@@ -532,8 +532,8 @@ describe('Proposta Técnico-Comercial Generator (5 Seções Oficiais)', () => {
     expect(html).toContain('De acordo com as especificações e valores da proposta')
     expect(html).toContain('linha-assinatura-final')
     expect(html).toContain('<strong>CPF/CNPJ:</strong>')
-    expect(html).toContain('<strong>Endereço:</strong>')
-    expect(html).toContain('<strong>Contato:</strong>')
+    expect(html).not.toContain('<strong>Endereço:</strong>')
+    expect(html).not.toContain('<strong>Contato:</strong>')
     // Não deve conter a expressão "Não informado"
     expect(html).not.toContain('Não informado')
 

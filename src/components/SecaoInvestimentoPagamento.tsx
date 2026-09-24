@@ -355,13 +355,13 @@ export const SecaoInvestimentoPagamento: React.FC<SecaoInvestimentoPagamentoProp
       aria-label="Investimento e Condições de Pagamento"
     >
       {/* ========================================================================= */}
-      {/* 1. CABEÇALHO DO VALOR TOTAL (PREMIUM, CLEAN)                              */}
+      {/* 1. CABEÇALHO DO VALOR TOTAL (PREMIUM, CLEAN - FUNDO BRANCO)               */}
       {/* ========================================================================= */}
-      <div className="p-6 sm:p-8 bg-white border-t border-b border-[#1a3a5c] text-left">
+      <div className="p-6 sm:p-8 bg-white border border-gray-200 text-left">
         <div className="text-[12pt] font-semibold text-[#374151] leading-tight">
           Investimento Total
         </div>
-        <div className="text-[24pt] sm:text-[28pt] font-extrabold text-[#1a3a5c] leading-tight tracking-tight mt-1 mb-1">
+        <div className="text-[24pt] sm:text-[28pt] font-extrabold text-emerald-700 leading-tight tracking-tight mt-1 mb-1">
           {formatCurrency(totalFinal)}
         </div>
         <div className="inline-flex items-center gap-1.5 text-[10pt] font-semibold text-[#166534]">
@@ -752,45 +752,34 @@ export const SecaoInvestimentoPagamento: React.FC<SecaoInvestimentoPagamentoProp
           const empCnpj = dadosEmpresa?.cnpj ?? '21.379.952/0001-38'
           const empRespTecnico = dadosEmpresa?.responsavelTecnico ?? 'João Victor Bagetti Fuchs'
           const empCrea = dadosEmpresa?.crea ?? 'CREA RS151894'
-          const empEndereco =
-            dadosEmpresa?.endereco ?? 'Rua Espírito Santo, nº 275 – Centro, Erechim/RS'
-          const empTelefone = dadosEmpresa?.telefone ?? '(54) 99129-2121'
-          const empEmail = dadosEmpresa?.email ?? 'contato@delfos.eng.br'
-          const empContato = [empTelefone, empEmail].filter(Boolean).join(' • ')
 
           const cliCpfCnpj = dadosCliente?.cpfOuCnpj || ''
-          const cliEndereco = dadosCliente?.endereco
-            ? `${dadosCliente.endereco}${dadosCliente?.municipio ? `, ${dadosCliente.municipio}` : ''}`
-            : dadosCliente?.municipio || ''
-          const cliContato = [dadosCliente?.telefone, dadosCliente?.email]
-            .filter(Boolean)
-            .join(' • ')
 
           return (
             <div className="pt-2 border-t border-gray-200">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-stretch">
                 {/* Coluna 1: EMPRESA CONTRATADA */}
-                <div className="bg-white rounded-2xl p-5 border border-gray-200 shadow-2xs flex flex-col justify-between h-full">
+                <div className="bg-white rounded-2xl p-3.5 border border-gray-200 shadow-2xs flex flex-col justify-between h-full">
                   {/* Bloco Superior: Cabeçalho com Título e Local/Data + Área de Assinatura */}
                   <div className="flex flex-col flex-1">
                     {/* 1. Topo: Título na linha 1; Local/Data descendo na linha 2 com pequeno espaçamento */}
-                    <div className="min-h-[46px] flex flex-col justify-start">
+                    <div className="min-h-[40px] flex flex-col justify-start">
                       <div className="font-extrabold uppercase tracking-wider text-[#065F46] text-[11px] whitespace-nowrap">
                         EMPRESA CONTRATADA
                       </div>
-                      <div className="text-[11px] text-gray-500 font-medium mt-1.5 whitespace-nowrap">
+                      <div className="text-[11px] text-gray-500 font-medium mt-1 whitespace-nowrap">
                         Erechim / RS, {dataPropostaFormatada}
                       </div>
                     </div>
 
-                    {/* Espaço flexível e livre para assinatura à mão (~55-65px) */}
-                    <div className="flex-1 min-h-[55px]" />
+                    {/* Espaço flexível e livre para assinatura à mão (~36px) */}
+                    <div className="flex-1 min-h-[36px]" />
 
                     {/* 2. Linha de assinatura */}
                     <div className="h-[1.5px] bg-gray-900 w-full" />
 
                     {/* 3. Nome de quem assina + subtítulo (altura padronizada para alinhamento horizontal) */}
-                    <div className="text-center pt-2.5 pb-3 space-y-0.5 min-h-[56px] flex flex-col justify-center">
+                    <div className="text-center pt-2 pb-2 space-y-0.5 min-h-[46px] flex flex-col justify-center">
                       <div className="text-sm font-black text-gray-900 uppercase tracking-wide truncate">
                         {empRespTecnico}
                       </div>
@@ -801,7 +790,7 @@ export const SecaoInvestimentoPagamento: React.FC<SecaoInvestimentoPagamentoProp
                   </div>
 
                   {/* 4. Divisor tracejado + Bloco de dados cadastrais padronizado */}
-                  <div className="border-t border-dashed border-gray-300 pt-3 text-[11px] text-gray-600 space-y-1 min-h-[96px] flex flex-col justify-start">
+                  <div className="border-t border-dashed border-gray-300 pt-2 text-[11px] text-gray-600 space-y-0.5 min-h-[44px] flex flex-col justify-start">
                     <div className="truncate">
                       <strong className="text-gray-900 font-semibold">Razão Social:</strong>{' '}
                       {empRazaoSocial ? `${empRazaoSocial} (Delfos Solar)` : ''}
@@ -813,29 +802,29 @@ export const SecaoInvestimentoPagamento: React.FC<SecaoInvestimentoPagamentoProp
                 </div>
 
                 {/* Coluna 2: CLIENTE / CONTRATANTE */}
-                <div className="bg-white rounded-2xl p-5 border border-gray-200 shadow-2xs flex flex-col justify-between h-full">
+                <div className="bg-white rounded-2xl p-3.5 border border-gray-200 shadow-2xs flex flex-col justify-between h-full">
                   {/* Bloco Superior: Cabeçalho com Título e Local/Data + Área de Assinatura */}
                   <div className="flex flex-col flex-1">
                     {/* 1. Topo: Título na linha 1; Local/Data descendo na linha 2 com pequeno espaçamento */}
-                    <div className="min-h-[46px] flex flex-col justify-start">
+                    <div className="min-h-[40px] flex flex-col justify-start">
                       <div className="font-extrabold uppercase tracking-wider text-[#1E40AF] text-[11px] whitespace-nowrap">
                         CLIENTE / CONTRATANTE
                       </div>
-                      <div className="text-[11px] text-gray-500 font-medium mt-1.5 flex items-center gap-1 whitespace-nowrap overflow-hidden">
+                      <div className="text-[11px] text-gray-500 font-medium mt-1 flex items-center gap-1 whitespace-nowrap overflow-hidden">
                         <span>Local e data:</span>
                         <span className="tracking-tighter">______________________</span>,
                         <span className="tracking-normal">____/____/________</span>
                       </div>
                     </div>
 
-                    {/* Espaço flexível e livre para assinatura à mão (~55-65px) */}
-                    <div className="flex-1 min-h-[55px]" />
+                    {/* Espaço flexível e livre para assinatura à mão (~36px) */}
+                    <div className="flex-1 min-h-[36px]" />
 
                     {/* 2. Linha de assinatura */}
                     <div className="h-[1.5px] bg-gray-900 w-full" />
 
                     {/* 3. Nome do cliente + subtítulo (altura padronizada para alinhamento horizontal) */}
-                    <div className="text-center pt-2.5 pb-3 space-y-0.5 min-h-[56px] flex flex-col justify-center">
+                    <div className="text-center pt-2 pb-2 space-y-0.5 min-h-[46px] flex flex-col justify-center">
                       <div className="text-sm font-black text-gray-900 uppercase tracking-wide truncate">
                         {nomeClienteAssinatura}
                       </div>
@@ -845,8 +834,8 @@ export const SecaoInvestimentoPagamento: React.FC<SecaoInvestimentoPagamentoProp
                     </div>
                   </div>
 
-                  {/* 4. Divisor tracejado + Bloco de dados cadastrais padronizado (sem contato nem endereço da usina) */}
-                  <div className="border-t border-dashed border-gray-300 pt-3 text-[11px] text-gray-600 space-y-1 min-h-[50px] flex flex-col justify-start">
+                  {/* 4. Divisor tracejado + Bloco de dados cadastrais padronizado (SOMENTE Nome/Razão Social e CPF/CNPJ) */}
+                  <div className="border-t border-dashed border-gray-300 pt-2 text-[11px] text-gray-600 space-y-0.5 min-h-[44px] flex flex-col justify-start">
                     <div className="truncate">
                       <strong className="text-gray-900 font-semibold">Nome/Razão Social:</strong>{' '}
                       {nomeClienteAssinatura}

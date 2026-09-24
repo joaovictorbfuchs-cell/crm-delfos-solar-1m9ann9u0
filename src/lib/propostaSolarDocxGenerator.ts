@@ -2446,22 +2446,22 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
       ),
     )
 
-    // Banner do Investimento Total com fundo escuro/esmeralda e valor dourado
+    // Banner do Investimento Total com fundo branco, bordas E5E7EB e valor em verde escuro 065F46
     itens.push(
       new Table({
         width: { size: PAGE_CONTENT_WIDTH, type: WidthType.DXA },
         borders: {
-          top: { style: BorderStyle.SINGLE, size: 8, color: COLOR_ACCENT },
-          bottom: { style: BorderStyle.SINGLE, size: 8, color: COLOR_ACCENT },
-          left: { style: BorderStyle.SINGLE, size: 24, color: COLOR_PRIMARY },
-          right: { style: BorderStyle.SINGLE, size: 8, color: COLOR_ACCENT },
+          top: { style: BorderStyle.SINGLE, size: 8, color: 'E5E7EB' },
+          bottom: { style: BorderStyle.SINGLE, size: 8, color: 'E5E7EB' },
+          left: { style: BorderStyle.SINGLE, size: 8, color: 'E5E7EB' },
+          right: { style: BorderStyle.SINGLE, size: 8, color: 'E5E7EB' },
         },
         rows: [
           new TableRow({
             children: [
               new TableCell({
                 width: { size: PAGE_CONTENT_WIDTH, type: WidthType.DXA },
-                shading: { type: ShadingType.CLEAR, fill: '064E3B' },
+                shading: { type: ShadingType.CLEAR, fill: 'FFFFFF' },
                 margins: { top: 120, bottom: 120, left: 160, right: 160 },
                 children: [
                   new Paragraph({
@@ -2470,14 +2470,14 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
                         text: 'INVESTIMENTO TOTAL TURNKEY (SISTEMA COMPLETO): ',
                         bold: true,
                         size: 17,
-                        color: 'A7F3D0',
+                        color: '374151',
                         font: 'Arial',
                       }),
                       new TextRun({
                         text: formatBRL(investimentoTotal),
                         bold: true,
                         size: 28,
-                        color: 'FDE047',
+                        color: '065F46',
                         font: 'Arial',
                       }),
                     ],
@@ -2488,7 +2488,7 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
                       new TextRun({
                         text: 'Investimento único — o sistema é seu. Equipamentos Tier-1, projeto, ART, instalação e homologação inclusos.',
                         size: 15,
-                        color: 'D1FAE5',
+                        color: '4B5563',
                         font: 'Arial',
                       }),
                     ],
@@ -3308,7 +3308,7 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
                   left: { style: BorderStyle.SINGLE, size: 8, color: 'E5E7EB' },
                   right: { style: BorderStyle.SINGLE, size: 8, color: 'E5E7EB' },
                 },
-                margins: { top: 180, bottom: 180, left: 160, right: 160 },
+                margins: { top: 100, bottom: 100, left: 120, right: 120 },
                 children: [
                   // 1º Local e data no topo com identificação da coluna
                   new Paragraph({
@@ -3328,9 +3328,9 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
                       }),
                     ],
                   }),
-                  // 2º Linha de assinatura + nome (bold, size 16) + função (com ~50-60px de respiro acima da linha e respiro abaixo)
+                  // 2º Linha de assinatura + nome (bold, size 16) + função (com espaçamento comprimido)
                   new Paragraph({
-                    spacing: { before: 800, after: 180 },
+                    spacing: { before: 360, after: 120 },
                     alignment: AlignmentType.CENTER,
                     children: [
                       new TextRun({
@@ -3356,7 +3356,7 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
                   }),
                   // 3º Divisor tracejado e bloco de dados cadastrais compactos
                   new Paragraph({
-                    spacing: { before: 120 },
+                    spacing: { before: 80 },
                     children: [
                       new TextRun({
                         text: '- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -\n',
@@ -3394,7 +3394,7 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
                   }),
                 ],
               }),
-              // Bloco Cliente
+              // Bloco Cliente (SOMENTE Nome/Razão Social e CPF/CNPJ)
               new TableCell({
                 width: { size: PAGE_CONTENT_WIDTH - colAssinaturaWidth, type: WidthType.DXA },
                 shading: { type: ShadingType.CLEAR, fill: 'FFFFFF' },
@@ -3404,7 +3404,7 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
                   left: { style: BorderStyle.SINGLE, size: 8, color: 'E5E7EB' },
                   right: { style: BorderStyle.SINGLE, size: 8, color: 'E5E7EB' },
                 },
-                margins: { top: 180, bottom: 180, left: 160, right: 160 },
+                margins: { top: 100, bottom: 100, left: 120, right: 120 },
                 children: [
                   // 1º Local e data no topo com identificação da coluna
                   new Paragraph({
@@ -3425,7 +3425,7 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
                     ],
                   }),
                   new Paragraph({
-                    spacing: { before: 800, after: 180 },
+                    spacing: { before: 360, after: 120 },
                     alignment: AlignmentType.CENTER,
                     children: [
                       new TextRun({
@@ -3449,9 +3449,9 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
                       }),
                     ],
                   }),
-                  // 3º Divisor tracejado e bloco de dados cadastrais compactos
+                  // 3º Divisor tracejado e bloco de dados cadastrais compactos (SOMENTE Nome/Razão Social e CPF/CNPJ)
                   new Paragraph({
-                    spacing: { before: 120 },
+                    spacing: { before: 80 },
                     children: [
                       new TextRun({
                         text: '- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -\n',
@@ -3480,7 +3480,7 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
                         font: 'Arial',
                       }),
                       new TextRun({
-                        text: `${cliente.cpfOuCnpj || ''}\n`,
+                        text: `${cliente.cpfOuCnpj || ''}`,
                         size: 13,
                         color: '374151',
                         font: 'Arial',

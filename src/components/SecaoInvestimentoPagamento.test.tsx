@@ -222,11 +222,11 @@ describe('SecaoInvestimentoPagamento Component', () => {
     expect(html).toContain('Ana Souza')
     expect(html).toContain('De acordo com as especificações e valores da proposta')
     expect(html).toContain('CPF/CNPJ:')
-    expect(html).toContain('Endereço:')
-    expect(html).toContain('Contato:')
 
-    // NUNCA deve conter o fallback "Não informado"
+    // NUNCA deve conter o fallback "Não informado" nem linhas de contato/endereço removidas
     expect(html).not.toContain('Não informado')
+    expect(html).not.toContain('Endereço:')
+    expect(html).not.toContain('Contato:')
   })
 
   it('renderiza com entradaCartao={5000} e espera "Entrada: R$ 5.000,00" no card de cartão; e com entrada 0 a linha não aparece', () => {
