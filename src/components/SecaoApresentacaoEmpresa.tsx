@@ -31,7 +31,7 @@ interface UsinaCardItem {
  * Seção de Apresentação Institucional da Delfos Solar e Portfólio de Usinas.
  * Replicando exatamente a estrutura da proposta técnica-comercial impressa (A4/PDF):
  * - Parte 1: Quem Somos (H2 "A Delfos Solar", subtítulo verde, badge, 5 diferenciais com ícones)
- * - Parte 2: Portfólio (Grid 3x2 com as 6 usinas e ilustrações de portfolioUsinasAssets)
+ * - Parte 2: Portfólio (Grid 3x2 - 3 linhas x 2 colunas com as 6 usinas e ilustrações de portfolioUsinasAssets)
  */
 export const SecaoApresentacaoEmpresa: React.FC<SecaoApresentacaoEmpresaProps> = ({
   className = '',
@@ -232,8 +232,8 @@ export const SecaoApresentacaoEmpresa: React.FC<SecaoApresentacaoEmpresaProps> =
             </span>
           </div>
 
-          {/* Grid 3x2 */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          {/* Grid 3 linhas x 2 imagens por linha */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {usinasExibicao.slice(0, 6).map((u) => {
               const potTexto = u.potenciaKwp
                 ? `${u.potenciaKwp.toLocaleString('pt-BR', { minimumFractionDigits: u.potenciaKwp % 1 === 0 ? 0 : 1, maximumFractionDigits: 2 })} kWp`
@@ -244,11 +244,11 @@ export const SecaoApresentacaoEmpresa: React.FC<SecaoApresentacaoEmpresaProps> =
                   key={u.id}
                   className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-xs hover:shadow-md transition-shadow flex flex-col justify-between"
                 >
-                  <div className="relative w-full h-32 bg-slate-100 overflow-hidden border-b border-slate-200">
+                  <div className="relative w-full h-36 bg-slate-100 overflow-hidden border-b border-slate-200 flex items-center justify-center">
                     <img
                       src={u.foto}
                       alt={u.titulo}
-                      className="w-full h-full object-cover"
+                      className="w-full h-full object-contain"
                       loading="lazy"
                     />
                     <span

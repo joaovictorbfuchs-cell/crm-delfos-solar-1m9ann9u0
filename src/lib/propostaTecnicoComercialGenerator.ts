@@ -999,8 +999,8 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
     }
     .grid-portfolio-6 {
       display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      grid-template-rows: repeat(2, auto);
+      grid-template-columns: repeat(2, 1fr);
+      grid-template-rows: repeat(3, auto);
       gap: 8px;
     }
     .card-portfolio-usina {
@@ -1018,15 +1018,18 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
     .card-portfolio-thumb-wrap {
       position: relative;
       width: 100%;
-      height: 98px;
+      height: 105px;
       background: #F1F5F9;
       overflow: hidden;
       border-bottom: 1px solid #E2E8F0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
     .card-portfolio-thumb-img {
       width: 100%;
       height: 100%;
-      object-fit: cover;
+      object-fit: contain;
       display: block;
       border-top-left-radius: 9px;
       border-top-right-radius: 9px;

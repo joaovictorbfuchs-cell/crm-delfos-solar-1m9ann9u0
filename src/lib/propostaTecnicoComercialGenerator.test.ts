@@ -968,10 +968,15 @@ describe('Proposta Técnico-Comercial Generator (5 Seções Oficiais)', () => {
       expect(htmlClaiton).toContain('Erechim')
       expect(htmlClaiton).toContain('Pato Branco')
 
-      // 6 ocorrências de card de usina na grade 3x2 do portfólio
+      // 6 ocorrências de card de usina na grade de 3 linhas x 2 colunas do portfólio
       const matchesCard = htmlClaiton.match(/class="card-portfolio-usina"/g)
       expect(matchesCard).not.toBeNull()
       expect(matchesCard?.length).toBe(6)
+
+      // Layout com 3 linhas x 2 colunas e object-fit: contain para não cortar as fotos
+      expect(htmlClaiton).toContain('grid-template-columns: repeat(2, 1fr)')
+      expect(htmlClaiton).toContain('grid-template-rows: repeat(3, auto)')
+      expect(htmlClaiton).toContain('object-fit: contain')
 
       // 2. Confirmação com secoesHabilitadas.portfolioUsinas === false:
       // A Parte 1 (Quem Somos) DEVE aparecer mesmo com o portfólio desligado
