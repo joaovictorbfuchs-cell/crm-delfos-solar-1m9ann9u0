@@ -2344,33 +2344,34 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
        SEÇÃO 5 — INVESTIMENTO & CONDIÇÕES DE PAGAMENTO (ESPELHADO DO SecaoInvestimentoPagamento.tsx)
        ========================================================== */
     .hero-investimento-clean {
-      background: #FFFFFF;
-      border-top: 1px solid #1a3a5c;
-      border-bottom: 1px solid #1a3a5c;
-      padding: 12px 0;
-      margin-bottom: 12px;
+      background: #FFFFFF !important;
+      border: 1.5px solid #16A34A;
+      border-radius: 12px;
+      padding: 10px 16px;
+      margin-bottom: 10px;
       text-align: left;
       page-break-inside: avoid;
       break-inside: avoid;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
     }
     .hero-invest-label {
       font-size: 13pt;
-      font-weight: 700;
-      color: #374151;
+      font-weight: 800;
+      color: #064E3B;
       line-height: 1.2;
     }
     .hero-invest-valor {
       font-size: 26pt;
-      font-weight: 800;
-      color: #1a3a5c;
+      font-weight: 900;
+      color: #064E3B;
       line-height: 1.15;
       margin: 4px 0 2px 0;
       letter-spacing: -0.01em;
     }
     .hero-invest-economia {
       font-size: 11pt;
-      font-weight: 600;
-      color: #166534;
+      font-weight: 700;
+      color: #047857;
       display: inline-flex;
       align-items: center;
       gap: 4px;
@@ -2556,56 +2557,59 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
     .badge-urgencia-validade {
       background: linear-gradient(90deg, #F59E0B 0%, #EA580C 100%);
       color: #FFFFFF;
-      padding: 10px 18px;
-      border-radius: 14px;
-      font-size: 10pt;
+      padding: 6px 14px;
+      border-radius: 10px;
+      font-size: 9pt;
       font-weight: 800;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      margin-bottom: 12px;
-      box-shadow: 0 4px 10px rgba(234, 88, 12, 0.2);
+      margin-bottom: 8px;
+      box-shadow: 0 2px 6px rgba(234, 88, 12, 0.15);
     }
 
     .assinaturas-grid-final {
       border-top: 1.5px solid #E5E7EB;
-      padding-top: 12px;
-      margin-top: 12px;
+      padding-top: 6px;
+      margin-top: 6px;
       display: grid;
       grid-template-columns: 1fr 1fr;
       align-items: stretch;
-      gap: 24px;
-      font-size: 9.5pt;
+      gap: 12px;
+      font-size: 9pt;
+      page-break-inside: avoid !important;
+      break-inside: avoid !important;
     }
     .assinatura-bloco {
       background: #FFFFFF;
       border: 1px solid #E5E7EB;
-      border-radius: 12px;
-      padding: 14px 16px;
+      border-radius: 10px;
+      padding: 8px 12px;
       display: flex;
       flex-direction: column;
       justify-content: space-between;
       box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
       height: 100%;
       box-sizing: border-box;
+      page-break-inside: avoid !important;
+      break-inside: avoid !important;
     }
     .assinatura-topo-bloco {
-      min-height: 40px;
+      min-height: 30px;
       display: flex;
       flex-direction: column;
       justify-content: flex-start;
     }
     .assinatura-dados {
-      font-size: 8.5pt;
-      line-height: 1.5;
+      font-size: 8pt;
+      line-height: 1.35;
       color: #4B5563;
-      min-height: 78px;
       box-sizing: border-box;
     }
     .linha-assinatura-final {
       border-bottom: 1.5px solid #111827;
-      margin-top: 55px;
-      margin-bottom: 8px;
+      margin-top: 26px;
+      margin-bottom: 5px;
       width: 100%;
     }
 
@@ -3759,11 +3763,11 @@ ${(() => {
       <div class="secao-body">
         ${renderInternalHeader(conteudo.secaoInvestimento.titulo || 'Investimento e Condições de Pagamento', 5, 'investimento')}
 
-        <!-- CABEÇALHO DO VALOR TOTAL (PREMIUM & CLEAN) -->
-        <div class="hero-investimento-clean" style="${conteudo.secaoInvestimento.corDestaque ? `background: linear-gradient(135deg, ${conteudo.secaoInvestimento.corDestaque} 0%, #064E3B 100%);` : ''}">
-          <div class="hero-invest-label">${conteudo.secaoInvestimento.titulo}</div>
-          <div class="hero-invest-valor">${formatBRL(investimentoTotal)}</div>
-          <div class="hero-invest-economia">
+        <!-- CABEÇALHO DO VALOR TOTAL (PREMIUM & CLEAN - FUNDO BRANCO) -->
+        <div class="hero-investimento-clean" style="background: #FFFFFF !important; border: 1.5px solid #16A34A; border-radius: 10px; padding: 10px 14px;">
+          <div class="hero-invest-label" style="color: #374151;">${conteudo.secaoInvestimento.titulo}</div>
+          <div class="hero-invest-valor" style="color: #065F46 !important;">${formatBRL(investimentoTotal)}</div>
+          <div class="hero-invest-economia" style="color: #166534;">
             <span style="font-size: 9pt; line-height: 1;">▲</span>
             <span>Economia mensal estimada: ${formatBRL(economiaMensal)}</span>
           </div>
@@ -4051,30 +4055,30 @@ print-color-adjust: exact !important; margin-bottom: 8px; display: flex; align-i
             <div>
               <!-- 1. Topo: Categoria na linha 1; Local e data descendo na linha 2 com pequeno espaçamento -->
               <div class="assinatura-topo-bloco">
-                <div style="font-size: 8.5pt; font-weight: 800; text-transform: uppercase; color: #065F46; letter-spacing: 0.05em; white-space: nowrap;">
+                <div style="font-size: 8pt; font-weight: 800; text-transform: uppercase; color: #065F46; letter-spacing: 0.05em; white-space: nowrap;">
                   EMPRESA CONTRATADA
                 </div>
-                <div style="font-size: 8.5pt; color: #6B7280; font-weight: 600; margin-top: 4px; white-space: nowrap;">
+                <div style="font-size: 7.5pt; color: #6B7280; font-weight: 600; margin-top: 2px; white-space: nowrap;">
                   Erechim / RS, ${dataFormatada}
                 </div>
               </div>
 
-              <!-- 2. Linha de assinatura com ~55px de espaço livre no topo -->
+              <!-- 2. Linha de assinatura comprimida -->
               <div class="linha-assinatura-final"></div>
 
               <!-- 3. Nome de quem assina + subtítulo (altura padronizada para alinhamento horizontal) -->
-              <div style="text-align: center; margin-bottom: 10px; min-height: 42px; display: flex; flex-direction: column; justify-content: center;">
-                <div style="font-size: 10pt; font-weight: 900; color: #111827; text-transform: uppercase; letter-spacing: 0.02em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+              <div style="text-align: center; margin-bottom: 6px; min-height: 34px; display: flex; flex-direction: column; justify-content: center;">
+                <div style="font-size: 9.5pt; font-weight: 900; color: #111827; text-transform: uppercase; letter-spacing: 0.02em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                   ${empresa?.responsavelTecnico ?? 'João Victor Bagetti Fuchs'}
                 </div>
-                <div style="font-size: 8.5pt; font-weight: 700; color: #065F46; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                <div style="font-size: 8pt; font-weight: 700; color: #065F46; margin-top: 1px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                   Responsável Técnico${empresa?.crea ? ` — ${empresa.crea}` : ''}
                 </div>
               </div>
             </div>
 
             <!-- 4. Divisor tracejado sutil e bloco de dados cadastrais padronizado -->
-            <div style="border-top: 1px dashed #E5E7EB; padding-top: 8px; margin-top: 2px;" class="assinatura-dados">
+            <div style="border-top: 1px dashed #E5E7EB; padding-top: 5px; margin-top: 2px;" class="assinatura-dados">
               <div style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"><strong>Razão Social:</strong> ${(empresa?.razaoSocial ?? 'DELFOS ENGENHARIA LTDA') ? `${empresa?.razaoSocial ?? 'DELFOS ENGENHARIA LTDA'} (Delfos Solar)` : ''}</div>
               <div style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"><strong>CNPJ:</strong> ${empresa?.cnpj ?? '21.379.952/0001-38'}</div>
             </div>
@@ -4085,36 +4089,34 @@ print-color-adjust: exact !important; margin-bottom: 8px; display: flex; align-i
             <div>
               <!-- 1. Topo: Categoria na linha 1; Local e data descendo na linha 2 com pequeno espaçamento -->
               <div class="assinatura-topo-bloco">
-                <div style="font-size: 8.5pt; font-weight: 800; text-transform: uppercase; color: #1E40AF; letter-spacing: 0.05em; white-space: nowrap;">
+                <div style="font-size: 8pt; font-weight: 800; text-transform: uppercase; color: #1E40AF; letter-spacing: 0.05em; white-space: nowrap;">
                   CLIENTE / CONTRATANTE
                 </div>
-                <div style="font-size: 8.5pt; color: #6B7280; font-weight: 600; margin-top: 4px; display: inline-flex; align-items: center; gap: 4px; white-space: nowrap;">
+                <div style="font-size: 7.5pt; color: #6B7280; font-weight: 600; margin-top: 2px; display: inline-flex; align-items: center; gap: 4px; white-space: nowrap;">
                   <span>Local e data:</span>
                   <span style="letter-spacing: -0.5px;">______________________</span>,
                   <span style="letter-spacing: 0.5px;">____/____/________</span>
                 </div>
               </div>
 
-              <!-- 2. Linha de assinatura com ~55px de espaço livre no topo -->
+              <!-- 2. Linha de assinatura comprimida -->
               <div class="linha-assinatura-final"></div>
 
               <!-- 3. Nome do cliente + subtítulo (altura padronizada para alinhamento horizontal) -->
-              <div style="text-align: center; margin-bottom: 10px; min-height: 42px; display: flex; flex-direction: column; justify-content: center;">
-                <div style="font-size: 10pt; font-weight: 900; color: #111827; text-transform: uppercase; letter-spacing: 0.02em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+              <div style="text-align: center; margin-bottom: 6px; min-height: 34px; display: flex; flex-direction: column; justify-content: center;">
+                <div style="font-size: 9.5pt; font-weight: 900; color: #111827; text-transform: uppercase; letter-spacing: 0.02em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                   ${nomeCliente}
                 </div>
-                <div style="font-size: 8.5pt; font-weight: 700; color: #1E40AF; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                <div style="font-size: 8pt; font-weight: 700; color: #1E40AF; margin-top: 1px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                   ${conteudo.secaoInvestimento.avisoLegalRodape}
                 </div>
               </div>
             </div>
 
-            <!-- 4. Divisor tracejado sutil e bloco de dados cadastrais padronizado -->
-            <div style="border-top: 1px dashed #E5E7EB; padding-top: 8px; margin-top: 2px;" class="assinatura-dados">
+            <!-- 4. Divisor tracejado sutil e bloco de dados cadastrais padronizado (sem contato nem endereço da usina) -->
+            <div style="border-top: 1px dashed #E5E7EB; padding-top: 5px; margin-top: 2px;" class="assinatura-dados">
               <div style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"><strong>Nome/Razão Social:</strong> ${nomeCliente}</div>
-              <div style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"><strong>${conteudo.dadosCliente.rotuloDocumento}</strong> ${cliente?.cpfOuCnpj || ''}</div>
-              <div style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"><strong>${conteudo.dadosCliente.rotuloEndereco}</strong> ${cliente?.endereco ? `${cliente.endereco}${cliente?.municipio ? `, ${cliente.municipio}` : ''}` : cliente?.municipio || ''}</div>
-              <div style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"><strong>Contato:</strong> ${[cliente?.telefone, cliente?.email].filter(Boolean).join(' • ')}</div>
+              <div style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"><strong>${conteudo.dadosCliente.rotuloDocumento}:</strong> ${cliente?.cpfOuCnpj || ''}</div>
             </div>
           </div>
         </div>      </div>

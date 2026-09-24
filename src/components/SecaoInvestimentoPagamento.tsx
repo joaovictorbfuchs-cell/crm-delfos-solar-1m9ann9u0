@@ -845,8 +845,8 @@ export const SecaoInvestimentoPagamento: React.FC<SecaoInvestimentoPagamentoProp
                     </div>
                   </div>
 
-                  {/* 4. Divisor tracejado + Bloco de dados cadastrais padronizado */}
-                  <div className="border-t border-dashed border-gray-300 pt-3 text-[11px] text-gray-600 space-y-1 min-h-[96px] flex flex-col justify-start">
+                  {/* 4. Divisor tracejado + Bloco de dados cadastrais padronizado (sem contato nem endereço da usina) */}
+                  <div className="border-t border-dashed border-gray-300 pt-3 text-[11px] text-gray-600 space-y-1 min-h-[50px] flex flex-col justify-start">
                     <div className="truncate">
                       <strong className="text-gray-900 font-semibold">Nome/Razão Social:</strong>{' '}
                       {nomeClienteAssinatura}
@@ -854,13 +854,6 @@ export const SecaoInvestimentoPagamento: React.FC<SecaoInvestimentoPagamentoProp
                     <div className="truncate">
                       <strong className="text-gray-900 font-semibold">CPF/CNPJ:</strong>{' '}
                       {cliCpfCnpj}
-                    </div>
-                    <div className="truncate">
-                      <strong className="text-gray-900 font-semibold">Endereço:</strong>{' '}
-                      {cliEndereco}
-                    </div>
-                    <div className="truncate">
-                      <strong className="text-gray-900 font-semibold">Contato:</strong> {cliContato}
                     </div>
                   </div>
                 </div>
