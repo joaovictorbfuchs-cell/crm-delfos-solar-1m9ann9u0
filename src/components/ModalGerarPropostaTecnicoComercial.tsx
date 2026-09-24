@@ -202,8 +202,9 @@ export function ModalGerarPropostaTecnicoComercial({
   const secoesHabilitadas =
     orcamento.secoes_habilitadas || (orcamento as any).secoesHabilitadas || undefined
 
-  // Feedback do e-mail
+  // Feedback do e-mail e estado de processamento de PDF
   const [emailStatus, setEmailStatus] = useState<string | null>(null)
+  const [gerandoPDF, setGerandoPDF] = useState<boolean>(false)
 
   // Carregar galeria de fotos
   useEffect(() => {
@@ -508,15 +509,23 @@ export function ModalGerarPropostaTecnicoComercial({
   if (!open) return null
 
   // Ações
-  const handleImprimirOuBaixarPDF = () => {
-    if (dadosAtuais) {
-      abrirPropostaTecnicoComercialEmNovaAba(dadosAtuais)
+  const handleImprimirOuBaixarPDF = async () => {
+    if (!dadosAtuais || gerandoPDF) return
+    try {
+      setGerandoPDF(true)
+      await abrirPropostaTecnicoComercialEmNovaAba(dadosAtuais)
+    } finally {
+      setGerandoPDF(false)
     }
   }
 
-  const handleBaixarHTML = () => {
-    if (dadosAtuais) {
-      baixarPropostaTecnicoComercialHTML(dadosAtuais)
+  const handleBaixarHTML = async () => {
+    if (!dadosAtuais || gerandoPDF) return
+    try {
+      setGerandoPDF(true)
+      await baixarPropostaTecnicoComercialHTML(dadosAtuais)
+    } finally {
+      setGerandoPDF(false)
     }
   }
 
@@ -1126,19 +1135,21 @@ export function ModalGerarPropostaTecnicoComercial({
             {/* Abrir em nova aba para salvar como PDF nativo */}
             <button
               type="button"
+              disabled={gerandoPDF}
               onClick={handleImprimirOuBaixarPDF}
-              className="px-4 py-2 bg-[#16A34A] hover:bg-[#15803D] text-white text-xs font-bold rounded-xl shadow-xs inline-flex items-center gap-1.5 transition-all hover:shadow"
+              className="px-4 py-2 bg-[#16A34A] hover:bg-[#15803D] disabled:opacity-60 disabled:cursor-not-allowed text-white text-xs font-bold rounded-xl shadow-xs inline-flex items-center gap-1.5 transition-all hover:shadow"
               title="Abre a proposta em nova janela pronta para imprimir ou salvar como PDF"
             >
               <Printer className="w-4 h-4" />
-              <span>Baixar em PDF</span>
+              <span>{gerandoPDF ? 'Preparando PDF...' : 'Baixar em PDF'}</span>
             </button>
 
             {/* Download arquivo HTML */}
             <button
               type="button"
+              disabled={gerandoPDF}
               onClick={handleBaixarHTML}
-              className="px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 text-xs font-semibold rounded-xl inline-flex items-center gap-1"
+              className="px-3 py-2 bg-gray-100 hover:bg-gray-200 disabled:opacity-60 disabled:cursor-not-allowed text-gray-800 text-xs font-semibold rounded-xl inline-flex items-center gap-1"
               title="Baixar arquivo da proposta em HTML"
             >
               <Maximize2 className="w-3.5 h-3.5" />

@@ -15,6 +15,7 @@ import {
   type BlocoPropostaId,
   type ConteudoProposta,
 } from '@/lib/conteudoProposta'
+import { prepararDadosPropostaParaPDF } from './propostaImageOptimizer'
 
 export interface PropostaSecoesHabilitadas {
   layoutTelhado?: boolean
@@ -4073,8 +4074,11 @@ print-color-adjust: exact !important; margin-bottom: 8px; display: flex; align-i
 /**
  * Abre a Proposta Técnico-Comercial em uma nova janela pronta para impressão/salvar como PDF.
  */
-export function abrirPropostaTecnicoComercialEmNovaAba(dados: PropostaTecnicoComercialDados): void {
-  const html = gerarHTMLPropostaTecnicoComercial(dados)
+export async function abrirPropostaTecnicoComercialEmNovaAba(
+  dados: PropostaTecnicoComercialDados,
+): Promise<void> {
+  const dadosOtimizados = await prepararDadosPropostaParaPDF(dados)
+  const html = gerarHTMLPropostaTecnicoComercial(dadosOtimizados)
   const blob = new Blob([html], { type: 'text/html;charset=utf-8' })
   const url = URL.createObjectURL(blob)
   window.open(url, '_blank')
@@ -4083,8 +4087,11 @@ export function abrirPropostaTecnicoComercialEmNovaAba(dados: PropostaTecnicoCom
 /**
  * Baixa o arquivo HTML da Proposta Técnico-Comercial no computador.
  */
-export function baixarPropostaTecnicoComercialHTML(dados: PropostaTecnicoComercialDados): void {
-  const html = gerarHTMLPropostaTecnicoComercial(dados)
+export async function baixarPropostaTecnicoComercialHTML(
+  dados: PropostaTecnicoComercialDados,
+): Promise<void> {
+  const dadosOtimizados = await prepararDadosPropostaParaPDF(dados)
+  const html = gerarHTMLPropostaTecnicoComercial(dadosOtimizados)
   const blob = new Blob([html], { type: 'text/html;charset=utf-8' })
   const url = URL.createObjectURL(blob)
   const safeName = (dados?.cliente?.nome || 'Cliente').replace(/[^a-zA-Z0-9]/g, '_')
