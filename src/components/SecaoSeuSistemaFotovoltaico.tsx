@@ -688,7 +688,6 @@ export const SecaoSeuSistemaFotovoltaico: React.FC<SecaoSeuSistemaFotovoltaicoPr
                 <span className="text-[10px] font-bold uppercase tracking-wider text-[#166534] bg-emerald-100/80 px-2 py-0.5 rounded-full border border-[#BBF7D0]">
                   Engenharia On-Grid
                 </span>
-                <span className="text-[10px] text-[#16A34A] font-semibold">Conexão à Rede</span>
               </div>
 
               <div>
@@ -730,7 +729,6 @@ export const SecaoSeuSistemaFotovoltaico: React.FC<SecaoSeuSistemaFotovoltaicoPr
                 <span className="text-[10px] font-bold uppercase tracking-wider text-[#166534] bg-emerald-100/80 px-2 py-0.5 rounded-full border border-[#BBF7D0]">
                   Telemetria em Tempo Real
                 </span>
-                <span className="text-[10px] text-[#16A34A] font-semibold">App Mobile Incluso</span>
               </div>
 
               <div>
@@ -755,11 +753,7 @@ export const SecaoSeuSistemaFotovoltaico: React.FC<SecaoSeuSistemaFotovoltaicoPr
               </div>
             </div>
 
-            <div className="mt-3 pt-2 border-t border-[#BBF7D0]/60 flex items-center justify-between text-[11px] text-[#166534]">
-              <span className="inline-flex items-center gap-1 font-semibold">
-                <CheckCircle2 className="w-3 h-3 text-[#16A34A]" />
-                Suporte e Acesso Vitalício
-              </span>
+            <div className="mt-3 pt-2 border-t border-[#BBF7D0]/60 flex items-center justify-end text-[11px] text-[#166534]">
               <span className="font-bold text-[#16A34A]">iOS & Android</span>
             </div>
           </div>

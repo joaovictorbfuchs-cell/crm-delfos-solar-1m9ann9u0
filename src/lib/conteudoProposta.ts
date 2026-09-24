@@ -275,7 +275,7 @@ export function getConteudoPropostaDefaults(): ConteudoProposta {
         visivel: true,
         corDestaque: '#16A34A',
         badge: 'Engenharia On-Grid',
-        tagDireita: 'Conexão à Rede Concessionária',
+        tagDireita: '',
         titulo: 'Como Funciona o Sistema Solar (On-Grid)',
         descricao:
           'Módulos fotovoltaicos de alta eficiência convertem a radiação solar em energia elétrica contínua. O inversor inteligente sincroniza e transforma essa energia em corrente alternada para o consumo imediato do seu imóvel. O excedente produzido é injetado na concessionária, gerando créditos energéticos abatidos no seu medidor bidirecional.',
@@ -285,11 +285,11 @@ export function getConteudoPropostaDefaults(): ConteudoProposta {
         visivel: true,
         corDestaque: '#16A34A',
         badge: 'Telemetria em Tempo Real',
-        tagDireita: 'App Mobile Incluso',
+        tagDireita: '',
         titulo: 'Monitoramento',
         descricao:
           'Acompanhe a geração de energia em tempo real na palma da mão. Gráficos diários e mensais em kWh, economia acumulada em reais, status de funcionamento do inversor e alertas inteligentes via aplicativo para smartphone (iOS e Android).',
-        checklist: ['Suporte Técnico e Acesso Vitalício', 'iOS & Android'],
+        checklist: ['iOS & Android'],
       },
     },
     secaoProjecao25Anos: {

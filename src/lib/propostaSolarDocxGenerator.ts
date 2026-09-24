@@ -2194,7 +2194,7 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
         const checklistMon =
           blocoMon.checklist && blocoMon.checklist.length > 0
             ? blocoMon.checklist.map((it) => `✓ ${it}`).join('\n')
-            : '✓ Suporte Vitalício\n✓ iOS & Android Inclusos'
+            : '✓ iOS & Android Inclusos'
 
         const larguraImgMon = ambosVisiveisDocx ? 140 : 240
         const alturaImgMon = ambosVisiveisDocx ? 135 : 170

@@ -1371,5 +1371,22 @@ describe('Proposta Técnico-Comercial Generator (5 Seções Oficiais)', () => {
       expect(posSeuSistema).toBeLessThan(posProjecao)
       expect(posProjecao).toBeLessThan(posInvestimento)
     })
+
+    it('(d) Seção 4 possui cabeçalho contendo apenas "SEÇÃO 4 DE 5", sem logo e sem subtítulo no header interno', () => {
+      const html = gerarHTMLPropostaTecnicoComercial(dadosExemplo)
+      const posSecao4 = html.indexOf('id="secao-4-projecao-25anos"')
+      const trechoSecao4 = html.slice(posSecao4, posSecao4 + 1000)
+
+      expect(trechoSecao4).toContain('SEÇÃO 4 DE 5')
+      expect(trechoSecao4).not.toContain('ENGENHARIA & SOLUÇÕES FOTOVOLTAICAS')
+      expect(trechoSecao4).not.toContain('class="header-brand"')
+      expect(trechoSecao4).not.toContain('class="tag-desc"')
+    })
+
+    it('(e) Seção 5 possui quebra de página (page-break-before: always; break-before: page;)', () => {
+      const html = gerarHTMLPropostaTecnicoComercial(dadosExemplo)
+      expect(html).toMatch(/#secao-5-investimento-pagamento\s*\{[^}]*page-break-before:\s*always/s)
+      expect(html).toMatch(/#secao-5-investimento-pagamento\s*\{[^}]*break-before:\s*page/s)
+    })
   })
 })

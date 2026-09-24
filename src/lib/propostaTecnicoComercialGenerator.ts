@@ -223,6 +223,16 @@ function renderLogoSvg(idSuffix: string = '1'): string {
  * Cabeçalho recorrente para páginas internas (seções 2 a 6).
  */
 function renderInternalHeader(secaoTitulo: string, numeroSecao: number, idSuffix: string): string {
+  if (numeroSecao === 4) {
+    return `
+    <header class="doc-header" style="justify-content: flex-end;">
+      <div class="header-tag">
+        <span class="tag-secao">SEÇÃO 4 DE 5</span>
+      </div>
+    </header>
+  `
+  }
+
   return `
     <header class="doc-header">
       <div class="header-brand">
@@ -874,10 +884,13 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
     #secao-apresentacao-empresa,
     #secao-2-custo-inercia,
     #secao-3-seu-sistema,
-    #secao-4-projecao-25anos,
-    #secao-5-investimento-pagamento {
+    #secao-4-projecao-25anos {
       page-break-before: auto;
       break-before: auto;
+    }
+    #secao-5-investimento-pagamento {
+      page-break-before: always;
+      break-before: page;
     }
 
     /* ESTILOS DA SEÇÃO QUEM SOMOS & PORTFÓLIO DE USINAS */
@@ -2655,12 +2668,17 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
         min-height: auto !important;
       }
 
-      /* Seções internas fluem continuamente sem quebra forçada */
+      /* Seções internas fluem continuamente sem quebra forçada, exceto Seção 5 que inicia em nova página */
       #secao-apresentacao-empresa,
       #secao-2-custo-inercia,
       #secao-3-seu-sistema,
-      #secao-4-projecao-25anos,
+      #secao-4-projecao-25anos {
+        page-break-after: auto !important;
+        break-after: auto !important;
+      }
       #secao-5-investimento-pagamento {
+        page-break-before: always !important;
+        break-before: page !important;
         page-break-after: auto !important;
         break-after: auto !important;
       }
