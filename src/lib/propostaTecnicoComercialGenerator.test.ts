@@ -977,6 +977,8 @@ describe('Proposta Técnico-Comercial Generator (5 Seções Oficiais)', () => {
       expect(htmlClaiton).toContain('grid-template-columns: repeat(2, 1fr)')
       expect(htmlClaiton).toContain('grid-template-rows: repeat(3, auto)')
       expect(htmlClaiton).toContain('object-fit: contain')
+      // Legenda de título permitindo quebra em 2 linhas (sem truncar em linha única)
+      expect(htmlClaiton).toContain('-webkit-line-clamp: 2')
 
       // 2. Confirmação com secoesHabilitadas.portfolioUsinas === false:
       // A Parte 1 (Quem Somos) DEVE aparecer mesmo com o portfólio desligado

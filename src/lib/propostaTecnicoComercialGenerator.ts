@@ -1067,11 +1067,13 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
       font-size: 10pt;
       font-weight: 800;
       color: #0A539E;
-      line-height: 1.2;
+      line-height: 1.25;
       margin-bottom: 3px;
-      white-space: nowrap;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
       overflow: hidden;
-      text-overflow: ellipsis;
+      word-break: break-word;
     }
     .card-portfolio-meta-row {
       display: flex;

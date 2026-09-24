@@ -262,7 +262,7 @@ export const SecaoApresentacaoEmpresa: React.FC<SecaoApresentacaoEmpresaProps> =
                   </div>
                   <div className="p-3">
                     <div
-                      className="text-xs font-extrabold text-[#0A539E] truncate mb-1"
+                      className="text-xs font-extrabold text-[#0A539E] line-clamp-2 leading-tight mb-1"
                       title={u.titulo}
                     >
                       {u.titulo}
