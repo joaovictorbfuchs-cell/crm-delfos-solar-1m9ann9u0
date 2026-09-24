@@ -214,6 +214,9 @@ describe('Proposta Técnico-Comercial Generator (5 Seções Oficiais)', () => {
     expect(html).toContain('print-fixed-footer')
     expect(html).toContain('Tier-1 Global')
     expect(html).toContain('doc-footer')
+    expect(html).toContain('doc-footer-card')
+    expect(html).toContain('doc-footer-line-1')
+    expect(html).toContain('doc-footer-line-2')
 
     // Não deve conter modelo antigo ("Quem Somos" corporativo antigo)
     expect(html).not.toContain('A Delfos Solar é especialista em transformar contas de energia')
@@ -543,12 +546,15 @@ describe('Proposta Técnico-Comercial Generator (5 Seções Oficiais)', () => {
 
   it('renderiza o novo rodapé limpo e moderno em uma linha com endereço e site sem CREA/responsável e sem slogan', () => {
     const html = gerarHTMLPropostaTecnicoComercial(dadosExemplo)
-    // Novo formato em uma linha nas seções internas (doc-footer)
+    // Novo formato nas seções internas (doc-footer) e na impressão (.print-fixed-footer)
     expect(html).toContain('Delfos Engenharia Solar | CNPJ 21.379.952/0001-38')
     expect(html).toContain('(54) 99129-2121')
     expect(html).toContain('www.delfos.eng.br')
     expect(html).toContain('Rua Espírito Santo, 275 – Centro, Erechim/RS')
     expect(html).toContain('Proposta válida por 5 dias.')
+    expect(html).toContain('doc-footer-card')
+    expect(html).toContain('doc-footer-line-1')
+    expect(html).toContain('doc-footer-line-2')
     expect(html).toContain('Valores estimados sem iluminação pública.')
     expect(html).toContain('Consumo considerado igual à energia gerada.')
     expect(html).toContain('Fio B progressivo até 2029 conforme Lei 14.300/2021 (GD II).')

@@ -240,26 +240,27 @@ function renderInternalHeader(secaoTitulo: string, numeroSecao: number, idSuffix
 }
 
 /**
- * Rodapé recorrente para todas as seções.
+ * Componente canônico de rodapé da Proposta Delfos Solar:
+ * - Container com bordas arredondadas, fundo claro (#F9FAFB) e linha superior fina verde (#86EFAC);
+ * - Linha 1: logo Delfos + Delfos Engenharia Solar + CNPJ 21.379.952/0001-38 + fone + site;
+ * - Linha 2: endereço (Rua Espírito Santo, 275 – Centro, Erechim/RS);
+ * - Linha 3: "Proposta válida por X dias." centralizado, em tamanho menor.
+ *
+ * Utilizado de forma idêntica no preview em tela (renderInternalFooter) e no bloco
+ * de impressão fixa de todas as páginas em PDF (.print-fixed-footer).
  */
-function renderInternalFooter(numeroSecao?: number, validadeDias?: number): string {
+function renderFooterContent(idSuffix: string = 'def', validadeDias?: number): string {
   const hasValidade = typeof validadeDias === 'number' && validadeDias > 0
   const validadeLinha = hasValidade
     ? `<div class="doc-footer-validade-bar">Proposta válida por ${validadeDias} dias.</div>`
     : ''
 
-  const notaPremissasFinanceiras =
-    numeroSecao === 4 || numeroSecao === 5
-      ? `<div class="doc-footer-nota-financeira">Valores estimados sem iluminação pública. Consumo considerado igual à energia gerada. A taxa mínima (custo de disponibilidade) só é cobrada quando o consumo faturado fica abaixo do mínimo. Fio B progressivo até 2029 conforme Lei 14.300/2021 (GD II). Reajuste tarifário de 9% a.a. é premissa comercial.</div>`
-      : ''
-
   return `
-    <footer class="doc-footer">
-      ${notaPremissasFinanceiras}
-      <div class="doc-footer-main-row">
+    <div class="doc-footer-card">
+      <div class="doc-footer-line-1">
         <div class="doc-footer-item-left">
           <div class="doc-footer-logo-card">
-            ${renderLogoSvg('ftr-' + (numeroSecao || 'def'))}
+            ${renderLogoSvg('ftr-' + idSuffix)}
           </div>
           <span>Delfos Engenharia Solar | CNPJ 21.379.952/0001-38</span>
         </div>
@@ -279,7 +280,8 @@ function renderInternalFooter(numeroSecao?: number, validadeDias?: number): stri
           </svg>
           <span>www.delfos.eng.br</span>
         </div>
-        <div class="doc-footer-sep">•</div>
+      </div>
+      <div class="doc-footer-line-2">
         <div class="doc-footer-item-address">
           <svg class="doc-footer-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
@@ -289,6 +291,23 @@ function renderInternalFooter(numeroSecao?: number, validadeDias?: number): stri
         </div>
       </div>
       ${validadeLinha}
+    </div>
+  `
+}
+
+/**
+ * Rodapé recorrente para todas as seções (renderizado no preview em tela).
+ */
+function renderInternalFooter(numeroSecao?: number, validadeDias?: number): string {
+  const notaPremissasFinanceiras =
+    numeroSecao === 4 || numeroSecao === 5
+      ? `<div class="doc-footer-nota-financeira">Valores estimados sem iluminação pública. Consumo considerado igual à energia gerada. A taxa mínima (custo de disponibilidade) só é cobrada quando o consumo faturado fica abaixo do mínimo. Fio B progressivo até 2029 conforme Lei 14.300/2021 (GD II). Reajuste tarifário de 9% a.a. é premissa comercial.</div>`
+      : ''
+
+  return `
+    <footer class="doc-footer">
+      ${notaPremissasFinanceiras}
+      ${renderFooterContent(String(numeroSecao || 'def'), validadeDias)}
     </footer>
   `
 }
@@ -1097,26 +1116,46 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
 
     /* RODAPÉ RECORRENTE PROFISSIONAL — CLEAN & MODERNO */
     .doc-footer {
+      margin-top: 8px;
+      page-break-inside: avoid;
+      break-inside: avoid;
+    }
+    .doc-footer-card {
       border-top: 1.5px solid #86EFAC;
       background: #F9FAFB;
       color: #374151;
       border-radius: 8px;
       padding: 5px 10px 4px 10px;
-      margin-top: 8px;
       box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
-      page-break-inside: avoid;
-      break-inside: avoid;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 2.5px;
+      box-sizing: border-box;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
     }
-    .doc-footer-main-row {
+    .doc-footer-line-1 {
       display: flex;
       align-items: center;
       justify-content: center;
       flex-wrap: wrap;
-      gap: 8px;
-      font-size: 8.5pt;
+      gap: 7px;
+      font-size: 8pt;
       font-weight: 600;
       color: #374151;
-      line-height: 1.25;
+      line-height: 1.2;
+      text-align: center;
+    }
+    .doc-footer-line-2 {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 7.5pt;
+      font-weight: 500;
+      color: #4B5563;
+      line-height: 1.2;
       text-align: center;
     }
     .doc-footer-item-left {
@@ -1134,6 +1173,8 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
       height: 15px;
       width: 42px;
       border: 1px solid #E5E7EB;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
     }
     .doc-footer-logo-card svg {
       width: 100%;
@@ -1163,13 +1204,19 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
     .doc-footer-icon {
       width: 10.5px;
       height: 10.5px;
-      color: #4ADE80;
+      color: #16A34A;
       flex-shrink: 0;
+      display: inline-block;
+      vertical-align: middle;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
     }
     .doc-footer-sep {
-      color: #86EFAC;
+      color: #16A34A;
       font-weight: 800;
       font-size: 8.5px;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
     }
     .doc-footer-nota-financeira {
       margin-bottom: 3px;
@@ -1181,12 +1228,14 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
       letter-spacing: 0.005em;
     }
     .doc-footer-validade-bar {
-      margin-top: 3px;
+      margin-top: 1px;
       text-align: center;
-      font-size: 7.5px;
+      font-size: 7.2pt;
       font-weight: 500;
       color: #065F46;
       letter-spacing: 0.01em;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
     }
 
     /* ==========================================================
@@ -2438,7 +2487,7 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
       .proposta-container {
         max-width: 100% !important;
         box-sizing: border-box !important;
-        padding-bottom: 12mm !important;
+        padding-bottom: 22mm !important;
       }
 
       /* Fluxo contínuo sem containers A4 de altura fixa e sem quebras forçadas entre seções */
@@ -2485,24 +2534,39 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
 
       /* Rodapé fixo na base da página repetido em todas as páginas impressas */
       .print-fixed-footer {
-        display: flex !important;
+        display: block !important;
         position: fixed !important;
         bottom: 0 !important;
         left: 0 !important;
         right: 0 !important;
         width: 100% !important;
         box-sizing: border-box !important;
-        background: #FFFFFF !important;
-        border-top: 1px solid #86EFAC !important;
-        padding: 3mm 0 1mm 0 !important;
-        font-size: 7pt !important;
-        font-weight: 600 !important;
-        color: #374151 !important;
-        line-height: 1.3 !important;
-        text-align: center !important;
-        align-items: center !important;
-        justify-content: center !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        background: transparent !important;
+        border: none !important;
         z-index: 9999 !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+      .print-fixed-footer .doc-footer-card {
+        border-top: 1.5px solid #86EFAC !important;
+        background: #F9FAFB !important;
+        box-shadow: none !important;
+        border-radius: 8px !important;
+        padding: 2.5mm 3mm 2mm 3mm !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+      .print-fixed-footer .doc-footer-icon,
+      .print-fixed-footer .doc-footer-sep {
+        color: #16A34A !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+      .print-fixed-footer .doc-footer-logo-card {
+        background: #FFFFFF !important;
+        border: 1px solid #E5E7EB !important;
         -webkit-print-color-adjust: exact !important;
         print-color-adjust: exact !important;
       }
@@ -3878,7 +3942,7 @@ print-color-adjust: exact !important; margin-bottom: 8px; display: flex; align-i
 
   <!-- RODAPÉ FIXO NA BASE REPETIDO EM TODAS AS PÁGINAS IMPRESSAS -->
   <div class="print-fixed-footer" aria-hidden="true">
-    Delfos Engenharia Solar | CNPJ 21.379.952/0001-38 | (54) 99129-2121 | www.delfos.eng.br | Rua Espirito Santo, 275 – Centro, Erechim/RS
+    ${renderFooterContent('print-fixed', validade)}
   </div>
 
 </body>
