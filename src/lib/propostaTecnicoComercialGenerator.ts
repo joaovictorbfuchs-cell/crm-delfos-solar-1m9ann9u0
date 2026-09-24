@@ -790,13 +790,58 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
       transform: translateY(-1px);
     }
 
-    /* CONTÊINER GERAL */
+    /* CONTÊINER GERAL (LARGURA EXATA A4 COM MARGENS LATERAIS DE 0,7cm / 7mm) */
     .proposta-container {
       width: 210mm;
       max-width: 100%;
       box-sizing: border-box;
       margin: 0 auto;
+      padding-left: 7mm;
+      padding-right: 7mm;
       padding-bottom: 24px;
+      position: relative;
+    }
+
+    /* MARCAS VISUAIS DE QUEBRA DE PÁGINA A4 (APENAS EM TELA / PREVIEW) */
+    .preview-page-break-marker {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      position: absolute;
+      left: 0;
+      right: 0;
+      width: 100%;
+      pointer-events: none;
+      z-index: 50;
+      transform: translateY(-50%);
+    }
+    .preview-page-break-line {
+      flex: 1;
+      height: 1px;
+      border-top: 1.5px dashed #94A3B8;
+      opacity: 0.85;
+    }
+    .preview-page-break-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      background: #F1F5F9;
+      color: #475569;
+      border: 1px solid #CBD5E1;
+      border-radius: 9999px;
+      padding: 2px 10px;
+      font-size: 8pt;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+      user-select: none;
+    }
+    .preview-page-break-badge svg {
+      width: 11px;
+      height: 11px;
+      color: #64748B;
     }
 
     /* PÁGINA INDIVIDUAL DA PROPOSTA (MODO PREVIEW DE TELA COM MARGENS A4: 7mm em todos os lados) */
@@ -2607,6 +2652,12 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
         page-break-inside: avoid !important;
         break-inside: avoid !important;
       }
+
+      /* OCULTA TOTALMENTE AS MARCAS DE QUEBRA DE PÁGINA NA IMPRESSÃO / SALVAMENTO EM PDF */
+      .preview-page-break-marker {
+        display: none !important;
+        visibility: hidden !important;
+      }
     }
   </style>
 </head>
@@ -3945,6 +3996,71 @@ print-color-adjust: exact !important; margin-bottom: 8px; display: flex; align-i
     ${renderFooterContent('print-fixed', validade)}
   </div>
 
+  <script>
+    // Inserção automática de marcadores visuais de quebra de página A4 apenas para o preview em tela
+    (function() {
+      function calcularEInserirMarcasQuebraA4() {
+        try {
+          var container = document.querySelector('.proposta-container');
+          if (!container) return;
+
+          // Remove marcadores anteriores para recalcular precisamente
+          var antigos = container.querySelectorAll('.preview-page-break-marker');
+          for (var i = 0; i < antigos.length; i++) {
+            antigos[i].parentNode.removeChild(antigos[i]);
+          }
+
+          // Converte mm para px usando elemento de teste calibrado
+          var teste = document.createElement('div');
+          teste.style.width = '100mm';
+          teste.style.height = '100mm';
+          teste.style.position = 'absolute';
+          teste.style.visibility = 'hidden';
+          document.body.appendChild(teste);
+          var mmToPx = teste.getBoundingClientRect().height / 100;
+          document.body.removeChild(teste);
+
+          // Altura total da folha A4: 297mm.
+          // Margens de impressão: top 10mm + bottom 12mm = 22mm.
+          // Altura útil da folha A4: 297mm - 22mm = 275mm.
+          var alturaUtilPaginaPx = 275 * mmToPx;
+          var alturaTotalContainer = container.scrollHeight;
+
+          if (alturaTotalContainer <= alturaUtilPaginaPx) return;
+
+          var paginaNum = 1;
+          var posAtual = alturaUtilPaginaPx;
+
+          while (posAtual + 40 < alturaTotalContainer) {
+            var marker = document.createElement('div');
+            marker.className = 'preview-page-break-marker';
+            marker.style.top = Math.round(posAtual) + 'px';
+            marker.innerHTML = '<span class="preview-page-break-line"></span>' +
+              '<span class="preview-page-break-badge">' +
+              '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
+              '<polyline points="6 9 12 15 18 9"></polyline>' +
+              '</svg>' +
+              'Quebra de Página A4 (Pág. ' + paginaNum + ' &bull; Pág. ' + (paginaNum + 1) + ')' +
+              '</span>' +
+              '<span class="preview-page-break-line"></span>';
+            container.appendChild(marker);
+            paginaNum++;
+            posAtual += alturaUtilPaginaPx;
+          }
+        } catch (e) {
+          console.warn('Erro ao calcular marcas de quebra de página A4:', e);
+        }
+      }
+
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', calcularEInserirMarcasQuebraA4);
+      } else {
+        calcularEInserirMarcasQuebraA4();
+      }
+      window.addEventListener('load', calcularEInserirMarcasQuebraA4);
+      window.addEventListener('resize', calcularEInserirMarcasQuebraA4);
+    })();
+  </script>
 </body>
 </html>`
 }

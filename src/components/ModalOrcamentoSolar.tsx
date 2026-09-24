@@ -4061,14 +4061,16 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                       Visualização idêntica ao PDF final • atualiza em tempo real
                     </span>
                   </div>
-                  <div className="p-2 sm:p-4 bg-slate-100 flex justify-center">
-                    <iframe
-                      ref={previewIframeRef}
-                      title="Preview da Proposta"
-                      srcDoc={htmlPropostaPreview}
-                      sandbox="allow-same-origin allow-modals allow-scripts"
-                      className="w-full h-[80vh] min-h-[700px] bg-white border border-gray-300 rounded-xl shadow-inner"
-                    />
+                  <div className="p-2 sm:p-4 bg-slate-200/75 flex justify-center overflow-x-auto">
+                    <div className="w-[210mm] max-w-full px-[7mm] box-border flex justify-center">
+                      <iframe
+                        ref={previewIframeRef}
+                        title="Preview da Proposta"
+                        srcDoc={htmlPropostaPreview}
+                        sandbox="allow-same-origin allow-modals allow-scripts"
+                        className="w-[210mm] max-w-full h-[85vh] min-h-[750px] bg-white border border-gray-300 rounded-xl shadow-lg"
+                      />
+                    </div>
                   </div>
                 </div>
 
