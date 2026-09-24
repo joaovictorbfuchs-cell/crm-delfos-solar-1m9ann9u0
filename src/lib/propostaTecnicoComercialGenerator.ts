@@ -2060,6 +2060,93 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
       margin-top: 1px;
     }
 
+    /* Grade lado a lado 70/30: Como Funciona o Sistema Solar (70%) + Monitoramento (30%) */
+    .grid-sistema-duas-colunas {
+      display: flex;
+      gap: 12px;
+      align-items: stretch;
+      margin-top: 12px;
+      width: 100%;
+      box-sizing: border-box;
+      page-break-inside: avoid;
+      break-inside: avoid;
+    }
+    .col-como-funciona-70 {
+      flex: 7;
+      width: 70%;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      box-sizing: border-box;
+    }
+    .col-monitoramento-30 {
+      flex: 3;
+      width: 30%;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      box-sizing: border-box;
+    }
+    .col-sistema-full {
+      width: 100% !important;
+      flex: 1 1 100% !important;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      box-sizing: border-box;
+    }
+    .card-sistema-col {
+      background: #F0FDF4;
+      border: 1.5px solid #BBF7D0;
+      border-radius: 12px;
+      padding: 10px 12px;
+      box-shadow: 0 1px 3px rgba(22, 163, 74, 0.08);
+      page-break-inside: avoid;
+      break-inside: avoid;
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      box-sizing: border-box;
+    }
+    .card-sistema-col-header-compact {
+      background: linear-gradient(90deg, #064E3B 0%, #065F46 100%);
+      color: #FFFFFF;
+      border-radius: 6px;
+      padding: 4px 8px;
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+      line-height: 1.2;
+    }
+    .card-sistema-col-title {
+      font-size: 9pt;
+      font-weight: 800;
+      color: #FFFFFF;
+      letter-spacing: 0.01em;
+      margin: 0;
+      line-height: 1.2;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .card-sistema-col-pill {
+      font-size: 7pt;
+      font-weight: 800;
+      text-transform: uppercase;
+      background: rgba(255, 255, 255, 0.18);
+      color: #D1FAE5;
+      padding: 1px 6px;
+      border-radius: 9999px;
+      border: 1px solid rgba(255, 255, 255, 0.25);
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
     /* Faixa de Monitoramento com smartphone e visual esmeralda */
     .faixa-monitoramento {
       background: linear-gradient(90deg, #065F46 0%, #047857 50%, #0D9488 100%);
@@ -2635,6 +2722,32 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
         break-after: avoid !important;
       }
 
+      /* Preserva grade lado a lado 70/30 no papel / PDF */
+      .grid-sistema-duas-colunas {
+        display: flex !important;
+        flex-direction: row !important;
+        gap: 10px !important;
+        align-items: stretch !important;
+        width: 100% !important;
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+      }
+      .col-como-funciona-70 {
+        flex: 7 !important;
+        width: 70% !important;
+        min-width: 0 !important;
+      }
+      .col-monitoramento-30 {
+        flex: 3 !important;
+        width: 30% !important;
+        min-width: 0 !important;
+      }
+      .col-sistema-full {
+        width: 100% !important;
+        flex: 1 1 100% !important;
+        min-width: 0 !important;
+      }
+
       /* page-break-inside: avoid em cada BLOCO INDIVIDUAL (cards, quadros de economia, caixas de destaque, assinaturas) */
       .card-marco-inercia,
       .quadro-resumo-economia,
@@ -2654,6 +2767,8 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
       .badge-urgencia-validade,
       .box-barras-inercia,
       .grafico-curvas-box,
+      .grid-sistema-duas-colunas,
+      .card-sistema-col,
       table, tr, td, th {
         page-break-inside: avoid !important;
         break-inside: avoid !important;
@@ -3491,62 +3606,80 @@ ${(() => {
           `
         })()}
 
-        <!-- BLOCOS EXPLICATIVOS COM ILUSTRAÇÕES OFICIAIS DA PROPOSTA -->
-        <div style="display: flex; flex-direction: column; gap: 12px; margin-top: 12px;">
-          <!-- Bloco 1: Como Funciona o Sistema Solar (On-Grid) -->
-          ${
-            conteudo.secaoSeuSistema.blocoComoFunciona?.visivel !== false
-              ? `
-          <div style="width: 100%; background: #F0FDF4; border: 1.5px solid #BBF7D0; border-radius: 12px; padding: 14px 16px; box-shadow: 0 1px 3px rgba(22, 163, 74, 0.08); page-break-inside: avoid; break-inside: avoid; ${conteudo.secaoSeuSistema.blocoComoFunciona.corDestaque ? `border-left: 4px solid ${conteudo.secaoSeuSistema.blocoComoFunciona.corDestaque};` : ''}">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-              <span style="font-size: 8.5px; font-weight: 800; text-transform: uppercase; background: #DCFCE7; color: #166534; padding: 2px 8px; border-radius: 9999px; border: 1px solid #BBF7D0;">
-                ${conteudo.secaoSeuSistema.blocoComoFunciona.badge}
-              </span>
-              <span style="font-size: 8.5px; font-weight: 700; color: #16A34A;">${conteudo.secaoSeuSistema.blocoComoFunciona.tagDireita}</span>
-            </div>
-            <div style="font-size: 13.5pt; font-weight: 900; color: #166534; line-height: 1.3; margin-bottom: 4px;">
-              ${conteudo.secaoSeuSistema.blocoComoFunciona.titulo}
-            </div>
-            <p style="font-size: 10pt; color: #374151; line-height: 1.48; margin: 0 0 10px 0;">
-              ${conteudo.secaoSeuSistema.blocoComoFunciona.descricao}
-            </p>
-            <div style="border-radius: 10px; overflow: hidden; border: 1px solid #BBF7D0; background: #FFFFFF; display: flex; align-items: center; justify-content: center; padding: 10px;">
-              <img src="${onGridPngAsset}" alt="${conteudo.secaoSeuSistema.blocoComoFunciona.titulo}" style="width: 70%; min-width: 60%; height: auto; max-height: 240px; margin: 0 auto; display: block; object-fit: contain;" />
-            </div>
-            <div style="margin-top: 8px; padding-top: 6px; border-top: 1px solid #BBF7D0; display: flex; justify-content: space-between; font-size: 9.5pt; color: #166534; font-weight: 800;">
-              ${(conteudo.secaoSeuSistema.blocoComoFunciona.checklist || []).map((it) => `<span>✓ ${it}</span>`).join('')}
-            </div>
-          </div>`
-              : ''
+        <!-- BLOCOS EXPLICATIVOS COM ILUSTRAÇÕES OFICIAIS (DUAS COLUNAS LADO A LADO 70/30) -->
+        ${(() => {
+          const showComoFunciona = conteudo.secaoSeuSistema.blocoComoFunciona?.visivel !== false
+          const showMonitoramento =
+            conteudo.secaoSeuSistema.blocoMonitoramentoDetalhado?.visivel !== false
+
+          if (!showComoFunciona && !showMonitoramento) {
+            return ''
           }
 
-          <!-- Bloco 2: Monitoramento logo abaixo -->
-          ${
-            conteudo.secaoSeuSistema.blocoMonitoramentoDetalhado?.visivel !== false
-              ? `
-          <div style="width: 100%; background: #F0FDF4; border: 1.5px solid #BBF7D0; border-radius: 12px; padding: 12px 16px; box-shadow: 0 1px 3px rgba(22, 163, 74, 0.08); page-break-inside: avoid; break-inside: avoid; ${conteudo.secaoSeuSistema.blocoMonitoramentoDetalhado.corDestaque ? `border-left: 4px solid ${conteudo.secaoSeuSistema.blocoMonitoramentoDetalhado.corDestaque};` : ''}">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-              <span style="font-size: 8.5pt; font-weight: 800; text-transform: uppercase; background: #DCFCE7; color: #166534; padding: 2px 8px; border-radius: 9999px; border: 1px solid #BBF7D0;">
-                ${conteudo.secaoSeuSistema.blocoMonitoramentoDetalhado.badge}
-              </span>
-              <span style="font-size: 8.5pt; font-weight: 700; color: #16A34A;">${conteudo.secaoSeuSistema.blocoMonitoramentoDetalhado.tagDireita}</span>
-            </div>
-            <div style="font-size: 13.5pt; font-weight: 900; color: #166534; line-height: 1.3; margin-bottom: 4px;">
-              ${conteudo.secaoSeuSistema.blocoMonitoramentoDetalhado.titulo}
-            </div>
-            <p style="font-size: 10pt; color: #374151; line-height: 1.48; margin: 0 0 8px 0;">
-              ${conteudo.secaoSeuSistema.blocoMonitoramentoDetalhado.descricao}
-            </p>
-            <div style="border-radius: 8px; overflow: hidden; border: 1px solid #BBF7D0; background: #FFFFFF; display: flex; align-items: center; justify-content: center; padding: 8px;">
-              <img src="${monitoramentoPngAsset}" alt="${conteudo.secaoSeuSistema.blocoMonitoramentoDetalhado.titulo}" style="width: 50%; min-width: 40%; height: auto; max-height: 140px; margin: 0 auto; display: block; object-fit: contain;" />
-            </div>
-            <div style="margin-top: 8px; padding-top: 6px; border-top: 1px solid #BBF7D0; display: flex; justify-content: space-between; font-size: 9.5pt; color: #166534; font-weight: 800;">
-              ${(conteudo.secaoSeuSistema.blocoMonitoramentoDetalhado.checklist || []).map((it) => `<span>✓ ${it}</span>`).join('')}
+          const ambosVisiveis = showComoFunciona && showMonitoramento
+          const colClassComoFunciona = ambosVisiveis ? 'col-como-funciona-70' : 'col-sistema-full'
+          const colClassMonitoramento = ambosVisiveis ? 'col-monitoramento-30' : 'col-sistema-full'
+
+          const htmlComoFunciona = showComoFunciona
+            ? `
+          <div class="${colClassComoFunciona}">
+            <div class="card-sistema-col" style="${conteudo.secaoSeuSistema.blocoComoFunciona.corDestaque ? `border-left: 4px solid ${conteudo.secaoSeuSistema.blocoComoFunciona.corDestaque};` : ''}">
+              <div class="card-sistema-col-header-compact" style="${conteudo.secaoSeuSistema.blocoComoFunciona.corDestaque ? `background: linear-gradient(90deg, ${conteudo.secaoSeuSistema.blocoComoFunciona.corDestaque} 0%, #064E3B 100%);` : ''}">
+                <div class="card-sistema-col-title" title="${conteudo.secaoSeuSistema.blocoComoFunciona.titulo}">
+                  <span>⚡</span> ${conteudo.secaoSeuSistema.blocoComoFunciona.titulo}
+                </div>
+                ${
+                  conteudo.secaoSeuSistema.blocoComoFunciona.tagDireita
+                    ? `<span class="card-sistema-col-pill">${conteudo.secaoSeuSistema.blocoComoFunciona.tagDireita}</span>`
+                    : ''
+                }
+              </div>
+              <p style="font-size: 8.5pt; color: #374151; line-height: 1.4; margin: 0 0 8px 0;">
+                ${conteudo.secaoSeuSistema.blocoComoFunciona.descricao}
+              </p>
+              <div style="flex: 1; border-radius: 8px; overflow: hidden; border: 1px solid #BBF7D0; background: #FFFFFF; display: flex; align-items: center; justify-content: center; padding: 6px; min-height: 140px;">
+                <img src="${onGridPngAsset}" alt="${conteudo.secaoSeuSistema.blocoComoFunciona.titulo}" style="width: 85%; max-width: 100%; height: auto; max-height: 200px; margin: 0 auto; display: block; object-fit: contain;" />
+              </div>
+              <div style="margin-top: 6px; padding-top: 5px; border-top: 1px solid #BBF7D0; display: flex; justify-content: space-between; font-size: 8pt; color: #166534; font-weight: 800; flex-wrap: wrap; gap: 4px;">
+                ${(conteudo.secaoSeuSistema.blocoComoFunciona.checklist || []).map((it) => `<span>✓ ${it}</span>`).join('')}
+              </div>
             </div>
           </div>`
-              : ''
-          }
-        </div>      </div>
+            : ''
+
+          const htmlMonitoramento = showMonitoramento
+            ? `
+          <div class="${colClassMonitoramento}">
+            <div class="card-sistema-col" style="${conteudo.secaoSeuSistema.blocoMonitoramentoDetalhado.corDestaque ? `border-left: 4px solid ${conteudo.secaoSeuSistema.blocoMonitoramentoDetalhado.corDestaque};` : ''}">
+              <div class="card-sistema-col-header-compact" style="${conteudo.secaoSeuSistema.blocoMonitoramentoDetalhado.corDestaque ? `background: linear-gradient(90deg, ${conteudo.secaoSeuSistema.blocoMonitoramentoDetalhado.corDestaque} 0%, #064E3B 100%);` : ''}">
+                <div class="card-sistema-col-title" title="${conteudo.secaoSeuSistema.blocoMonitoramentoDetalhado.titulo}">
+                  <span>📱</span> ${conteudo.secaoSeuSistema.blocoMonitoramentoDetalhado.titulo}
+                </div>
+                ${
+                  conteudo.secaoSeuSistema.blocoMonitoramentoDetalhado.tagDireita
+                    ? `<span class="card-sistema-col-pill">${conteudo.secaoSeuSistema.blocoMonitoramentoDetalhado.tagDireita}</span>`
+                    : ''
+                }
+              </div>
+              <p style="font-size: 8pt; color: #374151; line-height: 1.35; margin: 0 0 6px 0;">
+                ${conteudo.secaoSeuSistema.blocoMonitoramentoDetalhado.descricao}
+              </p>
+              <div style="flex: 1; border-radius: 8px; overflow: hidden; border: 1px solid #BBF7D0; background: #FFFFFF; display: flex; align-items: center; justify-content: center; padding: 6px; min-height: 140px;">
+                <img src="${monitoramentoPngAsset}" alt="${conteudo.secaoSeuSistema.blocoMonitoramentoDetalhado.titulo}" style="width: 70%; max-width: 100%; height: auto; max-height: 190px; margin: 0 auto; display: block; object-fit: contain;" />
+              </div>
+              <div style="margin-top: 6px; padding-top: 5px; border-top: 1px solid #BBF7D0; display: flex; flex-direction: column; gap: 2px; font-size: 7.5pt; color: #166534; font-weight: 800;">
+                ${(conteudo.secaoSeuSistema.blocoMonitoramentoDetalhado.checklist || []).map((it) => `<span>✓ ${it}</span>`).join('')}
+              </div>
+            </div>
+          </div>`
+            : ''
+
+          return `
+          <div class="grid-sistema-duas-colunas">
+            ${htmlComoFunciona}
+            ${htmlMonitoramento}
+          </div>`
+        })()}      </div>
       ${renderInternalFooter(3, validade)}
     </section>`
 

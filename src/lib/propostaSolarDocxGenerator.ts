@@ -2053,151 +2053,257 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
 
     // ----------------------------------------------------
     // BLOCOS: COMO FUNCIONA O SISTEMA SOLAR (ON-GRID) & MONITORAMENTO
-    // Utiliza as ilustrações oficiais da proposta (onGridPngAsset e monitoramentoPngAsset)
-    // Fundo #F0FDF4, borda #BBF7D0 e acentos verdes (#16A34A / #166534)
+    // Renderizado em duas colunas lado a lado 70% / 30% na mesma página
+    // - Coluna esquerda 70%: "Como Funciona o Sistema Solar" (infográfico maior e texto completo)
+    // - Coluna direita 30%: "Monitoramento pelo Smartphone" (smartphone + texto enxuto)
+    // - Título fino em verde escuro integrado (#064E3B)
+    // - Suporta visibilidade isolada caso um dos blocos esteja oculto
     // ----------------------------------------------------
-    const [imgOnGridBytes, imgMonitoramentoBytes] = await Promise.all([
-      compressImageToUint8Array(onGridPngAsset, 800, 0.78, false),
-      compressImageToUint8Array(monitoramentoPngAsset, 800, 0.78, false),
-    ])
+    const showComoFuncionaDocx = conteudo.secaoSeuSistema.blocoComoFunciona?.visivel !== false
+    const showMonitoramentoDocx =
+      conteudo.secaoSeuSistema.blocoMonitoramentoDetalhado?.visivel !== false
 
-    const colWidthBlocos = Math.floor(PAGE_CONTENT_WIDTH / 2)
-    itens.push(
-      new Table({
-        width: { size: PAGE_CONTENT_WIDTH, type: WidthType.DXA },
-        borders: {
-          top: { style: BorderStyle.SINGLE, size: 8, color: 'BBF7D0' },
-          bottom: { style: BorderStyle.SINGLE, size: 8, color: 'BBF7D0' },
-          left: { style: BorderStyle.SINGLE, size: 8, color: 'BBF7D0' },
-          right: { style: BorderStyle.SINGLE, size: 8, color: 'BBF7D0' },
-          insideVertical: { style: BorderStyle.SINGLE, size: 8, color: 'BBF7D0' },
-          insideHorizontal: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
-        },
-        rows: [
-          new TableRow({
+    if (showComoFuncionaDocx || showMonitoramentoDocx) {
+      const [imgOnGridBytes, imgMonitoramentoBytes] = await Promise.all([
+        showComoFuncionaDocx
+          ? compressImageToUint8Array(onGridPngAsset, 800, 0.78, false)
+          : Promise.resolve(null),
+        showMonitoramentoDocx
+          ? compressImageToUint8Array(monitoramentoPngAsset, 800, 0.78, false)
+          : Promise.resolve(null),
+      ])
+
+      const ambosVisiveisDocx = showComoFuncionaDocx && showMonitoramentoDocx
+      const colWidthComoFunciona = ambosVisiveisDocx
+        ? Math.floor(PAGE_CONTENT_WIDTH * 0.7)
+        : PAGE_CONTENT_WIDTH
+      const colWidthMonitoramento = ambosVisiveisDocx
+        ? PAGE_CONTENT_WIDTH - colWidthComoFunciona
+        : PAGE_CONTENT_WIDTH
+
+      const celulasLinha: TableCell[] = []
+
+      if (showComoFuncionaDocx) {
+        const blocoCF = conteudo.secaoSeuSistema.blocoComoFunciona
+        const tituloCF = (blocoCF.titulo || 'Como Funciona o Sistema Solar (On-Grid)').toUpperCase()
+        const tagCF = blocoCF.tagDireita ? ` • ${blocoCF.tagDireita.toUpperCase()}` : ''
+        const descCF =
+          blocoCF.descricao ||
+          'Módulos solares convertem luz em energia contínua e o inversor transforma em corrente alternada para seu imóvel. O excedente gera créditos no medidor bidirecional.'
+        const checklistCF =
+          blocoCF.checklist && blocoCF.checklist.length > 0
+            ? blocoCF.checklist.map((it) => `✓ ${it}`).join(' • ')
+            : '✓ Homologação e ART Inclusa • Turnkey Delfos'
+
+        const larguraImgCF = ambosVisiveisDocx ? 320 : 440
+        const alturaImgCF = ambosVisiveisDocx ? 140 : 180
+
+        celulasLinha.push(
+          new TableCell({
+            width: { size: colWidthComoFunciona, type: WidthType.DXA },
+            shading: { type: ShadingType.CLEAR, fill: 'F0FDF4' },
+            margins: { top: 70, bottom: 80, left: 90, right: 90 },
             children: [
-              // Bloco 1: Como Funciona o Sistema Solar (On-Grid)
-              new TableCell({
-                width: { size: colWidthBlocos, type: WidthType.DXA },
-                shading: { type: ShadingType.CLEAR, fill: 'F0FDF4' },
-                margins: { top: 100, bottom: 100, left: 110, right: 110 },
-                children: [
-                  new Paragraph({
+              // Barra de título compacta verde escuro
+              new Table({
+                width: { size: colWidthComoFunciona - 180, type: WidthType.DXA },
+                borders: {
+                  top: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
+                  bottom: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
+                  left: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
+                  right: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
+                  insideHorizontal: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
+                  insideVertical: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
+                },
+                rows: [
+                  new TableRow({
                     children: [
-                      new TextRun({
-                        text: '⚡ ENGENHARIA ON-GRID • CONEXÃO À REDE\n',
-                        bold: true,
-                        size: 13,
-                        color: '166534',
-                        font: 'Arial',
-                      }),
-                      new TextRun({
-                        text: 'Como funciona o sistema solar (On-Grid)\n',
-                        bold: true,
-                        size: 16,
-                        color: '166534',
-                        font: 'Arial',
-                      }),
-                      new TextRun({
-                        text: 'Módulos solares convertem luz em energia contínua e o inversor transforma em corrente alternada para seu imóvel. O excedente gera créditos no medidor bidirecional.',
-                        size: 13,
-                        color: COLOR_TEXT_MUTED,
-                        font: 'Arial',
-                      }),
-                    ],
-                  }),
-                  ...(imgOnGridBytes
-                    ? [
-                        new Paragraph({
-                          spacing: { before: 80, after: 60 },
-                          alignment: AlignmentType.CENTER,
-                          children: [
-                            new ImageRun({
-                              type: 'png',
-                              data: imgOnGridBytes,
-                              transformation: { width: 230, height: 110 },
-                            }),
-                          ],
-                        }),
-                      ]
-                    : []),
-                  new Paragraph({
-                    children: [
-                      new TextRun({
-                        text: '✓ Homologação e ART Inclusa • Turnkey Delfos',
-                        bold: true,
-                        size: 12,
-                        color: '166534',
-                        font: 'Arial',
+                      new TableCell({
+                        width: { size: colWidthComoFunciona - 180, type: WidthType.DXA },
+                        shading: { type: ShadingType.CLEAR, fill: '064E3B' },
+                        margins: { top: 40, bottom: 40, left: 60, right: 60 },
+                        children: [
+                          new Paragraph({
+                            spacing: { before: 0, after: 0 },
+                            children: [
+                              new TextRun({
+                                text: `⚡ ${tituloCF}${tagCF}`,
+                                bold: true,
+                                size: 14,
+                                color: 'FFFFFF',
+                                font: 'Arial',
+                              }),
+                            ],
+                          }),
+                        ],
                       }),
                     ],
                   }),
                 ],
               }),
-
-              // Bloco 2: Monitoramento
-              new TableCell({
-                width: { size: colWidthBlocos, type: WidthType.DXA },
-                shading: { type: ShadingType.CLEAR, fill: 'F0FDF4' },
-                margins: { top: 100, bottom: 100, left: 110, right: 110 },
+              new Paragraph({
+                spacing: { before: 60, after: 40 },
                 children: [
-                  new Paragraph({
-                    children: [
-                      new TextRun({
-                        text: '📱 TELEMETRIA EM TEMPO REAL • APP MOBILE\n',
-                        bold: true,
-                        size: 13,
-                        color: '166534',
-                        font: 'Arial',
-                      }),
-                      new TextRun({
-                        text: 'Monitoramento\n',
-                        bold: true,
-                        size: 16,
-                        color: '166534',
-                        font: 'Arial',
-                      }),
-                      new TextRun({
-                        text: 'Acompanhe sua geração diária em tempo real na palma da mão: gráficos em kWh, economia acumulada em reais e histórico completo de performance.',
-                        size: 13,
-                        color: COLOR_TEXT_MUTED,
-                        font: 'Arial',
-                      }),
-                    ],
+                  new TextRun({
+                    text: descCF,
+                    size: 13,
+                    color: COLOR_TEXT_MUTED,
+                    font: 'Arial',
                   }),
-                  ...(imgMonitoramentoBytes
-                    ? [
-                        new Paragraph({
-                          spacing: { before: 80, after: 60 },
-                          alignment: AlignmentType.CENTER,
-                          children: [
-                            new ImageRun({
-                              type: 'png',
-                              data: imgMonitoramentoBytes,
-                              transformation: { width: 230, height: 110 },
-                            }),
-                          ],
+                ],
+              }),
+              ...(imgOnGridBytes
+                ? [
+                    new Paragraph({
+                      spacing: { before: 40, after: 40 },
+                      alignment: AlignmentType.CENTER,
+                      children: [
+                        new ImageRun({
+                          type: 'png',
+                          data: imgOnGridBytes,
+                          transformation: { width: larguraImgCF, height: alturaImgCF },
                         }),
-                      ]
-                    : []),
-                  new Paragraph({
-                    children: [
-                      new TextRun({
-                        text: '✓ Suporte e Acesso Vitalício • iOS & Android',
-                        bold: true,
-                        size: 12,
-                        color: '166534',
-                        font: 'Arial',
-                      }),
-                    ],
+                      ],
+                    }),
+                  ]
+                : []),
+              new Paragraph({
+                spacing: { before: 40, after: 0 },
+                children: [
+                  new TextRun({
+                    text: checklistCF,
+                    bold: true,
+                    size: 12,
+                    color: '166534',
+                    font: 'Arial',
                   }),
                 ],
               }),
             ],
           }),
-        ],
-      }),
-    )
+        )
+      }
+
+      if (showMonitoramentoDocx) {
+        const blocoMon = conteudo.secaoSeuSistema.blocoMonitoramentoDetalhado
+        const tituloMon = (blocoMon.titulo || 'Monitoramento pelo Smartphone').toUpperCase()
+        const tagMon = blocoMon.tagDireita ? ` • ${blocoMon.tagDireita.toUpperCase()}` : ''
+        const descMon =
+          blocoMon.descricao ||
+          'Acompanhe a geração em tempo real pelo app mobile: gráficos em kWh, economia acumulada e alertas.'
+        const checklistMon =
+          blocoMon.checklist && blocoMon.checklist.length > 0
+            ? blocoMon.checklist.map((it) => `✓ ${it}`).join('\n')
+            : '✓ Suporte Vitalício\n✓ iOS & Android Inclusos'
+
+        const larguraImgMon = ambosVisiveisDocx ? 140 : 240
+        const alturaImgMon = ambosVisiveisDocx ? 135 : 170
+
+        celulasLinha.push(
+          new TableCell({
+            width: { size: colWidthMonitoramento, type: WidthType.DXA },
+            shading: { type: ShadingType.CLEAR, fill: 'F0FDF4' },
+            margins: { top: 70, bottom: 80, left: 80, right: 80 },
+            children: [
+              // Barra de título compacta verde escuro
+              new Table({
+                width: { size: colWidthMonitoramento - 160, type: WidthType.DXA },
+                borders: {
+                  top: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
+                  bottom: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
+                  left: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
+                  right: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
+                  insideHorizontal: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
+                  insideVertical: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
+                },
+                rows: [
+                  new TableRow({
+                    children: [
+                      new TableCell({
+                        width: { size: colWidthMonitoramento - 160, type: WidthType.DXA },
+                        shading: { type: ShadingType.CLEAR, fill: '064E3B' },
+                        margins: { top: 40, bottom: 40, left: 60, right: 60 },
+                        children: [
+                          new Paragraph({
+                            spacing: { before: 0, after: 0 },
+                            children: [
+                              new TextRun({
+                                text: `📱 ${tituloMon}${tagMon}`,
+                                bold: true,
+                                size: 14,
+                                color: 'FFFFFF',
+                                font: 'Arial',
+                              }),
+                            ],
+                          }),
+                        ],
+                      }),
+                    ],
+                  }),
+                ],
+              }),
+              new Paragraph({
+                spacing: { before: 60, after: 40 },
+                children: [
+                  new TextRun({
+                    text: descMon,
+                    size: 12,
+                    color: COLOR_TEXT_MUTED,
+                    font: 'Arial',
+                  }),
+                ],
+              }),
+              ...(imgMonitoramentoBytes
+                ? [
+                    new Paragraph({
+                      spacing: { before: 30, after: 30 },
+                      alignment: AlignmentType.CENTER,
+                      children: [
+                        new ImageRun({
+                          type: 'png',
+                          data: imgMonitoramentoBytes,
+                          transformation: { width: larguraImgMon, height: alturaImgMon },
+                        }),
+                      ],
+                    }),
+                  ]
+                : []),
+              new Paragraph({
+                spacing: { before: 30, after: 0 },
+                children: [
+                  new TextRun({
+                    text: checklistMon,
+                    bold: true,
+                    size: 11,
+                    color: '166534',
+                    font: 'Arial',
+                  }),
+                ],
+              }),
+            ],
+          }),
+        )
+      }
+
+      itens.push(
+        new Table({
+          width: { size: PAGE_CONTENT_WIDTH, type: WidthType.DXA },
+          borders: {
+            top: { style: BorderStyle.SINGLE, size: 8, color: 'BBF7D0' },
+            bottom: { style: BorderStyle.SINGLE, size: 8, color: 'BBF7D0' },
+            left: { style: BorderStyle.SINGLE, size: 8, color: 'BBF7D0' },
+            right: { style: BorderStyle.SINGLE, size: 8, color: 'BBF7D0' },
+            insideVertical: { style: BorderStyle.SINGLE, size: 8, color: 'BBF7D0' },
+            insideHorizontal: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
+          },
+          rows: [
+            new TableRow({
+              children: celulasLinha,
+            }),
+          ],
+        }),
+      )
+    }
 
     return itens
   }

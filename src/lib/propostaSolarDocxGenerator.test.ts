@@ -114,6 +114,10 @@ describe('propostaSolarDocxGenerator', () => {
     expect(jsonStr).not.toContain('Quem Somos')
     expect(jsonStr).not.toContain('Como Funciona o Sistema Solar On-Grid')
     expect(jsonStr).not.toContain('Monitoramento do Sistema Solar em Tempo Real')
+
+    // Seção Seu Sistema Fotovoltaico: blocos lado a lado 70/30 presentes no DOCX
+    expect(jsonStr).toContain('COMO FUNCIONA O SISTEMA SOLAR (ON-GRID)')
+    expect(jsonStr).toContain('MONITORAMENTO')
   })
 
   it('gera card do meio dinâmico com período de payback arredondado para cima (22 meses -> GASTO EM 2 ANOS)', async () => {

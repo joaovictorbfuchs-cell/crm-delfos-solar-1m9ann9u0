@@ -170,6 +170,9 @@ describe('Proposta Técnico-Comercial Generator (5 Seções Oficiais)', () => {
     expect(html).toContain('Como funciona o sistema solar (On-Grid)')
     expect(html).toContain('alt="Como funciona o sistema solar (On-Grid)"')
     expect(html).toContain('alt="Monitoramento"')
+    expect(html).toContain('grid-sistema-duas-colunas')
+    expect(html).toContain('col-como-funciona-70')
+    expect(html).toContain('col-monitoramento-30')
     // Garante que ambos os blocos possuem imagens em data:image
     expect(html).toContain(`src="${logoOficialPngAsset}"`)
     expect(html).toContain(`src="${onGridPngAsset}"`)
