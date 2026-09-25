@@ -24,6 +24,7 @@ import {
   MinusSquare,
 } from 'lucide-react'
 import { useClientes } from '@/contexts/ClientesContext'
+import { SessaoExpiradaAlert } from '@/components/SessaoExpiradaAlert'
 import { ModalMesclarClientes } from '@/components/ModalMesclarClientes'
 import { OutrosContatosView } from '@/components/OutrosContatosView'
 import { Contact } from 'lucide-react'
@@ -73,6 +74,8 @@ export default function Clientes() {
   }, [])
 
   const {
+    isSessionExpired,
+    authError,
     clientes,
     isLoading,
     openFichaCliente,
@@ -407,6 +410,16 @@ export default function Clientes() {
 
   return (
     <div className="space-y-5">
+      {/* Alerta de Sessão Expirada exibido no topo quando o token expira */}
+      {isSessionExpired && (
+        <SessaoExpiradaAlert
+          mensagem={
+            authError ||
+            'Por motivos de segurança, sua sessão foi encerrada após um período de inatividade ou o token de acesso tornou-se inválido. Por favor, faça login novamente para continuar.'
+          }
+        />
+      )}
+
       {/* Navegação por Sub-Abas Compactas de 2º Nível: Base de Clientes vs Outros Contatos */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 bg-white p-2 sm:p-2.5 rounded-2xl border border-gray-200/80 shadow-2xs">
         <div className="bg-gray-100 p-1 rounded-xl flex items-center text-xs font-semibold text-gray-600 self-stretch sm:self-start shrink-0">
@@ -523,7 +536,7 @@ export default function Clientes() {
           )}
 
           {/* Table / Cards */}
-          {processedClientes.length === 0 ? (
+          {isSessionExpired ? null : processedClientes.length === 0 ? (
             <div className="bg-white rounded-xl border border-gray-200 p-12 text-center text-gray-500 space-y-3">
               <p className="text-sm">Nenhum cliente encontrado com os filtros aplicados.</p>
               {(searchTerm || hasActiveColumnFilters) && (

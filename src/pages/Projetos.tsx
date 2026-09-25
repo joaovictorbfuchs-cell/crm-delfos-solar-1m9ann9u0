@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react'
 import { FolderKanban, Plus, Search, RefreshCw } from 'lucide-react'
 import { useClientes } from '@/contexts/ClientesContext'
+import { SessaoExpiradaAlert } from '@/components/SessaoExpiradaAlert'
 import { Button } from '@/components/ui/button'
 import { KanbanProjetos } from '@/components/KanbanProjetos'
 import { ModalAtribuirProfissional } from '@/components/ModalAtribuirProfissional'
@@ -9,6 +10,8 @@ import type { Projeto, ProjetoEtapa } from '@/types/crm'
 
 export const Projetos: React.FC = () => {
   const {
+    isSessionExpired,
+    authError,
     projetos,
     clientes,
     profissionais,
@@ -96,6 +99,16 @@ export const Projetos: React.FC = () => {
 
   return (
     <div className="space-y-4 max-w-[1700px] mx-auto">
+      {/* Alerta de Sessão Expirada no topo quando o token expira */}
+      {isSessionExpired && (
+        <SessaoExpiradaAlert
+          mensagem={
+            authError ||
+            'Por motivos de segurança, sua sessão foi encerrada após um período de inatividade ou o token de acesso tornou-se inválido. Por favor, faça login novamente para continuar.'
+          }
+        />
+      )}
+
       {/* Top Bar com Título, Métricas e Ações */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 bg-white p-3 sm:p-4 rounded-2xl border border-gray-200 shadow-2xs">
         <div>
@@ -149,7 +162,12 @@ export const Projetos: React.FC = () => {
 
       {/* Funil Visual Kanban */}
       <div className="bg-white p-3 sm:p-4 rounded-2xl border border-gray-200 shadow-2xs min-h-[460px]">
-        {isLoading ? (
+        {isSessionExpired ? (
+          <div className="py-12 text-center text-xs text-amber-800">
+            Sua sessão expirou. Clique em &quot;Fazer Login Novamente&quot; acima para carregar o
+            funil de projetos.
+          </div>
+        ) : isLoading ? (
           <div className="flex items-center justify-center py-20 text-gray-500 text-xs">
             Carregando projetos...
           </div>

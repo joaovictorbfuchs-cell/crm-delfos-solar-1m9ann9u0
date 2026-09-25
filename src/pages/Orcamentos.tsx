@@ -21,6 +21,7 @@ import {
   MessageCircle,
 } from 'lucide-react'
 import { useClientes } from '@/contexts/ClientesContext'
+import { SessaoExpiradaAlert } from '@/components/SessaoExpiradaAlert'
 import { ModalOrcamentoSolar } from '@/components/ModalOrcamentoSolar'
 import { ModalEnviarPropostaWhatsApp } from '@/components/ModalEnviarPropostaWhatsApp'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
@@ -30,6 +31,8 @@ import type { OrcamentoSolar, OrcamentoSolarStatus, Cliente } from '@/types/crm'
 
 export const Orcamentos: React.FC = () => {
   const {
+    isSessionExpired,
+    authError,
     orcamentosSolar,
     clientes,
     usuarios,
@@ -471,8 +474,18 @@ export const Orcamentos: React.FC = () => {
           </button>
         </div>
       </div>
-      {/* Banner de erro quando houver falha ao carregar dados do CRM */}
-      {error && (
+      {/* Alerta de Sessão Expirada exibido no topo quando o token expira */}
+      {isSessionExpired && (
+        <SessaoExpiradaAlert
+          mensagem={
+            authError ||
+            'Por motivos de segurança, sua sessão foi encerrada após um período de inatividade ou o token de acesso tornou-se inválido. Por favor, faça login novamente para continuar.'
+          }
+        />
+      )}
+
+      {/* Banner de erro quando houver falha ao carregar dados do CRM (oculto se sessão expirada) */}
+      {!isSessionExpired && error && (
         <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-center justify-between gap-3 text-xs text-red-800">
           <div className="flex items-start gap-2.5">
             <AlertCircle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
@@ -494,7 +507,7 @@ export const Orcamentos: React.FC = () => {
       )}
 
       {/* Alerta defensivo quando a lista de orçamentos estiver vazia */}
-      {!isLoading && !error && orcamentosSolar.length === 0 && (
+      {!isSessionExpired && !isLoading && !error && orcamentosSolar.length === 0 && (
         <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-center justify-between gap-3 text-xs text-amber-800">
           <div>
             <p className="font-bold">Nenhum orçamento solar carregado na tela.</p>
@@ -857,7 +870,8 @@ export const Orcamentos: React.FC = () => {
       </div>
 
       {/* Lista / Tabela de Propostas (Modo Lista Exclusivo) */}
-      {error && orcamentosSolar.length === 0 ? null : orcamentosFiltrados.length === 0 ? (
+      {isSessionExpired ? null : error &&
+        orcamentosSolar.length === 0 ? null : orcamentosFiltrados.length === 0 ? (
         <div className="bg-white rounded-2xl border border-dashed border-gray-300 p-12 text-center">
           <Sun className="w-12 h-12 text-emerald-400 mx-auto mb-3 stroke-[1.5]" />
           <h3 className="text-base font-bold text-gray-800">Nenhuma proposta encontrada</h3>

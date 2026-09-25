@@ -29,39 +29,47 @@ export function getErrorMessage(error: unknown): string {
 }
 
 /**
- * Detecta se um erro ou status representa falha de autenticação/sessão expirada do PocketBase.
- * Erros 401 (Unauthorized) ou 403 (Forbidden) ao acessar coleções protegidas,
- * além de mensagens explícitas de token inválido/expirado.
+ * Detecta se um erro retornado pelo PocketBase (ou requisição HTTP)
+ * decorre de sessão encerrada, 401 Unauthorized, 403 Forbidden ou token expirado.
  */
 export function isAuthSessionError(error: unknown): boolean {
   if (!error) return false
-  const err = error as any
 
-  // 1. Status HTTP 401 ou 403
-  if (err?.status === 401 || err?.status === 403) return true
-  if (err?.response?.status === 401 || err?.response?.status === 403) return true
-
-  // 2. Erros com código ou nome de token inválido
-  const code = String(err?.code || err?.response?.code || '')
-  if (code === '401' || code === '403') return true
-
-  // 3. Verificação textual na mensagem do erro
-  const msg = String(err?.message || err?.response?.message || '').toLowerCase()
-  if (
-    msg.includes('token') &&
-    (msg.includes('expired') ||
-      msg.includes('invalid') ||
-      msg.includes('revoked') ||
-      msg.includes('expirado'))
-  ) {
-    return true
+  if (error instanceof ClientResponseError) {
+    if (error.status === 401 || error.status === 403) return true
+    const msg = (error.message || '').toLowerCase()
+    if (
+      msg.includes('token') ||
+      msg.includes('authenticate') ||
+      msg.includes('autentic') ||
+      msg.includes('unauthorized') ||
+      msg.includes('forbidden') ||
+      msg.includes('expir')
+    ) {
+      return true
+    }
   }
-  if (
-    msg.includes('failed to authenticate') ||
-    msg.includes('unauthorized') ||
-    msg.includes('sessão expirada')
-  ) {
-    return true
+
+  if (typeof error === 'object' && error !== null) {
+    const errObj = error as { status?: number; response?: { status?: number }; message?: string }
+    const status = errObj.status ?? errObj.response?.status
+    if (status === 401 || status === 403) return true
+    if (typeof errObj.message === 'string') {
+      const msg = errObj.message.toLowerCase()
+      if (
+        msg.includes('401') ||
+        msg.includes('403') ||
+        msg.includes('token expired') ||
+        msg.includes('token inválido') ||
+        msg.includes('token invalido') ||
+        msg.includes('sessão expirada') ||
+        msg.includes('sessao expirada') ||
+        msg.includes('failed to authenticate') ||
+        msg.includes('unauthorized')
+      ) {
+        return true
+      }
+    }
   }
 
   return false
