@@ -7,6 +7,14 @@ export interface OtimizarImagemOptions {
   quality?: number
 }
 
+export interface PrepararDadosPDFOptions {
+  /**
+   * Modo otimizado para envio via WhatsApp (limite rígido de tamanho e payload de gateway).
+   * Reduz dimensões das fotos para caberem com folga no A4 e comprime com qualidade JPEG ~0.72.
+   */
+  otimizarParaWhatsApp?: boolean
+}
+
 // Cache de sessão para evitar re-otimizar a mesma imagem repetidamente
 const imageOptimizationCache = new Map<string, string>()
 
@@ -156,10 +164,31 @@ export async function otimizarImagemParaImpressao(
  */
 export async function prepararDadosPropostaParaPDF(
   dados: PropostaTecnicoComercialDados,
+  options: PrepararDadosPDFOptions = {},
 ): Promise<PropostaTecnicoComercialDados> {
   if (!dados) {
     return dados
   }
+
+  const { otimizarParaWhatsApp = false } = options
+
+  // No modo WhatsApp: fotos de portfólio 600x450 JPEG 0.72 (alta nitidez em A4, baixíssimo peso)
+  // No modo normal: 800x600 JPEG 0.85
+  const fotoPortfolioOpts: OtimizarImagemOptions = otimizarParaWhatsApp
+    ? { maxWidth: 600, maxHeight: 450, mimeType: 'image/jpeg', quality: 0.72 }
+    : { maxWidth: 800, maxHeight: 600, mimeType: 'image/jpeg', quality: 0.85 }
+
+  const fotoModuloOpts: OtimizarImagemOptions = otimizarParaWhatsApp
+    ? { maxWidth: 400, maxHeight: 400, mimeType: 'image/jpeg', quality: 0.78 }
+    : { maxWidth: 600, maxHeight: 600, mimeType: 'image/png' }
+
+  const fotoInversorOpts: OtimizarImagemOptions = otimizarParaWhatsApp
+    ? { maxWidth: 400, maxHeight: 400, mimeType: 'image/jpeg', quality: 0.78 }
+    : { maxWidth: 600, maxHeight: 600, mimeType: 'image/png' }
+
+  const layoutTelhadoOpts: OtimizarImagemOptions = otimizarParaWhatsApp
+    ? { maxWidth: 800, maxHeight: 600, mimeType: 'image/jpeg', quality: 0.75 }
+    : { maxWidth: 1000, maxHeight: 800, mimeType: 'image/jpeg', quality: 0.85 }
 
   try {
     const clone: PropostaTecnicoComercialDados = JSON.parse(JSON.stringify(dados))
@@ -171,12 +200,7 @@ export async function prepararDadosPropostaParaPDF(
       clone.fotosInstalacoes.forEach((item) => {
         if (item && item.url) {
           tarefas.push(
-            otimizarImagemParaImpressao(item.url, {
-              maxWidth: 800,
-              maxHeight: 600,
-              mimeType: 'image/jpeg',
-              quality: 0.85,
-            }).then((otimizada) => {
+            otimizarImagemParaImpressao(item.url, fotoPortfolioOpts).then((otimizada) => {
               if (otimizada) {
                 item.url = otimizada
               }
@@ -189,42 +213,33 @@ export async function prepararDadosPropostaParaPDF(
     // 2. Otimizar foto do módulo fotovoltaico
     if (clone.sistema?.fotoModuloUrl) {
       tarefas.push(
-        otimizarImagemParaImpressao(clone.sistema.fotoModuloUrl, {
-          maxWidth: 600,
-          maxHeight: 600,
-          mimeType: 'image/png',
-        }).then((otimizada) => {
-          if (otimizada && clone.sistema) {
-            clone.sistema.fotoModuloUrl = otimizada
-          }
-        }),
+        otimizarImagemParaImpressao(clone.sistema.fotoModuloUrl, fotoModuloOpts).then(
+          (otimizada) => {
+            if (otimizada && clone.sistema) {
+              clone.sistema.fotoModuloUrl = otimizada
+            }
+          },
+        ),
       )
     }
 
     // 3. Otimizar foto do inversor solar (se presente)
     if (clone.sistema?.fotoInversorUrl) {
       tarefas.push(
-        otimizarImagemParaImpressao(clone.sistema.fotoInversorUrl, {
-          maxWidth: 600,
-          maxHeight: 600,
-          mimeType: 'image/png',
-        }).then((otimizada) => {
-          if (otimizada && clone.sistema) {
-            clone.sistema.fotoInversorUrl = otimizada
-          }
-        }),
+        otimizarImagemParaImpressao(clone.sistema.fotoInversorUrl, fotoInversorOpts).then(
+          (otimizada) => {
+            if (otimizada && clone.sistema) {
+              clone.sistema.fotoInversorUrl = otimizada
+            }
+          },
+        ),
       )
     }
 
     // 4. Otimizar layout do telhado
     if (clone.layoutTelhadoUrl) {
       tarefas.push(
-        otimizarImagemParaImpressao(clone.layoutTelhadoUrl, {
-          maxWidth: 1000,
-          maxHeight: 800,
-          mimeType: 'image/jpeg',
-          quality: 0.85,
-        }).then((otimizada) => {
+        otimizarImagemParaImpressao(clone.layoutTelhadoUrl, layoutTelhadoOpts).then((otimizada) => {
           if (otimizada) {
             clone.layoutTelhadoUrl = otimizada
           }
@@ -233,7 +248,11 @@ export async function prepararDadosPropostaParaPDF(
     }
 
     if (tarefas.length > 0) {
-      await Promise.all(tarefas)
+      // Timeout limite coletivo de 6s para evitar qualquer travamento caso várias imagens externas demorem
+      await Promise.race([
+        Promise.all(tarefas),
+        new Promise((resolve) => setTimeout(resolve, 6000)),
+      ])
     }
 
     return clone

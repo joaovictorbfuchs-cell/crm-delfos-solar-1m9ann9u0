@@ -155,8 +155,10 @@ describe('pdfWhatsAppService — pipeline oficial da proposta', () => {
     // Passo 1: converterInputParaTemplateComercial
     expect(spyConverter).toHaveBeenCalledWith(inputPdf)
 
-    // Passo 2: prepararDadosPropostaParaPDF
-    expect(spyOtimizar).toHaveBeenCalled()
+    // Passo 2: prepararDadosPropostaParaPDF chamado com otimizarParaWhatsApp: true
+    expect(spyOtimizar).toHaveBeenCalledWith(expect.anything(), {
+      otimizarParaWhatsApp: true,
+    })
 
     // Passo 3: gerarHTMLPropostaTecnicoComercial
     expect(spyGerarHTML).toHaveBeenCalled()
@@ -164,8 +166,40 @@ describe('pdfWhatsAppService — pipeline oficial da proposta', () => {
     // Passo 4: html2pdf outputPdf datauristring
     expect(mockOutputPdf).toHaveBeenCalledWith('datauristring')
 
+    // Opções de otimização passadas ao html2pdf
+    expect(mockWorker.set).toHaveBeenCalledWith(
+      expect.objectContaining({
+        html2canvas: expect.objectContaining({ scale: 1.5 }),
+        jsPDF: expect.objectContaining({ compress: true }),
+      }),
+    )
+
     expect(resultado.base64).toBe('data:application/pdf;base64,JVBERi0xLjQKJS4uLg==')
     expect(resultado.fileName).toContain('Proposta_Solar_Delfos')
+  })
+
+  it('rejeita com mensagem amigável quando ocorre timeout na renderização do PDF', async () => {
+    // Simula html2pdf que nunca resolve (promise pendente)
+    const mockWorkerInfinito = {
+      set: vi.fn().mockReturnThis(),
+      from: vi.fn().mockReturnThis(),
+      outputPdf: vi.fn().mockImplementation(() => new Promise(() => {})),
+    }
+    ;(window as any).html2pdf = vi.fn(() => mockWorkerInfinito)
+
+    const inputPdf = construirPropostaSolarPDFInput({
+      id: 'orc-timeout',
+      cliente_id: 'cli-timeout',
+      potencia_kwp: 4.0,
+      valor_investimento: 16000,
+      tipo_cliente: 'residencial',
+      created: '2025-01-01',
+      updated: '2025-01-01',
+    } as any)
+
+    // gerarBase64OrcamentoSolar captura o erro internamente e retorna { base64: '' }
+    const res = await gerarBase64OrcamentoSolar(inputPdf)
+    expect(res.base64).toBe('')
   })
 
   it('não utiliza gerador simplificado de 1 página no fluxo solar', async () => {

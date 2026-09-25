@@ -96,14 +96,32 @@ export const ModalEnviarPropostaWhatsApp: React.FC<ModalEnviarPropostaWhatsAppPr
     const revNum = orcamento.numero_revisao || 1
     setNomeArquivo(`Proposta-Solar-Delfos-${safeNome}-Rev${revNum}.pdf`)
 
-    // Gerar PDF em segundo plano
+    // Gerar PDF em segundo plano com timeout de segurança
     let isCancelled = false
     setIsGeneratingPdf(true)
 
     async function prepararPdf() {
       try {
         const inputPdf = construirPropostaSolarPDFInput(orcamento, cliente)
-        const res = await gerarBase64OrcamentoSolar(inputPdf)
+        // Timeout de segurança no nível do modal (35s)
+        const timeoutPromise = new Promise<{
+          base64: string
+          fallbackText: string
+          fileName: string
+        }>((_, reject) =>
+          setTimeout(
+            () =>
+              reject(
+                new Error(
+                  'Tempo limite de 35s excedido na geração do PDF. O documento pode ser enviado em modo texto ou tente novamente.',
+                ),
+              ),
+            35000,
+          ),
+        )
+
+        const res = await Promise.race([gerarBase64OrcamentoSolar(inputPdf), timeoutPromise])
+
         if (!isCancelled) {
           setBase64Doc(res.base64 || '')
           setTextoFallback(res.fallbackText)
@@ -111,18 +129,18 @@ export const ModalEnviarPropostaWhatsApp: React.FC<ModalEnviarPropostaWhatsAppPr
             setFeedback({
               tipo: 'warning',
               texto:
-                'Não foi possível gerar o PDF oficial completo. Tente novamente ou desmarque "Anexar PDF" para enviar somente a mensagem de texto.',
+                'Não foi possível gerar o PDF oficial completo. Você pode desmarcar "Anexar PDF" para enviar somente a mensagem de texto ou tentar novamente.',
             })
           }
         }
-      } catch (err) {
+      } catch (err: unknown) {
         console.error('Erro ao preparar PDF solar para WhatsApp:', err)
+        const msg = err instanceof Error ? err.message : String(err)
         if (!isCancelled) {
           setBase64Doc('')
           setFeedback({
             tipo: 'error',
-            texto:
-              'Não foi possível gerar o PDF oficial completo. Tente novamente ou desmarque "Anexar PDF" para enviar somente a mensagem de texto.',
+            texto: `Falha na preparação do PDF oficial: ${msg}`,
           })
         }
       } finally {
@@ -208,6 +226,19 @@ export const ModalEnviarPropostaWhatsApp: React.FC<ModalEnviarPropostaWhatsAppPr
         error?: string
       }
 
+      // Timeout de segurança de 45 segundos para a chamada de envio via rede/Z-API
+      const envioTimeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(
+          () =>
+            reject(
+              new Error(
+                'Tempo limite de 45s excedido na comunicação com o Gateway de WhatsApp (Z-API). Verifique o histórico de mensagens.',
+              ),
+            ),
+          45000,
+        ),
+      )
+
       // 2. Enviar com PDF oficial anexo via Z-API ou texto puro
       if (incluirPdf) {
         if (!base64Doc) {
@@ -220,7 +251,7 @@ export const ModalEnviarPropostaWhatsApp: React.FC<ModalEnviarPropostaWhatsAppPr
           return
         }
 
-        resultado = await sendWhatsAppDocument({
+        const envioPromise = sendWhatsAppDocument({
           cliente_id: clienteId,
           telefone_destino: validacaoNumero.numeroLimpo,
           tipo: 'orcamento_solar',
@@ -229,15 +260,19 @@ export const ModalEnviarPropostaWhatsApp: React.FC<ModalEnviarPropostaWhatsAppPr
           nome_arquivo: nomeArquivo || 'Proposta-Solar-Delfos.pdf',
           base64: base64Doc,
         })
+
+        resultado = await Promise.race([envioPromise, envioTimeoutPromise])
       } else {
         // Envio somente de texto
-        resultado = await sendWhatsAppMessage({
+        const envioPromise = sendWhatsAppMessage({
           cliente_id: clienteId,
           telefone_destino: validacaoNumero.numeroLimpo,
           conteudo_final: mensagemLimpa,
           tipo_disparo: 'manual',
           referencia_id: orcamento.id,
         })
+
+        resultado = await Promise.race([envioPromise, envioTimeoutPromise])
       }
 
       if (resultado.sent) {

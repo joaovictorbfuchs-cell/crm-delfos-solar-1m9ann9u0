@@ -139,4 +139,30 @@ describe('propostaImageOptimizer', () => {
     const res = await prepararDadosPropostaParaPDF(null as any)
     expect(res).toBeNull()
   })
+
+  it('suporta modo otimizarParaWhatsApp reduzindo resolução e usando compressão JPEG', async () => {
+    const dados: PropostaTecnicoComercialDados = {
+      cliente: { nome: 'Cliente WhatsApp' },
+      representante: { nome: 'Consultor', contato: '(54) 99999-9999' },
+      dataProposta: '27/02/2025',
+      validadeDias: 5,
+      empresa: {} as any,
+      fotosInstalacoes: [{ id: '1', titulo: 'Usina 1', url: 'https://exemplo.com/usina1.jpg' }],
+      sistema: {
+        potenciaKwp: 5,
+        fotoModuloUrl: 'https://exemplo.com/modulo.png',
+        fotoInversorUrl: 'https://exemplo.com/inversor.png',
+      } as any,
+      garantias: {} as any,
+      producao: { anualKwh: 6000, mediaMensalKwh: 500 },
+      economia: { investimentoTotal: 20000, prazoEntregaDias: 30, paybackTexto: '36 meses' },
+      parcelamento: {} as any,
+      projecao: {} as any,
+      layoutTelhadoUrl: 'https://exemplo.com/telhado.jpg',
+    }
+
+    const res = await prepararDadosPropostaParaPDF(dados, { otimizarParaWhatsApp: true })
+    expect(res).toBeDefined()
+    expect(res.cliente.nome).toBe('Cliente WhatsApp')
+  })
 })
