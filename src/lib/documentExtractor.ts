@@ -686,3 +686,98 @@ export async function prepareDocumentForExtraction(file: File): Promise<Document
     }
   }
 }
+
+/**
+ * Interface compatível com o retorno estruturado de extração de dados de documentos.
+ */
+export interface DocumentoExtraidoSanitizavel {
+  dados_cadastrais?: {
+    nome?: string | null
+    cpf_cnpj?: string | null
+    rg?: string | null
+    data_nascimento?: string | null
+    telefone?: string | null
+    email?: string | null
+    [key: string]: any
+  } | null
+  endereco?: {
+    endereco?: string | null
+    numero?: string | null
+    bairro?: string | null
+    cidade?: string | null
+    estado?: string | null
+    cep?: string | null
+    complemento?: string | null
+    [key: string]: any
+  } | null
+  dados_tecnicos?: {
+    potencia_kwp?: number | null
+    numero_modulos?: number | null
+    fabricante_modulos?: string | null
+    modelo_modulos?: string | null
+    fabricante_inversores?: string | null
+    modelo_inversores?: string | null
+    tipo_telhado?: 'ceramico' | 'metalico' | 'laje' | 'fibrocimento' | null
+    padrao_entrada?: string | null
+    tipo_atendimento?: 'aéreo' | 'subterrâneo' | null
+    numero_fases?: 'monofásico' | 'bifásico' | 'trifásico' | null
+    geracao_mensal_kwh?: number | null
+    [key: string]: any
+  } | null
+  consumo?: {
+    uc?: string | null
+    consumo_kwh_mes?: number | null
+    tarifa?: number | null
+    classe_consumo?: string | null
+    concessionaria?: string | null
+    [key: string]: any
+  } | null
+  [key: string]: any
+}
+
+/**
+ * Sanitiza o JSON estruturado extraído de um documento:
+ * 1. Se `dados_cadastrais.cpf_cnpj` tiver dígitos ≠ 11 e ≠ 14 -> move para `consumo.uc` (se vazio) e anula `cpf_cnpj`.
+ * 2. Se `cpf_cnpj` tiver os mesmos dígitos que `consumo.uc` -> anula `cpf_cnpj` (UC vence, sem duplicação).
+ * Retorna uma cópia profunda/sanitizada dos dados mantendo o tipo original.
+ */
+export function sanitizarDocumentoExtraido<T extends Record<string, any> | null | undefined>(
+  data: T,
+): T {
+  if (!data || typeof data !== 'object') {
+    return data
+  }
+
+  const res = {
+    ...data,
+    dados_cadastrais: { ...(data.dados_cadastrais || {}) },
+    endereco: { ...(data.endereco || {}) },
+    dados_tecnicos: { ...(data.dados_tecnicos || {}) },
+    consumo: { ...(data.consumo || {}) },
+  } as unknown as T
+
+  const target = res as DocumentoExtraidoSanitizavel
+  const rawCpfCnpj = target.dados_cadastrais?.cpf_cnpj
+  if (rawCpfCnpj && typeof rawCpfCnpj === 'string') {
+    const digitsCpfCnpj = rawCpfCnpj.replace(/\D/g, '')
+    const rawUc = target.consumo?.uc
+    const digitsUc = rawUc && typeof rawUc === 'string' ? rawUc.replace(/\D/g, '') : ''
+
+    // Se tiver os mesmos dígitos numéricos que a UC, é duplicação da UC classificada erroneamente como documento
+    if (digitsUc && digitsCpfCnpj === digitsUc) {
+      if (target.dados_cadastrais) {
+        target.dados_cadastrais.cpf_cnpj = null
+      }
+    } else if (digitsCpfCnpj.length !== 11 && digitsCpfCnpj.length !== 14) {
+      // Dígitos ≠ 11 e ≠ 14 não formam CPF nem CNPJ válido: move para UC se estiver vazia
+      if (target.consumo && (!target.consumo.uc || !String(target.consumo.uc).trim())) {
+        target.consumo.uc = rawCpfCnpj
+      }
+      if (target.dados_cadastrais) {
+        target.dados_cadastrais.cpf_cnpj = null
+      }
+    }
+  }
+
+  return res
+}

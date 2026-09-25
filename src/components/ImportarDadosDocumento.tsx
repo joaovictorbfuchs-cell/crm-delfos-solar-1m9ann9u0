@@ -29,7 +29,12 @@ import {
   type DocumentoExtraidoData,
   type ExtractDocumentResult,
 } from '@/services/documentExtractionService'
-import { isOrcamentoFornecedorTexto, extrairOrcamentoFotovoltaicoPDF } from '@/lib/orcamentoParser'
+import {
+  isOrcamentoFornecedorTexto,
+  extrairOrcamentoFotovoltaicoPDF,
+  validarCNPJ,
+} from '@/lib/orcamentoParser'
+import { validarCPF } from '@/lib/cpfValidator'
 import type {
   Cliente,
   Sistema,
@@ -133,7 +138,10 @@ export const ImportarDadosDocumento: React.FC<ImportarDadosDocumentoProps> = ({
       })
     }
     if (cad.cpf_cnpj) {
-      const isCnpj = cad.cpf_cnpj.replace(/\D/g, '').length > 11
+      const digits = cad.cpf_cnpj.replace(/\D/g, '')
+      // Com o sanitizador a montante, a classificação por dígitos > 11 é confiável.
+      // Reforçamos com a validação de formato/dígito verificador de CNPJ/CPF quando aplicável.
+      const isCnpj = digits.length > 11 || (validarCNPJ(cad.cpf_cnpj) && !validarCPF(cad.cpf_cnpj))
       const key = isCnpj ? 'cnpj' : 'cpf'
       const curVal = isCnpj ? cliente.cnpj : cliente.cpf
       items.push({

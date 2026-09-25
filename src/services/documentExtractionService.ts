@@ -2,7 +2,11 @@
  * Serviço de integração com o Agente de IA Nativo do Skip Cloud para Extração de Documentos
  */
 import pb from '@/lib/pocketbase/client'
-import { prepareDocumentForExtraction, type DocumentContentResult } from '@/lib/documentExtractor'
+import {
+  prepareDocumentForExtraction,
+  sanitizarDocumentoExtraido,
+  type DocumentContentResult,
+} from '@/lib/documentExtractor'
 
 export interface DadosCadastraisExtraidos {
   nome?: string | null
@@ -175,9 +179,11 @@ export async function extrairDadosDocumento(
     throw new Error(json.error)
   }
 
+  const dataSanitizada = json.data ? sanitizarDocumentoExtraido(json.data) : null
+
   return {
-    ok: Boolean(json.ok && json.data),
-    data: json.data || null,
+    ok: Boolean(json.ok && dataSanitizada),
+    data: dataSanitizada,
     raw_text: json.raw_text,
     message: json.message,
     conversation_id: json.conversation_id,

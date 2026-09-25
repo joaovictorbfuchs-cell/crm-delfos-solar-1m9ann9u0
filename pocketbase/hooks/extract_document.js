@@ -53,7 +53,11 @@ REGRAS OBRIGATÓRIAS DE RESPOSTA:
   }
 }
 
-3. Mapeamentos específicos:
+3. Mapeamentos específicos e regras CRÍTICAS de classificação:
+- ATENÇÃO MÁXIMA PARA DISTINÇÃO ENTRE UNIDADE CONSUMIDORA (UC) E CPF/CNPJ:
+  * NUNCA confunda número de instalação / código do cliente / unidade consumidora (UC) com CNPJ ou CPF!
+  * Qualquer código ou número identificado próximo ou abaixo de termos como "UC", "Unidade Consumidora", "Nº da Instalação", "Instalação", "Nº do Cliente", "Código do Cliente", "Conta Contrato", "Seu Código", "Código Único" (geralmente com 7 a 12 dígitos, mesmo com pontuação/máscara como "3.584.212.001-72" ou "7001234567-8") vai SEMPRE E OBRIGATORIAMENTE para "consumo.uc" e NUNCA para "dados_cadastrais.cpf_cnpj".
+  * O campo "dados_cadastrais.cpf_cnpj" só recebe valores com EXATAMENTE 11 dígitos (CPF) ou 14 dígitos (CNPJ) próximos a termos como "CPF", "CNPJ", "CPF/CNPJ", "Titular", "Documento", "CNPJ/CPF". Se não constar CPF ou CNPJ de 11 ou 14 dígitos, deixe "cpf_cnpj" como null. NUNCA coloque número de UC ou instalação em "cpf_cnpj".
 - Conta de energia:
   * nome: nome do titular/cliente na fatura
   * endereco / cidade / estado / cep: endereço da instalação/unidade consumidora
@@ -64,7 +68,7 @@ REGRAS OBRIGATÓRIAS DE RESPOSTA:
   * concessionaria: RGE, CPFL, CELESC, COPEL, ENEL, CEMIG, etc.
 - CNH / RG:
   * nome: nome completo
-  * cpf_cnpj: CPF formatado ou numérico
+  * cpf_cnpj: CPF formatado ou numérico (estritamente 11 dígitos)
   * rg: número do RG com órgão emissor se houver
   * data_nascimento: data no formato AAAA-MM-DD ou DD/MM/AAAA
   * endereco / cidade / estado: se constar no documento
@@ -244,6 +248,30 @@ REGRAS OBRIGATÓRIAS DE RESPOSTA:
         message: 'Não foi possível identificar dados estruturados neste documento.',
         conversation_id: null,
       })
+    }
+
+    // Pós-processamento em JS puro (compatível com goja)
+    // 1. Se dados_cadastrais.cpf_cnpj tiver dígitos ≠ 11 e ≠ 14 -> mover para consumo.uc (se vazio) e anular cpf_cnpj
+    // 2. Se cpf_cnpj tiver os mesmos dígitos que consumo.uc -> anular cpf_cnpj (UC vence, sem duplicação)
+    if (parsedData && typeof parsedData === 'object') {
+      if (!parsedData.dados_cadastrais) parsedData.dados_cadastrais = {}
+      if (!parsedData.consumo) parsedData.consumo = {}
+
+      var rawCpfCnpj = parsedData.dados_cadastrais.cpf_cnpj
+      if (rawCpfCnpj && typeof rawCpfCnpj === 'string') {
+        var digitsCpfCnpj = rawCpfCnpj.replace(/\D/g, '')
+        var rawUc = parsedData.consumo.uc
+        var digitsUc = rawUc && typeof rawUc === 'string' ? rawUc.replace(/\D/g, '') : ''
+
+        if (digitsUc && digitsCpfCnpj === digitsUc) {
+          parsedData.dados_cadastrais.cpf_cnpj = null
+        } else if (digitsCpfCnpj.length !== 11 && digitsCpfCnpj.length !== 14) {
+          if (!parsedData.consumo.uc || !String(parsedData.consumo.uc).trim()) {
+            parsedData.consumo.uc = rawCpfCnpj
+          }
+          parsedData.dados_cadastrais.cpf_cnpj = null
+        }
+      }
     }
 
     console.log(
