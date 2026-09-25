@@ -18,12 +18,14 @@ import {
   User,
   ChevronDown,
   X,
+  MessageCircle,
 } from 'lucide-react'
 import { useClientes } from '@/contexts/ClientesContext'
 import { ModalOrcamentoSolar } from '@/components/ModalOrcamentoSolar'
+import { ModalEnviarPropostaWhatsApp } from '@/components/ModalEnviarPropostaWhatsApp'
 import { formatCurrency, formatDate } from '@/lib/formatters'
 import { Button } from '@/components/ui/button'
-import type { OrcamentoSolar, OrcamentoSolarStatus } from '@/types/crm'
+import type { OrcamentoSolar, OrcamentoSolarStatus, Cliente } from '@/types/crm'
 
 export const Orcamentos: React.FC = () => {
   const {
@@ -154,6 +156,22 @@ export const Orcamentos: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false)
   const [editingOrcamento, setEditingOrcamento] = useState<OrcamentoSolar | null>(null)
   const [clienteParaNovoOrcamento, setClienteParaNovoOrcamento] = useState<string>('')
+
+  // Estado para envio da proposta por WhatsApp
+  const [propostaParaWhatsApp, setPropostaParaWhatsApp] = useState<OrcamentoSolar | null>(null)
+  const [clientePropostaWhatsApp, setClientePropostaWhatsApp] = useState<Cliente | null>(null)
+  const [modalWhatsAppOpen, setModalWhatsAppOpen] = useState<boolean>(false)
+
+  const handleAbrirWhatsApp = (
+    orc: OrcamentoSolar,
+    cli: Cliente | null | undefined,
+    e: React.MouseEvent,
+  ) => {
+    e.stopPropagation()
+    setPropostaParaWhatsApp(orc)
+    setClientePropostaWhatsApp(cli || null)
+    setModalWhatsAppOpen(true)
+  }
 
   // Filtragem e Ordenação
   const orcamentosFiltrados = useMemo(() => {
@@ -1022,6 +1040,16 @@ export const Orcamentos: React.FC = () => {
                           className="flex items-center justify-end gap-1.5"
                           onClick={(e) => e.stopPropagation()}
                         >
+                          {/* Botão Enviar por WhatsApp */}
+                          <button
+                            onClick={(e) => handleAbrirWhatsApp(orc, cliente, e)}
+                            className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-600 hover:text-white transition-all text-xs font-bold shadow-2xs group"
+                            title="Enviar proposta por WhatsApp"
+                          >
+                            <MessageCircle className="w-3.5 h-3.5 text-emerald-600 group-hover:text-white transition-colors" />
+                            <span className="hidden sm:inline">WhatsApp</span>
+                          </button>
+
                           {/* Seletor Rápido de Status */}
                           <select
                             value={orc.status}
@@ -1071,6 +1099,28 @@ export const Orcamentos: React.FC = () => {
         initialClienteId={clienteParaNovoOrcamento}
         initialOrcamento={editingOrcamento}
       />
+
+      {/* Modal de Enviar Proposta por WhatsApp */}
+      {propostaParaWhatsApp && (
+        <ModalEnviarPropostaWhatsApp
+          isOpen={modalWhatsAppOpen}
+          onClose={() => {
+            setModalWhatsAppOpen(false)
+            setPropostaParaWhatsApp(null)
+            setClientePropostaWhatsApp(null)
+          }}
+          orcamento={propostaParaWhatsApp}
+          cliente={clientePropostaWhatsApp}
+          onSuccess={() => {
+            // Atualizar status da proposta para "Enviado ao cliente" se ainda estiver "Em elaboração"
+            if (propostaParaWhatsApp.status === 'Em elaboração') {
+              updateOrcamentoSolar(propostaParaWhatsApp.id, {
+                status: 'Enviado ao cliente',
+              }).catch((e) => console.warn('Erro ao atualizar status após WhatsApp:', e))
+            }
+          }}
+        />
+      )}
     </div>
   )
 }
