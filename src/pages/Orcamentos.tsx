@@ -927,9 +927,11 @@ export const Orcamentos: React.FC = () => {
                         </div>
                         <div className="flex items-center gap-1 text-[11px] text-gray-500 mt-0.5">
                           <MapPin className="w-3 h-3 text-gray-400" />
-                          <span>{cliente?.cidade || 'Erechim / RS'}</span>
+                          <span>{cliente?.cidade || '—'}</span>
                           <span className="text-gray-300">•</span>
-                          <span className="capitalize">{orc.tipo_cliente || 'Residencial'}</span>
+                          <span className="capitalize">
+                            {orc.tipo_cliente || cliente?.tipo_cliente || 'Residencial'}
+                          </span>
                         </div>
                       </td>
 

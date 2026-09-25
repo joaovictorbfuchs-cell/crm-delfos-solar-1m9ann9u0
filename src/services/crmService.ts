@@ -20,12 +20,42 @@ import type {
   TimelineOM,
 } from '@/types/crm'
 
+async function withNetworkRetry<T>(
+  fn: () => Promise<T>,
+  retries = 2,
+  delayMs = 600,
+  contextName = 'requisição',
+): Promise<T> {
+  let attempt = 0
+  while (attempt <= retries) {
+    try {
+      return await fn()
+    } catch (err: any) {
+      attempt++
+      const isNetworkError =
+        err?.status === 0 ||
+        !err?.status ||
+        err?.name === 'TypeError' ||
+        String(err?.message || '')
+          .toLowerCase()
+          .includes('failed to fetch') ||
+        String(err?.message || '')
+          .toLowerCase()
+          .includes('network')
+      if (attempt > retries || !isNetworkError) throw err
+      await new Promise((res) => setTimeout(res, delayMs * attempt))
+    }
+  }
+  throw new Error(`Falha após ${retries} tentativas em ${contextName}`)
+}
+
 export async function fetchClientes(): Promise<Cliente[]> {
-  const records = await pb.collection('clientes').getFullList<Cliente>({
-    sort: 'nome',
-    requestKey: null,
-  })
-  return records
+  return withNetworkRetry(
+    () => pb.collection('clientes').getFullList<Cliente>({ sort: 'nome', requestKey: null }),
+    2,
+    600,
+    'fetchClientes',
+  )
 }
 
 function mapUsinaToSistema(usina: import('@/types/crm').UsinaCliente): Sistema {
@@ -135,21 +165,31 @@ export async function fetchSistemaByClienteId(clienteId: string): Promise<Sistem
 }
 
 export async function fetchManutencoes(): Promise<Manutencao[]> {
-  const records = await pb.collection('manutencoes').getFullList<Manutencao>({
-    sort: '-data',
-    expand: 'cliente_id',
-    requestKey: null,
-  })
-  return records
+  return withNetworkRetry(
+    () =>
+      pb.collection('manutencoes').getFullList<Manutencao>({
+        sort: '-data',
+        expand: 'cliente_id',
+        requestKey: null,
+      }),
+    2,
+    600,
+    'fetchManutencoes',
+  )
 }
 
 export async function fetchAtividades(): Promise<Atividade[]> {
-  const records = await pb.collection('atividades').getFullList<Atividade>({
-    sort: '-data',
-    expand: 'cliente_id,responsavel_id,usina_id,fornecedor_id',
-    requestKey: null,
-  })
-  return records
+  return withNetworkRetry(
+    () =>
+      pb.collection('atividades').getFullList<Atividade>({
+        sort: '-data',
+        expand: 'cliente_id,responsavel_id,usina_id,fornecedor_id',
+        requestKey: null,
+      }),
+    2,
+    600,
+    'fetchAtividades',
+  )
 }
 
 export async function fetchAtividadesByCliente(clienteId: string): Promise<Atividade[]> {
@@ -864,11 +904,16 @@ export async function upsertSistemaForCliente(
 // -------------------------------------------------------------
 
 export async function fetchProfissionais(): Promise<Profissional[]> {
-  const records = await pb.collection('profissionais').getFullList<Profissional>({
-    sort: 'nome',
-    requestKey: null,
-  })
-  return records
+  return withNetworkRetry(
+    () =>
+      pb.collection('profissionais').getFullList<Profissional>({
+        sort: 'nome',
+        requestKey: null,
+      }),
+    2,
+    600,
+    'fetchProfissionais',
+  )
 }
 
 export async function createProfissional(
@@ -895,12 +940,17 @@ export async function deleteProfissional(id: string): Promise<boolean> {
 }
 
 export async function fetchProjetos(): Promise<Projeto[]> {
-  const records = await pb.collection('projetos').getFullList<Projeto>({
-    sort: '-updated',
-    expand: 'cliente_id,profissional_id',
-    requestKey: null,
-  })
-  return records
+  return withNetworkRetry(
+    () =>
+      pb.collection('projetos').getFullList<Projeto>({
+        sort: '-updated',
+        expand: 'cliente_id,profissional_id',
+        requestKey: null,
+      }),
+    2,
+    600,
+    'fetchProjetos',
+  )
 }
 
 export async function fetchProjetoByClienteId(clienteId: string): Promise<Projeto | null> {
@@ -976,17 +1026,36 @@ export async function createProjetoEvento(data: {
 // -------------------------------------------------------------
 
 export async function fetchContratosOM(): Promise<ContratoOM[]> {
-  try {
-    const records = await pb.collection('contratos_om').getFullList<ContratoOM>({
-      sort: '-created',
-      expand: 'cliente_id',
-      requestKey: null,
-    })
-    return records
-  } catch (err) {
-    console.error('Erro ao buscar contratos O&M:', err)
-    return []
-  }
+  return withNetworkRetry(
+    async () => {
+      try {
+        const records = await pb.collection('contratos_om').getFullList<ContratoOM>({
+          sort: '-created',
+          expand: 'cliente_id',
+          requestKey: null,
+        })
+        return records
+      } catch (err: any) {
+        // Se for erro de rede, relança para o withNetworkRetry tentar novamente
+        const isNetworkError =
+          err?.status === 0 ||
+          !err?.status ||
+          err?.name === 'TypeError' ||
+          String(err?.message || '')
+            .toLowerCase()
+            .includes('failed to fetch') ||
+          String(err?.message || '')
+            .toLowerCase()
+            .includes('network')
+        if (isNetworkError) throw err
+        console.error('Erro ao buscar contratos O&M:', err)
+        return []
+      }
+    },
+    2,
+    600,
+    'fetchContratosOM',
+  )
 }
 
 export async function fetchContratoOMByClienteId(clienteId: string): Promise<ContratoOM | null> {

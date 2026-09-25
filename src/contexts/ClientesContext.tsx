@@ -645,25 +645,25 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           fetchContratosOM(),
         ])
 
-      // Em falha nas tabelas prioritárias, registrar no estado error e console.error
+      // Em falha nas tabelas prioritárias, registrar no estado error e console.warn (sem re-lançar)
       const failedPriority: string[] = []
       if (cRes.status === 'rejected') {
-        console.error('Falha ao carregar clientes:', cRes.reason)
+        console.warn('Falha ao carregar clientes:', cRes.reason)
         failedPriority.push('clientes')
       }
       if (aRes.status === 'rejected') {
-        console.error('Falha ao carregar atividades:', aRes.reason)
+        console.warn('Falha ao carregar atividades:', aRes.reason)
         failedPriority.push('atividades')
       }
       if (orcRes.status === 'rejected') {
-        console.error('Falha ao carregar orçamentos solares:', orcRes.reason)
+        console.warn('Falha ao carregar orçamentos solares:', orcRes.reason)
         failedPriority.push('orçamentos')
       }
       if (uRes.status === 'rejected') {
-        console.error('Falha ao carregar usuários:', uRes.reason)
+        console.warn('Falha ao carregar usuários:', uRes.reason)
       }
       if (sRes.status === 'rejected') {
-        console.error('Falha ao carregar sistemas:', sRes.reason)
+        console.warn('Falha ao carregar sistemas:', sRes.reason)
       }
 
       if (failedPriority.length > 0) {
@@ -698,17 +698,20 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       setContratosOM(contList)
 
       // Se clientes vier vazio nesta primeira tentativa e houve rejeição,
-      // fazer uma checagem defensiva de recuperação direta para clientes
+      // recuperação secundária defensiva: aguardar 1000ms e tentar fetchClientes() uma vez dentro de try/catch
       if (cList.length === 0 && cRes.status === 'rejected') {
-        console.warn('Tentativa primária de clientes falhou. Executando recuperação defensiva...')
+        console.warn(
+          'Tentativa primária de clientes falhou. Aguardando 1000ms para recuperação defensiva...',
+        )
         try {
+          await new Promise((res) => setTimeout(res, 1000))
           const recC = await fetchClientes()
           if (recC && recC.length > 0) {
             setClientes(recC)
             setError(null)
           }
         } catch (recErr) {
-          console.warn('Recuperação defensiva de clientes:', recErr)
+          console.warn('Recuperação defensiva de clientes falhou:', recErr)
         }
       }
 
