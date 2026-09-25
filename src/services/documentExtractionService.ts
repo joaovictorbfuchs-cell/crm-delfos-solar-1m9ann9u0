@@ -64,8 +64,45 @@ export interface ExtractDocumentResult {
 /**
  * Envia o arquivo do documento para extração pelo agente nativo de IA do Skip Cloud.
  */
-export async function extrairDadosDocumento(file: File): Promise<ExtractDocumentResult> {
+export async function extrairDadosDocumento(
+  file: File,
+  options?: {
+    onProgress?: (msg: string) => void
+  },
+): Promise<ExtractDocumentResult> {
+  options?.onProgress?.('Lendo e estruturando conteúdo do documento...')
   const fileInfo = await prepareDocumentForExtraction(file)
+
+  // Guard para PDFs escaneados sem camada de texto selecionável
+  if (fileInfo.fileType === 'pdf_scanned_empty') {
+    return {
+      ok: false,
+      data: null,
+      message:
+        'Este arquivo PDF é uma digitalização/foto sem camada de texto selecionável. Por favor, envie a fatura em PDF digital original baixada do portal da distribuidora (RGE/CPFL/Celesc) ou tire uma foto nítida e envie como imagem (JPG/PNG).',
+      fileInfo,
+    }
+  }
+
+  // Duplo canal para imagens: se for imagem, podemos pré-executar OCR local com Tesseract
+  // para reforçar a extração multimodal ou servir de redundância
+  if (fileInfo.fileType === 'image' && !fileInfo.textContent) {
+    try {
+      options?.onProgress?.('Executando OCR local e reconhecimento multimodal...')
+      const { analisarImagemOrcamento } = await import('@/services/ocrImagemService')
+      const ocrRes = await analisarImagemOrcamento(file, [], (p) => {
+        options?.onProgress?.(`Reconhecendo texto na imagem (${p.percent}%)...`)
+      })
+      if (ocrRes && ocrRes.textoCompleto && ocrRes.textoCompleto.trim().length > 15) {
+        fileInfo.textContent = ocrRes.textoCompleto.trim()
+      }
+    } catch (ocrErr) {
+      console.warn(
+        '[extrairDadosDocumento] OCR local falhou ou foi ignorado, prosseguindo via IA multimodal:',
+        ocrErr,
+      )
+    }
+  }
 
   const payload: Record<string, unknown> = {
     file_name: fileInfo.fileName,
@@ -80,6 +117,17 @@ export async function extrairDadosDocumento(file: File): Promise<ExtractDocument
     payload.image_base64 = fileInfo.imageBase64
   }
 
+  if (!payload.text_content && !payload.image_base64) {
+    return {
+      ok: false,
+      data: null,
+      message:
+        'Não foi possível extrair nenhum dado deste arquivo (documento vazio ou não suportado).',
+      fileInfo,
+    }
+  }
+
+  options?.onProgress?.('Analisando documento com IA especializada Skip...')
   const token = pb.authStore.token
   const baseUrl = import.meta.env.VITE_POCKETBASE_URL || ''
 

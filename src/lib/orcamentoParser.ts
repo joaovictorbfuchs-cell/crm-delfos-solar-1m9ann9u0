@@ -80,6 +80,141 @@ export function extrairValorEmReais(texto: string): number {
 /**
  * Analisa e extrai dados do PDF de orçamento fotovoltaico
  */
+/**
+ * Detecta se um texto ou nome de arquivo possui indícios fortes de ser um
+ * orçamento, cotação ou proposta comercial de distribuidor / fornecedor solar.
+ */
+export function isOrcamentoFornecedorTexto(
+  texto: string,
+  fileName = '',
+): { isOrcamento: boolean; motivos: string[]; confianca: 'alta' | 'media' | 'baixa' } {
+  const tLower = (texto + ' ' + fileName).toLowerCase()
+  const motivos: string[] = []
+
+  // 1. Termos de proposta / cotação comercial
+  const termosCotacao = [
+    'cotação',
+    'cotacao',
+    'orçamento',
+    'orcamento',
+    'proposta fornecedor',
+    'proposta comercial',
+    'pedido de compra',
+    'kit fotovoltaico',
+    'kit solar',
+    'itens da proposta',
+    'revisão nº',
+    'revisao nº',
+    'rev-0',
+    'st-20',
+  ]
+  for (const termo of termosCotacao) {
+    if (tLower.includes(termo)) {
+      motivos.push(`termo comercial: "${termo}"`)
+      break
+    }
+  }
+
+  // 2. Marcas solares conhecidas (painéis / inversores)
+  const marcasSolares = [
+    'growatt',
+    'deye',
+    'canadian solar',
+    'ja solar',
+    'jinko',
+    'trina solar',
+    'longi',
+    'huawei',
+    'solis',
+    'sungrow',
+    'fronius',
+    'goodwe',
+    'risen',
+    'talesun',
+    'osda',
+    'byd',
+    'astronergy',
+    'chint',
+    'weg',
+    'ronma',
+    'sofar',
+    'hoymiles',
+    'apsystems',
+    'solaredge',
+  ]
+  const marcasAchadas = marcasSolares.filter((m) => tLower.includes(m))
+  if (marcasAchadas.length > 0) {
+    motivos.push(`marcas: ${marcasAchadas.slice(0, 3).join(', ')}`)
+  }
+
+  // 3. Componentes típicos de kit solar
+  const componentes = [
+    'inversor',
+    'módulo',
+    'modulo fotovoltaico',
+    'painel solar',
+    'string box',
+    'stringbox',
+    'conector mc4',
+    'cabo solar',
+    'estrutura telhado',
+    'perfil aluminio',
+  ]
+  const compAchados = componentes.filter((c) => tLower.includes(c))
+  if (compAchados.length > 0) {
+    motivos.push(`componentes: ${compAchados.slice(0, 3).join(', ')}`)
+  }
+
+  // 4. Distribuidores conhecidos no mercado
+  const distribuidores = [
+    'sol tecno',
+    'soltecno',
+    'aldo solar',
+    'edp solar',
+    'genyx',
+    'fotus',
+    'maxsul',
+    'wdc',
+    'neosolar',
+    'edeltec',
+    'decolar solar',
+    'fortlev solar',
+    'serrana solar',
+    'sollar sul',
+    'distribuidora',
+  ]
+  const distAchados = distribuidores.filter((d) => tLower.includes(d))
+  if (distAchados.length > 0) {
+    motivos.push(`distribuidor: ${distAchados[0]}`)
+  }
+
+  // Decisão:
+  // Se tiver termo de cotação/orçamento + (marcas OU componentes), confiança alta
+  // Se tiver ao menos marcas e componentes com valores em R$, confiança alta
+  const temTermoCotacao = motivos.some((m) => m.startsWith('termo comercial'))
+  const temMarcas = marcasAchadas.length > 0
+  const temComponentes = compAchados.length > 0
+  const temDistribuidor = distAchados.length > 0
+
+  const pontuacao =
+    (temTermoCotacao ? 2 : 0) +
+    (temMarcas ? 2 : 0) +
+    (temComponentes ? 2 : 0) +
+    (temDistribuidor ? 1 : 0)
+
+  if (pontuacao >= 4) {
+    return { isOrcamento: true, motivos, confianca: 'alta' }
+  }
+  if (pontuacao >= 2 && (temMarcas || temComponentes)) {
+    return { isOrcamento: true, motivos, confianca: 'media' }
+  }
+
+  return { isOrcamento: false, motivos, confianca: 'baixa' }
+}
+
+/**
+ * Analisa e extrai dados do PDF de orçamento fotovoltaico
+ */
 export async function extrairOrcamentoFotovoltaicoPDF(
   file: File,
   fornecedoresCadastrados: Fornecedor[] = [],

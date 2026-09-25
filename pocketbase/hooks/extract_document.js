@@ -141,14 +141,33 @@ REGRAS OBRIGATÓRIAS DE RESPOSTA:
       textLength = textContent.length
     }
 
-    let userPrompt = ''
-    if (textContent) {
-      userPrompt = `Documento: ${fileName}\n\nConteúdo textual extraído do arquivo:\n"""\n${textContent}\n"""\n\nAnalise o conteúdo acima e extraia todos os dados disponíveis retornando exclusivamente o JSON estruturado.`
+    // 3. Montar mensagens OpenAI-shape para $ai.chat
+    // Para imagens (JPG/PNG/WEBP), utiliza content array com parts: text + image_url
+    // Para texto (PDF, DOCX, XLSX, CSV), utiliza content string normal.
+    // NUNCA injeta PDFs como data:application/pdf;base64 em blocos de imagem.
+    let userMessageContent
+    if (base64Image && mimeType.startsWith('image/')) {
+      const promptIntro = textContent
+        ? `Documento: ${fileName}\nTexto complementar extraído por OCR:\n"""\n${textContent}\n"""\nAnalise a imagem anexada e o texto acima, extraindo os dados cadastrais, endereço, dados técnicos e de consumo no formato JSON estruturado especificado.`
+        : `Documento: ${fileName}\nAnalise a imagem deste documento (conta de luz / documento do cliente / dados solares) e extraia os dados cadastrais, endereço da instalação, dados técnicos e de consumo retornando exclusivamente o JSON estruturado.`
+
+      userMessageContent = [
+        {
+          type: 'text',
+          text: promptIntro,
+        },
+        {
+          type: 'image_url',
+          image_url: {
+            url: `data:${mimeType};base64,${base64Image}`,
+          },
+        },
+      ]
     } else {
-      userPrompt = `Documento: ${fileName} (tipo: ${mimeType})\nImagem codificada em base64 anexada:\ndata:${mimeType};base64,${base64Image}\n\nAnalise a imagem deste documento (conta de luz / CNH / documento de identidade / tabela solar) e extraia todos os dados disponíveis retornando exclusivamente o JSON estruturado.`
+      userMessageContent = `Documento: ${fileName}\n\nConteúdo textual extraído do arquivo:\n"""\n${textContent}\n"""\n\nAnalise o conteúdo acima e extraia todos os dados disponíveis retornando exclusivamente o JSON estruturado.`
     }
 
-    // 3. Chamada 100% STATELESS usando $ai.chat (OpenAI-shape) com model 'fast'.
+    // 4. Chamada 100% STATELESS usando $ai.chat (OpenAI-shape) com model 'fast'.
     // Isto elimina completamente o acúmulo de contexto/histórico de conversas prévias.
     let chatRes = null
     try {
@@ -156,7 +175,7 @@ REGRAS OBRIGATÓRIAS DE RESPOSTA:
         model: 'fast',
         messages: [
           { role: 'system', content: systemPromptExtratorSolar },
-          { role: 'user', content: userPrompt },
+          { role: 'user', content: userMessageContent },
         ],
       })
     } catch (aiErr) {

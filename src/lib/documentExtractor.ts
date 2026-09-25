@@ -1,7 +1,13 @@
 /**
  * Extração de conteúdo de documentos no frontend (PDF, DOCX, XLSX, CSV, Imagens)
- * Converte arquivos para texto ou dados tabulares adequados para envio ao agente nativo Skip Cloud.
+ * Converte arquivos para texto estruturado via pdfjs-dist e duplo canal de OCR para envio ao agente nativo Skip Cloud.
  */
+import * as pdfjsLib from 'pdfjs-dist'
+
+// Configurar worker do pdfjs-dist via CDN confiável para compatibilidade com Vite sem worker inline complexo
+if (typeof window !== 'undefined' && pdfjsLib.GlobalWorkerOptions) {
+  pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version || '4.10.38'}/pdf.worker.min.mjs`
+}
 
 export interface DocumentContentResult {
   fileName: string
@@ -10,6 +16,7 @@ export interface DocumentContentResult {
   textContent?: string
   imageBase64?: string
   mimeType: string
+  totalPages?: number
 }
 
 /**
@@ -407,63 +414,111 @@ export async function extractTextFromXlsx(file: File): Promise<string> {
 }
 
 /**
- * Extrai texto de PDF via parser de streams e texto do formato PDF
+ * Extrai texto completo de TODAS as páginas do PDF utilizando pdfjs-dist.
+ * Agrupa itens de texto ordenados por coordenadas espaciais (Y de cima para baixo,
+ * X da esquerda para a direita com tolerância para colunas/tabelas), preservando
+ * a integridade de faturas de concessionárias (RGE, CPFL, Celesc, Copel, Enel)
+ * que utilizam compactação FlateDecode / streams zlib.
  */
-export async function extractTextFromPdf(file: File): Promise<string> {
+export async function extractTextFromPdf(
+  file: File,
+  options: { maxPages?: number } = {},
+): Promise<string> {
   try {
+    const arrayBuffer = await readFileAsArrayBuffer(file)
+    const loadingTask = pdfjsLib.getDocument({ data: new Uint8Array(arrayBuffer) })
+    const pdf = await loadingTask.promise
+
+    const maxPages = options.maxPages ? Math.min(pdf.numPages, options.maxPages) : pdf.numPages
+    const allPageLines: string[] = []
+    const TOLERANCIA_Y = 5.0
+
+    for (let pageNum = 1; pageNum <= maxPages; pageNum++) {
+      const page = await pdf.getPage(pageNum)
+      const textContent = await page.getTextContent()
+
+      interface ItemPos {
+        str: string
+        x: number
+        y: number
+      }
+
+      const items: ItemPos[] = []
+      for (const item of textContent.items) {
+        if ('str' in item && item.str.trim()) {
+          const tx = item.transform // [scaleX, skewY, skewX, scaleY, posX, posY]
+          items.push({
+            str: item.str,
+            x: tx[4],
+            y: tx[5],
+          })
+        }
+      }
+
+      // Ordenar por Y decrescente (topo para base) e X crescente (esquerda para direita)
+      const sorted = [...items].sort((a, b) => {
+        const yDiff = b.y - a.y
+        if (Math.abs(yDiff) > TOLERANCIA_Y) {
+          return yDiff
+        }
+        return a.x - b.x
+      })
+
+      let currentY: number | null = null
+      let currentLine: ItemPos[] = []
+      const pageLines: string[] = []
+
+      for (const item of sorted) {
+        if (currentY === null) {
+          currentY = item.y
+          currentLine.push(item)
+        } else if (Math.abs(item.y - currentY) <= TOLERANCIA_Y) {
+          currentLine.push(item)
+        } else {
+          currentLine.sort((a, b) => a.x - b.x)
+          const lineStr = currentLine
+            .map((i) => i.str.trim())
+            .filter(Boolean)
+            .join(' ')
+          if (lineStr) pageLines.push(lineStr)
+
+          currentY = item.y
+          currentLine = [item]
+        }
+      }
+
+      if (currentLine.length > 0) {
+        currentLine.sort((a, b) => a.x - b.x)
+        const lineStr = currentLine
+          .map((i) => i.str.trim())
+          .filter(Boolean)
+          .join(' ')
+        if (lineStr) pageLines.push(lineStr)
+      }
+
+      if (pageLines.length > 0) {
+        allPageLines.push(`--- PÁGINA ${pageNum} ---\n` + pageLines.join('\n'))
+      }
+    }
+
+    const fullPdfText = allPageLines.join('\n\n').trim()
+    if (fullPdfText.length > 20) {
+      return fullPdfText
+    }
+
+    // Se o pdfjs-dist retornou texto muito curto (ex: documento vazio ou scan puro),
+    // tenta fallback seguro de strings legíveis
     const buffer = await readFileAsArrayBuffer(file)
-    const textDecoder = new TextDecoder('latin1')
-    const rawPdf = textDecoder.decode(buffer)
-
-    const textPieces: string[] = []
-
-    // 1. Procurar blocos BT ... ET no PDF
-    const textBlockRegex = /BT[\s\S]*?ET/g
-    let match: RegExpExecArray | null
-
-    while ((match = textBlockRegex.exec(rawPdf)) !== null) {
-      const block = match[0]
-      // Procurar literais de texto (string)
-      const tjRegex = /\(([^)]*)\)\s*T[jd]/g
-      let tjMatch: RegExpExecArray | null
-      while ((tjMatch = tjRegex.exec(block)) !== null) {
-        const decoded = tjMatch[1].replace(/\\([0-9]{3})/g, (_, oct) =>
-          String.fromCharCode(parseInt(oct, 8)),
-        )
-        if (decoded.trim()) {
-          textPieces.push(decoded)
-        }
-      }
-
-      // Procurar arrays TJ [(...)...]
-      const tjArrayRegex = /\[([^\]]+)\]\s*TJ/g
-      let tjArrMatch: RegExpExecArray | null
-      while ((tjArrMatch = tjArrayRegex.exec(block)) !== null) {
-        const arrContent = tjArrMatch[1]
-        const innerStrRegex = /\(([^)]*)\)/g
-        let innerMatch: RegExpExecArray | null
-        let word = ''
-        while ((innerMatch = innerStrRegex.exec(arrContent)) !== null) {
-          word += innerMatch[1]
-        }
-        if (word.trim()) {
-          textPieces.push(word)
-        }
-      }
-    }
-
-    if (textPieces.length > 15) {
-      return textPieces.join(' ')
-    }
-
-    // 2. Se a extração de blocos BT/ET resultou em pouco texto (por exemplo, PDF com encoding diferente),
-    // procurar por strings legíveis de 3+ caracteres dentro do PDF
-    const fallbackText = extractStringsFromBinary(buffer)
-    return fallbackText
+    const fallback = extractStringsFromBinary(buffer)
+    return fallback || fullPdfText
   } catch (err) {
-    console.warn('Erro ao extrair texto do PDF:', err)
-    const buffer = await readFileAsArrayBuffer(file)
-    return extractStringsFromBinary(buffer)
+    console.warn('[documentExtractor] Falha na leitura via pdfjs-dist, aplicando fallback:', err)
+    try {
+      const buffer = await readFileAsArrayBuffer(file)
+      return extractStringsFromBinary(buffer)
+    } catch {
+      return ''
+    }
   }
 }
 
@@ -585,11 +640,11 @@ export async function prepareDocumentForExtraction(file: File): Promise<Document
     }
   }
 
-  // Documentos PDF (.pdf)
+  // Documentos PDF (.pdf) — lê o texto de todas as páginas via pdfjs-dist
   if (ext === 'pdf' || mime === 'application/pdf') {
     const text = await extractTextFromPdf(file)
-    // Se o PDF tiver texto extraído, enviar o texto
-    if (text && text.trim().length > 30) {
+    // Se o PDF tiver texto legível, enviar o texto estruturado
+    if (text && text.trim().length >= 15) {
       return {
         fileName: file.name,
         fileSize: file.size,
@@ -598,14 +653,14 @@ export async function prepareDocumentForExtraction(file: File): Promise<Document
         mimeType: 'application/pdf',
       }
     }
-    // Caso contrário (ex: PDF digitalizado/escaneado em imagem), enviar como base64 com alerta de tamanho
-    const base64 = await readFileAsBase64(file)
+    // Se o PDF não tiver camada de texto (scan puro/imagem compactada sem OCR),
+    // NÃO enviamos base64 cru com mime application/pdf porque LLMs de visão rejeitam
+    // PDF binário e estouram 700KB. Retornamos com fileType 'pdf_scanned_empty'.
     return {
       fileName: file.name,
       fileSize: file.size,
-      fileType: 'pdf_image',
-      imageBase64: base64,
-      textContent: text,
+      fileType: 'pdf_scanned_empty',
+      textContent: '',
       mimeType: 'application/pdf',
     }
   }
