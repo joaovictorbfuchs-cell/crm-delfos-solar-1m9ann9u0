@@ -63,8 +63,10 @@ import {
 } from '@/lib/whatsappTemplatesMetadata'
 
 interface ModalGerenciarWhatsAppTemplatesProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
+  isOpen?: boolean
+  onClose?: () => void
 }
 
 const CATEGORIAS_FILTRO: Array<{ label: string; value: string }> = [
@@ -77,17 +79,30 @@ const CATEGORIAS_FILTRO: Array<{ label: string; value: string }> = [
 ]
 
 export const ModalGerenciarWhatsAppTemplates: React.FC<ModalGerenciarWhatsAppTemplatesProps> = ({
-  open,
-  onOpenChange,
+  open: openProp,
+  onOpenChange: onOpenChangeProp,
+  isOpen,
+  onClose,
 }) => {
+  // Compatibilidade com open/onOpenChange e isOpen/onClose
+  const open = openProp ?? isOpen ?? false
+  const handleOpenChange = (proximoEstado: boolean) => {
+    if (onOpenChangeProp) {
+      onOpenChangeProp(proximoEstado)
+    }
+    if (!proximoEstado && onClose) {
+      onClose()
+    }
+  }
+
   const { toast } = useToast()
   const {
     whatsAppTemplates,
-    carregandoWhatsAppTemplates,
+    isLoading: carregandoWhatsAppTemplates,
     addWhatsAppTemplate,
     updateWhatsAppTemplate,
     removeWhatsAppTemplate,
-    reloadWhatsAppTemplates,
+    refreshData,
   } = useClientes()
 
   // Estados de listagem e filtros
@@ -324,7 +339,7 @@ export const ModalGerenciarWhatsAppTemplates: React.FC<ModalGerenciarWhatsAppTem
 
   return (
     <>
-      <Dialog open={open} onOpenChange={onOpenChange}>
+      <Dialog open={open} onOpenChange={handleOpenChange}>
         <DialogContent className="max-w-5xl max-h-[92vh] flex flex-col p-0 gap-0 overflow-hidden">
           {/* Cabeçalho */}
           <DialogHeader className="p-6 pb-4 border-b border-border bg-card">
@@ -346,7 +361,7 @@ export const ModalGerenciarWhatsAppTemplates: React.FC<ModalGerenciarWhatsAppTem
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => reloadWhatsAppTemplates()}
+                  onClick={() => refreshData()}
                   disabled={carregandoWhatsAppTemplates}
                   title="Atualizar lista"
                 >
@@ -674,7 +689,7 @@ export const ModalGerenciarWhatsAppTemplates: React.FC<ModalGerenciarWhatsAppTem
               <span>Operacionais: Lembrete Auto Leitura RGE e Notificação de OS presentes</span>
             </div>
 
-            <Button variant="outline" size="sm" onClick={() => onOpenChange(false)}>
+            <Button variant="outline" size="sm" onClick={() => handleOpenChange(false)}>
               Fechar
             </Button>
           </div>
@@ -924,32 +939,60 @@ export const ModalGerenciarWhatsAppTemplates: React.FC<ModalGerenciarWhatsAppTem
               </span>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
                 <div>
-                  <span className="text-muted-foreground">Cliente: </span>
+                  <span className="text-muted-foreground">Cliente ({'{nome_cliente}'}): </span>
                   <span className="font-medium text-foreground">Carlos Alberto Mendes</span>
                 </div>
                 <div>
-                  <span className="text-muted-foreground">Usina: </span>
+                  <span className="text-muted-foreground">Usina ({'{usina}'}): </span>
                   <span className="font-medium text-foreground">Usina Solar Fazenda Progresso</span>
                 </div>
                 <div>
-                  <span className="text-muted-foreground">UC: </span>
+                  <span className="text-muted-foreground">UC ({'{numero_uc}'}): </span>
                   <span className="font-medium text-foreground">7001458923</span>
                 </div>
                 <div>
-                  <span className="text-muted-foreground">Endereço: </span>
+                  <span className="text-muted-foreground">Endereço ({'{endereco}'}): </span>
                   <span className="font-medium text-foreground">
                     Rua das Camélias, 350 - Erechim/RS
                   </span>
                 </div>
                 <div>
-                  <span className="text-muted-foreground">Serviço OS: </span>
+                  <span className="text-muted-foreground">Serviço ({'{tipo_servico}'}): </span>
                   <span className="font-medium text-foreground">
                     Manutenção Preventiva Semestral
                   </span>
                 </div>
                 <div>
-                  <span className="text-muted-foreground">Instalador: </span>
+                  <span className="text-muted-foreground">
+                    Data Agendada ({'{data_agendada}'}):{' '}
+                  </span>
+                  <span className="font-medium text-foreground">28/09/2026</span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">
+                    Instalador ({'{nome_instalador}'}):{' '}
+                  </span>
                   <span className="font-medium text-foreground">Carlos Mendes</span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">ID OS ({'{id_os}'}): </span>
+                  <span className="font-medium text-foreground">OS-2026-089</span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Proposta ({'{valor_proposta}'}): </span>
+                  <span className="font-medium text-foreground">R$ 38.500,00</span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Data/Hora ({'{data}'}): </span>
+                  <span className="font-medium text-foreground">26/09/2026 às 14:00</span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Data Leitura ({'{data_leitura}'}): </span>
+                  <span className="font-medium text-foreground">29/09/2026</span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Protocolo ({'{protocolo_rge}'}): </span>
+                  <span className="font-medium text-foreground">2026-RGE-9812457</span>
                 </div>
               </div>
             </div>

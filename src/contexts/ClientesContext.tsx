@@ -553,7 +553,7 @@ interface ClientesContextType {
   refreshData: () => Promise<void>
 }
 
-const ClientesContext = createContext<ClientesContextType | undefined>(undefined)
+export const ClientesContext = createContext<ClientesContextType | undefined>(undefined)
 
 export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { isAuthenticated, token, user } = useAuth()
