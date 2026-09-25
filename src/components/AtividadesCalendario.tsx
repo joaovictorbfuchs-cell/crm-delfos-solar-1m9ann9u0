@@ -15,7 +15,6 @@ import {
 import type { Atividade, SistemaUsuario } from '@/types/crm'
 import { getTipoAtividadeConfig } from '@/constants/atividadesTipos'
 import { formatDateTime } from '@/lib/formatters'
-import { isAtividadeAutoLeitura } from '@/services/autoLeituraService'
 
 interface AtividadesCalendarioProps {
   atividades: Atividade[]
@@ -25,7 +24,6 @@ interface AtividadesCalendarioProps {
   onToggleStatus: (id: string, currentStatus: string) => void
   onOpenCliente: (clienteId: string) => void
   onAddAtividadeDia?: (date: Date) => void
-  onOpenAutoLeitura?: (atividade: Atividade) => void
 }
 
 type CalendarViewMode = 'semana' | 'mes'
@@ -81,7 +79,6 @@ export const AtividadesCalendario: React.FC<AtividadesCalendarioProps> = ({
   onToggleStatus,
   onOpenCliente,
   onAddAtividadeDia,
-  onOpenAutoLeitura,
 }) => {
   // 1. Visualização PADRÃO deve ser SEMANAL
   const [viewMode, setViewMode] = useState<CalendarViewMode>('semana')
@@ -519,12 +516,6 @@ export const AtividadesCalendario: React.FC<AtividadesCalendarioProps> = ({
                               key={atv.id}
                               onClick={(e) => {
                                 e.stopPropagation()
-                                if (isAtividadeAutoLeitura(atv)) {
-                                  if (onOpenAutoLeitura) {
-                                    onOpenAutoLeitura(atv)
-                                  }
-                                  return
-                                }
                                 setModalAtividade(atv)
                               }}
                               className={`group relative text-left p-2 rounded-xl border transition-all hover:scale-[1.01] hover:shadow-xs cursor-pointer ${
@@ -566,12 +557,6 @@ export const AtividadesCalendario: React.FC<AtividadesCalendarioProps> = ({
                                   type="button"
                                   onClick={(e) => {
                                     e.stopPropagation()
-                                    if (isAtividadeAutoLeitura(atv)) {
-                                      if (onOpenAutoLeitura) {
-                                        onOpenAutoLeitura(atv)
-                                      }
-                                      return
-                                    }
                                     onToggleStatus(atv.id, atv.status || 'pendente')
                                   }}
                                   className={`p-0.5 rounded transition-colors shrink-0 ${
@@ -716,24 +701,12 @@ export const AtividadesCalendario: React.FC<AtividadesCalendarioProps> = ({
                     <div
                       key={atv.id}
                       onClick={() => {
-                        if (isAtividadeAutoLeitura(atv)) {
-                          if (onOpenAutoLeitura) {
-                            onOpenAutoLeitura(atv)
-                          }
-                          return
-                        }
                         setModalAtividade(atv)
                       }}
                       role="button"
                       tabIndex={0}
                       onKeyDown={(e) => {
                         if (e.key === 'Enter' || e.key === ' ') {
-                          if (isAtividadeAutoLeitura(atv)) {
-                            if (onOpenAutoLeitura) {
-                              onOpenAutoLeitura(atv)
-                            }
-                            return
-                          }
                           setModalAtividade(atv)
                         }
                       }}
@@ -771,12 +744,6 @@ export const AtividadesCalendario: React.FC<AtividadesCalendarioProps> = ({
                               type="button"
                               onClick={(e) => {
                                 e.stopPropagation()
-                                if (isAtividadeAutoLeitura(atv)) {
-                                  if (onOpenAutoLeitura) {
-                                    onOpenAutoLeitura(atv)
-                                  }
-                                  return
-                                }
                                 onToggleStatus(atv.id, atv.status || 'pendente')
                               }}
                               className={`p-1 rounded-md transition-colors ${
@@ -940,12 +907,6 @@ export const AtividadesCalendario: React.FC<AtividadesCalendarioProps> = ({
                             key={atv.id}
                             onClick={(e) => {
                               e.stopPropagation()
-                              if (isAtividadeAutoLeitura(atv)) {
-                                if (onOpenAutoLeitura) {
-                                  onOpenAutoLeitura(atv)
-                                }
-                                return
-                              }
                               setModalAtividade(atv)
                             }}
                             className={`flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] truncate font-medium transition-transform hover:scale-[1.02] border ${
@@ -1027,24 +988,12 @@ export const AtividadesCalendario: React.FC<AtividadesCalendarioProps> = ({
                       <div
                         key={atv.id}
                         onClick={() => {
-                          if (isAtividadeAutoLeitura(atv)) {
-                            if (onOpenAutoLeitura) {
-                              onOpenAutoLeitura(atv)
-                            }
-                            return
-                          }
                           setModalAtividade(atv)
                         }}
                         role="button"
                         tabIndex={0}
                         onKeyDown={(e) => {
                           if (e.key === 'Enter' || e.key === ' ') {
-                            if (isAtividadeAutoLeitura(atv)) {
-                              if (onOpenAutoLeitura) {
-                                onOpenAutoLeitura(atv)
-                              }
-                              return
-                            }
                             setModalAtividade(atv)
                           }
                         }}
@@ -1097,12 +1046,6 @@ export const AtividadesCalendario: React.FC<AtividadesCalendarioProps> = ({
                             type="button"
                             onClick={(e) => {
                               e.stopPropagation()
-                              if (isAtividadeAutoLeitura(atv)) {
-                                if (onOpenAutoLeitura) {
-                                  onOpenAutoLeitura(atv)
-                                }
-                                return
-                              }
                               onToggleStatus(atv.id, atv.status || 'pendente')
                             }}
                             className={`p-1 rounded-md transition-colors shrink-0 ${

@@ -3481,11 +3481,7 @@ export const FichaClienteDrawer: React.FC = () => {
                       setModalNovaAtividadeFichaOpen(true)
                     }}
                     onSelectTipoEspecial={async (tipoId) => {
-                      if (tipoId === 'auto_leitura_rge') {
-                        // Abre o modal Registrar Atividade com Auto Leitura - RGE selecionado e pré-carregado
-                        setModalNovaAtividadeTipoFicha('auto_leitura_rge')
-                        setModalNovaAtividadeFichaOpen(true)
-                      } else if (tipoId === 'anexo_g') {
+                      if (tipoId === 'anexo_g') {
                         handleAbrirDocumentoProjeto('anexo_g', propostaAprovada)
                       } else if (tipoId === 'troca_titularidade') {
                         handleAbrirDocumentoProjeto('troca_titularidade', propostaAprovada)

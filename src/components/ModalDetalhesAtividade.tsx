@@ -19,19 +19,11 @@ import { useClientes } from '@/contexts/ClientesContext'
 import { ClienteAutocomplete } from '@/components/ClienteAutocomplete'
 import { ATIVIDADES_12_TIPOS, getTipoAtividadeConfig } from '@/constants/atividadesTipos'
 import type { Atividade, AtividadeTipo, AtividadeStatus } from '@/types/crm'
-import {
-  isAtividadeAutoLeitura,
-  validarCamposConclusaoAutoLeitura,
-} from '@/services/autoLeituraService'
-import { BotaoEnviarLembreteAutoLeituraWhatsApp } from './BotaoEnviarLembreteAutoLeituraWhatsApp'
-import { Gauge } from 'lucide-react'
-
 interface ModalDetalhesAtividadeProps {
   isOpen: boolean
   onClose: () => void
   atividade: Atividade | null
   onSaved?: (updated: Atividade) => void
-  onOpenAutoLeitura?: (atividade: Atividade) => void
 }
 
 /** Converte ISO string (ou Date string) em valor compativel com input datetime-local no fuso horario local */
@@ -49,7 +41,6 @@ export const ModalDetalhesAtividade: React.FC<ModalDetalhesAtividadeProps> = ({
   onClose,
   atividade,
   onSaved,
-  onOpenAutoLeitura,
 }) => {
   const { clientes, usuarios, updateAtividade, openFichaCliente } = useClientes()
 
@@ -70,19 +61,8 @@ export const ModalDetalhesAtividade: React.FC<ModalDetalhesAtividadeProps> = ({
     cliente?: string
     dataHora?: string
     responsavel?: string
-    protocoloRGE?: string
-    valorGrandeza03?: string
-    valorGrandeza103?: string
-    dataLeitura?: string
   }>({})
   const [showSuccessBadge, setShowSuccessBadge] = useState(false)
-
-  // Campos específicos de Auto Leitura RGE
-  const [protocoloRGE, setProtocoloRGE] = useState<string>('')
-  const [valorGrandeza03, setValorGrandeza03] = useState<string>('')
-  const [valorGrandeza103, setValorGrandeza103] = useState<string>('')
-  const [dataLeitura, setDataLeitura] = useState<string>('')
-  const [lembreteEnviadoEm, setLembreteEnviadoEm] = useState<string>('')
 
   // Preenchimento dos campos quando uma atividade é selecionada
   useEffect(() => {
@@ -95,37 +75,6 @@ export const ModalDetalhesAtividade: React.FC<ModalDetalhesAtividadeProps> = ({
       setDescricao(atividade.descricao || '')
       setStatus((atividade.status as 'pendente' | 'concluida') || 'pendente')
 
-      // Carregar os 4 campos e status de lembrete
-      let parsedDados: any = {}
-      if (atividade.auto_leitura_dados) {
-        if (typeof atividade.auto_leitura_dados === 'object') {
-          parsedDados = atividade.auto_leitura_dados
-        } else if (typeof atividade.auto_leitura_dados === 'string') {
-          try {
-            parsedDados = JSON.parse(atividade.auto_leitura_dados)
-          } catch {
-            /* intentionally ignored */
-          }
-        }
-      }
-
-      setProtocoloRGE(atividade.protocolo_rge || parsedDados?.protocoloRGE || '')
-      setValorGrandeza03(atividade.valor_grandeza_03 || parsedDados?.valor03Consumo || '')
-      setValorGrandeza103(atividade.valor_grandeza_103 || parsedDados?.valor103Injetada || '')
-      setDataLeitura(
-        atividade.data_leitura
-          ? atividade.data_leitura.split('T')[0]
-          : parsedDados?.dataLeitura
-            ? parsedDados.dataLeitura.split('T')[0]
-            : '',
-      )
-      setLembreteEnviadoEm(
-        atividade.lembrete_whatsapp_enviado_em ||
-          parsedDados?.lembrete_whatsapp_enviado_em ||
-          parsedDados?.lembreteWhatsAppEnviadoEm ||
-          '',
-      )
-
       setFormError(null)
       setErrors({})
       setShowSuccessBadge(false)
@@ -133,11 +82,6 @@ export const ModalDetalhesAtividade: React.FC<ModalDetalhesAtividadeProps> = ({
   }, [isOpen, atividade])
 
   if (!isOpen || !atividade) return null
-
-  const isAutoLeituraAtv = isAtividadeAutoLeitura({
-    tipo,
-    titulo,
-  })
 
   const configAtual = getTipoAtividadeConfig(tipo)
   const IconAtual = configAtual.icon
@@ -160,10 +104,6 @@ export const ModalDetalhesAtividade: React.FC<ModalDetalhesAtividadeProps> = ({
       cliente?: string
       dataHora?: string
       responsavel?: string
-      protocoloRGE?: string
-      valorGrandeza03?: string
-      valorGrandeza103?: string
-      dataLeitura?: string
     } = {}
 
     if (!titulo.trim()) {
@@ -177,25 +117,6 @@ export const ModalDetalhesAtividade: React.FC<ModalDetalhesAtividadeProps> = ({
     }
     if (!responsavelId) {
       newErrors.responsavel = 'Selecione um usuário responsável.'
-    }
-
-    // Regra: se o tipo for auto_leitura_rge e for concluir a atividade,
-    // os 4 campos são obrigatórios: Protocolo RGE, Valor 03, Valor 103 e Data da leitura
-    if (isAutoLeituraAtv && status === 'concluida') {
-      const validacao = validarCamposConclusaoAutoLeitura({
-        protocoloRGE,
-        valorGrandeza03,
-        valorGrandeza103,
-        dataLeitura,
-      })
-      if (!validacao.valido) {
-        if (!protocoloRGE.trim())
-          newErrors.protocoloRGE = 'Protocolo RGE é obrigatório para concluir.'
-        if (!valorGrandeza03.trim()) newErrors.valorGrandeza03 = 'Valor grandeza 03 é obrigatório.'
-        if (!valorGrandeza103.trim())
-          newErrors.valorGrandeza103 = 'Valor grandeza 103 é obrigatório.'
-        if (!dataLeitura.trim()) newErrors.dataLeitura = 'Data da leitura é obrigatória.'
-      }
     }
 
     setErrors(newErrors)
@@ -214,23 +135,6 @@ export const ModalDetalhesAtividade: React.FC<ModalDetalhesAtividadeProps> = ({
       setIsSubmitting(true)
       setFormError(null)
 
-      // Se tentar concluir sem os 4 campos na Auto Leitura RGE
-      if (isAutoLeituraAtv && status === 'concluida') {
-        const validacao = validarCamposConclusaoAutoLeitura({
-          protocoloRGE,
-          valorGrandeza03,
-          valorGrandeza103,
-          dataLeitura,
-        })
-        if (!validacao.valido) {
-          setFormError(
-            `A conclusão da Auto Leitura RGE requer o preenchimento de todos os 4 campos: ${validacao.faltantes.join(', ')}.`,
-          )
-          setIsSubmitting(false)
-          return
-        }
-      }
-
       const selectedUser = usuarios.find((u) => u.id === responsavelId)
       const responsavelNome = selectedUser?.name || atividade.responsavel_nome || 'Responsável'
 
@@ -245,29 +149,6 @@ export const ModalDetalhesAtividade: React.FC<ModalDetalhesAtividadeProps> = ({
         responsavel_nome: responsavelNome,
         descricao: descricao.trim(),
         status,
-      }
-
-      if (isAutoLeituraAtv) {
-        payload.protocolo_rge = protocoloRGE.trim()
-        payload.valor_grandeza_03 = valorGrandeza03.trim()
-        payload.valor_grandeza_103 = valorGrandeza103.trim()
-        payload.data_leitura = dataLeitura.trim()
-          ? new Date(dataLeitura + 'T12:00:00Z').toISOString()
-          : null
-        payload.lembrete_whatsapp_enviado_em = lembreteEnviadoEm || null
-
-        let existingAutoDados: any = {}
-        if (typeof atividade.auto_leitura_dados === 'object') {
-          existingAutoDados = { ...atividade.auto_leitura_dados }
-        }
-        existingAutoDados.protocoloRGE = protocoloRGE.trim()
-        existingAutoDados.valor03Consumo = valorGrandeza03.trim()
-        existingAutoDados.valor103Injetada = valorGrandeza103.trim()
-        existingAutoDados.dataLeitura = dataLeitura.trim()
-        if (lembreteEnviadoEm) {
-          existingAutoDados.lembreteWhatsAppEnviadoEm = lembreteEnviadoEm
-        }
-        payload.auto_leitura_dados = existingAutoDados
       }
 
       const updated = await updateAtividade(atividade.id, payload as Partial<Atividade>)
@@ -289,22 +170,8 @@ export const ModalDetalhesAtividade: React.FC<ModalDetalhesAtividadeProps> = ({
     }
   }
 
-  // Ação rápida: Alternar status Pendente <-> Concluída dentro do modal com bloqueio se faltar campos
+  // Ação rápida: Alternar status Pendente <-> Concluída dentro do modal
   const handleToggleStatusQuick = () => {
-    if (status === 'pendente' && isAutoLeituraAtv) {
-      const validacao = validarCamposConclusaoAutoLeitura({
-        protocoloRGE,
-        valorGrandeza03,
-        valorGrandeza103,
-        dataLeitura,
-      })
-      if (!validacao.valido) {
-        setFormError(
-          `Não é possível concluir a atividade. Preencha antes os 4 campos obrigatórios: ${validacao.faltantes.join(', ')}.`,
-        )
-        return
-      }
-    }
     setFormError(null)
     setStatus((prev) => (prev === 'concluida' ? 'pendente' : 'concluida'))
   }
