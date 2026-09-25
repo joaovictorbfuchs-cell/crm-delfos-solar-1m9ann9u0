@@ -23,6 +23,7 @@ import {
 import { useClientes } from '@/contexts/ClientesContext'
 import { ModalOrcamentoSolar } from '@/components/ModalOrcamentoSolar'
 import { ModalEnviarPropostaWhatsApp } from '@/components/ModalEnviarPropostaWhatsApp'
+import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { formatCurrency, formatDate } from '@/lib/formatters'
 import { Button } from '@/components/ui/button'
 import type { OrcamentoSolar, OrcamentoSolarStatus, Cliente } from '@/types/crm'
@@ -1102,26 +1103,57 @@ export const Orcamentos: React.FC = () => {
         initialOrcamento={editingOrcamento}
       />
 
-      {/* Modal de Enviar Proposta por WhatsApp */}
+      {/* Modal de Enviar Proposta por WhatsApp protegido por ErrorBoundary local */}
       {propostaParaWhatsApp && (
-        <ModalEnviarPropostaWhatsApp
-          isOpen={modalWhatsAppOpen}
-          onClose={() => {
-            setModalWhatsAppOpen(false)
-            setPropostaParaWhatsApp(null)
-            setClientePropostaWhatsApp(null)
-          }}
-          orcamento={propostaParaWhatsApp}
-          cliente={clientePropostaWhatsApp}
-          onSuccess={() => {
-            // Atualizar status da proposta para "Enviado ao cliente" se ainda estiver "Em elaboração"
-            if (propostaParaWhatsApp.status === 'Em elaboração') {
-              updateOrcamentoSolar(propostaParaWhatsApp.id, {
-                status: 'Enviado ao cliente',
-              }).catch((e) => console.warn('Erro ao atualizar status após WhatsApp:', e))
-            }
-          }}
-        />
+        <ErrorBoundary
+          errorMessage="Não foi possível carregar a janela de envio por WhatsApp."
+          fallback={
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60">
+              <div className="bg-white p-6 rounded-2xl shadow-xl max-w-md w-full text-center space-y-3">
+                <AlertCircle className="w-10 h-10 text-amber-600 mx-auto" />
+                <h3 className="text-base font-bold text-gray-900">
+                  Ocorreu um erro ao carregar o envio por WhatsApp
+                </h3>
+                <p className="text-xs text-gray-600">
+                  A página de propostas continua funcionando normalmente. Você pode tentar reabrir o
+                  envio ou verificar a conexão com o WhatsApp.
+                </p>
+                <div className="flex justify-center gap-2 pt-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      setModalWhatsAppOpen(false)
+                      setPropostaParaWhatsApp(null)
+                      setClientePropostaWhatsApp(null)
+                    }}
+                  >
+                    Fechar
+                  </Button>
+                </div>
+              </div>
+            </div>
+          }
+        >
+          <ModalEnviarPropostaWhatsApp
+            isOpen={modalWhatsAppOpen}
+            onClose={() => {
+              setModalWhatsAppOpen(false)
+              setPropostaParaWhatsApp(null)
+              setClientePropostaWhatsApp(null)
+            }}
+            orcamento={propostaParaWhatsApp}
+            cliente={clientePropostaWhatsApp}
+            onSuccess={() => {
+              // Atualizar status da proposta para "Enviado ao cliente" se ainda estiver "Em elaboração"
+              if (propostaParaWhatsApp.status === 'Em elaboração') {
+                updateOrcamentoSolar(propostaParaWhatsApp.id, {
+                  status: 'Enviado ao cliente',
+                }).catch((e) => console.warn('Erro ao atualizar status após WhatsApp:', e))
+              }
+            }}
+          />
+        </ErrorBoundary>
       )}
     </div>
   )

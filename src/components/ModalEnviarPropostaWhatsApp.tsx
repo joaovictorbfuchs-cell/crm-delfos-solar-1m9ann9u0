@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react'
+import React, { useState, useEffect, useMemo, useRef } from 'react'
 import {
   X,
   Send,
@@ -15,6 +15,7 @@ import {
   Info,
   Copy,
   Check,
+  RotateCcw,
 } from 'lucide-react'
 import { useClientes } from '@/contexts/ClientesContext'
 import type { Cliente, OrcamentoSolar } from '@/types/crm'
@@ -45,6 +46,26 @@ export const ModalEnviarPropostaWhatsApp: React.FC<ModalEnviarPropostaWhatsAppPr
 }) => {
   const { sendWhatsAppDocument, sendWhatsAppMessage, updateCliente, whatsAppConfig } = useClientes()
 
+  // Guard para impedir setState após desmontagem do componente
+  const isMountedRef = useRef(true)
+  useEffect(() => {
+    isMountedRef.current = true
+    return () => {
+      isMountedRef.current = false
+    }
+  }, [])
+
+  // Timeout handle ativo de envio
+  const sendTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  useEffect(() => {
+    return () => {
+      if (sendTimeoutRef.current !== null) {
+        clearTimeout(sendTimeoutRef.current)
+        sendTimeoutRef.current = null
+      }
+    }
+  }, [])
+
   // O WhatsApp é o número autoritativo do cliente neste CRM (regra do projeto)
   const numeroInicial = cliente?.whatsapp || cliente?.telefone || ''
 
@@ -62,6 +83,164 @@ export const ModalEnviarPropostaWhatsApp: React.FC<ModalEnviarPropostaWhatsAppPr
     tipo: 'success' | 'warning' | 'error'
     texto: string
   } | null>(null)
+
+  const executarEnvio = async () => {
+    if (!validacaoNumero.valido) {
+      setFeedback({
+        tipo: 'error',
+        texto:
+          validacaoNumero.mensagemErro ||
+          'Informe um número de WhatsApp válido com DDD (ex: 54 99999-9999).',
+      })
+      return
+    }
+
+    const mensagemLimpa = mensagem.trim()
+    if (!mensagemLimpa) {
+      setFeedback({
+        tipo: 'error',
+        texto: 'Por favor, digite ou selecione uma mensagem para enviar.',
+      })
+      return
+    }
+
+    setIsSending(true)
+    setFeedback(null)
+
+    // Limpa timeout anterior caso ainda exista
+    if (sendTimeoutRef.current !== null) {
+      clearTimeout(sendTimeoutRef.current)
+      sendTimeoutRef.current = null
+    }
+
+    try {
+      // 1. O WhatsApp é o número autoritativo do cliente: sincronizar se o usuário alterou no modal
+      if (cliente && validacaoNumero.numeroLimpo !== cliente.whatsapp?.replace(/\D/g, '')) {
+        try {
+          await updateCliente(cliente.id, {
+            whatsapp: validacaoNumero.numeroFormatado,
+          })
+        } catch (errAtualizar) {
+          console.warn('Aviso ao sincronizar WhatsApp autoritativo do cliente:', errAtualizar)
+        }
+      }
+
+      const clienteId = cliente?.id || orcamento.cliente_id
+      let resultado: {
+        ok?: boolean
+        sent?: boolean
+        gatewayConfigured?: boolean
+        status?: string
+        message?: string
+        error?: string
+      }
+
+      // Timeout de segurança de 45 segundos para a chamada de envio via rede/Z-API
+      const envioTimeoutPromise = new Promise<never>((_, reject) => {
+        sendTimeoutRef.current = setTimeout(() => {
+          reject(
+            new Error(
+              'Tempo limite de 45s excedido na comunicação com o Gateway de WhatsApp (Z-API). Verifique o histórico de mensagens.',
+            ),
+          )
+        }, 45000)
+      })
+
+      // 2. Enviar com PDF oficial anexo via Z-API ou texto puro
+      if (incluirPdf) {
+        if (!base64Doc) {
+          if (isMountedRef.current) {
+            setFeedback({
+              tipo: 'error',
+              texto:
+                'Não foi possível gerar o PDF oficial completo. Tente novamente ou desmarque "Anexar PDF" para enviar somente a mensagem de texto.',
+            })
+            setIsSending(false)
+          }
+          return
+        }
+
+        const envioPromise = sendWhatsAppDocument({
+          cliente_id: clienteId,
+          telefone_destino: validacaoNumero.numeroLimpo,
+          tipo: 'orcamento_solar',
+          referencia_id: orcamento.id,
+          legenda: mensagemLimpa,
+          nome_arquivo: nomeArquivo || 'Proposta-Solar-Delfos.pdf',
+          base64: base64Doc,
+        })
+
+        resultado = await Promise.race([envioPromise, envioTimeoutPromise])
+      } else {
+        // Envio somente de texto
+        const envioPromise = sendWhatsAppMessage({
+          cliente_id: clienteId,
+          telefone_destino: validacaoNumero.numeroLimpo,
+          conteudo_final: mensagemLimpa,
+          tipo_disparo: 'manual',
+          referencia_id: orcamento.id,
+        })
+
+        resultado = await Promise.race([envioPromise, envioTimeoutPromise])
+      }
+
+      if (!isMountedRef.current) return
+
+      if (resultado.sent) {
+        setFeedback({
+          tipo: 'success',
+          texto: `Proposta enviada com sucesso para ${validacaoNumero.numeroFormatado} via WhatsApp!`,
+        })
+        if (onSuccess) onSuccess()
+        setTimeout(() => {
+          if (isMountedRef.current) {
+            onClose()
+          }
+        }, 1300)
+      } else if (resultado.gatewayConfigured === false) {
+        setFeedback({
+          tipo: 'warning',
+          texto:
+            'Mensagem registrada no histórico como pendente/falha. WHATSAPP_API_URL e WHATSAPP_API_KEY devem estar configuradas nos Secrets do backend.',
+        })
+      } else {
+        setFeedback({
+          tipo: 'warning',
+          texto: `Disparo registrado: ${resultado.message || resultado.error || 'Status: ' + (resultado.status || 'concluído')}`,
+        })
+      }
+    } catch (err: unknown) {
+      console.error('Erro ao enviar proposta via WhatsApp:', err)
+      if (!isMountedRef.current) return
+
+      const errStr = err instanceof Error ? err.message : String(err)
+      const isTimeout =
+        errStr.includes('Tempo limite de 45s excedido') ||
+        errStr.includes('45s') ||
+        errStr.toLowerCase().includes('timeout')
+
+      if (isTimeout) {
+        setFeedback({
+          tipo: 'error',
+          texto:
+            'Tempo limite de 45s excedido na comunicação com o Gateway de WhatsApp (Z-API). A mensagem pode estar sendo processada pela Z-API. Você pode verificar o histórico ou tentar novamente.',
+        })
+      } else {
+        setFeedback({
+          tipo: 'error',
+          texto: `Falha no envio: ${errStr}`,
+        })
+      }
+    } finally {
+      if (sendTimeoutRef.current !== null) {
+        clearTimeout(sendTimeoutRef.current)
+        sendTimeoutRef.current = null
+      }
+      if (isMountedRef.current) {
+        setIsSending(false)
+      }
+    }
+  }
 
   // Contexto da proposta para os placeholders
   const contexto = useMemo(() => {
@@ -98,6 +277,7 @@ export const ModalEnviarPropostaWhatsApp: React.FC<ModalEnviarPropostaWhatsAppPr
 
     // Gerar PDF em segundo plano com timeout de segurança
     let isCancelled = false
+    let pdfTimeoutHandle: ReturnType<typeof setTimeout> | null = null
     setIsGeneratingPdf(true)
 
     async function prepararPdf() {
@@ -108,8 +288,8 @@ export const ModalEnviarPropostaWhatsApp: React.FC<ModalEnviarPropostaWhatsAppPr
           base64: string
           fallbackText: string
           fileName: string
-        }>((_, reject) =>
-          setTimeout(
+        }>((_, reject) => {
+          pdfTimeoutHandle = setTimeout(
             () =>
               reject(
                 new Error(
@@ -117,12 +297,12 @@ export const ModalEnviarPropostaWhatsApp: React.FC<ModalEnviarPropostaWhatsAppPr
                 ),
               ),
             35000,
-          ),
-        )
+          )
+        })
 
         const res = await Promise.race([gerarBase64OrcamentoSolar(inputPdf), timeoutPromise])
 
-        if (!isCancelled) {
+        if (!isCancelled && isMountedRef.current) {
           setBase64Doc(res.base64 || '')
           setTextoFallback(res.fallbackText)
           if (!res.base64) {
@@ -136,7 +316,7 @@ export const ModalEnviarPropostaWhatsApp: React.FC<ModalEnviarPropostaWhatsAppPr
       } catch (err: unknown) {
         console.error('Erro ao preparar PDF solar para WhatsApp:', err)
         const msg = err instanceof Error ? err.message : String(err)
-        if (!isCancelled) {
+        if (!isCancelled && isMountedRef.current) {
           setBase64Doc('')
           setFeedback({
             tipo: 'error',
@@ -144,7 +324,11 @@ export const ModalEnviarPropostaWhatsApp: React.FC<ModalEnviarPropostaWhatsAppPr
           })
         }
       } finally {
-        if (!isCancelled) {
+        if (pdfTimeoutHandle !== null) {
+          clearTimeout(pdfTimeoutHandle)
+          pdfTimeoutHandle = null
+        }
+        if (!isCancelled && isMountedRef.current) {
           setIsGeneratingPdf(false)
         }
       }
@@ -154,6 +338,10 @@ export const ModalEnviarPropostaWhatsApp: React.FC<ModalEnviarPropostaWhatsAppPr
 
     return () => {
       isCancelled = true
+      if (pdfTimeoutHandle !== null) {
+        clearTimeout(pdfTimeoutHandle)
+        pdfTimeoutHandle = null
+      }
     }
   }, [isOpen, orcamento, cliente, contexto])
 
@@ -203,109 +391,7 @@ export const ModalEnviarPropostaWhatsApp: React.FC<ModalEnviarPropostaWhatsAppPr
       return
     }
 
-    setIsSending(true)
-    try {
-      // 1. O WhatsApp é o número autoritativo do cliente: sincronizar se o usuário alterou no modal
-      if (cliente && validacaoNumero.numeroLimpo !== cliente.whatsapp?.replace(/\D/g, '')) {
-        try {
-          await updateCliente(cliente.id, {
-            whatsapp: validacaoNumero.numeroFormatado,
-          })
-        } catch (errAtualizar) {
-          console.warn('Aviso ao sincronizar WhatsApp autoritativo do cliente:', errAtualizar)
-        }
-      }
-
-      const clienteId = cliente?.id || orcamento.cliente_id
-      let resultado: {
-        ok?: boolean
-        sent?: boolean
-        gatewayConfigured?: boolean
-        status?: string
-        message?: string
-        error?: string
-      }
-
-      // Timeout de segurança de 45 segundos para a chamada de envio via rede/Z-API
-      const envioTimeoutPromise = new Promise<never>((_, reject) =>
-        setTimeout(
-          () =>
-            reject(
-              new Error(
-                'Tempo limite de 45s excedido na comunicação com o Gateway de WhatsApp (Z-API). Verifique o histórico de mensagens.',
-              ),
-            ),
-          45000,
-        ),
-      )
-
-      // 2. Enviar com PDF oficial anexo via Z-API ou texto puro
-      if (incluirPdf) {
-        if (!base64Doc) {
-          setFeedback({
-            tipo: 'error',
-            texto:
-              'Não foi possível gerar o PDF oficial completo. Tente novamente ou desmarque "Anexar PDF" para enviar somente a mensagem de texto.',
-          })
-          setIsSending(false)
-          return
-        }
-
-        const envioPromise = sendWhatsAppDocument({
-          cliente_id: clienteId,
-          telefone_destino: validacaoNumero.numeroLimpo,
-          tipo: 'orcamento_solar',
-          referencia_id: orcamento.id,
-          legenda: mensagemLimpa,
-          nome_arquivo: nomeArquivo || 'Proposta-Solar-Delfos.pdf',
-          base64: base64Doc,
-        })
-
-        resultado = await Promise.race([envioPromise, envioTimeoutPromise])
-      } else {
-        // Envio somente de texto
-        const envioPromise = sendWhatsAppMessage({
-          cliente_id: clienteId,
-          telefone_destino: validacaoNumero.numeroLimpo,
-          conteudo_final: mensagemLimpa,
-          tipo_disparo: 'manual',
-          referencia_id: orcamento.id,
-        })
-
-        resultado = await Promise.race([envioPromise, envioTimeoutPromise])
-      }
-
-      if (resultado.sent) {
-        setFeedback({
-          tipo: 'success',
-          texto: `Proposta enviada com sucesso para ${validacaoNumero.numeroFormatado} via WhatsApp!`,
-        })
-        if (onSuccess) onSuccess()
-        setTimeout(() => {
-          onClose()
-        }, 1300)
-      } else if (resultado.gatewayConfigured === false) {
-        setFeedback({
-          tipo: 'warning',
-          texto:
-            'Mensagem registrada no histórico como pendente/falha. WHATSAPP_API_URL e WHATSAPP_API_KEY devem estar configuradas nos Secrets do backend.',
-        })
-      } else {
-        setFeedback({
-          tipo: 'warning',
-          texto: `Disparo registrado: ${resultado.message || resultado.error || 'Status: ' + (resultado.status || 'concluído')}`,
-        })
-      }
-    } catch (err: unknown) {
-      console.error('Erro ao enviar proposta via WhatsApp:', err)
-      const errStr = err instanceof Error ? err.message : String(err)
-      setFeedback({
-        tipo: 'error',
-        texto: `Falha no envio: ${errStr}`,
-      })
-    } finally {
-      setIsSending(false)
-    }
+    await executarEnvio()
   }
 
   return (
@@ -385,7 +471,21 @@ export const ModalEnviarPropostaWhatsApp: React.FC<ModalEnviarPropostaWhatsAppPr
               {feedback.tipo === 'error' && (
                 <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
               )}
-              <div className="flex-1 leading-relaxed">{feedback.texto}</div>
+              <div className="flex-1 leading-relaxed">
+                <p>{feedback.texto}</p>
+                {feedback.tipo === 'error' && (
+                  <div className="mt-2 flex items-center gap-2">
+                    <button
+                      type="submit"
+                      disabled={isSending || isGeneratingPdf}
+                      className="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-rose-200/80 hover:bg-rose-300/80 text-rose-950 transition-colors inline-flex items-center gap-1 shrink-0 disabled:opacity-50"
+                    >
+                      <RotateCcw className="w-3 h-3" />
+                      <span>Tentar novamente</span>
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
