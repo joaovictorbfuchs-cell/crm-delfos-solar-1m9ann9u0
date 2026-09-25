@@ -57,7 +57,8 @@ routerAdd('POST', '/backend/v1/whatsapp/enviar-os', (e) => {
     }
 
     const instaladorNome = userRec.getString('name') || 'Instalador'
-    const instaladorTelefone = (userRec.getString('phone') || '').trim()
+    const rawTelefoneEnviado = (body.telefone_destino || '').trim()
+    const instaladorTelefone = (rawTelefoneEnviado || userRec.getString('phone') || '').trim()
 
     if (!instaladorTelefone) {
       return e.json(400, {
@@ -69,6 +70,14 @@ routerAdd('POST', '/backend/v1/whatsapp/enviar-os', (e) => {
         code: 'SEM_TELEFONE',
         tecnico_nome: instaladorNome,
       })
+    }
+
+    // Se informado telefone diferente e válido, atualiza no cadastro do usuário
+    if (rawTelefoneEnviado && rawTelefoneEnviado !== userRec.getString('phone')) {
+      try {
+        userRec.set('phone', rawTelefoneEnviado)
+        $app.save(userRec)
+      } catch (_) {}
     }
 
     // Buscar dados do cliente
@@ -142,6 +151,12 @@ routerAdd('POST', '/backend/v1/whatsapp/enviar-os', (e) => {
       .replace(/\{\{data_agendada\}\}/g, dataFormatada)
       .replace(/\{\{nome_instalador\}\}/g, instaladorNome)
       .replace(/\{\{id_os\}\}/g, osId)
+
+    // Aceitar mensagem_personalizada do modal de conferência se informada
+    const mensagemPersonalizada = (body.mensagem_personalizada || body.mensagem || '').trim()
+    if (mensagemPersonalizada) {
+      conteudo = mensagemPersonalizada
+    }
 
     // Referência única para reenvio manual: inclui timestamp para nunca colidir e nunca ser bloqueada por deduplicação
     const manualRefKey = 'os_manual_' + osId + '_' + responsavelId + '_' + new Date().getTime()

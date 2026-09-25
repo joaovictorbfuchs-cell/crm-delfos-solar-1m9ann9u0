@@ -536,6 +536,7 @@ export interface WhatsAppTemplate extends RecordModel {
   slug: string
   conteudo: string
   tipo_gatilho?: string
+  categoria?: string
   variaveis_disponiveis?: string[] | string
   ativo?: boolean
   created: string

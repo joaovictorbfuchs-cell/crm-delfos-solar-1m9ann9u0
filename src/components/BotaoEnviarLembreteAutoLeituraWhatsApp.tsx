@@ -1,8 +1,10 @@
-import React, { useState } from 'react'
-import { MessageSquare, Loader2, CheckCircle2, AlertCircle } from 'lucide-react'
+import React, { useState, useMemo } from 'react'
+import { MessageSquare, Loader2, CheckCircle2 } from 'lucide-react'
 import { sendLembreteAutoLeituraWhatsApp } from '@/services/crmService'
+import { useClientes } from '@/contexts/ClientesContext'
 import { useToast } from '@/hooks/use-toast'
 import type { Atividade } from '@/types/crm'
+import { ModalConfirmarEnvioWhatsApp } from './ModalConfirmarEnvioWhatsApp'
 
 interface BotaoEnviarLembreteAutoLeituraWhatsAppProps {
   atividade: Atividade
@@ -15,26 +17,97 @@ export const BotaoEnviarLembreteAutoLeituraWhatsApp: React.FC<
   BotaoEnviarLembreteAutoLeituraWhatsAppProps
 > = ({ atividade, onEnviado, variant = 'card', className = '' }) => {
   const [isSending, setIsSending] = useState(false)
+  const [modalConferenciaAberto, setModalConferenciaAberto] = useState(false)
   const { toast } = useToast()
+  const { clientes, usinas, whatsAppTemplates, updateCliente } = useClientes()
 
-  const handleEnviar = async (e?: React.MouseEvent) => {
+  // Buscar cliente vinculado
+  const cliente = useMemo(() => {
+    return clientes.find((c) => c.id === atividade.cliente_id)
+  }, [clientes, atividade.cliente_id])
+
+  // Buscar usina vinculada
+  const usina = useMemo(() => {
+    return usinas.find((u) => u.id === atividade.usina_id)
+  }, [usinas, atividade.usina_id])
+
+  // Telefone inicial: WhatsApp é o número autoritativo do cliente
+  const telefoneInicial = cliente?.whatsapp || cliente?.telefone || ''
+
+  // Contexto de interpolação
+  const contextoVariaveis = useMemo(() => {
+    const nomeCliente = cliente?.nome || cliente?.razao_social || 'Cliente'
+    const nomeUsina = usina?.nome || nomeCliente || 'sua unidade'
+    const uc = usina?.numero_uc || cliente?.uc || 'não informado'
+    const endereco =
+      usina?.endereco || cliente?.endereco || cliente?.cidade || 'endereço cadastrado'
+
+    return {
+      nome_cliente: nomeCliente,
+      usina: nomeUsina,
+      numero_uc: uc,
+      endereco: endereco,
+    }
+  }, [cliente, usina])
+
+  // Template do banco ou default verbatim
+  const templateLembrete = useMemo(() => {
+    const doBanco = whatsAppTemplates.find(
+      (t) =>
+        t.slug === 'lembrete_auto_leitura_rge' || t.titulo.toLowerCase().includes('auto leitura'),
+    )
+    if (doBanco) return doBanco
+
+    return {
+      id: 'lembrete_auto_leitura_rge',
+      titulo: 'Lembrete Auto Leitura RGE',
+      slug: 'lembrete_auto_leitura_rge',
+      conteudo:
+        'Olá, boa tarde! Chegou o momento da leitura do medidor de energia na instalação da {usina}, instalação consumidora {numero_uc} e endereço {endereco}. Para garantirmos o correto envio das informações à RGE, pedimos que nos encaminhe um vídeo ou fotos do medidor, onde apareçam claramente as seguintes grandezas: 03 – Energia consumida (kWh) e 103 – Energia injetada (kWh). Após o envio das imagens, pedimos também que nos informe por escrito os valores das grandezas 03 e 103, para conferência e validação dos dados antes do envio à RGE.',
+      tipo_gatilho: 'operacional',
+      ativo: true,
+    }
+  }, [whatsAppTemplates])
+
+  const templatesParaModal = useMemo(() => {
+    return [
+      {
+        id: templateLembrete.id,
+        titulo: templateLembrete.titulo,
+        conteudo: templateLembrete.conteudo,
+        descricao: 'Solicitação de fotos/vídeos e leitura grandezas 03 e 103',
+      },
+    ]
+  }, [templateLembrete])
+
+  const handleAbrirConferencia = (e?: React.MouseEvent) => {
     if (e) {
       e.stopPropagation()
       e.preventDefault()
     }
-    if (isSending) return
+    setModalConferenciaAberto(true)
+  }
 
+  const handleConfirmarEnvioModal = async ({
+    telefone,
+    mensagem,
+  }: {
+    telefone: string
+    mensagem: string
+  }) => {
+    setIsSending(true)
     try {
-      setIsSending(true)
-      const res = await sendLembreteAutoLeituraWhatsApp(atividade.id)
+      const res = await sendLembreteAutoLeituraWhatsApp(atividade.id, {
+        telefone_destino: telefone,
+        mensagem_personalizada: mensagem,
+      })
 
       if (res.ok && res.sent) {
         toast({
           title: 'Lembrete enviado!',
-          description: `Mensagem enviada com sucesso para ${res.telefone_destino || 'o cliente'}.`,
+          description: `Mensagem enviada com sucesso para ${res.telefone_destino || telefone || 'o cliente'}.`,
         })
 
-        // Retorna a atividade atualizada com lembrete_whatsapp_enviado_em
         const atvAtualizada: Atividade = res.atividade || {
           ...atividade,
           lembrete_whatsapp_enviado_em:
@@ -44,6 +117,8 @@ export const BotaoEnviarLembreteAutoLeituraWhatsApp: React.FC<
         if (onEnviado) {
           onEnviado(atvAtualizada)
         }
+
+        return { ok: true, sent: true }
       } else {
         const errorMsg =
           res.error ||
@@ -55,6 +130,12 @@ export const BotaoEnviarLembreteAutoLeituraWhatsApp: React.FC<
           title: res.gatewayConfigured === false ? 'Z-API não configurada' : 'Falha no envio Z-API',
           description: errorMsg,
         })
+
+        return {
+          ok: false,
+          sent: false,
+          message: errorMsg,
+        }
       }
     } catch (err: any) {
       console.error('Erro ao enviar lembrete Auto Leitura:', err)
@@ -68,8 +149,23 @@ export const BotaoEnviarLembreteAutoLeituraWhatsApp: React.FC<
         title: 'Erro no envio WhatsApp',
         description: msg,
       })
+
+      throw err
     } finally {
       setIsSending(false)
+    }
+  }
+
+  // Sincronizar número autoritativo do cliente caso editado no modal
+  const handleSincronizarTelefone = async (novoTelefone: string) => {
+    if (cliente && novoTelefone && novoTelefone !== cliente.whatsapp) {
+      try {
+        await updateCliente(cliente.id, {
+          whatsapp: novoTelefone,
+        })
+      } catch (err) {
+        console.warn('Aviso ao sincronizar telefone do cliente:', err)
+      }
     }
   }
 
@@ -77,65 +173,101 @@ export const BotaoEnviarLembreteAutoLeituraWhatsApp: React.FC<
 
   if (variant === 'modal') {
     return (
-      <button
-        type="button"
-        onClick={handleEnviar}
-        disabled={isSending}
-        className={`inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-all shadow-xs ${
-          jaEnviado
-            ? 'bg-amber-100 hover:bg-amber-200 text-amber-950 border border-amber-300'
-            : 'bg-emerald-600 hover:bg-emerald-700 text-white'
-        } disabled:opacity-60 disabled:cursor-not-allowed ${className}`}
-        title={
-          jaEnviado
-            ? `Lembrete já enviado em ${new Date(atividade.lembrete_whatsapp_enviado_em!).toLocaleString('pt-BR')}. Clique para reenviar.`
-            : 'Enviar lembrete de leitura do medidor via WhatsApp (Z-API)'
-        }
-      >
-        {isSending ? (
-          <>
-            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-            <span>Enviando WhatsApp...</span>
-          </>
-        ) : (
-          <>
-            <MessageSquare className="w-3.5 h-3.5" />
-            <span>{jaEnviado ? 'Reenviar lembrete WhatsApp' : 'Enviar lembrete WhatsApp'}</span>
-          </>
-        )}
-      </button>
+      <>
+        <button
+          type="button"
+          onClick={handleAbrirConferencia}
+          disabled={isSending}
+          className={`inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-all shadow-xs ${
+            jaEnviado
+              ? 'bg-amber-100 hover:bg-amber-200 text-amber-950 border border-amber-300'
+              : 'bg-emerald-600 hover:bg-emerald-700 text-white'
+          } disabled:opacity-60 disabled:cursor-not-allowed ${className}`}
+          title={
+            jaEnviado
+              ? `Lembrete já enviado em ${new Date(atividade.lembrete_whatsapp_enviado_em!).toLocaleString('pt-BR')}. Clique para conferir e reenviar.`
+              : 'Conferir e enviar lembrete de leitura do medidor via WhatsApp'
+          }
+        >
+          {isSending ? (
+            <>
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              <span>Enviando WhatsApp...</span>
+            </>
+          ) : (
+            <>
+              <MessageSquare className="w-3.5 h-3.5" />
+              <span>{jaEnviado ? 'Reenviar lembrete WhatsApp' : 'Enviar lembrete WhatsApp'}</span>
+            </>
+          )}
+        </button>
+
+        <ModalConfirmarEnvioWhatsApp
+          isOpen={modalConferenciaAberto}
+          onClose={() => setModalConferenciaAberto(false)}
+          titulo="Conferência de Lembrete Auto Leitura RGE"
+          subtitulo="Revise o número do WhatsApp do cliente e a mensagem antes de disparar."
+          destinatarioNome={cliente?.nome || cliente?.razao_social || 'Cliente'}
+          telefoneInicial={telefoneInicial}
+          mensagemInicial={templateLembrete.conteudo}
+          templates={templatesParaModal}
+          templatePadraoId={templateLembrete.id}
+          contextoVariaveis={contextoVariaveis}
+          onConfirmarEnvio={handleConfirmarEnvioModal}
+          confirmLabel={jaEnviado ? 'Confirmar e Reenviar Lembrete' : 'Confirmar e Enviar Lembrete'}
+          onSincronizarTelefone={handleSincronizarTelefone}
+        />
+      </>
     )
   }
 
   return (
-    <button
-      type="button"
-      onClick={handleEnviar}
-      disabled={isSending}
-      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold transition-colors ${
-        jaEnviado
-          ? 'bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200'
-          : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 hover:border-emerald-400'
-      } disabled:opacity-60 disabled:cursor-not-allowed ${className}`}
-      title={
-        jaEnviado
-          ? 'Lembrete já enviado. Clique para reenviar se necessário.'
-          : 'Enviar lembrete de leitura do medidor via WhatsApp (Z-API)'
-      }
-    >
-      {isSending ? (
-        <>
-          <Loader2 className="w-3 h-3 animate-spin text-emerald-700" />
-          <span>Enviando...</span>
-        </>
-      ) : (
-        <>
-          <MessageSquare
-            className={`w-3 h-3 ${jaEnviado ? 'text-amber-600' : 'text-emerald-600'}`}
-          />
-          <span>{jaEnviado ? 'Reenviar WhatsApp' : 'Enviar lembrete WhatsApp'}</span>
-        </>
-      )}
-    </button>
+    <>
+      <button
+        type="button"
+        onClick={handleAbrirConferencia}
+        disabled={isSending}
+        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold transition-colors ${
+          jaEnviado
+            ? 'bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200'
+            : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 hover:border-emerald-400'
+        } disabled:opacity-60 disabled:cursor-not-allowed ${className}`}
+        title={
+          jaEnviado
+            ? 'Lembrete já enviado. Clique para conferir e reenviar se necessário.'
+            : 'Conferir e enviar lembrete de leitura do medidor via WhatsApp'
+        }
+      >
+        {isSending ? (
+          <>
+            <Loader2 className="w-3 h-3 animate-spin text-emerald-700" />
+            <span>Enviando...</span>
+          </>
+        ) : (
+          <>
+            <MessageSquare
+              className={`w-3 h-3 ${jaEnviado ? 'text-amber-600' : 'text-emerald-600'}`}
+            />
+            <span>{jaEnviado ? 'Reenviar WhatsApp' : 'Enviar lembrete WhatsApp'}</span>
+          </>
+        )}
+      </button>
+
+      <ModalConfirmarEnvioWhatsApp
+        isOpen={modalConferenciaAberto}
+        onClose={() => setModalConferenciaAberto(false)}
+        titulo="Conferência de Lembrete Auto Leitura RGE"
+        subtitulo="Revise o número do WhatsApp do cliente e a mensagem antes de disparar."
+        destinatarioNome={cliente?.nome || cliente?.razao_social || 'Cliente'}
+        telefoneInicial={telefoneInicial}
+        mensagemInicial={templateLembrete.conteudo}
+        templates={templatesParaModal}
+        templatePadraoId={templateLembrete.id}
+        contextoVariaveis={contextoVariaveis}
+        onConfirmarEnvio={handleConfirmarEnvioModal}
+        confirmLabel={jaEnviado ? 'Confirmar e Reenviar Lembrete' : 'Confirmar e Enviar Lembrete'}
+        onSincronizarTelefone={handleSincronizarTelefone}
+      />
+    </>
   )
 }

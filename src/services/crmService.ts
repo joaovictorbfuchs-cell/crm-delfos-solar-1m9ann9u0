@@ -1642,7 +1642,13 @@ export async function sendWhatsAppMensagem(data: {
   })
 }
 
-export async function sendLembreteAutoLeituraWhatsApp(atividadeId: string): Promise<{
+export async function sendLembreteAutoLeituraWhatsApp(
+  atividadeId: string,
+  opcoes?: {
+    mensagem_personalizada?: string
+    telefone_destino?: string
+  },
+): Promise<{
   ok: boolean
   sent?: boolean
   gatewayConfigured?: boolean
@@ -1656,11 +1662,21 @@ export async function sendLembreteAutoLeituraWhatsApp(atividadeId: string): Prom
 }> {
   return pb.send('/backend/v1/whatsapp/enviar-lembrete-auto-leitura', {
     method: 'POST',
-    body: { atividade_id: atividadeId },
+    body: {
+      atividade_id: atividadeId,
+      mensagem_personalizada: opcoes?.mensagem_personalizada,
+      telefone_destino: opcoes?.telefone_destino,
+    },
   })
 }
 
-export async function sendOSWhatsAppManual(osId: string): Promise<{
+export async function sendOSWhatsAppManual(
+  osId: string,
+  opcoes?: {
+    mensagem_personalizada?: string
+    telefone_destino?: string
+  },
+): Promise<{
   ok: boolean
   sent?: boolean
   gatewayConfigured?: boolean
@@ -1676,7 +1692,11 @@ export async function sendOSWhatsAppManual(osId: string): Promise<{
 }> {
   return pb.send('/backend/v1/whatsapp/enviar-os', {
     method: 'POST',
-    body: { os_id: osId },
+    body: {
+      os_id: osId,
+      mensagem_personalizada: opcoes?.mensagem_personalizada,
+      telefone_destino: opcoes?.telefone_destino,
+    },
   })
 }
 
@@ -2455,10 +2475,18 @@ export interface EnviarNotificacaoOSManualResult {
 
 export async function enviarNotificacaoOSManual(
   osId: string,
+  opcoes?: {
+    mensagem_personalizada?: string
+    telefone_destino?: string
+  },
 ): Promise<EnviarNotificacaoOSManualResult> {
   return pb.send('/backend/v1/whatsapp/enviar-os', {
     method: 'POST',
-    body: { os_id: osId },
+    body: {
+      os_id: osId,
+      mensagem_personalizada: opcoes?.mensagem_personalizada,
+      telefone_destino: opcoes?.telefone_destino,
+    },
   })
 }
 

@@ -45,8 +45,12 @@ routerAdd('POST', '/backend/v1/whatsapp/enviar-lembrete-auto-leitura', (e) => {
       }
     }
 
+    // Destino: aceita telefone_destino opcional enviado do modal de conferência
+    const rawTelefoneEnviado = (body.telefone_destino || '').trim()
+
     // Regra do projeto: WhatsApp é o número autoritativo do cliente
     const rawTelefone = (
+      rawTelefoneEnviado ||
       clienteRecord.getString('whatsapp') ||
       clienteRecord.getString('telefone') ||
       clienteRecord.getString('telefone_secundario') ||
@@ -67,15 +71,26 @@ routerAdd('POST', '/backend/v1/whatsapp/enviar-lembrete-auto-leitura', (e) => {
       cleanPhone = '55' + cleanPhone
     }
 
-    // Montar texto EXATO verbatim conforme pedido do usuário:
-    // "Olá, boa tarde! Chegou o momento da leitura do seu medidor de energia na instalação da [nome da usina ou cliente], instalação consumidora [número] e endereço [endereço]. Para garantirmos o correto envio das informações à RGE, pedimos que nos encaminhe um vídeo ou fotos do medidor, onde apareçam claramente as seguintes grandezas: 03 – Energia consumida (kWh) e 103 – Energia injetada (kWh). Após o envio das imagens, pedimos também que nos informe por escrito os valores das grandezas 03 e 103, para conferência e validação dos dados antes do envio à RGE."
+    // Se o telefone foi editado no modal e é válido, mantém a autoridade do WhatsApp atualizando cliente
+    if (rawTelefoneEnviado && rawTelefoneEnviado !== clienteRecord.getString('whatsapp')) {
+      try {
+        clienteRecord.set('whatsapp', rawTelefoneEnviado)
+        $app.save(clienteRecord)
+      } catch (_) {}
+    }
+
+    // Montar texto padrão ou utilizar mensagem_personalizada do modal de conferência
+    const mensagemPersonalizada = (body.mensagem_personalizada || body.mensagem || '').trim()
+
     const nomeUsinaOuCliente =
       (usinaRecord ? usinaRecord.getString('nome') : '') ||
       clienteRecord.getString('nome') ||
       'sua unidade'
 
     const numeroInstalacao =
-      (usinaRecord ? usinaRecord.getString('uc_codigo') : '') ||
+      (usinaRecord
+        ? usinaRecord.getString('numero_uc') || usinaRecord.getString('uc_codigo')
+        : '') ||
       clienteRecord.getString('uc') ||
       clienteRecord.getString('numero_instalacao') ||
       'não informado'
@@ -86,13 +101,35 @@ routerAdd('POST', '/backend/v1/whatsapp/enviar-lembrete-auto-leitura', (e) => {
       clienteRecord.getString('cidade') ||
       'endereço cadastrado'
 
-    const mensagemTexto =
-      `Olá, boa tarde! Chegou o momento da leitura do seu medidor de energia na instalação da ${nomeUsinaOuCliente}, ` +
-      `instalação consumidora ${numeroInstalacao} e endereço ${enderecoInstalacao}. ` +
-      `Para garantirmos o correto envio das informações à RGE, pedimos que nos encaminhe um vídeo ou fotos do medidor, ` +
-      `onde apareçam claramente as seguintes grandezas: 03 – Energia consumida (kWh) e 103 – Energia injetada (kWh). ` +
-      `Após o envio das imagens, pedimos também que nos informe por escrito os valores das grandezas 03 e 103, ` +
-      `para conferência e validação dos dados antes do envio à RGE.`
+    // Template no banco se existir
+    let tplLeitura = null
+    try {
+      tplLeitura = $app.findFirstRecordByData(
+        'whatsapp_templates',
+        'slug',
+        'lembrete_auto_leitura_rge',
+      )
+    } catch (_) {}
+
+    let mensagemTexto = mensagemPersonalizada
+    if (!mensagemTexto) {
+      if (tplLeitura && tplLeitura.getString('conteudo')) {
+        mensagemTexto = tplLeitura
+          .getString('conteudo')
+          .replace(/\{\{nome_cliente\}\}/g, clienteRecord.getString('nome') || 'Cliente')
+          .replace(/\{\{usina\}\}/g, nomeUsinaOuCliente)
+          .replace(/\{\{numero_uc\}\}/g, numeroInstalacao)
+          .replace(/\{\{endereco\}\}/g, enderecoInstalacao)
+      } else {
+        mensagemTexto =
+          `Olá, boa tarde! Chegou o momento da leitura do medidor de energia na instalação da ${nomeUsinaOuCliente}, ` +
+          `instalação consumidora ${numeroInstalacao} e endereço ${enderecoInstalacao}. ` +
+          `Para garantirmos o correto envio das informações à RGE, pedimos que nos encaminhe um vídeo ou fotos do medidor, ` +
+          `onde apareçam claramente as seguintes grandezas: 03 – Energia consumida (kWh) e 103 – Energia injetada (kWh). ` +
+          `Após o envio das imagens, pedimos também que nos informe por escrito os valores das grandezas 03 e 103, ` +
+          `para conferência e validação dos dados antes do envio à RGE.`
+      }
+    }
 
     // Obter credenciais Z-API dos Secrets
     let rawApiUrl = ($os.getenv('WHATSAPP_API_URL') || '').trim().replace(/[\r\n\t]/g, '')
