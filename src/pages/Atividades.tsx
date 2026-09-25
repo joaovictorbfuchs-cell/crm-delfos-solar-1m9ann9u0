@@ -16,8 +16,6 @@ import {
 } from '@/components/ui/alert-dialog'
 import { AtividadesCalendario } from '@/components/AtividadesCalendario'
 import { AtividadesPendentesList } from '@/components/AtividadesPendentesList'
-import { ModalAutoLeituraRGE } from '@/components/ModalAutoLeituraRGE'
-import { isAtividadeAutoLeitura } from '@/services/autoLeituraService'
 import type { Atividade, AtividadeTipo, AtividadeStatus } from '@/types/crm'
 
 export const Atividades: React.FC = () => {
@@ -54,9 +52,6 @@ export const Atividades: React.FC = () => {
   } | null>(null)
   const [isDeletingAtividade, setIsDeletingAtividade] = useState(false)
 
-  // Modal estendido de Auto Leitura - RGE
-  const [autoLeituraModalAtividade, setAutoLeituraModalAtividade] = useState<Atividade | null>(null)
-
   // Modo de exibição: Calendário vs Fila de Pendentes vs Timeline Geral
   const [activeView, setActiveView] = useState<'calendario' | 'pendentes' | 'timeline'>(
     'calendario',
@@ -69,13 +64,6 @@ export const Atividades: React.FC = () => {
   const [filterStatus, setFilterStatus] = useState<string>('todos')
 
   const handleToggleStatus = async (id: string, currentStatus: string) => {
-    const target = atividades.find((a) => a.id === id)
-    // Se for auto leitura, o toggle sempre deve abrir o ModalAutoLeituraRGE para conferência e validação
-    // dos requisitos, impedindo a conclusão direta desassistida.
-    if (target && isAtividadeAutoLeitura(target)) {
-      setAutoLeituraModalAtividade(target)
-      return
-    }
     const nextStatus: AtividadeStatus = currentStatus === 'concluida' ? 'pendente' : 'concluida'
     await updateAtividadeStatus(id, nextStatus)
   }
@@ -232,7 +220,6 @@ export const Atividades: React.FC = () => {
           onSelectUsuario={setUsuarioFiltroId}
           onToggleStatus={handleToggleStatus}
           onOpenCliente={openFichaCliente}
-          onOpenAutoLeitura={(atv) => setAutoLeituraModalAtividade(atv)}
         />
       )}
 
@@ -244,7 +231,6 @@ export const Atividades: React.FC = () => {
           onSelectUsuario={setUsuarioFiltroId}
           onToggleStatus={handleToggleStatus}
           onOpenCliente={openFichaCliente}
-          onOpenAutoLeitura={(atv) => setAutoLeituraModalAtividade(atv)}
         />
       )}
 
@@ -363,16 +349,7 @@ export const Atividades: React.FC = () => {
 
               <div className="space-y-1">
                 {filteredTimelineAtividades.map((atv) => (
-                  <div
-                    key={atv.id}
-                    className={`relative ${isAtividadeAutoLeitura(atv) ? 'cursor-pointer' : ''}`}
-                    onClick={(e) => {
-                      if (isAtividadeAutoLeitura(atv)) {
-                        e.stopPropagation()
-                        setAutoLeituraModalAtividade(atv)
-                      }
-                    }}
-                  >
+                  <div key={atv.id} className="relative">
                     <AtividadeItem
                       atividade={atv}
                       onDelete={(id) => {
@@ -383,11 +360,6 @@ export const Atividades: React.FC = () => {
                         })
                       }}
                       onToggleStatus={handleToggleStatus}
-                      onOpenDetalhes={(item) => {
-                        if (isAtividadeAutoLeitura(item)) {
-                          setAutoLeituraModalAtividade(item)
-                        }
-                      }}
                       showClienteName={true}
                     />
                     {/* Botão para abrir a ficha do cliente correspondente */}
@@ -418,16 +390,6 @@ export const Atividades: React.FC = () => {
           setModalInitialTipo(null)
         }}
         initialTipo={modalInitialTipo}
-      />
-
-      {/* Modal Estendido de Auto Leitura - RGE */}
-      <ModalAutoLeituraRGE
-        isOpen={Boolean(autoLeituraModalAtividade)}
-        onClose={() => setAutoLeituraModalAtividade(null)}
-        atividade={autoLeituraModalAtividade}
-        onUpdated={() => {
-          refreshData()
-        }}
       />
 
       {/* Confirmação Segura de Exclusão de Atividade */}

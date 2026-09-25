@@ -65,9 +65,7 @@ import { ModalTransferenciaCreditos } from './ModalTransferenciaCreditos'
 import { ModalGerenciarAtividades } from './ModalGerenciarAtividades'
 import { ModalGerarProcuracaoOM } from './ModalGerarProcuracaoOM'
 import { ModalGerarContratoOM } from './ModalGerarContratoOM'
-import { ModalAutoLeituraRGE } from './ModalAutoLeituraRGE'
 import { ModalNovaAtividade } from './ModalNovaAtividade'
-import { isAtividadeAutoLeitura } from '@/services/autoLeituraService'
 import { ModalSolicitacaoInformacoes } from './ModalSolicitacaoInformacoes'
 import { ModalMarcarPerdido } from './ModalMarcarPerdido'
 import { ModalNovaOportunidade } from './ModalNovaOportunidade'
@@ -242,7 +240,6 @@ export const FichaClienteDrawer: React.FC = () => {
 
   // Estado para Modal de Detalhes / Edição Inline da Linha do Tempo Unificada
   const [timelineItemDetalhes, setTimelineItemDetalhes] = useState<TimelineUnifiedItem | null>(null)
-  const [autoLeituraModalAtividade, setAutoLeituraModalAtividade] = useState<Atividade | null>(null)
 
   // Drawer / Modal de Atividades de Manutenção do Cliente
   const [drawerAtividadesManutencaoOpen, setDrawerAtividadesManutencaoOpen] = useState(false)
@@ -3527,43 +3524,9 @@ export const FichaClienteDrawer: React.FC = () => {
                     orcamentosSolar={orcamentosSolar}
                     propostasOM={propostasOM}
                     onItemClick={(item) => {
-                      if (item.rawAtividade && isAtividadeAutoLeitura(item.rawAtividade)) {
-                        setAutoLeituraModalAtividade(item.rawAtividade)
-                        return
-                      }
-                      if (
-                        item.titulo &&
-                        (item.titulo.toLowerCase().includes('auto leitura') ||
-                          item.titulo.toLowerCase().includes('auto-leitura')) &&
-                        item.rawAtividade
-                      ) {
-                        setAutoLeituraModalAtividade(item.rawAtividade)
-                        return
-                      }
                       setTimelineItemDetalhes(item)
                     }}
                     onToggleAtividadeStatus={async (id, current) => {
-                      const target = atividades.find((a) => a.id === id)
-                      if (target && isAtividadeAutoLeitura(target) && current !== 'concluida') {
-                        let dados: any = {}
-                        if (typeof target.auto_leitura_dados === 'object')
-                          dados = target.auto_leitura_dados || {}
-                        else if (typeof target.auto_leitura_dados === 'string') {
-                          try {
-                            dados = JSON.parse(target.auto_leitura_dados)
-                          } catch {
-                            /* intentionally ignored */
-                          }
-                        }
-                        const atendeu =
-                          dados?.fotosEnviadas &&
-                          dados?.valoresInformados &&
-                          dados?.protocoloRealizado
-                        if (!atendeu) {
-                          setAutoLeituraModalAtividade(target)
-                          return
-                        }
-                      }
                       const next = current === 'concluida' ? 'pendente' : 'concluida'
                       await updateAtividadeStatus(id, next as any)
                     }}
@@ -3655,18 +3618,7 @@ export const FichaClienteDrawer: React.FC = () => {
               </div>
 
               {proximaAtividade ? (
-                <div
-                  onClick={() => {
-                    if (isAtividadeAutoLeitura(proximaAtividade)) {
-                      setAutoLeituraModalAtividade(proximaAtividade)
-                    }
-                  }}
-                  className={`p-2.5 rounded-lg bg-emerald-50/50 border border-emerald-100 space-y-1.5 text-xs ${
-                    isAtividadeAutoLeitura(proximaAtividade)
-                      ? 'cursor-pointer hover:border-orange-400 hover:bg-orange-50/50 transition-colors'
-                      : ''
-                  }`}
-                >
+                <div className="p-2.5 rounded-lg bg-emerald-50/50 border border-emerald-100 space-y-1.5 text-xs">
                   <div className="font-bold text-gray-900 leading-tight flex items-center justify-between gap-2">
                     <span>{proximaAtividade.titulo || 'Atividade Agendada'}</span>
                   </div>
@@ -3899,16 +3851,6 @@ export const FichaClienteDrawer: React.FC = () => {
         }}
         initialClienteId={selectedCliente?.id}
         initialOrcamento={orcamentoSolarVisualizar}
-      />
-
-      {/* Modal Auto Leitura - RGE quando clicado em atividade desse tipo */}
-      <ModalAutoLeituraRGE
-        isOpen={Boolean(autoLeituraModalAtividade)}
-        onClose={() => setAutoLeituraModalAtividade(null)}
-        atividade={autoLeituraModalAtividade}
-        onUpdated={() => {
-          recarregarUsinas()
-        }}
       />
 
       {/* Modal Registrar Atividade disparado a partir da Ficha do Cliente */}

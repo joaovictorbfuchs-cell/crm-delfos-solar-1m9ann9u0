@@ -24,8 +24,6 @@ import {
 } from 'lucide-react'
 import { ModalGerarProcuracaoOM } from '@/components/ModalGerarProcuracaoOM'
 import { ModalGerarContratoOM } from '@/components/ModalGerarContratoOM'
-import { isAtividadeAutoLeitura, getAutoLeituraLembreteStatus } from '@/services/autoLeituraService'
-import { BotaoEnviarLembreteAutoLeituraWhatsApp } from './BotaoEnviarLembreteAutoLeituraWhatsApp'
 import type { DadosProcuracaoOM } from '@/lib/procuracaoGenerator'
 import type { DadosContratoOM } from '@/lib/contratoGenerator'
 import type { TimelineUnifiedItem, TimelineFilterTipo } from '@/types/timelineUnified'
@@ -852,27 +850,6 @@ export const LinhaDoTempoUnificada: React.FC<LinhaDoTempoUnificadaProps> = ({
                           {item.status}
                         </button>
                       )}
-
-                      {/* Tags de status para atividades filhas de Auto Leitura RGE */}
-                      {item.rawAtividade &&
-                        item.rawAtividade.status !== 'concluida' &&
-                        (isAtividadeAutoLeitura(item.rawAtividade) ||
-                          item.rawAtividade.tipo === 'auto_leitura_rge') &&
-                        (item.titulo?.toLowerCase().includes('auto leitura rge -') ||
-                          /auto\s*leitura.*rge.*-.*\d{2}\/\d{2}\/\d{4}/i.test(item.titulo || '') ||
-                          item.rawAtividade.titulo?.toLowerCase().includes('auto leitura rge -') ||
-                          /auto\s*leitura.*rge.*-.*\d{2}\/\d{2}\/\d{4}/i.test(
-                            item.rawAtividade.titulo || '',
-                          )) &&
-                        (getAutoLeituraLembreteStatus(item.rawAtividade) === 'enviado' ? (
-                          <span className="text-[10px] font-bold px-2 py-0.5 rounded border bg-amber-100 text-amber-900 border-amber-300">
-                            Mensagem enviada - aguardando dados
-                          </span>
-                        ) : (
-                          <span className="text-[10px] font-bold px-2 py-0.5 rounded border bg-emerald-100 text-emerald-800 border-emerald-300">
-                            Aguardando envio
-                          </span>
-                        ))}
                     </div>
 
                     <div className="text-[11px] text-gray-500 font-medium flex items-center gap-1">
@@ -953,25 +930,6 @@ export const LinhaDoTempoUnificada: React.FC<LinhaDoTempoUnificadaProps> = ({
                     </div>
 
                     <div className="flex items-center gap-2 flex-wrap">
-                      {/* Botão de Enviar Lembrete WhatsApp para Auto Leitura RGE */}
-                      {item.rawAtividade &&
-                        item.rawAtividade.status !== 'concluida' &&
-                        (isAtividadeAutoLeitura(item.rawAtividade) ||
-                          item.rawAtividade.tipo === 'auto_leitura_rge') &&
-                        (item.titulo?.toLowerCase().includes('auto leitura rge -') ||
-                          /auto\s*leitura.*rge.*-.*\d{2}\/\d{2}\/\d{4}/i.test(item.titulo || '') ||
-                          item.rawAtividade.titulo?.toLowerCase().includes('auto leitura rge -') ||
-                          /auto\s*leitura.*rge.*-.*\d{2}\/\d{2}\/\d{4}/i.test(
-                            item.rawAtividade.titulo || '',
-                          )) && (
-                          <BotaoEnviarLembreteAutoLeituraWhatsApp
-                            atividade={item.rawAtividade}
-                            onEnviado={() => {
-                              // Atualização refletida no app
-                            }}
-                          />
-                        )}
-
                       {hasValor && (
                         <div className="text-right">
                           <span className="font-black text-gray-900 text-xs sm:text-sm">
@@ -1040,24 +998,19 @@ export const LinhaDoTempoUnificada: React.FC<LinhaDoTempoUnificadaProps> = ({
                           )
                         })()}
 
-                      {/* Botão de abrir detalhes com efeito hover (oculto para Auto Leitura RGE conforme solicitado pelo usuário) */}
-                      {!(
-                        isAtividadeAutoLeitura(item.rawAtividade) ||
-                        (item.titulo && item.titulo.toLowerCase().includes('auto leitura'))
-                      ) && (
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            onItemClick(item)
-                          }}
-                          className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-bold text-emerald-700 hover:text-emerald-900 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-lg transition-colors"
-                        >
-                          <Pencil className="w-3 h-3 text-emerald-600" />
-                          <span>Detalhes / Editar</span>
-                          <ChevronRight className="w-3 h-3 ml-0.5" />
-                        </button>
-                      )}
+                      {/* Botão de abrir detalhes com efeito hover */}
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          onItemClick(item)
+                        }}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-bold text-emerald-700 hover:text-emerald-900 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-lg transition-colors"
+                      >
+                        <Pencil className="w-3 h-3 text-emerald-600" />
+                        <span>Detalhes / Editar</span>
+                        <ChevronRight className="w-3 h-3 ml-0.5" />
+                      </button>
 
                       {/* Botão Ver PDF com Download para Procuração Particular O&M */}
                       {(item.titulo === 'Procuração Particular O&M Gerada' ||

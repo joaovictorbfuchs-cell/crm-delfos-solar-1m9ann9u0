@@ -12,8 +12,6 @@ export interface AtividadeItemProps {
 }
 
 import { getTipoAtividadeConfig } from '@/constants/atividadesTipos'
-import { isAtividadeAutoLeitura, getAutoLeituraLembreteStatus } from '@/services/autoLeituraService'
-import { BotaoEnviarLembreteAutoLeituraWhatsApp } from './BotaoEnviarLembreteAutoLeituraWhatsApp'
 
 export function getAtividadeConfig(tipo: AtividadeTipo | string) {
   const conf = getTipoAtividadeConfig(tipo)
@@ -33,19 +31,8 @@ export const AtividadeItem: React.FC<AtividadeItemProps> = ({
   onOpenDetalhes,
   showClienteName,
 }) => {
-  const isAutoLeitura = isAtividadeAutoLeitura(atividade)
-  const config = getAtividadeConfig(isAutoLeitura ? 'auto_leitura_rge' : atividade.tipo)
-
+  const config = getAtividadeConfig(atividade.tipo)
   const isConcluida = atividade.status === 'concluida'
-
-  // Regra da tag verde: atividade filha de auto leitura RGE ou pendente
-  const isAutoLeituraFilha =
-    isAutoLeitura &&
-    (atividade.titulo?.toLowerCase().includes('auto leitura rge -') ||
-      /auto\s*leitura.*rge.*-.*\d{2}\/\d{2}\/\d{4}/i.test(atividade.titulo || ''))
-
-  const lembreteStatus = getAutoLeituraLembreteStatus(atividade)
-
   const responsavel = atividade.responsavel_nome || atividade.autor
 
   return (
@@ -78,10 +65,6 @@ export const AtividadeItem: React.FC<AtividadeItemProps> = ({
                 type="button"
                 onClick={(e) => {
                   e.stopPropagation()
-                  if (isAutoLeitura && onOpenDetalhes) {
-                    onOpenDetalhes(atividade)
-                    return
-                  }
                   onToggleStatus(atividade.id, atividade.status || 'pendente')
                 }}
                 className={`flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded transition-colors ${
@@ -111,19 +94,6 @@ export const AtividadeItem: React.FC<AtividadeItemProps> = ({
             >
               {config.label}
             </span>
-
-            {/* Tags de status para atividades filhas de Auto Leitura RGE */}
-            {isAutoLeituraFilha &&
-              !isConcluida &&
-              (lembreteStatus === 'enviado' ? (
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded border bg-amber-100 text-amber-900 border-amber-300">
-                  Mensagem enviada - aguardando dados
-                </span>
-              ) : (
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded border bg-emerald-100 text-emerald-800 border-emerald-300">
-                  Aguardando envio
-                </span>
-              ))}
             {showClienteName && atividade.expand?.cliente_id && (
               <span className="font-semibold text-gray-700 bg-gray-100 px-1.5 py-0.5 rounded truncate max-w-[150px]">
                 {atividade.expand.cliente_id.nome}
@@ -190,20 +160,6 @@ export const AtividadeItem: React.FC<AtividadeItemProps> = ({
             {atividade.descricao}
           </p>
         </div>
-
-        {/* Botão de lembrete WhatsApp e atalho para Auto Leitura */}
-        {isAutoLeituraFilha && !isConcluida && (
-          <div className="mt-2.5 pt-2 border-t border-gray-100 flex items-center justify-between gap-2 flex-wrap">
-            <BotaoEnviarLembreteAutoLeituraWhatsApp
-              atividade={atividade}
-              onEnviado={(updated) => {
-                if (onOpenDetalhes) {
-                  // Pode disparar atualização caso o pai controle estado
-                }
-              }}
-            />
-          </div>
-        )}
       </div>
     </div>
   )

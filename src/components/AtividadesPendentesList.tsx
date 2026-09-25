@@ -13,8 +13,6 @@ import {
 import type { Atividade, SistemaUsuario } from '@/types/crm'
 import { getTipoAtividadeConfig } from '@/constants/atividadesTipos'
 import { formatDateTime } from '@/lib/formatters'
-import { isAtividadeAutoLeitura, getAutoLeituraLembreteStatus } from '@/services/autoLeituraService'
-import { BotaoEnviarLembreteAutoLeituraWhatsApp } from './BotaoEnviarLembreteAutoLeituraWhatsApp'
 
 interface AtividadesPendentesListProps {
   atividades: Atividade[]
@@ -23,7 +21,6 @@ interface AtividadesPendentesListProps {
   onSelectUsuario: (id: string) => void
   onToggleStatus: (id: string, currentStatus: string) => void
   onOpenCliente: (clienteId: string) => void
-  onOpenAutoLeitura?: (atividade: Atividade) => void
 }
 
 export const AtividadesPendentesList: React.FC<AtividadesPendentesListProps> = ({
@@ -33,7 +30,6 @@ export const AtividadesPendentesList: React.FC<AtividadesPendentesListProps> = (
   onSelectUsuario,
   onToggleStatus,
   onOpenCliente,
-  onOpenAutoLeitura,
 }) => {
   const [tabStatus, setTabStatus] = useState<'pendentes' | 'concluidas' | 'todas'>('pendentes')
   const [searchTerm, setSearchTerm] = useState('')
@@ -209,9 +205,7 @@ export const AtividadesPendentesList: React.FC<AtividadesPendentesListProps> = (
       ) : (
         <div className="space-y-2.5 max-h-[500px] overflow-y-auto pr-1">
           {filteredList.map((atv) => {
-            const isAutoLeitura = isAtividadeAutoLeitura(atv)
-            const conf = getTipoAtividadeConfig(isAutoLeitura ? 'auto_leitura_rge' : atv.tipo)
-            const Icon = conf.icon
+            const conf = getTipoAtividadeConfig(atv.tipo)
             const isConcluida = atv.status === 'concluida'
             const isOverdue =
               !isConcluida && atv.data && new Date(atv.data).getTime() < new Date().getTime()
@@ -219,14 +213,7 @@ export const AtividadesPendentesList: React.FC<AtividadesPendentesListProps> = (
             return (
               <div
                 key={atv.id}
-                onClick={() => {
-                  if (isAutoLeitura && onOpenAutoLeitura) {
-                    onOpenAutoLeitura(atv)
-                  }
-                }}
                 className={`p-3.5 rounded-xl border transition-all space-y-2.5 ${
-                  isAutoLeitura ? 'cursor-pointer hover:border-orange-400' : ''
-                } ${
                   isConcluida
                     ? 'border-gray-200 bg-gray-50/60 opacity-80'
                     : isOverdue
@@ -234,7 +221,6 @@ export const AtividadesPendentesList: React.FC<AtividadesPendentesListProps> = (
                       : 'border-gray-200 bg-white shadow-2xs hover:border-emerald-300'
                 }`}
               >
-                {' '}
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-start gap-2.5 flex-1 min-w-0">
                     {/* Botão de marcar status */}
@@ -242,12 +228,6 @@ export const AtividadesPendentesList: React.FC<AtividadesPendentesListProps> = (
                       type="button"
                       onClick={(e) => {
                         e.stopPropagation()
-                        if (isAutoLeitura) {
-                          if (onOpenAutoLeitura) {
-                            onOpenAutoLeitura(atv)
-                          }
-                          return
-                        }
                         onToggleStatus(atv.id, atv.status || 'pendente')
                       }}
                       className="mt-0.5 text-gray-400 hover:text-emerald-600 transition-colors shrink-0"
@@ -267,23 +247,6 @@ export const AtividadesPendentesList: React.FC<AtividadesPendentesListProps> = (
                         >
                           {conf.tituloPadrao}
                         </span>
-
-                        {/* Tags de status para filhas de Auto Leitura RGE */}
-                        {isAutoLeitura &&
-                          !isConcluida &&
-                          (atv.titulo?.toLowerCase().includes('auto leitura rge -') ||
-                            /auto\s*leitura.*rge.*-.*\d{2}\/\d{2}\/\d{4}/i.test(
-                              atv.titulo || '',
-                            )) &&
-                          (getAutoLeituraLembreteStatus(atv) === 'enviado' ? (
-                            <span className="text-[10px] font-bold px-2 py-0.5 rounded border bg-amber-100 text-amber-900 border-amber-300">
-                              Mensagem enviada - aguardando dados
-                            </span>
-                          ) : (
-                            <span className="text-[10px] font-bold px-2 py-0.5 rounded border bg-emerald-100 text-emerald-800 border-emerald-300">
-                              Aguardando envio
-                            </span>
-                          ))}
 
                         {isOverdue && (
                           <span className="text-[10px] font-bold text-amber-800 bg-amber-100 px-1.5 py-0.5 rounded">
@@ -309,24 +272,6 @@ export const AtividadesPendentesList: React.FC<AtividadesPendentesListProps> = (
                         <p className="text-[11px] text-gray-600 mt-1 whitespace-pre-wrap leading-relaxed line-clamp-3">
                           {atv.descricao}
                         </p>
-                      )}
-
-                      {/* Botão de lembrete WhatsApp e link de abertura */}
-                      {isAutoLeitura && (
-                        <div className="mt-2 pt-1.5 border-t border-orange-100 flex items-center justify-between gap-2 flex-wrap">
-                          {(atv.titulo?.toLowerCase().includes('auto leitura rge -') ||
-                            /auto\s*leitura.*rge.*-.*\d{2}\/\d{2}\/\d{4}/i.test(
-                              atv.titulo || '',
-                            )) &&
-                            !isConcluida && (
-                              <BotaoEnviarLembreteAutoLeituraWhatsApp
-                                atividade={atv}
-                                onEnviado={() => {
-                                  // O realtime ou lista atualizará os dados
-                                }}
-                              />
-                            )}
-                        </div>
                       )}
                     </div>
                   </div>
