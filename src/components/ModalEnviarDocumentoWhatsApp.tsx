@@ -80,8 +80,15 @@ export const ModalEnviarDocumentoWhatsApp: React.FC<ModalEnviarDocumentoWhatsApp
           setMensagem(msgSugerida)
 
           const res = await gerarBase64OrcamentoSolar(dadosSolar)
-          setBase64Doc(res.base64)
+          setBase64Doc(res.base64 || '')
           setTextoFallback(res.fallbackText)
+          if (!res.base64) {
+            setFeedback({
+              tipo: 'warning',
+              texto:
+                'Não foi possível gerar o PDF oficial completo. Tente novamente ou verifique os dados do orçamento.',
+            })
+          }
         } else if (tipo === 'proposta_om' && dadosOM) {
           const defaultFileName = `Proposta-OM-${safeClienteNome}.pdf`
           setNomeArquivo(defaultFileName)
@@ -90,8 +97,15 @@ export const ModalEnviarDocumentoWhatsApp: React.FC<ModalEnviarDocumentoWhatsApp
           setMensagem(msgSugerida)
 
           const res = await gerarBase64PropostaOM(dadosOM)
-          setBase64Doc(res.base64)
+          setBase64Doc(res.base64 || '')
           setTextoFallback(res.fallbackText)
+          if (!res.base64) {
+            setFeedback({
+              tipo: 'warning',
+              texto:
+                'Não foi possível gerar o PDF oficial completo de O&M. Tente novamente ou verifique os dados da proposta.',
+            })
+          }
         } else {
           // Fallback genérico se os dados completos não tiverem sido fornecidos
           setNomeArquivo(`Proposta-Delfos-${safeClienteNome}.pdf`)
@@ -99,6 +113,11 @@ export const ModalEnviarDocumentoWhatsApp: React.FC<ModalEnviarDocumentoWhatsApp
         }
       } catch (err) {
         console.error('Erro ao preparar PDF para WhatsApp:', err)
+        setBase64Doc('')
+        setFeedback({
+          tipo: 'error',
+          texto: 'Não foi possível gerar o PDF oficial completo.',
+        })
       } finally {
         setIsGenerating(false)
       }
@@ -137,18 +156,24 @@ export const ModalEnviarDocumentoWhatsApp: React.FC<ModalEnviarDocumentoWhatsApp
         }
       }
 
-      // Se por algum motivo o PDF não puder ser gerado no navegador, usar mensagem de texto de fallback com o resumo
-      const base64Final = base64Doc || ''
-      const legendaFinal = base64Doc ? mensagem.trim() : `${mensagem.trim()}\n\n${textoFallback}`
+      if (!base64Doc) {
+        setFeedback({
+          tipo: 'error',
+          texto:
+            'Não foi possível gerar o PDF oficial completo. Não é permitido enviar documento simplificado.',
+        })
+        setIsSending(false)
+        return
+      }
 
       const res = await sendWhatsAppDocument({
         cliente_id: cliente.id,
         telefone_destino: telLimpo,
         tipo: tipo,
         referencia_id: referenciaId,
-        legenda: legendaFinal,
+        legenda: mensagem.trim(),
         nome_arquivo: nomeArquivo || 'proposta-delfos.pdf',
-        base64: base64Final,
+        base64: base64Doc,
       })
 
       if (res.sent) {
@@ -270,7 +295,7 @@ export const ModalEnviarDocumentoWhatsApp: React.FC<ModalEnviarDocumentoWhatsApp
             </div>
 
             <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-white border border-emerald-300 text-emerald-800 shrink-0">
-              {base64Doc ? 'PDF Pronto' : 'Resumo'}
+              {base64Doc ? 'PDF Pronto' : isGenerating ? 'Gerando...' : 'Pendente'}
             </span>
           </div>
 
@@ -336,14 +361,13 @@ export const ModalEnviarDocumentoWhatsApp: React.FC<ModalEnviarDocumentoWhatsApp
             />
           </div>
 
-          {/* Aviso sobre Fallback se PDF falhar */}
+          {/* Aviso se PDF não pôde ser gerado */}
           {!base64Doc && !isGenerating && (
             <div className="p-3 bg-amber-50 rounded-xl border border-amber-200 text-xs text-amber-900 flex items-start gap-2">
-              <Info className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+              <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
               <span>
-                <strong>Modo Fallback Ativo:</strong> Se o PDF não for gerado no dispositivo, os
-                dados completos e o resumo da proposta serão enviados como mensagem formatada via
-                WhatsApp.
+                Não foi possível gerar o PDF oficial completo. Tente recarregar ou conferir os dados
+                da proposta. Não é enviado documento simplificado.
               </span>
             </div>
           )}
@@ -369,7 +393,7 @@ export const ModalEnviarDocumentoWhatsApp: React.FC<ModalEnviarDocumentoWhatsApp
 
             <button
               type="submit"
-              disabled={isSending || isGenerating || !temNumeroValido}
+              disabled={isSending || isGenerating || !temNumeroValido || !base64Doc}
               className="px-5 py-2.5 bg-[#16A34A] hover:bg-[#15803D] text-white text-xs font-bold rounded-xl shadow-xs transition-all flex items-center gap-2 disabled:opacity-50 disabled:pointer-events-none hover:scale-[1.02]"
             >
               {isSending ? (

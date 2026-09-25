@@ -105,11 +105,26 @@ export const ModalEnviarPropostaWhatsApp: React.FC<ModalEnviarPropostaWhatsAppPr
         const inputPdf = construirPropostaSolarPDFInput(orcamento, cliente)
         const res = await gerarBase64OrcamentoSolar(inputPdf)
         if (!isCancelled) {
-          setBase64Doc(res.base64)
+          setBase64Doc(res.base64 || '')
           setTextoFallback(res.fallbackText)
+          if (!res.base64) {
+            setFeedback({
+              tipo: 'warning',
+              texto:
+                'Não foi possível gerar o PDF oficial completo. Tente novamente ou desmarque "Anexar PDF" para enviar somente a mensagem de texto.',
+            })
+          }
         }
       } catch (err) {
         console.error('Erro ao preparar PDF solar para WhatsApp:', err)
+        if (!isCancelled) {
+          setBase64Doc('')
+          setFeedback({
+            tipo: 'error',
+            texto:
+              'Não foi possível gerar o PDF oficial completo. Tente novamente ou desmarque "Anexar PDF" para enviar somente a mensagem de texto.',
+          })
+        }
       } finally {
         if (!isCancelled) {
           setIsGeneratingPdf(false)
@@ -193,8 +208,18 @@ export const ModalEnviarPropostaWhatsApp: React.FC<ModalEnviarPropostaWhatsAppPr
         error?: string
       }
 
-      // 2. Enviar com PDF anexo via Z-API ou texto puro
-      if (incluirPdf && base64Doc) {
+      // 2. Enviar com PDF oficial anexo via Z-API ou texto puro
+      if (incluirPdf) {
+        if (!base64Doc) {
+          setFeedback({
+            tipo: 'error',
+            texto:
+              'Não foi possível gerar o PDF oficial completo. Tente novamente ou desmarque "Anexar PDF" para enviar somente a mensagem de texto.',
+          })
+          setIsSending(false)
+          return
+        }
+
         resultado = await sendWhatsAppDocument({
           cliente_id: clienteId,
           telefone_destino: validacaoNumero.numeroLimpo,
@@ -203,16 +228,6 @@ export const ModalEnviarPropostaWhatsApp: React.FC<ModalEnviarPropostaWhatsAppPr
           legenda: mensagemLimpa,
           nome_arquivo: nomeArquivo || 'Proposta-Solar-Delfos.pdf',
           base64: base64Doc,
-        })
-      } else if (incluirPdf && !base64Doc) {
-        // Fallback: anexa resumo estruturado no corpo
-        const corpoCompleto = `${mensagemLimpa}\n\n---\n${textoFallback}`
-        resultado = await sendWhatsAppMessage({
-          cliente_id: clienteId,
-          telefone_destino: validacaoNumero.numeroLimpo,
-          conteudo_final: corpoCompleto,
-          tipo_disparo: 'manual',
-          referencia_id: orcamento.id,
         })
       } else {
         // Envio somente de texto
@@ -482,19 +497,18 @@ export const ModalEnviarPropostaWhatsApp: React.FC<ModalEnviarPropostaWhatsAppPr
               </label>
 
               <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-white border border-emerald-300 text-emerald-800">
-                {base64Doc ? 'PDF Pronto' : 'Resumo'}
+                {base64Doc ? 'PDF Pronto' : isGeneratingPdf ? 'Gerando...' : 'Pendente'}
               </span>
             </div>
           </div>
 
-          {/* Aviso se PDF falhar (modo fallback) */}
+          {/* Aviso se PDF falhar */}
           {!base64Doc && !isGeneratingPdf && incluirPdf && (
             <div className="p-3 bg-amber-50 rounded-xl border border-amber-200 text-xs text-amber-900 flex items-start gap-2">
-              <Info className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+              <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
               <span>
-                <strong>Modo Fallback Ativo:</strong> Se o arquivo binário não puder ser gerado no
-                dispositivo atual, os dados completos da proposta serão enviados como texto
-                formatado diretamente no WhatsApp.
+                Não foi possível gerar o PDF oficial completo. Tente novamente ou desmarque
+                &apos;Anexar PDF&apos; para enviar somente a mensagem de texto.
               </span>
             </div>
           )}
@@ -521,7 +535,12 @@ export const ModalEnviarPropostaWhatsApp: React.FC<ModalEnviarPropostaWhatsAppPr
 
               <button
                 type="submit"
-                disabled={isSending || isGeneratingPdf || !validacaoNumero.valido}
+                disabled={
+                  isSending ||
+                  isGeneratingPdf ||
+                  !validacaoNumero.valido ||
+                  (incluirPdf && !base64Doc)
+                }
                 className="px-5 py-2.5 bg-[#16A34A] hover:bg-[#15803D] text-white text-xs font-bold rounded-xl shadow-xs transition-all flex items-center gap-2 disabled:opacity-50 disabled:pointer-events-none hover:scale-[1.02]"
               >
                 {isSending ? (

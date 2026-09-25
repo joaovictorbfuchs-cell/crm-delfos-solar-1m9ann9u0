@@ -285,5 +285,11 @@ export function construirPropostaSolarPDFInput(
     dataEmissao: orc.data_orcamento || orc.created || new Date().toISOString(),
     validadeDias: Number(orc.validade_dias) || 5,
     observacoes: orc.observacoes || undefined,
+    // Repasse de personalizações da proposta comercial oficial
+    conteudo: orc.conteudo_proposta || undefined,
+    secoesHabilitadas: orc.secoes_habilitadas || undefined,
+    layoutTelhadoUrl: orc.layout_telhado || null,
+    layoutTelhadoHabilitado: orc.layout_telhado_habilitado ?? undefined,
+    instalacoesSelecionadasIds: orc.instalacoes_selecionadas || undefined,
   }
 }
