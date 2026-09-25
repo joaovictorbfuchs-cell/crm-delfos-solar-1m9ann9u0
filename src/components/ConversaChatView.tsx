@@ -203,6 +203,14 @@ export const ConversaChatView: React.FC<ConversaChatViewProps> = ({
   const chatScrollContainerRef = useRef<HTMLDivElement | null>(null)
   const textareaRef = useRef<HTMLTextAreaElement | null>(null)
   const optionsMenuRef = useRef<HTMLDivElement | null>(null)
+
+  // Auto-expansão da textarea conforme o conteúdo (até max-h-24, ~96px)
+  useEffect(() => {
+    const textarea = textareaRef.current
+    if (!textarea) return
+    textarea.style.height = 'auto'
+    textarea.style.height = `${textarea.scrollHeight}px`
+  }, [mensagemTexto])
   const emojiPickerRef = useRef<HTMLDivElement | null>(null)
   const templatesRef = useRef<HTMLDivElement | null>(null)
   const anexosRef = useRef<HTMLDivElement | null>(null)
@@ -1382,6 +1390,11 @@ export const ConversaChatView: React.FC<ConversaChatViewProps> = ({
             rows={1}
             value={mensagemTexto}
             onChange={(e) => setMensagemTexto(e.target.value)}
+            onInput={(e) => {
+              const target = e.currentTarget
+              target.style.height = 'auto'
+              target.style.height = `${target.scrollHeight}px`
+            }}
             onKeyDown={(e) => {
               if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault()
@@ -1389,7 +1402,7 @@ export const ConversaChatView: React.FC<ConversaChatViewProps> = ({
               }
             }}
             placeholder="Mensagem"
-            className="w-full bg-transparent text-sm text-[#111b21] placeholder-[#8696a0] resize-none outline-none max-h-24 leading-normal"
+            className="w-full bg-transparent text-sm text-[#111b21] placeholder-[#8696a0] resize-none outline-none max-h-24 leading-normal overflow-y-auto"
           />
         </div>
 
