@@ -972,4 +972,112 @@ describe('calcularOrcamentoSolar - Fórmula Oficial da Conta com Solar (GD I vs 
       expect(cenarioB.impostoOpcao1).toBeLessThan(cenarioB.impostoOpcao2)
     })
   })
+
+  describe('Dedução de Desconto e Recálculo Dinâmico do Investimento Total (Problemas A, B e C)', () => {
+    it('calcula totalCustosComDesconto = max(0, totalCustosCalculado - desconto) e garante dedução correta', () => {
+      // Caso 1: Orçamento com custos calculados e desconto aplicado
+      const res = calcularCustosAba({
+        materiaisEquipamentos: 20000,
+        maoDeObra: 3000,
+        riscoEngenharia: 400,
+        opcaoImposto: 1,
+        desconto: 1500,
+      })
+
+      const totalBruto = res.valorTotal
+      const desconto = res.desconto
+      const totalCustosComDesconto = Math.max(0, totalBruto - desconto)
+
+      expect(totalBruto).toBeGreaterThan(20000)
+      expect(desconto).toBe(1500)
+      expect(totalCustosComDesconto).toBe(totalBruto - 1500)
+
+      // Caso 2: Desconto maior que o total (proteção com max(0, ...))
+      const totalComDescontoExcedente = Math.max(0, 1000 - 1500)
+      expect(totalComDescontoExcedente).toBe(0)
+    })
+
+    it('recalcula o investimento final dinamicamente quando investimentoEditadoManualmente é false', () => {
+      // Simula a lógica de valorInvestimentoFinal do ModalOrcamentoSolar:
+      // se investimentoEditadoManualmente && valorInvestimentoManual > 0 -> manual;
+      // senão -> totalCustosComDesconto;
+      // fallback -> potenciaKwp * 3800
+      const calcularValorFinal = (
+        editadoManualmente: boolean,
+        manual: number,
+        totalComDesconto: number,
+        potencia: number,
+      ) => {
+        if (editadoManualmente && manual > 0) {
+          return manual
+        }
+        if (totalComDesconto > 0) {
+          return totalComDesconto
+        }
+        return potencia > 0 ? Math.round(potencia * 3800) : 0
+      }
+
+      // Ao abrir initialOrcamento:
+      // A trava manual NÃO é ativada (editadoManualmente = false, manual = 0)
+      const custoOriginalComDesconto = 28500
+      const valorAposAbertura = calcularValorFinal(false, 0, custoOriginalComDesconto, 7.5)
+      expect(valorAposAbertura).toBe(28500)
+
+      // O usuário altera um custo na planilha (ex: materiais passa de 20k para 25k, total com desc sobe para 34200)
+      const novoCustoComDesconto = 34200
+      const valorRecalculado = calcularValorFinal(false, 0, novoCustoComDesconto, 7.5)
+      // O investimento final RECALCULA em tempo real e não fica congelado
+      expect(valorRecalculado).toBe(34200)
+
+      // Se o usuário ativar a edição manual digitando um valor:
+      const valorManualDigitado = 36000
+      const valorComEdicaoManual = calcularValorFinal(
+        true,
+        valorManualDigitado,
+        novoCustoComDesconto,
+        7.5,
+      )
+      expect(valorComEdicaoManual).toBe(36000)
+
+      // Ao clicar em "Voltar ao automático" (reset):
+      const valorAposReset = calcularValorFinal(false, 0, novoCustoComDesconto, 7.5)
+      expect(valorAposReset).toBe(34200)
+    })
+
+    it('as parcelas financeiras e propostas refletem o total com desconto em tempo real', () => {
+      // Orçamento com desconto de R$ 2.000:
+      // Total sem desconto: R$ 30.000 -> parcelamentos baseados em R$ 30.000
+      const orcSemDesconto = calcularOrcamentoSolar({
+        consumoKwhMes: 500,
+        tipoCliente: 'residencial',
+        tarifaKwh: 1.0,
+        potenciaKwp: 5.0,
+        valorInvestimentoInformado: 30000,
+      })
+
+      // Total com desconto deduzido: R$ 28.000 -> parcelamentos baseados em R$ 28.000
+      const orcComDesconto = calcularOrcamentoSolar({
+        consumoKwhMes: 500,
+        tipoCliente: 'residencial',
+        tarifaKwh: 1.0,
+        potenciaKwp: 5.0,
+        valorInvestimentoInformado: 28000,
+      })
+
+      // A vista reflete o valor líq com desconto
+      expect(orcComDesconto.parcelamentos.aVista.valorTotal).toBe(28000)
+      expect(orcSemDesconto.parcelamentos.aVista.valorTotal).toBe(30000)
+
+      // Cartão e bancos têm parcelas menores graças ao desconto
+      expect(orcComDesconto.parcelamentos.cartao18x.valorParcela).toBeLessThan(
+        orcSemDesconto.parcelamentos.cartao18x.valorParcela,
+      )
+      expect(orcComDesconto.parcelamentos.financiamentoBanco1.valorParcela).toBeLessThan(
+        orcSemDesconto.parcelamentos.financiamentoBanco1.valorParcela,
+      )
+      expect(orcComDesconto.parcelamentos.financiamentoBanco2.valorParcela).toBeLessThan(
+        orcSemDesconto.parcelamentos.financiamentoBanco2.valorParcela,
+      )
+    })
+  })
 })

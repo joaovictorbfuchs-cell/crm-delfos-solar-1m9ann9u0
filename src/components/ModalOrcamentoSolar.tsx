@@ -230,6 +230,8 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
   const [areaNecessariaM2, setAreaNecessariaM2] = useState<number>(26)
   const [codigoFiname, setCodigoFiname] = useState<string>('')
   const [valorInvestimentoManual, setValorInvestimentoManual] = useState<number>(0)
+  const [investimentoEditadoManualmente, setInvestimentoEditadoManualmente] =
+    useState<boolean>(false)
   const [observacoes, setObservacoes] = useState<string>('')
   const [prazoEntregaDias, setPrazoEntregaDias] = useState<number>(30)
   const [isGeneratingWord, setIsGeneratingWord] = useState<boolean>(false)
@@ -437,7 +439,8 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
       setOrientacaoTelhado(initialOrcamento.orientacao_telhado || 'norte')
       setAreaNecessariaM2(initialOrcamento.area_necessaria_m2 || 26)
       setCodigoFiname(initialOrcamento.codigo_finame || '')
-      setValorInvestimentoManual(initialOrcamento.valor_investimento || 0)
+      setValorInvestimentoManual(0)
+      setInvestimentoEditadoManualmente(false)
       setObservacoes(initialOrcamento.observacoes || '')
 
       // Garantias salvas ou padrões
@@ -713,6 +716,8 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
       setValorManualIndicacao(0)
       setPercentualIndicacaoAuto(0)
       setFornecedorSelecionadoId('')
+      setValorInvestimentoManual(0)
+      setInvestimentoEditadoManualmente(false)
 
       setCustos((prev) => ({
         ...prev,
@@ -990,24 +995,30 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
     return fornecedoresOrcamentos.find((f) => f.id === fornecedorSelecionadoId) || null
   }, [fornecedoresOrcamentos, fornecedorSelecionadoId])
 
-  // Custo somado da aba de custos: se as fórmulas automáticas geraram valorTotal, usa ele; senão soma direta
+  // Custo somado bruto da aba de custos: se as fórmulas automáticas geraram valorTotal, usa ele; senão soma direta
   const totalCustosCalculado = useMemo(() => {
     return resultadoCustosAba.valorTotal > 0
       ? resultadoCustosAba.valorTotal
       : somarCustosSolar(custos)
   }, [resultadoCustosAba.valorTotal, custos])
 
-  // Valor do investimento: se o usuário preencheu na mão usa ele; senão usa os custos da aba de custos
+  // Total de custos líquido com desconto deduzido = max(0, total bruto - desconto)
+  const totalCustosComDesconto = useMemo(() => {
+    const desconto = Number(resultadoCustosAba.desconto) || 0
+    return Math.max(0, totalCustosCalculado - desconto)
+  }, [totalCustosCalculado, resultadoCustosAba.desconto])
+
+  // Valor do investimento: se o usuário editou na mão usa ele; senão usa os custos líquidos com desconto; fallback por kWp
   const valorInvestimentoFinal = useMemo(() => {
-    if (valorInvestimentoManual && valorInvestimentoManual > 0) {
+    if (investimentoEditadoManualmente && valorInvestimentoManual > 0) {
       return valorInvestimentoManual
     }
-    if (totalCustosCalculado > 0) {
-      return totalCustosCalculado
+    if (totalCustosComDesconto > 0) {
+      return totalCustosComDesconto
     }
     // fallback padrão proporcional ao kWp (ex: R$ 3.800/kWp)
     return potenciaKwp > 0 ? Math.round(potenciaKwp * 3800) : 0
-  }, [valorInvestimentoManual, totalCustosCalculado, potenciaKwp])
+  }, [investimentoEditadoManualmente, valorInvestimentoManual, totalCustosComDesconto, potenciaKwp])
 
   // Cálculos solares dinâmicos em tempo real
   const calculos = useMemo(() => {
@@ -1539,9 +1550,9 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
             >
               <DollarSign className="w-4 h-4 text-emerald-600" />
               <span>2. Aba de Custos</span>
-              {totalCustosCalculado > 0 && (
+              {totalCustosComDesconto > 0 && (
                 <span className="text-[10px] px-1.5 py-0.2 rounded bg-emerald-100 text-emerald-800 font-bold">
-                  {formatCurrency(totalCustosCalculado)}
+                  {formatCurrency(totalCustosComDesconto)}
                 </span>
               )}
             </button>
@@ -1975,6 +1986,7 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
 
                       // Se houver valor manual fixo travando o total, libera para o cálculo em cadeia da planilha de custos fluir
                       setValorInvestimentoManual(0)
+                      setInvestimentoEditadoManualmente(false)
 
                       // Atualiza também dados dos equipamentos se cadastrados no fornecedor
                       if (fornOrc.modulos && fornOrc.modulos[0]?.descricao) {
@@ -2169,21 +2181,29 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                       </label>
                       <input
                         type="number"
-                        value={valorInvestimentoManual || ''}
+                        value={
+                          investimentoEditadoManualmente && valorInvestimentoManual > 0
+                            ? valorInvestimentoManual
+                            : ''
+                        }
                         min={0}
                         step={100}
-                        onChange={(e) => setValorInvestimentoManual(Number(e.target.value) || 0)}
+                        onChange={(e) => {
+                          const val = Number(e.target.value) || 0
+                          setValorInvestimentoManual(val)
+                          setInvestimentoEditadoManualmente(true)
+                        }}
                         className="w-full text-xs font-bold text-gray-900 px-3 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-emerald-500"
                         placeholder={
-                          totalCustosCalculado > 0
-                            ? `Calculado da aba custos (${formatCurrency(totalCustosCalculado)})`
+                          totalCustosComDesconto > 0
+                            ? `Calculado da aba custos (${formatCurrency(totalCustosComDesconto)})`
                             : 'Ou preencha na aba de custos'
                         }
                       />
                       <span className="text-[10px] text-gray-400 mt-0.5 block">
-                        {valorInvestimentoManual > 0
+                        {investimentoEditadoManualmente && valorInvestimentoManual > 0
                           ? 'Valor fixado manualmente'
-                          : totalCustosCalculado > 0
+                          : totalCustosComDesconto > 0
                             ? 'Calculado da soma da Aba de Custos'
                             : 'Estimado por kWp'}
                       </span>
@@ -2369,8 +2389,13 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                       Valor Total do Orçamento
                     </span>
                     <span className="text-xl font-black text-emerald-700">
-                      {formatCurrency(totalCustosCalculado)}
+                      {formatCurrency(totalCustosComDesconto)}
                     </span>
+                    {resultadoCustosAba.desconto > 0 && (
+                      <span className="text-[10px] text-gray-400 block line-through">
+                        Bruto: {formatCurrency(totalCustosCalculado)}
+                      </span>
+                    )}
                   </div>
                 </div>
 
@@ -3213,11 +3238,19 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                   <div className="flex items-center gap-3">
                     <div>
                       <span className="text-[10px] text-emerald-800 uppercase font-bold block">
-                        Total Geral de Custos
+                        Total Geral de Custos{' '}
+                        {resultadoCustosAba.desconto > 0 ? '(Líquido c/ Desconto)' : ''}
                       </span>
-                      <span className="text-sm font-black text-emerald-950">
-                        {formatCurrency(totalCustosCalculado)}
-                      </span>
+                      <div className="flex items-baseline gap-2">
+                        <span className="text-sm font-black text-emerald-950">
+                          {formatCurrency(totalCustosComDesconto)}
+                        </span>
+                        {resultadoCustosAba.desconto > 0 && (
+                          <span className="text-[11px] text-gray-500 line-through">
+                            {formatCurrency(totalCustosCalculado)}
+                          </span>
+                        )}
+                      </div>
                     </div>
                     <div className="h-6 w-px bg-emerald-200 hidden sm:block" />
                     <div className="text-[11px] text-emerald-800">
@@ -3230,7 +3263,8 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                   <button
                     type="button"
                     onClick={() => {
-                      setValorInvestimentoManual(totalCustosCalculado)
+                      setValorInvestimentoManual(totalCustosComDesconto)
+                      setInvestimentoEditadoManualmente(false)
                       setActiveTab('parcelamentos')
                     }}
                     className="px-3 py-1.5 bg-[#16A34A] hover:bg-[#15803D] text-white text-xs font-bold rounded-lg shadow-2xs inline-flex items-center gap-1.5 transition-all"
@@ -3261,9 +3295,62 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                     </p>
                   </div>
 
-                  <span className="text-xs font-bold text-emerald-800 bg-emerald-100 px-2.5 py-1 rounded-lg">
-                    Investimento Base: {formatCurrency(valorInvestimentoFinal)}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1.5 bg-emerald-50/80 border border-emerald-200 px-2.5 py-1 rounded-lg">
+                      <span className="text-[11px] font-bold text-emerald-900 whitespace-nowrap">
+                        Investimento Total (R$):
+                      </span>
+                      <input
+                        type="number"
+                        min={0}
+                        step={100}
+                        value={valorInvestimentoFinal || ''}
+                        onChange={(e) => {
+                          const val = Number(e.target.value) || 0
+                          setValorInvestimentoManual(val)
+                          setInvestimentoEditadoManualmente(true)
+                        }}
+                        className={`w-32 text-xs font-black px-2 py-0.5 rounded border focus:outline-none focus:ring-1 focus:ring-emerald-500 text-right ${
+                          investimentoEditadoManualmente
+                            ? 'border-amber-400 bg-amber-50 text-amber-950'
+                            : 'border-emerald-300 bg-white text-emerald-950'
+                        }`}
+                        placeholder="0,00"
+                        title={
+                          investimentoEditadoManualmente
+                            ? 'Valor editado manualmente'
+                            : 'Valor calculado automaticamente da aba de custos'
+                        }
+                      />
+                      {investimentoEditadoManualmente && (
+                        <span className="text-[10px] font-bold text-amber-700 bg-amber-100 px-1 py-0.2 rounded">
+                          Manual
+                        </span>
+                      )}
+                    </div>
+
+                    {(investimentoEditadoManualmente ||
+                      (valorInvestimentoManual > 0 &&
+                        valorInvestimentoManual !==
+                          (totalCustosComDesconto > 0
+                            ? totalCustosComDesconto
+                            : potenciaKwp > 0
+                              ? Math.round(potenciaKwp * 3800)
+                              : 0))) && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setValorInvestimentoManual(0)
+                          setInvestimentoEditadoManualmente(false)
+                        }}
+                        className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 hover:text-emerald-800 bg-white hover:bg-emerald-50 border border-emerald-300 px-2.5 py-1 rounded-lg transition-colors shadow-2xs"
+                        title="Voltar ao valor calculado automaticamente da aba de custos"
+                      >
+                        <RotateCcw className="w-3.5 h-3.5" />
+                        <span>Voltar ao automático</span>
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 {/* 4 Cards de Parcelamento */}

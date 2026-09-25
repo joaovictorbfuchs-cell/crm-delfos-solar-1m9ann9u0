@@ -19,17 +19,20 @@ export const BotaoEnviarLembreteAutoLeituraWhatsApp: React.FC<
   const [isSending, setIsSending] = useState(false)
   const [modalConferenciaAberto, setModalConferenciaAberto] = useState(false)
   const { toast } = useToast()
-  const { clientes, usinas, whatsAppTemplates, updateCliente } = useClientes()
+  const { clientes, sistemas, whatsAppTemplates, updateCliente } = useClientes()
 
   // Buscar cliente vinculado
   const cliente = useMemo(() => {
     return clientes.find((c) => c.id === atividade.cliente_id)
   }, [clientes, atividade.cliente_id])
 
-  // Buscar usina vinculada
+  // Buscar usina vinculada (expand ou fallback em sistemas)
   const usina = useMemo(() => {
-    return usinas.find((u) => u.id === atividade.usina_id)
-  }, [usinas, atividade.usina_id])
+    if (atividade.expand?.usina_id) {
+      return atividade.expand.usina_id
+    }
+    return sistemas.find((u) => u.id === atividade.usina_id)
+  }, [atividade.expand, sistemas, atividade.usina_id])
 
   // Telefone inicial: WhatsApp é o número autoritativo do cliente
   const telefoneInicial = cliente?.whatsapp || cliente?.telefone || ''
