@@ -652,6 +652,40 @@ export function calcularCustosAba(params: ParametrosCalculoCustosAba): Resultado
   }
 }
 
+export interface ComparativoOpcoesImpostos {
+  melhorOpcao: 1 | 2
+  impostoOpcao1: number
+  impostoOpcao2: number
+  resultadoOpcao1: ResultadoCalculoCustosAba
+  resultadoOpcao2: ResultadoCalculoCustosAba
+}
+
+/**
+ * Calcula os custos com ambas as opções fiscais (Opção 1 e Opção 2) e determina
+ * automaticamente qual regime resulta no MENOR valor de imposto:
+ * - Opção 1: 9,23% sobre o total do projeto
+ * - Opção 2: 16% sobre todos os valores exceto materiais / equipamentos dedutíveis
+ *
+ * Retorna os resultados de ambas as opções e aponta a opção mais barata (1 ou 2).
+ */
+export function determinarMenorOpcaoImposto(
+  params: Omit<ParametrosCalculoCustosAba, 'opcaoImposto'>,
+): ComparativoOpcoesImpostos {
+  const resultadoOpcao1 = calcularCustosAba({ ...params, opcaoImposto: 1 })
+  const resultadoOpcao2 = calcularCustosAba({ ...params, opcaoImposto: 2 })
+
+  // Seleciona a opção que resultar no menor imposto calculado (se 2 for estritamente menor, usa 2; senão 1)
+  const melhorOpcao: 1 | 2 = resultadoOpcao2.impostos < resultadoOpcao1.impostos ? 2 : 1
+
+  return {
+    melhorOpcao,
+    impostoOpcao1: resultadoOpcao1.impostos,
+    impostoOpcao2: resultadoOpcao2.impostos,
+    resultadoOpcao1,
+    resultadoOpcao2,
+  }
+}
+
 export interface ConfiguracaoParcelamentosInput {
   parcelasCartao?: number
   jurosCartao?: number

@@ -48,6 +48,7 @@ import {
   calcularOrcamentoSolar,
   somarCustosSolar,
   calcularCustosAba,
+  determinarMenorOpcaoImposto,
   CUSTOS_SOLAR_PADRAO,
   dimensionarSistemaPorGeracaoPretendida,
   FATORES_GERACAO_ANUAL_KWP,
@@ -471,6 +472,12 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
 
       const optImp = initialOrcamento.opcao_imposto === 2 ? 2 : 1
       setOpcaoImposto(optImp)
+      // Se o orçamento já tinha uma opção de imposto salva no banco, preserva como escolha manual inicial
+      if (initialOrcamento.opcao_imposto === 1 || initialOrcamento.opcao_imposto === 2) {
+        setOpcaoImpostoModificadaManualmente(true)
+      } else {
+        setOpcaoImpostoModificadaManualmente(false)
+      }
 
       const initialDesconto = initialOrcamento.desconto || 0
       // Calcula o percentual correspondente se houver valor de investimento / valor total salvo
@@ -880,9 +887,13 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
     }
   }
 
-  // Cálculos automáticos da Aba de Custos (Requisitos 1 a 6 + Desconto em percentual + Modos Manuais) usando calcularCustosAba de src/lib/energiaSolar.ts
-  const resultadoCustosAba = useMemo(() => {
-    return calcularCustosAba({
+  // Rastreia se o usuário escolheu explicitamente / manualmente a Opção 1 ou 2 clicando nos radio buttons
+  const [opcaoImpostoModificadaManualmente, setOpcaoImpostoModificadaManualmente] =
+    useState<boolean>(false)
+
+  // Comparativo simultâneo de ambas as opções fiscais (Opção 1 e Opção 2) para identificar a de menor imposto
+  const comparativoImpostos = useMemo(() => {
+    return determinarMenorOpcaoImposto({
       materiaisEquipamentos: custos.materiaisEquipamentos || 0,
       materiaisExtras: custos.materiaisExtras || 0,
       maoDeObra: custos.maoDeObra || 0,
@@ -891,7 +902,6 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
       subestacao: custos.subestacao || 0,
       terceirizacao: custos.terceirizacao || 0,
       marketingCombustivel: custos.marketingCombustivel || 0,
-      opcaoImposto,
       descontoPercentual,
       manualAdministracao,
       valorManualAdministracao,
@@ -910,7 +920,6 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
     custos.subestacao,
     custos.terceirizacao,
     custos.marketingCombustivel,
-    opcaoImposto,
     descontoPercentual,
     manualAdministracao,
     valorManualAdministracao,
@@ -920,6 +929,34 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
     manualIndicacao,
     valorManualIndicacao,
   ])
+
+  // Se o modal for reaberto ou o cliente mudar em um orçamento novo, reseta a escolha manual
+  useEffect(() => {
+    if (!initialOrcamento) {
+      setOpcaoImpostoModificadaManualmente(false)
+    }
+  }, [isOpen, selectedClienteId, initialOrcamento])
+
+  // Atualiza automaticamente para a opção de menor imposto calculada quando não houver escolha manual do usuário
+  useEffect(() => {
+    if (!opcaoImpostoModificadaManualmente) {
+      if (opcaoImposto !== comparativoImpostos.melhorOpcao) {
+        setOpcaoImposto(comparativoImpostos.melhorOpcao)
+      }
+    }
+  }, [comparativoImpostos.melhorOpcao, opcaoImpostoModificadaManualmente, opcaoImposto])
+
+  // Handler para seleção manual do usuário nos radio buttons da opção de imposto
+  const handleSelecionarOpcaoImpostoManual = (opcao: 1 | 2) => {
+    setOpcaoImpostoModificadaManualmente(true)
+    setOpcaoImposto(opcao)
+  }
+
+  // Cálculos automáticos da Aba de Custos (Requisitos 1 a 6 + Desconto em percentual + Modos Manuais) usando calcularCustosAba de src/lib/energiaSolar.ts
+  const resultadoCustosAba = useMemo(() => {
+    if (opcaoImposto === 1) return comparativoImpostos.resultadoOpcao1
+    return comparativoImpostos.resultadoOpcao2
+  }, [opcaoImposto, comparativoImpostos])
 
   // Sincroniza os campos calculados automaticamente (impostos, administração, comissão, indicação, desconto derivado em R$) no estado custos
   useEffect(() => {
@@ -2728,21 +2765,30 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                           ? 'border-blue-600 bg-white shadow-2xs ring-1 ring-blue-500/20'
                           : 'border-blue-200 bg-white/70 hover:bg-white text-gray-700'
                       }`}
-                      title="Opção 1: 9,23% sobre o total do projeto"
+                      title={`Opção 1: 9,23% sobre o total do projeto (Imposto: ${formatCurrency(comparativoImpostos.impostoOpcao1)})${comparativoImpostos.melhorOpcao === 1 ? ' — Menor imposto calculado' : ''}`}
                     >
                       <div className="flex items-center gap-2">
                         <input
                           type="radio"
                           name="opcao_imposto_radio"
                           checked={opcaoImposto === 1}
-                          onChange={() => setOpcaoImposto(1)}
+                          onChange={() => handleSelecionarOpcaoImpostoManual(1)}
                           className="w-3.5 h-3.5 text-blue-600 focus:ring-blue-500 cursor-pointer"
                         />
-                        <span className="font-bold text-[11px] text-gray-900">
-                          Opção 1 (9,23% s/ total do projeto)
-                        </span>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="font-bold text-[11px] text-gray-900">
+                            Opção 1 (9,23% s/ total do projeto)
+                          </span>
+                          {comparativoImpostos.melhorOpcao === 1 && (
+                            <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-emerald-100 text-emerald-800 border border-emerald-300">
+                              Mais econômica
+                            </span>
+                          )}
+                        </div>
                       </div>
-                      <span className="text-[10px] text-gray-500">Total × 9,23%</span>
+                      <span className="text-[10px] text-gray-500 shrink-0">
+                        {formatCurrency(comparativoImpostos.impostoOpcao1)}
+                      </span>
                     </label>
 
                     {/* Opção 2 */}
@@ -2752,21 +2798,30 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                           ? 'border-blue-600 bg-white shadow-2xs ring-1 ring-blue-500/20'
                           : 'border-blue-200 bg-white/70 hover:bg-white text-gray-700'
                       }`}
-                      title="Opção 2: 16% sobre todos os valores exceto materiais / equipamentos"
+                      title={`Opção 2: 16% sobre todos os valores exceto materiais / equipamentos (Imposto: ${formatCurrency(comparativoImpostos.impostoOpcao2)})${comparativoImpostos.melhorOpcao === 2 ? ' — Menor imposto calculado' : ''}`}
                     >
                       <div className="flex items-center gap-2">
                         <input
                           type="radio"
                           name="opcao_imposto_radio"
                           checked={opcaoImposto === 2}
-                          onChange={() => setOpcaoImposto(2)}
+                          onChange={() => handleSelecionarOpcaoImpostoManual(2)}
                           className="w-3.5 h-3.5 text-blue-600 focus:ring-blue-500 cursor-pointer"
                         />
-                        <span className="font-bold text-[11px] text-gray-900">
-                          Opção 2 (16% s/ valores exceto materiais)
-                        </span>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="font-bold text-[11px] text-gray-900">
+                            Opção 2 (16% s/ valores exceto materiais)
+                          </span>
+                          {comparativoImpostos.melhorOpcao === 2 && (
+                            <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-emerald-100 text-emerald-800 border border-emerald-300">
+                              Mais econômica
+                            </span>
+                          )}
+                        </div>
                       </div>
-                      <span className="text-[10px] text-gray-500">16% s/ base sem mat.</span>
+                      <span className="text-[10px] text-gray-500 shrink-0">
+                        {formatCurrency(comparativoImpostos.impostoOpcao2)}
+                      </span>
                     </label>
                   </div>
                 </div>

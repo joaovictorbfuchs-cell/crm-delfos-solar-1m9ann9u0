@@ -3,6 +3,7 @@ import {
   calcularCustosAba,
   calcularParcelaPrice,
   calcularOrcamentoSolar,
+  determinarMenorOpcaoImposto,
   dimensionarSistemaPorGeracaoPretendida,
   FATORES_GERACAO_ANUAL_KWP,
 } from './energiaSolar'
@@ -887,5 +888,43 @@ describe('calcularOrcamentoSolar - Fórmula Oficial da Conta com Solar (GD I vs 
 
     expect(orcComIpCip.contaPrimeiroMesComSolar).toBe(orcSemIpCip.contaPrimeiroMesComSolar)
     expect(orcComIpCip.contaPrimeiroMesComSolar).toBeCloseTo(74.8, 1)
+  })
+
+  describe('determinarMenorOpcaoImposto', () => {
+    it('seleciona Opção 2 quando os materiais/equipamentos representam a maior parte dos custos (reduzindo a base de 16%)', () => {
+      // Exemplo comum em energia solar: kits/materiais são caros (~R$ 15.000) e serviços/mdo são ~R$ 3.000
+      const comparativo = determinarMenorOpcaoImposto({
+        materiaisEquipamentos: 15000,
+        materiaisExtras: 0,
+        maoDeObra: 1500,
+        riscoEngenharia: 400,
+        freteGuincho: 300,
+        subestacao: 0,
+        terceirizacao: 0,
+        marketingCombustivel: 200,
+      })
+
+      // Na Opção 2, os materiais de R$ 15.000 ficam isentos da base de 16%
+      expect(comparativo.impostoOpcao2).toBeLessThan(comparativo.impostoOpcao1)
+      expect(comparativo.melhorOpcao).toBe(2)
+    })
+
+    it('seleciona Opção 1 quando quase não há materiais e o serviço predomina', () => {
+      // Cenário com mão de obra / serviços predominantes e materiais baixos (ex: R$ 0)
+      const comparativo = determinarMenorOpcaoImposto({
+        materiaisEquipamentos: 0,
+        materiaisExtras: 0,
+        maoDeObra: 5000,
+        riscoEngenharia: 400,
+        freteGuincho: 500,
+        subestacao: 0,
+        terceirizacao: 0,
+        marketingCombustivel: 200,
+      })
+
+      // Sem materiais dedutíveis, 9,23% (Opção 1) é bem mais vantajoso que 16% (Opção 2)
+      expect(comparativo.impostoOpcao1).toBeLessThan(comparativo.impostoOpcao2)
+      expect(comparativo.melhorOpcao).toBe(1)
+    })
   })
 })
