@@ -1368,6 +1368,16 @@ export async function fetchOrcamentosSolar(): Promise<import('@/types/crm').Orca
       })
     return records
   } catch (err: any) {
+    // Se for erro de autenticação/sessão expirada, relança imediatamente para não engolir o 401/403
+    if (
+      err?.status === 401 ||
+      err?.status === 403 ||
+      err?.response?.status === 401 ||
+      err?.response?.status === 403
+    ) {
+      throw err
+    }
+
     console.warn(
       'Falha na consulta primária de orçamentos com expand (ex: relação órfã ou erro 400). Tentando fallback defensivo sem expand...',
       err,
