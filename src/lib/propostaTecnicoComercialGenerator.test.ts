@@ -214,6 +214,8 @@ describe('Proposta Técnico-Comercial Generator (5 Seções Oficiais)', () => {
     expect(html).toContain('print-color-adjust: exact')
     expect(html).toContain('break-inside: avoid')
     expect(html).toContain('break-after: avoid')
+    expect(html).toContain('page-break-before: always !important;')
+    expect(html).toContain('break-before: page !important;')
     expect(html).toContain('print-fixed-footer')
     expect(html).toContain('Tier-1 Global')
     expect(html).toContain('doc-footer')

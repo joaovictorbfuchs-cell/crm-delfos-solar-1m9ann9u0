@@ -2752,6 +2752,8 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
         width: 100% !important;
         page-break-inside: avoid !important;
         break-inside: avoid !important;
+        page-break-before: always !important;
+        break-before: page !important;
       }
       .col-como-funciona-70 {
         flex: 7 !important;

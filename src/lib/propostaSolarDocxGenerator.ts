@@ -2298,6 +2298,7 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
           },
           rows: [
             new TableRow({
+              cantSplit: true,
               children: celulasLinha,
             }),
           ],
