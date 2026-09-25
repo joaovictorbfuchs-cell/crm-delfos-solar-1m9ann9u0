@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { useNavigate, Navigate } from 'react-router-dom'
+import { useNavigate, Navigate, useLocation } from 'react-router-dom'
 import {
   Lock,
   Mail,
@@ -18,6 +18,8 @@ import { DelfosLogo } from '@/components/DelfosLogo'
 export default function Login() {
   const { login, isAuthenticated, isInstalador, isLoading: isAuthLoading } = useAuth()
   const navigate = useNavigate()
+  const location = useLocation()
+  const fromLocation = (location.state as any)?.from as string | undefined
 
   const [email, setEmail] = useState('joao@delfosengenharia.com.br')
   const [password, setPassword] = useState('Skip@Pass')
@@ -53,6 +55,9 @@ export default function Login() {
     if (isInstalador) {
       return <Navigate to="/execucao-os" replace />
     }
+    if (fromLocation && fromLocation.startsWith('/')) {
+      return <Navigate to={fromLocation} replace />
+    }
     return <Navigate to="/" replace />
   }
 
@@ -73,6 +78,8 @@ export default function Login() {
       // Redirecionamento por perfil
       if (profile?.role === 'instalador') {
         navigate('/execucao-os', { replace: true })
+      } else if (fromLocation && fromLocation.startsWith('/')) {
+        navigate(fromLocation, { replace: true })
       } else {
         navigate('/', { replace: true })
       }

@@ -237,10 +237,7 @@ export async function createAtividade(data: {
 }): Promise<Atividade> {
   const descTrim = typeof data.descricao === 'string' ? data.descricao.trim() : ''
   const fallbackDescricao =
-    descTrim ||
-    (data.tipo === 'auto_leitura_rge'
-      ? 'Auto Leitura RGE - aguardando leitura do medidor'
-      : (data.titulo && data.titulo.trim()) || 'Atividade registrada')
+    descTrim || (data.titulo && data.titulo.trim()) || 'Atividade registrada'
 
   const payload = {
     ...data,

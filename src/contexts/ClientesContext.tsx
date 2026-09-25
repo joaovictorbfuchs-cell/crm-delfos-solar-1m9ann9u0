@@ -134,10 +134,14 @@ import type {
 import { notificacoesService } from '@/services/notificacoesService'
 import { useRealtime } from '@/hooks/use-realtime'
 import { useAuth } from '@/contexts/AuthContext'
+import { isAuthSessionError } from '@/lib/pocketbase/errors'
+import { pb } from '@/lib/pocketbase/client'
 
 export type ClientTabType = 'historico' | 'projeto' | 'om' | 'whatsapp' | 'usinas'
 
 interface ClientesContextType {
+  isSessionExpired: boolean
+  authError: string | null
   clientes: Cliente[]
   sistemas: Sistema[]
   manutencoes: Manutencao[]
@@ -595,6 +599,8 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [notificacoes, setNotificacoes] = useState<NotificacaoInterna[]>([])
   const [isLoading, setIsLoading] = useState<boolean>(true)
   const [error, setError] = useState<string | null>(null)
+  const [isSessionExpired, setIsSessionExpired] = useState<boolean>(false)
+  const [authError, setAuthError] = useState<string | null>(null)
   const [selectedClienteId, setSelectedClienteId] = useState<string | null>(null)
   const [selectedOMClienteId, setSelectedOMClienteId] = useState<string | null>(null)
   const [activeClientTab, setActiveClientTab] = useState<ClientTabType>('historico')
@@ -627,6 +633,14 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       setIsLoading(true)
       setError(null)
 
+      // Se o authStore do PocketBase estiver com token porém inválido (ex.: expirado no client)
+      if (pb.authStore.token && !pb.authStore.isValid) {
+        setIsSessionExpired(true)
+        setAuthError('Sessão expirada. Faça login novamente.')
+        setIsLoading(false)
+        return
+      }
+
       const getValue = <T,>(res: PromiseSettledResult<T>, fallback: T): T =>
         res.status === 'fulfilled' ? res.value : fallback
 
@@ -644,6 +658,20 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           fetchProjetos(),
           fetchContratosOM(),
         ])
+
+      // Verificar se houve erro de sessão/autenticação nas requisições principais
+      const prioritySettled = [cRes, aRes, orcRes, uRes, sRes, mRes, pRes, projRes, contRes]
+      const sessionExpiredRejection = prioritySettled.find(
+        (r) => r.status === 'rejected' && isAuthSessionError(r.reason),
+      ) as PromiseRejectedResult | undefined
+
+      if (sessionExpiredRejection || (pb.authStore.token && !pb.authStore.isValid)) {
+        console.warn('Sessão expirada detectada em loadAllData:', sessionExpiredRejection?.reason)
+        setIsSessionExpired(true)
+        setAuthError(
+          sessionExpiredRejection?.reason?.message || 'Sua sessão expirou. Faça login novamente.',
+        )
+      }
 
       // Em falha nas tabelas prioritárias, registrar no estado error e console.warn (sem re-lançar)
       const failedPriority: string[] = []
@@ -793,6 +821,10 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         })
     } catch (err) {
       console.error('Error loading CRM data:', err)
+      if (isAuthSessionError(err)) {
+        setIsSessionExpired(true)
+        setAuthError(err instanceof Error ? err.message : 'Sessão expirada.')
+      }
       setError(err instanceof Error ? err.message : 'Erro ao carregar dados do CRM')
     } finally {
       isCompleted = true
@@ -804,6 +836,8 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   useEffect(() => {
     if (isAuthenticated && (user?.id || token)) {
+      setIsSessionExpired(false)
+      setAuthError(null)
       loadAllData()
     }
   }, [isAuthenticated, user?.id, token, loadAllData])
@@ -2636,6 +2670,8 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   return (
     <ClientesContext.Provider
       value={{
+        isSessionExpired,
+        authError,
         clientes,
         sistemas,
         manutencoes,
@@ -2841,6 +2877,8 @@ export function useClientes(): ClientesContextType {
   if (!context) {
     console.warn('useClientes chamado fora do ClientesProvider. Utilizando estado padrão seguro.')
     return {
+      isSessionExpired: false,
+      authError: null,
       clientes: [],
       sistemas: [],
       manutencoes: [],
