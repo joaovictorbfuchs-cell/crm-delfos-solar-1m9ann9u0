@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-25T19:31:15.999Z",
+  "generatedAt": "2026-09-25T21:02:41.983Z",
   "collections": [
     {
       "name": "users",
@@ -2794,6 +2794,12 @@
           "required": false,
           "system": false,
           "autodateTriggers": ["onCreate", "onUpdate"]
+        },
+        {
+          "name": "categoria",
+          "type": "text",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": ["CREATE UNIQUE INDEX idx_whatsapp_templates_slug ON whatsapp_templates (slug)"]
