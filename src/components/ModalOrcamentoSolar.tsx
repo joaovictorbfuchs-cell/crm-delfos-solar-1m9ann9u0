@@ -4122,6 +4122,17 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
           </div>
 
           <div className="flex items-center gap-2">
+            {/* Continuar para a Aba de Custos */}
+            <button
+              type="button"
+              onClick={() => setActiveTab('custos')}
+              className="px-4 py-2 border border-emerald-600 text-emerald-700 hover:bg-emerald-50 text-xs font-bold rounded-xl transition-all inline-flex items-center gap-1.5"
+              title="Avançar para a aba de Custos"
+            >
+              <span>Continuar</span>
+              <ArrowRight className="w-4 h-4" />
+            </button>
+
             {/* Salvar Orçamento */}
             <button
               type="button"
