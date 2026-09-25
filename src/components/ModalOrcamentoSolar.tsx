@@ -2758,47 +2758,14 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-                    {/* Opção 1 */}
-                    <label
-                      className={`w-full px-2.5 py-1.5 rounded-md border cursor-pointer transition-all flex items-center justify-between gap-2 ${
-                        opcaoImposto === 1
-                          ? 'border-blue-600 bg-white shadow-2xs ring-1 ring-blue-500/20'
-                          : 'border-blue-200 bg-white/70 hover:bg-white text-gray-700'
-                      }`}
-                      title={`Opção 1: 9,23% sobre o total do projeto (Imposto: ${formatCurrency(comparativoImpostos.impostoOpcao1)})${comparativoImpostos.melhorOpcao === 1 ? ' — Menor imposto calculado' : ''}`}
-                    >
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="radio"
-                          name="opcao_imposto_radio"
-                          checked={opcaoImposto === 1}
-                          onChange={() => handleSelecionarOpcaoImpostoManual(1)}
-                          className="w-3.5 h-3.5 text-blue-600 focus:ring-blue-500 cursor-pointer"
-                        />
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          <span className="font-bold text-[11px] text-gray-900">
-                            Opção 1 (9,23% s/ total do projeto)
-                          </span>
-                          {comparativoImpostos.melhorOpcao === 1 && (
-                            <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-emerald-100 text-emerald-800 border border-emerald-300">
-                              Mais econômica
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                      <span className="text-[10px] text-gray-500 shrink-0">
-                        {formatCurrency(comparativoImpostos.impostoOpcao1)}
-                      </span>
-                    </label>
-
-                    {/* Opção 2 */}
+                    {/* Opção 1 (16% s/ valores exceto materiais) - regime opcaoImposto === 2 */}
                     <label
                       className={`w-full px-2.5 py-1.5 rounded-md border cursor-pointer transition-all flex items-center justify-between gap-2 ${
                         opcaoImposto === 2
                           ? 'border-blue-600 bg-white shadow-2xs ring-1 ring-blue-500/20'
                           : 'border-blue-200 bg-white/70 hover:bg-white text-gray-700'
                       }`}
-                      title={`Opção 2: 16% sobre todos os valores exceto materiais / equipamentos (Imposto: ${formatCurrency(comparativoImpostos.impostoOpcao2)})${comparativoImpostos.melhorOpcao === 2 ? ' — Menor imposto calculado' : ''}`}
+                      title={`Opção 1: 16% sobre todos os valores exceto materiais / equipamentos (Imposto: ${formatCurrency(comparativoImpostos.impostoOpcao2)})${comparativoImpostos.melhorOpcao === 2 ? ' — Menor imposto calculado' : ''}`}
                     >
                       <div className="flex items-center gap-2">
                         <input
@@ -2810,7 +2777,7 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                         />
                         <div className="flex items-center gap-1.5 flex-wrap">
                           <span className="font-bold text-[11px] text-gray-900">
-                            Opção 2 (16% s/ valores exceto materiais)
+                            Opção 1 (16% s/ valores exceto materiais)
                           </span>
                           {comparativoImpostos.melhorOpcao === 2 && (
                             <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-emerald-100 text-emerald-800 border border-emerald-300">
@@ -2821,6 +2788,39 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                       </div>
                       <span className="text-[10px] text-gray-500 shrink-0">
                         {formatCurrency(comparativoImpostos.impostoOpcao2)}
+                      </span>
+                    </label>
+
+                    {/* Opção 2 (9,23% s/ total do projeto) - regime opcaoImposto === 1 */}
+                    <label
+                      className={`w-full px-2.5 py-1.5 rounded-md border cursor-pointer transition-all flex items-center justify-between gap-2 ${
+                        opcaoImposto === 1
+                          ? 'border-blue-600 bg-white shadow-2xs ring-1 ring-blue-500/20'
+                          : 'border-blue-200 bg-white/70 hover:bg-white text-gray-700'
+                      }`}
+                      title={`Opção 2: 9,23% sobre o total do projeto (Imposto: ${formatCurrency(comparativoImpostos.impostoOpcao1)})${comparativoImpostos.melhorOpcao === 1 ? ' — Menor imposto calculado' : ''}`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="radio"
+                          name="opcao_imposto_radio"
+                          checked={opcaoImposto === 1}
+                          onChange={() => handleSelecionarOpcaoImpostoManual(1)}
+                          className="w-3.5 h-3.5 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                        />
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="font-bold text-[11px] text-gray-900">
+                            Opção 2 (9,23% s/ total do projeto)
+                          </span>
+                          {comparativoImpostos.melhorOpcao === 1 && (
+                            <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-emerald-100 text-emerald-800 border border-emerald-300">
+                              Mais econômica
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <span className="text-[10px] text-gray-500 shrink-0">
+                        {formatCurrency(comparativoImpostos.impostoOpcao1)}
                       </span>
                     </label>
                   </div>
