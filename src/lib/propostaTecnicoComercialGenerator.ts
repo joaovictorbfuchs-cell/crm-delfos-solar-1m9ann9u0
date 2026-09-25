@@ -329,7 +329,7 @@ function renderInternalFooter(numeroSecao?: number, validadeDias?: number): stri
  *
  * 1. Capa (logo Delfos, cliente, potência kWp, geração, consultor, data)
  * 2. Situação Atual (consumo/custo mensal e anual + comparativo 1/5/25 anos + box vermelho + linha reflexiva)
- * 3. Seu Sistema Fotovoltaico (cards potência, geração, módulos, inversor, área, garantias 30a/10a/Delfos, faixa monitoramento)
+ * 3. Seu Sistema Fotovoltaico (cards potência, geração, módulos, inversor, área, garantias 30a/10a/Delfos)
  * 4. Projeção de Economia em 25 Anos (curvas gasto sem solar vs investimento/economia + marcador payback + cards)
  * 5. Investimento e Condições de Pagamento (cards À vista / Cartão / Finan A / Finan B + comparativo conta + custo postergação + badge validade)
  */
@@ -2160,74 +2160,7 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
       flex-shrink: 0;
     }
 
-    /* Faixa de Monitoramento com smartphone e visual esmeralda */
-    .faixa-monitoramento {
-      background: linear-gradient(90deg, #065F46 0%, #047857 50%, #0D9488 100%);
-      color: #FFFFFF;
-      border-radius: 14px;
-      padding: 12px 18px;
-      margin-top: 10px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 14px;
-      box-shadow: 0 4px 10px rgba(6, 95, 70, 0.2);
-    }
-    .faixa-mon-left {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-    .faixa-mon-icon-box {
-      width: 42px;
-      height: 42px;
-      border-radius: 12px;
-      background: rgba(255, 255, 255, 0.18);
-      border: 1px solid rgba(255, 255, 255, 0.3);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 20px;
-      color: #A7F3D0;
-      shrink-0;
-    }
-    .faixa-mon-title-row {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-    .faixa-monitoramento-title {
-      font-size: 12pt;
-      font-weight: 900;
-      color: #FFFFFF;
-      letter-spacing: 0.01em;
-    }
-    .faixa-mon-pill {
-      background: rgba(255, 255, 255, 0.2);
-      border: 1px solid rgba(255, 255, 255, 0.25);
-      padding: 2px 8px;
-      border-radius: 9999px;
-      font-size: 8.5pt;
-      font-weight: 800;
-      text-transform: uppercase;
-      color: #D1FAE5;
-    }
-    .faixa-monitoramento-desc {
-      font-size: 10pt;
-      color: #D1FAE5;
-      margin-top: 2px;
-      line-height: 1.35;
-    }
-    .faixa-mon-badge-right {
-      background: #FFFFFF;
-      color: #065F46;
-      font-size: 10pt;
-      font-weight: 800;
-      padding: 6px 14px;
-      border-radius: 10px;
-      white-space: nowrap;
-      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
-    }
+
 
     /* ==========================================================
        SEÇÃO 4 — PROJEÇÃO EM 25 ANOS (ESPELHADO DO SecaoProjecao25Anos.tsx)

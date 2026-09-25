@@ -5,7 +5,6 @@ import {
   CircuitBoard,
   Maximize2,
   ShieldCheck,
-  Smartphone,
   Sparkles,
   CheckCircle2,
 } from 'lucide-react'
@@ -645,36 +644,6 @@ export const SecaoSeuSistemaFotovoltaico: React.FC<SecaoSeuSistemaFotovoltaicoPr
               </div>
             )
           })()}
-        {/* ========================================================================= */}
-        {/* FAIXA DE MONITORAMENTO INCLUSO                                            */}
-        {/* ========================================================================= */}
-        <div className="bg-gradient-to-r from-emerald-600 via-emerald-700 to-teal-700 text-white rounded-xl p-3 sm:p-4 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-white/15 backdrop-blur-md border border-white/25 flex items-center justify-center shrink-0 shadow-2xs">
-              <Smartphone className="w-5 h-5 text-emerald-200" />
-            </div>
-            <div>
-              <div className="flex items-center gap-1.5 flex-wrap">
-                <span className="text-sm font-extrabold text-white">Monitoramento incluso</span>
-                <span className="text-[10px] font-bold uppercase tracking-wider bg-white/20 px-2 py-0.5 rounded-full text-emerald-100 border border-white/20">
-                  Aplicativo Mobile
-                </span>
-              </div>
-              <p className="text-xs text-emerald-100/90 font-medium mt-0.5">
-                Acompanhe sua produção em tempo real pelo celular — geração diária, economia
-                acumulada e alertas inteligentes.
-              </p>
-            </div>
-          </div>
-
-          <div className="shrink-0 flex items-center gap-2">
-            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white text-emerald-800 text-xs font-bold shadow-2xs">
-              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-              <span>iOS & Android</span>
-            </span>
-          </div>
-        </div>
-
         {/* ========================================================================= */}
         {/* BLOCOS: COMO FUNCIONA O SISTEMA SOLAR & MONITORAMENTO                      */}
         {/* Fundo #F0FDF4, borda #BBF7D0 e acentos #16A34A / #166534                  */}

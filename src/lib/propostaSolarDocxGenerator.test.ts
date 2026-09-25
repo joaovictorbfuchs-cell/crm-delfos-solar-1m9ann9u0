@@ -118,6 +118,8 @@ describe('propostaSolarDocxGenerator', () => {
     // Seção Seu Sistema Fotovoltaico: blocos lado a lado 70/30 presentes no DOCX
     expect(jsonStr).toContain('COMO FUNCIONA O SISTEMA SOLAR (ON-GRID)')
     expect(jsonStr).toContain('MONITORAMENTO')
+    // Faixa verde isolada de monitoramento não deve existir
+    expect(jsonStr).not.toContain('MONITORAMENTO PELO SMARTPHONE (iOS & ANDROID):')
   })
 
   it('gera card do meio dinâmico com período de payback arredondado para cima (22 meses -> GASTO EM 2 ANOS)', async () => {

@@ -245,5 +245,13 @@ describe('SecaoSeuSistemaFotovoltaico - Geração Mensal Detalhada', () => {
     expect(posPerformance).toBeGreaterThan(-1)
     expect(posFabricacao).toBeLessThan(posPerformance)
     expect(html).not.toContain('(degradação)')
+
+    // 7. Não deve conter a antiga faixa verde isolada de monitoramento
+    expect(html).not.toContain('Monitoramento incluso')
+    expect(html).not.toContain('Aplicativo Mobile')
+    expect(html).not.toContain('Acompanhe sua produção em tempo real pelo celular')
+    // Mantém os 2 blocos de baixo
+    expect(html).toContain('Como funciona o sistema solar (On-Grid)')
+    expect(html).toContain('Monitoramento')
   })
 })

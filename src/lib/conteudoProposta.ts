@@ -67,7 +67,7 @@ export interface ConteudoSecaoSeuSistema {
   badge: string
   titulo: string
   subtitulo: string
-  blocoMonitoramentoBarra: BlocoSubSecaoSeuSistema
+  blocoMonitoramentoBarra?: BlocoSubSecaoSeuSistema
   blocoComoFunciona: BlocoSubSecaoSeuSistema
   blocoMonitoramentoDetalhado: BlocoSubSecaoSeuSistema
 }
@@ -261,16 +261,6 @@ export function getConteudoPropostaDefaults(): ConteudoProposta {
       titulo: 'Conheça sua usina solar',
       subtitulo:
         'Engenharia de precisão planejada sob medida para você. Todos os dados técnicos consolidados em uma apresentação clara, moderna e transparente — sem letras miúdas.',
-      blocoMonitoramentoBarra: {
-        visivel: true,
-        corDestaque: '#16A34A',
-        badge: 'Monitoramento pelo Smartphone',
-        tagDireita: 'APLICATIVO MOBILE',
-        titulo: 'Monitoramento pelo Smartphone',
-        descricao:
-          'Acompanhe geração diária em tempo real, curva solar em kWh, economia mensal acumulada e alertas de desempenho.',
-        checklist: ['iOS & Android Inclusos'],
-      },
       blocoComoFunciona: {
         visivel: true,
         corDestaque: '#16A34A',
@@ -397,13 +387,6 @@ export function normalizarConteudoProposta(
     secaoSeuSistema: {
       ...padrao.secaoSeuSistema,
       ...(salvo.secaoSeuSistema || {}),
-      blocoMonitoramentoBarra: {
-        ...padrao.secaoSeuSistema.blocoMonitoramentoBarra,
-        ...(salvo.secaoSeuSistema?.blocoMonitoramentoBarra || {}),
-        checklist:
-          salvo.secaoSeuSistema?.blocoMonitoramentoBarra?.checklist ??
-          padrao.secaoSeuSistema.blocoMonitoramentoBarra.checklist,
-      },
       blocoComoFunciona: {
         ...padrao.secaoSeuSistema.blocoComoFunciona,
         ...(salvo.secaoSeuSistema?.blocoComoFunciona || {}),

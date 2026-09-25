@@ -1946,44 +1946,6 @@ export async function gerarPropostaSolarDocx(dados: PropostaSolarPDFInput): Prom
       )
     }
 
-    // Faixa verde de monitoramento com smartphone
-    itens.push(
-      new Table({
-        width: { size: PAGE_CONTENT_WIDTH, type: WidthType.DXA },
-        borders: tableBorderNone,
-        rows: [
-          new TableRow({
-            children: [
-              new TableCell({
-                width: { size: PAGE_CONTENT_WIDTH, type: WidthType.DXA },
-                shading: { type: ShadingType.CLEAR, fill: '065F46' },
-                margins: { top: 80, bottom: 80, left: 120, right: 120 },
-                children: [
-                  new Paragraph({
-                    children: [
-                      new TextRun({
-                        text: '📱 MONITORAMENTO PELO SMARTPHONE (iOS & ANDROID): ',
-                        bold: true,
-                        size: 16,
-                        color: 'FFFFFF',
-                        font: 'Arial',
-                      }),
-                      new TextRun({
-                        text: 'Acompanhe geração diária, curva solar em kWh e economia acumulada em tempo real direto na tela do seu celular.',
-                        size: 15,
-                        color: 'D1FAE5',
-                        font: 'Arial',
-                      }),
-                    ],
-                  }),
-                ],
-              }),
-            ],
-          }),
-        ],
-      }),
-    )
-
     // ----------------------------------------------------
     // SEÇÃO: LAYOUT DO TELHADO (SOLERGO / ENGENHARIA DELFOS)
     // Renderizada se layoutTelhadoHabilitado !== false e houver layoutTelhadoUrl

@@ -445,7 +445,7 @@ export const PainelEdicaoConteudoProposta: React.FC<PainelEdicaoConteudoProposta
   }
 
   const updateBlocoSeuSistema = (
-    blocoKey: 'blocoMonitoramentoBarra' | 'blocoComoFunciona' | 'blocoMonitoramentoDetalhado',
+    blocoKey: 'blocoComoFunciona' | 'blocoMonitoramentoDetalhado',
     campo: string,
     valor: any,
   ) => {
@@ -1187,81 +1187,7 @@ export const PainelEdicaoConteudoProposta: React.FC<PainelEdicaoConteudoProposta
               />
             </div>
 
-            {/* Sub-bloco A: Faixa de Monitoramento pelo Smartphone */}
-            <div className="border border-emerald-200 bg-emerald-50/40 rounded-xl p-3 space-y-2.5">
-              <div className="flex items-center justify-between pb-1 border-b border-emerald-200/60">
-                <div className="flex items-center gap-2">
-                  <span className="text-emerald-700 font-bold text-xs">
-                    📱 Faixa Resumida: App Mobile
-                  </span>
-                  <span className="text-[9.5px] px-2 py-0.2 rounded-full bg-emerald-100 text-emerald-800 font-semibold">
-                    Topo dos Equipamentos
-                  </span>
-                </div>
-                <label className="relative inline-flex items-center cursor-pointer select-none">
-                  <input
-                    type="checkbox"
-                    className="sr-only peer"
-                    checked={conteudo.secaoSeuSistema.blocoMonitoramentoBarra?.visivel !== false}
-                    onChange={(e) =>
-                      updateBlocoSeuSistema('blocoMonitoramentoBarra', 'visivel', e.target.checked)
-                    }
-                  />
-                  <div className="w-8 h-4.5 bg-slate-300 peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3.5 after:w-3.5 after:transition-all peer-checked:bg-emerald-600" />
-                </label>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                <div>
-                  <label className="text-[10px] font-bold text-gray-700 block mb-1">Título</label>
-                  <input
-                    type="text"
-                    value={conteudo.secaoSeuSistema.blocoMonitoramentoBarra.titulo}
-                    onChange={(e) =>
-                      updateBlocoSeuSistema('blocoMonitoramentoBarra', 'titulo', e.target.value)
-                    }
-                    className="w-full text-xs px-2 py-1 rounded border border-gray-200 bg-white"
-                  />
-                </div>
-                <div>
-                  <label className="text-[10px] font-bold text-gray-700 block mb-1">
-                    Tag Direita
-                  </label>
-                  <input
-                    type="text"
-                    value={conteudo.secaoSeuSistema.blocoMonitoramentoBarra.tagDireita}
-                    onChange={(e) =>
-                      updateBlocoSeuSistema('blocoMonitoramentoBarra', 'tagDireita', e.target.value)
-                    }
-                    className="w-full text-xs px-2 py-1 rounded border border-gray-200 bg-white"
-                  />
-                </div>
-                <div className="sm:col-span-2">
-                  <label className="text-[10px] font-bold text-gray-700 block mb-1">
-                    Descrição
-                  </label>
-                  <input
-                    type="text"
-                    value={conteudo.secaoSeuSistema.blocoMonitoramentoBarra.descricao}
-                    onChange={(e) =>
-                      updateBlocoSeuSistema('blocoMonitoramentoBarra', 'descricao', e.target.value)
-                    }
-                    className="w-full text-xs px-2 py-1 rounded border border-gray-200 bg-white"
-                  />
-                </div>
-                <div className="sm:col-span-2">
-                  <ChecklistEditor
-                    label="Checklist de Itens Inclusos"
-                    items={conteudo.secaoSeuSistema.blocoMonitoramentoBarra.checklist || []}
-                    onChange={(itens) =>
-                      updateBlocoSeuSistema('blocoMonitoramentoBarra', 'checklist', itens)
-                    }
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Sub-bloco B: Como Funciona o Sistema Solar (On-Grid) */}
+            {/* Sub-bloco A: Como Funciona o Sistema Solar (On-Grid) */}
             <div className="border border-blue-200 bg-blue-50/40 rounded-xl p-3 space-y-2.5">
               <div className="flex items-center justify-between pb-1 border-b border-blue-200/60">
                 <div className="flex items-center gap-2">
@@ -1346,7 +1272,7 @@ export const PainelEdicaoConteudoProposta: React.FC<PainelEdicaoConteudoProposta
               </div>
             </div>
 
-            {/* Sub-bloco C: Monitoramento Detalhado */}
+            {/* Sub-bloco B: Monitoramento Detalhado */}
             <div className="border border-purple-200 bg-purple-50/40 rounded-xl p-3 space-y-2.5">
               <div className="flex items-center justify-between pb-1 border-b border-purple-200/60">
                 <div className="flex items-center gap-2">

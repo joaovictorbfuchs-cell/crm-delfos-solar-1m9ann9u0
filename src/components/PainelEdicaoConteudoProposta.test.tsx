@@ -36,4 +36,20 @@ describe('PainelEdicaoConteudoProposta', () => {
     expect(html).toContain('Restaurar Padrões')
     expect(html).toContain('Exibido')
   })
+
+  it('não renderiza o antigo sub-bloco da faixa de monitoramento resumida', () => {
+    const conteudoInicial = getConteudoPropostaDefaults()
+    const html = renderToStaticMarkup(
+      React.createElement(PainelEdicaoConteudoProposta, {
+        conteudo: conteudoInicial,
+        onChange: () => {},
+      }),
+    )
+
+    expect(html).not.toContain('Faixa Resumida: App Mobile')
+    expect(html).not.toContain('Topo dos Equipamentos')
+    // Mantém os sub-blocos Como Funciona e Monitoramento Detalhado
+    expect(html).toContain('Bloco: Como Funciona o On-Grid')
+    expect(html).toContain('Bloco: Monitoramento Detalhado')
+  })
 })
