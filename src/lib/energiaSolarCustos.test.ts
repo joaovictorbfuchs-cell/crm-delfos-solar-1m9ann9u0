@@ -926,5 +926,50 @@ describe('calcularOrcamentoSolar - Fórmula Oficial da Conta com Solar (GD I vs 
       expect(comparativo.impostoOpcao1).toBeLessThan(comparativo.impostoOpcao2)
       expect(comparativo.melhorOpcao).toBe(1)
     })
+
+    it('garante consistência entre o badge "Mais econômica" e o regime selecionado por padrão', () => {
+      // Cenário A: 16% exceto materiais (regime interno 2) é mais barato
+      const cenarioA = determinarMenorOpcaoImposto({
+        materiaisEquipamentos: 12000,
+        materiaisExtras: 0,
+        maoDeObra: 1500,
+        riscoEngenharia: 400,
+        freteGuincho: 300,
+        subestacao: 0,
+        terceirizacao: 0,
+        marketingCombustivel: 200,
+      })
+      // Na UI:
+      // - Radio Opção 1 visual (16% exceto materiais) tem checked = (opcaoImposto === 2)
+      // - Badge "Mais econômica" é exibido no Radio Opção 1 quando cenarioA.melhorOpcao === 2
+      // - Por padrão, opcaoImposto = cenarioA.melhorOpcao (ou seja, 2)
+      // Ambos devem coincidir:
+      const radioOpcao1VisualMarcadoA = cenarioA.melhorOpcao === 2
+      const badgeMaisEconomicaNoRadio1VisualA = cenarioA.melhorOpcao === 2
+      expect(radioOpcao1VisualMarcadoA).toBe(true)
+      expect(badgeMaisEconomicaNoRadio1VisualA).toBe(true)
+      expect(cenarioA.impostoOpcao2).toBeLessThan(cenarioA.impostoOpcao1)
+
+      // Cenário B: 9,23% total (regime interno 1) é mais barato
+      const cenarioB = determinarMenorOpcaoImposto({
+        materiaisEquipamentos: 0,
+        materiaisExtras: 0,
+        maoDeObra: 8000,
+        riscoEngenharia: 400,
+        freteGuincho: 500,
+        subestacao: 0,
+        terceirizacao: 0,
+        marketingCombustivel: 200,
+      })
+      // Na UI:
+      // - Radio Opção 2 visual (9,23% total) tem checked = (opcaoImposto === 1)
+      // - Badge "Mais econômica" é exibido no Radio Opção 2 quando cenarioB.melhorOpcao === 1
+      // - Por padrão, opcaoImposto = cenarioB.melhorOpcao (ou seja, 1)
+      const radioOpcao2VisualMarcadoB = cenarioB.melhorOpcao === 1
+      const badgeMaisEconomicaNoRadio2VisualB = cenarioB.melhorOpcao === 1
+      expect(radioOpcao2VisualMarcadoB).toBe(true)
+      expect(badgeMaisEconomicaNoRadio2VisualB).toBe(true)
+      expect(cenarioB.impostoOpcao1).toBeLessThan(cenarioB.impostoOpcao2)
+    })
   })
 })

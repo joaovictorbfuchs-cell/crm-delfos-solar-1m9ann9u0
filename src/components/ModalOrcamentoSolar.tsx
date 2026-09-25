@@ -695,8 +695,8 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
       setFioBKwh(0.2239)
       setFatorSimultaneidadeManual('')
       setValorPorPlaca(150)
-      setOpcaoImposto(1)
       setDescontoPercentual(0)
+      setOpcaoImpostoModificadaManualmente(false)
       setGeracaoPretendidaKwhMes(650)
       setGeracaoPretendidaEditadaManualmente(false)
       setGeracaoSimuladaKwhAno('')
@@ -720,7 +720,7 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
         materiaisEquipamentos: 0,
         materiaisExtras: 0,
         riscoEngenharia: 400,
-        opcaoImposto: 1,
+        opcaoImposto: prev.opcaoImposto || 1,
         valorPorPlaca: 150,
         desconto: 0,
       }))
@@ -930,21 +930,20 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
     valorManualIndicacao,
   ])
 
-  // Se o modal for reaberto ou o cliente mudar em um orçamento novo, reseta a escolha manual
+  // Se o modal for reaberto ou o cliente mudar em um orçamento novo, reseta a escolha manual e sincroniza com a menor opção
   useEffect(() => {
     if (!initialOrcamento) {
       setOpcaoImpostoModificadaManualmente(false)
+      setOpcaoImposto(comparativoImpostos.melhorOpcao)
     }
   }, [isOpen, selectedClienteId, initialOrcamento])
 
   // Atualiza automaticamente para a opção de menor imposto calculada quando não houver escolha manual do usuário
   useEffect(() => {
     if (!opcaoImpostoModificadaManualmente) {
-      if (opcaoImposto !== comparativoImpostos.melhorOpcao) {
-        setOpcaoImposto(comparativoImpostos.melhorOpcao)
-      }
+      setOpcaoImposto(comparativoImpostos.melhorOpcao)
     }
-  }, [comparativoImpostos.melhorOpcao, opcaoImpostoModificadaManualmente, opcaoImposto])
+  }, [comparativoImpostos.melhorOpcao, opcaoImpostoModificadaManualmente])
 
   // Handler para seleção manual do usuário nos radio buttons da opção de imposto
   const handleSelecionarOpcaoImpostoManual = (opcao: 1 | 2) => {
