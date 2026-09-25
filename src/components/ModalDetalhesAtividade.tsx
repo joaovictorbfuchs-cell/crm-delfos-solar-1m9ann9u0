@@ -464,7 +464,7 @@ export const ModalDetalhesAtividade: React.FC<ModalDetalhesAtividadeProps> = ({
           </div>
 
           {/* 3. Cliente Vinculado (Autocomplete) */}
-          <div className="space-y-1">
+          <div className="space-y-1 relative z-20">
             <div className="flex items-center justify-between">
               <label className="text-xs font-semibold text-gray-700 flex items-center gap-1">
                 <Building className="w-3.5 h-3.5 text-emerald-600" />

@@ -443,7 +443,7 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
             {/* Cliente com Autocomplete em tempo real */}
-            <div className="space-y-1">
+            <div className="space-y-1 relative z-20">
               <label className="text-xs font-semibold text-gray-700 flex items-center justify-between">
                 <span className="flex items-center gap-1">
                   <Building className="w-3.5 h-3.5 text-gray-400" />

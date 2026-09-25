@@ -92,6 +92,8 @@ interface SecaoAcordeaoProps {
   onToggle: () => void
   badge?: React.ReactNode
   children: React.ReactNode
+  overflowVisible?: boolean
+  className?: string
 }
 
 const SecaoAcordeao: React.FC<SecaoAcordeaoProps> = ({
@@ -102,9 +104,15 @@ const SecaoAcordeao: React.FC<SecaoAcordeaoProps> = ({
   onToggle,
   badge,
   children,
+  overflowVisible = false,
+  className = '',
 }) => {
   return (
-    <div className="bg-white rounded-xl border border-gray-200 shadow-xs overflow-hidden transition-all">
+    <div
+      className={`bg-white rounded-xl border border-gray-200 shadow-xs transition-all ${
+        overflowVisible ? 'overflow-visible' : 'overflow-hidden'
+      } ${className}`}
+    >
       <button
         type="button"
         onClick={onToggle}
@@ -1645,6 +1653,8 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                 subtitulo="Busca automática de cliente, documento, cidade e endereço"
                 icone={<User className="w-4 h-4" />}
                 aberta={secaoClienteAberta}
+                overflowVisible
+                className="relative z-30"
                 onToggle={() => setSecaoClienteAberta((prev) => !prev)}
                 badge={
                   clienteAtual ? (
@@ -1654,8 +1664,8 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                   ) : undefined
                 }
               >
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 items-start">
-                  <div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 items-start relative z-30">
+                  <div className="relative z-30">
                     <label className="text-[11px] font-semibold text-gray-600 mb-1 block">
                       Pesquise por nome do cliente ou selecione da base:
                     </label>
