@@ -476,7 +476,7 @@ export const Orcamentos: React.FC = () => {
           <div className="flex items-start gap-2.5">
             <AlertCircle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
             <div>
-              <p className="font-bold">Erro ao carregar dados do CRM</p>
+              <p className="font-bold">Erro ao carregar propostas e dados do CRM</p>
               <p className="text-red-700 mt-0.5">{error}</p>
             </div>
           </div>
@@ -487,7 +487,7 @@ export const Orcamentos: React.FC = () => {
             className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg shrink-0 transition-colors"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
-            <span>Tentar novamente</span>
+            <span>Recarregar dados</span>
           </button>
         </div>
       )}
@@ -856,7 +856,7 @@ export const Orcamentos: React.FC = () => {
       </div>
 
       {/* Lista / Tabela de Propostas (Modo Lista Exclusivo) */}
-      {orcamentosFiltrados.length === 0 ? (
+      {error && orcamentosSolar.length === 0 ? null : orcamentosFiltrados.length === 0 ? (
         <div className="bg-white rounded-2xl border border-dashed border-gray-300 p-12 text-center">
           <Sun className="w-12 h-12 text-emerald-400 mx-auto mb-3 stroke-[1.5]" />
           <h3 className="text-base font-bold text-gray-800">Nenhuma proposta encontrada</h3>

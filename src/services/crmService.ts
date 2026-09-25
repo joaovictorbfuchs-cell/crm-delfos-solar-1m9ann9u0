@@ -1289,14 +1289,31 @@ export async function deletePropostaOM(id: string): Promise<boolean> {
 // ============================================================================
 
 export async function fetchOrcamentosSolar(): Promise<import('@/types/crm').OrcamentoSolar[]> {
-  const records = await pb
-    .collection('orcamentos_solar')
-    .getFullList<import('@/types/crm').OrcamentoSolar>({
-      sort: '-data_orcamento,-created',
-      expand: 'cliente_id',
-      requestKey: null,
-    })
-  return records
+  try {
+    const records = await pb
+      .collection('orcamentos_solar')
+      .getFullList<import('@/types/crm').OrcamentoSolar>({
+        sort: '-data_orcamento,-created',
+        expand: 'cliente_id',
+        requestKey: null,
+      })
+    return records
+  } catch (err: any) {
+    console.warn(
+      'Falha na consulta primária de orçamentos com expand (ex: relação órfã ou erro 400). Tentando fallback defensivo sem expand...',
+      err,
+    )
+    // Fallback defensivo: se houver relação cliente_id quebrada ou campo nulo causando erro 400 no expand,
+    // refaz a requisição sem o expand e com ordenação segura por created para garantir que a lista nunca
+    // fique zerada por causa de registros órfãos. O frontend faz a correspondência por cliente_id localmente.
+    const fallbackRecords = await pb
+      .collection('orcamentos_solar')
+      .getFullList<import('@/types/crm').OrcamentoSolar>({
+        sort: '-created',
+        requestKey: null,
+      })
+    return fallbackRecords
+  }
 }
 
 export async function createOrcamentoSolar(

@@ -668,6 +668,8 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
       if (failedPriority.length > 0) {
         const primaryReason =
+          (orcRes.status === 'rejected' &&
+            (orcRes.reason?.message || 'Falha na requisição de orçamentos')) ||
           (cRes.status === 'rejected' && cRes.reason?.message) ||
           (aRes.status === 'rejected' && aRes.reason?.message) ||
           'Erro ao carregar dados essenciais do CRM'
