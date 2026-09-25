@@ -163,9 +163,6 @@ describe('Proposta Técnico-Comercial Generator (5 Seções Oficiais)', () => {
     expect(html).not.toContain('Garantia da instalação:')
     expect(html).toContain('Área Necessária')
     expect(html).not.toContain('Tranquilidade e Garantias Asseguradas')
-    expect(html).toContain('Monitoramento pelo Smartphone')
-    expect(html).not.toContain('24/7')
-
     // Bloco como funciona e bloco monitoramento com imagens embutidas (data:image)
     expect(html).toContain('Como funciona o sistema solar (On-Grid)')
     expect(html).toContain('alt="Como funciona o sistema solar (On-Grid)"')
@@ -173,6 +170,7 @@ describe('Proposta Técnico-Comercial Generator (5 Seções Oficiais)', () => {
     expect(html).toContain('grid-sistema-duas-colunas')
     expect(html).toContain('col-como-funciona-70')
     expect(html).toContain('col-monitoramento-30')
+    expect(html).not.toContain('faixa-monitoramento')
     // Garante que ambos os blocos possuem imagens em data:image
     expect(html).toContain(`src="${logoOficialPngAsset}"`)
     expect(html).toContain(`src="${onGridPngAsset}"`)

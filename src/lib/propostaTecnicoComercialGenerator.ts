@@ -3572,30 +3572,6 @@ ${(() => {
           `
         })()}
 
-        <!-- Faixa Verde de Monitoramento Inteligente com Ícone de Smartphone -->
-        ${
-          conteudo.secaoSeuSistema.blocoMonitoramentoBarra?.visivel !== false
-            ? `
-        <div class="faixa-monitoramento" style="${conteudo.secaoSeuSistema.blocoMonitoramentoBarra.corDestaque ? `border-left: 4px solid ${conteudo.secaoSeuSistema.blocoMonitoramentoBarra.corDestaque};` : ''}">
-          <div class="faixa-mon-left">
-            <div class="faixa-mon-icon-box">📱</div>
-            <div>
-              <div class="faixa-mon-title-row">
-                <span class="faixa-monitoramento-title">${conteudo.secaoSeuSistema.blocoMonitoramentoBarra.titulo}</span>
-                <span class="faixa-mon-pill">${conteudo.secaoSeuSistema.blocoMonitoramentoBarra.tagDireita}</span>
-              </div>
-              <div class="faixa-monitoramento-desc">
-                ${conteudo.secaoSeuSistema.blocoMonitoramentoBarra.descricao}
-              </div>
-            </div>
-          </div>
-          <div class="faixa-mon-badge-right">
-            ${(conteudo.secaoSeuSistema.blocoMonitoramentoBarra.checklist || []).map((it) => `✓ ${it}`).join(' • ') || '✓ iOS & Android Inclusos'}
-          </div>
-        </div>`
-            : ''
-        }
-
         ${(() => {
           if (
             dados.layoutTelhadoHabilitado === false ||
