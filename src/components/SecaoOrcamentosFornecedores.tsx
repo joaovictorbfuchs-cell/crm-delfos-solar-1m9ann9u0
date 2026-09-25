@@ -9,29 +9,193 @@ import {
   Columns3,
   Check,
   Image as ImageIcon,
+  Sun,
+  Cpu,
+  PlusCircle,
+  Zap,
+  Hash,
 } from 'lucide-react'
 import { ModalCompararFornecedores } from './ModalCompararFornecedores'
 import { ModalClassificacaoOrcamentoImagem } from './ModalClassificacaoOrcamentoImagem'
+import { ModalCadastroEquipamentoRapido } from './ModalCadastroEquipamentoRapido'
 import { useClientes } from '@/contexts/ClientesContext'
 import { FornecedorItemOrcamento, FornecedorOrcamento } from '@/types/crm'
+import type { Equipamento, TipoEquipamento } from '@/types/equipamentos'
 import { extrairOrcamentoFotovoltaicoPDF } from '@/lib/orcamentoParser'
 import { analisarImagemOrcamento, AnaliseImagemResultado } from '@/services/ocrImagemService'
 import { formatCurrency, formatDate } from '@/lib/formatters'
+import { formatarPotenciaEquipamento, fetchEquipamentos } from '@/services/equipamentosService'
 import { getErrorMessage } from '@/lib/pocketbase/errors'
 import { toast } from 'sonner'
 import pb from '@/lib/pocketbase/client'
 import { ModalOrcamentoFornecedorForm } from './ModalOrcamentoFornecedorForm'
 
+// Helpers de extração heurística de marca, potência e modelo a partir da descrição
+export const MARCAS_MODULOS_CONHECIDAS = [
+  'RONMA',
+  'LUXEN',
+  'ERA',
+  'Canadian Solar',
+  'JA Solar',
+  'Jinko',
+  'Trina',
+  'Longi',
+  'Risen',
+  'Osda',
+  'BYD',
+  'Ahn-Solar',
+  'Dah Solar',
+  'Talesun',
+  'Suntech',
+  'GCL',
+  'Leapton',
+  'Astronergy',
+  'Chint',
+  'WEG',
+]
+
+export const MARCAS_INVERSORES_CONHECIDAS = [
+  'SOFAR',
+  'TSUNESS',
+  'DEYE',
+  'GROWATT',
+  'HUAWEI',
+  'SOLIS',
+  'SUNGROW',
+  'FRONIUS',
+  'GOODWE',
+  'HOYMILES',
+  'SAJ',
+  'WEG',
+  'APSYSTEMS',
+  'ABB',
+  'SMA',
+  'CHINT',
+  'KEHUA',
+]
+
+export function extrairInfoModulo(desc: string, qtd: number) {
+  const limpa = (desc || '').trim()
+
+  // Extrair potência em Wp: ex "610W", "625W", "620 W", "550 Wp"
+  let potenciaWp = 0
+  const matchW = limpa.match(/(\d{3,4})\s*W(?:p|\b)/i)
+  if (matchW && matchW[1]) {
+    const num = parseInt(matchW[1], 10)
+    if (num >= 200 && num <= 900) {
+      potenciaWp = num
+    }
+  }
+
+  // Detectar marca
+  let marca = ''
+  for (const m of MARCAS_MODULOS_CONHECIDAS) {
+    const regex = new RegExp(`\\b${m}\\b`, 'i')
+    if (regex.test(limpa)) {
+      marca = m.toUpperCase()
+      break
+    }
+  }
+
+  // Se não achou na lista conhecida, tenta extrair a primeira palavra que não seja código numérico
+  if (!marca) {
+    const tokens = limpa.replace(/^\d+\s+/, '').split(/\s+/)
+    if (tokens[0] && tokens[0].length >= 3) {
+      marca = tokens[0].toUpperCase()
+    } else {
+      marca = 'Módulo FV'
+    }
+  }
+
+  // Modelo: descrição sem o código do item inicial se houver (ex: "18197 RONMA 610W..." => modelo limpo)
+  const modelo = limpa.replace(/^\d+\s+/, '').trim() || limpa
+
+  return {
+    marca,
+    modelo,
+    potenciaWp,
+    quantidade: Math.max(1, qtd || 1),
+    descricaoOriginal: limpa,
+  }
+}
+
+export function extrairInfoInversor(desc: string, qtd: number) {
+  const limpa = (desc || '').trim()
+
+  // Extrair potência: pode vir em kW ("10KW", "2.5 kW", "2.5kW", "7.3KTLM", "2.25 kW") ou W ("5000W")
+  let potenciaW = 0
+  const matchKw = limpa.match(/(\d+(?:[.,]\d+)?)\s*k(?:w|tlm)?\b/i)
+  if (matchKw && matchKw[1]) {
+    const kw = parseFloat(matchKw[1].replace(',', '.'))
+    if (kw > 0 && kw < 200) {
+      potenciaW = Math.round(kw * 1000)
+    }
+  }
+
+  if (potenciaW === 0) {
+    // Tenta em W
+    const matchW = limpa.match(/(\d{3,5})\s*W\b/i)
+    if (matchW && matchW[1]) {
+      const w = parseInt(matchW[1], 10)
+      if (w >= 1000 && w <= 200000) {
+        potenciaW = w
+      }
+    }
+  }
+
+  // Detectar marca
+  let marca = ''
+  for (const m of MARCAS_INVERSORES_CONHECIDAS) {
+    const regex = new RegExp(`\\b${m}\\b`, 'i')
+    if (regex.test(limpa)) {
+      marca = m.toUpperCase()
+      break
+    }
+  }
+
+  if (!marca) {
+    const tokens = limpa.replace(/^\d+\s+/, '').split(/\s+/)
+    if (tokens[0] && tokens[0].length >= 3) {
+      marca = tokens[0].toUpperCase()
+    } else {
+      marca = 'Inversor'
+    }
+  }
+
+  const modelo = limpa.replace(/^\d+\s+/, '').trim() || limpa
+
+  return {
+    marca,
+    modelo,
+    potenciaW,
+    quantidade: Math.max(1, qtd || 1),
+    descricaoOriginal: limpa,
+  }
+}
+
+function normalizar(str: string) {
+  return (str || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]/g, '')
+}
+
 interface SecaoOrcamentosFornecedoresProps {
   clienteId?: string
   orcamentoSolarId?: string
   fornecedorSelecionadoId?: string
+  equipamentos?: Equipamento[]
+  onEquipamentoCadastrado?: (novo: Equipamento) => void
   onUsarEquipamentos?: (dados: {
     marcaPainel?: string
+    potenciaPlacaWp?: number
     numeroPlacas?: number
     marcaInversor?: string
     quantidadeInversores?: number
     valorTotal?: number
+    garantiaModulosFabricacaoAnos?: number
+    garantiaInversorAnos?: number
   }) => void
   onAplicarAoProjeto?: (fornecedorOrc: FornecedorOrcamento) => void
 }
@@ -40,6 +204,8 @@ export function SecaoOrcamentosFornecedores({
   clienteId,
   orcamentoSolarId,
   fornecedorSelecionadoId,
+  equipamentos: propEquipamentos,
+  onEquipamentoCadastrado,
   onUsarEquipamentos,
   onAplicarAoProjeto,
 }: SecaoOrcamentosFornecedoresProps) {
@@ -69,6 +235,38 @@ export function SecaoOrcamentosFornecedores({
   const [imageFileSelected, setImageFileSelected] = useState<File | null>(null)
   const [ocrResultado, setOcrResultado] = useState<AnaliseImagemResultado | null>(null)
   const [isModalClassificacaoOpen, setIsModalClassificacaoOpen] = useState(false)
+
+  // Lista de equipamentos para checar se já constam cadastrados no banco
+  const [equipamentosInternos, setEquipamentosInternos] = useState<Equipamento[]>([])
+
+  React.useEffect(() => {
+    if (!propEquipamentos) {
+      Promise.all([fetchEquipamentos('modulo_fv'), fetchEquipamentos('inversor')])
+        .then(([m, inv]) => setEquipamentosInternos([...(m || []), ...(inv || [])]))
+        .catch((err) =>
+          console.warn('Erro ao carregar equipamentos no SecaoOrcamentosFornecedores:', err),
+        )
+    }
+  }, [propEquipamentos])
+
+  const listaEquipamentos = propEquipamentos || equipamentosInternos
+
+  // Estado do modal de cadastro rápido de equipamento
+  const [modalCadastro, setModalCadastro] = useState<{
+    isOpen: boolean
+    tipo: TipoEquipamento
+    marca: string
+    modelo: string
+    potenciaW: number
+    fornecedorNome: string
+  }>({
+    isOpen: false,
+    tipo: 'modulo_fv',
+    marca: '',
+    modelo: '',
+    potenciaW: 0,
+    fornecedorNome: '',
+  })
 
   // Lista de orçamentos já vinculados a este cliente ou orçamento solar
   const orcamentosVinculados = React.useMemo(() => {
@@ -451,81 +649,336 @@ export function SecaoOrcamentosFornecedores({
             </div>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
             {orcamentosVinculados.map((orc) => {
-              const isSelected =
-                (fornecedorSelecionadoId && orc.id === fornecedorSelecionadoId) ||
-                Boolean(orc.selecionado)
+              // Seleção exclusiva: um card está aplicado somente se fornecedorSelecionadoId === orc.id
+              // (ou fallback exclusivo pelo primeiro se orc.selecionado e fornecedorSelecionadoId não estiver definido)
+              const isSelected = fornecedorSelecionadoId
+                ? orc.id === fornecedorSelecionadoId
+                : Boolean(orc.selecionado)
+
+              // Extrair dados do Módulo Fotovoltaico
+              const itemModuloOriginal = orc.modulos?.[0]
+              const infoModulo = itemModuloOriginal?.descricao
+                ? extrairInfoModulo(itemModuloOriginal.descricao, itemModuloOriginal.quantidade)
+                : null
+
+              // Extrair dados do Inversor Fotovoltaico
+              const itemInversorOriginal = orc.inversores?.[0]
+              const infoInversor = itemInversorOriginal?.descricao
+                ? extrairInfoInversor(
+                    itemInversorOriginal.descricao,
+                    itemInversorOriginal.quantidade,
+                  )
+                : null
+
+              // Verificar se módulo já existe no banco de equipamentos
+              let moduloEncontrado: Equipamento | null = null
+              if (infoModulo) {
+                const modulosBanco = listaEquipamentos.filter((e) => e.tipo === 'modulo_fv')
+                const marcaNorm = normalizar(infoModulo.marca)
+                const modeloNorm = normalizar(infoModulo.modelo)
+
+                for (const eq of modulosBanco) {
+                  const eqMarca = normalizar(eq.marca)
+                  const eqModelo = normalizar(eq.modelo)
+                  if (
+                    (eqMarca && marcaNorm.includes(eqMarca)) ||
+                    (marcaNorm && eqMarca.includes(marcaNorm))
+                  ) {
+                    if (infoModulo.potenciaWp > 0 && eq.potencia_w === infoModulo.potenciaWp) {
+                      moduloEncontrado = eq
+                      break
+                    }
+                    if (
+                      eqModelo &&
+                      (modeloNorm.includes(eqModelo) || eqModelo.includes(modeloNorm))
+                    ) {
+                      moduloEncontrado = eq
+                      break
+                    }
+                  }
+                }
+
+                if (!moduloEncontrado && infoModulo.potenciaWp > 0) {
+                  const porPot = modulosBanco.filter((e) => e.potencia_w === infoModulo.potenciaWp)
+                  if (
+                    porPot.length === 1 &&
+                    marcaNorm &&
+                    normalizar(porPot[0].marca).includes(marcaNorm)
+                  ) {
+                    moduloEncontrado = porPot[0]
+                  }
+                }
+              }
+
+              // Verificar se inversor já existe no banco de equipamentos
+              let inversorEncontrado: Equipamento | null = null
+              if (infoInversor) {
+                const inversoresBanco = listaEquipamentos.filter((e) => e.tipo === 'inversor')
+                const marcaNorm = normalizar(infoInversor.marca)
+                const modeloNorm = normalizar(infoInversor.modelo)
+
+                for (const eq of inversoresBanco) {
+                  const eqMarca = normalizar(eq.marca)
+                  const eqModelo = normalizar(eq.modelo)
+                  if (
+                    (eqMarca && marcaNorm.includes(eqMarca)) ||
+                    (marcaNorm && eqMarca.includes(marcaNorm))
+                  ) {
+                    if (
+                      infoInversor.potenciaW > 0 &&
+                      Math.abs(eq.potencia_w - infoInversor.potenciaW) < 100
+                    ) {
+                      inversorEncontrado = eq
+                      break
+                    }
+                    if (
+                      eqModelo &&
+                      (modeloNorm.includes(eqModelo) || eqModelo.includes(modeloNorm))
+                    ) {
+                      inversorEncontrado = eq
+                      break
+                    }
+                  }
+                }
+              }
 
               return (
                 <div
                   key={orc.id}
-                  className={`p-3 rounded-xl border transition-all shadow-2xs space-y-2 text-xs relative ${
+                  className={`p-3.5 rounded-xl border transition-all shadow-2xs space-y-3 text-xs relative flex flex-col justify-between ${
                     isSelected
-                      ? 'border-2 border-emerald-600 bg-emerald-50/25 ring-2 ring-emerald-500/15 shadow-sm'
+                      ? 'border-2 border-emerald-600 bg-emerald-50/20 ring-2 ring-emerald-500/15 shadow-sm'
                       : 'border-gray-200 bg-white hover:border-emerald-300'
                   }`}
                 >
+                  {/* Badge de topo: apenas o card aplicado exibe '✓ APLICADO ✓' */}
                   {isSelected && (
                     <div className="absolute -top-2.5 right-3">
-                      <span className="inline-flex items-center gap-1 text-[10px] font-extrabold uppercase bg-emerald-600 text-white px-2.5 py-0.5 rounded-full shadow-xs">
+                      <span className="inline-flex items-center gap-1 text-[10px] font-extrabold uppercase bg-emerald-600 text-white px-2.5 py-0.5 rounded-full shadow-xs tracking-wider">
                         <Check className="w-3 h-3" />
-                        Aplicado ✓
+                        APLICADO ✓
                       </span>
                     </div>
                   )}
 
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <h5 className="font-bold text-gray-900 flex items-center gap-1.5">
-                        {orc.nome_fornecedor}
-                      </h5>
-                      <span className="text-[10px] text-gray-500">
-                        Revisão: <strong>{orc.numero_revisao || 'REV-01'}</strong> •{' '}
-                        {formatDate(orc.data)}
+                  <div className="space-y-3">
+                    {/* Topo do card: Fornecedor, Revisão e Preço Total */}
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <h5 className="font-bold text-gray-900 text-sm flex items-center gap-1.5 leading-snug">
+                          {orc.nome_fornecedor}
+                        </h5>
+                        <span className="text-[10px] text-gray-500">
+                          Revisão: <strong>{orc.numero_revisao || 'REV-01'}</strong> •{' '}
+                          {formatDate(orc.data)}
+                        </span>
+                      </div>
+                      <span className="text-xs font-black text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-md border border-emerald-200 whitespace-nowrap">
+                        {formatCurrency(orc.valor_total)}
                       </span>
                     </div>
-                    <span className="text-xs font-black text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
-                      {formatCurrency(orc.valor_total)}
-                    </span>
+
+                    {/* Resumo compacto dos equipamentos extraídos: MÓDULO e INVERSOR */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                      {/* Subcard Módulo Fotovoltaico */}
+                      <div className="p-2.5 rounded-lg border border-gray-200 bg-gray-50/70 flex flex-col justify-between space-y-2">
+                        <div className="space-y-1.5">
+                          <div className="flex items-center justify-between gap-1">
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              <div className="w-5 h-5 rounded bg-amber-100 text-amber-800 flex items-center justify-center shrink-0">
+                                <Sun className="w-3 h-3 text-amber-600" />
+                              </div>
+                              <span className="text-[10.5px] font-bold uppercase tracking-wider text-gray-800 truncate">
+                                Módulo FV
+                              </span>
+                            </div>
+
+                            {moduloEncontrado ? (
+                              <span className="text-[9px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded whitespace-nowrap">
+                                ✓ No Banco
+                              </span>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setModalCadastro({
+                                    isOpen: true,
+                                    tipo: 'modulo_fv',
+                                    marca: infoModulo?.marca || '',
+                                    modelo:
+                                      infoModulo?.modelo || infoModulo?.descricaoOriginal || '',
+                                    potenciaW: infoModulo?.potenciaWp || 550,
+                                    fornecedorNome: orc.nome_fornecedor || '',
+                                  })
+                                }
+                                className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9.5px] font-bold bg-white text-emerald-800 border border-emerald-400 hover:bg-emerald-50 transition-colors shadow-2xs whitespace-nowrap"
+                                title="Cadastrar este módulo no banco permanente de equipamentos"
+                              >
+                                <PlusCircle className="w-2.5 h-2.5 text-emerald-600" />
+                                <span>Cadastrar no Banco</span>
+                              </button>
+                            )}
+                          </div>
+
+                          {/* Descrição extraída da cotação */}
+                          <div className="p-1.5 rounded bg-white border border-gray-200/80">
+                            <span className="text-[9px] font-bold text-gray-400 uppercase block leading-tight">
+                              Descrição extraída
+                            </span>
+                            <p
+                              className="text-[11px] font-semibold text-gray-900 break-words leading-tight mt-0.5 line-clamp-2"
+                              title={infoModulo?.descricaoOriginal || itemModuloOriginal?.descricao}
+                            >
+                              {infoModulo?.descricaoOriginal || itemModuloOriginal?.descricao || (
+                                <span className="text-gray-400 italic">
+                                  Módulo não discriminado
+                                </span>
+                              )}
+                            </p>
+                          </div>
+
+                          {/* Métricas: Marca / Potência / Quantidade */}
+                          <div className="grid grid-cols-3 gap-1 text-center pt-0.5">
+                            <div className="bg-white p-1 rounded border border-gray-200">
+                              <span className="text-[8.5px] font-bold text-gray-400 uppercase block">
+                                Marca
+                              </span>
+                              <span className="text-[10px] font-bold text-gray-800 truncate block">
+                                {moduloEncontrado?.marca || infoModulo?.marca || '—'}
+                              </span>
+                            </div>
+                            <div className="bg-white p-1 rounded border border-gray-200">
+                              <span className="text-[8.5px] font-bold text-gray-400 uppercase block">
+                                Potência
+                              </span>
+                              <span className="text-[10px] font-bold text-emerald-700 flex items-center justify-center gap-0.5">
+                                <Zap className="w-2.5 h-2.5 text-emerald-500" />
+                                {infoModulo?.potenciaWp ? `${infoModulo.potenciaWp} Wp` : '—'}
+                              </span>
+                            </div>
+                            <div className="bg-white p-1 rounded border border-gray-200">
+                              <span className="text-[8.5px] font-bold text-gray-400 uppercase block">
+                                Qtd
+                              </span>
+                              <span className="text-[10px] font-black text-gray-900 flex items-center justify-center gap-0.5">
+                                <Hash className="w-2.5 h-2.5 text-gray-400" />
+                                {infoModulo?.quantidade ?? itemModuloOriginal?.quantidade ?? 0} un
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Subcard Inversor Fotovoltaico */}
+                      <div className="p-2.5 rounded-lg border border-gray-200 bg-gray-50/70 flex flex-col justify-between space-y-2">
+                        <div className="space-y-1.5">
+                          <div className="flex items-center justify-between gap-1">
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              <div className="w-5 h-5 rounded bg-blue-100 text-blue-800 flex items-center justify-center shrink-0">
+                                <Cpu className="w-3 h-3 text-blue-600" />
+                              </div>
+                              <span className="text-[10.5px] font-bold uppercase tracking-wider text-gray-800 truncate">
+                                Inversor FV
+                              </span>
+                            </div>
+
+                            {inversorEncontrado ? (
+                              <span className="text-[9px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded whitespace-nowrap">
+                                ✓ No Banco
+                              </span>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setModalCadastro({
+                                    isOpen: true,
+                                    tipo: 'inversor',
+                                    marca: infoInversor?.marca || '',
+                                    modelo:
+                                      infoInversor?.modelo || infoInversor?.descricaoOriginal || '',
+                                    potenciaW: infoInversor?.potenciaW || 5000,
+                                    fornecedorNome: orc.nome_fornecedor || '',
+                                  })
+                                }
+                                className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9.5px] font-bold bg-white text-emerald-800 border border-emerald-400 hover:bg-emerald-50 transition-colors shadow-2xs whitespace-nowrap"
+                                title="Cadastrar este inversor no banco permanente de equipamentos"
+                              >
+                                <PlusCircle className="w-2.5 h-2.5 text-emerald-600" />
+                                <span>Cadastrar no Banco</span>
+                              </button>
+                            )}
+                          </div>
+
+                          {/* Descrição extraída da cotação */}
+                          <div className="p-1.5 rounded bg-white border border-gray-200/80">
+                            <span className="text-[9px] font-bold text-gray-400 uppercase block leading-tight">
+                              Descrição extraída
+                            </span>
+                            <p
+                              className="text-[11px] font-semibold text-gray-900 break-words leading-tight mt-0.5 line-clamp-2"
+                              title={
+                                infoInversor?.descricaoOriginal || itemInversorOriginal?.descricao
+                              }
+                            >
+                              {infoInversor?.descricaoOriginal ||
+                                itemInversorOriginal?.descricao || (
+                                  <span className="text-gray-400 italic">
+                                    Inversor não discriminado
+                                  </span>
+                                )}
+                            </p>
+                          </div>
+
+                          {/* Métricas: Marca / Potência / Quantidade */}
+                          <div className="grid grid-cols-3 gap-1 text-center pt-0.5">
+                            <div className="bg-white p-1 rounded border border-gray-200">
+                              <span className="text-[8.5px] font-bold text-gray-400 uppercase block">
+                                Marca
+                              </span>
+                              <span className="text-[10px] font-bold text-gray-800 truncate block">
+                                {inversorEncontrado?.marca || infoInversor?.marca || '—'}
+                              </span>
+                            </div>
+                            <div className="bg-white p-1 rounded border border-gray-200">
+                              <span className="text-[8.5px] font-bold text-gray-400 uppercase block">
+                                Potência
+                              </span>
+                              <span className="text-[10px] font-bold text-blue-700 flex items-center justify-center gap-0.5">
+                                <Zap className="w-2.5 h-2.5 text-blue-500" />
+                                {infoInversor?.potenciaW
+                                  ? formatarPotenciaEquipamento(infoInversor.potenciaW)
+                                  : '—'}
+                              </span>
+                            </div>
+                            <div className="bg-white p-1 rounded border border-gray-200">
+                              <span className="text-[8.5px] font-bold text-gray-400 uppercase block">
+                                Qtd
+                              </span>
+                              <span className="text-[10px] font-black text-gray-900 flex items-center justify-center gap-0.5">
+                                <Hash className="w-2.5 h-2.5 text-gray-400" />
+                                {infoInversor?.quantidade ??
+                                  itemInversorOriginal?.quantidade ??
+                                  0}{' '}
+                                un
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
                   </div>
 
-                  <div className="pt-2 border-t border-gray-100 flex items-center justify-between text-[11px] flex-wrap gap-2">
+                  {/* Rodapé do Card: Link PDF e Ação Exclusiva de Aplicação */}
+                  <div className="pt-2.5 border-t border-gray-100 flex items-center justify-between text-[11px] flex-wrap gap-2 mt-auto">
                     <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={async () => {
-                          if (onAplicarAoProjeto) {
-                            onAplicarAoProjeto(orc)
-                          } else {
-                            await selecionarFornecedorOrcamento(orc.id, {
-                              orcamentoSolarId,
-                              clienteId,
-                            })
-                            toast.success(`${orc.nome_fornecedor} marcado como ativo!`)
-                          }
-                        }}
-                        className={`text-[11px] font-bold px-2 py-0.5 rounded border transition-colors inline-flex items-center gap-1 ${
-                          isSelected
-                            ? 'bg-emerald-600 text-white border-emerald-700 shadow-2xs'
-                            : 'bg-white hover:bg-emerald-50 text-emerald-800 border-emerald-300'
-                        }`}
-                        title={
-                          isSelected
-                            ? 'Fornecedor atualmente aplicado ao projeto'
-                            : 'Selecionar e aplicar este fornecedor ao projeto'
-                        }
-                      >
-                        <Check className="w-3 h-3" />
-                        <span>{isSelected ? 'Fornecedor Ativo' : 'Tornar Ativo'}</span>
-                      </button>
-
                       {orc.arquivo && (
                         <a
                           href={pb.files.getURL(orc, orc.arquivo)}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-blue-600 hover:underline inline-flex items-center gap-1"
+                          className="text-blue-600 hover:underline inline-flex items-center gap-1 font-semibold"
                         >
                           <ExternalLink className="w-3 h-3" />
                           <span>PDF</span>
@@ -536,38 +989,60 @@ export function SecaoOrcamentosFornecedores({
                     <div className="flex items-center gap-2 ml-auto">
                       <button
                         type="button"
-                        onClick={() => {
+                        onClick={async () => {
                           if (onAplicarAoProjeto) {
                             onAplicarAoProjeto(orc)
-                          } else if (onUsarEquipamentos) {
-                            const m = orc.modulos?.[0]
-                            const inv = orc.inversores?.[0]
-                            onUsarEquipamentos({
-                              marcaPainel: m?.descricao,
-                              numeroPlacas: m?.quantidade,
-                              marcaInversor: inv?.descricao,
-                              quantidadeInversores: inv?.quantidade,
-                              valorTotal: orc.valor_total,
+                          } else {
+                            await selecionarFornecedorOrcamento(orc.id, {
+                              orcamentoSolarId,
+                              clienteId,
                             })
-                            toast.success('Equipamentos aplicados aos campos do sistema!')
+                            if (onUsarEquipamentos) {
+                              onUsarEquipamentos({
+                                marcaPainel: moduloEncontrado
+                                  ? `${moduloEncontrado.marca} ${moduloEncontrado.modelo}`
+                                  : infoModulo?.descricaoOriginal || itemModuloOriginal?.descricao,
+                                potenciaPlacaWp:
+                                  moduloEncontrado?.potencia_w || infoModulo?.potenciaWp || 550,
+                                numeroPlacas:
+                                  infoModulo?.quantidade || itemModuloOriginal?.quantidade || 10,
+                                marcaInversor: inversorEncontrado
+                                  ? `${inversorEncontrado.marca} ${inversorEncontrado.modelo}`
+                                  : infoInversor?.descricaoOriginal ||
+                                    itemInversorOriginal?.descricao,
+                                quantidadeInversores:
+                                  infoInversor?.quantidade || itemInversorOriginal?.quantidade || 1,
+                                valorTotal: orc.valor_total,
+                                garantiaModulosFabricacaoAnos:
+                                  moduloEncontrado?.garantia_anos || undefined,
+                                garantiaInversorAnos:
+                                  inversorEncontrado?.garantia_anos || undefined,
+                              })
+                            }
+                            toast.success(`${orc.nome_fornecedor} aplicado ao projeto!`)
                           }
                         }}
-                        className={`px-2.5 py-1 text-xs font-extrabold rounded-lg transition-all inline-flex items-center gap-1 ${
+                        className={`px-3 py-1.5 text-xs font-extrabold rounded-lg transition-all inline-flex items-center gap-1.5 shadow-2xs ${
                           isSelected
-                            ? 'bg-emerald-600 text-white shadow-2xs'
-                            : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 hover:scale-[1.02]'
+                            ? 'bg-emerald-600 text-white shadow-xs cursor-default'
+                            : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 hover:scale-[1.02] cursor-pointer'
                         }`}
-                        title="Aplica o valor total deste fornecedor ao campo 'Materiais / Equipamentos' na aba Custos recalculando todos os totais"
+                        title={
+                          isSelected
+                            ? 'Cotação atualmente aplicada ao projeto'
+                            : 'Aplica o valor e equipamentos desta cotação ao projeto, recalculando a planilha de custos'
+                        }
                       >
                         {isSelected ? (
                           <>
                             <Check className="w-3.5 h-3.5" />
-                            <span>Aplicado ✓</span>
+                            <span>✓ Aplicado</span>
                           </>
                         ) : (
                           <span>Aplicar ao Projeto</span>
                         )}
                       </button>
+
                       <button
                         type="button"
                         onClick={async () => {
@@ -576,7 +1051,7 @@ export function SecaoOrcamentosFornecedores({
                             toast.success('Orçamento removido.')
                           }
                         }}
-                        className="text-gray-400 hover:text-red-600 p-1"
+                        className="text-gray-400 hover:text-red-600 p-1 rounded hover:bg-red-50 transition-colors"
                         title="Excluir Cotação"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
@@ -655,6 +1130,21 @@ export function SecaoOrcamentosFornecedores({
               onAplicarAoProjeto(fornEncontrado)
             }
           }
+        }}
+      />
+
+      {/* Modal de Cadastro Rápido de Equipamento */}
+      <ModalCadastroEquipamentoRapido
+        isOpen={modalCadastro.isOpen}
+        onClose={() => setModalCadastro((prev) => ({ ...prev, isOpen: false }))}
+        tipoInicial={modalCadastro.tipo}
+        marcaInicial={modalCadastro.marca}
+        modeloInicial={modalCadastro.modelo}
+        potenciaInicial={modalCadastro.potenciaW}
+        fornecedorNome={modalCadastro.fornecedorNome}
+        onEquipamentoCadastrado={(novo) => {
+          setEquipamentosInternos((prev) => [novo, ...prev.filter((e) => e.id !== novo.id)])
+          onEquipamentoCadastrado?.(novo)
         }}
       />
     </div>

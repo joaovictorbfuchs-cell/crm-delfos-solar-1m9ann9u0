@@ -32,7 +32,6 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { SecaoOrcamentosFornecedores } from './SecaoOrcamentosFornecedores'
-import { SecaoEquipamentosFornecedorSelecionado } from './SecaoEquipamentosFornecedorSelecionado'
 import { useClientes } from '@/contexts/ClientesContext'
 import { useAuth } from '@/contexts/AuthContext'
 import { ClienteAutocomplete } from '@/components/ClienteAutocomplete'
@@ -1966,8 +1965,25 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                     clienteId={selectedClienteId}
                     orcamentoSolarId={initialOrcamento?.id}
                     fornecedorSelecionadoId={fornecedorSelecionadoId}
+                    equipamentos={[...equipamentosModulos, ...equipamentosInversores]}
+                    onEquipamentoCadastrado={(novo) => {
+                      if (novo.tipo === 'modulo_fv') {
+                        setEquipamentosModulos((prev) => [
+                          novo,
+                          ...prev.filter((e) => e.id !== novo.id),
+                        ])
+                      } else {
+                        setEquipamentosInversores((prev) => [
+                          novo,
+                          ...prev.filter((e) => e.id !== novo.id),
+                        ])
+                      }
+                    }}
                     onUsarEquipamentos={(equip) => {
                       if (equip.marcaPainel) setMarcaPainel(equip.marcaPainel)
+                      if (equip.potenciaPlacaWp && equip.potenciaPlacaWp > 0) {
+                        handlePotenciaPlacaChange(equip.potenciaPlacaWp)
+                      }
                       if (equip.numeroPlacas && equip.numeroPlacas > 0) {
                         handleNumeroPlacasChange(equip.numeroPlacas)
                       }
@@ -1975,11 +1991,17 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                       if (equip.quantidadeInversores && equip.quantidadeInversores > 0) {
                         setQuantidadeInversores(equip.quantidadeInversores)
                       }
+                      if (equip.garantiaModulosFabricacaoAnos) {
+                        setGarantiaModulosFabricacaoAnos(equip.garantiaModulosFabricacaoAnos)
+                      }
+                      if (equip.garantiaInversorAnos) {
+                        setGarantiaInversorAnos(equip.garantiaInversorAnos)
+                      }
                     }}
                     onAplicarAoProjeto={async (fornOrc) => {
                       const valorTotalForn = Number(fornOrc.valor_total) || 0
 
-                      // 1. Atualização otimista e imediata do estado local
+                      // 1. Atualização otimista e imediata do estado local (seleção exclusiva)
                       setFornecedorSelecionadoId(fornOrc.id)
                       fornecedorAplicadoRef.current = { id: fornOrc.id, valor: valorTotalForn }
                       updateCustoField('materiaisEquipamentos', valorTotalForn)
@@ -2047,63 +2069,6 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                       }
                     }}
                   />
-
-                  {/* (c): Cards de Equipamentos do Fornecedor Ativo */}
-                  <div className="pt-4 border-t border-gray-200">
-                    <SecaoEquipamentosFornecedorSelecionado
-                      fornecedorOrcamento={fornecedorSelecionadoObj}
-                      equipamentos={[...equipamentosModulos, ...equipamentosInversores]}
-                      equipamentosAtuaisProposta={{
-                        marcaPainel,
-                        potenciaPlacaWp,
-                        numeroPlacas,
-                        marcaInversor,
-                        quantidadeInversores,
-                      }}
-                      onEquipamentoCadastrado={(novo) => {
-                        if (novo.tipo === 'modulo_fv') {
-                          setEquipamentosModulos((prev) => [
-                            novo,
-                            ...prev.filter((e) => e.id !== novo.id),
-                          ])
-                        } else {
-                          setEquipamentosInversores((prev) => [
-                            novo,
-                            ...prev.filter((e) => e.id !== novo.id),
-                          ])
-                        }
-                      }}
-                      onAplicarEquipamentos={(dados) => {
-                        if (dados.marcaPainel) setMarcaPainel(dados.marcaPainel)
-                        if (dados.potenciaPlacaWp && dados.potenciaPlacaWp > 0) {
-                          handlePotenciaPlacaChange(dados.potenciaPlacaWp)
-                        }
-                        if (dados.numeroPlacas && dados.numeroPlacas > 0) {
-                          handleNumeroPlacasChange(dados.numeroPlacas)
-                        }
-                        if (dados.marcaInversor) setMarcaInversor(dados.marcaInversor)
-                        if (dados.quantidadeInversores && dados.quantidadeInversores > 0) {
-                          setQuantidadeInversores(dados.quantidadeInversores)
-                        }
-                        if (dados.garantiaModulosFabricacaoAnos) {
-                          setGarantiaModulosFabricacaoAnos(dados.garantiaModulosFabricacaoAnos)
-                        }
-                        if (dados.garantiaInversorAnos) {
-                          setGarantiaInversorAnos(dados.garantiaInversorAnos)
-                        }
-                        if (dados.fotoModuloUrl !== undefined) {
-                          setFotoModuloUrl(dados.fotoModuloUrl || null)
-                        }
-                        if (dados.fotoInversorUrl !== undefined) {
-                          setFotoInversorUrl(dados.fotoInversorUrl || null)
-                        }
-
-                        toast.success(
-                          'Equipamentos do fornecedor aplicados à proposta com sucesso!',
-                        )
-                      }}
-                    />
-                  </div>
 
                   {/* (d): Campos preservados: tipo de estrutura, orientação, área, FINAME e investimento manual */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs pt-3 border-t border-gray-100">
