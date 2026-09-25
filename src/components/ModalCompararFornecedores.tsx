@@ -209,7 +209,7 @@ export function ModalCompararFornecedores({
                         <Layers className="w-3.5 h-3.5 text-emerald-600" />
                         <span>Módulos Fotovoltaicos</span>
                       </div>
-                      {orc.modulos && orc.modulos.length > 0 ? (
+                      {Array.isArray(orc.modulos) && orc.modulos.length > 0 ? (
                         <div className="space-y-1.5 bg-gray-50 p-2.5 rounded-lg border border-gray-100">
                           {orc.modulos.map((m, idx) => (
                             <div key={idx} className="flex items-start justify-between gap-2">
@@ -235,7 +235,7 @@ export function ModalCompararFornecedores({
                         <Cpu className="w-3.5 h-3.5 text-blue-600" />
                         <span>Inversores Solares</span>
                       </div>
-                      {orc.inversores && orc.inversores.length > 0 ? (
+                      {Array.isArray(orc.inversores) && orc.inversores.length > 0 ? (
                         <div className="space-y-1.5 bg-gray-50 p-2.5 rounded-lg border border-gray-100">
                           {orc.inversores.map((inv, idx) => (
                             <div key={idx} className="flex items-start justify-between gap-2">
@@ -259,9 +259,12 @@ export function ModalCompararFornecedores({
                     <div className="space-y-2 pt-2 border-t border-gray-100 text-xs">
                       <div className="flex items-center gap-1.5 text-gray-700 font-bold uppercase text-[11px]">
                         <Wrench className="w-3.5 h-3.5 text-purple-600" />
-                        <span>Acessórios & Estrutura ({orc.acessorios?.length || 0})</span>
+                        <span>
+                          Acessórios & Estrutura (
+                          {Array.isArray(orc.acessorios) ? orc.acessorios.length : 0})
+                        </span>
                       </div>
-                      {orc.acessorios && orc.acessorios.length > 0 ? (
+                      {Array.isArray(orc.acessorios) && orc.acessorios.length > 0 ? (
                         <ul className="space-y-1 bg-gray-50 p-2.5 rounded-lg border border-gray-100 text-[11px] max-h-36 overflow-y-auto">
                           {orc.acessorios.map((a, idx) => (
                             <li

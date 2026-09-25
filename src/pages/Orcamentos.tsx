@@ -160,22 +160,22 @@ export const Orcamentos: React.FC = () => {
     const list = orcamentosSolar.filter((orc) => {
       // Cliente relacionado
       const cliente = orc.expand?.cliente_id || clientes.find((c) => c.id === orc.cliente_id)
-      const nomeCliente = cliente?.nome || ''
-      const cidade = cliente?.cidade || ''
+      const nomeCliente = (cliente?.nome || '').toString().toLowerCase()
+      const cidade = (cliente?.cidade || '').toString().toLowerCase()
       const numeroRevisao = orc.numero_revisao ? String(orc.numero_revisao) : '1'
-      const idOuCodigo = orc.id.toLowerCase()
+      const idOuCodigo = (orc.id || '').toString().toLowerCase()
 
       // 1. Busca rápida: nome do cliente, número da proposta (id ou revisão) ou cidade
-      const busca = filtrosAtivos.busca.toLowerCase()
+      const busca = (filtrosAtivos.busca || '').toString().toLowerCase()
       const matchBusca =
         busca === '' ||
-        nomeCliente.toLowerCase().includes(busca) ||
-        cidade.toLowerCase().includes(busca) ||
+        nomeCliente.includes(busca) ||
+        cidade.includes(busca) ||
         idOuCodigo.includes(busca) ||
-        `proposta #${numeroRevisao}`.includes(busca) ||
-        `rev ${numeroRevisao}`.includes(busca) ||
-        (orc.marca_painel && orc.marca_painel.toLowerCase().includes(busca)) ||
-        (orc.marca_inversor && orc.marca_inversor.toLowerCase().includes(busca))
+        `proposta #${numeroRevisao}`.toLowerCase().includes(busca) ||
+        `rev ${numeroRevisao}`.toLowerCase().includes(busca) ||
+        (orc.marca_painel && String(orc.marca_painel).toLowerCase().includes(busca)) ||
+        (orc.marca_inversor && String(orc.marca_inversor).toLowerCase().includes(busca))
 
       // 2. Status: Em Negociação, Aprovada, Recusada, Expirada, Arquivada
       let matchStatus = true
@@ -928,47 +928,80 @@ export const Orcamentos: React.FC = () => {
                       {/* Potência */}
                       <td className="py-3 px-3">
                         <div className="font-extrabold text-gray-900 text-sm">
-                          {orc.potencia_kwp ? `${orc.potencia_kwp.toFixed(2)} kWp` : '—'}
+                          {(() => {
+                            const kwp = Number(orc.potencia_kwp)
+                            return Number.isFinite(kwp) && kwp > 0 ? `${kwp.toFixed(2)} kWp` : '—'
+                          })()}
                         </div>
                         <div className="text-[11px] text-gray-500">
-                          {orc.numero_placas} placas ({orc.potencia_placa_wp}W)
+                          {(() => {
+                            const placas = Number(orc.numero_placas)
+                            const potenciaWp = Number(orc.potencia_placa_wp)
+                            const placasStr =
+                              Number.isFinite(placas) && placas > 0 ? `${placas} placas` : '—'
+                            const wpStr =
+                              Number.isFinite(potenciaWp) && potenciaWp > 0
+                                ? ` (${potenciaWp}W)`
+                                : ''
+                            return `${placasStr}${wpStr}`
+                          })()}
                         </div>
                       </td>
 
                       {/* Investimento */}
                       <td className="py-3 px-3">
                         <div className="font-black text-emerald-700 text-sm">
-                          {formatCurrency(orc.valor_investimento)}
+                          {(() => {
+                            const val = Number(orc.valor_investimento)
+                            return Number.isFinite(val) && val > 0 ? formatCurrency(val) : '—'
+                          })()}
                         </div>
                         <div className="text-[10px] text-gray-400">
-                          {orc.custo_por_kwp ? `${formatCurrency(orc.custo_por_kwp)}/kWp` : '—'}
+                          {(() => {
+                            const custo = Number(orc.custo_por_kwp)
+                            return Number.isFinite(custo) && custo > 0
+                              ? `${formatCurrency(custo)}/kWp`
+                              : '—'
+                          })()}
                         </div>
                       </td>
 
                       {/* Geração Média */}
                       <td className="py-3 px-3">
                         <div className="font-bold text-gray-800">
-                          {orc.geracao_mensal_kwh
-                            ? `${orc.geracao_mensal_kwh.toLocaleString('pt-BR')} kWh/mês`
-                            : '—'}
+                          {(() => {
+                            const geracao = Number(orc.geracao_mensal_kwh)
+                            return Number.isFinite(geracao) && geracao > 0
+                              ? `${geracao.toLocaleString('pt-BR')} kWh/mês`
+                              : '—'
+                          })()}
                         </div>
                         <div className="text-[10px] text-emerald-600 font-semibold">
-                          {orc.economia_1_mes
-                            ? `Eco: ${formatCurrency(orc.economia_1_mes)}/mês`
-                            : ''}
+                          {(() => {
+                            const eco = Number(orc.economia_1_mes)
+                            return Number.isFinite(eco) && eco > 0
+                              ? `Eco: ${formatCurrency(eco)}/mês`
+                              : ''
+                          })()}
                         </div>
                       </td>
 
                       {/* Payback */}
                       <td className="py-3 px-3">
-                        <span className="font-semibold text-gray-800">
-                          {orc.payback_meses ? `${orc.payback_meses} meses` : '—'}
-                        </span>
-                        {orc.payback_meses ? (
-                          <div className="text-[10px] text-gray-400">
-                            (~{(orc.payback_meses / 12).toFixed(1)} anos)
-                          </div>
-                        ) : null}
+                        {(() => {
+                          const payback = Number(orc.payback_meses)
+                          if (!Number.isFinite(payback) || payback <= 0) {
+                            return <span className="font-semibold text-gray-800">—</span>
+                          }
+                          return (
+                            <>
+                              <span className="font-semibold text-gray-800">{payback} meses</span>
+                              <div className="text-[10px] text-gray-400">
+                                (~{(payback / 12).toFixed(1)} anos)
+                              </div>
+                            </>
+                          )
+                        })()}
                       </td>
 
                       {/* Status */}

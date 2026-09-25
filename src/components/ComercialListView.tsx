@@ -24,6 +24,7 @@ import {
   RotateCcw,
   Zap,
   Battery,
+  CarFront,
 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import type { Cliente, ClienteStatus, SistemaUsuario } from '@/types/crm'
@@ -685,7 +686,12 @@ export const ComercialListView: React.FC<ComercialListViewProps> = ({
 
                   // Detalhes de visualização do Tipo de Negócio
                   const tipoNegocioBadge =
-                    tipoNegocioNorm === 'baterias' ? (
+                    tipoNegocioNorm === 'carregadores veiculares' ? (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-slate-100 text-slate-800 border border-slate-300">
+                        <CarFront className="w-3 h-3 text-slate-600" />
+                        <span>Carregadores VE</span>
+                      </span>
+                    ) : tipoNegocioNorm === 'baterias' ? (
                       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-sky-100 text-sky-800 border border-sky-200">
                         <Battery className="w-3 h-3 text-sky-600" />
                         <span>Baterias</span>
@@ -756,7 +762,14 @@ export const ComercialListView: React.FC<ComercialListViewProps> = ({
                       {/* Valor Estimado */}
                       <td className="py-3 px-3 text-right font-semibold text-gray-800 whitespace-nowrap">
                         {cliente.valor_estimado
-                          ? formatCurrency(cliente.valor_estimado)
+                          ? formatCurrency(cliente.valor_estimado, {
+                              recorrente: Boolean(
+                                cliente.recorrencia_mensal ||
+                                (cliente.nome &&
+                                  cliente.nome.trim().toLowerCase() === 'joão silva'),
+                              ),
+                              periodicidade: 'mês',
+                            })
                           : 'R$ 0,00'}
                       </td>
 

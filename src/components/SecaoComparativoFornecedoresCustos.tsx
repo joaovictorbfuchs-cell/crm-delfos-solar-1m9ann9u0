@@ -341,11 +341,11 @@ export const SecaoComparativoFornecedoresCustos: React.FC<
               orcamentosVinculados.map((orc) => {
                 const isSelected = activeSelectedId === orc.id || Boolean(orc.selecionado)
                 const modulosTexto =
-                  orc.modulos && orc.modulos.length > 0
+                  Array.isArray(orc.modulos) && orc.modulos.length > 0
                     ? orc.modulos.map((m) => `${m.quantidade}x ${m.descricao}`).join(', ')
                     : 'Não especificado'
                 const inversoresTexto =
-                  orc.inversores && orc.inversores.length > 0
+                  Array.isArray(orc.inversores) && orc.inversores.length > 0
                     ? orc.inversores.map((inv) => `${inv.quantidade}x ${inv.descricao}`).join(', ')
                     : ''
 

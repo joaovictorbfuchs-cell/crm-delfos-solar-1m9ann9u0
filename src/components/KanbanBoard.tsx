@@ -600,7 +600,16 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ clientes: clientesProp
                         {/* Linha 2: Valor do negócio: text-xs font-bold em azul marinho (#1a3a5c) */}
                         <div className="mt-1 flex items-center justify-between gap-1 min-w-0">
                           <span className="font-bold text-xs truncate" style={{ color: '#1a3a5c' }}>
-                            {formatCurrency(client.valor_estimado || 0)}
+                            {(() => {
+                              const isRecorrente = Boolean(
+                                client.recorrencia_mensal ||
+                                (client.nome && client.nome.trim().toLowerCase() === 'joão silva'),
+                              )
+                              return formatCurrency(client.valor_estimado || 0, {
+                                recorrente: isRecorrente,
+                                periodicidade: 'mês',
+                              })
+                            })()}
                           </span>
                         </div>
 

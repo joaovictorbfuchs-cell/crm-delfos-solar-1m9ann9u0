@@ -150,6 +150,7 @@ export interface Negocio extends RecordModel {
   tipo_venda?: TipoVendaSelect | string
   valor_estimado?: number
   valor_final?: number
+  recorrencia_mensal?: boolean
   etapa_funil?: EtapaFunilSelect
   probabilidade?: number
   data_previsao_fechamento?: string
@@ -177,6 +178,7 @@ export interface Cliente extends RecordModel {
   cidade: string
   potencia_kwp: number
   valor_estimado: number
+  recorrencia_mensal?: boolean
   status: ClienteStatus
   data_instalacao: string
   inversor_marca: string

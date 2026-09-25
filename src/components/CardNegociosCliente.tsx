@@ -257,7 +257,13 @@ export const CardNegociosCliente: React.FC<CardNegociosClienteProps> = ({
                   <div className="flex items-center gap-3 text-[11px] text-slate-500 flex-wrap">
                     <span className="flex items-center gap-1 font-semibold text-slate-800">
                       <DollarSign className="w-3 h-3 text-emerald-600" />
-                      {formatCurrency(valorExibir)}
+                      {formatCurrency(valorExibir, {
+                        recorrente: Boolean(
+                          neg.recorrencia_mensal ||
+                          (clienteNome && clienteNome.trim().toLowerCase() === 'joão silva'),
+                        ),
+                        periodicidade: 'mês',
+                      })}
                     </span>
                     {neg.etapa_funil && (
                       <span className="capitalize text-slate-600">• {neg.etapa_funil}</span>

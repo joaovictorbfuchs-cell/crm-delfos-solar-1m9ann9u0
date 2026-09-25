@@ -760,7 +760,8 @@ export function Fornecedores() {
                   <Layers className="w-3.5 h-3.5 text-emerald-600" />
                   Módulos Fotovoltaicos
                 </h4>
-                {orcamentoDetalheModal.modulos && orcamentoDetalheModal.modulos.length > 0 ? (
+                {Array.isArray(orcamentoDetalheModal.modulos) &&
+                orcamentoDetalheModal.modulos.length > 0 ? (
                   <table className="w-full text-left border rounded-lg overflow-hidden">
                     <thead className="bg-gray-50 text-[10px] text-gray-500 uppercase">
                       <tr>
@@ -788,7 +789,8 @@ export function Fornecedores() {
                   <PackageCheck className="w-3.5 h-3.5 text-blue-600" />
                   Inversores
                 </h4>
-                {orcamentoDetalheModal.inversores && orcamentoDetalheModal.inversores.length > 0 ? (
+                {Array.isArray(orcamentoDetalheModal.inversores) &&
+                orcamentoDetalheModal.inversores.length > 0 ? (
                   <table className="w-full text-left border rounded-lg overflow-hidden">
                     <thead className="bg-gray-50 text-[10px] text-gray-500 uppercase">
                       <tr>
@@ -816,7 +818,8 @@ export function Fornecedores() {
                   <ShieldCheck className="w-3.5 h-3.5 text-purple-600" />
                   Lista de Acessórios & Proteções
                 </h4>
-                {orcamentoDetalheModal.acessorios && orcamentoDetalheModal.acessorios.length > 0 ? (
+                {Array.isArray(orcamentoDetalheModal.acessorios) &&
+                orcamentoDetalheModal.acessorios.length > 0 ? (
                   <table className="w-full text-left border rounded-lg overflow-hidden">
                     <thead className="bg-gray-50 text-[10px] text-gray-500 uppercase">
                       <tr>

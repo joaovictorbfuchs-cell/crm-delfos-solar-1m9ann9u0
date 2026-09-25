@@ -1,5 +1,5 @@
 import type { LucideIcon } from 'lucide-react'
-import { SunMedium, Wrench, BatteryCharging, Zap } from 'lucide-react'
+import { SunMedium, Wrench, BatteryCharging, CarFront } from 'lucide-react'
 import type { TipoVendaSelect } from '@/types/crm'
 
 export const TIPOS_VENDA_OPTIONS: TipoVendaSelect[] = [
@@ -69,7 +69,7 @@ export const TIPOS_VENDA_CONFIG: Record<TipoVendaSelect, TipoVendaConfig> = {
     label: 'Carregadores Veículos Elétricos',
     shortLabel: 'Carregadores VE',
     descricao: 'Wallbox e estações de recarga para carros elétricos',
-    icon: Zap, // Ícone de recarga veicular rápida
+    icon: CarFront, // Ícone de recarga veicular / carro elétrico
     badgeClass:
       'bg-slate-100 text-slate-800 border-slate-300 dark:bg-slate-800 dark:text-slate-200 dark:border-slate-700',
     iconClass: 'text-slate-600 dark:text-slate-300',

@@ -7,6 +7,7 @@ import {
   CheckCircle2,
   Clock,
   XCircle,
+  CarFront,
   type LucideIcon,
 } from 'lucide-react'
 
@@ -116,12 +117,13 @@ export const ProductBadge: React.FC<ProductBadgeProps> = ({
         </span>
       )
     case 'Carregadores veiculares':
+    case 'Carregadores Veículos Elétricos':
       return (
         <span
-          className={`inline-flex items-center font-medium rounded-md bg-teal-50 text-teal-800 border border-teal-200/80 max-w-full ${sizeClasses} ${className}`}
+          className={`inline-flex items-center gap-1 font-medium rounded-md bg-teal-50 text-teal-800 border border-teal-200/80 max-w-full ${sizeClasses} ${className}`}
         >
-          <span className="w-1.5 h-1.5 rounded-full bg-teal-500 mr-1.5 shrink-0" />
-          <span className="truncate">Carregadores veiculares</span>
+          <CarFront className="w-3.5 h-3.5 text-teal-600 shrink-0" />
+          <span className="truncate">Carregadores VE</span>
         </span>
       )
     default:

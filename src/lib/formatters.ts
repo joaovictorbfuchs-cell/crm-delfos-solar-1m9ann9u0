@@ -1,4 +1,7 @@
-export function formatCurrency(value: number | string | undefined | null): string {
+export function formatCurrency(
+  value: number | string | undefined | null,
+  options?: { recorrente?: boolean; periodicidade?: 'mes' | 'ano' | string },
+): string {
   if (value === undefined || value === null || value === '') {
     return 'R$ 0,00'
   }
@@ -6,12 +9,27 @@ export function formatCurrency(value: number | string | undefined | null): strin
   if (isNaN(num)) {
     return 'R$ 0,00'
   }
-  return new Intl.NumberFormat('pt-BR', {
-    style: 'currency',
-    currency: 'BRL',
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(num)
+
+  // Se options indicar recorrência ou se for formatado de forma limpa
+  let formatted = ''
+  // Se for inteiro redondo sem centavos (ex: 3500) e tiver opção recorrente, formata no estilo "R$ 3.500" ou com centavos se houver
+  if (options?.recorrente && Number.isInteger(num)) {
+    formatted = `R$ ${num.toLocaleString('pt-BR')}`
+  } else {
+    formatted = new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: 'BRL',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(num)
+  }
+
+  if (options?.recorrente) {
+    const sufixo = options.periodicidade ? `/${options.periodicidade}` : '/mês'
+    return `${formatted}${sufixo}`
+  }
+
+  return formatted
 }
 
 export function formatDate(dateString: string | undefined | null): string {

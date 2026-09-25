@@ -85,6 +85,7 @@ describe('Formatters - Máscara Monetária em Real (R$)', () => {
       expect(formatCurrency('abc')).toBe('R$ 0,00')
       expect(formatCurrency(190)).toBe('R$ 190,00')
       expect(formatCurrency('250.5')).toBe('R$ 250,50')
+      expect(formatCurrency(3500, { recorrente: true })).toBe('R$ 3.500/mês')
     })
 
     it('formatDate deve tratar null, undefined, vazio e datas inválidas retornando "-"', () => {
