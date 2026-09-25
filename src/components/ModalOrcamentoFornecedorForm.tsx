@@ -68,7 +68,7 @@ export function ModalOrcamentoFornecedorForm({
   arquivoOriginal,
   onSalvar,
   isSaving = false,
-  motivoAberturaAutomatica = 'Não foi possível extrair os dados automaticamente do PDF. Preencha os campos abaixo para registrar o orçamento.',
+  motivoAberturaAutomatica,
 }: ModalOrcamentoFornecedorFormProps) {
   // 1. Fornecedor (busca + cadastro livre)
   const [fornecedorTexto, setFornecedorTexto] = useState('')
@@ -414,7 +414,7 @@ export function ModalOrcamentoFornecedorForm({
                 id="modal-orcamento-fornecedor-title"
                 className="text-base font-bold text-white flex items-center gap-2 leading-tight"
               >
-                Preenchimento Rápido de Orçamento de Fornecedor
+                Preenchimento Manual de Orçamento de Fornecedor
               </h3>
               <p className="text-xs text-emerald-100/90">
                 {arquivoOriginal ? (

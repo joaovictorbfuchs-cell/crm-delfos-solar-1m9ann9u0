@@ -148,7 +148,7 @@ export function runOrcamentoFornecedorFlowTests(): {
       },
     },
     {
-      name: 'Estrutura idêntica entre fluxo automático e formulário manual rápido',
+      name: 'Estrutura idêntica entre fluxo automático e preenchimento manual',
       fn: () => {
         const payloadManual: Partial<FornecedorOrcamento> = {
           nome_fornecedor: 'Sol tecno Distribuidora',
@@ -160,7 +160,7 @@ export function runOrcamentoFornecedorFlowTests(): {
           modulos: [{ descricao: 'JA Solar 550W DeepBlue 3.0', quantidade: 52 }],
           inversores: [{ descricao: 'Growatt MAX 30KTL3-X LV', quantidade: 1 }],
           acessorios: [{ descricao: 'String Box Solar CC/CA', quantidade: 1 }],
-          observacoes: 'Preenchimento rápido manual após upload de cotação escaneada',
+          observacoes: 'Preenchimento manual após upload de cotação escaneada',
         }
 
         // Verifica compatibilidade de campos

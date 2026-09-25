@@ -3,15 +3,9 @@ import {
   FileText,
   UploadCloud,
   Loader2,
-  CheckCircle2,
   Trash2,
-  Plus,
   Building2,
-  DollarSign,
-  AlertCircle,
   ExternalLink,
-  ChevronDown,
-  ChevronUp,
   Columns3,
   Check,
   Image as ImageIcon,
@@ -19,11 +13,7 @@ import {
 import { ModalCompararFornecedores } from './ModalCompararFornecedores'
 import { ModalClassificacaoOrcamentoImagem } from './ModalClassificacaoOrcamentoImagem'
 import { useClientes } from '@/contexts/ClientesContext'
-import {
-  FornecedorOrcamentoExtraido,
-  FornecedorItemOrcamento,
-  FornecedorOrcamento,
-} from '@/types/crm'
+import { FornecedorItemOrcamento, FornecedorOrcamento } from '@/types/crm'
 import { extrairOrcamentoFotovoltaicoPDF } from '@/lib/orcamentoParser'
 import { analisarImagemOrcamento, AnaliseImagemResultado } from '@/services/ocrImagemService'
 import { formatCurrency, formatDate } from '@/lib/formatters'
@@ -66,11 +56,9 @@ export function SecaoOrcamentosFornecedores({
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const [analyzingMessage, setAnalyzingMessage] = useState('Analisando arquivo PDF...')
   const [analyzedFile, setAnalyzedFile] = useState<File | null>(null)
-  const [tabelaRevisaoAberta, setTabelaRevisaoAberta] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [isModalCompararOpen, setIsModalCompararOpen] = useState(false)
   const [isModalFormOpen, setIsModalFormOpen] = useState(false)
-  const [motivoModalForm, setMotivoModalForm] = useState<string>('')
 
   // Estados específicos para o upload por imagem e OCR
   const [isAnalyzingImage, setIsAnalyzingImage] = useState(false)
@@ -81,9 +69,6 @@ export function SecaoOrcamentosFornecedores({
   const [imageFileSelected, setImageFileSelected] = useState<File | null>(null)
   const [ocrResultado, setOcrResultado] = useState<AnaliseImagemResultado | null>(null)
   const [isModalClassificacaoOpen, setIsModalClassificacaoOpen] = useState(false)
-
-  // Estado editável da tabela de revisão
-  const [revisaoDados, setRevisaoDados] = useState<FornecedorOrcamentoExtraido | null>(null)
 
   // Lista de orçamentos já vinculados a este cliente ou orçamento solar
   const orcamentosVinculados = React.useMemo(() => {
@@ -111,56 +96,24 @@ export function SecaoOrcamentosFornecedores({
     try {
       const extraido = await extrairOrcamentoFotovoltaicoPDF(file, fornecedores)
 
-      // Verificar se o PDF tinha texto legível ou se foi escaneado/sem texto
-      const semItens =
-        extraido.modulos.length === 0 &&
-        extraido.inversores.length === 0 &&
-        extraido.acessorios.length === 0
-      const semNomeReal =
-        !extraido.nome_fornecedor ||
-        extraido.nome_fornecedor === 'Fornecedor Solar' ||
-        extraido.nome_fornecedor === file.name.replace(/\.pdf$/i, '').replace(/[-_]/g, ' ')
-
-      if (semItens && extraido.valor_total === 0 && semNomeReal) {
-        // Extração vazia / escaneada: abrir automaticamente o formulário de preenchimento rápido
-        setMotivoModalForm(
-          'Não foi possível extrair os dados automaticamente do PDF (documento sem texto legível ou escaneado). Preencha as informações abaixo para registrar o orçamento.',
-        )
-        setRevisaoDados(extraido)
-        setIsModalFormOpen(true)
-        setTabelaRevisaoAberta(false)
-      } else {
-        toast.success('PDF analisado com sucesso! Revise os dados na tabela antes de confirmar.')
-        // Garantir que haja pelo menos um campo para preenchimento fácil se vazio
-        setRevisaoDados({
-          ...extraido,
-          modulos:
-            extraido.modulos.length > 0 ? extraido.modulos : [{ descricao: '', quantidade: 1 }],
-          inversores:
-            extraido.inversores.length > 0
-              ? extraido.inversores
-              : [{ descricao: '', quantidade: 1 }],
-        })
-        setTabelaRevisaoAberta(true)
-      }
+      // Salva diretamente o orçamento extraído sem exigir modal de preenchimento redundante
+      await executarSalvarOrcamento({
+        nome_fornecedor:
+          extraido.nome_fornecedor ||
+          file.name.replace(/\.pdf$/i, '').replace(/[-_]/g, ' ') ||
+          'Fornecedor Solar',
+        fornecedor_id: extraido.fornecedor_id,
+        numero_revisao: extraido.numero_revisao || 'REV-01',
+        valor_total: extraido.valor_total || 0,
+        modulos: extraido.modulos || [],
+        inversores: extraido.inversores || [],
+        acessorios: extraido.acessorios || [],
+        observacoes: extraido.observacoes || `Arquivo: ${file.name}`,
+        arquivo: file,
+      })
     } catch (err) {
       console.error('Erro ao analisar PDF de orçamento:', err)
-      // Em caso de falha / erro no parser: abrir automaticamente o formulário de preenchimento rápido
-      setMotivoModalForm(
-        'Não foi possível extrair os dados automaticamente do PDF. Preencha o formulário abaixo para registrar o orçamento.',
-      )
-      setRevisaoDados({
-        nome_fornecedor: '',
-        numero_revisao: 'REV-01',
-        data: new Date().toISOString(),
-        valor_total: 0,
-        modulos: [],
-        inversores: [],
-        acessorios: [],
-        observacoes: `Arquivo: ${file.name}`,
-      })
-      setIsModalFormOpen(true)
-      setTabelaRevisaoAberta(false)
+      toast.error('Não foi possível processar ou salvar o orçamento a partir do PDF.')
     } finally {
       setIsAnalyzing(false)
       if (fileInputRef.current) {
@@ -205,22 +158,9 @@ export function SecaoOrcamentosFornecedores({
       const semValor = resultado.valorTotalSugerido === 0
 
       if (semItens && semLinhasRelevantes && semValor) {
-        // Fallback: abrir formulário vazio com banner explicativo
-        setMotivoModalForm(
-          'Não foi possível extrair textos utilizáveis da imagem (baixa nitidez, reflexo ou iluminação insuficiente). Preencha as informações abaixo para registrar a cotação.',
+        toast.error(
+          'Não foi possível extrair textos da imagem (baixa nitidez, reflexo ou iluminação insuficiente). Use o Preenchimento Manual para registrar a cotação.',
         )
-        setAnalyzedFile(file)
-        setRevisaoDados({
-          nome_fornecedor: '',
-          numero_revisao: 'REV-01',
-          data: new Date().toISOString(),
-          valor_total: 0,
-          modulos: [],
-          inversores: [],
-          acessorios: [],
-          observacoes: `Imagem anexada: ${file.name}`,
-        })
-        setIsModalFormOpen(true)
       } else {
         setOcrResultado(resultado)
         setIsModalClassificacaoOpen(true)
@@ -229,22 +169,6 @@ export function SecaoOrcamentosFornecedores({
     } catch (err) {
       console.error('Erro na análise OCR da imagem:', err)
       toast.error('Falha ao processar imagem via OCR.')
-      // Fallback gracioso: formulário manual
-      setMotivoModalForm(
-        'Ocorreu uma falha ao rodar o OCR na imagem. Você pode registrar o orçamento preenchendo os dados abaixo.',
-      )
-      setAnalyzedFile(file)
-      setRevisaoDados({
-        nome_fornecedor: '',
-        numero_revisao: 'REV-01',
-        data: new Date().toISOString(),
-        valor_total: 0,
-        modulos: [],
-        inversores: [],
-        acessorios: [],
-        observacoes: `Imagem anexada: ${file.name}`,
-      })
-      setIsModalFormOpen(true)
     } finally {
       setIsAnalyzingImage(false)
       if (imageInputRef.current) {
@@ -253,36 +177,7 @@ export function SecaoOrcamentosFornecedores({
     }
   }
 
-  // Manipulação de linhas de itens
-  const handleItemChange = (
-    tipo: 'modulos' | 'inversores' | 'acessorios',
-    index: number,
-    field: 'descricao' | 'quantidade',
-    value: string | number,
-  ) => {
-    if (!revisaoDados) return
-    const list = [...revisaoDados[tipo]]
-    if (field === 'quantidade') {
-      list[index] = { ...list[index], quantidade: Math.max(1, Number(value) || 1) }
-    } else {
-      list[index] = { ...list[index], descricao: String(value) }
-    }
-    setRevisaoDados({ ...revisaoDados, [tipo]: list })
-  }
-
-  const handleAddItem = (tipo: 'modulos' | 'inversores' | 'acessorios') => {
-    if (!revisaoDados) return
-    const list = [...revisaoDados[tipo], { descricao: '', quantidade: 1 }]
-    setRevisaoDados({ ...revisaoDados, [tipo]: list })
-  }
-
-  const handleRemoveItem = (tipo: 'modulos' | 'inversores' | 'acessorios', index: number) => {
-    if (!revisaoDados) return
-    const list = revisaoDados[tipo].filter((_, i) => i !== index)
-    setRevisaoDados({ ...revisaoDados, [tipo]: list })
-  }
-
-  // Confirmar e salvar orçamento de fornecedor (comum para tabela de revisão e formulário manual)
+  // Confirmar e salvar orçamento de fornecedor (comum para formulário manual e salvamento direto)
   const executarSalvarOrcamento = async (dados: {
     nome_fornecedor: string
     fornecedor_id?: string
@@ -344,10 +239,8 @@ export function SecaoOrcamentosFornecedores({
         })
       }
 
-      // Fechar modal, tabela de revisão e limpar arquivo
-      setTabelaRevisaoAberta(false)
+      // Fechar modal e limpar arquivo
       setIsModalFormOpen(false)
-      setRevisaoDados(null)
       setAnalyzedFile(null)
     } catch (err) {
       console.error('Erro ao salvar orçamento de fornecedor:', err)
@@ -360,22 +253,6 @@ export function SecaoOrcamentosFornecedores({
     } finally {
       setIsSaving(false)
     }
-  }
-
-  // Confirmar e salvar da tabela de revisão
-  const handleSalvarOrcamento = async () => {
-    if (!revisaoDados) return
-    await executarSalvarOrcamento({
-      nome_fornecedor: revisaoDados.nome_fornecedor,
-      fornecedor_id: revisaoDados.fornecedor_id,
-      numero_revisao: revisaoDados.numero_revisao,
-      valor_total: revisaoDados.valor_total,
-      modulos: revisaoDados.modulos,
-      inversores: revisaoDados.inversores,
-      acessorios: revisaoDados.acessorios,
-      observacoes: revisaoDados.observacoes,
-      arquivo: analyzedFile,
-    })
   }
 
   return (
@@ -479,8 +356,6 @@ export function SecaoOrcamentosFornecedores({
           <button
             type="button"
             onClick={() => {
-              setMotivoModalForm('')
-              setRevisaoDados(null)
               setAnalyzedFile(null)
               setIsModalFormOpen(true)
             }}
@@ -526,305 +401,6 @@ export function SecaoOrcamentosFornecedores({
                 className="bg-teal-600 h-1.5 rounded-full transition-all duration-300"
                 style={{ width: `${Math.max(10, imageOcrProgress.percent)}%` }}
               />
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* TABELA DE REVISÃO EDITÁVEL (AO FAZER UPLOAD) */}
-      {tabelaRevisaoAberta && revisaoDados && (
-        <div className="p-4 bg-gray-50 rounded-xl border-2 border-emerald-500 shadow-sm space-y-4 animate-in fade-in duration-200">
-          <div className="flex items-center justify-between pb-2 border-b border-gray-200">
-            <div className="flex items-center gap-2">
-              <span className="w-2.5 h-2.5 rounded-full bg-emerald-600 animate-ping" />
-              <h4 className="text-xs font-bold uppercase tracking-wider text-emerald-950">
-                Tabela de Revisão dos Dados Extraídos do PDF
-              </h4>
-            </div>
-            <button
-              type="button"
-              onClick={() => setTabelaRevisaoAberta(false)}
-              className="text-xs text-gray-500 hover:text-gray-700"
-            >
-              Cancelar
-            </button>
-          </div>
-
-          <div className="text-[11px] text-gray-600">
-            Revise os dados abaixo. Você pode corrigir ou complementar qualquer informação antes de
-            confirmar a gravação.
-          </div>
-
-          {/* Dados gerais do orçamento extraído */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
-            {/* Fornecedor */}
-            <div>
-              <label className="text-[11px] font-semibold text-gray-700 block mb-1">
-                Nome do Fornecedor *
-              </label>
-              <div className="space-y-1">
-                <input
-                  type="text"
-                  value={revisaoDados.nome_fornecedor}
-                  onChange={(e) =>
-                    setRevisaoDados({ ...revisaoDados, nome_fornecedor: e.target.value })
-                  }
-                  list="fornecedores-sugeridos"
-                  placeholder="Ex: Sol tecno Distribuidora"
-                  className="w-full px-3 py-1.5 text-xs font-semibold rounded-lg border border-gray-300 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                />
-                <datalist id="fornecedores-sugeridos">
-                  {fornecedores.map((f) => (
-                    <option key={f.id} value={f.nome_empresa} />
-                  ))}
-                </datalist>
-              </div>
-            </div>
-
-            {/* Número da Revisão */}
-            <div>
-              <label className="text-[11px] font-semibold text-gray-700 block mb-1">
-                Número da Revisão / Cotação
-              </label>
-              <input
-                type="text"
-                value={revisaoDados.numero_revisao || ''}
-                onChange={(e) =>
-                  setRevisaoDados({ ...revisaoDados, numero_revisao: e.target.value })
-                }
-                placeholder="Ex: ST-2026-REV01"
-                className="w-full px-3 py-1.5 text-xs font-semibold rounded-lg border border-gray-300 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
-              />
-            </div>
-
-            {/* Valor Total do Orçamento */}
-            <div>
-              <label className="text-[11px] font-semibold text-gray-700 block mb-1">
-                Valor Total (R$) *
-              </label>
-              <input
-                type="number"
-                step="0.01"
-                value={revisaoDados.valor_total || ''}
-                onChange={(e) =>
-                  setRevisaoDados({
-                    ...revisaoDados,
-                    valor_total: Number(e.target.value) || 0,
-                  })
-                }
-                placeholder="0,00"
-                className="w-full px-3 py-1.5 text-xs font-black text-emerald-700 rounded-lg border border-emerald-300 bg-emerald-50/40 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-              />
-            </div>
-          </div>
-
-          {/* 1. Módulos Solares */}
-          <div className="space-y-2 pt-2 border-t border-gray-200">
-            <div className="flex items-center justify-between">
-              <label className="text-xs font-bold text-gray-800 uppercase tracking-wider flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                Módulos Fotovoltaicos Extraídos
-              </label>
-              <button
-                type="button"
-                onClick={() => handleAddItem('modulos')}
-                className="text-[11px] font-bold text-emerald-700 hover:text-emerald-800 inline-flex items-center gap-1"
-              >
-                <Plus className="w-3 h-3" />
-                <span>Adicionar Módulo</span>
-              </button>
-            </div>
-
-            {revisaoDados.modulos.length === 0 ? (
-              <p className="text-[11px] text-gray-400 italic">Nenhum módulo identificado.</p>
-            ) : (
-              <div className="space-y-1.5">
-                {revisaoDados.modulos.map((item, idx) => (
-                  <div key={idx} className="flex items-center gap-2">
-                    <input
-                      type="text"
-                      value={item.descricao}
-                      onChange={(e) =>
-                        handleItemChange('modulos', idx, 'descricao', e.target.value)
-                      }
-                      placeholder="Descrição do módulo (Ex: Módulo Canadian Solar 550W BiHiKu7)"
-                      className="flex-1 px-3 py-1.5 text-xs rounded-lg border border-gray-300 bg-white"
-                    />
-                    <div className="flex items-center gap-1 shrink-0">
-                      <span className="text-[11px] text-gray-400 font-semibold">Qtd:</span>
-                      <input
-                        type="number"
-                        min={1}
-                        value={item.quantidade}
-                        onChange={(e) =>
-                          handleItemChange('modulos', idx, 'quantidade', e.target.value)
-                        }
-                        className="w-20 px-2 py-1.5 text-xs text-center font-bold rounded-lg border border-gray-300 bg-white"
-                      />
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveItem('modulos', idx)}
-                      className="p-1.5 text-gray-400 hover:text-red-600 rounded"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* 2. Inversores */}
-          <div className="space-y-2 pt-2 border-t border-gray-200">
-            <div className="flex items-center justify-between">
-              <label className="text-xs font-bold text-gray-800 uppercase tracking-wider flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-blue-500" />
-                Inversores Extraídos
-              </label>
-              <button
-                type="button"
-                onClick={() => handleAddItem('inversores')}
-                className="text-[11px] font-bold text-blue-700 hover:text-blue-800 inline-flex items-center gap-1"
-              >
-                <Plus className="w-3 h-3" />
-                <span>Adicionar Inversor</span>
-              </button>
-            </div>
-
-            {revisaoDados.inversores.length === 0 ? (
-              <p className="text-[11px] text-gray-400 italic">Nenhum inversor identificado.</p>
-            ) : (
-              <div className="space-y-1.5">
-                {revisaoDados.inversores.map((item, idx) => (
-                  <div key={idx} className="flex items-center gap-2">
-                    <input
-                      type="text"
-                      value={item.descricao}
-                      onChange={(e) =>
-                        handleItemChange('inversores', idx, 'descricao', e.target.value)
-                      }
-                      placeholder="Descrição do inversor (Ex: Inversor Growatt MAX 30KTL3-X)"
-                      className="flex-1 px-3 py-1.5 text-xs rounded-lg border border-gray-300 bg-white"
-                    />
-                    <div className="flex items-center gap-1 shrink-0">
-                      <span className="text-[11px] text-gray-400 font-semibold">Qtd:</span>
-                      <input
-                        type="number"
-                        min={1}
-                        value={item.quantidade}
-                        onChange={(e) =>
-                          handleItemChange('inversores', idx, 'quantidade', e.target.value)
-                        }
-                        className="w-20 px-2 py-1.5 text-xs text-center font-bold rounded-lg border border-gray-300 bg-white"
-                      />
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveItem('inversores', idx)}
-                      className="p-1.5 text-gray-400 hover:text-red-600 rounded"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* 3. Acessórios */}
-          <div className="space-y-2 pt-2 border-t border-gray-200">
-            <div className="flex items-center justify-between">
-              <label className="text-xs font-bold text-gray-800 uppercase tracking-wider flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-purple-500" />
-                Lista de Acessórios & Componentes Extraídos
-              </label>
-              <button
-                type="button"
-                onClick={() => handleAddItem('acessorios')}
-                className="text-[11px] font-bold text-purple-700 hover:text-purple-800 inline-flex items-center gap-1"
-              >
-                <Plus className="w-3 h-3" />
-                <span>Adicionar Acessório</span>
-              </button>
-            </div>
-
-            {revisaoDados.acessorios.length === 0 ? (
-              <p className="text-[11px] text-gray-400 italic">Nenhum acessório identificado.</p>
-            ) : (
-              <div className="space-y-1.5">
-                {revisaoDados.acessorios.map((item, idx) => (
-                  <div key={idx} className="flex items-center gap-2">
-                    <input
-                      type="text"
-                      value={item.descricao}
-                      onChange={(e) =>
-                        handleItemChange('acessorios', idx, 'descricao', e.target.value)
-                      }
-                      placeholder="Descrição do acessório (Ex: String Box CC, Cabos 6mm, Conectores MC4)"
-                      className="flex-1 px-3 py-1.5 text-xs rounded-lg border border-gray-300 bg-white"
-                    />
-                    <div className="flex items-center gap-1 shrink-0">
-                      <span className="text-[11px] text-gray-400 font-semibold">Qtd:</span>
-                      <input
-                        type="number"
-                        min={1}
-                        value={item.quantidade}
-                        onChange={(e) =>
-                          handleItemChange('acessorios', idx, 'quantidade', e.target.value)
-                        }
-                        className="w-20 px-2 py-1.5 text-xs text-center font-bold rounded-lg border border-gray-300 bg-white"
-                      />
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveItem('acessorios', idx)}
-                      className="p-1.5 text-gray-400 hover:text-red-600 rounded"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Botões de Confirmação da Tabela de Revisão */}
-          <div className="pt-3 border-t border-gray-200 flex items-center justify-between flex-wrap gap-2">
-            <span className="text-[11px] text-gray-500">
-              Arquivo anexado: <strong>{analyzedFile?.name || 'PDF Carregado'}</strong>
-            </span>
-
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => {
-                  setTabelaRevisaoAberta(false)
-                  setRevisaoDados(null)
-                  setAnalyzedFile(null)
-                }}
-                className="px-3 py-1.5 bg-gray-200 hover:bg-gray-300 text-gray-700 text-xs font-bold rounded-lg transition-colors"
-              >
-                Descartar
-              </button>
-              <button
-                type="button"
-                onClick={handleSalvarOrcamento}
-                disabled={isSaving}
-                className="px-4 py-1.5 bg-[#16A34A] hover:bg-[#15803D] disabled:opacity-50 text-white text-xs font-bold rounded-lg shadow-xs transition-all inline-flex items-center gap-1.5"
-              >
-                {isSaving ? (
-                  <>
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    <span>Salvando...</span>
-                  </>
-                ) : (
-                  <>
-                    <CheckCircle2 className="w-3.5 h-3.5" />
-                    <span>Salvar Orçamento do Fornecedor</span>
-                  </>
-                )}
-              </button>
             </div>
           </div>
         </div>
@@ -1014,19 +590,16 @@ export function SecaoOrcamentosFornecedores({
         )}
       </div>
 
-      {/* Modal de Preenchimento Rápido (Aberto automaticamente quando extração falhar/retornar vazio) */}
+      {/* Modal de Preenchimento Manual (aberto exclusivamente pelo botão "Preenchimento Manual") */}
       <ModalOrcamentoFornecedorForm
         isOpen={isModalFormOpen}
         onClose={() => {
           setIsModalFormOpen(false)
-          setMotivoModalForm('')
         }}
         fornecedores={fornecedores}
-        initialData={revisaoDados}
         arquivoOriginal={analyzedFile}
         onSalvar={executarSalvarOrcamento}
         isSaving={isSaving}
-        motivoAberturaAutomatica={motivoModalForm}
       />
 
       {/* Modal de Seleção e Classificação Guiada por Imagem (OCR) */}
@@ -1042,8 +615,8 @@ export function SecaoOrcamentosFornecedores({
         fornecedores={fornecedores}
         onConfirmarClassificacao={async (dadosProntos) => {
           setIsModalClassificacaoOpen(false)
-          // Preencher diretamente os dados no formulário ModalOrcamentoFornecedorForm
-          setRevisaoDados({
+          // Salva diretamente o orçamento classificado sem passar pelo modal redundante
+          await executarSalvarOrcamento({
             nome_fornecedor: dadosProntos.nome_fornecedor,
             fornecedor_id: dadosProntos.fornecedor_id,
             numero_revisao: dadosProntos.numero_revisao,
@@ -1052,12 +625,8 @@ export function SecaoOrcamentosFornecedores({
             inversores: dadosProntos.inversores,
             acessorios: dadosProntos.acessorios,
             observacoes: dadosProntos.observacoes,
-            data: new Date().toISOString(),
+            arquivo: dadosProntos.arquivoOriginal,
           })
-          setAnalyzedFile(dadosProntos.arquivoOriginal)
-          setMotivoModalForm('')
-          // Abre o ModalOrcamentoFornecedorForm já 100% preenchido para revisão final rápida e salvar
-          setIsModalFormOpen(true)
         }}
       />
 
