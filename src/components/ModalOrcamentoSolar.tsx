@@ -1609,8 +1609,8 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
           {/* ========================================================================= */}
           {activeTab === 'tecnico' && (
             <div className="space-y-4 animate-in fade-in duration-150 relative">
-              {/* 1. BARRA FIXA SUPERIOR (sticky top-0 z-20, não colapsável) */}
-              <div className="sticky top-0 z-20 bg-gradient-to-r from-emerald-700 via-emerald-800 to-teal-800 text-white rounded-2xl p-3.5 sm:p-4 shadow-md border border-emerald-600 backdrop-blur-md">
+              {/* 1. BARRA SUPERIOR (não colapsável) */}
+              <div className="bg-gradient-to-r from-emerald-700 via-emerald-800 to-teal-800 text-white rounded-2xl p-3.5 sm:p-4 shadow-md border border-emerald-600 backdrop-blur-md">
                 <div className="flex items-center justify-between flex-wrap gap-2 pb-2 border-b border-emerald-600/50">
                   <div className="flex items-center gap-2">
                     <Calculator className="w-4 h-4 text-amber-300" />
