@@ -1,4 +1,5 @@
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useEffect } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import {
   Sun,
   Plus,
@@ -157,9 +158,31 @@ export const Orcamentos: React.FC = () => {
     setOrdemDirecao((prev) => (prev === 'desc' ? 'asc' : 'desc'))
   }
 
+  const [searchParams, setSearchParams] = useSearchParams()
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false)
   const [editingOrcamento, setEditingOrcamento] = useState<OrcamentoSolar | null>(null)
   const [clienteParaNovoOrcamento, setClienteParaNovoOrcamento] = useState<string>('')
+
+  // Suporte a abrir proposta via query param (?propostaId=... ou ?clienteId=...)
+  useEffect(() => {
+    const propostaId = searchParams.get('propostaId')
+    const clienteIdParam = searchParams.get('clienteId')
+    if (propostaId && orcamentosSolar.length > 0) {
+      const encontrada = orcamentosSolar.find((o) => o.id === propostaId)
+      if (encontrada) {
+        setEditingOrcamento(encontrada)
+        setClienteParaNovoOrcamento(encontrada.cliente_id)
+        setIsModalOpen(true)
+      }
+    } else if (clienteIdParam && orcamentosSolar.length > 0) {
+      const encontrada = orcamentosSolar.find((o) => o.cliente_id === clienteIdParam)
+      if (encontrada) {
+        setEditingOrcamento(encontrada)
+        setClienteParaNovoOrcamento(clienteIdParam)
+        setIsModalOpen(true)
+      }
+    }
+  }, [searchParams, orcamentosSolar])
 
   // Estado para envio da proposta por WhatsApp
   const [propostaParaWhatsApp, setPropostaParaWhatsApp] = useState<OrcamentoSolar | null>(null)

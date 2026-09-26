@@ -1,7 +1,6 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
-  MapPin,
-  Zap,
   GripVertical,
   HardHat,
   CheckCircle2,
@@ -11,14 +10,13 @@ import {
   ShoppingCart,
   PackageCheck,
   Hammer,
-  Calendar,
-  AlertCircle,
   MoreVertical,
   FolderOpen,
+  FileText,
+  User,
   type LucideIcon,
 } from 'lucide-react'
-import type { Projeto, ProjetoEtapa, Profissional, Atividade } from '@/types/crm'
-import { formatCurrency } from '@/lib/formatters'
+import type { Projeto, ProjetoEtapa, Profissional, Atividade, OrcamentoSolar } from '@/types/crm'
 import { useClientes } from '@/contexts/ClientesContext'
 import {
   DropdownMenu,
@@ -120,10 +118,50 @@ export const KanbanProjetos: React.FC<KanbanProjetosProps> = ({
   profissionais,
   onOpenAtribuirModal,
 }) => {
-  const { openFichaCliente, updateProjetoEtapa, atividades } = useClientes()
+  const navigate = useNavigate()
+  const { openFichaCliente, updateProjeto, updateProjetoEtapa, atividades, orcamentosSolar } =
+    useClientes()
 
   const [draggedProjetoId, setDraggedProjetoId] = useState<string | null>(null)
   const [dragOverColumnId, setDragOverColumnId] = useState<ProjetoEtapa | null>(null)
+  const [editingTitleId, setEditingTitleId] = useState<string | null>(null)
+  const [editingTitleValue, setEditingTitleValue] = useState<string>('')
+
+  // Proposta solar vinculada mais relevante por cliente: aprovada ou mais recente
+  const propostaPorCliente = useMemo(() => {
+    const mapa = new Map<string, OrcamentoSolar>()
+    const porCliente = new Map<string, OrcamentoSolar[]>()
+
+    for (const orc of orcamentosSolar || []) {
+      if (!orc.cliente_id) continue
+      const list = porCliente.get(orc.cliente_id) || []
+      list.push(orc)
+      porCliente.set(orc.cliente_id, list)
+    }
+
+    for (const [cliId, list] of porCliente.entries()) {
+      const aprovada = list.find(
+        (o) =>
+          o.status === 'Aprovado' ||
+          (o.status as string) === 'aprovada' ||
+          (o.status as string) === 'Aprovada',
+      )
+      if (aprovada) {
+        mapa.set(cliId, aprovada)
+      } else {
+        const ordenadas = [...list].sort(
+          (a, b) =>
+            new Date(b.created || b.data_orcamento || 0).getTime() -
+            new Date(a.created || a.data_orcamento || 0).getTime(),
+        )
+        if (ordenadas.length > 0) {
+          mapa.set(cliId, ordenadas[0])
+        }
+      }
+    }
+
+    return mapa
+  }, [orcamentosSolar])
 
   // Mapeamento otimizado de próxima atividade agendada por cliente
   const proximaAcaoPorCliente = useMemo(() => {
@@ -173,24 +211,84 @@ export const KanbanProjetos: React.FC<KanbanProjetosProps> = ({
     return Math.max(0, dias)
   }
 
-  // Formatador conciso para próxima ação agendada
-  const formatProximaAcao = (atv: Atividade) => {
-    const d = atv.data ? new Date(atv.data) : atv.created ? new Date(atv.created) : null
-    let resumoNome = atv.titulo || 'Atividade'
-    if (resumoNome.length > 18) {
-      resumoNome = resumoNome.slice(0, 16) + '...'
+  // Título padrão da usina com fallback
+  const getTituloUsina = (proj: Projeto) => {
+    if (proj.titulo_usina && proj.titulo_usina.trim()) {
+      return proj.titulo_usina.trim()
+    }
+    const cliente = proj.expand?.cliente_id
+    const clienteNome = cliente?.nome || 'Cliente'
+    const potencia = proj.potencia_kwp || cliente?.potencia_kwp || 0
+    const potFormatada = potencia.toLocaleString('pt-BR', {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 2,
+    })
+    return `Usina ${potFormatada} kWp — ${clienteNome}`
+  }
+
+  // Cor da próxima atividade: verde (no prazo), laranja (vence hoje), vermelho (atrasada)
+  const getAtividadePrazoInfo = (atv: Atividade) => {
+    const dStr = atv.data || atv.created
+    if (!dStr) {
+      return {
+        corClass: 'text-emerald-700 bg-emerald-50 border-emerald-200 hover:bg-emerald-100',
+        dotClass: 'bg-emerald-500',
+      }
+    }
+    const d = new Date(dStr)
+    if (isNaN(d.getTime())) {
+      return {
+        corClass: 'text-emerald-700 bg-emerald-50 border-emerald-200 hover:bg-emerald-100',
+        dotClass: 'bg-emerald-500',
+      }
     }
 
-    if (!d || isNaN(d.getTime())) {
-      return resumoNome
+    const agora = new Date()
+    const hojeInicio = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate()).getTime()
+    const hojeFim = hojeInicio + 24 * 60 * 60 * 1000 - 1
+    const dataTime = d.getTime()
+
+    if (dataTime < hojeInicio) {
+      // Atrasada
+      return {
+        corClass: 'text-rose-700 bg-rose-50 border-rose-200 hover:bg-rose-100',
+        dotClass: 'bg-rose-500',
+      }
+    } else if (dataTime >= hojeInicio && dataTime <= hojeFim) {
+      // Vence hoje
+      return {
+        corClass: 'text-amber-700 bg-amber-50 border-amber-200 hover:bg-amber-100',
+        dotClass: 'bg-amber-500',
+      }
+    } else {
+      // No prazo / futura
+      return {
+        corClass: 'text-emerald-700 bg-emerald-50 border-emerald-200 hover:bg-emerald-100',
+        dotClass: 'bg-emerald-500',
+      }
     }
+  }
 
-    const dia = String(d.getDate()).padStart(2, '0')
-    const mes = String(d.getMonth() + 1).padStart(2, '0')
-    const hora = String(d.getHours()).padStart(2, '0')
-    const min = d.getMinutes() > 0 ? `:${String(d.getMinutes()).padStart(2, '0')}` : 'h'
+  const handleStartEditingTitle = (proj: Projeto, e: React.MouseEvent) => {
+    e.stopPropagation()
+    setEditingTitleId(proj.id)
+    setEditingTitleValue(proj.titulo_usina || getTituloUsina(proj))
+  }
 
-    return `${resumoNome} — ${dia}/${mes}, ${hora}${min === 'h' ? 'h' : 'h'}`
+  const handleCancelEditingTitle = () => {
+    setEditingTitleId(null)
+    setEditingTitleValue('')
+  }
+
+  const handleSaveTitle = async (projId: string) => {
+    const novo = editingTitleValue.trim()
+    setEditingTitleId(null)
+    setEditingTitleValue('')
+    try {
+      await updateProjeto(projId, { titulo_usina: novo })
+    } catch (err) {
+      console.error('Erro ao salvar título da usina:', err)
+    }
   }
 
   // Touch drag state
@@ -427,18 +525,19 @@ export const KanbanProjetos: React.FC<KanbanProjetosProps> = ({
                     const isDraggingThis = draggedProjetoId === proj.id
                     const cliente = proj.expand?.cliente_id
                     const clienteNome = cliente?.nome || 'Cliente não vinculado'
-                    const cidade = proj.cidade || cliente?.cidade || ''
-                    const potencia = proj.potencia_kwp || cliente?.potencia_kwp || 0
-                    const valorTotal = cliente?.valor_estimado || 0
                     const profNome =
                       proj.profissional_nome || proj.expand?.profissional_id?.nome || null
-                    const profInitial = profNome ? profNome.charAt(0).toUpperCase() : '?'
 
+                    const propostaVinculada = cliente?.id
+                      ? propostaPorCliente.get(cliente.id)
+                      : undefined
                     const proximaAcao = cliente?.id
                       ? proximaAcaoPorCliente.get(cliente.id)
                       : undefined
                     const diasNaEtapa = getDiasNaEtapa(proj)
-                    const tempoAlerta = diasNaEtapa > 7
+                    const isEditingThisTitle = editingTitleId === proj.id
+                    const tituloUsinaDisplay = getTituloUsina(proj)
+                    const atividadePrazo = proximaAcao ? getAtividadePrazoInfo(proximaAcao) : null
 
                     return (
                       <div
@@ -456,15 +555,46 @@ export const KanbanProjetos: React.FC<KanbanProjetosProps> = ({
                             : 'border-slate-200 shadow-xs hover:shadow-md hover:-translate-y-0.5 hover:border-emerald-300'
                         }`}
                       >
-                        {/* Linha 1: Nome do cliente (14pt/text-sm font-bold truncate) + Menu de 3 pontos */}
+                        {/* 1. TÍTULO DA USINA (mais destacado, editável inline) + Menu ⋮ */}
                         <div className="flex items-start justify-between gap-1.5 min-w-0">
-                          <div className="flex items-center gap-1.5 flex-1 min-w-0">
-                            <div
-                              className="font-bold text-sm text-slate-900 group-hover:text-emerald-700 transition-colors truncate min-w-0 leading-tight"
-                              title={clienteNome}
-                            >
-                              {clienteNome}
-                            </div>
+                          <div className="flex-1 min-w-0">
+                            {isEditingThisTitle ? (
+                              <div
+                                className="min-w-0"
+                                onClick={(e) => e.stopPropagation()}
+                                onMouseDown={(e) => e.stopPropagation()}
+                              >
+                                <input
+                                  type="text"
+                                  autoFocus
+                                  value={editingTitleValue}
+                                  onChange={(e) => setEditingTitleValue(e.target.value)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                      e.preventDefault()
+                                      handleSaveTitle(proj.id)
+                                    } else if (e.key === 'Escape') {
+                                      e.preventDefault()
+                                      handleCancelEditingTitle()
+                                    }
+                                  }}
+                                  onBlur={() => handleSaveTitle(proj.id)}
+                                  placeholder="Título da usina..."
+                                  className="w-full text-xs font-bold text-slate-900 px-1.5 py-0.5 rounded border border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 bg-white"
+                                />
+                                <span className="text-[9px] text-slate-400 block mt-0.5">
+                                  Enter salva • Esc cancela
+                                </span>
+                              </div>
+                            ) : (
+                              <div
+                                onClick={(e) => handleStartEditingTitle(proj, e)}
+                                title="Clique para editar o título da usina"
+                                className="font-bold text-sm text-slate-900 hover:text-emerald-700 transition-colors truncate min-w-0 leading-tight cursor-text"
+                              >
+                                {tituloUsinaDisplay}
+                              </div>
+                            )}
                           </div>
 
                           <div
@@ -497,7 +627,7 @@ export const KanbanProjetos: React.FC<KanbanProjetosProps> = ({
                                 >
                                   <HardHat className="w-3.5 h-3.5 text-amber-600 shrink-0" />
                                   <span>
-                                    {profNome ? 'Alterar profissional' : 'Atribuir profissional'}
+                                    {profNome ? 'Alterar responsável' : 'Atribuir responsável'}
                                   </span>
                                 </DropdownMenuItem>
 
@@ -524,124 +654,104 @@ export const KanbanProjetos: React.FC<KanbanProjetosProps> = ({
                           </div>
                         </div>
 
-                        {/* Linha 2: Valor formatado em moeda brasileira (R$) - text-xs font-bold em azul marinho (#1a3a5c) */}
-                        <div className="mt-1 flex items-center justify-between gap-1 min-w-0">
-                          <span className="font-bold text-xs truncate" style={{ color: '#1a3a5c' }}>
-                            {formatCurrency(valorTotal)}
-                          </span>
+                        {/* 2. CLIENTE VINCULADO: nome clicável → abre ficha do cliente */}
+                        <div className="mt-1 flex items-center gap-1.5 min-w-0">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              if (proj.cliente_id) {
+                                openFichaCliente(proj.cliente_id, 'projeto')
+                              }
+                            }}
+                            title={`Abrir ficha de ${clienteNome}`}
+                            className="inline-flex items-center gap-1 text-xs text-slate-600 hover:text-emerald-700 font-medium truncate max-w-full text-left transition-colors"
+                          >
+                            <User className="w-3 h-3 text-slate-400 shrink-0" />
+                            <span className="truncate hover:underline">{clienteNome}</span>
+                          </button>
                         </div>
 
-                        {/* Linha 3: Localização com MapPin + Potência em kWp com Zap */}
-                        <div className="mt-1.5 flex items-center text-[11px] text-muted-foreground gap-1.5 min-w-0 truncate">
-                          {cidade ? (
-                            <span className="inline-flex items-center gap-1 truncate shrink min-w-0">
-                              <MapPin className="w-3 h-3 text-slate-400 shrink-0" />
-                              <span className="truncate">{cidade}</span>
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center gap-1 text-slate-400">
-                              <MapPin className="w-3 h-3 text-slate-300 shrink-0" />
-                              <span>Sem cidade</span>
-                            </span>
-                          )}
-
-                          <span className="text-slate-300">•</span>
-
-                          {potencia > 0 ? (
-                            <span className="inline-flex items-center gap-1 shrink-0 font-medium text-slate-600">
-                              <Zap className="w-3 h-3 text-amber-500 shrink-0" />
-                              <span>{potencia} kWp</span>
-                            </span>
-                          ) : (
-                            <span className="text-slate-400 text-[10px] shrink-0">— kWp</span>
-                          )}
-                        </div>
-
-                        {/* Linha 4: Responsável Técnico / Profissional da etapa ou Próxima Ação */}
-                        <div className="mt-2 pt-2 border-t border-slate-100 flex items-center justify-between gap-1 min-w-0 text-[10px]">
-                          {profNome ? (
-                            <div
-                              className="flex items-center gap-1.5 min-w-0 flex-1"
-                              title={`Responsável técnico: ${profNome}`}
-                            >
-                              <div className="w-4 h-4 rounded-full bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold text-[9px] shrink-0 border border-emerald-300">
-                                {profInitial}
-                              </div>
-                              <span className="text-[11px] text-slate-700 font-medium truncate">
-                                {profNome}
-                              </span>
-                            </div>
-                          ) : (
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                onOpenAtribuirModal(proj, col.id)
-                              }}
-                              className="text-[10px] text-amber-700 hover:text-amber-900 bg-amber-50 hover:bg-amber-100 px-2 py-0.5 rounded border border-amber-200 font-medium transition-colors flex items-center gap-1"
-                            >
-                              <HardHat className="w-3 h-3 text-amber-600 shrink-0" />
-                              <span>Atribuir profissional</span>
-                            </button>
-                          )}
-
-                          {/* Botão sutil para alterar profissional se já tiver */}
-                          {profNome && (
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                onOpenAtribuirModal(proj, col.id)
-                              }}
-                              className="p-1 text-slate-400 hover:text-emerald-700 hover:bg-slate-100 rounded transition-colors shrink-0"
-                              title="Alterar profissional"
-                            >
-                              <HardHat className="w-3 h-3" />
-                            </button>
-                          )}
-                        </div>
-
-                        {/* Linha 5: Próxima ação ou status de atividades */}
-                        <div className="mt-1 flex items-center justify-between gap-1 min-w-0 text-[10px]">
-                          {proximaAcao ? (
-                            <div
-                              className="inline-flex items-center gap-1 text-slate-700 truncate min-w-0 font-medium"
-                              title={proximaAcao.titulo}
-                            >
-                              <Calendar className="w-3 h-3 text-emerald-600 shrink-0" />
-                              <span className="truncate">{formatProximaAcao(proximaAcao)}</span>
-                            </div>
-                          ) : (
-                            <div
-                              className="inline-flex items-center gap-1 text-slate-400 truncate shrink-0"
-                              title="Sem atividade agendada vinculada"
-                            >
-                              <AlertCircle className="w-3 h-3 text-slate-300 shrink-0" />
-                              <span>Sem atividade agendada</span>
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Linha 6: Tempo na etapa (discreto, 10pt; alerta se > 7 dias) */}
-                        <div className="mt-1 flex items-center justify-between text-[10px] text-slate-400">
-                          <span
-                            className={`inline-flex items-center gap-1 font-medium ${
-                              tempoAlerta ? 'text-amber-600 font-semibold' : 'text-slate-400'
+                        {/* 3. RESPONSÁVEL: profissional_nome ou "Atribuir responsável", clicável */}
+                        <div className="mt-1.5 flex items-center gap-1.5 min-w-0">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              onOpenAtribuirModal(proj, col.id)
+                            }}
+                            title={profNome ? `Responsável: ${profNome}` : 'Atribuir responsável'}
+                            className={`inline-flex items-center gap-1.5 text-[11px] truncate text-left transition-colors ${
+                              profNome
+                                ? 'text-slate-700 hover:text-amber-700 font-medium'
+                                : 'text-amber-700 hover:text-amber-800 font-semibold underline underline-offset-2'
                             }`}
                           >
-                            <Clock
-                              className={`w-2.5 h-2.5 ${tempoAlerta ? 'text-amber-500' : 'text-slate-400'}`}
+                            <HardHat
+                              className={`w-3 h-3 shrink-0 ${
+                                profNome ? 'text-slate-400' : 'text-amber-600'
+                              }`}
                             />
+                            <span className="truncate">{profNome || 'Atribuir responsável'}</span>
+                          </button>
+                        </div>
+
+                        {/* 4. LINK PARA PROPOSTA: orçamento solar mais recente/aprovado */}
+                        {propostaVinculada && (
+                          <div className="mt-1.5 flex items-center gap-1.5 min-w-0">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                navigate(
+                                  `/orcamentos?propostaId=${propostaVinculada.id}&clienteId=${propostaVinculada.cliente_id}`,
+                                )
+                              }}
+                              title="Ver proposta solar"
+                              className="inline-flex items-center gap-1 text-[11px] text-sky-700 hover:text-sky-900 font-medium truncate hover:underline text-left transition-colors"
+                            >
+                              <FileText className="w-3 h-3 text-sky-600 shrink-0" />
+                              <span className="truncate">
+                                Proposta Solar #{propostaVinculada.numero_revisao || 1} (
+                                {propostaVinculada.status})
+                              </span>
+                            </button>
+                          </div>
+                        )}
+
+                        {/* 5. PRÓXIMA ATIVIDADE: apenas o título, colorido (verde, laranja, vermelho) */}
+                        {proximaAcao && atividadePrazo && (
+                          <div className="mt-2 min-w-0">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                if (proj.cliente_id) {
+                                  openFichaCliente(proj.cliente_id, 'historico')
+                                }
+                              }}
+                              title={`Próxima atividade: ${proximaAcao.titulo || 'Atividade'}`}
+                              className={`w-full inline-flex items-center gap-1.5 text-[11px] font-semibold px-2 py-0.5 rounded border text-left truncate transition-colors ${atividadePrazo.corClass}`}
+                            >
+                              <span
+                                className={`w-1.5 h-1.5 rounded-full shrink-0 ${atividadePrazo.dotClass}`}
+                              />
+                              <span className="truncate">
+                                {proximaAcao.titulo || 'Atividade pendente'}
+                              </span>
+                            </button>
+                          </div>
+                        )}
+
+                        {/* 6. TEMPO NA ETAPA: "N dias nesta etapa" (base: updated || created) */}
+                        <div className="mt-2 pt-1.5 border-t border-slate-100 flex items-center justify-between text-[10px] text-slate-400">
+                          <span className="inline-flex items-center gap-1 font-medium text-slate-500">
+                            <Clock className="w-2.5 h-2.5 text-slate-400 shrink-0" />
                             <span>
                               {diasNaEtapa === 0
                                 ? 'Hoje nesta etapa'
                                 : `${diasNaEtapa} ${diasNaEtapa === 1 ? 'dia' : 'dias'} nesta etapa`}
                             </span>
-                            {tempoAlerta && (
-                              <span className="text-[9px] px-1 py-0.2 bg-amber-50 text-amber-700 rounded border border-amber-200">
-                                &gt;7d
-                              </span>
-                            )}
                           </span>
 
                           <GripVertical className="w-3 h-3 text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity" />
