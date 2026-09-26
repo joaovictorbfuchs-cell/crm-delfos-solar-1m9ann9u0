@@ -27,14 +27,3 @@ export function getErrorMessage(error: unknown): string {
   const msgs = Object.values(extractFieldErrors(error))
   return msgs.length > 0 ? msgs.join(' ') : error.message || 'An unexpected error occurred.'
 }
-
-export function isAuthSessionError(error: unknown): boolean {
-  if (!(error instanceof ClientResponseError)) {
-    if (error && typeof error === 'object' && 'status' in error) {
-      const status = (error as { status: number }).status
-      return status === 401 || status === 403
-    }
-    return false
-  }
-  return error.status === 401 || error.status === 403
-}

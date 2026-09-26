@@ -2613,11 +2613,13 @@ export async function updateOrdemServico(
   id: string,
   data: Partial<import('@/types/crm').OrdemServico>,
   newPhotos?: File[],
+  relatorioPdfFile?: File,
 ): Promise<import('@/types/crm').OrdemServico> {
-  if (newPhotos && newPhotos.length > 0) {
+  const hasFiles = (newPhotos && newPhotos.length > 0) || Boolean(relatorioPdfFile)
+  if (hasFiles) {
     const formData = new FormData()
     Object.entries(data).forEach(([key, val]) => {
-      if (val !== undefined && val !== null && key !== 'fotos') {
+      if (val !== undefined && val !== null && key !== 'fotos' && key !== 'relatorio_pdf') {
         if (typeof val === 'object') {
           formData.append(key, JSON.stringify(val))
         } else {
@@ -2625,8 +2627,13 @@ export async function updateOrdemServico(
         }
       }
     })
-    for (const file of newPhotos) {
-      formData.append('fotos', file)
+    if (newPhotos) {
+      for (const file of newPhotos) {
+        formData.append('fotos', file)
+      }
+    }
+    if (relatorioPdfFile) {
+      formData.append('relatorio_pdf', relatorioPdfFile)
     }
     const record = await pb
       .collection('ordens_servico')
@@ -2644,12 +2651,29 @@ export async function updateOrdemServico(
   return record
 }
 
+/**
+ * Salva o arquivo PDF do relatório na ordem de serviço existente
+ */
+export async function salvarRelatorioPdfOrdemServico(
+  id: string,
+  pdfFile: File,
+): Promise<import('@/types/crm').OrdemServico> {
+  const formData = new FormData()
+  formData.append('relatorio_pdf', pdfFile)
+  return await pb
+    .collection('ordens_servico')
+    .update<import('@/types/crm').OrdemServico>(id, formData, {
+      expand: 'cliente_id,profissional_id,responsavel_usuario_id',
+    })
+}
+
 export async function finalizarOrdemServico(
   id: string,
   dadosFinalizacao: {
     checklist?: import('@/types/crm').OSChecklistItem[]
     detalhes_execucao: string
     newPhotos?: File[]
+    relatorioPdfFile?: File
     cliente_id?: string
     tipo_servico?: string
     tecnico_nome?: string
@@ -2665,7 +2689,12 @@ export async function finalizarOrdemServico(
     payload.checklist = dadosFinalizacao.checklist
   }
 
-  const updatedOS = await updateOrdemServico(id, payload, dadosFinalizacao.newPhotos)
+  const updatedOS = await updateOrdemServico(
+    id,
+    payload,
+    dadosFinalizacao.newPhotos,
+    dadosFinalizacao.relatorioPdfFile,
+  )
 
   // Registrar atividade na timeline/histórico do cliente
   if (dadosFinalizacao.cliente_id) {
