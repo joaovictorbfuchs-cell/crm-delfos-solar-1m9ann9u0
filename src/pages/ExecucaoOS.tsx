@@ -81,9 +81,9 @@ export default function ExecucaoOS() {
           isAdmin ? fetchInstaladoresAtivos() : Promise.resolve([]),
         ]
       const [osList, tmplList, instList] = await Promise.all(promises)
-      setOrdens(osList)
-      setTemplates(tmplList)
-      setInstaladores(instList)
+      setOrdens(Array.isArray(osList) ? osList : [])
+      setTemplates(Array.isArray(tmplList) ? tmplList : [])
+      setInstaladores(Array.isArray(instList) ? instList : [])
     } catch (err) {
       console.error('Erro ao carregar dados de OS:', err)
       toast({
@@ -129,19 +129,20 @@ export default function ExecucaoOS() {
     setActiveTab('concluidas')
   }
 
-  // Filtros aplicados
+  // Filtros aplicados com checagem segura contra array nulo
   const pendentesList = useMemo(() => {
-    return ordens.filter((o) => o.status === 'pendente')
+    return (ordens || []).filter((o) => o && o.status === 'pendente')
   }, [ordens])
 
   const concluidasList = useMemo(() => {
-    return ordens.filter((o) => o.status === 'concluida')
+    return (ordens || []).filter((o) => o && o.status === 'concluida')
   }, [ordens])
 
   const listToDisplay = activeTab === 'pendentes' ? pendentesList : concluidasList
 
   const filteredList = useMemo(() => {
-    return listToDisplay.filter((os) => {
+    return (listToDisplay || []).filter((os) => {
+      if (!os) return false
       // Filtro por tipo de serviço
       if (selectedTipoFilter !== 'todos' && os.tipo_servico !== selectedTipoFilter) {
         return false
@@ -156,7 +157,7 @@ export default function ExecucaoOS() {
         ).toLowerCase()
         const endereco = (os.endereco || '').toLowerCase()
         const atribuida = (os.atribuida_a || '').toLowerCase()
-        const tipo = os.tipo_servico.toLowerCase()
+        const tipo = (os.tipo_servico || '').toLowerCase()
 
         return (
           clienteNome.includes(query) ||

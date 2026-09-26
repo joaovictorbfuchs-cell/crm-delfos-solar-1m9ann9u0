@@ -223,10 +223,11 @@ export function CalendarioExecucaoOS({
   // Agrupar ordens por chave de data (YYYY-MM-DD)
   const ordensPorDia = useMemo(() => {
     const map = new Map<string, OrdemServico[]>()
-    for (const os of ordens) {
-      if (!os.data_agendada) continue
+    for (const os of ordens || []) {
+      if (!os || !os.data_agendada) continue
       try {
         const d = new Date(os.data_agendada)
+        if (isNaN(d.getTime())) continue
         const key = getLocalDateKey(d)
         if (!map.has(key)) {
           map.set(key, [])
@@ -237,8 +238,12 @@ export function CalendarioExecucaoOS({
       }
     }
     // Ordenar as OS de cada dia por horário
-    for (const [key, list] of map.entries()) {
-      list.sort((a, b) => new Date(a.data_agendada).getTime() - new Date(b.data_agendada).getTime())
+    for (const [, list] of map.entries()) {
+      list.sort((a, b) => {
+        const timeA = a?.data_agendada ? new Date(a.data_agendada).getTime() : 0
+        const timeB = b?.data_agendada ? new Date(b.data_agendada).getTime() : 0
+        return timeA - timeB
+      })
     }
     return map
   }, [ordens])
@@ -658,8 +663,10 @@ export function CalendarioExecucaoOS({
                     {/* Cards compactos com as OSs do Dia */}
                     <div className="flex-1 space-y-1 sm:space-y-1.5 overflow-hidden">
                       {dayOrdens.slice(0, 3).map((os) => {
+                        if (!os) return null
+                        const tipoServico = os.tipo_servico || 'Manutenção'
                         const tipoConfig =
-                          TIPO_SERVICO_CORES[os.tipo_servico] || TIPO_SERVICO_CORES['Manutenção']
+                          TIPO_SERVICO_CORES[tipoServico] || TIPO_SERVICO_CORES['Manutenção']
                         const horario = extractHorario(os.data_agendada)
                         const clienteNome =
                           os.expand?.cliente_id?.nome ||
@@ -687,7 +694,7 @@ export function CalendarioExecucaoOS({
                               backgroundColor: tipoConfig.pillBg,
                             }}
                             className="p-1 sm:p-1.5 rounded-md border border-gray-200/70 text-left transition-all hover:scale-[1.02] hover:shadow-xs group cursor-pointer"
-                            title={`${horario} • ${clienteNome} (${os.tipo_servico}) - Clique para abrir a ficha de execução`}
+                            title={`${horario} • ${clienteNome} (${tipoServico}) - Clique para abrir a ficha de execução`}
                           >
                             {/* Horário + Tipo (com cor) */}
                             <div className="flex items-center justify-between gap-1 leading-none mb-0.5">
@@ -699,7 +706,7 @@ export function CalendarioExecucaoOS({
                                 className="text-[9px] font-extrabold uppercase truncate tracking-wider"
                                 style={{ color: tipoConfig.hex }}
                               >
-                                {os.tipo_servico}
+                                {tipoServico}
                               </span>
                             </div>
 
@@ -856,9 +863,10 @@ export function CalendarioExecucaoOS({
                             </div>
                           ) : (
                             dayOrdens.map((os) => {
+                              if (!os) return null
+                              const tipoServico = os.tipo_servico || 'Manutenção'
                               const tipoConfig =
-                                TIPO_SERVICO_CORES[os.tipo_servico] ||
-                                TIPO_SERVICO_CORES['Manutenção']
+                                TIPO_SERVICO_CORES[tipoServico] || TIPO_SERVICO_CORES['Manutenção']
                               const horario = extractHorario(os.data_agendada)
                               const clienteNome =
                                 os.expand?.cliente_id?.nome ||
@@ -886,7 +894,7 @@ export function CalendarioExecucaoOS({
                                     backgroundColor: tipoConfig.pillBg,
                                   }}
                                   className="p-1.5 rounded-md border border-gray-200/70 text-left transition-all hover:scale-[1.02] hover:shadow-xs group cursor-pointer"
-                                  title={`${horario} • ${clienteNome} (${os.tipo_servico}) - Clique para abrir a ficha de execução`}
+                                  title={`${horario} • ${clienteNome} (${tipoServico}) - Clique para abrir a ficha de execução`}
                                 >
                                   {/* Horário + Tipo (com cor) */}
                                   <div className="flex items-center justify-between gap-1 leading-none mb-1">
@@ -898,7 +906,7 @@ export function CalendarioExecucaoOS({
                                       className="text-[9px] font-extrabold uppercase truncate tracking-wider"
                                       style={{ color: tipoConfig.hex }}
                                     >
-                                      {os.tipo_servico}
+                                      {tipoServico}
                                     </span>
                                   </div>
 
@@ -1010,8 +1018,10 @@ export function CalendarioExecucaoOS({
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
               {ordensDiaSelecionado.map((os) => {
+                if (!os) return null
+                const tipoServico = os.tipo_servico || 'Manutenção'
                 const tipoConfig =
-                  TIPO_SERVICO_CORES[os.tipo_servico] || TIPO_SERVICO_CORES['Manutenção']
+                  TIPO_SERVICO_CORES[tipoServico] || TIPO_SERVICO_CORES['Manutenção']
                 const horario = extractHorario(os.data_agendada)
                 const clienteNome =
                   os.expand?.cliente_id?.nome ||
@@ -1048,7 +1058,7 @@ export function CalendarioExecucaoOS({
                             color: tipoConfig.hex,
                           }}
                         >
-                          {os.tipo_servico}
+                          {tipoServico}
                         </span>
 
                         <span className="text-xs font-bold text-gray-700 flex items-center gap-1 bg-gray-100 px-2 py-0.5 rounded-md">
@@ -1142,8 +1152,10 @@ export function CalendarioExecucaoOS({
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {ordensDiaSelecionado.map((os) => {
+                if (!os) return null
+                const tipoServico = os.tipo_servico || 'Manutenção'
                 const tipoConfig =
-                  TIPO_SERVICO_CORES[os.tipo_servico] || TIPO_SERVICO_CORES['Manutenção']
+                  TIPO_SERVICO_CORES[tipoServico] || TIPO_SERVICO_CORES['Manutenção']
                 const horario = extractHorario(os.data_agendada)
                 const clienteNome =
                   os.expand?.cliente_id?.nome ||
@@ -1180,7 +1192,7 @@ export function CalendarioExecucaoOS({
                             color: tipoConfig.hex,
                           }}
                         >
-                          {os.tipo_servico}
+                          {tipoServico}
                         </span>
 
                         <span className="text-xs font-bold text-gray-700 flex items-center gap-1 bg-gray-100 px-2 py-0.5 rounded-md">

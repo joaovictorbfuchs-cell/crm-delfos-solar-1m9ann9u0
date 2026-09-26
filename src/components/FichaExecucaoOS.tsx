@@ -163,12 +163,12 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
     [],
   )
 
-  // 2. Instruções do serviço: pré-preenchido automaticamente com template
+  // 2. Instruções do serviço: pré-preenchido automaticamente com template (fallback seguro)
   const [instrucoesTexto, setInstrucoesTexto] = useState<string>(() => {
     if (os.instrucoes && os.instrucoes.trim().length > 0) {
       return os.instrucoes
     }
-    const matchingTemplate = templates.find((t) => t.tipo_servico === os.tipo_servico)
+    const matchingTemplate = (templates || []).find((t) => t?.tipo_servico === os.tipo_servico)
     return matchingTemplate?.instrucoes || ''
   })
 

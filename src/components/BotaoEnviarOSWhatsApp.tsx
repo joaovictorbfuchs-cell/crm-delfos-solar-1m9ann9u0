@@ -40,12 +40,15 @@ export const BotaoEnviarOSWhatsApp: React.FC<BotaoEnviarOSWhatsAppProps> = ({
   const [modalConferenciaAberto, setModalConferenciaAberto] = useState(false)
   const [osDetalhes, setOsDetalhes] = useState<any>(null)
 
-  // Template de OS
+  // Template de OS com fallback seguro se whatsAppTemplates for undefined/vazio
   const templateOS = useMemo(() => {
-    const doBanco = whatsAppTemplates.find(
-      (t) => t.slug === 'os_atribuida_instalador' || t.titulo.toLowerCase().includes('os atribu'),
+    const lista = Array.isArray(whatsAppTemplates) ? whatsAppTemplates : []
+    const doBanco = lista.find(
+      (t) =>
+        t?.slug === 'os_atribuida_instalador' ||
+        (typeof t?.titulo === 'string' && t.titulo.toLowerCase().includes('os atribu')),
     )
-    if (doBanco) return doBanco
+    if (doBanco && typeof doBanco.conteudo === 'string') return doBanco
 
     return {
       id: 'os_atribuida_instalador',
@@ -59,11 +62,15 @@ export const BotaoEnviarOSWhatsApp: React.FC<BotaoEnviarOSWhatsAppProps> = ({
   }, [whatsAppTemplates])
 
   const templatesParaModal = useMemo(() => {
+    const conteudoSeguro =
+      templateOS && typeof templateOS.conteudo === 'string'
+        ? templateOS.conteudo
+        : '📋 *Nova Ordem de Serviço atribuída*\n👤 Cliente: {nome_cliente}\n🔧 Serviço: {tipo_servico}'
     return [
       {
-        id: templateOS.id,
-        titulo: templateOS.titulo,
-        conteudo: templateOS.conteudo,
+        id: templateOS?.id || 'os_atribuida_instalador',
+        titulo: templateOS?.titulo || 'Notificação de OS para Técnico',
+        conteudo: conteudoSeguro,
         descricao: 'Notificação de atribuição de OS ao instalador',
       },
     ]
@@ -322,9 +329,9 @@ export const BotaoEnviarOSWhatsApp: React.FC<BotaoEnviarOSWhatsAppProps> = ({
         subtitulo="Verifique o número do técnico responsável e o texto da OS antes do disparo."
         destinatarioNome={responsavelNome || 'Técnico Responsável'}
         telefoneInicial={responsavelTelefone || ''}
-        mensagemInicial={templateOS.conteudo}
+        mensagemInicial={templateOS?.conteudo || ''}
         templates={templatesParaModal}
-        templatePadraoId={templateOS.id}
+        templatePadraoId={templateOS?.id || 'os_atribuida_instalador'}
         contextoVariaveis={contextoVariaveis}
         onConfirmarEnvio={handleConfirmarEnvioModal}
         confirmLabel="Confirmar e Enviar OS ao Técnico"
