@@ -889,7 +889,7 @@ export default function CatalogoAtividades() {
               <Label className="text-xs font-semibold text-gray-700">Nome do Serviço *</Label>
               <Input
                 type="text"
-                placeholder="Ex: Limpeza e Lavagem de Placas, Troca de Inversor..."
+                placeholder="Ex: Limpeza e Lavagem de Placas, Manutenção Corretiva de Inversor..."
                 value={nome}
                 onChange={(e) => setNome(e.target.value)}
                 required

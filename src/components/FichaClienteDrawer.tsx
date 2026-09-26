@@ -818,10 +818,15 @@ export const FichaClienteDrawer: React.FC = () => {
   const getServiceIcon = (tipo: string) => {
     switch (tipo) {
       case 'Limpeza':
+      case 'Limpeza e Lavagem de Placas':
         return <Droplets className="w-4 h-4 text-blue-500" />
       case 'Revisão Elétrica':
+      case 'Revisão Elétrica e Reaperto':
+      case 'Verificação Elétrica':
         return <Zap className="w-4 h-4 text-amber-500" />
       case 'Troca de Inversor':
+      case 'Manutenção Corretiva / Inversor':
+      case 'Manutenção Corretiva de Inversor':
         return <Settings className="w-4 h-4 text-purple-500" />
       default:
         return <Wrench className="w-4 h-4 text-gray-500" />

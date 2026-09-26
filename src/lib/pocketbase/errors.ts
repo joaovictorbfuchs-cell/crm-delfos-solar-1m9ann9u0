@@ -20,34 +20,21 @@ export function extractFieldErrors(error: unknown): FieldErrors {
   return errors
 }
 
+export function isAuthSessionError(error: unknown): boolean {
+  if (error instanceof ClientResponseError) {
+    return error.status === 401 || error.status === 403
+  }
+  if (error && typeof error === 'object' && 'status' in error) {
+    const status = (error as { status: unknown }).status
+    return status === 401 || status === 403
+  }
+  return false
+}
+
 export function getErrorMessage(error: unknown): string {
   if (!(error instanceof ClientResponseError)) {
     return error instanceof Error ? error.message : 'An unexpected error occurred.'
   }
   const msgs = Object.values(extractFieldErrors(error))
   return msgs.length > 0 ? msgs.join(' ') : error.message || 'An unexpected error occurred.'
-}
-
-export function isAuthSessionError(error: unknown): boolean {
-  if (!error) return false
-  if (error instanceof ClientResponseError) {
-    return error.status === 401 || error.status === 403
-  }
-  const err = error as { status?: number; response?: { status?: number }; message?: string }
-  if (
-    err.status === 401 ||
-    err.status === 403 ||
-    err.response?.status === 401 ||
-    err.response?.status === 403
-  ) {
-    return true
-  }
-  const msg = (err.message || '').toLowerCase()
-  return (
-    msg.includes('token') &&
-    (msg.includes('expired') ||
-      msg.includes('invalid') ||
-      msg.includes('revoked') ||
-      msg.includes('unauthorized'))
-  )
 }
