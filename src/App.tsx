@@ -84,9 +84,11 @@ const App = () => (
             <Route
               path="/execucao-os"
               element={
-                <ErrorBoundary errorMessage="Ocorreu um problema ao carregar Serviços de Campo">
-                  <ExecucaoOS />
-                </ErrorBoundary>
+                <ProtectedRoute requiredRole="admin">
+                  <ErrorBoundary errorMessage="Ocorreu um problema ao carregar Serviços de Campo">
+                    <ExecucaoOS />
+                  </ErrorBoundary>
+                </ProtectedRoute>
               }
             />
             <Route

@@ -3,6 +3,7 @@ import { OrdemServico, OSTipoServico } from '@/types/crm'
 import { fetchOrdensServico } from '@/services/crmService'
 import { FichaExecucaoOS } from '@/components/FichaExecucaoOS'
 import { CalendarioExecucaoOS } from '@/components/CalendarioExecucaoOS'
+import { RelatorioOSPrestador } from '@/components/RelatorioOSPrestador'
 import { useToast } from '@/hooks/use-toast'
 import { formatDateTime } from '@/lib/formatters'
 import {
@@ -22,6 +23,7 @@ import {
   Sun,
   ShieldCheck,
   CheckCheck,
+  BarChart3,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -58,8 +60,10 @@ export default function ExecucaoOS() {
   // OS atualmente aberta na Ficha de Execução (null = tela inicial/lista)
   const [selectedOS, setSelectedOS] = useState<OrdemServico | null>(null)
 
-  // Aba / Filtro na Lista: 'pendentes', 'concluidas' ou 'calendario'
-  const [activeTab, setActiveTab] = useState<'pendentes' | 'concluidas' | 'calendario'>('pendentes')
+  // Aba / Filtro na Lista: 'pendentes', 'calendario', 'concluidas' ou 'relatorio' (apenas admin)
+  const [activeTab, setActiveTab] = useState<
+    'pendentes' | 'concluidas' | 'calendario' | 'relatorio'
+  >('pendentes')
 
   // Filtros de busca, tipo, prestador e período
   const [searchTerm, setSearchTerm] = useState('')
@@ -307,8 +311,12 @@ export default function ExecucaoOS() {
         </div>
       </div>
 
-      {/* Tabs de Navegação: Pendentes vs Calendário vs Concluídas */}
-      <div className="grid grid-cols-3 gap-2 p-1.5 bg-gray-100/90 rounded-2xl border border-gray-200">
+      {/* Tabs de Navegação: Pendentes vs Calendário vs Concluídas vs Relatório (Apenas Admin) */}
+      <div
+        className={`grid gap-2 p-1.5 bg-gray-100/90 rounded-2xl border border-gray-200 ${
+          isAdmin ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-3'
+        }`}
+      >
         <button
           type="button"
           onClick={() => setActiveTab('pendentes')}
@@ -374,10 +382,43 @@ export default function ExecucaoOS() {
             {concluidasList.length}
           </span>
         </button>
+
+        {isAdmin && (
+          <button
+            type="button"
+            onClick={() => setActiveTab('relatorio')}
+            className={`h-12 sm:h-11 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-1.5 sm:gap-2 ${
+              activeTab === 'relatorio'
+                ? 'bg-white text-emerald-800 shadow-xs border border-gray-200/80'
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            <BarChart3 className="w-4 h-4 text-emerald-600" />
+            <span>Relatório</span>
+            <span
+              className={`px-1.5 sm:px-2 py-0.5 rounded-full text-[10px] sm:text-[11px] font-black ${
+                activeTab === 'relatorio'
+                  ? 'bg-emerald-100 text-emerald-800'
+                  : 'bg-gray-200 text-gray-700'
+              }`}
+            >
+              Mês
+            </span>
+          </button>
+        )}
       </div>
 
-      {/* Conteúdo da Aba Calendário */}
-      {activeTab === 'calendario' ? (
+      {/* Conteúdo da Aba Relatório (apenas Admin) */}
+      {activeTab === 'relatorio' && isAdmin ? (
+        isLoading ? (
+          <div className="py-16 flex flex-col items-center justify-center text-center">
+            <RefreshCw className="w-8 h-8 text-emerald-600 animate-spin mb-3" />
+            <p className="text-sm font-semibold text-gray-700">Carregando relatório mensal...</p>
+          </div>
+        ) : (
+          <RelatorioOSPrestador ordens={ordens} onSelectOS={(os) => setSelectedOS(os)} />
+        )
+      ) : activeTab === 'calendario' ? (
         isLoading ? (
           <div className="py-16 flex flex-col items-center justify-center text-center">
             <RefreshCw className="w-8 h-8 text-emerald-600 animate-spin mb-3" />
