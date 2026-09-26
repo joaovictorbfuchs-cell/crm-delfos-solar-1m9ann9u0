@@ -12,6 +12,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { CATEGORIAS_ATIVIDADES, type TipoAtividadeDef } from '@/constants/atividadesTipos'
+import { toast } from 'sonner'
 import { useClientes } from '@/contexts/ClientesContext'
 import type {
   AtividadeCategoriaId,
@@ -111,16 +112,27 @@ interface ModalEditarTipoAtividadeProps {
   onOpenChange: (open: boolean) => void
   atividadeParaEditar?: TipoAtividadeCustomItem | null
   padraoParaEditar?: TipoAtividadeDef | null
+  tipoItem?: TipoAtividadeCustomItem | TipoAtividadeDef | null
   onSuccess?: () => void
 }
 
 export const ModalEditarTipoAtividade: React.FC<ModalEditarTipoAtividadeProps> = ({
   open,
   onOpenChange,
-  atividadeParaEditar,
-  padraoParaEditar,
+  atividadeParaEditar: atividadeParaEditarProp,
+  padraoParaEditar: padraoParaEditarProp,
+  tipoItem,
   onSuccess,
 }) => {
+  // Unifica suporte a tipoItem ou atividadeParaEditar/padraoParaEditar
+  const atividadeParaEditar =
+    atividadeParaEditarProp ||
+    (tipoItem && 'id' in tipoItem && !('tituloPadrao' in tipoItem)
+      ? (tipoItem as TipoAtividadeCustomItem)
+      : null)
+  const padraoParaEditar =
+    padraoParaEditarProp ||
+    (tipoItem && 'tituloPadrao' in tipoItem ? (tipoItem as TipoAtividadeDef) : null)
   const { updateTipoAtividadeCustom, addTipoAtividadeCustom, refreshTiposAtividadesCustom } =
     useClientes()
 
@@ -264,6 +276,7 @@ export const ModalEditarTipoAtividade: React.FC<ModalEditarTipoAtividadeProps> =
 
       await refreshTiposAtividadesCustom()
       setFormSuccess(true)
+      toast.success('Tipo de atividade atualizado')
 
       if (onSuccess) {
         onSuccess()
@@ -275,9 +288,12 @@ export const ModalEditarTipoAtividade: React.FC<ModalEditarTipoAtividadeProps> =
       }, 700)
     } catch (err: unknown) {
       console.error('Erro ao salvar tipo de atividade:', err)
-      setFormError(
-        err instanceof Error ? err.message : 'Falha ao salvar as alterações do tipo de atividade.',
-      )
+      const errorMsg =
+        err instanceof Error ? err.message : 'Falha ao salvar as alterações do tipo de atividade.'
+      setFormError(errorMsg)
+      toast.error('Erro ao atualizar tipo de atividade', {
+        description: errorMsg,
+      })
     } finally {
       setIsSubmitting(false)
     }

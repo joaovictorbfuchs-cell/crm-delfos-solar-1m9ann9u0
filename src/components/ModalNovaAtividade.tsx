@@ -61,6 +61,19 @@ export interface ProgramarLeituraAnoLinha {
 }
 
 export { ModalEditarTipoAtividade } from '@/components/ModalEditarTipoAtividade'
+export type { TipoAtividadeDef } from '@/constants/atividadesTipos'
+
+// Aliases para edição de tipos de atividades se invocado como ModalNovaAtividade (ou reutilizado)
+export interface ModalNovaAtividadeEdicaoProps {
+  isOpen?: boolean
+  open?: boolean
+  onClose?: () => void
+  onOpenChange?: (open: boolean) => void
+  tipoParaEditar?: any
+  atividadeParaEditar?: any
+  padraoParaEditar?: any
+  onSuccess?: () => void
+}
 
 export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
   isOpen,

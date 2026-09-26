@@ -21,6 +21,10 @@ import {
   FileSpreadsheet,
   Layers,
   Sparkles,
+  Zap,
+  Settings,
+  Cpu,
+  Camera,
 } from 'lucide-react'
 import type { AtividadeTipo, AtividadeCategoriaId } from '@/types/crm'
 
@@ -326,16 +330,46 @@ export function getTiposPorCategoria(
   return [...padroes, ...custom]
 }
 
-// Construtor auxiliar de TipoAtividadeDef para tipos personalizados criados em tempo de execução
+// Mapeamento dinâmico de ícones por chave para tipos personalizados e editados
+const ICON_LOOKUP: Record<string, React.ComponentType<{ className?: string }>> = {
+  Wrench,
+  Settings,
+  Hammer,
+  Droplets,
+  Zap,
+  ShieldCheck,
+  Wifi,
+  Cpu,
+  Camera,
+  PhoneCall,
+  Users,
+  Clock,
+  UserPlus,
+  UserCheck,
+  Gauge,
+  BarChart3,
+  FileText,
+  ArrowRightLeft,
+  RotateCcw,
+  Briefcase,
+  FileSpreadsheet,
+  Layers,
+  Sparkles,
+}
+
+// Construtor auxiliar de TipoAtividadeDef para tipos personalizados ou sobrescritos
 export function buildCustomTipoDef(record: {
   id: string
   nome: string
   categoria: AtividadeCategoriaId
   cor?: string
+  icone?: string
   descricao?: string
+  is_padrao?: boolean
 }): TipoAtividadeDef {
   const catDef = CATEGORIAS_ATIVIDADES.find((c) => c.id === record.categoria)
   const corHex = record.cor || catDef?.corHex || '#16A34A'
+  const resolvedIcon = (record.icone && ICON_LOOKUP[record.icone]) || Sparkles
 
   return {
     id: `custom_${record.id}`,
@@ -347,8 +381,8 @@ export function buildCustomTipoDef(record: {
     iconBg: 'bg-emerald-50 text-emerald-800 border-emerald-200',
     iconText: 'text-emerald-700',
     borderClass: 'border-emerald-400',
-    icon: Sparkles,
-    isPadrao: false,
+    icon: resolvedIcon,
+    isPadrao: Boolean(record.is_padrao),
     customRecordId: record.id,
   }
 }
