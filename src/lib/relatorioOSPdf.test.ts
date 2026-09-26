@@ -82,8 +82,10 @@ describe('Módulo de Relatório de OS em PDF (relatorioOSPdf)', () => {
 
     // Cabeçalho e identificação Delfos Solar
     expect(html).toContain('DELFOS SOLAR')
-    expect(html).toContain('RELATÓRIO TÉCNICO DE EXECUÇÃO DE SERVIÇO')
+    expect(html).toContain('Relatório Técnico de Serviço Executado')
     expect(html).toContain('OS #123456')
+    expect(html).toContain('Delfos Engenharia Ltda')
+    expect(html).toContain('21.379.952/0001-38')
 
     // Dados do Cliente e Usina
     expect(html).toContain('Agropecuária Vista Verde Ltda')

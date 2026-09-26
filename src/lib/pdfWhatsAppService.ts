@@ -171,6 +171,19 @@ export async function renderizarHTMLParaPdfBase64(
 
         const targetElement = doc.querySelector('.proposta-container') || doc.body
 
+        // Aguarda todas as imagens do documento terminarem de carregar para não renderizar imagens vazias/quebradas
+        const images = Array.from(doc.images || [])
+        await Promise.all(
+          images.map((img) => {
+            if (img.complete) return Promise.resolve()
+            return new Promise<void>((res) => {
+              img.onload = () => res()
+              img.onerror = () => res()
+              setTimeout(res, 3000)
+            })
+          }),
+        )
+
         const opt = {
           margin: 0,
           filename: fileName,
@@ -201,6 +214,9 @@ export async function renderizarHTMLParaPdfBase64(
               '.card-situacao',
               '.card-info-sistema',
               '.card-investimento-opcao',
+              '.secao-card',
+              '.foto-card-rel',
+              '.assinatura-wrap',
             ],
           },
         }

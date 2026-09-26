@@ -29,7 +29,8 @@ export function dataUriToFile(dataUri: string, fileName: string): File {
 }
 
 /**
- * Logotipo oficial vetorial Delfos Solar
+ * Logotipo oficial vetorial Delfos Solar com degradê característico azul/verde/amarelo.
+ * Idêntico ao padrão oficial da Proposta Técnico-Comercial.
  */
 function renderLogoSvg(idSuffix: string = 'os-rel'): string {
   return `<svg viewBox="0 0 520 280" fill="none" class="brand-logo-svg" xmlns="http://www.w3.org/2000/svg">
@@ -109,6 +110,7 @@ export function limparTextoDetalhesExecucao(detalhes?: string): string {
 
 /**
  * Monta o HTML completo do Relatório Técnico de Execução de OS
+ * Layout A4 premium institucional corporativo com CSS compatível com html2canvas
  */
 export function gerarHTMLRelatorioOS(dados: RelatorioOSDadosInput): string {
   const {
@@ -120,13 +122,14 @@ export function gerarHTMLRelatorioOS(dados: RelatorioOSDadosInput): string {
     assinaturaBase64,
   } = dados
 
-  const osIdFormatado = `#${os.id.slice(-6).toUpperCase()}`
+  const osIdCurto = os.id ? os.id.slice(-6).toUpperCase() : '000000'
+  const osIdFormatado = `OS #${osIdCurto}`
   const tipoServico = os.tipo_servico || 'Serviço em Campo'
   const prestadorNome =
     os.atribuida_a ||
     os.expand?.responsavel_usuario_id?.name ||
     os.expand?.profissional_id?.nome ||
-    'Instalador Delfos Solar'
+    'Técnico Autorizado Delfos'
   const prestadorTelefone = os.expand?.responsavel_usuario_id?.phone || ''
 
   const clienteNome = cliente?.nome || cliente?.razao_social || 'Cliente Solar'
@@ -155,500 +158,854 @@ export function gerarHTMLRelatorioOS(dados: RelatorioOSDadosInput): string {
 
   const observacoesLimpas = limparTextoDetalhesExecucao(os.detalhes_execucao)
 
-  // Galeria de fotos
-  const fotosHtml =
-    fotosDataUrls.length > 0
-      ? `<div class="fotos-grid">
-        ${fotosDataUrls
-          .map(
-            (url, i) => `
-          <div class="foto-card">
-            <img src="${url}" alt="Foto ${i + 1}" />
-            <div class="foto-legenda">Registro Fotográfico #${i + 1}</div>
+  // Montagem da galeria de fotos em grade de 2 colunas com table para compatibilidade 100% no html2canvas
+  let fotosHtml = ''
+  if (fotosDataUrls.length > 0) {
+    const rows: string[] = []
+    for (let i = 0; i < fotosDataUrls.length; i += 2) {
+      const url1 = fotosDataUrls[i]
+      const url2 = fotosDataUrls[i + 1]
+      rows.push(`
+        <tr>
+          <td style="width: 50%; vertical-align: top; padding: 5px;">
+            <div class="foto-card-rel">
+              <div class="foto-img-container">
+                <img src="${url1}" alt="Registro Fotográfico #${i + 1}" class="foto-img" />
+              </div>
+              <div class="foto-legenda-bar">
+                <span class="foto-tag">FOTO #${i + 1}</span>
+                <span class="foto-desc">Registro Fotográfico #${i + 1}</span>
+              </div>
+            </div>
+          </td>
+          ${
+            url2
+              ? `
+          <td style="width: 50%; vertical-align: top; padding: 5px;">
+            <div class="foto-card-rel">
+              <div class="foto-img-container">
+                <img src="${url2}" alt="Registro Fotográfico #${i + 2}" class="foto-img" />
+              </div>
+              <div class="foto-legenda-bar">
+                <span class="foto-tag">FOTO #${i + 2}</span>
+                <span class="foto-desc">Registro Fotográfico #${i + 2}</span>
+              </div>
+            </div>
+          </td>`
+              : `
+          <td style="width: 50%; vertical-align: top; padding: 5px;"></td>`
+          }
+        </tr>
+      `)
+    }
+    fotosHtml = `<table class="fotos-table-grid" cellpadding="0" cellspacing="0" style="width: 100%; border-collapse: collapse;">
+      <tbody>${rows.join('')}</tbody>
+    </table>`
+  } else {
+    fotosHtml = `<div class="sem-fotos-box">Nenhuma fotografia anexada à Ordem de Serviço.</div>`
+  }
+
+  // Checklist em tabela estilizada (2 colunas se houver mais de 4 itens, ou lista estilizada)
+  let checklistHtml = ''
+  if (checklistItens.length > 0) {
+    const checkRows: string[] = []
+    for (let i = 0; i < checklistItens.length; i += 2) {
+      const it1 = checklistItens[i]
+      const it2 = checklistItens[i + 1]
+
+      const renderCheckCell = (item?: OSChecklistItem) => {
+        if (!item) return ''
+        const ok = item.concluido
+        return `
+          <div class="check-item-box ${ok ? 'check-done' : 'check-pending'}">
+            <table cellpadding="0" cellspacing="0" style="width: 100%; border-collapse: collapse;">
+              <tr>
+                <td style="width: 24px; vertical-align: middle; text-align: center;">
+                  <span class="check-pill ${ok ? 'check-pill-ok' : 'check-pill-gray'}">
+                    ${ok ? '&#10003;' : '&#8211;'}
+                  </span>
+                </td>
+                <td style="vertical-align: middle; padding-left: 8px;">
+                  <span class="check-text ${ok ? 'check-text-ok' : ''}">${item.item}</span>
+                </td>
+                <td style="width: 72px; text-align: right; vertical-align: middle;">
+                  <span class="status-pill ${ok ? 'status-pill-ok' : 'status-pill-gray'}">
+                    ${ok ? 'CONCLUÍDO' : 'PENDENTE'}
+                  </span>
+                </td>
+              </tr>
+            </table>
           </div>
-        `,
-          )
-          .join('')}
-       </div>`
-      : `<div class="sem-fotos">Nenhuma fotografia anexada à Ordem de Serviço.</div>`
+        `
+      }
+
+      checkRows.push(`
+        <tr>
+          <td style="width: 50%; vertical-align: top; padding: 3px 4px 3px 0;">
+            ${renderCheckCell(it1)}
+          </td>
+          <td style="width: 50%; vertical-align: top; padding: 3px 0 3px 4px;">
+            ${renderCheckCell(it2)}
+          </td>
+        </tr>
+      `)
+    }
+
+    checklistHtml = `<table cellpadding="0" cellspacing="0" style="width: 100%; border-collapse: collapse;">
+      <tbody>${checkRows.join('')}</tbody>
+    </table>`
+  } else {
+    checklistHtml = `<div class="sem-fotos-box">Nenhum item de checklist registrado para esta OS.</div>`
+  }
+
+  const agoraData = new Date().toLocaleDateString('pt-BR')
+  const agoraHora = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
 
   return `<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8" />
-  <title>Relatório de Execução de OS ${osIdFormatado}</title>
+  <title>Relatório Técnico de Serviço - ${osIdFormatado}</title>
   <style>
+    /* Reset básico e tipografia de alto padrão */
     * {
       box-sizing: border-box;
       margin: 0;
       padding: 0;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
     }
     body {
       background: #FFFFFF;
-      color: #1F2937;
-      font-size: 11pt;
+      color: #1E293B;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      font-size: 10pt;
       line-height: 1.45;
       padding: 0;
       margin: 0;
-      -webkit-print-color-adjust: exact;
-      print-color-adjust: exact;
     }
     .proposta-container {
-      width: 100%;
-      max-width: 794px;
+      width: 794px;
       margin: 0 auto;
-      padding: 28px 32px 32px 32px;
       background: #FFFFFF;
+      padding: 24px 28px 24px 28px;
     }
-    .doc-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      border-bottom: 2px solid #166534;
-      padding-bottom: 14px;
-      margin-bottom: 18px;
+
+    /* HEADER INSTITUCIONAL */
+    .header-table {
+      width: 100%;
+      border-collapse: collapse;
+      border-bottom: 3px solid #16A34A;
+      padding-bottom: 12px;
+      margin-bottom: 16px;
     }
-    .header-brand {
-      display: flex;
-      align-items: center;
-      gap: 12px;
+    .header-logo-cell {
+      width: 110px;
+      vertical-align: middle;
     }
     .logo-box {
-      width: 110px;
-      height: 48px;
-      display: flex;
-      align-items: center;
+      width: 104px;
+      height: 52px;
+      display: block;
     }
     .brand-logo-svg {
       width: 100%;
       height: 100%;
-      object-fit: contain;
+      display: block;
     }
-    .brand-text h1 {
-      font-size: 14pt;
+    .header-brand-cell {
+      vertical-align: middle;
+      padding-left: 12px;
+    }
+    .brand-company-title {
+      font-size: 15pt;
       font-weight: 900;
-      color: #0F172A;
+      color: #0A539E;
       letter-spacing: -0.02em;
       line-height: 1.1;
     }
-    .brand-text p {
-      font-size: 7.5pt;
-      font-weight: 700;
-      color: #166534;
-      letter-spacing: 0.12em;
+    .brand-company-sub {
+      font-size: 8pt;
+      font-weight: 800;
+      color: #16A34A;
+      letter-spacing: 0.10em;
       text-transform: uppercase;
       margin-top: 2px;
     }
-    .header-badge {
-      text-align: right;
+    .brand-company-extra {
+      font-size: 7.5pt;
+      color: #64748B;
+      margin-top: 1px;
     }
-    .os-numero {
+    .header-badge-cell {
+      text-align: right;
+      vertical-align: middle;
+    }
+    .badge-os-num {
       display: inline-block;
       background: #DCFCE7;
       color: #166534;
-      border: 1px solid #86EFAC;
-      font-size: 9.5pt;
-      font-weight: 800;
-      padding: 3px 10px;
+      border: 1.5px solid #86EFAC;
+      font-size: 11pt;
+      font-weight: 900;
+      padding: 4px 12px;
       border-radius: 6px;
+      letter-spacing: 0.04em;
+    }
+    .badge-os-tipo {
+      font-size: 8.5pt;
+      font-weight: 800;
+      color: #047857;
+      text-transform: uppercase;
+      margin-top: 4px;
+      letter-spacing: 0.05em;
+    }
+
+    /* BARRA DE TÍTULO PRINCIPAL */
+    .title-banner {
+      background: #0F172A;
+      border-left: 5px solid #16A34A;
+      border-radius: 6px;
+      padding: 10px 14px;
+      margin-bottom: 16px;
+    }
+    .title-banner-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    .title-banner-main {
+      font-size: 12pt;
+      font-weight: 900;
+      color: #FFFFFF;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+    .title-banner-sub {
+      font-size: 8pt;
+      color: #94A3B8;
+      margin-top: 2px;
+      font-weight: 500;
+    }
+    .title-banner-tag {
+      text-align: right;
+      vertical-align: middle;
+    }
+    .status-concluida-pill {
+      display: inline-block;
+      background: #16A34A;
+      color: #FFFFFF;
+      font-size: 8pt;
+      font-weight: 800;
+      padding: 3px 9px;
+      border-radius: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    /* SEÇÕES EM CARDS */
+    .secao-card {
+      background: #FFFFFF;
+      border: 1px solid #E2E8F0;
+      border-radius: 8px;
+      margin-bottom: 12px;
+      overflow: hidden;
+      page-break-inside: avoid;
+      break-inside: avoid;
+    }
+    .secao-card-header {
+      background: #F8FAFC;
+      border-bottom: 1.5px solid #E2E8F0;
+      padding: 8px 12px;
+    }
+    .secao-header-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    .secao-title-text {
+      font-size: 9pt;
+      font-weight: 900;
+      color: #0F172A;
       text-transform: uppercase;
       letter-spacing: 0.05em;
     }
-    .os-tipo {
-      font-size: 8.5pt;
-      color: #64748B;
+    .secao-title-icon {
+      color: #16A34A;
+      font-weight: 900;
+      margin-right: 4px;
+    }
+    .secao-header-extra {
+      text-align: right;
+      font-size: 8pt;
       font-weight: 700;
-      margin-top: 4px;
-      text-transform: uppercase;
+      color: #64748B;
+    }
+    .secao-card-body {
+      padding: 12px;
     }
 
-    .doc-title-bar {
-      background: linear-gradient(135deg, #166534 0%, #15803D 100%);
-      color: #FFFFFF;
-      padding: 12px 16px;
-      border-radius: 8px;
-      margin-bottom: 18px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
+    /* CAMPOS DE DADOS */
+    .field-table {
+      width: 100%;
+      border-collapse: collapse;
     }
-    .doc-title-bar h2 {
-      font-size: 12pt;
-      font-weight: 800;
-      letter-spacing: -0.01em;
+    .field-cell {
+      vertical-align: top;
+      padding: 4px 6px;
     }
-    .doc-title-bar span {
-      font-size: 8.5pt;
-      font-weight: 600;
-      background: rgba(255,255,255,0.2);
-      padding: 2px 8px;
-      border-radius: 4px;
-    }
-
-    .secao-box {
-      border: 1px solid #E2E8F0;
-      border-radius: 8px;
-      margin-bottom: 14px;
-      background: #FFFFFF;
-      overflow: hidden;
-      page-break-inside: avoid;
-    }
-    .secao-header {
+    .field-box {
       background: #F8FAFC;
-      border-bottom: 1px solid #E2E8F0;
-      padding: 8px 14px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
+      border: 1px solid #F1F5F9;
+      border-left: 3px solid #CBD5E1;
+      border-radius: 4px;
+      padding: 6px 8px;
     }
-    .secao-header h3 {
-      font-size: 9.5pt;
+    .field-box.highlight {
+      background: #F0FDF4;
+      border-color: #DCFCE7;
+      border-left: 3px solid #16A34A;
+    }
+    .field-label {
+      font-size: 7pt;
       font-weight: 800;
-      color: #0F172A;
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
-    }
-    .secao-body {
-      padding: 12px 14px;
-    }
-
-    .grid-dupla {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 12px;
-    }
-    .grid-quatro {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 10px;
-    }
-
-    .info-item {
-      margin-bottom: 6px;
-    }
-    .info-label {
-      font-size: 7.5pt;
-      font-weight: 700;
       text-transform: uppercase;
       color: #64748B;
-      letter-spacing: 0.03em;
+      letter-spacing: 0.04em;
+      margin-bottom: 2px;
     }
-    .info-valor {
-      font-size: 9.5pt;
+    .field-value {
+      font-size: 9pt;
       font-weight: 700;
-      color: #1E293B;
-      margin-top: 1px;
+      color: #0F172A;
+      word-break: break-word;
     }
-    .info-valor-destaque {
-      color: #166534;
+    .field-value.accent {
+      color: #15803D;
       font-weight: 800;
     }
 
-    .datas-bar {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 10px;
+    /* DATAS DE ATENDIMENTO */
+    .datas-table {
+      width: 100%;
+      border-collapse: collapse;
       background: #F0FDF4;
       border: 1px solid #BBF7D0;
-      padding: 10px 14px;
       border-radius: 6px;
     }
-
-    /* Checklist */
-    .checklist-list {
-      list-style: none;
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
+    .data-box-cell {
+      padding: 8px 12px;
+      vertical-align: top;
     }
-    .checklist-item {
-      display: flex;
-      align-items: flex-start;
-      gap: 8px;
-      font-size: 9pt;
-      color: #334155;
-      padding: 4px 6px;
-      border-radius: 4px;
-      background: #F8FAFC;
+    .data-rotulo {
+      font-size: 7.5pt;
+      font-weight: 800;
+      text-transform: uppercase;
+      color: #166534;
+      letter-spacing: 0.04em;
     }
-    .checklist-item.concluido {
-      background: #F0FDF4;
-      color: #14532D;
-      font-weight: 600;
-    }
-    .check-icon {
-      width: 15px;
-      height: 15px;
-      border-radius: 3px;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 9pt;
-      font-weight: 900;
-      flex-shrink: 0;
-      margin-top: 1px;
-    }
-    .check-icon.checked {
-      background: #166534;
-      color: #FFFFFF;
-    }
-    .check-icon.unchecked {
-      border: 1px solid #CBD5E1;
-      background: #FFFFFF;
-      color: transparent;
+    .data-valor {
+      font-size: 10pt;
+      font-weight: 800;
+      color: #0F172A;
+      margin-top: 2px;
     }
 
-    /* Observações */
-    .observacoes-texto {
-      font-size: 9pt;
-      color: #1F2937;
-      white-space: pre-line;
-      line-height: 1.5;
+    /* CHECKLIST */
+    .check-item-box {
       background: #F8FAFC;
       border: 1px solid #E2E8F0;
-      border-radius: 6px;
-      padding: 10px 12px;
+      border-radius: 5px;
+      padding: 5px 8px;
+    }
+    .check-item-box.check-done {
+      background: #F0FDF4;
+      border-color: #BBF7D0;
+    }
+    .check-pill {
+      display: inline-block;
+      width: 16px;
+      height: 16px;
+      line-height: 16px;
+      border-radius: 3px;
+      font-size: 9pt;
+      font-weight: 900;
+    }
+    .check-pill-ok {
+      background: #16A34A;
+      color: #FFFFFF;
+    }
+    .check-pill-gray {
+      background: #E2E8F0;
+      color: #94A3B8;
+    }
+    .check-text {
+      font-size: 8.5pt;
+      color: #334155;
+      font-weight: 600;
+      line-height: 1.3;
+    }
+    .check-text-ok {
+      color: #0F172A;
+    }
+    .status-pill {
+      display: inline-block;
+      font-size: 6.5pt;
+      font-weight: 800;
+      padding: 2px 5px;
+      border-radius: 3px;
+      letter-spacing: 0.04em;
+    }
+    .status-pill-ok {
+      background: #DCFCE7;
+      color: #166534;
+      border: 1px solid #86EFAC;
+    }
+    .status-pill-gray {
+      background: #F1F5F9;
+      color: #64748B;
+      border: 1px solid #CBD5E1;
     }
 
-    /* Fotos */
-    .fotos-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 10px;
-      page-break-inside: avoid;
+    /* OBSERVAÇÕES */
+    .observacoes-box {
+      background: #F8FAFC;
+      border: 1px solid #E2E8F0;
+      border-left: 3px solid #16A34A;
+      border-radius: 6px;
+      padding: 10px 12px;
+      font-size: 8.5pt;
+      color: #1E293B;
+      line-height: 1.5;
+      white-space: pre-line;
     }
-    .foto-card {
+
+    /* GALERIA DE FOTOS */
+    .foto-card-rel {
+      background: #FFFFFF;
       border: 1px solid #CBD5E1;
       border-radius: 6px;
       overflow: hidden;
-      background: #F8FAFC;
       page-break-inside: avoid;
+      break-inside: avoid;
     }
-    .foto-card img {
+    .foto-img-container {
       width: 100%;
-      height: 140px;
-      object-fit: cover;
-      display: block;
+      height: 190px;
+      background: #0F172A;
+      text-align: center;
+      display: table-cell;
+      vertical-align: middle;
+      overflow: hidden;
     }
-    .foto-legenda {
+    .foto-img {
+      max-width: 100%;
+      max-height: 190px;
+      width: auto;
+      height: auto;
+      display: block;
+      margin: 0 auto;
+      object-fit: cover;
+    }
+    .foto-legenda-bar {
+      background: #F8FAFC;
+      border-top: 1px solid #E2E8F0;
+      padding: 5px 8px;
+    }
+    .foto-tag {
+      display: inline-block;
+      background: #0F172A;
+      color: #FFFFFF;
+      font-size: 6.5pt;
+      font-weight: 800;
+      padding: 1px 5px;
+      border-radius: 3px;
+      margin-right: 4px;
+      letter-spacing: 0.04em;
+    }
+    .foto-desc {
       font-size: 7.5pt;
       font-weight: 700;
-      color: #475569;
-      text-align: center;
-      padding: 4px;
-      background: #FFFFFF;
-      border-top: 1px solid #E2E8F0;
+      color: #334155;
     }
-    .sem-fotos {
+    .sem-fotos-box {
       font-size: 8.5pt;
       color: #94A3B8;
       font-style: italic;
       text-align: center;
-      padding: 12px;
+      padding: 16px;
       background: #F8FAFC;
+      border: 1px dashed #CBD5E1;
       border-radius: 6px;
     }
 
-    /* Assinatura / Prestador */
-    .prestador-box {
-      display: grid;
-      grid-template-columns: 2fr 1fr;
-      gap: 16px;
-      align-items: center;
+    /* PRESTADOR E ASSINATURA */
+    .assinatura-wrap {
+      page-break-inside: avoid;
+      break-inside: avoid;
+    }
+    .responsavel-card-table {
+      width: 100%;
+      border-collapse: collapse;
     }
     .assinatura-box {
+      border: 1px dashed #CBD5E1;
+      border-radius: 6px;
+      background: #FFFFFF;
+      padding: 8px;
       text-align: center;
-      border-top: 1px solid #94A3B8;
-      padding-top: 6px;
-      margin-top: 24px;
+      min-height: 70px;
     }
-    .assinatura-box img {
-      max-height: 48px;
+    .assinatura-img {
+      max-height: 52px;
       max-width: 180px;
-      margin-bottom: 4px;
+      display: block;
+      margin: 0 auto 4px auto;
+    }
+    .assinatura-linha-placeholder {
+      border-bottom: 1px solid #94A3B8;
+      width: 80%;
+      margin: 32px auto 6px auto;
+    }
+    .assinatura-nome {
+      font-size: 8pt;
+      font-weight: 800;
+      color: #0F172A;
+    }
+    .assinatura-cargo {
+      font-size: 7pt;
+      color: #64748B;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
     }
 
-    /* Rodapé do Relatório */
-    .doc-footer {
-      border-top: 1px solid #E2E8F0;
-      padding-top: 10px;
-      margin-top: 18px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
+    /* RODAPÉ CANÔNICO DELFOS SOLAR */
+    .footer-card {
+      border-top: 2px solid #16A34A;
+      background: #F8FAFC;
+      border-radius: 6px;
+      padding: 8px 12px;
+      margin-top: 14px;
+      page-break-inside: avoid;
+      break-inside: avoid;
+    }
+    .footer-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    .footer-brand-title {
+      font-size: 8pt;
+      font-weight: 800;
+      color: #0A539E;
+    }
+    .footer-contact {
       font-size: 7.5pt;
+      color: #475569;
+      margin-top: 1px;
+    }
+    .footer-address {
+      font-size: 7pt;
       color: #64748B;
+      margin-top: 1px;
     }
-    .footer-left {
-      font-weight: 600;
-    }
-    .footer-right {
+    .footer-meta-right {
       text-align: right;
+      vertical-align: middle;
+      font-size: 7pt;
+      color: #64748B;
+      line-height: 1.35;
+    }
+    .footer-badge-selo {
+      display: inline-block;
+      background: #DCFCE7;
+      color: #166534;
+      border: 1px solid #86EFAC;
+      font-size: 6.5pt;
+      font-weight: 800;
+      padding: 2px 6px;
+      border-radius: 3px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 2px;
+    }
+
+    @media print {
+      body {
+        background: #FFFFFF !important;
+      }
+      .proposta-container {
+        width: 100% !important;
+        padding: 0 !important;
+      }
+      .secao-card, .foto-card-rel, .title-banner, .footer-card {
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+      }
     }
   </style>
 </head>
 <body>
   <div class="proposta-container">
-    <!-- Cabeçalho -->
-    <header class="doc-header">
-      <div class="header-brand">
-        <div class="logo-box">${renderLogoSvg('os-top')}</div>
-        <div class="brand-text">
-          <h1>DELFOS SOLAR</h1>
-          <p>Engenharia &amp; Serviços Técnicos de Campo</p>
-        </div>
-      </div>
-      <div class="header-badge">
-        <span class="os-numero">OS ${osIdFormatado}</span>
-        <div class="os-tipo">${tipoServico}</div>
-      </div>
-    </header>
 
-    <!-- Barra de Título -->
-    <div class="doc-title-bar">
-      <h2>RELATÓRIO TÉCNICO DE EXECUÇÃO DE SERVIÇO</h2>
-      <span>STATUS: CONCLUÍDA</span>
-    </div>
-
-    <!-- 1. Dados do Cliente e Usina -->
-    <div class="secao-box">
-      <div class="secao-header">
-        <h3>1. Dados do Cliente &amp; Local da Usina</h3>
-        <span style="font-size: 7.5pt; color: #64748B; font-weight: 700;">UC: ${ucUsina}</span>
-      </div>
-      <div class="secao-body">
-        <div class="grid-dupla">
-          <div>
-            <div class="info-item">
-              <div class="info-label">Cliente / Razão Social</div>
-              <div class="info-valor info-valor-destaque">${clienteNome}</div>
-            </div>
-            ${clienteDoc ? `<div class="info-item"><div class="info-label">CPF / CNPJ</div><div class="info-valor">${clienteDoc}</div></div>` : ''}
-            ${clienteTelefone ? `<div class="info-item"><div class="info-label">Telefone / WhatsApp</div><div class="info-valor">${clienteTelefone}</div></div>` : ''}
+    <!-- CABEÇALHO INSTITUCIONAL DELFOS SOLAR -->
+    <table class="header-table" cellpadding="0" cellspacing="0">
+      <tr>
+        <td class="header-logo-cell">
+          <div class="logo-box">
+            ${renderLogoSvg('rel-head')}
           </div>
-          <div>
-            <div class="info-item">
-              <div class="info-label">Endereço da Instalação / Usina</div>
-              <div class="info-valor">${enderecoUsina}${cidadeUsina ? ` • ${cidadeUsina}` : ''}</div>
-            </div>
-            <div class="info-item">
-              <div class="info-label">Potência &amp; Módulos</div>
-              <div class="info-valor">${potenciaUsina} (${placasUsina})</div>
-            </div>
-            <div class="info-item">
-              <div class="info-label">Inversor / Equipamento</div>
-              <div class="info-valor">${inversorUsina}</div>
-            </div>
-          </div>
-        </div>
+        </td>
+        <td class="header-brand-cell">
+          <div class="brand-company-title">DELFOS SOLAR</div>
+          <div class="brand-company-sub">Engenharia &amp; Operação de Usinas Fotovoltaicas</div>
+          <div class="brand-company-extra">Delfos Engenharia Ltda • CNPJ 21.379.952/0001-38</div>
+        </td>
+        <td class="header-badge-cell">
+          <div class="badge-os-num">${osIdFormatado}</div>
+          <div class="badge-os-tipo">${tipoServico}</div>
+        </td>
+      </tr>
+    </table>
+
+    <!-- BARRA DE TÍTULO PRINCIPAL -->
+    <div class="title-banner">
+      <table class="title-banner-table" cellpadding="0" cellspacing="0">
+        <tr>
+          <td>
+            <div class="title-banner-main">Relatório Técnico de Serviço Executado</div>
+            <div class="title-banner-sub">Comprovação técnica de atendimento e encerramento de ordem de serviço em campo</div>
+          </td>
+          <td class="title-banner-tag">
+            <span class="status-concluida-pill">&#10003; CONCLUÍDA</span>
+          </td>
+        </tr>
+      </table>
+    </div>
+
+    <!-- 1. DADOS DO CLIENTE & LOCAL DA INSTALAÇÃO -->
+    <div class="secao-card">
+      <div class="secao-card-header">
+        <table class="secao-header-table" cellpadding="0" cellspacing="0">
+          <tr>
+            <td class="secao-title-text">
+              <span class="secao-title-icon">&#9632;</span> 1. Dados do Cliente &amp; Local da Usina
+            </td>
+            <td class="secao-header-extra">
+              UC: <strong style="color: #0F172A;">${ucUsina}</strong>
+            </td>
+          </tr>
+        </table>
+      </div>
+      <div class="secao-card-body">
+        <table class="field-table" cellpadding="0" cellspacing="0">
+          <tr>
+            <td class="field-cell" style="width: 50%;">
+              <div class="field-box highlight">
+                <div class="field-label">Cliente / Razão Social</div>
+                <div class="field-value accent">${clienteNome}</div>
+              </div>
+            </td>
+            <td class="field-cell" style="width: 50%;">
+              <div class="field-box">
+                <div class="field-label">Endereço da Instalação / Usina</div>
+                <div class="field-value">${enderecoUsina}${cidadeUsina ? ` • ${cidadeUsina}` : ''}</div>
+              </div>
+            </td>
+          </tr>
+          <tr>
+            <td class="field-cell" style="width: 50%;">
+              <table cellpadding="0" cellspacing="0" style="width: 100%;">
+                <tr>
+                  ${
+                    clienteDoc
+                      ? `<td style="width: 50%; padding-right: 4px;">
+                    <div class="field-box">
+                      <div class="field-label">CPF / CNPJ</div>
+                      <div class="field-value">${clienteDoc}</div>
+                    </div>
+                  </td>`
+                      : ''
+                  }
+                  <td style="width: ${clienteDoc ? '50%' : '100%'}; padding-left: ${clienteDoc ? '4px' : '0'};">
+                    <div class="field-box">
+                      <div class="field-label">Telefone / WhatsApp</div>
+                      <div class="field-value">${clienteTelefone || 'Não informado'}</div>
+                    </div>
+                  </td>
+                </tr>
+              </table>
+            </td>
+            <td class="field-cell" style="width: 50%;">
+              <table cellpadding="0" cellspacing="0" style="width: 100%;">
+                <tr>
+                  <td style="width: 50%; padding-right: 4px;">
+                    <div class="field-box">
+                      <div class="field-label">Potência &amp; Módulos</div>
+                      <div class="field-value">${potenciaUsina} (${placasUsina})</div>
+                    </div>
+                  </td>
+                  <td style="width: 50%; padding-left: 4px;">
+                    <div class="field-box">
+                      <div class="field-label">Inversor / Equipamento</div>
+                      <div class="field-value">${inversorUsina}</div>
+                    </div>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
       </div>
     </div>
 
-    <!-- 2. Datas de Execução & Atendimento -->
-    <div class="secao-box">
-      <div class="secao-header">
-        <h3>2. Período de Atendimento em Campo</h3>
+    <!-- 2. PERÍODO DE ATENDIMENTO EM CAMPO -->
+    <div class="secao-card">
+      <div class="secao-card-header">
+        <table class="secao-header-table" cellpadding="0" cellspacing="0">
+          <tr>
+            <td class="secao-title-text">
+              <span class="secao-title-icon">&#9632;</span> 2. Período de Atendimento em Campo
+            </td>
+            <td class="secao-header-extra">Horários Registrados</td>
+          </tr>
+        </table>
       </div>
-      <div class="secao-body">
-        <div class="datas-bar">
-          <div>
-            <div class="info-label">Início da Execução</div>
-            <div class="info-valor">${dataInicioStr}</div>
-          </div>
-          <div>
-            <div class="info-label">Conclusão Efetiva do Serviço</div>
-            <div class="info-valor info-valor-destaque">${dataConclusaoStr}</div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- 3. Checklist Concluído -->
-    <div class="secao-box">
-      <div class="secao-header">
-        <h3>3. Checklist Técnico de Execução (${itensConcluidos}/${totalItens} Concluídos)</h3>
-      </div>
-      <div class="secao-body">
-        ${
-          checklistItens.length > 0
-            ? `
-          <ul class="checklist-list">
-            ${checklistItens
-              .map(
-                (item) => `
-              <li class="checklist-item ${item.concluido ? 'concluido' : ''}">
-                <span class="check-icon ${item.concluido ? 'checked' : 'unchecked'}">
-                  ${item.concluido ? '✓' : ''}
-                </span>
-                <span>${item.item}</span>
-              </li>
-            `,
-              )
-              .join('')}
-          </ul>
-        `
-            : `<div style="font-size: 8.5pt; color: #64748B;">Nenhum item de checklist registrado para esta OS.</div>`
-        }
+      <div class="secao-card-body">
+        <table class="datas-table" cellpadding="0" cellspacing="0">
+          <tr>
+            <td class="data-box-cell" style="width: 50%; border-right: 1px solid #BBF7D0;">
+              <div class="data-rotulo">Início do Atendimento</div>
+              <div class="data-valor">${dataInicioStr}</div>
+            </td>
+            <td class="data-box-cell" style="width: 50%;">
+              <div class="data-rotulo">Conclusão Efetiva do Atendimento</div>
+              <div class="data-valor" style="color: #166534;">${dataConclusaoStr}</div>
+            </td>
+          </tr>
+        </table>
       </div>
     </div>
 
-    <!-- 4. Observações Técnicas do Prestador -->
-    <div class="secao-box">
-      <div class="secao-header">
-        <h3>4. Observações Técnicas &amp; Detalhes da Execução</h3>
+    <!-- 3. CHECKLIST TÉCNICO DE EXECUÇÃO -->
+    <div class="secao-card">
+      <div class="secao-card-header">
+        <table class="secao-header-table" cellpadding="0" cellspacing="0">
+          <tr>
+            <td class="secao-title-text">
+              <span class="secao-title-icon">&#9632;</span> 3. Checklist Técnico de Execução
+            </td>
+            <td class="secao-header-extra">
+              <span style="color: #166534; font-weight: 800;">${itensConcluidos}/${totalItens} Concluídos</span>
+            </td>
+          </tr>
+        </table>
       </div>
-      <div class="secao-body">
-        <div class="observacoes-texto">${observacoesLimpas}</div>
+      <div class="secao-card-body">
+        ${checklistHtml}
       </div>
     </div>
 
-    <!-- 5. Registros Fotográficos -->
-    <div class="secao-box">
-      <div class="secao-header">
-        <h3>5. Registros Fotográficos do Trabalho em Campo (${fotosDataUrls.length})</h3>
+    <!-- 4. OBSERVAÇÕES TÉCNICAS DO PRESTADOR -->
+    <div class="secao-card">
+      <div class="secao-card-header">
+        <table class="secao-header-table" cellpadding="0" cellspacing="0">
+          <tr>
+            <td class="secao-title-text">
+              <span class="secao-title-icon">&#9632;</span> 4. Observações Técnicas &amp; Detalhes da Execução
+            </td>
+            <td class="secao-header-extra">Registro de Campo</td>
+          </tr>
+        </table>
       </div>
-      <div class="secao-body">
+      <div class="secao-card-body">
+        <div class="observacoes-box">${observacoesLimpas}</div>
+      </div>
+    </div>
+
+    <!-- 5. REGISTROS FOTOGRÁFICOS -->
+    <div class="secao-card">
+      <div class="secao-card-header">
+        <table class="secao-header-table" cellpadding="0" cellspacing="0">
+          <tr>
+            <td class="secao-title-text">
+              <span class="secao-title-icon">&#9632;</span> 5. Registros Fotográficos do Trabalho Realizado
+            </td>
+            <td class="secao-header-extra">
+              ${fotosDataUrls.length} ${fotosDataUrls.length === 1 ? 'registro' : 'registros'}
+            </td>
+          </tr>
+        </table>
+      </div>
+      <div class="secao-card-body">
         ${fotosHtml}
       </div>
     </div>
 
-    <!-- 6. Identificação do Prestador & Assinatura -->
-    <div class="secao-box">
-      <div class="secao-header">
-        <h3>6. Responsável Técnico &amp; Prestador</h3>
+    <!-- 6. RESPONSÁVEL TÉCNICO & ASSINATURA -->
+    <div class="secao-card assinatura-wrap">
+      <div class="secao-card-header">
+        <table class="secao-header-table" cellpadding="0" cellspacing="0">
+          <tr>
+            <td class="secao-title-text">
+              <span class="secao-title-icon">&#9632;</span> 6. Responsável Técnico &amp; Validação de Conclusão
+            </td>
+            <td class="secao-header-extra">Identificação &amp; Assinatura</td>
+          </tr>
+        </table>
       </div>
-      <div class="secao-body">
-        <div class="prestador-box">
-          <div>
-            <div class="info-item">
-              <div class="info-label">Técnico / Prestador Executante</div>
-              <div class="info-valor info-valor-destaque">${prestadorNome}</div>
-            </div>
-            ${prestadorTelefone ? `<div class="info-item"><div class="info-label">Contato do Técnico</div><div class="info-valor">${prestadorTelefone}</div></div>` : ''}
-            <div class="info-item">
-              <div class="info-label">Empresa Responsável</div>
-              <div class="info-valor">Delfos Engenharia Solar • CNPJ 21.379.952/0001-38</div>
-            </div>
-          </div>
-          <div class="assinatura-box">
-            ${assinaturaBase64 ? `<img src="${assinaturaBase64}" alt="Assinatura" />` : ''}
-            <div style="font-size: 8pt; font-weight: 700; color: #334155;">${prestadorNome}</div>
-            <div style="font-size: 7pt; color: #64748B;">Prestador Autorizado Delfos</div>
-          </div>
-        </div>
+      <div class="secao-card-body">
+        <table class="responsavel-card-table" cellpadding="0" cellspacing="0">
+          <tr>
+            <td style="width: 58%; vertical-align: top; padding-right: 12px;">
+              <div class="field-box highlight" style="margin-bottom: 6px;">
+                <div class="field-label">Técnico / Prestador Executante</div>
+                <div class="field-value accent">${prestadorNome}</div>
+              </div>
+              ${
+                prestadorTelefone
+                  ? `
+              <div class="field-box" style="margin-bottom: 6px;">
+                <div class="field-label">Contato do Técnico</div>
+                <div class="field-value">${prestadorTelefone}</div>
+              </div>`
+                  : ''
+              }
+              <div class="field-box">
+                <div class="field-label">Empresa Responsável</div>
+                <div class="field-value">Delfos Engenharia Solar • CNPJ 21.379.952/0001-38</div>
+              </div>
+            </td>
+            <td style="width: 42%; vertical-align: bottom;">
+              <div class="assinatura-box">
+                ${
+                  assinaturaBase64
+                    ? `<img src="${assinaturaBase64}" alt="Assinatura" class="assinatura-img" />`
+                    : `<div class="assinatura-linha-placeholder"></div>`
+                }
+                <div class="assinatura-nome">${prestadorNome}</div>
+                <div class="assinatura-cargo">Prestador Autorizado Delfos</div>
+              </div>
+            </td>
+          </tr>
+        </table>
       </div>
     </div>
 
-    <!-- Rodapé -->
-    <footer class="doc-footer">
-      <div class="footer-left">
-        Delfos Engenharia Solar • Rua Espírito Santo, 275 – Centro, Erechim/RS • (54) 99129-2121
-      </div>
-      <div class="footer-right">
-        Relatório gerado automaticamente em ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
-      </div>
-    </footer>
+    <!-- RODAPÉ INSTITUCIONAL CANÔNICO DELFOS SOLAR -->
+    <div class="footer-card">
+      <table class="footer-table" cellpadding="0" cellspacing="0">
+        <tr>
+          <td style="vertical-align: middle;">
+            <div class="footer-brand-title">Delfos Engenharia Solar • Excelência Técnica em Energia Fotovoltaica</div>
+            <div class="footer-contact">Rua Espírito Santo, 275 – Centro, Erechim/RS • Telefone / WhatsApp: (54) 99129-2121 • www.delfos.eng.br</div>
+            <div class="footer-address">Atendimento técnico autorizado em conformidade com as normas ABNT NBR 16690 e NR-10.</div>
+          </td>
+          <td class="footer-meta-right">
+            <div><span class="footer-badge-selo">&#10003; DOCUMENTO OFICIAL</span></div>
+            <div>Emitido em ${agoraData} às ${agoraHora}</div>
+          </td>
+        </tr>
+      </table>
+    </div>
+
   </div>
 </body>
 </html>`
@@ -716,9 +1073,9 @@ export async function prepararFotosRelatorio(
 /**
  * Pipeline completo de geração do PDF de Relatório da OS:
  * 1. Otimiza fotos
- * 2. Monta HTML oficial
+ * 2. Monta HTML oficial premium
  * 3. Renderiza via html2pdf.js com scale 1.5, imageQuality 0.80 e compressJsPdf: true
- * 4. Retorna { base64, file, fileName }
+ * 4. Retorna { base64, file, fileName, html }
  */
 export async function gerarPdfRelatorioOS(
   os: OrdemServico,
@@ -729,7 +1086,7 @@ export async function gerarPdfRelatorioOS(
     inversoresInfo?: string
   } = {},
 ): Promise<{ base64: string; file: File; fileName: string; html: string }> {
-  const osIdCurto = os.id.slice(-6).toUpperCase()
+  const osIdCurto = os.id ? os.id.slice(-6).toUpperCase() : '000000'
   const clienteNomeLimpo = (opcoes.cliente?.nome || os.expand?.cliente_id?.nome || 'Cliente')
     .replace(/[^a-zA-Z0-9]/g, '_')
     .substring(0, 25)
