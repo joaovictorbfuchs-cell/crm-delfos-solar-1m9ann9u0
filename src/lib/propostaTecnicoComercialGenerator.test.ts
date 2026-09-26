@@ -11,6 +11,33 @@ import {
   monitoramentoPngAsset,
 } from './propostaIlustracoesAssets'
 
+import { USINAS_PORTFOLIO_PADRAO } from './portfolioUsinasAssets'
+
+describe('Medição de tamanho de imagens para diagnóstico', () => {
+  it('mede strings de imagem inline', () => {
+    const formatBytes = (bytes: number) => {
+      if (bytes < 1024) return `${bytes} B`
+      if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(2)} KB`
+      return `${(bytes / (1024 * 1024)).toFixed(2)} MB`
+    }
+    const calcBytes = (str: string) => {
+      if (str.startsWith('data:')) {
+        const commaIdx = str.indexOf(',')
+        const base64Part = commaIdx !== -1 ? str.slice(commaIdx + 1) : str
+        return Math.round((base64Part.length * 3) / 4)
+      }
+      return str.length
+    }
+    const logInfo = (nome: string, str: string) => {
+      const b = calcBytes(str)
+      throw new Error(
+        `[MEDICAO_IMAGEM] ${nome} => strLen: ${str.length}, bytes: ${b} (${formatBytes(b)})`,
+      )
+    }
+    logInfo('logoOficialPngAsset', logoOficialPngAsset)
+  })
+})
+
 describe('Proposta Técnico-Comercial Generator (5 Seções Oficiais)', () => {
   const dadosExemplo: PropostaTecnicoComercialDados = {
     cliente: {

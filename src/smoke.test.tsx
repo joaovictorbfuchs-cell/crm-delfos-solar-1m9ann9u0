@@ -15,6 +15,7 @@ describe('Login e App Smoke Tests', () => {
   })
 
   it('renderiza o formulário de Login com campos e textos esperados', () => {
+    throw new Error('TESTE ERRO SMOKE')
     const html = renderToStaticMarkup(
       React.createElement(
         MemoryRouter,
