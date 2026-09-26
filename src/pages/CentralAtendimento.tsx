@@ -11,11 +11,7 @@ import {
   Bell,
   BellOff,
   Database,
-  ExternalLink,
-  Link as LinkIcon,
   X,
-  MapPin,
-  Sparkles,
 } from 'lucide-react'
 import { useClientes } from '@/contexts/ClientesContext'
 import { useAuth } from '@/contexts/AuthContext'
@@ -797,26 +793,20 @@ export const CentralAtendimento: React.FC = () => {
                         <div className="flex items-start justify-between gap-2">
                           <div className="min-w-0 flex-1">
                             <div className="flex items-center gap-1.5">
-                              <span className="text-xs font-bold text-gray-900 group-hover:text-emerald-950 truncate">
+                              <span className="text-xs font-bold text-gray-900 group-hover:text-emerald-950 break-words leading-snug">
                                 {item.nome}
                               </span>
                             </div>
                             {item.subtitulo && (
-                              <p className="text-[10px] text-gray-500 truncate mt-0.5">
+                              <p className="text-[10px] text-gray-500 break-words leading-tight mt-0.5">
                                 {item.subtitulo}
                               </p>
                             )}
                           </div>
-
-                          {/* Selo Visualmente Distinto Obrigatório */}
-                          <span className="shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold tracking-tight bg-amber-50 text-amber-800 border border-amber-200/80 shadow-2xs">
-                            <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-                            Cliente cadastrado — sem conversa no WhatsApp
-                          </span>
                         </div>
 
                         <div className="flex items-center justify-between gap-2 pt-1 text-[11px] text-gray-600 border-t border-gray-100/70 mt-0.5">
-                          <div className="flex items-center gap-3 truncate">
+                          <div className="flex items-center gap-3 min-w-0">
                             {numeroFormatado ? (
                               <span className="inline-flex items-center gap-1 font-mono text-[10px] text-emerald-700 font-medium">
                                 <Phone className="w-3 h-3 text-emerald-600 shrink-0" />
@@ -825,13 +815,6 @@ export const CentralAtendimento: React.FC = () => {
                             ) : (
                               <span className="text-[10px] text-gray-400 italic">
                                 Sem telefone cadastrado
-                              </span>
-                            )}
-
-                            {item.cidade && (
-                              <span className="inline-flex items-center gap-0.5 text-[10px] text-gray-500 truncate">
-                                <MapPin className="w-3 h-3 text-gray-400 shrink-0" />
-                                {item.cidade}
                               </span>
                             )}
                           </div>
