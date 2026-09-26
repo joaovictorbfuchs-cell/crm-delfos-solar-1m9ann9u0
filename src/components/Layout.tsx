@@ -6,6 +6,7 @@ import {
   FolderKanban,
   CalendarCheck,
   ClipboardCheck,
+  Wrench,
   ShieldCheck,
   Users,
   UserCog,
@@ -179,7 +180,7 @@ export default function Layout() {
         { name: 'Propostas', path: '/propostas', icon: Sun },
         { name: 'Projetos', path: '/projetos', icon: FolderKanban },
         { name: 'Atividades', path: '/atividades', icon: CalendarCheck },
-        { name: 'Serviços de Campo', path: '/servicos-campo', icon: ClipboardCheck },
+        { name: 'Serviços de Campo', path: '/servicos-campo', icon: Wrench },
         {
           name: 'O&M / Manutenções',
           path: '/manutencoes',
