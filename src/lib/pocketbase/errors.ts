@@ -20,23 +20,10 @@ export function extractFieldErrors(error: unknown): FieldErrors {
   return errors
 }
 
-export function isAuthSessionError(err: unknown): boolean {
-  if (!err || typeof err !== 'object') return false
-  const anyErr = err as any
-  return (
-    anyErr.status === 401 ||
-    anyErr.status === 403 ||
-    (typeof anyErr.message === 'string' &&
-      (anyErr.message.toLowerCase().includes('authenticate') ||
-        anyErr.message.toLowerCase().includes('token') ||
-        anyErr.message.toLowerCase().includes('unauthorized')))
-  )
-}
-
 export function getErrorMessage(error: unknown): string {
   if (!(error instanceof ClientResponseError)) {
     return error instanceof Error ? error.message : 'An unexpected error occurred.'
   }
   const msgs = Object.values(extractFieldErrors(error))
-  return msgs.length > 0 ? msgs.join(' ') : error.message || 'An unexpected error occurred.'
+  return msgs.length > 0 ? msgs.join(' ') : (error.message || 'An unexpected error occurred.')
 }
