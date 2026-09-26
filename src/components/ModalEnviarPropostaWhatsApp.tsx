@@ -3,6 +3,7 @@ import {
   X,
   Send,
   FileCheck,
+  FileText,
   Phone,
   AlertCircle,
   CheckCircle2,
@@ -16,6 +17,9 @@ import {
   Copy,
   Check,
   RotateCcw,
+  Paperclip,
+  Upload,
+  Trash2,
 } from 'lucide-react'
 import { useClientes } from '@/contexts/ClientesContext'
 import type { Cliente, OrcamentoSolar } from '@/types/crm'
@@ -44,7 +48,13 @@ export const ModalEnviarPropostaWhatsApp: React.FC<ModalEnviarPropostaWhatsAppPr
   cliente,
   onSuccess,
 }) => {
-  const { sendWhatsAppDocument, sendWhatsAppMessage, updateCliente, whatsAppConfig } = useClientes()
+  const {
+    sendWhatsAppDocument,
+    sendWhatsAppMessage,
+    updateCliente,
+    whatsAppConfig,
+    whatsAppTemplates,
+  } = useClientes()
 
   // Guard para impedir setState após desmontagem do componente
   const isMountedRef = useRef(true)
@@ -79,6 +89,16 @@ export const ModalEnviarPropostaWhatsApp: React.FC<ModalEnviarPropostaWhatsAppPr
   const [isGeneratingPdf, setIsGeneratingPdf] = useState<boolean>(true)
   const [isSending, setIsSending] = useState<boolean>(false)
   const [copiado, setCopiado] = useState(false)
+
+  // Suporte a anexo do computador (PDF gerado do computador pelo usuário)
+  const [anexoManual, setAnexoManual] = useState<{
+    file: File
+    nome: string
+    base64: string
+    tamanhoBytes: number
+  } | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
   const [feedback, setFeedback] = useState<{
     tipo: 'success' | 'warning' | 'error'
     texto: string
@@ -148,12 +168,16 @@ export const ModalEnviarPropostaWhatsApp: React.FC<ModalEnviarPropostaWhatsAppPr
 
       // 2. Enviar com PDF oficial anexo via Z-API ou texto puro
       if (incluirPdf) {
-        if (!base64Doc) {
+        // Prioridade para o anexo manual enviado do computador se houver, ou o PDF gerado em segundo plano
+        const base64Final = anexoManual?.base64 || base64Doc
+        const nomeFinal = anexoManual?.nome || nomeArquivo || 'Proposta-Solar-Delfos.pdf'
+
+        if (!base64Final) {
           if (isMountedRef.current) {
             setFeedback({
               tipo: 'error',
               texto:
-                'Não foi possível gerar o PDF oficial completo. Tente novamente ou desmarque "Anexar PDF" para enviar somente a mensagem de texto.',
+                'Nenhum PDF disponível para anexo. Anexe a proposta gerada em PDF do seu computador ou desmarque "Anexar PDF" para enviar somente o texto.',
             })
             setIsSending(false)
           }
@@ -166,8 +190,8 @@ export const ModalEnviarPropostaWhatsApp: React.FC<ModalEnviarPropostaWhatsAppPr
           tipo: 'orcamento_solar',
           referencia_id: orcamento.id,
           legenda: mensagemLimpa,
-          nome_arquivo: nomeArquivo || 'Proposta-Solar-Delfos.pdf',
-          base64: base64Doc,
+          nome_arquivo: nomeFinal,
+          base64: base64Final,
         })
 
         resultado = await Promise.race([envioPromise, envioTimeoutPromise])
@@ -345,14 +369,110 @@ export const ModalEnviarPropostaWhatsApp: React.FC<ModalEnviarPropostaWhatsAppPr
     }
   }, [isOpen, orcamento, cliente, contexto])
 
+  // Lista unificada de templates: templates do sistema (whatsapp_templates) + templates de proposta locais
+  const listaTemplates = useMemo(() => {
+    // Procura templates com categoria ou tag relacionada a proposta/solar nos templates do sistema
+    const sistemaPropostaTpls = (whatsAppTemplates || [])
+      .filter(
+        (t) =>
+          t.ativo !== false &&
+          (t.categoria === 'proposta' ||
+            t.categoria === 'comercial' ||
+            t.nome?.toLowerCase().includes('proposta') ||
+            t.id?.includes('proposta')),
+      )
+      .map((t) => ({
+        id: `sys_${t.id}`,
+        titulo: t.nome,
+        descricao: t.descricao || 'Modelo cadastrado no CRM',
+        conteudo: t.conteudo,
+      }))
+
+    // Combina: se houver templates do sistema, junta com os locais evitando duplicar id
+    const combinados = [...TEMPLATES_PROPOSTA_WHATSAPP]
+    for (const sysTpl of sistemaPropostaTpls) {
+      if (!combinados.some((c) => c.id === sysTpl.id)) {
+        combinados.push(sysTpl)
+      }
+    }
+    return combinados
+  }, [whatsAppTemplates])
+
   // Seleção de um novo template
   const handleSelecionarTemplate = (templateId: string) => {
     setTemplateAtivoId(templateId)
-    const tpl = TEMPLATES_PROPOSTA_WHATSAPP.find((t) => t.id === templateId)
+    const tpl = listaTemplates.find((t) => t.id === templateId)
     if (tpl) {
       const novaMensagem = aplicarPlaceholdersProposta(tpl.conteudo, contexto)
       setMensagem(novaMensagem)
     }
+  }
+
+  // Manipulador para anexar proposta do computador (PDF gerado)
+  const handleArquivoSelecionado = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    if (!file.name.toLowerCase().endsWith('.pdf') && file.type !== 'application/pdf') {
+      setFeedback({
+        tipo: 'warning',
+        texto: 'Por favor, selecione um arquivo em formato PDF (.pdf).',
+      })
+      return
+    }
+
+    // Limite de 16MB
+    if (file.size > 16 * 1024 * 1024) {
+      setFeedback({
+        tipo: 'error',
+        texto: 'O arquivo selecionado excede o limite de 16MB suportado pelo WhatsApp.',
+      })
+      return
+    }
+
+    const reader = new FileReader()
+    reader.onload = (event) => {
+      const dataUrl = event.target?.result as string
+      if (!dataUrl) return
+      // Converte data:application/pdf;base64,.... para apenas base64 puro se necessário
+      const base64Limpo = dataUrl.includes(',') ? dataUrl.split(',')[1] : dataUrl
+
+      setAnexoManual({
+        file,
+        nome: file.name,
+        base64: base64Limpo,
+        tamanhoBytes: file.size,
+      })
+      // Ativa inclusão do PDF
+      setIncluirPdf(true)
+      setNomeArquivo(file.name)
+      setFeedback({
+        tipo: 'success',
+        texto: `Proposta "${file.name}" anexada com sucesso do seu computador!`,
+      })
+    }
+    reader.onerror = () => {
+      setFeedback({
+        tipo: 'error',
+        texto: 'Não foi possível ler o arquivo PDF selecionado.',
+      })
+    }
+    reader.readAsDataURL(file)
+  }
+
+  const handleRemoverAnexoManual = () => {
+    setAnexoManual(null)
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''
+    }
+    // Restaura o nome de arquivo padrão se o PDF gerado estiver disponível
+    const safeNome = (cliente?.nome || 'Cliente')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-zA-Z0-9]/g, '-')
+      .replace(/-+/g, '-')
+    const revNum = orcamento.numero_revisao || 1
+    setNomeArquivo(`Proposta-Solar-Delfos-${safeNome}-Rev${revNum}.pdf`)
   }
 
   // Copiar mensagem para área de transferência (facilitador)
@@ -502,7 +622,7 @@ export const ModalEnviarPropostaWhatsApp: React.FC<ModalEnviarPropostaWhatsAppPr
             </div>
 
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-              {TEMPLATES_PROPOSTA_WHATSAPP.map((tpl) => {
+              {listaTemplates.map((tpl) => {
                 const isSelected = templateAtivoId === tpl.id
                 return (
                   <button
@@ -598,29 +718,15 @@ export const ModalEnviarPropostaWhatsApp: React.FC<ModalEnviarPropostaWhatsAppPr
             />
           </div>
 
-          {/* Anexo PDF da Proposta */}
-          <div className="p-3.5 bg-emerald-50/60 rounded-xl border border-emerald-200/80 flex items-center justify-between gap-3">
-            <div className="flex items-center gap-3 min-w-0">
-              <div className="p-2.5 bg-emerald-100 text-emerald-800 rounded-xl shrink-0">
-                <FileCheck className="w-5 h-5 text-emerald-700" />
+          {/* Anexo da Proposta em PDF */}
+          <div className="rounded-xl border border-emerald-200 bg-emerald-50/40 p-3.5 space-y-3">
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <div className="flex items-center gap-2">
+                <Paperclip className="w-4 h-4 text-emerald-700" />
+                <span className="text-xs font-bold text-gray-900 uppercase tracking-wider">
+                  Anexo da Proposta em PDF
+                </span>
               </div>
-              <div className="min-w-0">
-                <div className="text-xs font-bold text-gray-900 truncate">
-                  {nomeArquivo || 'Proposta-Solar-Delfos.pdf'}
-                </div>
-                <div className="text-[11px] text-emerald-700 font-medium flex items-center gap-1.5 mt-0.5">
-                  <span>PDF Oficial com estudo técnico e comercial</span>
-                  {isGeneratingPdf && (
-                    <span className="inline-flex items-center gap-1 text-[10px] text-gray-500">
-                      <RefreshCw className="w-3 h-3 animate-spin" />
-                      Gerando documento...
-                    </span>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2 shrink-0">
               <label className="text-xs font-semibold text-gray-700 flex items-center gap-2 cursor-pointer select-none">
                 <input
                   type="checkbox"
@@ -628,22 +734,107 @@ export const ModalEnviarPropostaWhatsApp: React.FC<ModalEnviarPropostaWhatsAppPr
                   onChange={(e) => setIncluirPdf(e.target.checked)}
                   className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 w-4 h-4 cursor-pointer"
                 />
-                <span className="hidden sm:inline">Anexar PDF</span>
+                <span>Enviar com arquivo anexo</span>
               </label>
-
-              <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-white border border-emerald-300 text-emerald-800">
-                {base64Doc ? 'PDF Pronto' : isGeneratingPdf ? 'Gerando...' : 'Pendente'}
-              </span>
             </div>
+
+            {/* Input oculto para anexar do computador */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".pdf,application/pdf"
+              className="hidden"
+              onChange={handleArquivoSelecionado}
+            />
+
+            {anexoManual ? (
+              // Exibe arquivo anexado manualmente pelo usuário do computador
+              <div className="p-3 bg-white rounded-xl border border-emerald-300 flex items-center justify-between gap-3 shadow-2xs">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="p-2 bg-emerald-100 text-emerald-800 rounded-lg shrink-0">
+                    <FileCheck className="w-5 h-5 text-emerald-700" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-xs font-bold text-gray-900 truncate flex items-center gap-1.5">
+                      <span className="truncate">{anexoManual.nome}</span>
+                      <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 shrink-0">
+                        Do computador
+                      </span>
+                    </div>
+                    <div className="text-[11px] text-gray-500">
+                      {(anexoManual.tamanhoBytes / 1024).toFixed(0)} KB • Pronto para envio
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="text-xs font-semibold text-emerald-700 hover:text-emerald-800 px-2 py-1 rounded hover:bg-emerald-50 transition-colors"
+                  >
+                    Trocar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleRemoverAnexoManual}
+                    className="p-1.5 text-gray-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                    title="Remover anexo do computador"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            ) : (
+              // Exibe PDF gerado ou opção para anexar do computador
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 p-3 bg-white rounded-xl border border-gray-200">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="p-2 bg-emerald-50 text-emerald-700 rounded-lg shrink-0">
+                    <FileText className="w-5 h-5" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-xs font-bold text-gray-900 truncate">
+                      {nomeArquivo || 'Proposta-Solar-Delfos.pdf'}
+                    </div>
+                    <div className="text-[11px] text-gray-500 flex items-center gap-1.5">
+                      {base64Doc ? (
+                        <span className="text-emerald-700 font-medium flex items-center gap-1">
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                          PDF Oficial gerado automaticamente
+                        </span>
+                      ) : isGeneratingPdf ? (
+                        <span className="text-gray-500 inline-flex items-center gap-1">
+                          <RefreshCw className="w-3 h-3 animate-spin" />
+                          Gerando PDF oficial...
+                        </span>
+                      ) : (
+                        <span className="text-amber-600">PDF pendente de anexo</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 rounded-lg text-xs font-bold transition-colors inline-flex items-center gap-1.5 shadow-2xs"
+                  >
+                    <Upload className="w-3.5 h-3.5" />
+                    <span>Anexar PDF do computador</span>
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
-          {/* Aviso se PDF falhar */}
-          {!base64Doc && !isGeneratingPdf && incluirPdf && (
+          {/* Aviso se PDF falhar e não houver anexo */}
+          {!anexoManual && !base64Doc && !isGeneratingPdf && incluirPdf && (
             <div className="p-3 bg-amber-50 rounded-xl border border-amber-200 text-xs text-amber-900 flex items-start gap-2">
               <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
               <span>
-                Não foi possível gerar o PDF oficial completo. Tente novamente ou desmarque
-                &apos;Anexar PDF&apos; para enviar somente a mensagem de texto.
+                Nenhum PDF gerado automaticamente. Clique em &quot;Anexar PDF do computador&quot;
+                para enviar a proposta que você acabou de gerar ou desmarque o envio de anexo.
               </span>
             </div>
           )}
@@ -672,9 +863,9 @@ export const ModalEnviarPropostaWhatsApp: React.FC<ModalEnviarPropostaWhatsAppPr
                 type="submit"
                 disabled={
                   isSending ||
-                  isGeneratingPdf ||
+                  (isGeneratingPdf && !anexoManual) ||
                   !validacaoNumero.valido ||
-                  (incluirPdf && !base64Doc)
+                  (incluirPdf && !anexoManual && !base64Doc)
                 }
                 className="px-5 py-2.5 bg-[#16A34A] hover:bg-[#15803D] text-white text-xs font-bold rounded-xl shadow-xs transition-all flex items-center gap-2 disabled:opacity-50 disabled:pointer-events-none hover:scale-[1.02]"
               >

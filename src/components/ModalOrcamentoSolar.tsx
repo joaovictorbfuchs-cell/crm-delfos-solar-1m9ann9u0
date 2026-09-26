@@ -66,13 +66,22 @@ import { baixarPropostaSolarDocx } from '@/lib/propostaSolarDocxGenerator'
 import { ModalImportarSolergo } from '@/components/ModalImportarSolergo'
 import { PainelEdicaoConteudoProposta } from '@/components/PainelEdicaoConteudoProposta'
 import { normalizarConteudoProposta, type ConteudoProposta } from '@/lib/conteudoProposta'
+import { ModalEnviarPropostaWhatsApp } from '@/components/ModalEnviarPropostaWhatsApp'
 
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { fetchInstalacoesGaleria, getFotoUrl } from '@/services/instalacoesGaleriaService'
 import type { InstalacaoGaleria } from '@/types/instalacoesGaleria'
 import { fetchEquipamentos } from '@/services/equipamentosService'
 import type { Equipamento } from '@/types/equipamentos'
-import { CheckSquare, Square, Image as ImageIcon, Upload, Trash2, Eye } from 'lucide-react'
+import {
+  CheckSquare,
+  Square,
+  Image as ImageIcon,
+  Upload,
+  Trash2,
+  Eye,
+  MessageCircle,
+} from 'lucide-react'
 import solergoLayoutPlaceholderSvg from '@/assets/solergo-layout-placeholder.svg'
 
 interface ModalOrcamentoSolarProps {
@@ -234,6 +243,7 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
   const [observacoes, setObservacoes] = useState<string>('')
   const [prazoEntregaDias, setPrazoEntregaDias] = useState<number>(30)
   const [isGeneratingWord, setIsGeneratingWord] = useState<boolean>(false)
+  const [modalWhatsAppOpen, setModalWhatsAppOpen] = useState<boolean>(false)
   const previewIframeRef = useRef<HTMLIFrameElement>(null)
 
   // Custos do projeto (aba de custos com soma automática)
@@ -3720,7 +3730,7 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <button
                       type="button"
                       onClick={handleGerarPDF}
@@ -3740,6 +3750,16 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                     >
                       <FileDown className="w-3.5 h-3.5" />
                       <span>{isGeneratingWord ? 'Gerando Word...' : 'Gerar Word'}</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setModalWhatsAppOpen(true)}
+                      disabled={!clienteAtual}
+                      className="text-xs font-bold px-3.5 py-1.5 rounded-lg bg-[#25D366] text-white hover:bg-[#1EBE5D] flex items-center gap-1.5 transition-colors shadow-2xs"
+                      title="Enviar proposta comercial diretamente pelo WhatsApp via Z-API"
+                    >
+                      <MessageCircle className="w-3.5 h-3.5" />
+                      <span>Enviar por WhatsApp</span>
                     </button>
                     <span className="text-xs font-semibold text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200">
                       Validade: 5 dias
@@ -4284,6 +4304,53 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
           if (imagemArquivo) setImagemSolergoFile(imagemArquivo)
         }}
       />
+
+      {/* Modal de Envio de Proposta por WhatsApp (Z-API) */}
+      {modalWhatsAppOpen && clienteAtual && (
+        <ModalEnviarPropostaWhatsApp
+          isOpen={modalWhatsAppOpen}
+          onClose={() => setModalWhatsAppOpen(false)}
+          orcamento={
+            (initialOrcamento?.id
+              ? {
+                  ...initialOrcamento,
+                  potencia_kwp: potenciaKwp,
+                  valor_investimento: valorInvestimentoFinal,
+                  conteudo_proposta: conteudoProposta,
+                  secoes_habilitadas: {
+                    layoutTelhado: layoutTelhadoHabilitado,
+                    fotosProjeto: secoesHabilitadas.fotosProjeto !== false,
+                    sazonalidadeSolar: secoesHabilitadas.sazonalidadeSolar !== false,
+                    portfolioUsinas: secoesHabilitadas.portfolioUsinas !== false,
+                  },
+                }
+              : {
+                  id: 'novo',
+                  cliente_id: clienteAtual.id,
+                  numero_revisao: 1,
+                  potencia_kwp: potenciaKwp,
+                  valor_investimento: valorInvestimentoFinal,
+                  consumo_kwh_mes: consumoKwhMes,
+                  economia_1_mes: calculos.economia1Mes,
+                  payback_meses: calculos.paybackMeses,
+                  tipo_cliente: tipoCliente,
+                  conteudo_proposta: conteudoProposta,
+                  secoes_habilitadas: {
+                    layoutTelhado: layoutTelhadoHabilitado,
+                    fotosProjeto: secoesHabilitadas.fotosProjeto !== false,
+                    sazonalidadeSolar: secoesHabilitadas.sazonalidadeSolar !== false,
+                    portfolioUsinas: secoesHabilitadas.portfolioUsinas !== false,
+                  },
+                  created: new Date().toISOString(),
+                  updated: new Date().toISOString(),
+                }) as OrcamentoSolar
+          }
+          cliente={clienteAtual}
+          onSuccess={() => {
+            toast.success('Proposta enviada com sucesso por WhatsApp!')
+          }}
+        />
+      )}
     </div>
   )
 }
