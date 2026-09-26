@@ -16,6 +16,7 @@ import type { AtividadeCategoriaId } from '@/types/crm'
 import {
   Plus,
   Trash2,
+  Pencil,
   Lock,
   Layers,
   Sparkles,
@@ -25,6 +26,9 @@ import {
   Wrench,
   FileSpreadsheet,
 } from 'lucide-react'
+import { ModalEditarTipoAtividade } from '@/components/ModalEditarTipoAtividade'
+import type { TipoAtividadeDef } from '@/constants/atividadesTipos'
+import type { TipoAtividadeCustomItem } from '@/types/crm'
 
 interface ModalGerenciarAtividadesProps {
   open: boolean
@@ -44,6 +48,35 @@ export const ModalGerenciarAtividades: React.FC<ModalGerenciarAtividadesProps> =
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [formError, setFormError] = useState<string | null>(null)
+
+  // Estados para edição de atividades (padrão e personalizadas)
+  const [isEditarOpen, setIsEditarOpen] = useState(false)
+  const [customParaEditar, setCustomParaEditar] = useState<TipoAtividadeCustomItem | null>(null)
+  const [padraoParaEditar, setPadraoParaEditar] = useState<TipoAtividadeDef | null>(null)
+
+  const handleAbrirEdicaoCustom = (custom: TipoAtividadeCustomItem) => {
+    setCustomParaEditar(custom)
+    setPadraoParaEditar(null)
+    setIsEditarOpen(true)
+  }
+
+  const handleAbrirEdicaoPadrao = (tipoPadrao: TipoAtividadeDef) => {
+    // Verificar se já existe um registro correspondente em tiposAtividadesCustom com mesmo nome/categoria
+    const existenteNoBanco = tiposAtividadesCustom.find(
+      (t) =>
+        t.nome.toLowerCase() === tipoPadrao.tituloPadrao.toLowerCase() &&
+        t.categoria === tipoPadrao.categoria,
+    )
+
+    if (existenteNoBanco) {
+      setCustomParaEditar(existenteNoBanco)
+      setPadraoParaEditar(null)
+    } else {
+      setCustomParaEditar(null)
+      setPadraoParaEditar(tipoPadrao)
+    }
+    setIsEditarOpen(true)
+  }
 
   const handleCriar = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -301,21 +334,34 @@ export const ModalGerenciarAtividades: React.FC<ModalGerenciarAtividadesProps> =
                         </div>
                       </div>
 
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        disabled={deletingId === custom.id}
-                        onClick={() => handleExcluir(custom.id, custom.nome)}
-                        className="h-7 w-7 text-red-600 hover:text-red-700 hover:bg-red-50 shrink-0"
-                        title="Apagar tipo de atividade personalizado"
-                      >
-                        {deletingId === custom.id ? (
-                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                        ) : (
-                          <Trash2 className="h-3.5 w-3.5" />
-                        )}
-                      </Button>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleAbrirEdicaoCustom(custom)}
+                          className="h-7 w-7 text-amber-700 hover:text-amber-800 hover:bg-amber-100/60"
+                          title={`Editar "${custom.nome}"`}
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </Button>
+
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          disabled={deletingId === custom.id}
+                          onClick={() => handleExcluir(custom.id, custom.nome)}
+                          className="h-7 w-7 text-red-600 hover:text-red-700 hover:bg-red-50"
+                          title="Apagar tipo de atividade personalizado"
+                        >
+                          {deletingId === custom.id ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          ) : (
+                            <Trash2 className="h-3.5 w-3.5" />
+                          )}
+                        </Button>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -352,11 +398,20 @@ export const ModalGerenciarAtividades: React.FC<ModalGerenciarAtividadesProps> =
                         </div>
                       </div>
 
-                      <div
-                        className="p-1 text-gray-300"
-                        title="Atividade padrão protegida do sistema"
-                      >
-                        <Lock className="h-3.5 w-3.5" />
+                      <div className="flex items-center gap-1 shrink-0">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleAbrirEdicaoPadrao(tipo)}
+                          className="h-7 w-7 text-gray-600 hover:text-amber-700 hover:bg-amber-50"
+                          title={`Editar atividade padrão "${tipo.tituloPadrao}"`}
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </Button>
+                        <div className="p-1 text-gray-300" title="Atividade padrão do sistema">
+                          <Lock className="h-3.5 w-3.5" />
+                        </div>
                       </div>
                     </div>
                   )
@@ -382,6 +437,14 @@ export const ModalGerenciarAtividades: React.FC<ModalGerenciarAtividadesProps> =
           </Button>
         </div>
       </DialogContent>
+
+      {/* Modal de Edição de Atividades (Padrão ou Personalizadas) */}
+      <ModalEditarTipoAtividade
+        open={isEditarOpen}
+        onOpenChange={setIsEditarOpen}
+        atividadeParaEditar={customParaEditar}
+        padraoParaEditar={padraoParaEditar}
+      />
     </Dialog>
   )
 }

@@ -11,10 +11,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import {
-  CATEGORIAS_ATIVIDADES,
-  type TipoAtividadeDef,
-} from '@/constants/atividadesTipos'
+import { CATEGORIAS_ATIVIDADES, type TipoAtividadeDef } from '@/constants/atividadesTipos'
 import { useClientes } from '@/contexts/ClientesContext'
 import type {
   AtividadeCategoriaId,
@@ -124,11 +121,8 @@ export const ModalEditarTipoAtividade: React.FC<ModalEditarTipoAtividadeProps> =
   padraoParaEditar,
   onSuccess,
 }) => {
-  const {
-    updateTipoAtividadeCustom,
-    addTipoAtividadeCustom,
-    refreshTiposAtividadesCustom,
-  } = useClientes()
+  const { updateTipoAtividadeCustom, addTipoAtividadeCustom, refreshTiposAtividadesCustom } =
+    useClientes()
 
   const [nome, setNome] = useState('')
   const [categoria, setCategoria] = useState<AtividadeCategoriaId>('comercial')
@@ -187,9 +181,7 @@ export const ModalEditarTipoAtividade: React.FC<ModalEditarTipoAtividadeProps> =
       setCategoria(padraoParaEditar.categoria || 'comercial')
       setCor(padraoParaEditar.corHex || '#16A34A')
       // Mapear o ícone pelo nome ou fallback
-      const foundIcon = ICONES_DISPONIVEIS.find(
-        (i) => i.icon === padraoParaEditar.icon,
-      )
+      const foundIcon = ICONES_DISPONIVEIS.find((i) => i.icon === padraoParaEditar.icon)
       setIcone(foundIcon ? foundIcon.id : 'Wrench')
       setDescricao(padraoParaEditar.descricaoAjuda || '')
       setValorBase('')
@@ -291,12 +283,10 @@ export const ModalEditarTipoAtividade: React.FC<ModalEditarTipoAtividadeProps> =
     }
   }
 
-  const tituloModal = atividadeParaEditar || padraoParaEditar
-    ? 'Editar Tipo de Atividade'
-    : 'Novo Tipo de Atividade'
+  const tituloModal =
+    atividadeParaEditar || padraoParaEditar ? 'Editar Tipo de Atividade' : 'Novo Tipo de Atividade'
 
-  const SelectedIconComponent =
-    ICONES_DISPONIVEIS.find((i) => i.id === icone)?.icon || Wrench
+  const SelectedIconComponent = ICONES_DISPONIVEIS.find((i) => i.id === icone)?.icon || Wrench
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -315,9 +305,7 @@ export const ModalEditarTipoAtividade: React.FC<ModalEditarTipoAtividadeProps> =
               <SelectedIconComponent className="h-5 w-5" />
             </div>
             <div>
-              <DialogTitle className="text-xl font-bold text-gray-900">
-                {tituloModal}
-              </DialogTitle>
+              <DialogTitle className="text-xl font-bold text-gray-900">{tituloModal}</DialogTitle>
               <DialogDescription className="text-xs text-gray-500 mt-0.5">
                 {isPadraoOriginal
                   ? 'Personalize o nome, categoria, orientações e parâmetros operacionais desta atividade padrão do sistema.'
@@ -365,9 +353,7 @@ export const ModalEditarTipoAtividade: React.FC<ModalEditarTipoAtividadeProps> =
             </div>
 
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold text-gray-700">
-                Tipo de Execução
-              </Label>
+              <Label className="text-xs font-semibold text-gray-700">Tipo de Execução</Label>
               <select
                 value={tipoExecucao}
                 onChange={(e) => setTipoExecucao(e.target.value as CatalogoTipoExecucao)}
@@ -384,7 +370,9 @@ export const ModalEditarTipoAtividade: React.FC<ModalEditarTipoAtividadeProps> =
             {/* Escolha do Ícone */}
             <div className="sm:col-span-7 space-y-1.5">
               <Label className="text-xs font-semibold text-gray-700 flex items-center gap-1.5">
-                <SelectedIconComponent className="w-3.5 h-3.5" style={{ color: cor }} />
+                <span style={{ color: cor }}>
+                  <SelectedIconComponent className="w-3.5 h-3.5" />
+                </span>
                 Ícone Lucide
               </Label>
               <div className="grid grid-cols-8 sm:grid-cols-7 gap-1 max-h-28 overflow-y-auto p-1 bg-white rounded-lg border border-gray-200">
@@ -426,11 +414,15 @@ export const ModalEditarTipoAtividade: React.FC<ModalEditarTipoAtividadeProps> =
                       onClick={() => setCor(c.hex)}
                       title={c.nome}
                       className={`h-6 rounded-md transition-all flex items-center justify-center ${
-                        isSelected ? 'ring-2 ring-offset-1 ring-gray-900 scale-105' : 'hover:scale-95'
+                        isSelected
+                          ? 'ring-2 ring-offset-1 ring-gray-900 scale-105'
+                          : 'hover:scale-95'
                       }`}
                       style={{ backgroundColor: c.hex }}
                     >
-                      {isSelected && <span className="w-1.5 h-1.5 rounded-full bg-white shadow-xs" />}
+                      {isSelected && (
+                        <span className="w-1.5 h-1.5 rounded-full bg-white shadow-xs" />
+                      )}
                     </button>
                   )
                 })}
@@ -441,7 +433,10 @@ export const ModalEditarTipoAtividade: React.FC<ModalEditarTipoAtividadeProps> =
           {/* Valor Base e Frequência Recomendada */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
             <div className="space-y-1.5">
-              <Label htmlFor="edit-valor" className="text-xs font-semibold text-gray-700 flex items-center gap-1">
+              <Label
+                htmlFor="edit-valor"
+                className="text-xs font-semibold text-gray-700 flex items-center gap-1"
+              >
                 <DollarSign className="w-3.5 h-3.5 text-gray-400" />
                 Valor Base Sugerido (R$)
               </Label>
@@ -458,7 +453,10 @@ export const ModalEditarTipoAtividade: React.FC<ModalEditarTipoAtividadeProps> =
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="edit-freq" className="text-xs font-semibold text-gray-700 flex items-center gap-1">
+              <Label
+                htmlFor="edit-freq"
+                className="text-xs font-semibold text-gray-700 flex items-center gap-1"
+              >
                 <Calendar className="w-3.5 h-3.5 text-gray-400" />
                 Frequência Recomendada (meses)
               </Label>

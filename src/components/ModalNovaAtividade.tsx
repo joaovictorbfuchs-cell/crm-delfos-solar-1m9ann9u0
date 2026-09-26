@@ -60,6 +60,8 @@ export interface ProgramarLeituraAnoLinha {
   responsavel: 'Cliente' | 'Distribuidora'
 }
 
+export { ModalEditarTipoAtividade } from '@/components/ModalEditarTipoAtividade'
+
 export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
   isOpen,
   onClose,

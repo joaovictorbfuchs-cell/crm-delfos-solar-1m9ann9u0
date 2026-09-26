@@ -134,7 +134,18 @@ import type {
 import { notificacoesService } from '@/services/notificacoesService'
 import { useRealtime } from '@/hooks/use-realtime'
 import { useAuth } from '@/contexts/AuthContext'
-import { isAuthSessionError } from '@/lib/pocketbase/errors'
+function isAuthSessionError(err: unknown): boolean {
+  if (!err || typeof err !== 'object') return false
+  const anyErr = err as any
+  return (
+    anyErr.status === 401 ||
+    anyErr.status === 403 ||
+    (typeof anyErr.message === 'string' &&
+      (anyErr.message.toLowerCase().includes('authenticate') ||
+        anyErr.message.toLowerCase().includes('token') ||
+        anyErr.message.toLowerCase().includes('unauthorized')))
+  )
+}
 import { pb } from '@/lib/pocketbase/client'
 
 export type ClientTabType = 'historico' | 'projeto' | 'om' | 'whatsapp' | 'usinas'
