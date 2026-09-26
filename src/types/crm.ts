@@ -860,6 +860,7 @@ export interface Projeto extends RecordModel {
   collectionName: string
   cliente_id: string
   etapa: ProjetoEtapa
+  titulo_usina?: string
   potencia_kwp?: number
   cidade?: string
   profissional_id?: string
