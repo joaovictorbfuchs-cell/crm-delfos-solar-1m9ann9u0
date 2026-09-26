@@ -1,5 +1,4 @@
 import { describe, it, expect, vi } from 'vitest'
-import '@testing-library/jest-dom'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import React from 'react'
 import { ModalEnviarPropostaWhatsApp } from '@/components/ModalEnviarPropostaWhatsApp'
@@ -73,9 +72,9 @@ describe('ModalEnviarPropostaWhatsApp', () => {
       />,
     )
 
-    expect(screen.getByText(/Enviar Proposta por WhatsApp/i)).toBeInTheDocument()
-    expect(screen.getByDisplayValue('(54) 99988-7766')).toBeInTheDocument()
-    expect(screen.getByText(/Anexar PDF do computador/i)).toBeInTheDocument()
+    expect(screen.getByText(/Enviar Proposta por WhatsApp/i)).toBeDefined()
+    expect(screen.getByDisplayValue('(54) 99988-7766')).toBeDefined()
+    expect(screen.getByText(/Anexar PDF do computador/i)).toBeDefined()
   })
 
   it('permite anexar arquivo PDF do computador', async () => {
@@ -94,14 +93,14 @@ describe('ModalEnviarPropostaWhatsApp', () => {
     })
 
     const input = document.querySelector('input[type="file"]') as HTMLInputElement
-    expect(input).toBeInTheDocument()
+    expect(input).not.toBeNull()
 
     // Dispara seleção de arquivo
     fireEvent.change(input, { target: { files: [file] } })
 
     await waitFor(() => {
-      expect(screen.getByText('Proposta-Gerada.pdf')).toBeInTheDocument()
-      expect(screen.getByText('Do computador')).toBeInTheDocument()
+      expect(screen.getByText('Proposta-Gerada.pdf')).toBeDefined()
+      expect(screen.getByText('Do computador')).toBeDefined()
     })
   })
 
@@ -117,7 +116,7 @@ describe('ModalEnviarPropostaWhatsApp', () => {
 
     // O template do sistema "Proposta Completa WhatsApp" deve estar na lista de botões
     const botaoTemplate = screen.getByText('Proposta Completa WhatsApp')
-    expect(botaoTemplate).toBeInTheDocument()
+    expect(botaoTemplate).toBeDefined()
 
     fireEvent.click(botaoTemplate)
 

@@ -49,6 +49,7 @@
     "@radix-ui/react-toggle-group": "^1.1.13",
     "@radix-ui/react-tooltip": "^1.2.10",
     "@tailwindcss/aspect-ratio": "^0.4.2",
+    "@testing-library/jest-dom": "7.0.1",
     "@testing-library/react": "16.3.3",
     "caniuse-lite": "^1.0.30001799",
     "class-variance-authority": "^0.7.1",
@@ -60,6 +61,7 @@
     "embla-carousel-react": "^8.6.0",
     "input-otp": "^1.4.2",
     "next-themes": "^0.4.6",
+    "pdfjs-dist": "^4.10.38",
     "pocketbase": "~0.26.9",
     "react": "^19.2.7",
     "react-day-picker": "^9.14.0",
@@ -71,7 +73,6 @@
     "sonner": "^2.0.7",
     "tailwind-merge": "^2.6.1",
     "tailwindcss-animate": "^1.0.7",
-    "pdfjs-dist": "^4.10.38",
     "vaul": "^1.1.2",
     "vitest": "5.0.0",
     "zod": "^4.4.3"
