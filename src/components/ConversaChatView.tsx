@@ -529,7 +529,7 @@ export const ConversaChatView: React.FC<ConversaChatViewProps> = ({
   }, [cliente])
 
   return (
-    <div className="flex flex-col h-full bg-[#f0f2f5] rounded-2xl border border-gray-200 shadow-sm overflow-hidden select-none">
+    <div className="flex flex-col h-full max-h-full min-h-0 bg-[#f0f2f5] rounded-2xl border border-gray-200 shadow-sm overflow-hidden select-none">
       {/* 1. CABEÇALHO DA CONVERSA (Estilo WhatsApp Web) */}
       <div className="h-16 px-4 py-2.5 bg-[#f0f2f5] border-b border-gray-200/80 flex items-center justify-between shrink-0 select-text">
         <div className="flex items-center gap-3 min-w-0">
@@ -780,7 +780,7 @@ export const ConversaChatView: React.FC<ConversaChatViewProps> = ({
       <div
         ref={chatScrollContainerRef}
         onScroll={handleScroll}
-        className="flex-1 overflow-y-auto p-4 sm:p-5 select-text relative"
+        className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-5 select-text relative"
         style={{
           backgroundColor: '#efeae2',
           backgroundImage: `url("data:image/svg+xml,%3Csvg width='240' height='240' viewBox='0 0 240 240' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M20 20h20v20H20zm40 60h15v15H60zm80-40h20v20h-20zm60 40h15v15h-15zM40 160h20v20H40zm80 20h15v15h-15zm60-20h20v20h-20zm-60-80h20v20h-20zM30 90a10 10 0 1 0 20 0 10 10 0 1 0-20 0zm140 0a10 10 0 1 0 20 0 10 10 0 1 0-20 0zm-70 70a10 10 0 1 0 20 0 10 10 0 1 0-20 0z' fill='%23000000' fill-opacity='0.035' fill-rule='evenodd'/%3E%3C/svg%3E")`,
