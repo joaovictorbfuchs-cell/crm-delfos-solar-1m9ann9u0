@@ -176,14 +176,49 @@ export const QuickAddAtividade: React.FC<QuickAddAtividadeProps> = ({
           tipoConfig.tituloPadrao ||
           'Atividade sem descrição'
 
+        // Mapear subTipo se for um tipo customizado (`custom_<id>`) ou não estiver no enum
+        const tiposEnumValidos = new Set([
+          'contato_ligacao',
+          'reuniao_presencial',
+          'follow_up',
+          'proposta',
+          'instalacao',
+          'limpeza_manutencao',
+          'auto_leitura_rge',
+          'ligar_indicacao',
+          'configuracao_datalogger',
+          'garantia_equipamento',
+          'relatorio_solarview',
+          'contato_reativacao',
+          'anotacao',
+          'ligacao',
+          'reuniao',
+          'visita_tecnica',
+          'mudanca_estagio',
+          'anexo_g',
+          'troca_titularidade',
+          'transferencia_creditos',
+          'gerar_procuracao',
+          'gerar_contrato',
+          'custom',
+        ])
+
+        const tipoDb = tiposEnumValidos.has(subTipo)
+          ? subTipo
+          : selectedCategoria === 'manutencao'
+            ? 'limpeza_manutencao'
+            : selectedCategoria === 'administrativo_pos_venda'
+              ? 'anexo_g'
+              : 'contato_ligacao'
+
         await addAtividade({
           cliente_id: clienteId,
-          tipo: subTipo,
+          tipo: tipoDb as import('@/types/crm').AtividadeTipo,
           titulo: finalTitulo,
           descricao: finalDescricao,
           data: dataHora ? new Date(dataHora).toISOString() : new Date().toISOString(),
           autor: user?.name || 'Usuário Delfos',
-          responsavel_id: responsavelId || user?.id,
+          responsavel_id: responsavelId || user?.id || undefined,
           responsavel_nome: responsavelNome,
           status: 'pendente',
           usina_id: selectedUsinaId || undefined,
@@ -196,7 +231,8 @@ export const QuickAddAtividade: React.FC<QuickAddAtividadeProps> = ({
       setTimeout(() => setSuccess(false), 2500)
     } catch (err: unknown) {
       console.error('Falha ao adicionar atividade/anotação:', err)
-      setError('Não foi possível salvar. Tente novamente.')
+      const msg = err instanceof Error ? err.message : 'Não foi possível salvar. Tente novamente.'
+      setError(msg || 'Não foi possível salvar. Tente novamente.')
     } finally {
       setIsLoading(false)
     }
