@@ -4,7 +4,9 @@ import { fetchOrdensServico } from '@/services/crmService'
 import { FichaExecucaoOS } from '@/components/FichaExecucaoOS'
 import { CalendarioExecucaoOS } from '@/components/CalendarioExecucaoOS'
 import { RelatorioOSPrestador } from '@/components/RelatorioOSPrestador'
+import { ModalEnviarRelatorioOSWhatsApp } from '@/components/ModalEnviarRelatorioOSWhatsApp'
 import { useToast } from '@/hooks/use-toast'
+import pb from '@/lib/pocketbase/client'
 import { formatDateTime } from '@/lib/formatters'
 import {
   Wrench,
@@ -24,6 +26,7 @@ import {
   ShieldCheck,
   CheckCheck,
   BarChart3,
+  Send,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -56,6 +59,12 @@ export default function ExecucaoOS() {
   const [selectedInstaladorId, setSelectedInstaladorId] = useState<string>('')
   const [selectedProfissionalId, setSelectedProfissionalId] = useState<string>('')
   const [isSavingAtribuicao, setIsSavingAtribuicao] = useState(false)
+
+  // Modal para admin enviar relatório de OS via WhatsApp
+  const [osParaWhatsApp, setOsParaWhatsApp] = useState<OrdemServico | null>(null)
+
+  // Estado de geração de PDF sob demanda ao clicar em "Ver Relatório"
+  const [gerandoPdfOsId, setGerandoPdfOsId] = useState<string | null>(null)
 
   // OS atualmente aberta na Ficha de Execução (null = tela inicial/lista)
   const [selectedOS, setSelectedOS] = useState<OrdemServico | null>(null)
@@ -219,6 +228,65 @@ export default function ExecucaoOS() {
     searchTerm,
   ])
 
+  // Ação de admin para visualizar o PDF do relatório (se não existir, gera na hora e salva no PocketBase)
+  const handleVerRelatorioPdf = async (os: OrdemServico) => {
+    // 1. Se a OS já tiver o arquivo salvo no PocketBase, abre diretamente em nova aba
+    if (os.relatorio_pdf) {
+      try {
+        const fileUrl = pb.files.getURL(os, os.relatorio_pdf)
+        if (fileUrl) {
+          window.open(fileUrl, '_blank')
+          return
+        }
+      } catch (e) {
+        console.warn('Erro ao abrir URL do PDF da OS:', e)
+      }
+    }
+
+    // 2. Fallback sob demanda: gera o PDF a partir dos dados registrados
+    setGerandoPdfOsId(os.id)
+    toast({
+      title: 'Gerando Relatório Técnico...',
+      description: 'Compilando os dados e fotografias da OS em PDF.',
+    })
+    try {
+      const { gerarPdfRelatorioOS } = await import('@/lib/relatorioOSPdf')
+      const { salvarRelatorioPdfOrdemServico } = await import('@/services/crmService')
+      const res = await gerarPdfRelatorioOS(os, {
+        cliente: os.expand?.cliente_id,
+      })
+
+      if (res.file) {
+        try {
+          const updatedOS = await salvarRelatorioPdfOrdemServico(os.id, res.file)
+          setOrdens((prev) => prev.map((item) => (item.id === updatedOS.id ? updatedOS : item)))
+        } catch (saveErr) {
+          console.warn(
+            'Não foi possível persistir o PDF no PocketBase (abrindo preview direto):',
+            saveErr,
+          )
+        }
+      }
+
+      // Abre o PDF gerado em nova aba via Data URL / Object URL
+      const pdfBlobUrl = URL.createObjectURL(res.file)
+      window.open(pdfBlobUrl, '_blank')
+      toast({
+        title: 'Relatório Gerado!',
+        description: 'O PDF da Ordem de Serviço foi aberto com sucesso.',
+      })
+    } catch (err) {
+      console.error('Erro ao gerar relatório em PDF sob demanda:', err)
+      toast({
+        variant: 'destructive',
+        title: 'Falha ao gerar relatório',
+        description: 'Não foi possível gerar o PDF. Verifique os dados da OS.',
+      })
+    } finally {
+      setGerandoPdfOsId(null)
+    }
+  }
+
   // Salvar atribuição / reatribuição de instalador pela lista
   const handleSalvarAtribuicao = async () => {
     if (!osParaAtribuir) return
@@ -263,16 +331,80 @@ export default function ExecucaoOS() {
     }
   }
 
-  // Se uma OS foi selecionada, exibe a Ficha de Execução
+  // Se uma OS foi selecionada, exibe a Ficha de Execução com barra de ações de admin caso concluída
   if (selectedOS) {
     return (
-      <FichaExecucaoOS
-        os={selectedOS}
-        instaladores={instaladores}
-        onBack={() => setSelectedOS(null)}
-        onOSUpdated={handleOSUpdated}
-        onOSFinalizada={handleOSFinalizada}
-      />
+      <div className="space-y-4">
+        {isAdmin && selectedOS.status === 'concluida' && (
+          <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-2xs">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0">
+                <FileText className="w-5 h-5" />
+              </div>
+              <div>
+                <h4 className="text-xs sm:text-sm font-bold text-emerald-950">
+                  Relatório Técnico de Execução (Admin)
+                </h4>
+                <p className="text-[11px] text-emerald-700">
+                  {selectedOS.relatorio_pdf
+                    ? 'PDF oficial gerado e salvo nesta Ordem de Serviço.'
+                    : 'Esta OS pode ter o relatório compilado e enviado agora.'}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={gerandoPdfOsId === selectedOS.id}
+                onClick={() => handleVerRelatorioPdf(selectedOS)}
+                className="h-9 px-3 text-xs font-bold text-emerald-800 border-emerald-300 hover:bg-emerald-100/60 bg-white"
+              >
+                <FileText className="w-3.5 h-3.5 mr-1 text-emerald-600" />
+                {gerandoPdfOsId === selectedOS.id
+                  ? 'Gerando PDF...'
+                  : selectedOS.relatorio_pdf
+                    ? 'Ver Relatório (PDF)'
+                    : 'Gerar Relatório (PDF)'}
+              </Button>
+
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => setOsParaWhatsApp(selectedOS)}
+                className="h-9 px-3 text-xs font-bold bg-[#16A34A] hover:bg-[#15803D] text-white shadow-2xs"
+              >
+                <Send className="w-3.5 h-3.5 mr-1.5" />
+                Enviar Relatório por WhatsApp
+              </Button>
+            </div>
+          </div>
+        )}
+
+        <FichaExecucaoOS
+          os={selectedOS}
+          instaladores={instaladores}
+          onBack={() => {
+            setSelectedOS(null)
+            carregarDados()
+          }}
+          onOSUpdated={handleOSUpdated}
+          onOSFinalizada={handleOSFinalizada}
+        />
+
+        {/* Modal WhatsApp no modo visualização de Ficha */}
+        {osParaWhatsApp && (
+          <ModalEnviarRelatorioOSWhatsApp
+            isOpen={Boolean(osParaWhatsApp)}
+            onClose={() => setOsParaWhatsApp(null)}
+            os={osParaWhatsApp}
+            cliente={osParaWhatsApp.expand?.cliente_id}
+            onSuccess={() => carregarDados()}
+          />
+        )}
+      </div>
     )
   }
 
@@ -631,9 +763,45 @@ export default function ExecucaoOS() {
                         )}
                       </div>
 
-                      <div className="flex items-center gap-2">
-                        {/* Botão de Envio Manual via WhatsApp: visível para Admin ou quando não for o próprio instalador logado */}
-                        {(!isInstalador || isAdmin) && (
+                      <div className="flex items-center gap-2 flex-wrap justify-end">
+                        {/* OS CONCLUÍDA: Ações exclusivas de Admin para Relatório Técnico em PDF e WhatsApp para Cliente */}
+                        {os.status === 'concluida' && isAdmin && (
+                          <div
+                            className="flex items-center gap-1.5"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              disabled={gerandoPdfOsId === os.id}
+                              onClick={() => handleVerRelatorioPdf(os)}
+                              className="h-8 px-2.5 text-[11px] font-bold text-emerald-800 border-emerald-300 hover:bg-emerald-50 bg-white"
+                              title="Visualizar Relatório Técnico de Execução em PDF"
+                            >
+                              <FileText className="w-3.5 h-3.5 mr-1 text-emerald-600" />
+                              {gerandoPdfOsId === os.id
+                                ? 'Gerando...'
+                                : os.relatorio_pdf
+                                  ? 'Ver Relatório (PDF)'
+                                  : 'Gerar Relatório (PDF)'}
+                            </Button>
+
+                            <Button
+                              type="button"
+                              size="sm"
+                              onClick={() => setOsParaWhatsApp(os)}
+                              className="h-8 px-2.5 text-[11px] font-bold bg-[#16A34A] hover:bg-[#15803D] text-white shadow-2xs"
+                              title="Enviar Relatório Técnico de Execução por WhatsApp ao Cliente"
+                            >
+                              <Send className="w-3.5 h-3.5 mr-1" />
+                              Enviar Relatório por WhatsApp
+                            </Button>
+                          </div>
+                        )}
+
+                        {/* OS PENDENTE/EM ANDAMENTO: Botão de Envio Manual de OS via WhatsApp para o prestador */}
+                        {os.status !== 'concluida' && (!isInstalador || isAdmin) && (
                           <div onClick={(e) => e.stopPropagation()}>
                             <BotaoEnviarOSWhatsApp
                               osId={os.id}
@@ -661,6 +829,19 @@ export default function ExecucaoOS() {
           )}
         </>
       )}
+      {/* Modal de Envio do Relatório em PDF por WhatsApp ao Cliente (Apenas Admin) */}
+      {osParaWhatsApp && (
+        <ModalEnviarRelatorioOSWhatsApp
+          isOpen={Boolean(osParaWhatsApp)}
+          onClose={() => setOsParaWhatsApp(null)}
+          os={osParaWhatsApp}
+          cliente={osParaWhatsApp.expand?.cliente_id}
+          onSuccess={() => {
+            carregarDados()
+          }}
+        />
+      )}
+
       {/* Modal de Reatribuição de Prestador à OS (Apenas Admin) */}
       {isAdmin && (
         <Dialog

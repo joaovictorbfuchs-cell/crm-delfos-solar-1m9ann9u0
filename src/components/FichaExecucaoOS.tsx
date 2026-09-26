@@ -374,15 +374,53 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
     }
   }
 
-  // Finalizar OS
+  // Finalizar OS com geração automática de Relatório em PDF
   const handleFinalizarOS = async () => {
     setIsSubmitting(true)
     try {
       const filesToUpload = novasFotos.map((nf) => nf.file)
+
+      // Geração automática do PDF do relatório (não bloqueante caso ocorra falha na renderização)
+      let relatorioPdfFile: File | undefined = undefined
+      try {
+        const { gerarPdfRelatorioOS } = await import('@/lib/relatorioOSPdf')
+        const inversoresStr =
+          inversoresLista.length > 0
+            ? inversoresLista
+                .map((i) => `${i.marca_inversor || ''} ${i.modelo_inversor || ''}`.trim())
+                .filter(Boolean)
+                .join(', ')
+            : undefined
+
+        const osAtualizadaParaPdf: OrdemServico = {
+          ...os,
+          checklist,
+          detalhes_execucao: detalhesExecucao,
+          concluida_em: new Date().toISOString(),
+          status: 'concluida',
+        }
+
+        const pdfResult = await gerarPdfRelatorioOS(osAtualizadaParaPdf, {
+          cliente,
+          sistema,
+          newPhotos: filesToUpload,
+          inversoresInfo: inversoresStr,
+        })
+        if (pdfResult?.file) {
+          relatorioPdfFile = pdfResult.file
+        }
+      } catch (pdfErr) {
+        console.warn(
+          'Geração do PDF automático falhou, concluindo OS sem anexo do relatório:',
+          pdfErr,
+        )
+      }
+
       const finalized = await finalizarOrdemServico(os.id, {
         checklist,
         detalhes_execucao: detalhesExecucao,
         newPhotos: filesToUpload.length > 0 ? filesToUpload : undefined,
+        relatorioPdfFile,
         cliente_id: os.cliente_id,
         tipo_servico: os.tipo_servico,
         tecnico_nome: os.atribuida_a,
@@ -391,7 +429,9 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
       setShowConfirmModal(false)
       toast({
         title: 'OS Finalizada com Sucesso! 🎉',
-        description: 'Ordem de serviço marcada como concluída e registrada no histórico.',
+        description: relatorioPdfFile
+          ? 'Ordem concluída e Relatório em PDF gerado automaticamente para o Administrador.'
+          : 'Ordem de serviço marcada como concluída e registrada no histórico.',
       })
       onOSFinalizada(finalized)
     } catch (err) {
@@ -949,11 +989,18 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
             </>
           ) : (
             <div className="w-full flex items-center justify-between">
-              <span className="text-xs sm:text-sm font-bold text-emerald-800 flex items-center gap-1.5">
-                <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                Esta OS foi finalizada em{' '}
-                {os.concluida_em ? formatDateTime(os.concluida_em) : 'data anterior'}.
-              </span>
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-xs sm:text-sm font-bold text-emerald-800 flex items-center gap-1.5">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                  Esta OS foi finalizada em{' '}
+                  {os.concluida_em ? formatDateTime(os.concluida_em) : 'data anterior'}.
+                </span>
+                {os.relatorio_pdf && (
+                  <Badge className="bg-emerald-100 text-emerald-800 border-emerald-300 text-[10px]">
+                    PDF Gerado
+                  </Badge>
+                )}
+              </div>
               <Button
                 type="button"
                 variant="outline"

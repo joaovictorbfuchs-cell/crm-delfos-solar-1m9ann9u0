@@ -20,6 +20,10 @@ import {
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { Send } from 'lucide-react'
+import { ModalEnviarRelatorioOSWhatsApp } from '@/components/ModalEnviarRelatorioOSWhatsApp'
+import pb from '@/lib/pocketbase/client'
+import { useToast } from '@/hooks/use-toast'
 
 const MESES = [
   'Janeiro',
@@ -113,9 +117,59 @@ function formatarDuracao(minutos: number): string {
 }
 
 export function RelatorioOSPrestador({ ordens, onSelectOS }: RelatorioOSPrestadorProps) {
+  const { toast } = useToast()
   // Mês e ano selecionados (padrão: mês/ano atual)
   const [dataReferencia, setDataReferencia] = useState<Date>(() => new Date())
   const [prestadorAberto, setPrestadorAberto] = useState<string | null>(null)
+  const [osParaWhatsApp, setOsParaWhatsApp] = useState<OrdemServico | null>(null)
+  const [gerandoPdfOsId, setGerandoPdfOsId] = useState<string | null>(null)
+
+  const handleVerRelatorioPdf = async (os: OrdemServico) => {
+    if (os.relatorio_pdf) {
+      try {
+        const fileUrl = pb.files.getURL(os, os.relatorio_pdf)
+        if (fileUrl) {
+          window.open(fileUrl, '_blank')
+          return
+        }
+      } catch (e) {
+        console.warn('Erro ao abrir URL do PDF da OS:', e)
+      }
+    }
+
+    setGerandoPdfOsId(os.id)
+    toast({
+      title: 'Gerando Relatório Técnico...',
+      description: 'Compilando os dados e fotografias da OS em PDF.',
+    })
+    try {
+      const { gerarPdfRelatorioOS } = await import('@/lib/relatorioOSPdf')
+      const { salvarRelatorioPdfOrdemServico } = await import('@/services/crmService')
+      const res = await gerarPdfRelatorioOS(os, {
+        cliente: os.expand?.cliente_id,
+      })
+
+      if (res.file) {
+        try {
+          await salvarRelatorioPdfOrdemServico(os.id, res.file)
+        } catch {
+          /* ignore */
+        }
+      }
+
+      const pdfBlobUrl = URL.createObjectURL(res.file)
+      window.open(pdfBlobUrl, '_blank')
+    } catch (err) {
+      console.error('Erro ao gerar relatório em PDF sob demanda:', err)
+      toast({
+        variant: 'destructive',
+        title: 'Falha ao gerar relatório',
+        description: 'Não foi possível gerar o PDF. Verifique os dados da OS.',
+      })
+    } finally {
+      setGerandoPdfOsId(null)
+    }
+  }
 
   const anoAtual = dataReferencia.getFullYear()
   const mesAtual = dataReferencia.getMonth() // 0 - 11
@@ -688,7 +742,7 @@ export function RelatorioOSPrestador({ ordens, onSelectOS }: RelatorioOSPrestado
                               </div>
                             </div>
 
-                            <div className="flex items-center gap-3 sm:gap-4 self-end sm:self-auto text-xs">
+                            <div className="flex items-center gap-2 sm:gap-3 self-end sm:self-auto text-xs flex-wrap justify-end">
                               {/* Duração individual se houver */}
                               {duracaoMinutos !== null && (
                                 <span className="text-[11px] font-medium text-gray-600 flex items-center gap-1 bg-gray-100 px-2 py-0.5 rounded-md">
@@ -709,6 +763,36 @@ export function RelatorioOSPrestador({ ordens, onSelectOS }: RelatorioOSPrestado
                                 Concluída em:{' '}
                                 <strong>{formatDateTime(os.concluida_em || os.updated)}</strong>
                               </span>
+
+                              {/* Botões de Relatório PDF e WhatsApp para Admin */}
+                              <div
+                                className="flex items-center gap-1.5 ml-1"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  disabled={gerandoPdfOsId === os.id}
+                                  onClick={() => handleVerRelatorioPdf(os)}
+                                  className="h-7 px-2 text-[10px] font-bold text-emerald-800 border-emerald-300 hover:bg-emerald-50 bg-white"
+                                  title="Ver Relatório Técnico de Execução em PDF"
+                                >
+                                  <FileText className="w-3 h-3 mr-1 text-emerald-600" />
+                                  {gerandoPdfOsId === os.id ? 'Gerando...' : 'Ver PDF'}
+                                </Button>
+
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  onClick={() => setOsParaWhatsApp(os)}
+                                  className="h-7 px-2 text-[10px] font-bold bg-[#16A34A] hover:bg-[#15803D] text-white"
+                                  title="Enviar Relatório Técnico de Execução por WhatsApp"
+                                >
+                                  <Send className="w-3 h-3 mr-1" />
+                                  WhatsApp
+                                </Button>
+                              </div>
                             </div>
                           </div>
                         )
@@ -720,6 +804,16 @@ export function RelatorioOSPrestador({ ordens, onSelectOS }: RelatorioOSPrestado
             )
           })}
         </div>
+      )}
+
+      {/* Modal de Envio por WhatsApp no Relatório */}
+      {osParaWhatsApp && (
+        <ModalEnviarRelatorioOSWhatsApp
+          isOpen={Boolean(osParaWhatsApp)}
+          onClose={() => setOsParaWhatsApp(null)}
+          os={osParaWhatsApp}
+          cliente={osParaWhatsApp.expand?.cliente_id}
+        />
       )}
     </div>
   )
