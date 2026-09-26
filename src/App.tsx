@@ -23,6 +23,7 @@ import AutomacoesPage from './pages/Automacoes'
 import CatalogoAtividades from './pages/CatalogoAtividades'
 import Atividades from './pages/Atividades'
 import ExecucaoOS from './pages/ExecucaoOS'
+import MinhasOS from './pages/MinhasOS'
 import { CentralAtendimento } from './pages/CentralAtendimento'
 import ImportarClientes from './pages/ImportarClientes'
 import ImportarContatosGoogle from './pages/ImportarContatosGoogle'
@@ -69,12 +70,30 @@ const App = () => (
               </ErrorBoundary>
             }
           >
-            {/* Rota comum ou permitida a ambos */}
+            {/* Rotas de Serviços de Campo / Minhas OS */}
+            <Route
+              path="/servicos-campo"
+              element={
+                <ProtectedRoute requiredRole="admin">
+                  <ErrorBoundary errorMessage="Ocorreu um problema ao carregar Serviços de Campo">
+                    <ExecucaoOS />
+                  </ErrorBoundary>
+                </ProtectedRoute>
+              }
+            />
             <Route
               path="/execucao-os"
               element={
-                <ErrorBoundary errorMessage="Ocorreu um problema ao carregar o módulo de Execução de OS">
+                <ErrorBoundary errorMessage="Ocorreu um problema ao carregar Serviços de Campo">
                   <ExecucaoOS />
+                </ErrorBoundary>
+              }
+            />
+            <Route
+              path="/minhas-os"
+              element={
+                <ErrorBoundary errorMessage="Ocorreu um problema ao carregar Minhas OS">
+                  <MinhasOS />
                 </ErrorBoundary>
               }
             />

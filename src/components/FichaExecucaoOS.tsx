@@ -45,7 +45,7 @@ import { BotaoEnviarOSWhatsApp } from '@/components/BotaoEnviarOSWhatsApp'
 
 interface FichaExecucaoOSProps {
   os: OrdemServico
-  templates: OSTemplate[]
+  templates?: OSTemplate[]
   instaladores?: SistemaUsuario[]
   onBack: () => void
   onOSUpdated: (updatedOS: OrdemServico) => void
@@ -163,13 +163,26 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
     [],
   )
 
-  // 2. Instruções do serviço: pré-preenchido automaticamente com template (fallback seguro)
+  // Procedimentos de trabalho padrão vindos do Catálogo de Atividades
+  const [orientacoesCatalogo, setOrientacoesCatalogo] = useState<string>('')
+  const [loadingCatalogo, setLoadingCatalogo] = useState<boolean>(false)
+
+  // 2. Instruções / Procedimentos da OS
   const [instrucoesTexto, setInstrucoesTexto] = useState<string>(() => {
     if (os.instrucoes && os.instrucoes.trim().length > 0) {
       return os.instrucoes
     }
     const matchingTemplate = (templates || []).find((t) => t?.tipo_servico === os.tipo_servico)
     return matchingTemplate?.instrucoes || ''
+  })
+
+  // Status de execução em andamento (local ou salvo)
+  const [osEmAndamento, setOsEmAndamento] = useState<boolean>(() => {
+    const checklistFeitos = (os.checklist || []).some((c) => c.concluido)
+    return Boolean(
+      checklistFeitos ||
+      (os.detalhes_execucao && os.detalhes_execucao.includes('[INÍCIO DO ATENDIMENTO]')),
+    )
   })
 
   // 3. Checklist
@@ -191,7 +204,7 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
   const [showConfirmModal, setShowConfirmModal] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  // Carrega dados do sistema solar do cliente
+  // Carrega dados do sistema solar do cliente e procedimentos do catálogo de atividades
   useEffect(() => {
     if (os.cliente_id) {
       setLoadingSistema(true)
@@ -207,7 +220,79 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
           .catch((e) => console.warn('Erro ao carregar inversores da OS:', e))
       })
     }
-  }, [os.cliente_id])
+
+    // Buscar procedimentos técnicos padrão no Catálogo de Atividades (tipos_atividades_custom)
+    setLoadingCatalogo(true)
+    import('@/services/crmService')
+      .then(({ fetchTiposAtividadesCustom }) => fetchTiposAtividadesCustom())
+      .then((tipos) => {
+        const tipoNome = (os.tipo_servico || '').toLowerCase()
+        const match = (tipos || []).find((t) => {
+          const n = (t.nome || '').toLowerCase()
+          return (
+            n.includes(tipoNome) ||
+            tipoNome.includes(n) ||
+            (tipoNome === 'limpeza' && n.includes('lavagem')) ||
+            (tipoNome === 'manutenção' && (n.includes('manutenção') || n.includes('revisão'))) ||
+            (tipoNome === 'configuração de datalogger' &&
+              (n.includes('datalogger') || n.includes('configuração')))
+          )
+        })
+        if (match?.orientacoes_tecnicas) {
+          setOrientacoesCatalogo(match.orientacoes_tecnicas)
+          // Se as instruções da OS estiverem vazias, preenche com as orientações do catálogo
+          setInstrucoesTexto((prev) =>
+            prev && prev.trim() ? prev : match.orientacoes_tecnicas || '',
+          )
+        }
+      })
+      .catch((err) => console.warn('Erro ao buscar orientações do catálogo:', err))
+      .finally(() => setLoadingCatalogo(false))
+  }, [os.cliente_id, os.tipo_servico])
+
+  // Iniciar Atendimento da OS
+  const [isIniciando, setIsIniciando] = useState(false)
+  const handleIniciarAtendimento = async () => {
+    setIsIniciando(true)
+    try {
+      const horaInicio = new Date().toLocaleTimeString('pt-BR', {
+        hour: '2-digit',
+        minute: '2-digit',
+      })
+      const carimbo = `[INÍCIO DO ATENDIMENTO: ${new Date().toLocaleDateString('pt-BR')} às ${horaInicio}]\n`
+      const novosDetalhes = detalhesExecucao
+        ? `${carimbo}${detalhesExecucao}`
+        : `${carimbo}Atendimento iniciado em campo pelo prestador.`
+
+      // Marca o primeiro item do checklist (ex: "Chegou no local da usina")
+      const updatedChecklist = checklist.map((item, idx) =>
+        idx === 0 ? { ...item, concluido: true } : item,
+      )
+
+      const updated = await updateOrdemServico(os.id, {
+        detalhes_execucao: novosDetalhes,
+        checklist: updatedChecklist,
+      })
+
+      setDetalhesExecucao(novosDetalhes)
+      setChecklist(updatedChecklist)
+      setOsEmAndamento(true)
+      onOSUpdated(updated)
+      toast({
+        title: 'Atendimento Iniciado! ⏱️',
+        description: `OS #${os.id.slice(-6).toUpperCase()} marcada como em andamento às ${horaInicio}.`,
+      })
+    } catch (err) {
+      console.error(err)
+      toast({
+        variant: 'destructive',
+        title: 'Erro ao iniciar atendimento',
+        description: 'Tente novamente.',
+      })
+    } finally {
+      setIsIniciando(false)
+    }
+  }
 
   // Toggle de item do checklist
   const handleToggleChecklist = (id: string) => {
@@ -413,7 +498,7 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
                   Instalador responsável: <strong>{os.atribuida_a}</strong>
                   {os.expand?.responsavel_usuario_id?.phone && (
                     <span className="ml-1 opacity-80">
-                      ({os.expand.responsavel_usuario_id.phone})
+                      ({os.expand?.responsavel_usuario_id?.phone})
                     </span>
                   )}
                 </span>
@@ -570,29 +655,41 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
         </div>
       </div>
 
-      {/* 2. INSTRUÇÕES DO SERVIÇO (Pré-preenchido com Template) */}
+      {/* 2. PROCEDIMENTOS DE TRABALHO PADRÃO & INSTRUÇÕES (Vindos do Catálogo de Atividades) */}
       <div className="bg-white rounded-2xl p-4 sm:p-6 border border-gray-200 shadow-xs space-y-3">
         <div className="flex items-center justify-between border-b border-gray-100 pb-3">
           <h3 className="font-bold text-gray-900 text-sm sm:text-base flex items-center gap-2">
             <FileText className="w-5 h-5 text-emerald-600" />
-            2. Instruções do Serviço
+            2. Procedimentos de Trabalho Padrão & Orientações Técnicas
           </h3>
           <span className="text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full font-bold">
             {os.tipo_servico}
           </span>
         </div>
 
+        {orientacoesCatalogo && (
+          <div className="bg-emerald-50/60 border border-emerald-200 rounded-xl p-3.5 space-y-1.5">
+            <div className="text-[11px] font-bold uppercase tracking-wider text-emerald-800 flex items-center gap-1.5">
+              <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+              <span>Procedimento Padrão Cadastrado no Catálogo:</span>
+            </div>
+            <p className="text-xs text-emerald-950 whitespace-pre-line leading-relaxed font-sans">
+              {orientacoesCatalogo}
+            </p>
+          </div>
+        )}
+
         <p className="text-xs text-gray-500 leading-relaxed">
-          Instruções técnicas para orientação da equipe em campo. Caso precise ajustar para esta OS,
-          edite o texto abaixo:
+          Instruções específicas para esta ordem de serviço. O prestador pode consultar ou
+          complementar abaixo:
         </p>
 
         <Textarea
           value={instrucoesTexto}
           onChange={(e) => setInstrucoesTexto(e.target.value)}
           disabled={os.status === 'concluida'}
-          placeholder="Nenhuma instrução cadastrada no template para este tipo de serviço."
-          className="min-h-[140px] text-xs sm:text-sm bg-gray-50/70 border-gray-200 rounded-xl leading-relaxed p-3.5 focus:bg-white resize-y font-mono"
+          placeholder="Procedimentos e orientações técnicas do serviço..."
+          className="min-h-[130px] text-xs sm:text-sm bg-gray-50/70 border-gray-200 rounded-xl leading-relaxed p-3.5 focus:bg-white resize-y font-mono"
         />
       </div>
 
@@ -813,6 +910,23 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
         <div className="max-w-3xl mx-auto flex items-center gap-3">
           {os.status !== 'concluida' ? (
             <>
+              {!osEmAndamento ? (
+                <Button
+                  type="button"
+                  onClick={handleIniciarAtendimento}
+                  disabled={isIniciando || isSubmitting}
+                  className="h-14 sm:h-12 px-5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-black text-xs sm:text-sm shadow-md flex items-center justify-center gap-2 shrink-0 transition-transform active:scale-[0.98]"
+                >
+                  <Clock className="w-4 h-4" />
+                  <span>{isIniciando ? 'Iniciando...' : 'INICIAR ATENDIMENTO'}</span>
+                </Button>
+              ) : (
+                <div className="inline-flex items-center gap-1.5 px-3 py-2 bg-amber-50 border border-amber-200 rounded-xl text-xs font-bold text-amber-800 shrink-0">
+                  <Clock className="w-4 h-4 text-amber-600" />
+                  <span className="hidden sm:inline">Em Andamento</span>
+                </div>
+              )}
+
               <Button
                 type="button"
                 variant="outline"
@@ -820,17 +934,17 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
                 disabled={isSavingDraft || isSubmitting}
                 className="h-14 sm:h-12 px-4 rounded-xl border-gray-300 font-bold text-xs sm:text-sm shrink-0"
               >
-                {isSavingDraft ? 'Salvando...' : 'Salvar Rascunho'}
+                {isSavingDraft ? 'Salvando...' : 'Salvar'}
               </Button>
 
               <Button
                 type="button"
                 onClick={() => setShowConfirmModal(true)}
                 disabled={isSubmitting || isSavingDraft}
-                className="flex-1 h-14 sm:h-12 rounded-xl bg-[#166534] hover:bg-[#14532d] text-white font-black text-sm sm:text-base shadow-md flex items-center justify-center gap-2 transition-transform active:scale-[0.98]"
+                className="flex-1 h-14 sm:h-12 rounded-xl bg-[#166534] hover:bg-[#14532d] text-white font-black text-xs sm:text-base shadow-md flex items-center justify-center gap-2 transition-transform active:scale-[0.98]"
               >
-                <ShieldCheck className="w-5 h-5 shrink-0" />
-                <span>FINALIZAR ORDEM DE SERVIÇO</span>
+                <CheckCircle2 className="w-5 h-5 shrink-0" />
+                <span>CONCLUIR OS</span>
               </Button>
             </>
           ) : (

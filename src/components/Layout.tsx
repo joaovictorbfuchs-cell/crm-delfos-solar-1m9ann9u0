@@ -98,8 +98,11 @@ export default function Layout() {
         return 'Projetos & Pós-Venda'
       case '/atividades':
         return 'Atividades & Calendário'
+      case '/servicos-campo':
       case '/execucao-os':
-        return 'Execução de OS'
+        return 'Serviços de Campo'
+      case '/minhas-os':
+        return 'Minhas OS'
       case '/planos-om':
       case '/planos-monitoramento':
         return 'Planos de Monitoramento & O&M'
@@ -137,8 +140,8 @@ export default function Layout() {
     }
   }
 
-  // Se o usuário for instalador, mostra APENAS "Execução de OS"
-  // Se for admin, mostra todos os itens incluindo Gerenciar Usuários
+  // Se o usuário for prestador/instalador, mostra APENAS "Minhas OS"
+  // Se for admin/proprietário, mostra todos os itens incluindo "Serviços de Campo"
   interface NavSubItem {
     name: string
     path: string
@@ -169,14 +172,14 @@ export default function Layout() {
   const isConfiguracoesActive = configuracoesSubItems.some((sub) => location.pathname === sub.path)
 
   const navItems: NavItem[] = isInstalador
-    ? [{ name: 'Execução de OS', path: '/execucao-os', icon: ClipboardCheck }]
+    ? [{ name: 'Minhas OS', path: '/minhas-os', icon: ClipboardCheck }]
     : [
         { name: 'Dashboard', path: '/', icon: LayoutDashboard },
         { name: 'Comercial', path: '/comercial', icon: KanbanSquare },
         { name: 'Propostas', path: '/propostas', icon: Sun },
         { name: 'Projetos', path: '/projetos', icon: FolderKanban },
         { name: 'Atividades', path: '/atividades', icon: CalendarCheck },
-        { name: 'Execução de OS', path: '/execucao-os', icon: ClipboardCheck },
+        { name: 'Serviços de Campo', path: '/servicos-campo', icon: ClipboardCheck },
         {
           name: 'O&M / Manutenções',
           path: '/manutencoes',
@@ -362,6 +365,10 @@ export default function Layout() {
               location.pathname === itemPath ||
               (itemPath === '/propostas' && location.pathname === '/orcamentos') ||
               (itemPath === '/orcamentos' && location.pathname === '/propostas') ||
+              (itemPath === '/servicos-campo' &&
+                (location.pathname === '/servicos-campo' ||
+                  location.pathname === '/execucao-os')) ||
+              (itemPath === '/minhas-os' && location.pathname === '/minhas-os') ||
               (itemPath === '/planos-om' &&
                 (location.pathname === '/planos-om' ||
                   location.pathname === '/planos-monitoramento'))
@@ -677,6 +684,10 @@ export default function Layout() {
                 const itemPath = item.path || '/'
                 const isActive =
                   location.pathname === itemPath ||
+                  (itemPath === '/servicos-campo' &&
+                    (location.pathname === '/servicos-campo' ||
+                      location.pathname === '/execucao-os')) ||
+                  (itemPath === '/minhas-os' && location.pathname === '/minhas-os') ||
                   (itemPath === '/planos-om' &&
                     (location.pathname === '/planos-om' ||
                       location.pathname === '/planos-monitoramento'))

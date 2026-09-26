@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react'
-import { OrdemServico, OSTemplate, OSTipoServico } from '@/types/crm'
-import { fetchOrdensServico, fetchOSTemplates } from '@/services/crmService'
-import { ModalTemplatesOS } from '@/components/ModalTemplatesOS'
+import { OrdemServico, OSTipoServico } from '@/types/crm'
+import { fetchOrdensServico } from '@/services/crmService'
 import { FichaExecucaoOS } from '@/components/FichaExecucaoOS'
 import { CalendarioExecucaoOS } from '@/components/CalendarioExecucaoOS'
 import { useToast } from '@/hooks/use-toast'
@@ -46,49 +45,48 @@ export default function ExecucaoOS() {
   const { userProfile, isAdmin, isInstalador } = useAuth()
 
   const [ordens, setOrdens] = useState<OrdemServico[]>([])
-  const [templates, setTemplates] = useState<OSTemplate[]>([])
   const [instaladores, setInstaladores] = useState<SistemaUsuario[]>([])
+  const [profissionais, setProfissionais] = useState<{ id: string; nome: string }[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
-  // Modal para admin atribuir instalador a uma OS
+  // Modal para admin atribuir / reatribuir instalador a uma OS
   const [osParaAtribuir, setOsParaAtribuir] = useState<OrdemServico | null>(null)
   const [selectedInstaladorId, setSelectedInstaladorId] = useState<string>('')
+  const [selectedProfissionalId, setSelectedProfissionalId] = useState<string>('')
   const [isSavingAtribuicao, setIsSavingAtribuicao] = useState(false)
 
   // OS atualmente aberta na Ficha de Execução (null = tela inicial/lista)
   const [selectedOS, setSelectedOS] = useState<OrdemServico | null>(null)
 
-  // Modal de Templates de Instruções
-  const [isTemplatesModalOpen, setIsTemplatesModalOpen] = useState(false)
-
   // Aba / Filtro na Lista: 'pendentes', 'concluidas' ou 'calendario'
   const [activeTab, setActiveTab] = useState<'pendentes' | 'concluidas' | 'calendario'>('pendentes')
 
-  // Filtros de busca e tipo
+  // Filtros de busca, tipo, prestador e período
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedTipoFilter, setSelectedTipoFilter] = useState<string>('todos')
+  const [selectedPrestadorFilter, setSelectedPrestadorFilter] = useState<string>('todos')
+  const [selectedPeriodoFilter, setSelectedPeriodoFilter] = useState<string>('todos')
 
-  // Carrega OSs e templates do banco
+  // Carrega OSs e prestadores do banco
   const carregarDados = async () => {
     setIsLoading(true)
     try {
-      // Se for instalador, buscar apenas as OSs atribuídas a ele
+      const { fetchProfissionais } = await import('@/services/crmService')
       const responsavelFiltro = isInstalador && userProfile?.id ? userProfile.id : undefined
-      const promises: [Promise<OrdemServico[]>, Promise<OSTemplate[]>, Promise<SistemaUsuario[]>] =
-        [
-          fetchOrdensServico(undefined, responsavelFiltro),
-          fetchOSTemplates(),
-          isAdmin ? fetchInstaladoresAtivos() : Promise.resolve([]),
-        ]
-      const [osList, tmplList, instList] = await Promise.all(promises)
+      const promises: [Promise<OrdemServico[]>, Promise<SistemaUsuario[]>, Promise<any[]>] = [
+        fetchOrdensServico(undefined, responsavelFiltro),
+        isAdmin ? fetchInstaladoresAtivos() : Promise.resolve([]),
+        fetchProfissionais ? fetchProfissionais() : Promise.resolve([]),
+      ]
+      const [osList, instList, profList] = await Promise.all(promises)
       setOrdens(Array.isArray(osList) ? osList : [])
-      setTemplates(Array.isArray(tmplList) ? tmplList : [])
       setInstaladores(Array.isArray(instList) ? instList : [])
+      setProfissionais(Array.isArray(profList) ? profList : [])
     } catch (err) {
       console.error('Erro ao carregar dados de OS:', err)
       toast({
         variant: 'destructive',
-        title: 'Erro ao carregar ordens de serviço',
+        title: 'Erro ao carregar serviços de campo',
         description: 'Tente recarregar a página.',
       })
     } finally {
@@ -99,19 +97,6 @@ export default function ExecucaoOS() {
   useEffect(() => {
     carregarDados()
   }, [isInstalador, userProfile?.id])
-
-  // Callback de template atualizado no modal
-  const handleTemplateSaved = (updatedTemplate: OSTemplate) => {
-    setTemplates((prev) => {
-      const exists = prev.some((t) => t.tipo_servico === updatedTemplate.tipo_servico)
-      if (exists) {
-        return prev.map((t) =>
-          t.tipo_servico === updatedTemplate.tipo_servico ? updatedTemplate : t,
-        )
-      }
-      return [...prev, updatedTemplate]
-    })
-  }
 
   // Callback de OS atualizada (rascunho ou salva)
   const handleOSUpdated = (updatedOS: OrdemServico) => {
@@ -124,7 +109,6 @@ export default function ExecucaoOS() {
   // Callback de OS finalizada
   const handleOSFinalizada = (finalizedOS: OrdemServico) => {
     setOrdens((prev) => prev.map((item) => (item.id === finalizedOS.id ? finalizedOS : item)))
-    // Fecha a ficha e volta para a lista, abrindo a aba de concluídas para conferência
     setSelectedOS(null)
     setActiveTab('concluidas')
   }
@@ -140,19 +124,74 @@ export default function ExecucaoOS() {
 
   const listToDisplay = activeTab === 'pendentes' ? pendentesList : concluidasList
 
+  // Lista de todos os nomes de prestadores para o dropdown
+  const prestadoresOpcoes = useMemo(() => {
+    const set = new Set<string>()
+    ordens.forEach((os) => {
+      if (os.atribuida_a) set.add(os.atribuida_a)
+    })
+    instaladores.forEach((i) => {
+      if (i.name) set.add(i.name)
+    })
+    profissionais.forEach((p) => {
+      if (p.nome) set.add(p.nome)
+    })
+    return Array.from(set).sort()
+  }, [ordens, instaladores, profissionais])
+
   const filteredList = useMemo(() => {
+    const agora = new Date()
+    const inicioHoje = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate()).getTime()
+    const fimHoje = inicioHoje + 24 * 60 * 60 * 1000 - 1
+
+    const inicioSemana = new Date(agora)
+    inicioSemana.setDate(agora.getDate() - agora.getDay())
+    inicioSemana.setHours(0, 0, 0, 0)
+    const fimSemana = new Date(inicioSemana)
+    fimSemana.setDate(inicioSemana.getDate() + 7)
+
+    const inicioMes = new Date(agora.getFullYear(), agora.getMonth(), 1).getTime()
+    const fimMes = new Date(agora.getFullYear(), agora.getMonth() + 1, 0, 23, 59, 59).getTime()
+
     return (listToDisplay || []).filter((os) => {
       if (!os) return false
+
       // Filtro por tipo de serviço
       if (selectedTipoFilter !== 'todos' && os.tipo_servico !== selectedTipoFilter) {
         return false
       }
+
+      // Filtro por prestador
+      if (selectedPrestadorFilter !== 'todos') {
+        const prestadorOS = (os.atribuida_a || '').toLowerCase()
+        const target = selectedPrestadorFilter.toLowerCase()
+        if (
+          !prestadorOS.includes(target) &&
+          os.responsavel_usuario_id !== selectedPrestadorFilter
+        ) {
+          return false
+        }
+      }
+
+      // Filtro por período
+      if (selectedPeriodoFilter !== 'todos' && os.data_agendada) {
+        const dataOS = new Date(os.data_agendada).getTime()
+        if (selectedPeriodoFilter === 'hoje') {
+          if (dataOS < inicioHoje || dataOS > fimHoje) return false
+        } else if (selectedPeriodoFilter === 'semana') {
+          if (dataOS < inicioSemana.getTime() || dataOS > fimSemana.getTime()) return false
+        } else if (selectedPeriodoFilter === 'mes') {
+          if (dataOS < inicioMes || dataOS > fimMes) return false
+        }
+      }
+
       // Busca por nome do cliente, endereço ou técnico
       if (searchTerm.trim()) {
         const query = searchTerm.toLowerCase()
         const clienteNome = (
           os.expand?.cliente_id?.nome ||
           os.expand?.cliente_id?.razao_social ||
+          os.endereco ||
           ''
         ).toLowerCase()
         const endereco = (os.endereco || '').toLowerCase()
@@ -168,18 +207,28 @@ export default function ExecucaoOS() {
       }
       return true
     })
-  }, [listToDisplay, selectedTipoFilter, searchTerm])
+  }, [
+    listToDisplay,
+    selectedTipoFilter,
+    selectedPrestadorFilter,
+    selectedPeriodoFilter,
+    searchTerm,
+  ])
 
-  // Salvar atribuição de instalador pela lista
+  // Salvar atribuição / reatribuição de instalador pela lista
   const handleSalvarAtribuicao = async () => {
     if (!osParaAtribuir) return
     setIsSavingAtribuicao(true)
     try {
       const targetInstalador = instaladores.find((i) => i.id === selectedInstaladorId)
+      const targetProf = profissionais.find((p) => p.id === selectedProfissionalId)
+      const nomeFinal = targetInstalador?.name || targetProf?.nome || ''
+
       const { updateOrdemServico } = await import('@/services/crmService')
       const updated = await updateOrdemServico(osParaAtribuir.id, {
         responsavel_usuario_id: selectedInstaladorId || '',
-        atribuida_a: targetInstalador ? targetInstalador.name : '',
+        profissional_id: selectedProfissionalId || '',
+        atribuida_a: nomeFinal,
       })
 
       setOrdens((prev) =>
@@ -188,23 +237,22 @@ export default function ExecucaoOS() {
             ? {
                 ...item,
                 responsavel_usuario_id: updated.responsavel_usuario_id,
+                profissional_id: updated.profissional_id,
                 atribuida_a: updated.atribuida_a,
               }
             : item,
         ),
       )
       toast({
-        title: 'Instalador atribuído!',
-        description: targetInstalador
-          ? `OS atribuída para ${targetInstalador.name}.`
-          : 'Atribuição removida.',
+        title: 'Prestador reatribuído com sucesso!',
+        description: nomeFinal ? `OS reatribuída para ${nomeFinal}.` : 'Atribuição removida.',
       })
       setOsParaAtribuir(null)
     } catch (err) {
       console.error(err)
       toast({
         variant: 'destructive',
-        title: 'Erro ao atribuir instalador',
+        title: 'Erro ao reatribuir prestador',
       })
     } finally {
       setIsSavingAtribuicao(false)
@@ -216,7 +264,6 @@ export default function ExecucaoOS() {
     return (
       <FichaExecucaoOS
         os={selectedOS}
-        templates={templates}
         instaladores={instaladores}
         onBack={() => setSelectedOS(null)}
         onOSUpdated={handleOSUpdated}
@@ -227,7 +274,7 @@ export default function ExecucaoOS() {
 
   return (
     <div className="space-y-5 max-w-5xl mx-auto pb-12">
-      {/* Top Banner Otimizado para Celular */}
+      {/* Top Banner de Serviços de Campo */}
       <div className="bg-white rounded-2xl p-4 sm:p-6 border border-[#E5E7EB] shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
@@ -236,37 +283,26 @@ export default function ExecucaoOS() {
             </span>
             <div>
               <h2 className="text-lg sm:text-xl font-bold text-gray-900 leading-tight">
-                Execução de OS em Campo
+                Serviços de Campo
               </h2>
               <p className="text-xs text-gray-500">
-                Ordens de serviço para instaladores e técnicos solares
+                Gestão geral de todas as ordens de serviço, prestadores e vistorias técnicas
               </p>
             </div>
           </div>
         </div>
 
-        {/* Botão de Templates de Instruções (Apenas Admin) e Atualizar */}
         <div className="flex items-center gap-2">
-          {isAdmin && (
-            <Button
-              type="button"
-              onClick={() => setIsTemplatesModalOpen(true)}
-              className="w-full sm:w-auto h-12 sm:h-11 px-4 rounded-xl bg-[#166534] hover:bg-[#14532d] text-white font-bold text-xs sm:text-sm shadow-sm flex items-center justify-center gap-2"
-            >
-              <FileText className="w-4 h-4" />
-              <span>Templates de Instruções</span>
-            </Button>
-          )}
-
           <Button
             type="button"
             variant="outline"
             onClick={carregarDados}
             disabled={isLoading}
-            className="h-12 sm:h-11 px-3 rounded-xl border-gray-200 hover:bg-gray-50 text-gray-700"
+            className="h-11 px-4 rounded-xl border-gray-200 hover:bg-gray-50 text-gray-700 flex items-center gap-2"
             title="Atualizar lista de OS"
           >
             <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+            <span className="text-xs font-semibold">Atualizar</span>
           </Button>
         </div>
       </div>
@@ -357,32 +393,60 @@ export default function ExecucaoOS() {
         )
       ) : (
         <>
-          {/* Barra de Filtros e Busca Rápida (para abas Pendentes e Concluídas) */}
-          <div className="bg-white rounded-2xl p-3 sm:p-4 border border-gray-200 shadow-2xs flex flex-col sm:flex-row gap-2.5">
-            <div className="relative flex-1">
-              <Search className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-              <Input
-                type="text"
-                placeholder="Buscar por cliente, endereço ou instalador..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-9 h-11 text-xs sm:text-sm rounded-xl border-gray-200 focus:border-emerald-600"
-              />
-            </div>
+          {/* Barra de Filtros Avançados: Prestador, Status/Tipo, Período e Busca */}
+          <div className="bg-white rounded-2xl p-3 sm:p-4 border border-gray-200 shadow-2xs flex flex-col gap-2.5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
+              <div className="relative">
+                <Search className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                <Input
+                  type="text"
+                  placeholder="Buscar cliente, endereço..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-9 h-11 text-xs sm:text-sm rounded-xl border-gray-200 focus:border-emerald-600"
+                />
+              </div>
 
-            {/* Filtro por tipo de serviço */}
-            <select
-              value={selectedTipoFilter}
-              onChange={(e) => setSelectedTipoFilter(e.target.value)}
-              className="h-11 px-3 text-xs sm:text-sm font-medium rounded-xl border border-gray-200 bg-white text-gray-800 focus:outline-hidden focus:border-emerald-600"
-            >
-              <option value="todos">Todos os Serviços</option>
-              <option value="Limpeza">Limpeza</option>
-              <option value="Manutenção">Manutenção</option>
-              <option value="Instalação">Instalação</option>
-              <option value="Garantia">Garantia</option>
-              <option value="Configuração de Datalogger">Configuração de Datalogger</option>
-            </select>
+              {/* Filtro por Prestador */}
+              <select
+                value={selectedPrestadorFilter}
+                onChange={(e) => setSelectedPrestadorFilter(e.target.value)}
+                className="h-11 px-3 text-xs sm:text-sm font-medium rounded-xl border border-gray-200 bg-white text-gray-800 focus:outline-hidden focus:border-emerald-600"
+              >
+                <option value="todos">Todos os Prestadores</option>
+                {prestadoresOpcoes.map((nome) => (
+                  <option key={nome} value={nome}>
+                    Prestador: {nome}
+                  </option>
+                ))}
+              </select>
+
+              {/* Filtro por Tipo de Serviço */}
+              <select
+                value={selectedTipoFilter}
+                onChange={(e) => setSelectedTipoFilter(e.target.value)}
+                className="h-11 px-3 text-xs sm:text-sm font-medium rounded-xl border border-gray-200 bg-white text-gray-800 focus:outline-hidden focus:border-emerald-600"
+              >
+                <option value="todos">Todos os Serviços</option>
+                <option value="Limpeza">Limpeza</option>
+                <option value="Manutenção">Manutenção</option>
+                <option value="Instalação">Instalação</option>
+                <option value="Garantia">Garantia</option>
+                <option value="Configuração de Datalogger">Configuração de Datalogger</option>
+              </select>
+
+              {/* Filtro por Período */}
+              <select
+                value={selectedPeriodoFilter}
+                onChange={(e) => setSelectedPeriodoFilter(e.target.value)}
+                className="h-11 px-3 text-xs sm:text-sm font-medium rounded-xl border border-gray-200 bg-white text-gray-800 focus:outline-hidden focus:border-emerald-600"
+              >
+                <option value="todos">Qualquer Período</option>
+                <option value="hoje">Agendadas para Hoje</option>
+                <option value="semana">Nesta Semana</option>
+                <option value="mes">Neste Mês</option>
+              </select>
+            </div>
           </div>
 
           {/* Lista de Cards de Ordens de Serviço */}
@@ -458,7 +522,7 @@ export default function ExecucaoOS() {
 
                       {/* Nome do Cliente */}
                       <h3 className="text-base sm:text-lg font-bold text-gray-900 group-hover:text-emerald-700 transition-colors mb-2">
-                        {cliente?.nome || cliente?.razao_social || 'Cliente Solar'}
+                        {cliente?.nome || cliente?.razao_social || os.endereco || 'Cliente Solar'}
                       </h3>
 
                       {/* Endereço de Execução */}
@@ -489,7 +553,7 @@ export default function ExecucaoOS() {
                             </strong>
                             {os.expand?.responsavel_usuario_id?.phone && (
                               <span className="text-[11px] text-gray-400 font-normal ml-1">
-                                • {os.expand.responsavel_usuario_id.phone}
+                                • {os.expand?.responsavel_usuario_id?.phone}
                               </span>
                             )}
                           </span>
@@ -502,10 +566,11 @@ export default function ExecucaoOS() {
                               e.stopPropagation()
                               setOsParaAtribuir(os)
                               setSelectedInstaladorId(os.responsavel_usuario_id || '')
+                              setSelectedProfissionalId(os.profissional_id || '')
                             }}
-                            className="text-[11px] font-bold text-emerald-700 hover:text-emerald-900 bg-emerald-50 hover:bg-emerald-100 px-2 py-0.5 rounded-md border border-emerald-200 transition-colors shrink-0"
+                            className="text-[11px] font-bold text-emerald-700 hover:text-emerald-900 bg-emerald-50 hover:bg-emerald-100 px-2.5 py-1 rounded-md border border-emerald-200 transition-colors shrink-0"
                           >
-                            Atribuir
+                            Reatribuir
                           </button>
                         )}
                       </div>
@@ -555,17 +620,7 @@ export default function ExecucaoOS() {
           )}
         </>
       )}
-      {/* Modal de Templates de Instruções (Apenas Admin) */}
-      {isAdmin && (
-        <ModalTemplatesOS
-          isOpen={isTemplatesModalOpen}
-          onClose={() => setIsTemplatesModalOpen(false)}
-          templates={templates}
-          onTemplateSaved={handleTemplateSaved}
-        />
-      )}
-
-      {/* Modal de Atribuição de Instalador à OS (Apenas Admin) */}
+      {/* Modal de Reatribuição de Prestador à OS (Apenas Admin) */}
       {isAdmin && (
         <Dialog
           open={Boolean(osParaAtribuir)}
@@ -575,10 +630,11 @@ export default function ExecucaoOS() {
             <DialogHeader>
               <DialogTitle className="text-gray-900 flex items-center gap-2">
                 <Wrench className="w-5 h-5 text-emerald-600" />
-                <span>Atribuir Instalador à OS</span>
+                <span>Reatribuir Prestador / Técnico</span>
               </DialogTitle>
               <DialogDescription className="text-xs text-gray-500">
-                Selecione o instalador responsável por executar esta ordem de serviço em campo.
+                Selecione o prestador ou técnico responsável por executar esta ordem de serviço em
+                campo.
               </DialogDescription>
             </DialogHeader>
 
@@ -588,34 +644,66 @@ export default function ExecucaoOS() {
                 <span className="text-gray-900 font-semibold">
                   {osParaAtribuir?.expand?.cliente_id?.nome ||
                     osParaAtribuir?.expand?.cliente_id?.razao_social ||
+                    osParaAtribuir?.endereco ||
                     'Cliente Solar'}
                 </span>
                 <span className="text-gray-500 block mt-1">
-                  Serviço: <strong>{osParaAtribuir?.tipo_servico}</strong>
+                  Serviço: <strong>{osParaAtribuir?.tipo_servico}</strong> • Atual:{' '}
+                  <strong>{osParaAtribuir?.atribuida_a || 'Não atribuído'}</strong>
                 </span>
               </div>
 
               <div>
                 <label className="block text-xs font-bold text-gray-700 mb-1.5">
-                  Instalador Responsável
+                  Conta de Usuário do Prestador (App / Login)
                 </label>
                 <select
                   value={selectedInstaladorId}
-                  onChange={(e) => setSelectedInstaladorId(e.target.value)}
+                  onChange={(e) => {
+                    const id = e.target.value
+                    setSelectedInstaladorId(id)
+                    const inst = instaladores.find((i) => i.id === id)
+                    if (inst) {
+                      // Tentar encontrar profissional com mesmo nome
+                      const matchProf = profissionais.find(
+                        (p) => p.nome.toLowerCase() === inst.name.toLowerCase(),
+                      )
+                      if (matchProf) setSelectedProfissionalId(matchProf.id)
+                    }
+                  }}
                   className="w-full h-11 px-3 text-xs sm:text-sm font-medium rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-hidden focus:border-emerald-600"
                 >
-                  <option value="">-- Não atribuído / Remover atribuição --</option>
+                  <option value="">-- Selecionar conta de usuário (se houver) --</option>
                   {instaladores.map((inst) => (
                     <option key={inst.id} value={inst.id}>
-                      {inst.name} {inst.phone ? `(${inst.phone})` : '(Sem WhatsApp)'}
+                      {inst.name} ({inst.email}) {inst.phone ? `• ${inst.phone}` : ''}
                     </option>
                   ))}
                 </select>
-                <p className="text-[11px] text-gray-400 mt-1">
-                  Ao atribuir ou alterar, o instalador receberá uma notificação automática via
-                  WhatsApp (Z-API).
-                </p>
               </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1.5">
+                  Profissional Técnico Cadastrado
+                </label>
+                <select
+                  value={selectedProfissionalId}
+                  onChange={(e) => setSelectedProfissionalId(e.target.value)}
+                  className="w-full h-11 px-3 text-xs sm:text-sm font-medium rounded-xl border border-gray-200 bg-white text-gray-900 focus:outline-hidden focus:border-emerald-600"
+                >
+                  <option value="">-- Selecionar da lista de profissionais --</option>
+                  {profissionais.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.nome}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <p className="text-[11px] text-gray-400">
+                Ao reatribuir, a OS aparecerá imediatamente na tela 'Minhas OS' do prestador
+                selecionado.
+              </p>
             </div>
 
             <DialogFooter className="pt-2">
@@ -634,7 +722,7 @@ export default function ExecucaoOS() {
                 onClick={handleSalvarAtribuicao}
                 className="bg-[#16A34A] hover:bg-[#15803D] text-white font-bold rounded-xl h-10 text-xs"
               >
-                {isSavingAtribuicao ? 'Salvando...' : 'Confirmar Atribuição'}
+                {isSavingAtribuicao ? 'Salvando...' : 'Confirmar Reatribuição'}
               </Button>
             </DialogFooter>
           </DialogContent>
