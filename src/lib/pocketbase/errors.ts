@@ -25,25 +25,5 @@ export function getErrorMessage(error: unknown): string {
     return error instanceof Error ? error.message : 'An unexpected error occurred.'
   }
   const msgs = Object.values(extractFieldErrors(error))
-  return msgs.length > 0 ? msgs.join(' ') : error.message || 'An unexpected error occurred.'
-}
-
-/**
- * Detecta se um erro é devido a sessão inválida, expirada ou não autenticada (401 / 403).
- */
-export function isAuthSessionError(error: unknown): boolean {
-  if (!error) return false
-  if (error instanceof ClientResponseError) {
-    return error.status === 401 || error.status === 403
-  }
-  const status = (error as { status?: number })?.status
-  if (status === 401 || status === 403) return true
-  const msg = String((error as { message?: string })?.message || '').toLowerCase()
-  return (
-    msg.includes('authenticate') ||
-    msg.includes('token') ||
-    msg.includes('unauthorized') ||
-    msg.includes('forbidden') ||
-    msg.includes('sessão expirada')
-  )
+  return msgs.length > 0 ? msgs.join(' ') : (error.message || 'An unexpected error occurred.')
 }
