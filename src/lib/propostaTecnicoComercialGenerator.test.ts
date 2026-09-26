@@ -21,6 +21,7 @@ describe('Medição de tamanho de imagens para diagnóstico', () => {
       return `${(bytes / (1024 * 1024)).toFixed(2)} MB`
     }
     const calcBytes = (str: string) => {
+      if (!str) return 0
       if (str.startsWith('data:')) {
         const commaIdx = str.indexOf(',')
         const base64Part = commaIdx !== -1 ? str.slice(commaIdx + 1) : str
@@ -28,13 +29,19 @@ describe('Medição de tamanho de imagens para diagnóstico', () => {
       }
       return str.length
     }
-    const logInfo = (nome: string, str: string) => {
-      const b = calcBytes(str)
-      throw new Error(
-        `[MEDICAO_IMAGEM] ${nome} => strLen: ${str.length}, bytes: ${b} (${formatBytes(b)})`,
-      )
+
+    const report: Record<string, { strLen: number; bytes: number; formatted: string }> = {}
+    const add = (k: string, s: string) => {
+      const b = calcBytes(s)
+      report[k] = { strLen: s?.length || 0, bytes: b, formatted: formatBytes(b) }
     }
-    logInfo('logoOficialPngAsset', logoOficialPngAsset)
+
+    add('logoOficialPngAsset', logoOficialPngAsset)
+    add('onGridPngAsset', onGridPngAsset)
+    add('monitoramentoPngAsset', monitoramentoPngAsset)
+    USINAS_PORTFOLIO_PADRAO.forEach((u) => add(`usina_${u.id}`, u.fotoBase64))
+
+    throw new Error(`[MEDICAO_IMAGEM_RESULT] ${JSON.stringify(report)}`)
   })
 })
 

@@ -5,6 +5,42 @@ import { describe, it, expect } from 'vitest'
 // Teste para validação do script de exportação do schema para XLSX
 // Verifica a integridade dos dados gerados nas 3 abas obrigatórias
 
+import {
+  logoOficialPngAsset,
+  onGridPngAsset,
+  monitoramentoPngAsset,
+} from './propostaIlustracoesAssets'
+import { USINAS_PORTFOLIO_PADRAO } from './portfolioUsinasAssets'
+
+describe('Diagnostico Imagens', () => {
+  it('mede strings de imagem inline', () => {
+    const calcBytes = (str: string) => {
+      if (!str) return 0
+      if (str.startsWith('data:')) {
+        const commaIdx = str.indexOf(',')
+        const base64Part = commaIdx !== -1 ? str.slice(commaIdx + 1) : str
+        return Math.round((base64Part.length * 3) / 4)
+      }
+      return str.length
+    }
+    const report: Record<string, { strLen: number; bytes: number }> = {
+      logoOficialPngAsset: {
+        strLen: logoOficialPngAsset.length,
+        bytes: calcBytes(logoOficialPngAsset),
+      },
+      onGridPngAsset: { strLen: onGridPngAsset.length, bytes: calcBytes(onGridPngAsset) },
+      monitoramentoPngAsset: {
+        strLen: monitoramentoPngAsset.length,
+        bytes: calcBytes(monitoramentoPngAsset),
+      },
+    }
+    USINAS_PORTFOLIO_PADRAO.forEach((u) => {
+      report[u.id] = { strLen: u.fotoBase64.length, bytes: calcBytes(u.fotoBase64) }
+    })
+    throw new Error(`MEDICAO_RESULT: ${JSON.stringify(report)}`)
+  })
+})
+
 describe('Export Schema Script & Data Structure', () => {
   it('deve conter as 38 coleções do PocketBase no schema', () => {
     const rawSchema = fs.readFileSync(path.resolve('src/lib/pocketbase/schema.json'), 'utf8')
