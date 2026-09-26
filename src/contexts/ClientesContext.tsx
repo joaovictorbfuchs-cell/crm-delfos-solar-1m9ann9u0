@@ -265,8 +265,19 @@ interface ClientesContextType {
     responsavel_id?: string
     responsavel_nome?: string
     valor_servico?: number
+    valor_por_placa?: number
+    qtd_modulos?: number
+    cobrar_deslocamento?: boolean
+    distancia_km?: number
+    valor_km?: number
+    custo_deslocamento?: number
+    custo_placas?: number
+    custo_total?: number
     fornecedor_id?: string
     equipe_nome?: string
+    leituras_programadas_distribuidora?:
+      | Array<{ data: string; responsavel: 'Cliente' | 'Distribuidora' }>
+      | unknown
   }) => Promise<Atividade>
   updateAtividade: (id: string, data: Partial<Atividade>) => Promise<Atividade>
   updateAtividadeStatus: (id: string, status: AtividadeStatus) => Promise<void>
@@ -1364,8 +1375,19 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     responsavel_id?: string
     responsavel_nome?: string
     valor_servico?: number
+    valor_por_placa?: number
+    qtd_modulos?: number
+    cobrar_deslocamento?: boolean
+    distancia_km?: number
+    valor_km?: number
+    custo_deslocamento?: number
+    custo_placas?: number
+    custo_total?: number
     fornecedor_id?: string
     equipe_nome?: string
+    leituras_programadas_distribuidora?:
+      | Array<{ data: string; responsavel: 'Cliente' | 'Distribuidora' }>
+      | unknown
   }) => {
     const created = await apiCreateAtividade(data)
     setAtividades((prev) => [created, ...prev.filter((a) => a.id !== created.id)])

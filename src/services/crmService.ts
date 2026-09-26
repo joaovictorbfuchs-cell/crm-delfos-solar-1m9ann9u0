@@ -232,8 +232,19 @@ export async function createAtividade(data: {
   responsavel_id?: string
   responsavel_nome?: string
   valor_servico?: number
+  valor_por_placa?: number
+  qtd_modulos?: number
+  cobrar_deslocamento?: boolean
+  distancia_km?: number
+  valor_km?: number
+  custo_deslocamento?: number
+  custo_placas?: number
+  custo_total?: number
   fornecedor_id?: string
   equipe_nome?: string
+  leituras_programadas_distribuidora?:
+    | Array<{ data: string; responsavel: 'Cliente' | 'Distribuidora' }>
+    | unknown
 }): Promise<Atividade> {
   const descTrim = typeof data.descricao === 'string' ? data.descricao.trim() : ''
   const fallbackDescricao =

@@ -48,6 +48,8 @@ export const ModalDetalhesAtividade: React.FC<ModalDetalhesAtividadeProps> = ({
 }) => {
   const { clientes, usuarios, updateAtividade, openFichaCliente } = useClientes()
 
+  const clienteAtual = clientes.find((c) => c.id === (clienteId || atividade?.cliente_id))
+
   // Estados dos campos editáveis
   const [titulo, setTitulo] = useState('')
   const [tipo, setTipo] = useState<AtividadeTipo>('contato_ligacao')
@@ -488,8 +490,8 @@ export const ModalDetalhesAtividade: React.FC<ModalDetalhesAtividadeProps> = ({
                 valorPorPlaca: atividade.valor_por_placa,
                 qtdModulos: atividade.qtd_modulos,
                 cobrarDeslocamento: atividade.cobrar_deslocamento !== false,
-                distancia_km: atividade.distancia_km,
-                valor_km: atividade.valor_km,
+                distanciaKm: atividade.distancia_km,
+                valorKm: atividade.valor_km,
               }}
               onChange={setCustosValores}
             />
