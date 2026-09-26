@@ -159,6 +159,46 @@ export const AtividadeItem: React.FC<AtividadeItemProps> = ({
           <p className="text-xs text-gray-700 whitespace-pre-wrap leading-relaxed">
             {atividade.descricao}
           </p>
+
+          {/* Exibição discreta e limpa de custos quando existirem dados */}
+          {(Number(atividade.custo_total) > 0 || Number(atividade.valor_servico) > 0) && (
+            <div className="mt-2 pt-2 border-t border-gray-100 flex items-center justify-between text-[11px] text-gray-600 flex-wrap gap-2">
+              <div className="flex items-center gap-1.5 flex-wrap">
+                {Number(atividade.valor_servico) > 0 && (
+                  <span className="font-medium text-gray-700">
+                    Serviço: R${' '}
+                    {Number(atividade.valor_servico).toLocaleString('pt-BR', {
+                      minimumFractionDigits: 2,
+                    })}
+                  </span>
+                )}
+                {Number(atividade.valor_por_placa) > 0 && Number(atividade.qtd_modulos) > 0 && (
+                  <span className="text-gray-500 bg-sky-50 text-sky-800 px-1 rounded text-[10px]">
+                    ({atividade.qtd_modulos} placas × R${' '}
+                    {Number(atividade.valor_por_placa).toFixed(2)})
+                  </span>
+                )}
+                {atividade.cobrar_deslocamento && Number(atividade.custo_deslocamento) > 0 && (
+                  <span className="text-gray-500">
+                    + Deslocamento: R${' '}
+                    {Number(atividade.custo_deslocamento).toLocaleString('pt-BR', {
+                      minimumFractionDigits: 2,
+                    })}
+                    {Number(atividade.distancia_km) > 0 && ` (${atividade.distancia_km} km)`}
+                  </span>
+                )}
+              </div>
+
+              {Number(atividade.custo_total) > 0 && (
+                <div className="font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                  Total: R${' '}
+                  {Number(atividade.custo_total).toLocaleString('pt-BR', {
+                    minimumFractionDigits: 2,
+                  })}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>

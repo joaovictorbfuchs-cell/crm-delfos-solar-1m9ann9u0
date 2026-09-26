@@ -77,6 +77,8 @@ export interface TipoAtividadeDef {
   icon: React.ComponentType<{ className?: string }>
   isPadrao?: boolean
   customRecordId?: string
+  valor_base?: number
+  valor_por_placa?: number
 }
 
 // 1. "Atividades Comerciais":
@@ -180,6 +182,7 @@ export const ATIVIDADES_PADRAO: TipoAtividadeDef[] = [
     borderClass: 'border-emerald-400',
     icon: Hammer,
     isPadrao: true,
+    valor_base: 350,
   },
   {
     id: 'limpeza_manutencao',
@@ -193,6 +196,8 @@ export const ATIVIDADES_PADRAO: TipoAtividadeDef[] = [
     borderClass: 'border-sky-400',
     icon: Droplets,
     isPadrao: true,
+    valor_base: 250,
+    valor_por_placa: 12.5,
   },
   {
     id: 'configuracao_datalogger',
@@ -206,6 +211,7 @@ export const ATIVIDADES_PADRAO: TipoAtividadeDef[] = [
     borderClass: 'border-indigo-400',
     icon: Wifi,
     isPadrao: true,
+    valor_base: 180,
   },
   {
     id: 'garantia_equipamento',
@@ -219,6 +225,7 @@ export const ATIVIDADES_PADRAO: TipoAtividadeDef[] = [
     borderClass: 'border-red-400',
     icon: ShieldCheck,
     isPadrao: true,
+    valor_base: 0,
   },
 
   // --- Categoria 3: Atividades Administrativas / RGE / Pós-Venda ---
@@ -366,6 +373,8 @@ export function buildCustomTipoDef(record: {
   icone?: string
   descricao?: string
   is_padrao?: boolean
+  valor_base?: number
+  valor_por_placa?: number
 }): TipoAtividadeDef {
   const catDef = CATEGORIAS_ATIVIDADES.find((c) => c.id === record.categoria)
   const corHex = record.cor || catDef?.corHex || '#16A34A'
@@ -384,6 +393,9 @@ export function buildCustomTipoDef(record: {
     icon: resolvedIcon,
     isPadrao: Boolean(record.is_padrao),
     customRecordId: record.id,
+    valor_base: typeof record.valor_base === 'number' ? record.valor_base : undefined,
+    valor_por_placa:
+      typeof record.valor_por_placa === 'number' ? record.valor_por_placa : undefined,
   }
 }
 

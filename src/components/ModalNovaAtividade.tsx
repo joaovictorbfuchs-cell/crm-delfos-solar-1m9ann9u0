@@ -17,6 +17,10 @@ import { useAuth } from '@/contexts/AuthContext'
 import { ClienteAutocomplete } from '@/components/ClienteAutocomplete'
 import { fetchUsinasByClienteId } from '@/services/crmService'
 import {
+  SecaoCustosDeslocamentoAtividade,
+  type CustosDeslocamentoValues,
+} from './SecaoCustosDeslocamentoAtividade'
+import {
   CATEGORIAS_ATIVIDADES,
   ATIVIDADES_PADRAO,
   getTipoAtividadeConfig,
@@ -103,6 +107,9 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
   const [formSuccess, setFormSuccess] = useState(false)
+
+  // Valores de custo e deslocamento
+  const [custosValores, setCustosValores] = useState<CustosDeslocamentoValues | null>(null)
 
   // Quando abre ou muda o initialTipo, preenche automaticamente o título
   useEffect(() => {
@@ -280,6 +287,16 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
         status: 'pendente',
         autor: user?.name || 'João Delfos',
         usina_id: selectedUsinaId || undefined,
+        // Campos de custo e deslocamento
+        valor_servico: custosValores?.valorServico ?? undefined,
+        valor_por_placa: custosValores?.valorPorPlaca ?? undefined,
+        qtd_modulos: custosValores?.qtdModulos ?? undefined,
+        cobrar_deslocamento: custosValores?.cobrarDeslocamento ?? undefined,
+        distancia_km: custosValores?.distanciaKm ?? undefined,
+        valor_km: custosValores?.valorKm ?? undefined,
+        custo_deslocamento: custosValores?.custoDeslocamento ?? undefined,
+        custo_placas: custosValores?.custoPlacas ?? undefined,
+        custo_total: custosValores?.custoTotal ?? undefined,
       }
 
       if (leiturasDistribuidora && leiturasDistribuidora.length > 0) {
@@ -547,6 +564,20 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
               className="w-full text-xs px-3 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white text-gray-900"
             />
           </div>
+
+          {/* Seção de Custos e Deslocamento para Atividades de Manutenção ou quando houver cliente */}
+          {clienteId && (
+            <SecaoCustosDeslocamentoAtividade
+              enderecoCliente={clientes.find((c) => c.id === clienteId)?.endereco}
+              cidadeCliente={clientes.find((c) => c.id === clienteId)?.cidade}
+              usinaSelecionada={usinasDoCliente.find((u) => u.id === selectedUsinaId)}
+              usinasDoCliente={usinasDoCliente}
+              valorBaseSugerido={configAtual.valor_base}
+              valorPorPlacaSugerido={configAtual.valor_por_placa}
+              categoria={selectedCategoria}
+              onChange={setCustosValores}
+            />
+          )}
 
           {/* Descrição Detalhada (OPCIONAL) */}
           <div className="space-y-1">

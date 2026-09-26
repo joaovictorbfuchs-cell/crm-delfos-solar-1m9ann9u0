@@ -16,6 +16,10 @@ import {
   getTipoAtividadeConfig,
   type TipoAtividadeDef,
 } from '@/constants/atividadesTipos'
+import {
+  SecaoCustosDeslocamentoAtividade,
+  type CustosDeslocamentoValues,
+} from './SecaoCustosDeslocamentoAtividade'
 import { useClientes } from '@/contexts/ClientesContext'
 import { useAuth } from '@/contexts/AuthContext'
 import type { AtividadeTipo, AtividadeCategoriaId, UsinaCliente } from '@/types/crm'
@@ -74,6 +78,7 @@ export const QuickAddAtividade: React.FC<QuickAddAtividadeProps> = ({
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
+  const [custosValores, setCustosValores] = useState<CustosDeslocamentoValues | null>(null)
 
   // Montar lista de tipos customizados convertidos em TipoAtividadeDef
   const customDefs = useMemo(() => {
@@ -222,6 +227,16 @@ export const QuickAddAtividade: React.FC<QuickAddAtividadeProps> = ({
           responsavel_nome: responsavelNome,
           status: 'pendente',
           usina_id: selectedUsinaId || undefined,
+          // Custos e deslocamento
+          valor_servico: custosValores?.valorServico ?? undefined,
+          valor_por_placa: custosValores?.valorPorPlaca ?? undefined,
+          qtd_modulos: custosValores?.qtdModulos ?? undefined,
+          cobrar_deslocamento: custosValores?.cobrarDeslocamento ?? undefined,
+          distancia_km: custosValores?.distanciaKm ?? undefined,
+          valor_km: custosValores?.valorKm ?? undefined,
+          custo_deslocamento: custosValores?.custoDeslocamento ?? undefined,
+          custo_placas: custosValores?.custoPlacas ?? undefined,
+          custo_total: custosValores?.custoTotal ?? undefined,
         })
         setDescricao('')
       }
@@ -525,6 +540,17 @@ export const QuickAddAtividade: React.FC<QuickAddAtividadeProps> = ({
                 </select>
               </div>
             )}
+
+            {/* Seção de Custos e Deslocamento para Atividades */}
+            <SecaoCustosDeslocamentoAtividade
+              usinaSelecionada={usinas.find((u) => u.id === selectedUsinaId)}
+              usinasDoCliente={usinas}
+              valorBaseSugerido={currentTipoConfig.valor_base}
+              valorPorPlacaSugerido={currentTipoConfig.valor_por_placa}
+              categoria={selectedCategoria}
+              onChange={setCustosValores}
+              modoCompacto={true}
+            />
 
             {/* Descrição Detalhada - Opcional */}
             <div>

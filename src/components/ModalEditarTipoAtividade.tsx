@@ -142,6 +142,7 @@ export const ModalEditarTipoAtividade: React.FC<ModalEditarTipoAtividadeProps> =
   const [icone, setIcone] = useState('Wrench')
   const [descricao, setDescricao] = useState('')
   const [valorBase, setValorBase] = useState('')
+  const [valorPorPlaca, setValorPorPlaca] = useState('')
   const [frequenciaMeses, setFrequenciaMeses] = useState('0')
   const [tipoExecucao, setTipoExecucao] = useState<CatalogoTipoExecucao>('equipe_interna')
   const [orientacoesTecnicas, setOrientacoesTecnicas] = useState('')
@@ -177,6 +178,12 @@ export const ModalEditarTipoAtividade: React.FC<ModalEditarTipoAtividadeProps> =
           ? String(atividadeParaEditar.valor_base)
           : '',
       )
+      setValorPorPlaca(
+        atividadeParaEditar.valor_por_placa !== undefined &&
+          atividadeParaEditar.valor_por_placa !== null
+          ? String(atividadeParaEditar.valor_por_placa)
+          : '',
+      )
       setFrequenciaMeses(
         atividadeParaEditar.frequencia_meses !== undefined &&
           atividadeParaEditar.frequencia_meses !== null
@@ -196,7 +203,16 @@ export const ModalEditarTipoAtividade: React.FC<ModalEditarTipoAtividadeProps> =
       const foundIcon = ICONES_DISPONIVEIS.find((i) => i.icon === padraoParaEditar.icon)
       setIcone(foundIcon ? foundIcon.id : 'Wrench')
       setDescricao(padraoParaEditar.descricaoAjuda || '')
-      setValorBase('')
+      setValorBase(
+        padraoParaEditar.valor_base !== undefined && padraoParaEditar.valor_base !== null
+          ? String(padraoParaEditar.valor_base)
+          : '',
+      )
+      setValorPorPlaca(
+        padraoParaEditar.valor_por_placa !== undefined && padraoParaEditar.valor_por_placa !== null
+          ? String(padraoParaEditar.valor_por_placa)
+          : '',
+      )
       setFrequenciaMeses('0')
       setTipoExecucao('equipe_interna')
       setOrientacoesTecnicas('')
@@ -211,6 +227,7 @@ export const ModalEditarTipoAtividade: React.FC<ModalEditarTipoAtividadeProps> =
       setIcone('Wrench')
       setDescricao('')
       setValorBase('')
+      setValorPorPlaca('')
       setFrequenciaMeses('0')
       setTipoExecucao('equipe_interna')
       setOrientacoesTecnicas('')
@@ -234,6 +251,12 @@ export const ModalEditarTipoAtividade: React.FC<ModalEditarTipoAtividadeProps> =
       return
     }
 
+    const numValorPlaca = valorPorPlaca.trim() ? parseFloat(valorPorPlaca.replace(',', '.')) : 0
+    if (isNaN(numValorPlaca) || numValorPlaca < 0) {
+      setFormError('Informe um valor por placa válido (R$) ou deixe em branco.')
+      return
+    }
+
     const numFreq = frequenciaMeses.trim() ? parseInt(frequenciaMeses, 10) : 0
     if (isNaN(numFreq) || numFreq < 0) {
       setFormError('Informe uma frequência válida em meses (ou 0 para sob demanda).')
@@ -251,6 +274,7 @@ export const ModalEditarTipoAtividade: React.FC<ModalEditarTipoAtividadeProps> =
         icone,
         descricao: descricao.trim() || undefined,
         valor_base: numValor,
+        valor_por_placa: numValorPlaca > 0 ? numValorPlaca : 0,
         frequencia_meses: numFreq,
         tipo_execucao: tipoExecucao,
         orientacoes_tecnicas: orientacoesTecnicas.trim() || undefined,
@@ -446,8 +470,8 @@ export const ModalEditarTipoAtividade: React.FC<ModalEditarTipoAtividadeProps> =
             </div>
           </div>
 
-          {/* Valor Base e Frequência Recomendada */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+          {/* Valor Base, Valor por Placa e Frequência Recomendada */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
             <div className="space-y-1.5">
               <Label
                 htmlFor="edit-valor"
@@ -461,7 +485,7 @@ export const ModalEditarTipoAtividade: React.FC<ModalEditarTipoAtividadeProps> =
                 type="number"
                 step="0.01"
                 min="0"
-                placeholder="Ex: 450,00"
+                placeholder="Ex: 250,00"
                 value={valorBase}
                 onChange={(e) => setValorBase(e.target.value)}
                 className="text-xs sm:text-sm bg-white"
@@ -470,17 +494,38 @@ export const ModalEditarTipoAtividade: React.FC<ModalEditarTipoAtividadeProps> =
 
             <div className="space-y-1.5">
               <Label
+                htmlFor="edit-valor-placa"
+                className="text-xs font-semibold text-gray-700 flex items-center gap-1"
+              >
+                <DollarSign className="w-3.5 h-3.5 text-sky-600" />
+                Valor por Placa (R$)
+              </Label>
+              <Input
+                id="edit-valor-placa"
+                type="number"
+                step="0.01"
+                min="0"
+                placeholder="Opcional (Ex: 12,50)"
+                value={valorPorPlaca}
+                onChange={(e) => setValorPorPlaca(e.target.value)}
+                className="text-xs sm:text-sm bg-white"
+              />
+              <p className="text-[10px] text-gray-400">Para serviços cobrados por módulo</p>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label
                 htmlFor="edit-freq"
                 className="text-xs font-semibold text-gray-700 flex items-center gap-1"
               >
                 <Calendar className="w-3.5 h-3.5 text-gray-400" />
-                Frequência Recomendada (meses)
+                Frequência (meses)
               </Label>
               <Input
                 id="edit-freq"
                 type="number"
                 min="0"
-                placeholder="0 = sob demanda, 6 = semestral, 12 = anual"
+                placeholder="0 = sob demanda"
                 value={frequenciaMeses}
                 onChange={(e) => setFrequenciaMeses(e.target.value)}
                 className="text-xs sm:text-sm bg-white"

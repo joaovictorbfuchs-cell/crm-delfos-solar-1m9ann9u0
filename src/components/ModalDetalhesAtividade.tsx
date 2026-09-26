@@ -19,6 +19,10 @@ import { useClientes } from '@/contexts/ClientesContext'
 import { ClienteAutocomplete } from '@/components/ClienteAutocomplete'
 import { ATIVIDADES_12_TIPOS, getTipoAtividadeConfig } from '@/constants/atividadesTipos'
 import type { Atividade, AtividadeTipo, AtividadeStatus } from '@/types/crm'
+import {
+  SecaoCustosDeslocamentoAtividade,
+  type CustosDeslocamentoValues,
+} from './SecaoCustosDeslocamentoAtividade'
 interface ModalDetalhesAtividadeProps {
   isOpen: boolean
   onClose: () => void
@@ -63,6 +67,7 @@ export const ModalDetalhesAtividade: React.FC<ModalDetalhesAtividadeProps> = ({
     responsavel?: string
   }>({})
   const [showSuccessBadge, setShowSuccessBadge] = useState(false)
+  const [custosValores, setCustosValores] = useState<CustosDeslocamentoValues | null>(null)
 
   // Preenchimento dos campos quando uma atividade é selecionada
   useEffect(() => {
@@ -149,6 +154,15 @@ export const ModalDetalhesAtividade: React.FC<ModalDetalhesAtividadeProps> = ({
         responsavel_nome: responsavelNome,
         descricao: descricao.trim(),
         status,
+        valor_servico: custosValores?.valorServico ?? atividade.valor_servico,
+        valor_por_placa: custosValores?.valorPorPlaca ?? atividade.valor_por_placa,
+        qtd_modulos: custosValores?.qtdModulos ?? atividade.qtd_modulos,
+        cobrar_deslocamento: custosValores?.cobrarDeslocamento ?? atividade.cobrar_deslocamento,
+        distancia_km: custosValores?.distanciaKm ?? atividade.distancia_km,
+        valor_km: custosValores?.valorKm ?? atividade.valor_km,
+        custo_deslocamento: custosValores?.custoDeslocamento ?? atividade.custo_deslocamento,
+        custo_placas: custosValores?.custoPlacas ?? atividade.custo_placas,
+        custo_total: custosValores?.custoTotal ?? atividade.custo_total,
       }
 
       const updated = await updateAtividade(atividade.id, payload as Partial<Atividade>)
@@ -459,6 +473,27 @@ export const ModalDetalhesAtividade: React.FC<ModalDetalhesAtividadeProps> = ({
               </button>
             </div>
           </div>
+
+          {/* Seção de Custos e Deslocamento na edição de detalhes */}
+          {clienteId && (
+            <SecaoCustosDeslocamentoAtividade
+              enderecoCliente={clienteAtual?.endereco}
+              cidadeCliente={clienteAtual?.cidade}
+              usinaSelecionada={atividade.expand?.usina_id}
+              valorBaseSugerido={configAtual.valor_base}
+              valorPorPlacaSugerido={configAtual.valor_por_placa}
+              categoria={configAtual.categoria}
+              initialValues={{
+                valorServico: atividade.valor_servico,
+                valorPorPlaca: atividade.valor_por_placa,
+                qtdModulos: atividade.qtd_modulos,
+                cobrarDeslocamento: atividade.cobrar_deslocamento !== false,
+                distancia_km: atividade.distancia_km,
+                valor_km: atividade.valor_km,
+              }}
+              onChange={setCustosValores}
+            />
+          )}
 
           {/* 6. Descrição / Observações */}
           <div className="space-y-1">

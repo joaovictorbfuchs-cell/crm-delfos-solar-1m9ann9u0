@@ -804,6 +804,14 @@ export interface Atividade extends RecordModel {
   responsavel_id?: string
   responsavel_nome?: string
   valor_servico?: number
+  valor_por_placa?: number
+  qtd_modulos?: number
+  cobrar_deslocamento?: boolean
+  distancia_km?: number
+  valor_km?: number
+  custo_deslocamento?: number
+  custo_placas?: number
+  custo_total?: number
   fornecedor_id?: string
   equipe_nome?: string
   cronograma_arquivo?: string

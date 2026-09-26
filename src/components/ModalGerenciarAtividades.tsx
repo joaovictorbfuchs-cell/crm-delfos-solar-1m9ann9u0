@@ -331,6 +331,28 @@ export const ModalGerenciarAtividades: React.FC<ModalGerenciarAtividadesProps> =
                               {custom.descricao}
                             </p>
                           )}
+                          {(Number(custom.valor_base) > 0 ||
+                            Number(custom.valor_por_placa) > 0) && (
+                            <p className="text-[10px] text-gray-600 mt-0.5 flex items-center gap-2">
+                              {Number(custom.valor_base) > 0 && (
+                                <span className="font-semibold text-emerald-700 bg-emerald-50 px-1 rounded">
+                                  Base: R${' '}
+                                  {Number(custom.valor_base).toLocaleString('pt-BR', {
+                                    minimumFractionDigits: 2,
+                                  })}
+                                </span>
+                              )}
+                              {Number(custom.valor_por_placa) > 0 && (
+                                <span className="font-semibold text-sky-700 bg-sky-50 px-1 rounded">
+                                  R${' '}
+                                  {Number(custom.valor_por_placa).toLocaleString('pt-BR', {
+                                    minimumFractionDigits: 2,
+                                  })}
+                                  /placa
+                                </span>
+                              )}
+                            </p>
+                          )}
                         </div>
                       </div>
 
@@ -392,9 +414,28 @@ export const ModalGerenciarAtividades: React.FC<ModalGerenciarAtividadesProps> =
                           <span className="text-xs font-medium text-gray-900 block truncate">
                             {tipo.tituloPadrao}
                           </span>
-                          <span className="text-[10px] text-gray-400 block truncate">
-                            {tipo.descricaoAjuda}
-                          </span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-[10px] text-gray-400 block truncate">
+                              {tipo.descricaoAjuda}
+                            </span>
+                            {tipo.valor_base !== undefined && tipo.valor_base > 0 && (
+                              <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-1 rounded shrink-0">
+                                R${' '}
+                                {tipo.valor_base.toLocaleString('pt-BR', {
+                                  minimumFractionDigits: 2,
+                                })}
+                              </span>
+                            )}
+                            {tipo.valor_por_placa !== undefined && tipo.valor_por_placa > 0 && (
+                              <span className="text-[10px] font-semibold text-sky-700 bg-sky-50 px-1 rounded shrink-0">
+                                R${' '}
+                                {tipo.valor_por_placa.toLocaleString('pt-BR', {
+                                  minimumFractionDigits: 2,
+                                })}
+                                /placa
+                              </span>
+                            )}
+                          </div>{' '}
                         </div>
                       </div>
 
