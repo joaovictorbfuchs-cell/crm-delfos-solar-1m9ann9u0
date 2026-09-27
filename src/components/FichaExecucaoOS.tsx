@@ -1205,8 +1205,18 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
 
       {/* Modal de Confirmação de Finalização */}
       {showConfirmModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in">
-          <div className="bg-white rounded-2xl max-w-md w-full p-5 sm:p-6 shadow-2xl border border-gray-200 space-y-4">
+        <div
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !isSubmitting) {
+              setShowConfirmModal(false)
+            }
+          }}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white rounded-2xl max-w-md w-full p-5 sm:p-6 shadow-2xl border border-gray-200 space-y-4"
+          >
             <div className="w-12 h-12 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center mx-auto">
               <ShieldCheck className="w-7 h-7" />
             </div>

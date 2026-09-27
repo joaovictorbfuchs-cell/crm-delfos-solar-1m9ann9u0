@@ -78,12 +78,22 @@ export const ModalConfirmarEnvioWhatsAppContent: React.FC<ModalConfirmarEnvioWha
   }, [])
 
   const sendTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const successCloseTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const clearAllTimers = () => {
+    if (sendTimeoutRef.current !== null) {
+      clearTimeout(sendTimeoutRef.current)
+      sendTimeoutRef.current = null
+    }
+    if (successCloseTimeoutRef.current !== null) {
+      clearTimeout(successCloseTimeoutRef.current)
+      successCloseTimeoutRef.current = null
+    }
+  }
+
   useEffect(() => {
     return () => {
-      if (sendTimeoutRef.current !== null) {
-        clearTimeout(sendTimeoutRef.current)
-        sendTimeoutRef.current = null
-      }
+      clearAllTimers()
     }
   }, [])
 
@@ -97,10 +107,38 @@ export const ModalConfirmarEnvioWhatsAppContent: React.FC<ModalConfirmarEnvioWha
     texto: string
   } | null>(null)
 
+  // Função segura de fechamento que limpa timers e reseta estado
+  const handleSafeClose = () => {
+    clearAllTimers()
+    setIsSending(false)
+    setFeedback(null)
+    onClose()
+  }
+
+  // Listener para fechar com a tecla Escape
+  useEffect(() => {
+    if (!isOpen) return
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault()
+        e.stopPropagation()
+        handleSafeClose()
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [isOpen])
+
   // Inicializa dados ao abrir o modal
   useEffect(() => {
     if (!isOpen) return
 
+    clearAllTimers()
+    setIsSending(false)
     const telFormatado = formatWhatsAppPhone(telefoneInicial || '')
     setTelefone(telFormatado)
     setFeedback(null)
@@ -208,9 +246,12 @@ export const ModalConfirmarEnvioWhatsAppContent: React.FC<ModalConfirmarEnvioWha
             tipo: 'success',
             texto: `Mensagem enviada com sucesso para ${validacaoNumero.numeroFormatado} via WhatsApp!`,
           })
-          setTimeout(() => {
+          if (successCloseTimeoutRef.current !== null) {
+            clearTimeout(successCloseTimeoutRef.current)
+          }
+          successCloseTimeoutRef.current = setTimeout(() => {
             if (isMountedRef.current) {
-              onClose()
+              handleSafeClose()
             }
           }, 1200)
           return
@@ -233,9 +274,12 @@ export const ModalConfirmarEnvioWhatsAppContent: React.FC<ModalConfirmarEnvioWha
         tipo: 'success',
         texto: `Mensagem processada para envio via WhatsApp para ${validacaoNumero.numeroFormatado}!`,
       })
-      setTimeout(() => {
+      if (successCloseTimeoutRef.current !== null) {
+        clearTimeout(successCloseTimeoutRef.current)
+      }
+      successCloseTimeoutRef.current = setTimeout(() => {
         if (isMountedRef.current) {
-          onClose()
+          handleSafeClose()
         }
       }, 1200)
     } catch (err: unknown) {
@@ -279,8 +323,18 @@ export const ModalConfirmarEnvioWhatsAppContent: React.FC<ModalConfirmarEnvioWha
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-[2px] animate-in fade-in duration-200">
-      <div className="bg-white w-full max-w-2xl rounded-2xl shadow-2xl flex flex-col border border-gray-200 overflow-hidden max-h-[92vh]">
+    <div
+      onClick={(e) => {
+        if (e.target === e.currentTarget) {
+          handleSafeClose()
+        }
+      }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-[2px] animate-in fade-in duration-200"
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="bg-white w-full max-w-2xl rounded-2xl shadow-2xl flex flex-col border border-gray-200 overflow-hidden max-h-[92vh]"
+      >
         {/* Cabeçalho */}
         <div className="p-4 sm:p-5 border-b border-gray-100 flex items-start justify-between bg-gradient-to-r from-emerald-50 via-white to-emerald-50/30">
           <div className="flex items-start gap-3">
@@ -308,9 +362,9 @@ export const ModalConfirmarEnvioWhatsAppContent: React.FC<ModalConfirmarEnvioWha
           </div>
 
           <button
-            onClick={onClose}
-            disabled={isSending}
-            className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors disabled:opacity-40"
+            type="button"
+            onClick={handleSafeClose}
+            className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors"
             title="Fechar"
             aria-label="Fechar modal"
           >
@@ -486,9 +540,8 @@ export const ModalConfirmarEnvioWhatsAppContent: React.FC<ModalConfirmarEnvioWha
             <div className="flex items-center gap-2.5 ml-auto">
               <button
                 type="button"
-                onClick={onClose}
-                disabled={isSending}
-                className="px-4 py-2 text-xs font-bold text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-xl transition-colors disabled:opacity-40"
+                onClick={handleSafeClose}
+                className="px-4 py-2 text-xs font-bold text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-xl transition-colors"
               >
                 Cancelar
               </button>
@@ -523,8 +576,16 @@ export const ModalConfirmarEnvioWhatsApp: React.FC<ModalConfirmarEnvioWhatsAppPr
   return (
     <ErrorBoundary
       fallback={
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
-          <div className="bg-white p-6 rounded-2xl max-w-md w-full text-center space-y-4">
+        <div
+          onClick={(e) => {
+            if (e.target === e.currentTarget) props.onClose()
+          }}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white p-6 rounded-2xl max-w-md w-full text-center space-y-4"
+          >
             <h3 className="font-bold text-gray-900">Erro na conferência de WhatsApp</h3>
             <p className="text-xs text-gray-600">
               Ocorreu um problema ao carregar o modal de conferência.

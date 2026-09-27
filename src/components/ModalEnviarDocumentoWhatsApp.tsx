@@ -55,6 +55,30 @@ export const ModalEnviarDocumentoWhatsApp: React.FC<ModalEnviarDocumentoWhatsApp
     texto: string
   } | null>(null)
 
+  const handleSafeClose = () => {
+    setIsSending(false)
+    setFeedback(null)
+    onClose()
+  }
+
+  // Listener para tecla Escape
+  useEffect(() => {
+    if (!isOpen) return
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault()
+        e.stopPropagation()
+        handleSafeClose()
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [isOpen])
+
   // Gerar PDF em base64 e definir sugestão inicial de mensagem e nome de arquivo
   useEffect(() => {
     if (!isOpen) return
@@ -210,8 +234,18 @@ export const ModalEnviarDocumentoWhatsApp: React.FC<ModalEnviarDocumentoWhatsApp
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-[2px] animate-in fade-in duration-200">
-      <div className="bg-white w-full max-w-lg rounded-2xl shadow-2xl flex flex-col border border-gray-200 overflow-hidden">
+    <div
+      onClick={(e) => {
+        if (e.target === e.currentTarget) {
+          handleSafeClose()
+        }
+      }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-[2px] animate-in fade-in duration-200"
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="bg-white w-full max-w-lg rounded-2xl shadow-2xl flex flex-col border border-gray-200 overflow-hidden"
+      >
         {/* Header */}
         <div className="p-4 sm:p-5 border-b border-gray-100 flex items-center justify-between bg-gradient-to-r from-emerald-50 via-white to-emerald-50/40">
           <div className="flex items-center gap-3">
@@ -238,7 +272,8 @@ export const ModalEnviarDocumentoWhatsApp: React.FC<ModalEnviarDocumentoWhatsApp
           </div>
 
           <button
-            onClick={onClose}
+            type="button"
+            onClick={handleSafeClose}
             className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors"
             title="Fechar"
             aria-label="Fechar modal"
@@ -384,8 +419,7 @@ export const ModalEnviarDocumentoWhatsApp: React.FC<ModalEnviarDocumentoWhatsApp
           <div className="pt-2 border-t border-gray-100 flex items-center justify-end gap-2.5">
             <button
               type="button"
-              onClick={onClose}
-              disabled={isSending}
+              onClick={handleSafeClose}
               className="px-4 py-2 text-xs font-bold text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-xl transition-colors"
             >
               Cancelar

@@ -65,16 +65,51 @@ export const ModalEnviarPropostaWhatsApp: React.FC<ModalEnviarPropostaWhatsAppPr
     }
   }, [])
 
-  // Timeout handle ativo de envio
+  // Timeout handle ativo de envio e fechamento
   const sendTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const successCloseTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const clearAllTimers = () => {
+    if (sendTimeoutRef.current !== null) {
+      clearTimeout(sendTimeoutRef.current)
+      sendTimeoutRef.current = null
+    }
+    if (successCloseTimeoutRef.current !== null) {
+      clearTimeout(successCloseTimeoutRef.current)
+      successCloseTimeoutRef.current = null
+    }
+  }
+
   useEffect(() => {
     return () => {
-      if (sendTimeoutRef.current !== null) {
-        clearTimeout(sendTimeoutRef.current)
-        sendTimeoutRef.current = null
-      }
+      clearAllTimers()
     }
   }, [])
+
+  const handleSafeClose = () => {
+    clearAllTimers()
+    setIsSending(false)
+    setFeedback(null)
+    onClose()
+  }
+
+  // Listener para tecla Escape
+  useEffect(() => {
+    if (!isOpen) return
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault()
+        e.stopPropagation()
+        handleSafeClose()
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [isOpen])
 
   // O WhatsApp é o número autoritativo do cliente neste CRM (regra do projeto)
   const numeroInicial = cliente?.whatsapp || cliente?.telefone || ''
@@ -216,9 +251,12 @@ export const ModalEnviarPropostaWhatsApp: React.FC<ModalEnviarPropostaWhatsAppPr
           texto: `Proposta enviada com sucesso para ${validacaoNumero.numeroFormatado} via WhatsApp!`,
         })
         if (onSuccess) onSuccess()
-        setTimeout(() => {
+        if (successCloseTimeoutRef.current !== null) {
+          clearTimeout(successCloseTimeoutRef.current)
+        }
+        successCloseTimeoutRef.current = setTimeout(() => {
           if (isMountedRef.current) {
-            onClose()
+            handleSafeClose()
           }
         }, 1300)
       } else if (resultado.gatewayConfigured === false) {
@@ -515,8 +553,18 @@ export const ModalEnviarPropostaWhatsApp: React.FC<ModalEnviarPropostaWhatsAppPr
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-[2px] animate-in fade-in duration-200">
-      <div className="bg-white w-full max-w-2xl rounded-2xl shadow-2xl flex flex-col border border-gray-200 overflow-hidden max-h-[92vh]">
+    <div
+      onClick={(e) => {
+        if (e.target === e.currentTarget) {
+          handleSafeClose()
+        }
+      }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-[2px] animate-in fade-in duration-200"
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="bg-white w-full max-w-2xl rounded-2xl shadow-2xl flex flex-col border border-gray-200 overflow-hidden max-h-[92vh]"
+      >
         {/* Cabeçalho do Modal */}
         <div className="p-4 sm:p-5 border-b border-gray-100 flex items-start justify-between bg-gradient-to-r from-emerald-50 via-white to-emerald-50/30">
           <div className="flex items-start gap-3">
@@ -561,7 +609,8 @@ export const ModalEnviarPropostaWhatsApp: React.FC<ModalEnviarPropostaWhatsAppPr
           </div>
 
           <button
-            onClick={onClose}
+            type="button"
+            onClick={handleSafeClose}
             className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors"
             title="Fechar"
             aria-label="Fechar modal"
@@ -852,8 +901,7 @@ export const ModalEnviarPropostaWhatsApp: React.FC<ModalEnviarPropostaWhatsAppPr
             <div className="flex items-center gap-2.5 ml-auto">
               <button
                 type="button"
-                onClick={onClose}
-                disabled={isSending}
+                onClick={handleSafeClose}
                 className="px-4 py-2 text-xs font-bold text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-xl transition-colors"
               >
                 Cancelar

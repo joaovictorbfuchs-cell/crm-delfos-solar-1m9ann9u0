@@ -1,5 +1,5 @@
-import React, { useState, useMemo } from 'react'
-import { Send, Check, Loader2, AlertCircle, Phone, MessageSquare } from 'lucide-react'
+import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react'
+import { Check, Loader2, AlertCircle, MessageSquare } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { enviarNotificacaoOSManual, fetchOrdemServicoById } from '@/services/crmService'
 import { useClientes } from '@/contexts/ClientesContext'
@@ -39,6 +39,32 @@ export const BotaoEnviarOSWhatsApp: React.FC<BotaoEnviarOSWhatsAppProps> = ({
   const [feedbackMsg, setFeedbackMsg] = useState<string>('')
   const [modalConferenciaAberto, setModalConferenciaAberto] = useState(false)
   const [osDetalhes, setOsDetalhes] = useState<any>(null)
+
+  const isMountedRef = useRef(true)
+  const resetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const clearResetTimer = useCallback(() => {
+    if (resetTimerRef.current !== null) {
+      clearTimeout(resetTimerRef.current)
+      resetTimerRef.current = null
+    }
+  }, [])
+
+  useEffect(() => {
+    isMountedRef.current = true
+    return () => {
+      isMountedRef.current = false
+      clearResetTimer()
+    }
+  }, [clearResetTimer])
+
+  const handleFecharModal = useCallback(() => {
+    setModalConferenciaAberto(false)
+    // Se estava em loading mas o usuário cancelou/fechou o modal, libera o status para idle
+    setStatus((prev) => (prev === 'loading' ? 'idle' : prev))
+    setFeedbackMsg('')
+    clearResetTimer()
+  }, [clearResetTimer])
 
   // Template de OS com fallback seguro se whatsAppTemplates for undefined/vazio
   const templateOS = useMemo(() => {
@@ -190,9 +216,12 @@ export const BotaoEnviarOSWhatsApp: React.FC<BotaoEnviarOSWhatsAppProps> = ({
           onSentSuccess(res)
         }
 
-        setTimeout(() => {
-          setStatus('idle')
-          setFeedbackMsg('')
+        clearResetTimer()
+        resetTimerRef.current = setTimeout(() => {
+          if (isMountedRef.current) {
+            setStatus('idle')
+            setFeedbackMsg('')
+          }
         }, 4000)
 
         return {
@@ -201,6 +230,7 @@ export const BotaoEnviarOSWhatsApp: React.FC<BotaoEnviarOSWhatsAppProps> = ({
           message: res.message,
         }
       } else {
+        if (!isMountedRef.current) return { ok: false, sent: false }
         setStatus('error')
         const errMsg = res.message || 'Não foi possível enviar a OS por WhatsApp'
         setFeedbackMsg(errMsg)
@@ -222,9 +252,12 @@ export const BotaoEnviarOSWhatsApp: React.FC<BotaoEnviarOSWhatsAppProps> = ({
           toast.error('Erro ao enviar OS', { description: errMsg })
         }
 
-        setTimeout(() => {
-          setStatus('idle')
-          setFeedbackMsg('')
+        clearResetTimer()
+        resetTimerRef.current = setTimeout(() => {
+          if (isMountedRef.current) {
+            setStatus('idle')
+            setFeedbackMsg('')
+          }
         }, 4500)
 
         return {
@@ -235,33 +268,38 @@ export const BotaoEnviarOSWhatsApp: React.FC<BotaoEnviarOSWhatsAppProps> = ({
       }
     } catch (err: any) {
       console.error('Erro ao enviar OS por WhatsApp:', err)
-      setStatus('error')
-      const msg = err?.data?.error || err?.message || 'Falha de conexão com o servidor'
-      setFeedbackMsg(msg)
+      if (isMountedRef.current) {
+        setStatus('error')
+        const msg = err?.data?.error || err?.message || 'Falha de conexão com o servidor'
+        setFeedbackMsg(msg)
 
-      if (
-        err?.data?.code === 'SEM_TELEFONE' ||
-        msg.includes('telefone') ||
-        msg.includes('WhatsApp')
-      ) {
-        toast.error('Técnico sem telefone', {
-          description: 'Cadastre o WhatsApp do técnico em Gerenciar Usuários.',
-          action: {
-            label: 'Gerenciar Usuários',
-            onClick: () => navigate('/usuarios'),
-          },
-          duration: 7000,
-        })
-      } else {
-        toast.error('Erro ao disparar WhatsApp da OS', {
-          description: msg,
-        })
+        if (
+          err?.data?.code === 'SEM_TELEFONE' ||
+          msg.includes('telefone') ||
+          msg.includes('WhatsApp')
+        ) {
+          toast.error('Técnico sem telefone', {
+            description: 'Cadastre o WhatsApp do técnico em Gerenciar Usuários.',
+            action: {
+              label: 'Gerenciar Usuários',
+              onClick: () => navigate('/usuarios'),
+            },
+            duration: 7000,
+          })
+        } else {
+          toast.error('Erro ao disparar WhatsApp da OS', {
+            description: msg,
+          })
+        }
+
+        clearResetTimer()
+        resetTimerRef.current = setTimeout(() => {
+          if (isMountedRef.current) {
+            setStatus('idle')
+            setFeedbackMsg('')
+          }
+        }, 4500)
       }
-
-      setTimeout(() => {
-        setStatus('idle')
-        setFeedbackMsg('')
-      }, 4500)
 
       throw err
     }
@@ -331,7 +369,7 @@ export const BotaoEnviarOSWhatsApp: React.FC<BotaoEnviarOSWhatsAppProps> = ({
 
       <ModalConfirmarEnvioWhatsApp
         isOpen={modalConferenciaAberto}
-        onClose={() => setModalConferenciaAberto(false)}
+        onClose={handleFecharModal}
         titulo="Conferência de Notificação de OS (WhatsApp)"
         subtitulo="Verifique o número do técnico responsável e o texto da OS antes do disparo."
         destinatarioNome={responsavelNome || 'Técnico Responsável'}
