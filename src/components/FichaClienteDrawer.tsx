@@ -62,6 +62,7 @@ import { ModalEnviarDocumentoWhatsApp } from './ModalEnviarDocumentoWhatsApp'
 import { ImportarDadosDocumento } from './ImportarDadosDocumento'
 import { ModalConfirmarDocumentoProjeto } from './ModalConfirmarDocumentoProjeto'
 import { ModalTransferenciaCreditos } from './ModalTransferenciaCreditos'
+import { ModalOferecerLimpezaAvulsa } from './ModalOferecerLimpezaAvulsa'
 import { ModalGerenciarAtividades } from './ModalGerenciarAtividades'
 import { ModalGerarProcuracaoOM } from './ModalGerarProcuracaoOM'
 import { ModalGerarContratoOM } from './ModalGerarContratoOM'
@@ -276,6 +277,7 @@ export const FichaClienteDrawer: React.FC = () => {
     Partial<DadosDocumentoProjetoInput>
   >({})
   const [modalTransferenciaCreditosOpen, setModalTransferenciaCreditosOpen] = useState(false)
+  const [modalOferecerLimpezaOpen, setModalOferecerLimpezaOpen] = useState(false)
   const [modalGerenciarAtividadesOpen, setModalGerenciarAtividadesOpen] = useState(false)
   const [modalProcuracaoOMOpen, setModalProcuracaoOMOpen] = useState(false)
   const [modalContratoOMOpen, setModalContratoOMOpen] = useState(false)
@@ -3496,6 +3498,8 @@ export const FichaClienteDrawer: React.FC = () => {
                         handleDispararGerarProcuracao()
                       } else if (tipoId === 'gerar_contrato') {
                         handleDispararGerarContrato()
+                      } else if (tipoId === 'oferecer_limpeza_avulsa') {
+                        setModalOferecerLimpezaOpen(true)
                       }
                     }}
                   />
@@ -3966,6 +3970,16 @@ export const FichaClienteDrawer: React.FC = () => {
           open={modalTransferenciaCreditosOpen}
           onOpenChange={setModalTransferenciaCreditosOpen}
           clienteOrigem={selectedCliente}
+        />
+      )}
+
+      {/* Modal Oferecer Limpeza Avulsa via WhatsApp */}
+      {selectedCliente && (
+        <ModalOferecerLimpezaAvulsa
+          open={modalOferecerLimpezaOpen}
+          onOpenChange={setModalOferecerLimpezaOpen}
+          initialClienteId={selectedCliente.id}
+          usinasContexto={usinasDoCliente}
         />
       )}
 

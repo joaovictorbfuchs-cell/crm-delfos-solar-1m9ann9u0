@@ -10,6 +10,7 @@ import {
   Loader2,
   MessageSquare,
   Plus,
+  Sparkles,
   Building2,
   User,
   ArrowUpDown,
@@ -26,6 +27,7 @@ import {
 import { useClientes } from '@/contexts/ClientesContext'
 import { SessaoExpiradaAlert } from '@/components/SessaoExpiradaAlert'
 import { ModalMesclarClientes } from '@/components/ModalMesclarClientes'
+import { ModalOferecerLimpezaAvulsa } from '@/components/ModalOferecerLimpezaAvulsa'
 import { OutrosContatosView } from '@/components/OutrosContatosView'
 import { Contact } from 'lucide-react'
 import {
@@ -87,6 +89,7 @@ export default function Clientes() {
   } = useClientes()
   const [searchTerm, setSearchTerm] = useState('')
   const [isModalNovoOpen, setIsModalNovoOpen] = useState(false)
+  const [isModalOferecerLimpezaOpen, setIsModalOferecerLimpezaOpen] = useState(false)
   const [clienteParaExcluir, setClienteParaExcluir] = useState<{ id: string; nome: string } | null>(
     null,
   )
@@ -467,8 +470,18 @@ export default function Clientes() {
           </button>
         </div>
 
-        {/* Botão Adicionar Novo no canto superior direito / contextual */}
-        <div className="flex items-center justify-end">
+        {/* Botões de Ação no canto superior direito / contextual */}
+        <div className="flex items-center justify-end gap-2.5 flex-wrap">
+          <button
+            type="button"
+            onClick={() => setIsModalOferecerLimpezaOpen(true)}
+            className="inline-flex items-center justify-center gap-2 px-3.5 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 active:scale-[0.98] text-sm font-bold rounded-xl shadow-2xs hover:shadow-xs transition-all shrink-0 cursor-pointer"
+            title="Disparar oferta de limpeza periódica de módulos solares via WhatsApp"
+          >
+            <Sparkles className="w-4 h-4 text-emerald-600 stroke-[2.5]" />
+            <span>Oferecer Limpeza Avulsa</span>
+          </button>
+
           <button
             type="button"
             onClick={() => setIsModalNovoOpen(true)}
@@ -510,6 +523,17 @@ export default function Clientes() {
               </div>
 
               <div className="flex items-center gap-2 flex-wrap">
+                {/* Botão Oferecer Limpeza para Selecionados */}
+                <button
+                  type="button"
+                  onClick={() => setIsModalOferecerLimpezaOpen(true)}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition-colors shadow-2xs cursor-pointer"
+                  title="Oferecer limpeza para os clientes selecionados via WhatsApp"
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>Oferecer Limpeza ({selectedIds.length})</span>
+                </button>
+
                 {/* Botão Mesclar */}
                 <button
                   type="button"
@@ -1201,6 +1225,13 @@ export default function Clientes() {
             onClose={() => setIsModalNovoOpen(false)}
             tipoEntidade="cliente"
             onSubmit={handleSalvarCliente}
+          />
+
+          {/* Modal Oferecer Limpeza Avulsa em Lote / Individual */}
+          <ModalOferecerLimpezaAvulsa
+            open={isModalOferecerLimpezaOpen}
+            onOpenChange={setIsModalOferecerLimpezaOpen}
+            initialClienteId={selectedIds.length === 1 ? selectedIds[0] : null}
           />
 
           {/* Modal de Mesclagem Campo a Campo */}

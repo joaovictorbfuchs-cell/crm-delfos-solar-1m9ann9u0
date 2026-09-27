@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-26T23:36:05.397Z",
+  "generatedAt": "2026-09-26T23:58:06.871Z",
   "collections": [
     {
       "name": "users",
@@ -827,7 +827,8 @@
             "transferencia_creditos",
             "custom",
             "gerar_procuracao",
-            "gerar_contrato"
+            "gerar_contrato",
+            "oferecer_limpeza_avulsa"
           ]
         },
         {

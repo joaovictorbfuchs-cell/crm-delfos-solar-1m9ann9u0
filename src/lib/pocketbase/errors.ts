@@ -20,23 +20,39 @@ export function extractFieldErrors(error: unknown): FieldErrors {
   return errors
 }
 
-export function isAuthSessionError(err: unknown): boolean {
-  if (!err || typeof err !== 'object') return false
-  const anyErr = err as any
-  return (
-    anyErr.status === 401 ||
-    anyErr.status === 403 ||
-    (typeof anyErr.message === 'string' &&
-      (anyErr.message.toLowerCase().includes('authenticate') ||
-        anyErr.message.toLowerCase().includes('token') ||
-        anyErr.message.toLowerCase().includes('unauthorized')))
-  )
-}
-
 export function getErrorMessage(error: unknown): string {
   if (!(error instanceof ClientResponseError)) {
     return error instanceof Error ? error.message : 'An unexpected error occurred.'
   }
   const msgs = Object.values(extractFieldErrors(error))
   return msgs.length > 0 ? msgs.join(' ') : error.message || 'An unexpected error occurred.'
+}
+
+/**
+ * Detecta se o erro decorre de sessão expirada / 401 / 403 / token inválido
+ */
+export function isAuthSessionError(error: unknown): boolean {
+  if (!error) return false
+  if (error instanceof ClientResponseError) {
+    if (error.status === 401 || error.status === 403) return true
+    const message = (error.message || '').toLowerCase()
+    if (
+      message.includes('token') ||
+      message.includes('auth') ||
+      message.includes('expired') ||
+      message.includes('unauthorized')
+    ) {
+      return true
+    }
+  }
+  if (error instanceof Error) {
+    const msg = error.message.toLowerCase()
+    return (
+      msg.includes('sessão expirada') ||
+      msg.includes('token expired') ||
+      msg.includes('401') ||
+      msg.includes('unauthorized')
+    )
+  }
+  return false
 }

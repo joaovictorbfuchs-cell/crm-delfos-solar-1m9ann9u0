@@ -108,7 +108,8 @@ export const QuickAddAtividade: React.FC<QuickAddAtividadeProps> = ({
           firstOfCat.id === 'troca_titularidade' ||
           firstOfCat.id === 'transferencia_creditos' ||
           firstOfCat.id === 'gerar_procuracao' ||
-          firstOfCat.id === 'gerar_contrato')
+          firstOfCat.id === 'gerar_contrato' ||
+          firstOfCat.id === 'oferecer_limpeza_avulsa')
       ) {
         onSelectTipoEspecial(firstOfCat.id)
       }
@@ -125,7 +126,8 @@ export const QuickAddAtividade: React.FC<QuickAddAtividadeProps> = ({
         item.id === 'troca_titularidade' ||
         item.id === 'transferencia_creditos' ||
         item.id === 'gerar_procuracao' ||
-        item.id === 'gerar_contrato')
+        item.id === 'gerar_contrato' ||
+        item.id === 'oferecer_limpeza_avulsa')
     ) {
       onSelectTipoEspecial(item.id)
     }
@@ -422,13 +424,16 @@ export const QuickAddAtividade: React.FC<QuickAddAtividadeProps> = ({
                         item.id === 'troca_titularidade' ||
                         item.id === 'transferencia_creditos' ||
                         item.id === 'gerar_procuracao' ||
-                        item.id === 'gerar_contrato' ? (
+                        item.id === 'gerar_contrato' ||
+                        item.id === 'oferecer_limpeza_avulsa' ? (
                         <span
                           className={`text-[9px] font-semibold block ${
                             isSelected ? 'text-emerald-100' : 'text-emerald-700'
                           }`}
                         >
-                          fluxo dedicado ↗
+                          {item.id === 'oferecer_limpeza_avulsa'
+                            ? 'WhatsApp ↗'
+                            : 'fluxo dedicado ↗'}
                         </span>
                       ) : null}
                     </div>

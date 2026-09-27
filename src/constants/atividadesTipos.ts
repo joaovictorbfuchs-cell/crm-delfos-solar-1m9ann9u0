@@ -168,6 +168,21 @@ export const ATIVIDADES_PADRAO: TipoAtividadeDef[] = [
     icon: RotateCcw,
     isPadrao: true,
   },
+  {
+    id: 'oferecer_limpeza_avulsa',
+    categoria: 'comercial',
+    tituloPadrao: 'Oferecer Limpeza Avulsa',
+    descricaoAjuda:
+      'Oferta comercial proativa de limpeza periódica de módulos fotovoltaicos via WhatsApp',
+    corHex: '#16A34A',
+    badgeClass: 'bg-emerald-50 text-emerald-800 border-emerald-200',
+    iconBg: 'bg-emerald-100 text-emerald-800 border-emerald-200',
+    iconText: 'text-emerald-600',
+    borderClass: 'border-emerald-400',
+    icon: Sparkles,
+    isPadrao: true,
+    valor_base: 350.0,
+  },
 
   // --- Categoria 2: Atividades de Manutenção ---
   {

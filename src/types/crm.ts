@@ -68,6 +68,7 @@ export type AtividadeTipo =
   | 'proposta'
   | 'ligar_indicacao'
   | 'contato_reativacao'
+  | 'oferecer_limpeza_avulsa'
   // 2. Atividades de Manutenção:
   | 'instalacao'
   | 'limpeza_manutencao'
