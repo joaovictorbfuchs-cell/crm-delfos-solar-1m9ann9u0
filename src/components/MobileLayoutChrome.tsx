@@ -466,34 +466,40 @@ export const MobileLayoutChrome: React.FC<MobileLayoutChromeProps> = ({
         </div>
 
         {/* Lado Direito: Botão (+) Novo Negócio + Ícone do WhatsApp */}
-        <div className="flex items-center gap-1.5 shrink-0">
-          {/* Botão + para adicionar novo negócio (lead/deal) */}
-          <button
-            type="button"
-            onClick={handleNovoClick}
-            aria-label="Adicionar novo negócio"
-            title="Adicionar novo negócio / lead"
-            className="w-9 h-9 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white flex items-center justify-center shadow-xs transition-all"
-          >
-            <Plus className="w-5 h-5 stroke-[2.5]" />
-          </button>
+        {!(
+          location.pathname === '/servicos-campo' ||
+          location.pathname === '/execucao-os' ||
+          location.pathname === '/minhas-os'
+        ) && (
+          <div className="flex items-center gap-1.5 shrink-0">
+            {/* Botão + para adicionar novo negócio (lead/deal) */}
+            <button
+              type="button"
+              onClick={handleNovoClick}
+              aria-label="Adicionar novo negócio"
+              title="Adicionar novo negócio / lead"
+              className="w-9 h-9 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white flex items-center justify-center shadow-xs transition-all"
+            >
+              <Plus className="w-5 h-5 stroke-[2.5]" />
+            </button>
 
-          {/* Ícone do WhatsApp presente em TODAS as abas mobile */}
-          <button
-            type="button"
-            onClick={() => navigate('/central-atendimento')}
-            aria-label="Central de Atendimento WhatsApp"
-            title="Abrir Central WhatsApp"
-            className="relative w-9 h-9 rounded-xl bg-[#25D366] hover:bg-[#20ba59] active:scale-95 text-white flex items-center justify-center shadow-xs transition-all"
-          >
-            <WhatsAppIcon className="w-5 h-5" />
-            {pendentesWhatsAppCount > 0 && (
-              <span className="absolute -top-1 -right-1 min-w-[17px] h-[17px] px-1 flex items-center justify-center text-[10px] font-black rounded-full bg-red-600 text-white ring-2 ring-white shadow-xs">
-                {pendentesWhatsAppCount > 99 ? '99+' : pendentesWhatsAppCount}
-              </span>
-            )}
-          </button>
-        </div>
+            {/* Ícone do WhatsApp presente nas demais abas mobile */}
+            <button
+              type="button"
+              onClick={() => navigate('/central-atendimento')}
+              aria-label="Central de Atendimento WhatsApp"
+              title="Abrir Central WhatsApp"
+              className="relative w-9 h-9 rounded-xl bg-[#25D366] hover:bg-[#20ba59] active:scale-95 text-white flex items-center justify-center shadow-xs transition-all"
+            >
+              <WhatsAppIcon className="w-5 h-5" />
+              {pendentesWhatsAppCount > 0 && (
+                <span className="absolute -top-1 -right-1 min-w-[17px] h-[17px] px-1 flex items-center justify-center text-[10px] font-black rounded-full bg-red-600 text-white ring-2 ring-white shadow-xs">
+                  {pendentesWhatsAppCount > 99 ? '99+' : pendentesWhatsAppCount}
+                </span>
+              )}
+            </button>
+          </div>
+        )}
       </header>
 
       {/* ============================================================== */}

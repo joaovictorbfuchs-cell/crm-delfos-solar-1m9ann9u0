@@ -39,6 +39,7 @@ export interface ModalConfirmarEnvioWhatsAppProps {
   }) => Promise<{ ok: boolean; sent?: boolean; message?: string; error?: string } | void>
   confirmLabel?: string
   onSincronizarTelefone?: (novoTelefone: string) => Promise<void> | void
+  telefoneReadOnly?: boolean
 }
 
 function interpolarVariaveis(texto: string, contexto: Record<string, string> = {}): string {
@@ -66,6 +67,7 @@ export const ModalConfirmarEnvioWhatsAppContent: React.FC<ModalConfirmarEnvioWha
   onConfirmarEnvio,
   confirmLabel = 'Confirmar e Enviar via WhatsApp',
   onSincronizarTelefone,
+  telefoneReadOnly = false,
 }) => {
   const isMountedRef = useRef(true)
   useEffect(() => {
@@ -421,12 +423,19 @@ export const ModalConfirmarEnvioWhatsAppContent: React.FC<ModalConfirmarEnvioWha
             <input
               type="text"
               value={telefone}
-              onChange={(e) => setTelefone(formatWhatsAppPhone(e.target.value))}
+              readOnly={telefoneReadOnly}
+              onChange={(e) => {
+                if (!telefoneReadOnly) {
+                  setTelefone(formatWhatsAppPhone(e.target.value))
+                }
+              }}
               placeholder="(54) 99999-9999"
               className={`w-full text-xs font-bold px-3.5 py-2.5 rounded-xl border ${
-                !validacaoNumero.valido
-                  ? 'border-amber-400 bg-amber-50/30 text-amber-950'
-                  : 'border-gray-300 bg-white text-gray-900'
+                telefoneReadOnly
+                  ? 'bg-gray-100 text-gray-700 border-gray-200 cursor-not-allowed select-all'
+                  : !validacaoNumero.valido
+                    ? 'border-amber-400 bg-amber-50/30 text-amber-950'
+                    : 'border-gray-300 bg-white text-gray-900'
               } focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-2xs transition-colors`}
             />
 

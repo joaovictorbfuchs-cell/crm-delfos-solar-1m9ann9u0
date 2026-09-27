@@ -42,6 +42,9 @@ import { formatDateTime } from '@/lib/formatters'
 import { useAuth } from '@/contexts/AuthContext'
 import type { SistemaUsuario } from '@/types/crm'
 import { BotaoEnviarOSWhatsApp } from '@/components/BotaoEnviarOSWhatsApp'
+import { ModalConfirmarEnvioWhatsApp } from '@/components/ModalConfirmarEnvioWhatsApp'
+import { useClientes } from '@/contexts/ClientesContext'
+import { MessageSquare, RotateCcw } from 'lucide-react'
 
 interface FichaExecucaoOSProps {
   os: OrdemServico
@@ -149,16 +152,23 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
   onOSFinalizada,
 }) => {
   const { toast } = useToast()
-  const { isAdmin, isInstalador } = useAuth()
+  const { isAdmin, isInstalador, userProfile } = useAuth()
+  const { sendWhatsAppMessage } = useClientes()
   const cameraInputRef = useRef<HTMLInputElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // Regra de permissão de edição pós-conclusão
+  const podeEditarOS = isAdmin || os.status !== 'concluida'
+
+  // Modal WhatsApp direto com o cliente da OS
+  const [modalWhatsAppClienteAberto, setModalWhatsAppClienteAberto] = useState(false)
+  const [isReabrindo, setIsReabrindo] = useState(false)
 
   // Estado para admin reatribuir instalador direto na ficha
   const [responsavelId, setResponsavelId] = useState<string>(os.responsavel_usuario_id || '')
 
   const cliente: Cliente | undefined = os.expand?.cliente_id
   const [sistema, setSistema] = useState<Sistema | null>(null)
-  const [loadingSistema, setLoadingSistema] = useState(false)
   const [inversoresLista, setInversoresLista] = useState<import('@/types/crm').ClienteInversor[]>(
     [],
   )
@@ -207,11 +217,9 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
   // Carrega dados do sistema solar do cliente e procedimentos do catálogo de atividades
   useEffect(() => {
     if (os.cliente_id) {
-      setLoadingSistema(true)
       fetchSistemaByClienteId(os.cliente_id)
         .then((sist) => setSistema(sist))
         .catch((e) => console.error('Erro ao carregar sistema:', e))
-        .finally(() => setLoadingSistema(false))
 
       // Carrega lista de inversores caso o cliente tenha mais de um
       import('@/services/crmService').then(({ fetchInversoresByClienteId }) => {
@@ -249,6 +257,102 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
       .catch((err) => console.warn('Erro ao buscar orientações do catálogo:', err))
       .finally(() => setLoadingCatalogo(false))
   }, [os.cliente_id, os.tipo_servico])
+
+  // Reabrir Ordem de Serviço (apenas Admin)
+  const handleReabrirOS = async () => {
+    if (!isAdmin) return
+    setIsReabrindo(true)
+    try {
+      const updated = await updateOrdemServico(os.id, {
+        status: 'pendente',
+        concluida_em: null as unknown as string,
+      })
+      onOSUpdated(updated)
+      toast({
+        title: 'Ordem de Serviço Reaberta! 🔄',
+        description: `OS #${os.id.slice(-6).toUpperCase()} retornou ao status Pendente.`,
+      })
+    } catch (err) {
+      console.error('Erro ao reabrir OS:', err)
+      toast({
+        variant: 'destructive',
+        title: 'Erro ao reabrir OS',
+        description: 'Não foi possível reabrir a ordem de serviço.',
+      })
+    } finally {
+      setIsReabrindo(false)
+    }
+  }
+
+  // Envio de WhatsApp para o cliente da OS
+  const nomeInstalador = userProfile?.name || os.atribuida_a || 'Instalador'
+  const telefoneAutoritativoCliente = cliente?.whatsapp || cliente?.telefone || ''
+  const mensagemInicialCliente = `Olá, aqui é ${nomeInstalador} da Delfos Solar. Estou entrando em contato referente à sua Ordem de Serviço (${os.tipo_servico}).`
+
+  const handleConfirmarEnvioWhatsAppCliente = async ({
+    telefone,
+    mensagem,
+  }: {
+    telefone: string
+    mensagem: string
+  }) => {
+    try {
+      const res = await sendWhatsAppMessage({
+        cliente_id: cliente?.id || os.cliente_id,
+        telefone_destino: telefone,
+        conteudo_final: mensagem,
+        tipo_disparo: 'manual',
+        referencia_id: os.id,
+      })
+      if (res && res.sent === false) {
+        return {
+          ok: false,
+          sent: false,
+          message: res.message || 'Falha no envio Z-API',
+        }
+      }
+      return {
+        ok: true,
+        sent: true,
+        message: 'Mensagem enviada com sucesso ao cliente!',
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      return {
+        ok: false,
+        sent: false,
+        error: msg,
+      }
+    }
+  }
+
+  // Navegação no Google Maps e Waze
+  const enderecoCompleto = [os.endereco || cliente?.endereco, cliente?.cidade]
+    .filter(Boolean)
+    .join(' - ')
+
+  const handleAbrirGoogleMaps = (e?: React.MouseEvent) => {
+    if (e) e.preventDefault()
+    if (!enderecoCompleto) return
+    window.open(
+      `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(enderecoCompleto)}`,
+      '_blank',
+      'noopener,noreferrer',
+    )
+  }
+
+  const handleAbrirWaze = (e?: React.MouseEvent) => {
+    if (e) e.preventDefault()
+    if (!enderecoCompleto) return
+    const query = encodeURIComponent(enderecoCompleto)
+    const fallbackUrl = `https://waze.com/ul?q=${query}&navigate=yes`
+
+    // Tenta abrir o app nativo no celular via waze://; se o navegador bloquear ou não tiver o app, abre o link web
+    const win = window.open(`waze://?q=${query}&navigate=yes`, '_blank', 'noopener,noreferrer')
+    if (!win || win.closed || typeof win.closed === 'undefined') {
+      window.open(fallbackUrl, '_blank', 'noopener,noreferrer')
+    }
+  }
 
   // Iniciar Atendimento da OS
   const [isIniciando, setIsIniciando] = useState(false)
@@ -296,7 +400,7 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
 
   // Toggle de item do checklist
   const handleToggleChecklist = (id: string) => {
-    if (os.status === 'concluida') return // leitura
+    if (!podeEditarOS) return // leitura se concluída e não-admin
     setChecklist((prev) =>
       prev.map((item) => (item.id === id ? { ...item, concluido: !item.concluido } : item)),
     )
@@ -518,8 +622,8 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
                 <select
                   value={responsavelId}
                   onChange={(e) => setResponsavelId(e.target.value)}
-                  disabled={os.status === 'concluida'}
-                  className="bg-emerald-950/80 border border-emerald-600 text-white text-xs rounded-lg px-2 py-1 w-full focus:outline-hidden"
+                  disabled={!podeEditarOS}
+                  className="bg-emerald-950/80 border border-emerald-600 text-white text-xs rounded-lg px-2 py-1 w-full focus:outline-hidden disabled:opacity-60"
                 >
                   <option value="">-- Não atribuído --</option>
                   {instaladores.map((inst) => (
@@ -563,28 +667,41 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
         {/* Endereço & Telefone com botões de ação rápida */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs sm:text-sm">
           <div className="bg-gray-50 rounded-xl p-3 border border-gray-200 flex flex-col justify-between">
-            <div className="flex items-start gap-2 text-gray-700">
-              <MapPin className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+            <div
+              className={`flex items-start gap-2 text-gray-700 ${
+                enderecoCompleto ? 'cursor-pointer group' : ''
+              }`}
+              onClick={enderecoCompleto ? handleAbrirGoogleMaps : undefined}
+              title={enderecoCompleto ? 'Clique para abrir no Google Maps' : undefined}
+            >
+              <MapPin className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5 group-hover:scale-110 transition-transform" />
               <div>
                 <span className="font-bold text-gray-900 block mb-0.5">Endereço de Execução:</span>
-                <span className="text-gray-600 leading-relaxed">
+                <span className="text-gray-600 leading-relaxed group-hover:text-emerald-700 transition-colors">
                   {os.endereco || cliente?.endereco || 'Endereço não informado'}
                   {cliente?.cidade ? ` - ${cliente.cidade}` : ''}
                 </span>
               </div>
             </div>
-            {(os.endereco || cliente?.endereco) && (
-              <a
-                href={`https://maps.google.com/?q=${encodeURIComponent(
-                  `${os.endereco || cliente?.endereco} ${cliente?.cidade || ''}`,
-                )}`}
-                target="_blank"
-                rel="noreferrer"
-                className="mt-2.5 inline-flex items-center justify-center gap-1.5 py-1.5 px-3 bg-white border border-gray-300 hover:border-emerald-600 text-emerald-700 font-bold rounded-lg text-xs transition-colors shadow-2xs"
-              >
-                <MapPin className="w-3.5 h-3.5" />
-                Abrir no Google Maps / Waze
-              </a>
+            {enderecoCompleto && (
+              <div className="mt-2.5 flex items-center gap-2 flex-wrap">
+                <button
+                  type="button"
+                  onClick={handleAbrirGoogleMaps}
+                  className="flex-1 min-w-[120px] inline-flex items-center justify-center gap-1.5 py-1.5 px-3 bg-white border border-gray-300 hover:border-emerald-600 text-emerald-700 font-bold rounded-lg text-xs transition-colors shadow-2xs cursor-pointer"
+                >
+                  <MapPin className="w-3.5 h-3.5" />
+                  <span>Google Maps</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleAbrirWaze}
+                  className="flex-1 min-w-[100px] inline-flex items-center justify-center gap-1.5 py-1.5 px-3 bg-white border border-gray-300 hover:border-blue-600 text-blue-700 font-bold rounded-lg text-xs transition-colors shadow-2xs cursor-pointer"
+                >
+                  <MapPin className="w-3.5 h-3.5" />
+                  <span>Waze</span>
+                </button>
+              </div>
             )}
           </div>
 
@@ -594,7 +711,7 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
               <div>
                 <span className="font-bold text-gray-900 block mb-0.5">Contato do Cliente:</span>
                 <span className="text-gray-600">
-                  {cliente?.telefone || cliente?.whatsapp || 'Sem telefone'}
+                  {telefoneAutoritativoCliente || 'Sem telefone/WhatsApp'}
                 </span>
                 {cliente?.contato && (
                   <span className="block text-[11px] text-gray-500">
@@ -603,15 +720,29 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
                 )}
               </div>
             </div>
-            {(cliente?.telefone || cliente?.whatsapp) && (
-              <a
-                href={`tel:${(cliente?.telefone || cliente?.whatsapp || '').replace(/\D/g, '')}`}
-                className="mt-2.5 inline-flex items-center justify-center gap-1.5 py-1.5 px-3 bg-white border border-gray-300 hover:border-emerald-600 text-emerald-700 font-bold rounded-lg text-xs transition-colors shadow-2xs"
+
+            <div className="mt-2.5 flex items-center gap-2 flex-wrap">
+              {/* Botão verde Enviar Mensagem WhatsApp (fixado ao cliente da OS) */}
+              <button
+                type="button"
+                onClick={() => setModalWhatsAppClienteAberto(true)}
+                disabled={!telefoneAutoritativoCliente}
+                className="flex-1 min-w-[140px] inline-flex items-center justify-center gap-1.5 py-1.5 px-3 bg-[#16A34A] hover:bg-[#15803D] text-white font-bold rounded-lg text-xs transition-colors shadow-2xs disabled:opacity-50 cursor-pointer"
               >
-                <Phone className="w-3.5 h-3.5" />
-                Ligar para Cliente
-              </a>
-            )}
+                <MessageSquare className="w-3.5 h-3.5" />
+                <span>Enviar WhatsApp</span>
+              </button>
+
+              {telefoneAutoritativoCliente && (
+                <a
+                  href={`tel:${telefoneAutoritativoCliente.replace(/\D/g, '')}`}
+                  className="inline-flex items-center justify-center gap-1.5 py-1.5 px-3 bg-white border border-gray-300 hover:border-emerald-600 text-emerald-700 font-bold rounded-lg text-xs transition-colors shadow-2xs"
+                >
+                  <Phone className="w-3.5 h-3.5" />
+                  <span>Ligar</span>
+                </a>
+              )}
+            </div>
           </div>
         </div>
 
@@ -727,9 +858,9 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
         <Textarea
           value={instrucoesTexto}
           onChange={(e) => setInstrucoesTexto(e.target.value)}
-          disabled={os.status === 'concluida'}
+          disabled={!podeEditarOS}
           placeholder="Procedimentos e orientações técnicas do serviço..."
-          className="min-h-[130px] text-xs sm:text-sm bg-gray-50/70 border-gray-200 rounded-xl leading-relaxed p-3.5 focus:bg-white resize-y font-mono"
+          className="min-h-[130px] text-xs sm:text-sm bg-gray-50/70 border-gray-200 rounded-xl leading-relaxed p-3.5 focus:bg-white resize-y font-mono disabled:opacity-75 disabled:cursor-not-allowed"
         />
       </div>
 
@@ -766,8 +897,10 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
                 key={item.id || index}
                 type="button"
                 onClick={() => handleToggleChecklist(item.id)}
-                disabled={os.status === 'concluida'}
+                disabled={!podeEditarOS}
                 className={`w-full text-left p-3.5 sm:p-4 rounded-xl border transition-all flex items-center gap-3.5 select-none ${
+                  !podeEditarOS ? 'cursor-not-allowed opacity-80' : 'cursor-pointer'
+                } ${
                   isChecked
                     ? 'bg-emerald-50/80 border-emerald-300 text-emerald-950 font-semibold shadow-2xs'
                     : 'bg-white hover:bg-gray-50 border-gray-200 text-gray-800'
@@ -808,7 +941,7 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
         </div>
 
         {/* Botão Gigante de Câmera (Mobile First) */}
-        {os.status !== 'concluida' && (
+        {podeEditarOS && (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {/* Input nativo com capture="environment" para abrir câmera traseira no smartphone */}
             <input
@@ -939,13 +1072,29 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
         <Textarea
           value={detalhesExecucao}
           onChange={(e) => setDetalhesExecucao(e.target.value)}
-          disabled={os.status === 'concluida'}
+          disabled={!podeEditarOS}
           placeholder="Ex: Realizada lavagem de 30 placas com água deionizada. Medições de Voc em 385V string 1 e 390V string 2. Inversor operando com geração nominal de 11.8 kW. Nenhum hotspot detectado na termografia..."
-          className="min-h-[130px] text-xs sm:text-sm bg-gray-50/70 border-gray-200 rounded-xl leading-relaxed p-3.5 focus:bg-white resize-y"
+          className="min-h-[130px] text-xs sm:text-sm bg-gray-50/70 border-gray-200 rounded-xl leading-relaxed p-3.5 focus:bg-white resize-y disabled:opacity-75 disabled:cursor-not-allowed"
         />
       </div>
 
-      {/* 6. BOTÃO DE AÇÃO: FINALIZAR OS OU SALVAR RASCUNHO */}
+      {/* Banner de Aviso de Somente Leitura pós-conclusão para Não-Admin */}
+      {os.status === 'concluida' && !isAdmin && (
+        <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 text-xs text-slate-700 flex items-center gap-3">
+          <ShieldCheck className="w-5 h-5 text-emerald-600 shrink-0" />
+          <div className="flex-1">
+            <span className="font-bold text-slate-900 block">
+              Ordem de Serviço Concluída (Modo Leitura)
+            </span>
+            <span>
+              Esta OS foi finalizada e os campos foram bloqueados para edição. Apenas
+              administradores podem reabri-la.
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* 6. BOTÃO DE AÇÃO: FINALIZAR OS, SALVAR RASCUNHO OU REABRIR */}
       <div className="fixed bottom-0 left-0 right-0 p-4 bg-white/95 backdrop-blur-md border-t border-gray-200 z-30 shadow-lg">
         <div className="max-w-3xl mx-auto flex items-center gap-3">
           {os.status !== 'concluida' ? (
@@ -988,31 +1137,71 @@ export const FichaExecucaoOS: React.FC<FichaExecucaoOSProps> = ({
               </Button>
             </>
           ) : (
-            <div className="w-full flex items-center justify-between">
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-xs sm:text-sm font-bold text-emerald-800 flex items-center gap-1.5">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                  Esta OS foi finalizada em{' '}
+            <div className="w-full flex items-center justify-between gap-3 flex-wrap sm:flex-nowrap">
+              <div className="flex items-center gap-2 flex-wrap min-w-0">
+                <span className="text-xs sm:text-sm font-bold text-emerald-800 flex items-center gap-1.5 truncate">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                  OS finalizada em{' '}
                   {os.concluida_em ? formatDateTime(os.concluida_em) : 'data anterior'}.
                 </span>
                 {os.relatorio_pdf && (
-                  <Badge className="bg-emerald-100 text-emerald-800 border-emerald-300 text-[10px]">
+                  <Badge className="bg-emerald-100 text-emerald-800 border-emerald-300 text-[10px] shrink-0">
                     PDF Gerado
                   </Badge>
                 )}
               </div>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={onBack}
-                className="rounded-xl h-10 px-4 text-xs font-semibold"
-              >
-                Voltar
-              </Button>
+
+              <div className="flex items-center gap-2 shrink-0">
+                {/* Apenas Admin pode reabrir a OS concluída ou salvar alterações */}
+                {isAdmin && (
+                  <>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={handleSalvarRascunho}
+                      disabled={isSavingDraft}
+                      className="rounded-xl h-10 px-3 text-xs font-semibold border-emerald-300 text-emerald-800 hover:bg-emerald-50"
+                    >
+                      {isSavingDraft ? 'Salvando...' : 'Salvar Alterações'}
+                    </Button>
+                    <Button
+                      type="button"
+                      onClick={handleReabrirOS}
+                      disabled={isReabrindo}
+                      className="rounded-xl h-10 px-3 text-xs font-bold bg-amber-600 hover:bg-amber-700 text-white shadow-xs inline-flex items-center gap-1.5"
+                    >
+                      <RotateCcw className="w-3.5 h-3.5" />
+                      <span>{isReabrindo ? 'Reabrindo...' : 'Reabrir Ordem de Serviço'}</span>
+                    </Button>
+                  </>
+                )}
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={onBack}
+                  className="rounded-xl h-10 px-4 text-xs font-semibold"
+                >
+                  Voltar
+                </Button>
+              </div>
             </div>
           )}
         </div>
       </div>
+
+      {/* Modal de Envio Direto via WhatsApp para o Cliente da OS */}
+      <ModalConfirmarEnvioWhatsApp
+        isOpen={modalWhatsAppClienteAberto}
+        onClose={() => setModalWhatsAppClienteAberto(false)}
+        titulo="Enviar mensagem WhatsApp ao Cliente"
+        subtitulo={`Comunicação referente à OS #${os.id.slice(-6).toUpperCase()} (${os.tipo_servico}).`}
+        destinatarioNome={cliente?.nome || cliente?.razao_social || 'Cliente Solar'}
+        telefoneInicial={telefoneAutoritativoCliente}
+        mensagemInicial={mensagemInicialCliente}
+        telefoneReadOnly={!isAdmin}
+        onConfirmarEnvio={handleConfirmarEnvioWhatsAppCliente}
+        confirmLabel="Enviar WhatsApp ao Cliente"
+      />
 
       {/* Modal de Confirmação de Finalização */}
       {showConfirmModal && (
