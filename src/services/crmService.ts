@@ -2678,6 +2678,11 @@ export async function salvarRelatorioPdfOrdemServico(
     })
 }
 
+export async function deleteOrdemServico(id: string): Promise<boolean> {
+  await pb.collection('ordens_servico').delete(id)
+  return true
+}
+
 export async function finalizarOrdemServico(
   id: string,
   dadosFinalizacao: {
