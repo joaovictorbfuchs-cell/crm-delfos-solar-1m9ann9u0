@@ -14,14 +14,16 @@ import {
   User,
   Paperclip,
   Trash2,
-  CheckCircle2,
   AlertCircle,
   Loader2,
   MapPin,
-  Clock,
-  ShieldCheck,
   Eye,
   Check,
+  Edit3,
+  RotateCcw,
+  Save,
+  HelpCircle,
+  Sparkles,
 } from 'lucide-react'
 import { useClientes } from '@/contexts/ClientesContext'
 import { useAuth } from '@/contexts/AuthContext'
@@ -31,12 +33,19 @@ import {
   EMAIL_RGE_PADRAO,
   DELFOS_TELEFONE_PADRAO,
   DELFOS_EMAIL_PADRAO,
+  ASSUNTO_RGE_ORIGINAL,
+  CORPO_TEXTO_RGE_ORIGINAL,
+  RGE_PLACEHOLDERS,
   gerarAssuntoContasRGE,
   gerarCorpoHtmlContasRGE,
   fileToBase64,
+  carregarTemplatePadraoContasRGE,
+  salvarTemplatePadraoContasRGE,
+  restaurarTemplatePadraoContasRGE,
+  resolverPlaceholdersContasRGE,
 } from '@/lib/emailContasRGETemplate'
 import { PrazoRGEBadge } from '@/components/PrazoRGEBadge'
-import type { Cliente, Atividade, UsinaCliente } from '@/types/crm'
+import type { Atividade, UsinaCliente } from '@/types/crm'
 import { toast } from 'sonner'
 
 export interface ModalSolicitarContasRGEProps {
@@ -91,7 +100,7 @@ export const ModalSolicitarContasRGE: React.FC<ModalSolicitarContasRGEProps> = (
     atividadeExistente?.documento_titular || '',
   )
 
-  // 5. Responsável que criou a atividade: nome, email e cargo (pré-preenchido com logado, editável)
+  // 5. Responsável que criou a atividade: nome, email e cargo
   const [responsavelId, setResponsavelId] = useState<string>(
     atividadeExistente?.responsavel_id || '',
   )
@@ -110,12 +119,22 @@ export const ModalSolicitarContasRGE: React.FC<ModalSolicitarContasRGEProps> = (
     atividadeExistente?.email_destinatario || emailDestinatarioInicial || EMAIL_RGE_PADRAO,
   )
 
-  // 7. Documentos anexados (upload de arquivos)
+  // 7. Customização e Edição do Template de Mensagem (Assunto + Corpo com placeholders)
+  const [assuntoTemplate, setAssuntoTemplate] = useState<string>(ASSUNTO_RGE_ORIGINAL)
+  const [corpoTemplate, setCorpoTemplate] = useState<string>(CORPO_TEXTO_RGE_ORIGINAL)
+  const [modoEdicaoTemplate, setModoEdicaoTemplate] = useState<boolean>(false)
+  const [mostrarPreviewEmail, setMostrarPreviewEmail] = useState<boolean>(true)
+  const [isTemplateCustomizado, setIsTemplateCustomizado] = useState<boolean>(false)
+  const [isSalvandoPadrao, setIsSalvandoPadrao] = useState<boolean>(false)
+  const [isRestaurandoPadrao, setIsRestaurandoPadrao] = useState<boolean>(false)
+  const [mostrarAjudaPlaceholders, setMostrarAjudaPlaceholders] = useState<boolean>(false)
+
+  // 8. Documentos anexados (upload de arquivos)
   const [anexos, setAnexos] = useState<ArquivoAnexoItem[]>([])
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const textareaCorpoRef = useRef<HTMLTextAreaElement>(null)
 
   // Controle de envio e confirmação
-  const [mostrarPreviewEmail, setMostrarPreviewEmail] = useState<boolean>(false)
   const [confirmarEnvio, setConfirmarEnvio] = useState<boolean>(false)
   const [isEnviando, setIsEnviando] = useState<boolean>(false)
   const [formError, setFormError] = useState<string | null>(null)
@@ -158,8 +177,20 @@ export const ModalSolicitarContasRGE: React.FC<ModalSolicitarContasRGEProps> = (
         setDocumentoTitular(atividadeExistente.documento_titular)
 
       setFormError(null)
-      setMostrarPreviewEmail(false)
       setConfirmarEnvio(false)
+
+      // Carregar template padrão persistido no PocketBase
+      carregarTemplatePadraoContasRGE()
+        .then((tpl) => {
+          setAssuntoTemplate(tpl.assunto || ASSUNTO_RGE_ORIGINAL)
+          setCorpoTemplate(tpl.corpo || CORPO_TEXTO_RGE_ORIGINAL)
+          setIsTemplateCustomizado(tpl.isCustomizado)
+        })
+        .catch(() => {
+          setAssuntoTemplate(ASSUNTO_RGE_ORIGINAL)
+          setCorpoTemplate(CORPO_TEXTO_RGE_ORIGINAL)
+          setIsTemplateCustomizado(false)
+        })
     }
   }, [open, clienteIdInicial, atividadeExistente, emailDestinatarioInicial, user, usuarios])
 
@@ -223,7 +254,6 @@ export const ModalSolicitarContasRGE: React.FC<ModalSolicitarContasRGEProps> = (
     }
     setAnexos((prev) => [...prev, ...novos])
 
-    // Limpa o input nativo para permitir selecionar o mesmo arquivo se reaberto
     if (fileInputRef.current) {
       fileInputRef.current.value = ''
     }
@@ -233,14 +263,9 @@ export const ModalSolicitarContasRGE: React.FC<ModalSolicitarContasRGEProps> = (
     setAnexos((prev) => prev.filter((a) => a.id !== id))
   }
 
-  // Assunto e corpo do e-mail em tempo real
-  const assuntoAtual = useMemo(() => {
-    const nomeTitular = clienteSelecionado?.nome || 'Cliente'
-    return gerarAssuntoContasRGE(numeroUc, nomeTitular)
-  }, [numeroUc, clienteSelecionado])
-
-  const corpoHtmlAtual = useMemo(() => {
-    return gerarCorpoHtmlContasRGE({
+  // Parâmetros consolidados para resolução dinâmica dos placeholders
+  const parametrosTemplate = useMemo(() => {
+    return {
       numeroUc,
       enderecoUc,
       nomeCliente: clienteSelecionado?.nome || 'Cliente',
@@ -249,7 +274,7 @@ export const ModalSolicitarContasRGE: React.FC<ModalSolicitarContasRGEProps> = (
       cargoResponsavel: responsavelCargo,
       telefoneDelfos: DELFOS_TELEFONE_PADRAO,
       emailDelfos: DELFOS_EMAIL_PADRAO,
-    })
+    }
   }, [
     numeroUc,
     enderecoUc,
@@ -258,6 +283,78 @@ export const ModalSolicitarContasRGE: React.FC<ModalSolicitarContasRGEProps> = (
     responsavelNome,
     responsavelCargo,
   ])
+
+  // Assunto e corpo do e-mail resolvidos em tempo real (refletindo edições imediatas)
+  const assuntoAtual = useMemo(() => {
+    return gerarAssuntoContasRGE(numeroUc, clienteSelecionado?.nome || 'Cliente', assuntoTemplate)
+  }, [numeroUc, clienteSelecionado, assuntoTemplate])
+
+  const corpoHtmlAtual = useMemo(() => {
+    return gerarCorpoHtmlContasRGE(parametrosTemplate, corpoTemplate)
+  }, [parametrosTemplate, corpoTemplate])
+
+  // Inserção de placeholder na posição do cursor do textarea
+  const handleInserirPlaceholder = (tag: string) => {
+    const textarea = textareaCorpoRef.current
+    if (!textarea) {
+      setCorpoTemplate((prev) => `${prev} ${tag}`)
+      return
+    }
+
+    const start = textarea.selectionStart || 0
+    const end = textarea.selectionEnd || 0
+    const valorAtual = corpoTemplate
+    const novoValor = valorAtual.slice(0, start) + tag + valorAtual.slice(end)
+    setCorpoTemplate(novoValor)
+
+    setTimeout(() => {
+      textarea.focus()
+      textarea.setSelectionRange(start + tag.length, start + tag.length)
+    }, 50)
+  }
+
+  // Ação: Salvar texto editado como a nova mensagem padrão no PocketBase
+  const handleSalvarComoPadrao = async () => {
+    if (!corpoTemplate.trim()) {
+      toast.error('O corpo da mensagem não pode ficar vazio.')
+      return
+    }
+
+    try {
+      setIsSalvandoPadrao(true)
+      const salvo = await salvarTemplatePadraoContasRGE(assuntoTemplate, corpoTemplate)
+      setIsTemplateCustomizado(salvo.isCustomizado)
+      toast.success(
+        'Mensagem padrão salva com sucesso! Ela será usada como modelo nas próximas solicitações.',
+      )
+    } catch (err: unknown) {
+      console.error('Falha ao salvar mensagem padrão no banco:', err)
+      toast.error('Erro ao salvar nova mensagem padrão no servidor. Tente novamente.')
+    } finally {
+      setIsSalvandoPadrao(false)
+    }
+  }
+
+  // Ação: Restaurar o texto padrão original do código
+  const handleRestaurarPadrao = async () => {
+    try {
+      setIsRestaurandoPadrao(true)
+      const padrao = await restaurarTemplatePadraoContasRGE()
+      setAssuntoTemplate(padrao.assunto)
+      setCorpoTemplate(padrao.corpo)
+      setIsTemplateCustomizado(false)
+      toast.success('Mensagem padrão restaurada para o modelo oficial do sistema.')
+    } catch (err: unknown) {
+      console.error('Falha ao restaurar padrão:', err)
+      // Fallback local caso o backend esteja indisponível
+      setAssuntoTemplate(ASSUNTO_RGE_ORIGINAL)
+      setCorpoTemplate(CORPO_TEXTO_RGE_ORIGINAL)
+      setIsTemplateCustomizado(false)
+      toast.info('Template oficial original restaurado localmente.')
+    } finally {
+      setIsRestaurandoPadrao(false)
+    }
+  }
 
   // Validação dos campos
   const validarFormulario = (): boolean => {
@@ -279,6 +376,14 @@ export const ModalSolicitarContasRGE: React.FC<ModalSolicitarContasRGEProps> = (
     }
     if (!emailDestinatario.trim()) {
       setFormError('Informe o e-mail de destino da concessionária.')
+      return false
+    }
+    if (!assuntoAtual.trim()) {
+      setFormError('O assunto do e-mail não pode ficar em branco.')
+      return false
+    }
+    if (!corpoTemplate.trim()) {
+      setFormError('O corpo do e-mail não pode ficar em branco.')
       return false
     }
     setFormError(null)
@@ -458,6 +563,11 @@ export const ModalSolicitarContasRGE: React.FC<ModalSolicitarContasRGEProps> = (
                   <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-sky-100 text-sky-800 border border-sky-300">
                     Concessionária
                   </span>
+                  {isTemplateCustomizado && (
+                    <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-300">
+                      Padrão personalizado
+                    </span>
+                  )}
                 </DialogTitle>
                 <DialogDescription className="text-xs text-gray-500 mt-0.5">
                   Gere o pedido formal de faturas dos últimos 5 anos e envie diretamente por e-mail
@@ -705,29 +815,166 @@ export const ModalSolicitarContasRGE: React.FC<ModalSolicitarContasRGEProps> = (
             )}
           </div>
 
-          {/* 5. PRÉ-VISUALIZAÇÃO DO E-MAIL (EXPANSÍVEL) */}
-          <div className="p-4 bg-sky-50/40 rounded-2xl border border-sky-200/80 space-y-2.5">
-            <div className="flex items-center justify-between">
+          {/* 5. MENSAGEM DO E-MAIL (EDITOR DE TEXTO PADRÃO & PRÉVIA EM TEMPO REAL) */}
+          <div className="p-4 bg-sky-50/40 rounded-2xl border border-sky-200/80 space-y-3.5">
+            <div className="flex items-center justify-between gap-2 flex-wrap">
               <div className="flex items-center gap-2">
                 <Mail className="w-4 h-4 text-sky-700" />
-                <h4 className="text-xs font-bold text-sky-950">
-                  Pré-visualização do e-mail oficial
+                <h4 className="text-xs font-bold text-sky-950 flex items-center gap-1.5">
+                  <span>Mensagem e Pré-visualização do e-mail</span>
+                  {isTemplateCustomizado && (
+                    <span className="text-[10px] bg-amber-100 text-amber-800 px-2 py-0.5 rounded-md font-semibold border border-amber-200">
+                      Editado
+                    </span>
+                  )}
                 </h4>
               </div>
 
-              <button
-                type="button"
-                onClick={() => setMostrarPreviewEmail((prev) => !prev)}
-                className="text-xs font-semibold text-sky-700 hover:text-sky-900 inline-flex items-center gap-1"
-              >
-                <Eye className="w-3.5 h-3.5" />
-                <span>{mostrarPreviewEmail ? 'Ocultar texto' : 'Ver texto formatado'}</span>
-              </button>
+              {/* Controles de edição / botões de ação */}
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <button
+                  type="button"
+                  onClick={() => setModoEdicaoTemplate((prev) => !prev)}
+                  className={`text-xs font-semibold px-2.5 py-1 rounded-lg border transition-colors inline-flex items-center gap-1.5 ${
+                    modoEdicaoTemplate
+                      ? 'bg-sky-600 text-white border-sky-600'
+                      : 'bg-white text-sky-700 border-sky-200 hover:bg-sky-50'
+                  }`}
+                  title="Editar o texto padrão da mensagem e assunto"
+                >
+                  <Edit3 className="w-3.5 h-3.5" />
+                  <span>{modoEdicaoTemplate ? 'Fechar editor' : 'Editar mensagem'}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setMostrarPreviewEmail((prev) => !prev)}
+                  className="text-xs font-semibold text-sky-700 hover:text-sky-900 bg-white hover:bg-sky-50 border border-sky-200 px-2.5 py-1 rounded-lg transition-colors inline-flex items-center gap-1"
+                >
+                  <Eye className="w-3.5 h-3.5" />
+                  <span>{mostrarPreviewEmail ? 'Ocultar prévia' : 'Ver prévia'}</span>
+                </button>
+              </div>
             </div>
 
+            {/* Painel do Editor de Mensagem e Assunto */}
+            {modoEdicaoTemplate && (
+              <div className="p-4 bg-white rounded-xl border border-sky-200 space-y-3 animate-in fade-in">
+                <div className="flex items-center justify-between gap-2 border-b border-gray-100 pb-2">
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-gray-800">
+                    <Sparkles className="w-4 h-4 text-amber-500" />
+                    <span>Personalizar Assunto e Corpo Padrão</span>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setMostrarAjudaPlaceholders((prev) => !prev)}
+                    className="text-[11px] text-gray-500 hover:text-sky-700 inline-flex items-center gap-1"
+                  >
+                    <HelpCircle className="w-3.5 h-3.5" />
+                    <span>
+                      {mostrarAjudaPlaceholders ? 'Ocultar tags' : 'Ver tags disponíveis'}
+                    </span>
+                  </button>
+                </div>
+
+                {/* Tags / Placeholders clicáveis */}
+                {mostrarAjudaPlaceholders && (
+                  <div className="p-3 bg-gray-50 rounded-lg border border-gray-200 text-xs space-y-2">
+                    <p className="text-[11px] text-gray-600">
+                      Clique em qualquer tag abaixo para inseri-la no cursor da mensagem. No envio,
+                      os placeholders são substituídos automaticamente pelos dados do cliente:
+                    </p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {RGE_PLACEHOLDERS.map((ph) => (
+                        <button
+                          key={ph.tag}
+                          type="button"
+                          onClick={() => handleInserirPlaceholder(ph.tag)}
+                          className="px-2 py-0.5 rounded bg-white hover:bg-sky-50 text-sky-800 border border-sky-200 text-[11px] font-mono transition-colors"
+                          title={`Exemplo: ${ph.exemplo}`}
+                        >
+                          + {ph.tag}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Edição do Assunto */}
+                <div>
+                  <label className="text-[11px] font-semibold text-gray-700 block mb-1">
+                    Assunto do e-mail (com placeholders):
+                  </label>
+                  <input
+                    type="text"
+                    value={assuntoTemplate}
+                    onChange={(e) => setAssuntoTemplate(e.target.value)}
+                    placeholder="Solicitação de faturas de energia — UC [número da UC] — [nome do cliente]"
+                    className="w-full text-xs px-3 py-2 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-sky-500 font-medium bg-white"
+                  />
+                </div>
+
+                {/* Edição do Corpo */}
+                <div>
+                  <label className="text-[11px] font-semibold text-gray-700 block mb-1">
+                    Corpo da mensagem (texto formatado com placeholders):
+                  </label>
+                  <textarea
+                    ref={textareaCorpoRef}
+                    rows={8}
+                    value={corpoTemplate}
+                    onChange={(e) => setCorpoTemplate(e.target.value)}
+                    placeholder="Digite o texto padrão da mensagem..."
+                    className="w-full text-xs p-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-sky-500 font-mono leading-relaxed bg-white"
+                  />
+                </div>
+
+                {/* Barra de Ações: Salvar como padrão e Restaurar padrão */}
+                <div className="flex items-center justify-between gap-2 pt-2 border-t border-gray-100 flex-wrap">
+                  <button
+                    type="button"
+                    onClick={handleRestaurarPadrao}
+                    disabled={isRestaurandoPadrao || isSalvandoPadrao}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-gray-600 hover:text-gray-900 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors disabled:opacity-50"
+                    title="Volta ao texto original de fábrica da Delfos Engenharia"
+                  >
+                    {isRestaurandoPadrao ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <RotateCcw className="w-3.5 h-3.5" />
+                    )}
+                    <span>Restaurar padrão</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleSalvarComoPadrao}
+                    disabled={isSalvandoPadrao || isRestaurandoPadrao}
+                    className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg shadow-xs transition-colors disabled:opacity-50"
+                    title="Salva essa mensagem no PocketBase para ser usada nas próximas vezes"
+                  >
+                    {isSalvandoPadrao ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        <span>Salvando no banco...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Save className="w-3.5 h-3.5" />
+                        <span>Salvar como padrão</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Cabeçalho do e-mail resolvido */}
             <div className="text-xs text-gray-600 bg-white p-3 rounded-xl border border-sky-100 space-y-1">
               <div>
-                <strong className="text-gray-900">Assunto:</strong> {assuntoAtual}
+                <strong className="text-gray-900">Assunto resolvido:</strong>{' '}
+                <span className="text-gray-800 font-medium">{assuntoAtual}</span>
               </div>
               <div>
                 <strong className="text-gray-900">Remetente:</strong> Delfos Solar
@@ -739,11 +986,20 @@ export const ModalSolicitarContasRGE: React.FC<ModalSolicitarContasRGEProps> = (
               </div>
             </div>
 
+            {/* Prévia em tempo real com renderização do HTML */}
             {mostrarPreviewEmail && (
-              <div
-                className="p-4 bg-white rounded-xl border border-gray-200 text-xs text-gray-800 max-h-72 overflow-y-auto space-y-3 leading-relaxed shadow-inner"
-                dangerouslySetInnerHTML={{ __html: corpoHtmlAtual }}
-              />
+              <div className="space-y-1.5">
+                <div className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider flex items-center justify-between">
+                  <span>Prévia em tempo real (dados aplicados):</span>
+                  <span className="text-[10px] text-sky-700">
+                    HTML oficial para a concessionária
+                  </span>
+                </div>
+                <div
+                  className="p-4 bg-white rounded-xl border border-gray-200 text-xs text-gray-800 max-h-72 overflow-y-auto space-y-3 leading-relaxed shadow-inner"
+                  dangerouslySetInnerHTML={{ __html: corpoHtmlAtual }}
+                />
+              </div>
             )}
           </div>
 
@@ -815,3 +1071,4 @@ export const ModalSolicitarContasRGE: React.FC<ModalSolicitarContasRGEProps> = (
     </Dialog>
   )
 }
+export default ModalSolicitarContasRGE
