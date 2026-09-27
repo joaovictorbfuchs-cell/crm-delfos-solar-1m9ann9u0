@@ -12,6 +12,7 @@ export interface AtividadeItemProps {
 }
 
 import { getTipoAtividadeConfig } from '@/constants/atividadesTipos'
+import { PrazoRGEBadge } from '@/components/PrazoRGEBadge'
 
 export function getAtividadeConfig(tipo: AtividadeTipo | string) {
   const conf = getTipoAtividadeConfig(tipo)
@@ -100,6 +101,14 @@ export const AtividadeItem: React.FC<AtividadeItemProps> = ({
               </span>
             )}
 
+            {/* Badge de Prazo RGE específico */}
+            {(atividade.tipo === 'solicitar_contas_rge' || atividade.prazo_conclusao_rge) && (
+              <PrazoRGEBadge
+                prazoStr={atividade.prazo_conclusao_rge}
+                concluida={atividade.status === 'concluida'}
+              />
+            )}
+
             {/* Etiqueta de vínculo com a Usina */}
             {atividade.expand?.usina_id?.nome && (
               <span
@@ -159,6 +168,23 @@ export const AtividadeItem: React.FC<AtividadeItemProps> = ({
           <p className="text-xs text-gray-700 whitespace-pre-wrap leading-relaxed">
             {atividade.descricao}
           </p>
+
+          {/* Destaque de Protocolo e Retorno RGE quando existirem */}
+          {(atividade.protocolo_atendimento || atividade.retorno_rge) && (
+            <div className="mt-2 p-2.5 rounded-xl bg-sky-50/70 border border-sky-100 text-[11px] text-sky-950 space-y-1">
+              {atividade.protocolo_atendimento && (
+                <div className="flex items-center gap-1.5 font-bold text-sky-900">
+                  <span>Protocolo RGE:</span>
+                  <span className="font-mono bg-white px-1.5 py-0.2 rounded border border-sky-200">
+                    {atividade.protocolo_atendimento}
+                  </span>
+                </div>
+              )}
+              {atividade.retorno_rge && (
+                <p className="text-sky-800 italic line-clamp-2">"{atividade.retorno_rge}"</p>
+              )}
+            </div>
+          )}
 
           {/* Exibição discreta e limpa de custos quando existirem dados */}
           {(Number(atividade.custo_total) > 0 || Number(atividade.valor_servico) > 0) && (

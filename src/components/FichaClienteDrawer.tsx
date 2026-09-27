@@ -65,6 +65,7 @@ import { ModalTransferenciaCreditos } from './ModalTransferenciaCreditos'
 import { ModalOferecerLimpezaAvulsa } from './ModalOferecerLimpezaAvulsa'
 import { ModalGerenciarAtividades } from './ModalGerenciarAtividades'
 import { ModalGerarProcuracaoOM } from './ModalGerarProcuracaoOM'
+import { ModalSolicitarContasRGE } from './ModalSolicitarContasRGE'
 import { ModalGerarContratoOM } from './ModalGerarContratoOM'
 import { ModalNovaAtividade } from './ModalNovaAtividade'
 import { ModalSolicitacaoInformacoes } from './ModalSolicitacaoInformacoes'
@@ -281,6 +282,7 @@ export const FichaClienteDrawer: React.FC = () => {
   const [modalGerenciarAtividadesOpen, setModalGerenciarAtividadesOpen] = useState(false)
   const [modalProcuracaoOMOpen, setModalProcuracaoOMOpen] = useState(false)
   const [modalContratoOMOpen, setModalContratoOMOpen] = useState(false)
+  const [modalSolicitarContasRGEOpen, setModalSolicitarContasRGEOpen] = useState(false)
   const [contratoOMDetalhesDados, setContratoOMDetalhesDados] = useState<any>(null)
   const [modoVisualizacaoContratoDireta, setModoVisualizacaoContratoDireta] = useState(false)
 
@@ -3500,6 +3502,8 @@ export const FichaClienteDrawer: React.FC = () => {
                         handleDispararGerarContrato()
                       } else if (tipoId === 'oferecer_limpeza_avulsa') {
                         setModalOferecerLimpezaOpen(true)
+                      } else if (tipoId === 'solicitar_contas_rge') {
+                        setModalSolicitarContasRGEOpen(true)
                       }
                     }}
                   />
@@ -3988,6 +3992,19 @@ export const FichaClienteDrawer: React.FC = () => {
         open={modalGerenciarAtividadesOpen}
         onOpenChange={setModalGerenciarAtividadesOpen}
       />
+
+      {/* Modal Solicitar Contas RGE com envio por e-mail e anexos */}
+      {selectedCliente && (
+        <ModalSolicitarContasRGE
+          open={modalSolicitarContasRGEOpen}
+          onOpenChange={setModalSolicitarContasRGEOpen}
+          clienteIdInicial={selectedCliente.id}
+          usinas={usinasDoCliente}
+          onSuccess={() => {
+            setModalSolicitarContasRGEOpen(false)
+          }}
+        />
+      )}
 
       {/* Modal Gerar Procuração O&M a partir da Linha do Tempo / Histórico */}
       {selectedCliente && (

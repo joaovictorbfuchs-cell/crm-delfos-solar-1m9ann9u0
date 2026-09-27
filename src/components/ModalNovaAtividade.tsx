@@ -11,7 +11,9 @@ import {
   Plus,
   Trash2,
   CalendarDays,
+  FileText,
 } from 'lucide-react'
+import { ModalSolicitarContasRGE } from '@/components/ModalSolicitarContasRGE'
 import { useClientes } from '@/contexts/ClientesContext'
 import { useAuth } from '@/contexts/AuthContext'
 import { ClienteAutocomplete } from '@/components/ClienteAutocomplete'
@@ -107,6 +109,7 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
   const [formSuccess, setFormSuccess] = useState(false)
+  const [isModalSolicitarContasOpen, setIsModalSolicitarContasOpen] = useState(false)
 
   // Valores de custo e deslocamento
   const [custosValores, setCustosValores] = useState<CustosDeslocamentoValues | null>(null)
@@ -215,6 +218,8 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
     setTitulo(conf.tituloPadrao)
     if (novoTipo === 'auto_leitura_rge') {
       setProgramacaoLeituras(ITENS_EXEMPLO_PROGRAMACAO.map((it) => ({ ...it })))
+    } else if (novoTipo === 'solicitar_contas_rge') {
+      setIsModalSolicitarContasOpen(true)
     }
   }
 
@@ -362,7 +367,25 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
 
       {/* Janela Modal */}
       <div className="relative z-50 w-full max-w-xl bg-white rounded-2xl shadow-2xl border border-gray-200 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-        {/* Topo do modal */}
+        {/* Banner de atalho se selecionar Solicitar contas RGE */}
+        {selectedTipo === 'solicitar_contas_rge' && (
+          <div className="mx-5 mt-4 p-3 bg-sky-50 border border-sky-200 rounded-xl flex items-center justify-between gap-3 text-xs text-sky-900">
+            <div className="flex items-center gap-2">
+              <FileText className="w-4 h-4 text-sky-600 shrink-0" />
+              <span>
+                Esta atividade possui fluxo completo com envio de e-mail e acompanhamento da RGE.
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsModalSolicitarContasOpen(true)}
+              className="px-3 py-1 bg-sky-600 text-white font-bold rounded-lg hover:bg-sky-700 transition-colors shrink-0"
+            >
+              Abrir tela completa
+            </button>
+          </div>
+        )}
+        {/* Topo do modal */}{' '}
         <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between bg-gray-50/70">
           <div className="flex items-center gap-3">
             <div
@@ -390,7 +413,6 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
             <X className="w-5 h-5" />
           </button>
         </div>
-
         {/* Formulário */}
         <form onSubmit={handleSubmit} className="p-5 space-y-4 max-h-[82vh] overflow-y-auto">
           {/* Seleção em 2 etapas: Categoria e Tipo */}
@@ -755,6 +777,18 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
           </div>
         </form>
       </div>
+      {/* Modal Dedicado de Solicitar Contas RGE */}
+      {isModalSolicitarContasOpen && (
+        <ModalSolicitarContasRGE
+          open={isModalSolicitarContasOpen}
+          onOpenChange={setIsModalSolicitarContasOpen}
+          clienteIdInicial={clienteId}
+          onSuccess={() => {
+            setIsModalSolicitarContasOpen(false)
+            onClose()
+          }}
+        />
+      )}
     </div>
   )
 }

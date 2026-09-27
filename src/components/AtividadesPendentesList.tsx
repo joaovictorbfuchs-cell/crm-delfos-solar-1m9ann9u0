@@ -15,6 +15,7 @@ import {
 } from 'lucide-react'
 import type { Atividade, SistemaUsuario } from '@/types/crm'
 import { getTipoAtividadeConfig } from '@/constants/atividadesTipos'
+import { PrazoRGEBadge } from '@/components/PrazoRGEBadge'
 import { formatDateTime } from '@/lib/formatters'
 import {
   ModalMensagemWhatsAppMassa,
@@ -369,11 +370,17 @@ export const AtividadesPendentesList: React.FC<AtividadesPendentesListProps> = (
                           {conf.tituloPadrao}
                         </span>
 
-                        {isOverdue && (
+                        {/* Se for solicitar_contas_rge ou tiver prazo RGE, exibe o marcador visual tricolor */}
+                        {atv.tipo === 'solicitar_contas_rge' || atv.prazo_conclusao_rge ? (
+                          <PrazoRGEBadge
+                            prazoStr={atv.prazo_conclusao_rge}
+                            concluida={isConcluida}
+                          />
+                        ) : isOverdue ? (
                           <span className="text-[10px] font-bold text-amber-800 bg-amber-100 px-1.5 py-0.5 rounded">
                             Atrasada
                           </span>
-                        )}
+                        ) : null}
 
                         <div className="flex items-center text-[11px] text-gray-500 gap-1 ml-auto">
                           <Calendar className="w-3 h-3 text-gray-400" />
@@ -393,6 +400,14 @@ export const AtividadesPendentesList: React.FC<AtividadesPendentesListProps> = (
                         <p className="text-[11px] text-gray-600 mt-1 whitespace-pre-wrap leading-relaxed line-clamp-3">
                           {atv.descricao}
                         </p>
+                      )}
+
+                      {/* Destaque de Protocolo RGE se houver */}
+                      {atv.protocolo_atendimento && (
+                        <div className="mt-1.5 inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-sky-50 border border-sky-200 text-[10px] text-sky-900 font-medium">
+                          <span>Protocolo RGE:</span>
+                          <span className="font-mono font-bold">{atv.protocolo_atendimento}</span>
+                        </div>
                       )}
                     </div>
                   </div>

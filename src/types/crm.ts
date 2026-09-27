@@ -82,6 +82,7 @@ export type AtividadeTipo =
   | 'transferencia_creditos'
   | 'gerar_procuracao'
   | 'gerar_contrato'
+  | 'solicitar_contas_rge'
   // Tipos legados mantidos para retrocompatibilidade  | 'anotacao'
   | 'ligacao'
   | 'reuniao'
@@ -827,6 +828,20 @@ export interface Atividade extends RecordModel {
   leituras_programadas_distribuidora?:
     | Array<{ data: string; responsavel: 'Cliente' | 'Distribuidora' }>
     | unknown
+  // Campos específicos de Solicitar contas RGE
+  numero_uc?: string
+  endereco_uc?: string
+  documento_titular?: string
+  responsavel_email?: string
+  responsavel_cargo?: string
+  email_destinatario?: string
+  email_enviado_em?: string
+  email_envio_status?: string
+  email_resend_id?: string
+  protocolo_atendimento?: string
+  retorno_rge?: string
+  prazo_conclusao_rge?: string
+  documentos_anexados?: Array<{ nome: string; tamanho?: number; url?: string }> | unknown
   created: string
   updated: string
   expand?: {

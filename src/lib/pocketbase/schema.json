@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-27T01:37:56.553Z",
+  "generatedAt": "2026-09-27T01:45:50.101Z",
   "collections": [
     {
       "name": "users",
@@ -828,7 +828,8 @@
             "custom",
             "gerar_procuracao",
             "gerar_contrato",
-            "oferecer_limpeza_avulsa"
+            "oferecer_limpeza_avulsa",
+            "solicitar_contas_rge"
           ]
         },
         {
@@ -994,6 +995,84 @@
         {
           "name": "custo_total",
           "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "numero_uc",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "endereco_uc",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "documento_titular",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "responsavel_email",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "responsavel_cargo",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "email_destinatario",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "email_enviado_em",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "email_envio_status",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "email_resend_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "protocolo_atendimento",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "retorno_rge",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "prazo_conclusao_rge",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "documentos_anexados",
+          "type": "json",
           "required": false,
           "system": false
         }

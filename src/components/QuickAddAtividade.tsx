@@ -22,6 +22,7 @@ import {
 } from './SecaoCustosDeslocamentoAtividade'
 import { useClientes } from '@/contexts/ClientesContext'
 import { useAuth } from '@/contexts/AuthContext'
+import { ModalSolicitarContasRGE } from '@/components/ModalSolicitarContasRGE'
 import type { AtividadeTipo, AtividadeCategoriaId, UsinaCliente } from '@/types/crm'
 import { Sun } from 'lucide-react'
 
@@ -53,6 +54,9 @@ export const QuickAddAtividade: React.FC<QuickAddAtividadeProps> = ({
 
   // Etapa 2: Sub-tipo selecionado dentro da categoria
   const [subTipo, setSubTipo] = useState<AtividadeTipo>('contato_ligacao')
+
+  // Modal de Solicitar contas RGE
+  const [isModalSolicitarContasOpen, setIsModalSolicitarContasOpen] = useState(false)
 
   // Form states
   const [titulo, setTitulo] = useState('Entrar em contato')
@@ -102,7 +106,9 @@ export const QuickAddAtividade: React.FC<QuickAddAtividadeProps> = ({
     if (firstOfCat) {
       setSubTipo(firstOfCat.id)
       setTitulo(firstOfCat.tituloPadrao)
-      if (
+      if (firstOfCat.id === 'solicitar_contas_rge') {
+        setIsModalSolicitarContasOpen(true)
+      } else if (
         onSelectTipoEspecial &&
         (firstOfCat.id === 'anexo_g' ||
           firstOfCat.id === 'troca_titularidade' ||
@@ -120,7 +126,9 @@ export const QuickAddAtividade: React.FC<QuickAddAtividadeProps> = ({
   const handleSelectTipo = (item: TipoAtividadeDef) => {
     setSubTipo(item.id)
     setTitulo(item.tituloPadrao)
-    if (
+    if (item.id === 'solicitar_contas_rge') {
+      setIsModalSolicitarContasOpen(true)
+    } else if (
       onSelectTipoEspecial &&
       (item.id === 'anexo_g' ||
         item.id === 'troca_titularidade' ||
@@ -207,6 +215,7 @@ export const QuickAddAtividade: React.FC<QuickAddAtividadeProps> = ({
           'transferencia_creditos',
           'gerar_procuracao',
           'gerar_contrato',
+          'solicitar_contas_rge',
           'custom',
         ])
 
@@ -425,7 +434,8 @@ export const QuickAddAtividade: React.FC<QuickAddAtividadeProps> = ({
                         item.id === 'transferencia_creditos' ||
                         item.id === 'gerar_procuracao' ||
                         item.id === 'gerar_contrato' ||
-                        item.id === 'oferecer_limpeza_avulsa' ? (
+                        item.id === 'oferecer_limpeza_avulsa' ||
+                        item.id === 'solicitar_contas_rge' ? (
                         <span
                           className={`text-[9px] font-semibold block ${
                             isSelected ? 'text-emerald-100' : 'text-emerald-700'
@@ -433,7 +443,9 @@ export const QuickAddAtividade: React.FC<QuickAddAtividadeProps> = ({
                         >
                           {item.id === 'oferecer_limpeza_avulsa'
                             ? 'WhatsApp ↗'
-                            : 'fluxo dedicado ↗'}
+                            : item.id === 'solicitar_contas_rge'
+                              ? 'e-mail RGE ↗'
+                              : 'fluxo dedicado ↗'}
                         </span>
                       ) : null}
                     </div>
@@ -607,6 +619,19 @@ export const QuickAddAtividade: React.FC<QuickAddAtividadeProps> = ({
           </button>
         </div>
       </form>
+      {/* Modal Dedicado de Solicitar Contas RGE */}
+      {isModalSolicitarContasOpen && (
+        <ModalSolicitarContasRGE
+          open={isModalSolicitarContasOpen}
+          onOpenChange={setIsModalSolicitarContasOpen}
+          clienteIdInicial={clienteId}
+          usinas={usinas}
+          onSuccess={() => {
+            setIsModalSolicitarContasOpen(false)
+            if (onSuccess) onSuccess()
+          }}
+        />
+      )}
     </div>
   )
 }

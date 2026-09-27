@@ -14,7 +14,10 @@ import {
   CheckCircle,
   RotateCcw,
   ExternalLink,
+  Send,
+  CalendarDays,
 } from 'lucide-react'
+import { PrazoRGEBadge } from '@/components/PrazoRGEBadge'
 import { useClientes } from '@/contexts/ClientesContext'
 import { ClienteAutocomplete } from '@/components/ClienteAutocomplete'
 import { ATIVIDADES_12_TIPOS, getTipoAtividadeConfig } from '@/constants/atividadesTipos'
@@ -59,6 +62,15 @@ export const ModalDetalhesAtividade: React.FC<ModalDetalhesAtividadeProps> = ({
   const [descricao, setDescricao] = useState('')
   const [status, setStatus] = useState<AtividadeStatus>('pendente')
 
+  // Campos específicos de Solicitar contas RGE
+  const [protocoloAtendimento, setProtocoloAtendimento] = useState('')
+  const [retornoRge, setRetornoRge] = useState('')
+  const [prazoConclusaoRge, setPrazoConclusaoRge] = useState('')
+  const [numeroUc, setNumeroUc] = useState('')
+  const [enderecoUc, setEnderecoUc] = useState('')
+  const [documentoTitular, setDocumentoTitular] = useState('')
+  const [emailDestinatario, setEmailDestinatario] = useState('')
+
   // Controle de submissão e feedback
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
@@ -81,6 +93,17 @@ export const ModalDetalhesAtividade: React.FC<ModalDetalhesAtividadeProps> = ({
       setResponsavelId(atividade.responsavel_id || '')
       setDescricao(atividade.descricao || '')
       setStatus((atividade.status as 'pendente' | 'concluida') || 'pendente')
+
+      // Inicializa campos de acompanhamento RGE
+      setProtocoloAtendimento(atividade.protocolo_atendimento || '')
+      setRetornoRge(atividade.retorno_rge || '')
+      setPrazoConclusaoRge(
+        atividade.prazo_conclusao_rge ? atividade.prazo_conclusao_rge.slice(0, 10) : '',
+      )
+      setNumeroUc(atividade.numero_uc || '')
+      setEnderecoUc(atividade.endereco_uc || '')
+      setDocumentoTitular(atividade.documento_titular || '')
+      setEmailDestinatario(atividade.email_destinatario || '')
 
       setFormError(null)
       setErrors({})
@@ -165,6 +188,19 @@ export const ModalDetalhesAtividade: React.FC<ModalDetalhesAtividadeProps> = ({
         custo_deslocamento: custosValores?.custoDeslocamento ?? atividade.custo_deslocamento,
         custo_placas: custosValores?.custoPlacas ?? atividade.custo_placas,
         custo_total: custosValores?.custoTotal ?? atividade.custo_total,
+      }
+
+      // Se for solicitar_contas_rge ou tiver dados da RGE, persiste
+      if (tipo === 'solicitar_contas_rge') {
+        payload.protocolo_atendimento = protocoloAtendimento.trim()
+        payload.retorno_rge = retornoRge.trim()
+        payload.prazo_conclusao_rge = prazoConclusaoRge
+          ? new Date(prazoConclusaoRge + 'T12:00:00Z').toISOString()
+          : null
+        payload.numero_uc = numeroUc.trim()
+        payload.endereco_uc = enderecoUc.trim()
+        payload.documento_titular = documentoTitular.trim()
+        payload.email_destinatario = emailDestinatario.trim()
       }
 
       const updated = await updateAtividade(atividade.id, payload as Partial<Atividade>)
@@ -495,6 +531,134 @@ export const ModalDetalhesAtividade: React.FC<ModalDetalhesAtividadeProps> = ({
               }}
               onChange={setCustosValores}
             />
+          )}
+
+          {/* SEÇÃO ESPECIAL: ACOMPANHAMENTO PÓS-ENVIO RGE */}
+          {tipo === 'solicitar_contas_rge' && (
+            <div className="space-y-3.5 p-4 rounded-2xl border border-sky-200 bg-sky-50/40 shadow-xs">
+              <div className="flex items-center justify-between flex-wrap gap-2 border-b border-sky-100 pb-2">
+                <div className="flex items-center gap-2">
+                  <div className="p-1.5 rounded-lg bg-sky-100 text-sky-800">
+                    <Send className="w-4 h-4 text-sky-700" />
+                  </div>
+                  <div>
+                    <h3 className="text-xs font-bold text-gray-900 leading-tight">
+                      Acompanhamento da Solicitação RGE
+                    </h3>
+                    <p className="text-[10px] text-gray-500">
+                      Protocolo, prazos e retorno oficial da concessionária
+                    </p>
+                  </div>
+                </div>
+
+                <PrazoRGEBadge prazoStr={prazoConclusaoRge} concluida={status === 'concluida'} />
+              </div>
+
+              {/* Registro do disparo do e-mail */}
+              {atividade.email_enviado_em && (
+                <div className="p-2.5 rounded-xl bg-white border border-sky-100 text-[11px] text-sky-900 flex items-center justify-between flex-wrap gap-2">
+                  <div className="flex items-center gap-1.5">
+                    <CheckCircle className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                    <span>
+                      E-mail enviado para{' '}
+                      <strong>{atividade.email_destinatario || 'concessionária'}</strong> em{' '}
+                      {new Date(atividade.email_enviado_em).toLocaleString('pt-BR')}
+                    </span>
+                  </div>
+                  {atividade.email_resend_id && (
+                    <span className="text-[10px] text-gray-400 font-mono">
+                      ID: {atividade.email_resend_id.slice(0, 16)}...
+                    </span>
+                  )}
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                {/* Protocolo de Atendimento */}
+                <div>
+                  <label className="text-[11px] font-semibold text-gray-700 block mb-1">
+                    Protocolo de Atendimento RGE
+                  </label>
+                  <input
+                    type="text"
+                    value={protocoloAtendimento}
+                    onChange={(e) => setProtocoloAtendimento(e.target.value)}
+                    placeholder="Ex: RGE-2026-981244"
+                    className="w-full text-xs px-3 py-2 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-sky-500 font-mono bg-white font-medium"
+                  />
+                </div>
+
+                {/* Prazo de conclusão informado pela RGE */}
+                <div>
+                  <label className="text-[11px] font-semibold text-gray-700 block mb-1 flex items-center justify-between">
+                    <span>Prazo de Conclusão da RGE</span>
+                    <CalendarDays className="w-3 h-3 text-sky-600" />
+                  </label>
+                  <input
+                    type="date"
+                    value={prazoConclusaoRge}
+                    onChange={(e) => setPrazoConclusaoRge(e.target.value)}
+                    className="w-full text-xs px-3 py-2 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-sky-500 bg-white font-medium"
+                  />
+                </div>
+
+                {/* Número da UC */}
+                <div>
+                  <label className="text-[11px] font-semibold text-gray-700 block mb-1">
+                    Número da UC
+                  </label>
+                  <input
+                    type="text"
+                    value={numeroUc}
+                    onChange={(e) => setNumeroUc(e.target.value)}
+                    placeholder="Número da Unidade Consumidora"
+                    className="w-full text-xs px-3 py-2 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-sky-500 font-mono bg-white"
+                  />
+                </div>
+
+                {/* Documento Titular */}
+                <div>
+                  <label className="text-[11px] font-semibold text-gray-700 block mb-1">
+                    Documento do Titular (CPF/CNPJ)
+                  </label>
+                  <input
+                    type="text"
+                    value={documentoTitular}
+                    onChange={(e) => setDocumentoTitular(e.target.value)}
+                    placeholder="CPF ou CNPJ informado"
+                    className="w-full text-xs px-3 py-2 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-sky-500 font-mono bg-white"
+                  />
+                </div>
+
+                {/* Endereço da UC */}
+                <div className="sm:col-span-2">
+                  <label className="text-[11px] font-semibold text-gray-700 block mb-1">
+                    Endereço da Unidade Consumidora
+                  </label>
+                  <input
+                    type="text"
+                    value={enderecoUc}
+                    onChange={(e) => setEnderecoUc(e.target.value)}
+                    placeholder="Endereço da UC informado"
+                    className="w-full text-xs px-3 py-2 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-sky-500 bg-white"
+                  />
+                </div>
+
+                {/* Retorno da RGE (texto livre) */}
+                <div className="sm:col-span-2">
+                  <label className="text-[11px] font-semibold text-gray-700 block mb-1">
+                    Retorno da RGE (texto livre)
+                  </label>
+                  <textarea
+                    rows={2}
+                    value={retornoRge}
+                    onChange={(e) => setRetornoRge(e.target.value)}
+                    placeholder="Descreva o retorno oficial recebido, pendências solicitadas pela concessionária ou orientações da resposta..."
+                    className="w-full text-xs p-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-sky-500 bg-white resize-none leading-relaxed"
+                  />
+                </div>
+              </div>
+            </div>
           )}
 
           {/* 6. Descrição / Observações */}

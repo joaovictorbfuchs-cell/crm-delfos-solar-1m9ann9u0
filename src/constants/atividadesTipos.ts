@@ -337,6 +337,20 @@ export const ATIVIDADES_PADRAO: TipoAtividadeDef[] = [
     icon: FileText,
     isPadrao: true,
   },
+  {
+    id: 'solicitar_contas_rge',
+    categoria: 'administrativo_pos_venda',
+    tituloPadrao: 'Solicitar contas RGE',
+    descricaoAjuda:
+      'Solicitação oficial de envio de histórico de faturas/contas dos últimos 5 anos à concessionária RGE',
+    corHex: '#0284C7',
+    badgeClass: 'bg-sky-50 text-sky-800 border-sky-300',
+    iconBg: 'bg-sky-100 text-sky-800 border-sky-200',
+    iconText: 'text-sky-700',
+    borderClass: 'border-sky-500',
+    icon: FileText,
+    isPadrao: true,
+  },
 ]
 
 // Mantemos o alias ATIVIDADES_12_TIPOS para garantir retrocompatibilidade com consumidores existentes
