@@ -34,7 +34,7 @@ export const BotaoEnviarOSWhatsApp: React.FC<BotaoEnviarOSWhatsAppProps> = ({
   onSentSuccess,
 }) => {
   const navigate = useNavigate()
-  const { whatsAppTemplates, clientes } = useClientes()
+  const { whatsAppTemplates, clientes, refreshMensagens, refreshConversas } = useClientes()
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle')
   const [feedbackMsg, setFeedbackMsg] = useState<string>('')
   const [modalConferenciaAberto, setModalConferenciaAberto] = useState(false)
