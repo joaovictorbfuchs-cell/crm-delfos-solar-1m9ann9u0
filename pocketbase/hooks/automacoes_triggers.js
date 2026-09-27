@@ -303,30 +303,42 @@ onRecordAfterUpdateSuccess((e) => {
             sucesso = false
             mensagemResultado = 'Cliente sem e-mail cadastrado'
           } else {
-            let emailEnviado = false
             try {
-              const mailClient = $app.newMailClient()
-              if (mailClient) {
-                const message = new MailerMessage({
-                  from: {
-                    address:
-                      $app.settings().meta.senderAddress || 'contato@delfosengenharia.com.br',
-                    name: $app.settings().meta.senderName || 'Delfos Solar',
-                  },
-                  to: [{ address: emailDestino }],
-                  subject: assuntoFinal,
-                  html: corpoFinal,
-                })
-                mailClient.send(message)
-                emailEnviado = true
-                sucesso = true
-                mensagemResultado = `E-mail enviado para ${emailDestino} com sucesso`
+              const emailHelper = require(`${__hooks}/email_send_helper.js`)
+              const resendRes = emailHelper.sendEmailWithResend({
+                to: emailDestino,
+                subject: assuntoFinal,
+                html: corpoFinal,
+              })
+              sucesso = true
+              mensagemResultado = `E-mail enviado para ${emailDestino} via Resend (ID: ${resendRes.id})`
+            } catch (resendErr) {
+              let emailEnviado = false
+              try {
+                const mailClient = $app.newMailClient()
+                if (mailClient) {
+                  const message = new MailerMessage({
+                    from: {
+                      address:
+                        $app.settings().meta.senderAddress || 'contato@delfosengenharia.com.br',
+                      name: $app.settings().meta.senderName || 'Delfos Solar',
+                    },
+                    to: [{ address: emailDestino }],
+                    subject: assuntoFinal,
+                    html: corpoFinal,
+                  })
+                  mailClient.send(message)
+                  emailEnviado = true
+                  sucesso = true
+                  mensagemResultado = `E-mail enviado para ${emailDestino} com sucesso (cliente interno)`
+                }
+              } catch (_) {}
+              if (!emailEnviado) {
+                sucesso = false
+                const resendErrMsg =
+                  resendErr && resendErr.message ? resendErr.message : String(resendErr)
+                mensagemResultado = `Falha no envio de e-mail: ${resendErrMsg}`
               }
-            } catch (_) {}
-            if (!emailEnviado) {
-              sucesso = false
-              mensagemResultado =
-                'Falha no envio: servidor de e-mail (SMTP) não configurado na plataforma'
             }
           }
           payloadGravado = { assunto: assuntoFinal, destinatario: emailDestino }

@@ -29,16 +29,12 @@ export function getErrorMessage(error: unknown): string {
 }
 
 export function isAuthSessionError(error: unknown): boolean {
+  if (!error) return false
   if (error instanceof ClientResponseError) {
     if (error.status === 401 || error.status === 403) return true
-    const message = (error.message || '').toLowerCase()
-    if (message.includes('auth') || message.includes('session') || message.includes('token')) {
-      return true
-    }
+    const msg = (error.message || '').toLowerCase()
+    if (msg.includes('token') || msg.includes('auth') || msg.includes('unauthorized')) return true
   }
-  if (error && typeof error === 'object' && 'status' in error) {
-    const status = (error as { status?: number }).status
-    if (status === 401 || status === 403) return true
-  }
-  return false
+  const msg = String(error).toLowerCase()
+  return msg.includes('auth session') || msg.includes('unauthorized') || msg.includes('401')
 }
