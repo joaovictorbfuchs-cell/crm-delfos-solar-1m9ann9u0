@@ -37,7 +37,10 @@ import {
   Square,
   MessageSquare,
 } from 'lucide-react'
-import { ModalMensagemWhatsAppMassa, type DestinatarioMensagemMassa } from '@/components/ModalMensagemWhatsAppMassa'
+import {
+  ModalMensagemWhatsAppMassa,
+  type DestinatarioMensagemMassa,
+} from '@/components/ModalMensagemWhatsAppMassa'
 import { PlanosOMView } from '@/components/PlanosOMView'
 import { useClientes } from '@/contexts/ClientesContext'
 import { formatCurrency, formatDate } from '@/lib/formatters'
@@ -342,6 +345,42 @@ export const ListaOM: React.FC<ListaOMProps> = ({
       })
   }, [clientesPosVendas, busca, filtroPosVendas, ordenacao])
 
+  // Destinatários para Envio em Massa a partir de Clientes Pós-Vendas / Limpeza Avulsa
+  const destinatariosMensagem = useMemo<DestinatarioMensagemMassa[]>(() => {
+    const list: DestinatarioMensagemMassa[] = []
+    selectedPosVendasIds.forEach((cliId) => {
+      const item = itensPosVendasFiltrados.find((i) => i.cliente.id === cliId)
+      if (item) {
+        list.push({
+          cliente: item.cliente,
+          valor: item.cliente.valor_final || item.cliente.valor_estimado || 0,
+          potenciaManual: item.potenciaKwp > 0 ? item.potenciaKwp : undefined,
+          origemItem: item.isOportunidadeOM ? 'O&M / Limpeza Avulsa' : 'Pós-Vendas',
+        })
+      }
+    })
+    return list
+  }, [selectedPosVendasIds, itensPosVendasFiltrados])
+
+  const handleToggleSelectPosVendas = (id: string, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation()
+    setSelectedPosVendasIds((prev) =>
+      prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id],
+    )
+  }
+
+  const handleToggleSelectAllPosVendas = () => {
+    if (selectedPosVendasIds.length === itensPosVendasFiltrados.length) {
+      setSelectedPosVendasIds([])
+    } else {
+      setSelectedPosVendasIds(itensPosVendasFiltrados.map((i) => i.cliente.id))
+    }
+  }
+
+  const isAllPosVendasSelected =
+    itensPosVendasFiltrados.length > 0 &&
+    selectedPosVendasIds.length === itensPosVendasFiltrados.length
+
   const handleConfirmarRenovacao = async () => {
     if (!contratoParaRenovar) return
     try {
@@ -523,43 +562,6 @@ export const ListaOM: React.FC<ListaOMProps> = ({
         </div>
       </div>
 
-  // Destinatários para Envio em Massa a partir de Clientes Pós-Vendas / Limpeza Avulsa
-  const destinatariosMensagem = useMemo<DestinatarioMensagemMassa[]>(() => {
-    return selectedPosVendasIds
-      .map((cliId) => {
-        const item = itensPosVendasFiltrados.find((i) => i.cliente.id === cliId)
-        if (!item) return null
-        return {
-          cliente: item.cliente,
-          valor: item.cliente.valor_final || item.cliente.valor_estimado || 0,
-          potenciaManual: item.potenciaKwp > 0 ? item.potenciaKwp : undefined,
-          origemItem: item.isOportunidadeOM ? 'O&M / Limpeza Avulsa' : 'Pós-Vendas',
-        }
-      })
-      .filter((d): d is DestinatarioMensagemMassa => Boolean(d))
-  }, [selectedPosVendasIds, itensPosVendasFiltrados])
-
-  const handleToggleSelectPosVendas = (id: string, e?: React.MouseEvent) => {
-    if (e) e.stopPropagation()
-    setSelectedPosVendasIds((prev) =>
-      prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id],
-    )
-  }
-
-  const handleToggleSelectAllPosVendas = () => {
-    if (selectedPosVendasIds.length === itensPosVendasFiltrados.length) {
-      setSelectedPosVendasIds([])
-    } else {
-      setSelectedPosVendasIds(itensPosVendasFiltrados.map((i) => i.cliente.id))
-    }
-  }
-
-  const isAllPosVendasSelected =
-    itensPosVendasFiltrados.length > 0 &&
-    selectedPosVendasIds.length === itensPosVendasFiltrados.length
-
-  return (
-    <div className="space-y-4">
       {/* Modal Mensagem WhatsApp em Massa */}
       <ModalMensagemWhatsAppMassa
         open={isModalMensagemOpen}
@@ -646,7 +648,9 @@ export const ListaOM: React.FC<ListaOMProps> = ({
             <div className="flex items-center justify-between p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-xs">
               <span className="font-bold text-emerald-900">
                 {selectedPosVendasIds.length}{' '}
-                {selectedPosVendasIds.length === 1 ? 'cliente selecionado' : 'clientes selecionados'}
+                {selectedPosVendasIds.length === 1
+                  ? 'cliente selecionado'
+                  : 'clientes selecionados'}
               </span>
               <div className="flex items-center gap-2">
                 <button
@@ -987,39 +991,40 @@ export const ListaOM: React.FC<ListaOMProps> = ({
                           )}
                         </button>
                         <div>
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <h4 className="font-bold text-gray-900 text-sm">{item.cliente.nome}</h4>
-                          {item.cliente.area_destino === 'projetos' && (
-                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
-                              <FileSpreadsheet className="w-2.5 h-2.5 text-emerald-600" />
-                              Projetos / Levantamento
-                            </span>
-                          )}
-                          {item.cliente.area_destino === 'om' && (
-                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-800 border border-blue-300">
-                              <Wrench className="w-2.5 h-2.5 text-blue-600" />
-                              O&M / Planos
-                            </span>
-                          )}
-                          {!item.cliente.area_destino && isVindoDoFunilRecente(item.cliente) && (
-                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
-                              <Send className="w-2.5 h-2.5 text-emerald-600" />
-                              Vindo do funil
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-xs text-gray-400 flex items-center gap-1 mt-0.5">
-                          <MapPin className="w-3 h-3" />
-                          {item.cliente.cidade || 'Erechim/RS'}
-                          {item.cliente.telefone && ` • ${item.cliente.telefone}`}
-                        </p>
-                        {item.cliente.valor_estimado ? (
-                          <p className="text-[10px] text-gray-500 mt-0.5 font-medium">
-                            Projeto: {formatCurrency(item.cliente.valor_estimado)}
-                            {item.cliente.data_fechamento &&
-                              ` • Fechado em: ${formatDate(item.cliente.data_fechamento)}`}
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <h4 className="font-bold text-gray-900 text-sm">{item.cliente.nome}</h4>
+                            {item.cliente.area_destino === 'projetos' && (
+                              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                                <FileSpreadsheet className="w-2.5 h-2.5 text-emerald-600" />
+                                Projetos / Levantamento
+                              </span>
+                            )}
+                            {item.cliente.area_destino === 'om' && (
+                              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-800 border border-blue-300">
+                                <Wrench className="w-2.5 h-2.5 text-blue-600" />
+                                O&M / Planos
+                              </span>
+                            )}
+                            {!item.cliente.area_destino && isVindoDoFunilRecente(item.cliente) && (
+                              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                                <Send className="w-2.5 h-2.5 text-emerald-600" />
+                                Vindo do funil
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-xs text-gray-400 flex items-center gap-1 mt-0.5">
+                            <MapPin className="w-3 h-3" />
+                            {item.cliente.cidade || 'Erechim/RS'}
+                            {item.cliente.telefone && ` • ${item.cliente.telefone}`}
                           </p>
-                        ) : null}
+                          {item.cliente.valor_estimado ? (
+                            <p className="text-[10px] text-gray-500 mt-0.5 font-medium">
+                              Projeto: {formatCurrency(item.cliente.valor_estimado)}
+                              {item.cliente.data_fechamento &&
+                                ` • Fechado em: ${formatDate(item.cliente.data_fechamento)}`}
+                            </p>
+                          ) : null}
+                        </div>
                       </div>
                       {item.isOportunidadeOM ? (
                         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-100 text-amber-900 border border-amber-300 shrink-0">

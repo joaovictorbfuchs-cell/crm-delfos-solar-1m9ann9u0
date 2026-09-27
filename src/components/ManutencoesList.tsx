@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useMemo } from 'react'
 import {
   Wrench,
   Plus,
@@ -13,13 +13,17 @@ import {
   CheckSquare,
   Square,
   MessageSquare,
+  Settings,
 } from 'lucide-react'
 import type { Manutencao } from '@/types/crm'
 import { formatDate } from '@/lib/formatters'
 import { StatusBadge } from '@/components/StatusBadge'
 import { useClientes } from '@/contexts/ClientesContext'
 import { toast } from 'sonner'
-import { ModalMensagemWhatsAppMassa, type DestinatarioMensagemMassa } from '@/components/ModalMensagemWhatsAppMassa'
+import {
+  ModalMensagemWhatsAppMassa,
+  type DestinatarioMensagemMassa,
+} from '@/components/ModalMensagemWhatsAppMassa'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -405,15 +409,16 @@ export const ManutencoesList: React.FC<ManutencoesListProps> = ({ onOpenNovaManu
                           >
                             {getClientName(m)}
                           </h4>
-                        {orfao && (
-                          <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300">
-                            Cliente Removido
-                          </span>
-                        )}
+                          {orfao && (
+                            <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300">
+                              Cliente Removido
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs text-gray-400">
+                          {getClientCity(m) || (orfao ? 'Não vinculado' : '')}
+                        </p>
                       </div>
-                      <p className="text-xs text-gray-400">
-                        {getClientCity(m) || (orfao ? 'Não vinculado' : '')}
-                      </p>
                     </div>
                     <StatusBadge status={m.status} />
                   </div>
