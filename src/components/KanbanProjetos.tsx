@@ -18,6 +18,7 @@ import {
 } from 'lucide-react'
 import type { Projeto, ProjetoEtapa, Profissional, Atividade, OrcamentoSolar } from '@/types/crm'
 import { useClientes } from '@/contexts/ClientesContext'
+import { MobileKanbanViewport, type MobileKanbanStage } from '@/components/MobileKanbanViewport'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -292,12 +293,16 @@ export const KanbanProjetos: React.FC<KanbanProjetosProps> = ({
   }
 
   // Touch drag state
+  const [isTouchDragging, setIsTouchDragging] = useState(false)
   const touchStateRef = useRef<{
     projetoId: string
     initialX: number
     initialY: number
+    currentX: number
+    currentY: number
     ghostEl: HTMLElement | null
     isDragging: boolean
+    longPressTimer?: ReturnType<typeof setTimeout>
   } | null>(null)
 
   const handleCardClick = (projeto: Projeto) => {
@@ -366,38 +371,56 @@ export const KanbanProjetos: React.FC<KanbanProjetosProps> = ({
   // Touch Handlers para mobile
   const handleTouchStart = (e: React.TouchEvent, projeto: Projeto) => {
     const touch = e.touches[0]
-    touchStateRef.current = {
+    const targetCard = e.currentTarget as HTMLElement
+
+    const state = {
       projetoId: projeto.id,
       initialX: touch.clientX,
       initialY: touch.clientY,
-      ghostEl: null,
+      currentX: touch.clientX,
+      currentY: touch.clientY,
+      ghostEl: null as HTMLElement | null,
       isDragging: false,
     }
+    touchStateRef.current = state
+
+    // Long press de 260ms para ativar o arrasto no mobile sem interferir no swipe horizontal da tela
+    const timer = setTimeout(() => {
+      if (!touchStateRef.current) return
+      touchStateRef.current.isDragging = true
+      setIsTouchDragging(true)
+      setDraggedProjetoId(projeto.id)
+
+      const ghost = targetCard.cloneNode(true) as HTMLElement
+      ghost.style.position = 'fixed'
+      ghost.style.zIndex = '9999'
+      ghost.style.pointerEvents = 'none'
+      ghost.style.opacity = '0.92'
+      ghost.style.transform = 'scale(1.03)'
+      ghost.style.boxShadow = '0 12px 28px -5px rgba(0, 0, 0, 0.3)'
+      ghost.style.width = `${targetCard.offsetWidth}px`
+      ghost.style.left = `${touchStateRef.current.currentX - targetCard.offsetWidth / 2}px`
+      ghost.style.top = `${touchStateRef.current.currentY - 40}px`
+      document.body.appendChild(ghost)
+      touchStateRef.current.ghostEl = ghost
+    }, 260)
+
+    touchStateRef.current.longPressTimer = timer
   }
 
   const handleTouchMove = (e: React.TouchEvent) => {
     if (!touchStateRef.current) return
     const touch = e.touches[0]
+    touchStateRef.current.currentX = touch.clientX
+    touchStateRef.current.currentY = touch.clientY
+
     const deltaX = Math.abs(touch.clientX - touchStateRef.current.initialX)
     const deltaY = Math.abs(touch.clientY - touchStateRef.current.initialY)
 
-    if (!touchStateRef.current.isDragging && (deltaX > 10 || deltaY > 10)) {
-      touchStateRef.current.isDragging = true
-      setDraggedProjetoId(touchStateRef.current.projetoId)
-
-      const targetCard = e.currentTarget as HTMLElement
-      const ghost = targetCard.cloneNode(true) as HTMLElement
-      ghost.style.position = 'fixed'
-      ghost.style.zIndex = '9999'
-      ghost.style.pointerEvents = 'none'
-      ghost.style.opacity = '0.9'
-      ghost.style.transform = 'scale(1.02)'
-      ghost.style.boxShadow = '0 10px 25px -5px rgba(0, 0, 0, 0.25)'
-      ghost.style.width = `${targetCard.offsetWidth}px`
-      ghost.style.left = `${touch.clientX - targetCard.offsetWidth / 2}px`
-      ghost.style.top = `${touch.clientY - 40}px`
-      document.body.appendChild(ghost)
-      touchStateRef.current.ghostEl = ghost
+    if (!touchStateRef.current.isDragging && (deltaX > 15 || deltaY > 15)) {
+      if (touchStateRef.current.longPressTimer) {
+        clearTimeout(touchStateRef.current.longPressTimer)
+      }
     }
 
     if (touchStateRef.current.isDragging && touchStateRef.current.ghostEl) {
@@ -420,6 +443,11 @@ export const KanbanProjetos: React.FC<KanbanProjetosProps> = ({
 
   const handleTouchEnd = async (e: React.TouchEvent) => {
     if (!touchStateRef.current) return
+
+    if (touchStateRef.current.longPressTimer) {
+      clearTimeout(touchStateRef.current.longPressTimer)
+    }
+
     const { ghostEl, isDragging, projetoId } = touchStateRef.current
 
     if (ghostEl) ghostEl.remove()
@@ -448,6 +476,7 @@ export const KanbanProjetos: React.FC<KanbanProjetosProps> = ({
 
     setTimeout(() => {
       touchStateRef.current = null
+      setIsTouchDragging(false)
       setDraggedProjetoId(null)
       setDragOverColumnId(null)
     }, 50)
@@ -461,324 +490,381 @@ export const KanbanProjetos: React.FC<KanbanProjetosProps> = ({
     }
   }, [])
 
-  return (
-    <div className="w-full pb-4 pt-1 select-none overflow-hidden">
-      {/* Grid fluido de 6 colunas sem scroll horizontal em desktop */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-2.5 lg:gap-3 items-start w-full">
-        {PROJETOS_COLUMNS.map((col) => {
-          const colProjetos = projetos.filter((p) => p.etapa === col.id)
-          const totalKwp = colProjetos.reduce((sum, p) => sum + (p.potencia_kwp || 0), 0)
-          const isOver = dragOverColumnId === col.id
+  // Renderizador de uma coluna individual de Projetos (reutilizado em Desktop e Mobile)
+  const renderColumnContent = (col: ProjetoColumnDef, isMobile = false) => {
+    const colProjetos = projetos.filter((p) => p.etapa === col.id)
+    const totalKwp = colProjetos.reduce((sum, p) => sum + (p.potencia_kwp || 0), 0)
+    const isOver = dragOverColumnId === col.id
 
-          return (
+    return (
+      <div
+        key={col.id}
+        data-projeto-column-id={col.id}
+        onDragOver={(e) => handleDragOver(e, col.id)}
+        onDragLeave={(e) => handleDragLeave(e, col.id)}
+        onDrop={(e) => handleDrop(e, col.id)}
+        className={`min-w-0 w-full rounded-xl p-3 border-t-4 ${
+          col.borderClass
+        } shadow-xs flex flex-col transition-all duration-150 ${
+          isOver
+            ? 'bg-emerald-50/90 ring-2 ring-emerald-500 ring-offset-1 border-emerald-400'
+            : 'bg-[#F1F5F3]'
+        }`}
+      >
+        {/* Header da Coluna */}
+        <div className="flex items-center justify-between pb-2 mb-2 border-b border-gray-200/60 gap-1 min-w-0">
+          <div className="flex items-center gap-1 sm:gap-1.5 min-w-0">
+            <col.icon className={`w-3.5 h-3.5 shrink-0 ${col.iconColorClass}`} />
+            <h3
+              className="font-semibold text-[11px] sm:text-xs text-gray-800 uppercase tracking-tight truncate"
+              title={col.shortTitle}
+            >
+              {col.title}
+            </h3>
+          </div>
+          <span
+            className={`text-[10px] sm:text-xs font-bold px-1.5 sm:px-2 py-0.5 rounded-full shadow-xs border transition-colors shrink-0 ml-1 ${
+              isOver
+                ? 'bg-emerald-600 text-white border-emerald-600'
+                : 'bg-white text-gray-700 border-gray-200'
+            }`}
+          >
+            {colProjetos.length}
+          </span>
+        </div>
+
+        {/* Cards List */}
+        <div
+          className={`space-y-2 flex-1 ${isMobile ? 'min-h-[260px]' : 'min-h-[320px]'} flex flex-col min-w-0`}
+        >
+          {colProjetos.length === 0 ? (
             <div
-              key={col.id}
-              data-projeto-column-id={col.id}
-              onDragOver={(e) => handleDragOver(e, col.id)}
-              onDragLeave={(e) => handleDragLeave(e, col.id)}
-              onDrop={(e) => handleDrop(e, col.id)}
-              className={`min-w-0 w-full rounded-xl p-2 sm:p-2.5 border-t-4 ${
-                col.borderClass
-              } shadow-xs flex flex-col transition-all duration-150 ${
+              className={`h-28 flex-1 flex flex-col items-center justify-center border-2 border-dashed rounded-lg text-[11px] text-center p-2 transition-colors ${
                 isOver
-                  ? 'bg-emerald-50/90 ring-2 ring-emerald-500 ring-offset-1 border-emerald-400'
-                  : 'bg-[#F1F5F3]'
+                  ? 'border-emerald-400 bg-emerald-100/40 text-emerald-700 font-medium'
+                  : 'border-gray-200 text-gray-400'
               }`}
             >
-              {/* Header da Coluna */}
-              <div className="flex items-center justify-between pb-2 mb-2 border-b border-gray-200/60 gap-1 min-w-0">
-                <div className="flex items-center gap-1 sm:gap-1.5 min-w-0">
-                  <col.icon className={`w-3.5 h-3.5 shrink-0 ${col.iconColorClass}`} />
-                  <h3
-                    className="font-semibold text-[11px] sm:text-xs text-gray-800 uppercase tracking-tight truncate"
-                    title={col.shortTitle}
-                  >
-                    {col.title}
-                  </h3>
-                </div>
-                <span
-                  className={`text-[10px] sm:text-xs font-bold px-1.5 sm:px-2 py-0.5 rounded-full shadow-xs border transition-colors shrink-0 ml-1 ${
-                    isOver
-                      ? 'bg-emerald-600 text-white border-emerald-600'
-                      : 'bg-white text-gray-700 border-gray-200'
+              <col.icon className="w-5 h-5 text-gray-300 mb-1" />
+              <span>{isOver ? 'Soltar nesta etapa' : 'Nenhum projeto'}</span>
+            </div>
+          ) : (
+            colProjetos.map((proj) => {
+              const isDraggingThis = draggedProjetoId === proj.id
+              const cliente = proj.expand?.cliente_id
+              const clienteNome = cliente?.nome || 'Cliente não vinculado'
+              const profNome = proj.profissional_nome || proj.expand?.profissional_id?.nome || null
+
+              const propostaVinculada = cliente?.id ? propostaPorCliente.get(cliente.id) : undefined
+              const proximaAcao = cliente?.id ? proximaAcaoPorCliente.get(cliente.id) : undefined
+              const diasNaEtapa = getDiasNaEtapa(proj)
+              const isEditingThisTitle = editingTitleId === proj.id
+              const tituloUsinaDisplay = getTituloUsina(proj)
+              const atividadePrazo = proximaAcao ? getAtividadePrazoInfo(proximaAcao) : null
+
+              return (
+                <div
+                  key={proj.id}
+                  draggable
+                  onDragStart={(e) => handleDragStart(e, proj)}
+                  onDragEnd={handleDragEnd}
+                  onTouchStart={(e) => handleTouchStart(e, proj)}
+                  onTouchMove={handleTouchMove}
+                  onTouchEnd={handleTouchEnd}
+                  onClick={() => handleCardClick(proj)}
+                  className={`bg-white rounded-lg p-3 border transition-all duration-150 cursor-pointer active:cursor-grabbing group relative overflow-hidden min-w-0 ${
+                    isDraggingThis
+                      ? 'opacity-40 scale-95 border-emerald-400 shadow-inner'
+                      : 'border-slate-200 shadow-xs hover:shadow-md hover:-translate-y-0.5 hover:border-emerald-300'
                   }`}
                 >
-                  {colProjetos.length}
-                </span>
-              </div>
-
-              {/* Cards List */}
-              <div className="space-y-2 flex-1 min-h-[320px] flex flex-col min-w-0">
-                {colProjetos.length === 0 ? (
-                  <div
-                    className={`h-28 flex-1 flex flex-col items-center justify-center border-2 border-dashed rounded-lg text-[11px] text-center p-2 transition-colors ${
-                      isOver
-                        ? 'border-emerald-400 bg-emerald-100/40 text-emerald-700 font-medium'
-                        : 'border-gray-200 text-gray-400'
-                    }`}
-                  >
-                    <col.icon className="w-5 h-5 text-gray-300 mb-1" />
-                    <span>{isOver ? 'Soltar nesta etapa' : 'Nenhum projeto'}</span>
-                  </div>
-                ) : (
-                  colProjetos.map((proj) => {
-                    const isDraggingThis = draggedProjetoId === proj.id
-                    const cliente = proj.expand?.cliente_id
-                    const clienteNome = cliente?.nome || 'Cliente não vinculado'
-                    const profNome =
-                      proj.profissional_nome || proj.expand?.profissional_id?.nome || null
-
-                    const propostaVinculada = cliente?.id
-                      ? propostaPorCliente.get(cliente.id)
-                      : undefined
-                    const proximaAcao = cliente?.id
-                      ? proximaAcaoPorCliente.get(cliente.id)
-                      : undefined
-                    const diasNaEtapa = getDiasNaEtapa(proj)
-                    const isEditingThisTitle = editingTitleId === proj.id
-                    const tituloUsinaDisplay = getTituloUsina(proj)
-                    const atividadePrazo = proximaAcao ? getAtividadePrazoInfo(proximaAcao) : null
-
-                    return (
-                      <div
-                        key={proj.id}
-                        draggable
-                        onDragStart={(e) => handleDragStart(e, proj)}
-                        onDragEnd={handleDragEnd}
-                        onTouchStart={(e) => handleTouchStart(e, proj)}
-                        onTouchMove={handleTouchMove}
-                        onTouchEnd={handleTouchEnd}
-                        onClick={() => handleCardClick(proj)}
-                        className={`bg-white rounded-lg p-3 border transition-all duration-150 cursor-pointer active:cursor-grabbing group relative overflow-hidden min-w-0 ${
-                          isDraggingThis
-                            ? 'opacity-40 scale-95 border-emerald-400 shadow-inner'
-                            : 'border-slate-200 shadow-xs hover:shadow-md hover:-translate-y-0.5 hover:border-emerald-300'
-                        }`}
-                      >
-                        {/* 1. TÍTULO DA USINA (mais destacado, editável inline) + Menu ⋮ */}
-                        <div className="flex items-start justify-between gap-1.5 min-w-0">
-                          <div className="flex-1 min-w-0">
-                            {isEditingThisTitle ? (
-                              <div
-                                className="min-w-0"
-                                onClick={(e) => e.stopPropagation()}
-                                onMouseDown={(e) => e.stopPropagation()}
-                              >
-                                <input
-                                  type="text"
-                                  autoFocus
-                                  value={editingTitleValue}
-                                  onChange={(e) => setEditingTitleValue(e.target.value)}
-                                  onKeyDown={(e) => {
-                                    if (e.key === 'Enter') {
-                                      e.preventDefault()
-                                      handleSaveTitle(proj.id)
-                                    } else if (e.key === 'Escape') {
-                                      e.preventDefault()
-                                      handleCancelEditingTitle()
-                                    }
-                                  }}
-                                  onBlur={() => handleSaveTitle(proj.id)}
-                                  placeholder="Título da usina..."
-                                  className="w-full text-xs font-bold text-slate-900 px-1.5 py-0.5 rounded border border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 bg-white"
-                                />
-                                <span className="text-[9px] text-slate-400 block mt-0.5">
-                                  Enter salva • Esc cancela
-                                </span>
-                              </div>
-                            ) : (
-                              <div
-                                onClick={(e) => handleStartEditingTitle(proj, e)}
-                                title="Clique para editar o título da usina"
-                                className="font-bold text-sm text-slate-900 hover:text-emerald-700 transition-colors truncate min-w-0 leading-tight cursor-text"
-                              >
-                                {tituloUsinaDisplay}
-                              </div>
-                            )}
-                          </div>
-
-                          <div
-                            className="shrink-0 flex items-center -mr-1 -mt-1"
-                            onClick={(e) => e.stopPropagation()}
-                            onMouseDown={(e) => e.stopPropagation()}
-                          >
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <button
-                                  type="button"
-                                  title="Opções do projeto"
-                                  className="p-1 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors opacity-80 group-hover:opacity-100 focus:opacity-100"
-                                >
-                                  <MoreVertical className="w-3.5 h-3.5" />
-                                </button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end" className="w-48 text-xs">
-                                <DropdownMenuItem
-                                  onClick={() => handleCardClick(proj)}
-                                  className="cursor-pointer gap-2 text-slate-700 focus:text-slate-900 focus:bg-slate-100 font-medium"
-                                >
-                                  <FolderOpen className="w-3.5 h-3.5 text-slate-500 shrink-0" />
-                                  <span>Abrir ficha / projeto</span>
-                                </DropdownMenuItem>
-
-                                <DropdownMenuItem
-                                  onClick={() => onOpenAtribuirModal(proj, col.id)}
-                                  className="cursor-pointer gap-2 text-amber-700 focus:text-amber-800 focus:bg-amber-50 font-medium"
-                                >
-                                  <HardHat className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-                                  <span>
-                                    {profNome ? 'Alterar responsável' : 'Atribuir responsável'}
-                                  </span>
-                                </DropdownMenuItem>
-
-                                {col.id !== 'Concluído' && (
-                                  <>
-                                    <DropdownMenuSeparator />
-                                    <DropdownMenuItem
-                                      onClick={async () => {
-                                        try {
-                                          await updateProjetoEtapa(proj.id, 'Concluído')
-                                        } catch (err) {
-                                          console.error('Erro ao concluir projeto:', err)
-                                        }
-                                      }}
-                                      className="cursor-pointer gap-2 text-emerald-700 focus:text-emerald-800 focus:bg-emerald-50 font-medium"
-                                    >
-                                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                                      <span>Mover para Concluído</span>
-                                    </DropdownMenuItem>
-                                  </>
-                                )}
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          </div>
-                        </div>
-
-                        {/* 2. CLIENTE VINCULADO: nome clicável → abre ficha do cliente */}
-                        <div className="mt-1 flex items-center gap-1.5 min-w-0">
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              if (proj.cliente_id) {
-                                openFichaCliente(proj.cliente_id, 'projeto')
+                  {/* 1. TÍTULO DA USINA (mais destacado, editável inline) + Menu ⋮ */}
+                  <div className="flex items-start justify-between gap-1.5 min-w-0">
+                    <div className="flex-1 min-w-0">
+                      {isEditingThisTitle ? (
+                        <div
+                          className="min-w-0"
+                          onClick={(e) => e.stopPropagation()}
+                          onMouseDown={(e) => e.stopPropagation()}
+                        >
+                          <input
+                            type="text"
+                            autoFocus
+                            value={editingTitleValue}
+                            onChange={(e) => setEditingTitleValue(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault()
+                                handleSaveTitle(proj.id)
+                              } else if (e.key === 'Escape') {
+                                e.preventDefault()
+                                handleCancelEditingTitle()
                               }
                             }}
-                            title={`Abrir ficha de ${clienteNome}`}
-                            className="inline-flex items-center gap-1 text-xs text-slate-600 hover:text-emerald-700 font-medium truncate max-w-full text-left transition-colors"
-                          >
-                            <User className="w-3 h-3 text-slate-400 shrink-0" />
-                            <span className="truncate hover:underline">{clienteNome}</span>
-                          </button>
+                            onBlur={() => handleSaveTitle(proj.id)}
+                            placeholder="Título da usina..."
+                            className="w-full text-xs font-bold text-slate-900 px-1.5 py-0.5 rounded border border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 bg-white"
+                          />
+                          <span className="text-[9px] text-slate-400 block mt-0.5">
+                            Enter salva • Esc cancela
+                          </span>
                         </div>
+                      ) : (
+                        <div
+                          onClick={(e) => handleStartEditingTitle(proj, e)}
+                          title="Clique para editar o título da usina"
+                          className="font-bold text-sm text-slate-900 hover:text-emerald-700 transition-colors truncate min-w-0 leading-tight cursor-text"
+                        >
+                          {tituloUsinaDisplay}
+                        </div>
+                      )}
+                    </div>
 
-                        {/* 3. RESPONSÁVEL: profissional_nome ou "Atribuir responsável", clicável */}
-                        <div className="mt-1.5 flex items-center gap-1.5 min-w-0">
+                    <div
+                      className="shrink-0 flex items-center -mr-1 -mt-1"
+                      onClick={(e) => e.stopPropagation()}
+                      onMouseDown={(e) => e.stopPropagation()}
+                    >
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
                           <button
                             type="button"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              onOpenAtribuirModal(proj, col.id)
-                            }}
-                            title={profNome ? `Responsável: ${profNome}` : 'Atribuir responsável'}
-                            className={`inline-flex items-center gap-1.5 text-[11px] truncate text-left transition-colors ${
-                              profNome
-                                ? 'text-slate-700 hover:text-amber-700 font-medium'
-                                : 'text-amber-700 hover:text-amber-800 font-semibold underline underline-offset-2'
-                            }`}
+                            title="Opções do projeto"
+                            className="p-1 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors opacity-80 group-hover:opacity-100 focus:opacity-100"
                           >
-                            <HardHat
-                              className={`w-3 h-3 shrink-0 ${
-                                profNome ? 'text-slate-400' : 'text-amber-600'
-                              }`}
-                            />
-                            <span className="truncate">{profNome || 'Atribuir responsável'}</span>
+                            <MoreVertical className="w-3.5 h-3.5" />
                           </button>
-                        </div>
-
-                        {/* 4. LINK PARA PROPOSTA: orçamento solar mais recente/aprovado */}
-                        {propostaVinculada && (
-                          <div className="mt-1.5 flex items-center gap-1.5 min-w-0">
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                navigate(
-                                  `/orcamentos?propostaId=${propostaVinculada.id}&clienteId=${propostaVinculada.cliente_id}`,
-                                )
-                              }}
-                              title="Ver proposta solar"
-                              className="inline-flex items-center gap-1 text-[11px] text-sky-700 hover:text-sky-900 font-medium truncate hover:underline text-left transition-colors"
-                            >
-                              <FileText className="w-3 h-3 text-sky-600 shrink-0" />
-                              <span className="truncate">
-                                Proposta Solar #{propostaVinculada.numero_revisao || 1} (
-                                {propostaVinculada.status})
-                              </span>
-                            </button>
-                          </div>
-                        )}
-
-                        {/* 5. PRÓXIMA ATIVIDADE: apenas o título, colorido (verde, laranja, vermelho) */}
-                        {proximaAcao && atividadePrazo && (
-                          <div className="mt-2 min-w-0">
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                if (proj.cliente_id) {
-                                  openFichaCliente(proj.cliente_id, 'historico')
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-52 text-xs">
+                          {/* Opções de mover para outras etapas diretamente pelo menu ⋮ (essencial no mobile) */}
+                          {PROJETOS_COLUMNS.filter((other) => other.id !== col.id).map((other) => (
+                            <DropdownMenuItem
+                              key={other.id}
+                              onClick={async () => {
+                                try {
+                                  await updateProjetoEtapa(proj.id, other.id)
+                                  if (other.id === 'Instalação' && !proj.profissional_id) {
+                                    onOpenAtribuirModal(proj, other.id)
+                                  }
+                                } catch (err) {
+                                  console.error('Erro ao mover projeto:', err)
                                 }
                               }}
-                              title={`Próxima atividade: ${proximaAcao.titulo || 'Atividade'}`}
-                              className={`w-full inline-flex items-center gap-1.5 text-[11px] font-semibold px-2 py-0.5 rounded border text-left truncate transition-colors ${atividadePrazo.corClass}`}
+                              className="cursor-pointer gap-2 text-slate-700 text-xs"
                             >
-                              <span
-                                className={`w-1.5 h-1.5 rounded-full shrink-0 ${atividadePrazo.dotClass}`}
+                              <other.icon
+                                className={`w-3.5 h-3.5 ${other.iconColorClass} shrink-0`}
                               />
-                              <span className="truncate">
-                                {proximaAcao.titulo || 'Atividade pendente'}
-                              </span>
-                            </button>
-                          </div>
-                        )}
+                              <span>Mover para {other.shortTitle || other.title}</span>
+                            </DropdownMenuItem>
+                          ))}
 
-                        {/* 6. TEMPO NA ETAPA: "N dias nesta etapa" (base: updated || created) */}
-                        <div className="mt-2 pt-1.5 border-t border-slate-100 flex items-center justify-between text-[10px] text-slate-400">
-                          <span className="inline-flex items-center gap-1 font-medium text-slate-500">
-                            <Clock className="w-2.5 h-2.5 text-slate-400 shrink-0" />
-                            <span>
-                              {diasNaEtapa === 0
-                                ? 'Hoje nesta etapa'
-                                : `${diasNaEtapa} ${diasNaEtapa === 1 ? 'dia' : 'dias'} nesta etapa`}
-                            </span>
-                          </span>
+                          <DropdownMenuSeparator />
 
-                          <GripVertical className="w-3 h-3 text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity" />
-                        </div>
-                      </div>
-                    )
-                  })
-                )}
+                          <DropdownMenuItem
+                            onClick={() => handleCardClick(proj)}
+                            className="cursor-pointer gap-2 text-slate-700 focus:text-slate-900 focus:bg-slate-100 font-medium"
+                          >
+                            <FolderOpen className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                            <span>Abrir ficha / projeto</span>
+                          </DropdownMenuItem>
 
-                {/* Drop indicator se houver cards e passar o mouse */}
-                {isOver && colProjetos.length > 0 && (
-                  <div className="h-9 rounded-lg border-2 border-dashed border-emerald-400 bg-emerald-100/50 flex items-center justify-center text-[11px] text-emerald-700 font-medium">
-                    Soltar aqui
+                          <DropdownMenuItem
+                            onClick={() => onOpenAtribuirModal(proj, col.id)}
+                            className="cursor-pointer gap-2 text-amber-700 focus:text-amber-800 focus:bg-amber-50 font-medium"
+                          >
+                            <HardHat className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                            <span>{profNome ? 'Alterar responsável' : 'Atribuir responsável'}</span>
+                          </DropdownMenuItem>
+
+                          {col.id !== 'Concluído' && (
+                            <>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                onClick={async () => {
+                                  try {
+                                    await updateProjetoEtapa(proj.id, 'Concluído')
+                                  } catch (err) {
+                                    console.error('Erro ao concluir projeto:', err)
+                                  }
+                                }}
+                                className="cursor-pointer gap-2 text-emerald-700 focus:text-emerald-800 focus:bg-emerald-50 font-medium"
+                              >
+                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                                <span>Mover para Concluído</span>
+                              </DropdownMenuItem>
+                            </>
+                          )}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
                   </div>
-                )}
-              </div>
 
-              {/* Footer com soma total em kWp */}
-              {colProjetos.length > 0 && (
-                <div className="mt-2 pt-2 border-t border-gray-200/60 text-right text-[10px] sm:text-[11px] text-gray-500 truncate">
-                  Total:{' '}
-                  <strong className="text-gray-800 font-semibold">{totalKwp.toFixed(1)} kWp</strong>
+                  {/* 2. CLIENTE VINCULADO */}
+                  <div className="mt-1 flex items-center gap-1.5 min-w-0">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        if (proj.cliente_id) {
+                          openFichaCliente(proj.cliente_id, 'projeto')
+                        }
+                      }}
+                      title={`Abrir ficha de ${clienteNome}`}
+                      className="inline-flex items-center gap-1 text-xs text-slate-600 hover:text-emerald-700 font-medium truncate max-w-full text-left transition-colors"
+                    >
+                      <User className="w-3 h-3 text-slate-400 shrink-0" />
+                      <span className="truncate hover:underline">{clienteNome}</span>
+                    </button>
+                  </div>
+
+                  {/* 3. RESPONSÁVEL */}
+                  <div className="mt-1.5 flex items-center gap-1.5 min-w-0">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        onOpenAtribuirModal(proj, col.id)
+                      }}
+                      title={profNome ? `Responsável: ${profNome}` : 'Atribuir responsável'}
+                      className={`inline-flex items-center gap-1.5 text-[11px] truncate text-left transition-colors ${
+                        profNome
+                          ? 'text-slate-700 hover:text-amber-700 font-medium'
+                          : 'text-amber-700 hover:text-amber-800 font-semibold underline underline-offset-2'
+                      }`}
+                    >
+                      <HardHat
+                        className={`w-3 h-3 shrink-0 ${
+                          profNome ? 'text-slate-400' : 'text-amber-600'
+                        }`}
+                      />
+                      <span className="truncate">{profNome || 'Atribuir responsável'}</span>
+                    </button>
+                  </div>
+
+                  {/* 4. LINK PARA PROPOSTA */}
+                  {propostaVinculada && (
+                    <div className="mt-1.5 flex items-center gap-1.5 min-w-0">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          navigate(
+                            `/orcamentos?propostaId=${propostaVinculada.id}&clienteId=${propostaVinculada.cliente_id}`,
+                          )
+                        }}
+                        title="Ver proposta solar"
+                        className="inline-flex items-center gap-1 text-[11px] text-sky-700 hover:text-sky-900 font-medium truncate hover:underline text-left transition-colors"
+                      >
+                        <FileText className="w-3 h-3 text-sky-600 shrink-0" />
+                        <span className="truncate">
+                          Proposta Solar #{propostaVinculada.numero_revisao || 1} (
+                          {propostaVinculada.status})
+                        </span>
+                      </button>
+                    </div>
+                  )}
+
+                  {/* 5. PRÓXIMA ATIVIDADE */}
+                  {proximaAcao && atividadePrazo && (
+                    <div className="mt-2 min-w-0">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          if (proj.cliente_id) {
+                            openFichaCliente(proj.cliente_id, 'historico')
+                          }
+                        }}
+                        title={`Próxima atividade: ${proximaAcao.titulo || 'Atividade'}`}
+                        className={`w-full inline-flex items-center gap-1.5 text-[11px] font-semibold px-2 py-0.5 rounded border text-left truncate transition-colors ${atividadePrazo.corClass}`}
+                      >
+                        <span
+                          className={`w-1.5 h-1.5 rounded-full shrink-0 ${atividadePrazo.dotClass}`}
+                        />
+                        <span className="truncate">
+                          {proximaAcao.titulo || 'Atividade pendente'}
+                        </span>
+                      </button>
+                    </div>
+                  )}
+
+                  {/* 6. TEMPO NA ETAPA */}
+                  <div className="mt-2 pt-1.5 border-t border-slate-100 flex items-center justify-between text-[10px] text-slate-400">
+                    <span className="inline-flex items-center gap-1 font-medium text-slate-500">
+                      <Clock className="w-2.5 h-2.5 text-slate-400 shrink-0" />
+                      <span>
+                        {diasNaEtapa === 0
+                          ? 'Hoje nesta etapa'
+                          : `${diasNaEtapa} ${diasNaEtapa === 1 ? 'dia' : 'dias'} nesta etapa`}
+                      </span>
+                    </span>
+
+                    <GripVertical className="w-3 h-3 text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </div>
                 </div>
-              )}
+              )
+            })
+          )}
+
+          {/* Drop indicator se houver cards e passar o mouse */}
+          {isOver && colProjetos.length > 0 && (
+            <div className="h-9 rounded-lg border-2 border-dashed border-emerald-400 bg-emerald-100/50 flex items-center justify-center text-[11px] text-emerald-700 font-medium">
+              Soltar aqui
             </div>
-          )
-        })}
+          )}
+        </div>
+
+        {/* Footer com soma total em kWp */}
+        {colProjetos.length > 0 && (
+          <div className="mt-2 pt-2 border-t border-gray-200/60 text-right text-[10px] sm:text-[11px] text-gray-500 truncate">
+            Total:{' '}
+            <strong className="text-gray-800 font-semibold">{totalKwp.toFixed(1)} kWp</strong>
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  // Prepara as etapas mobile para o MobileKanbanViewport
+  const mobileStages: MobileKanbanStage[] = useMemo(() => {
+    return PROJETOS_COLUMNS.map((col) => {
+      const colProjetos = projetos.filter((p) => p.etapa === col.id)
+      const totalKwp = colProjetos.reduce((sum, p) => sum + (p.potencia_kwp || 0), 0)
+      return {
+        id: col.id,
+        title: col.title,
+        shortTitle: col.shortTitle,
+        count: colProjetos.length,
+        totalSubtitle: colProjetos.length > 0 ? `Total: ${totalKwp.toFixed(1)} kWp` : undefined,
+        icon: col.icon,
+        iconColorClass: col.iconColorClass,
+        borderTopClass: col.borderClass,
+        content: renderColumnContent(col, true),
+      }
+    })
+  }, [
+    projetos,
+    dragOverColumnId,
+    draggedProjetoId,
+    proximaAcaoPorCliente,
+    propostaPorCliente,
+    editingTitleId,
+    editingTitleValue,
+  ])
+
+  return (
+    <div className="w-full pb-4 pt-1 select-none">
+      {/* 1. VISUALIZAÇÃO MOBILE (apenas celular: md:hidden) */}
+      <div className="block md:hidden w-full">
+        <MobileKanbanViewport stages={mobileStages} isDraggingCard={isTouchDragging} />
+      </div>
+
+      {/* 2. VISUALIZAÇÃO DESKTOP / TABLET (inalterada: hidden md:block) */}
+      <div className="hidden md:block w-full overflow-hidden">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-2.5 lg:gap-3 items-start w-full">
+          {PROJETOS_COLUMNS.map((col) => renderColumnContent(col, false))}
+        </div>
       </div>
     </div>
   )

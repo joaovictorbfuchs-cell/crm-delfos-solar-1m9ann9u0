@@ -19,6 +19,7 @@ import { useClientes } from '@/contexts/ClientesContext'
 import { FUNIL_ETAPAS_CONFIG } from '@/components/StatusBadge'
 import { getTipoVendaConfig } from '@/constants/tipoVenda'
 import { useToast } from '@/hooks/use-toast'
+import { MobileKanbanViewport, type MobileKanbanStage } from '@/components/MobileKanbanViewport'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -207,12 +208,16 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ clientes: clientesProp
   const [dragOverColumnId, setDragOverColumnId] = useState<ClienteStatus | null>(null)
 
   // Suporte a Touch Drag & Drop
+  const [isTouchDragging, setIsTouchDragging] = useState(false)
   const touchStateRef = useRef<{
     clientId: string
     initialX: number
     initialY: number
+    currentX: number
+    currentY: number
     ghostEl: HTMLElement | null
     isDragging: boolean
+    longPressTimer?: ReturnType<typeof setTimeout>
   } | null>(null)
 
   const handleCardClick = (clientId: string) => {
@@ -276,38 +281,57 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ clientes: clientesProp
   // Touch Handlers para dispositivos móveis
   const handleTouchStart = (e: React.TouchEvent, client: Cliente) => {
     const touch = e.touches[0]
-    touchStateRef.current = {
+    const targetCard = e.currentTarget as HTMLElement
+
+    const state = {
       clientId: client.id,
       initialX: touch.clientX,
       initialY: touch.clientY,
-      ghostEl: null,
+      currentX: touch.clientX,
+      currentY: touch.clientY,
+      ghostEl: null as HTMLElement | null,
       isDragging: false,
     }
+    touchStateRef.current = state
+
+    // Long press de 260ms para ativar o arrasto no mobile sem interferir no swipe horizontal da tela
+    const timer = setTimeout(() => {
+      if (!touchStateRef.current) return
+      touchStateRef.current.isDragging = true
+      setIsTouchDragging(true)
+      setDraggedClientId(client.id)
+
+      const ghost = targetCard.cloneNode(true) as HTMLElement
+      ghost.style.position = 'fixed'
+      ghost.style.zIndex = '9999'
+      ghost.style.pointerEvents = 'none'
+      ghost.style.opacity = '0.92'
+      ghost.style.transform = 'scale(1.03)'
+      ghost.style.boxShadow = '0 12px 28px -5px rgba(0, 0, 0, 0.3)'
+      ghost.style.width = `${targetCard.offsetWidth}px`
+      ghost.style.left = `${touchStateRef.current.currentX - targetCard.offsetWidth / 2}px`
+      ghost.style.top = `${touchStateRef.current.currentY - 40}px`
+      document.body.appendChild(ghost)
+      touchStateRef.current.ghostEl = ghost
+    }, 260)
+
+    touchStateRef.current.longPressTimer = timer
   }
 
   const handleTouchMove = (e: React.TouchEvent) => {
     if (!touchStateRef.current) return
     const touch = e.touches[0]
+    touchStateRef.current.currentX = touch.clientX
+    touchStateRef.current.currentY = touch.clientY
+
     const deltaX = Math.abs(touch.clientX - touchStateRef.current.initialX)
     const deltaY = Math.abs(touch.clientY - touchStateRef.current.initialY)
 
-    if (!touchStateRef.current.isDragging && (deltaX > 10 || deltaY > 10)) {
-      touchStateRef.current.isDragging = true
-      setDraggedClientId(touchStateRef.current.clientId)
-
-      const targetCard = e.currentTarget as HTMLElement
-      const ghost = targetCard.cloneNode(true) as HTMLElement
-      ghost.style.position = 'fixed'
-      ghost.style.zIndex = '9999'
-      ghost.style.pointerEvents = 'none'
-      ghost.style.opacity = '0.9'
-      ghost.style.transform = 'scale(1.02)'
-      ghost.style.boxShadow = '0 10px 25px -5px rgba(0, 0, 0, 0.2)'
-      ghost.style.width = `${targetCard.offsetWidth}px`
-      ghost.style.left = `${touch.clientX - targetCard.offsetWidth / 2}px`
-      ghost.style.top = `${touch.clientY - 40}px`
-      document.body.appendChild(ghost)
-      touchStateRef.current.ghostEl = ghost
+    // Se moveu muito antes de atingir o longPress, cancela o drag de card para permitir swipe da tela ou scroll
+    if (!touchStateRef.current.isDragging && (deltaX > 15 || deltaY > 15)) {
+      if (touchStateRef.current.longPressTimer) {
+        clearTimeout(touchStateRef.current.longPressTimer)
+      }
     }
 
     if (touchStateRef.current.isDragging && touchStateRef.current.ghostEl) {
@@ -330,6 +354,10 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ clientes: clientesProp
 
   const handleTouchEnd = async (e: React.TouchEvent) => {
     if (!touchStateRef.current) return
+
+    if (touchStateRef.current.longPressTimer) {
+      clearTimeout(touchStateRef.current.longPressTimer)
+    }
 
     const { ghostEl, isDragging, clientId } = touchStateRef.current
 
@@ -358,6 +386,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ clientes: clientesProp
 
     setTimeout(() => {
       touchStateRef.current = null
+      setIsTouchDragging(false)
       setDraggedClientId(null)
       setDragOverColumnId(null)
     }, 50)
@@ -371,337 +400,392 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ clientes: clientesProp
     }
   }, [])
 
-  return (
-    <div className="w-full pb-6 pt-1 select-none overflow-x-auto">
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 items-start min-w-[320px]">
-        {KANBAN_COLUMNS.map((col) => {
-          const colClients = clientes.filter((c) => (c.status || '') === col.id)
-          const totalColValue = colClients.reduce(
-            (sum, c) => sum + (Number(c.valor_estimado) || 0),
-            0,
-          )
-          const isOver = dragOverColumnId === col.id
+  // Renderizador de uma coluna individual (reutilizado tanto no layout Desktop quanto Mobile)
+  const renderColumnContent = (col: KanbanColumnDef, isMobile = false) => {
+    const colClients = clientes.filter((c) => (c.status || '') === col.id)
+    const totalColValue = colClients.reduce((sum, c) => sum + (Number(c.valor_estimado) || 0), 0)
+    const isOver = dragOverColumnId === col.id
 
-          return (
-            <div
-              key={col.id}
-              data-column-id={col.id}
-              onDragOver={(e) => handleDragOver(e, col.id)}
-              onDragLeave={(e) => handleDragLeave(e, col.id)}
-              onDrop={(e) => handleDrop(e, col.id)}
-              className={`min-w-0 w-full rounded-xl p-2.5 border-t-[5px] ${
-                col.borderTopClass
-              } shadow-xs flex flex-col transition-all duration-150 ${
+    return (
+      <div
+        key={col.id}
+        data-column-id={col.id}
+        onDragOver={(e) => handleDragOver(e, col.id)}
+        onDragLeave={(e) => handleDragLeave(e, col.id)}
+        onDrop={(e) => handleDrop(e, col.id)}
+        className={`min-w-0 w-full rounded-xl p-3 border-t-[5px] ${
+          col.borderTopClass
+        } shadow-xs flex flex-col transition-all duration-150 ${
+          isOver
+            ? 'bg-emerald-50/80 ring-2 ring-emerald-500 ring-offset-1 border-emerald-400'
+            : 'bg-slate-100/80 border-x border-b border-slate-200/70'
+        }`}
+      >
+        {/* Cabeçalho da Coluna (no desktop mostra sempre; no mobile serve de header do card container) */}
+        <div className="pb-2 mb-2.5 border-b border-slate-200/80 min-w-0">
+          <div className="flex items-center justify-between gap-1.5 min-w-0">
+            <div className="flex items-center gap-1.5 min-w-0">
+              <col.icon className={`w-3.5 h-3.5 shrink-0 ${col.iconColorClass}`} />
+              <h3
+                className="font-bold text-xs text-slate-800 uppercase tracking-wide truncate"
+                title={col.title}
+              >
+                {col.title}
+              </h3>
+            </div>
+            <span
+              className={`text-[11px] font-bold px-2 py-0.5 rounded-full border transition-colors shrink-0 ${
                 isOver
-                  ? 'bg-emerald-50/80 ring-2 ring-emerald-500 ring-offset-1 border-emerald-400'
-                  : 'bg-slate-100/80 border-x border-b border-slate-200/70'
+                  ? 'bg-emerald-600 text-white border-emerald-600'
+                  : 'bg-white text-slate-700 border-slate-200 shadow-2xs'
               }`}
             >
-              {/* Cabeçalho da Coluna: Nome, contador, valor acumulado e border-top estilizado */}
-              <div className="pb-2 mb-2.5 border-b border-slate-200/80 min-w-0">
-                <div className="flex items-center justify-between gap-1.5 min-w-0">
-                  <div className="flex items-center gap-1.5 min-w-0">
-                    <col.icon className={`w-3.5 h-3.5 shrink-0 ${col.iconColorClass}`} />
-                    <h3
-                      className="font-bold text-xs text-slate-800 uppercase tracking-wide truncate"
-                      title={col.title}
-                    >
-                      {col.title}
-                    </h3>
-                  </div>
-                  <span
-                    className={`text-[11px] font-bold px-2 py-0.5 rounded-full border transition-colors shrink-0 ${
-                      isOver
-                        ? 'bg-emerald-600 text-white border-emerald-600'
-                        : 'bg-white text-slate-700 border-slate-200 shadow-2xs'
-                    }`}
-                  >
-                    {colClients.length}
-                  </span>
-                </div>
+              {colClients.length}
+            </span>
+          </div>
 
-                {/* Valor acumulado da etapa em fonte pequena */}
-                <div className="mt-1 flex items-center justify-between text-[11px]">
-                  <span className="text-muted-foreground text-[10px] uppercase tracking-wider font-medium">
-                    Acumulado:
-                  </span>
-                  <span className="font-semibold text-slate-700 text-[11px]">
-                    {formatCurrency(totalColValue)}
-                  </span>
-                </div>
-              </div>
+          {/* Valor acumulado da etapa */}
+          <div className="mt-1 flex items-center justify-between text-[11px]">
+            <span className="text-muted-foreground text-[10px] uppercase tracking-wider font-medium">
+              Acumulado:
+            </span>
+            <span className="font-semibold text-slate-700 text-[11px]">
+              {formatCurrency(totalColValue)}
+            </span>
+          </div>
+        </div>
 
-              {/* Cards List / Drop Zone */}
-              <div className="space-y-2.5 flex-1 min-h-[320px] flex flex-col min-w-0">
-                {colClients.length === 0 ? (
-                  <div
-                    className={`h-28 flex-1 flex items-center justify-center border-2 border-dashed rounded-lg text-xs text-center p-2 transition-colors ${
-                      isOver
-                        ? 'border-emerald-400 bg-emerald-100/40 text-emerald-700 font-medium'
-                        : 'border-slate-300/80 text-slate-400 bg-white/40'
-                    }`}
-                  >
-                    {isOver ? 'Soltar aqui' : 'Nenhum lead nesta etapa'}
-                  </div>
-                ) : (
-                  colClients.map((client) => {
-                    const isDraggingThis = draggedClientId === client.id
-                    const proximaAcao = proximaAcaoPorCliente.get(client.id)
-                    const isLeadFrio = !proximaAcao
-                    const diasNaEtapa = getDiasNaEtapa(client)
-                    const tempoAlerta = diasNaEtapa > 7
-                    const isReaberto = Boolean(client.reabertura)
+        {/* Cards List / Drop Zone */}
+        <div
+          className={`space-y-2.5 flex-1 ${isMobile ? 'min-h-[260px]' : 'min-h-[320px]'} flex flex-col min-w-0`}
+        >
+          {colClients.length === 0 ? (
+            <div
+              className={`h-28 flex-1 flex items-center justify-center border-2 border-dashed rounded-lg text-xs text-center p-2 transition-colors ${
+                isOver
+                  ? 'border-emerald-400 bg-emerald-100/40 text-emerald-700 font-medium'
+                  : 'border-slate-300/80 text-slate-400 bg-white/40'
+              }`}
+            >
+              {isOver ? 'Soltar aqui' : 'Nenhum lead nesta etapa'}
+            </div>
+          ) : (
+            colClients.map((client) => {
+              const isDraggingThis = draggedClientId === client.id
+              const proximaAcao = proximaAcaoPorCliente.get(client.id)
+              const isLeadFrio = !proximaAcao
+              const diasNaEtapa = getDiasNaEtapa(client)
+              const tempoAlerta = diasNaEtapa > 7
+              const isReaberto = Boolean(client.reabertura)
 
-                    return (
+              return (
+                <div
+                  key={client.id}
+                  draggable
+                  onDragStart={(e) => handleDragStart(e, client)}
+                  onDragEnd={handleDragEnd}
+                  onTouchStart={(e) => handleTouchStart(e, client)}
+                  onTouchMove={handleTouchMove}
+                  onTouchEnd={handleTouchEnd}
+                  onClick={() => handleCardClick(client.id)}
+                  className={`bg-white rounded-lg p-3 border transition-all duration-150 cursor-pointer active:cursor-grabbing group relative overflow-hidden min-w-0 ${
+                    isReaberto ? 'border-l-4 border-l-amber-500' : ''
+                  } ${
+                    isDraggingThis
+                      ? 'opacity-40 scale-95 border-emerald-400 shadow-inner'
+                      : isLeadFrio
+                        ? 'border-rose-300 shadow-xs hover:shadow-md hover:-translate-y-0.5 hover:border-rose-400 ring-1 ring-rose-200/50'
+                        : 'border-slate-200 shadow-xs hover:shadow-md hover:-translate-y-0.5 hover:border-emerald-300'
+                  }`}
+                >
+                  {/* Linha 1: Nome do cliente + Badge Cliente Ativo + Menu ⋮ */}
+                  <div className="flex items-start justify-between gap-1.5 min-w-0">
+                    <div className="flex items-center gap-1.5 flex-1 min-w-0">
                       <div
-                        key={client.id}
-                        draggable
-                        onDragStart={(e) => handleDragStart(e, client)}
-                        onDragEnd={handleDragEnd}
-                        onTouchStart={(e) => handleTouchStart(e, client)}
-                        onTouchMove={handleTouchMove}
-                        onTouchEnd={handleTouchEnd}
-                        onClick={() => handleCardClick(client.id)}
-                        className={`bg-white rounded-lg p-3 border transition-all duration-150 cursor-pointer active:cursor-grabbing group relative overflow-hidden min-w-0 ${
-                          isReaberto ? 'border-l-4 border-l-amber-500' : ''
-                        } ${
-                          isDraggingThis
-                            ? 'opacity-40 scale-95 border-emerald-400 shadow-inner'
-                            : isLeadFrio
-                              ? 'border-rose-300 shadow-xs hover:shadow-md hover:-translate-y-0.5 hover:border-rose-400 ring-1 ring-rose-200/50'
-                              : 'border-slate-200 shadow-xs hover:shadow-md hover:-translate-y-0.5 hover:border-emerald-300'
-                        }`}
+                        className="font-bold text-sm text-slate-900 group-hover:text-emerald-700 transition-colors truncate min-w-0 leading-tight"
+                        title={client.nome}
                       >
-                        {/* Linha 1: Nome do cliente (14pt/text-sm font-bold truncate) + Badge Cliente Ativo + Menu de 3 pontos */}
-                        <div className="flex items-start justify-between gap-1.5 min-w-0">
-                          <div className="flex items-center gap-1.5 flex-1 min-w-0">
-                            <div
-                              className="font-bold text-sm text-slate-900 group-hover:text-emerald-700 transition-colors truncate min-w-0 leading-tight"
-                              title={client.nome}
-                            >
-                              {client.nome}
-                            </div>
-                            {isReaberto && (
-                              <span
-                                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-extrabold bg-amber-100 text-amber-900 border border-amber-300 shrink-0"
-                                title={`Cliente Ativo • Oportunidade Reaberta: ${client.motivo_reabertura || 'Nova oportunidade comercial'}`}
-                              >
-                                <span className="w-1.5 h-1.5 rounded-full bg-amber-600 animate-pulse" />
-                                Cliente Ativo
-                              </span>
-                            )}
-                          </div>
+                        {client.nome}
+                      </div>
+                      {isReaberto && (
+                        <span
+                          className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-extrabold bg-amber-100 text-amber-900 border border-amber-300 shrink-0"
+                          title={`Cliente Ativo • Oportunidade Reaberta: ${client.motivo_reabertura || 'Nova oportunidade comercial'}`}
+                        >
+                          <span className="w-1.5 h-1.5 rounded-full bg-amber-600 animate-pulse" />
+                          Cliente Ativo
+                        </span>
+                      )}
+                    </div>
 
-                          <div
-                            className="shrink-0 flex items-center -mr-1 -mt-1"
-                            onClick={(e) => e.stopPropagation()}
-                            onMouseDown={(e) => e.stopPropagation()}
+                    <div
+                      className="shrink-0 flex items-center -mr-1 -mt-1"
+                      onClick={(e) => e.stopPropagation()}
+                      onMouseDown={(e) => e.stopPropagation()}
+                    >
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <button
+                            type="button"
+                            title="Opções do lead"
+                            className="p-1 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors opacity-80 group-hover:opacity-100 focus:opacity-100"
                           >
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <button
-                                  type="button"
-                                  title="Opções do lead"
-                                  className="p-1 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors opacity-80 group-hover:opacity-100 focus:opacity-100"
-                                >
-                                  <MoreVertical className="w-3.5 h-3.5" />
-                                </button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end" className="w-48 text-xs">
-                                <DropdownMenuItem
-                                  onClick={async () => {
-                                    try {
-                                      await updateClienteStatus(client.id, 'Fechado')
-                                      toast({
-                                        title: 'Lead ganho!',
-                                        description: `"${client.nome}" foi marcado como Fechado.`,
-                                      })
-                                    } catch (err) {
-                                      console.error('Erro ao marcar lead como ganho:', err)
-                                      toast({
-                                        title: 'Erro ao marcar ganho',
-                                        description: 'Não foi possível atualizar a etapa do lead.',
-                                        variant: 'destructive',
-                                      })
-                                    }
-                                  }}
-                                  className="cursor-pointer gap-2 text-emerald-700 focus:text-emerald-800 focus:bg-emerald-50 font-medium"
-                                >
-                                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                                  <span>Marcar como ganho</span>
-                                </DropdownMenuItem>
+                            <MoreVertical className="w-3.5 h-3.5" />
+                          </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-48 text-xs">
+                          {/* Opções de mover para outras etapas diretamente pelo menu ⋮ (essencial no mobile) */}
+                          {KANBAN_COLUMNS.filter((other) => other.id !== col.id).map((other) => (
+                            <DropdownMenuItem
+                              key={other.id}
+                              onClick={async () => {
+                                try {
+                                  await updateClienteStatus(client.id, other.id)
+                                  toast({
+                                    title: 'Etapa atualizada',
+                                    description: `"${client.nome}" movido para ${other.title}.`,
+                                  })
+                                } catch (err) {
+                                  console.error('Erro ao mover lead:', err)
+                                }
+                              }}
+                              className="cursor-pointer gap-2 text-slate-700 text-xs"
+                            >
+                              <other.icon
+                                className={`w-3.5 h-3.5 ${other.iconColorClass} shrink-0`}
+                              />
+                              <span>Mover para {other.title}</span>
+                            </DropdownMenuItem>
+                          ))}
 
-                                <DropdownMenuItem
-                                  onClick={async () => {
-                                    try {
-                                      await updateClienteStatus(client.id, 'Perdido')
-                                      toast({
-                                        title: 'Lead perdido',
-                                        description: `"${client.nome}" foi marcado como Perdido.`,
-                                      })
-                                    } catch (err) {
-                                      console.error('Erro ao marcar lead como perdido:', err)
-                                      toast({
-                                        title: 'Erro ao marcar perdido',
-                                        description: 'Não foi possível atualizar a etapa do lead.',
-                                        variant: 'destructive',
-                                      })
-                                    }
-                                  }}
-                                  className="cursor-pointer gap-2 text-rose-700 focus:text-rose-800 focus:bg-rose-50 font-medium"
-                                >
-                                  <XCircle className="w-3.5 h-3.5 text-rose-600 shrink-0" />
-                                  <span>Marcar como perdido</span>
-                                </DropdownMenuItem>
+                          <DropdownMenuSeparator />
 
-                                <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            onClick={async () => {
+                              try {
+                                await updateClienteStatus(client.id, 'Fechado')
+                                toast({
+                                  title: 'Lead ganho!',
+                                  description: `"${client.nome}" foi marcado como Fechado.`,
+                                })
+                              } catch (err) {
+                                console.error('Erro ao marcar lead como ganho:', err)
+                                toast({
+                                  title: 'Erro ao marcar ganho',
+                                  description: 'Não foi possível atualizar a etapa do lead.',
+                                  variant: 'destructive',
+                                })
+                              }
+                            }}
+                            className="cursor-pointer gap-2 text-emerald-700 focus:text-emerald-800 focus:bg-emerald-50 font-medium"
+                          >
+                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                            <span>Marcar como ganho</span>
+                          </DropdownMenuItem>
 
-                                <DropdownMenuItem
-                                  onClick={() => {
-                                    setClienteParaMover(client)
-                                  }}
-                                  className="cursor-pointer gap-2 text-blue-600 focus:text-blue-700 focus:bg-blue-50 font-medium"
-                                >
-                                  <Contact className="w-3.5 h-3.5 text-blue-600 shrink-0" />
-                                  <span>Mover para contatos</span>
-                                </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={async () => {
+                              try {
+                                await updateClienteStatus(client.id, 'Perdido')
+                                toast({
+                                  title: 'Lead perdido',
+                                  description: `"${client.nome}" foi marcado como Perdido.`,
+                                })
+                              } catch (err) {
+                                console.error('Erro ao marcar lead como perdido:', err)
+                                toast({
+                                  title: 'Erro ao marcar perdido',
+                                  description: 'Não foi possível atualizar a etapa do lead.',
+                                  variant: 'destructive',
+                                })
+                              }
+                            }}
+                            className="cursor-pointer gap-2 text-rose-700 focus:text-rose-800 focus:bg-rose-50 font-medium"
+                          >
+                            <XCircle className="w-3.5 h-3.5 text-rose-600 shrink-0" />
+                            <span>Marcar como perdido</span>
+                          </DropdownMenuItem>
 
-                                <DropdownMenuItem
-                                  onClick={async () => {
-                                    const confirmou = window.confirm(
-                                      `Deseja arquivar o cliente "${client.nome}"? Ele sairá da visualização do funil.`,
-                                    )
-                                    if (!confirmou) return
-                                    try {
-                                      await updateCliente(client.id, { arquivado: true })
-                                      toast({
-                                        title: 'Cliente arquivado',
-                                        description: `"${client.nome}" foi arquivado com sucesso.`,
-                                      })
-                                    } catch (err) {
-                                      console.error('Erro ao arquivar:', err)
-                                      toast({
-                                        title: 'Erro ao arquivar',
-                                        description: 'Não foi possível arquivar o cliente.',
-                                        variant: 'destructive',
-                                      })
-                                    }
-                                  }}
-                                  className="cursor-pointer gap-2 text-rose-600 focus:text-rose-700 focus:bg-rose-50"
-                                >
-                                  <Archive className="w-3.5 h-3.5" />
-                                  <span>Arquivar lead</span>
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          </div>
-                        </div>
+                          <DropdownMenuSeparator />
 
-                        {/* Linha 2: Valor do negócio: text-xs font-bold em azul marinho (#1a3a5c) */}
-                        <div className="mt-1 flex items-center justify-between gap-1 min-w-0">
-                          <span className="font-bold text-xs truncate" style={{ color: '#1a3a5c' }}>
-                            {(() => {
-                              const isRecorrente = Boolean(
-                                client.recorrencia_mensal ||
-                                (client.nome && client.nome.trim().toLowerCase() === 'joão silva'),
+                          <DropdownMenuItem
+                            onClick={() => {
+                              setClienteParaMover(client)
+                            }}
+                            className="cursor-pointer gap-2 text-blue-600 focus:text-blue-700 focus:bg-blue-50 font-medium"
+                          >
+                            <Contact className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                            <span>Mover para contatos</span>
+                          </DropdownMenuItem>
+
+                          <DropdownMenuItem
+                            onClick={async () => {
+                              const confirmou = window.confirm(
+                                `Deseja arquivar o cliente "${client.nome}"? Ele sairá da visualização do funil.`,
                               )
-                              return formatCurrency(client.valor_estimado || 0, {
-                                recorrente: isRecorrente,
-                                periodicidade: 'mês',
-                              })
-                            })()}
-                          </span>
-                        </div>
-
-                        {/* Linha 3: Localização + Tipo de Venda (substituindo kWp) */}
-                        {(() => {
-                          const tipoConfig = getTipoVendaConfig(client.tipo_venda)
-                          const TipoIcon = tipoConfig.icon
-                          return (
-                            <div className="mt-1.5 flex items-center justify-between text-[11px] text-muted-foreground gap-1.5 min-w-0">
-                              {client.cidade ? (
-                                <span className="inline-flex items-center gap-1 truncate shrink min-w-0">
-                                  <MapPin className="w-3 h-3 text-slate-400 shrink-0" />
-                                  <span className="truncate">{client.cidade}</span>
-                                </span>
-                              ) : (
-                                <span className="inline-flex items-center gap-1 text-slate-400">
-                                  <MapPin className="w-3 h-3 text-slate-300 shrink-0" />
-                                  <span>Sem cidade</span>
-                                </span>
-                              )}
-
-                              <span
-                                className={`inline-flex items-center gap-1 shrink-0 font-semibold text-[10px] px-1.5 py-0.5 rounded border ${tipoConfig.badgeClass}`}
-                                title={`Tipo de venda: ${tipoConfig.label}`}
-                              >
-                                <TipoIcon className={`w-3 h-3 shrink-0 ${tipoConfig.iconClass}`} />
-                                <span className="truncate">{tipoConfig.shortLabel}</span>
-                              </span>
-                            </div>
-                          )
-                        })()}
-
-                        {/* Linha 4: Próxima ação agendada (10pt / text-[10px]) */}
-                        <div className="mt-2 pt-2 border-t border-slate-100 flex items-center justify-between gap-1 min-w-0 text-[10px]">
-                          {proximaAcao ? (
-                            <div
-                              className="inline-flex items-center gap-1 text-slate-700 truncate min-w-0 font-medium"
-                              title={proximaAcao.titulo}
-                            >
-                              <Calendar className="w-3 h-3 text-emerald-600 shrink-0" />
-                              <span className="truncate">{formatProximaAcao(proximaAcao)}</span>
-                            </div>
-                          ) : (
-                            <div
-                              className="inline-flex items-center gap-1 text-rose-600 font-semibold truncate shrink-0"
-                              title="Sem atividade agendada vinculada ao cliente (Lead Frio)"
-                            >
-                              <AlertCircle className="w-3 h-3 text-rose-500 shrink-0" />
-                              <span>Sem atividade agendada</span>
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Linha 5: Tempo na etapa (discreto, 10pt; alerta amarelo/vermelho se > 7 dias) */}
-                        <div className="mt-1 flex items-center justify-between text-[10px] text-slate-400">
-                          <span
-                            className={`inline-flex items-center gap-1 font-medium ${
-                              tempoAlerta ? 'text-amber-600 font-semibold' : 'text-slate-400'
-                            }`}
+                              if (!confirmou) return
+                              try {
+                                await updateCliente(client.id, { arquivado: true })
+                                toast({
+                                  title: 'Cliente arquivado',
+                                  description: `"${client.nome}" foi arquivado com sucesso.`,
+                                })
+                              } catch (err) {
+                                console.error('Erro ao arquivar:', err)
+                                toast({
+                                  title: 'Erro ao arquivar',
+                                  description: 'Não foi possível arquivar o cliente.',
+                                  variant: 'destructive',
+                                })
+                              }
+                            }}
+                            className="cursor-pointer gap-2 text-rose-600 focus:text-rose-700 focus:bg-rose-50"
                           >
-                            <Clock
-                              className={`w-2.5 h-2.5 ${tempoAlerta ? 'text-amber-500' : 'text-slate-400'}`}
-                            />
-                            <span>
-                              {diasNaEtapa === 0
-                                ? 'Hoje nesta etapa'
-                                : `${diasNaEtapa} ${diasNaEtapa === 1 ? 'dia' : 'dias'} nesta etapa`}
-                            </span>
-                            {tempoAlerta && (
-                              <span className="text-[9px] px-1 py-0.2 bg-amber-50 text-amber-700 rounded border border-amber-200">
-                                &gt;7d
-                              </span>
-                            )}
-                          </span>
+                            <Archive className="w-3.5 h-3.5" />
+                            <span>Arquivar lead</span>
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  </div>
 
-                          <GripVertical className="w-3 h-3 text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity" />
-                        </div>
+                  {/* Linha 2: Valor do negócio */}
+                  <div className="mt-1 flex items-center justify-between gap-1 min-w-0">
+                    <span className="font-bold text-xs truncate" style={{ color: '#1a3a5c' }}>
+                      {(() => {
+                        const isRecorrente = Boolean(
+                          client.recorrencia_mensal ||
+                          (client.nome && client.nome.trim().toLowerCase() === 'joão silva'),
+                        )
+                        return formatCurrency(client.valor_estimado || 0, {
+                          recorrente: isRecorrente,
+                          periodicidade: 'mês',
+                        })
+                      })()}
+                    </span>
+                  </div>
+
+                  {/* Linha 3: Localização + Tipo de Venda */}
+                  {(() => {
+                    const tipoConfig = getTipoVendaConfig(client.tipo_venda)
+                    const TipoIcon = tipoConfig.icon
+                    return (
+                      <div className="mt-1.5 flex items-center justify-between text-[11px] text-muted-foreground gap-1.5 min-w-0">
+                        {client.cidade ? (
+                          <span className="inline-flex items-center gap-1 truncate shrink min-w-0">
+                            <MapPin className="w-3 h-3 text-slate-400 shrink-0" />
+                            <span className="truncate">{client.cidade}</span>
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 text-slate-400">
+                            <MapPin className="w-3 h-3 text-slate-300 shrink-0" />
+                            <span>Sem cidade</span>
+                          </span>
+                        )}
+
+                        <span
+                          className={`inline-flex items-center gap-1 shrink-0 font-semibold text-[10px] px-1.5 py-0.5 rounded border ${tipoConfig.badgeClass}`}
+                          title={`Tipo de venda: ${tipoConfig.label}`}
+                        >
+                          <TipoIcon className={`w-3 h-3 shrink-0 ${tipoConfig.iconClass}`} />
+                          <span className="truncate">{tipoConfig.shortLabel}</span>
+                        </span>
                       </div>
                     )
-                  })
-                )}
+                  })()}
 
-                {/* Drop indicator quando há cards na coluna e o usuário está passando por cima */}
-                {isOver && colClients.length > 0 && (
-                  <div className="h-10 rounded-lg border-2 border-dashed border-emerald-400 bg-emerald-100/50 flex items-center justify-center text-xs text-emerald-700 font-medium">
-                    Soltar aqui
+                  {/* Linha 4: Próxima ação agendada */}
+                  <div className="mt-2 pt-2 border-t border-slate-100 flex items-center justify-between gap-1 min-w-0 text-[10px]">
+                    {proximaAcao ? (
+                      <div
+                        className="inline-flex items-center gap-1 text-slate-700 truncate min-w-0 font-medium"
+                        title={proximaAcao.titulo}
+                      >
+                        <Calendar className="w-3 h-3 text-emerald-600 shrink-0" />
+                        <span className="truncate">{formatProximaAcao(proximaAcao)}</span>
+                      </div>
+                    ) : (
+                      <div
+                        className="inline-flex items-center gap-1 text-rose-600 font-semibold truncate shrink-0"
+                        title="Sem atividade agendada vinculada ao cliente (Lead Frio)"
+                      >
+                        <AlertCircle className="w-3 h-3 text-rose-500 shrink-0" />
+                        <span>Sem atividade agendada</span>
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
+
+                  {/* Linha 5: Tempo na etapa */}
+                  <div className="mt-1 flex items-center justify-between text-[10px] text-slate-400">
+                    <span
+                      className={`inline-flex items-center gap-1 font-medium ${
+                        tempoAlerta ? 'text-amber-600 font-semibold' : 'text-slate-400'
+                      }`}
+                    >
+                      <Clock
+                        className={`w-2.5 h-2.5 ${tempoAlerta ? 'text-amber-500' : 'text-slate-400'}`}
+                      />
+                      <span>
+                        {diasNaEtapa === 0
+                          ? 'Hoje nesta etapa'
+                          : `${diasNaEtapa} ${diasNaEtapa === 1 ? 'dia' : 'dias'} nesta etapa`}
+                      </span>
+                      {tempoAlerta && (
+                        <span className="text-[9px] px-1 py-0.2 bg-amber-50 text-amber-700 rounded border border-amber-200">
+                          &gt;7d
+                        </span>
+                      )}
+                    </span>
+
+                    <GripVertical className="w-3 h-3 text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </div>
+                </div>
+              )
+            })
+          )}
+
+          {/* Drop indicator quando há cards na coluna e o usuário está passando por cima */}
+          {isOver && colClients.length > 0 && (
+            <div className="h-10 rounded-lg border-2 border-dashed border-emerald-400 bg-emerald-100/50 flex items-center justify-center text-xs text-emerald-700 font-medium">
+              Soltar aqui
             </div>
-          )
-        })}
+          )}
+        </div>
+      </div>
+    )
+  }
+
+  // Prepara as etapas mobile
+  const mobileStages: MobileKanbanStage[] = useMemo(() => {
+    return KANBAN_COLUMNS.map((col) => {
+      const colClients = clientes.filter((c) => (c.status || '') === col.id)
+      const totalColValue = colClients.reduce((sum, c) => sum + (Number(c.valor_estimado) || 0), 0)
+      return {
+        id: col.id,
+        title: col.title,
+        shortTitle: col.title.replace(/^[0-9]+\s*-\s*/, ''),
+        count: colClients.length,
+        totalSubtitle: `Acumulado: ${formatCurrency(totalColValue)}`,
+        icon: col.icon,
+        iconColorClass: col.iconColorClass,
+        borderTopClass: col.borderTopClass,
+        content: renderColumnContent(col, true),
+      }
+    })
+  }, [clientes, dragOverColumnId, draggedClientId, proximaAcaoPorCliente])
+
+  return (
+    <div className="w-full pb-6 pt-1 select-none">
+      {/* 1. VISUALIZAÇÃO MOBILE (apenas celular: md:hidden) */}
+      <div className="block md:hidden w-full">
+        <MobileKanbanViewport stages={mobileStages} isDraggingCard={isTouchDragging} />
+      </div>
+
+      {/* 2. VISUALIZAÇÃO DESKTOP / TABLET (inalterada: hidden md:block) */}
+      <div className="hidden md:block w-full overflow-x-auto">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 items-start min-w-[720px]">
+          {KANBAN_COLUMNS.map((col) => renderColumnContent(col, false))}
+        </div>
       </div>
 
       {/* AlertDialog de Confirmação para Mover Cliente para Outros Contatos */}
