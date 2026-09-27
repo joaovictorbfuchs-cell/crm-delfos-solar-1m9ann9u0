@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useMemo } from 'react'
-import { Search, Clock, ListTodo, CalendarDays, Plus, RefreshCw, AlertCircle } from 'lucide-react'
+import { Search, Clock, ListTodo, CalendarDays, Plus, RefreshCw, AlertCircle, MessageSquare } from 'lucide-react'
 import { useClientes } from '@/contexts/ClientesContext'
 import { useAuth } from '@/contexts/AuthContext'
 import { Button } from '@/components/ui/button'
 import { AtividadeItem } from '@/components/AtividadeItem'
 import { ModalNovaAtividade } from '@/components/ModalNovaAtividade'
+import { ModalMensagemWhatsAppMassa } from '@/components/ModalMensagemWhatsAppMassa'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -60,6 +61,7 @@ export const Atividades: React.FC = () => {
 
   // Controle do modal de agendamento acionado pelo botão nova atividade
   const [modalOpen, setModalOpen] = useState(false)
+  const [modalMensagemMassaOpen, setModalMensagemMassaOpen] = useState(false)
   const [modalInitialTipo, setModalInitialTipo] = useState<AtividadeTipo | null>(null)
 
   // Ouvinte para abrir modal de nova atividade via header mobile (+)
@@ -189,8 +191,8 @@ export const Atividades: React.FC = () => {
           </button>
         </div>
 
-        {/* Controles à direita: Botão padronizado Atualizar + Nova Atividade */}
-        <div className="flex items-center gap-2 self-end sm:self-auto">
+        {/* Controles à direita: Botão padronizado Atualizar + Disparar Mensagens + Nova Atividade */}
+        <div className="flex items-center gap-2 self-end sm:self-auto flex-wrap">
           <Button
             type="button"
             variant="outline"
@@ -199,22 +201,30 @@ export const Atividades: React.FC = () => {
             className="h-10 px-3 rounded-xl border-gray-200 hover:bg-gray-50 text-gray-700"
             title="Atualizar dados"
           >
-            <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`w-4 h-4 mr-1.5 ${isRefreshing ? 'animate-spin' : ''}`} />
+            Atualizar
           </Button>
-
-          <button
+          <Button
+            type="button"
+            onClick={() => setModalMensagemMassaOpen(true)}
+            className="h-10 px-4 rounded-xl bg-[#0284C7] hover:bg-[#0369a1] text-white font-semibold shadow-xs inline-flex items-center gap-1.5"
+            title="Disparar mensagens em massa via WhatsApp"
+          >
+            <MessageSquare className="w-4 h-4" />
+            Disparar Mensagens
+          </Button>
+          <Button
             type="button"
             onClick={() => {
-              setModalInitialTipo('contato_ligacao')
+              setEditingAtividade(null)
               setModalOpen(true)
             }}
-            className="inline-flex items-center justify-center gap-1.5 px-3.5 py-1.5 bg-[#16A34A] hover:bg-[#15803D] active:scale-[0.98] text-white text-xs sm:text-sm font-bold rounded-xl shadow-2xs hover:shadow-xs transition-all shrink-0 cursor-pointer h-10"
+            className="h-10 px-4 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-medium shadow-xs"
           >
-            <Plus className="w-4 h-4 stroke-[2.5]" />
-            <span>Nova Atividade</span>
-          </button>
-        </div>
-      </div>
+            <Plus className="w-4 h-4 mr-1.5" />
+            Nova Atividade
+          </Button>
+        </div>      </div>
 
       {/* Banner de erro quando houver falha ao carregar dados do CRM */}
       {error && (
@@ -431,7 +441,23 @@ export const Atividades: React.FC = () => {
           setModalOpen(false)
           setModalInitialTipo(null)
         }}
-        initialTipo={modalInitialTipo}
+        onSuccess={() => {
+          setModalOpen(false)
+          setModalInitialTipo(null)
+          fetchAtividades()
+        }}
+      />
+
+      {/* 4. Modal Disparar Mensagens em Massa WhatsApp */}
+      <ModalMensagemWhatsAppMassa
+        open={modalMensagemMassaOpen}
+        onOpenChange={setModalMensagemMassaOpen}
+        segmentoInicial="todos"
+        titulo="Disparar Mensagens em Massa via WhatsApp"
+        descricao="Envie mensagens personalizadas via Z-API para clientes do CRM com registro automático de atividade comercial."
+        onSuccess={() => {
+          fetchAtividades()
+        }}
       />
 
       {/* Confirmação Segura de Exclusão de Atividade */}

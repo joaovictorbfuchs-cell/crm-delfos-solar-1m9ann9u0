@@ -15,8 +15,10 @@ import {
   Activity,
   EyeOff,
   TrendingUp,
+  MessageSquare,
 } from 'lucide-react'
 import { useClientes } from '@/contexts/ClientesContext'
+import { ModalMensagemWhatsAppMassa } from '@/components/ModalMensagemWhatsAppMassa'
 import type { ContratoOM, Cliente } from '@/types/crm'
 import { formatCurrency, formatDate } from '@/lib/formatters'
 import { calcularDiasRestantesDefensivo } from '@/lib/omCategorizacao'
@@ -72,6 +74,7 @@ export const PlanosOMView: React.FC<PlanosOMViewProps> = ({
   onFiltrosInfoChange,
   renderTopFilterButton = false,
 }) => {
+  const [modalMensagemMassaOpen, setModalMensagemMassaOpen] = useState(false)
   const {
     clientes,
     contratosOM,
@@ -937,15 +940,26 @@ export const PlanosOMView: React.FC<PlanosOMViewProps> = ({
               <span>Limpar filtros</span>
             </button>
           ) : (
-            onOpenNovoContrato && (
+            <div className="flex items-center gap-2">
               <button
                 type="button"
-                onClick={onOpenNovoContrato}
-                className="inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-600 text-white text-xs font-bold rounded-xl hover:bg-emerald-700 transition-colors"
+                onClick={() => setModalMensagemMassaOpen(true)}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-[#0284C7] text-white text-xs font-bold rounded-xl hover:bg-[#0369a1] transition-colors shadow-xs"
+                title="Disparar mensagens em massa via WhatsApp para clientes com O&M"
               >
-                Novo Contrato O&M
+                <MessageSquare className="w-3.5 h-3.5" />
+                <span>Enviar mensagem em massa</span>
               </button>
-            )
+              {onOpenNovoContrato && (
+                <button
+                  type="button"
+                  onClick={onOpenNovoContrato}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-600 text-white text-xs font-bold rounded-xl hover:bg-emerald-700 transition-colors"
+                >
+                  Novo Contrato O&M
+                </button>
+              )}
+            </div>
           )}
         </div>
       ) : (
@@ -1168,6 +1182,14 @@ export const PlanosOMView: React.FC<PlanosOMViewProps> = ({
           </div>
         </div>
       )}
+      {/* Modal Disparar Mensagens em Massa pré-filtrado para Clientes O&M */}
+      <ModalMensagemWhatsAppMassa
+        open={modalMensagemMassaOpen}
+        onOpenChange={setModalMensagemMassaOpen}
+        segmentoInicial="clientes_om"
+        titulo="Disparar Mensagens para Clientes O&M"
+        descricao="Envie mensagens personalizadas via Z-API para clientes com contrato ou perfil de O&M."
+      />
     </div>
   )
 }

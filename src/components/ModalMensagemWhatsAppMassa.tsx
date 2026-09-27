@@ -27,6 +27,10 @@ import {
   Building2,
   Copy,
   Sparkles,
+  Filter,
+  FileText,
+  RotateCcw,
+  Check,
 } from 'lucide-react'
 import { useClientes } from '@/contexts/ClientesContext'
 import { toast } from 'sonner'
@@ -34,6 +38,7 @@ import { formatCurrency, formatWhatsAppPhone } from '@/lib/formatters'
 import { validarNumeroWhatsApp } from '@/lib/propostaWhatsAppService'
 import { isAuthSessionError } from '@/lib/pocketbase/errors'
 import { SessaoExpiradaAlert } from '@/components/SessaoExpiradaAlert'
+import { fetchWhatsAppTemplates } from '@/services/crmService'
 import {
   PLACEHOLDERS_ENVIO_MASSA,
   resolverPlaceholdersMensagemMassa,
@@ -41,7 +46,14 @@ import {
   extrairCidadeCliente,
   extrairPrimeiroNomeCliente,
 } from '@/lib/placeholdersMensagemMassa'
-import type { Cliente, UsinaCliente, Sistema } from '@/types/crm'
+import type { Cliente, UsinaCliente, Sistema, WhatsAppTemplate } from '@/types/crm'
+
+export type SegmentoFiltro =
+  | 'todos'
+  | 'clientes_om'
+  | 'clientes_solar'
+  | 'clientes_bateria'
+  | 'pos_vendas'
 
 export interface DestinatarioMensagemMassa {
   cliente: Cliente
@@ -60,6 +72,10 @@ export interface ModalMensagemWhatsAppMassaProps {
    * Se omitido ou vazio, o modal carregará a base de clientes do contexto.
    */
   destinatariosIniciais?: DestinatarioMensagemMassa[]
+  /**
+   * Segmento inicial padrão a ser filtrado (ex: 'clientes_om')
+   */
+  segmentoInicial?: SegmentoFiltro
   /**
    * Texto inicial padrão do template da mensagem
    */
@@ -88,23 +104,103 @@ interface ItemClienteMassa {
   numeroLimpo: string
   valorItem?: number
   origemItem?: string
+  isExemploDemo?: boolean
+  segmentos: SegmentoFiltro[]
 }
 
 const MENSAGEM_INICIAL_DEFAULT =
-  'Olá, [nome do cliente]! Aqui é da equipe Delfos Solar. Passando para conversar sobre a sua usina de [potência] em [cidade]. Como podemos ajudar você hoje?'
+  'Olá, [nome do cliente]! Tudo bem? Aqui é da equipe Delfos Solar. Passando para lembrar sobre a importância da manutenção preventiva e limpeza periódica dos módulos da sua usina de [potência] em [cidade]. Como podemos ajudar você hoje?'
+
+// Modelos fixos de contingência caso a conexão com a coleção whatsapp_templates falhe
+const TEMPLATES_PADRAO_FALLBACK: Array<{ id: string; titulo: string; conteudo: string }> = [
+  {
+    id: 'tpl_lembrete_manutencao',
+    titulo: 'Lembrete de manutenção',
+    conteudo:
+      'Olá, [nome do cliente]! Tudo bem? Aqui é da equipe Delfos Solar. Passando para lembrar sobre a importância da manutenção preventiva e limpeza periódica dos módulos da sua usina em [cidade]. Com módulos limpos, sua geração solar de [potência] se mantém no rendimento máximo. Gostaria de agendar uma revisão?',
+  },
+  {
+    id: 'tpl_oferta_especial',
+    titulo: 'Oferta especial',
+    conteudo:
+      'Olá, [nome do cliente]! Temos uma condição especial exclusiva este mês na Delfos Solar para ampliação do seu sistema solar, inclusão de baterias ou plano de monitoramento em [cidade]. Gostaria de receber uma simulação personalizada sem compromisso?',
+  },
+  {
+    id: 'tpl_fatura_em_atraso',
+    titulo: 'Fatura em atraso',
+    conteudo:
+      'Olá, [nome do cliente]! Constatamos uma pendência financeira referente à sua fatura de serviços da Delfos Solar em [cidade], com vencimento recente. Para que possamos regularizar e emitir a 2ª via sem encargos, por favor responda a esta mensagem para enviarmos a fatura atualizada.',
+  },
+]
+
+// Dados de exemplo fictícios para demonstração visual (sem número real, NUNCA disparam de verdade)
+const EXEMPLOS_DEMO: ItemClienteMassa[] = [
+  {
+    cliente: {
+      id: 'demo_cliente_1',
+      nome: 'Exemplo: Cooperativa Agropecuária Aurora',
+      cidade: 'Erechim',
+      estado: 'RS',
+      whatsapp: '(54) 99888-0001',
+      telefone: '(54) 99888-0001',
+      potencia_kwp: 75.5,
+      tipo_cliente: 'comercial',
+      tipo_negocio: 'O&M (Operação e Manutenção)',
+      tipo_venda: 'O&M (Operação e Manutenção)',
+      created: '2026-01-01',
+      updated: '2026-01-01',
+    } as unknown as Cliente,
+    potenciaTexto: '75,5 kWp',
+    cidade: 'Erechim',
+    telefoneAutoritativo: '(54) 99888-0001 (Demonstração)',
+    temWhatsAppValido: true,
+    numeroLimpo: '5554998880001',
+    valorItem: 1850,
+    origemItem: 'Exemplo O&M',
+    isExemploDemo: true,
+    segmentos: ['clientes_om', 'clientes_solar'],
+  },
+  {
+    cliente: {
+      id: 'demo_cliente_2',
+      nome: 'Exemplo: Vinícola & Pousada Serra Gaúcha',
+      cidade: 'Bento Gonçalves',
+      estado: 'RS',
+      whatsapp: '(54) 99888-0002',
+      telefone: '(54) 99888-0002',
+      potencia_kwp: 28.0,
+      tipo_cliente: 'comercial',
+      tipo_negocio: 'Baterias',
+      tipo_venda: 'Baterias',
+      created: '2026-01-01',
+      updated: '2026-01-01',
+    } as unknown as Cliente,
+    potenciaTexto: '28 kWp',
+    cidade: 'Bento Gonçalves',
+    telefoneAutoritativo: '(54) 99888-0002 (Demonstração)',
+    temWhatsAppValido: true,
+    numeroLimpo: '5554998880002',
+    valorItem: 12400,
+    origemItem: 'Exemplo Bateria',
+    isExemploDemo: true,
+    segmentos: ['clientes_bateria', 'clientes_solar', 'pos_vendas'],
+  },
+]
 
 export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProps> = ({
   open,
   onOpenChange,
   destinatariosIniciais,
+  segmentoInicial = 'todos',
   mensagemPadrao,
-  titulo = 'Enviar Mensagem por WhatsApp em Massa',
-  descricao = 'Dispare mensagens personalizadas individuais para cada cliente selecionado.',
+  titulo = 'Disparar Mensagens em Massa via WhatsApp',
+  descricao = 'Dispare mensagens personalizadas individuais para cada cliente selecionado via Z-API.',
   onSuccess,
 }) => {
   const {
     clientes,
     sistemas,
+    contratosOM,
     sendWhatsAppMessage,
     addAtividade,
     updateCliente,
@@ -114,10 +210,17 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
 
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
+  // Templates carregados da coleção whatsapp_templates
+  const [templates, setTemplates] = useState<Array<{ id: string; titulo: string; conteudo: string }>>(
+    TEMPLATES_PADRAO_FALLBACK,
+  )
+  const [templateSelecionadoId, setTemplateSelecionadoId] = useState<string>('')
+
   // Estado da mensagem
   const [templateTexto, setTemplateTexto] = useState(mensagemPadrao || MENSAGEM_INICIAL_DEFAULT)
 
-  // Seleção e foco
+  // Filtros de seleção
+  const [segmentoAtivo, setSegmentoAtivo] = useState<SegmentoFiltro>(segmentoInicial)
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [clienteFocadoId, setClienteFocadoId] = useState<string | null>(null)
   const [busca, setBusca] = useState('')
@@ -133,15 +236,131 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
     atual: number
     sucessos: string[]
     erros: Array<{ clienteNome: string; erro: string }>
+    avisosDemo?: string[]
   } | null>(null)
 
   const [authErrorCapturado, setAuthErrorCapturado] = useState(false)
 
+  // Carrega templates do backend ao abrir o modal
+  useEffect(() => {
+    if (!open) return
+    let cancelado = false
+
+    const carregarTemplates = async () => {
+      try {
+        const registros = await fetchWhatsAppTemplates()
+        if (cancelado) return
+
+        if (Array.isArray(registros) && registros.length > 0) {
+          // Filtra ou ordena templates para destacar Lembrete de manutenção, Oferta especial, Fatura em atraso
+          const mapeados = registros.map((r: WhatsAppTemplate) => ({
+            id: r.id,
+            titulo: r.titulo,
+            conteudo: r.conteudo,
+          }))
+
+          // Garante que os modelos solicitados apareçam se não existirem
+          const combinados = [...mapeados]
+          TEMPLATES_PADRAO_FALLBACK.forEach((fb) => {
+            const jaExiste = combinados.some(
+              (c) => c.titulo.toLowerCase().trim() === fb.titulo.toLowerCase().trim(),
+            )
+            if (!jaExiste) {
+              combinados.push(fb)
+            }
+          })
+
+          setTemplates(combinados)
+        } else {
+          setTemplates(TEMPLATES_PADRAO_FALLBACK)
+        }
+      } catch (err) {
+        console.warn('Usando templates fallback de mensagem em massa:', err)
+        setTemplates(TEMPLATES_PADRAO_FALLBACK)
+      }
+    }
+
+    carregarTemplates()
+    return () => {
+      cancelado = true
+    }
+  }, [open])
+
+  // Helper para classificar segmentos de um cliente
+  const classificarSegmentosCliente = useMemo(() => {
+    // Set de clientes com contrato O&M ativo/cadastrado
+    const clientesOMSet = new Set<string>()
+    if (Array.isArray(contratosOM)) {
+      contratosOM.forEach((c) => {
+        if (c?.cliente_id) clientesOMSet.add(c.cliente_id)
+      })
+    }
+
+    return (cli: Cliente): SegmentoFiltro[] => {
+      const segs: SegmentoFiltro[] = []
+      const tipoVenda = (cli.tipo_venda || '').toLowerCase()
+      const tipoNegocio = (cli.tipo_negocio || '').toLowerCase()
+      const produto = (cli.produto || '').toLowerCase()
+      const statusPos = (cli.status_pos_vendas || '').toLowerCase()
+      const areaDestino = (cli.area_destino || '').toLowerCase()
+
+      // 1. Clientes O&M
+      if (
+        clientesOMSet.has(cli.id) ||
+        tipoVenda.includes('o&m') ||
+        tipoNegocio.includes('o&m') ||
+        produto.includes('o&m') ||
+        areaDestino === 'om'
+      ) {
+        segs.push('clientes_om')
+      }
+
+      // 2. Clientes Solar
+      if (
+        tipoVenda.includes('solar') ||
+        tipoNegocio.includes('solar') ||
+        produto.includes('solar') ||
+        (cli.potencia_kwp && cli.potencia_kwp > 0)
+      ) {
+        segs.push('clientes_solar')
+      }
+
+      // 3. Clientes Bateria
+      if (
+        tipoVenda.includes('bateria') ||
+        tipoNegocio.includes('bateria') ||
+        produto.includes('bateria') ||
+        tipoNegocio.includes('sistemas híbridos')
+      ) {
+        segs.push('clientes_bateria')
+      }
+
+      // 4. Pós-Venda
+      if (
+        cli.transferido_pos_vendas ||
+        statusPos ||
+        areaDestino === 'pos_vendas' ||
+        cli.status === 'Fechado' ||
+        clientesOMSet.has(cli.id)
+      ) {
+        segs.push('pos_vendas')
+      }
+
+      // Se não caiu em nenhum explícito, mas é cliente ativo, inclui em solar por padrão
+      if (segs.length === 0) {
+        segs.push('clientes_solar')
+      }
+
+      return segs
+    }
+  }, [contratosOM])
+
   // Mapeia lista de itens a serem exibidos no modal
   const itensProcessados = useMemo<ItemClienteMassa[]>(() => {
+    let listaBase: ItemClienteMassa[] = []
+
     // Se destinatários explícitos foram informados:
     if (destinatariosIniciais && destinatariosIniciais.length > 0) {
-      // Deduplica por cliente.id
       const map = new Map<string, DestinatarioMensagemMassa>()
       destinatariosIniciais.forEach((dest) => {
         if (dest?.cliente?.id && !map.has(dest.cliente.id)) {
@@ -149,7 +368,7 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
         }
       })
 
-      return Array.from(map.values()).map((dest) => {
+      listaBase = Array.from(map.values()).map((dest) => {
         const cli = dest.cliente
         const usinaVinculada = dest.usina || sistemas.find((s) => s.cliente_id === cli.id)
         const potenciaTexto = dest.potenciaManual
@@ -171,42 +390,62 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
           numeroLimpo: validacao.numeroLimpo,
           valorItem: dest.valor,
           origemItem: dest.origemItem,
+          segmentos: classificarSegmentosCliente(cli),
+        }
+      })
+    } else {
+      // Se nenhum destinatário explícito foi passado, monta da base geral de clientes
+      listaBase = clientes.map((cli) => {
+        const usinaVinculada = sistemas.find((s) => s.cliente_id === cli.id)
+        const potenciaTexto = extrairPotenciaClienteTexto(cli, usinaVinculada)
+        const cidade = extrairCidadeCliente(cli, usinaVinculada)
+        const telAutoritativo = cli.whatsapp || cli.telefone || ''
+        const validacao = validarNumeroWhatsApp(telAutoritativo)
+
+        return {
+          cliente: cli,
+          usina: usinaVinculada,
+          potenciaTexto,
+          cidade,
+          telefoneAutoritativo: telAutoritativo,
+          temWhatsAppValido: validacao.valido,
+          numeroLimpo: validacao.numeroLimpo,
+          valorItem: cli.valor_final || cli.valor_estimado || 0,
+          segmentos: classificarSegmentosCliente(cli),
         }
       })
     }
 
-    // Se nenhum destinatário explícito foi passado, monta da base geral de clientes
-    return clientes.map((cli) => {
-      const usinaVinculada = sistemas.find((s) => s.cliente_id === cli.id)
-      const potenciaTexto = extrairPotenciaClienteTexto(cli, usinaVinculada)
-      const cidade = extrairCidadeCliente(cli, usinaVinculada)
-      const telAutoritativo = cli.whatsapp || cli.telefone || ''
-      const validacao = validarNumeroWhatsApp(telAutoritativo)
+    // Se a base de clientes do CRM for pequena ou vazia, inclui exemplos de demonstração marcados (nunca disparam real)
+    if (listaBase.length <= 3 && (!destinatariosIniciais || destinatariosIniciais.length === 0)) {
+      return [...listaBase, ...EXEMPLOS_DEMO]
+    }
 
-      return {
-        cliente: cli,
-        usina: usinaVinculada,
-        potenciaTexto,
-        cidade,
-        telefoneAutoritativo: telAutoritativo,
-        temWhatsAppValido: validacao.valido,
-        numeroLimpo: validacao.numeroLimpo,
-        valorItem: cli.valor_final || cli.valor_estimado || 0,
-      }
-    })
-  }, [destinatariosIniciais, clientes, sistemas])
+    return listaBase
+  }, [destinatariosIniciais, clientes, sistemas, classificarSegmentosCliente])
 
-  // Filtragem pela busca
+  // Filtragem por Segmento e por Busca
   const itensFiltrados = useMemo(() => {
+    let resultado = itensProcessados
+
+    // 1. Filtro por segmento
+    if (segmentoAtivo !== 'todos') {
+      resultado = resultado.filter((item) => item.segmentos.includes(segmentoAtivo))
+    }
+
+    // 2. Filtro por busca de texto
     const termo = busca.trim().toLowerCase()
-    if (!termo) return itensProcessados
-    return itensProcessados.filter((item) => {
-      const matchNome = item.cliente.nome?.toLowerCase().includes(termo)
-      const matchCidade = item.cidade?.toLowerCase().includes(termo)
-      const matchTel = item.telefoneAutoritativo?.includes(termo)
-      return matchNome || matchCidade || matchTel
-    })
-  }, [itensProcessados, busca])
+    if (termo) {
+      resultado = resultado.filter((item) => {
+        const matchNome = item.cliente.nome?.toLowerCase().includes(termo)
+        const matchCidade = item.cidade?.toLowerCase().includes(termo)
+        const matchTel = item.telefoneAutoritativo?.includes(termo)
+        return matchNome || matchCidade || matchTel
+      })
+    }
+
+    return resultado
+  }, [itensProcessados, segmentoAtivo, busca])
 
   // Inicialização ao abrir o modal
   useEffect(() => {
@@ -219,6 +458,7 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
     }
 
     setTemplateTexto(mensagemPadrao || MENSAGEM_INICIAL_DEFAULT)
+    setSegmentoAtivo(segmentoInicial)
     setAuthErrorCapturado(false)
     setProgressoEnvio(null)
 
@@ -227,20 +467,31 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
       const ids = destinatariosIniciais
         .map((d) => d.cliente?.id)
         .filter((id): id is string => Boolean(id))
-      // Deduplicar
       const uniqueIds = Array.from(new Set(ids))
       setSelectedIds(uniqueIds)
       setClienteFocadoId(uniqueIds[0] || null)
     } else {
-      // Base padrão: seleciona os com WhatsApp válido
-      const comWhats = itensProcessados.filter((c) => c.temWhatsAppValido)
-      const idsIniciais = comWhats.slice(0, 3).map((c) => c.cliente.id)
+      // Base geral: seleciona os 5 primeiros com WhatsApp válido dentro do filtro inicial
+      const selecionaveis = itensFiltrados.filter((c) => c.temWhatsAppValido)
+      const idsIniciais = selecionaveis.slice(0, 5).map((c) => c.cliente.id)
       setSelectedIds(idsIniciais)
-      setClienteFocadoId(idsIniciais[0] || itensProcessados[0]?.cliente.id || null)
+      setClienteFocadoId(idsIniciais[0] || itensFiltrados[0]?.cliente.id || null)
     }
-  }, [open, destinatariosIniciais, mensagemPadrao, itensProcessados])
+  }, [open, destinatariosIniciais, segmentoInicial, mensagemPadrao, itensFiltrados])
 
-  // Cliente focado na prévia
+  // Troca de modelo de mensagem pré-cadastrado via dropdown
+  const handleSelecionarTemplate = (templateId: string) => {
+    setTemplateSelecionadoId(templateId)
+    const achado = templates.find((t) => t.id === templateId)
+    if (achado && achado.conteudo) {
+      setTemplateTexto(achado.conteudo)
+      toast.info(`Modelo "${achado.titulo}" aplicado`, {
+        description: 'Você pode editar o texto livremente antes de enviar.',
+      })
+    }
+  }
+
+  // Cliente focado na prévia (sempre o primeiro selecionado ou o clicado)
   const itemFocado = useMemo(() => {
     if (clienteFocadoId) {
       const achado = itensProcessados.find((c) => c.cliente.id === clienteFocadoId)
@@ -251,10 +502,10 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
       const achado = itensProcessados.find((c) => c.cliente.id === primeiroSelecionadoId)
       if (achado) return achado
     }
-    return itensProcessados[0] || null
-  }, [clienteFocadoId, selectedIds, itensProcessados])
+    return itensFiltrados[0] || itensProcessados[0] || null
+  }, [clienteFocadoId, selectedIds, itensFiltrados, itensProcessados])
 
-  // Mensagem resolvida em tempo real para a prévia
+  // Mensagem resolvida em tempo real para a prévia do primeiro cliente selecionado
   const mensagemPreviaResolvida = useMemo(() => {
     if (!itemFocado) return templateTexto
     return resolverPlaceholdersMensagemMassa({
@@ -296,10 +547,14 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
   }
 
   const handleSelectAll = () => {
-    if (selectedIds.length === itensFiltrados.length) {
-      setSelectedIds([])
+    const idsVisiveis = itensFiltrados.map((c) => c.cliente.id)
+    const todosVisiveisEstaoSelecionados =
+      idsVisiveis.length > 0 && idsVisiveis.every((id) => selectedIds.includes(id))
+
+    if (todosVisiveisEstaoSelecionados) {
+      setSelectedIds((prev) => prev.filter((id) => !idsVisiveis.includes(id)))
     } else {
-      setSelectedIds(itensFiltrados.map((c) => c.cliente.id))
+      setSelectedIds((prev) => Array.from(new Set([...prev, ...idsVisiveis])))
     }
   }
 
@@ -329,7 +584,7 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
     }
   }
 
-  // Disparo individual em massa para cada cliente selecionado
+  // Disparo individual em massa sequencial via Z-API
   const handleConfirmarEnvio = async () => {
     if (selectedIds.length === 0) {
       toast.error('Selecione ao menos um cliente para enviar.')
@@ -352,6 +607,7 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
       atual: 0,
       sucessos: [] as string[],
       erros: [] as Array<{ clienteNome: string; erro: string }>,
+      avisosDemo: [] as string[],
     }
     setProgressoEnvio({ ...estadoEnvio })
 
@@ -359,6 +615,16 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
       const item = selecionados[i]
       estadoEnvio.atual = i + 1
       setProgressoEnvio({ ...estadoEnvio })
+
+      // REGRA: Exemplos fictícios de demonstração NUNCA disparam para cliente real
+      if (item.isExemploDemo || item.cliente.id.startsWith('demo_')) {
+        estadoEnvio.avisosDemo.push(item.cliente.nome)
+        // Simula o delay visual da demonstração sem efetuar chamada externa
+        await new Promise((resolve) => setTimeout(resolve, 400))
+        estadoEnvio.sucessos.push(`${item.cliente.nome} (Demonstração)`)
+        setProgressoEnvio({ ...estadoEnvio })
+        continue
+      }
 
       if (!item.temWhatsAppValido) {
         estadoEnvio.erros.push({
@@ -378,6 +644,7 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
       })
 
       try {
+        // Disparo via gateway Z-API Z-API
         await sendWhatsAppMessage({
           cliente_id: item.cliente.id,
           telefone_destino: item.numeroLimpo,
@@ -385,12 +652,12 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
           tipo_disparo: 'massa',
         })
 
-        // Registra atividade no CRM para histórico do cliente
+        // Registra atividade autoritativa do tipo 'mensagem_enviada' no CRM
         const agora = new Date().toISOString()
         await addAtividade({
           cliente_id: item.cliente.id,
-          tipo: 'follow_up',
-          titulo: 'Mensagem Individual via WhatsApp (Envio em Massa)',
+          tipo: 'mensagem_enviada',
+          titulo: 'Mensagem via WhatsApp (Disparo em Massa)',
           descricao: `Mensagem enviada via WhatsApp para ${item.cliente.nome}:\n\n"${mensagemFinal}"`,
           data: agora,
           status: 'concluida',
@@ -426,37 +693,44 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
     setIsEnviando(false)
 
     if (estadoEnvio.sucessos.length > 0) {
-      toast.success(`Mensagem enviada para ${estadoEnvio.sucessos.length} cliente(s)!`, {
+      toast.success(`${estadoEnvio.sucessos.length} mensagem(ns) enviada(s) com sucesso!`, {
         description:
-          'Mensagens individuais disparadas via Z-API e registradas no histórico do CRM.',
+          'Atividade "mensagem_enviada" registrada no histórico de cada cliente e vinculada à conversa.',
       })
       if (onSuccess) onSuccess()
     }
 
     if (estadoEnvio.erros.length > 0) {
       toast.error(`Falha no envio para ${estadoEnvio.erros.length} cliente(s)`, {
-        description: 'Verifique o status individual dos envios no painel.',
+        description: 'Verifique as falhas parciais detalhadas na barra de envio.',
       })
     }
   }
 
-  const isAllSelected = itensFiltrados.length > 0 && selectedIds.length === itensFiltrados.length
+  const isAllSelected =
+    itensFiltrados.length > 0 &&
+    itensFiltrados.every((item) => selectedIds.includes(item.cliente.id))
+
+  const countSegmento = (seg: SegmentoFiltro) => {
+    if (seg === 'todos') return itensProcessados.length
+    return itensProcessados.filter((i) => i.segmentos.includes(seg)).length
+  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[92vh] flex flex-col p-0 overflow-hidden sm:rounded-2xl">
+      <DialogContent className="max-w-5xl max-h-[94vh] flex flex-col p-0 overflow-hidden sm:rounded-2xl">
         {/* Header Visual */}
-        <DialogHeader className="p-5 sm:p-6 pb-4 border-b bg-gradient-to-r from-emerald-50 via-white to-teal-50/50">
+        <DialogHeader className="p-4 sm:p-5 pb-3 border-b bg-gradient-to-r from-sky-50 via-white to-blue-50/50">
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-3">
-              <div className="p-2.5 rounded-xl bg-emerald-100 text-emerald-800 border border-emerald-200 shadow-xs">
-                <MessageSquare className="w-5 h-5 text-emerald-600" />
+              <div className="p-2.5 rounded-xl bg-[#0284C7] text-white shadow-xs">
+                <MessageSquare className="w-5 h-5 text-white" />
               </div>
               <div>
-                <DialogTitle className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                <DialogTitle className="text-lg sm:text-xl font-bold text-gray-900 flex items-center gap-2 flex-wrap">
                   <span>{titulo}</span>
-                  <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
-                    Disparo Individual
+                  <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-sky-100 text-sky-800 border border-sky-300">
+                    Disparo Individual Z-API
                   </span>
                 </DialogTitle>
                 <DialogDescription className="text-xs text-gray-500 mt-0.5">
@@ -466,13 +740,13 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
             </div>
 
             {whatsAppConfig && (
-              <div className="hidden sm:flex items-center gap-1.5 text-[11px] font-medium text-gray-500 bg-white px-2.5 py-1 rounded-lg border border-gray-200 shadow-2xs">
+              <div className="hidden sm:flex items-center gap-1.5 text-[11px] font-medium text-gray-600 bg-white px-2.5 py-1 rounded-lg border border-gray-200 shadow-2xs">
                 <span
                   className={`w-2 h-2 rounded-full ${
                     whatsAppConfig.configured ? 'bg-emerald-500' : 'bg-amber-500'
                   }`}
                 />
-                <span>Z-API {whatsAppConfig.configured ? 'Conectada' : 'Pendente'}</span>
+                <span>Z-API {whatsAppConfig.configured ? 'Ativa' : 'Pendente'}</span>
               </div>
             )}
           </div>
@@ -485,66 +759,123 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
           </div>
         )}
 
-        {/* Barra de Progresso */}
+        {/* Barra de Progresso e Resumo de Envio */}
         {progressoEnvio && (
-          <div className="p-4 bg-slate-50 border-b space-y-2">
-            <div className="flex items-center justify-between text-xs font-bold text-gray-700">
+          <div className="p-3.5 sm:p-4 bg-slate-50 border-b space-y-2">
+            <div className="flex items-center justify-between text-xs font-bold text-gray-800">
               <span className="flex items-center gap-2">
                 {isEnviando ? (
-                  <Loader2 className="w-4 h-4 text-emerald-600 animate-spin" />
+                  <Loader2 className="w-4 h-4 text-[#0284C7] animate-spin" />
                 ) : (
                   <CheckCircle2 className="w-4 h-4 text-emerald-600" />
                 )}
                 <span>
-                  {isEnviando ? 'Disparando mensagens via Z-API...' : 'Envios concluídos'}
+                  {isEnviando
+                    ? `Enviando ${progressoEnvio.atual} de ${progressoEnvio.total}...`
+                    : `${progressoEnvio.sucessos.length} mensagens enviadas com sucesso`}
                 </span>
               </span>
-              <span>
-                {progressoEnvio.atual} de {progressoEnvio.total}
+              <span className="text-gray-500 font-mono">
+                {progressoEnvio.atual} / {progressoEnvio.total}
               </span>
             </div>
+
             <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
               <div
-                className="bg-emerald-600 h-2 transition-all duration-300"
+                className="bg-[#0284C7] h-2 transition-all duration-300"
                 style={{
                   width: `${(progressoEnvio.atual / Math.max(progressoEnvio.total, 1)) * 100}%`,
                 }}
               />
             </div>
-            <div className="flex items-center justify-between text-[11px] text-gray-500">
-              <span className="text-emerald-700 font-semibold">
-                ✓ Sucesso: {progressoEnvio.sucessos.length}
+
+            <div className="flex items-center justify-between text-[11px] text-gray-600 flex-wrap gap-2">
+              <span className="text-emerald-700 font-semibold flex items-center gap-1">
+                <Check className="w-3 h-3" />
+                Sucesso: {progressoEnvio.sucessos.length}
               </span>
               {progressoEnvio.erros.length > 0 && (
-                <span className="text-rose-700 font-semibold">
-                  ✕ Falhas: {progressoEnvio.erros.length}
+                <span className="text-rose-700 font-semibold flex items-center gap-1">
+                  <AlertCircle className="w-3 h-3" />
+                  Falhas: {progressoEnvio.erros.length}
                 </span>
               )}
             </div>
+
+            {/* Lista expansível de falhas parciais */}
+            {progressoEnvio.erros.length > 0 && (
+              <div className="mt-2 p-2 bg-rose-50 border border-rose-200 rounded-lg max-h-24 overflow-y-auto text-[11px] space-y-1 text-rose-800">
+                <p className="font-bold">Detalhes das falhas parciais:</p>
+                {progressoEnvio.erros.map((falha, idx) => (
+                  <div key={idx} className="flex items-center justify-between gap-2">
+                    <span className="font-semibold">{falha.clienteNome}:</span>
+                    <span className="text-rose-600 truncate">{falha.erro}</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
         {/* Corpo do Modal em 2 Colunas */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6 grid grid-cols-1 lg:grid-cols-12 gap-5">
+        <div className="flex-1 overflow-y-auto p-3.5 sm:p-5 grid grid-cols-1 lg:grid-cols-12 gap-5">
           {/* ======================================================== */}
-          {/* COLUNA ESQUERDA (lg:col-span-6): SELEÇÃO DE CLIENTES     */}
+          {/* COLUNA ESQUERDA (lg:col-span-6): DESTINATÁRIOS & SEGMENTO */}
           {/* ======================================================== */}
           <div className="lg:col-span-6 flex flex-col space-y-3">
-            <div className="flex items-center justify-between">
-              <Label className="text-xs font-bold uppercase tracking-wider text-gray-700 flex items-center gap-1.5">
-                <Building2 className="w-4 h-4 text-emerald-600" />
-                <span>Destinatários ({selectedIds.length} selecionados)</span>
-              </Label>
-              <button
-                type="button"
-                onClick={handleSelectAll}
-                className="text-xs font-semibold text-emerald-700 hover:text-emerald-900 underline"
-              >
-                {isAllSelected ? 'Desmarcar todos' : 'Selecionar todos'}
-              </button>
+            {/* Filtros por Segmento de Clientes */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs font-bold uppercase tracking-wider text-gray-700 flex items-center gap-1.5">
+                  <Filter className="w-3.5 h-3.5 text-[#0284C7]" />
+                  <span>Filtrar por Segmento</span>
+                </Label>
+                <button
+                  type="button"
+                  onClick={handleSelectAll}
+                  className="text-xs font-semibold text-[#0284C7] hover:underline"
+                >
+                  {isAllSelected ? 'Desmarcar todos' : 'Selecionar todos'}
+                </button>
+              </div>
+
+              {/* Pílulas de segmentos */}
+              <div className="flex items-center gap-1.5 flex-wrap">
+                {[
+                  { id: 'todos', label: 'Todos' },
+                  { id: 'clientes_om', label: 'Clientes O&M' },
+                  { id: 'clientes_solar', label: 'Clientes Solar' },
+                  { id: 'clientes_bateria', label: 'Clientes Bateria' },
+                  { id: 'pos_vendas', label: 'Pós-Venda' },
+                ].map((seg) => {
+                  const isAtivo = segmentoAtivo === seg.id
+                  const count = countSegmento(seg.id as SegmentoFiltro)
+                  return (
+                    <button
+                      key={seg.id}
+                      type="button"
+                      onClick={() => setSegmentoAtivo(seg.id as SegmentoFiltro)}
+                      className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all ${
+                        isAtivo
+                          ? 'bg-[#0284C7] text-white shadow-2xs'
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      }`}
+                    >
+                      <span>{seg.label}</span>
+                      <span
+                        className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                          isAtivo ? 'bg-white/20 text-white' : 'bg-white text-gray-600'
+                        }`}
+                      >
+                        {count}
+                      </span>
+                    </button>
+                  )
+                })}
+              </div>
             </div>
 
-            {/* Barra de Busca */}
+            {/* Campo de Busca por Cliente */}
             <div className="relative">
               <Search className="w-4 h-4 text-gray-400 absolute left-3 top-2.5" />
               <Input
@@ -555,12 +886,29 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
               />
             </div>
 
-            {/* Lista com Rolagem e Seleção */}
-            <div className="flex-1 border border-gray-200 rounded-xl overflow-hidden bg-white max-h-[380px] overflow-y-auto divide-y divide-gray-100 shadow-2xs">
+            {/* Resumo de Seleção */}
+            <div className="flex items-center justify-between text-xs text-gray-600 px-1">
+              <span>
+                <strong className="text-gray-900">{selectedIds.length}</strong> de{' '}
+                {itensFiltrados.length} destinatários selecionados
+              </span>
+              {selectedIds.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setSelectedIds([])}
+                  className="text-gray-400 hover:text-gray-700 underline text-[11px]"
+                >
+                  Limpar seleção
+                </button>
+              )}
+            </div>
+
+            {/* Lista com Rolagem e Seleção com Checkbox Múltiplo */}
+            <div className="flex-1 border border-gray-200 rounded-xl overflow-hidden bg-white max-h-[360px] overflow-y-auto divide-y divide-gray-100 shadow-2xs">
               {itensFiltrados.length === 0 ? (
                 <div className="p-8 text-center text-xs text-gray-500 space-y-1">
-                  <p className="font-semibold text-gray-700">Nenhum cliente encontrado</p>
-                  <p>Tente alterar o termo de busca.</p>
+                  <p className="font-semibold text-gray-700">Nenhum cliente neste filtro</p>
+                  <p>Tente selecionar outro segmento ou limpar a busca.</p>
                 </div>
               ) : (
                 itensFiltrados.map((item) => {
@@ -572,9 +920,9 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
                     <div
                       key={item.cliente.id}
                       onClick={() => setClienteFocadoId(item.cliente.id)}
-                      className={`p-3 transition-colors cursor-pointer flex flex-col gap-2 ${
+                      className={`p-3 transition-colors cursor-pointer flex flex-col gap-1.5 ${
                         isFocado
-                          ? 'bg-emerald-50/70 border-l-4 border-l-emerald-600'
+                          ? 'bg-sky-50/70 border-l-4 border-l-[#0284C7]'
                           : 'hover:bg-slate-50'
                       }`}
                     >
@@ -588,10 +936,10 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
                         >
                           <button
                             type="button"
-                            className="mt-0.5 text-gray-400 hover:text-emerald-700 transition-colors shrink-0"
+                            className="mt-0.5 text-gray-400 hover:text-[#0284C7] transition-colors shrink-0"
                           >
                             {isChecked ? (
-                              <CheckSquare className="w-4 h-4 text-emerald-600" />
+                              <CheckSquare className="w-4 h-4 text-[#0284C7]" />
                             ) : (
                               <Square className="w-4 h-4 text-gray-400" />
                             )}
@@ -606,9 +954,9 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
                                   {item.cidade}
                                 </span>
                               )}
-                              {item.origemItem && (
-                                <span className="text-[10px] text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.2 rounded font-medium">
-                                  {item.origemItem}
+                              {item.isExemploDemo && (
+                                <span className="text-[10px] text-amber-800 bg-amber-100 border border-amber-300 px-1.5 py-0.2 rounded font-bold">
+                                  Exemplo (Demo)
                                 </span>
                               )}
                             </div>
@@ -651,7 +999,7 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
                               size="sm"
                               type="button"
                               onClick={() => handleSalvarTelefoneInline(item.cliente)}
-                              className="h-7 px-2 text-xs bg-emerald-600 hover:bg-emerald-700 text-white"
+                              className="h-7 px-2 text-xs bg-[#0284C7] hover:bg-[#0369a1] text-white"
                             >
                               Salvar
                             </Button>
@@ -671,7 +1019,7 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
                         ) : (
                           <>
                             <div className="flex items-center gap-1.5">
-                              <Phone className="w-3 h-3 text-emerald-600" />
+                              <Phone className="w-3 h-3 text-[#0284C7]" />
                               {item.temWhatsAppValido ? (
                                 <span className="font-medium text-gray-800">
                                   {item.telefoneAutoritativo}
@@ -683,19 +1031,21 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
                                 </span>
                               )}
                             </div>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setEditandoTelefoneId(item.cliente.id)
-                                setTelefoneEmEdicao(item.telefoneAutoritativo)
-                              }}
-                              className="text-[10px] text-emerald-700 hover:text-emerald-900 font-semibold underline inline-flex items-center gap-1"
-                            >
-                              <Edit2 className="w-2.5 h-2.5" />
-                              <span>
-                                {item.temWhatsAppValido ? 'Alterar' : 'Informar WhatsApp'}
-                              </span>
-                            </button>
+                            {!item.isExemploDemo && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setEditandoTelefoneId(item.cliente.id)
+                                  setTelefoneEmEdicao(item.telefoneAutoritativo)
+                                }}
+                                className="text-[10px] text-[#0284C7] hover:underline font-semibold inline-flex items-center gap-1"
+                              >
+                                <Edit2 className="w-2.5 h-2.5" />
+                                <span>
+                                  {item.temWhatsAppValido ? 'Alterar' : 'Informar WhatsApp'}
+                                </span>
+                              </button>
+                            )}
                           </>
                         )}
                       </div>
@@ -706,46 +1056,68 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
             </div>
 
             <div className="text-[11px] text-gray-500 bg-slate-50 p-2.5 rounded-lg border border-slate-200 flex items-start gap-2">
-              <Info className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+              <Info className="w-4 h-4 text-[#0284C7] shrink-0 mt-0.5" />
               <span>
-                Cada cliente selecionado receberá uma mensagem individual via WhatsApp preenchida
-                com seus dados pessoais, potência da usina e cidade.
+                O envio utiliza o número autoritativo do WhatsApp do cliente via Z-API, sem abrir
+                WhatsApp Web. Cada disparo registra uma atividade <strong>mensagem_enviada</strong>{' '}
+                no histórico do CRM.
               </span>
             </div>
           </div>
 
           {/* ======================================================== */}
-          {/* COLUNA DIREITA (lg:col-span-6): EDITOR & PRÉVIA          */}
+          {/* COLUNA DIREITA (lg:col-span-6): MODELOS & PRÉ-VISUALIZAÇÃO */}
           {/* ======================================================== */}
-          <div className="lg:col-span-6 flex flex-col space-y-3.5">
-            {/* Editor de Texto com Placeholders */}
-            <div className="space-y-1.5 flex-1 flex flex-col">
+          <div className="lg:col-span-6 flex flex-col space-y-3">
+            {/* Dropdown com Modelos Pré-Cadastrados */}
+            <div className="space-y-1.5">
               <div className="flex items-center justify-between">
-                <Label className="text-xs font-bold uppercase tracking-wider text-gray-700">
-                  Mensagem com Placeholders
+                <Label className="text-xs font-bold uppercase tracking-wider text-gray-700 flex items-center gap-1.5">
+                  <FileText className="w-3.5 h-3.5 text-[#0284C7]" />
+                  <span>Modelos de Mensagem</span>
                 </Label>
                 <button
                   type="button"
                   onClick={() => setTemplateTexto(mensagemPadrao || MENSAGEM_INICIAL_DEFAULT)}
-                  className="text-[11px] text-gray-500 hover:text-emerald-700 underline"
+                  className="text-[11px] text-gray-500 hover:text-[#0284C7] underline flex items-center gap-1"
                 >
-                  Restaurar padrão
+                  <RotateCcw className="w-3 h-3" />
+                  <span>Restaurar padrão</span>
                 </button>
               </div>
 
+              <select
+                value={templateSelecionadoId}
+                onChange={(e) => handleSelecionarTemplate(e.target.value)}
+                className="w-full text-xs font-medium py-2 px-2.5 rounded-lg border border-gray-200 bg-white text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#0284C7]"
+              >
+                <option value="">Selecione um modelo pré-cadastrado...</option>
+                {templates.map((tpl) => (
+                  <option key={tpl.id} value={tpl.id}>
+                    {tpl.titulo}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Campo de Texto Editável */}
+            <div className="space-y-1.5 flex-1 flex flex-col">
+              <Label className="text-xs font-bold uppercase tracking-wider text-gray-700">
+                Texto da Mensagem (com Tags Dinâmicas)
+              </Label>
               <Textarea
                 ref={textareaRef}
-                rows={6}
+                rows={5}
                 value={templateTexto}
                 onChange={(e) => setTemplateTexto(e.target.value)}
                 className="text-xs font-mono bg-white resize-none p-2.5 leading-relaxed"
                 placeholder="Digite a mensagem com os placeholders [nome do cliente], [cidade], [potência], [valor]..."
               />
 
-              {/* Botões clicáveis de Placeholders para inserção rápida */}
+              {/* Inserção das Tags Dinâmicas com Um Clique */}
               <div className="space-y-1 pt-1">
                 <span className="text-[10px] font-bold text-gray-700 block">
-                  Clique para inserir no texto:
+                  Inserir tag com um clique:
                 </span>
                 <div className="flex items-center gap-1.5 flex-wrap">
                   {PLACEHOLDERS_ENVIO_MASSA.map((p) => (
@@ -753,7 +1125,7 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
                       key={p.tag}
                       type="button"
                       onClick={() => handleInsertPlaceholder(p.tag)}
-                      className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-md bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 font-mono font-medium transition-colors shadow-2xs"
+                      className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-md bg-sky-50 hover:bg-sky-100 text-sky-800 border border-sky-300 font-mono font-medium transition-colors shadow-2xs"
                       title={p.descricao}
                     >
                       <span>{p.tag}</span>
@@ -763,12 +1135,17 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
               </div>
             </div>
 
-            {/* Pré-visualização da Mensagem */}
+            {/* PREVIEW da Mensagem Resolvida para o Primeiro Cliente Selecionado */}
             <div className="bg-slate-50 rounded-xl p-3.5 border border-slate-200 space-y-2">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold text-gray-800 flex items-center gap-1.5">
-                  <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
-                  <span>Prévia: {itemFocado?.cliente.nome || 'Cliente Selecionado'}</span>
+                  <Sparkles className="w-3.5 h-3.5 text-[#0284C7]" />
+                  <span>
+                    Prévia:{' '}
+                    <strong className="text-sky-900">
+                      {itemFocado ? itemFocado.cliente.nome : 'Nenhum cliente selecionado'}
+                    </strong>
+                  </span>
                 </span>
                 <button
                   type="button"
@@ -784,12 +1161,12 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
                 </button>
               </div>
 
-              {/* Balão estilo WhatsApp */}
-              <div className="bg-[#DCF8C6]/80 text-gray-900 text-xs p-3 rounded-xl rounded-tr-none shadow-xs border border-emerald-200/60 whitespace-pre-wrap leading-relaxed max-h-48 overflow-y-auto font-sans">
+              {/* Balão WhatsApp Prévia */}
+              <div className="bg-[#DCF8C6]/85 text-gray-900 text-xs p-3 rounded-xl rounded-tr-none shadow-xs border border-emerald-200/60 whitespace-pre-wrap leading-relaxed max-h-36 overflow-y-auto font-sans">
                 {mensagemPreviaResolvida}
               </div>
 
-              {/* Resumo de dados resolvidos */}
+              {/* Dados Resolvidos na Prévia */}
               {itemFocado && (
                 <div className="grid grid-cols-3 gap-2 text-center text-[10px] pt-1">
                   <div className="p-1.5 bg-white rounded border border-gray-200">
@@ -806,7 +1183,7 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
                   </div>
                   <div className="p-1.5 bg-white rounded border border-gray-200">
                     <span className="text-gray-400 block">Potência</span>
-                    <span className="font-bold text-emerald-700">{itemFocado.potenciaTexto}</span>
+                    <span className="font-bold text-sky-800">{itemFocado.potenciaTexto}</span>
                   </div>
                 </div>
               )}
@@ -815,7 +1192,7 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
         </div>
 
         {/* Rodapé de Ações */}
-        <div className="p-4 sm:p-5 border-t bg-gray-50 flex flex-col sm:flex-row items-center justify-between gap-3">
+        <div className="p-3.5 sm:p-5 border-t bg-gray-50 flex flex-col sm:flex-row items-center justify-between gap-3">
           <div className="text-xs text-gray-600 text-center sm:text-left">
             <span className="font-bold text-gray-900">
               {selectedIds.length === 1
@@ -824,7 +1201,7 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
             </span>
             <span className="hidden sm:inline">
               {' '}
-              • Disparo individual via Z-API com registro de atividade no CRM
+              • Disparo sequencial via Z-API com registro de atividade no CRM
             </span>
           </div>
 
@@ -843,7 +1220,7 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
               type="button"
               disabled={isEnviando || selectedIds.length === 0}
               onClick={handleConfirmarEnvio}
-              className="bg-[#16A34A] hover:bg-[#15803D] text-white text-xs font-bold shadow-sm flex items-center gap-2 px-4"
+              className="bg-[#0284C7] hover:bg-[#0369a1] text-white text-xs font-bold shadow-sm flex items-center gap-2 px-4"
             >
               {isEnviando ? (
                 <>
@@ -858,7 +1235,7 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
                   <Send className="w-4 h-4" />
                   <span>
                     {selectedIds.length <= 1
-                      ? 'Enviar Mensagem por WhatsApp'
+                      ? 'Enviar Mensagem'
                       : `Enviar para ${selectedIds.length} Clientes`}
                   </span>
                 </>

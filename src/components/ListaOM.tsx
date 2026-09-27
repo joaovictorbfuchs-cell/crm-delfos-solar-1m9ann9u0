@@ -566,10 +566,27 @@ export const ListaOM: React.FC<ListaOMProps> = ({
       <ModalMensagemWhatsAppMassa
         open={isModalMensagemOpen}
         onOpenChange={setIsModalMensagemOpen}
-        destinatariosIniciais={destinatariosMensagem}
-        titulo="Enviar Mensagem para Clientes Pós-Vendas & Limpeza"
-        descricao="Envie mensagens individuais no WhatsApp para os clientes de pós-vendas e oportunidades de limpeza/manutenção."
+        destinatariosIniciais={destinatariosMensagem.length > 0 ? destinatariosMensagem : undefined}
+        segmentoInicial="clientes_om"
+        titulo="Disparar Mensagens para Clientes O&M"
+        descricao="Envie mensagens individuais no WhatsApp via Z-API para os clientes de O&M e pós-vendas com tags dinâmicas."
       />
+
+      {/* Botão topo Enviar mensagem em massa para O&M */}
+      <div className="flex items-center justify-end pt-1 pb-2">
+        <button
+          type="button"
+          onClick={() => {
+            setClienteParaMensagem(null)
+            setIsModalMensagemOpen(true)
+          }}
+          className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-[#0284C7] hover:bg-[#0369a1] text-white rounded-xl transition-colors text-xs font-bold shadow-xs"
+          title="Disparar mensagens em massa via WhatsApp para clientes com contrato O&M"
+        >
+          <MessageSquare className="w-3.5 h-3.5" />
+          <span>Enviar mensagem em massa</span>
+        </button>
+      </div>
 
       {/* Barra de Filtros e Busca (Apenas para sub-aba pós-vendas) */}
       {currentSubTab === 'pos_vendas' && (
@@ -662,13 +679,12 @@ export const ListaOM: React.FC<ListaOMProps> = ({
                 </button>
                 <button
                   type="button"
-                  onClick={() => setIsModalMensagemOpen(true)}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#16A34A] hover:bg-[#15803D] text-white rounded-lg text-xs font-bold transition-colors shadow-2xs"
+                  onClick={() => setModalMassaAberto(true)}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#0284C7] text-white rounded-lg hover:bg-[#0369a1] transition-colors font-semibold shadow-2xs"
                 >
                   <MessageSquare className="w-3.5 h-3.5" />
-                  <span>Enviar mensagem para selecionados ({selectedPosVendasIds.length})</span>
-                </button>
-              </div>
+                  Enviar mensagem em massa ({selectedPosVendasIds.length})
+                </button>              </div>
             </div>
           )}
 
