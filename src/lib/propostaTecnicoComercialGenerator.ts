@@ -1032,26 +1032,28 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
     .card-portfolio-thumb-wrap {
       position: relative;
       width: 100%;
-      height: 105px;
+      height: 118px;
       background: #F1F5F9;
       overflow: hidden;
       border-bottom: 1px solid #E2E8F0;
       display: flex;
       align-items: center;
       justify-content: center;
+      box-sizing: border-box;
+      padding: 9px 9px 8px 9px;
     }
     .card-portfolio-thumb-img {
       width: 100%;
       height: 100%;
-      object-fit: contain;
+      object-fit: cover;
+      object-position: center;
       display: block;
-      border-top-left-radius: 9px;
-      border-top-right-radius: 9px;
+      border-radius: 6px;
     }
     .card-portfolio-badge-tipo {
       position: absolute;
-      top: 6px;
-      left: 6px;
+      top: 13px;
+      left: 13px;
       font-size: 8pt;
       font-weight: 800;
       padding: 2px 6px;
@@ -1059,11 +1061,12 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
       text-transform: uppercase;
       letter-spacing: 0.04em;
       box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+      z-index: 2;
     }
     .card-portfolio-badge-pot {
       position: absolute;
-      bottom: 6px;
-      right: 6px;
+      bottom: 12px;
+      right: 13px;
       background: rgba(10, 83, 158, 0.92);
       color: #FFFFFF;
       font-size: 8.5pt;
@@ -1072,6 +1075,7 @@ export function gerarHTMLPropostaTecnicoComercial(dados: PropostaTecnicoComercia
       border-radius: 9999px;
       border: 1px solid rgba(255, 255, 255, 0.3);
       box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+      z-index: 2;
     }
     .card-portfolio-info {
       padding: 6px 8px 7px 8px;

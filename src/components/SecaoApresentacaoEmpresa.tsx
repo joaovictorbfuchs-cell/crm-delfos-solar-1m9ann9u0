@@ -244,19 +244,19 @@ export const SecaoApresentacaoEmpresa: React.FC<SecaoApresentacaoEmpresaProps> =
                   key={u.id}
                   className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-xs hover:shadow-md transition-shadow flex flex-col justify-between"
                 >
-                  <div className="relative w-full h-36 bg-slate-100 overflow-hidden border-b border-slate-200 flex items-center justify-center">
+                  <div className="relative w-full h-36 bg-slate-100 overflow-hidden border-b border-slate-200 flex items-center justify-center p-[9px] pb-[8px] box-border">
                     <img
                       src={u.foto}
                       alt={u.titulo}
-                      className="w-full h-full object-contain"
+                      className="w-full h-full object-cover rounded-md"
                       loading="lazy"
                     />
                     <span
-                      className={`absolute top-2 left-2 text-[10px] font-extrabold px-2 py-0.5 rounded-full uppercase tracking-wider border border-white/30 shadow-xs ${getBadgeTipoClass(u.tipo)}`}
+                      className={`absolute top-3 left-3 text-[10px] font-extrabold px-2 py-0.5 rounded-full uppercase tracking-wider border border-white/30 shadow-xs z-10 ${getBadgeTipoClass(u.tipo)}`}
                     >
                       {u.tipo}
                     </span>
-                    <span className="absolute bottom-2 right-2 bg-[#0A539E]/95 text-white text-[11px] font-extrabold px-2 py-0.5 rounded-full border border-white/30 shadow-xs">
+                    <span className="absolute bottom-3 right-3 bg-[#0A539E]/95 text-white text-[11px] font-extrabold px-2 py-0.5 rounded-full border border-white/30 shadow-xs z-10">
                       ⚡ {potTexto}
                     </span>
                   </div>
