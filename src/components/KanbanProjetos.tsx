@@ -19,6 +19,8 @@ import {
 import type { Projeto, ProjetoEtapa, Profissional, Atividade, OrcamentoSolar } from '@/types/crm'
 import { useClientes } from '@/contexts/ClientesContext'
 import { MobileKanbanViewport, type MobileKanbanStage } from '@/components/MobileKanbanViewport'
+import { WhatsAppIcon } from '@/components/WhatsAppIcon'
+import { cleanPhoneDigits } from '@/lib/formatters'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -562,6 +564,76 @@ export const KanbanProjetos: React.FC<KanbanProjetosProps> = ({
               const tituloUsinaDisplay = getTituloUsina(proj)
               const atividadePrazo = proximaAcao ? getAtividadePrazoInfo(proximaAcao) : null
 
+              // WhatsApp autoritativo: whatsapp tem prioridade sobre telefone
+              const rawWa = cliente?.whatsapp || cliente?.telefone || ''
+              const cleanWa = cleanPhoneDigits(rawWa)
+              const waDigits =
+                cleanWa.length >= 10 && !cleanWa.startsWith('55') ? `55${cleanWa}` : cleanWa
+
+              // ==============================================================
+              // VERSÃO MOBILE DO CARD: SUPER SIMPLIFICADA (NOME + WHATSAPP)
+              // ==============================================================
+              if (isMobile) {
+                return (
+                  <div
+                    key={proj.id}
+                    draggable
+                    onDragStart={(e) => handleDragStart(e, proj)}
+                    onDragEnd={handleDragEnd}
+                    onTouchStart={(e) => handleTouchStart(e, proj)}
+                    onTouchMove={handleTouchMove}
+                    onTouchEnd={handleTouchEnd}
+                    onClick={() => handleCardClick(proj)}
+                    className={`bg-white rounded-xl p-3 border transition-all duration-150 cursor-pointer active:cursor-grabbing group relative overflow-hidden min-w-0 flex items-center justify-between gap-2.5 ${
+                      isDraggingThis
+                        ? 'opacity-40 scale-95 border-emerald-400 shadow-inner'
+                        : 'border-slate-200/90 shadow-2xs hover:shadow-xs active:bg-gray-50'
+                    }`}
+                  >
+                    {/* Nome do cliente / negócio (ou título da usina) */}
+                    <div className="flex-1 min-w-0 pr-1">
+                      <div
+                        className="font-bold text-sm text-slate-900 truncate leading-snug"
+                        title={clienteNome}
+                      >
+                        {clienteNome}
+                      </div>
+                    </div>
+
+                    {/* Botão de contato direto via WhatsApp */}
+                    {waDigits ? (
+                      <a
+                        href={`https://wa.me/${waDigits}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        className="w-8 h-8 rounded-full bg-[#25D366] hover:bg-[#20ba59] active:scale-95 text-white flex items-center justify-center shadow-xs shrink-0 transition-transform"
+                        title={`Conversar com ${clienteNome} no WhatsApp`}
+                        aria-label={`Conversar com ${clienteNome} no WhatsApp`}
+                      >
+                        <WhatsAppIcon className="w-4 h-4" />
+                      </a>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleCardClick(proj)
+                        }}
+                        className="w-8 h-8 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center shrink-0"
+                        title="Sem WhatsApp cadastrado (clique para abrir)"
+                        aria-label="Sem WhatsApp cadastrado"
+                      >
+                        <WhatsAppIcon className="w-4 h-4 opacity-50" />
+                      </button>
+                    )}
+                  </div>
+                )
+              }
+
+              // ==============================================================
+              // VERSÃO DESKTOP DO CARD: COMPLETA COM AS 6 INFORMAÇÕES
+              // ==============================================================
               return (
                 <div
                   key={proj.id}

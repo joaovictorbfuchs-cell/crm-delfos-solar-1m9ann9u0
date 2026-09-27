@@ -216,8 +216,8 @@ export default function Comercial() {
             </button>
           </div>
 
-          <div className="flex items-center gap-2 flex-wrap justify-end">
-            {/* Botão padronizado Atualizar */}
+          <div className="hidden lg:flex items-center gap-2 flex-wrap justify-end">
+            {/* Botão padronizado Atualizar (apenas desktop — no mobile atualiza via realtime) */}
             <Button
               type="button"
               variant="outline"
@@ -229,7 +229,7 @@ export default function Comercial() {
               <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
             </Button>
 
-            {/* Botão Novo Lead no padrão exato minimalista */}
+            {/* Botão Novo Lead (apenas desktop — no mobile fica no header superior com o botão +) */}
             <button
               onClick={() => setIsNovoLeadOpen(true)}
               className="h-10 inline-flex items-center justify-center gap-2 px-4 bg-[#16A34A] hover:bg-[#15803D] active:scale-[0.98] text-white text-sm font-bold rounded-xl shadow-sm hover:shadow-md transition-all shrink-0 cursor-pointer"

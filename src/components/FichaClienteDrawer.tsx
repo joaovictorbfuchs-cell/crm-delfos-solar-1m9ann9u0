@@ -35,7 +35,13 @@ import {
   XCircle,
   RotateCcw,
   Briefcase,
+  ArrowLeft,
+  Share2,
+  Pencil,
+  MoreVertical,
 } from 'lucide-react'
+import { WhatsAppIcon } from './WhatsAppIcon'
+import { cleanPhoneDigits } from '@/lib/formatters'
 import { useClientes } from '@/contexts/ClientesContext'
 import {
   formatCurrency,
@@ -851,6 +857,49 @@ export const FichaClienteDrawer: React.FC = () => {
     selectedCliente.classe_consumo || selectedSistema?.classe_consumo || ''
   const tarifaExibida = selectedCliente.tarifa ?? selectedSistema?.tarifa ?? 0
 
+  // WhatsApp autoritativo para o drawer
+  const rawWaDrawer = selectedCliente.whatsapp || selectedCliente.telefone || ''
+  const cleanWaDrawer = cleanPhoneDigits(rawWaDrawer)
+  const waDigitsDrawer =
+    cleanWaDrawer.length >= 10 && !cleanWaDrawer.startsWith('55')
+      ? `55${cleanWaDrawer}`
+      : cleanWaDrawer
+  const rawTelDrawer = cleanPhoneDigits(selectedCliente.telefone || '')
+
+  // Funil comercial padrão ordenado para a barra de progresso mobile
+  const FUNIL_PROGRESS_STAGES: ClienteStatus[] = [
+    'Novo Lead',
+    'Levantamento',
+    'Orçamento',
+    'Negociação',
+    'Fechado',
+  ]
+  const currentStageIndex = FUNIL_PROGRESS_STAGES.indexOf(selectedCliente.status as ClienteStatus)
+  const stageProgressPct =
+    selectedCliente.status === 'Perdido'
+      ? 100
+      : currentStageIndex >= 0
+        ? Math.round(((currentStageIndex + 1) / FUNIL_PROGRESS_STAGES.length) * 100)
+        : 20
+
+  const handleShareCliente = async () => {
+    const shareText = `Cliente: ${selectedCliente.nome}\nStatus: ${selectedCliente.status}\nValor: ${formatCurrency(selectedCliente.valor_estimado || 0)}\nWhatsApp: ${selectedCliente.whatsapp || selectedCliente.telefone || 'N/A'}`
+    if (typeof navigator !== 'undefined' && navigator.share) {
+      try {
+        await navigator.share({
+          title: selectedCliente.nome,
+          text: shareText,
+          url: window.location.href,
+        })
+      } catch (err) {
+        // Usuário cancelou ou navegador não completou o share
+      }
+    } else if (typeof navigator !== 'undefined' && navigator.clipboard) {
+      await navigator.clipboard.writeText(shareText)
+      toast.success('Dados do negócio copiados para a área de transferência!')
+    }
+  }
+
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
       {/* Dark overlay backdrop */}
@@ -862,8 +911,177 @@ export const FichaClienteDrawer: React.FC = () => {
 
       {/* Drawer panel: ocupa quase toda a largura da tela no desktop (~calc(100vw - 68px)), deixando a sidebar visível; tela cheia no mobile */}
       <div className="relative z-50 w-full lg:w-[calc(100vw-68px)] max-w-full bg-white h-full shadow-2xl flex flex-col border-l border-gray-200 animate-in slide-in-from-right duration-250 ease-out">
-        {/* Top Header unificado com dados essenciais e fechar */}
-        <div className="p-4 border-b border-gray-100 flex items-center justify-between bg-white sticky top-0 z-20">
+        {/* ============================================================== */}
+        {/* HEADER MOBILE (apenas md:hidden) — Minimalista estilo Pipedrive  */}
+        {/* ============================================================== */}
+        <div className="md:hidden border-b border-gray-200 bg-white sticky top-0 z-20">
+          <div className="px-4 py-3 flex items-center justify-between gap-2">
+            {/* Esquerda: Botão Voltar */}
+            <button
+              type="button"
+              onClick={closeFichaCliente}
+              className="p-1.5 -ml-1 text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors flex items-center gap-1 font-medium text-xs"
+              aria-label="Voltar"
+            >
+              <ArrowLeft className="w-5 h-5 text-gray-700" />
+              <span>Voltar</span>
+            </button>
+
+            {/* Direita: Compartilhar, Editar e Menu ⋮ de Opções */}
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={handleShareCliente}
+                className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-full transition-colors"
+                title="Compartilhar negócio"
+                aria-label="Compartilhar negócio"
+              >
+                <Share2 className="w-4 h-4" />
+              </button>
+
+              <button
+                type="button"
+                onClick={handleToggleDetalhes}
+                className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-full transition-colors"
+                title="Editar detalhes do cliente"
+                aria-label="Editar detalhes"
+              >
+                <Pencil className="w-4 h-4" />
+              </button>
+
+              {/* Menu ⋮ de Opções com ações secundárias que saíram do topo */}
+              <div
+                className="flex items-center"
+                onClick={(e) => e.stopPropagation()}
+                onMouseDown={(e) => e.stopPropagation()}
+              >
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button
+                      type="button"
+                      className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-full transition-colors"
+                      title="Mais opções"
+                      aria-label="Mais opções do negócio"
+                    >
+                      <MoreVertical className="w-4 h-4" />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56 text-xs">
+                    {/* Opção Orçamento Solar */}
+                    <DropdownMenuItem
+                      onClick={() => {
+                        setOrcamentoSolarVisualizar(null)
+                        setIsModalOrcamentoSolarOpen(true)
+                      }}
+                      className="cursor-pointer gap-2 text-slate-700 text-xs"
+                    >
+                      <Sun className="w-4 h-4 text-emerald-600 shrink-0" />
+                      <span>Gerar Orçamento Solar</span>
+                    </DropdownMenuItem>
+
+                    {/* Opção Importar Documento */}
+                    <DropdownMenuItem
+                      onClick={() => setImportDocOpen(true)}
+                      className="cursor-pointer gap-2 text-slate-700 text-xs"
+                    >
+                      <UploadCloud className="w-4 h-4 text-emerald-600 shrink-0" />
+                      <span>Importar por Documento</span>
+                    </DropdownMenuItem>
+
+                    {/* Opção Atividades de Manutenção */}
+                    <DropdownMenuItem
+                      onClick={() => setDrawerAtividadesManutencaoOpen(true)}
+                      className="cursor-pointer gap-2 text-slate-700 text-xs"
+                    >
+                      <Wrench className="w-4 h-4 text-emerald-600 shrink-0" />
+                      <span>Atividades Manutenção</span>
+                    </DropdownMenuItem>
+
+                    <DropdownMenuSeparator />
+
+                    {/* Marcar como Perdido / Reabrir Oportunidade */}
+                    {[
+                      'Novo Lead',
+                      'Levantamento',
+                      'Orçamento',
+                      'Negociação',
+                      'Contato Futuro',
+                    ].includes(selectedCliente.status) &&
+                    !selectedCliente.transferido_pos_vendas &&
+                    !selectedCliente.status_pos_vendas ? (
+                      <DropdownMenuItem
+                        onClick={() => setModalPerdidoOpen(true)}
+                        className="cursor-pointer gap-2 text-rose-700 focus:text-rose-800 focus:bg-rose-50 font-medium"
+                      >
+                        <XCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                        <span>Marcar como Perdido</span>
+                      </DropdownMenuItem>
+                    ) : (
+                      <DropdownMenuItem
+                        onClick={() => setModalNovaOportunidadeOpen(true)}
+                        className="cursor-pointer gap-2 text-amber-700 focus:text-amber-800 focus:bg-amber-50 font-medium"
+                      >
+                        <Sparkles className="w-4 h-4 text-amber-600 shrink-0" />
+                        <span>Nova Oportunidade</span>
+                      </DropdownMenuItem>
+                    )}
+
+                    <DropdownMenuSeparator />
+
+                    <DropdownMenuItem
+                      onClick={() => setModalExcluirClienteOpen(true)}
+                      className="cursor-pointer gap-2 text-rose-600 focus:text-rose-700 focus:bg-rose-50"
+                    >
+                      <Trash2 className="w-4 h-4 shrink-0" />
+                      <span>Excluir cliente</span>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            </div>
+          </div>
+
+          {/* Destaque no topo mobile: Nome do negócio e Valor */}
+          <div className="px-4 pb-3">
+            <h1
+              className="text-lg font-bold text-gray-900 tracking-tight truncate leading-tight"
+              title={selectedCliente.nome}
+            >
+              {selectedCliente.nome}
+            </h1>
+            <div className="mt-1 flex items-baseline gap-2">
+              <span className="text-xl font-extrabold text-[#1a3a5c]">
+                {formatCurrency(selectedCliente.valor_estimado || 0)}
+              </span>
+              <span className="text-xs font-semibold text-slate-500 truncate">
+                • {selectedCliente.status}
+              </span>
+            </div>
+
+            {/* Barra de progresso visual mostrando a etapa atual do funil */}
+            <div className="mt-2.5">
+              <div className="flex items-center justify-between text-[11px] font-semibold text-slate-600 mb-1">
+                <span>Etapa: {selectedCliente.status}</span>
+                <span>{stageProgressPct}%</span>
+              </div>
+              <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden border border-slate-200">
+                <div
+                  className={`h-full rounded-full transition-all duration-300 ${
+                    selectedCliente.status === 'Perdido'
+                      ? 'bg-rose-500'
+                      : selectedCliente.status === 'Fechado'
+                        ? 'bg-emerald-600'
+                        : 'bg-emerald-500'
+                  }`}
+                  style={{ width: `${stageProgressPct}%` }}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Top Header desktop: dados essenciais e ações (inalterado no desktop: hidden md:flex) */}
+        <div className="hidden md:flex p-4 border-b border-gray-100 items-center justify-between bg-white sticky top-0 z-20">
           <div className="flex items-center gap-2.5 flex-wrap flex-1 min-w-0 pr-2">
             <InlineEditField
               value={selectedCliente.nome}
@@ -984,13 +1202,7 @@ export const FichaClienteDrawer: React.FC = () => {
             />
           </div>
           <div className="flex items-center gap-2">
-            {/* Botões de Decisão Comercial:
-                1) Marcar como Ganho e Marcar como Perdido
-                   Exibir quando o cliente está em etapa de funil de vendas
-                   (status em Novo Lead / Levantamento / Orçamento / Negociação / Contato Futuro)
-                   e NÃO transferido_pos_vendas / status_pos_vendas / status Fechado / Perdido
-                2) Botão "Nova Oportunidade" (Reabrir no Funil)
-                   Exibir SOMENTE para clientes já fechados (transferido_pos_vendas ou status_pos_vendas ou status Fechado ou com contrato O&M ativo) */}
+            {/* Botões de Decisão Comercial (desktop) */}
             {['Novo Lead', 'Levantamento', 'Orçamento', 'Negociação', 'Contato Futuro'].includes(
               selectedCliente.status,
             ) &&
@@ -1006,7 +1218,6 @@ export const FichaClienteDrawer: React.FC = () => {
                 <span>Marcar como Perdido</span>
               </button>
             ) : (
-              /* Clientes Fechados / Pós-Vendas / Monitoramento: Botão "Nova Oportunidade" */
               (selectedCliente.transferido_pos_vendas ||
                 Boolean(selectedCliente.status_pos_vendas) ||
                 selectedCliente.status === 'Fechado' ||
@@ -1073,23 +1284,70 @@ export const FichaClienteDrawer: React.FC = () => {
             >
               <X className="w-5 h-5" />
             </button>
-          </div>{' '}
+          </div>
         </div>
 
         {/* Layout Pipedrive em 2 Colunas:
             - Desktop: Flex horizontal (painel principal à esquerda 65-70%, resumo fixo à direita 30-35%)
-            - Mobile: Flex vertical (empilhado)
+            - Mobile: Flex vertical com scroll suave e livre de travamentos
         */}
-        <div className="flex-1 overflow-hidden flex flex-col md:flex-row bg-[#F8FAF9]/70">
+        <div className="flex-1 overflow-y-auto md:overflow-hidden flex flex-col md:flex-row bg-[#F8FAF9]/70 overscroll-contain">
           {/* ================================================================ */}
           {/* COLUNA ESQUERDA: PAINEL PRINCIPAL — ABA ÚNICA "HISTÓRICO"        */}
+          {/* No mobile: se detalhesOpen estiver ativo, oculta para focar      */}
           {/* ================================================================ */}
           <div
             ref={scrollContainerRef}
-            className="flex-1 overflow-y-auto flex flex-col min-w-0 border-b md:border-b-0 md:border-r border-gray-200/80 bg-white"
+            className={`flex-1 overflow-y-auto flex-col min-w-0 border-b md:border-b-0 md:border-r border-gray-200/80 bg-white ${
+              detalhesOpen ? 'hidden md:flex' : 'flex'
+            }`}
           >
-            {/* Header com Abas: "Histórico" e "Projeto" */}
-            <div className="sticky top-0 z-10 bg-white border-b border-gray-200 px-4 pt-3 flex items-center justify-between gap-2">
+            {/* Header com Abas:
+                - No MOBILE: apenas as 2 abas requeridas ("Linha do tempo" e "Detalhes")
+                - No DESKTOP: abas completas inalteradas ("Atividades", "Projeto", "O&M", "WhatsApp" + botão Ver Detalhes)
+            */}
+            {/* 1. ABAS MOBILE (md:hidden) */}
+            <div className="md:hidden sticky top-0 z-10 bg-white border-b border-gray-200 px-3 pt-2 flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveClientTab('historico')
+                  setDetalhesOpen(false)
+                }}
+                className={`flex-1 py-2 text-xs font-bold border-b-2 flex items-center justify-center gap-1.5 transition-colors ${
+                  activeClientTab === 'historico' && !detalhesOpen
+                    ? 'border-[#16A34A] text-[#166534] bg-emerald-50/60'
+                    : 'border-transparent text-gray-500 hover:text-gray-800'
+                }`}
+              >
+                <Clock className="w-3.5 h-3.5 text-[#16A34A]" />
+                <span>Linha do tempo</span>
+                {timelineAtividades.length > 0 && (
+                  <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-emerald-100 text-emerald-800 font-bold">
+                    {timelineAtividades.length}
+                  </span>
+                )}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveClientTab('historico')
+                  setDetalhesOpen(true)
+                }}
+                className={`flex-1 py-2 text-xs font-bold border-b-2 flex items-center justify-center gap-1.5 transition-colors ${
+                  detalhesOpen
+                    ? 'border-[#16A34A] text-[#166534] bg-emerald-50/60'
+                    : 'border-transparent text-gray-500 hover:text-gray-800'
+                }`}
+              >
+                <FileText className="w-3.5 h-3.5 text-emerald-600" />
+                <span>Detalhes</span>
+              </button>
+            </div>
+
+            {/* 2. ABAS DESKTOP (hidden md:flex) */}
+            <div className="hidden md:flex sticky top-0 z-10 bg-white border-b border-gray-200 px-4 pt-3 items-center justify-between gap-2">
               <div className="flex items-center gap-2">
                 <button
                   type="button"
@@ -1159,7 +1417,7 @@ export const FichaClienteDrawer: React.FC = () => {
                 </button>
               </div>
 
-              {/* Botão de alternar visualização dos Dados Completos / Técnicos */}
+              {/* Botão de alternar visualização dos Dados Completos / Técnicos (Desktop) */}
               <button
                 type="button"
                 onClick={handleToggleDetalhes}
@@ -3556,8 +3814,14 @@ export const FichaClienteDrawer: React.FC = () => {
           {/* ================================================================ */}
           {/* COLUNA DIREITA: PAINEL FIXO DE RESUMO (PIPEDRIVE SIDEBAR)        */}
           {/* Nome, telefone, cidade, potência, valor, estágio e próxima ativ. */}
+          {/* No mobile: visível quando a aba "Detalhes" estiver ativa         */}
+          {/* No desktop: sempre visível ao lado direito da tela               */}
           {/* ================================================================ */}
-          <div className="w-full md:w-[320px] lg:w-[360px] shrink-0 bg-[#F8FAF9] p-4 sm:p-5 space-y-4 overflow-y-auto border-t md:border-t-0">
+          <div
+            className={`w-full md:w-[320px] lg:w-[360px] shrink-0 bg-[#F8FAF9] p-4 sm:p-5 space-y-4 overflow-y-auto border-t md:border-t-0 ${
+              detalhesOpen ? 'block' : 'hidden md:block'
+            }`}
+          >
             <div className="text-xs font-bold uppercase tracking-wider text-gray-500 flex items-center justify-between">
               <span className="flex items-center gap-1.5">
                 <TrendingUp className="w-3.5 h-3.5 text-emerald-600" />
@@ -3828,6 +4092,94 @@ export const FichaClienteDrawer: React.FC = () => {
               </button>
             </div>
           </div>
+        </div>
+
+        {/* ============================================================== */}
+        {/* BOTTOM BAR FLUTUANTE MOBILE (MD:HIDDEN) — AÇÕES RÁPIDAS        */}
+        {/* Adicionar (+), Telefonar, WhatsApp, Email                     */}
+        {/* ============================================================== */}
+        <div className="md:hidden sticky bottom-0 z-30 bg-white/95 backdrop-blur-md border-t border-gray-200 px-4 py-2.5 flex items-center justify-between gap-3 shadow-[0_-4px_12px_rgba(0,0,0,0.06)]">
+          {/* 1. Botão Adicionar Atividade (+) */}
+          <button
+            type="button"
+            onClick={() => {
+              setModalNovaAtividadeTipoFicha(null)
+              setModalNovaAtividadeFichaOpen(true)
+            }}
+            className="flex-1 inline-flex items-center justify-center gap-1.5 py-2.5 px-3 bg-[#16A34A] hover:bg-[#15803D] active:scale-[0.98] text-white text-xs font-bold rounded-xl shadow-xs transition-all"
+            title="Adicionar nova atividade / anotação"
+          >
+            <Plus className="w-4 h-4 stroke-[2.5]" />
+            <span>Atividade</span>
+          </button>
+
+          {/* 2. Botão Telefonar */}
+          {rawTelDrawer ? (
+            <a
+              href={`tel:${rawTelDrawer}`}
+              className="w-10 h-10 rounded-xl bg-blue-50 hover:bg-blue-100 active:scale-95 text-blue-700 border border-blue-200 flex items-center justify-center shrink-0 transition-transform shadow-2xs"
+              title={`Ligar para ${selectedCliente.nome} (${selectedCliente.telefone})`}
+              aria-label="Ligar para o cliente"
+            >
+              <Phone className="w-4 h-4" />
+            </a>
+          ) : (
+            <button
+              type="button"
+              disabled
+              className="w-10 h-10 rounded-xl bg-slate-100 text-slate-300 flex items-center justify-center shrink-0 cursor-not-allowed"
+              title="Telefone não informado"
+              aria-label="Telefone não informado"
+            >
+              <Phone className="w-4 h-4" />
+            </button>
+          )}
+
+          {/* 3. Botão WhatsApp Autorizado */}
+          {waDigitsDrawer ? (
+            <a
+              href={`https://wa.me/${waDigitsDrawer}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-10 h-10 rounded-xl bg-[#25D366] hover:bg-[#20ba59] active:scale-95 text-white flex items-center justify-center shrink-0 transition-transform shadow-2xs"
+              title={`Conversar com ${selectedCliente.nome} no WhatsApp`}
+              aria-label="Conversar no WhatsApp"
+            >
+              <WhatsAppIcon className="w-4 h-4" />
+            </a>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setActiveClientTab('whatsapp')}
+              className="w-10 h-10 rounded-xl bg-slate-100 text-slate-400 flex items-center justify-center shrink-0"
+              title="Abrir aba do WhatsApp"
+              aria-label="WhatsApp"
+            >
+              <WhatsAppIcon className="w-4 h-4 opacity-50" />
+            </button>
+          )}
+
+          {/* 4. Botão Email */}
+          {selectedCliente.email ? (
+            <a
+              href={`mailto:${selectedCliente.email}`}
+              className="w-10 h-10 rounded-xl bg-slate-100 hover:bg-slate-200 active:scale-95 text-slate-700 border border-slate-200 flex items-center justify-center shrink-0 transition-transform shadow-2xs"
+              title={`Enviar e-mail para ${selectedCliente.email}`}
+              aria-label="Enviar e-mail"
+            >
+              <Mail className="w-4 h-4" />
+            </a>
+          ) : (
+            <button
+              type="button"
+              disabled
+              className="w-10 h-10 rounded-xl bg-slate-100 text-slate-300 flex items-center justify-center shrink-0 cursor-not-allowed"
+              title="Email não informado"
+              aria-label="Email não informado"
+            >
+              <Mail className="w-4 h-4" />
+            </button>
+          )}
         </div>
       </div>
 
