@@ -29,6 +29,20 @@ export function getErrorMessage(error: unknown): string {
 }
 
 export function isAuthSessionError(error: unknown): boolean {
-  if (!(error instanceof ClientResponseError)) return false
-  return error.status === 401 || error.status === 403
+  if (error instanceof ClientResponseError) {
+    if (error.status === 401 || error.status === 403) return true
+    const msg = (error.message || '').toLowerCase()
+    return msg.includes('token') || msg.includes('auth') || msg.includes('session')
+  }
+  if (error instanceof Error) {
+    const msg = error.message.toLowerCase()
+    return (
+      msg.includes('token is expired') ||
+      msg.includes('token expired') ||
+      msg.includes('failed to authenticate') ||
+      msg.includes('unauthorized') ||
+      msg.includes('session expired')
+    )
+  }
+  return false
 }

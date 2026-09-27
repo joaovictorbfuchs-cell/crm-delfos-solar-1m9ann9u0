@@ -7,6 +7,10 @@ import {
 } from '@/lib/emailContasRGETemplate'
 
 describe('Solicitar Contas RGE - Prazos e Templates', () => {
+  it('deve ter o email padrão da RGE atualizado para atendimentocomercialrge@cpfl.com.br', () => {
+    expect(EMAIL_RGE_PADRAO).toBe('atendimentocomercialrge@cpfl.com.br')
+  })
+
   it('deve gerar assunto no padrão exato solicitado', () => {
     const assunto = gerarAssuntoContasRGE('1009845231', 'João Silva')
     expect(assunto).toBe('Solicitação de faturas de energia — UC 1009845231 — João Silva')

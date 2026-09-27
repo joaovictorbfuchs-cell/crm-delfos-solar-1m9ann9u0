@@ -44,6 +44,8 @@ export interface ModalSolicitarContasRGEProps {
   onOpenChange: (open: boolean) => void
   clienteIdInicial?: string | null
   usinas?: UsinaCliente[]
+  atividadeExistente?: Atividade | null
+  emailDestinatarioInicial?: string | null
   onSuccess?: (atividadeCriada: Atividade) => void
 }
 
@@ -61,13 +63,17 @@ export const ModalSolicitarContasRGE: React.FC<ModalSolicitarContasRGEProps> = (
   onOpenChange,
   clienteIdInicial,
   usinas = [],
+  atividadeExistente,
+  emailDestinatarioInicial,
   onSuccess,
 }) => {
   const { clientes, usuarios, addAtividade } = useClientes()
   const { user } = useAuth()
 
   // 1. Cliente vinculado
-  const [clienteId, setClienteId] = useState<string>(clienteIdInicial || '')
+  const [clienteId, setClienteId] = useState<string>(
+    atividadeExistente?.cliente_id || clienteIdInicial || '',
+  )
 
   // Cliente atual selecionado
   const clienteSelecionado = useMemo(() => {
@@ -75,22 +81,34 @@ export const ModalSolicitarContasRGE: React.FC<ModalSolicitarContasRGEProps> = (
   }, [clientes, clienteId])
 
   // 2. Unidade Consumidora (UC)
-  const [numeroUc, setNumeroUc] = useState<string>('')
+  const [numeroUc, setNumeroUc] = useState<string>(atividadeExistente?.numero_uc || '')
 
   // 3. Endereço da unidade consumidora (pré-preenchido com endereço do cliente/usina)
-  const [enderecoUc, setEnderecoUc] = useState<string>('')
+  const [enderecoUc, setEnderecoUc] = useState<string>(atividadeExistente?.endereco_uc || '')
 
   // 4. Documento do titular/consumidor (CPF / CNPJ)
-  const [documentoTitular, setDocumentoTitular] = useState<string>('')
+  const [documentoTitular, setDocumentoTitular] = useState<string>(
+    atividadeExistente?.documento_titular || '',
+  )
 
   // 5. Responsável que criou a atividade: nome, email e cargo (pré-preenchido com logado, editável)
-  const [responsavelId, setResponsavelId] = useState<string>('')
-  const [responsavelNome, setResponsavelNome] = useState<string>('')
-  const [responsavelEmail, setResponsavelEmail] = useState<string>('')
-  const [responsavelCargo, setResponsavelCargo] = useState<string>('Engenheiro Responsável')
+  const [responsavelId, setResponsavelId] = useState<string>(
+    atividadeExistente?.responsavel_id || '',
+  )
+  const [responsavelNome, setResponsavelNome] = useState<string>(
+    atividadeExistente?.responsavel_nome || '',
+  )
+  const [responsavelEmail, setResponsavelEmail] = useState<string>(
+    atividadeExistente?.responsavel_email || '',
+  )
+  const [responsavelCargo, setResponsavelCargo] = useState<string>(
+    atividadeExistente?.responsavel_cargo || 'Engenheiro Responsável',
+  )
 
   // 6. Destinatário do e-mail (editável, padrão atendimento da concessionária)
-  const [emailDestinatario, setEmailDestinatario] = useState<string>(EMAIL_RGE_PADRAO)
+  const [emailDestinatario, setEmailDestinatario] = useState<string>(
+    atividadeExistente?.email_destinatario || emailDestinatarioInicial || EMAIL_RGE_PADRAO,
+  )
 
   // 7. Documentos anexados (upload de arquivos)
   const [anexos, setAnexos] = useState<ArquivoAnexoItem[]>([])
@@ -105,25 +123,45 @@ export const ModalSolicitarContasRGE: React.FC<ModalSolicitarContasRGEProps> = (
   // Inicialização e sincronização quando abre ou troca de cliente
   useEffect(() => {
     if (open) {
-      const cId = clienteIdInicial || clienteId || ''
+      const cId = atividadeExistente?.cliente_id || clienteIdInicial || clienteId || ''
       setClienteId(cId)
 
       // Identificar usuário logado
       const usuarioLogado = usuarios.find((u) => u.id === user?.id || u.email === user?.email)
-      const nomePadrao = usuarioLogado?.name || user?.name || 'Daniel Rotava'
-      const emailPadrao = usuarioLogado?.email || user?.email || 'daniel@delfosengenharia.com.br'
+      const nomePadrao =
+        atividadeExistente?.responsavel_nome || usuarioLogado?.name || user?.name || 'Daniel Rotava'
+      const emailPadrao =
+        atividadeExistente?.responsavel_email ||
+        usuarioLogado?.email ||
+        user?.email ||
+        'daniel@delfosengenharia.com.br'
 
-      setResponsavelId(usuarioLogado?.id || user?.id || '')
+      setResponsavelId(atividadeExistente?.responsavel_id || usuarioLogado?.id || user?.id || '')
       setResponsavelNome(nomePadrao)
       setResponsavelEmail(emailPadrao)
-      if (!responsavelCargo) setResponsavelCargo('Engenheiro Responsável')
-      if (!emailDestinatario) setEmailDestinatario(EMAIL_RGE_PADRAO)
+      if (atividadeExistente?.responsavel_cargo) {
+        setResponsavelCargo(atividadeExistente.responsavel_cargo)
+      } else if (!responsavelCargo) {
+        setResponsavelCargo('Engenheiro Responsável')
+      }
+
+      const emailSalvo = atividadeExistente?.email_destinatario || emailDestinatarioInicial
+      if (emailSalvo) {
+        setEmailDestinatario(emailSalvo)
+      } else if (!emailDestinatario) {
+        setEmailDestinatario(EMAIL_RGE_PADRAO)
+      }
+
+      if (atividadeExistente?.numero_uc) setNumeroUc(atividadeExistente.numero_uc)
+      if (atividadeExistente?.endereco_uc) setEnderecoUc(atividadeExistente.endereco_uc)
+      if (atividadeExistente?.documento_titular)
+        setDocumentoTitular(atividadeExistente.documento_titular)
 
       setFormError(null)
       setMostrarPreviewEmail(false)
       setConfirmarEnvio(false)
     }
-  }, [open, clienteIdInicial, user, usuarios])
+  }, [open, clienteIdInicial, atividadeExistente, emailDestinatarioInicial, user, usuarios])
 
   // Pré-preenchimento ao selecionar ou alterar o cliente
   useEffect(() => {
@@ -515,7 +553,7 @@ export const ModalSolicitarContasRGE: React.FC<ModalSolicitarContasRGEProps> = (
                   type="email"
                   value={emailDestinatario}
                   onChange={(e) => setEmailDestinatario(e.target.value)}
-                  placeholder="atendimento-rs@cpfl.com.br"
+                  placeholder="atendimentocomercialrge@cpfl.com.br"
                   className="w-full text-xs px-3 py-2 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-sky-500 bg-white"
                 />
               </div>

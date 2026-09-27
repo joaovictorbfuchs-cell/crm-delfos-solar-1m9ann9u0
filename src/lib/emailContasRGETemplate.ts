@@ -9,7 +9,7 @@ export interface TemplateContasRGEParams {
   emailDelfos?: string
 }
 
-export const EMAIL_RGE_PADRAO = 'atendimento-rs@cpfl.com.br'
+export const EMAIL_RGE_PADRAO = 'atendimentocomercialrge@cpfl.com.br'
 export const DELFOS_TELEFONE_PADRAO = '(54) 99646-8910'
 export const DELFOS_EMAIL_PADRAO = 'delfos.usinas@gmail.com'
 
