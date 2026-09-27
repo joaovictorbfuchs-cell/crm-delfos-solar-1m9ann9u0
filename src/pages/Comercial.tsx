@@ -28,6 +28,34 @@ export default function Comercial() {
   const [buscaPerdidos, setBuscaPerdidos] = useState('')
   const [reativandoId, setReativandoId] = useState<string | null>(null)
 
+  // Filtro de tipo de venda opcional via drawer de filtros mobile
+  const [filtroTipoVenda, setFiltroTipoVenda] = useState<string>('todos')
+
+  // Ouvinte para abrir modal de novo lead via header mobile (+)
+  useEffect(() => {
+    const handleOpenNovoLead = () => {
+      setIsNovoLeadOpen(true)
+    }
+    window.addEventListener('delfos:abrir-novo-lead', handleOpenNovoLead)
+    return () => {
+      window.removeEventListener('delfos:abrir-novo-lead', handleOpenNovoLead)
+    }
+  }, [])
+
+  // Ouvinte para receber alteração de filtro do drawer mobile
+  useEffect(() => {
+    const handleMobileFilterChange = (e: Event) => {
+      const customEvent = e as CustomEvent<{ tipoVenda?: string }>
+      if (customEvent.detail && customEvent.detail.tipoVenda !== undefined) {
+        setFiltroTipoVenda(customEvent.detail.tipoVenda)
+      }
+    }
+    window.addEventListener('delfos:mobile-filter-change', handleMobileFilterChange)
+    return () => {
+      window.removeEventListener('delfos:mobile-filter-change', handleMobileFilterChange)
+    }
+  }, [])
+
   const handleRefresh = async () => {
     setIsRefreshing(true)
     try {
@@ -38,7 +66,14 @@ export default function Comercial() {
   }
 
   // Clientes ativos no funil comercial: desconsidera arquivados e negócios já transferidos para Pós-Vendas
-  const clientesAtivos = clientes.filter((c) => !c.arquivado && !c.transferido_pos_vendas)
+  const clientesAtivos = clientes.filter((c) => {
+    if (c.arquivado || c.transferido_pos_vendas) return false
+    if (filtroTipoVenda !== 'todos') {
+      const tv = c.tipo_venda || 'Energia Solar'
+      if (tv !== filtroTipoVenda) return false
+    }
+    return true
+  })
 
   // Clientes perdidos
   const clientesPerdidos = clientes.filter((c) => c.status === 'Perdido' && !c.arquivado)

@@ -37,6 +37,17 @@ export const Projetos: React.FC = () => {
 
   // Modais
   const [isNovoProjetoModalOpen, setIsNovoProjetoModalOpen] = useState(false)
+
+  // Ouvinte para abrir modal de novo projeto via header mobile (+)
+  useEffect(() => {
+    const handleOpenNovoProjeto = () => {
+      setIsNovoProjetoModalOpen(true)
+    }
+    window.addEventListener('delfos:abrir-novo-lead', handleOpenNovoProjeto)
+    return () => {
+      window.removeEventListener('delfos:abrir-novo-lead', handleOpenNovoProjeto)
+    }
+  }, [])
   const [atribuirModalState, setAtribuirModalState] = useState<{
     isOpen: boolean
     projeto: Projeto | null
@@ -50,9 +61,30 @@ export const Projetos: React.FC = () => {
   // IDs de clientes com projeto
   const existingClienteIdsWithProjeto = useMemo(() => projetos.map((p) => p.cliente_id), [projetos])
 
+  // Filtro de profissional opcional via drawer de filtros mobile
+  const [mobileProfissionalFilter, setMobileProfissionalFilter] = useState<string>('todos')
+
+  useEffect(() => {
+    const handleMobileFilterChange = (e: Event) => {
+      const customEvent = e as CustomEvent<{ profissionalId?: string }>
+      if (customEvent.detail && customEvent.detail.profissionalId !== undefined) {
+        setMobileProfissionalFilter(customEvent.detail.profissionalId)
+      }
+    }
+    window.addEventListener('delfos:mobile-filter-change', handleMobileFilterChange)
+    return () => {
+      window.removeEventListener('delfos:mobile-filter-change', handleMobileFilterChange)
+    }
+  }, [])
+
   // Filtragem de projetos
   const filteredProjetos = useMemo(() => {
     return projetos.filter((p) => {
+      if (mobileProfissionalFilter !== 'todos') {
+        const profId = p.profissional_id || ''
+        if (profId !== mobileProfissionalFilter) return false
+      }
+
       const q = searchTerm.toLowerCase()
       const clienteNome = (p.expand?.cliente_id?.nome || '').toLowerCase()
       const cidade = (p.cidade || p.expand?.cliente_id?.cidade || '').toLowerCase()
@@ -66,7 +98,7 @@ export const Projetos: React.FC = () => {
         p.etapa.toLowerCase().includes(q)
       )
     })
-  }, [projetos, searchTerm])
+  }, [projetos, searchTerm, mobileProfissionalFilter])
 
   const handleOpenAtribuirModal = (projeto: Projeto, targetEtapa?: ProjetoEtapa) => {
     setAtribuirModalState({

@@ -43,9 +43,34 @@ export const Atividades: React.FC = () => {
   // Usuário selecionado no filtro global da página de atividades (padrão: usuário logado ou "todos")
   const [usuarioFiltroId, setUsuarioFiltroId] = useState<string>('todos')
 
+  useEffect(() => {
+    const handleMobileFilterChange = (e: Event) => {
+      const customEvent = e as CustomEvent<{ responsavelId?: string }>
+      if (customEvent.detail && customEvent.detail.responsavelId !== undefined) {
+        setUsuarioFiltroId(customEvent.detail.responsavelId)
+      }
+    }
+    window.addEventListener('delfos:mobile-filter-change', handleMobileFilterChange)
+    return () => {
+      window.removeEventListener('delfos:mobile-filter-change', handleMobileFilterChange)
+    }
+  }, [])
+
   // Controle do modal de agendamento acionado pelo botão nova atividade
   const [modalOpen, setModalOpen] = useState(false)
   const [modalInitialTipo, setModalInitialTipo] = useState<AtividadeTipo | null>(null)
+
+  // Ouvinte para abrir modal de nova atividade via header mobile (+)
+  useEffect(() => {
+    const handleOpenNovaAtividade = () => {
+      setModalInitialTipo(null)
+      setModalOpen(true)
+    }
+    window.addEventListener('delfos:abrir-novo-lead', handleOpenNovaAtividade)
+    return () => {
+      window.removeEventListener('delfos:abrir-novo-lead', handleOpenNovaAtividade)
+    }
+  }, [])
   const [atividadeParaExcluir, setAtividadeParaExcluir] = useState<{
     id: string
     titulo: string

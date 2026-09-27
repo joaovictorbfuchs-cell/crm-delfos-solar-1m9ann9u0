@@ -213,7 +213,7 @@ export const MobileKanbanViewport: React.FC<MobileKanbanViewportProps> = ({
         </div>
       </div>
 
-      {/* 2. Container do Carrossel com Swipe Touch */}
+      {/* 2. Container do Funil Mobile: SÓ a etapa selecionada ocupa 100% da largura, sem peek lateral */}
       <div
         ref={containerRef}
         onTouchStart={handleTouchStart}
@@ -222,18 +222,21 @@ export const MobileKanbanViewport: React.FC<MobileKanbanViewportProps> = ({
         className="w-full overflow-hidden touch-pan-y"
       >
         <div
-          className="flex w-full transition-transform duration-200 ease-out"
+          className="flex w-full"
           style={{
             transform: `translateX(calc(-${currentIndex * 100}% + ${touchDeltaX}px))`,
-            transition: isSwipingRef.current ? 'none' : 'transform 200ms ease-out',
+            transition: isSwipingRef.current
+              ? 'none'
+              : 'transform 260ms cubic-bezier(0.2, 0, 0, 1)',
+            willChange: 'transform',
           }}
         >
           {stages.map((stage) => {
             return (
               <div
                 key={stage.id}
-                className="w-full shrink-0 flex-1 px-0.5"
-                style={{ width: '100%' }}
+                className="w-full min-w-full max-w-full shrink-0 flex-none"
+                style={{ width: '100%', minWidth: '100%', maxWidth: '100%' }}
               >
                 {stage.content}
               </div>

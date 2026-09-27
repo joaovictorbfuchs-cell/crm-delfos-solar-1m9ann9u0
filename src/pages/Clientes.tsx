@@ -90,6 +90,31 @@ export default function Clientes() {
   } = useClientes()
   const [searchTerm, setSearchTerm] = useState('')
   const [isModalNovoOpen, setIsModalNovoOpen] = useState(false)
+
+  // Ouvinte para receber alteração de busca/filtro do drawer mobile
+  useEffect(() => {
+    const handleMobileFilterChange = (e: Event) => {
+      const customEvent = e as CustomEvent<{ statusFilter?: string }>
+      if (customEvent.detail && customEvent.detail.statusFilter !== undefined) {
+        setStatusFilter(customEvent.detail.statusFilter)
+      }
+    }
+    window.addEventListener('delfos:mobile-filter-change', handleMobileFilterChange)
+    return () => {
+      window.removeEventListener('delfos:mobile-filter-change', handleMobileFilterChange)
+    }
+  }, [])
+
+  // Ouvinte para abrir modal de novo cliente via header mobile (+)
+  useEffect(() => {
+    const handleOpenNovoCliente = () => {
+      setIsModalNovoOpen(true)
+    }
+    window.addEventListener('delfos:abrir-novo-lead', handleOpenNovoCliente)
+    return () => {
+      window.removeEventListener('delfos:abrir-novo-lead', handleOpenNovoCliente)
+    }
+  }, [])
   const [isModalOferecerLimpezaOpen, setIsModalOferecerLimpezaOpen] = useState(false)
   const [isModalMensagemMassaOpen, setIsModalMensagemMassaOpen] = useState(false)
   const [clienteParaExcluir, setClienteParaExcluir] = useState<{ id: string; nome: string } | null>(
