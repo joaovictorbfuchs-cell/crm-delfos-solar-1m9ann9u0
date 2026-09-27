@@ -8,9 +8,82 @@ import type { Cliente, UsinaCliente } from '@/types/crm'
 export const TARIFA_ENERGIA_PADRAO = 1.198
 export const PERCENTUAL_PERDA_SUJEIRA = 0.3
 export const VALOR_BASE_LIMPEZA_PADRAO = 350.0
+export const VALOR_LIMPEZA_MINIMO_ATE_30 = 300.0 // Menos de 30 placas = R$ 300,00
+export const VALOR_LIMPEZA_POR_PLACA_30_OU_MAIS = 9.0 // 30 placas ou mais = R$ 9,00 por placa
+export const VALOR_KM_DESLOCAMENTO_LIMPEZA = 1.5 // R$ 1,50 por KM
+export const MULTIPLICADOR_DESLOCAMENTO_IDA_VOLTA = 2 // Ida e volta
 
 export const MENSAGEM_OFERTA_LIMPEZA_PADRAO =
   'Olá, [nome do cliente]! Aqui é da Delfos Solar. Passando para lembrar que a limpeza periódica das placas solares é essencial para manter a geração de energia no máximo. Sujeira e poeira podem reduzir o desempenho em até 30%. Ou seja, como sua usina gera em média [geração média] kWh e o valor da fatura é R$ 1,198, são aproximadamente R$ [valor calculado] que são perdidos devido à sujeira. Temos disponibilidade para fazer a limpeza da sua usina de [potência] em [cidade]. O investimento é de [valor] e inclui inspeção visual completa do sistema. Posso agendar para você?'
+
+/**
+ * Extrai o número de placas / módulos fotovoltaicos do cliente a partir da ficha do cliente e usinas vinculadas.
+ */
+export function extrairNumeroPlacas(
+  cliente: Cliente,
+  usinasDoCliente: UsinaCliente[] = [],
+  sistemaFallback?: { quantidade_placas?: number; quantidade_modulos?: number } | null,
+): number {
+  // 1. Usina vinculada
+  const usinaComModulos = usinasDoCliente.find(
+    (u) => typeof u.qtd_modulos === 'number' && u.qtd_modulos > 0,
+  )
+  if (usinaComModulos?.qtd_modulos) {
+    return usinaComModulos.qtd_modulos
+  }
+
+  // 2. Sistema vinculado
+  if (
+    typeof sistemaFallback?.quantidade_placas === 'number' &&
+    sistemaFallback.quantidade_placas > 0
+  ) {
+    return sistemaFallback.quantidade_placas
+  }
+  if (
+    typeof sistemaFallback?.quantidade_modulos === 'number' &&
+    sistemaFallback.quantidade_modulos > 0
+  ) {
+    return sistemaFallback.quantidade_modulos
+  }
+
+  // 3. Cliente direto: placas_qtd
+  if (typeof cliente.placas_qtd === 'number' && cliente.placas_qtd > 0) {
+    return cliente.placas_qtd
+  }
+
+  // 4. Estimativa a partir da potência (potencia_kwp * 1000 / 570Wp por módulo) se existir
+  const pot = usinasDoCliente[0]?.potencia_kwp || cliente.potencia_kwp || 0
+  if (pot > 0) {
+    return Math.max(1, Math.round((pot * 1000) / 570))
+  }
+
+  return 0
+}
+
+/**
+ * Calcula automaticamente o valor do serviço de limpeza conforme a regra de negócio:
+ * - Menos de 30 placas (< 30): R$ 300,00
+ * - 30 placas ou mais (>= 30): número de placas × R$ 9,00
+ */
+export function calcularValorLimpezaPorPlacas(numeroPlacas: number): number {
+  const placas = Math.max(0, Math.round(Number(numeroPlacas) || 0))
+  if (placas < 30) {
+    return VALOR_LIMPEZA_MINIMO_ATE_30
+  }
+  return placas * VALOR_LIMPEZA_POR_PLACA_30_OU_MAIS
+}
+
+/**
+ * Calcula o valor do deslocamento conforme regra:
+ * - Distância em KM × R$ 1,50 × 2 (ida e volta)
+ */
+export function calcularValorDeslocamentoLimpeza(distanciaKm: number): number {
+  const km = Math.max(0, Number(distanciaKm) || 0)
+  return (
+    Math.round(km * VALOR_KM_DESLOCAMENTO_LIMPEZA * MULTIPLICADOR_DESLOCAMENTO_IDA_VOLTA * 100) /
+    100
+  )
+}
 
 export interface DadosCalculoOfertaLimpeza {
   geracaoMensalKwh: number

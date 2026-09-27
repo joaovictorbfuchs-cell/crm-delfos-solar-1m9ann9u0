@@ -4336,13 +4336,16 @@ export const FichaClienteDrawer: React.FC = () => {
         />
       )}
 
-      {/* Modal Oferecer Limpeza Avulsa via WhatsApp */}
+      {/* Modal Oferecer Limpeza Avulsa via WhatsApp (Modo Individual Estrito na Ficha do Cliente) */}
       {selectedCliente && (
         <ModalOferecerLimpezaAvulsa
           open={modalOferecerLimpezaOpen}
           onOpenChange={setModalOferecerLimpezaOpen}
           initialClienteId={selectedCliente.id}
           usinasContexto={usinasDoCliente}
+          modoIndividual={true}
+          clienteContexto={selectedCliente}
+          sistemaContexto={selectedSistema}
         />
       )}
 

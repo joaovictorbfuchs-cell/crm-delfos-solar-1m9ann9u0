@@ -28,6 +28,10 @@ import {
   RefreshCw,
   Copy,
   Building2,
+  Navigation,
+  Layers,
+  MapPin,
+  ExternalLink,
 } from 'lucide-react'
 import { useClientes } from '@/contexts/ClientesContext'
 import { toast } from 'sonner'
@@ -39,11 +43,17 @@ import {
   MENSAGEM_OFERTA_LIMPEZA_PADRAO,
   VALOR_BASE_LIMPEZA_PADRAO,
   TARIFA_ENERGIA_PADRAO,
+  VALOR_KM_DESLOCAMENTO_LIMPEZA,
+  MULTIPLICADOR_DESLOCAMENTO_IDA_VOLTA,
   calcularPerdaAnualPorSujeira,
   extrairGeracaoMediaMensal,
   extrairPotenciaUsinaTexto,
+  extrairNumeroPlacas,
+  calcularValorLimpezaPorPlacas,
+  calcularValorDeslocamentoLimpeza,
   resolverPlaceholdersOfertaLimpeza,
 } from '@/constants/ofertaLimpeza'
+import { estimarDistanciaDelfosCliente } from '@/lib/calculoDeslocamentoAtividades'
 import type { Cliente, UsinaCliente, Sistema } from '@/types/crm'
 
 export interface ModalOferecerLimpezaAvulsaProps {
@@ -52,6 +62,15 @@ export interface ModalOferecerLimpezaAvulsaProps {
   initialClienteId?: string | null
   usinasContexto?: UsinaCliente[]
   onSuccess?: () => void
+  /**
+   * Quando true, opera no modo individual estrito (tela/ficha do cliente):
+   * - Desabilita seleção de outros clientes / multi-seleção
+   * - Envia apenas para o cliente atual
+   * - Calcula serviço e deslocamento conforme regras do CRM
+   */
+  modoIndividual?: boolean
+  clienteContexto?: Cliente
+  sistemaContexto?: Sistema | null
 }
 
 interface ItemClienteOferta {
@@ -73,6 +92,9 @@ export const ModalOferecerLimpezaAvulsa: React.FC<ModalOferecerLimpezaAvulsaProp
   initialClienteId,
   usinasContexto,
   onSuccess,
+  modoIndividual = false,
+  clienteContexto,
+  sistemaContexto,
 }) => {
   const {
     clientes,
@@ -88,7 +110,11 @@ export const ModalOferecerLimpezaAvulsa: React.FC<ModalOferecerLimpezaAvulsaProp
   const [templateTexto, setTemplateTexto] = useState(MENSAGEM_OFERTA_LIMPEZA_PADRAO)
   const [valorServico, setValorServico] = useState<number>(VALOR_BASE_LIMPEZA_PADRAO)
 
-  // Seleção de clientes e busca
+  // Deslocamento (requisito 3)
+  const [incluirDeslocamento, setIncluirDeslocamento] = useState(false)
+  const [distanciaKm, setDistanciaKm] = useState<number>(0)
+
+  // Seleção de clientes e busca (modo em lote)
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [clienteFocadoId, setClienteFocadoId] = useState<string | null>(null)
   const [busca, setBusca] = useState('')
@@ -111,10 +137,15 @@ export const ModalOferecerLimpezaAvulsa: React.FC<ModalOferecerLimpezaAvulsaProp
 
   // Constrói lista rica de clientes com usinas e perdas calculadas
   const clientesProcessados = useMemo<ItemClienteOferta[]>(() => {
-    return clientes.map((cli) => {
+    const listaBase = clienteContexto
+      ? [clienteContexto, ...clientes.filter((c) => c.id !== clienteContexto.id)]
+      : clientes
+
+    return listaBase.map((cli) => {
       // Usina vinculada: procura nas usinas passadas por prop ou no array de sistemas unificado
       const usinaVinculada =
         usinasContexto?.find((u) => u.cliente_id === cli.id) ||
+        (sistemaContexto && cli.id === sistemaContexto.cliente_id ? sistemaContexto : null) ||
         sistemas.find((s) => s.cliente_id === cli.id)
 
       const geracaoMensal = extrairGeracaoMediaMensal(
@@ -136,7 +167,7 @@ export const ModalOferecerLimpezaAvulsa: React.FC<ModalOferecerLimpezaAvulsaProp
 
       return {
         cliente: cli,
-        usina: usinaVinculada,
+        usina: usinaVinculada || undefined,
         geracaoMensal,
         geracaoAnual: geracaoAnualKwh,
         valorPerdaAnual: valorPerda,
@@ -147,7 +178,7 @@ export const ModalOferecerLimpezaAvulsa: React.FC<ModalOferecerLimpezaAvulsaProp
         numeroLimpo: validacao.numeroLimpo,
       }
     })
-  }, [clientes, sistemas, usinasContexto])
+  }, [clientes, clienteContexto, sistemaContexto, sistemas, usinasContexto])
 
   // Filtragem pela busca
   const clientesFiltrados = useMemo(() => {
@@ -161,6 +192,102 @@ export const ModalOferecerLimpezaAvulsa: React.FC<ModalOferecerLimpezaAvulsaProp
     })
   }, [clientesProcessados, busca])
 
+  // Identificação do cliente atual para modo individual
+  const clienteAlvoId = initialClienteId || clienteContexto?.id || null
+
+  const clienteAtualIndividual = useMemo<ItemClienteOferta | null>(() => {
+    if (clienteContexto) {
+      const usinaVinculada =
+        usinasContexto?.find((u) => u.cliente_id === clienteContexto.id) ||
+        (sistemaContexto && clienteContexto.id === sistemaContexto.cliente_id
+          ? sistemaContexto
+          : null) ||
+        sistemas.find((s) => s.cliente_id === clienteContexto.id)
+
+      const geracaoMensal = extrairGeracaoMediaMensal(
+        clienteContexto,
+        usinaVinculada ? ([usinaVinculada as any] as UsinaCliente[]) : [],
+      )
+      const { geracaoAnualKwh, valorPerda } = calcularPerdaAnualPorSujeira(
+        geracaoMensal,
+        TARIFA_ENERGIA_PADRAO,
+      )
+      const potenciaTexto = extrairPotenciaUsinaTexto(
+        clienteContexto,
+        usinaVinculada ? ([usinaVinculada as any] as UsinaCliente[]) : [],
+      )
+      const telAutoritativo = clienteContexto.whatsapp || clienteContexto.telefone || ''
+      const validacao = validarNumeroWhatsApp(telAutoritativo)
+
+      return {
+        cliente: clienteContexto,
+        usina: usinaVinculada || undefined,
+        geracaoMensal,
+        geracaoAnual: geracaoAnualKwh,
+        valorPerdaAnual: valorPerda,
+        potenciaTexto,
+        cidade: (clienteContexto.cidade || usinaVinculada?.endereco || 'Erechim').trim(),
+        telefoneAutoritativo: telAutoritativo,
+        temWhatsAppValido: validacao.valido,
+        numeroLimpo: validacao.numeroLimpo,
+      }
+    }
+
+    if (clienteAlvoId) {
+      return clientesProcessados.find((c) => c.cliente.id === clienteAlvoId) || null
+    }
+
+    return null
+  }, [
+    clienteContexto,
+    clienteAlvoId,
+    clientesProcessados,
+    usinasContexto,
+    sistemaContexto,
+    sistemas,
+  ])
+
+  // Número de placas do cliente focado/atual (requisito 2)
+  const numeroPlacasCalculado = useMemo(() => {
+    const cli = modoIndividual
+      ? clienteAtualIndividual?.cliente
+      : clienteContexto ||
+        clientesProcessados.find((c) => c.cliente.id === (clienteFocadoId || selectedIds[0]))
+          ?.cliente
+    if (!cli) return 0
+    return extrairNumeroPlacas(
+      cli,
+      usinasContexto || [],
+      sistemaContexto || (sistemas.find((s) => s.cliente_id === cli.id) as any),
+    )
+  }, [
+    modoIndividual,
+    clienteAtualIndividual,
+    clienteContexto,
+    clientesProcessados,
+    clienteFocadoId,
+    selectedIds,
+    usinasContexto,
+    sistemaContexto,
+    sistemas,
+  ])
+
+  // Valor sugerido da limpeza baseada nas placas (requisito 2: <30 -> R$ 300; >=30 -> placas * 9)
+  const valorSugeridoLimpeza = useMemo(() => {
+    return calcularValorLimpezaPorPlacas(numeroPlacasCalculado)
+  }, [numeroPlacasCalculado])
+
+  // Valor do deslocamento calculado (requisito 3: distanciaKm * 1.50 * 2)
+  const valorDeslocamentoCalculado = useMemo(() => {
+    if (!incluirDeslocamento) return 0
+    return calcularValorDeslocamentoLimpeza(distanciaKm)
+  }, [incluirDeslocamento, distanciaKm])
+
+  // Valor total = valor do serviço de limpeza + deslocamento
+  const valorTotalCalculado = useMemo(() => {
+    return Math.round((valorServico + valorDeslocamentoCalculado) * 100) / 100
+  }, [valorServico, valorDeslocamentoCalculado])
+
   // Inicialização ao abrir o modal
   useEffect(() => {
     if (!open) {
@@ -168,52 +295,103 @@ export const ModalOferecerLimpezaAvulsa: React.FC<ModalOferecerLimpezaAvulsaProp
       setIsEnviando(false)
       setAuthErrorCapturado(false)
       setEditandoTelefoneId(null)
+      setIncluirDeslocamento(false)
       return
     }
 
     setTemplateTexto(MENSAGEM_OFERTA_LIMPEZA_PADRAO)
-    setValorServico(VALOR_BASE_LIMPEZA_PADRAO)
     setAuthErrorCapturado(false)
     setProgressoEnvio(null)
 
-    if (initialClienteId) {
-      setSelectedIds([initialClienteId])
-      setClienteFocadoId(initialClienteId)
+    if (modoIndividual && (clienteAtualIndividual || clienteContexto || initialClienteId)) {
+      const cliId =
+        clienteAtualIndividual?.cliente.id || clienteContexto?.id || (initialClienteId as string)
+      setSelectedIds([cliId])
+      setClienteFocadoId(cliId)
+
+      // Calcula valor sugerido automático
+      const cli =
+        clienteAtualIndividual?.cliente || clienteContexto || clientes.find((c) => c.id === cliId)
+      const nPlacas = cli
+        ? extrairNumeroPlacas(
+            cli,
+            usinasContexto || [],
+            sistemaContexto || (sistemas.find((s) => s.cliente_id === cli.id) as any),
+          )
+        : 0
+      const valorBaseSugerido = calcularValorLimpezaPorPlacas(nPlacas)
+      setValorServico(valorBaseSugerido)
+
+      // Estima a distância padrão de deslocamento se o cliente tiver cidade/endereço
+      if (cli) {
+        const est = estimarDistanciaDelfosCliente(cli.endereco, cli.cidade)
+        setDistanciaKm(est.distanciaKm || 0)
+      }
     } else {
-      // Se não há cliente inicial, seleciona os primeiros 5 ou todos que tenham usina/whatsapp válido
-      const comWhats = clientesProcessados.filter((c) => c.temWhatsAppValido)
-      const idsIniciais = comWhats.slice(0, 3).map((c) => c.cliente.id)
-      setSelectedIds(idsIniciais)
-      setClienteFocadoId(idsIniciais[0] || clientesProcessados[0]?.cliente.id || null)
+      if (initialClienteId) {
+        setSelectedIds([initialClienteId])
+        setClienteFocadoId(initialClienteId)
+        const cli = clientes.find((c) => c.id === initialClienteId)
+        if (cli) {
+          const nPlacas = extrairNumeroPlacas(
+            cli,
+            usinasContexto || [],
+            sistemas.find((s) => s.cliente_id === cli.id) as any,
+          )
+          setValorServico(calcularValorLimpezaPorPlacas(nPlacas))
+        } else {
+          setValorServico(VALOR_BASE_LIMPEZA_PADRAO)
+        }
+      } else {
+        const comWhats = clientesProcessados.filter((c) => c.temWhatsAppValido)
+        const idsIniciais = comWhats.slice(0, 3).map((c) => c.cliente.id)
+        setSelectedIds(idsIniciais)
+        setClienteFocadoId(idsIniciais[0] || clientesProcessados[0]?.cliente.id || null)
+        setValorServico(VALOR_BASE_LIMPEZA_PADRAO)
+      }
+      setIncluirDeslocamento(false)
     }
-  }, [open, initialClienteId, clientesProcessados])
+  }, [
+    open,
+    modoIndividual,
+    initialClienteId,
+    clienteContexto,
+    clienteAtualIndividual,
+    clientes,
+    sistemas,
+    usinasContexto,
+    sistemaContexto,
+    clientesProcessados,
+  ])
 
   // Cliente atualmente visualizado na prévia
   const clienteFocado = useMemo(() => {
+    if (modoIndividual && clienteAtualIndividual) {
+      return clienteAtualIndividual
+    }
     if (clienteFocadoId) {
       const achado = clientesProcessados.find((c) => c.cliente.id === clienteFocadoId)
       if (achado) return achado
     }
-    // Fallback: primeiro selecionado ou primeiro da lista
     const primeiroSelecionadoId = selectedIds[0]
     if (primeiroSelecionadoId) {
       const achado = clientesProcessados.find((c) => c.cliente.id === primeiroSelecionadoId)
       if (achado) return achado
     }
     return clientesProcessados[0] || null
-  }, [clienteFocadoId, selectedIds, clientesProcessados])
+  }, [modoIndividual, clienteAtualIndividual, clienteFocadoId, selectedIds, clientesProcessados])
 
-  // Mensagem resolvida em tempo real para a prévia
+  // Mensagem resolvida em tempo real para a prévia (usa valor total com limpeza + deslocamento se houver)
   const mensagemPreviaResolvida = useMemo(() => {
     if (!clienteFocado) return templateTexto
     return resolverPlaceholdersOfertaLimpeza({
       template: templateTexto,
       cliente: clienteFocado.cliente,
       usinasDoCliente: clienteFocado.usina ? ([clienteFocado.usina as any] as UsinaCliente[]) : [],
-      valorServico,
+      valorServico: valorTotalCalculado,
       tarifa: TARIFA_ENERGIA_PADRAO,
     })
-  }, [templateTexto, clienteFocado, valorServico])
+  }, [templateTexto, clienteFocado, valorTotalCalculado])
 
   // Handlers de seleção
   const handleToggleCliente = (clienteId: string) => {
@@ -260,8 +438,96 @@ export const ModalOferecerLimpezaAvulsa: React.FC<ModalOferecerLimpezaAvulsaProp
     }
   }
 
-  // Disparo das mensagens para os clientes selecionados
+  // Disparo / Abertura no WhatsApp e registro no histórico do cliente
   const handleConfirmarEnvio = async () => {
+    // -------------------------------------------------------------
+    // FLUXO DO MODO INDIVIDUAL (TELA / FICHA DO CLIENTE ATUAL)
+    // -------------------------------------------------------------
+    if (modoIndividual) {
+      const item = clienteFocado
+      if (!item) {
+        toast.error('Cliente não encontrado para envio.')
+        return
+      }
+
+      // Validação do número de WhatsApp do cliente
+      const rawWa = item.cliente.whatsapp || item.cliente.telefone || ''
+      const validacaoWa = validarNumeroWhatsApp(rawWa)
+      if (!validacaoWa.valido) {
+        toast.error('Número de WhatsApp inválido ou não cadastrado.', {
+          description: 'Informe o WhatsApp oficial do cliente antes de enviar a oferta.',
+        })
+        return
+      }
+
+      // Formata número DDI 55 + DDD + dígitos
+      let cleanDigits = validacaoWa.numeroLimpo.replace(/\D/g, '')
+      if (cleanDigits.length >= 10 && !cleanDigits.startsWith('55')) {
+        cleanDigits = `55${cleanDigits}`
+      }
+
+      const mensagemFinal = mensagemPreviaResolvida
+      const whatsappUrl = `https://wa.me/${cleanDigits}?text=${encodeURIComponent(mensagemFinal)}`
+
+      setIsEnviando(true)
+      try {
+        // 1. Abre o WhatsApp com o número do cliente e a mensagem pronta (Requisito 5)
+        window.open(whatsappUrl, '_blank', 'noopener,noreferrer')
+
+        // 2. Dispara também via gateway em background se configurado
+        try {
+          await sendWhatsAppMessage({
+            cliente_id: item.cliente.id,
+            telefone_destino: validacaoWa.numeroLimpo,
+            conteudo_final: mensagemFinal,
+            tipo_disparo: 'manual',
+          })
+        } catch (gwErr) {
+          // Log apenas se o gateway não responder, sem barrar o fluxo wa.me do usuário
+          console.warn('Gateway Z-API não respondeu ou em fallback:', gwErr)
+        }
+
+        // 3. Registra no histórico do cliente que a oferta de limpeza avulsa foi enviada (Requisito 5)
+        const agora = new Date().toISOString()
+        const detalheDeslocamento = incluirDeslocamento
+          ? ` (inclui ${distanciaKm} km de deslocamento ida/volta: ${formatCurrency(valorDeslocamentoCalculado)})`
+          : ''
+        const descHistorico = `Oferta de limpeza avulsa enviada via WhatsApp para ${item.cliente.nome}. Placas: ${numeroPlacasCalculado} un. Valor do serviço: ${formatCurrency(valorServico)}${detalheDeslocamento}. Total: ${formatCurrency(valorTotalCalculado)}. Perda estimada por sujeira: ${formatCurrency(item.valorPerdaAnual)}/ano.`
+
+        await addAtividade({
+          cliente_id: item.cliente.id,
+          usina_id: item.usina?.id,
+          tipo: 'oferecer_limpeza_avulsa',
+          titulo: 'Oferecer Limpeza Avulsa',
+          descricao: descHistorico,
+          data: agora,
+          status: 'concluida',
+          autor: 'CRM Delfos Solar',
+          valor_servico: valorServico,
+          custo_deslocamento: incluirDeslocamento ? valorDeslocamentoCalculado : 0,
+          distancia_km: incluirDeslocamento ? distanciaKm : 0,
+          custo_total: valorTotalCalculado,
+          cobrar_deslocamento: incluirDeslocamento,
+        })
+
+        toast.success(`WhatsApp aberto e oferta de limpeza registrada para ${item.cliente.nome}!`, {
+          description: `Valor total: ${formatCurrency(valorTotalCalculado)} (${numeroPlacasCalculado} placas)`,
+        })
+
+        onOpenChange(false)
+        if (onSuccess) onSuccess()
+      } catch (err: unknown) {
+        console.error('Erro ao registrar oferta de limpeza no CRM:', err)
+        toast.error('Erro ao registrar atividade da oferta no histórico do cliente.')
+      } finally {
+        setIsEnviando(false)
+      }
+      return
+    }
+
+    // -------------------------------------------------------------
+    // FLUXO DO MODO EM LOTE (LISTAGEM DE CLIENTES /CLIENTES)
+    // -------------------------------------------------------------
     if (selectedIds.length === 0) {
       toast.error('Selecione ao menos um cliente para enviar a oferta.')
       return
@@ -306,7 +572,7 @@ export const ModalOferecerLimpezaAvulsa: React.FC<ModalOferecerLimpezaAvulsaProp
         template: templateTexto,
         cliente: item.cliente,
         usinasDoCliente: item.usina ? ([item.usina as any] as UsinaCliente[]) : [],
-        valorServico,
+        valorServico: valorTotalCalculado,
         tarifa: TARIFA_ENERGIA_PADRAO,
       })
 
@@ -326,13 +592,15 @@ export const ModalOferecerLimpezaAvulsa: React.FC<ModalOferecerLimpezaAvulsaProp
           usina_id: item.usina?.id,
           tipo: 'oferecer_limpeza_avulsa',
           titulo: 'Oferecer Limpeza Avulsa',
-          descricao: `Oferta enviada via WhatsApp: investimento de ${formatCurrency(valorServico)}, perda estimada por sujeira de ${formatCurrency(item.valorPerdaAnual)}/ano.`,
+          descricao: `Oferta enviada via WhatsApp: investimento de ${formatCurrency(valorTotalCalculado)}, perda estimada por sujeira de ${formatCurrency(item.valorPerdaAnual)}/ano.`,
           data: agora,
           status: 'concluida',
           autor: 'CRM Delfos Solar',
           valor_servico: valorServico,
-          custo_total: valorServico,
-          cobrar_deslocamento: false,
+          custo_deslocamento: incluirDeslocamento ? valorDeslocamentoCalculado : 0,
+          distancia_km: incluirDeslocamento ? distanciaKm : 0,
+          custo_total: valorTotalCalculado,
+          cobrar_deslocamento: incluirDeslocamento,
         })
 
         estadoEnvio.sucessos.push(item.cliente.nome)
@@ -467,196 +735,360 @@ export const ModalOferecerLimpezaAvulsa: React.FC<ModalOferecerLimpezaAvulsaProp
         {/* Corpo do Modal em 2 Colunas */}
         <div className="flex-1 overflow-y-auto p-4 sm:p-6 grid grid-cols-1 lg:grid-cols-12 gap-5">
           {/* ======================================================== */}
-          {/* COLUNA ESQUERDA (lg:col-span-6): SELEÇÃO DE CLIENTES     */}
+          {/* COLUNA ESQUERDA (lg:col-span-5 ou 6):                    */}
+          {/* MODO INDIVIDUAL: Dados da Usina & Placas do Cliente      */}
+          {/* MODO LOTE: Seleção Multi-cliente com Busca              */}
           {/* ======================================================== */}
-          <div className="lg:col-span-6 flex flex-col space-y-3">
-            <div className="flex items-center justify-between">
-              <Label className="text-xs font-bold uppercase tracking-wider text-gray-700 flex items-center gap-1.5">
-                <Building2 className="w-4 h-4 text-emerald-600" />
-                <span>Selecionar Clientes ({selectedIds.length} selecionados)</span>
-              </Label>
-              <button
-                type="button"
-                onClick={handleSelectAll}
-                className="text-xs font-semibold text-emerald-700 hover:text-emerald-900 underline"
-              >
-                {isAllSelected ? 'Desmarcar todos' : 'Selecionar todos'}
-              </button>
-            </div>
-
-            {/* Barra de Busca de Clientes */}
-            <div className="relative">
-              <Search className="w-4 h-4 text-gray-400 absolute left-3 top-2.5" />
-              <Input
-                placeholder="Buscar cliente por nome, cidade ou telefone..."
-                value={busca}
-                onChange={(e) => setBusca(e.target.value)}
-                className="pl-9 text-xs sm:text-sm bg-white"
-              />
-            </div>
-
-            {/* Lista com Rolagem e Multi-seleção */}
-            <div className="flex-1 border border-gray-200 rounded-xl overflow-hidden bg-white max-h-[360px] overflow-y-auto divide-y divide-gray-100 shadow-2xs">
-              {clientesFiltrados.length === 0 ? (
-                <div className="p-8 text-center text-xs text-gray-500 space-y-1">
-                  <p className="font-semibold text-gray-700">Nenhum cliente encontrado</p>
-                  <p>Tente alterar o termo de busca.</p>
+          {modoIndividual && clienteFocado ? (
+            <div className="lg:col-span-5 flex flex-col space-y-3.5">
+              <div className="bg-gradient-to-br from-emerald-50 via-teal-50/40 to-white p-4 rounded-xl border border-emerald-200 shadow-xs space-y-3">
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs font-bold uppercase tracking-wider text-emerald-900 flex items-center gap-1.5">
+                    <Building2 className="w-4 h-4 text-emerald-700" />
+                    <span>Cliente Selecionado</span>
+                  </Label>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
+                    Envio Individual
+                  </span>
                 </div>
-              ) : (
-                clientesFiltrados.map((item) => {
-                  const isChecked = selectedIds.includes(item.cliente.id)
-                  const isFocado = clienteFocado?.cliente.id === item.cliente.id
-                  const isEditandoTel = editandoTelefoneId === item.cliente.id
 
-                  return (
-                    <div
-                      key={item.cliente.id}
+                <div className="space-y-1">
+                  <h3 className="text-base font-bold text-gray-900 leading-tight">
+                    {clienteFocado.cliente.nome}
+                  </h3>
+                  <div className="flex items-center gap-2 text-xs text-gray-600 flex-wrap">
+                    {clienteFocado.cidade && (
+                      <span className="flex items-center gap-1 text-gray-700">
+                        <MapPin className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                        {clienteFocado.cidade}
+                      </span>
+                    )}
+                    <span>•</span>
+                    <span className="flex items-center gap-1 text-amber-700 font-semibold">
+                      <Zap className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                      {clienteFocado.potenciaTexto}
+                    </span>
+                  </div>
+                </div>
+
+                {/* WhatsApp Autoritativo do Cliente */}
+                <div className="bg-white p-3 rounded-lg border border-emerald-200 space-y-1 text-xs">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wider flex items-center gap-1">
+                      <Phone className="w-3 h-3 text-emerald-600" />
+                      WhatsApp Autoritativo:
+                    </span>
+                    <button
+                      type="button"
                       onClick={() => {
-                        setClienteFocadoId(item.cliente.id)
+                        setEditandoTelefoneId(clienteFocado.cliente.id)
+                        setTelefoneEmEdicao(clienteFocado.telefoneAutoritativo)
                       }}
-                      className={`p-3 transition-colors cursor-pointer flex flex-col gap-2 ${
-                        isFocado
-                          ? 'bg-emerald-50/70 border-l-4 border-l-emerald-600'
-                          : 'hover:bg-slate-50'
-                      }`}
+                      className="text-[10px] text-emerald-700 hover:text-emerald-900 font-semibold underline inline-flex items-center gap-1"
                     >
-                      <div className="flex items-start justify-between gap-2">
-                        {/* Checkbox de Seleção */}
-                        <div
-                          className="flex items-start gap-2.5 flex-1 min-w-0"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            handleToggleCliente(item.cliente.id)
-                          }}
-                        >
-                          <button
-                            type="button"
-                            className="mt-0.5 text-gray-400 hover:text-emerald-700 transition-colors shrink-0"
+                      <Edit2 className="w-2.5 h-2.5" />
+                      <span>
+                        {clienteFocado.temWhatsAppValido ? 'Alterar' : 'Informar WhatsApp'}
+                      </span>
+                    </button>
+                  </div>
+
+                  {editandoTelefoneId === clienteFocado.cliente.id ? (
+                    <div className="flex items-center gap-1.5 pt-1">
+                      <Input
+                        value={telefoneEmEdicao}
+                        onChange={(e) => setTelefoneEmEdicao(formatWhatsAppPhone(e.target.value))}
+                        placeholder="(00) 00000-0000"
+                        className="h-8 text-xs bg-white flex-1"
+                        autoFocus
+                      />
+                      <Button
+                        size="sm"
+                        type="button"
+                        onClick={() => handleSalvarTelefoneInline(clienteFocado.cliente)}
+                        className="h-8 px-2.5 text-xs bg-emerald-600 hover:bg-emerald-700 text-white"
+                      >
+                        Salvar
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        type="button"
+                        onClick={() => {
+                          setEditandoTelefoneId(null)
+                          setTelefoneEmEdicao('')
+                        }}
+                        className="h-8 px-2 text-xs"
+                      >
+                        Cancelar
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2 pt-0.5">
+                      <span className="font-bold text-gray-900 text-sm">
+                        {clienteFocado.telefoneAutoritativo || 'Não cadastrado'}
+                      </span>
+                      {clienteFocado.temWhatsAppValido ? (
+                        <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
+                          Válido
+                        </span>
+                      ) : (
+                        <span className="text-[10px] font-bold text-rose-700 bg-rose-50 px-1.5 py-0.5 rounded border border-rose-200 flex items-center gap-1">
+                          <AlertCircle className="w-3 h-3" />
+                          Inválido
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Card do Requisito 2: Número de Placas / Módulos e Cálculo Automático */}
+                <div className="bg-white p-3.5 rounded-lg border border-emerald-200 space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-gray-800 uppercase tracking-wider flex items-center gap-1.5">
+                      <Layers className="w-4 h-4 text-blue-600" />
+                      <span>Número de Placas / Módulos</span>
+                    </span>
+                    <span className="text-sm font-black text-blue-800 bg-blue-50 px-2.5 py-0.5 rounded-md border border-blue-200">
+                      {numeroPlacasCalculado} {numeroPlacasCalculado === 1 ? 'placa' : 'placas'}
+                    </span>
+                  </div>
+
+                  <div className="text-[11px] text-gray-600 space-y-1 bg-slate-50 p-2.5 rounded-md border border-slate-200">
+                    <div className="flex items-center justify-between font-medium">
+                      <span>Critério do cálculo comercial:</span>
+                      <span className="font-bold text-gray-900">
+                        {numeroPlacasCalculado < 30
+                          ? 'Menos de 30 placas'
+                          : `${numeroPlacasCalculado} × R$ 9,00`}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between text-emerald-800 font-bold">
+                      <span>Valor sugerido de limpeza:</span>
+                      <span>{formatCurrency(valorSugeridoLimpeza)}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Informações da Usina e Perda Financeira por Sujeira */}
+                <div className="grid grid-cols-2 gap-2 text-center text-[10px]">
+                  <div className="p-2 bg-white rounded-lg border border-gray-200">
+                    <span className="text-gray-400 block font-medium">Geração Estimada</span>
+                    <span className="font-bold text-gray-800 text-xs">
+                      {Math.round(clienteFocado.geracaoMensal)} kWh/mês
+                    </span>
+                  </div>
+                  <div className="p-2 bg-white rounded-lg border border-gray-200">
+                    <span className="text-gray-400 block font-medium">Perda Estimada 30%</span>
+                    <span className="font-bold text-rose-700 text-xs">
+                      {formatCurrency(clienteFocado.valorPerdaAnual)}/ano
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Dica Informativa */}
+              <div className="text-[11px] text-gray-500 bg-slate-50 p-3 rounded-xl border border-slate-200 flex items-start gap-2">
+                <Info className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                <span>
+                  Nesta tela individual o envio é direcionado exclusivamente a{' '}
+                  <strong className="text-gray-800">{clienteFocado.cliente.nome}</strong>. O
+                  WhatsApp é aberto diretamente com a mensagem preenchida e a atividade é registrada
+                  na timeline.
+                </span>
+              </div>
+            </div>
+          ) : (
+            <div className="lg:col-span-6 flex flex-col space-y-3">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs font-bold uppercase tracking-wider text-gray-700 flex items-center gap-1.5">
+                  <Building2 className="w-4 h-4 text-emerald-600" />
+                  <span>Selecionar Clientes ({selectedIds.length} selecionados)</span>
+                </Label>
+                <button
+                  type="button"
+                  onClick={handleSelectAll}
+                  className="text-xs font-semibold text-emerald-700 hover:text-emerald-900 underline"
+                >
+                  {isAllSelected ? 'Desmarcar todos' : 'Selecionar todos'}
+                </button>
+              </div>
+
+              {/* Barra de Busca de Clientes */}
+              <div className="relative">
+                <Search className="w-4 h-4 text-gray-400 absolute left-3 top-2.5" />
+                <Input
+                  placeholder="Buscar cliente por nome, cidade ou telefone..."
+                  value={busca}
+                  onChange={(e) => setBusca(e.target.value)}
+                  className="pl-9 text-xs sm:text-sm bg-white"
+                />
+              </div>
+
+              {/* Lista com Rolagem e Multi-seleção */}
+              <div className="flex-1 border border-gray-200 rounded-xl overflow-hidden bg-white max-h-[360px] overflow-y-auto divide-y divide-gray-100 shadow-2xs">
+                {clientesFiltrados.length === 0 ? (
+                  <div className="p-8 text-center text-xs text-gray-500 space-y-1">
+                    <p className="font-semibold text-gray-700">Nenhum cliente encontrado</p>
+                    <p>Tente alterar o termo de busca.</p>
+                  </div>
+                ) : (
+                  clientesFiltrados.map((item) => {
+                    const isChecked = selectedIds.includes(item.cliente.id)
+                    const isFocado = clienteFocado?.cliente.id === item.cliente.id
+                    const isEditandoTel = editandoTelefoneId === item.cliente.id
+
+                    return (
+                      <div
+                        key={item.cliente.id}
+                        onClick={() => {
+                          setClienteFocadoId(item.cliente.id)
+                        }}
+                        className={`p-3 transition-colors cursor-pointer flex flex-col gap-2 ${
+                          isFocado
+                            ? 'bg-emerald-50/70 border-l-4 border-l-emerald-600'
+                            : 'hover:bg-slate-50'
+                        }`}
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          {/* Checkbox de Seleção */}
+                          <div
+                            className="flex items-start gap-2.5 flex-1 min-w-0"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleToggleCliente(item.cliente.id)
+                            }}
                           >
-                            {isChecked ? (
-                              <CheckSquare className="w-4 h-4 text-emerald-600" />
-                            ) : (
-                              <Square className="w-4 h-4 text-gray-400" />
-                            )}
-                          </button>
-                          <div className="min-w-0 flex-1">
-                            <div className="flex items-center gap-1.5 flex-wrap">
-                              <span className="font-bold text-xs sm:text-sm text-gray-900 truncate">
-                                {item.cliente.nome}
-                              </span>
-                              {item.cidade && (
-                                <span className="text-[10px] text-gray-500 bg-gray-100 px-1.5 py-0.2 rounded">
-                                  {item.cidade}
-                                </span>
+                            <button
+                              type="button"
+                              className="mt-0.5 text-gray-400 hover:text-emerald-700 transition-colors shrink-0"
+                            >
+                              {isChecked ? (
+                                <CheckSquare className="w-4 h-4 text-emerald-600" />
+                              ) : (
+                                <Square className="w-4 h-4 text-gray-400" />
                               )}
-                            </div>
-                            <div className="flex items-center gap-3 text-[11px] text-gray-500 mt-0.5 flex-wrap">
-                              <span className="flex items-center gap-1 text-amber-700 font-semibold">
-                                <Zap className="w-3 h-3 text-amber-500 shrink-0" />
-                                {item.potenciaTexto}
-                              </span>
-                              <span>•</span>
-                              <span>{Math.round(item.geracaoMensal)} kWh/mês</span>
-                              <span>•</span>
-                              <span className="text-rose-700 font-semibold flex items-center gap-0.5">
-                                <TrendingDown className="w-3 h-3" />
-                                Perda: {formatCurrency(item.valorPerdaAnual)}/ano
-                              </span>
+                            </button>
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <span className="font-bold text-xs sm:text-sm text-gray-900 truncate">
+                                  {item.cliente.nome}
+                                </span>
+                                {item.cidade && (
+                                  <span className="text-[10px] text-gray-500 bg-gray-100 px-1.5 py-0.2 rounded">
+                                    {item.cidade}
+                                  </span>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-3 text-[11px] text-gray-500 mt-0.5 flex-wrap">
+                                <span className="flex items-center gap-1 text-amber-700 font-semibold">
+                                  <Zap className="w-3 h-3 text-amber-500 shrink-0" />
+                                  {item.potenciaTexto}
+                                </span>
+                                <span>•</span>
+                                <span>{Math.round(item.geracaoMensal)} kWh/mês</span>
+                                <span>•</span>
+                                <span className="text-rose-700 font-semibold flex items-center gap-0.5">
+                                  <TrendingDown className="w-3 h-3" />
+                                  Perda: {formatCurrency(item.valorPerdaAnual)}/ano
+                                </span>
+                              </div>
                             </div>
                           </div>
                         </div>
-                      </div>
 
-                      {/* Linha do Telefone / WhatsApp */}
-                      <div
-                        className="flex items-center justify-between text-[11px] pt-1 border-t border-gray-100/80 gap-2"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        {isEditandoTel ? (
-                          <div className="flex items-center gap-1.5 w-full">
-                            <Input
-                              value={telefoneEmEdicao}
-                              onChange={(e) =>
-                                setTelefoneEmEdicao(formatWhatsAppPhone(e.target.value))
-                              }
-                              placeholder="(00) 00000-0000"
-                              className="h-7 text-xs bg-white flex-1"
-                              autoFocus
-                            />
-                            <Button
-                              size="sm"
-                              type="button"
-                              onClick={() => handleSalvarTelefoneInline(item.cliente)}
-                              className="h-7 px-2 text-xs bg-emerald-600 hover:bg-emerald-700 text-white"
-                            >
-                              Salvar
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              type="button"
-                              onClick={() => {
-                                setEditandoTelefoneId(null)
-                                setTelefoneEmEdicao('')
-                              }}
-                              className="h-7 px-2 text-xs"
-                            >
-                              Cancelar
-                            </Button>
-                          </div>
-                        ) : (
-                          <>
-                            <div className="flex items-center gap-1.5">
-                              <Phone className="w-3 h-3 text-emerald-600" />
-                              {item.temWhatsAppValido ? (
-                                <span className="font-medium text-gray-800">
-                                  {item.telefoneAutoritativo}
-                                </span>
-                              ) : (
-                                <span className="font-semibold text-rose-600 flex items-center gap-1">
-                                  <AlertCircle className="w-3 h-3" />
-                                  Sem WhatsApp válido
-                                </span>
-                              )}
+                        {/* Linha do Telefone / WhatsApp */}
+                        <div
+                          className="flex items-center justify-between text-[11px] pt-1 border-t border-gray-100/80 gap-2"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          {isEditandoTel ? (
+                            <div className="flex items-center gap-1.5 w-full">
+                              <Input
+                                value={telefoneEmEdicao}
+                                onChange={(e) =>
+                                  setTelefoneEmEdicao(formatWhatsAppPhone(e.target.value))
+                                }
+                                placeholder="(00) 00000-0000"
+                                className="h-7 text-xs bg-white flex-1"
+                                autoFocus
+                              />
+                              <Button
+                                size="sm"
+                                type="button"
+                                onClick={() => handleSalvarTelefoneInline(item.cliente)}
+                                className="h-7 px-2 text-xs bg-emerald-600 hover:bg-emerald-700 text-white"
+                              >
+                                Salvar
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                type="button"
+                                onClick={() => {
+                                  setEditandoTelefoneId(null)
+                                  setTelefoneEmEdicao('')
+                                }}
+                                className="h-7 px-2 text-xs"
+                              >
+                                Cancelar
+                              </Button>
                             </div>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setEditandoTelefoneId(item.cliente.id)
-                                setTelefoneEmEdicao(item.telefoneAutoritativo)
-                              }}
-                              className="text-[10px] text-emerald-700 hover:text-emerald-900 font-semibold underline inline-flex items-center gap-1"
-                            >
-                              <Edit2 className="w-2.5 h-2.5" />
-                              <span>
-                                {item.temWhatsAppValido ? 'Alterar' : 'Informar WhatsApp'}
-                              </span>
-                            </button>
-                          </>
-                        )}
+                          ) : (
+                            <>
+                              <div className="flex items-center gap-1.5">
+                                <Phone className="w-3 h-3 text-emerald-600" />
+                                {item.temWhatsAppValido ? (
+                                  <span className="font-medium text-gray-800">
+                                    {item.telefoneAutoritativo}
+                                  </span>
+                                ) : (
+                                  <span className="font-semibold text-rose-600 flex items-center gap-1">
+                                    <AlertCircle className="w-3 h-3" />
+                                    Sem WhatsApp válido
+                                  </span>
+                                )}
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setEditandoTelefoneId(item.cliente.id)
+                                  setTelefoneEmEdicao(item.telefoneAutoritativo)
+                                }}
+                                className="text-[10px] text-emerald-700 hover:text-emerald-900 font-semibold underline inline-flex items-center gap-1"
+                              >
+                                <Edit2 className="w-2.5 h-2.5" />
+                                <span>
+                                  {item.temWhatsAppValido ? 'Alterar' : 'Informar WhatsApp'}
+                                </span>
+                              </button>
+                            </>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  )
-                })
-              )}
-            </div>
+                    )
+                  })
+                )}
+              </div>
 
-            {/* Dica da regra do WhatsApp autoritativo */}
-            <div className="text-[11px] text-gray-500 bg-slate-50 p-2.5 rounded-lg border border-slate-200 flex items-start gap-2">
-              <Info className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-              <span>
-                No CRM Delfos Solar o WhatsApp é o número autoritativo. Ao disparar, cada cliente
-                selecionado receberá a mensagem personalizada com seus dados de usina e perda anual.
-              </span>
+              {/* Dica da regra do WhatsApp autoritativo */}
+              <div className="text-[11px] text-gray-500 bg-slate-50 p-2.5 rounded-lg border border-slate-200 flex items-start gap-2">
+                <Info className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                <span>
+                  No CRM Delfos Solar o WhatsApp é o número autoritativo. Ao disparar, cada cliente
+                  selecionado receberá a mensagem personalizada com seus dados de usina e perda
+                  anual.
+                </span>
+              </div>
             </div>
-          </div>
+          )}
 
           {/* ======================================================== */}
           {/* COLUNA DIREITA (lg:col-span-6): EDITOR & PRÉVIA DA OFERTA */}
           {/* ======================================================== */}
           <div className="lg:col-span-6 flex flex-col space-y-3.5">
-            {/* Configuração de Valor do Serviço */}
-            <div className="bg-emerald-50/60 p-3 rounded-xl border border-emerald-200 space-y-2">
+            {/* Configuração de Valor do Serviço e Deslocamento */}
+            <div className="bg-emerald-50/60 p-3.5 rounded-xl border border-emerald-200 space-y-3">
               <div className="flex items-center justify-between">
                 <Label
                   htmlFor="valor-servico"
@@ -683,13 +1115,84 @@ export const ModalOferecerLimpezaAvulsa: React.FC<ModalOferecerLimpezaAvulsaProp
                   type="button"
                   variant="outline"
                   size="sm"
-                  onClick={() => setValorServico(VALOR_BASE_LIMPEZA_PADRAO)}
+                  onClick={() => setValorServico(valorSugeridoLimpeza || VALOR_BASE_LIMPEZA_PADRAO)}
                   className="text-xs h-9 text-gray-600 shrink-0"
-                  title="Restaurar R$ 350,00 padrão do catálogo"
+                  title={`Restaurar valor sugerido (${formatCurrency(valorSugeridoLimpeza)})`}
                 >
                   <RefreshCw className="w-3 h-3 mr-1" />
-                  R$ 350
+                  {formatCurrency(valorSugeridoLimpeza)}
                 </Button>
+              </div>
+
+              {/* Requisito 3: Flag de Deslocamento com KM e cálculo (distância * 1.50 * 2) */}
+              <div className="pt-2 border-t border-emerald-200/70 space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="flex items-center gap-2 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={incluirDeslocamento}
+                      onChange={(e) => setIncluirDeslocamento(e.target.checked)}
+                      className="w-4 h-4 rounded text-emerald-600 border-gray-300 focus:ring-emerald-500 cursor-pointer"
+                    />
+                    <span className="text-xs font-bold text-emerald-950 flex items-center gap-1">
+                      <Navigation className="w-3.5 h-3.5 text-emerald-700" />
+                      Incluir deslocamento
+                    </span>
+                  </label>
+                  {incluirDeslocamento && (
+                    <span className="text-xs font-bold text-emerald-800">
+                      + {formatCurrency(valorDeslocamentoCalculado)}
+                    </span>
+                  )}
+                </div>
+
+                {incluirDeslocamento && (
+                  <div className="bg-white p-2.5 rounded-lg border border-emerald-200 space-y-1.5 animate-in fade-in duration-200">
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1">
+                        <Label
+                          htmlFor="distancia-km"
+                          className="text-[11px] font-semibold text-gray-600 block mb-1"
+                        >
+                          Distância (km)
+                        </Label>
+                        <div className="relative">
+                          <Input
+                            id="distancia-km"
+                            type="number"
+                            step="1"
+                            min="0"
+                            value={distanciaKm || ''}
+                            onChange={(e) =>
+                              setDistanciaKm(Math.max(0, Number(e.target.value) || 0))
+                            }
+                            placeholder="0"
+                            className="text-xs h-8 pr-8"
+                          />
+                          <span className="absolute right-2.5 top-2 text-[10px] text-gray-400 font-semibold">
+                            km
+                          </span>
+                        </div>
+                      </div>
+                      <div className="shrink-0 text-right text-[11px] pt-4 text-gray-600">
+                        <div className="text-[10px] text-gray-400">
+                          {distanciaKm} km × R$ 1,50 × 2
+                        </div>
+                        <div className="font-bold text-emerald-700">
+                          = {formatCurrency(valorDeslocamentoCalculado)}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Totalizador Comercial: Limpeza + Deslocamento */}
+              <div className="pt-2 border-t border-emerald-200 flex items-center justify-between text-xs">
+                <span className="font-bold text-gray-700">Valor Total Comercial:</span>
+                <span className="text-sm font-black text-emerald-800">
+                  {formatCurrency(valorTotalCalculado)}
+                </span>
               </div>
             </div>
 
@@ -796,15 +1299,32 @@ export const ModalOferecerLimpezaAvulsa: React.FC<ModalOferecerLimpezaAvulsaProp
         {/* Rodapé de Ações */}
         <div className="p-4 sm:p-5 border-t bg-gray-50 flex flex-col sm:flex-row items-center justify-between gap-3">
           <div className="text-xs text-gray-600 text-center sm:text-left">
-            <span className="font-bold text-gray-900">
-              {selectedIds.length === 1
-                ? '1 cliente selecionado'
-                : `${selectedIds.length} clientes selecionados`}
-            </span>
-            <span className="hidden sm:inline">
-              {' '}
-              • Envio direto via Z-API com registro de atividade no CRM
-            </span>
+            {modoIndividual ? (
+              <span className="font-medium text-gray-700">
+                Total:{' '}
+                <strong className="text-emerald-800 font-bold text-sm">
+                  {formatCurrency(valorTotalCalculado)}
+                </strong>
+                {incluirDeslocamento && (
+                  <span className="text-gray-500 text-[11px] ml-1">
+                    (Limpeza {formatCurrency(valorServico)} + Deslocamento{' '}
+                    {formatCurrency(valorDeslocamentoCalculado)})
+                  </span>
+                )}
+              </span>
+            ) : (
+              <>
+                <span className="font-bold text-gray-900">
+                  {selectedIds.length === 1
+                    ? '1 cliente selecionado'
+                    : `${selectedIds.length} clientes selecionados`}
+                </span>
+                <span className="hidden sm:inline">
+                  {' '}
+                  • Envio direto via Z-API com registro de atividade no CRM
+                </span>
+              </>
+            )}
           </div>
 
           <div className="flex items-center gap-2.5 w-full sm:w-auto justify-end">
@@ -820,7 +1340,7 @@ export const ModalOferecerLimpezaAvulsa: React.FC<ModalOferecerLimpezaAvulsaProp
 
             <Button
               type="button"
-              disabled={isEnviando || selectedIds.length === 0}
+              disabled={isEnviando || (modoIndividual ? !clienteFocado : selectedIds.length === 0)}
               onClick={handleConfirmarEnvio}
               className="bg-[#16A34A] hover:bg-[#15803D] text-white text-xs font-bold shadow-sm flex items-center gap-2 px-4"
             >
@@ -828,17 +1348,24 @@ export const ModalOferecerLimpezaAvulsa: React.FC<ModalOferecerLimpezaAvulsaProp
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
                   <span>
-                    Enviando {progressoEnvio?.atual || 0} de{' '}
-                    {progressoEnvio?.total || selectedIds.length}...
+                    {modoIndividual
+                      ? 'Abrindo WhatsApp...'
+                      : `Enviando ${progressoEnvio?.atual || 0} de ${progressoEnvio?.total || selectedIds.length}...`}
                   </span>
                 </>
               ) : (
                 <>
-                  <Send className="w-4 h-4" />
+                  {modoIndividual ? (
+                    <ExternalLink className="w-4 h-4" />
+                  ) : (
+                    <Send className="w-4 h-4" />
+                  )}
                   <span>
-                    {selectedIds.length <= 1
-                      ? 'Enviar Oferta por WhatsApp'
-                      : `Enviar para ${selectedIds.length} Clientes`}
+                    {modoIndividual
+                      ? 'Enviar WhatsApp (Cliente Atual)'
+                      : selectedIds.length <= 1
+                        ? 'Enviar Oferta por WhatsApp'
+                        : `Enviar para ${selectedIds.length} Clientes`}
                   </span>
                 </>
               )}
