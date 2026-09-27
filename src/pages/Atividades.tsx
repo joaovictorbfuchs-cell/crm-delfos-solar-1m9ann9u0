@@ -14,7 +14,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { Button } from '@/components/ui/button'
 import { AtividadeItem } from '@/components/AtividadeItem'
 import { ModalNovaAtividade } from '@/components/ModalNovaAtividade'
-import { ModalMensagemWhatsAppMassa } from '@/components/ModalMensagemWhatsAppMassa'
+import { ModalDisparoMensagensMassa } from '@/components/ModalDisparoMensagensMassa'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -452,7 +452,7 @@ export const Atividades: React.FC = () => {
       />
 
       {/* 4. Modal Disparar Mensagens em Massa WhatsApp */}
-      <ModalMensagemWhatsAppMassa
+      <ModalDisparoMensagensMassa
         open={modalMensagemMassaOpen}
         onOpenChange={setModalMensagemMassaOpen}
         segmentoInicial="todos"

@@ -37,10 +37,8 @@ import {
   Square,
   MessageSquare,
 } from 'lucide-react'
-import {
-  ModalMensagemWhatsAppMassa,
-  type DestinatarioMensagemMassa,
-} from '@/components/ModalMensagemWhatsAppMassa'
+import { type DestinatarioMensagemMassa } from '@/components/ModalMensagemWhatsAppMassa'
+import { ModalDisparoMensagensMassa } from '@/components/ModalDisparoMensagensMassa'
 import { PlanosOMView } from '@/components/PlanosOMView'
 import { useClientes } from '@/contexts/ClientesContext'
 import { formatCurrency, formatDate } from '@/lib/formatters'
@@ -563,7 +561,7 @@ export const ListaOM: React.FC<ListaOMProps> = ({
       </div>
 
       {/* Modal Mensagem WhatsApp em Massa */}
-      <ModalMensagemWhatsAppMassa
+      <ModalDisparoMensagensMassa
         open={isModalMensagemOpen}
         onOpenChange={setIsModalMensagemOpen}
         destinatariosIniciais={destinatariosMensagem.length > 0 ? destinatariosMensagem : undefined}

@@ -18,7 +18,7 @@ import {
   MessageSquare,
 } from 'lucide-react'
 import { useClientes } from '@/contexts/ClientesContext'
-import { ModalMensagemWhatsAppMassa } from '@/components/ModalMensagemWhatsAppMassa'
+import { ModalDisparoMensagensMassa } from '@/components/ModalDisparoMensagensMassa'
 import type { ContratoOM, Cliente } from '@/types/crm'
 import { formatCurrency, formatDate } from '@/lib/formatters'
 import { calcularDiasRestantesDefensivo } from '@/lib/omCategorizacao'
@@ -816,6 +816,19 @@ export const PlanosOMView: React.FC<PlanosOMViewProps> = ({
                 </button>
               </div>
 
+              {/* Botão Enviar Mensagem em Massa no topo da visualização */}
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setModalMensagemMassaOpen(true)}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-[#0284C7] hover:bg-[#0369a1] text-white text-xs font-bold rounded-xl shadow-xs transition-colors"
+                  title="Disparar mensagens em massa via WhatsApp para clientes com contrato O&M"
+                >
+                  <MessageSquare className="w-3.5 h-3.5" />
+                  <span>Enviar mensagem em massa</span>
+                </button>
+              </div>
+
               {/* Tags de filtros ativos */}
               {totalFiltrosAtivos > 0 && (
                 <div className="flex items-center gap-1.5 flex-wrap text-[11px] text-gray-500">
@@ -1183,7 +1196,7 @@ export const PlanosOMView: React.FC<PlanosOMViewProps> = ({
         </div>
       )}
       {/* Modal Disparar Mensagens em Massa pré-filtrado para Clientes O&M */}
-      <ModalMensagemWhatsAppMassa
+      <ModalDisparoMensagensMassa
         open={modalMensagemMassaOpen}
         onOpenChange={setModalMensagemMassaOpen}
         segmentoInicial="clientes_om"
