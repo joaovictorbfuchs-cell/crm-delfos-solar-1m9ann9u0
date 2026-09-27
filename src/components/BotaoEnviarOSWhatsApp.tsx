@@ -165,6 +165,13 @@ export const BotaoEnviarOSWhatsApp: React.FC<BotaoEnviarOSWhatsAppProps> = ({
       })
 
       if (res.ok) {
+        // Sincronizar mensagens e conversas para refletir imediatamente na Central de Atendimento sem F5
+        try {
+          await Promise.allSettled([refreshMensagens(), refreshConversas()])
+        } catch {
+          /* intentionally ignored */
+        }
+
         if (res.sent) {
           setStatus('success')
           setFeedbackMsg('Enviado com sucesso!')

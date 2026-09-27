@@ -238,19 +238,42 @@ export const ConversaChatView: React.FC<ConversaChatViewProps> = ({
   // Mensagens filtradas desta conversa (ou número/cliente correspondente)
   // Ordem cronológica igual WhatsApp Web: mensagens mais antigas no topo, mais recentes no final (parte de baixo)
   const mensagensConversa = useMemo(() => {
+    const cNumeroLimpo = (conversa.numero || '').replace(/\D/g, '')
+    const cNumeroLast8 = cNumeroLimpo.length >= 8 ? cNumeroLimpo.slice(-8) : cNumeroLimpo
+    const clienteIdAlvo = conversa.cliente_id || (cliente ? cliente.id : '')
+
     return whatsAppMensagens
       .filter((m) => {
+        // 1. Match direto por conversa_id
         if (m.conversa_id && m.conversa_id === conversa.id) return true
-        if (cliente && m.cliente_id === cliente.id) return true
-        if (m.telefone_destino && conversa.numero) {
+
+        // 2. Fallback por cliente_id (seja da conversa ou do cliente carregado)
+        if (clienteIdAlvo && m.cliente_id && m.cliente_id === clienteIdAlvo) return true
+
+        // 3. Fallback por telefone_destino (conferindo últimos 8 dígitos)
+        if (m.telefone_destino && cNumeroLast8) {
           const mTel = m.telefone_destino.replace(/\D/g, '')
-          const cTel = conversa.numero.replace(/\D/g, '')
-          return (
-            mTel === cTel ||
-            (mTel.length >= 8 && cTel.endsWith(mTel.slice(-8))) ||
-            (cTel.length >= 8 && mTel.endsWith(cTel.slice(-8)))
-          )
+          if (
+            mTel === cNumeroLimpo ||
+            (mTel.length >= 8 && mTel.endsWith(cNumeroLast8)) ||
+            (cNumeroLimpo.length >= 8 && cNumeroLimpo.endsWith(mTel.slice(-8)))
+          ) {
+            return true
+          }
         }
+
+        // 4. Fallback pelo telefone/whatsapp do cliente associado
+        if (cliente) {
+          const cliTel = (cliente.whatsapp || cliente.telefone || '').replace(/\D/g, '')
+          const cliLast8 = cliTel.length >= 8 ? cliTel.slice(-8) : cliTel
+          if (m.telefone_destino && cliLast8) {
+            const mTel = m.telefone_destino.replace(/\D/g, '')
+            if (mTel.endsWith(cliLast8) || cliTel.endsWith(mTel.slice(-8))) {
+              return true
+            }
+          }
+        }
+
         return false
       })
       .sort((a, b) => {
@@ -258,7 +281,7 @@ export const ConversaChatView: React.FC<ConversaChatViewProps> = ({
         const timeB = new Date(b.enviado_em || b.created).getTime()
         return timeA - timeB // Mais antigas primeiro, mais novas no final (parte de baixo)
       })
-  }, [whatsAppMensagens, conversa.id, conversa.numero, cliente])
+  }, [whatsAppMensagens, conversa.id, conversa.numero, conversa.cliente_id, cliente])
 
   // Rastreamento de rolagem para comportamento idêntico ao WhatsApp Web:
   // - Ao abrir ou trocar de conversa, rola imediatamente para o final (mais recente)

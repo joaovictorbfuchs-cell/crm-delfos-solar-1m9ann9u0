@@ -26,10 +26,54 @@ routerAdd('POST', '/backend/v1/whatsapp/send', (e) => {
       return e.json(400, { error: 'Conteúdo da mensagem não pode ser vazio', ok: false })
     }
 
+    // Localizar ou criar conversa se conversa_id não veio
+    let finalConversaId = conversaId
+    try {
+      const helper = require(`${__hooks}/whatsapp_conversa_helper.js`)
+      if (finalConversaId) {
+        // Se conversa_id veio, apenas garantir update de preview/status
+        const convCol = $app.findCollectionByNameOrId('whatsapp_conversas')
+        const convRec = $app.findRecordsByFilter(
+          convCol.id,
+          `id = '${finalConversaId}'`,
+          '',
+          1,
+          0,
+        )[0]
+        if (convRec) {
+          if (clienteId && !convRec.getString('cliente_id')) {
+            convRec.set('cliente_id', clienteId)
+          }
+          convRec.set('status', 'aguardando_cliente')
+          convRec.set('ultima_mensagem_preview', conteudoFinal.substring(0, 100))
+          convRec.set('ultima_mensagem_em', new Date().toISOString())
+          convRec.set('nao_lidas', 0)
+          if (authUser && !convRec.getString('atendente')) {
+            convRec.set('atendente', authUser.getString('name') || 'Atendente')
+            convRec.set('atendente_id', authUser.id)
+          }
+          $app.save(convRec)
+        }
+      } else {
+        const conv = helper.ensureConversaForMessage(
+          $app,
+          clienteId,
+          telefoneDestino,
+          conteudoFinal,
+          authUser,
+        )
+        if (conv) {
+          finalConversaId = conv.id
+        }
+      }
+    } catch (errConvHelper) {
+      console.log('[WHATSAPP SEND CONV HELPER AVISO]', errConvHelper)
+    }
+
     const msgsCol = $app.findCollectionByNameOrId('whatsapp_mensagens')
     const msgRecord = new Record(msgsCol)
     if (clienteId) msgRecord.set('cliente_id', clienteId)
-    if (conversaId) msgRecord.set('conversa_id', conversaId)
+    if (finalConversaId) msgRecord.set('conversa_id', finalConversaId)
     if (templateId) msgRecord.set('template_id', templateId)
     msgRecord.set('telefone_destino', telefoneDestino)
     msgRecord.set('conteudo_final', conteudoFinal)

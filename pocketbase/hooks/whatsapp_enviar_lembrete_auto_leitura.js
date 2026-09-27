@@ -138,31 +138,16 @@ routerAdd('POST', '/backend/v1/whatsapp/enviar-lembrete-auto-leitura', (e) => {
     // Buscar ou criar conversa no CRM
     let conversaId = ''
     try {
-      const convCol = $app.findCollectionByNameOrId('whatsapp_conversas')
-      const convs = $app.findRecordsByFilter(
-        convCol.id,
-        `cliente_id = '${clienteId}' || numero = '${cleanPhone}'`,
-        '-updated',
-        1,
-        0,
+      const helper = require(`${__hooks}/whatsapp_conversa_helper.js`)
+      const conv = helper.ensureConversaForMessage(
+        $app,
+        clienteId,
+        cleanPhone,
+        mensagemTexto,
+        authUser,
       )
-      if (convs && convs.length > 0) {
-        conversaId = convs[0].id
-      } else {
-        const newConv = new Record(convCol)
-        newConv.set('cliente_id', clienteId)
-        newConv.set('nome_contato', clienteRecord.getString('nome') || 'Cliente')
-        newConv.set('numero', cleanPhone)
-        newConv.set('status', 'aguardando_cliente')
-        newConv.set('ultima_mensagem_preview', mensagemTexto.substring(0, 100))
-        newConv.set('ultima_mensagem_em', new Date().toISOString())
-        newConv.set('nao_lidas', 0)
-        if (authUser) {
-          newConv.set('atendente', authUser.getString('name') || 'Atendente')
-          newConv.set('atendente_id', authUser.id)
-        }
-        $app.save(newConv)
-        conversaId = newConv.id
+      if (conv) {
+        conversaId = conv.id
       }
     } catch (errConv) {
       console.log('[LEMBRETE AUTO LEITURA] Aviso ao obter conversa:', errConv)

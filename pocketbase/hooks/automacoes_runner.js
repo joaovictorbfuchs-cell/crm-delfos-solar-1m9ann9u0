@@ -203,9 +203,27 @@ cronAdd('automacoes_worker', '0 * * * *', () => {
               const textoFinal = formatTexto(
                 configAcao.mensagem || 'Mensagem automática Delfos Solar',
               )
+              let convAutoId = ''
+              try {
+                const helper = require(`${__hooks}/whatsapp_conversa_helper.js`)
+                const conv = helper.ensureConversaForMessage(
+                  $app,
+                  clienteRec ? clienteRec.id : null,
+                  telDestino,
+                  textoFinal,
+                  null,
+                )
+                if (conv) {
+                  convAutoId = conv.id
+                }
+              } catch (errConv) {
+                console.log('[AUTOMACOES RUNNER CONV HELPER AVISO]', errConv)
+              }
+
               const msgsCol = $app.findCollectionByNameOrId('whatsapp_mensagens')
               const novaMsg = new Record(msgsCol)
               if (clienteRec) novaMsg.set('cliente_id', clienteRec.id)
+              if (convAutoId) novaMsg.set('conversa_id', convAutoId)
               novaMsg.set('telefone_destino', telDestino)
               novaMsg.set('conteudo_final', textoFinal)
               novaMsg.set('tipo_disparo', 'automacao_' + gatilho)

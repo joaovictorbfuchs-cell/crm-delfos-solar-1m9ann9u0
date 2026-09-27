@@ -473,6 +473,7 @@ interface ClientesContextType {
     },
   ) => Promise<{ contato: import('@/types/crm').OutroContato; conversa: WhatsAppConversa }>
   refreshConversas: () => Promise<WhatsAppConversa[]>
+  refreshMensagens: () => Promise<WhatsAppMensagem[]>
   sendWhatsAppMessage: (data: {
     cliente_id?: string
     conversa_id?: string
@@ -2397,6 +2398,12 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     return refreshed
   }
 
+  const refreshMensagens = async () => {
+    const refreshed = await fetchWhatsAppMensagens()
+    setWhatsAppMensagens(refreshed)
+    return refreshed
+  }
+
   const vincularConversa = async (
     conversaId: string,
     clienteId: string,
@@ -2876,6 +2883,7 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         cadastrarLeadDeConversa,
         cadastrarOutroContatoDeConversa,
         refreshConversas,
+        refreshMensagens,
         sendWhatsAppMessage,
         sendWhatsAppDocument,
         sendWhatsAppAudioMessage,
@@ -3024,6 +3032,7 @@ export function useClientes(): ClientesContextType {
       cadastrarLeadDeConversa: async () => ({}) as any,
       cadastrarOutroContatoDeConversa: async () => ({}) as any,
       refreshConversas: async () => [],
+      refreshMensagens: async () => [],
       sendWhatsAppMessage: async () => ({}) as any,
       sendWhatsAppDocument: async () => ({}) as any,
       sendWhatsAppAudioMessage: async () => ({}) as any,

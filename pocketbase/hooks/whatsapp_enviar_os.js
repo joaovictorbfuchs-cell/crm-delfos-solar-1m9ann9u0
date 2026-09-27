@@ -161,9 +161,28 @@ routerAdd('POST', '/backend/v1/whatsapp/enviar-os', (e) => {
     // Referência única para reenvio manual: inclui timestamp para nunca colidir e nunca ser bloqueada por deduplicação
     const manualRefKey = 'os_manual_' + osId + '_' + responsavelId + '_' + new Date().getTime()
 
+    // Localizar ou criar conversa vinculada ao cliente ou número do destinatário
+    let conversaOSId = ''
+    try {
+      const helper = require(`${__hooks}/whatsapp_conversa_helper.js`)
+      const conv = helper.ensureConversaForMessage(
+        $app,
+        clienteId,
+        instaladorTelefone,
+        conteudo,
+        authUser,
+      )
+      if (conv) {
+        conversaOSId = conv.id
+      }
+    } catch (errConv) {
+      console.log('[WHATSAPP ENVIAR OS CONV HELPER AVISO]', errConv)
+    }
+
     const msgsCol = $app.findCollectionByNameOrId('whatsapp_mensagens')
     const novaMsg = new Record(msgsCol)
     if (clienteId) novaMsg.set('cliente_id', clienteId)
+    if (conversaOSId) novaMsg.set('conversa_id', conversaOSId)
     if (tpl) novaMsg.set('template_id', tpl.id)
     novaMsg.set('telefone_destino', instaladorTelefone)
     novaMsg.set('conteudo_final', conteudo)

@@ -87,8 +87,20 @@ onRecordAfterUpdateSuccess((e) => {
         .replace(/\{\{endereco\}\}/g, enderecoCliente)
         .replace(/\{\{data\}\}/g, new Date().toLocaleDateString('pt-BR'))
 
+      let conversaPropostaId = ''
+      try {
+        const helper = require(`${__hooks}/whatsapp_conversa_helper.js`)
+        const conv = helper.ensureConversaForMessage($app, clienteId, telCliente, conteudo, null)
+        if (conv) {
+          conversaPropostaId = conv.id
+        }
+      } catch (errConv) {
+        console.log('[PROPOSTA TRIGGER CONV HELPER AVISO]', errConv)
+      }
+
       const novaMsg = new Record(msgsCol)
       novaMsg.set('cliente_id', clienteId)
+      if (conversaPropostaId) novaMsg.set('conversa_id', conversaPropostaId)
       if (tpl) novaMsg.set('template_id', tpl.id)
       novaMsg.set('telefone_destino', telCliente)
       novaMsg.set('conteudo_final', conteudo)

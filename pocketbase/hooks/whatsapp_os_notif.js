@@ -139,8 +139,26 @@ onRecordAfterCreateSuccess((e) => {
       .replace(/\{\{nome_instalador\}\}/g, instaladorNome)
       .replace(/\{\{id_os\}\}/g, osId)
 
+    let convOSId = ''
+    try {
+      const helper = require(`${__hooks}/whatsapp_conversa_helper.js`)
+      const conv = helper.ensureConversaForMessage(
+        $app,
+        clienteId,
+        instaladorTelefone,
+        conteudo,
+        null,
+      )
+      if (conv) {
+        convOSId = conv.id
+      }
+    } catch (errConv) {
+      console.log('[WHATSAPP NOTIF OS CONV HELPER AVISO]', errConv)
+    }
+
     const novaMsg = new Record(msgsCol)
     if (clienteId) novaMsg.set('cliente_id', clienteId)
+    if (convOSId) novaMsg.set('conversa_id', convOSId)
     if (tpl) novaMsg.set('template_id', tpl.id)
     novaMsg.set('telefone_destino', instaladorTelefone)
     novaMsg.set('conteudo_final', conteudo)
@@ -416,16 +434,33 @@ onRecordAfterUpdateSuccess((e) => {
       .replace(/\{\{nome_instalador\}\}/g, instaladorNome)
       .replace(/\{\{id_os\}\}/g, osId)
 
+    let convOSIdUpdate = ''
+    try {
+      const helper = require(`${__hooks}/whatsapp_conversa_helper.js`)
+      const conv = helper.ensureConversaForMessage(
+        $app,
+        clienteId,
+        instaladorTelefone,
+        conteudo,
+        null,
+      )
+      if (conv) {
+        convOSIdUpdate = conv.id
+      }
+    } catch (errConv) {
+      console.log('[WHATSAPP NOTIF OS UPDATE CONV HELPER AVISO]', errConv)
+    }
+
     const novaMsg = new Record(msgsCol)
     if (clienteId) novaMsg.set('cliente_id', clienteId)
+    if (convOSIdUpdate) novaMsg.set('conversa_id', convOSIdUpdate)
     if (tpl) novaMsg.set('template_id', tpl.id)
     novaMsg.set('telefone_destino', instaladorTelefone)
     novaMsg.set('conteudo_final', conteudo)
-    novaMsg.set('tipo_disparo', 'os_atribuida')
+    novaMsg.set('tipo_disparo', 'os_atualizada')
     novaMsg.set('referencia_id', refKey)
     novaMsg.set('direcao', 'enviada')
     novaMsg.set('origem_envio', 'automatico')
-
     let rawApiUrl = ($os.getenv('WHATSAPP_API_URL') || '').trim().replace(/[\r\n\t]/g, '')
     let apiKey = ($os.getenv('WHATSAPP_API_KEY') || '').trim().replace(/[\r\n\t]/g, '')
     let originNumber = ($os.getenv('WHATSAPP_ORIGIN_NUMBER') || '').trim().replace(/[\r\n\t]/g, '')

@@ -56,6 +56,49 @@ routerAdd('POST', '/backend/v1/whatsapp/enviar-imagem', (e) => {
       cleanPhone = '55' + cleanPhone
     }
 
+    // Localizar ou criar conversa se conversa_id não veio
+    let finalConversaId = conversaId
+    try {
+      const helper = require(`${__hooks}/whatsapp_conversa_helper.js`)
+      if (finalConversaId) {
+        const convCol = $app.findCollectionByNameOrId('whatsapp_conversas')
+        const convRec = $app.findRecordsByFilter(
+          convCol.id,
+          `id = '${finalConversaId}'`,
+          '',
+          1,
+          0,
+        )[0]
+        if (convRec) {
+          if (finalClienteId && !convRec.getString('cliente_id')) {
+            convRec.set('cliente_id', finalClienteId)
+          }
+          convRec.set('status', 'aguardando_cliente')
+          convRec.set('ultima_mensagem_preview', legenda ? `📷 ${legenda}` : '📷 Imagem')
+          convRec.set('ultima_mensagem_em', new Date().toISOString())
+          convRec.set('nao_lidas', 0)
+          if (authUser && !convRec.getString('atendente')) {
+            convRec.set('atendente', authUser.getString('name') || 'Atendente')
+            convRec.set('atendente_id', authUser.id)
+          }
+          $app.save(convRec)
+        }
+      } else {
+        const conv = helper.ensureConversaForMessage(
+          $app,
+          finalClienteId,
+          telefoneDestino,
+          legenda ? `📷 ${legenda}` : '📷 Imagem',
+          authUser,
+        )
+        if (conv) {
+          finalConversaId = conv.id
+        }
+      }
+    } catch (errConv) {
+      console.log('[WHATSAPP IMAGE CONV HELPER AVISO]', errConv)
+    }
+
     const msgsCol = $app.findCollectionByNameOrId('whatsapp_mensagens')
     let msgRecord = null
     if (recordId) {
@@ -68,7 +111,7 @@ routerAdd('POST', '/backend/v1/whatsapp/enviar-imagem', (e) => {
     }
 
     if (finalClienteId) msgRecord.set('cliente_id', finalClienteId)
-    if (conversaId) msgRecord.set('conversa_id', conversaId)
+    if (finalConversaId) msgRecord.set('conversa_id', finalConversaId)
     msgRecord.set('telefone_destino', telefoneDestino)
     msgRecord.set('conteudo_final', legenda || '[Imagem]')
     msgRecord.set('tipo_disparo', 'manual')
