@@ -211,9 +211,8 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   // Templates carregados da coleção whatsapp_templates
-  const [templates, setTemplates] = useState<Array<{ id: string; titulo: string; conteudo: string }>>(
-    TEMPLATES_PADRAO_FALLBACK,
-  )
+  const [templates, setTemplates] =
+    useState<Array<{ id: string; titulo: string; conteudo: string }>>(TEMPLATES_PADRAO_FALLBACK)
   const [templateSelecionadoId, setTemplateSelecionadoId] = useState<string>('')
 
   // Estado da mensagem

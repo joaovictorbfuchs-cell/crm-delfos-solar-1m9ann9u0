@@ -577,7 +577,6 @@ export const ListaOM: React.FC<ListaOMProps> = ({
         <button
           type="button"
           onClick={() => {
-            setClienteParaMensagem(null)
             setIsModalMensagemOpen(true)
           }}
           className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-[#0284C7] hover:bg-[#0369a1] text-white rounded-xl transition-colors text-xs font-bold shadow-xs"
@@ -679,12 +678,13 @@ export const ListaOM: React.FC<ListaOMProps> = ({
                 </button>
                 <button
                   type="button"
-                  onClick={() => setModalMassaAberto(true)}
+                  onClick={() => setIsModalMensagemOpen(true)}
                   className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#0284C7] text-white rounded-lg hover:bg-[#0369a1] transition-colors font-semibold shadow-2xs"
                 >
                   <MessageSquare className="w-3.5 h-3.5" />
                   Enviar mensagem em massa ({selectedPosVendasIds.length})
-                </button>              </div>
+                </button>{' '}
+              </div>
             </div>
           )}
 

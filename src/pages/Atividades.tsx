@@ -1,5 +1,14 @@
 import React, { useState, useEffect, useMemo } from 'react'
-import { Search, Clock, ListTodo, CalendarDays, Plus, RefreshCw, AlertCircle, MessageSquare } from 'lucide-react'
+import {
+  Search,
+  Clock,
+  ListTodo,
+  CalendarDays,
+  Plus,
+  RefreshCw,
+  AlertCircle,
+  MessageSquare,
+} from 'lucide-react'
 import { useClientes } from '@/contexts/ClientesContext'
 import { useAuth } from '@/contexts/AuthContext'
 import { Button } from '@/components/ui/button'
@@ -190,7 +199,6 @@ export const Atividades: React.FC = () => {
             </span>
           </button>
         </div>
-
         {/* Controles à direita: Botão padronizado Atualizar + Disparar Mensagens + Nova Atividade */}
         <div className="flex items-center gap-2 self-end sm:self-auto flex-wrap">
           <Button
@@ -216,7 +224,6 @@ export const Atividades: React.FC = () => {
           <Button
             type="button"
             onClick={() => {
-              setEditingAtividade(null)
               setModalOpen(true)
             }}
             className="h-10 px-4 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-medium shadow-xs"
@@ -224,7 +231,8 @@ export const Atividades: React.FC = () => {
             <Plus className="w-4 h-4 mr-1.5" />
             Nova Atividade
           </Button>
-        </div>      </div>
+        </div>{' '}
+      </div>
 
       {/* Banner de erro quando houver falha ao carregar dados do CRM */}
       {error && (
@@ -441,11 +449,6 @@ export const Atividades: React.FC = () => {
           setModalOpen(false)
           setModalInitialTipo(null)
         }}
-        onSuccess={() => {
-          setModalOpen(false)
-          setModalInitialTipo(null)
-          fetchAtividades()
-        }}
       />
 
       {/* 4. Modal Disparar Mensagens em Massa WhatsApp */}
@@ -455,9 +458,6 @@ export const Atividades: React.FC = () => {
         segmentoInicial="todos"
         titulo="Disparar Mensagens em Massa via WhatsApp"
         descricao="Envie mensagens personalizadas via Z-API para clientes do CRM com registro automático de atividade comercial."
-        onSuccess={() => {
-          fetchAtividades()
-        }}
       />
 
       {/* Confirmação Segura de Exclusão de Atividade */}
