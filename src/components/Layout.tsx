@@ -33,16 +33,16 @@ import { FichaClienteDrawer } from '@/components/FichaClienteDrawer'
 import { DelfosLogo } from '@/components/DelfosLogo'
 import { NotificacoesBell } from '@/components/NotificacoesBell'
 import { BarraBuscaGlobal } from '@/components/BarraBuscaGlobal'
+import { MobileLayoutChrome } from '@/components/MobileLayoutChrome'
 import packageJson from '../../package.json'
 
 const APP_VERSION = packageJson.version || '0.0.456'
 
 export default function Layout() {
   const { user, userProfile, isAdmin, isInstalador, logout } = useAuth()
-  const { whatsAppConversas } = useClientes()
+  const { whatsAppConversas, profissionais } = useClientes()
   const location = useLocation()
   const navigate = useNavigate()
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [modalWhatsAppTemplatesOpen, setModalWhatsAppTemplatesOpen] = useState(false)
   const [configuracoesExpanded, setConfiguracoesExpanded] = useState(false)
 
@@ -182,6 +182,19 @@ export default function Layout() {
 
   return (
     <div className="min-h-screen flex bg-[#F8FAF9] text-[#1F2937]">
+      {/* Chrome do Layout Mobile: Header simplificado (Filtro, Funil/Dropdown, +, WhatsApp) + Bottom Bar (5 abas) + Menu Mais */}
+      <MobileLayoutChrome
+        isAdmin={isAdmin}
+        isInstalador={isInstalador}
+        displayName={displayName}
+        displayEmail={displayEmail}
+        userInitial={userInitial}
+        appVersion={APP_VERSION}
+        pendentesWhatsAppCount={pendentesWhatsAppCount}
+        profissionais={profissionais}
+        onLogout={handleLogout}
+      />
+
       {/* Sidebar for Desktop: sempre expandida, estreita e fixa (~88px), ícone em cima + texto embaixo */}
       <aside className="hidden lg:flex flex-col w-[88px] bg-white border-r border-[#E5E7EB] shrink-0 sticky top-0 h-screen z-30 select-none">
         {/* Brand Logo */}
@@ -360,240 +373,12 @@ export default function Layout() {
         </div>
       </aside>
 
-      {/* Mobile Drawer Navigation */}
-      {mobileMenuOpen && (
-        <div className="fixed inset-0 z-50 lg:hidden flex">
-          <div
-            className="fixed inset-0 bg-black/50 backdrop-blur-[2px] transition-opacity"
-            onClick={() => setMobileMenuOpen(false)}
-          />
-          <div className="relative z-50 w-72 max-w-[80%] bg-white h-full shadow-2xl flex flex-col animate-in slide-in-from-left duration-250">
-            {/* Header */}
-            <div className="p-4 border-b border-gray-200 flex items-center justify-between bg-white">
-              <NavLink
-                to="/"
-                onClick={() => setMobileMenuOpen(false)}
-                className="flex items-center py-1"
-                title="Delfos Solar"
-              >
-                <DelfosLogo height={42} />
-              </NavLink>
-              <button
-                onClick={() => setMobileMenuOpen(false)}
-                className="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg"
-                aria-label="Fechar menu"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {/* Links */}
-            <nav className="flex-1 px-4 py-4 space-y-1 overflow-y-auto">
-              {navItems.map((item) => {
-                const Icon = item.icon
-
-                // Se for item de agrupamento (Configurações) no mobile
-                if (item.isGroup && item.subItems) {
-                  const isActive = isConfiguracoesActive
-                  const isExpanded = configuracoesExpanded
-
-                  return (
-                    <div key={item.name} className="space-y-1">
-                      <button
-                        type="button"
-                        onClick={() => setConfiguracoesExpanded((prev) => !prev)}
-                        aria-expanded={isExpanded}
-                        className={`w-full flex items-center justify-between gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-colors text-left cursor-pointer ${
-                          isActive
-                            ? 'bg-[#DCFCE7] text-[#166534] font-semibold'
-                            : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
-                        }`}
-                      >
-                        <div className="flex items-center gap-3 min-w-0">
-                          <Icon
-                            className={`w-5 h-5 shrink-0 ${
-                              isActive ? 'text-[#16A34A]' : 'text-gray-400'
-                            }`}
-                          />
-                          <span className="truncate">{item.name}</span>
-                        </div>
-                        {isExpanded ? (
-                          <ChevronDown
-                            className={`w-4 h-4 shrink-0 transition-transform ${
-                              isActive ? 'text-[#16A34A]' : 'text-gray-400'
-                            }`}
-                          />
-                        ) : (
-                          <ChevronRight
-                            className={`w-4 h-4 shrink-0 transition-transform ${
-                              isActive ? 'text-[#16A34A]' : 'text-gray-400'
-                            }`}
-                          />
-                        )}
-                      </button>
-
-                      {isExpanded && (
-                        <div className="space-y-0.5 pt-0.5">
-                          {item.subItems.map((sub) => {
-                            const SubIcon = sub.icon
-                            const isSubActive = location.pathname === sub.path
-
-                            return (
-                              <NavLink
-                                key={sub.path}
-                                to={sub.path}
-                                title={sub.name}
-                                onClick={() => setMobileMenuOpen(false)}
-                                className={`flex items-center gap-2.5 pl-9 pr-3.5 py-2 rounded-lg text-xs font-medium transition-colors ${
-                                  isSubActive
-                                    ? 'bg-emerald-100/70 text-[#166534] font-bold'
-                                    : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
-                                }`}
-                              >
-                                <SubIcon
-                                  className={`w-4 h-4 shrink-0 ${
-                                    isSubActive ? 'text-[#16A34A]' : 'text-gray-400'
-                                  }`}
-                                />
-                                <span className="truncate">{sub.name}</span>
-                                {isSubActive && (
-                                  <span className="w-1.5 h-1.5 rounded-full bg-[#16A34A] ml-auto shrink-0" />
-                                )}
-                              </NavLink>
-                            )
-                          })}
-                        </div>
-                      )}
-                    </div>
-                  )
-                }
-
-                const itemPath = item.path || '/'
-                const isActive =
-                  location.pathname === itemPath ||
-                  (itemPath === '/servicos-campo' &&
-                    (location.pathname === '/servicos-campo' ||
-                      location.pathname === '/execucao-os')) ||
-                  (itemPath === '/minhas-os' && location.pathname === '/minhas-os') ||
-                  (itemPath === '/planos-om' &&
-                    (location.pathname === '/planos-om' ||
-                      location.pathname === '/planos-monitoramento'))
-                const showSubItems =
-                  itemPath === '/manutencoes' && isManutencoesSectionActive && item.subItems
-
-                return (
-                  <div key={itemPath} className="space-y-1">
-                    <NavLink
-                      to={itemPath}
-                      onClick={() => setMobileMenuOpen(false)}
-                      className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-colors ${
-                        isActive
-                          ? 'bg-[#DCFCE7] text-[#166534] font-semibold'
-                          : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
-                      }`}
-                    >
-                      <Icon
-                        className={`w-5 h-5 ${isActive ? 'text-[#16A34A]' : 'text-gray-400'}`}
-                      />
-                      <span>{item.name}</span>
-                      {item.badge !== undefined && item.badge > 0 && (
-                        <span className="ml-auto px-2 py-0.5 rounded-full text-xs font-black bg-emerald-600 text-white">
-                          {item.badge}
-                        </span>
-                      )}
-                    </NavLink>
-
-                    {showSubItems &&
-                      item.subItems?.map((sub) => {
-                        const SubIcon = sub.icon
-                        const isSubActive =
-                          location.pathname === sub.path ||
-                          (sub.path === '/clientes-pos-vendas' &&
-                            (location.pathname === '/clientes-pos-vendas' ||
-                              location.pathname === '/pos-vendas'))
-                        return (
-                          <NavLink
-                            key={sub.path}
-                            to={sub.path}
-                            title={sub.name}
-                            onClick={() => setMobileMenuOpen(false)}
-                            className={`flex items-center gap-2.5 pl-9 pr-3.5 py-2 rounded-lg text-xs font-medium transition-colors ${
-                              isSubActive
-                                ? 'bg-emerald-100/70 text-[#166534] font-bold'
-                                : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
-                            }`}
-                          >
-                            <SubIcon
-                              className={`w-4 h-4 ${isSubActive ? 'text-[#16A34A]' : 'text-gray-400'}`}
-                            />
-                            <span>{sub.name}</span>
-                          </NavLink>
-                        )
-                      })}
-                  </div>
-                )
-              })}
-            </nav>
-
-            {/* Logout on mobile */}
-            <div className="p-4 border-t border-gray-200 bg-gray-50 flex flex-col gap-2.5">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2 truncate">
-                  <div className="w-8 h-8 rounded-full bg-[#16A34A] text-white flex items-center justify-center font-bold text-xs shrink-0">
-                    {userInitial}
-                  </div>
-                  <div className="truncate text-xs text-gray-800 font-medium">
-                    {user?.name || 'João Silva'}
-                  </div>
-                </div>
-                <button
-                  onClick={handleLogout}
-                  className="text-xs text-red-600 font-medium flex items-center gap-1 hover:underline"
-                >
-                  <LogOut className="w-3.5 h-3.5" />
-                  Sair
-                </button>
-              </div>
-              <div className="flex items-center justify-between text-[11px] font-mono text-gray-400 pt-1 border-t border-gray-200/60">
-                <span>Delfos Solar</span>
-                <span>v{APP_VERSION}</span>
-              </div>
-              <div className="pt-1 flex items-center justify-center">
-                <a
-                  href="/schema-delfos-solar.xlsx"
-                  download="schema-delfos-solar.xlsx"
-                  className="inline-flex items-center gap-1.5 text-xs text-gray-500 hover:text-[#166534] transition-colors py-1"
-                  title="Exportar schema completo do banco PocketBase em formato XLSX"
-                >
-                  <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                  <span className="font-medium">Exportar Schema (XLSX)</span>
-                </a>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0">
-        {/* Top Header */}
-        <header className="h-16 bg-white border-b border-[#E5E7EB] px-3 sm:px-6 lg:px-8 flex items-center justify-between gap-3 sticky top-0 z-20">
-          {/* Lado Esquerdo: Hambúrguer em Mobile + Logo Compacto em mobile + Barra de Busca Central */}
-          <div className="flex items-center gap-2 sm:gap-3 flex-1 max-w-2xl min-w-0">
-            <button
-              onClick={() => setMobileMenuOpen(true)}
-              className="lg:hidden p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors shrink-0"
-              aria-label="Abrir menu"
-            >
-              <Menu className="w-5 h-5" />
-            </button>
-
-            {/* Logo sutil no topo mobile quando a sidebar está recolhida */}
-            <NavLink to="/" className="lg:hidden flex items-center shrink-0 pr-1">
-              <DelfosLogo height={30} />
-            </NavLink>
-
-            {/* Barra de Busca Proeminente ocupando o espaço onde ficava o título repetido */}
+        {/* Top Header Desktop (apenas desktop: hidden lg:flex; no mobile o MobileLayoutChrome assume) */}
+        <header className="hidden lg:flex h-16 bg-white border-b border-[#E5E7EB] px-6 lg:px-8 items-center justify-between gap-3 sticky top-0 z-20">
+          {/* Lado Esquerdo: Barra de Busca Central */}
+          <div className="flex items-center gap-3 flex-1 max-w-2xl min-w-0">
             <div className="flex-1 min-w-0">
               <BarraBuscaGlobal />
             </div>
@@ -681,22 +466,12 @@ export default function Layout() {
               >
                 {userInitial}
               </div>
-
-              {/* Botão de Logout no Header em Telas Menores */}
-              <button
-                type="button"
-                onClick={handleLogout}
-                className="lg:hidden p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                title="Sair do sistema"
-              >
-                <LogOut className="w-4 h-4" />
-              </button>
             </div>
           </div>
         </header>
 
         {/* Content Body */}
-        <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto">
+        <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto pt-18 pb-20 lg:pt-6 lg:pb-8">
           <Outlet />
         </main>
       </div>

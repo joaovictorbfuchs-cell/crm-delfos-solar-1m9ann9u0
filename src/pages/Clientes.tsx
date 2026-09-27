@@ -96,7 +96,7 @@ export default function Clientes() {
     const handleMobileFilterChange = (e: Event) => {
       const customEvent = e as CustomEvent<{ statusFilter?: string }>
       if (customEvent.detail && customEvent.detail.statusFilter !== undefined) {
-        setStatusFilter(customEvent.detail.statusFilter)
+        setFiltroStatus(customEvent.detail.statusFilter)
       }
     }
     window.addEventListener('delfos:mobile-filter-change', handleMobileFilterChange)

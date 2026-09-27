@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import { Search, Clock, ListTodo, CalendarDays, Plus, RefreshCw, AlertCircle } from 'lucide-react'
 import { useClientes } from '@/contexts/ClientesContext'
 import { Button } from '@/components/ui/button'

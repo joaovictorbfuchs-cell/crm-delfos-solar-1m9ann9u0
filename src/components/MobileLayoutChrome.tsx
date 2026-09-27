@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import {
   KanbanSquare,
@@ -48,6 +48,7 @@ interface MobileLayoutChromeProps {
   userInitial: string
   appVersion: string
   pendentesWhatsAppCount: number
+  profissionais?: Array<{ id: string; nome?: string; name?: string }>
   onLogout: () => void
 }
 
@@ -59,6 +60,7 @@ export const MobileLayoutChrome: React.FC<MobileLayoutChromeProps> = ({
   userInitial,
   appVersion,
   pendentesWhatsAppCount,
+  profissionais = [],
   onLogout,
 }) => {
   const location = useLocation()
@@ -71,14 +73,16 @@ export const MobileLayoutChrome: React.FC<MobileLayoutChromeProps> = ({
   // Filtros locais aplicáveis nas telas
   const [comercialTipoVenda, setComercialTipoVenda] = useState('todos')
   const [clientesStatus, setClientesStatus] = useState('todos')
+  const [projetosProfissional, setProjetosProfissional] = useState('todos')
+  const [atividadesResponsavel, setAtividadesResponsavel] = useState('todos')
 
   // Identificação do título central do funil / aba atual
   const currentFunil = React.useMemo(() => {
     if (location.pathname === '/comercial') {
-      return { id: 'comercial', label: 'Comercial', isFunil: true }
+      return { id: 'comercial', label: 'Funil Comercial', isFunil: true }
     }
     if (location.pathname === '/projetos') {
-      return { id: 'projetos', label: 'Projetos', isFunil: true }
+      return { id: 'projetos', label: 'Funil de Projetos', isFunil: true }
     }
     if (location.pathname === '/atividades') {
       return { id: 'atividades', label: 'Atividades', isFunil: false }
@@ -97,7 +101,7 @@ export const MobileLayoutChrome: React.FC<MobileLayoutChromeProps> = ({
       return { id: 'dashboard', label: 'Dashboard', isFunil: false }
     }
     if (location.pathname === '/propostas' || location.pathname === '/orcamentos') {
-      return { id: 'propostas', label: 'Propostas', isFunil: false }
+      return { id: 'propostas', label: 'Propostas & Orçamentos', isFunil: false }
     }
     if (
       location.pathname === '/manutencoes' ||
@@ -107,7 +111,19 @@ export const MobileLayoutChrome: React.FC<MobileLayoutChromeProps> = ({
       return { id: 'manutencoes', label: 'O&M / Manutenções', isFunil: false }
     }
     if (location.pathname === '/central-atendimento') {
-      return { id: 'central-atendimento', label: 'Atendimento WhatsApp', isFunil: false }
+      return { id: 'central-atendimento', label: 'Central WhatsApp', isFunil: false }
+    }
+    if (location.pathname === '/automacoes') {
+      return { id: 'automacoes', label: 'Automações do CRM', isFunil: false }
+    }
+    if (location.pathname === '/catalogo-atividades') {
+      return { id: 'catalogo-atividades', label: 'Catálogo de Atividades', isFunil: false }
+    }
+    if (location.pathname === '/equipamentos') {
+      return { id: 'equipamentos', label: 'Equipamentos', isFunil: false }
+    }
+    if (location.pathname === '/gerenciar-usuarios') {
+      return { id: 'gerenciar-usuarios', label: 'Gerenciar Usuários', isFunil: false }
     }
     return { id: 'crm', label: 'Comercial', isFunil: true }
   }, [location.pathname])
@@ -178,12 +194,63 @@ export const MobileLayoutChrome: React.FC<MobileLayoutChromeProps> = ({
         },
       ]
     }
+    if (location.pathname === '/projetos') {
+      return [
+        {
+          id: 'profissional',
+          label: 'Responsável Técnico',
+          selectedValue: projetosProfissional,
+          options: [
+            { id: 'todos', label: 'Todos os profissionais' },
+            ...profissionais.map((p) => ({ id: p.id, label: p.nome || p.name || 'Profissional' })),
+          ],
+          onChange: (val: string) => {
+            setProjetosProfissional(val)
+            window.dispatchEvent(
+              new CustomEvent('delfos:mobile-filter-change', {
+                detail: { profissionalId: val },
+              }),
+            )
+          },
+        },
+      ]
+    }
+    if (location.pathname === '/atividades') {
+      return [
+        {
+          id: 'responsavel',
+          label: 'Responsável',
+          selectedValue: atividadesResponsavel,
+          options: [
+            { id: 'todos', label: 'Todos os responsáveis' },
+            ...profissionais.map((p) => ({ id: p.id, label: p.nome || p.name || 'Profissional' })),
+          ],
+          onChange: (val: string) => {
+            setAtividadesResponsavel(val)
+            window.dispatchEvent(
+              new CustomEvent('delfos:mobile-filter-change', {
+                detail: { responsavelId: val },
+              }),
+            )
+          },
+        },
+      ]
+    }
     return []
-  }, [location.pathname, comercialTipoVenda, clientesStatus])
+  }, [
+    location.pathname,
+    comercialTipoVenda,
+    clientesStatus,
+    projetosProfissional,
+    atividadesResponsavel,
+    profissionais,
+  ])
 
   const activeFiltersCount =
     (comercialTipoVenda !== 'todos' && location.pathname === '/comercial' ? 1 : 0) +
-    (clientesStatus !== 'todos' && location.pathname === '/clientes' ? 1 : 0)
+    (clientesStatus !== 'todos' && location.pathname === '/clientes' ? 1 : 0) +
+    (projetosProfissional !== 'todos' && location.pathname === '/projetos' ? 1 : 0) +
+    (atividadesResponsavel !== 'todos' && location.pathname === '/atividades' ? 1 : 0)
 
   // Itens da bottom bar enxuta
   const bottomBarTabs = [
@@ -289,14 +356,14 @@ export const MobileLayoutChrome: React.FC<MobileLayoutChromeProps> = ({
           </button>
         </div>
 
-        {/* Centro: Nome do funil atual com seta para trocar de funil */}
+        {/* Centro: Nome do funil/tela atual com seta/dropdown para alternar funil e telas principais */}
         <div className="flex-1 min-w-0 flex items-center justify-center px-1">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button
                 type="button"
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl hover:bg-gray-100 active:bg-gray-200/80 transition-colors max-w-full cursor-pointer focus:outline-none"
-                title="Clique para alternar entre Comercial e Projetos"
+                title="Clique para alternar funis e navegação"
               >
                 <span className="font-extrabold text-sm sm:text-base text-gray-900 truncate">
                   {currentFunil.label}
@@ -304,9 +371,9 @@ export const MobileLayoutChrome: React.FC<MobileLayoutChromeProps> = ({
                 <ChevronDown className="w-4 h-4 text-gray-500 shrink-0" />
               </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="center" className="w-56 p-1.5">
+            <DropdownMenuContent align="center" className="w-60 p-1.5">
               <DropdownMenuLabel className="text-[11px] text-gray-400 uppercase tracking-wider px-2 py-1">
-                Alternar Funil
+                Alternar Funil & Telas
               </DropdownMenuLabel>
               <DropdownMenuItem
                 onClick={() => navigate('/comercial')}
@@ -341,13 +408,58 @@ export const MobileLayoutChrome: React.FC<MobileLayoutChromeProps> = ({
                   <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
                 )}
               </DropdownMenuItem>
+
               <DropdownMenuSeparator className="my-1" />
+
+              <DropdownMenuItem
+                onClick={() => navigate('/atividades')}
+                className={`flex items-center justify-between cursor-pointer py-2 px-2.5 rounded-lg text-xs font-medium ${
+                  location.pathname === '/atividades'
+                    ? 'bg-emerald-50 text-emerald-800 font-bold'
+                    : 'text-gray-700'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <CalendarCheck className="w-4 h-4 text-amber-600" />
+                  <span>Atividades & Calendário</span>
+                </div>
+                {location.pathname === '/atividades' && (
+                  <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                )}
+              </DropdownMenuItem>
+
+              <DropdownMenuItem
+                onClick={() => navigate('/clientes')}
+                className={`flex items-center justify-between cursor-pointer py-2 px-2.5 rounded-lg text-xs font-medium ${
+                  location.pathname === '/clientes'
+                    ? 'bg-emerald-50 text-emerald-800 font-bold'
+                    : 'text-gray-700'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <Users className="w-4 h-4 text-emerald-600" />
+                  <span>Gestão de Clientes</span>
+                </div>
+                {location.pathname === '/clientes' && (
+                  <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                )}
+              </DropdownMenuItem>
+
               <DropdownMenuItem
                 onClick={() => navigate('/manutencoes')}
-                className="flex items-center gap-2 cursor-pointer py-2 px-2.5 rounded-lg text-xs font-medium text-gray-700"
+                className={`flex items-center justify-between cursor-pointer py-2 px-2.5 rounded-lg text-xs font-medium ${
+                  location.pathname === '/manutencoes'
+                    ? 'bg-emerald-50 text-emerald-800 font-bold'
+                    : 'text-gray-700'
+                }`}
               >
-                <ShieldCheck className="w-4 h-4 text-purple-600" />
-                <span>O&M / Manutenções</span>
+                <div className="flex items-center gap-2">
+                  <ShieldCheck className="w-4 h-4 text-purple-600" />
+                  <span>O&M / Manutenções</span>
+                </div>
+                {location.pathname === '/manutencoes' && (
+                  <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                )}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -573,9 +685,16 @@ export const MobileLayoutChrome: React.FC<MobileLayoutChromeProps> = ({
         onClearAll={() => {
           setComercialTipoVenda('todos')
           setClientesStatus('todos')
+          setProjetosProfissional('todos')
+          setAtividadesResponsavel('todos')
           window.dispatchEvent(
             new CustomEvent('delfos:mobile-filter-change', {
-              detail: { tipoVenda: 'todos', statusFilter: 'todos' },
+              detail: {
+                tipoVenda: 'todos',
+                statusFilter: 'todos',
+                profissionalId: 'todos',
+                responsavelId: 'todos',
+              },
             }),
           )
         }}

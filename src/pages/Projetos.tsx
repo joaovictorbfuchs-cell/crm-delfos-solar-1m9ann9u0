@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import { FolderKanban, Plus, Search, RefreshCw } from 'lucide-react'
 import { useClientes } from '@/contexts/ClientesContext'
 import { SessaoExpiradaAlert } from '@/components/SessaoExpiradaAlert'
