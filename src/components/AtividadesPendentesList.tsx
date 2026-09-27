@@ -12,6 +12,7 @@ import {
   MessageSquare,
   CheckSquare,
   Square,
+  Trash2,
 } from 'lucide-react'
 import type { Atividade, SistemaUsuario } from '@/types/crm'
 import { getTipoAtividadeConfig } from '@/constants/atividadesTipos'
@@ -22,6 +23,18 @@ import {
   type DestinatarioMensagemMassa,
 } from '@/components/ModalMensagemWhatsAppMassa'
 import { useClientes } from '@/contexts/ClientesContext'
+import { useAuth } from '@/contexts/AuthContext'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
+import { useToast } from '@/hooks/use-toast'
 interface AtividadesPendentesListProps {
   atividades: Atividade[]
   usuarios: SistemaUsuario[]
@@ -29,6 +42,7 @@ interface AtividadesPendentesListProps {
   onSelectUsuario: (id: string) => void
   onToggleStatus: (id: string, currentStatus: string) => void
   onOpenCliente: (clienteId: string) => void
+  onDeleteAtividade?: (id: string) => void
 }
 
 export const AtividadesPendentesList: React.FC<AtividadesPendentesListProps> = ({
@@ -38,12 +52,19 @@ export const AtividadesPendentesList: React.FC<AtividadesPendentesListProps> = (
   onSelectUsuario,
   onToggleStatus,
   onOpenCliente,
+  onDeleteAtividade,
 }) => {
-  const { clientes } = useClientes()
+  const { clientes, removeAtividade } = useClientes()
+  const { isAdmin } = useAuth()
+  const { toast } = useToast()
   const [tabStatus, setTabStatus] = useState<'pendentes' | 'concluidas' | 'todas'>('pendentes')
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedAtividadeIds, setSelectedAtividadeIds] = useState<string[]>([])
   const [isModalMensagemOpen, setIsModalMensagemOpen] = useState(false)
+
+  // Exclusão de Atividade (apenas Admin)
+  const [atividadeParaExcluirLocal, setAtividadeParaExcluirLocal] = useState<Atividade | null>(null)
+  const [isDeletingLocal, setIsDeletingLocal] = useState(false)
 
   // Filtrar atividades pelo usuário
   const atividadesDoUsuario = useMemo(() => {
@@ -385,6 +406,24 @@ export const AtividadesPendentesList: React.FC<AtividadesPendentesListProps> = (
                         <div className="flex items-center text-[11px] text-gray-500 gap-1 ml-auto">
                           <Calendar className="w-3 h-3 text-gray-400" />
                           <span>{formatDateTime(atv.data)}</span>
+                          {isAdmin && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                if (onDeleteAtividade) {
+                                  onDeleteAtividade(atv.id)
+                                } else {
+                                  setAtividadeParaExcluirLocal(atv)
+                                }
+                              }}
+                              className="ml-1 p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors cursor-pointer"
+                              title="Excluir atividade"
+                              aria-label="Excluir atividade"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          )}
                         </div>
                       </div>
 
@@ -439,6 +478,58 @@ export const AtividadesPendentesList: React.FC<AtividadesPendentesListProps> = (
             )
           })}
         </div>
+      )}
+      {/* Diálogo de confirmação de exclusão local (caso onDeleteAtividade não tenha sido passado) */}
+      {isAdmin && !onDeleteAtividade && (
+        <AlertDialog
+          open={Boolean(atividadeParaExcluirLocal)}
+          onOpenChange={(open) => {
+            if (!open && !isDeletingLocal) setAtividadeParaExcluirLocal(null)
+          }}
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle className="text-gray-900">Excluir Atividade</AlertDialogTitle>
+              <AlertDialogDescription>
+                Deseja realmente excluir a atividade{' '}
+                <strong className="text-gray-900 font-semibold">
+                  {atividadeParaExcluirLocal?.titulo || 'Atividade'}
+                </strong>
+                ? Esta ação não pode ser desfeita.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={isDeletingLocal}>Cancelar</AlertDialogCancel>
+              <AlertDialogAction
+                disabled={isDeletingLocal}
+                onClick={async (e) => {
+                  e.preventDefault()
+                  if (!atividadeParaExcluirLocal) return
+                  setIsDeletingLocal(true)
+                  try {
+                    await removeAtividade(atividadeParaExcluirLocal.id)
+                    toast({
+                      title: 'Atividade excluída com sucesso',
+                    })
+                    setAtividadeParaExcluirLocal(null)
+                  } catch (err) {
+                    console.error('Erro ao excluir atividade:', err)
+                    toast({
+                      variant: 'destructive',
+                      title: 'Erro ao excluir atividade',
+                      description: 'Tente novamente.',
+                    })
+                  } finally {
+                    setIsDeletingLocal(false)
+                  }
+                }}
+                className="bg-red-600 hover:bg-red-700 text-white focus:ring-red-600"
+              >
+                {isDeletingLocal ? 'Excluindo...' : 'Confirmar Exclusão'}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       )}
     </div>
   )

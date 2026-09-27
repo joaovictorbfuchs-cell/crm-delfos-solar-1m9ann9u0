@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import { OrdemServico, OSTipoServico } from '@/types/crm'
-import { fetchOrdensServico } from '@/services/crmService'
+import { fetchOrdensServico, deleteOrdemServico } from '@/services/crmService'
 import { FichaExecucaoOS } from '@/components/FichaExecucaoOS'
 import { CalendarioExecucaoOS } from '@/components/CalendarioExecucaoOS'
 import { useToast } from '@/hooks/use-toast'
@@ -17,20 +17,35 @@ import {
   CheckCheck,
   PlayCircle,
   FileText,
+  Trash2,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useAuth } from '@/contexts/AuthContext'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 
 export default function MinhasOS() {
   const { toast } = useToast()
-  const { userProfile, user } = useAuth()
+  const { userProfile, user, isAdmin } = useAuth()
 
   const [ordens, setOrdens] = useState<OrdemServico[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
   // OS atualmente aberta na Ficha de Execução
   const [selectedOS, setSelectedOS] = useState<OrdemServico | null>(null)
+
+  // Exclusão de OS (apenas Admin)
+  const [osParaExcluir, setOsParaExcluir] = useState<OrdemServico | null>(null)
+  const [isDeletingOS, setIsDeletingOS] = useState(false)
 
   // Abas: 'pendentes', 'calendario', 'concluidas' (histórico)
   const [activeTab, setActiveTab] = useState<'pendentes' | 'calendario' | 'concluidas'>('pendentes')
@@ -89,6 +104,29 @@ export default function MinhasOS() {
     setOrdens((prev) => prev.map((item) => (item.id === finalizedOS.id ? finalizedOS : item)))
     setSelectedOS(null)
     setActiveTab('concluidas')
+  }
+
+  const handleConfirmarExclusaoOS = async () => {
+    if (!osParaExcluir) return
+    setIsDeletingOS(true)
+    try {
+      await deleteOrdemServico(osParaExcluir.id)
+      setOrdens((prev) => prev.filter((o) => o.id !== osParaExcluir.id))
+      toast({
+        title: 'Ordem de serviço excluída com sucesso',
+        description: `OS #${osParaExcluir.id.slice(0, 8)} foi removida.`,
+      })
+      setOsParaExcluir(null)
+    } catch (err) {
+      console.error('Erro ao excluir ordem de serviço:', err)
+      toast({
+        variant: 'destructive',
+        title: 'Erro ao excluir ordem de serviço',
+        description: 'Tente novamente.',
+      })
+    } finally {
+      setIsDeletingOS(false)
+    }
   }
 
   // Pendentes e Em Andamento
@@ -345,22 +383,39 @@ export default function MinhasOS() {
                           {os.tipo_servico}
                         </span>
 
-                        {os.status === 'concluida' ? (
-                          <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-100/80 px-2.5 py-0.5 rounded-full">
-                            <CheckCircle2 className="w-3.5 h-3.5" />
-                            Concluída
-                          </span>
-                        ) : emAndamento ? (
-                          <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-800 bg-amber-100 px-2.5 py-0.5 rounded-full animate-pulse">
-                            <PlayCircle className="w-3.5 h-3.5 text-amber-600" />
-                            Em Andamento
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-700 bg-amber-100/80 px-2.5 py-0.5 rounded-full">
-                            <Clock className="w-3.5 h-3.5" />
-                            Pendente
-                          </span>
-                        )}
+                        <div className="flex items-center gap-1.5 ml-auto">
+                          {os.status === 'concluida' ? (
+                            <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-100/80 px-2.5 py-0.5 rounded-full">
+                              <CheckCircle2 className="w-3.5 h-3.5" />
+                              Concluída
+                            </span>
+                          ) : emAndamento ? (
+                            <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-800 bg-amber-100 px-2.5 py-0.5 rounded-full animate-pulse">
+                              <PlayCircle className="w-3.5 h-3.5 text-amber-600" />
+                              Em Andamento
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-700 bg-amber-100/80 px-2.5 py-0.5 rounded-full">
+                              <Clock className="w-3.5 h-3.5" />
+                              Pendente
+                            </span>
+                          )}
+
+                          {isAdmin && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                setOsParaExcluir(os)
+                              }}
+                              className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
+                              title="Excluir ordem de serviço"
+                              aria-label="Excluir ordem de serviço"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          )}
+                        </div>
                       </div>
 
                       {/* Nome do Cliente */}
@@ -412,6 +467,47 @@ export default function MinhasOS() {
             </div>
           )}
         </>
+      )}
+      {/* Confirmação Segura de Exclusão de OS (Apenas Admin) */}
+      {isAdmin && (
+        <AlertDialog
+          open={Boolean(osParaExcluir)}
+          onOpenChange={(open) => {
+            if (!open && !isDeletingOS) setOsParaExcluir(null)
+          }}
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle className="text-gray-900">
+                Excluir Ordem de Serviço
+              </AlertDialogTitle>
+              <AlertDialogDescription>
+                Deseja realmente excluir a{' '}
+                <strong className="text-gray-900 font-semibold">
+                  Ordem de Serviço #{osParaExcluir?.id.slice(0, 8)} —{' '}
+                  {osParaExcluir?.expand?.cliente_id?.nome ||
+                    osParaExcluir?.expand?.cliente_id?.razao_social ||
+                    osParaExcluir?.endereco ||
+                    'Cliente Solar'}
+                </strong>
+                ? Esta ação não pode ser desfeita.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={isDeletingOS}>Cancelar</AlertDialogCancel>
+              <AlertDialogAction
+                disabled={isDeletingOS}
+                onClick={(e) => {
+                  e.preventDefault()
+                  handleConfirmarExclusaoOS()
+                }}
+                className="bg-red-600 hover:bg-red-700 text-white focus:ring-red-600"
+              >
+                {isDeletingOS ? 'Excluindo...' : 'Confirmar Exclusão'}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       )}
     </div>
   )

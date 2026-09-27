@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import { OrdemServico, OSTipoServico } from '@/types/crm'
-import { fetchOrdensServico } from '@/services/crmService'
+import { fetchOrdensServico, deleteOrdemServico } from '@/services/crmService'
 import { FichaExecucaoOS } from '@/components/FichaExecucaoOS'
 import { CalendarioExecucaoOS } from '@/components/CalendarioExecucaoOS'
 import { RelatorioOSPrestador } from '@/components/RelatorioOSPrestador'
@@ -27,6 +27,7 @@ import {
   CheckCheck,
   BarChart3,
   Send,
+  Trash2,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -44,6 +45,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 
 export default function ExecucaoOS() {
   const { toast } = useToast()
@@ -65,6 +76,10 @@ export default function ExecucaoOS() {
 
   // Estado de geração de PDF sob demanda ao clicar em "Ver Relatório"
   const [gerandoPdfOsId, setGerandoPdfOsId] = useState<string | null>(null)
+
+  // Exclusão de OS (apenas Admin)
+  const [osParaExcluir, setOsParaExcluir] = useState<OrdemServico | null>(null)
+  const [isDeletingOS, setIsDeletingOS] = useState(false)
 
   // OS atualmente aberta na Ficha de Execução (null = tela inicial/lista)
   const [selectedOS, setSelectedOS] = useState<OrdemServico | null>(null)
@@ -284,6 +299,30 @@ export default function ExecucaoOS() {
       })
     } finally {
       setGerandoPdfOsId(null)
+    }
+  }
+
+  // Excluir OS com confirmação
+  const handleConfirmarExclusaoOS = async () => {
+    if (!osParaExcluir) return
+    setIsDeletingOS(true)
+    try {
+      await deleteOrdemServico(osParaExcluir.id)
+      setOrdens((prev) => prev.filter((o) => o.id !== osParaExcluir.id))
+      toast({
+        title: 'Ordem de serviço excluída com sucesso',
+        description: `OS #${osParaExcluir.id.slice(0, 8)} foi removida.`,
+      })
+      setOsParaExcluir(null)
+    } catch (err) {
+      console.error('Erro ao excluir ordem de serviço:', err)
+      toast({
+        variant: 'destructive',
+        title: 'Erro ao excluir ordem de serviço',
+        description: 'Tente novamente.',
+      })
+    } finally {
+      setIsDeletingOS(false)
     }
   }
 
@@ -674,23 +713,40 @@ export default function ExecucaoOS() {
                     }`}
                   >
                     <div>
-                      {/* Topo do Card: Tipo do Serviço e Status */}
+                      {/* Topo do Card: Tipo do Serviço, Status e Ação de Exclusão (Admin) */}
                       <div className="flex items-center justify-between gap-2 mb-2.5">
                         <span className="text-[11px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-200/80">
                           {os.tipo_servico}
                         </span>
 
-                        {os.status === 'concluida' ? (
-                          <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-100/80 px-2 py-0.5 rounded-full">
-                            <CheckCircle2 className="w-3.5 h-3.5" />
-                            Concluída
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-700 bg-amber-100/80 px-2 py-0.5 rounded-full">
-                            <Clock className="w-3.5 h-3.5" />
-                            Pendente
-                          </span>
-                        )}
+                        <div className="flex items-center gap-1.5 ml-auto">
+                          {os.status === 'concluida' ? (
+                            <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-100/80 px-2 py-0.5 rounded-full">
+                              <CheckCircle2 className="w-3.5 h-3.5" />
+                              Concluída
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-700 bg-amber-100/80 px-2 py-0.5 rounded-full">
+                              <Clock className="w-3.5 h-3.5" />
+                              Pendente
+                            </span>
+                          )}
+
+                          {isAdmin && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                setOsParaExcluir(os)
+                              }}
+                              className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
+                              title="Excluir ordem de serviço"
+                              aria-label="Excluir ordem de serviço"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          )}
+                        </div>
                       </div>
 
                       {/* Nome do Cliente */}
@@ -840,6 +896,48 @@ export default function ExecucaoOS() {
             carregarDados()
           }}
         />
+      )}
+
+      {/* Confirmação de Exclusão de OS (Apenas Admin) */}
+      {isAdmin && (
+        <AlertDialog
+          open={Boolean(osParaExcluir)}
+          onOpenChange={(open) => {
+            if (!open && !isDeletingOS) setOsParaExcluir(null)
+          }}
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle className="text-gray-900">
+                Excluir Ordem de Serviço
+              </AlertDialogTitle>
+              <AlertDialogDescription>
+                Deseja realmente excluir a{' '}
+                <strong className="text-gray-900 font-semibold">
+                  Ordem de Serviço #{osParaExcluir?.id.slice(0, 8)} —{' '}
+                  {osParaExcluir?.expand?.cliente_id?.nome ||
+                    osParaExcluir?.expand?.cliente_id?.razao_social ||
+                    osParaExcluir?.endereco ||
+                    'Cliente Solar'}
+                </strong>
+                ? Esta ação não pode ser desfeita.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={isDeletingOS}>Cancelar</AlertDialogCancel>
+              <AlertDialogAction
+                disabled={isDeletingOS}
+                onClick={(e) => {
+                  e.preventDefault()
+                  handleConfirmarExclusaoOS()
+                }}
+                className="bg-red-600 hover:bg-red-700 text-white focus:ring-red-600"
+              >
+                {isDeletingOS ? 'Excluindo...' : 'Confirmar Exclusão'}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       )}
 
       {/* Modal de Reatribuição de Prestador à OS (Apenas Admin) */}

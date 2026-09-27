@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import { Search, Clock, ListTodo, CalendarDays, Plus, RefreshCw, AlertCircle } from 'lucide-react'
 import { useClientes } from '@/contexts/ClientesContext'
+import { useAuth } from '@/contexts/AuthContext'
 import { Button } from '@/components/ui/button'
 import { AtividadeItem } from '@/components/AtividadeItem'
 import { ModalNovaAtividade } from '@/components/ModalNovaAtividade'
@@ -19,6 +20,7 @@ import { AtividadesPendentesList } from '@/components/AtividadesPendentesList'
 import type { Atividade, AtividadeTipo, AtividadeStatus } from '@/types/crm'
 
 export const Atividades: React.FC = () => {
+  const { isAdmin } = useAuth()
   const {
     clientes,
     atividades,
@@ -256,6 +258,17 @@ export const Atividades: React.FC = () => {
           onSelectUsuario={setUsuarioFiltroId}
           onToggleStatus={handleToggleStatus}
           onOpenCliente={openFichaCliente}
+          onDeleteAtividade={
+            isAdmin
+              ? (id) => {
+                  const target = atividades.find((a) => a.id === id)
+                  setAtividadeParaExcluir({
+                    id,
+                    titulo: target?.titulo || 'Atividade',
+                  })
+                }
+              : undefined
+          }
         />
       )}
 
@@ -377,13 +390,17 @@ export const Atividades: React.FC = () => {
                   <div key={atv.id} className="relative">
                     <AtividadeItem
                       atividade={atv}
-                      onDelete={(id) => {
-                        const target = atividades.find((a) => a.id === id)
-                        setAtividadeParaExcluir({
-                          id,
-                          titulo: target?.titulo || atv.titulo || 'Atividade',
-                        })
-                      }}
+                      onDelete={
+                        isAdmin
+                          ? (id) => {
+                              const target = atividades.find((a) => a.id === id)
+                              setAtividadeParaExcluir({
+                                id,
+                                titulo: target?.titulo || atv.titulo || 'Atividade',
+                              })
+                            }
+                          : undefined
+                      }
                       onToggleStatus={handleToggleStatus}
                       showClienteName={true}
                     />

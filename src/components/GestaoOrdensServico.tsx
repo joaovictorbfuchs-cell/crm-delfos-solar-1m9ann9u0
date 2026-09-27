@@ -13,6 +13,7 @@ import {
   Phone,
   FileText,
   AlertTriangle,
+  Trash2,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -25,8 +26,18 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { formatDateTime } from '@/lib/formatters'
-import { fetchOrdensServico, updateOrdemServico } from '@/services/crmService'
+import { fetchOrdensServico, updateOrdemServico, deleteOrdemServico } from '@/services/crmService'
 import { fetchInstaladoresAtivos } from '@/services/usuariosService'
 import { BotaoEnviarOSWhatsApp } from '@/components/BotaoEnviarOSWhatsApp'
 import { useAuth } from '@/contexts/AuthContext'
@@ -54,6 +65,10 @@ export const GestaoOrdensServico: React.FC<GestaoOrdensServicoProps> = ({ onVerE
   const [osParaAtribuir, setOsParaAtribuir] = useState<OrdemServico | null>(null)
   const [selectedInstaladorId, setSelectedInstaladorId] = useState<string>('')
   const [isSavingAtribuicao, setIsSavingAtribuicao] = useState(false)
+
+  // Modal de exclusão de OS (apenas admin)
+  const [osParaExcluir, setOsParaExcluir] = useState<OrdemServico | null>(null)
+  const [isDeletingOS, setIsDeletingOS] = useState(false)
 
   const carregarDados = async () => {
     setIsLoading(true)
@@ -102,6 +117,22 @@ export const GestaoOrdensServico: React.FC<GestaoOrdensServicoProps> = ({ onVerE
       return true
     })
   }, [ordens, statusFilter, tipoFilter, searchTerm])
+
+  const handleConfirmarExclusaoOS = async () => {
+    if (!osParaExcluir) return
+    setIsDeletingOS(true)
+    try {
+      await deleteOrdemServico(osParaExcluir.id)
+      setOrdens((prev) => prev.filter((o) => o.id !== osParaExcluir.id))
+      toast.success('Ordem de serviço excluída com sucesso')
+      setOsParaExcluir(null)
+    } catch (err) {
+      console.error('Erro ao excluir ordem de serviço:', err)
+      toast.error('Não foi possível excluir a ordem de serviço.')
+    } finally {
+      setIsDeletingOS(false)
+    }
+  }
 
   const handleSalvarAtribuicao = async () => {
     if (!osParaAtribuir) return
@@ -331,7 +362,8 @@ export const GestaoOrdensServico: React.FC<GestaoOrdensServicoProps> = ({ onVerE
                       type="button"
                       variant="outline"
                       size="sm"
-                      onClick={() => {
+                      onClick={(e) => {
+                        e.stopPropagation()
                         setOsParaAtribuir(os)
                         setSelectedInstaladorId(os.responsavel_usuario_id || '')
                       }}
@@ -339,6 +371,22 @@ export const GestaoOrdensServico: React.FC<GestaoOrdensServicoProps> = ({ onVerE
                     >
                       {os.responsavel_usuario_id ? 'Transferir' : 'Atribuir Técnico'}
                     </Button>
+                  )}
+
+                  {/* Botão de Excluir OS (Apenas Admin) */}
+                  {isAdmin && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setOsParaExcluir(os)
+                      }}
+                      className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
+                      title="Excluir ordem de serviço"
+                      aria-label="Excluir ordem de serviço"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
                   )}
 
                   <Button
@@ -361,6 +409,48 @@ export const GestaoOrdensServico: React.FC<GestaoOrdensServicoProps> = ({ onVerE
             )
           })}
         </div>
+      )}
+
+      {/* Confirmação de Exclusão de OS (Apenas Admin) */}
+      {isAdmin && (
+        <AlertDialog
+          open={Boolean(osParaExcluir)}
+          onOpenChange={(open) => {
+            if (!open && !isDeletingOS) setOsParaExcluir(null)
+          }}
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle className="text-gray-900">
+                Excluir Ordem de Serviço
+              </AlertDialogTitle>
+              <AlertDialogDescription>
+                Deseja realmente excluir a{' '}
+                <strong className="text-gray-900 font-semibold">
+                  Ordem de Serviço #{osParaExcluir?.id.slice(0, 8)} —{' '}
+                  {osParaExcluir?.expand?.cliente_id?.nome ||
+                    osParaExcluir?.expand?.cliente_id?.razao_social ||
+                    osParaExcluir?.endereco ||
+                    'Cliente Solar'}
+                </strong>
+                ? Esta ação não pode ser desfeita.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={isDeletingOS}>Cancelar</AlertDialogCancel>
+              <AlertDialogAction
+                disabled={isDeletingOS}
+                onClick={(e) => {
+                  e.preventDefault()
+                  handleConfirmarExclusaoOS()
+                }}
+                className="bg-red-600 hover:bg-red-700 text-white focus:ring-red-600"
+              >
+                {isDeletingOS ? 'Excluindo...' : 'Confirmar Exclusão'}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       )}
 
       {/* Modal de Atribuição de Instalador à OS */}
