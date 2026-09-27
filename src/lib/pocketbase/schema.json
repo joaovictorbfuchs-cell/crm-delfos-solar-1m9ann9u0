@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-27T22:12:11.079Z",
+  "generatedAt": "2026-09-27T22:28:34.427Z",
   "collections": [
     {
       "name": "users",
@@ -829,7 +829,8 @@
             "gerar_procuracao",
             "gerar_contrato",
             "oferecer_limpeza_avulsa",
-            "solicitar_contas_rge"
+            "solicitar_contas_rge",
+            "mensagem_enviada"
           ]
         },
         {

@@ -21,6 +21,7 @@ import {
   FileSpreadsheet,
   Layers,
   Sparkles,
+  MessageSquare,
   Zap,
   Settings,
   Cpu,
@@ -182,6 +183,20 @@ export const ATIVIDADES_PADRAO: TipoAtividadeDef[] = [
     icon: Sparkles,
     isPadrao: true,
     valor_base: 350.0,
+  },
+  {
+    id: 'mensagem_enviada',
+    categoria: 'comercial',
+    tituloPadrao: 'Mensagem Enviada',
+    descricaoAjuda:
+      'Envio individual de mensagem de WhatsApp via Z-API registrado automaticamente no CRM',
+    corHex: '#0284C7',
+    badgeClass: 'bg-sky-50 text-sky-800 border-sky-300',
+    iconBg: 'bg-sky-100 text-sky-800 border-sky-200',
+    iconText: 'text-sky-700',
+    borderClass: 'border-sky-500',
+    icon: MessageSquare,
+    isPadrao: true,
   },
 
   // --- Categoria 2: Atividades de Manutenção ---
@@ -391,6 +406,7 @@ const ICON_LOOKUP: Record<string, React.ComponentType<{ className?: string }>> =
   FileSpreadsheet,
   Layers,
   Sparkles,
+  MessageSquare,
 }
 
 // Construtor auxiliar de TipoAtividadeDef para tipos personalizados ou sobrescritos

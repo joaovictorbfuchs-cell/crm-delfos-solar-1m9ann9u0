@@ -19,10 +19,22 @@ export const PLACEHOLDERS_ENVIO_MASSA: PlaceholderInfo[] = [
     exemplo: 'João',
   },
   {
+    tag: '[nome da empresa]',
+    label: 'Nome da Empresa',
+    descricao: 'Razão social, nome fantasia do cliente ou Delfos Solar',
+    exemplo: 'Delfos Solar',
+  },
+  {
     tag: '[cidade]',
     label: 'Cidade',
     descricao: 'Cidade do cliente ou da usina',
     exemplo: 'Erechim',
+  },
+  {
+    tag: '[data atual]',
+    label: 'Data Atual',
+    descricao: 'Data de hoje por extenso ou formatada (ex: 28/09/2026)',
+    exemplo: '28/09/2026',
   },
   {
     tag: '[potência]',
@@ -177,7 +189,9 @@ export function resolverPlaceholdersMensagemMassa(params: {
   if (!template) return ''
 
   const nome = extrairPrimeiroNomeCliente(cliente)
+  const empresaCliente = (cliente.nome_fantasia || cliente.razao_social || 'Delfos Solar').trim()
   const cidade = cidadeManual || extrairCidadeCliente(cliente, usina)
+  const dataHoje = new Date().toLocaleDateString('pt-BR')
   const potencia =
     potenciaManual !== undefined && potenciaManual !== null
       ? typeof potenciaManual === 'number'
@@ -188,7 +202,11 @@ export function resolverPlaceholdersMensagemMassa(params: {
 
   return template
     .replace(/\[nome do cliente\]/gi, nome)
+    .replace(/\[nome da empresa\]/gi, empresaCliente)
+    .replace(/\[empresa\]/gi, empresaCliente)
     .replace(/\[cidade\]/gi, cidade)
+    .replace(/\[data atual\]/gi, dataHoje)
+    .replace(/\[data\]/gi, dataHoje)
     .replace(/\[potência\]/gi, potencia)
     .replace(/\[potencia\]/gi, potencia)
     .replace(/\[valor\]/gi, valorTexto)

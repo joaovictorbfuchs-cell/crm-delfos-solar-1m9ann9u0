@@ -21,10 +21,12 @@ describe('placeholdersMensagemMassa', () => {
     whatsapp: '(54) 98110-8228',
   } as Cliente
 
-  it('deve listar os 4 placeholders obrigatórios', () => {
+  it('deve listar os placeholders obrigatórios incluindo empresa e data atual', () => {
     const tags = PLACEHOLDERS_ENVIO_MASSA.map((p) => p.tag)
     expect(tags).toContain('[nome do cliente]')
+    expect(tags).toContain('[nome da empresa]')
     expect(tags).toContain('[cidade]')
+    expect(tags).toContain('[data atual]')
     expect(tags).toContain('[potência]')
     expect(tags).toContain('[valor]')
   })
@@ -78,5 +80,17 @@ describe('placeholdersMensagemMassa', () => {
       cliente: clienteMock,
     })
     expect(resolvida).toBe('Usina de 7,1 kWp para João em Erechim')
+  })
+
+  it('resolve tags de empresa e data atual corretamente', () => {
+    const template =
+      'Olá [nome do cliente], a empresa [nome da empresa] em [cidade] informa que hoje [data atual] há promoção.'
+    const resolvida = resolverPlaceholdersMensagemMassa({
+      template,
+      cliente: { ...clienteMock, nome_fantasia: 'Solar Tech' } as any,
+    })
+    const dataHoje = new Date().toLocaleDateString('pt-BR')
+    expect(resolvida).toContain('Olá João, a empresa Solar Tech em Erechim')
+    expect(resolvida).toContain(`hoje ${dataHoje}`)
   })
 })

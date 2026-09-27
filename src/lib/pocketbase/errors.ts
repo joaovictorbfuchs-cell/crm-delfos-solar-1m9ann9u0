@@ -1,5 +1,25 @@
 import { ClientResponseError } from 'pocketbase'
 
+export function isAuthSessionError(error: unknown): boolean {
+  if (!error) return false
+  if (typeof error === 'object' && 'status' in error) {
+    const status = (error as { status?: unknown }).status
+    if (status === 401 || status === 403) return true
+  }
+  if (error instanceof Error) {
+    const msg = error.message.toLowerCase()
+    return (
+      msg.includes('auth') ||
+      msg.includes('unauthorized') ||
+      msg.includes('forbidden') ||
+      msg.includes('token expired') ||
+      msg.includes('failed to authenticate') ||
+      msg.includes('user not found')
+    )
+  }
+  return false
+}
+
 export type FieldErrors = Record<string, string>
 
 export function extractFieldErrors(error: unknown): FieldErrors {
@@ -26,15 +46,4 @@ export function getErrorMessage(error: unknown): string {
   }
   const msgs = Object.values(extractFieldErrors(error))
   return msgs.length > 0 ? msgs.join(' ') : error.message || 'An unexpected error occurred.'
-}
-
-export function isAuthSessionError(error: unknown): boolean {
-  if (error instanceof ClientResponseError) {
-    return error.status === 401 || error.status === 403
-  }
-  if (error && typeof error === 'object' && 'status' in error) {
-    const status = (error as { status: unknown }).status
-    return status === 401 || status === 403
-  }
-  return false
 }
