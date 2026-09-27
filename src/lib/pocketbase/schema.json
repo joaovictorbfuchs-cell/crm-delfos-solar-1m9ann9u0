@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-27T22:39:09.350Z",
+  "generatedAt": "2026-09-27T23:38:41.892Z",
   "collections": [
     {
       "name": "users",
@@ -670,6 +670,42 @@
         {
           "name": "recorrencia_mensal",
           "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "grupo_subgrupo",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "tipo_fornecimento",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "tensao_nominal",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "historico_consumo_fatura",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "consumo_anual_kwh",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "consumo_medio_diario_kwh",
+          "type": "number",
           "required": false,
           "system": false
         }
@@ -4623,6 +4659,18 @@
           "required": false,
           "system": false,
           "selectValues": ["ceramico", "metalico", "laje", "fibrocimento"]
+        },
+        {
+          "name": "grupo_subgrupo",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "tensao_nominal",
+          "type": "text",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": [

@@ -3176,6 +3176,88 @@ export const FichaClienteDrawer: React.FC = () => {
                               />
                             </div>
                           </div>
+
+                          {/* Campos específicos da Fatura RGE / Gemini */}
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 border-t border-gray-100">
+                            <div className="flex items-center gap-2">
+                              <span className="text-gray-500 w-24 shrink-0">Grupo/Subgrupo:</span>
+                              <InlineEditField
+                                value={selectedCliente.grupo_subgrupo || ''}
+                                displayValue={
+                                  <span className="font-medium text-gray-800 text-xs">
+                                    {selectedCliente.grupo_subgrupo || 'Não informado'}
+                                  </span>
+                                }
+                                type="text"
+                                placeholder="Ex: Convencional B3..."
+                                onSave={async (val) =>
+                                  handleUpdateClienteField('grupo_subgrupo', String(val))
+                                }
+                              />
+                            </div>
+
+                            <div className="flex items-center gap-2">
+                              <span className="text-gray-500 w-20 shrink-0">Tensão Nom.:</span>
+                              <InlineEditField
+                                value={selectedCliente.tensao_nominal || ''}
+                                displayValue={
+                                  <span className="font-medium text-gray-800 text-xs">
+                                    {selectedCliente.tensao_nominal || 'Não informada'}
+                                  </span>
+                                }
+                                type="text"
+                                placeholder="Ex: 220V, 380V..."
+                                onSave={async (val) =>
+                                  handleUpdateClienteField('tensao_nominal', String(val))
+                                }
+                              />
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            <div className="flex items-center gap-2">
+                              <span className="text-gray-500 w-24 shrink-0">Consumo Anual:</span>
+                              <InlineEditField
+                                value={selectedCliente.consumo_anual_kwh || 0}
+                                displayValue={
+                                  <span className="font-bold text-gray-800 text-xs">
+                                    {selectedCliente.consumo_anual_kwh
+                                      ? `${selectedCliente.consumo_anual_kwh} kWh/ano`
+                                      : 'Não informado'}
+                                  </span>
+                                }
+                                type="number"
+                                unit="kWh"
+                                placeholder="Ex: 7200"
+                                onSave={async (val) =>
+                                  handleUpdateClienteField('consumo_anual_kwh', Number(val) || 0)
+                                }
+                              />
+                            </div>
+
+                            <div className="flex items-center gap-2">
+                              <span className="text-gray-500 w-20 shrink-0">Média/Dia:</span>
+                              <InlineEditField
+                                value={selectedCliente.consumo_medio_diario_kwh || 0}
+                                displayValue={
+                                  <span className="font-bold text-gray-800 text-xs">
+                                    {selectedCliente.consumo_medio_diario_kwh
+                                      ? `${selectedCliente.consumo_medio_diario_kwh} kWh/dia`
+                                      : 'Não inf.'}
+                                  </span>
+                                }
+                                type="number"
+                                unit="kWh"
+                                placeholder="Ex: 24"
+                                onSave={async (val) =>
+                                  handleUpdateClienteField(
+                                    'consumo_medio_diario_kwh',
+                                    Number(val) || 0,
+                                  )
+                                }
+                              />
+                            </div>
+                          </div>
                           <div className="flex items-center gap-2">
                             <span className="text-gray-500 w-24 shrink-0">Padrão entrada:</span>
                             <InlineEditField
@@ -3217,17 +3299,24 @@ export const FichaClienteDrawer: React.FC = () => {
                             <div className="flex items-center gap-2">
                               <span className="text-gray-500 w-16 shrink-0">Fases:</span>
                               <InlineEditField
-                                value={selectedSistema?.numero_fases || 'trifásico'}
+                                value={
+                                  selectedCliente.tipo_fornecimento ||
+                                  selectedSistema?.numero_fases ||
+                                  'trifásico'
+                                }
                                 displayValue={
                                   <span className="capitalize font-medium text-gray-800 bg-gray-50 px-2 py-0.5 rounded border border-gray-200">
-                                    {selectedSistema?.numero_fases || 'trifásico'}
+                                    {selectedCliente.tipo_fornecimento ||
+                                      selectedSistema?.numero_fases ||
+                                      'trifásico'}
                                   </span>
                                 }
                                 type="select"
                                 options={FASES}
-                                onSave={async (val) =>
-                                  handleUpdateSistemaField('numero_fases', val as NumeroFases)
-                                }
+                                onSave={async (val) => {
+                                  await handleUpdateSistemaField('numero_fases', val as NumeroFases)
+                                  await handleUpdateClienteField('tipo_fornecimento', String(val))
+                                }}
                               />
                             </div>
                           </div>
@@ -3581,6 +3670,53 @@ export const FichaClienteDrawer: React.FC = () => {
                             </div>
                           )}
                       </div>
+
+                      {/* Histórico de Consumo da Fatura RGE (Gemini) */}
+                      {Array.isArray(selectedCliente.historico_consumo_fatura) &&
+                        selectedCliente.historico_consumo_fatura.length > 0 && (
+                          <div className="bg-white rounded-xl p-4 border border-amber-200/80 shadow-xs space-y-3">
+                            <div className="flex items-center justify-between flex-wrap gap-2">
+                              <div className="text-[11px] uppercase font-bold text-amber-900 tracking-wider flex items-center gap-1.5">
+                                <Activity className="w-4 h-4 text-amber-600" />
+                                <span>
+                                  Histórico de Faturas RGE (
+                                  {selectedCliente.historico_consumo_fatura.length} meses)
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-2 text-xs font-semibold text-gray-600">
+                                {selectedCliente.consumo_anual_kwh && (
+                                  <span className="bg-amber-50 text-amber-900 px-2 py-0.5 rounded border border-amber-200">
+                                    Total: {selectedCliente.consumo_anual_kwh} kWh/ano
+                                  </span>
+                                )}
+                                {selectedCliente.consumo_medio_diario_kwh && (
+                                  <span className="bg-amber-50 text-amber-900 px-2 py-0.5 rounded border border-amber-200">
+                                    Diário: {selectedCliente.consumo_medio_diario_kwh} kWh/dia
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+
+                            <div className="grid grid-cols-3 sm:grid-cols-6 md:grid-cols-12 gap-1.5 text-center pt-1">
+                              {selectedCliente.historico_consumo_fatura.map((item, idx) => (
+                                <div
+                                  key={idx}
+                                  className="p-1.5 bg-amber-50/50 rounded-lg border border-amber-200/70 flex flex-col justify-center"
+                                >
+                                  <span className="text-[10px] font-semibold text-gray-500">
+                                    {item.mes_ano}
+                                  </span>
+                                  <span className="text-xs font-bold text-gray-900">
+                                    {item.consumo_kwh}
+                                  </span>
+                                  <span className="text-[9px] text-gray-400">
+                                    {item.dias_ciclo || 30} dias
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
 
                       {/* Usinas Fotovoltaicas do Cliente integradas na Ficha Cadastral */}
                       <SecaoUsinasCliente

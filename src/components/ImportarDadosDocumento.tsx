@@ -30,6 +30,11 @@ import {
   type ExtractDocumentResult,
 } from '@/services/documentExtractionService'
 import {
+  analisarFaturaRGEGemini,
+  isFaturaRGEProvavel,
+  type FaturaRGEDadosExtraidos,
+} from '@/services/faturaRGEService'
+import {
   isOrcamentoFornecedorTexto,
   extrairOrcamentoFotovoltaicoPDF,
   validarCNPJ,
@@ -98,6 +103,9 @@ export const ImportarDadosDocumento: React.FC<ImportarDadosDocumentoProps> = ({
   const [salvandoOrcamentoFornecedor, setSalvandoOrcamentoFornecedor] = useState(false)
   const [orcamentoFornecedorSalvo, setOrcamentoFornecedorSalvo] = useState(false)
   const [modoVisualizacao, setModoVisualizacao] = useState<'cliente' | 'fornecedor'>('cliente')
+
+  // Estado para detecção especializada de Fatura RGE via Gemini
+  const [faturaRGEDetectada, setFaturaRGEDetectada] = useState<FaturaRGEDadosExtraidos | null>(null)
 
   // Utilitário de formatação de tamanho de arquivo
   const formatFileSize = (bytes: number) => {
@@ -530,6 +538,93 @@ export const ImportarDadosDocumento: React.FC<ImportarDadosDocumentoProps> = ({
       })
     }
 
+    // Campos enriquecidos da Fatura RGE (Gemini)
+    if (faturaRGEDetectada) {
+      if (
+        faturaRGEDetectada.classificacao_grupo_subgrupo &&
+        faturaRGEDetectada.classificacao_grupo_subgrupo !== 'não informado na fatura'
+      ) {
+        const curGS = cliente.grupo_subgrupo
+        items.push({
+          id: 'grupo_subgrupo',
+          categoria: 'consumo',
+          label: 'Grupo e Subgrupo Tarifário',
+          targetKey: 'grupo_subgrupo',
+          targetEntity: 'cliente',
+          extractedValue: faturaRGEDetectada.classificacao_grupo_subgrupo,
+          currentValue: curGS,
+          isAlreadyFilled: Boolean(curGS?.trim()),
+          isDifferent: curGS?.trim() !== faturaRGEDetectada.classificacao_grupo_subgrupo.trim(),
+        })
+      }
+
+      if (
+        faturaRGEDetectada.tipo_fornecimento &&
+        faturaRGEDetectada.tipo_fornecimento !== 'não informado na fatura'
+      ) {
+        const curTF = cliente.tipo_fornecimento || sistema?.numero_fases
+        items.push({
+          id: 'tipo_fornecimento',
+          categoria: 'consumo',
+          label: 'Tipo de Fornecimento',
+          targetKey: 'tipo_fornecimento',
+          targetEntity: 'cliente',
+          extractedValue: faturaRGEDetectada.tipo_fornecimento,
+          currentValue: curTF,
+          isAlreadyFilled: Boolean(curTF),
+          isDifferent: curTF !== faturaRGEDetectada.tipo_fornecimento,
+        })
+      }
+
+      if (
+        faturaRGEDetectada.tensao_nominal &&
+        faturaRGEDetectada.tensao_nominal !== 'não informado na fatura'
+      ) {
+        const curTN = cliente.tensao_nominal
+        items.push({
+          id: 'tensao_nominal',
+          categoria: 'consumo',
+          label: 'Tensão Nominal',
+          targetKey: 'tensao_nominal',
+          targetEntity: 'cliente',
+          extractedValue: faturaRGEDetectada.tensao_nominal,
+          currentValue: curTN,
+          isAlreadyFilled: Boolean(curTN?.trim()),
+          isDifferent: curTN?.trim() !== faturaRGEDetectada.tensao_nominal.trim(),
+        })
+      }
+
+      if (faturaRGEDetectada.calculos?.somatorio_consumo_anual_kwh) {
+        const curAnual = cliente.consumo_anual_kwh
+        items.push({
+          id: 'consumo_anual_kwh',
+          categoria: 'consumo',
+          label: 'Consumo Anual (kWh)',
+          targetKey: 'consumo_anual_kwh',
+          targetEntity: 'cliente',
+          extractedValue: `${faturaRGEDetectada.calculos.somatorio_consumo_anual_kwh} kWh`,
+          currentValue: curAnual ? `${curAnual} kWh` : null,
+          isAlreadyFilled: Boolean(curAnual && curAnual > 0),
+          isDifferent: curAnual !== faturaRGEDetectada.calculos.somatorio_consumo_anual_kwh,
+        })
+      }
+
+      if (faturaRGEDetectada.calculos?.consumo_medio_diario_kwh) {
+        const curDiario = cliente.consumo_medio_diario_kwh
+        items.push({
+          id: 'consumo_medio_diario_kwh',
+          categoria: 'consumo',
+          label: 'Consumo Médio Diário (kWh/dia)',
+          targetKey: 'consumo_medio_diario_kwh',
+          targetEntity: 'cliente',
+          extractedValue: `${faturaRGEDetectada.calculos.consumo_medio_diario_kwh} kWh/dia`,
+          currentValue: curDiario ? `${curDiario} kWh/dia` : null,
+          isAlreadyFilled: Boolean(curDiario && curDiario > 0),
+          isDifferent: curDiario !== faturaRGEDetectada.calculos.consumo_medio_diario_kwh,
+        })
+      }
+    }
+
     return items
   }
 
@@ -542,13 +637,160 @@ export const ImportarDadosDocumento: React.FC<ImportarDadosDocumentoProps> = ({
     setExtractionResult(null)
     setOrcamentoFornecedorDetectado(null)
     setOrcamentoFornecedorSalvo(false)
+    setFaturaRGEDetectada(null)
     setModoVisualizacao('cliente')
 
     try {
-      // 1. Extração estruturada do documento (PDF com pdfjs-dist / DOCX / XLSX / Imagem)
+      // 0. Verificar se o documento parece ser uma fatura da RGE (ou se o usuário está subindo PDF/imagem de fatura)
+      const nomeLower = selectedFile.name.toLowerCase()
+      const isPdfOrImg =
+        selectedFile.type === 'application/pdf' ||
+        nomeLower.endsWith('.pdf') ||
+        selectedFile.type.startsWith('image/') ||
+        ['.jpg', '.jpeg', '.png', '.webp'].some((ext) => nomeLower.endsWith(ext))
+
+      // Tentativa prioritária de análise especializada de fatura RGE com Gemini se o nome ou tipo sugerir fatura/conta
+      let faturaRGERes = null
+      const pareceRGEPeloNome =
+        nomeLower.includes('rge') ||
+        nomeLower.includes('fatura') ||
+        nomeLower.includes('conta') ||
+        nomeLower.includes('luz') ||
+        nomeLower.includes('energia')
+
+      if (isPdfOrImg && pareceRGEPeloNome) {
+        try {
+          setAnalyzingProgressText('Analisando fatura de energia RGE com Google Gemini...')
+          faturaRGERes = await analisarFaturaRGEGemini(selectedFile, {
+            onProgress: (m) => setAnalyzingProgressText(m),
+          })
+          if (
+            faturaRGERes &&
+            faturaRGERes.ok &&
+            faturaRGERes.data &&
+            faturaRGERes.data.e_fatura_rge
+          ) {
+            setFaturaRGEDetectada(faturaRGERes.data)
+          }
+        } catch (rgeErr) {
+          console.warn(
+            '[ImportarDadosDocumento] Análise especializada RGE falhou ou ignorada:',
+            rgeErr,
+          )
+        }
+      }
+
+      // 1. Extração estruturada padrão do documento
       const res = await extrairDadosDocumento(selectedFile, {
         onProgress: (msg) => setAnalyzingProgressText(msg),
       })
+
+      // Se não tentamos a RGE antes mas o texto extraído revela que é fatura RGE
+      if (!faturaRGERes && isPdfOrImg) {
+        const textoExtraido = `${res.fileInfo?.textContent || ''} ${res.raw_text || ''}`
+        if (isFaturaRGEProvavel(textoExtraido, selectedFile.name)) {
+          try {
+            setAnalyzingProgressText(
+              'Fatura RGE identificada! Analisando histórico e cálculos com Google Gemini...',
+            )
+            faturaRGERes = await analisarFaturaRGEGemini(selectedFile, {
+              onProgress: (m) => setAnalyzingProgressText(m),
+            })
+            if (
+              faturaRGERes &&
+              faturaRGERes.ok &&
+              faturaRGERes.data &&
+              faturaRGERes.data.e_fatura_rge
+            ) {
+              setFaturaRGEDetectada(faturaRGERes.data)
+            }
+          } catch (rgeErr2) {
+            console.warn('[ImportarDadosDocumento] Chamada pós-detecção Gemini RGE:', rgeErr2)
+          }
+        }
+      }
+
+      // Se temos dados da fatura RGE do Gemini, enriquecer os dados extraídos do cliente
+      if (faturaRGERes && faturaRGERes.ok && faturaRGERes.data && faturaRGERes.data.e_fatura_rge) {
+        const d = faturaRGERes.data
+        if (!res.data) {
+          res.data = {
+            dados_cadastrais: {},
+            endereco: {},
+            dados_tecnicos: {},
+            consumo: {},
+          }
+          res.ok = true
+        }
+
+        if (d.titular_nome && d.titular_nome !== 'não informado na fatura') {
+          res.data.dados_cadastrais.nome = d.titular_nome
+        }
+        if (d.cpf_cnpj && d.cpf_cnpj !== 'não informado na fatura') {
+          res.data.dados_cadastrais.cpf_cnpj = d.cpf_cnpj
+        }
+        if (d.endereco_completo) {
+          if (d.endereco_completo.rua && d.endereco_completo.rua !== 'não informado na fatura') {
+            res.data.endereco.endereco = d.endereco_completo.rua
+          }
+          if (
+            d.endereco_completo.numero &&
+            d.endereco_completo.numero !== 'não informado na fatura'
+          ) {
+            res.data.endereco.numero = d.endereco_completo.numero
+          }
+          if (
+            d.endereco_completo.complemento &&
+            d.endereco_completo.complemento !== 'não informado na fatura'
+          ) {
+            res.data.endereco.complemento = d.endereco_completo.complemento
+          }
+          if (
+            d.endereco_completo.bairro &&
+            d.endereco_completo.bairro !== 'não informado na fatura'
+          ) {
+            res.data.endereco.bairro = d.endereco_completo.bairro
+          }
+          if (
+            d.endereco_completo.cidade &&
+            d.endereco_completo.cidade !== 'não informado na fatura'
+          ) {
+            res.data.endereco.cidade = d.endereco_completo.cidade
+          }
+          if (
+            d.endereco_completo.estado &&
+            d.endereco_completo.estado !== 'não informado na fatura'
+          ) {
+            res.data.endereco.estado = d.endereco_completo.estado
+          }
+          if (d.endereco_completo.cep && d.endereco_completo.cep !== 'não informado na fatura') {
+            res.data.endereco.cep = d.endereco_completo.cep
+          }
+        }
+        if (d.uc && d.uc !== 'não informado na fatura') {
+          res.data.consumo.uc = d.uc
+        }
+        if (d.calculos?.media_mensal_consumo_kwh) {
+          res.data.consumo.consumo_kwh_mes = d.calculos.media_mensal_consumo_kwh
+        }
+        if (d.tarifa_com_tributos) {
+          res.data.consumo.tarifa = d.tarifa_com_tributos
+        }
+        if (
+          d.classificacao_grupo_subgrupo &&
+          d.classificacao_grupo_subgrupo !== 'não informado na fatura'
+        ) {
+          res.data.consumo.classe_consumo = d.classificacao_grupo_subgrupo
+        }
+        res.data.consumo.concessionaria = 'RGE'
+
+        if (d.tipo_fornecimento && d.tipo_fornecimento !== 'não informado na fatura') {
+          const tfLower = d.tipo_fornecimento.toLowerCase()
+          if (tfLower.includes('mono')) res.data.dados_tecnicos.numero_fases = 'monofásico'
+          else if (tfLower.includes('bi')) res.data.dados_tecnicos.numero_fases = 'bifásico'
+          else if (tfLower.includes('tri')) res.data.dados_tecnicos.numero_fases = 'trifásico'
+        }
+      }
 
       // 2. Análise para verificar se o documento é um Orçamento de Fornecedor Solar
       const isPdf =
@@ -793,6 +1035,30 @@ export const ImportarDadosDocumento: React.FC<ImportarDadosDocumentoProps> = ({
           } else if (item.targetKey === 'concessionaria') {
             clienteUpdates.concessionaria = String(item.extractedValue)
             sistemaUpdates.concessionaria = String(item.extractedValue)
+          } else if (item.targetKey === 'grupo_subgrupo') {
+            clienteUpdates.grupo_subgrupo = String(item.extractedValue)
+          } else if (item.targetKey === 'tipo_fornecimento') {
+            clienteUpdates.tipo_fornecimento = String(item.extractedValue)
+            const tfLower = String(item.extractedValue).toLowerCase()
+            if (tfLower.includes('mono')) sistemaUpdates.numero_fases = 'monofásico'
+            else if (tfLower.includes('bi')) sistemaUpdates.numero_fases = 'bifásico'
+            else if (tfLower.includes('tri')) sistemaUpdates.numero_fases = 'trifásico'
+          } else if (item.targetKey === 'tensao_nominal') {
+            clienteUpdates.tensao_nominal = String(item.extractedValue)
+          } else if (item.targetKey === 'consumo_anual_kwh') {
+            const rawNum = parseFloat(
+              String(item.extractedValue)
+                .replace(/[^\d.,]/g, '')
+                .replace(',', '.'),
+            )
+            if (!isNaN(rawNum)) clienteUpdates.consumo_anual_kwh = rawNum
+          } else if (item.targetKey === 'consumo_medio_diario_kwh') {
+            const rawNum = parseFloat(
+              String(item.extractedValue)
+                .replace(/[^\d.,]/g, '')
+                .replace(',', '.'),
+            )
+            if (!isNaN(rawNum)) clienteUpdates.consumo_medio_diario_kwh = rawNum
           }
         } else if (item.targetEntity === 'sistema') {
           // Tipagem segura para campos de sistema
@@ -837,6 +1103,18 @@ export const ImportarDadosDocumento: React.FC<ImportarDadosDocumentoProps> = ({
           }
         }
       })
+
+      // Se tivermos a fatura RGE analisada com histórico completo, salvar o histórico estruturado no cliente
+      if (faturaRGEDetectada && Array.isArray(faturaRGEDetectada.historico_consumo)) {
+        clienteUpdates.historico_consumo_fatura = faturaRGEDetectada.historico_consumo
+        clienteUpdates.dados_importados = {
+          ...(cliente.dados_importados || {}),
+          fatura_rge_calculos: faturaRGEDetectada.calculos,
+          fatura_rge_tarifa: faturaRGEDetectada.tarifa_com_tributos,
+          fatura_rge_total: faturaRGEDetectada.valor_total_fatura,
+          fatura_rge_referencia: faturaRGEDetectada.mes_referencia_atual,
+        }
+      }
 
       await onApplyImport({
         clienteUpdates,
@@ -1036,10 +1314,18 @@ export const ImportarDadosDocumento: React.FC<ImportarDadosDocumentoProps> = ({
                       Identificado como Orçamento de Fornecedor
                     </span>
                   )}
+                  {faturaRGEDetectada && (
+                    <span className="text-[10px] bg-amber-100 text-amber-900 border border-amber-300 px-2 py-0.5 rounded-full font-bold inline-flex items-center gap-1">
+                      <Zap className="w-3 h-3 text-amber-600" />
+                      Fatura RGE Analisada via Google Gemini
+                    </span>
+                  )}
                 </div>
                 <div className="text-[11px] text-gray-500">
                   {file && formatFileSize(file.size)}
                   {allItems.length > 0 && ` • ${allItems.length} campos cadastrais`}
+                  {faturaRGEDetectada &&
+                    ` • UC: ${faturaRGEDetectada.uc || 'N/I'} • Média: ${faturaRGEDetectada.calculos?.media_mensal_consumo_kwh || 0} kWh`}
                   {orcamentoFornecedorDetectado &&
                     ` • Fornecedor: ${orcamentoFornecedorDetectado.nome_fornecedor}`}
                 </div>
@@ -1090,6 +1376,113 @@ export const ImportarDadosDocumento: React.FC<ImportarDadosDocumentoProps> = ({
               </button>
             </div>
           </div>
+
+          {/* Banner de Fatura RGE Analisada via Google Gemini */}
+          {faturaRGEDetectada && (
+            <div className="p-4 rounded-xl border border-amber-300 bg-gradient-to-br from-amber-50/90 via-orange-50/40 to-white space-y-3">
+              <div className="flex items-start justify-between flex-wrap gap-2">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 bg-gradient-to-br from-amber-500 to-orange-600 text-white rounded-lg shadow-2xs">
+                    <Zap className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-bold text-amber-950 uppercase tracking-wider flex items-center gap-1.5">
+                      <span>Fatura RGE Analisada (Google Gemini)</span>
+                      <span className="text-[10px] bg-amber-200 text-amber-900 px-1.5 py-0.2 rounded font-bold">
+                        {faturaRGEDetectada.concessionaria_detectada || 'RGE'}
+                      </span>
+                    </h4>
+                    <p className="text-xs text-amber-900 font-semibold">
+                      UC:{' '}
+                      <span className="font-mono font-bold text-gray-900">
+                        {faturaRGEDetectada.uc || 'Não informada'}
+                      </span>
+                      {faturaRGEDetectada.titular_nome &&
+                        ` • Titular: ${faturaRGEDetectada.titular_nome}`}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="text-right text-xs">
+                  <div className="font-bold text-emerald-800">
+                    Média: {faturaRGEDetectada.calculos?.media_mensal_consumo_kwh || 0} kWh/mês
+                  </div>
+                  <div className="text-[11px] text-gray-500">
+                    Anual: {faturaRGEDetectada.calculos?.somatorio_consumo_anual_kwh || 0} kWh
+                  </div>
+                </div>
+              </div>
+
+              {/* Grid com Cálculos e Informações Técnicas da RGE */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1 text-xs">
+                <div className="p-2 bg-white rounded-lg border border-amber-200/80">
+                  <span className="text-[10px] text-gray-500 block">Classificação</span>
+                  <span
+                    className="font-bold text-gray-800 truncate block text-[11px]"
+                    title={faturaRGEDetectada.classificacao_grupo_subgrupo || ''}
+                  >
+                    {faturaRGEDetectada.classificacao_grupo_subgrupo || 'Não informado'}
+                  </span>
+                </div>
+
+                <div className="p-2 bg-white rounded-lg border border-amber-200/80">
+                  <span className="text-[10px] text-gray-500 block">Fornecimento / Tensão</span>
+                  <span className="font-bold text-gray-800 text-[11px] block truncate">
+                    {faturaRGEDetectada.tipo_fornecimento || 'N/I'} •{' '}
+                    {faturaRGEDetectada.tensao_nominal || 'N/I'}
+                  </span>
+                </div>
+
+                <div className="p-2 bg-white rounded-lg border border-amber-200/80">
+                  <span className="text-[10px] text-gray-500 block">Consumo Médio Diário</span>
+                  <span className="font-bold text-gray-800 text-[11px] block">
+                    {faturaRGEDetectada.calculos?.consumo_medio_diario_kwh || 0} kWh/dia
+                  </span>
+                </div>
+
+                <div className="p-2 bg-white rounded-lg border border-amber-200/80">
+                  <span className="text-[10px] text-gray-500 block">Maior / Menor Consumo</span>
+                  <span className="font-bold text-gray-800 text-[11px] block truncate">
+                    ▲ {faturaRGEDetectada.calculos?.maior_consumo_periodo?.consumo_kwh || 0} kWh / ▼{' '}
+                    {faturaRGEDetectada.calculos?.menor_consumo_periodo?.consumo_kwh || 0} kWh
+                  </span>
+                </div>
+              </div>
+
+              {/* Tabela de Histórico de Consumo dos Últimos 12 a 13 Meses */}
+              {Array.isArray(faturaRGEDetectada.historico_consumo) &&
+                faturaRGEDetectada.historico_consumo.length > 0 && (
+                  <div className="p-2.5 bg-white rounded-lg border border-amber-200/80 space-y-1.5">
+                    <div className="flex items-center justify-between text-[11px] font-bold text-gray-700">
+                      <span className="flex items-center gap-1">
+                        <Activity className="w-3.5 h-3.5 text-amber-600" />
+                        Histórico dos Últimos {faturaRGEDetectada.historico_consumo.length} Meses
+                      </span>
+                      <span className="text-[10px] text-gray-500">
+                        Total Anual: {faturaRGEDetectada.calculos?.somatorio_consumo_anual_kwh} kWh
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-3 sm:grid-cols-6 md:grid-cols-12 gap-1 text-center pt-1">
+                      {faturaRGEDetectada.historico_consumo.map((h, i) => (
+                        <div
+                          key={i}
+                          className="p-1 bg-amber-50/50 rounded border border-amber-100 flex flex-col justify-center"
+                        >
+                          <span className="text-[9px] font-semibold text-gray-500">
+                            {h.mes_ano}
+                          </span>
+                          <span className="text-[11px] font-bold text-gray-900">
+                            {h.consumo_kwh}
+                          </span>
+                          <span className="text-[8px] text-gray-400">{h.dias_ciclo || 30}d</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+            </div>
+          )}
 
           {/* Banner de Cotação de Fornecedor Identificada */}
           {orcamentoFornecedorDetectado && (

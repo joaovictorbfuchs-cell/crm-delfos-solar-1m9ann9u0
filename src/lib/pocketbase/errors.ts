@@ -1,53 +1,48 @@
-// PocketBase error helpers
+import { ClientResponseError } from 'pocketbase'
 
-export function isAuthError(error: unknown): boolean {
-  if (!error || typeof error !== 'object') return false
-  const err = error as { status?: number; response?: { message?: string } }
-  return err.status === 401 || err.status === 403
+export type FieldErrors = Record<string, string>
+
+export function extractFieldErrors(error: unknown): FieldErrors {
+  if (!(error instanceof ClientResponseError)) return {}
+  const data = error.response?.data
+  if (!data || typeof data !== 'object') return {}
+  const errors: FieldErrors = {}
+  for (const [field, detail] of Object.entries(data)) {
+    if (
+      detail &&
+      typeof detail === 'object' &&
+      'message' in detail &&
+      typeof (detail as { message: unknown }).message === 'string'
+    ) {
+      errors[field] = (detail as { message: string }).message
+    }
+  }
+  return errors
+}
+
+export function getErrorMessage(error: unknown): string {
+  if (!(error instanceof ClientResponseError)) {
+    return error instanceof Error ? error.message : 'An unexpected error occurred.'
+  }
+  const msgs = Object.values(extractFieldErrors(error))
+  return msgs.length > 0 ? msgs.join(' ') : error.message || 'An unexpected error occurred.'
 }
 
 export function isAuthSessionError(error: unknown): boolean {
-  return isAuthError(error)
-}
-
-export function getPocketBaseErrorMessage(
-  error: unknown,
-  fallback = 'Ocorreu um erro inesperado',
-): string {
-  if (!error) return fallback
-  if (typeof error === 'string') return error
-  if (error instanceof Error) return error.message
-  if (
-    typeof error === 'object' &&
-    'message' in error &&
-    typeof (error as Record<string, unknown>).message === 'string'
-  ) {
-    return (error as Record<string, unknown>).message as string
+  if (!error) return false
+  if (error instanceof ClientResponseError) {
+    if (error.status === 401 || error.status === 403) return true
+    const msg = (error.message || '').toLowerCase()
+    return msg.includes('token') || msg.includes('authenticate') || msg.includes('unauthorized')
   }
-  return fallback
-}
-
-export function getErrorMessage(error: unknown, fallback = 'Ocorreu um erro inesperado'): string {
-  return getPocketBaseErrorMessage(error, fallback)
-}
-
-export function extractFieldErrors(error: unknown): Record<string, string> {
-  const result: Record<string, string> = {}
-  if (!error || typeof error !== 'object') return result
-
-  const pbErr = error as {
-    data?: { data?: Record<string, { message?: string }> }
-    response?: { data?: Record<string, { message?: string }> }
+  if (error instanceof Error) {
+    const msg = error.message.toLowerCase()
+    return (
+      msg.includes('something went wrong while processing your request') ||
+      msg.includes('failed to authenticate') ||
+      msg.includes('user not found') ||
+      msg.includes('token is invalid or expired')
+    )
   }
-
-  const data = pbErr.data?.data || pbErr.response?.data
-  if (data && typeof data === 'object') {
-    Object.entries(data).forEach(([key, val]) => {
-      if (val && typeof val === 'object' && 'message' in val && typeof val.message === 'string') {
-        result[key] = val.message
-      }
-    })
-  }
-
-  return result
+  return false
 }

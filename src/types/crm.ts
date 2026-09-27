@@ -196,6 +196,17 @@ export interface Cliente extends RecordModel {
   usina_endereco?: string
   // Proposta O&M ID
   proposta_om_id?: string
+  // Campos de Análise de Fatura de Energia (RGE / Gemini)
+  grupo_subgrupo?: string
+  tipo_fornecimento?: string
+  tensao_nominal?: string
+  historico_consumo_fatura?: Array<{
+    mes_ano: string
+    consumo_kwh: number
+    dias_ciclo?: number
+  }>
+  consumo_anual_kwh?: number
+  consumo_medio_diario_kwh?: number
   // Novos campos cadastrais
   tipo_pessoa?: TipoPessoa
   nome_fantasia?: string
@@ -255,7 +266,7 @@ export interface Cliente extends RecordModel {
   data_reabertura?: string
   arquivado?: boolean
   pendencias_informacoes?: string[] | null
-  dados_importados?: Record<string, string | number | boolean | null> | null
+  dados_importados?: Record<string, any> | null
   // Dados de Acesso ao Monitoramento do Inversor
   monitoramento_app_nome?: string
   monitoramento_login?: string
