@@ -29,6 +29,28 @@ export function getErrorMessage(error: unknown): string {
 }
 
 export function isAuthSessionError(error: unknown): boolean {
-  if (!(error instanceof ClientResponseError)) return false
-  return error.status === 401 || error.status === 403
+  if (error instanceof ClientResponseError) {
+    if (error.status === 401 || error.status === 403) return true
+    const message = (error.message || '').toLowerCase()
+    if (
+      message.includes('auth') ||
+      message.includes('token') ||
+      message.includes('unauthorized') ||
+      message.includes('forbidden')
+    ) {
+      return true
+    }
+  }
+  if (error instanceof Error) {
+    const msg = error.message.toLowerCase()
+    if (
+      msg.includes('jwt') ||
+      msg.includes('token expired') ||
+      msg.includes('sessão expirada') ||
+      msg.includes('unauthorized')
+    ) {
+      return true
+    }
+  }
+  return false
 }
