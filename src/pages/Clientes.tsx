@@ -28,6 +28,7 @@ import { useClientes } from '@/contexts/ClientesContext'
 import { SessaoExpiradaAlert } from '@/components/SessaoExpiradaAlert'
 import { ModalMesclarClientes } from '@/components/ModalMesclarClientes'
 import { ModalOferecerLimpezaAvulsa } from '@/components/ModalOferecerLimpezaAvulsa'
+import { ModalMensagemWhatsAppMassa } from '@/components/ModalMensagemWhatsAppMassa'
 import { OutrosContatosView } from '@/components/OutrosContatosView'
 import { Contact } from 'lucide-react'
 import {
@@ -90,6 +91,7 @@ export default function Clientes() {
   const [searchTerm, setSearchTerm] = useState('')
   const [isModalNovoOpen, setIsModalNovoOpen] = useState(false)
   const [isModalOferecerLimpezaOpen, setIsModalOferecerLimpezaOpen] = useState(false)
+  const [isModalMensagemMassaOpen, setIsModalMensagemMassaOpen] = useState(false)
   const [clienteParaExcluir, setClienteParaExcluir] = useState<{ id: string; nome: string } | null>(
     null,
   )
@@ -523,11 +525,22 @@ export default function Clientes() {
               </div>
 
               <div className="flex items-center gap-2 flex-wrap">
+                {/* Botão Enviar Mensagem para Selecionados */}
+                <button
+                  type="button"
+                  onClick={() => setIsModalMensagemMassaOpen(true)}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#16A34A] hover:bg-[#15803D] text-white rounded-lg text-xs font-bold transition-colors shadow-2xs cursor-pointer"
+                  title="Enviar mensagem para selecionados via WhatsApp"
+                >
+                  <MessageSquare className="w-3.5 h-3.5" />
+                  <span>Enviar mensagem para selecionados ({selectedIds.length})</span>
+                </button>
+
                 {/* Botão Oferecer Limpeza para Selecionados */}
                 <button
                   type="button"
                   onClick={() => setIsModalOferecerLimpezaOpen(true)}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition-colors shadow-2xs cursor-pointer"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-xs font-bold transition-colors shadow-2xs cursor-pointer"
                   title="Oferecer limpeza para os clientes selecionados via WhatsApp"
                 >
                   <Sparkles className="w-3.5 h-3.5" />
@@ -1225,6 +1238,18 @@ export default function Clientes() {
             onClose={() => setIsModalNovoOpen(false)}
             tipoEntidade="cliente"
             onSubmit={handleSalvarCliente}
+          />
+
+          {/* Modal Enviar Mensagem WhatsApp em Massa */}
+          <ModalMensagemWhatsAppMassa
+            open={isModalMensagemMassaOpen}
+            onOpenChange={setIsModalMensagemMassaOpen}
+            destinatariosIniciais={selectedIds
+              .map((id) => {
+                const c = clientes.find((cli) => cli.id === id)
+                return c ? { cliente: c, valor: c.valor_final || c.valor_estimado } : null
+              })
+              .filter((d): d is NonNullable<typeof d> => Boolean(d))}
           />
 
           {/* Modal Oferecer Limpeza Avulsa em Lote / Individual */}

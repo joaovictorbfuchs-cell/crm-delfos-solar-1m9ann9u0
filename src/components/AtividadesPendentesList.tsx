@@ -1,19 +1,26 @@
 import React, { useState, useMemo } from 'react'
 import {
   Clock,
-  CheckCircle2,
-  Circle,
   User,
   Calendar,
+  CheckCircle2,
+  Circle,
   Building,
   ArrowRight,
   Filter,
   Search,
+  MessageSquare,
+  CheckSquare,
+  Square,
 } from 'lucide-react'
 import type { Atividade, SistemaUsuario } from '@/types/crm'
 import { getTipoAtividadeConfig } from '@/constants/atividadesTipos'
 import { formatDateTime } from '@/lib/formatters'
-
+import {
+  ModalMensagemWhatsAppMassa,
+  type DestinatarioMensagemMassa,
+} from '@/components/ModalMensagemWhatsAppMassa'
+import { useClientes } from '@/contexts/ClientesContext'
 interface AtividadesPendentesListProps {
   atividades: Atividade[]
   usuarios: SistemaUsuario[]
@@ -31,8 +38,11 @@ export const AtividadesPendentesList: React.FC<AtividadesPendentesListProps> = (
   onToggleStatus,
   onOpenCliente,
 }) => {
+  const { clientes } = useClientes()
   const [tabStatus, setTabStatus] = useState<'pendentes' | 'concluidas' | 'todas'>('pendentes')
   const [searchTerm, setSearchTerm] = useState('')
+  const [selectedAtividadeIds, setSelectedAtividadeIds] = useState<string[]>([])
+  const [isModalMensagemOpen, setIsModalMensagemOpen] = useState(false)
 
   // Filtrar atividades pelo usuário
   const atividadesDoUsuario = useMemo(() => {
@@ -95,6 +105,41 @@ export const AtividadesPendentesList: React.FC<AtividadesPendentesListProps> = (
     const found = usuarios.find((u) => u.id === usuarioSelecionadoId)
     return found ? found.name : 'Usuário'
   }, [usuarioSelecionadoId, usuarios])
+
+  // Destinatários para o modal de mensagem em massa extraídos das atividades selecionadas
+  const destinatariosMensagem = useMemo<DestinatarioMensagemMassa[]>(() => {
+    const mapa = new Map<string, DestinatarioMensagemMassa>()
+    selectedAtividadeIds.forEach((atvId) => {
+      const atv = filteredList.find((a) => a.id === atvId) || atividades.find((a) => a.id === atvId)
+      if (!atv?.cliente_id) return
+      const cli = clientes.find((c) => c.id === atv.cliente_id) || (atv.expand?.cliente_id as any)
+      if (cli && !mapa.has(cli.id)) {
+        mapa.set(cli.id, {
+          cliente: cli,
+          valor: cli.valor_final || cli.valor_estimado || 0,
+          origemItem: `Atividade: ${atv.titulo || 'Pendente'}`,
+        })
+      }
+    })
+    return Array.from(mapa.values())
+  }, [selectedAtividadeIds, filteredList, atividades, clientes])
+
+  const handleToggleSelectAtividade = (id: string) => {
+    setSelectedAtividadeIds((prev) =>
+      prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id],
+    )
+  }
+
+  const handleToggleSelectAll = () => {
+    if (selectedAtividadeIds.length === filteredList.length) {
+      setSelectedAtividadeIds([])
+    } else {
+      setSelectedAtividadeIds(filteredList.map((a) => a.id))
+    }
+  }
+
+  const isAllSelected =
+    filteredList.length > 0 && selectedAtividadeIds.length === filteredList.length
 
   return (
     <div className="bg-white rounded-2xl border border-gray-200/90 shadow-xs p-4 sm:p-5 space-y-4">
@@ -177,17 +222,77 @@ export const AtividadesPendentesList: React.FC<AtividadesPendentesListProps> = (
         </div>
       </div>
 
-      {/* Barra de busca rápida */}
-      <div className="relative">
-        <Search className="w-3.5 h-3.5 absolute left-3 top-3 text-gray-400" />
-        <input
-          type="text"
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          placeholder="Filtrar por título, cliente, descrição ou responsável..."
-          className="w-full text-xs pl-8 pr-3 py-2 rounded-xl border border-gray-200 focus:outline-none focus:ring-1 focus:ring-emerald-500 bg-white"
-        />
+      {/* Barra de busca rápida + Ações em lote */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+        <div className="relative flex-1">
+          <Search className="w-3.5 h-3.5 absolute left-3 top-3 text-gray-400" />
+          <input
+            type="text"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            placeholder="Filtrar por título, cliente, descrição ou responsável..."
+            className="w-full text-xs pl-8 pr-3 py-2 rounded-xl border border-gray-200 focus:outline-none focus:ring-1 focus:ring-emerald-500 bg-white"
+          />
+        </div>
+
+        {filteredList.length > 0 && (
+          <button
+            type="button"
+            onClick={handleToggleSelectAll}
+            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 text-xs font-semibold text-gray-700 transition-colors shrink-0"
+          >
+            {isAllSelected ? (
+              <CheckSquare className="w-3.5 h-3.5 text-emerald-600" />
+            ) : (
+              <Square className="w-3.5 h-3.5 text-gray-400" />
+            )}
+            <span>{isAllSelected ? 'Desmarcar todas' : 'Selecionar todas'}</span>
+          </button>
+        )}
       </div>
+
+      {/* Barra flutuante quando há itens selecionados */}
+      {selectedAtividadeIds.length > 0 && (
+        <div className="flex items-center justify-between p-3 rounded-xl bg-emerald-50 border border-emerald-200 flex-wrap gap-2 animate-in fade-in">
+          <span className="text-xs font-bold text-emerald-900">
+            {selectedAtividadeIds.length}{' '}
+            {selectedAtividadeIds.length === 1
+              ? 'atividade selecionada'
+              : 'atividades selecionadas'}{' '}
+            ({destinatariosMensagem.length}{' '}
+            {destinatariosMensagem.length === 1 ? 'cliente destinatário' : 'clientes destinatários'}
+            )
+          </span>
+
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setSelectedAtividadeIds([])}
+              className="text-xs text-emerald-700 hover:text-emerald-900 underline font-medium"
+            >
+              Limpar seleção
+            </button>
+            <button
+              type="button"
+              disabled={destinatariosMensagem.length === 0}
+              onClick={() => setIsModalMensagemOpen(true)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#16A34A] hover:bg-[#15803D] disabled:opacity-50 text-white rounded-lg text-xs font-bold transition-colors shadow-2xs cursor-pointer"
+            >
+              <MessageSquare className="w-3.5 h-3.5" />
+              <span>Enviar mensagem para selecionados</span>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de envio em massa acionado pelas atividades */}
+      <ModalMensagemWhatsAppMassa
+        open={isModalMensagemOpen}
+        onOpenChange={setIsModalMensagemOpen}
+        destinatariosIniciais={destinatariosMensagem}
+        titulo="Enviar Mensagem para Clientes das Atividades"
+        descricao="Envie mensagem individual no WhatsApp para os clientes vinculados às atividades selecionadas."
+      />
 
       {/* Lista de cards */}
       {filteredList.length === 0 ? (
@@ -214,15 +319,31 @@ export const AtividadesPendentesList: React.FC<AtividadesPendentesListProps> = (
               <div
                 key={atv.id}
                 className={`p-3.5 rounded-xl border transition-all space-y-2.5 ${
-                  isConcluida
-                    ? 'border-gray-200 bg-gray-50/60 opacity-80'
-                    : isOverdue
-                      ? 'border-amber-300 bg-amber-50/30 shadow-2xs'
-                      : 'border-gray-200 bg-white shadow-2xs hover:border-emerald-300'
+                  selectedAtividadeIds.includes(atv.id)
+                    ? 'border-emerald-400 bg-emerald-50/40 ring-1 ring-emerald-300'
+                    : isConcluida
+                      ? 'border-gray-200 bg-gray-50/60 opacity-80'
+                      : isOverdue
+                        ? 'border-amber-300 bg-amber-50/30 shadow-2xs'
+                        : 'border-gray-200 bg-white shadow-2xs hover:border-emerald-300'
                 }`}
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-start gap-2.5 flex-1 min-w-0">
+                    {/* Checkbox de seleção do item */}
+                    <button
+                      type="button"
+                      onClick={() => handleToggleSelectAtividade(atv.id)}
+                      className="mt-0.5 text-gray-400 hover:text-emerald-600 transition-colors shrink-0"
+                      title={selectedAtividadeIds.includes(atv.id) ? 'Desmarcar' : 'Selecionar'}
+                    >
+                      {selectedAtividadeIds.includes(atv.id) ? (
+                        <CheckSquare className="w-4 h-4 text-emerald-600" />
+                      ) : (
+                        <Square className="w-4 h-4 text-gray-400" />
+                      )}
+                    </button>
+
                     {/* Botão de marcar status */}
                     <button
                       type="button"

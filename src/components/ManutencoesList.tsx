@@ -1,21 +1,25 @@
 import React, { useState } from 'react'
 import {
-  Plus,
-  Droplets,
-  Zap,
-  Settings,
   Wrench,
+  Plus,
+  Zap,
+  Droplets,
+  RotateCcw,
   User,
   Calendar,
   Trash2,
   AlertTriangle,
   UserX,
+  CheckSquare,
+  Square,
+  MessageSquare,
 } from 'lucide-react'
 import type { Manutencao } from '@/types/crm'
 import { formatDate } from '@/lib/formatters'
 import { StatusBadge } from '@/components/StatusBadge'
 import { useClientes } from '@/contexts/ClientesContext'
 import { toast } from 'sonner'
+import { ModalMensagemWhatsAppMassa, type DestinatarioMensagemMassa } from '@/components/ModalMensagemWhatsAppMassa'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -35,6 +39,8 @@ export const ManutencoesList: React.FC<ManutencoesListProps> = ({ onOpenNovaManu
   const { manutencoes, clientes, openFichaCliente, removeManutencao } = useClientes()
   const [manutencaoParaExcluir, setManutencaoParaExcluir] = useState<Manutencao | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [selectedManutencaoIds, setSelectedManutencaoIds] = useState<string[]>([])
+  const [isModalMensagemOpen, setIsModalMensagemOpen] = useState(false)
 
   const isClienteOrfao = (m: Manutencao) => {
     if (!m.cliente_id) return true
@@ -98,6 +104,44 @@ export const ManutencoesList: React.FC<ManutencoesListProps> = ({ onOpenNovaManu
     }
   }
 
+  // Destinatários extraídos das manutenções selecionadas
+  const destinatariosMensagem = useMemo<DestinatarioMensagemMassa[]>(() => {
+    const mapa = new Map<string, DestinatarioMensagemMassa>()
+    selectedManutencaoIds.forEach((mId) => {
+      const m = manutencoes.find((item) => item.id === mId)
+      if (!m || isClienteOrfao(m)) return
+      const cli = clientes.find((c) => c.id === m.cliente_id)
+      if (cli && !mapa.has(cli.id)) {
+        mapa.set(cli.id, {
+          cliente: cli,
+          valor: m.valor || cli.valor_final || cli.valor_estimado || 0,
+          origemItem: `Manutenção: ${m.tipo}`,
+        })
+      }
+    })
+    return Array.from(mapa.values())
+  }, [selectedManutencaoIds, manutencoes, clientes])
+
+  const handleToggleSelectManutencao = (id: string, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation()
+    setSelectedManutencaoIds((prev) =>
+      prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id],
+    )
+  }
+
+  const handleToggleSelectAll = () => {
+    const validManutencoes = manutencoes.filter((m) => !isClienteOrfao(m))
+    if (selectedManutencaoIds.length === validManutencoes.length) {
+      setSelectedManutencaoIds([])
+    } else {
+      setSelectedManutencaoIds(validManutencoes.map((m) => m.id))
+    }
+  }
+
+  const validManutencoesCount = manutencoes.filter((m) => !isClienteOrfao(m)).length
+  const isAllSelected =
+    validManutencoesCount > 0 && selectedManutencaoIds.length === validManutencoesCount
+
   return (
     <div className="space-y-4">
       {/* Top action bar */}
@@ -108,14 +152,57 @@ export const ManutencoesList: React.FC<ManutencoesListProps> = ({ onOpenNovaManu
             Acompanhamento de revisões elétricas, limpezas e suporte a inversores
           </p>
         </div>
-        <button
-          onClick={onOpenNovaManutencao}
-          className="inline-flex items-center gap-2 px-4 py-2 bg-[#16A34A] hover:bg-[#15803D] text-white text-sm font-semibold rounded-lg shadow-sm hover:shadow transition-all duration-120 hover:scale-[1.02]"
-        >
-          <Plus className="w-4 h-4" />
-          Nova Manutenção
-        </button>
+        <div className="flex items-center gap-2 flex-wrap">
+          {selectedManutencaoIds.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setIsModalMensagemOpen(true)}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-[#16A34A] hover:bg-[#15803D] text-white text-xs font-bold rounded-lg shadow-sm transition-all"
+            >
+              <MessageSquare className="w-3.5 h-3.5" />
+              <span>Enviar mensagem para selecionados ({selectedManutencaoIds.length})</span>
+            </button>
+          )}
+
+          <button
+            onClick={onOpenNovaManutencao}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white text-sm font-semibold rounded-lg shadow-sm hover:shadow transition-all duration-120 hover:scale-[1.02]"
+          >
+            <Plus className="w-4 h-4" />
+            Nova Manutenção
+          </button>
+        </div>
       </div>
+
+      {/* Barra de ação rápida de seleção quando houver itens */}
+      {selectedManutencaoIds.length > 0 && (
+        <div className="flex items-center justify-between p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-xs">
+          <span className="font-bold text-emerald-900">
+            {selectedManutencaoIds.length}{' '}
+            {selectedManutencaoIds.length === 1
+              ? 'manutenção selecionada'
+              : 'manutenções selecionadas'}{' '}
+            • {destinatariosMensagem.length}{' '}
+            {destinatariosMensagem.length === 1 ? 'cliente' : 'clientes'}
+          </span>
+          <button
+            type="button"
+            onClick={() => setSelectedManutencaoIds([])}
+            className="text-emerald-700 hover:text-emerald-900 underline font-semibold"
+          >
+            Desmarcar todas
+          </button>
+        </div>
+      )}
+
+      {/* Modal Mensagem WhatsApp em Massa */}
+      <ModalMensagemWhatsAppMassa
+        open={isModalMensagemOpen}
+        onOpenChange={setIsModalMensagemOpen}
+        destinatariosIniciais={destinatariosMensagem}
+        titulo="Enviar Mensagem para Clientes de Manutenção"
+        descricao="Envie mensagens individuais no WhatsApp para os clientes das manutenções e ordens de serviço selecionadas."
+      />
 
       {manutencoes.length === 0 ? (
         <div className="p-12 text-center bg-white rounded-xl border border-gray-200">
@@ -139,6 +226,20 @@ export const ManutencoesList: React.FC<ManutencoesListProps> = ({ onOpenNovaManu
             <table className="w-full text-left text-sm">
               <thead className="bg-[#F8FAF9] border-b border-gray-200 text-xs font-semibold text-gray-600 uppercase tracking-wider">
                 <tr>
+                  <th className="py-3.5 px-3 w-10 text-center select-none">
+                    <button
+                      type="button"
+                      onClick={handleToggleSelectAll}
+                      className="text-gray-500 hover:text-emerald-700 p-0.5 rounded transition-colors"
+                      title={isAllSelected ? 'Desmarcar todas' : 'Selecionar todas'}
+                    >
+                      {isAllSelected ? (
+                        <CheckSquare className="w-4 h-4 text-emerald-600" />
+                      ) : (
+                        <Square className="w-4 h-4 text-gray-400" />
+                      )}
+                    </button>
+                  </th>
                   <th className="py-3.5 px-4">Cliente</th>
                   <th className="py-3.5 px-4">Data do Serviço</th>
                   <th className="py-3.5 px-4">Tipo de Serviço</th>
@@ -160,6 +261,24 @@ export const ManutencoesList: React.FC<ManutencoesListProps> = ({ onOpenNovaManu
                           : 'hover:bg-emerald-50/40 cursor-pointer'
                       }`}
                     >
+                      <td
+                        className="py-3.5 px-3 text-center select-none"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {!orfao ? (
+                          <button
+                            type="button"
+                            onClick={(e) => handleToggleSelectManutencao(m.id, e)}
+                            className="text-gray-400 hover:text-emerald-700 p-0.5 rounded transition-colors"
+                          >
+                            {selectedManutencaoIds.includes(m.id) ? (
+                              <CheckSquare className="w-4 h-4 text-emerald-600" />
+                            ) : (
+                              <Square className="w-4 h-4 text-gray-300 group-hover:text-gray-400" />
+                            )}
+                          </button>
+                        ) : null}
+                      </td>
                       <td className="py-3.5 px-4">
                         <div className="flex items-center gap-2">
                           <span
@@ -263,15 +382,29 @@ export const ManutencoesList: React.FC<ManutencoesListProps> = ({ onOpenNovaManu
                   }`}
                 >
                   <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        <h4
-                          className={`font-semibold text-sm ${
-                            orfao ? 'text-gray-600 italic' : 'text-gray-900'
-                          }`}
+                    <div className="flex items-start gap-2">
+                      {!orfao && (
+                        <button
+                          type="button"
+                          onClick={(e) => handleToggleSelectManutencao(m.id, e)}
+                          className="mt-0.5 text-gray-400 hover:text-emerald-700"
                         >
-                          {getClientName(m)}
-                        </h4>
+                          {selectedManutencaoIds.includes(m.id) ? (
+                            <CheckSquare className="w-4 h-4 text-emerald-600" />
+                          ) : (
+                            <Square className="w-4 h-4 text-gray-400" />
+                          )}
+                        </button>
+                      )}
+                      <div>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <h4
+                            className={`font-semibold text-sm ${
+                              orfao ? 'text-gray-600 italic' : 'text-gray-900'
+                            }`}
+                          >
+                            {getClientName(m)}
+                          </h4>
                         {orfao && (
                           <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300">
                             Cliente Removido

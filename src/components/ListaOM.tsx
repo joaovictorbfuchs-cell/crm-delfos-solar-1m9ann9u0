@@ -33,7 +33,11 @@ import {
   ExternalLink,
   Send,
   SlidersHorizontal,
+  CheckSquare,
+  Square,
+  MessageSquare,
 } from 'lucide-react'
+import { ModalMensagemWhatsAppMassa, type DestinatarioMensagemMassa } from '@/components/ModalMensagemWhatsAppMassa'
 import { PlanosOMView } from '@/components/PlanosOMView'
 import { useClientes } from '@/contexts/ClientesContext'
 import { formatCurrency, formatDate } from '@/lib/formatters'
@@ -138,6 +142,8 @@ export const ListaOM: React.FC<ListaOMProps> = ({
 
   // Estado para abrir modal de registrar serviço avulso diretamente da lista
   const [clienteParaServicoAvulso, setClienteParaServicoAvulso] = useState<Cliente | null>(null)
+  const [selectedPosVendasIds, setSelectedPosVendasIds] = useState<string[]>([])
+  const [isModalMensagemOpen, setIsModalMensagemOpen] = useState(false)
 
   // Estados para Gestão de Contrato (Renovar, Encerrar, Ver Detalhes)
   const [contratoParaRenovar, setContratoParaRenovar] = useState<{
@@ -517,6 +523,52 @@ export const ListaOM: React.FC<ListaOMProps> = ({
         </div>
       </div>
 
+  // Destinatários para Envio em Massa a partir de Clientes Pós-Vendas / Limpeza Avulsa
+  const destinatariosMensagem = useMemo<DestinatarioMensagemMassa[]>(() => {
+    return selectedPosVendasIds
+      .map((cliId) => {
+        const item = itensPosVendasFiltrados.find((i) => i.cliente.id === cliId)
+        if (!item) return null
+        return {
+          cliente: item.cliente,
+          valor: item.cliente.valor_final || item.cliente.valor_estimado || 0,
+          potenciaManual: item.potenciaKwp > 0 ? item.potenciaKwp : undefined,
+          origemItem: item.isOportunidadeOM ? 'O&M / Limpeza Avulsa' : 'Pós-Vendas',
+        }
+      })
+      .filter((d): d is DestinatarioMensagemMassa => Boolean(d))
+  }, [selectedPosVendasIds, itensPosVendasFiltrados])
+
+  const handleToggleSelectPosVendas = (id: string, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation()
+    setSelectedPosVendasIds((prev) =>
+      prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id],
+    )
+  }
+
+  const handleToggleSelectAllPosVendas = () => {
+    if (selectedPosVendasIds.length === itensPosVendasFiltrados.length) {
+      setSelectedPosVendasIds([])
+    } else {
+      setSelectedPosVendasIds(itensPosVendasFiltrados.map((i) => i.cliente.id))
+    }
+  }
+
+  const isAllPosVendasSelected =
+    itensPosVendasFiltrados.length > 0 &&
+    selectedPosVendasIds.length === itensPosVendasFiltrados.length
+
+  return (
+    <div className="space-y-4">
+      {/* Modal Mensagem WhatsApp em Massa */}
+      <ModalMensagemWhatsAppMassa
+        open={isModalMensagemOpen}
+        onOpenChange={setIsModalMensagemOpen}
+        destinatariosIniciais={destinatariosMensagem}
+        titulo="Enviar Mensagem para Clientes Pós-Vendas & Limpeza"
+        descricao="Envie mensagens individuais no WhatsApp para os clientes de pós-vendas e oportunidades de limpeza/manutenção."
+      />
+
       {/* Barra de Filtros e Busca (Apenas para sub-aba pós-vendas) */}
       {currentSubTab === 'pos_vendas' && (
         <div className="bg-white rounded-xl border border-gray-200/90 p-4 shadow-xs flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
@@ -589,6 +641,33 @@ export const ListaOM: React.FC<ListaOMProps> = ({
       {/* ========================================================================= */}
       {currentSubTab === 'pos_vendas' && (
         <div className="space-y-3">
+          {/* Barra de ação rápida para seleção em Pós-Vendas / Limpeza Avulsa */}
+          {selectedPosVendasIds.length > 0 && (
+            <div className="flex items-center justify-between p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-xs">
+              <span className="font-bold text-emerald-900">
+                {selectedPosVendasIds.length}{' '}
+                {selectedPosVendasIds.length === 1 ? 'cliente selecionado' : 'clientes selecionados'}
+              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setSelectedPosVendasIds([])}
+                  className="text-emerald-700 hover:text-emerald-900 underline font-semibold"
+                >
+                  Desmarcar todos
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsModalMensagemOpen(true)}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#16A34A] hover:bg-[#15803D] text-white rounded-lg text-xs font-bold transition-colors shadow-2xs"
+                >
+                  <MessageSquare className="w-3.5 h-3.5" />
+                  <span>Enviar mensagem para selecionados ({selectedPosVendasIds.length})</span>
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Banner Explicativo da Lista Pós-Vendas */}
           <div className="rounded-xl bg-gradient-to-r from-amber-50 to-emerald-50 border border-amber-200/80 p-4 flex items-start justify-between gap-4">
             <div className="flex items-start gap-3">
@@ -642,6 +721,20 @@ export const ListaOM: React.FC<ListaOMProps> = ({
                 <table className="w-full text-left text-xs">
                   <thead className="bg-[#F8FAF9] border-b border-gray-200 text-gray-600 font-semibold uppercase tracking-wider">
                     <tr>
+                      <th className="py-3.5 px-3 w-10 text-center select-none">
+                        <button
+                          type="button"
+                          onClick={handleToggleSelectAllPosVendas}
+                          className="text-gray-500 hover:text-emerald-700 p-0.5 rounded transition-colors"
+                          title={isAllPosVendasSelected ? 'Desmarcar todos' : 'Selecionar todos'}
+                        >
+                          {isAllPosVendasSelected ? (
+                            <CheckSquare className="w-4 h-4 text-emerald-600" />
+                          ) : (
+                            <Square className="w-4 h-4 text-gray-400" />
+                          )}
+                        </button>
+                      </th>
                       <th className="py-3.5 px-4">Cliente & Local</th>
                       <th className="py-3.5 px-4">Potência / Sistema</th>
                       <th className="py-3.5 px-4">Classificação Pós-Vendas</th>
@@ -657,6 +750,24 @@ export const ListaOM: React.FC<ListaOMProps> = ({
                           key={item.cliente.id}
                           className="hover:bg-amber-50/30 transition-colors group"
                         >
+                          {/* Checkbox de seleção */}
+                          <td
+                            className="py-3.5 px-3 text-center select-none"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <button
+                              type="button"
+                              onClick={(e) => handleToggleSelectPosVendas(item.cliente.id, e)}
+                              className="text-gray-400 hover:text-emerald-700 p-0.5 rounded transition-colors"
+                            >
+                              {selectedPosVendasIds.includes(item.cliente.id) ? (
+                                <CheckSquare className="w-4 h-4 text-emerald-600" />
+                              ) : (
+                                <Square className="w-4 h-4 text-gray-300 group-hover:text-gray-400" />
+                              )}
+                            </button>
+                          </td>
+
                           {/* Cliente & Local */}
                           <td
                             className="py-3.5 px-4 cursor-pointer"
@@ -856,10 +967,26 @@ export const ListaOM: React.FC<ListaOMProps> = ({
                   <div
                     key={item.cliente.id}
                     onClick={() => openFichaCliente(item.cliente.id)}
-                    className="bg-white rounded-xl border border-gray-200/90 p-4 shadow-xs hover:border-amber-300 transition-colors cursor-pointer space-y-3"
+                    className={`bg-white rounded-xl border p-4 shadow-xs transition-colors cursor-pointer space-y-3 ${
+                      selectedPosVendasIds.includes(item.cliente.id)
+                        ? 'border-emerald-400 bg-emerald-50/30'
+                        : 'border-gray-200/90 hover:border-amber-300'
+                    }`}
                   >
                     <div className="flex items-start justify-between gap-2">
-                      <div>
+                      <div className="flex items-start gap-2.5">
+                        <button
+                          type="button"
+                          onClick={(e) => handleToggleSelectPosVendas(item.cliente.id, e)}
+                          className="mt-0.5 text-gray-400 hover:text-emerald-700 shrink-0"
+                        >
+                          {selectedPosVendasIds.includes(item.cliente.id) ? (
+                            <CheckSquare className="w-4 h-4 text-emerald-600" />
+                          ) : (
+                            <Square className="w-4 h-4 text-gray-400" />
+                          )}
+                        </button>
+                        <div>
                         <div className="flex items-center gap-2 flex-wrap">
                           <h4 className="font-bold text-gray-900 text-sm">{item.cliente.nome}</h4>
                           {item.cliente.area_destino === 'projetos' && (
