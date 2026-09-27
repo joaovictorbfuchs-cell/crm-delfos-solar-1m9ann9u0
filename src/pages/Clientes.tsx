@@ -456,7 +456,7 @@ export default function Clientes() {
   }
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4 pt-1 sm:pt-0">
       {/* Alerta de Sessão Expirada exibido no topo quando o token expira */}
       {isSessionExpired && (
         <SessaoExpiradaAlert
@@ -467,13 +467,13 @@ export default function Clientes() {
         />
       )}
 
-      {/* Navegação por Sub-Abas Compactas de 2º Nível: Base de Clientes vs Outros Contatos */}
-      <div className="flex flex-row items-center justify-between gap-2 bg-white p-2 sm:p-2.5 rounded-2xl border border-gray-200/80 shadow-2xs">
-        <div className="bg-gray-100 p-1 rounded-xl flex items-center text-xs font-semibold text-gray-600 shrink min-w-0">
+      {/* Navegação por Sub-Abas Compactas de 2º Nível: Base de Clientes vs Outros Contatos + Botões de Ação */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5 bg-white p-2 sm:p-2.5 rounded-2xl border border-gray-200/80 shadow-2xs">
+        <div className="bg-gray-100 p-1 rounded-xl flex items-center text-xs font-semibold text-gray-600 w-full sm:w-auto shrink min-w-0">
           <button
             type="button"
             onClick={() => setActiveSubTab('base')}
-            className={`flex items-center justify-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg transition-all ${
+            className={`flex-1 sm:flex-initial flex items-center justify-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg transition-all ${
               activeSubTab === 'base'
                 ? 'bg-white text-emerald-800 shadow-xs font-bold border border-gray-200/80'
                 : 'hover:text-gray-900'
@@ -494,7 +494,7 @@ export default function Clientes() {
           <button
             type="button"
             onClick={() => setActiveSubTab('outros_contatos')}
-            className={`flex items-center justify-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg transition-all ${
+            className={`flex-1 sm:flex-initial flex items-center justify-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg transition-all ${
               activeSubTab === 'outros_contatos'
                 ? 'bg-white text-blue-800 shadow-xs font-bold border border-gray-200/80'
                 : 'hover:text-gray-900'
@@ -514,28 +514,28 @@ export default function Clientes() {
           </button>
         </div>
 
-        {/* Botões de Ação no canto superior direito / contextual (visíveis em todas as telas; compactos no mobile) */}
-        <div className="flex items-center justify-end gap-1.5 sm:gap-2.5 shrink-0">
+        {/* Botões de Ação (visíveis em todas as telas; no mobile ficam logo abaixo do seletor de sub-abas garantindo 100% de visibilidade sem truncamento ou sobreposição) */}
+        <div className="flex items-center justify-end gap-2 shrink-0">
           <button
             type="button"
             onClick={() => setIsModalOferecerLimpezaOpen(true)}
-            className="inline-flex items-center justify-center gap-2 p-2 sm:px-3.5 sm:py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 active:scale-[0.98] text-sm font-bold rounded-xl shadow-2xs hover:shadow-xs transition-all shrink-0 cursor-pointer"
+            className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-3 py-2 sm:px-3.5 sm:py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 active:scale-[0.98] text-xs sm:text-sm font-bold rounded-xl shadow-2xs hover:shadow-xs transition-all cursor-pointer"
             title="Disparar oferta de limpeza periódica de módulos solares via WhatsApp"
             aria-label="Oferecer Limpeza Avulsa"
           >
-            <Sparkles className="w-4 h-4 text-emerald-600 stroke-[2.5]" />
-            <span className="hidden sm:inline">Oferecer Limpeza Avulsa</span>
+            <Sparkles className="w-4 h-4 text-emerald-600 stroke-[2.5] shrink-0" />
+            <span className="inline">Oferecer Limpeza Avulsa</span>
           </button>
 
           <button
             type="button"
             onClick={() => setIsModalNovoOpen(true)}
-            className="inline-flex items-center justify-center gap-2 p-2 sm:px-4 sm:py-2 bg-[#16A34A] hover:bg-[#15803D] active:scale-[0.98] text-white text-sm font-bold rounded-xl shadow-sm hover:shadow-md transition-all shrink-0 cursor-pointer"
+            className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-3 py-2 sm:px-4 sm:py-2 bg-[#16A34A] hover:bg-[#15803D] active:scale-[0.98] text-white text-xs sm:text-sm font-bold rounded-xl shadow-sm hover:shadow-md transition-all cursor-pointer"
             title="Adicionar Novo Cliente"
             aria-label="Adicionar Novo"
           >
-            <Plus className="w-4 h-4 stroke-[2.5]" />
-            <span className="hidden sm:inline">Adicionar Novo</span>
+            <Plus className="w-4 h-4 stroke-[2.5] shrink-0" />
+            <span className="inline">Adicionar Novo</span>
           </button>
         </div>
       </div>
