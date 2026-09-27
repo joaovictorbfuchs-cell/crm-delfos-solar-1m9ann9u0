@@ -17,8 +17,6 @@ import {
   LogOut,
   ChevronRight,
   ChevronDown,
-  PanelLeftClose,
-  PanelLeftOpen,
   Sun,
   MessageSquare,
   Settings,
@@ -58,28 +56,6 @@ export default function Layout() {
       return false
     }).length
   }, [whatsAppConversas])
-
-  // Estado da sidebar colapsada para desktop, com persistência em localStorage
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(() => {
-    try {
-      const saved = localStorage.getItem('delfos_sidebar_collapsed')
-      return saved === 'true'
-    } catch {
-      return false
-    }
-  })
-
-  useEffect(() => {
-    try {
-      localStorage.setItem('delfos_sidebar_collapsed', String(isSidebarCollapsed))
-    } catch (e) {
-      console.error('Falha ao salvar preferência da sidebar:', e)
-    }
-  }, [isSidebarCollapsed])
-
-  const toggleSidebar = () => {
-    setIsSidebarCollapsed((prev) => !prev)
-  }
 
   const handleLogout = () => {
     logout()
@@ -206,62 +182,25 @@ export default function Layout() {
 
   return (
     <div className="min-h-screen flex bg-[#F8FAF9] text-[#1F2937]">
-      {/* Sidebar for Desktop */}
-      <aside
-        className={`hidden lg:flex flex-col bg-white border-r border-[#E5E7EB] shrink-0 sticky top-0 h-screen z-30 transition-all duration-300 ease-in-out ${
-          isSidebarCollapsed ? 'w-[68px]' : 'w-60'
-        }`}
-      >
-        {/* Brand Logo & Toggle Button */}
-        <div
-          className={`h-16 px-3 border-b border-[#E5E7EB] flex items-center bg-white ${
-            isSidebarCollapsed ? 'justify-center relative' : 'justify-between'
-          }`}
-        >
+      {/* Sidebar for Desktop: sempre expandida, estreita e fixa (~88px), ícone em cima + texto embaixo */}
+      <aside className="hidden lg:flex flex-col w-[88px] bg-white border-r border-[#E5E7EB] shrink-0 sticky top-0 h-screen z-30 select-none">
+        {/* Brand Logo */}
+        <div className="h-16 px-2 border-b border-[#E5E7EB] flex items-center justify-center bg-white shrink-0">
           <NavLink
             to="/"
             className="flex items-center justify-center group overflow-hidden py-1"
             title="Delfos Solar - Ir para o início"
           >
-            {isSidebarCollapsed ? (
-              <DelfosLogo
-                height={36}
-                collapsed
-                className="transition-transform duration-200 group-hover:scale-110 drop-shadow-xs"
-              />
-            ) : (
-              <DelfosLogo
-                height={44}
-                className="transition-transform duration-200 group-hover:scale-105 drop-shadow-xs"
-              />
-            )}
+            <DelfosLogo
+              height={38}
+              collapsed
+              className="transition-transform duration-200 group-hover:scale-105 drop-shadow-xs"
+            />
           </NavLink>
-
-          <button
-            onClick={toggleSidebar}
-            className={`p-1.5 text-gray-400 hover:text-[#166534] hover:bg-emerald-50 rounded-lg transition-colors ${
-              isSidebarCollapsed
-                ? 'absolute -right-3 top-5 bg-white border border-[#E5E7EB] shadow-xs hover:shadow text-gray-600 z-40'
-                : ''
-            }`}
-            title={isSidebarCollapsed ? 'Expandir menu lateral' : 'Recolher menu lateral'}
-            aria-label={isSidebarCollapsed ? 'Expandir menu lateral' : 'Recolher menu lateral'}
-          >
-            {isSidebarCollapsed ? (
-              <PanelLeftOpen className="w-4 h-4" />
-            ) : (
-              <PanelLeftClose className="w-4 h-4" />
-            )}
-          </button>
         </div>
 
         {/* Navigation Links */}
-        <nav className={`flex-1 ${isSidebarCollapsed ? 'px-2' : 'px-4'} py-6 space-y-1.5`}>
-          {!isSidebarCollapsed && (
-            <div className="px-3 pb-2 text-[11px] font-bold uppercase tracking-wider text-gray-400">
-              Navegação Principal
-            </div>
-          )}
+        <nav className="flex-1 px-1.5 py-3 space-y-1.5 overflow-y-auto overflow-x-hidden">
           {navItems.map((item) => {
             const Icon = item.icon
 
@@ -274,58 +213,38 @@ export default function Layout() {
                 <div key={item.name} className="space-y-1">
                   <button
                     type="button"
-                    onClick={() => {
-                      if (isSidebarCollapsed) {
-                        setIsSidebarCollapsed(false)
-                        setConfiguracoesExpanded(true)
-                      } else {
-                        setConfiguracoesExpanded((prev) => !prev)
-                      }
-                    }}
-                    title={isSidebarCollapsed ? item.name : undefined}
+                    onClick={() => setConfiguracoesExpanded((prev) => !prev)}
+                    title={item.name}
                     aria-expanded={isExpanded}
-                    className={`flex items-center rounded-xl font-medium text-sm transition-all duration-150 relative group w-full text-left cursor-pointer ${
-                      isSidebarCollapsed ? 'justify-center p-3' : 'gap-3 px-3.5 py-2.5'
-                    } ${
+                    className={`flex flex-col items-center justify-center text-center rounded-xl p-2 w-full transition-all duration-150 relative group cursor-pointer ${
                       isActive
                         ? 'bg-[#DCFCE7] text-[#166534] font-semibold shadow-xs'
-                        : 'text-gray-600 hover:bg-[#F8FAF9] hover:text-[#166534]'
+                        : 'text-gray-600 hover:bg-[#F0FDF4] hover:text-[#166534]'
                     }`}
                   >
-                    <Icon
-                      className={`w-5 h-5 shrink-0 ${
-                        isActive ? 'text-[#16A34A]' : 'text-gray-400 group-hover:text-[#16A34A]'
-                      }`}
-                    />
-                    {!isSidebarCollapsed && (
-                      <>
-                        <span className="truncate">{item.name}</span>
-                        {isExpanded ? (
-                          <ChevronDown
-                            className={`w-4 h-4 ml-auto shrink-0 transition-transform ${
-                              isActive ? 'text-[#16A34A]' : 'text-gray-400'
-                            }`}
-                          />
-                        ) : (
-                          <ChevronRight
-                            className={`w-4 h-4 ml-auto shrink-0 transition-transform ${
-                              isActive ? 'text-[#16A34A]' : 'text-gray-400'
-                            }`}
-                          />
-                        )}
-                      </>
-                    )}
-                    {/* Tooltip no modo colapsado para hover */}
-                    {isSidebarCollapsed && (
-                      <span className="absolute left-full ml-2.5 px-2.5 py-1 bg-gray-900 text-white text-xs font-semibold rounded-md shadow-lg whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-50">
-                        {item.name}
+                    <div className="relative flex items-center justify-center">
+                      <Icon
+                        className={`w-5 h-5 shrink-0 transition-transform duration-150 group-hover:scale-110 ${
+                          isActive ? 'text-[#16A34A]' : 'text-gray-500 group-hover:text-[#16A34A]'
+                        }`}
+                      />
+                      {/* Indicador de expansão sutil */}
+                      <span
+                        className={`absolute -bottom-1 -right-2 text-[9px] ${
+                          isActive ? 'text-[#16A34A]' : 'text-gray-400 group-hover:text-[#16A34A]'
+                        }`}
+                      >
+                        {isExpanded ? '▲' : '▼'}
                       </span>
-                    )}
+                    </div>
+                    <span className="text-[11px] font-medium leading-tight mt-1 px-0.5 line-clamp-2">
+                      {item.name}
+                    </span>
                   </button>
 
                   {/* Subitens de Configurações */}
-                  {isExpanded && !isSidebarCollapsed && (
-                    <div className="space-y-0.5 pt-0.5">
+                  {isExpanded && (
+                    <div className="space-y-1 pt-1 pb-1 border-y border-emerald-100 bg-emerald-50/40 rounded-lg my-1">
                       {item.subItems.map((sub) => {
                         const SubIcon = sub.icon
                         const isSubActive = location.pathname === sub.path
@@ -335,23 +254,22 @@ export default function Layout() {
                             key={sub.path}
                             to={sub.path}
                             title={sub.name}
-                            className={`flex items-center rounded-lg text-xs font-medium transition-all duration-150 relative group gap-2.5 pl-8 pr-3 py-2 ml-2 ${
+                            className={`flex flex-col items-center justify-center text-center rounded-lg p-1.5 transition-all duration-150 relative group ${
                               isSubActive
-                                ? 'bg-emerald-100/70 text-[#166534] font-bold shadow-2xs'
-                                : 'text-gray-600 hover:bg-emerald-50/60 hover:text-[#166534]'
+                                ? 'bg-emerald-200/80 text-[#166534] font-bold shadow-2xs'
+                                : 'text-gray-600 hover:bg-white hover:text-[#166534]'
                             }`}
                           >
                             <SubIcon
-                              className={`w-4 h-4 shrink-0 ${
+                              className={`w-4 h-4 shrink-0 transition-transform duration-150 group-hover:scale-110 ${
                                 isSubActive
                                   ? 'text-[#16A34A]'
-                                  : 'text-gray-400 group-hover:text-[#16A34A]'
+                                  : 'text-gray-500 group-hover:text-[#16A34A]'
                               }`}
                             />
-                            <span className="truncate">{sub.name}</span>
-                            {isSubActive && (
-                              <span className="w-1.5 h-1.5 rounded-full bg-[#16A34A] ml-auto shrink-0" />
-                            )}
+                            <span className="text-[10px] font-medium leading-tight mt-1 px-0.5 line-clamp-2">
+                              {sub.name}
+                            </span>
                           </NavLink>
                         )
                       })}
@@ -374,203 +292,71 @@ export default function Layout() {
                 (location.pathname === '/planos-om' ||
                   location.pathname === '/planos-monitoramento'))
 
-            // Verifica se a seção de Manutenções está ativa para revelar subitens
-            const showSubItems =
-              itemPath === '/manutencoes' && isManutencoesSectionActive && item.subItems
-
             return (
               <div key={itemPath} className="space-y-1">
                 <NavLink
                   to={itemPath}
-                  title={isSidebarCollapsed ? item.name : undefined}
-                  className={`flex items-center rounded-xl font-medium text-sm transition-all duration-150 relative group ${
-                    isSidebarCollapsed ? 'justify-center p-3 w-full' : 'gap-3 px-3.5 py-2.5'
-                  } ${
+                  title={item.name}
+                  className={`flex flex-col items-center justify-center text-center rounded-xl p-2 w-full transition-all duration-150 relative group ${
                     isActive
                       ? 'bg-[#DCFCE7] text-[#166534] font-semibold shadow-xs'
-                      : 'text-gray-600 hover:bg-[#F8FAF9] hover:text-[#166534]'
+                      : 'text-gray-600 hover:bg-[#F0FDF4] hover:text-[#166534]'
                   }`}
                 >
-                  <Icon
-                    className={`w-5 h-5 shrink-0 ${
-                      isActive ? 'text-[#16A34A]' : 'text-gray-400 group-hover:text-[#16A34A]'
-                    }`}
-                  />
-                  {!isSidebarCollapsed && (
-                    <>
-                      <span className="truncate">{item.name}</span>
-                      {item.badge !== undefined && item.badge > 0 && (
-                        <span className="ml-auto px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-600 text-white shadow-2xs">
-                          {item.badge}
-                        </span>
-                      )}
-                      {isActive && !item.badge && (
-                        <ChevronRight className="w-4 h-4 ml-auto text-[#16A34A] shrink-0" />
-                      )}
-                    </>
-                  )}
-                  {/* Badge no modo colapsado */}
-                  {isSidebarCollapsed && item.badge !== undefined && item.badge > 0 && (
-                    <span className="absolute top-2 right-2 w-2.5 h-2.5 rounded-full bg-emerald-600 ring-2 ring-white" />
-                  )}
-                  {/* Tooltip no modo colapsado para hover */}
-                  {isSidebarCollapsed && (
-                    <span className="absolute left-full ml-2.5 px-2.5 py-1 bg-gray-900 text-white text-xs font-semibold rounded-md shadow-lg whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-50">
-                      {item.name}{' '}
-                      {item.badge !== undefined && item.badge > 0 ? `(${item.badge})` : ''}
-                    </span>
-                  )}
+                  <div className="relative flex items-center justify-center">
+                    <Icon
+                      className={`w-5 h-5 shrink-0 transition-transform duration-150 group-hover:scale-110 ${
+                        isActive ? 'text-[#16A34A]' : 'text-gray-500 group-hover:text-[#16A34A]'
+                      }`}
+                    />
+                    {item.badge !== undefined && item.badge > 0 && (
+                      <span className="absolute -top-1.5 -right-3 px-1.5 py-0.2 rounded-full text-[9px] font-black bg-emerald-600 text-white shadow-2xs">
+                        {item.badge}
+                      </span>
+                    )}
+                  </div>
+                  <span className="text-[11px] font-medium leading-tight mt-1 px-0.5 line-clamp-2">
+                    {item.name}
+                  </span>
                 </NavLink>
-
-                {/* Subitens expostos apenas quando a seção Manutenções está ativa */}
-                {showSubItems &&
-                  item.subItems?.map((sub) => {
-                    const SubIcon = sub.icon
-                    const isSubActive =
-                      location.pathname === sub.path ||
-                      (sub.path === '/clientes-pos-vendas' &&
-                        (location.pathname === '/clientes-pos-vendas' ||
-                          location.pathname === '/pos-vendas'))
-                    return (
-                      <NavLink
-                        key={sub.path}
-                        to={sub.path}
-                        title={sub.name}
-                        className={`flex items-center rounded-lg text-xs font-medium transition-all duration-150 relative group ${
-                          isSidebarCollapsed
-                            ? 'justify-center p-2.5 w-full'
-                            : 'gap-2.5 pl-8 pr-3 py-2 ml-2'
-                        } ${
-                          isSubActive
-                            ? 'bg-emerald-100/70 text-[#166534] font-bold shadow-2xs'
-                            : 'text-gray-600 hover:bg-emerald-50/60 hover:text-[#166534]'
-                        }`}
-                      >
-                        <SubIcon
-                          className={`w-4 h-4 shrink-0 ${
-                            isSubActive
-                              ? 'text-[#16A34A]'
-                              : 'text-gray-400 group-hover:text-[#16A34A]'
-                          }`}
-                        />
-                        {!isSidebarCollapsed && (
-                          <>
-                            <span className="truncate">{sub.name}</span>
-                            {isSubActive && (
-                              <span className="w-1.5 h-1.5 rounded-full bg-[#16A34A] ml-auto shrink-0" />
-                            )}
-                          </>
-                        )}
-                        {/* Tooltip no modo colapsado */}
-                        {isSidebarCollapsed && (
-                          <span className="absolute left-full ml-2.5 px-2.5 py-1 bg-gray-900 text-white text-xs font-semibold rounded-md shadow-lg whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-50">
-                            {sub.name}
-                          </span>
-                        )}
-                      </NavLink>
-                    )
-                  })}
               </div>
             )
           })}
         </nav>
 
         {/* User Card in Sidebar bottom */}
-        <div
-          className={`border-t border-[#E5E7EB] bg-gray-50/50 ${
-            isSidebarCollapsed ? 'p-2 flex flex-col items-center gap-2' : 'p-3.5 pb-2.5'
-          }`}
-        >
-          {isSidebarCollapsed ? (
-            <div className="flex flex-col items-center gap-2 w-full">
-              <div
-                className="w-9 h-9 rounded-full bg-[#16A34A] text-white flex items-center justify-center font-bold text-sm shrink-0 shadow-xs cursor-default"
-                title={`${user?.name || 'João Silva'} (${user?.email || 'joao@delfosengenharia.com.br'})`}
-              >
-                {userInitial}
-              </div>
-              <button
-                onClick={handleLogout}
-                className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors w-full flex items-center justify-center"
-                title="Sair do sistema"
-                aria-label="Sair do sistema"
-              >
-                <LogOut className="w-4 h-4" />
-              </button>
-              <div
-                className="text-[10px] font-mono text-gray-400 text-center select-none pt-0.5 cursor-default"
-                title={`Delfos Solar v${APP_VERSION}`}
-              >
-                v{APP_VERSION}
-              </div>
-            </div>
-          ) : (
-            <div>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3 overflow-hidden">
-                  <div
-                    className={`w-9 h-9 rounded-full text-white flex items-center justify-center font-bold text-sm shrink-0 shadow-xs ${
-                      isAdmin ? 'bg-[#16A34A]' : 'bg-blue-600'
-                    }`}
-                  >
-                    {userInitial}
-                  </div>
-                  <div className="truncate">
-                    <div className="text-xs font-bold text-gray-900 truncate flex items-center gap-1.5">
-                      <span>{displayName}</span>
-                    </div>
-                    <div className="flex items-center gap-1.5 mt-0.5">
-                      <span
-                        className={`text-[10px] font-extrabold px-1.5 py-0.2 rounded uppercase tracking-wider ${
-                          isAdmin ? 'bg-emerald-100 text-emerald-800' : 'bg-blue-100 text-blue-800'
-                        }`}
-                      >
-                        {isAdmin ? 'Admin' : 'Instalador'}
-                      </span>
-                      <span className="text-[10px] text-gray-400 truncate">{displayEmail}</span>
-                    </div>
-                  </div>
-                </div>
-                <button
-                  onClick={handleLogout}
-                  className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors ml-1"
-                  title="Sair do sistema"
-                >
-                  <LogOut className="w-4 h-4" />
-                </button>
-              </div>
-              <div className="mt-2.5 pt-2 border-t border-gray-200/60 flex items-center justify-between text-[11px] font-mono text-gray-400 px-0.5">
-                <span>Delfos Solar</span>
-                <span>v{APP_VERSION}</span>
-              </div>
-              <div className="mt-1.5 pt-1.5 border-t border-gray-100 flex items-center justify-center">
-                <a
-                  href="/schema-delfos-solar.xlsx"
-                  download="schema-delfos-solar.xlsx"
-                  className="inline-flex items-center gap-1.5 text-[11px] text-gray-400 hover:text-[#166534] transition-colors py-0.5 group"
-                  title="Exportar schema completo do banco PocketBase (38 coleções) em formato XLSX"
-                >
-                  <FileSpreadsheet className="w-3.5 h-3.5 text-gray-400 group-hover:text-[#166534] shrink-0" />
-                  <span className="font-medium underline decoration-gray-300 underline-offset-2 group-hover:decoration-[#166534]">
-                    Exportar Schema (XLSX)
-                  </span>
-                </a>
-              </div>
-            </div>
-          )}
-          {isSidebarCollapsed && (
-            <div className="pt-1.5 border-t border-gray-200/60 w-full flex justify-center">
-              <a
-                href="/schema-delfos-solar.xlsx"
-                download="schema-delfos-solar.xlsx"
-                className="p-1.5 text-gray-400 hover:text-[#166534] hover:bg-emerald-50 rounded-lg transition-colors flex items-center justify-center"
-                title="Exportar Schema (XLSX)"
-                aria-label="Exportar Schema (XLSX)"
-              >
-                <FileSpreadsheet className="w-4 h-4" />
-              </a>
-            </div>
-          )}
+        <div className="border-t border-[#E5E7EB] bg-gray-50/60 p-2 flex flex-col items-center gap-1.5 shrink-0">
+          <div
+            className={`w-8 h-8 rounded-full text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-xs ${
+              isAdmin ? 'bg-[#16A34A]' : 'bg-blue-600'
+            }`}
+            title={`${displayName} (${displayEmail}) - ${isAdmin ? 'Admin' : 'Instalador'}`}
+          >
+            {userInitial}
+          </div>
+          <button
+            onClick={handleLogout}
+            className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors flex items-center justify-center"
+            title="Sair do sistema"
+            aria-label="Sair do sistema"
+          >
+            <LogOut className="w-4 h-4" />
+          </button>
+          <a
+            href="/schema-delfos-solar.xlsx"
+            download="schema-delfos-solar.xlsx"
+            className="p-1 text-gray-400 hover:text-[#166534] hover:bg-emerald-50 rounded-md transition-colors flex items-center justify-center"
+            title="Exportar Schema do Banco (XLSX)"
+            aria-label="Exportar Schema (XLSX)"
+          >
+            <FileSpreadsheet className="w-3.5 h-3.5" />
+          </a>
+          <div
+            className="text-[9px] font-mono text-gray-400 text-center select-none pt-0.5 cursor-default leading-none"
+            title={`Delfos Solar v${APP_VERSION}`}
+          >
+            v{APP_VERSION}
+          </div>
         </div>
       </aside>
 
