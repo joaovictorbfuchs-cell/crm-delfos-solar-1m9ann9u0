@@ -23,8 +23,24 @@ import {
   CheckSquare,
   Square,
   MinusSquare,
+  MoreVertical,
+  Briefcase,
+  GitFork,
+  Check,
 } from 'lucide-react'
 import { useClientes } from '@/contexts/ClientesContext'
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuLabel,
+  DropdownMenuSub,
+  DropdownMenuSubTrigger,
+  DropdownMenuSubContent,
+} from '@/components/ui/dropdown-menu'
+import { WhatsAppIcon } from '@/components/WhatsAppIcon'
 import { SessaoExpiradaAlert } from '@/components/SessaoExpiradaAlert'
 import { ModalMesclarClientes } from '@/components/ModalMesclarClientes'
 import { ModalOferecerLimpezaAvulsa } from '@/components/ModalOferecerLimpezaAvulsa'
@@ -83,6 +99,7 @@ export default function Clientes() {
     isLoading,
     openFichaCliente,
     addCliente,
+    updateCliente,
     updateClienteStatus,
     removeCliente,
     bulkRemoveClientes,
@@ -497,8 +514,8 @@ export default function Clientes() {
           </button>
         </div>
 
-        {/* Botões de Ação no canto superior direito / contextual */}
-        <div className="flex items-center justify-end gap-2.5 flex-wrap">
+        {/* Botões de Ação no canto superior direito / contextual (ocultos no mobile) */}
+        <div className="hidden md:flex items-center justify-end gap-2.5 flex-wrap">
           <button
             type="button"
             onClick={() => setIsModalOferecerLimpezaOpen(true)}
@@ -1095,160 +1112,199 @@ export default function Clientes() {
                 </table>
               </div>
 
-              {/* Mobile Cards View */}
-              <div className="md:hidden space-y-3">
+              {/* Mobile Cards View Simplificado */}
+              <div className="md:hidden space-y-2.5">
                 {processedClientes.map((c) => {
-                  const isChecked = selectedIds.includes(c.id)
+                  const rawWa = (c.whatsapp || '').trim() || (c.telefone || '').trim()
+                  let waDigits = rawWa.replace(/\D/g, '')
+                  if (
+                    waDigits &&
+                    !waDigits.startsWith('55') &&
+                    (waDigits.length === 10 || waDigits.length === 11)
+                  ) {
+                    waDigits = `55${waDigits}`
+                  }
+
+                  const tipoNegocioAtual = (
+                    c.tipo_negocio ||
+                    c.produto ||
+                    'energia solar'
+                  ).toLowerCase()
+
                   return (
                     <div
                       key={c.id}
                       onClick={() => openFichaCliente(c.id)}
-                      className={`rounded-xl p-4 border shadow-xs transition-colors cursor-pointer space-y-3 ${
-                        isChecked
-                          ? 'bg-emerald-50/80 border-emerald-400'
-                          : 'bg-white border-gray-200 hover:border-emerald-300'
-                      }`}
+                      className="bg-white rounded-xl p-3.5 border border-gray-200/90 shadow-2xs hover:border-emerald-300 transition-all cursor-pointer flex items-center justify-between gap-3 active:scale-[0.99]"
                     >
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="flex items-start gap-2">
+                      {/* Nome do cliente em destaque (clique abre a ficha completa) */}
+                      <div className="flex-1 min-w-0 pr-1">
+                        <h4 className="font-extrabold text-gray-900 text-base leading-snug truncate">
+                          {c.nome}
+                        </h4>
+                      </div>
+
+                      {/* Ações diretas: WhatsApp + Menu ⋮ */}
+                      <div
+                        className="flex items-center gap-2 shrink-0"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {/* Botão WhatsApp direto */}
+                        {waDigits ? (
+                          <a
+                            href={`https://wa.me/${waDigits}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            aria-label={`Conversar com ${c.nome} no WhatsApp`}
+                            title={`Conversar com ${c.nome} no WhatsApp`}
+                            className="w-9 h-9 rounded-full bg-[#25D366] hover:bg-[#20ba59] active:scale-95 text-white flex items-center justify-center shadow-xs transition-transform cursor-pointer"
+                          >
+                            <WhatsAppIcon className="w-5 h-5" />
+                          </a>
+                        ) : (
                           <button
                             type="button"
-                            onClick={(e) => handleToggleSelectOne(c.id, e)}
-                            className="text-gray-400 hover:text-emerald-700 p-0.5 rounded transition-colors mt-0.5"
+                            onClick={() => openFichaCliente(c.id, 'whatsapp')}
+                            aria-label="Abrir WhatsApp do cliente"
+                            title="Sem WhatsApp direto - abrir ficha"
+                            className="w-9 h-9 rounded-full bg-emerald-50 text-emerald-600 hover:bg-emerald-100 active:scale-95 flex items-center justify-center border border-emerald-200 transition-colors cursor-pointer"
                           >
-                            {isChecked ? (
-                              <CheckSquare className="w-4 h-4 text-emerald-600" />
-                            ) : (
-                              <Square className="w-4 h-4 text-gray-300" />
-                            )}
+                            <WhatsAppIcon className="w-5 h-5 opacity-70" />
                           </button>
-                          <div className="space-y-0.5">
-                            <div className="flex items-center gap-1.5 flex-wrap">
-                              <h4 className="font-bold text-gray-900 text-sm">{c.nome}</h4>
-                              {c.tipo_pessoa === 'juridica' || c.cnpj ? (
-                                <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-blue-50 text-blue-700 border border-blue-200">
-                                  PJ
-                                </span>
-                              ) : (
-                                <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-amber-50 text-amber-800 border border-amber-200">
-                                  PF
-                                </span>
-                              )}
-                            </div>
-                            <p className="text-xs text-gray-400 font-mono">
-                              {c.cnpj
-                                ? `CNPJ: ${c.cnpj}`
-                                : c.cpf
-                                  ? `CPF: ${c.cpf}`
-                                  : `UC: ${c.uc || '-'}`}
-                            </p>
-                          </div>
-                        </div>
-                        <div className="flex flex-col items-end gap-1">
-                          <StatusBadge status={c.status} />
-                          {c.status === 'Perdido' && c.motivo_perda && (
-                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200 capitalize">
-                              Motivo:{' '}
-                              {c.motivo_perda === 'preco'
-                                ? 'Preço'
-                                : c.motivo_perda === 'concorrente'
-                                  ? 'Concorrente'
-                                  : c.motivo_perda === 'desistiu'
-                                    ? 'Desistiu'
-                                    : c.motivo_perda === 'outro'
-                                      ? 'Outro'
-                                      : c.motivo_perda}
-                            </span>
-                          )}
-                          {c.status === 'Fechado' && c.area_destino && (
-                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
-                              {c.area_destino === 'projetos' ? 'Projetos' : 'O&M'}
-                            </span>
-                          )}
-                        </div>
-                      </div>
+                        )}
 
-                      {/* Badge de Origem no Mobile Card */}
-                      <div className="flex items-center justify-between gap-2 text-xs">
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-gray-400 text-[11px]">Origem:</span>
-                          <OrigemClienteBadge origemInfo={c.origemInfo} />
-                        </div>
-                        <ProductBadge produto={c.produto || 'Energia Solar'} size="sm" />
-                      </div>
-
-                      <div className="flex items-center justify-between text-xs text-gray-600 pt-2 border-t border-gray-100">
-                        <div className="flex items-center gap-1 text-gray-500">
-                          <MapPin className="w-3.5 h-3.5 text-gray-400" />
-                          <span>{c.cidade || 'Não informada'}</span>
-                        </div>
-                        <div className="font-semibold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded">
-                          {c.potencia_kwp} kWp
-                        </div>
-                      </div>
-
-                      <div className="flex items-center justify-between pt-1">
-                        <span className="font-bold text-gray-900 text-sm">
-                          {formatCurrency(c.valor_estimado)}
-                        </span>
-                        <div className="flex items-center gap-1.5">
-                          <button
-                            onClick={(e) => handleAbrirMesclagem(c, e)}
-                            className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-800 bg-emerald-50 px-2 py-1 rounded-md border border-emerald-200"
-                            title="Mesclar cliente"
-                          >
-                            <GitMerge className="w-3.5 h-3.5 text-emerald-700" />
-                          </button>
-                          {c.status === 'Perdido' && (
+                        {/* Menu dos Três Pontinhos ⋮ */}
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
                             <button
-                              onClick={async (e) => {
-                                e.stopPropagation()
-                                const confirmou = window.confirm(
-                                  `Deseja reativar o cliente "${c.nome}" e devolver ao funil como Novo Lead?`,
-                                )
-                                if (confirmou) {
-                                  await updateClienteStatus(c.id, 'Novo Lead')
-                                }
-                              }}
-                              className="inline-flex items-center gap-1 text-xs font-bold text-white bg-emerald-600 px-2.5 py-1 rounded-md shadow-2xs"
-                              title="Reativar cliente"
+                              type="button"
+                              aria-label="Opções do cliente"
+                              title="Opções do cliente"
+                              className="w-9 h-9 rounded-full flex items-center justify-center text-gray-500 hover:text-gray-900 hover:bg-gray-100 active:scale-95 transition-colors cursor-pointer"
                             >
-                              <RotateCcw className="w-3.5 h-3.5" />
-                              Reativar
+                              <MoreVertical className="w-5 h-5" />
                             </button>
-                          )}
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              openFichaCliente(c.id, 'whatsapp')
-                            }}
-                            className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-800 bg-emerald-100 px-2 py-1 rounded-md border border-emerald-300"
-                          >
-                            <MessageSquare className="w-3.5 h-3.5" />
-                            WhatsApp
-                          </button>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              openFichaCliente(c.id)
-                            }}
-                            className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-md border border-emerald-200"
-                          >
-                            <Eye className="w-3.5 h-3.5" />
-                            Ficha
-                          </button>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              setClienteParaExcluir({ id: c.id, nome: c.nome })
-                            }}
-                            className="inline-flex items-center p-1.5 text-xs font-semibold text-red-600 bg-red-50 hover:bg-red-100 rounded-md border border-red-200 hover:text-red-700"
-                            title={`Excluir cliente ${c.nome}`}
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                            <span className="sr-only">Excluir</span>
-                          </button>
-                        </div>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-56 text-xs p-1.5 shadow-lg">
+                            {/* Ação 1: Mesclar clientes */}
+                            <DropdownMenuItem
+                              onClick={() => handleAbrirMesclagem(c)}
+                              className="cursor-pointer gap-2 py-2 px-2.5 font-medium text-gray-700"
+                            >
+                              <GitMerge className="w-4 h-4 text-emerald-700 shrink-0" />
+                              <span>Mesclar clientes</span>
+                            </DropdownMenuItem>
+
+                            {/* Ação 2: Ver etapa do funil */}
+                            <DropdownMenuItem
+                              onClick={() => {
+                                const etapaMsg = c.status
+                                  ? `Etapa atual do cliente "${c.nome}": ${c.status}`
+                                  : `Cliente "${c.nome}" não possui etapa definida no funil.`
+                                alert(etapaMsg)
+                              }}
+                              className="cursor-pointer gap-2 py-2 px-2.5 font-medium text-gray-700"
+                            >
+                              <GitFork className="w-4 h-4 text-blue-600 shrink-0" />
+                              <div className="flex flex-col min-w-0">
+                                <span>Ver etapa do funil</span>
+                                <span className="text-[10px] text-gray-400 font-semibold truncate">
+                                  {c.status || 'Sem etapa'}
+                                </span>
+                              </div>
+                            </DropdownMenuItem>
+
+                            <DropdownMenuSeparator className="my-1" />
+
+                            {/* Ação 3: Tipo de negócio (Solar, O&M ou Baterias) via Submenu */}
+                            <DropdownMenuSub>
+                              <DropdownMenuSubTrigger className="cursor-pointer gap-2 py-2 px-2.5 font-medium text-gray-700">
+                                <Briefcase className="w-4 h-4 text-amber-600 shrink-0" />
+                                <div className="flex flex-col min-w-0 text-left">
+                                  <span>Tipo de negócio</span>
+                                  <span className="text-[10px] text-gray-400 font-semibold capitalize truncate">
+                                    {tipoNegocioAtual.includes('bateria')
+                                      ? 'Baterias'
+                                      : tipoNegocioAtual.includes('o&m') ||
+                                          tipoNegocioAtual.includes('om') ||
+                                          tipoNegocioAtual.includes('manuten')
+                                        ? 'O&M'
+                                        : 'Solar'}
+                                  </span>
+                                </div>
+                              </DropdownMenuSubTrigger>
+                              <DropdownMenuSubContent className="w-44 text-xs p-1.5 shadow-lg">
+                                <DropdownMenuLabel className="text-[10px] text-gray-400 uppercase tracking-wider px-2 py-1">
+                                  Definir Tipo
+                                </DropdownMenuLabel>
+                                <DropdownMenuItem
+                                  onClick={async () => {
+                                    try {
+                                      await updateCliente(c.id, {
+                                        tipo_negocio: 'energia solar',
+                                        produto: 'Energia Solar',
+                                      })
+                                    } catch (err) {
+                                      console.error('Erro ao definir tipo de negócio Solar:', err)
+                                    }
+                                  }}
+                                  className="cursor-pointer flex items-center justify-between py-2 px-2.5 text-xs font-semibold"
+                                >
+                                  <span>Solar</span>
+                                  {!tipoNegocioAtual.includes('bateria') &&
+                                    !tipoNegocioAtual.includes('o&m') &&
+                                    !tipoNegocioAtual.includes('om') &&
+                                    !tipoNegocioAtual.includes('manuten') && (
+                                      <Check className="w-3.5 h-3.5 text-emerald-600" />
+                                    )}
+                                </DropdownMenuItem>
+
+                                <DropdownMenuItem
+                                  onClick={async () => {
+                                    try {
+                                      await updateCliente(c.id, {
+                                        tipo_negocio: 'Planos de O&M',
+                                        produto: 'Plano de O&M',
+                                      })
+                                    } catch (err) {
+                                      console.error('Erro ao definir tipo de negócio O&M:', err)
+                                    }
+                                  }}
+                                  className="cursor-pointer flex items-center justify-between py-2 px-2.5 text-xs font-semibold"
+                                >
+                                  <span>O&M</span>
+                                  {(tipoNegocioAtual.includes('o&m') ||
+                                    tipoNegocioAtual.includes('om') ||
+                                    tipoNegocioAtual.includes('manuten')) && (
+                                    <Check className="w-3.5 h-3.5 text-emerald-600" />
+                                  )}
+                                </DropdownMenuItem>
+
+                                <DropdownMenuItem
+                                  onClick={async () => {
+                                    try {
+                                      await updateCliente(c.id, {
+                                        tipo_negocio: 'baterias',
+                                        produto: 'Sistemas Híbridos',
+                                      })
+                                    } catch (err) {
+                                      console.error(
+                                        'Erro ao definir tipo de negócio Baterias:',
+                                        err,
+                                      )
+                                    }
+                                  }}
+                                  className="cursor-pointer flex items-center justify-between py-2 px-2.5 text-xs font-semibold"
+                                >
+                                  <span>Baterias</span>
+                                  {tipoNegocioAtual.includes('bateria') && (
+                                    <Check className="w-3.5 h-3.5 text-emerald-600" />
+                                  )}
+                                </DropdownMenuItem>
+                              </DropdownMenuSubContent>
+                            </DropdownMenuSub>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </div>
                     </div>
                   )
