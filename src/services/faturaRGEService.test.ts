@@ -95,6 +95,44 @@ describe('faturaRGEService', () => {
 
     // 5. Tipo de fornecimento Monofásico
     expect(faturaSintetica.tipo_fornecimento).toBe('Monofásico')
+
+    // 6. Consumo médio refletido diretamente
+    expect(faturaSintetica.calculos.media_mensal_consumo_kwh).toBe(111.69)
+  })
+
+  it('valida extração determinística de UC formatada e componentes TUSD+TE via regex', () => {
+    const textoFatura = `
+      RIO GRANDE ENERGIA S.A.
+      Número da UC: 200.419.001-19
+      Código de Instalação: 14303744
+      Descrição da operação Quantidade Tarifa com tributos R$
+      Consumo Uso Sistema [KWh]-TUSD 132 0,74643940
+      Consumo - TE 132 0,45174243
+    `
+
+    // Padrão de UC formatada
+    const matchUc = textoFatura.match(
+      /(?:N[uú]mero\s+da\s+UC|Unidade\s+Consumidora|C[oó]digo\s+da\s+UC)[^\n\r\d]*?([0-9]{3}\.[0-9]{3}\.[0-9]{3}-[0-9]{2})/i,
+    )
+    expect(matchUc).not.toBeNull()
+    expect(matchUc![1]).toBe('200.419.001-19')
+
+    // Padrão TUSD e TE
+    const mTusd = textoFatura.match(
+      /Consumo\s+Uso\s+Sistema[^\n\r]*?TUSD[^\n\r]*?([0-9]+[,.][0-9]{4,8})/i,
+    )
+    const mTe = textoFatura.match(/Consumo\s*-\s*TE[^\n\r]*?([0-9]+[,.][0-9]{4,8})/i)
+
+    expect(mTusd).not.toBeNull()
+    expect(mTe).not.toBeNull()
+
+    const tusd = parseFloat(mTusd![1].replace(',', '.'))
+    const te = parseFloat(mTe![1].replace(',', '.'))
+    const soma = Math.round((tusd + te) * 1e8) / 1e8
+
+    expect(tusd).toBeCloseTo(0.7464394, 7)
+    expect(te).toBeCloseTo(0.45174243, 8)
+    expect(soma).toBeCloseTo(1.19818183, 8)
   })
 
   it('calcula métricas de histórico de consumo com precisão numérica', () => {

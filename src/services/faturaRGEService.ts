@@ -59,6 +59,7 @@ export interface FaturaRGEDadosExtraidos {
   mes_referencia_atual?: string
   historico_consumo: HistoricoConsumoItem[]
   calculos: FaturaRGECalculos
+  consumo_medio?: number | null
 }
 
 export interface AnaliseFaturaRGEResult {
@@ -174,5 +175,11 @@ export async function analisarFaturaRGEGemini(
   }
 
   const json = (await res.json()) as AnaliseFaturaRGEResult
+
+  // Garantir consistência e mapeamento direto de consumo_medio a partir dos cálculos da fatura RGE
+  if (json?.data?.calculos?.media_mensal_consumo_kwh) {
+    json.data.consumo_medio = json.data.calculos.media_mensal_consumo_kwh
+  }
+
   return json
 }

@@ -779,11 +779,18 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
     if (initialOrcamento) return
     if (!clienteAtual) return
 
-    // Consumo médio
-    if (clienteAtual.consumo_kwh_mes && clienteAtual.consumo_kwh_mes > 0) {
-      setConsumoKwhMes(clienteAtual.consumo_kwh_mes)
+    // Consumo médio (priorizar cliente.consumo_medio, senão consumo_kwh_mes)
+    const consumoEfetivo =
+      clienteAtual.consumo_medio && clienteAtual.consumo_medio > 0
+        ? clienteAtual.consumo_medio
+        : clienteAtual.consumo_kwh_mes && clienteAtual.consumo_kwh_mes > 0
+          ? clienteAtual.consumo_kwh_mes
+          : 0
+
+    if (consumoEfetivo > 0) {
+      setConsumoKwhMes(consumoEfetivo)
       if (!geracaoPretendidaEditadaManualmente) {
-        setGeracaoPretendidaKwhMes(clienteAtual.consumo_kwh_mes)
+        setGeracaoPretendidaKwhMes(consumoEfetivo)
       }
     }
     // Tarifa

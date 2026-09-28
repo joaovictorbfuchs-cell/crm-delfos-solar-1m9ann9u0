@@ -3135,22 +3135,31 @@ export const FichaClienteDrawer: React.FC = () => {
 
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                             <div className="flex items-center gap-2">
-                              <span className="text-gray-500 w-24 shrink-0">Consumo médio:</span>
+                              <span className="text-gray-500 w-24 shrink-0 font-medium">
+                                Consumo médio:
+                              </span>
                               <InlineEditField
-                                value={selectedCliente.consumo_kwh_mes || 0}
+                                value={
+                                  selectedCliente.consumo_medio ??
+                                  selectedCliente.consumo_kwh_mes ??
+                                  0
+                                }
                                 displayValue={
-                                  <span className="font-bold text-gray-800">
-                                    {selectedCliente.consumo_kwh_mes
-                                      ? `${selectedCliente.consumo_kwh_mes} kWh/mês`
+                                  <span className="font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 text-xs">
+                                    {(selectedCliente.consumo_medio ??
+                                    selectedCliente.consumo_kwh_mes)
+                                      ? `${selectedCliente.consumo_medio ?? selectedCliente.consumo_kwh_mes} kWh/mês`
                                       : 'Não informado'}
                                   </span>
                                 }
                                 type="number"
-                                unit="kWh"
+                                unit="kWh/mês"
                                 placeholder="Ex: 650"
-                                onSave={async (val) =>
-                                  handleUpdateClienteField('consumo_kwh_mes', Number(val) || 0)
-                                }
+                                onSave={async (val) => {
+                                  const num = Number(val) || 0
+                                  await handleUpdateClienteField('consumo_medio', num)
+                                  await handleUpdateClienteField('consumo_kwh_mes', num)
+                                }}
                               />
                             </div>
 
@@ -3159,15 +3168,18 @@ export const FichaClienteDrawer: React.FC = () => {
                               <InlineEditField
                                 value={tarifaExibida}
                                 displayValue={
-                                  <span className="font-mono text-gray-800 text-[11px] bg-gray-50 px-1.5 py-0.5 rounded border border-gray-200">
+                                  <span
+                                    className="font-mono text-gray-800 text-[11px] bg-gray-50 px-1.5 py-0.5 rounded border border-gray-200"
+                                    title={`R$ ${tarifaExibida}`}
+                                  >
                                     {tarifaExibida > 0
-                                      ? `R$ ${Number(tarifaExibida).toFixed(2)}`
+                                      ? `R$ ${Number(tarifaExibida).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 8 })}`
                                       : 'Não inf.'}
                                   </span>
                                 }
                                 type="number"
-                                step="0.01"
-                                placeholder="0.95"
+                                step="0.0001"
+                                placeholder="0.9500"
                                 onSave={async (val) => {
                                   const num = Number(val) || 0
                                   await handleUpdateClienteField('tarifa', num)

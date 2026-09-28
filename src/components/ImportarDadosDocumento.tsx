@@ -467,7 +467,19 @@ export const ImportarDadosDocumento: React.FC<ImportarDadosDocumentoProps> = ({
 
     // 4. Consumo & Concessionária
     const con = data.consumo || {}
-    if (con.uc) {
+    // Prioridade absoluta: se análise da Fatura RGE Gemini estiver presente, usar UC e Tarifa dela
+    const ucEfetiva =
+      faturaRGEDetectada?.uc && faturaRGEDetectada.uc !== 'não informado na fatura'
+        ? faturaRGEDetectada.uc
+        : con.uc
+    const tarifaEfetiva =
+      faturaRGEDetectada?.detalhes_tarifa?.tarifa_total_com_tributos ??
+      faturaRGEDetectada?.tarifa_com_tributos ??
+      con.tarifa
+    const consumoMedioEfetivo =
+      faturaRGEDetectada?.calculos?.media_mensal_consumo_kwh ?? con.consumo_kwh_mes
+
+    if (ucEfetiva) {
       const curUc = sistema?.numero_uc ?? cliente.uc
       items.push({
         id: 'uc',
@@ -475,27 +487,27 @@ export const ImportarDadosDocumento: React.FC<ImportarDadosDocumentoProps> = ({
         label: 'Unidade Consumidora (UC)',
         targetKey: 'uc',
         targetEntity: 'cliente',
-        extractedValue: con.uc,
+        extractedValue: ucEfetiva,
         currentValue: curUc,
         isAlreadyFilled: Boolean(curUc?.trim()),
-        isDifferent: curUc?.trim() !== con.uc.trim(),
+        isDifferent: curUc?.trim() !== String(ucEfetiva).trim(),
       })
     }
-    if (con.consumo_kwh_mes !== null && con.consumo_kwh_mes !== undefined) {
-      const curCons = cliente.consumo_kwh_mes
+    if (consumoMedioEfetivo !== null && consumoMedioEfetivo !== undefined) {
+      const curCons = cliente.consumo_medio ?? cliente.consumo_kwh_mes
       items.push({
-        id: 'consumo_kwh_mes',
+        id: 'consumo_medio',
         categoria: 'consumo',
         label: 'Consumo Médio (kWh/mês)',
-        targetKey: 'consumo_kwh_mes',
+        targetKey: 'consumo_medio',
         targetEntity: 'cliente',
-        extractedValue: con.consumo_kwh_mes,
+        extractedValue: consumoMedioEfetivo,
         currentValue: curCons ? `${curCons} kWh` : null,
         isAlreadyFilled: Boolean(curCons && curCons > 0),
-        isDifferent: curCons !== con.consumo_kwh_mes,
+        isDifferent: curCons !== consumoMedioEfetivo,
       })
     }
-    if (con.tarifa !== null && con.tarifa !== undefined) {
+    if (tarifaEfetiva !== null && tarifaEfetiva !== undefined) {
       const curTar = cliente.tarifa ?? sistema?.tarifa
       items.push({
         id: 'tarifa',
@@ -503,10 +515,13 @@ export const ImportarDadosDocumento: React.FC<ImportarDadosDocumentoProps> = ({
         label: 'Valor da Tarifa (R$/kWh)',
         targetKey: 'tarifa',
         targetEntity: 'cliente',
-        extractedValue: con.tarifa,
-        currentValue: curTar ? `R$ ${Number(curTar).toFixed(2)}` : null,
+        extractedValue: tarifaEfetiva,
+        currentValue:
+          curTar !== undefined && curTar !== null
+            ? `R$ ${Number(curTar).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 8 })}`
+            : null,
         isAlreadyFilled: Boolean(curTar && curTar > 0),
-        isDifferent: curTar !== con.tarifa,
+        isDifferent: curTar !== tarifaEfetiva,
       })
     }
     if (con.classe_consumo) {
@@ -710,7 +725,8 @@ export const ImportarDadosDocumento: React.FC<ImportarDadosDocumentoProps> = ({
         }
       }
 
-      // Se temos dados da fatura RGE do Gemini, enriquecer os dados extraídos do cliente
+      // Se temos dados da fatura RGE do Gemini, enriquecer os dados com prioridade MÁXIMA
+      // (a análise especializada RGE Gemini SOBRESCREVE o extrator genérico para UC, tarifa e consumo)
       if (faturaRGERes && faturaRGERes.ok && faturaRGERes.data && faturaRGERes.data.e_fatura_rge) {
         const d = faturaRGERes.data
         if (!res.data) {
@@ -767,18 +783,20 @@ export const ImportarDadosDocumento: React.FC<ImportarDadosDocumentoProps> = ({
             res.data.endereco.cep = d.endereco_completo.cep
           }
         }
+
+        // REGRA DE OURO: UC e Tarifa da análise RGE têm prioridade absoluta sobre o extrator genérico
         if (d.uc && d.uc !== 'não informado na fatura') {
           res.data.consumo.uc = d.uc
         }
         if (d.calculos?.media_mensal_consumo_kwh) {
           res.data.consumo.consumo_kwh_mes = d.calculos.media_mensal_consumo_kwh
         }
-        if (d.tarifa_com_tributos) {
-          res.data.consumo.tarifa = d.tarifa_com_tributos
+        const tarifaCalculadaRGE =
+          d.detalhes_tarifa?.tarifa_total_com_tributos ?? d.tarifa_com_tributos
+        if (tarifaCalculadaRGE !== undefined && tarifaCalculadaRGE !== null) {
+          res.data.consumo.tarifa = tarifaCalculadaRGE
         }
-        if (d.detalhes_tarifa?.tarifa_total_com_tributos) {
-          res.data.consumo.tarifa = d.detalhes_tarifa.tarifa_total_com_tributos
-        }
+
         if (
           d.classificacao_grupo_subgrupo &&
           d.classificacao_grupo_subgrupo !== 'não informado na fatura'
@@ -1024,11 +1042,16 @@ export const ImportarDadosDocumento: React.FC<ImportarDadosDocumentoProps> = ({
           else if (item.targetKey === 'complemento')
             clienteUpdates.complemento = String(item.extractedValue)
           else if (item.targetKey === 'uc') {
-            clienteUpdates.uc = String(item.extractedValue)
-            // Também sincroniza com sistema se aplicável
-            sistemaUpdates.numero_uc = String(item.extractedValue)
-          } else if (item.targetKey === 'consumo_kwh_mes') {
-            clienteUpdates.consumo_kwh_mes = Number(item.extractedValue)
+            const ucFormatada = String(item.extractedValue)
+            clienteUpdates.uc = ucFormatada
+            // Sincroniza cliente.numero_uc (se suportado) e sistema.numero_uc
+            ;(clienteUpdates as any).numero_uc = ucFormatada
+            sistemaUpdates.numero_uc = ucFormatada
+          } else if (item.targetKey === 'consumo_kwh_mes' || item.targetKey === 'consumo_medio') {
+            const valConsumo = Number(item.extractedValue)
+            clienteUpdates.consumo_medio = valConsumo
+            clienteUpdates.consumo_kwh_mes = valConsumo
+            sistemaUpdates.consumo_medio = valConsumo
           } else if (item.targetKey === 'tarifa') {
             clienteUpdates.tarifa = Number(item.extractedValue)
             sistemaUpdates.tarifa = Number(item.extractedValue)

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-28T00:21:28.358Z",
+  "generatedAt": "2026-09-28T00:38:21.095Z",
   "collections": [
     {
       "name": "users",
@@ -705,6 +705,12 @@
         },
         {
           "name": "consumo_medio_diario_kwh",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "consumo_medio",
           "type": "number",
           "required": false,
           "system": false
@@ -4669,6 +4675,12 @@
         {
           "name": "tensao_nominal",
           "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "consumo_medio",
+          "type": "number",
           "required": false,
           "system": false
         }

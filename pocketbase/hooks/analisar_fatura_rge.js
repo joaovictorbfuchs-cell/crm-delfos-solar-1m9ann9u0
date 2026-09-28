@@ -382,20 +382,95 @@ FORMATO JSON DE RETORNO OBRIGATÓRIO:
       parsed.calculos.menor_consumo_periodo = menorConsumo
     }
 
-    // Validação da tarifa TUSD + TE: se houver detalhes, garantir a soma determinística
-    if (parsed.detalhes_tarifa) {
+    // --- PÓS-PROCESSAMENTO DETERMINÍSTICO DE TARIFA (TUSD + TE) E UC VIA REGEX SOBRE TEXTO EXTRAÍDO ---
+    // Unificar textos disponíveis da fatura
+    const fullTextSearch = `${textContent || ''}\n${rawText || ''}`
+
+    // 1. EXTRAÇÃO DETERMINÍSTICA DE TARIFA (TUSD + TE) VIA REGEX
+    // Procura por linhas de "Consumo Uso Sistema ... TUSD" e "Consumo - TE" com valores com 4 a 8 casas decimais
+    let regexTusd = 0
+    let regexTe = 0
+
+    // Padrões para TUSD
+    const tusdMatches = [
+      /Consumo\s+Uso\s+Sistema[^\n\r]*?TUSD[^\n\r]*?([0-9]+[,\.][0-9]{4,8})/i,
+      /TUSD[^\n\r]*?([0-9]+[,\.][0-9]{4,8})/i,
+      /Uso\s+Sistema[^\n\r]*?([0-9]+[,\.][0-9]{4,8})/i,
+    ]
+    for (let tIdx = 0; tIdx < tusdMatches.length; tIdx++) {
+      const mTusd = fullTextSearch.match(tusdMatches[tIdx])
+      if (mTusd && mTusd[1]) {
+        const val = parseFloat(mTusd[1].replace(',', '.'))
+        if (val > 0 && val < 10) {
+          regexTusd = val
+          break
+        }
+      }
+    }
+
+    // Padrões para TE
+    const teMatches = [
+      /Consumo\s*-\s*TE[^\n\r]*?([0-9]+[,\.][0-9]{4,8})/i,
+      /Consumo\s+TE[^\n\r]*?([0-9]+[,\.][0-9]{4,8})/i,
+      /\bTE\b[^\n\r]*?([0-9]+[,\.][0-9]{4,8})/i,
+    ]
+    for (let eIdx = 0; eIdx < teMatches.length; eIdx++) {
+      const mTe = fullTextSearch.match(teMatches[eIdx])
+      if (mTe && mTe[1]) {
+        const val = parseFloat(mTe[1].replace(',', '.'))
+        if (val > 0 && val < 10) {
+          regexTe = val
+          break
+        }
+      }
+    }
+
+    if (!parsed.detalhes_tarifa) parsed.detalhes_tarifa = {}
+
+    // Se encontramos ambas componentes por regex determinístico no texto, têm prioridade máxima
+    if (regexTusd > 0 && regexTe > 0) {
+      const somaTarifasRegex = Math.round((regexTusd + regexTe) * 1e8) / 1e8
+      parsed.detalhes_tarifa.tarifa_tusd_com_tributos = regexTusd
+      parsed.detalhes_tarifa.tarifa_te_com_tributos = regexTe
+      parsed.detalhes_tarifa.tarifa_total_com_tributos = somaTarifasRegex
+      parsed.tarifa_com_tributos = somaTarifasRegex
+      console.log(
+        `[FATURA RGE] Tarifa determinística regex calculada: TUSD=${regexTusd} + TE=${regexTe} = ${somaTarifasRegex}`,
+      )
+    } else {
+      // Validação da tarifa TUSD + TE devolvida pelo Gemini
       const tusd = parseFloat(parsed.detalhes_tarifa.tarifa_tusd_com_tributos) || 0
       const te = parseFloat(parsed.detalhes_tarifa.tarifa_te_com_tributos) || 0
       if (tusd > 0 && te > 0) {
-        const somaTarifas = Math.round((tusd + te) * 100000000) / 100000000
+        const somaTarifas = Math.round((tusd + te) * 1e8) / 1e8
         parsed.detalhes_tarifa.tarifa_total_com_tributos = somaTarifas
-        if (
-          !parsed.tarifa_com_tributos ||
-          Math.abs(parsed.tarifa_com_tributos - somaTarifas) > 0.001
-        ) {
-          parsed.tarifa_com_tributos = somaTarifas
-        }
+        parsed.tarifa_com_tributos = somaTarifas
       }
+    }
+
+    // 2. EXTRAÇÃO DETERMINÍSTICA DO NÚMERO DA UC FORMATADO VIA REGEX
+    // Padrão oficial RGE: 3 dígitos . 3 dígitos . 3 dígitos - 2 dígitos (ex: 200.419.001-19)
+    let ucFormatadaEncontrada = ''
+    const rotulosUc = [
+      /(?:N[uú]mero\s+da\s+UC|Unidade\s+Consumidora|C[oó]digo\s+da\s+UC)[^\n\r\d]*?([0-9]{3}\.[0-9]{3}\.[0-9]{3}-[0-9]{2})/i,
+      /(?:N[uú]mero\s+da\s+UC|Unidade\s+Consumidora|C[oó]digo\s+da\s+UC)[^0-9]*?([0-9]{3}\.[0-9]{3}\.[0-9]{3}-[0-9]{2})/i,
+      /\b([0-9]{3}\.[0-9]{3}\.[0-9]{3}-[0-9]{2})\b/,
+    ]
+
+    for (let uIdx = 0; uIdx < rotulosUc.length; uIdx++) {
+      const matchUc = fullTextSearch.match(rotulosUc[uIdx])
+      if (matchUc && matchUc[1]) {
+        ucFormatadaEncontrada = matchUc[1].trim()
+        break
+      }
+    }
+
+    // Se achado o padrão formatado da UC no texto, FORÇAR parsed.uc para o valor formatado
+    if (ucFormatadaEncontrada) {
+      console.log(
+        `[FATURA RGE] UC formatada RGE confirmada deterministamente por regex: "${ucFormatadaEncontrada}" (gemini havia retornado "${parsed.uc}")`,
+      )
+      parsed.uc = ucFormatadaEncontrada
     }
 
     // Reforçar regra de endereço: garantir que todos os 7 componentes existam no objeto

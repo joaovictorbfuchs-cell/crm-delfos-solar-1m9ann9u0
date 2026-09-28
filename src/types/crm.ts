@@ -191,6 +191,7 @@ export interface Cliente extends RecordModel {
   telhado_tipo: TelhadoTipo
   produto?: ProdutoTipo
   consumo_kwh_mes?: number
+  consumo_medio?: number
   origem_lead?: OrigemLeadTipo
   tipo_cliente?: ClienteTipo
   usina_endereco?: string
@@ -351,6 +352,7 @@ export interface UsinaCliente extends RecordModel {
   latitude?: number
   longitude?: number
   tarifa?: number
+  consumo_medio?: number
   classe_consumo?: string
   geracao_media_mensal_kwh?: number
 
