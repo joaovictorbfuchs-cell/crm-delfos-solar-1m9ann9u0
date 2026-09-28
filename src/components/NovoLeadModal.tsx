@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { X, UserPlus, AlertCircle, Loader2, Sparkles } from 'lucide-react'
+import { X, UserPlus, AlertCircle, Loader2, Sparkles, FileText, Zap } from 'lucide-react'
 import { useClientes } from '@/contexts/ClientesContext'
 import { useToast } from '@/hooks/use-toast'
 import type { OrigemLeadTipo, ProdutoTipo, TipoVendaSelect } from '@/types/crm'
@@ -12,6 +12,10 @@ import {
   CnpjConflictField,
 } from '@/components/CnpjInputWithLookup'
 import { CnpjDataNormalized } from '@/services/cnpjLookupService'
+import {
+  ModalImportarContaRGE,
+  type DadosImportadosContaRGE,
+} from '@/components/ModalImportarContaRGE'
 
 interface NovoLeadModalProps {
   isOpen: boolean
@@ -57,6 +61,9 @@ export const NovoLeadModal: React.FC<NovoLeadModalProps> = ({ isOpen, onClose })
   const [errors, setErrors] = useState<{ [key: string]: string }>({})
   const [conflitosCnpj, setConflitosCnpj] = useState<CnpjConflictField[]>([])
   const [pendenteDadosReceita, setPendenteDadosReceita] = useState<CnpjDataNormalized | null>(null)
+  const [modalImportarContaOpen, setModalImportarContaOpen] = useState(false)
+  const [dadosFaturaArmazenados, setDadosFaturaArmazenados] =
+    useState<DadosImportadosContaRGE | null>(null)
 
   const {
     status: cnpjStatus,
@@ -111,7 +118,37 @@ export const NovoLeadModal: React.FC<NovoLeadModalProps> = ({ isOpen, onClose })
     setErrors({})
     setConflitosCnpj([])
     setPendenteDadosReceita(null)
+    setDadosFaturaArmazenados(null)
     resetCnpjLookup()
+  }
+
+  const handleAplicarDadosConta = (dados: DadosImportadosContaRGE) => {
+    setDadosFaturaArmazenados(dados)
+
+    // Preenche automaticamente os campos do cadastro do lead
+    if (dados.nome) {
+      setNome(dados.nome)
+    }
+    if (dados.razao_social) {
+      setRazaoSocial(dados.razao_social)
+    }
+    if (dados.cnpj) {
+      setCnpj(dados.cnpj)
+    } else if (dados.cpf_cnpj) {
+      setCnpj(dados.cpf_cnpj)
+    }
+
+    if (dados.endereco) setEndereco(dados.endereco)
+    if (dados.numero) setNumero(dados.numero)
+    if (dados.complemento) setComplemento(dados.complemento)
+    if (dados.bairro) setBairro(dados.bairro)
+    if (dados.cidade) setCidade(dados.cidade)
+    if (dados.estado) setEstado(dados.estado)
+    if (dados.cep) setCep(dados.cep)
+
+    if (dados.consumo_kwh_mes !== undefined && dados.consumo_kwh_mes !== null) {
+      setConsumoKwhMes(String(Math.round(dados.consumo_kwh_mes)))
+    }
   }
 
   const aplicarDadosReceita = (d: CnpjDataNormalized, sobrescrever = true) => {
@@ -220,7 +257,7 @@ export const NovoLeadModal: React.FC<NovoLeadModalProps> = ({ isOpen, onClose })
       const telFinal = telefone.trim() || whatsapp.trim()
       const whatsFinal = whatsapp.trim() || telefone.trim()
 
-      await addCliente({
+      const payloadNovoCliente: Record<string, unknown> = {
         nome: nome.trim(),
         razao_social: razaoSocial.trim() || undefined,
         nome_fantasia: nomeFantasia.trim() || undefined,
@@ -247,7 +284,42 @@ export const NovoLeadModal: React.FC<NovoLeadModalProps> = ({ isOpen, onClose })
         cidade: cidade.trim() || 'Erechim/RS',
         potencia_kwp: potenciaEstimada,
         valor_estimado: valorEstimado,
-      } as any)
+      }
+
+      // Adiciona campos extraídos da fatura caso tenham sido importados
+      if (dadosFaturaArmazenados) {
+        if (dadosFaturaArmazenados.uc) {
+          payloadNovoCliente.uc = dadosFaturaArmazenados.uc
+          payloadNovoCliente.numero_uc = dadosFaturaArmazenados.uc
+        }
+        if (dadosFaturaArmazenados.cpf) {
+          payloadNovoCliente.cpf = dadosFaturaArmazenados.cpf
+        }
+        if (dadosFaturaArmazenados.classificacao_grupo_subgrupo) {
+          payloadNovoCliente.grupo_subgrupo = dadosFaturaArmazenados.classificacao_grupo_subgrupo
+        }
+        if (dadosFaturaArmazenados.tipo_fornecimento) {
+          payloadNovoCliente.tipo_fornecimento = dadosFaturaArmazenados.tipo_fornecimento
+        }
+        if (dadosFaturaArmazenados.tensao_nominal) {
+          payloadNovoCliente.tensao_nominal = dadosFaturaArmazenados.tensao_nominal
+        }
+        if (dadosFaturaArmazenados.consumo_medio !== undefined) {
+          payloadNovoCliente.consumo_medio = dadosFaturaArmazenados.consumo_medio
+        }
+        if (dadosFaturaArmazenados.consumo_anual_kwh !== undefined) {
+          payloadNovoCliente.consumo_anual_kwh = dadosFaturaArmazenados.consumo_anual_kwh
+        }
+        if (dadosFaturaArmazenados.tarifa !== undefined) {
+          payloadNovoCliente.tarifa = dadosFaturaArmazenados.tarifa
+        }
+        if (dadosFaturaArmazenados.historico_consumo_fatura) {
+          payloadNovoCliente.historico_consumo_fatura =
+            dadosFaturaArmazenados.historico_consumo_fatura
+        }
+      }
+
+      await addCliente(payloadNovoCliente as any)
 
       toast({
         title: 'Lead cadastrado com sucesso!',
@@ -303,6 +375,65 @@ export const NovoLeadModal: React.FC<NovoLeadModalProps> = ({ isOpen, onClose })
 
         {/* Form Body */}
         <form onSubmit={handleSubmit} className="p-6 space-y-4 max-h-[80vh] overflow-y-auto">
+          {/* BOTÃO EM DESTAQUE: IMPORTAR DADOS DA CONTA */}
+          <div className="p-3 bg-gradient-to-r from-emerald-500/10 via-teal-500/10 to-emerald-500/5 rounded-xl border border-emerald-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+            <div className="flex items-center gap-2.5">
+              <div className="p-2 bg-emerald-600 text-white rounded-lg shrink-0 shadow-xs">
+                <FileText className="w-4 h-4" />
+              </div>
+              <div className="min-w-0">
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <span className="text-xs font-bold text-emerald-950">
+                    Tem a fatura de energia em mãos?
+                  </span>
+                  <span className="text-[10px] font-semibold text-emerald-800 bg-emerald-100 px-1.5 py-0.5 rounded">
+                    RGE / Gemini
+                  </span>
+                </div>
+                <p className="text-[11px] text-emerald-800/80 leading-snug">
+                  Anexe a conta ou tire foto para preencher titular, CPF/CNPJ, endereço, UC e
+                  consumo.
+                </p>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setModalImportarContaOpen(true)}
+              className="w-full sm:w-auto shrink-0 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white text-xs font-bold rounded-lg shadow-xs hover:shadow transition-all flex items-center justify-center gap-1.5 active:scale-[0.98]"
+            >
+              <Zap className="w-3.5 h-3.5" />
+              Importar dados da conta
+            </button>
+          </div>
+
+          {/* Banner indicador caso dados da fatura já tenham sido importados */}
+          {dadosFaturaArmazenados && (
+            <div className="p-2.5 bg-emerald-50 border border-emerald-200 rounded-lg flex items-center justify-between text-xs text-emerald-900 animate-in fade-in">
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-emerald-600 shrink-0" />
+                <span>
+                  Dados importados da conta{' '}
+                  {dadosFaturaArmazenados.uc ? (
+                    <strong className="font-mono text-[11px] bg-white px-1.5 py-0.5 rounded border border-emerald-200">
+                      UC {dadosFaturaArmazenados.uc}
+                    </strong>
+                  ) : null}
+                  {dadosFaturaArmazenados.consumo_medio
+                    ? ` • Média: ${Math.round(dadosFaturaArmazenados.consumo_medio)} kWh/mês`
+                    : null}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setModalImportarContaOpen(true)}
+                className="text-[11px] font-semibold text-emerald-700 hover:text-emerald-900 underline shrink-0 ml-2"
+              >
+                Revisar dados
+              </button>
+            </div>
+          )}
+
           {/* PASSO 1: ESCOLHA O TIPO DE VENDA PRIMEIRO */}
           <div className="p-3.5 bg-slate-50 rounded-xl border-2 border-emerald-500/40 space-y-2">
             <div className="flex items-center justify-between">
@@ -583,6 +714,13 @@ export const NovoLeadModal: React.FC<NovoLeadModalProps> = ({ isOpen, onClose })
           </div>
         </form>
       </div>
+
+      {/* Modal Secundário de Importação de Conta RGE */}
+      <ModalImportarContaRGE
+        isOpen={modalImportarContaOpen}
+        onClose={() => setModalImportarContaOpen(false)}
+        onConfirmar={handleAplicarDadosConta}
+      />
     </div>
   )
 }

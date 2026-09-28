@@ -30,6 +30,11 @@ import {
   cadastrarNovaAtividadeSetor,
   ATIVIDADES_SETOR_PADRAO,
 } from '@/services/atividadesSetorService'
+import {
+  ModalImportarContaRGE,
+  type DadosImportadosContaRGE,
+} from '@/components/ModalImportarContaRGE'
+import { Zap } from 'lucide-react'
 import { toast } from 'sonner'
 
 export type EntidadeTipo = 'cliente' | 'fornecedor'
@@ -158,6 +163,7 @@ export const ModalCadastroClienteFornecedor: React.FC<ModalCadastroClienteFornec
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [conflitosCnpj, setConflitosCnpj] = useState<CnpjConflictField[]>([])
   const [pendenteDadosReceita, setPendenteDadosReceita] = useState<CnpjDataNormalized | null>(null)
+  const [modalImportarContaOpen, setModalImportarContaOpen] = useState(false)
 
   // Consulta CNPJ
   const {
@@ -496,6 +502,26 @@ export const ModalCadastroClienteFornecedor: React.FC<ModalCadastroClienteFornec
     }
   }
 
+  const handleAplicarDadosConta = (dados: DadosImportadosContaRGE) => {
+    if (dados.nome) setNome(dados.nome)
+    if (dados.razao_social) setRazaoSocial(dados.razao_social)
+    if (dados.cnpj) {
+      setCnpj(dados.cnpj)
+      setTipoPessoa('juridica')
+    } else if (dados.cpf) {
+      setCpf(dados.cpf)
+      setTipoPessoa('fisica')
+    }
+
+    if (dados.endereco) setEndereco(dados.endereco)
+    if (dados.numero) setNumero(dados.numero)
+    if (dados.complemento) setComplemento(dados.complemento)
+    if (dados.bairro) setBairro(dados.bairro)
+    if (dados.cidade) setCidade(dados.cidade.split('/')[0])
+    if (dados.estado) setEstado(dados.estado)
+    if (dados.cep) setCep(dados.cep)
+  }
+
   const tituloEntidade = tipoEntidade === 'cliente' ? 'Cliente' : 'Fornecedor'
 
   return (
@@ -543,6 +569,39 @@ export const ModalCadastroClienteFornecedor: React.FC<ModalCadastroClienteFornec
           onSubmit={handleSubmit}
           className="p-5 sm:p-6 space-y-4 max-h-[80vh] overflow-y-auto text-xs"
         >
+          {/* Se for cadastro de Cliente, oferece botão para importar dados da conta RGE */}
+          {tipoEntidade === 'cliente' && (
+            <div className="p-3 bg-gradient-to-r from-emerald-500/10 via-teal-500/10 to-emerald-500/5 rounded-xl border border-emerald-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 bg-[#16A34A] text-white rounded-lg shrink-0 shadow-xs">
+                  <FileText className="w-4 h-4" />
+                </div>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="text-xs font-bold text-emerald-950">
+                      Possui fatura de energia RGE?
+                    </span>
+                    <span className="text-[10px] font-semibold text-emerald-800 bg-emerald-100 px-1.5 py-0.5 rounded">
+                      Gemini AI
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-emerald-800/80 leading-snug">
+                    Importe a conta para preencher titular, documento e endereço automaticamente.
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setModalImportarContaOpen(true)}
+                className="w-full sm:w-auto shrink-0 px-3.5 py-2 bg-[#16A34A] hover:bg-emerald-700 active:bg-emerald-800 text-white text-xs font-bold rounded-lg shadow-xs hover:shadow transition-all flex items-center justify-center gap-1.5 active:scale-[0.98]"
+              >
+                <Zap className="w-3.5 h-3.5" />
+                Importar dados da conta
+              </button>
+            </div>
+          )}
+
           {/* SELEÇÃO DO TIPO DE PESSOA: PF / PJ */}
           <div className="space-y-1.5">
             <label className="font-bold text-gray-800 text-xs block">
@@ -1106,6 +1165,12 @@ export const ModalCadastroClienteFornecedor: React.FC<ModalCadastroClienteFornec
           </div>
         </div>
       )}
+
+      <ModalImportarContaRGE
+        isOpen={modalImportarContaOpen}
+        onClose={() => setModalImportarContaOpen(false)}
+        onConfirmar={handleAplicarDadosConta}
+      />
     </div>
   )
 }

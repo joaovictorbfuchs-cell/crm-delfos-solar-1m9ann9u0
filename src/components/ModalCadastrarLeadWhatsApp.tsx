@@ -18,7 +18,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { formatWhatsAppPhone } from '@/lib/formatters'
-import { UserPlus, Loader2, Sparkles, AlertCircle } from 'lucide-react'
+import { UserPlus, Loader2, Sparkles, AlertCircle, FileText, Zap } from 'lucide-react'
 import { ClienteTipo, ProdutoTipo, OrigemLeadTipo } from '@/types/crm'
 import { getErrorMessage } from '@/lib/pocketbase/errors'
 import { useCnpjLookup } from '@/hooks/useCnpjLookup'
@@ -28,6 +28,10 @@ import {
   CnpjConflictField,
 } from '@/components/CnpjInputWithLookup'
 import { CnpjDataNormalized } from '@/services/cnpjLookupService'
+import {
+  ModalImportarContaRGE,
+  type DadosImportadosContaRGE,
+} from '@/components/ModalImportarContaRGE'
 
 interface ModalCadastrarLeadWhatsAppProps {
   open: boolean
@@ -66,6 +70,9 @@ export const ModalCadastrarLeadWhatsApp: React.FC<ModalCadastrarLeadWhatsAppProp
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
   const [conflitosCnpj, setConflitosCnpj] = useState<CnpjConflictField[]>([])
   const [pendenteDadosReceita, setPendenteDadosReceita] = useState<CnpjDataNormalized | null>(null)
+  const [modalImportarContaOpen, setModalImportarContaOpen] = useState(false)
+  const [dadosFaturaArmazenados, setDadosFaturaArmazenados] =
+    useState<DadosImportadosContaRGE | null>(null)
 
   const {
     status: cnpjStatus,
@@ -102,9 +109,33 @@ export const ModalCadastrarLeadWhatsApp: React.FC<ModalCadastrarLeadWhatsAppProp
       setErrorMsg(null)
       setConflitosCnpj([])
       setPendenteDadosReceita(null)
+      setDadosFaturaArmazenados(null)
       resetCnpjLookup()
     }
   }, [open, conversaNumero, conversaNome, resetCnpjLookup])
+
+  const handleAplicarDadosConta = (dados: DadosImportadosContaRGE) => {
+    setDadosFaturaArmazenados(dados)
+    if (dados.nome) setNome(dados.nome)
+    if (dados.razao_social) setRazaoSocial(dados.razao_social)
+    if (dados.cnpj) {
+      setCnpj(dados.cnpj)
+      setTipoCliente('comercial')
+    } else if (dados.cpf) {
+      setCpf(dados.cpf)
+      setTipoCliente('residencial')
+    }
+
+    const endPartes = [
+      dados.endereco,
+      dados.numero ? `nº ${dados.numero}` : '',
+      dados.bairro ? `- ${dados.bairro}` : '',
+      dados.cidade ? dados.cidade : '',
+    ]
+      .filter(Boolean)
+      .join(' ')
+    if (endPartes) setEndereco(endPartes)
+  }
 
   const aplicarDadosReceita = (d: CnpjDataNormalized, sobrescrever = true) => {
     const nomePrincipal = d.nome_fantasia || d.razao_social
@@ -264,6 +295,48 @@ export const ModalCadastrarLeadWhatsApp: React.FC<ModalCadastrarLeadWhatsAppProp
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4 py-2 max-h-[75vh] overflow-y-auto pr-1">
+          {/* Botão Importar dados da conta RGE */}
+          <div className="p-3 bg-gradient-to-r from-emerald-500/10 via-teal-500/10 to-emerald-500/5 rounded-xl border border-emerald-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <div className="p-1.5 bg-emerald-600 text-white rounded-lg shrink-0">
+                <FileText className="w-4 h-4" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-bold text-emerald-950">Importar dados da conta RGE</p>
+                <p className="text-[10px] text-emerald-800/80">
+                  Foto ou PDF para preencher automaticamente
+                </p>
+              </div>
+            </div>
+
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setModalImportarContaOpen(true)}
+              className="text-xs bg-emerald-600 hover:bg-emerald-700 text-white hover:text-white border-0 shadow-xs h-8"
+            >
+              <Zap className="w-3.5 h-3.5 mr-1" />
+              Importar dados da conta
+            </Button>
+          </div>
+
+          {dadosFaturaArmazenados && (
+            <div className="p-2 bg-emerald-50 border border-emerald-200 rounded-lg flex items-center justify-between text-xs text-emerald-900">
+              <span className="flex items-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
+                Conta importada: UC {dadosFaturaArmazenados.uc || 'Identificada'}
+              </span>
+              <button
+                type="button"
+                onClick={() => setModalImportarContaOpen(true)}
+                className="text-[11px] font-semibold text-emerald-700 underline"
+              >
+                Revisar
+              </button>
+            </div>
+          )}
+
           {errorMsg && (
             <div className="flex items-center gap-2 p-3 bg-red-500/10 text-red-500 text-xs rounded-md border border-red-500/20">
               <AlertCircle className="h-4 w-4 shrink-0" />
@@ -439,6 +512,12 @@ export const ModalCadastrarLeadWhatsApp: React.FC<ModalCadastrarLeadWhatsAppProp
           </DialogFooter>
         </form>
       </DialogContent>
+
+      <ModalImportarContaRGE
+        isOpen={modalImportarContaOpen}
+        onClose={() => setModalImportarContaOpen(false)}
+        onConfirmar={handleAplicarDadosConta}
+      />
     </Dialog>
   )
 }
