@@ -20,12 +20,12 @@ import {
   Plus,
   Trash2,
   Layers,
+  FileCheck,
 } from 'lucide-react'
 import { PrazoRGEBadge } from '@/components/PrazoRGEBadge'
 import { useClientes } from '@/contexts/ClientesContext'
 import { ModalEnviarLembreteAutoLeituraWhatsApp } from './ModalEnviarLembreteAutoLeituraWhatsApp'
 import { ModalRegistrarDadosLeitura } from './ModalRegistrarDadosLeitura'
-import { Send, FileCheck } from 'lucide-react'
 import { ClienteAutocomplete } from '@/components/ClienteAutocomplete'
 import { ATIVIDADES_12_TIPOS, getTipoAtividadeConfig } from '@/constants/atividadesTipos'
 import type { Atividade, AtividadeTipo, AtividadeStatus } from '@/types/crm'
