@@ -29,30 +29,23 @@ export function getErrorMessage(error: unknown): string {
 }
 
 export function isAuthSessionError(error: unknown): boolean {
-  if (!error) return false
-  if (error instanceof ClientResponseError) {
-    if (error.status === 401 || error.status === 403) return true
-    const msg = (error.message || '').toLowerCase()
-    return (
-      msg.includes('token') ||
-      msg.includes('authenticate') ||
-      msg.includes('expired') ||
-      msg.includes('session')
-    )
+  if (!error || typeof error !== 'object') return false
+  const err = error as Record<string, unknown>
+  const status = Number(err.status ?? err.statusCode ?? 0)
+  if (status === 401 || status === 403) return true
+  const msg = String(err.message || '').toLowerCase()
+  if (
+    msg.includes('token') &&
+    (msg.includes('expired') || msg.includes('invalid') || msg.includes('missing'))
+  ) {
+    return true
   }
-  if (typeof error === 'object') {
-    const anyErr = error as Record<string, unknown>
-    if (anyErr.status === 401 || anyErr.status === 403) return true
-    if (anyErr.statusCode === 401 || anyErr.statusCode === 403) return true
-    const msg = typeof anyErr.message === 'string' ? anyErr.message.toLowerCase() : ''
-    if (
-      msg.includes('token') ||
-      msg.includes('authenticate') ||
-      msg.includes('expired') ||
-      msg.includes('session')
-    ) {
-      return true
-    }
+  if (
+    msg.includes('autenticação') ||
+    msg.includes('sessão expirada') ||
+    msg.includes('unauthorized')
+  ) {
+    return true
   }
   return false
 }

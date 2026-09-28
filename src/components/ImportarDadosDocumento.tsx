@@ -29,6 +29,10 @@ import { validarCNPJ } from '@/lib/orcamentoParser'
 import { validarCPF } from '@/lib/cpfValidator'
 import type { Cliente, Sistema, TelhadoTipo, TipoAtendimento, NumeroFases } from '@/types/crm'
 import { toast } from '@/hooks/use-toast'
+import {
+  normalizarEOordenarHistorico,
+  calcularMetricasHistorico,
+} from '@/lib/historicoConsumoFatura'
 
 interface ImportarDadosDocumentoProps {
   cliente: Cliente
@@ -1052,10 +1056,24 @@ export const ImportarDadosDocumento: React.FC<ImportarDadosDocumentoProps> = ({
 
       // Se tivermos a fatura RGE analisada com histórico completo, salvar o histórico estruturado no cliente
       if (faturaRGEDetectada && Array.isArray(faturaRGEDetectada.historico_consumo)) {
-        clienteUpdates.historico_consumo_fatura = faturaRGEDetectada.historico_consumo
+        const historicoNormalizado = normalizarEOordenarHistorico(
+          faturaRGEDetectada.historico_consumo,
+        )
+        clienteUpdates.historico_consumo_fatura = historicoNormalizado
+
+        const metricas = calcularMetricasHistorico(historicoNormalizado)
+        if (metricas.quantidade_meses_historico > 0) {
+          clienteUpdates.consumo_medio = metricas.media_mensal_consumo_kwh
+          clienteUpdates.consumo_anual_kwh = metricas.somatorio_consumo_anual_kwh
+          clienteUpdates.consumo_medio_diario_kwh = metricas.consumo_medio_diario_kwh
+        }
+
         clienteUpdates.dados_importados = {
           ...(cliente.dados_importados || {}),
-          fatura_rge_calculos: faturaRGEDetectada.calculos,
+          fatura_rge_calculos: {
+            ...(faturaRGEDetectada.calculos || {}),
+            ...metricas,
+          },
           fatura_rge_tarifa:
             faturaRGEDetectada.detalhes_tarifa?.tarifa_total_com_tributos ??
             faturaRGEDetectada.tarifa_com_tributos,

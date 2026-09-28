@@ -164,6 +164,8 @@ export const ModalCadastroClienteFornecedor: React.FC<ModalCadastroClienteFornec
   const [conflitosCnpj, setConflitosCnpj] = useState<CnpjConflictField[]>([])
   const [pendenteDadosReceita, setPendenteDadosReceita] = useState<CnpjDataNormalized | null>(null)
   const [modalImportarContaOpen, setModalImportarContaOpen] = useState(false)
+  const [dadosFaturaArmazenados, setDadosFaturaArmazenados] =
+    useState<DadosImportadosContaRGE | null>(null)
 
   // Consulta CNPJ
   const {
@@ -487,6 +489,17 @@ export const ModalCadastroClienteFornecedor: React.FC<ModalCadastroClienteFornec
               ? especialidadeCustom.trim()
               : especialidadeSelect
             : undefined,
+        ...(dadosFaturaArmazenados?.historico_consumo_fatura
+          ? {
+              historico_consumo_fatura: dadosFaturaArmazenados.historico_consumo_fatura,
+              uc: dadosFaturaArmazenados.uc || undefined,
+              numero_uc: dadosFaturaArmazenados.uc || undefined,
+              consumo_kwh_mes: dadosFaturaArmazenados.consumo_kwh_mes ?? undefined,
+              consumo_medio: dadosFaturaArmazenados.consumo_medio ?? undefined,
+              consumo_anual_kwh: dadosFaturaArmazenados.consumo_anual_kwh ?? undefined,
+              tarifa: dadosFaturaArmazenados.tarifa ?? undefined,
+            }
+          : {}),
       })
 
       toast.success(
@@ -503,6 +516,7 @@ export const ModalCadastroClienteFornecedor: React.FC<ModalCadastroClienteFornec
   }
 
   const handleAplicarDadosConta = (dados: DadosImportadosContaRGE) => {
+    setDadosFaturaArmazenados(dados)
     if (dados.nome) setNome(dados.nome)
     if (dados.razao_social) setRazaoSocial(dados.razao_social)
     if (dados.cnpj) {

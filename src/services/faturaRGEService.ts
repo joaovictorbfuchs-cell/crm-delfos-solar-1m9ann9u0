@@ -4,12 +4,13 @@
  */
 import pb from '@/lib/pocketbase/client'
 import { prepareDocumentForExtraction } from '@/lib/documentExtractor'
+import {
+  normalizarEOordenarHistorico,
+  calcularMetricasHistorico,
+  type HistoricoConsumoItemNormalizado,
+} from '@/lib/historicoConsumoFatura'
 
-export interface HistoricoConsumoItem {
-  mes_ano: string
-  consumo_kwh: number
-  dias_ciclo: number
-}
+export type HistoricoConsumoItem = HistoricoConsumoItemNormalizado
 
 export interface DetalhesTarifaFatura {
   tarifa_tusd_com_tributos?: number | null
@@ -214,26 +215,22 @@ export async function analisarFaturaRGEGemini(
       if (d.detalhes_tarifa) d.detalhes_tarifa.tarifa_total_com_tributos = undefined
     }
 
-    // 3. Consumo médio: soma de todos os meses do histórico ÷ número de meses de registro
+    // 3. Normalização completa do histórico: ordenação cronológica (mais antigo -> mais recente),
+    // deduplicação e recálculo determinístico das métricas
     if (Array.isArray(d.historico_consumo) && d.historico_consumo.length > 0) {
-      const totalConsumo = d.historico_consumo.reduce(
-        (acc, h) => acc + (Number(h.consumo_kwh) || 0),
-        0,
-      )
-      const mediaCalculada = Math.round((totalConsumo / d.historico_consumo.length) * 100) / 100
-      if (!d.calculos) {
-        d.calculos = {
-          quantidade_meses_historico: d.historico_consumo.length,
-          somatorio_consumo_anual_kwh: totalConsumo,
-          media_mensal_consumo_kwh: mediaCalculada,
-          consumo_medio_diario_kwh: Math.round((mediaCalculada / 30) * 100) / 100,
-        }
-      } else {
-        d.calculos.quantidade_meses_historico = d.historico_consumo.length
-        d.calculos.somatorio_consumo_anual_kwh = totalConsumo
-        d.calculos.media_mensal_consumo_kwh = mediaCalculada
+      const historicoOrdenado = normalizarEOordenarHistorico(d.historico_consumo)
+      d.historico_consumo = historicoOrdenado
+
+      const metricas = calcularMetricasHistorico(historicoOrdenado)
+      d.calculos = {
+        quantidade_meses_historico: metricas.quantidade_meses_historico,
+        somatorio_consumo_anual_kwh: metricas.somatorio_consumo_anual_kwh,
+        media_mensal_consumo_kwh: metricas.media_mensal_consumo_kwh,
+        consumo_medio_diario_kwh: metricas.consumo_medio_diario_kwh,
+        maior_consumo_periodo: metricas.maior_consumo_periodo,
+        menor_consumo_periodo: metricas.menor_consumo_periodo,
       }
-      d.consumo_medio = mediaCalculada
+      d.consumo_medio = metricas.media_mensal_consumo_kwh
     } else if (d.calculos?.media_mensal_consumo_kwh) {
       d.consumo_medio = d.calculos.media_mensal_consumo_kwh
     }

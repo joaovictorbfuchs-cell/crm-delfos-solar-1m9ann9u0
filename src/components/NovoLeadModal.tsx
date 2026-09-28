@@ -16,6 +16,10 @@ import {
   ModalImportarContaRGE,
   type DadosImportadosContaRGE,
 } from '@/components/ModalImportarContaRGE'
+import {
+  normalizarEOordenarHistorico,
+  calcularMetricasHistorico,
+} from '@/lib/historicoConsumoFatura'
 
 interface NovoLeadModalProps {
   isOpen: boolean
@@ -304,18 +308,35 @@ export const NovoLeadModal: React.FC<NovoLeadModalProps> = ({ isOpen, onClose })
         if (dadosFaturaArmazenados.tensao_nominal) {
           payloadNovoCliente.tensao_nominal = dadosFaturaArmazenados.tensao_nominal
         }
-        if (dadosFaturaArmazenados.consumo_medio !== undefined) {
+        if (dadosFaturaArmazenados.historico_consumo_fatura) {
+          const histTratado = normalizarEOordenarHistorico(
+            dadosFaturaArmazenados.historico_consumo_fatura,
+          )
+          payloadNovoCliente.historico_consumo_fatura = histTratado
+
+          const metricas = calcularMetricasHistorico(histTratado)
+          if (metricas.quantidade_meses_historico > 0) {
+            payloadNovoCliente.consumo_medio =
+              dadosFaturaArmazenados.consumo_medio ?? metricas.media_mensal_consumo_kwh
+            payloadNovoCliente.consumo_anual_kwh =
+              dadosFaturaArmazenados.consumo_anual_kwh ?? metricas.somatorio_consumo_anual_kwh
+            payloadNovoCliente.consumo_medio_diario_kwh = metricas.consumo_medio_diario_kwh
+          }
+        }
+        if (
+          payloadNovoCliente.consumo_medio === undefined &&
+          dadosFaturaArmazenados.consumo_medio !== undefined
+        ) {
           payloadNovoCliente.consumo_medio = dadosFaturaArmazenados.consumo_medio
         }
-        if (dadosFaturaArmazenados.consumo_anual_kwh !== undefined) {
+        if (
+          payloadNovoCliente.consumo_anual_kwh === undefined &&
+          dadosFaturaArmazenados.consumo_anual_kwh !== undefined
+        ) {
           payloadNovoCliente.consumo_anual_kwh = dadosFaturaArmazenados.consumo_anual_kwh
         }
         if (dadosFaturaArmazenados.tarifa !== undefined) {
           payloadNovoCliente.tarifa = dadosFaturaArmazenados.tarifa
-        }
-        if (dadosFaturaArmazenados.historico_consumo_fatura) {
-          payloadNovoCliente.historico_consumo_fatura =
-            dadosFaturaArmazenados.historico_consumo_fatura
         }
       }
 

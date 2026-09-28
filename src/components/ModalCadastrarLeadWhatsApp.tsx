@@ -248,7 +248,7 @@ export const ModalCadastrarLeadWhatsApp: React.FC<ModalCadastrarLeadWhatsAppProp
 
     try {
       setIsSubmitting(true)
-      await onSubmit({
+      const payload: Record<string, unknown> = {
         nome: nome.trim(),
         telefone: telefone.trim(),
         email: email.trim() || undefined,
@@ -257,7 +257,38 @@ export const ModalCadastrarLeadWhatsApp: React.FC<ModalCadastrarLeadWhatsAppProp
         tipo_cliente: tipoCliente,
         produto: tipoCliente as ProdutoTipo,
         origem_lead: origemLead,
-      })
+      }
+
+      if (dadosFaturaArmazenados) {
+        if (dadosFaturaArmazenados.uc) {
+          payload.uc = dadosFaturaArmazenados.uc
+          payload.numero_uc = dadosFaturaArmazenados.uc
+        }
+        if (dadosFaturaArmazenados.classificacao_grupo_subgrupo) {
+          payload.grupo_subgrupo = dadosFaturaArmazenados.classificacao_grupo_subgrupo
+        }
+        if (dadosFaturaArmazenados.tipo_fornecimento) {
+          payload.tipo_fornecimento = dadosFaturaArmazenados.tipo_fornecimento
+        }
+        if (dadosFaturaArmazenados.tensao_nominal) {
+          payload.tensao_nominal = dadosFaturaArmazenados.tensao_nominal
+        }
+        if (dadosFaturaArmazenados.tarifa !== undefined) {
+          payload.tarifa = dadosFaturaArmazenados.tarifa
+        }
+        if (dadosFaturaArmazenados.historico_consumo_fatura) {
+          payload.historico_consumo_fatura = dadosFaturaArmazenados.historico_consumo_fatura
+        }
+        if (dadosFaturaArmazenados.consumo_medio !== undefined) {
+          payload.consumo_medio = dadosFaturaArmazenados.consumo_medio
+          payload.consumo_kwh_mes = dadosFaturaArmazenados.consumo_medio
+        }
+        if (dadosFaturaArmazenados.consumo_anual_kwh !== undefined) {
+          payload.consumo_anual_kwh = dadosFaturaArmazenados.consumo_anual_kwh
+        }
+      }
+
+      await onSubmit(payload as any)
       onOpenChange(false)
     } catch (err) {
       console.error('Erro ao cadastrar lead:', err)

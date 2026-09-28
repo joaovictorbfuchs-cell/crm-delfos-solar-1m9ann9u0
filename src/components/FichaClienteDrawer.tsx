@@ -3689,50 +3689,63 @@ export const FichaClienteDrawer: React.FC = () => {
 
                       {/* Histórico de Consumo da Fatura RGE (Gemini) */}
                       {Array.isArray(selectedCliente.historico_consumo_fatura) &&
-                        selectedCliente.historico_consumo_fatura.length > 0 && (
-                          <div className="bg-white rounded-xl p-4 border border-amber-200/80 shadow-xs space-y-3">
-                            <div className="flex items-center justify-between flex-wrap gap-2">
-                              <div className="text-[11px] uppercase font-bold text-amber-900 tracking-wider flex items-center gap-1.5">
-                                <Activity className="w-4 h-4 text-amber-600" />
-                                <span>
-                                  Histórico de Faturas RGE (
-                                  {selectedCliente.historico_consumo_fatura.length} meses)
-                                </span>
-                              </div>
-                              <div className="flex items-center gap-2 text-xs font-semibold text-gray-600">
-                                {selectedCliente.consumo_anual_kwh && (
-                                  <span className="bg-amber-50 text-amber-900 px-2 py-0.5 rounded border border-amber-200">
-                                    Total: {selectedCliente.consumo_anual_kwh} kWh/ano
-                                  </span>
-                                )}
-                                {selectedCliente.consumo_medio_diario_kwh && (
-                                  <span className="bg-amber-50 text-amber-900 px-2 py-0.5 rounded border border-amber-200">
-                                    Diário: {selectedCliente.consumo_medio_diario_kwh} kWh/dia
-                                  </span>
-                                )}
-                              </div>
-                            </div>
+                        selectedCliente.historico_consumo_fatura.length > 0 &&
+                        (() => {
+                          const historicoExibicao = normalizarEOordenarHistorico(
+                            selectedCliente.historico_consumo_fatura,
+                          )
+                          const metricas = calcularMetricasHistorico(historicoExibicao)
+                          const totalAnualExibicao =
+                            selectedCliente.consumo_anual_kwh ||
+                            metricas.somatorio_consumo_anual_kwh
+                          const mediaDiariaExibicao =
+                            selectedCliente.consumo_medio_diario_kwh ||
+                            metricas.consumo_medio_diario_kwh
 
-                            <div className="grid grid-cols-3 sm:grid-cols-6 md:grid-cols-12 gap-1.5 text-center pt-1">
-                              {selectedCliente.historico_consumo_fatura.map((item, idx) => (
-                                <div
-                                  key={idx}
-                                  className="p-1.5 bg-amber-50/50 rounded-lg border border-amber-200/70 flex flex-col justify-center"
-                                >
-                                  <span className="text-[10px] font-semibold text-gray-500">
-                                    {item.mes_ano}
-                                  </span>
-                                  <span className="text-xs font-bold text-gray-900">
-                                    {item.consumo_kwh}
-                                  </span>
-                                  <span className="text-[9px] text-gray-400">
-                                    {item.dias_ciclo || 30} dias
+                          return (
+                            <div className="bg-white rounded-xl p-4 border border-amber-200/80 shadow-xs space-y-3">
+                              <div className="flex items-center justify-between flex-wrap gap-2">
+                                <div className="text-[11px] uppercase font-bold text-amber-900 tracking-wider flex items-center gap-1.5">
+                                  <Activity className="w-4 h-4 text-amber-600" />
+                                  <span>
+                                    Histórico de Faturas RGE ({historicoExibicao.length} meses)
                                   </span>
                                 </div>
-                              ))}
+                                <div className="flex items-center gap-2 text-xs font-semibold text-gray-600">
+                                  {totalAnualExibicao ? (
+                                    <span className="bg-amber-50 text-amber-900 px-2 py-0.5 rounded border border-amber-200">
+                                      Total: {totalAnualExibicao} kWh/ano
+                                    </span>
+                                  ) : null}
+                                  {mediaDiariaExibicao ? (
+                                    <span className="bg-amber-50 text-amber-900 px-2 py-0.5 rounded border border-amber-200">
+                                      Diário: {mediaDiariaExibicao} kWh/dia
+                                    </span>
+                                  ) : null}
+                                </div>
+                              </div>
+
+                              <div className="grid grid-cols-3 sm:grid-cols-6 md:grid-cols-12 gap-1.5 text-center pt-1">
+                                {historicoExibicao.map((item, idx) => (
+                                  <div
+                                    key={idx}
+                                    className="p-1.5 bg-amber-50/50 rounded-lg border border-amber-200/70 flex flex-col justify-center"
+                                  >
+                                    <span className="text-[10px] font-semibold text-gray-500">
+                                      {item.mes_ano}
+                                    </span>
+                                    <span className="text-xs font-bold text-gray-900">
+                                      {item.consumo_kwh}
+                                    </span>
+                                    <span className="text-[9px] text-gray-400">
+                                      {item.dias_ciclo || 30} dias
+                                    </span>
+                                  </div>
+                                ))}
+                              </div>
                             </div>
-                          </div>
-                        )}
+                          )
+                        })()}
 
                       {/* Usinas Fotovoltaicas do Cliente integradas na Ficha Cadastral */}
                       <SecaoUsinasCliente

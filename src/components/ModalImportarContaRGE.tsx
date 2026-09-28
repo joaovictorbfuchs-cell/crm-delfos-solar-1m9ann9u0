@@ -24,6 +24,10 @@ import {
   type FaturaRGEDadosExtraidos,
   type HistoricoConsumoItem,
 } from '@/services/faturaRGEService'
+import {
+  normalizarEOordenarHistorico,
+  calcularMetricasHistorico,
+} from '@/lib/historicoConsumoFatura'
 import { formatWhatsAppPhone } from '@/lib/formatters'
 import { useToast } from '@/hooks/use-toast'
 import { useIsMobile } from '@/hooks/use-mobile'
@@ -214,7 +218,10 @@ export const ModalImportarContaRGE: React.FC<ModalImportarContaRGEProps> = ({
       setRevTarifa(
         tarifaTotal !== null && tarifaTotal !== undefined ? Number(tarifaTotal).toFixed(4) : '',
       )
-      setRevHistorico(Array.isArray(d.historico_consumo) ? d.historico_consumo : [])
+      const historicoTratado = normalizarEOordenarHistorico(
+        Array.isArray(d.historico_consumo) ? d.historico_consumo : [],
+      )
+      setRevHistorico(historicoTratado)
 
       setEtapa('revisao')
 
@@ -274,6 +281,16 @@ export const ModalImportarContaRGE: React.FC<ModalImportarContaRGEProps> = ({
 
     const cidadeFinal = revCidade.trim() || 'Erechim/RS'
 
+    const historicoGarantido = normalizarEOordenarHistorico(revHistorico)
+    const metricas = calcularMetricasHistorico(historicoGarantido)
+
+    const consumoFinal =
+      numConsumo ??
+      (metricas.quantidade_meses_historico > 0 ? metricas.media_mensal_consumo_kwh : undefined)
+    const anualFinal =
+      numAnual ??
+      (metricas.quantidade_meses_historico > 0 ? metricas.somatorio_consumo_anual_kwh : undefined)
+
     const dadosMapeados: DadosImportadosContaRGE = {
       nome: revNome.trim() || undefined,
       razao_social: isCnpj ? revNome.trim() || undefined : undefined,
@@ -292,11 +309,11 @@ export const ModalImportarContaRGE: React.FC<ModalImportarContaRGEProps> = ({
       classificacao_grupo_subgrupo: revClassificacao.trim() || undefined,
       tipo_fornecimento: revTipoFornecimento.trim() || undefined,
       tensao_nominal: revTensaoNominal.trim() || undefined,
-      consumo_kwh_mes: numConsumo,
-      consumo_medio: numConsumo,
-      consumo_anual_kwh: numAnual,
+      consumo_kwh_mes: consumoFinal,
+      consumo_medio: consumoFinal,
+      consumo_anual_kwh: anualFinal,
       tarifa: numTarifa,
-      historico_consumo_fatura: revHistorico.length > 0 ? revHistorico : undefined,
+      historico_consumo_fatura: historicoGarantido.length > 0 ? historicoGarantido : undefined,
     }
 
     onConfirmar(dadosMapeados)

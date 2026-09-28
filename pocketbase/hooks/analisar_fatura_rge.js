@@ -366,31 +366,148 @@ FORMATO JSON DE RETORNO OBRIGATÓRIO:
       })
     }
 
-    // Validação e recálculo determinístico no backend para garantir consistência perfeita
-    const historico = Array.isArray(parsed.historico_consumo) ? parsed.historico_consumo : []
+    // Validação, deduplicação e ordenação cronológica (mais antigo -> mais recente) do histórico
+    const rawHistorico = Array.isArray(parsed.historico_consumo) ? parsed.historico_consumo : []
+
+    const mesesMap = {
+      jan: 1,
+      fev: 2,
+      feb: 2,
+      mar: 3,
+      abr: 4,
+      apr: 4,
+      mai: 5,
+      may: 5,
+      jun: 6,
+      jul: 7,
+      ago: 8,
+      aug: 8,
+      set: 9,
+      sep: 9,
+      out: 10,
+      oct: 10,
+      nov: 11,
+      dez: 12,
+      dec: 12,
+    }
+    const siglasMes = [
+      '',
+      'JAN',
+      'FEV',
+      'MAR',
+      'ABR',
+      'MAI',
+      'JUN',
+      'JUL',
+      'AGO',
+      'SET',
+      'OUT',
+      'NOV',
+      'DEZ',
+    ]
+
+    function extrairAnoMesBackend(raw) {
+      if (!raw) return null
+      const str = String(raw).trim().toLowerCase()
+      const mIso = str.match(/^(\d{4})[-/.](\d{1,2})$/)
+      if (mIso) return { ano: parseInt(mIso[1], 10), mes: parseInt(mIso[2], 10) }
+      const mNum = str.match(/^(\d{1,2})[-/.](\d{2,4})$/)
+      if (mNum) {
+        let ano = parseInt(mNum[2], 10)
+        if (ano < 100) ano = 2000 + ano
+        return { ano, mes: parseInt(mNum[1], 10) }
+      }
+      const partes = str
+        .replace(/[^a-z0-9]/g, ' ')
+        .split(/\s+/)
+        .filter(Boolean)
+      let mesEnc = 0
+      let anoEnc = 0
+      for (let pIdx = 0; pIdx < partes.length; pIdx++) {
+        const p = partes[pIdx]
+        if (/^\d{2,4}$/.test(p)) {
+          let n = parseInt(p, 10)
+          if (n < 100) n = n > 50 ? 1900 + n : 2000 + n
+          anoEnc = n
+        } else {
+          const k = p.slice(0, 3)
+          if (mesesMap[p] || mesesMap[k]) mesEnc = mesesMap[p] || mesesMap[k]
+        }
+      }
+      if (mesEnc >= 1 && mesEnc <= 12 && anoEnc >= 1990 && anoEnc <= 2100) {
+        return { ano: anoEnc, mes: mesEnc }
+      }
+      return null
+    }
+
+    const mapaHistorico = {}
+    for (let hIdx = 0; hIdx < rawHistorico.length; hIdx++) {
+      const item = rawHistorico[hIdx]
+      if (!item) continue
+      const parsedMes = extrairAnoMesBackend(item.mes_ano || item.mes)
+      let label = String(item.mes_ano || item.mes || '')
+        .trim()
+        .toUpperCase()
+      let ordem = 999900 + hIdx
+      let chave = label || String(hIdx)
+
+      if (parsedMes) {
+        const sigla = siglasMes[parsedMes.mes] || 'MES'
+        const a2d = String(parsedMes.ano % 100).padStart(2, '0')
+        label = sigla + '/' + a2d
+        ordem = parsedMes.ano * 100 + parsedMes.mes
+        chave = String(parsedMes.ano) + '-' + String(parsedMes.mes).padStart(2, '0')
+      }
+
+      const rawKwh =
+        typeof item.consumo_kwh === 'number'
+          ? item.consumo_kwh
+          : parseFloat(String(item.consumo_kwh || '0').replace(',', '.')) || 0
+      const kwh = Math.max(0, Math.round(rawKwh * 100) / 100)
+
+      const rawDias =
+        typeof item.dias_ciclo === 'number'
+          ? item.dias_ciclo
+          : parseInt(String(item.dias_ciclo || '30').replace(/\D/g, ''), 10) || 30
+      const dias = rawDias > 0 && rawDias <= 60 ? rawDias : 30
+
+      const itemLimpo = { mes_ano: label, consumo_kwh: kwh, dias_ciclo: dias }
+
+      if (!mapaHistorico[chave]) {
+        mapaHistorico[chave] = { item: itemLimpo, ordem: ordem }
+      } else {
+        if (kwh > 0 && mapaHistorico[chave].item.consumo_kwh === 0) {
+          mapaHistorico[chave] = { item: itemLimpo, ordem: ordem }
+        }
+      }
+    }
+
+    const chaves = Object.keys(mapaHistorico)
+    chaves.sort(function (a, b) {
+      return mapaHistorico[a].ordem - mapaHistorico[b].ordem
+    })
+
+    const historico = []
     let totalAnual = 0
     let maiorConsumo = { mes_ano: '', consumo_kwh: -1 }
     let menorConsumo = { mes_ano: '', consumo_kwh: 999999999 }
     let totalDias = 0
 
-    historico.forEach((item) => {
-      const kwh =
-        typeof item.consumo_kwh === 'number' ? item.consumo_kwh : parseFloat(item.consumo_kwh) || 0
-      item.consumo_kwh = Math.round(kwh * 100) / 100
-      const dias =
-        typeof item.dias_ciclo === 'number' ? item.dias_ciclo : parseInt(item.dias_ciclo, 10) || 30
-      item.dias_ciclo = dias
+    for (let cIdx = 0; cIdx < chaves.length; cIdx++) {
+      const it = mapaHistorico[chaves[cIdx]].item
+      historico.push(it)
+      totalAnual += it.consumo_kwh
+      totalDias += it.dias_ciclo
 
-      totalAnual += item.consumo_kwh
-      totalDias += dias
+      if (it.consumo_kwh > maiorConsumo.consumo_kwh) {
+        maiorConsumo = { mes_ano: it.mes_ano, consumo_kwh: it.consumo_kwh }
+      }
+      if (it.consumo_kwh < menorConsumo.consumo_kwh) {
+        menorConsumo = { mes_ano: it.mes_ano, consumo_kwh: it.consumo_kwh }
+      }
+    }
 
-      if (item.consumo_kwh > maiorConsumo.consumo_kwh) {
-        maiorConsumo = { mes_ano: String(item.mes_ano || ''), consumo_kwh: item.consumo_kwh }
-      }
-      if (item.consumo_kwh < menorConsumo.consumo_kwh) {
-        menorConsumo = { mes_ano: String(item.mes_ano || ''), consumo_kwh: item.consumo_kwh }
-      }
-    })
+    parsed.historico_consumo = historico
 
     const qtdMeses = historico.length > 0 ? historico.length : 1
     // Média de consumo: soma de todos os meses dividida pelo número de meses de registro (sem fixar em 12)
