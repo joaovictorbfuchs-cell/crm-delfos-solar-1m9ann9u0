@@ -1226,17 +1226,22 @@ export default function Clientes() {
                                 <div className="flex flex-col min-w-0 text-left">
                                   <span>Tipo de negócio</span>
                                   <span className="text-[10px] text-gray-400 font-semibold capitalize truncate">
-                                    {tipoNegocioAtual.includes('bateria')
-                                      ? 'Baterias'
-                                      : tipoNegocioAtual.includes('o&m') ||
-                                          tipoNegocioAtual.includes('om') ||
-                                          tipoNegocioAtual.includes('manuten')
-                                        ? 'O&M'
-                                        : 'Solar'}
+                                    {tipoNegocioAtual.includes('carregador') ||
+                                    tipoNegocioAtual.includes('veículo') ||
+                                    tipoNegocioAtual.includes('veiculo') ||
+                                    tipoNegocioAtual.includes('wallbox')
+                                      ? 'Carregadores VE'
+                                      : tipoNegocioAtual.includes('bateria')
+                                        ? 'Baterias'
+                                        : tipoNegocioAtual.includes('o&m') ||
+                                            tipoNegocioAtual.includes('om') ||
+                                            tipoNegocioAtual.includes('manuten')
+                                          ? 'O&M'
+                                          : 'Solar'}
                                   </span>
                                 </div>
                               </DropdownMenuSubTrigger>
-                              <DropdownMenuSubContent className="w-44 text-xs p-1.5 shadow-lg">
+                              <DropdownMenuSubContent className="w-56 text-xs p-1.5 shadow-lg">
                                 <DropdownMenuLabel className="text-[10px] text-gray-400 uppercase tracking-wider px-2 py-1">
                                   Definir Tipo
                                 </DropdownMenuLabel>
@@ -1244,6 +1249,7 @@ export default function Clientes() {
                                   onClick={async () => {
                                     try {
                                       await updateCliente(c.id, {
+                                        tipo_venda: 'Energia Solar',
                                         tipo_negocio: 'energia solar',
                                         produto: 'Energia Solar',
                                       })
@@ -1253,11 +1259,14 @@ export default function Clientes() {
                                   }}
                                   className="cursor-pointer flex items-center justify-between py-2 px-2.5 text-xs font-semibold"
                                 >
-                                  <span>Solar</span>
+                                  <span>Energia Solar</span>
                                   {!tipoNegocioAtual.includes('bateria') &&
                                     !tipoNegocioAtual.includes('o&m') &&
                                     !tipoNegocioAtual.includes('om') &&
-                                    !tipoNegocioAtual.includes('manuten') && (
+                                    !tipoNegocioAtual.includes('manuten') &&
+                                    !tipoNegocioAtual.includes('carregador') &&
+                                    !tipoNegocioAtual.includes('veículo') &&
+                                    !tipoNegocioAtual.includes('veiculo') && (
                                       <Check className="w-3.5 h-3.5 text-emerald-600" />
                                     )}
                                 </DropdownMenuItem>
@@ -1266,6 +1275,7 @@ export default function Clientes() {
                                   onClick={async () => {
                                     try {
                                       await updateCliente(c.id, {
+                                        tipo_venda: 'O&M (Operação e Manutenção)',
                                         tipo_negocio: 'Planos de O&M',
                                         produto: 'Plano de O&M',
                                       })
@@ -1287,6 +1297,7 @@ export default function Clientes() {
                                   onClick={async () => {
                                     try {
                                       await updateCliente(c.id, {
+                                        tipo_venda: 'Baterias',
                                         tipo_negocio: 'baterias',
                                         produto: 'Sistemas Híbridos',
                                       })
@@ -1301,6 +1312,32 @@ export default function Clientes() {
                                 >
                                   <span>Baterias</span>
                                   {tipoNegocioAtual.includes('bateria') && (
+                                    <Check className="w-3.5 h-3.5 text-emerald-600" />
+                                  )}
+                                </DropdownMenuItem>
+
+                                <DropdownMenuItem
+                                  onClick={async () => {
+                                    try {
+                                      await updateCliente(c.id, {
+                                        tipo_venda: 'Carregadores Veículos Elétricos',
+                                        tipo_negocio: 'carregadores veiculares',
+                                        produto: 'Carregadores Veículos Elétricos',
+                                      })
+                                    } catch (err) {
+                                      console.error(
+                                        'Erro ao definir tipo de negócio Carregadores VE:',
+                                        err,
+                                      )
+                                    }
+                                  }}
+                                  className="cursor-pointer flex items-center justify-between py-2 px-2.5 text-xs font-semibold"
+                                >
+                                  <span>Carregadores Veículos Elétricos</span>
+                                  {(tipoNegocioAtual.includes('carregador') ||
+                                    tipoNegocioAtual.includes('veículo') ||
+                                    tipoNegocioAtual.includes('veiculo') ||
+                                    tipoNegocioAtual.includes('wallbox')) && (
                                     <Check className="w-3.5 h-3.5 text-emerald-600" />
                                   )}
                                 </DropdownMenuItem>

@@ -18,6 +18,8 @@ import { formatCurrency } from '@/lib/formatters'
 import { NovoLeadModal } from '@/components/NovoLeadModal'
 import { Button } from '@/components/ui/button'
 import { toast } from '@/hooks/use-toast'
+import { TIPOS_VENDA_OPTIONS, TIPOS_VENDA_CONFIG } from '@/constants/tipoVenda'
+import { Filter } from 'lucide-react'
 
 export default function Comercial() {
   const { clientes, isLoading, error, refreshData, updateClienteStatus, openFichaCliente } =
@@ -28,7 +30,7 @@ export default function Comercial() {
   const [buscaPerdidos, setBuscaPerdidos] = useState('')
   const [reativandoId, setReativandoId] = useState<string | null>(null)
 
-  // Filtro de tipo de venda opcional via drawer de filtros mobile
+  // Filtro de tipo de negócio do funil comercial ("todos" ou uma das 4 categorias)
   const [filtroTipoVenda, setFiltroTipoVenda] = useState<string>('todos')
 
   // Ouvinte para abrir modal de novo lead via header mobile (+)
@@ -69,11 +71,34 @@ export default function Comercial() {
   const clientesAtivos = clientes.filter((c) => {
     if (c.arquivado || c.transferido_pos_vendas) return false
     if (filtroTipoVenda !== 'todos') {
-      const tv = c.tipo_venda || 'Energia Solar'
-      if (tv !== filtroTipoVenda) return false
+      const tv = (c.tipo_venda || '').trim()
+      if (tv !== filtroTipoVenda) {
+        return false
+      }
     }
     return true
   })
+
+  // Contagem por categoria para exibir nos seletores e manter contadores precisos
+  const contagemPorTipoVenda = React.useMemo(() => {
+    const counts: Record<string, number> = {
+      todos: 0,
+      'Energia Solar': 0,
+      'O&M (Operação e Manutenção)': 0,
+      Baterias: 0,
+      'Carregadores Veículos Elétricos': 0,
+    }
+    for (const c of clientes) {
+      if (c.arquivado || c.transferido_pos_vendas) continue
+      if (c.status === 'Fechado' || c.status === 'Perdido') continue
+      counts.todos += 1
+      const tv = (c.tipo_venda || '').trim()
+      if (tv && counts[tv] !== undefined) {
+        counts[tv] += 1
+      }
+    }
+    return counts
+  }, [clientes])
 
   // Clientes perdidos
   const clientesPerdidos = clientes.filter((c) => c.status === 'Perdido' && !c.arquivado)
@@ -239,6 +264,86 @@ export default function Comercial() {
             </button>
           </div>
         </div>
+
+        {/* Seletor de Filtro por Tipo de Negócio no topo do Kanban / Lista */}
+        {viewMode !== 'perdidos' && (
+          <div className="pt-1 border-t border-gray-100 flex items-center justify-between gap-2 flex-wrap">
+            <div className="flex items-center gap-1.5 flex-wrap min-w-0">
+              <span className="inline-flex items-center gap-1 text-[11px] font-bold text-gray-500 uppercase tracking-wider mr-1 shrink-0">
+                <Filter className="w-3.5 h-3.5 text-gray-400" />
+                <span className="hidden sm:inline">Tipo de negócio:</span>
+              </span>
+
+              {/* Opção Todos */}
+              <button
+                type="button"
+                onClick={() => setFiltroTipoVenda('todos')}
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                  filtroTipoVenda === 'todos'
+                    ? 'bg-emerald-600 text-white shadow-xs font-bold'
+                    : 'bg-gray-100/90 text-gray-600 hover:bg-gray-200/80 hover:text-gray-900 border border-transparent'
+                }`}
+              >
+                <span>Todos</span>
+                <span
+                  className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                    filtroTipoVenda === 'todos'
+                      ? 'bg-emerald-700/80 text-white'
+                      : 'bg-gray-200/90 text-gray-600'
+                  }`}
+                >
+                  {contagemPorTipoVenda.todos}
+                </span>
+              </button>
+
+              {/* 4 Categorias */}
+              {TIPOS_VENDA_OPTIONS.map((opcao) => {
+                const cfg = TIPOS_VENDA_CONFIG[opcao]
+                const IconComp = cfg.icon
+                const isSelected = filtroTipoVenda === opcao
+                const qtd = contagemPorTipoVenda[opcao] || 0
+
+                return (
+                  <button
+                    key={opcao}
+                    type="button"
+                    onClick={() => setFiltroTipoVenda(isSelected ? 'todos' : opcao)}
+                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                      isSelected
+                        ? `${cfg.badgeClass} ring-2 ring-emerald-500 font-bold shadow-xs`
+                        : 'bg-gray-100/90 text-gray-600 hover:bg-gray-200/80 hover:text-gray-900 border border-transparent'
+                    }`}
+                    title={`Filtrar por ${opcao}`}
+                  >
+                    <IconComp
+                      className={`w-3.5 h-3.5 shrink-0 ${isSelected ? cfg.iconClass : 'text-gray-500'}`}
+                    />
+                    <span className="truncate">{cfg.shortLabel}</span>
+                    <span
+                      className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                        isSelected
+                          ? 'bg-white/80 dark:bg-black/30 shadow-2xs'
+                          : 'bg-gray-200/90 text-gray-600'
+                      }`}
+                    >
+                      {qtd}
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
+
+            {filtroTipoVenda !== 'todos' && (
+              <button
+                type="button"
+                onClick={() => setFiltroTipoVenda('todos')}
+                className="text-[11px] font-semibold text-emerald-700 hover:text-emerald-800 hover:underline shrink-0 ml-auto"
+              >
+                Limpar filtro
+              </button>
+            )}
+          </div>
+        )}
 
         {/* Alternância de Visualização */}
         {viewMode === 'kanban' ? (

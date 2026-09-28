@@ -17,7 +17,7 @@ import type { Cliente, ClienteStatus, Atividade } from '@/types/crm'
 import { formatCurrency } from '@/lib/formatters'
 import { useClientes } from '@/contexts/ClientesContext'
 import { FUNIL_ETAPAS_CONFIG } from '@/components/StatusBadge'
-import { getTipoVendaConfig } from '@/constants/tipoVenda'
+import { getTipoVendaConfig, getTipoVendaBadgeInfo } from '@/constants/tipoVenda'
 import { useToast } from '@/hooks/use-toast'
 import { MobileKanbanViewport, type MobileKanbanStage } from '@/components/MobileKanbanViewport'
 import { WhatsAppIcon } from '@/components/WhatsAppIcon'
@@ -128,7 +128,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ clientes: clientesProp
         valor_estimado: Number(c.valor_estimado) || 0,
         cidade: typeof c.cidade === 'string' ? c.cidade : '',
         produto: typeof c.produto === 'string' ? c.produto : 'Energia Solar',
-        tipo_venda: c.tipo_venda || c.produto || 'Energia Solar',
+        tipo_venda: c.tipo_venda || '',
         potencia_kwp: Number(c.potencia_kwp) || 0,
       }))
   }, [clientesProp])
@@ -506,13 +506,32 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ clientes: clientesProp
                         : 'border-slate-200/90 shadow-2xs hover:shadow-xs active:bg-gray-50'
                     }`}
                   >
-                    {/* Nome do cliente/negócio */}
+                    {/* Nome do cliente/negócio + Etiqueta de tipo de negócio */}
                     <div className="flex-1 min-w-0 pr-1">
                       <div
                         className="font-bold text-sm text-slate-900 truncate leading-snug"
                         title={client.nome}
                       >
                         {client.nome}
+                      </div>
+                      <div className="mt-1 flex items-center gap-1.5 min-w-0">
+                        {(() => {
+                          const badgeInfo = getTipoVendaBadgeInfo(client.tipo_venda)
+                          const TipoIcon = badgeInfo.icon
+                          return (
+                            <span
+                              className={`inline-flex items-center gap-1 shrink-0 font-semibold text-[9px] px-1.5 py-0.2 rounded border ${badgeInfo.badgeClass}`}
+                              title={`Tipo de negócio: ${badgeInfo.label}`}
+                            >
+                              {badgeInfo.hasTipo && (
+                                <TipoIcon
+                                  className={`w-2.5 h-2.5 shrink-0 ${badgeInfo.iconClass}`}
+                                />
+                              )}
+                              <span className="truncate">{badgeInfo.shortLabel}</span>
+                            </span>
+                          )
+                        })()}
                       </div>
                     </div>
 
@@ -739,8 +758,8 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ clientes: clientesProp
 
                   {/* Linha 3: Localização + Tipo de Venda */}
                   {(() => {
-                    const tipoConfig = getTipoVendaConfig(client.tipo_venda)
-                    const TipoIcon = tipoConfig.icon
+                    const badgeInfo = getTipoVendaBadgeInfo(client.tipo_venda)
+                    const TipoIcon = badgeInfo.icon
                     return (
                       <div className="mt-1.5 flex items-center justify-between text-[11px] text-muted-foreground gap-1.5 min-w-0">
                         {client.cidade ? (
@@ -756,11 +775,13 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ clientes: clientesProp
                         )}
 
                         <span
-                          className={`inline-flex items-center gap-1 shrink-0 font-semibold text-[10px] px-1.5 py-0.5 rounded border ${tipoConfig.badgeClass}`}
-                          title={`Tipo de venda: ${tipoConfig.label}`}
+                          className={`inline-flex items-center gap-1 shrink-0 font-semibold text-[10px] px-1.5 py-0.5 rounded border ${badgeInfo.badgeClass}`}
+                          title={`Tipo de negócio: ${badgeInfo.label}`}
                         >
-                          <TipoIcon className={`w-3 h-3 shrink-0 ${tipoConfig.iconClass}`} />
-                          <span className="truncate">{tipoConfig.shortLabel}</span>
+                          {badgeInfo.hasTipo && (
+                            <TipoIcon className={`w-3 h-3 shrink-0 ${badgeInfo.iconClass}`} />
+                          )}
+                          <span className="truncate">{badgeInfo.shortLabel}</span>
                         </span>
                       </div>
                     )

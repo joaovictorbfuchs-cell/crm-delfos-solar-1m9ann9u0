@@ -15,6 +15,7 @@ export type ProdutoTipo =
   | 'Plano de O&M'
   | 'Sistemas Híbridos'
   | 'Carregadores veiculares'
+  | 'Carregadores Veículos Elétricos'
   | 'residencial'
   | 'comercial'
   | 'industrial'

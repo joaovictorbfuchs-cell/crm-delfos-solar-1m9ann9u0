@@ -122,3 +122,41 @@ export function getTipoVendaConfig(valor?: string | null): TipoVendaConfig {
   const tipo = normalizarTipoVenda(valor)
   return TIPOS_VENDA_CONFIG[tipo]
 }
+
+export interface TipoVendaBadgeInfo {
+  hasTipo: boolean
+  label: string
+  shortLabel: string
+  icon: LucideIcon
+  badgeClass: string
+  iconClass: string
+}
+
+/**
+ * Retorna as informações visuais para a etiqueta do card.
+ * Se o cliente não tiver tipo_venda preenchido ou for vazio, retorna hasTipo: false
+ * e a etiqueta neutra discreta "Sem tipo".
+ */
+export function getTipoVendaBadgeInfo(valor?: string | null): TipoVendaBadgeInfo {
+  if (!valor || !valor.trim()) {
+    return {
+      hasTipo: false,
+      label: 'Sem tipo definido',
+      shortLabel: 'Sem tipo',
+      icon: SunMedium,
+      badgeClass:
+        'bg-slate-50 text-slate-500 border-slate-200/80 dark:bg-slate-800/40 dark:text-slate-400 dark:border-slate-700',
+      iconClass: 'text-slate-400 dark:text-slate-500',
+    }
+  }
+
+  const config = getTipoVendaConfig(valor)
+  return {
+    hasTipo: true,
+    label: config.label,
+    shortLabel: config.shortLabel,
+    icon: config.icon,
+    badgeClass: config.badgeClass,
+    iconClass: config.iconClass,
+  }
+}
