@@ -67,8 +67,6 @@ export const ModalDetalhesAtividade: React.FC<ModalDetalhesAtividadeProps> = ({
 }) => {
   const { clientes, usuarios, updateAtividade, openFichaCliente } = useClientes()
 
-  const clienteAtual = clientes.find((c) => c.id === (clienteId || atividade?.cliente_id))
-
   // Estados dos campos editáveis
   const [titulo, setTitulo] = useState('')
   const [tipo, setTipo] = useState<AtividadeTipo>('contato_ligacao')
@@ -77,6 +75,8 @@ export const ModalDetalhesAtividade: React.FC<ModalDetalhesAtividadeProps> = ({
   const [responsavelId, setResponsavelId] = useState('')
   const [descricao, setDescricao] = useState('')
   const [status, setStatus] = useState<AtividadeStatus>('pendente')
+
+  const clienteAtual = clientes.find((c) => c.id === (clienteId || atividade?.cliente_id))
 
   // Campos específicos de Solicitar contas RGE
   const [protocoloAtendimento, setProtocoloAtendimento] = useState('')
