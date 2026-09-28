@@ -24,6 +24,7 @@ import {
   Filter,
   Check,
   ChevronDown,
+  BookOpen,
 } from 'lucide-react'
 import {
   DropdownMenu,
@@ -298,6 +299,7 @@ export const MobileLayoutChrome: React.FC<MobileLayoutChromeProps> = ({
         { label: 'Propostas & Orçamentos', path: '/propostas', icon: Sun },
         { label: 'Atividades & Calendário', path: '/atividades', icon: CalendarCheck },
         { label: 'Gestão de Clientes', path: '/clientes', icon: Users },
+        { label: 'Base de Conhecimento', path: '/base-conhecimento', icon: BookOpen },
       ],
     },
     {

@@ -20,6 +20,7 @@ import {
   Sun,
   MessageSquare,
   Settings,
+  BookOpen,
   Images,
   Cpu,
   Zap,
@@ -34,6 +35,7 @@ import { DelfosLogo } from '@/components/DelfosLogo'
 import { NotificacoesBell } from '@/components/NotificacoesBell'
 import { BarraBuscaGlobal } from '@/components/BarraBuscaGlobal'
 import { MobileLayoutChrome } from '@/components/MobileLayoutChrome'
+import AssistenteDelfosChat from '@/components/AssistenteDelfosChat'
 import packageJson from '../../package.json'
 
 const APP_VERSION = packageJson.version || '0.0.456'
@@ -163,6 +165,7 @@ export default function Layout() {
           icon: ShieldCheck,
         },
         { name: 'Clientes', path: '/clientes', icon: Users },
+        { name: 'Base de Conhecimento', path: '/base-conhecimento', icon: BookOpen },
         {
           name: 'Configurações',
           icon: Settings,
@@ -475,6 +478,9 @@ export default function Layout() {
           <Outlet />
         </main>
       </div>
+
+      {/* Assistente Inteligente Delfos (Chat com RAG na Base de Conhecimento - Visível em todas as telas) */}
+      <AssistenteDelfosChat />
 
       {/* Universal Ficha do Cliente Drawer (Apenas para Admin) */}
       {isAdmin && <FichaClienteDrawer />}

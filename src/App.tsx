@@ -32,6 +32,7 @@ import GerenciarUsuarios from './pages/GerenciarUsuarios'
 import Login from './pages/Login'
 import RedefinirSenha from './pages/RedefinirSenha'
 import RelatorioFaturaPage from './pages/RelatorioFatura'
+import BaseConhecimento from './pages/BaseConhecimento'
 import NotFound from './pages/NotFound'
 
 const App = () => (
@@ -294,6 +295,15 @@ const App = () => (
                 <ProtectedRoute requiredRole="admin">
                   <InstalacoesGaleriaPage />
                 </ProtectedRoute>
+              }
+            />
+            {/* Base de Conhecimento (acessível por todos os usuários autenticados: vendedores, técnicos, admin) */}
+            <Route
+              path="/base-conhecimento"
+              element={
+                <ErrorBoundary errorMessage="Ocorreu um problema ao carregar a Base de Conhecimento">
+                  <BaseConhecimento />
+                </ErrorBoundary>
               }
             />
           </Route>
