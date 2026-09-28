@@ -1380,36 +1380,46 @@ export const ImportarDadosDocumento: React.FC<ImportarDadosDocumentoProps> = ({
 
               {/* Tabela de Histórico de Consumo dos Últimos 12 a 13 Meses */}
               {Array.isArray(faturaRGEDetectada.historico_consumo) &&
-                faturaRGEDetectada.historico_consumo.length > 0 && (
-                  <div className="p-2.5 bg-white rounded-lg border border-amber-200/80 space-y-1.5">
-                    <div className="flex items-center justify-between text-[11px] font-bold text-gray-700">
-                      <span className="flex items-center gap-1">
-                        <Activity className="w-3.5 h-3.5 text-amber-600" />
-                        Histórico dos Últimos {faturaRGEDetectada.historico_consumo.length} Meses
-                      </span>
-                      <span className="text-[10px] text-gray-500">
-                        Total Anual: {faturaRGEDetectada.calculos?.somatorio_consumo_anual_kwh} kWh
-                      </span>
-                    </div>
+                faturaRGEDetectada.historico_consumo.length > 0 &&
+                (() => {
+                  const histOrdenado = normalizarEOordenarHistorico(
+                    faturaRGEDetectada.historico_consumo,
+                  )
+                  const metricasHist = calcularMetricasHistorico(histOrdenado)
+                  return (
+                    <div className="p-2.5 bg-white rounded-lg border border-amber-200/80 space-y-1.5">
+                      <div className="flex items-center justify-between text-[11px] font-bold text-gray-700">
+                        <span className="flex items-center gap-1">
+                          <Activity className="w-3.5 h-3.5 text-amber-600" />
+                          Histórico dos Últimos {histOrdenado.length} Meses
+                        </span>
+                        <span className="text-[10px] text-gray-500">
+                          Total Anual:{' '}
+                          {metricasHist.somatorio_consumo_anual_kwh ||
+                            faturaRGEDetectada.calculos?.somatorio_consumo_anual_kwh}{' '}
+                          kWh
+                        </span>
+                      </div>
 
-                    <div className="grid grid-cols-3 sm:grid-cols-6 md:grid-cols-12 gap-1 text-center pt-1">
-                      {faturaRGEDetectada.historico_consumo.map((h, i) => (
-                        <div
-                          key={i}
-                          className="p-1 bg-amber-50/50 rounded border border-amber-100 flex flex-col justify-center"
-                        >
-                          <span className="text-[9px] font-semibold text-gray-500">
-                            {h.mes_ano}
-                          </span>
-                          <span className="text-[11px] font-bold text-gray-900">
-                            {h.consumo_kwh}
-                          </span>
-                          <span className="text-[8px] text-gray-400">{h.dias_ciclo || 30}d</span>
-                        </div>
-                      ))}
+                      <div className="grid grid-cols-3 sm:grid-cols-6 md:grid-cols-12 gap-1 text-center pt-1">
+                        {histOrdenado.map((h, i) => (
+                          <div
+                            key={i}
+                            className="p-1 bg-amber-50/50 rounded border border-amber-100 flex flex-col justify-center"
+                          >
+                            <span className="text-[9px] font-semibold text-gray-500">
+                              {h.mes_ano}
+                            </span>
+                            <span className="text-[11px] font-bold text-gray-900">
+                              {h.consumo_kwh}
+                            </span>
+                            <span className="text-[8px] text-gray-400">{h.dias_ciclo || 30}d</span>
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )
+                })()}
             </div>
           )}
 

@@ -28,11 +28,11 @@ import {
   CnpjConflictField,
 } from '@/components/CnpjInputWithLookup'
 import { CnpjDataNormalized } from '@/services/cnpjLookupService'
+import { ModalImportarContaRGE, DadosImportadosContaRGE } from '@/components/ModalImportarContaRGE'
 import {
-  ModalImportarContaRGE,
-  type DadosImportadosContaRGE,
-} from '@/components/ModalImportarContaRGE'
-
+  normalizarEOordenarHistorico,
+  calcularMetricasHistorico,
+} from '@/lib/historicoConsumoFatura'
 interface ModalCadastrarLeadWhatsAppProps {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -277,13 +277,33 @@ export const ModalCadastrarLeadWhatsApp: React.FC<ModalCadastrarLeadWhatsAppProp
           payload.tarifa = dadosFaturaArmazenados.tarifa
         }
         if (dadosFaturaArmazenados.historico_consumo_fatura) {
-          payload.historico_consumo_fatura = dadosFaturaArmazenados.historico_consumo_fatura
+          const histTratado = normalizarEOordenarHistorico(
+            dadosFaturaArmazenados.historico_consumo_fatura,
+          )
+          payload.historico_consumo_fatura = histTratado
+
+          const metricas = calcularMetricasHistorico(histTratado)
+          if (metricas.quantidade_meses_historico > 0) {
+            payload.consumo_medio =
+              dadosFaturaArmazenados.consumo_medio ?? metricas.media_mensal_consumo_kwh
+            payload.consumo_kwh_mes =
+              dadosFaturaArmazenados.consumo_medio ?? metricas.media_mensal_consumo_kwh
+            payload.consumo_anual_kwh =
+              dadosFaturaArmazenados.consumo_anual_kwh ?? metricas.somatorio_consumo_anual_kwh
+            payload.consumo_medio_diario_kwh = metricas.consumo_medio_diario_kwh
+          }
         }
-        if (dadosFaturaArmazenados.consumo_medio !== undefined) {
+        if (
+          payload.consumo_medio === undefined &&
+          dadosFaturaArmazenados.consumo_medio !== undefined
+        ) {
           payload.consumo_medio = dadosFaturaArmazenados.consumo_medio
           payload.consumo_kwh_mes = dadosFaturaArmazenados.consumo_medio
         }
-        if (dadosFaturaArmazenados.consumo_anual_kwh !== undefined) {
+        if (
+          payload.consumo_anual_kwh === undefined &&
+          dadosFaturaArmazenados.consumo_anual_kwh !== undefined
+        ) {
           payload.consumo_anual_kwh = dadosFaturaArmazenados.consumo_anual_kwh
         }
       }

@@ -30,10 +30,11 @@ import {
   cadastrarNovaAtividadeSetor,
   ATIVIDADES_SETOR_PADRAO,
 } from '@/services/atividadesSetorService'
+import { ModalImportarContaRGE, DadosImportadosContaRGE } from '@/components/ModalImportarContaRGE'
 import {
-  ModalImportarContaRGE,
-  type DadosImportadosContaRGE,
-} from '@/components/ModalImportarContaRGE'
+  normalizarEOordenarHistorico,
+  calcularMetricasHistorico,
+} from '@/lib/historicoConsumoFatura'
 import { Zap } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -490,16 +491,47 @@ export const ModalCadastroClienteFornecedor: React.FC<ModalCadastroClienteFornec
               : especialidadeSelect
             : undefined,
         ...(dadosFaturaArmazenados?.historico_consumo_fatura
-          ? {
-              historico_consumo_fatura: dadosFaturaArmazenados.historico_consumo_fatura,
-              uc: dadosFaturaArmazenados.uc || undefined,
-              numero_uc: dadosFaturaArmazenados.uc || undefined,
-              consumo_kwh_mes: dadosFaturaArmazenados.consumo_kwh_mes ?? undefined,
-              consumo_medio: dadosFaturaArmazenados.consumo_medio ?? undefined,
-              consumo_anual_kwh: dadosFaturaArmazenados.consumo_anual_kwh ?? undefined,
-              tarifa: dadosFaturaArmazenados.tarifa ?? undefined,
-            }
-          : {}),
+          ? (() => {
+              const histTratado = normalizarEOordenarHistorico(
+                dadosFaturaArmazenados.historico_consumo_fatura,
+              )
+              const metricas = calcularMetricasHistorico(histTratado)
+              return {
+                historico_consumo_fatura: histTratado,
+                uc: dadosFaturaArmazenados.uc || undefined,
+                numero_uc: dadosFaturaArmazenados.uc || undefined,
+                consumo_kwh_mes:
+                  dadosFaturaArmazenados.consumo_kwh_mes ??
+                  (metricas.quantidade_meses_historico > 0
+                    ? metricas.media_mensal_consumo_kwh
+                    : undefined),
+                consumo_medio:
+                  dadosFaturaArmazenados.consumo_medio ??
+                  (metricas.quantidade_meses_historico > 0
+                    ? metricas.media_mensal_consumo_kwh
+                    : undefined),
+                consumo_anual_kwh:
+                  dadosFaturaArmazenados.consumo_anual_kwh ??
+                  (metricas.quantidade_meses_historico > 0
+                    ? metricas.somatorio_consumo_anual_kwh
+                    : undefined),
+                consumo_medio_diario_kwh:
+                  metricas.quantidade_meses_historico > 0
+                    ? metricas.consumo_medio_diario_kwh
+                    : undefined,
+                tarifa: dadosFaturaArmazenados.tarifa ?? undefined,
+              }
+            })()
+          : dadosFaturaArmazenados
+            ? {
+                uc: dadosFaturaArmazenados.uc || undefined,
+                numero_uc: dadosFaturaArmazenados.uc || undefined,
+                consumo_kwh_mes: dadosFaturaArmazenados.consumo_kwh_mes ?? undefined,
+                consumo_medio: dadosFaturaArmazenados.consumo_medio ?? undefined,
+                consumo_anual_kwh: dadosFaturaArmazenados.consumo_anual_kwh ?? undefined,
+                tarifa: dadosFaturaArmazenados.tarifa ?? undefined,
+              }
+            : {}),
       })
 
       toast.success(

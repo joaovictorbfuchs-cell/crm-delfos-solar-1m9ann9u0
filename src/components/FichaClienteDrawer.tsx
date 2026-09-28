@@ -136,6 +136,10 @@ import {
   baixarPropostaHTML,
   calcularPropostaOM,
 } from '@/lib/propostaOMGenerator'
+import {
+  normalizarEOordenarHistorico,
+  calcularMetricasHistorico,
+} from '@/lib/historicoConsumoFatura'
 import type { PropostaOM } from '@/types/crm'
 import type {
   Cliente,
