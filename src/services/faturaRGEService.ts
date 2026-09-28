@@ -176,9 +176,67 @@ export async function analisarFaturaRGEGemini(
 
   const json = (await res.json()) as AnaliseFaturaRGEResult
 
-  // Garantir consistência e mapeamento direto de consumo_medio a partir dos cálculos da fatura RGE
-  if (json?.data?.calculos?.media_mensal_consumo_kwh) {
-    json.data.consumo_medio = json.data.calculos.media_mensal_consumo_kwh
+  const d = json?.data
+  if (d) {
+    // 1. Validação estrita da UC no padrão oficial RGE: 3 dígitos . 3 dígitos . 3 dígitos - 2 dígitos
+    const regexUcOficial = /^[0-9]{3}\.[0-9]{3}\.[0-9]{3}-[0-9]{2}$/
+    if (d.uc && !regexUcOficial.test(d.uc.trim())) {
+      console.warn(
+        `[faturaRGEService] UC retornada "${d.uc}" não segue formato oficial RGE. Rejeitando valor inválido.`,
+      )
+      d.uc = 'não informado na fatura'
+    }
+
+    // 2. Validação determinística de Tarifa TUSD + TE: soma TUSD + TE com tributos
+    const tusdVal =
+      typeof d.detalhes_tarifa?.tarifa_tusd_com_tributos === 'number'
+        ? d.detalhes_tarifa.tarifa_tusd_com_tributos
+        : 0
+    const teVal =
+      typeof d.detalhes_tarifa?.tarifa_te_com_tributos === 'number'
+        ? d.detalhes_tarifa.tarifa_te_com_tributos
+        : 0
+
+    if (tusdVal > 0.2 && teVal > 0.2) {
+      const somaTarifas = Math.round((tusdVal + teVal) * 1e8) / 1e8
+      if (!d.detalhes_tarifa) d.detalhes_tarifa = {}
+      d.detalhes_tarifa.tarifa_total_com_tributos = somaTarifas
+      d.tarifa_com_tributos = somaTarifas
+    } else if (
+      d.tarifa_com_tributos !== undefined &&
+      d.tarifa_com_tributos !== null &&
+      d.tarifa_com_tributos < 0.4
+    ) {
+      console.warn(
+        `[faturaRGEService] Tarifa espúria descartada (< 0.40): ${d.tarifa_com_tributos}`,
+      )
+      d.tarifa_com_tributos = undefined
+      if (d.detalhes_tarifa) d.detalhes_tarifa.tarifa_total_com_tributos = undefined
+    }
+
+    // 3. Consumo médio: soma de todos os meses do histórico ÷ número de meses de registro
+    if (Array.isArray(d.historico_consumo) && d.historico_consumo.length > 0) {
+      const totalConsumo = d.historico_consumo.reduce(
+        (acc, h) => acc + (Number(h.consumo_kwh) || 0),
+        0,
+      )
+      const mediaCalculada = Math.round((totalConsumo / d.historico_consumo.length) * 100) / 100
+      if (!d.calculos) {
+        d.calculos = {
+          quantidade_meses_historico: d.historico_consumo.length,
+          somatorio_consumo_anual_kwh: totalConsumo,
+          media_mensal_consumo_kwh: mediaCalculada,
+          consumo_medio_diario_kwh: Math.round((mediaCalculada / 30) * 100) / 100,
+        }
+      } else {
+        d.calculos.quantidade_meses_historico = d.historico_consumo.length
+        d.calculos.somatorio_consumo_anual_kwh = totalConsumo
+        d.calculos.media_mensal_consumo_kwh = mediaCalculada
+      }
+      d.consumo_medio = mediaCalculada
+    } else if (d.calculos?.media_mensal_consumo_kwh) {
+      d.consumo_medio = d.calculos.media_mensal_consumo_kwh
+    }
   }
 
   return json

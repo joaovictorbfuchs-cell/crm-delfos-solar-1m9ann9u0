@@ -208,82 +208,112 @@ FORMATO JSON DE RETORNO OBRIGATÓRIO:
     }
 
     // Lista de modelos suportados para fallback resiliente
+    // Lista de modelos atualizados suportados pela Gemini API (v1beta)
     const candidateModels = [
+      'gemini-3.8-flash',
+      'gemini-3.7-flash',
+      'gemini-3.5-flash',
       'gemini-2.5-flash',
-      'gemini-1.5-flash',
-      'gemini-2.0-flash',
-      'gemini-1.5-pro',
     ]
 
     let geminiResponse = null
     let lastError = null
     let modelUsed = ''
 
-    for (let i = 0; i < candidateModels.length; i++) {
-      const model = candidateModels[i]
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${geminiApiKey}`
+    if (geminiApiKey) {
+      for (let i = 0; i < candidateModels.length; i++) {
+        const model = candidateModels[i]
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${geminiApiKey}`
 
-      try {
-        console.log(`[FATURA RGE] Chamando Gemini API modelo "${model}"...`)
-        const res = $http.send({
-          url: url,
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(geminiPayload),
-          timeout: 45,
-        })
+        try {
+          console.log(`[FATURA RGE] Chamando Gemini API modelo "${model}"...`)
+          const res = $http.send({
+            url: url,
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(geminiPayload),
+            timeout: 45,
+          })
 
-        if (res.statusCode >= 200 && res.statusCode < 300) {
-          geminiResponse = res.json || JSON.parse(res.raw || '{}')
-          modelUsed = model
-          console.log(`[FATURA RGE] Sucesso na resposta do modelo "${model}"`)
-          break
-        } else {
-          const errDetail = res.raw ? res.raw.substring(0, 300) : `HTTP ${res.statusCode}`
-          console.log(`[FATURA RGE] Modelo "${model}" retornou ${res.statusCode}: ${errDetail}`)
-          lastError = `Modelo ${model}: HTTP ${res.statusCode} - ${errDetail}`
-          // Se for 404 de modelo não encontrado, tenta o próximo da lista
-          if (res.statusCode === 404) {
-            continue
+          if (res.statusCode >= 200 && res.statusCode < 300) {
+            geminiResponse = res.json || JSON.parse(res.raw || '{}')
+            modelUsed = `gemini:${model}`
+            console.log(`[FATURA RGE] Sucesso na resposta do modelo "${model}"`)
+            break
+          } else {
+            const errDetail = res.raw ? res.raw.substring(0, 300) : `HTTP ${res.statusCode}`
+            console.log(`[FATURA RGE] Modelo "${model}" retornou ${res.statusCode}: ${errDetail}`)
+            lastError = `Modelo ${model}: HTTP ${res.statusCode} - ${errDetail}`
+            if (res.statusCode === 404 || res.statusCode === 429) {
+              continue
+            }
+            if (res.statusCode === 403 || res.statusCode === 401) {
+              // Não quebra imediatamente se tiver fallback para $ai.chat
+              break
+            }
           }
-          // Para outros erros (ex: 400 Bad Request por formato inválido ou 429 quota), se for 429 tenta próximo
-          if (res.statusCode === 429) {
-            continue
-          }
-          // Caso seja erro terminal de autenticação ou chave
-          if (res.statusCode === 403 || res.statusCode === 401) {
-            return e.json(500, {
-              ok: false,
-              error: `Erro de autenticação com a API do Gemini: ${errDetail}`,
-            })
-          }
+        } catch (callErr) {
+          lastError = callErr && callErr.message ? callErr.message : String(callErr)
+          console.log(`[FATURA RGE] Exceção na chamada ao modelo "${model}": ${lastError}`)
         }
-      } catch (callErr) {
-        lastError = callErr && callErr.message ? callErr.message : String(callErr)
-        console.log(`[FATURA RGE] Exceção na chamada ao modelo "${model}": ${lastError}`)
       }
     }
 
-    if (!geminiResponse) {
-      return e.json(502, {
-        ok: false,
-        error: `Não foi possível obter resposta da API do Google Gemini. Detalhes: ${lastError}`,
-      })
-    }
-
-    // Extrair o texto da resposta do Gemini
     let rawText = ''
-    try {
-      const candidate =
-        geminiResponse.candidates && geminiResponse.candidates[0]
-          ? geminiResponse.candidates[0]
-          : null
-      if (candidate && candidate.content && candidate.content.parts && candidate.content.parts[0]) {
-        rawText = candidate.content.parts[0].text || ''
+
+    if (geminiResponse) {
+      try {
+        const candidate =
+          geminiResponse.candidates && geminiResponse.candidates[0]
+            ? geminiResponse.candidates[0]
+            : null
+        if (
+          candidate &&
+          candidate.content &&
+          candidate.content.parts &&
+          candidate.content.parts[0]
+        ) {
+          rawText = candidate.content.parts[0].text || ''
+        }
+      } catch (_) {}
+    }
+
+    // Se a chamada Gemini direta não respondeu, fallback transparente e robusto para $ai.chat nativo do Skip
+    if (!rawText) {
+      console.log(
+        `[FATURA RGE] Gemini direto indisponível (${lastError || 'sem resposta'}). Acionando fallback nativo $ai.chat...`,
+      )
+      try {
+        const aiMessages = [
+          { role: 'system', content: promptInstrucoes },
+          {
+            role: 'user',
+            content: `Arquivo: ${fileName} (MIME: ${mimeType})\n\nTexto extraído da fatura:\n"""\n${textContent}\n"""\n\nExtraia rigorosamente os dados da fatura RGE conforme as instruções e retorne exclusivamente o JSON estruturado.`,
+          },
+        ]
+        const aiRes = $ai.chat({
+          model: 'fast',
+          messages: aiMessages,
+        })
+        if (
+          aiRes &&
+          aiRes.choices &&
+          aiRes.choices[0] &&
+          aiRes.choices[0].message &&
+          aiRes.choices[0].message.content
+        ) {
+          rawText = aiRes.choices[0].message.content.trim()
+          modelUsed = 'skip-ai:fast'
+          console.log('[FATURA RGE] Sucesso na análise via $ai.chat (fallback nativo)')
+        }
+      } catch (aiErr) {
+        console.log(
+          `[FATURA RGE] Erro no fallback $ai.chat: ${aiErr && aiErr.message ? aiErr.message : aiErr}`,
+        )
       }
-    } catch (_) {}
+    }
 
     if (!rawText) {
       return e.json(500, {
@@ -375,6 +405,7 @@ FORMATO JSON DE RETORNO OBRIGATÓRIO:
     parsed.calculos.somatorio_consumo_anual_kwh = Math.round(totalAnual * 100) / 100
     parsed.calculos.media_mensal_consumo_kwh = mediaMensal
     parsed.calculos.consumo_medio_diario_kwh = mediaDiaria
+    parsed.consumo_medio = mediaMensal
     if (maiorConsumo.consumo_kwh >= 0) {
       parsed.calculos.maior_consumo_periodo = maiorConsumo
     }
@@ -394,14 +425,14 @@ FORMATO JSON DE RETORNO OBRIGATÓRIO:
     // Padrões para TUSD
     const tusdMatches = [
       /Consumo\s+Uso\s+Sistema[^\n\r]*?TUSD[^\n\r]*?([0-9]+[,\.][0-9]{4,8})/i,
+      /Uso\s+Sistema[^\n\r]*?TUSD[^\n\r]*?([0-9]+[,\.][0-9]{4,8})/i,
       /TUSD[^\n\r]*?([0-9]+[,\.][0-9]{4,8})/i,
-      /Uso\s+Sistema[^\n\r]*?([0-9]+[,\.][0-9]{4,8})/i,
     ]
     for (let tIdx = 0; tIdx < tusdMatches.length; tIdx++) {
       const mTusd = fullTextSearch.match(tusdMatches[tIdx])
       if (mTusd && mTusd[1]) {
         const val = parseFloat(mTusd[1].replace(',', '.'))
-        if (val > 0 && val < 10) {
+        if (val > 0.2 && val < 5.0) {
           regexTusd = val
           break
         }
@@ -418,7 +449,7 @@ FORMATO JSON DE RETORNO OBRIGATÓRIO:
       const mTe = fullTextSearch.match(teMatches[eIdx])
       if (mTe && mTe[1]) {
         const val = parseFloat(mTe[1].replace(',', '.'))
-        if (val > 0 && val < 10) {
+        if (val > 0.2 && val < 5.0) {
           regexTe = val
           break
         }
@@ -438,22 +469,32 @@ FORMATO JSON DE RETORNO OBRIGATÓRIO:
         `[FATURA RGE] Tarifa determinística regex calculada: TUSD=${regexTusd} + TE=${regexTe} = ${somaTarifasRegex}`,
       )
     } else {
-      // Validação da tarifa TUSD + TE devolvida pelo Gemini
+      // Validação da tarifa TUSD + TE devolvida pelo Gemini / IA
       const tusd = parseFloat(parsed.detalhes_tarifa.tarifa_tusd_com_tributos) || 0
       const te = parseFloat(parsed.detalhes_tarifa.tarifa_te_com_tributos) || 0
-      if (tusd > 0 && te > 0) {
+      if (tusd > 0.2 && te > 0.2) {
         const somaTarifas = Math.round((tusd + te) * 1e8) / 1e8
         parsed.detalhes_tarifa.tarifa_total_com_tributos = somaTarifas
         parsed.tarifa_com_tributos = somaTarifas
+      } else {
+        // Rejeitar valores espúrios como 0.12 ou iluminação pública se tarifa < 0.40
+        if (parsed.tarifa_com_tributos && parsed.tarifa_com_tributos < 0.4) {
+          console.log(
+            `[FATURA RGE] Tarifa espúria descartada (< 0.40): ${parsed.tarifa_com_tributos}`,
+          )
+          parsed.tarifa_com_tributos = null
+          parsed.detalhes_tarifa.tarifa_total_com_tributos = null
+        }
       }
     }
 
     // 2. EXTRAÇÃO DETERMINÍSTICA DO NÚMERO DA UC FORMATADO VIA REGEX
     // Padrão oficial RGE: 3 dígitos . 3 dígitos . 3 dígitos - 2 dígitos (ex: 200.419.001-19)
     let ucFormatadaEncontrada = ''
+    // Buscar primeiro associado ao rótulo literal
     const rotulosUc = [
       /(?:N[uú]mero\s+da\s+UC|Unidade\s+Consumidora|C[oó]digo\s+da\s+UC)[^\n\r\d]*?([0-9]{3}\.[0-9]{3}\.[0-9]{3}-[0-9]{2})/i,
-      /(?:N[uú]mero\s+da\s+UC|Unidade\s+Consumidora|C[oó]digo\s+da\s+UC)[^0-9]*?([0-9]{3}\.[0-9]{3}\.[0-9]{3}-[0-9]{2})/i,
+      /(?:N[uú]mero\s+da\s+UC|Unidade\s+Consumidora|C[oó]digo\s+da\s+UC)[\s\S]{0,100}?([0-9]{3}\.[0-9]{3}\.[0-9]{3}-[0-9]{2})/i,
       /\b([0-9]{3}\.[0-9]{3}\.[0-9]{3}-[0-9]{2})\b/,
     ]
 
@@ -461,16 +502,57 @@ FORMATO JSON DE RETORNO OBRIGATÓRIO:
       const matchUc = fullTextSearch.match(rotulosUc[uIdx])
       if (matchUc && matchUc[1]) {
         ucFormatadaEncontrada = matchUc[1].trim()
-        break
+        // Validação: deve ter 11 dígitos no formato 000.000.000-00 e não pode ser CPF nem CNPJ
+        const digitos = ucFormatadaEncontrada.replace(/\D/g, '')
+        if (digitos.length === 11) {
+          break
+        }
       }
     }
 
+    // Função de validação estrita de UC formatada RGE
+    const ucRegexEstrito = /^[0-9]{3}\.[0-9]{3}\.[0-9]{3}-[0-9]{2}$/
+    const isUcValida = (v) => {
+      if (!v || typeof v !== 'string') return false
+      const s = v.trim()
+      if (!ucRegexEstrito.test(s)) return false
+      // Rejeitar explicitamente padrões de código de instalação ou alfanuméricos
+      if (s.startsWith('ERCBU') || s.includes('-00000')) return false
+      return true
+    }
+
     // Se achado o padrão formatado da UC no texto, FORÇAR parsed.uc para o valor formatado
-    if (ucFormatadaEncontrada) {
+    if (ucFormatadaEncontrada && isUcValida(ucFormatadaEncontrada)) {
       console.log(
-        `[FATURA RGE] UC formatada RGE confirmada deterministamente por regex: "${ucFormatadaEncontrada}" (gemini havia retornado "${parsed.uc}")`,
+        `[FATURA RGE] UC formatada RGE confirmada deterministamente por regex: "${ucFormatadaEncontrada}" (modelo havia retornado "${parsed.uc}")`,
       )
       parsed.uc = ucFormatadaEncontrada
+    } else if (!isUcValida(parsed.uc)) {
+      // Se parsed.uc não segue o padrão formatado estrito da RGE (ex: veio código de instalação, ERCBU..., ou 8 dígitos), rejeitar!
+      console.log(
+        `[FATURA RGE] Valor de UC inválido rejeitado: "${parsed.uc}". Tentando buscar no texto completo...`,
+      )
+      // Tenta varredura global no texto por qualquer padrão de UC formatada 000.000.000-00
+      const matchesGlobais = fullTextSearch.match(/\b([0-9]{3}\.[0-9]{3}\.[0-9]{3}-[0-9]{2})\b/g)
+      let ucResgatada = ''
+      if (matchesGlobais) {
+        for (let g = 0; g < matchesGlobais.length; g++) {
+          const cand = matchesGlobais[g].trim()
+          // Evitar que seja CPF do titular caso haja CPF com pontuação idêntica
+          const digCand = cand.replace(/\D/g, '')
+          const digTitular = parsed.cpf_cnpj ? String(parsed.cpf_cnpj).replace(/\D/g, '') : ''
+          if (digCand !== digTitular && isUcValida(cand)) {
+            ucResgatada = cand
+            break
+          }
+        }
+      }
+      parsed.uc = ucResgatada || 'não informado na fatura'
+    }
+
+    // REGRA DE OURO FINAL: Se a fatura tiver o rótulo "Número da UC", NUNCA retornar nada além da UC formatada
+    if (parsed.uc && !isUcValida(parsed.uc)) {
+      parsed.uc = 'não informado na fatura'
     }
 
     // Reforçar regra de endereço: garantir que todos os 7 componentes existam no objeto

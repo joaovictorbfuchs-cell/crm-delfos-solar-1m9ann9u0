@@ -54,16 +54,18 @@ REGRAS OBRIGATÓRIAS DE RESPOSTA:
 }
 
 3. Mapeamentos específicos e regras CRÍTICAS de classificação:
-- ATENÇÃO MÁXIMA PARA DISTINÇÃO ENTRE UNIDADE CONSUMIDORA (UC) E CPF/CNPJ:
+- ATENÇÃO MÁXIMA PARA UNIDADE CONSUMIDORA (UC) E DEMAIS CÓDIGOS DA FATURA:
   * NUNCA confunda número de instalação / código do cliente / unidade consumidora (UC) com CNPJ ou CPF!
-  * Qualquer código ou número identificado próximo ou abaixo de termos como "UC", "Unidade Consumidora", "Nº da Instalação", "Instalação", "Nº do Cliente", "Código do Cliente", "Conta Contrato", "Seu Código", "Código Único" (geralmente com 7 a 12 dígitos, mesmo com pontuação/máscara como "3.584.212.001-72" ou "7001234567-8") vai SEMPRE E OBRIGATORIAMENTE para "consumo.uc" e NUNCA para "dados_cadastrais.cpf_cnpj".
+  * NUNCA extraia códigos de roteiro de leitura ou de entrega como "ERCBU083-00000411", "BU083", códigos de barras, chaves de acesso NF3e ou medidores como UC!
+  * Em faturas da RGE/CPFL, a UC está no campo "Número da UC" e segue o padrão formatado com pontos e hífen: ex: "200.419.001-19".
+  * O campo "consumo.uc" só deve receber a Unidade Consumidora real. Códigos alfanuméricos de rota/instalação como "ERCBU..." são estritamente proibidos.
   * O campo "dados_cadastrais.cpf_cnpj" só recebe valores com EXATAMENTE 11 dígitos (CPF) ou 14 dígitos (CNPJ) próximos a termos como "CPF", "CNPJ", "CPF/CNPJ", "Titular", "Documento", "CNPJ/CPF". Se não constar CPF ou CNPJ de 11 ou 14 dígitos, deixe "cpf_cnpj" como null. NUNCA coloque número de UC ou instalação em "cpf_cnpj".
 - Conta de energia:
   * nome: nome do titular/cliente na fatura
   * endereco / cidade / estado / cep: endereço da instalação/unidade consumidora
-  * uc: código do cliente, unidade consumidora, código da instalação ou conta contrato
-  * consumo_kwh_mes: consumo médio mensal dos últimos 12 meses (ou consumo faturado atual se a média não constar) em kWh
-  * tarifa: valor da tarifa de energia em R$/kWh (ex: 0.95, 1.05)
+  * uc: número da UC (na RGE: padrão com pontos e hífen, ex: "200.419.001-19"). Rejeite códigos alfanuméricos como "ERCBU...".
+  * consumo_kwh_mes: consumo médio mensal da fatura em kWh. Se houver histórico de meses (ex: 12 ou 13 meses), a média é a soma de todos os meses dividida pela quantidade de meses registrados. NUNCA coloque apenas o consumo de um único mês (ex: 132) se houver histórico.
+  * tarifa: valor da tarifa de energia da distribuidora em R$/kWh (TUSD com tributos + TE com tributos, tipicamente entre 0.80 e 1.40 R$/kWh). NUNCA coloque valores espúrios como 0.12 ou parcelas isoladas como Iluminação Pública.
   * classe_consumo: Residencial, Comercial, Industrial, Rural, Poder Público, etc.
   * concessionaria: RGE, CPFL, CELESC, COPEL, ENEL, CEMIG, etc.
 - CNH / RG:
@@ -253,6 +255,9 @@ REGRAS OBRIGATÓRIAS DE RESPOSTA:
     // Pós-processamento em JS puro (compatível com goja)
     // 1. Se dados_cadastrais.cpf_cnpj tiver dígitos ≠ 11 e ≠ 14 -> mover para consumo.uc (se vazio) e anular cpf_cnpj
     // 2. Se cpf_cnpj tiver os mesmos dígitos que consumo.uc -> anular cpf_cnpj (UC vence, sem duplicação)
+    // 3. Sanitização estrita de UC: rejeitar códigos como "ERCBU083-00000411", códigos de rota/instalação ou < 8 dígitos.
+    // 4. Se for documento da RGE, buscar pelo regex estrito de UC formatada [0-9]{3}\.[0-9]{3}\.[0-9]{3}-[0-9]{2}
+    // 5. Sanitização de tarifa: rejeitar tarifas < 0.40 (ex: 0.12)
     if (parsedData && typeof parsedData === 'object') {
       if (!parsedData.dados_cadastrais) parsedData.dados_cadastrais = {}
       if (!parsedData.consumo) parsedData.consumo = {}
@@ -270,6 +275,58 @@ REGRAS OBRIGATÓRIAS DE RESPOSTA:
             parsedData.consumo.uc = rawCpfCnpj
           }
           parsedData.dados_cadastrais.cpf_cnpj = null
+        }
+      }
+
+      // Validação de UC
+      var ucAtual = parsedData.consumo.uc ? String(parsedData.consumo.uc).trim() : ''
+      var ucInvalida = false
+      if (
+        ucAtual.indexOf('ERCBU') !== -1 ||
+        ucAtual.indexOf('-00000') !== -1 ||
+        ucAtual.toLowerCase() === 'não informado na fatura' ||
+        ucAtual.length < 5
+      ) {
+        ucInvalida = true
+      }
+
+      // Se for RGE ou se texto contiver padrão formatado de UC da RGE, extrair deterministamente
+      var fullTxt = textContent + '\n' + rawContent
+      var matchRgeUc = fullTxt.match(
+        /(?:N[uú]mero\s+da\s+UC|Unidade\s+Consumidora|C[oó]digo\s+da\s+UC)[\s\S]{0,80}?([0-9]{3}\.[0-9]{3}\.[0-9]{3}-[0-9]{2})/i,
+      )
+      if (!matchRgeUc) {
+        matchRgeUc = fullTxt.match(/\b([0-9]{3}\.[0-9]{3}\.[0-9]{3}-[0-9]{2})\b/)
+      }
+
+      if (matchRgeUc && matchRgeUc[1]) {
+        parsedData.consumo.uc = matchRgeUc[1].trim()
+      } else if (ucInvalida) {
+        parsedData.consumo.uc = null
+      }
+
+      // Extração determinística de Tarifa TUSD + TE no extrator genérico caso texto tenha esses dados
+      var matchTusd = fullTxt.match(
+        /(?:Consumo\s+Uso\s+Sistema|TUSD)[\s\S]*?([0-9]+[,\.][0-9]{4,8})/i,
+      )
+      var matchTe = fullTxt.match(/(?:Consumo\s*-\s*TE|TE)[\s\S]*?([0-9]+[,\.][0-9]{4,8})/i)
+      if (matchTusd && matchTe && matchTusd[1] && matchTe[1]) {
+        var vTusd = parseFloat(matchTusd[1].replace(',', '.'))
+        var vTe = parseFloat(matchTe[1].replace(',', '.'))
+        if (vTusd > 0.2 && vTusd < 5.0 && vTe > 0.2 && vTe < 5.0) {
+          parsedData.consumo.tarifa = Math.round((vTusd + vTe) * 1e8) / 1e8
+        }
+      }
+
+      // Validação de tarifa: rejeitar tarifas absurdas como 0.12 (iluminação pública ou erro)
+      if (
+        parsedData.consumo.tarifa !== null &&
+        parsedData.consumo.tarifa !== undefined &&
+        typeof parsedData.consumo.tarifa === 'number'
+      ) {
+        if (parsedData.consumo.tarifa < 0.4) {
+          // Rejeita valor espúrio
+          parsedData.consumo.tarifa = null
         }
       }
     }

@@ -467,17 +467,44 @@ export const ImportarDadosDocumento: React.FC<ImportarDadosDocumentoProps> = ({
 
     // 4. Consumo & Concessionária
     const con = data.consumo || {}
-    // Prioridade absoluta: se análise da Fatura RGE Gemini estiver presente, usar UC e Tarifa dela
+    // Regra estrita de validação de UC formatada RGE: [0-9]{3}\.[0-9]{3}\.[0-9]{3}-[0-9]{2}
+    const isUcFormatadaRGE = (val: unknown): boolean =>
+      typeof val === 'string' && /^[0-9]{3}\.[0-9]{3}\.[0-9]{3}-[0-9]{2}$/.test(val.trim())
+
+    // Sanitizar UC do extrator genérico caso contenha rota/instalação como ERCBU... ou 8 dígitos
+    const ucGenericaSanitizada =
+      con.uc &&
+      !con.uc.startsWith('ERCBU') &&
+      !con.uc.includes('-00000') &&
+      con.uc !== 'não informado na fatura'
+        ? con.uc
+        : null
+
+    // Tarifa válida (nunca aceitar valores espúrios como 0.12 do extrator genérico)
+    const tarifaGenericaValida =
+      con.tarifa !== null && con.tarifa !== undefined && con.tarifa >= 0.4 ? con.tarifa : null
+
+    // Prioridade absoluta: se análise da Fatura RGE Gemini estiver presente, usar UC, Tarifa e Consumo Médio dela
     const ucEfetiva =
-      faturaRGEDetectada?.uc && faturaRGEDetectada.uc !== 'não informado na fatura'
+      faturaRGEDetectada?.uc &&
+      faturaRGEDetectada.uc !== 'não informado na fatura' &&
+      isUcFormatadaRGE(faturaRGEDetectada.uc)
         ? faturaRGEDetectada.uc
-        : con.uc
+        : faturaRGEDetectada
+          ? null
+          : isUcFormatadaRGE(ucGenericaSanitizada)
+            ? ucGenericaSanitizada
+            : null
+
     const tarifaEfetiva =
       faturaRGEDetectada?.detalhes_tarifa?.tarifa_total_com_tributos ??
       faturaRGEDetectada?.tarifa_com_tributos ??
-      con.tarifa
+      tarifaGenericaValida
+
     const consumoMedioEfetivo =
-      faturaRGEDetectada?.calculos?.media_mensal_consumo_kwh ?? con.consumo_kwh_mes
+      faturaRGEDetectada?.calculos?.media_mensal_consumo_kwh ??
+      faturaRGEDetectada?.consumo_medio ??
+      con.consumo_kwh_mes
 
     if (ucEfetiva) {
       const curUc = sistema?.numero_uc ?? cliente.uc
@@ -686,12 +713,24 @@ export const ImportarDadosDocumento: React.FC<ImportarDadosDocumentoProps> = ({
             faturaRGERes.data.e_fatura_rge
           ) {
             setFaturaRGEDetectada(faturaRGERes.data)
+          } else if (faturaRGERes && !faturaRGERes.ok) {
+            console.warn(
+              '[ImportarDadosDocumento] Falha na análise especializada RGE:',
+              faturaRGERes.error,
+            )
+            setErrorMessage(
+              `Não foi possível analisar a fatura RGE (${faturaRGERes.error || 'erro no servidor'}). Por segurança, os campos não foram preenchidos com valores genéricos não confiáveis.`,
+            )
+            setExtractionResult(null)
+            return
           }
         } catch (rgeErr) {
-          console.warn(
-            '[ImportarDadosDocumento] Análise especializada RGE falhou ou ignorada:',
-            rgeErr,
+          console.warn('[ImportarDadosDocumento] Análise especializada RGE falhou:', rgeErr)
+          setErrorMessage(
+            'Falha na análise especializada da fatura RGE. Por segurança, os dados não foram preenchidos.',
           )
+          setExtractionResult(null)
+          return
         }
       }
 
@@ -718,9 +757,22 @@ export const ImportarDadosDocumento: React.FC<ImportarDadosDocumentoProps> = ({
               faturaRGERes.data.e_fatura_rge
             ) {
               setFaturaRGEDetectada(faturaRGERes.data)
+            } else if (faturaRGERes && !faturaRGERes.ok) {
+              console.warn(
+                '[ImportarDadosDocumento] Falha na análise especializada RGE:',
+                faturaRGERes.error,
+              )
+              setErrorMessage(
+                `Não foi possível analisar a fatura RGE com precisão (${faturaRGERes.error || 'erro no servidor'}). Por segurança, valores não foram importados do extrator genérico.`,
+              )
+              setExtractionResult(null)
+              return
             }
           } catch (rgeErr2) {
             console.warn('[ImportarDadosDocumento] Chamada pós-detecção Gemini RGE:', rgeErr2)
+            setErrorMessage('Erro ao comunicar com o analisador de fatura RGE. Tente novamente.')
+            setExtractionResult(null)
+            return
           }
         }
       }
@@ -787,16 +839,28 @@ export const ImportarDadosDocumento: React.FC<ImportarDadosDocumentoProps> = ({
         // REGRA DE OURO: UC e Tarifa da análise RGE têm prioridade absoluta sobre o extrator genérico
         if (d.uc && d.uc !== 'não informado na fatura') {
           res.data.consumo.uc = d.uc
-        }
-        if (d.calculos?.media_mensal_consumo_kwh) {
-          res.data.consumo.consumo_kwh_mes = d.calculos.media_mensal_consumo_kwh
-        }
-        const tarifaCalculadaRGE =
-          d.detalhes_tarifa?.tarifa_total_com_tributos ?? d.tarifa_com_tributos
-        if (tarifaCalculadaRGE !== undefined && tarifaCalculadaRGE !== null) {
-          res.data.consumo.tarifa = tarifaCalculadaRGE
+        } else {
+          // Se a fatura é RGE, apagar qualquer UC espúria (ERCBU...) do extrator genérico
+          res.data.consumo.uc = null
         }
 
+        const consumoMedioRge = d.calculos?.media_mensal_consumo_kwh ?? d.consumo_medio
+        if (consumoMedioRge !== undefined && consumoMedioRge !== null) {
+          res.data.consumo.consumo_kwh_mes = consumoMedioRge
+        }
+
+        const tarifaCalculadaRGE =
+          d.detalhes_tarifa?.tarifa_total_com_tributos ?? d.tarifa_com_tributos
+        if (
+          tarifaCalculadaRGE !== undefined &&
+          tarifaCalculadaRGE !== null &&
+          tarifaCalculadaRGE >= 0.4
+        ) {
+          res.data.consumo.tarifa = tarifaCalculadaRGE
+        } else {
+          // Rejeitar qualquer valor menor que 0.4 (ex: 0.12)
+          res.data.consumo.tarifa = null
+        }
         if (
           d.classificacao_grupo_subgrupo &&
           d.classificacao_grupo_subgrupo !== 'não informado na fatura'
