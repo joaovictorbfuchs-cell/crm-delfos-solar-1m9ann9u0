@@ -1,68 +1,58 @@
 import { ClientResponseError } from 'pocketbase'
 
-/**
- * Checks if an error is a PocketBase auth session error (e.g. 401 Unauthorized or 403 Forbidden).
- */
-export function isAuthSessionError(err: unknown): boolean {
-  if (!err) return false
-  if (err instanceof ClientResponseError) {
-    return err.status === 401 || err.status === 403
-  }
-  if (typeof err === 'object' && err !== null) {
-    const record = err as Record<string, unknown>
-    const status = record.status ?? record.statusCode
-    if (status === 401 || status === 403) return true
-    const message = String(record.message || '').toLowerCase()
+export type FieldErrors = Record<string, string>
+
+export function extractFieldErrors(error: unknown): FieldErrors {
+  if (!(error instanceof ClientResponseError)) return {}
+  const data = error.response?.data
+  if (!data || typeof data !== 'object') return {}
+  const errors: FieldErrors = {}
+  for (const [field, detail] of Object.entries(data)) {
     if (
-      message.includes('token is expired') ||
-      message.includes('token is invalid') ||
-      message.includes('failed to authenticate') ||
-      message.includes('the request requires valid user authorization')
+      detail &&
+      typeof detail === 'object' &&
+      'message' in detail &&
+      typeof (detail as { message: unknown }).message === 'string'
     ) {
-      return true
-    }
-  }
-  return false
-}
-
-/**
- * Extracts a user-friendly error message from a PocketBase or generic error.
- */
-export function getErrorMessage(err: unknown, fallback = 'Ocorreu um erro inesperado.'): string {
-  if (!err) return fallback
-  if (typeof err === 'string') return err
-  if (err instanceof ClientResponseError) {
-    if (err.data && typeof err.data === 'object' && 'message' in err.data) {
-      return String(err.data.message)
-    }
-    return err.message || fallback
-  }
-  if (err instanceof Error) {
-    return err.message || fallback
-  }
-  if (typeof err === 'object' && err !== null && 'message' in err) {
-    return String((err as { message: unknown }).message) || fallback
-  }
-  return fallback
-}
-
-/**
- * Extracts field-level validation errors from a PocketBase ClientResponseError.
- */
-export function extractFieldErrors(err: unknown): Record<string, string> {
-  const errors: Record<string, string> = {}
-  if (!err || typeof err !== 'object') return errors
-  if (err instanceof ClientResponseError && err.data?.data) {
-    const data = err.data.data
-    for (const [key, val] of Object.entries(data)) {
-      if (typeof val === 'object' && val !== null && 'message' in val) {
-        errors[key] = String((val as { message: unknown }).message)
-      } else if (typeof val === 'string') {
-        errors[key] = val
-      }
+      errors[field] = (detail as { message: string }).message
     }
   }
   return errors
 }
 
-export default isAuthSessionError
+export function getErrorMessage(error: unknown): string {
+  if (!(error instanceof ClientResponseError)) {
+    return error instanceof Error ? error.message : 'An unexpected error occurred.'
+  }
+  const msgs = Object.values(extractFieldErrors(error))
+  return msgs.length > 0 ? msgs.join(' ') : error.message || 'An unexpected error occurred.'
+}
+
+export function isAuthSessionError(error: unknown): boolean {
+  if (!error) return false
+  if (typeof error === 'object') {
+    const errObj = error as {
+      status?: unknown
+      statusCode?: unknown
+      message?: unknown
+      response?: { status?: unknown }
+    }
+    if (errObj.status === 401 || errObj.status === 403) return true
+    if (errObj.statusCode === 401 || errObj.statusCode === 403) return true
+    if (errObj.response && (errObj.response.status === 401 || errObj.response.status === 403))
+      return true
+    if (typeof errObj.message === 'string') {
+      const msg = errObj.message.toLowerCase()
+      if (
+        msg.includes('token is expired') ||
+        msg.includes('token expired') ||
+        msg.includes('the request requires valid user authorization token') ||
+        msg.includes('failed to authenticate') ||
+        msg.includes('invalid token')
+      ) {
+        return true
+      }
+    }
+  }
+  return false
+}
