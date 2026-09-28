@@ -29,13 +29,6 @@ export function getErrorMessage(error: unknown): string {
 }
 
 export function isAuthSessionError(error: unknown): boolean {
-  if (!error) return false
-  if (error instanceof ClientResponseError) {
-    return error.status === 401 || error.status === 403
-  }
-  if (typeof error === 'object' && error !== null && 'status' in error) {
-    const s = (error as { status: unknown }).status
-    return s === 401 || s === 403
-  }
-  return false
+  if (!(error instanceof ClientResponseError)) return false
+  return error.status === 401 || error.status === 403
 }
