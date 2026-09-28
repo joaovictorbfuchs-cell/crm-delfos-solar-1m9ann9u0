@@ -837,8 +837,8 @@ export const ModalDetalhesAtividade: React.FC<ModalDetalhesAtividadeProps> = ({
                 <PrazoRGEBadge prazoStr={prazoConclusaoRge} concluida={status === 'concluida'} />
               </div>
 
-              {/* Registro do disparo do e-mail */}
-              {atividade.email_enviado_em && (
+              {/* Registro do disparo do e-mail ou aviso de falha */}
+              {atividade.email_enviado_em ? (
                 <div className="p-2.5 rounded-xl bg-white border border-sky-100 text-[11px] text-sky-900 flex items-center justify-between flex-wrap gap-2">
                   <div className="flex items-center gap-1.5">
                     <CheckCircle className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
@@ -854,6 +854,23 @@ export const ModalDetalhesAtividade: React.FC<ModalDetalhesAtividadeProps> = ({
                     </span>
                   )}
                 </div>
+              ) : (
+                (atividade.email_envio_status === 'falha' || atividade.email_log_erro) && (
+                  <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-900 space-y-1">
+                    <div className="flex items-center gap-1.5 font-semibold text-rose-800">
+                      <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                      <span>Falha no envio do e-mail para a concessionária</span>
+                    </div>
+                    <p className="text-[11px] text-rose-700 font-mono bg-white/70 p-2 rounded-lg border border-rose-100 break-words">
+                      {atividade.email_log_erro || 'Falha reportada durante o disparo via Resend.'}
+                    </p>
+                    {atividade.email_destinatario && (
+                      <p className="text-[10px] text-rose-600">
+                        Destinatário previsto: {atividade.email_destinatario}
+                      </p>
+                    )}
+                  </div>
+                )
               )}
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">

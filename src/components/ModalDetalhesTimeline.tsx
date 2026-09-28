@@ -599,12 +599,22 @@ export const ModalDetalhesTimeline: React.FC<ModalDetalhesTimelineProps> = ({
                   <div className="p-3 rounded-xl bg-sky-50/80 border border-sky-200 text-xs text-sky-950 space-y-1.5">
                     <div className="flex items-center justify-between flex-wrap gap-1 font-bold text-sky-900">
                       <span>Acompanhamento RGE (Faturas 5 anos)</span>
-                      {item.rawAtividade?.email_enviado_em && (
+                      {item.rawAtividade?.email_enviado_em ? (
                         <span className="text-[10px] text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full font-medium">
                           E-mail disparado
                         </span>
-                      )}
+                      ) : item.rawAtividade?.email_envio_status === 'falha' ||
+                        item.rawAtividade?.email_log_erro ? (
+                        <span className="text-[10px] text-rose-700 bg-rose-50 border border-rose-200 px-2 py-0.5 rounded-full font-medium">
+                          Falha no envio de e-mail
+                        </span>
+                      ) : null}
                     </div>
+                    {item.rawAtividade?.email_log_erro && !item.rawAtividade?.email_enviado_em && (
+                      <div className="p-2 rounded bg-rose-50 border border-rose-200 text-[11px] text-rose-800 font-mono break-words">
+                        <strong>Erro de envio:</strong> {item.rawAtividade.email_log_erro}
+                      </div>
+                    )}
                     {item.rawAtividade?.protocolo_atendimento && (
                       <div className="flex items-center gap-1.5">
                         <span className="text-gray-600">Protocolo:</span>

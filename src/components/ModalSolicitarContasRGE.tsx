@@ -476,6 +476,9 @@ export const ModalSolicitarContasRGE: React.FC<ModalSolicitarContasRGEProps> = (
         email_enviado_em: envioSucesso ? agoraIso : undefined,
         email_envio_status: envioSucesso ? 'enviado' : 'falha',
         email_resend_id: resendId,
+        email_log_erro: envioSucesso
+          ? undefined
+          : erroEnvioMsg || 'Falha ao conectar com o serviço de e-mail',
         documentos_anexados: anexosMetadados,
       }
 
@@ -486,6 +489,7 @@ export const ModalSolicitarContasRGE: React.FC<ModalSolicitarContasRGEProps> = (
       } else {
         toast.warning(
           `Atividade registrada, mas o envio do e-mail reportou: ${erroEnvioMsg}. Verifique os detalhes na atividade.`,
+          { duration: 8000 },
         )
       }
 

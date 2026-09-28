@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-28T13:33:20.249Z",
+  "generatedAt": "2026-09-28T14:02:25.856Z",
   "collections": [
     {
       "name": "users",
@@ -1157,6 +1157,12 @@
         {
           "name": "foto_medidor",
           "type": "file",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "email_log_erro",
+          "type": "text",
           "required": false,
           "system": false
         }

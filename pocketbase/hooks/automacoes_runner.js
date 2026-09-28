@@ -342,14 +342,42 @@ cronAdd('automacoes_worker', '0 * * * *', () => {
               mensagemResultado = 'Cliente sem e-mail cadastrado'
             } else {
               try {
-                const emailHelper = require(`${__hooks}/email_send_helper.js`)
-                const resendRes = emailHelper.sendEmailWithResend({
-                  to: emailDestino,
-                  subject: assuntoFinal,
-                  html: corpoFinal,
+                const resendApiKey = ($os.getenv('RESEND_API_KEY') || '').trim()
+                if (!resendApiKey) {
+                  throw new Error('RESEND_API_KEY não configurada nos secrets do backend.')
+                }
+                const resHttp = $http.send({
+                  url: 'https://api.resend.com/emails',
+                  method: 'POST',
+                  headers: {
+                    Authorization: 'Bearer ' + resendApiKey,
+                    'Content-Type': 'application/json',
+                  },
+                  body: JSON.stringify({
+                    from: 'Delfos Solar <delfos.usinas@gmail.com>',
+                    to: [emailDestino],
+                    subject: assuntoFinal,
+                    html: corpoFinal,
+                  }),
+                  timeout: 30,
                 })
-                sucesso = true
-                mensagemResultado = `E-mail enviado para ${emailDestino} via Resend (ID: ${resendRes.id})`
+                let parsedRes = null
+                try {
+                  parsedRes = resHttp.json || (resHttp.raw ? JSON.parse(resHttp.raw) : null)
+                } catch (_) {}
+                if (resHttp.statusCode >= 200 && resHttp.statusCode < 300) {
+                  const resId =
+                    (parsedRes && parsedRes.id) ||
+                    (parsedRes && parsedRes.data && parsedRes.data.id) ||
+                    ''
+                  sucesso = true
+                  mensagemResultado = `E-mail enviado para ${emailDestino} via Resend (ID: ${resId})`
+                } else {
+                  const errDetail =
+                    (parsedRes && (parsedRes.message || parsedRes.error)) ||
+                    (resHttp.raw ? resHttp.raw.substring(0, 200) : 'HTTP ' + resHttp.statusCode)
+                  throw new Error(`Resend retornou erro (${resHttp.statusCode}): ${errDetail}`)
+                }
               } catch (resendErr) {
                 // Fallback para cliente nativo de e-mail se disponível
                 let emailEnviado = false
@@ -657,14 +685,42 @@ routerAdd('POST', '/backend/v1/automacoes/run', (e) => {
           mensagemResultado = 'Cliente sem e-mail cadastrado'
         } else {
           try {
-            const emailHelper = require(`${__hooks}/email_send_helper.js`)
-            const resendRes = emailHelper.sendEmailWithResend({
-              to: emailDestino,
-              subject: assuntoFinal,
-              html: corpoFinal,
+            const resendApiKey = ($os.getenv('RESEND_API_KEY') || '').trim()
+            if (!resendApiKey) {
+              throw new Error('RESEND_API_KEY não configurada nos secrets do backend.')
+            }
+            const resHttp = $http.send({
+              url: 'https://api.resend.com/emails',
+              method: 'POST',
+              headers: {
+                Authorization: 'Bearer ' + resendApiKey,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                from: 'Delfos Solar <delfos.usinas@gmail.com>',
+                to: [emailDestino],
+                subject: assuntoFinal,
+                html: corpoFinal,
+              }),
+              timeout: 30,
             })
-            sucesso = true
-            mensagemResultado = `E-mail enviado para ${emailDestino} via Resend (ID: ${resendRes.id})`
+            let parsedRes = null
+            try {
+              parsedRes = resHttp.json || (resHttp.raw ? JSON.parse(resHttp.raw) : null)
+            } catch (_) {}
+            if (resHttp.statusCode >= 200 && resHttp.statusCode < 300) {
+              const resId =
+                (parsedRes && parsedRes.id) ||
+                (parsedRes && parsedRes.data && parsedRes.data.id) ||
+                ''
+              sucesso = true
+              mensagemResultado = `E-mail enviado para ${emailDestino} via Resend (ID: ${resId})`
+            } else {
+              const errDetail =
+                (parsedRes && (parsedRes.message || parsedRes.error)) ||
+                (resHttp.raw ? resHttp.raw.substring(0, 200) : 'HTTP ' + resHttp.statusCode)
+              throw new Error(`Resend retornou erro (${resHttp.statusCode}): ${errDetail}`)
+            }
           } catch (resendErr) {
             let emailEnviado = false
             try {

@@ -861,6 +861,7 @@ export interface Atividade extends RecordModel {
   email_enviado_em?: string
   email_envio_status?: string
   email_resend_id?: string
+  email_log_erro?: string
   protocolo_atendimento?: string
   retorno_rge?: string
   prazo_conclusao_rge?: string
