@@ -25,24 +25,5 @@ export function getErrorMessage(error: unknown): string {
     return error instanceof Error ? error.message : 'An unexpected error occurred.'
   }
   const msgs = Object.values(extractFieldErrors(error))
-  return msgs.length > 0 ? msgs.join(' ') : error.message || 'An unexpected error occurred.'
-}
-
-export function isAuthSessionError(error: unknown): boolean {
-  if (!error) return false
-  if (error instanceof ClientResponseError) {
-    if (error.status === 401 || error.status === 403) return true
-    const msg = (error.message || '').toLowerCase()
-    return msg.includes('token') || msg.includes('authenticate') || msg.includes('unauthorized')
-  }
-  if (error instanceof Error) {
-    const msg = error.message.toLowerCase()
-    return (
-      msg.includes('something went wrong while processing your request') ||
-      msg.includes('failed to authenticate') ||
-      msg.includes('user not found') ||
-      msg.includes('token is invalid or expired')
-    )
-  }
-  return false
+  return msgs.length > 0 ? msgs.join(' ') : (error.message || 'An unexpected error occurred.')
 }
