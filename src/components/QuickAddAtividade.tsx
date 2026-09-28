@@ -33,7 +33,7 @@ interface QuickAddAtividadeProps {
   onSuccess?: () => void
   onOpenGerenciar?: () => void
   onSelectTipoEspecial?: (tipoId: string) => void
-  onOpenModalCompleto?: () => void
+  onOpenModalCompleto?: (tipo?: AtividadeTipo) => void
 }
 
 export const QuickAddAtividade: React.FC<QuickAddAtividadeProps> = ({
@@ -111,8 +111,12 @@ export const QuickAddAtividade: React.FC<QuickAddAtividadeProps> = ({
     if (firstOfCat) {
       setSubTipo(firstOfCat.id)
       setTitulo(firstOfCat.tituloPadrao)
-      if (firstOfCat.id === 'auto_leitura_rge' && onOpenModalCompleto) {
-        onOpenModalCompleto()
+      if (firstOfCat.id === 'auto_leitura_rge') {
+        if (onSelectTipoEspecial) {
+          onSelectTipoEspecial('auto_leitura_rge')
+        } else if (onOpenModalCompleto) {
+          onOpenModalCompleto()
+        }
       } else if (firstOfCat.id === 'solicitar_contas_rge') {
         setIsModalSolicitarContasOpen(true)
       } else if (
@@ -133,8 +137,12 @@ export const QuickAddAtividade: React.FC<QuickAddAtividadeProps> = ({
   const handleSelectTipo = (item: TipoAtividadeDef) => {
     setSubTipo(item.id)
     setTitulo(item.tituloPadrao)
-    if (item.id === 'auto_leitura_rge' && onOpenModalCompleto) {
-      onOpenModalCompleto()
+    if (item.id === 'auto_leitura_rge') {
+      if (onSelectTipoEspecial) {
+        onSelectTipoEspecial('auto_leitura_rge')
+      } else if (onOpenModalCompleto) {
+        onOpenModalCompleto()
+      }
     } else if (item.id === 'analise_fatura') {
       setIsModalAnaliseFaturaOpen(true)
     } else if (item.id === 'solicitar_contas_rge') {

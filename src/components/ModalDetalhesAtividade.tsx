@@ -639,8 +639,8 @@ export const ModalDetalhesAtividade: React.FC<ModalDetalhesAtividadeProps> = ({
             </div>
           </div>
 
-          {/* Seção de Custos e Deslocamento na edição de detalhes */}
-          {clienteId && (
+          {/* Seção de Custos e Deslocamento na edição de detalhes (apenas para Atividades de Manutenção) */}
+          {clienteId && configAtual.categoria === 'manutencao' && (
             <SecaoCustosDeslocamentoAtividade
               enderecoCliente={clienteAtual?.endereco}
               cidadeCliente={clienteAtual?.cidade}

@@ -103,9 +103,8 @@ export const SecaoCustosDeslocamentoAtividade: React.FC<SecaoCustosDeslocamentoA
     if (valorBaseSugerido !== undefined && valorBaseSugerido > 0) {
       return String(valorBaseSugerido)
     }
-    return categoria === 'manutencao' ? '250' : '0'
+    return '250'
   })
-
   const [valorPorPlaca, setValorPorPlaca] = useState<string>(() => {
     if (initialValues?.valorPorPlaca !== undefined && initialValues.valorPorPlaca > 0) {
       return String(initialValues.valorPorPlaca)

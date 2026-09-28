@@ -647,8 +647,8 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
             />
           </div>
 
-          {/* Seção de Custos e Deslocamento para Atividades de Manutenção ou quando houver cliente */}
-          {clienteId && (
+          {/* Seção de Custos e Deslocamento apenas para Atividades de Manutenção (O&M e Limpeza) */}
+          {clienteId && selectedCategoria === 'manutencao' && (
             <SecaoCustosDeslocamentoAtividade
               enderecoCliente={clientes.find((c) => c.id === clienteId)?.endereco}
               cidadeCliente={clientes.find((c) => c.id === clienteId)?.cidade}

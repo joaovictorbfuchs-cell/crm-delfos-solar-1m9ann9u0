@@ -3902,12 +3902,15 @@ export const FichaClienteDrawer: React.FC = () => {
                     clienteId={selectedCliente.id}
                     usinas={usinasDoCliente}
                     onOpenGerenciar={() => setModalGerenciarAtividadesOpen(true)}
-                    onOpenModalCompleto={() => {
-                      setModalNovaAtividadeTipoFicha(null)
+                    onOpenModalCompleto={(tipo) => {
+                      setModalNovaAtividadeTipoFicha(tipo || null)
                       setModalNovaAtividadeFichaOpen(true)
                     }}
                     onSelectTipoEspecial={async (tipoId) => {
-                      if (tipoId === 'anexo_g') {
+                      if (tipoId === 'auto_leitura_rge') {
+                        setModalNovaAtividadeTipoFicha('auto_leitura_rge')
+                        setModalNovaAtividadeFichaOpen(true)
+                      } else if (tipoId === 'anexo_g') {
                         handleAbrirDocumentoProjeto('anexo_g', propostaAprovada)
                       } else if (tipoId === 'troca_titularidade') {
                         handleAbrirDocumentoProjeto('troca_titularidade', propostaAprovada)
