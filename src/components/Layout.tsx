@@ -26,6 +26,7 @@ import {
   Zap,
   ListChecks,
   Contact,
+  Layers,
 } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { useClientes } from '@/contexts/ClientesContext'
@@ -75,6 +76,8 @@ export default function Layout() {
         return 'Propostas & Orçamentos Solares'
       case '/projetos':
         return 'Projetos & Pós-Venda'
+      case '/central-atividades':
+        return 'Central de Atividades'
       case '/atividades':
         return 'Atividades & Calendário'
       case '/servicos-campo':
@@ -162,6 +165,7 @@ export default function Layout() {
         { name: 'Dashboard', path: '/', icon: LayoutDashboard },
         { name: 'Comercial', path: '/comercial', icon: KanbanSquare },
         { name: 'Propostas', path: '/propostas', icon: Sun },
+        { name: 'Central de Atividades', path: '/central-atividades', icon: Layers },
         { name: 'Projetos', path: '/projetos', icon: FolderKanban },
         { name: 'Atividades', path: '/atividades', icon: CalendarCheck },
         { name: 'Serviços de Campo', path: '/servicos-campo', icon: Wrench },

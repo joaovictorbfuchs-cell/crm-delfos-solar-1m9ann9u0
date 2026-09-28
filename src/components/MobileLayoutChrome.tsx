@@ -25,6 +25,7 @@ import {
   Check,
   ChevronDown,
   BookOpen,
+  Layers,
 } from 'lucide-react'
 import {
   DropdownMenu,
@@ -85,6 +86,9 @@ export const MobileLayoutChrome: React.FC<MobileLayoutChromeProps> = ({
     }
     if (location.pathname === '/projetos') {
       return { id: 'projetos', label: 'Funil de Projetos', isFunil: true }
+    }
+    if (location.pathname === '/central-atividades') {
+      return { id: 'central-atividades', label: 'Central de Atividades', isFunil: false }
     }
     if (location.pathname === '/atividades') {
       return { id: 'atividades', label: 'Atividades', isFunil: false }
@@ -301,6 +305,7 @@ export const MobileLayoutChrome: React.FC<MobileLayoutChromeProps> = ({
         { label: 'Funil Comercial', path: '/comercial', icon: KanbanSquare },
         { label: 'Funil de Projetos', path: '/projetos', icon: FolderKanban },
         { label: 'Propostas & Orçamentos', path: '/propostas', icon: Sun },
+        { label: 'Central de Atividades', path: '/central-atividades', icon: Layers },
         { label: 'Atividades & Calendário', path: '/atividades', icon: CalendarCheck },
         { label: 'Gestão de Clientes', path: '/clientes', icon: Users },
         { label: 'Base de Conhecimento', path: '/base-conhecimento', icon: BookOpen },
@@ -417,6 +422,23 @@ export const MobileLayoutChrome: React.FC<MobileLayoutChromeProps> = ({
               </DropdownMenuItem>
 
               <DropdownMenuSeparator className="my-1" />
+
+              <DropdownMenuItem
+                onClick={() => navigate('/central-atividades')}
+                className={`flex items-center justify-between cursor-pointer py-2 px-2.5 rounded-lg text-xs font-medium ${
+                  location.pathname === '/central-atividades'
+                    ? 'bg-emerald-50 text-emerald-800 font-bold'
+                    : 'text-gray-700'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <Layers className="w-4 h-4 text-emerald-600" />
+                  <span>Central de Atividades</span>
+                </div>
+                {location.pathname === '/central-atividades' && (
+                  <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                )}
+              </DropdownMenuItem>
 
               <DropdownMenuItem
                 onClick={() => navigate('/atividades')}

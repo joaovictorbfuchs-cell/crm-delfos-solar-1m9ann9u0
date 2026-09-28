@@ -24,6 +24,7 @@ import AtivosPage from './pages/Ativos'
 import AutomacoesPage from './pages/Automacoes'
 import CatalogoAtividades from './pages/CatalogoAtividades'
 import Atividades from './pages/Atividades'
+import CentralAtividades from './pages/CentralAtividades'
 import ExecucaoOS from './pages/ExecucaoOS'
 import MinhasOS from './pages/MinhasOS'
 import { CentralAtendimento } from './pages/CentralAtendimento'
@@ -160,6 +161,16 @@ const App = () => (
               element={
                 <ProtectedRoute requiredRole="admin">
                   <Projetos />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/central-atividades"
+              element={
+                <ProtectedRoute requiredRole="admin">
+                  <ErrorBoundary errorMessage="Ocorreu um problema ao carregar a Central de Atividades">
+                    <CentralAtividades />
+                  </ErrorBoundary>
                 </ProtectedRoute>
               }
             />
