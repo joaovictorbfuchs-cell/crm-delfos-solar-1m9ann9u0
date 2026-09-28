@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-28T01:12:17.303Z",
+  "generatedAt": "2026-09-28T01:26:57.365Z",
   "collections": [
     {
       "name": "users",
@@ -872,7 +872,8 @@
             "gerar_contrato",
             "oferecer_limpeza_avulsa",
             "solicitar_contas_rge",
-            "mensagem_enviada"
+            "mensagem_enviada",
+            "analise_fatura"
           ]
         },
         {
@@ -5486,6 +5487,152 @@
         "CREATE INDEX idx_negocios_cliente ON negocios (cliente_id)",
         "CREATE INDEX idx_negocios_status ON negocios (status)",
         "CREATE INDEX idx_negocios_etapa ON negocios (etapa_funil)"
+      ]
+    },
+    {
+      "name": "analises_fatura",
+      "type": "base",
+      "apiRules": {
+        "list": "",
+        "view": "",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "token",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "cliente_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "clientes"
+        },
+        {
+          "name": "cliente_nome",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "uc",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "competencia",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "vencimento",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "total_pagar",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "consumo_kwh",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "energia_injetada_kwh",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "creditos_compensados_kwh",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "saldo_energia_kwh",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "saldo_expirar_kwh",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "economia_estimada_rs",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "papel_uc",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "arquivos_nomes",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "dados_completos",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "atividade_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "whatsapp_enviado",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "whatsapp_enviado_em",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE UNIQUE INDEX idx_analises_fatura_token ON analises_fatura (token)",
+        "CREATE INDEX idx_analises_fatura_cliente ON analises_fatura (cliente_id, created DESC)"
       ]
     }
   ]

@@ -12,8 +12,10 @@ import {
   Trash2,
   CalendarDays,
   FileText,
+  Sparkles,
 } from 'lucide-react'
 import { ModalSolicitarContasRGE } from '@/components/ModalSolicitarContasRGE'
+import { ModalCriarAnaliseFatura } from '@/components/ModalCriarAnaliseFatura'
 import { useClientes } from '@/contexts/ClientesContext'
 import { useAuth } from '@/contexts/AuthContext'
 import { ClienteAutocomplete } from '@/components/ClienteAutocomplete'
@@ -110,6 +112,7 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
   const [formError, setFormError] = useState<string | null>(null)
   const [formSuccess, setFormSuccess] = useState(false)
   const [isModalSolicitarContasOpen, setIsModalSolicitarContasOpen] = useState(false)
+  const [isModalAnaliseFaturaOpen, setIsModalAnaliseFaturaOpen] = useState(false)
 
   // Valores de custo e deslocamento
   const [custosValores, setCustosValores] = useState<CustosDeslocamentoValues | null>(null)
@@ -220,6 +223,8 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
       setProgramacaoLeituras(ITENS_EXEMPLO_PROGRAMACAO.map((it) => ({ ...it })))
     } else if (novoTipo === 'solicitar_contas_rge') {
       setIsModalSolicitarContasOpen(true)
+    } else if (novoTipo === 'analise_fatura') {
+      setIsModalAnaliseFaturaOpen(true)
     }
   }
 
@@ -382,6 +387,25 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
               className="px-3 py-1 bg-sky-600 text-white font-bold rounded-lg hover:bg-sky-700 transition-colors shrink-0"
             >
               Abrir tela completa
+            </button>
+          </div>
+        )}
+        {/* Banner de atalho se selecionar Análise de Fatura */}
+        {selectedTipo === 'analise_fatura' && (
+          <div className="mx-5 mt-4 p-3 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center justify-between gap-3 text-xs text-emerald-900">
+            <div className="flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-emerald-600 shrink-0" />
+              <span>
+                Análise automática via IA Gemini: anexe a fatura e obtenha o relatório interativo
+                completo.
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsModalAnaliseFaturaOpen(true)}
+              className="px-3 py-1 bg-emerald-600 text-white font-bold rounded-lg hover:bg-emerald-700 transition-colors shrink-0"
+            >
+              Analisar fatura agora
             </button>
           </div>
         )}
@@ -789,6 +813,17 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
           }}
         />
       )}
+
+      {/* Modal Dedicado para Análise de Fatura RGE com Gemini */}
+      <ModalCriarAnaliseFatura
+        isOpen={isModalAnaliseFaturaOpen}
+        onClose={() => setIsModalAnaliseFaturaOpen(false)}
+        initialClienteId={clienteId || undefined}
+        onAnaliseConcluida={() => {
+          setIsModalAnaliseFaturaOpen(false)
+          onClose()
+        }}
+      />
     </div>
   )
 }

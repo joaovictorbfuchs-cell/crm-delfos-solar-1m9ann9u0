@@ -31,6 +31,7 @@ import ImportarAcessos from './pages/ImportarAcessos'
 import GerenciarUsuarios from './pages/GerenciarUsuarios'
 import Login from './pages/Login'
 import RedefinirSenha from './pages/RedefinirSenha'
+import RelatorioFaturaPage from './pages/RelatorioFatura'
 import NotFound from './pages/NotFound'
 
 const App = () => (
@@ -54,6 +55,15 @@ const App = () => (
             element={
               <ErrorBoundary errorMessage="Ocorreu um problema ao carregar a recuperação de senha">
                 <RedefinirSenha />
+              </ErrorBoundary>
+            }
+          />
+          {/* Rota pública para visualização do Relatório Completo de Análise de Fatura RGE */}
+          <Route
+            path="/relatorio-fatura/:token"
+            element={
+              <ErrorBoundary errorMessage="Ocorreu um problema ao carregar o relatório de análise de fatura">
+                <RelatorioFaturaPage />
               </ErrorBoundary>
             }
           />

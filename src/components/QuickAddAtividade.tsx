@@ -23,6 +23,7 @@ import {
 import { useClientes } from '@/contexts/ClientesContext'
 import { useAuth } from '@/contexts/AuthContext'
 import { ModalSolicitarContasRGE } from '@/components/ModalSolicitarContasRGE'
+import { ModalCriarAnaliseFatura } from '@/components/ModalCriarAnaliseFatura'
 import type { AtividadeTipo, AtividadeCategoriaId, UsinaCliente } from '@/types/crm'
 import { Sun } from 'lucide-react'
 
@@ -57,6 +58,7 @@ export const QuickAddAtividade: React.FC<QuickAddAtividadeProps> = ({
 
   // Modal de Solicitar contas RGE
   const [isModalSolicitarContasOpen, setIsModalSolicitarContasOpen] = useState(false)
+  const [isModalAnaliseFaturaOpen, setIsModalAnaliseFaturaOpen] = useState(false)
 
   // Form states
   const [titulo, setTitulo] = useState('Entrar em contato')
@@ -126,7 +128,9 @@ export const QuickAddAtividade: React.FC<QuickAddAtividadeProps> = ({
   const handleSelectTipo = (item: TipoAtividadeDef) => {
     setSubTipo(item.id)
     setTitulo(item.tituloPadrao)
-    if (item.id === 'solicitar_contas_rge') {
+    if (item.id === 'analise_fatura') {
+      setIsModalAnaliseFaturaOpen(true)
+    } else if (item.id === 'solicitar_contas_rge') {
       setIsModalSolicitarContasOpen(true)
     } else if (
       onSelectTipoEspecial &&
@@ -216,6 +220,7 @@ export const QuickAddAtividade: React.FC<QuickAddAtividadeProps> = ({
           'gerar_procuracao',
           'gerar_contrato',
           'solicitar_contas_rge',
+          'analise_fatura',
           'custom',
         ])
 
@@ -435,6 +440,7 @@ export const QuickAddAtividade: React.FC<QuickAddAtividadeProps> = ({
                         item.id === 'gerar_procuracao' ||
                         item.id === 'gerar_contrato' ||
                         item.id === 'oferecer_limpeza_avulsa' ||
+                        item.id === 'analise_fatura' ||
                         item.id === 'solicitar_contas_rge' ? (
                         <span
                           className={`text-[9px] font-semibold block ${
@@ -443,9 +449,11 @@ export const QuickAddAtividade: React.FC<QuickAddAtividadeProps> = ({
                         >
                           {item.id === 'oferecer_limpeza_avulsa'
                             ? 'WhatsApp ↗'
-                            : item.id === 'solicitar_contas_rge'
-                              ? 'e-mail RGE ↗'
-                              : 'fluxo dedicado ↗'}
+                            : item.id === 'analise_fatura'
+                              ? 'IA Gemini ↗'
+                              : item.id === 'solicitar_contas_rge'
+                                ? 'e-mail RGE ↗'
+                                : 'fluxo dedicado ↗'}
                         </span>
                       ) : null}
                     </div>
@@ -619,6 +627,17 @@ export const QuickAddAtividade: React.FC<QuickAddAtividadeProps> = ({
           </button>
         </div>
       </form>
+      {/* Modal Dedicado para Análise de Fatura RGE */}
+      <ModalCriarAnaliseFatura
+        isOpen={isModalAnaliseFaturaOpen}
+        onClose={() => setIsModalAnaliseFaturaOpen(false)}
+        initialClienteId={clienteId}
+        onAnaliseConcluida={() => {
+          setIsModalAnaliseFaturaOpen(false)
+          if (onSuccess) onSuccess()
+        }}
+      />
+
       {/* Modal Dedicado de Solicitar Contas RGE */}
       {isModalSolicitarContasOpen && (
         <ModalSolicitarContasRGE

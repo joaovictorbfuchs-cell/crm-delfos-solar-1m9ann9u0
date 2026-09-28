@@ -72,6 +72,7 @@ import { ModalOferecerLimpezaAvulsa } from './ModalOferecerLimpezaAvulsa'
 import { ModalGerenciarAtividades } from './ModalGerenciarAtividades'
 import { ModalGerarProcuracaoOM } from './ModalGerarProcuracaoOM'
 import { ModalSolicitarContasRGE } from './ModalSolicitarContasRGE'
+import { ModalCriarAnaliseFatura } from './ModalCriarAnaliseFatura'
 import { ModalGerarContratoOM } from './ModalGerarContratoOM'
 import { ModalNovaAtividade } from './ModalNovaAtividade'
 import { ModalSolicitacaoInformacoes } from './ModalSolicitacaoInformacoes'
@@ -296,6 +297,7 @@ export const FichaClienteDrawer: React.FC = () => {
   const [modalProcuracaoOMOpen, setModalProcuracaoOMOpen] = useState(false)
   const [modalContratoOMOpen, setModalContratoOMOpen] = useState(false)
   const [modalSolicitarContasRGEOpen, setModalSolicitarContasRGEOpen] = useState(false)
+  const [modalAnaliseFaturaOpen, setModalAnaliseFaturaOpen] = useState(false)
   const [contratoOMDetalhesDados, setContratoOMDetalhesDados] = useState<any>(null)
   const [modoVisualizacaoContratoDireta, setModoVisualizacaoContratoDireta] = useState(false)
 
@@ -3917,6 +3919,8 @@ export const FichaClienteDrawer: React.FC = () => {
                         handleDispararGerarContrato()
                       } else if (tipoId === 'oferecer_limpeza_avulsa') {
                         setModalOferecerLimpezaOpen(true)
+                      } else if (tipoId === 'analise_fatura') {
+                        setModalAnaliseFaturaOpen(true)
                       } else if (tipoId === 'solicitar_contas_rge') {
                         setModalSolicitarContasRGEOpen(true)
                       }
@@ -4504,6 +4508,16 @@ export const FichaClienteDrawer: React.FC = () => {
         open={modalGerenciarAtividadesOpen}
         onOpenChange={setModalGerenciarAtividadesOpen}
       />
+
+      {/* Modal Dedicado de Análise de Fatura RGE com Gemini */}
+      {selectedCliente && (
+        <ModalCriarAnaliseFatura
+          isOpen={modalAnaliseFaturaOpen}
+          onClose={() => setModalAnaliseFaturaOpen(false)}
+          initialClienteId={selectedCliente.id}
+          onAnaliseConcluida={() => setModalAnaliseFaturaOpen(false)}
+        />
+      )}
 
       {/* Modal Solicitar Contas RGE com envio por e-mail e anexos */}
       {selectedCliente && (

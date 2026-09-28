@@ -16,6 +16,7 @@ import {
   ExternalLink,
   Send,
   CalendarDays,
+  Sparkles,
 } from 'lucide-react'
 import { PrazoRGEBadge } from '@/components/PrazoRGEBadge'
 import { useClientes } from '@/contexts/ClientesContext'
@@ -658,6 +659,49 @@ export const ModalDetalhesAtividade: React.FC<ModalDetalhesAtividadeProps> = ({
                   />
                 </div>
               </div>
+            </div>
+          )}
+
+          {/* SEÇÃO ESPECIAL: LINK DO RELATÓRIO DE ANÁLISE DE FATURA */}
+          {tipo === 'analise_fatura' && (
+            <div className="p-3.5 rounded-2xl border border-emerald-200 bg-emerald-50/50 space-y-2 text-xs">
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-emerald-900 flex items-center gap-1.5">
+                  <Sparkles className="w-4 h-4 text-emerald-600" />
+                  Relatório da Análise de Fatura RGE
+                </span>
+                <span className="text-[10px] text-emerald-700 font-semibold bg-emerald-100 px-2 py-0.5 rounded-full">
+                  Inteligência Gemini
+                </span>
+              </div>
+              <p className="text-[11px] text-emerald-800">
+                Esta atividade possui auditoria detalhada com KPIs de geração, desdobramento
+                tarifário, GD e impostos.
+              </p>
+              <button
+                type="button"
+                onClick={async () => {
+                  try {
+                    const col = await import('@/lib/pocketbase/client').then((m) =>
+                      m.default.collection('analises_fatura').getList(1, 1, {
+                        filter: `atividade_id = '${atividade.id}' || cliente_id = '${clienteId}'`,
+                        sort: '-created',
+                      }),
+                    )
+                    if (col.items.length > 0) {
+                      window.open(`/relatorio-fatura/${col.items[0].token}`, '_blank')
+                    } else {
+                      alert('Nenhuma análise vinculada encontrada para esta atividade.')
+                    }
+                  } catch (e) {
+                    console.warn(e)
+                  }
+                }}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-colors shadow-2xs"
+              >
+                <ExternalLink className="w-3.5 h-3.5" />
+                <span>Abrir Relatório Completo</span>
+              </button>
             </div>
           )}
 

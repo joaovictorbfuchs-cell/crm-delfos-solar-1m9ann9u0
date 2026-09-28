@@ -76,6 +76,7 @@ export type AtividadeTipo =
   | 'configuracao_datalogger'
   | 'garantia_equipamento'
   // 3. Atividades Administrativas / RGE / Pós-Venda:
+  | 'analise_fatura'
   | 'auto_leitura_rge'
   | 'relatorio_solarview'
   | 'anexo_g'

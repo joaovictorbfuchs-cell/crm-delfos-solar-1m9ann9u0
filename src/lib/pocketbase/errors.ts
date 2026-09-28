@@ -33,14 +33,8 @@ export function isAuthSessionError(error: unknown): boolean {
     return error.status === 401 || error.status === 403
   }
   if (error && typeof error === 'object' && 'status' in error) {
-    const s = (error as { status: unknown }).status
-    return s === 401 || s === 403
+    const status = (error as { status?: number }).status
+    return status === 401 || status === 403
   }
-  const msg = error instanceof Error ? error.message : String(error)
-  return (
-    msg.includes('Failed to authenticate') ||
-    msg.includes('The request requires valid record authorization token') ||
-    msg.includes('401') ||
-    msg.includes('403')
-  )
+  return false
 }

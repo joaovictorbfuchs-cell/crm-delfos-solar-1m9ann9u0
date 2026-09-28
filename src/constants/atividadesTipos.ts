@@ -260,6 +260,20 @@ export const ATIVIDADES_PADRAO: TipoAtividadeDef[] = [
 
   // --- Categoria 3: Atividades Administrativas / RGE / Pós-Venda ---
   {
+    id: 'analise_fatura',
+    categoria: 'administrativo_pos_venda',
+    tituloPadrao: 'Análise de Fatura',
+    descricaoAjuda:
+      'Auditoria completa de fatura de energia RGE com IA Gemini: tarifas, GD, saldo, impostos e relatório acionável',
+    corHex: '#059669',
+    badgeClass: 'bg-emerald-50 text-emerald-800 border-emerald-300',
+    iconBg: 'bg-emerald-100 text-emerald-800 border-emerald-200',
+    iconText: 'text-emerald-700',
+    borderClass: 'border-emerald-500',
+    icon: Sparkles,
+    isPadrao: true,
+  },
+  {
     id: 'auto_leitura_rge',
     categoria: 'administrativo_pos_venda',
     tituloPadrao: 'Auto Leitura - RGE',
