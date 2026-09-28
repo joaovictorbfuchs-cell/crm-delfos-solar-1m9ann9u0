@@ -8,21 +8,12 @@ import {
   AlertCircle,
   Loader2,
   Sparkles,
-  ArrowRight,
   RotateCcw,
   ShieldAlert,
-  Info,
-  Check,
   Zap,
   MapPin,
   User,
   Activity,
-  Layers,
-  FileCheck,
-  Building2,
-  Tag,
-  Plus,
-  Package,
 } from 'lucide-react'
 import {
   extrairDadosDocumento,
@@ -34,22 +25,9 @@ import {
   isFaturaRGEProvavel,
   type FaturaRGEDadosExtraidos,
 } from '@/services/faturaRGEService'
-import {
-  isOrcamentoFornecedorTexto,
-  extrairOrcamentoFotovoltaicoPDF,
-  validarCNPJ,
-} from '@/lib/orcamentoParser'
+import { validarCNPJ } from '@/lib/orcamentoParser'
 import { validarCPF } from '@/lib/cpfValidator'
-import type {
-  Cliente,
-  Sistema,
-  TelhadoTipo,
-  TipoAtendimento,
-  NumeroFases,
-  FornecedorOrcamentoExtraido,
-  FornecedorItemOrcamento,
-} from '@/types/crm'
-import { useClientes } from '@/contexts/ClientesContext'
+import type { Cliente, Sistema, TelhadoTipo, TipoAtendimento, NumeroFases } from '@/types/crm'
 import { toast } from '@/hooks/use-toast'
 
 interface ImportarDadosDocumentoProps {
@@ -84,8 +62,6 @@ export const ImportarDadosDocumento: React.FC<ImportarDadosDocumentoProps> = ({
   onApplyImport,
   onClose,
 }) => {
-  const { fornecedores, addFornecedorOrcamento } = useClientes()
-
   const [file, setFile] = useState<File | null>(null)
   const [isDragging, setIsDragging] = useState(false)
   const [isAnalyzing, setIsAnalyzing] = useState(false)
@@ -96,13 +72,6 @@ export const ImportarDadosDocumento: React.FC<ImportarDadosDocumentoProps> = ({
   const [selectedFields, setSelectedFields] = useState<Record<string, boolean>>({})
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
-
-  // Estado para detecção de orçamento de fornecedor
-  const [orcamentoFornecedorDetectado, setOrcamentoFornecedorDetectado] =
-    useState<FornecedorOrcamentoExtraido | null>(null)
-  const [salvandoOrcamentoFornecedor, setSalvandoOrcamentoFornecedor] = useState(false)
-  const [orcamentoFornecedorSalvo, setOrcamentoFornecedorSalvo] = useState(false)
-  const [modoVisualizacao, setModoVisualizacao] = useState<'cliente' | 'fornecedor'>('cliente')
 
   // Estado para detecção especializada de Fatura RGE via Gemini
   const [faturaRGEDetectada, setFaturaRGEDetectada] = useState<FaturaRGEDadosExtraidos | null>(null)
@@ -677,10 +646,7 @@ export const ImportarDadosDocumento: React.FC<ImportarDadosDocumentoProps> = ({
     setIsAnalyzing(true)
     setAnalyzingProgressText('Iniciando análise do documento...')
     setExtractionResult(null)
-    setOrcamentoFornecedorDetectado(null)
-    setOrcamentoFornecedorSalvo(false)
     setFaturaRGEDetectada(null)
-    setModoVisualizacao('cliente')
 
     try {
       // 0. Verificar se o documento parece ser uma fatura da RGE (ou se o usuário está subindo PDF/imagem de fatura)
@@ -877,61 +843,7 @@ export const ImportarDadosDocumento: React.FC<ImportarDadosDocumentoProps> = ({
         }
       }
 
-      // 2. Análise para verificar se o documento é um Orçamento de Fornecedor Solar
-      const isPdf =
-        selectedFile.type === 'application/pdf' || selectedFile.name.toLowerCase().endsWith('.pdf')
-      const isImg =
-        selectedFile.type.startsWith('image/') ||
-        ['.jpg', '.jpeg', '.png', '.webp'].some((ext) =>
-          selectedFile.name.toLowerCase().endsWith(ext),
-        )
-
-      const textoParaVerificacao = `${res.fileInfo?.textContent || ''} ${res.raw_text || ''}`
-      const orcamentoCheck = isOrcamentoFornecedorTexto(textoParaVerificacao, selectedFile.name)
-
-      if (orcamentoCheck.isOrcamento && isPdf) {
-        try {
-          const dadosFornecedor = await extrairOrcamentoFotovoltaicoPDF(selectedFile, fornecedores)
-          if (dadosFornecedor) {
-            setOrcamentoFornecedorDetectado(dadosFornecedor)
-            setModoVisualizacao('fornecedor')
-          }
-        } catch (e) {
-          console.warn('[ImportarDadosDocumento] Falha ao extrair orçamento fotovoltaico:', e)
-        }
-      } else if (orcamentoCheck.isOrcamento && isImg) {
-        // Se for imagem com marcas solares e orçamento, estruturar itens a partir do OCR
-        try {
-          const { parsearTextoOCR } = await import('@/services/ocrImagemService')
-          const ocrResult = parsearTextoOCR(textoParaVerificacao, selectedFile.name, fornecedores)
-          if (ocrResult) {
-            setOrcamentoFornecedorDetectado({
-              nome_fornecedor:
-                ocrResult.fornecedorDetectado ||
-                selectedFile.name.replace(/\.[a-zA-Z0-9]+$/, '').replace(/[-_]/g, ' ') ||
-                'Fornecedor Solar',
-              fornecedor_id: ocrResult.fornecedorIdDetectado,
-              numero_revisao: ocrResult.numeroRevisaoDetectado || 'REV-01',
-              valor_total: ocrResult.valorTotalSugerido || 0,
-              modulos: ocrResult.modulosSugeridos || [],
-              inversores: ocrResult.inversoresSugeridos || [],
-              acessorios: ocrResult.acessoriosSugeridos || [],
-              observacoes: `Extraído automaticamente de ${selectedFile.name}`,
-            })
-            setModoVisualizacao('fornecedor')
-          }
-        } catch (e) {
-          console.warn('[ImportarDadosDocumento] Falha ao parsear imagem como orçamento:', e)
-        }
-      }
-
       if (!res.ok || !res.data) {
-        // Se falhou como documento cadastral, mas identificou orçamento de fornecedor, mantemos a tela de orçamento
-        if (orcamentoCheck.isOrcamento) {
-          setExtractionResult(res)
-          return
-        }
-
         setErrorMessage(
           res.message ||
             'Não foi possível identificar dados legíveis neste arquivo. Se for uma foto/print de conta ou documento, certifique-se de que o texto esteja nítido e sem reflexos.',
@@ -950,7 +862,7 @@ export const ImportarDadosDocumento: React.FC<ImportarDadosDocumentoProps> = ({
       })
       setSelectedFields(initialSelection)
 
-      if (fieldItems.length === 0 && !orcamentoCheck.isOrcamento) {
+      if (fieldItems.length === 0) {
         setErrorMessage(
           'Nenhum dado cadastral ou de instalação relevante para o cliente foi encontrado no documento.',
         )
@@ -1001,62 +913,6 @@ export const ImportarDadosDocumento: React.FC<ImportarDadosDocumentoProps> = ({
       ...prev,
       [id]: !prev[id],
     }))
-  }
-
-  // Salvar Orçamento de Fornecedor vinculado ao cliente
-  const handleSalvarOrcamentoFornecedor = async () => {
-    if (!orcamentoFornecedorDetectado || !file) return
-    setSalvandoOrcamentoFornecedor(true)
-
-    try {
-      let fornId = orcamentoFornecedorDetectado.fornecedor_id
-      if (!fornId) {
-        const matching = fornecedores.find(
-          (f) =>
-            f.nome_empresa?.toLowerCase() ===
-            orcamentoFornecedorDetectado.nome_fornecedor?.toLowerCase(),
-        )
-        if (matching) fornId = matching.id
-      }
-
-      await addFornecedorOrcamento(
-        {
-          nome_fornecedor: orcamentoFornecedorDetectado.nome_fornecedor || 'Fornecedor Solar',
-          fornecedor_id: fornId,
-          cliente_id: cliente.id,
-          data: new Date().toISOString(),
-          numero_revisao: orcamentoFornecedorDetectado.numero_revisao || 'REV-01',
-          valor_total: orcamentoFornecedorDetectado.valor_total || 0,
-          modulos: (orcamentoFornecedorDetectado.modulos || []).filter((m) => m.descricao?.trim()),
-          inversores: (orcamentoFornecedorDetectado.inversores || []).filter((inv) =>
-            inv.descricao?.trim(),
-          ),
-          acessorios: (orcamentoFornecedorDetectado.acessorios || []).filter((a) =>
-            a.descricao?.trim(),
-          ),
-          observacoes:
-            orcamentoFornecedorDetectado.observacoes ||
-            `Importado via documento de cliente: ${file.name}`,
-        },
-        file,
-      )
-
-      setOrcamentoFornecedorSalvo(true)
-      toast({
-        title: 'Cotação de fornecedor salva com sucesso!',
-        description: `Orçamento da ${orcamentoFornecedorDetectado.nome_fornecedor} vinculado ao cliente ${cliente.nome}.`,
-      })
-    } catch (err) {
-      console.error('Erro ao salvar orçamento de fornecedor:', err)
-      toast({
-        title: 'Erro ao salvar cotação',
-        description:
-          'Não foi possível salvar o orçamento do fornecedor. Verifique a conexão e tente novamente.',
-        variant: 'destructive',
-      })
-    } finally {
-      setSalvandoOrcamentoFornecedor(false)
-    }
   }
 
   // Aplica os dados selecionados ao cliente e ao sistema
@@ -1400,12 +1256,6 @@ export const ImportarDadosDocumento: React.FC<ImportarDadosDocumentoProps> = ({
                   <span className="text-[10px] bg-emerald-100 text-emerald-800 px-1.5 py-0.2 rounded font-semibold uppercase">
                     Analisado
                   </span>
-                  {orcamentoFornecedorDetectado && (
-                    <span className="text-[10px] bg-blue-100 text-blue-900 border border-blue-200 px-2 py-0.5 rounded-full font-bold inline-flex items-center gap-1">
-                      <Tag className="w-3 h-3 text-blue-700" />
-                      Identificado como Orçamento de Fornecedor
-                    </span>
-                  )}
                   {faturaRGEDetectada && (
                     <span className="text-[10px] bg-amber-100 text-amber-900 border border-amber-300 px-2 py-0.5 rounded-full font-bold inline-flex items-center gap-1">
                       <Zap className="w-3 h-3 text-amber-600" />
@@ -1418,48 +1268,17 @@ export const ImportarDadosDocumento: React.FC<ImportarDadosDocumentoProps> = ({
                   {allItems.length > 0 && ` • ${allItems.length} campos cadastrais`}
                   {faturaRGEDetectada &&
                     ` • UC: ${faturaRGEDetectada.uc || 'N/I'} • Média: ${faturaRGEDetectada.calculos?.media_mensal_consumo_kwh || 0} kWh`}
-                  {orcamentoFornecedorDetectado &&
-                    ` • Fornecedor: ${orcamentoFornecedorDetectado.nome_fornecedor}`}
                 </div>
               </div>
             </div>
 
             <div className="flex items-center gap-2">
-              {orcamentoFornecedorDetectado && allItems.length > 0 && (
-                <div className="flex items-center rounded-lg border border-gray-300 p-0.5 bg-white text-xs font-semibold">
-                  <button
-                    type="button"
-                    onClick={() => setModoVisualizacao('cliente')}
-                    className={`px-2.5 py-1 rounded-md transition-colors ${
-                      modoVisualizacao === 'cliente'
-                        ? 'bg-emerald-600 text-white font-bold'
-                        : 'text-gray-600 hover:text-gray-900'
-                    }`}
-                  >
-                    Dados do Cliente
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setModoVisualizacao('fornecedor')}
-                    className={`px-2.5 py-1 rounded-md transition-colors ${
-                      modoVisualizacao === 'fornecedor'
-                        ? 'bg-blue-600 text-white font-bold'
-                        : 'text-gray-600 hover:text-gray-900'
-                    }`}
-                  >
-                    Itens da Cotação
-                  </button>
-                </div>
-              )}
-
               <button
                 type="button"
                 onClick={() => {
                   setExtractionResult(null)
                   setFile(null)
                   setSelectedFields({})
-                  setOrcamentoFornecedorDetectado(null)
-                  setOrcamentoFornecedorSalvo(false)
                 }}
                 className="text-xs font-semibold text-gray-600 hover:text-gray-900 bg-white px-2.5 py-1.5 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors inline-flex items-center gap-1"
               >
@@ -1576,156 +1395,6 @@ export const ImportarDadosDocumento: React.FC<ImportarDadosDocumentoProps> = ({
             </div>
           )}
 
-          {/* Banner de Cotação de Fornecedor Identificada */}
-          {orcamentoFornecedorDetectado && (
-            <div className="p-4 rounded-xl border border-blue-200 bg-gradient-to-br from-blue-50/80 via-white to-sky-50/50 space-y-3">
-              <div className="flex items-start justify-between flex-wrap gap-2">
-                <div className="flex items-center gap-2">
-                  <div className="p-2 bg-blue-600 text-white rounded-lg">
-                    <Building2 className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <h4 className="text-xs font-bold text-blue-950 uppercase tracking-wider flex items-center gap-1.5">
-                      <span>Cotação de Fornecedor Solar</span>
-                      <span className="text-[10px] bg-blue-100 text-blue-800 px-1.5 py-0.2 rounded font-bold">
-                        {orcamentoFornecedorDetectado.numero_revisao || 'REV-01'}
-                      </span>
-                    </h4>
-                    <p className="text-xs text-blue-900 font-semibold">
-                      Fornecedor: {orcamentoFornecedorDetectado.nome_fornecedor}
-                      {orcamentoFornecedorDetectado.valor_total > 0 && (
-                        <span className="ml-2 text-emerald-800 font-bold">
-                          • Total: R${' '}
-                          {orcamentoFornecedorDetectado.valor_total.toLocaleString('pt-BR', {
-                            minimumFractionDigits: 2,
-                          })}
-                        </span>
-                      )}
-                    </p>
-                  </div>
-                </div>
-
-                <div>
-                  {orcamentoFornecedorSalvo ? (
-                    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-100 text-emerald-800 text-xs font-bold rounded-lg border border-emerald-300">
-                      <Check className="w-3.5 h-3.5" />
-                      Salvo em Orçamentos de Fornecedores
-                    </span>
-                  ) : (
-                    <button
-                      type="button"
-                      disabled={salvandoOrcamentoFornecedor}
-                      onClick={handleSalvarOrcamentoFornecedor}
-                      className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg shadow-2xs transition-all disabled:opacity-50"
-                    >
-                      {salvandoOrcamentoFornecedor ? (
-                        <>
-                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                          <span>Gravando cotação...</span>
-                        </>
-                      ) : (
-                        <>
-                          <Plus className="w-3.5 h-3.5" />
-                          <span>Salvar como Cotação do Fornecedor</span>
-                        </>
-                      )}
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              {/* Itens detectados do kit solar */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5 pt-1 text-xs">
-                {/* Módulos */}
-                <div className="p-2.5 bg-white rounded-lg border border-blue-100 space-y-1">
-                  <div className="flex items-center justify-between text-[11px] font-bold text-gray-700">
-                    <span className="flex items-center gap-1">
-                      <Zap className="w-3 h-3 text-amber-500" />
-                      Módulos Solares
-                    </span>
-                    <span className="text-[10px] text-gray-500">
-                      {orcamentoFornecedorDetectado.modulos?.length || 0} item(ns)
-                    </span>
-                  </div>
-                  {orcamentoFornecedorDetectado.modulos &&
-                  orcamentoFornecedorDetectado.modulos.length > 0 ? (
-                    <ul className="space-y-1 text-[11px] text-gray-800">
-                      {orcamentoFornecedorDetectado.modulos.map((m, idx) => (
-                        <li key={idx} className="flex items-start gap-1">
-                          <span className="font-bold text-emerald-700">{m.quantidade}x</span>
-                          <span className="truncate">{m.descricao}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <span className="text-[11px] text-gray-400 italic">Nenhum módulo isolado</span>
-                  )}
-                </div>
-
-                {/* Inversores */}
-                <div className="p-2.5 bg-white rounded-lg border border-blue-100 space-y-1">
-                  <div className="flex items-center justify-between text-[11px] font-bold text-gray-700">
-                    <span className="flex items-center gap-1">
-                      <Activity className="w-3 h-3 text-blue-500" />
-                      Inversores
-                    </span>
-                    <span className="text-[10px] text-gray-500">
-                      {orcamentoFornecedorDetectado.inversores?.length || 0} item(ns)
-                    </span>
-                  </div>
-                  {orcamentoFornecedorDetectado.inversores &&
-                  orcamentoFornecedorDetectado.inversores.length > 0 ? (
-                    <ul className="space-y-1 text-[11px] text-gray-800">
-                      {orcamentoFornecedorDetectado.inversores.map((inv, idx) => (
-                        <li key={idx} className="flex items-start gap-1">
-                          <span className="font-bold text-blue-700">{inv.quantidade}x</span>
-                          <span className="truncate">{inv.descricao}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <span className="text-[11px] text-gray-400 italic">
-                      Nenhum inversor isolado
-                    </span>
-                  )}
-                </div>
-
-                {/* Acessórios */}
-                <div className="p-2.5 bg-white rounded-lg border border-blue-100 space-y-1">
-                  <div className="flex items-center justify-between text-[11px] font-bold text-gray-700">
-                    <span className="flex items-center gap-1">
-                      <Package className="w-3 h-3 text-purple-500" />
-                      Acessórios / Fixação
-                    </span>
-                    <span className="text-[10px] text-gray-500">
-                      {orcamentoFornecedorDetectado.acessorios?.length || 0} item(ns)
-                    </span>
-                  </div>
-                  {orcamentoFornecedorDetectado.acessorios &&
-                  orcamentoFornecedorDetectado.acessorios.length > 0 ? (
-                    <ul className="space-y-1 text-[11px] text-gray-800">
-                      {orcamentoFornecedorDetectado.acessorios.slice(0, 3).map((a, idx) => (
-                        <li key={idx} className="flex items-start gap-1">
-                          <span className="font-bold text-purple-700">{a.quantidade}x</span>
-                          <span className="truncate">{a.descricao}</span>
-                        </li>
-                      ))}
-                      {orcamentoFornecedorDetectado.acessorios.length > 3 && (
-                        <li className="text-[10px] text-gray-400">
-                          + {orcamentoFornecedorDetectado.acessorios.length - 3} outros itens
-                        </li>
-                      )}
-                    </ul>
-                  ) : (
-                    <span className="text-[11px] text-gray-400 italic">
-                      Nenhum acessório isolado
-                    </span>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
-
           {/* Seletor ou aviso de campos cadastrais do cliente */}
           {allItems.length > 0 && (
             <>
@@ -1792,22 +1461,14 @@ export const ImportarDadosDocumento: React.FC<ImportarDadosDocumentoProps> = ({
             </>
           )}
 
-          {allItems.length === 0 && orcamentoFornecedorDetectado && (
-            <div className="p-4 rounded-xl border border-gray-200 bg-gray-50 text-center text-xs text-gray-600">
-              Este arquivo contém exclusivamente itens de cotação do fornecedor. Você pode salvar a
-              cotação diretamente acima para utilizá-la em propostas e comparações.
-            </div>
-          )}
-
           {/* Botões de Ação */}
           <div className="pt-2 flex items-center justify-between flex-wrap gap-2 border-t border-gray-100">
             <button
               type="button"
-              disabled={isSaving || salvandoOrcamentoFornecedor}
+              disabled={isSaving}
               onClick={() => {
                 setExtractionResult(null)
                 setFile(null)
-                setOrcamentoFornecedorDetectado(null)
                 if (onClose) onClose()
               }}
               className="px-4 py-2 text-xs font-semibold text-gray-600 hover:text-gray-900 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors"

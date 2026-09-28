@@ -21,8 +21,31 @@ export function extractFieldErrors(error: unknown): FieldErrors {
 }
 
 export function isAuthSessionError(error: unknown): boolean {
-  if (!(error instanceof ClientResponseError)) return false
-  return error.status === 401 || error.status === 403
+  if (error instanceof ClientResponseError) {
+    if (error.status === 401 || error.status === 403) return true
+    const msg = (error.message || '').toLowerCase()
+    if (
+      msg.includes('token') ||
+      msg.includes('authenticate') ||
+      msg.includes('unauthorized') ||
+      msg.includes('forbidden')
+    ) {
+      return true
+    }
+  }
+  if (error instanceof Error) {
+    const msg = error.message.toLowerCase()
+    if (
+      msg.includes('token') ||
+      msg.includes('jwt') ||
+      msg.includes('sessão expirada') ||
+      msg.includes('unauthorized') ||
+      msg.includes('401')
+    ) {
+      return true
+    }
+  }
+  return false
 }
 
 export function getErrorMessage(error: unknown): string {
