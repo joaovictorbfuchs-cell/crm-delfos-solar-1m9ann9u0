@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import {
   X,
   Calendar as CalendarIcon,
@@ -23,6 +23,9 @@ import {
 } from 'lucide-react'
 import { PrazoRGEBadge } from '@/components/PrazoRGEBadge'
 import { useClientes } from '@/contexts/ClientesContext'
+import { ModalEnviarLembreteAutoLeituraWhatsApp } from './ModalEnviarLembreteAutoLeituraWhatsApp'
+import { ModalRegistrarDadosLeitura } from './ModalRegistrarDadosLeitura'
+import { Send, FileCheck } from 'lucide-react'
 import { ClienteAutocomplete } from '@/components/ClienteAutocomplete'
 import { ATIVIDADES_12_TIPOS, getTipoAtividadeConfig } from '@/constants/atividadesTipos'
 import type { Atividade, AtividadeTipo, AtividadeStatus } from '@/types/crm'
@@ -41,6 +44,7 @@ interface ModalDetalhesAtividadeProps {
   isOpen: boolean
   onClose: () => void
   atividade: Atividade | null
+  onSuccess?: (atividadeAtualizada?: Atividade) => void
   onSaved?: (updated: Atividade) => void
 }
 
@@ -58,6 +62,7 @@ export const ModalDetalhesAtividade: React.FC<ModalDetalhesAtividadeProps> = ({
   isOpen,
   onClose,
   atividade,
+  onSuccess,
   onSaved,
 }) => {
   const { clientes, usuarios, updateAtividade, openFichaCliente } = useClientes()
@@ -100,6 +105,24 @@ export const ModalDetalhesAtividade: React.FC<ModalDetalhesAtividadeProps> = ({
   const [filhasAutoLeitura, setFilhasAutoLeitura] = useState<Atividade[]>([])
   const [carregandoFilhas, setCarregandoFilhas] = useState(false)
 
+  const recarregarFilhas = useCallback(async () => {
+    if (!atividade?.id) return
+    try {
+      setCarregandoFilhas(true)
+      const filhas = await buscarAtividadesFilhasAutoLeitura(atividade.id)
+      setFilhasAutoLeitura(filhas)
+    } catch (err) {
+      console.warn('Erro ao carregar filhas de auto leitura:', err)
+    } finally {
+      setCarregandoFilhas(false)
+    }
+  }, [atividade?.id])
+
+  // Modais de ação para lembrete de auto leitura (WhatsApp e Registro de Leitura)
+  const [modalLembreteWhatsAppOpen, setModalLembreteWhatsAppOpen] = useState(false)
+  const [modalRegistrarLeituraOpen, setModalRegistrarLeituraOpen] = useState(false)
+  const [atividadeFilhaAlvo, setAtividadeFilhaAlvo] = useState<Atividade | null>(null)
+
   // Preenchimento dos campos quando uma atividade é selecionada
   useEffect(() => {
     if (isOpen && atividade) {
@@ -124,22 +147,12 @@ export const ModalDetalhesAtividade: React.FC<ModalDetalhesAtividadeProps> = ({
       setEmailDestinatario(atividade.email_destinatario || '')
 
       // Se for Auto Leitura RGE mãe, carrega datas_leitura e filhas
-      if (tipoAtv === 'auto_leitura_rge') {
-        const norm = normalizarDatasLeitura(atividade.datas_leitura)
-        setDatasLeituraAutoLeitura(norm)
-        setNovaDataInput('')
-        setCarregandoFilhas(true)
-        buscarAtividadesFilhasAutoLeitura(atividade.id)
-          .then((filhas) => {
-            setFilhasAutoLeitura(filhas)
-          })
-          .catch((err) => {
-            console.warn('Erro ao buscar filhas no modal de detalhes:', err)
-          })
-          .finally(() => {
-            setCarregandoFilhas(false)
-          })
-      } else {
+if (tipoAtv === 'auto_leitura_rge') {
+  const norm = normalizarDatasLeitura(atividade.datas_leitura)
+  setDatasLeituraAutoLeitura(norm)
+  setNovaDataInput('')
+  recarregarFilhas()
+} else {
         setDatasLeituraAutoLeitura([])
         setFilhasAutoLeitura([])
       }
@@ -315,6 +328,9 @@ export const ModalDetalhesAtividade: React.FC<ModalDetalhesAtividadeProps> = ({
       if (onSaved) {
         onSaved(updated)
       }
+      if (onSuccess) {
+        onSuccess(updated)
+      }
 
       setTimeout(() => {
         setShowSuccessBadge(false)
@@ -340,6 +356,10 @@ export const ModalDetalhesAtividade: React.FC<ModalDetalhesAtividadeProps> = ({
       openFichaCliente(clienteId)
     }
   }
+
+  const isFilhaLembrete = tipo === 'lembrete_auto_leitura' || atividade.tipo === 'lembrete_auto_leitura'
+  const podeEnviarWhatsApp = isFilhaLembrete && (status === 'pendente' || status === 'enviado')
+  const podeRegistrarLeitura = isFilhaLembrete && status !== 'concluida'
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4">
@@ -1008,13 +1028,43 @@ export const ModalDetalhesAtividade: React.FC<ModalDetalhesAtividadeProps> = ({
             )}
           </button>
 
-          <div className="flex items-center justify-end gap-2">
+          <div className="flex items-center justify-end gap-2 flex-wrap">
+            {/* Ações Específicas da Atividade Filha de Auto Leitura */}
+            {podeEnviarWhatsApp && (
+              <button
+                type="button"
+                onClick={() => {
+                  setAtividadeFilhaAlvo(atividade)
+                  setModalLembreteWhatsAppOpen(true)
+                }}
+                className="px-3.5 py-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl transition-all shadow-xs flex items-center gap-1.5"
+                title="Enviar lembrete por WhatsApp via Z-API"
+              >
+                <Send className="w-3.5 h-3.5" />
+                <span>{status === 'enviado' ? 'Reenviar WhatsApp' : 'Enviar WhatsApp'}</span>
+              </button>
+            )}
+
+            {podeRegistrarLeitura && (
+              <button
+                type="button"
+                onClick={() => {
+                  setAtividadeFilhaAlvo(atividade)
+                  setModalRegistrarLeituraOpen(true)
+                }}
+                className="px-3.5 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl transition-all shadow-xs flex items-center gap-1.5"
+                title="Registrar dados da leitura e concluir atividade mãe e filha"
+              >
+                <FileCheck className="w-3.5 h-3.5" />
+                <span>Registrar dados da leitura</span>
+              </button>
+            )}
+
             {/* Botão Cancelar: fecha sem salvar */}
             <button
               type="button"
               onClick={onClose}
-              disabled={isSubmitting}
-              className="px-4 py-2 text-xs font-semibold text-gray-600 hover:text-gray-900 hover:bg-gray-200/60 rounded-xl transition-colors disabled:opacity-50"
+              className="px-4 py-2 text-xs font-semibold text-gray-700 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 transition-colors"
             >
               Cancelar
             </button>
@@ -1024,7 +1074,7 @@ export const ModalDetalhesAtividade: React.FC<ModalDetalhesAtividadeProps> = ({
               type="button"
               onClick={handleSubmit}
               disabled={isSubmitting}
-              className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-[#16A34A] hover:bg-[#15803D] disabled:opacity-50 text-white rounded-xl text-xs font-bold shadow-xs transition-colors active:scale-95"
+              className="px-5 py-2 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl transition-all shadow-xs flex items-center gap-1.5 disabled:opacity-50"
             >
               {isSubmitting ? (
                 <>
@@ -1041,6 +1091,47 @@ export const ModalDetalhesAtividade: React.FC<ModalDetalhesAtividadeProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Modais de Ação para Atividade Filha (Lembrete de Auto Leitura) */}
+      {modalLembreteWhatsAppOpen && (
+        <ModalEnviarLembreteAutoLeituraWhatsApp
+          isOpen={modalLembreteWhatsAppOpen}
+          onClose={() => {
+            setModalLembreteWhatsAppOpen(false)
+            setAtividadeFilhaAlvo(null)
+          }}
+          atividade={atividadeFilhaAlvo || atividade}
+          cliente={clienteAtual}
+          onEnviadoSucesso={(atvAtualizada) => {
+            if (atvAtualizada && atvAtualizada.id === atividade.id) {
+              setStatus(atvAtualizada.status || 'enviado')
+            }
+            recarregarFilhas()
+            if (onSuccess) onSuccess(atvAtualizada)
+            if (onSaved && atvAtualizada) onSaved(atvAtualizada)
+          }}
+        />
+      )}
+
+      {modalRegistrarLeituraOpen && (
+        <ModalRegistrarDadosLeitura
+          isOpen={modalRegistrarLeituraOpen}
+          onClose={() => {
+            setModalRegistrarLeituraOpen(false)
+            setAtividadeFilhaAlvo(null)
+          }}
+          atividade={atividadeFilhaAlvo || atividade}
+          cliente={clienteAtual}
+          onSalvoSucesso={(atvAtualizada) => {
+            if (atvAtualizada && atvAtualizada.id === atividade.id) {
+              setStatus('concluida')
+            }
+            recarregarFilhas()
+            if (onSuccess) onSuccess(atvAtualizada)
+            if (onSaved && atvAtualizada) onSaved(atvAtualizada)
+          }}
+        />
+      )}
     </div>
   )
 }
