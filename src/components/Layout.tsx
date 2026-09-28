@@ -96,6 +96,8 @@ export default function Layout() {
         return 'Central de Atendimento WhatsApp'
       case '/clientes':
         return 'Gestão de Clientes'
+      case '/contatos':
+        return 'Visão Consolidada de Contatos'
       case '/automacoes':
         return 'Automações do CRM'
       case '/catalogo-atividades':
@@ -143,6 +145,7 @@ export default function Layout() {
     { name: 'Cadastro de equipamentos', path: '/equipamentos', icon: Cpu },
     { name: 'Galeria de usinas', path: '/instalacoes-galeria', icon: Images },
     { name: 'Fornecedores', path: '/fornecedores', icon: Truck },
+    { name: 'Visão de Contatos', path: '/contatos', icon: Contact },
     { name: 'Importar Clientes', path: '/importar-clientes', icon: FileSpreadsheet },
     { name: 'Importar Contatos Google', path: '/importar-contatos-google', icon: Contact },
     { name: 'Gerenciar usuários', path: '/gerenciar-usuarios', icon: UserCog },

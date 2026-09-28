@@ -31,8 +31,12 @@ export const SecaoContatosAdicionais: React.FC<SecaoContatosAdicionaisProps> = (
   // Form state
   const [nome, setNome] = useState('')
   const [cargo, setCargo] = useState('')
+  const [papel, setPapel] = useState<
+    'principal' | 'financeiro' | 'tecnico' | 'responsavel' | 'outro'
+  >('outro')
   const [telefone, setTelefone] = useState('')
   const [email, setEmail] = useState('')
+  const [isWhatsapp, setIsWhatsapp] = useState(false)
 
   // Filtrar contatos adicionais vinculados ao cliente
   const contatosDoCliente = contatosAdicionais.filter((c) => c.cliente === cliente.id)
@@ -40,8 +44,10 @@ export const SecaoContatosAdicionais: React.FC<SecaoContatosAdicionaisProps> = (
   const handleResetForm = () => {
     setNome('')
     setCargo('')
+    setPapel('outro')
     setTelefone('')
     setEmail('')
+    setIsWhatsapp(false)
     setIsAdding(false)
   }
 
@@ -58,8 +64,10 @@ export const SecaoContatosAdicionais: React.FC<SecaoContatosAdicionaisProps> = (
         cliente: cliente.id,
         nome: nome.trim(),
         cargo: cargo.trim() || undefined,
+        papel: papel,
         telefone: telefone.trim() || undefined,
         email: email.trim() || undefined,
+        is_whatsapp: isWhatsapp,
       })
       toast.success('Contato adicional cadastrado com sucesso!')
       handleResetForm()
@@ -103,7 +111,7 @@ export const SecaoContatosAdicionais: React.FC<SecaoContatosAdicionaisProps> = (
         ? 'Representante Legal / Titular'
         : 'Titular / Proprietário'
 
-  const contatoPrincipalTelefone = cliente.telefone || cliente.whatsapp || 'Não informado'
+  const contatoPrincipalTelefone = cliente.whatsapp || cliente.telefone || 'Não informado'
   const contatoPrincipalEmail = cliente.email || 'Não informado'
 
   return (
@@ -190,18 +198,27 @@ export const SecaoContatosAdicionais: React.FC<SecaoContatosAdicionaisProps> = (
             className="group bg-gray-50/70 hover:bg-gray-50 border border-gray-200 rounded-lg p-3 transition-colors"
           >
             <div className="flex items-start justify-between gap-2 mb-1.5">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <span className="w-5 h-5 rounded-full bg-gray-200 text-gray-700 flex items-center justify-center text-[10px]">
                   <User className="w-3 h-3" />
                 </span>
                 <span className="text-xs font-bold text-gray-900">{contato.nome}</span>
+                {contato.papel && (
+                  <span className="text-[10px] uppercase font-bold tracking-wide px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 border border-emerald-300">
+                    {contato.papel}
+                  </span>
+                )}
                 {contato.cargo && (
                   <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-gray-100 text-gray-700 border border-gray-200">
                     {contato.cargo}
                   </span>
                 )}
+                {contato.is_whatsapp && (
+                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-300 flex items-center gap-1">
+                    WhatsApp
+                  </span>
+                )}
               </div>
-
               {/* Botão de Excluir Contato Adicional */}
               <button
                 type="button"
@@ -285,7 +302,24 @@ export const SecaoContatosAdicionais: React.FC<SecaoContatosAdicionaisProps> = (
 
               <div>
                 <label className="block text-[10px] font-semibold text-gray-600 mb-0.5">
-                  Cargo / Função
+                  Papel do contato
+                </label>
+                <select
+                  value={papel}
+                  onChange={(e) => setPapel(e.target.value as any)}
+                  className="w-full px-2.5 py-1.5 text-xs bg-white border border-gray-300 rounded-md focus:outline-hidden focus:ring-1 focus:ring-emerald-500 cursor-pointer"
+                >
+                  <option value="principal">Principal</option>
+                  <option value="financeiro">Financeiro</option>
+                  <option value="tecnico">Técnico</option>
+                  <option value="responsavel">Responsável</option>
+                  <option value="outro">Outro</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-semibold text-gray-600 mb-0.5">
+                  Cargo / Descrição
                 </label>
                 <input
                   type="text"
@@ -320,6 +354,18 @@ export const SecaoContatosAdicionais: React.FC<SecaoContatosAdicionaisProps> = (
                   onChange={(e) => setEmail(e.target.value)}
                   className="w-full px-2.5 py-1.5 text-xs bg-white border border-gray-300 rounded-md focus:outline-hidden focus:ring-1 focus:ring-emerald-500"
                 />
+              </div>
+
+              <div className="sm:col-span-2 pt-1 flex items-center gap-2">
+                <label className="inline-flex items-center gap-2 text-xs text-gray-700 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={isWhatsapp}
+                    onChange={(e) => setIsWhatsapp(e.target.checked)}
+                    className="w-3.5 h-3.5 text-emerald-600 rounded border-gray-300 focus:ring-emerald-500"
+                  />
+                  <span>Este número é WhatsApp de contato</span>
+                </label>
               </div>
             </div>
 

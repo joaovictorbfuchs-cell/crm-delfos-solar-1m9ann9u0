@@ -433,7 +433,7 @@ export const ClienteAutocomplete: React.FC<ClienteAutocompleteProps> = ({
                             </>
                           )}
 
-                          {(cliente.telefone || cliente.whatsapp) && (
+                          {(cliente.whatsapp || cliente.telefone) && (
                             <>
                               <span className="text-gray-300">•</span>
                               <span className="text-gray-500 text-[10px]">

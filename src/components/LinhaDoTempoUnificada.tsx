@@ -1057,7 +1057,7 @@ export const LinhaDoTempoUnificada: React.FC<LinhaDoTempoUnificadaProps> = ({
                                 endereco: cliente.endereco,
                                 municipio: cliente.cidade,
                                 telefone:
-                                  cliente.titular_telefone || cliente.telefone || cliente.whatsapp,
+                                  cliente.whatsapp || cliente.telefone || cliente.titular_telefone,
                               }
                             setProcuracaoViewDados(dadosSalvos)
                             setModalProcuracaoViewOpen(true)

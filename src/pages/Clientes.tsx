@@ -512,6 +512,15 @@ export default function Clientes() {
               {totalOutrosContatos}
             </span>
           </button>
+          <button
+            type="button"
+            onClick={() => navigate('/contatos')}
+            className="flex-1 sm:flex-initial flex items-center justify-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-emerald-800 hover:bg-white/80 transition-all font-semibold"
+            title="Abrir Visão Consolidada de todos os contatos (principais e adicionais) por cliente"
+          >
+            <Users className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
+            <span className="truncate">Visão Consolidada</span>
+          </button>
         </div>
 
         {/* Botões de Ação (visíveis em todas as telas; no mobile ficam logo abaixo do seletor de sub-abas garantindo 100% de visibilidade sem truncamento ou sobreposição) */}

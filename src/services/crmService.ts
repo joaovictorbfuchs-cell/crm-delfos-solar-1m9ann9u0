@@ -1966,8 +1966,10 @@ export async function createContatoAdicional(data: {
   cliente: string
   nome: string
   cargo?: string
+  papel?: string
   telefone?: string
   email?: string
+  is_whatsapp?: boolean
 }): Promise<import('@/types/crm').ContatoAdicional> {
   return await pb
     .collection('contatos_adicionais')
@@ -1979,8 +1981,10 @@ export async function updateContatoAdicional(
   data: Partial<{
     nome: string
     cargo: string
+    papel: string
     telefone: string
     email: string
+    is_whatsapp: boolean
   }>,
 ): Promise<import('@/types/crm').ContatoAdicional> {
   return await pb

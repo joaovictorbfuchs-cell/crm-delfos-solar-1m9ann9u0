@@ -108,7 +108,7 @@ export const ModalSolicitacaoInformacoes: React.FC<ModalSolicitacaoInformacoesPr
   }, [open, cliente])
 
   // Normalização de telefone
-  const telefoneCru = (cliente.telefone || cliente.whatsapp || '').trim()
+  const telefoneCru = (cliente.whatsapp || cliente.telefone || '').trim()
   const cleanPhoneDigits = useMemo(() => telefoneCru.replace(/\D/g, ''), [telefoneCru])
   const temTelefoneValido = cleanPhoneDigits.length >= 10
 

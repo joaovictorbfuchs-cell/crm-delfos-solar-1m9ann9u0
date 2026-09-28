@@ -13,6 +13,7 @@ import {
   Database,
   X,
 } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 import { useClientes } from '@/contexts/ClientesContext'
 import { useAuth } from '@/contexts/AuthContext'
 import { ModalVincularCliente } from '@/components/ModalVincularCliente'
@@ -47,6 +48,7 @@ import {
 } from '@/lib/whatsappAudioNotification'
 
 export const CentralAtendimento: React.FC = () => {
+  const navigate = useNavigate()
   const {
     whatsAppConversas,
     whatsAppMensagens,
@@ -884,6 +886,17 @@ export const CentralAtendimento: React.FC = () => {
             <span className="hidden md:inline">
               {isRefreshing ? 'Atualizando...' : 'Atualizar'}
             </span>
+          </button>
+
+          {/* Botão de Visão Consolidada de Contatos */}
+          <button
+            type="button"
+            onClick={() => navigate('/contatos')}
+            className="inline-flex items-center justify-center gap-2 px-3.5 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 active:scale-[0.98] text-xs font-bold rounded-xl shadow-2xs hover:shadow-xs transition-all shrink-0 cursor-pointer"
+            title="Abrir a visão consolidada de todos os contatos (principais e adicionais) por cliente"
+          >
+            <Users className="w-3.5 h-3.5 text-emerald-700 stroke-[2.5]" />
+            <span>Visão de Contatos</span>
           </button>
 
           {/* Botão de Templates & Configurações de WhatsApp no padrão verde Delfos */}

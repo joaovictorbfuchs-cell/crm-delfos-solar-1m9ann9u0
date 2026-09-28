@@ -690,6 +690,8 @@ export interface WhatsAppConfigStatus {
 // Contatos Adicionais vinculados a um Cliente
 // -------------------------------------------------------------
 
+export type PapelContatoTipo = 'principal' | 'financeiro' | 'tecnico' | 'responsavel' | 'outro'
+
 export interface ContatoAdicional extends RecordModel {
   id: string
   collectionId: string
@@ -697,13 +699,32 @@ export interface ContatoAdicional extends RecordModel {
   cliente: string
   nome: string
   cargo?: string
+  papel?: PapelContatoTipo | string
   telefone?: string
   email?: string
+  is_whatsapp?: boolean
   created: string
   updated: string
   expand?: {
     cliente?: Cliente
   }
+}
+
+// Visão unificada de contato (Contato consolidado por cliente)
+export interface ContatoConsolidadoItem {
+  id: string
+  origem: 'cliente_principal' | 'contato_adicional'
+  clienteId: string
+  clienteNome: string
+  nome: string
+  papel: 'principal' | 'financeiro' | 'tecnico' | 'responsavel' | 'outro' | string
+  papelLabel: string
+  cargo?: string
+  telefone?: string
+  email?: string
+  isWhatsapp: boolean
+  numeroAutoritativo: string
+  rawRecord?: Cliente | ContatoAdicional
 }
 
 export type OutroContatoTipo = 'fornecedor' | 'instalador' | 'parceiro' | 'outro'

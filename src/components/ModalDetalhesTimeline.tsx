@@ -687,7 +687,7 @@ export const ModalDetalhesTimeline: React.FC<ModalDetalhesTimelineProps> = ({
                         cpf: cliente.titular_cpf || cliente.cpf,
                         endereco: cliente.endereco,
                         municipio: cliente.cidade,
-                        telefone: cliente.titular_telefone || cliente.telefone || cliente.whatsapp,
+                        telefone: cliente.whatsapp || cliente.telefone || cliente.titular_telefone,
                       }
                       setProcuracaoViewDados(dadosSalvos)
                       setModalProcuracaoViewOpen(true)
@@ -710,7 +710,7 @@ export const ModalDetalhesTimeline: React.FC<ModalDetalhesTimelineProps> = ({
                         cpf: cliente.titular_cpf || cliente.cpf,
                         endereco: cliente.endereco,
                         municipio: cliente.cidade,
-                        telefone: cliente.titular_telefone || cliente.telefone || cliente.whatsapp,
+                        telefone: cliente.whatsapp || cliente.telefone || cliente.titular_telefone,
                       }
                       baixarProcuracaoPDF(dadosSalvos)
                     }}
@@ -742,7 +742,7 @@ export const ModalDetalhesTimeline: React.FC<ModalDetalhesTimelineProps> = ({
                         enderecoInstalacao: cliente.endereco || '',
                         municipio: cliente.cidade || 'Erechim/RS',
                         telefone:
-                          cliente.titular_telefone || cliente.telefone || cliente.whatsapp || '',
+                          cliente.whatsapp || cliente.telefone || cliente.titular_telefone || '',
                         email: cliente.email || '',
                       }
                       setContratoViewDados(dadosSalvos)
@@ -768,7 +768,7 @@ export const ModalDetalhesTimeline: React.FC<ModalDetalhesTimelineProps> = ({
                         enderecoInstalacao: cliente.endereco || '',
                         municipio: cliente.cidade || 'Erechim/RS',
                         telefone:
-                          cliente.titular_telefone || cliente.telefone || cliente.whatsapp || '',
+                          cliente.whatsapp || cliente.telefone || cliente.titular_telefone || '',
                         email: cliente.email || '',
                       }
                       baixarContratoPDF(dadosSalvos)

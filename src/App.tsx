@@ -15,6 +15,7 @@ import Manutencoes from './pages/Manutencoes'
 import OrdensServico from './pages/OrdensServico'
 import Clientes from './pages/Clientes'
 import ClientesPosVendas from './pages/ClientesPosVendas'
+import ContatosView from './pages/Contatos'
 import Fornecedores from './pages/Fornecedores'
 import Orcamentos from './pages/Orcamentos'
 import InstalacoesGaleriaPage from './pages/InstalacoesGaleria'
@@ -222,6 +223,14 @@ const App = () => (
               element={
                 <ProtectedRoute requiredRole="admin">
                   <Clientes />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/contatos"
+              element={
+                <ProtectedRoute requiredRole="admin">
+                  <ContatosView />
                 </ProtectedRoute>
               }
             />

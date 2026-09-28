@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-28T20:58:48.976Z",
+  "generatedAt": "2026-09-28T21:19:11.032Z",
   "collections": [
     {
       "name": "users",
@@ -4793,6 +4793,19 @@
           "required": false,
           "system": false,
           "autodateTriggers": ["onCreate", "onUpdate"]
+        },
+        {
+          "name": "papel",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["principal", "financeiro", "tecnico", "responsavel", "outro"]
+        },
+        {
+          "name": "is_whatsapp",
+          "type": "bool",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": [

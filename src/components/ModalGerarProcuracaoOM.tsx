@@ -106,7 +106,7 @@ export const ModalGerarProcuracaoOM: React.FC<ModalGerarProcuracaoOMProps> = ({
         enderecoPartes.length > 0 ? enderecoPartes.join(', ') : cliente.endereco || ''
 
       const municipioEfetivo = cliente.cidade || 'Passo Fundo/RS'
-      const telefoneEfetivo = cliente.titular_telefone || cliente.telefone || cliente.whatsapp || ''
+      const telefoneEfetivo = cliente.whatsapp || cliente.telefone || cliente.titular_telefone || ''
 
       setFormNome(nomeEfetivo)
       setFormCpf(cpfEfetivo ? formatarCPF(cpfEfetivo) : '')

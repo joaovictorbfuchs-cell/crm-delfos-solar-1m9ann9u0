@@ -189,16 +189,20 @@ interface ClientesContextType {
     cliente: string
     nome: string
     cargo?: string
+    papel?: string
     telefone?: string
     email?: string
+    is_whatsapp?: boolean
   }) => Promise<import('@/types/crm').ContatoAdicional>
   updateContatoAdicional: (
     id: string,
     data: Partial<{
       nome: string
       cargo: string
+      papel: string
       telefone: string
       email: string
+      is_whatsapp: boolean
     }>,
   ) => Promise<import('@/types/crm').ContatoAdicional>
   removeContatoAdicional: (id: string) => Promise<void>
