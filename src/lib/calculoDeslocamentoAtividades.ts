@@ -16,12 +16,12 @@ export interface ConfiguracaoDeslocamentoDelfos {
 
 // Configuração padrão da sede da Delfos Solar em Erechim/RS
 export const CONFIG_DESLOCAMENTO_PADRAO: ConfiguracaoDeslocamentoDelfos = {
-  baseEndereco: 'Rua Itália, 245 - Centro',
+  baseEndereco: 'Rua Espírito Santo, 275',
   baseCidade: 'Erechim',
   baseUf: 'RS',
-  baseCep: '99700-000',
-  baseLatitude: -27.6341,
-  baseLongitude: -52.2739,
+  baseCep: '99709-296',
+  baseLatitude: -27.6347,
+  baseLongitude: -52.2761,
   valorKmPadrao: 1.2, // R$ 1,20 por KM rodado
   cobrarIdaEVolta: true, // Ida e volta por padrão (× 2)
 }
