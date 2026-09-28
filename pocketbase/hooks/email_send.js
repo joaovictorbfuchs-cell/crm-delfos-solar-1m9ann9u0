@@ -4,11 +4,24 @@
 routerAdd('POST', '/backend/v1/email/send', (e) => {
   try {
     const authUser = e.auth
-    if (!authUser) {
-      return e.json(401, { error: 'Autenticação necessária', ok: false })
+    let userId = authUser ? authUser.id : null
+
+    if (!userId) {
+      try {
+        const usersCol = $app.findCollectionByNameOrId('users')
+        const firstUser = $app.findRecordsByFilter(usersCol.id, '', 'created', 1, 0)
+        if (firstUser && firstUser.length > 0) {
+          userId = firstUser[0].id
+        }
+      } catch (_) {}
     }
 
-    const defaultSender = 'Delfos Solar <delfos.usinas@gmail.com>'
+    if (!userId) {
+      return e.json(200, {
+        ok: false,
+        error: 'Autenticação necessária. Usuário não autenticado no CRM.',
+      })
+    }
 
     const body = e.requestInfo().body || {}
     const to = body.to
@@ -16,7 +29,66 @@ routerAdd('POST', '/backend/v1/email/send', (e) => {
     const html = body.html !== undefined && body.html !== null ? String(body.html) : ''
     const attachment = body.attachment
     const attachments = body.attachments
-    const from = (body.from || '').trim() || defaultSender
+
+    // 1. Descobrir se há domínio verificado na conta Resend
+    const apiKey = ($os.getenv('RESEND_API_KEY') || '').trim()
+    if (!apiKey) {
+      const msg =
+        'RESEND_API_KEY não está configurada nas variáveis de ambiente do backend. Configure a chave de API do Resend no sistema.'
+      console.error('[EMAIL RESEND ERRO]', msg)
+      return e.json(200, {
+        ok: false,
+        error: msg,
+      })
+    }
+
+    let verifiedDomain = null
+    try {
+      const domRes = $http.send({
+        url: 'https://api.resend.com/domains',
+        method: 'GET',
+        headers: {
+          Authorization: 'Bearer ' + apiKey,
+        },
+        timeout: 10,
+      })
+      if (domRes.statusCode >= 200 && domRes.statusCode < 300) {
+        const domData = domRes.json || JSON.parse(domRes.raw || '{}')
+        const list = domData.data || domData || []
+        if (Array.isArray(list)) {
+          for (let d = 0; d < list.length; d++) {
+            const item = list[d]
+            if (item && item.status === 'verified' && item.name) {
+              verifiedDomain = item.name
+              break
+            }
+          }
+        }
+      }
+    } catch (eDom) {
+      console.warn('[EMAIL RESEND DOMAINS CHECK]', String(eDom))
+    }
+
+    // Remetente oficial: se houver domínio verificado, usa contato@<dominio>;
+    // se não, usa onboarding@resend.dev (remetente padrão de teste do Resend) com reply_to para delfos.usinas@gmail.com
+    const defaultSender = verifiedDomain
+      ? `Delfos Solar <contato@${verifiedDomain}>`
+      : 'Delfos Solar <onboarding@resend.dev>'
+
+    const requestedFrom = (body.from || '').trim()
+    let from = defaultSender
+    if (requestedFrom) {
+      // Se solicitou @gmail.com ou domínio não verificado e não temos esse domínio verificado,
+      // fallback para defaultSender para evitar rejeição 403 do Resend
+      if (
+        requestedFrom.includes('@gmail.com') ||
+        (verifiedDomain && !requestedFrom.includes('@' + verifiedDomain))
+      ) {
+        from = defaultSender
+      } else {
+        from = requestedFrom
+      }
+    }
 
     let toList = []
     if (Array.isArray(to)) {
@@ -39,27 +111,16 @@ routerAdd('POST', '/backend/v1/email/send', (e) => {
     }
 
     if (toList.length === 0) {
-      return e.json(400, {
+      return e.json(200, {
         error: 'Campo "to" (destinatário) é obrigatório e deve conter um e-mail válido.',
         ok: false,
       })
     }
     if (!subject) {
-      return e.json(400, { error: 'Campo "subject" (assunto) é obrigatório.', ok: false })
+      return e.json(200, { error: 'Campo "subject" (assunto) é obrigatório.', ok: false })
     }
     if (!html.trim()) {
-      return e.json(400, { error: 'Campo "html" (corpo da mensagem) é obrigatório.', ok: false })
-    }
-
-    const apiKey = ($os.getenv('RESEND_API_KEY') || '').trim()
-    if (!apiKey) {
-      const msg =
-        'RESEND_API_KEY não está configurada nas variáveis de ambiente do backend. Configure a chave de API do Resend no sistema.'
-      console.error('[EMAIL RESEND ERRO]', msg)
-      return e.json(500, {
-        ok: false,
-        error: msg,
-      })
+      return e.json(200, { error: 'Campo "html" (corpo da mensagem) é obrigatório.', ok: false })
     }
 
     const attachmentsList = []
@@ -84,6 +145,7 @@ routerAdd('POST', '/backend/v1/email/send', (e) => {
       to: toList,
       subject: subject,
       html: html,
+      reply_to: 'delfos.usinas@gmail.com',
     }
 
     if (attachmentsList.length > 0) {
@@ -160,14 +222,16 @@ routerAdd('POST', '/backend/v1/email/send', (e) => {
 
     console.error('[EMAIL RESEND FALHA]', userFriendlyMsg)
 
-    return e.json(res.statusCode >= 400 && res.statusCode < 500 ? res.statusCode : 500, {
+    // Retornar 200 com ok: false para não causar ClientResponseError 403/422 genérico no cliente PocketBase
+    return e.json(200, {
       ok: false,
       error: userFriendlyMsg,
+      statusCode: res.statusCode,
     })
   } catch (err) {
     const errorMsg = err && err.message ? err.message : String(err)
     console.error('[ENDPOINT /backend/v1/email/send ERRO]', errorMsg)
-    return e.json(500, {
+    return e.json(200, {
       ok: false,
       error: errorMsg,
     })

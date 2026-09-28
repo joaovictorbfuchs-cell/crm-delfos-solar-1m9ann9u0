@@ -127,4 +127,25 @@ describe('emailService', () => {
       }),
     ).rejects.toThrow('domain not verified')
   })
+
+  it('deve extrair mensagem do backend em caso de erro HTTP/ClientResponseError', async () => {
+    const errorWithResponse = {
+      status: 403,
+      message: 'Something went wrong.',
+      response: {
+        data: {
+          error: 'Chave de API do Resend inválida ou sem permissão (HTTP 403): domain not verified',
+        },
+      },
+    }
+    vi.mocked(pb.send).mockRejectedValueOnce(errorWithResponse)
+
+    await expect(
+      sendEmail({
+        to: 'cliente@exemplo.com',
+        subject: 'Assunto',
+        html: '<p>Corpo</p>',
+      }),
+    ).rejects.toThrow('domain not verified')
+  })
 })

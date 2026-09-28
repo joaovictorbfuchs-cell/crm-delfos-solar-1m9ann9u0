@@ -43,16 +43,60 @@ export async function sendEmail(payload: SendEmailPayload): Promise<SendEmailRes
     bodyPayload.attachments = payload.attachments
   }
 
-  const response = await pb.send<SendEmailResponse>('/backend/v1/email/send', {
-    method: 'POST',
-    body: bodyPayload,
-  })
+  try {
+    const response = await pb.send<SendEmailResponse>('/backend/v1/email/send', {
+      method: 'POST',
+      body: bodyPayload,
+    })
 
-  if (!response.ok) {
-    throw new Error(response.error || 'Falha ao enviar e-mail via Resend.')
+    if (!response.ok) {
+      throw new Error(response.error || 'Falha ao enviar e-mail via Resend.')
+    }
+
+    return response
+  } catch (err: unknown) {
+    // Se for ClientResponseError do PocketBase ou objeto de erro HTTP, extrair mensagem detalhada do backend
+    if (err && typeof err === 'object') {
+      const pbErr = err as {
+        status?: number
+        statusCode?: number
+        response?: { data?: Record<string, unknown>; message?: string; error?: string }
+        data?: { message?: string; error?: string }
+        message?: string
+      }
+
+      const backendMsg =
+        pbErr.response?.data?.error ||
+        pbErr.response?.data?.message ||
+        pbErr.response?.error ||
+        pbErr.data?.error ||
+        pbErr.data?.message ||
+        (pbErr.response?.data && typeof pbErr.response.data === 'string' ? pbErr.response.data : '')
+
+      if (typeof backendMsg === 'string' && backendMsg.trim()) {
+        throw new Error(backendMsg)
+      }
+
+      if (pbErr.status === 403 || pbErr.statusCode === 403) {
+        if (
+          pbErr.message &&
+          pbErr.message !== 'Something went wrong.' &&
+          !pbErr.message.includes('403')
+        ) {
+          throw new Error(pbErr.message)
+        }
+        throw new Error(
+          'Permissão negada (HTTP 403) pelo serviço de e-mail. Verifique o remetente configurado ou a chave de API.',
+        )
+      }
+
+      if (pbErr.message && pbErr.message !== 'Something went wrong.') {
+        throw new Error(pbErr.message)
+      }
+    }
+
+    throw err
   }
-
-  return response
 }
 
 export const emailService = {
