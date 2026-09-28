@@ -71,15 +71,19 @@ export async function listarCategorias(): Promise<KnowledgeCategory[]> {
           fields: 'id,categoria_id',
         })
       const counts: Record<string, number> = {}
-      for (const a of articles) {
-        counts[a.categoria_id] = (counts[a.categoria_id] || 0) + 1
+      if (Array.isArray(articles)) {
+        for (const a of articles) {
+          if (a && a.categoria_id) {
+            counts[a.categoria_id] = (counts[a.categoria_id] || 0) + 1
+          }
+        }
       }
       return records.map((c) => ({
         ...c,
         artigos_count: counts[c.id] || 0,
       }))
     } catch {
-      return records
+      return Array.isArray(records) ? records : []
     }
   } catch (err) {
     console.warn('[knowledgeBaseService] Erro ao listar categorias:', err)
@@ -175,8 +179,9 @@ export async function obterArtigoPorId(id: string): Promise<KnowledgeArticle | n
 export async function processarTextoDeArquivos(
   files: File[],
   onProgresso?: (msg: string) => void,
+  onAviso?: (msg: string) => void,
 ): Promise<string> {
-  if (!files || files.length === 0) return ''
+  if (!files || !Array.isArray(files) || files.length === 0) return ''
 
   const trechos: string[] = []
   const baseUrl = import.meta.env.VITE_POCKETBASE_URL || ''
@@ -184,12 +189,28 @@ export async function processarTextoDeArquivos(
 
   for (let i = 0; i < files.length; i++) {
     const f = files[i]
+    if (!f || !f.name) continue
+
     onProgresso?.(`Processando anexo [${i + 1}/${files.length}]: ${f.name}...`)
 
     try {
-      const prep = await prepareDocumentForExtraction(f)
-      let b64 = prep.imageBase64 || ''
-      if (!b64 && (f.type.startsWith('image/') || f.name.toLowerCase().endsWith('.pdf'))) {
+      // 1. Tentar ler e preparar documento no client com proteção total
+      let prep: any = null
+      try {
+        prep = await prepareDocumentForExtraction(f)
+      } catch (errPrep) {
+        console.warn(
+          `[knowledgeBaseService] Falha ao ler documento localmente (${f.name}):`,
+          errPrep,
+        )
+        onAviso?.(`Não foi possível ler o texto de "${f.name}". O arquivo será salvo normalmente.`)
+      }
+
+      const mimeType = f.type || prep?.mimeType || 'application/octet-stream'
+      let b64 = prep?.imageBase64 || ''
+
+      // Se não tiver base64 e for imagem ou pdf, tenta ler com fallback seguro
+      if (!b64 && (mimeType.startsWith('image/') || f.name.toLowerCase().endsWith('.pdf'))) {
         try {
           b64 = await readFileAsBase64(f)
         } catch {
@@ -198,34 +219,59 @@ export async function processarTextoDeArquivos(
       }
 
       // Se já temos texto extraído de alta qualidade no client (pdf ou docx)
-      if (prep.textContent && prep.textContent.trim().length > 30) {
+      if (
+        prep?.textContent &&
+        typeof prep.textContent === 'string' &&
+        prep.textContent.trim().length > 30
+      ) {
         trechos.push(`[Arquivo: ${f.name}]\n${prep.textContent.trim()}`)
         continue
       }
 
-      // Envia ao backend para extração e OCR com Gemini Vision
-      const res = await fetch(`${baseUrl}/backend/v1/extrair-texto-anexo`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: token } : {}),
-        },
-        body: JSON.stringify({
-          file_name: f.name,
-          mime_type: f.type || prep.mimeType,
-          file_base64: b64,
-          text_content: prep.textContent || '',
-        }),
-      })
+      // Se não há baseUrl ou endpoint indisponível, continua sem falhar
+      if (!baseUrl) {
+        continue
+      }
 
-      if (res.ok) {
-        const json = await res.json()
-        if (json.texto_extraido && json.texto_extraido.trim()) {
-          trechos.push(`[Arquivo: ${f.name}]\n${json.texto_extraido.trim()}`)
+      // Envia ao backend para extração e OCR com Gemini Vision caso haja payload
+      try {
+        const controller = new AbortController()
+        const timeoutId = setTimeout(() => controller.abort(), 40000)
+
+        const res = await fetch(`${baseUrl}/backend/v1/extrair-texto-anexo`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: token } : {}),
+          },
+          body: JSON.stringify({
+            file_name: f.name,
+            mime_type: mimeType,
+            file_base64: b64,
+            text_content: prep?.textContent || '',
+          }),
+          signal: controller.signal,
+        }).finally(() => clearTimeout(timeoutId))
+
+        if (res.ok) {
+          const json = await res.json()
+          if (
+            json?.texto_extraido &&
+            typeof json.texto_extraido === 'string' &&
+            json.texto_extraido.trim()
+          ) {
+            trechos.push(`[Arquivo: ${f.name}]\n${json.texto_extraido.trim()}`)
+          }
         }
+      } catch (errFetch) {
+        console.warn(
+          `[knowledgeBaseService] Erro na requisição de extração de ${f.name}:`,
+          errFetch,
+        )
       }
     } catch (err) {
-      console.warn(`[knowledgeBaseService] Erro ao extrair texto de ${f.name}:`, err)
+      console.warn(`[knowledgeBaseService] Erro inesperado ao extrair texto de ${f.name}:`, err)
+      onAviso?.(`Texto do anexo "${f.name}" não pôde ser indexado. O anexo foi preservado.`)
     }
   }
 
@@ -245,15 +291,26 @@ export async function criarArtigo(
     anexos?: File[]
   },
   onProgresso?: (msg: string) => void,
+  onAviso?: (msg: string) => void,
 ): Promise<KnowledgeArticle> {
   const user = pb.authStore.record
   let textoFinalExtraido = dados.texto_extraido || ''
 
   if (dados.anexos && dados.anexos.length > 0) {
-    onProgresso?.('Extraindo texto e tabelas dos documentos anexados...')
-    const textoAnexos = await processarTextoDeArquivos(dados.anexos, onProgresso)
-    if (textoAnexos) {
-      textoFinalExtraido = (textoFinalExtraido ? textoFinalExtraido + '\n\n' : '') + textoAnexos
+    try {
+      onProgresso?.('Extraindo texto e tabelas dos documentos anexados...')
+      const textoAnexos = await processarTextoDeArquivos(dados.anexos, onProgresso, onAviso)
+      if (textoAnexos) {
+        textoFinalExtraido = (textoFinalExtraido ? textoFinalExtraido + '\n\n' : '') + textoAnexos
+      }
+    } catch (errExt) {
+      console.warn(
+        '[knowledgeBaseService] Falha na extração de texto, prosseguindo com upload:',
+        errExt,
+      )
+      onAviso?.(
+        'Não foi possível extrair o texto de alguns anexos, mas eles foram anexados com sucesso.',
+      )
     }
   }
 
@@ -270,7 +327,9 @@ export async function criarArtigo(
 
   if (dados.anexos && dados.anexos.length > 0) {
     for (const file of dados.anexos) {
-      formData.append('anexos', file)
+      if (file && file.size > 0) {
+        formData.append('anexos', file)
+      }
     }
   }
 
@@ -293,14 +352,20 @@ export async function atualizarArtigo(
     novosAnexos?: File[]
   },
   onProgresso?: (msg: string) => void,
+  onAviso?: (msg: string) => void,
 ): Promise<KnowledgeArticle> {
   let textoFinalExtraido = dados.texto_extraido
 
   if (dados.novosAnexos && dados.novosAnexos.length > 0) {
-    onProgresso?.('Extraindo texto dos novos anexos...')
-    const textoNovos = await processarTextoDeArquivos(dados.novosAnexos, onProgresso)
-    if (textoNovos) {
-      textoFinalExtraido = (textoFinalExtraido ? textoFinalExtraido + '\n\n' : '') + textoNovos
+    try {
+      onProgresso?.('Extraindo texto dos novos anexos...')
+      const textoNovos = await processarTextoDeArquivos(dados.novosAnexos, onProgresso, onAviso)
+      if (textoNovos) {
+        textoFinalExtraido = (textoFinalExtraido ? textoFinalExtraido + '\n\n' : '') + textoNovos
+      }
+    } catch (errExt) {
+      console.warn('[knowledgeBaseService] Falha na extração de texto dos novos anexos:', errExt)
+      onAviso?.('Não foi possível extrair o texto dos novos anexos, mas eles serão salvos.')
     }
   }
 
@@ -313,7 +378,9 @@ export async function atualizarArtigo(
 
   if (dados.novosAnexos && dados.novosAnexos.length > 0) {
     for (const file of dados.novosAnexos) {
-      formData.append('anexos', file)
+      if (file && file.size > 0) {
+        formData.append('anexos', file)
+      }
     }
   }
 
@@ -333,7 +400,13 @@ export async function excluirArtigo(id: string): Promise<boolean> {
  * Retorna URL de download do anexo
  */
 export function getAnexoUrl(article: KnowledgeArticle, filename: string): string {
-  return pb.files.getURL(article, filename)
+  try {
+    if (!article || !filename) return '#'
+    return pb.files.getURL(article, filename)
+  } catch (err) {
+    console.warn('[knowledgeBaseService] Erro ao obter getAnexoUrl:', err)
+    return '#'
+  }
 }
 
 /**

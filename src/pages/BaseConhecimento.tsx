@@ -283,6 +283,13 @@ export default function BaseConhecimento() {
             novosAnexos: artAnexos.length > 0 ? artAnexos : undefined,
           },
           (msg) => setMensagemProgresso(msg),
+          (aviso) => {
+            toast({
+              title: 'Aviso sobre anexo',
+              description: aviso,
+              variant: 'default',
+            })
+          },
         )
         toast({ title: 'Artigo atualizado com sucesso!' })
       } else {
@@ -295,28 +302,42 @@ export default function BaseConhecimento() {
             anexos: artAnexos.length > 0 ? artAnexos : undefined,
           },
           (msg) => setMensagemProgresso(msg),
+          (aviso) => {
+            toast({
+              title: 'Aviso sobre anexo',
+              description: aviso,
+              variant: 'default',
+            })
+          },
         )
-        toast({ title: 'Artigo criado e indexado com sucesso!' })
+        toast({ title: 'Artigo criado e salvo com sucesso!' })
       }
 
       setModalArtigoOpen(false)
       // Recarregar artigos da categoria
-      const arts = await listarArtigos({
-        categoriaId: categoriaSelecionada.id,
-        busca: termoBusca,
-      })
-      setArtigos(arts)
-      if (arts.length > 0) {
-        const selecionado = artigoEditando
-          ? arts.find((a) => a.id === artigoEditando.id) || arts[0]
-          : arts[0]
-        setArtigoVisualizando(selecionado)
+      try {
+        const arts = await listarArtigos({
+          categoriaId: categoriaSelecionada.id,
+          busca: termoBusca,
+        })
+        setArtigos(arts)
+        if (arts.length > 0) {
+          const selecionado = artigoEditando
+            ? arts.find((a) => a.id === artigoEditando.id) || arts[0]
+            : arts[0]
+          setArtigoVisualizando(selecionado)
+        }
+      } catch (errList) {
+        console.warn('[BaseConhecimento] Erro ao recarregar artigos após salvar:', errList)
       }
-      carregarCategorias(categoriaSelecionada.id)
+      carregarCategorias(categoriaSelecionada.id).catch(() => {})
     } catch (err: any) {
+      console.error('[BaseConhecimento] Erro ao salvar artigo:', err)
       toast({
         title: 'Erro ao salvar artigo',
-        description: err?.message || 'Falha ao processar e salvar artigo.',
+        description:
+          err?.message ||
+          'Não foi possível salvar o artigo. Tente outro arquivo ou salve o artigo sem anexo.',
         variant: 'destructive',
       })
     } finally {
@@ -344,11 +365,36 @@ export default function BaseConhecimento() {
     }
   }
 
-  // Adicionar arquivos ao formulário
+  // Adicionar arquivos ao formulário com proteção e validação
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files.length > 0) {
-      const novos = Array.from(e.target.files)
-      setArtAnexos((prev) => [...prev, ...novos])
+    try {
+      const fileList = e.target?.files
+      if (fileList && fileList.length > 0) {
+        const novos = Array.from(fileList).filter((f) => f && f.name && f.size > 0)
+        if (novos.length === 0) {
+          toast({
+            title: 'Arquivo inválido',
+            description: 'O arquivo selecionado está vazio ou ilegível.',
+            variant: 'destructive',
+          })
+        } else {
+          setArtAnexos((prev) => [...prev, ...novos])
+        }
+      }
+    } catch (err: any) {
+      console.warn('[BaseConhecimento] Erro ao selecionar arquivo:', err)
+      toast({
+        title: 'Não foi possível carregar o arquivo',
+        description: 'Tente selecionar o arquivo novamente ou escolha outro documento.',
+        variant: 'destructive',
+      })
+    } finally {
+      // Limpa o target value para permitir selecionar o mesmo arquivo novamente se necessário
+      try {
+        if (e.target) e.target.value = ''
+      } catch {
+        /* ignore */
+      }
     }
   }
 
@@ -665,40 +711,49 @@ export default function BaseConhecimento() {
                   </h3>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                    {artigoVisualizando.anexos.map((filename, i) => {
-                      const url = getAnexoUrl(artigoVisualizando, filename)
-                      const isImg = /\.(jpg|jpeg|png|webp|gif)$/i.test(filename)
-                      return (
-                        <div
-                          key={i}
-                          className="flex items-center justify-between p-3 rounded-xl border border-gray-200 bg-gray-50/60 hover:bg-gray-100/80 transition-colors"
-                        >
-                          <div className="flex items-center gap-2.5 min-w-0">
-                            <div className="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
-                              <FileText className="w-4 h-4" />
-                            </div>
-                            <div className="min-w-0">
-                              <span className="text-xs font-semibold text-gray-800 block truncate">
-                                {filename}
-                              </span>
-                              <span className="text-[10px] text-gray-400">
-                                {isImg ? 'Imagem (OCR indexado)' : 'Documento (Texto indexado)'}
-                              </span>
-                            </div>
-                          </div>
-
-                          <a
-                            href={url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="p-1.5 text-gray-500 hover:text-emerald-700 rounded-lg hover:bg-white transition-colors shrink-0"
-                            title="Baixar anexo"
+                    {artigoVisualizando.anexos
+                      .filter((f): f is string => typeof f === 'string' && f.trim().length > 0)
+                      .map((filename, i) => {
+                        let url = '#'
+                        try {
+                          url = getAnexoUrl(artigoVisualizando, filename)
+                        } catch (err) {
+                          console.warn('[BaseConhecimento] Erro ao obter URL do anexo:', err)
+                        }
+                        const isImg = /\.(jpg|jpeg|png|webp|gif)$/i.test(filename)
+                        return (
+                          <div
+                            key={i}
+                            className="flex items-center justify-between p-3 rounded-xl border border-gray-200 bg-gray-50/60 hover:bg-gray-100/80 transition-colors"
                           >
-                            <Download className="w-4 h-4" />
-                          </a>
-                        </div>
-                      )
-                    })}
+                            <div className="flex items-center gap-2.5 min-w-0">
+                              <div className="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
+                                <FileText className="w-4 h-4" />
+                              </div>
+                              <div className="min-w-0">
+                                <span className="text-xs font-semibold text-gray-800 block truncate">
+                                  {filename}
+                                </span>
+                                <span className="text-[10px] text-gray-400">
+                                  {isImg ? 'Imagem (OCR indexado)' : 'Documento (Texto indexado)'}
+                                </span>
+                              </div>
+                            </div>
+
+                            {url && url !== '#' && (
+                              <a
+                                href={url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="p-1.5 text-gray-500 hover:text-emerald-700 rounded-lg hover:bg-white transition-colors shrink-0"
+                                title="Baixar anexo"
+                              >
+                                <Download className="w-4 h-4" />
+                              </a>
+                            )}
+                          </div>
+                        )
+                      })}
                   </div>
                 </div>
               )}

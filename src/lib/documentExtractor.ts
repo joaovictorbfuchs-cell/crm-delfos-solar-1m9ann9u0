@@ -24,10 +24,24 @@ export interface DocumentContentResult {
  */
 function readFileAsArrayBuffer(file: File): Promise<ArrayBuffer> {
   return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = () => resolve(reader.result as ArrayBuffer)
-    reader.onerror = reject
-    reader.readAsArrayBuffer(file)
+    if (!file) {
+      return reject(new Error('Nenhum arquivo fornecido para leitura.'))
+    }
+    try {
+      const reader = new FileReader()
+      reader.onload = () => {
+        if (reader.result instanceof ArrayBuffer) {
+          resolve(reader.result)
+        } else {
+          reject(new Error('Falha ao obter ArrayBuffer do arquivo.'))
+        }
+      }
+      reader.onerror = (e) => reject(reader.error || e || new Error('Erro na leitura do arquivo.'))
+      reader.onabort = () => reject(new Error('Leitura do arquivo cancelada.'))
+      reader.readAsArrayBuffer(file)
+    } catch (err) {
+      reject(err)
+    }
   })
 }
 
@@ -36,18 +50,27 @@ function readFileAsArrayBuffer(file: File): Promise<ArrayBuffer> {
  */
 export function readFileAsBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = () => {
-      const result = reader.result as string
-      const commaIndex = result.indexOf(',')
-      if (commaIndex !== -1) {
-        resolve(result.substring(commaIndex + 1))
-      } else {
-        resolve(result)
-      }
+    if (!file) {
+      return reject(new Error('Nenhum arquivo fornecido para conversão em base64.'))
     }
-    reader.onerror = reject
-    reader.readAsDataURL(file)
+    try {
+      const reader = new FileReader()
+      reader.onload = () => {
+        const result = (reader.result as string) || ''
+        const commaIndex = result.indexOf(',')
+        if (commaIndex !== -1) {
+          resolve(result.substring(commaIndex + 1))
+        } else {
+          resolve(result)
+        }
+      }
+      reader.onerror = (e) =>
+        reject(reader.error || e || new Error('Erro ao ler base64 do arquivo.'))
+      reader.onabort = () => reject(new Error('Conversão em base64 cancelada.'))
+      reader.readAsDataURL(file)
+    } catch (err) {
+      reject(err)
+    }
   })
 }
 
@@ -211,10 +234,18 @@ export async function compressAndResizeImage(
  */
 export async function extractTextFromCsvOrTxt(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = () => resolve(reader.result as string)
-    reader.onerror = reject
-    reader.readAsText(file, 'UTF-8')
+    if (!file) {
+      return resolve('')
+    }
+    try {
+      const reader = new FileReader()
+      reader.onload = () => resolve((reader.result as string) || '')
+      reader.onerror = () => resolve('')
+      reader.onabort = () => resolve('')
+      reader.readAsText(file, 'UTF-8')
+    } catch {
+      resolve('')
+    }
   })
 }
 
@@ -579,109 +610,183 @@ function extractStringsFromBinary(buffer: ArrayBuffer): string {
  * para envio ao agente nativo Skip Cloud.
  */
 export async function prepareDocumentForExtraction(file: File): Promise<DocumentContentResult> {
-  const ext = file.name.split('.').pop()?.toLowerCase() || ''
+  if (!file) {
+    return {
+      fileName: 'arquivo_desconhecido',
+      fileSize: 0,
+      fileType: 'desconhecido',
+      mimeType: 'application/octet-stream',
+    }
+  }
+
+  const fileName = file.name || 'arquivo'
+  const ext = fileName.split('.').pop()?.toLowerCase() || ''
   const mime = file.type || ''
 
-  // Imagens (JPG, PNG, WEBP, BMP) — comprimir e redimensionar antes do envio
-  if (mime.startsWith('image/') || ['jpg', 'jpeg', 'png', 'webp', 'bmp'].includes(ext)) {
-    const compressed = await compressAndResizeImage(file, {
-      maxDimension: 1600,
-      quality: 0.75,
-      maxSizeBytes: 500 * 1024,
-    })
-    return {
-      fileName: file.name,
-      fileSize: compressed.sizeBytes || file.size,
-      fileType: 'image',
-      imageBase64: compressed.base64,
-      mimeType: compressed.mimeType || mime || `image/${ext === 'jpg' ? 'jpeg' : ext}`,
+  try {
+    // Imagens (JPG, PNG, WEBP, BMP) — comprimir e redimensionar antes do envio
+    if (mime.startsWith('image/') || ['jpg', 'jpeg', 'png', 'webp', 'bmp'].includes(ext)) {
+      try {
+        const compressed = await compressAndResizeImage(file, {
+          maxDimension: 1600,
+          quality: 0.75,
+          maxSizeBytes: 500 * 1024,
+        })
+        return {
+          fileName: fileName,
+          fileSize: compressed.sizeBytes || file.size || 0,
+          fileType: 'image',
+          imageBase64: compressed.base64,
+          mimeType: compressed.mimeType || mime || `image/${ext === 'jpg' ? 'jpeg' : ext}`,
+        }
+      } catch (errImg) {
+        console.warn('[prepareDocumentForExtraction] Falha na compressão da imagem:', errImg)
+        return {
+          fileName: fileName,
+          fileSize: file.size || 0,
+          fileType: 'image',
+          mimeType: mime || 'image/jpeg',
+        }
+      }
     }
-  }
 
-  // Planilhas CSV ou texto puro
-  if (ext === 'csv' || ext === 'txt' || mime === 'text/csv' || mime === 'text/plain') {
-    const text = await extractTextFromCsvOrTxt(file)
-    return {
-      fileName: file.name,
-      fileSize: file.size,
-      fileType: 'csv',
-      textContent: text,
-      mimeType: mime || (ext === 'csv' ? 'text/csv' : 'text/plain'),
+    // Planilhas CSV ou texto puro
+    if (ext === 'csv' || ext === 'txt' || mime === 'text/csv' || mime === 'text/plain') {
+      try {
+        const text = await extractTextFromCsvOrTxt(file)
+        return {
+          fileName: fileName,
+          fileSize: file.size || 0,
+          fileType: 'csv',
+          textContent: text,
+          mimeType: mime || (ext === 'csv' ? 'text/csv' : 'text/plain'),
+        }
+      } catch {
+        return {
+          fileName: fileName,
+          fileSize: file.size || 0,
+          fileType: 'csv',
+          textContent: '',
+          mimeType: mime || 'text/plain',
+        }
+      }
     }
-  }
 
-  // Documentos Word (.docx)
-  if (
-    ext === 'docx' ||
-    mime === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-  ) {
-    const text = await extractTextFromDocx(file)
-    return {
-      fileName: file.name,
-      fileSize: file.size,
-      fileType: 'docx',
-      textContent: text,
-      mimeType: mime || 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    // Documentos Word (.docx)
+    if (
+      ext === 'docx' ||
+      mime === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    ) {
+      try {
+        const text = await extractTextFromDocx(file)
+        return {
+          fileName: fileName,
+          fileSize: file.size || 0,
+          fileType: 'docx',
+          textContent: text,
+          mimeType:
+            mime || 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        }
+      } catch (errDocx) {
+        console.warn('[prepareDocumentForExtraction] Falha na extração DOCX:', errDocx)
+        return {
+          fileName: fileName,
+          fileSize: file.size || 0,
+          fileType: 'docx',
+          textContent: '',
+          mimeType:
+            mime || 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        }
+      }
     }
-  }
 
-  // Planilhas Excel (.xlsx)
-  if (
-    ext === 'xlsx' ||
-    mime === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-  ) {
-    const text = await extractTextFromXlsx(file)
-    return {
-      fileName: file.name,
-      fileSize: file.size,
-      fileType: 'xlsx',
-      textContent: text,
-      mimeType: mime || 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    // Planilhas Excel (.xlsx)
+    if (
+      ext === 'xlsx' ||
+      mime === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    ) {
+      try {
+        const text = await extractTextFromXlsx(file)
+        return {
+          fileName: fileName,
+          fileSize: file.size || 0,
+          fileType: 'xlsx',
+          textContent: text,
+          mimeType: mime || 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        }
+      } catch (errXlsx) {
+        console.warn('[prepareDocumentForExtraction] Falha na extração XLSX:', errXlsx)
+        return {
+          fileName: fileName,
+          fileSize: file.size || 0,
+          fileType: 'xlsx',
+          textContent: '',
+          mimeType: mime || 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        }
+      }
     }
-  }
 
-  // Documentos PDF (.pdf) — lê o texto de todas as páginas via pdfjs-dist
-  if (ext === 'pdf' || mime === 'application/pdf') {
-    const text = await extractTextFromPdf(file)
-    // Se o PDF tiver texto legível, enviar o texto estruturado
-    if (text && text.trim().length >= 15) {
+    // Documentos PDF (.pdf) — lê o texto de todas as páginas via pdfjs-dist
+    if (ext === 'pdf' || mime === 'application/pdf') {
+      try {
+        const text = await extractTextFromPdf(file)
+        // Se o PDF tiver texto legível, enviar o texto estruturado
+        if (text && text.trim().length >= 15) {
+          return {
+            fileName: fileName,
+            fileSize: file.size || 0,
+            fileType: 'pdf',
+            textContent: text,
+            mimeType: 'application/pdf',
+          }
+        }
+      } catch (errPdf) {
+        console.warn('[prepareDocumentForExtraction] Falha na extração PDF:', errPdf)
+      }
       return {
-        fileName: file.name,
-        fileSize: file.size,
-        fileType: 'pdf',
-        textContent: text,
+        fileName: fileName,
+        fileSize: file.size || 0,
+        fileType: 'pdf_scanned_empty',
+        textContent: '',
         mimeType: 'application/pdf',
       }
     }
-    // Se o PDF não tiver camada de texto (scan puro/imagem compactada sem OCR),
-    // NÃO enviamos base64 cru com mime application/pdf porque LLMs de visão rejeitam
-    // PDF binário e estouram 700KB. Retornamos com fileType 'pdf_scanned_empty'.
-    return {
-      fileName: file.name,
-      fileSize: file.size,
-      fileType: 'pdf_scanned_empty',
-      textContent: '',
-      mimeType: 'application/pdf',
-    }
-  }
 
-  // Fallback genérico: tentar ler como texto
-  try {
-    const text = await extractTextFromCsvOrTxt(file)
-    return {
-      fileName: file.name,
-      fileSize: file.size,
-      fileType: 'text',
-      textContent: text,
-      mimeType: mime || 'text/plain',
+    // Fallback genérico: tentar ler como texto
+    try {
+      const text = await extractTextFromCsvOrTxt(file)
+      return {
+        fileName: fileName,
+        fileSize: file.size || 0,
+        fileType: 'text',
+        textContent: text,
+        mimeType: mime || 'text/plain',
+      }
+    } catch (_) {
+      try {
+        const base64 = await readFileAsBase64(file)
+        return {
+          fileName: fileName,
+          fileSize: file.size || 0,
+          fileType: 'binary',
+          imageBase64: base64,
+          mimeType: mime || 'application/octet-stream',
+        }
+      } catch {
+        return {
+          fileName: fileName,
+          fileSize: file.size || 0,
+          fileType: 'binary',
+          mimeType: mime || 'application/octet-stream',
+        }
+      }
     }
-  } catch (_) {
-    const base64 = await readFileAsBase64(file)
+  } catch (errGeral) {
+    console.warn('[prepareDocumentForExtraction] Erro inesperado ao preparar documento:', errGeral)
     return {
-      fileName: file.name,
-      fileSize: file.size,
-      fileType: 'binary',
-      imageBase64: base64,
+      fileName: fileName,
+      fileSize: file.size || 0,
+      fileType: 'desconhecido',
       mimeType: mime || 'application/octet-stream',
     }
   }

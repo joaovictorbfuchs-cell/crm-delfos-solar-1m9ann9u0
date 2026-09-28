@@ -34,4 +34,9 @@ describe('Base de Conhecimento & Verificação Crítica Delfos CRM', () => {
     expect(url).toContain('documento_norma.pdf')
     expect(url).toContain('art-123')
   })
+
+  it('lida graciosamente com anexos e artigos nulos ou inválidos sem estourar exceção', () => {
+    expect(getAnexoUrl(null as any, '')).toBe('#')
+    expect(getAnexoUrl({} as any, '')).toBe('#')
+  })
 })
