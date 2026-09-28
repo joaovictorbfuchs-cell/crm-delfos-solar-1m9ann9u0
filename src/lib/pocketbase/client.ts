@@ -5,4 +5,3 @@ pb.autoCancellation(false)
 
 export { pb }
 export default pb
-export default pb

@@ -147,12 +147,12 @@ export const ModalDetalhesAtividade: React.FC<ModalDetalhesAtividadeProps> = ({
       setEmailDestinatario(atividade.email_destinatario || '')
 
       // Se for Auto Leitura RGE mãe, carrega datas_leitura e filhas
-if (tipoAtv === 'auto_leitura_rge') {
-  const norm = normalizarDatasLeitura(atividade.datas_leitura)
-  setDatasLeituraAutoLeitura(norm)
-  setNovaDataInput('')
-  recarregarFilhas()
-} else {
+      if (tipoAtv === 'auto_leitura_rge') {
+        const norm = normalizarDatasLeitura(atividade.datas_leitura)
+        setDatasLeituraAutoLeitura(norm)
+        setNovaDataInput('')
+        recarregarFilhas()
+      } else {
         setDatasLeituraAutoLeitura([])
         setFilhasAutoLeitura([])
       }
@@ -357,7 +357,8 @@ if (tipoAtv === 'auto_leitura_rge') {
     }
   }
 
-  const isFilhaLembrete = tipo === 'lembrete_auto_leitura' || atividade.tipo === 'lembrete_auto_leitura'
+  const isFilhaLembrete =
+    tipo === 'lembrete_auto_leitura' || atividade.tipo === 'lembrete_auto_leitura'
   const podeEnviarWhatsApp = isFilhaLembrete && (status === 'pendente' || status === 'enviado')
   const podeRegistrarLeitura = isFilhaLembrete && status !== 'concluida'
 
