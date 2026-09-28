@@ -223,6 +223,7 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [clienteFocadoId, setClienteFocadoId] = useState<string | null>(null)
   const [busca, setBusca] = useState('')
+  const [limiteExibicao, setLimiteExibicao] = useState(50)
 
   // Edição rápida de telefone
   const [editandoTelefoneId, setEditandoTelefoneId] = useState<string | null>(null)
@@ -300,52 +301,74 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
       const tipoVenda = (cli.tipo_venda || '').toLowerCase()
       const tipoNegocio = (cli.tipo_negocio || '').toLowerCase()
       const produto = (cli.produto || '').toLowerCase()
+      const tipoSistema = (cli.tipo_sistema || '').toLowerCase()
       const statusPos = (cli.status_pos_vendas || '').toLowerCase()
       const areaDestino = (cli.area_destino || '').toLowerCase()
 
-      // 1. Clientes O&M
-      if (
+      // 1. Clientes O&M:
+      // Contrato O&M na base OU campo contratou_om marcado OU tipo/produto explicitamente O&M OU área destino om
+      const isOM =
         clientesOMSet.has(cli.id) ||
+        Boolean(cli.contratou_om) ||
         tipoVenda.includes('o&m') ||
+        tipoVenda.includes('manuten') ||
         tipoNegocio.includes('o&m') ||
+        tipoNegocio.includes('manuten') ||
         produto.includes('o&m') ||
         areaDestino === 'om'
-      ) {
+
+      if (isOM) {
         segs.push('clientes_om')
       }
 
-      // 2. Clientes Solar
-      if (
-        tipoVenda.includes('solar') ||
-        tipoNegocio.includes('solar') ||
-        produto.includes('solar') ||
-        (cli.potencia_kwp && cli.potencia_kwp > 0)
-      ) {
-        segs.push('clientes_solar')
-      }
-
-      // 3. Clientes Bateria
-      if (
+      // 2. Clientes Bateria:
+      // tipo_venda Baterias OU tipo_negocio baterias OU tipo_sistema Híbrido/baterias OU produto bateria/sistemas híbridos
+      const isBateria =
         tipoVenda.includes('bateria') ||
         tipoNegocio.includes('bateria') ||
         produto.includes('bateria') ||
+        tipoSistema.includes('híbrido') ||
+        tipoSistema.includes('hibrido') ||
         tipoNegocio.includes('sistemas híbridos')
-      ) {
+
+      if (isBateria) {
         segs.push('clientes_bateria')
       }
 
-      // 4. Pós-Venda
-      if (
-        cli.transferido_pos_vendas ||
-        statusPos ||
+      // 3. Pós-Venda:
+      // Critério coerente com o módulo ClientesPosVendasView:
+      // transferido_pos_vendas=true OU status Fechado/Concluído OU com data_instalacao cadastrada OU status_pos_vendas ativo/preenchido OU área de destino pós-venda
+      const isPosVenda =
+        Boolean(cli.transferido_pos_vendas) ||
+        (cli.status as string) === 'Fechado' ||
+        (cli.status as string) === 'Concluído' ||
+        Boolean(cli.data_instalacao) ||
+        Boolean(statusPos) ||
         areaDestino === 'pos_vendas' ||
-        cli.status === 'Fechado' ||
-        clientesOMSet.has(cli.id)
-      ) {
+        cli.origem_pos_vendas === 'funil_comercial' ||
+        cli.origem_pos_vendas === 'pos_vendas_seed'
+
+      if (isPosVenda) {
         segs.push('pos_vendas')
       }
 
-      // Se não caiu em nenhum explícito, mas é cliente ativo, inclui em solar por padrão
+      // 4. Clientes Solar:
+      // Representa usinas e soluções solares fotovoltaicas.
+      // Se não é exclusivamente de outro segmento específico (ex: apenas O&M sem usina),
+      // ou possui potência / tipo_venda solar / produto solar / usina instalada
+      const isExplicitamenteOutro =
+        (isOM || isBateria) &&
+        !tipoVenda.includes('solar') &&
+        !tipoNegocio.includes('solar') &&
+        !produto.includes('solar') &&
+        !(cli.potencia_kwp && cli.potencia_kwp > 0) &&
+        !cli.data_instalacao
+
+      if (!isExplicitamenteOutro) {
+        segs.push('clientes_solar')
+      }
+
+      // Fallback de garantia: se não caiu em nenhum segmento, inclui em clientes_solar
       if (segs.length === 0) {
         segs.push('clientes_solar')
       }
@@ -446,13 +469,14 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
     return resultado
   }, [itensProcessados, segmentoAtivo, busca])
 
-  // Inicialização ao abrir o modal
+  // Inicialização ao abrir o modal (executa apenas na transição de open false -> true)
   useEffect(() => {
     if (!open) {
       setProgressoEnvio(null)
       setIsEnviando(false)
       setAuthErrorCapturado(false)
       setEditandoTelefoneId(null)
+      setBusca('')
       return
     }
 
@@ -460,6 +484,8 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
     setSegmentoAtivo(segmentoInicial)
     setAuthErrorCapturado(false)
     setProgressoEnvio(null)
+    setBusca('')
+    setLimiteExibicao(50)
 
     // Se veio destinatáriosIniciais, seleciona todos eles por padrão
     if (destinatariosIniciais && destinatariosIniciais.length > 0) {
@@ -470,13 +496,17 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
       setSelectedIds(uniqueIds)
       setClienteFocadoId(uniqueIds[0] || null)
     } else {
-      // Base geral: seleciona os 5 primeiros com WhatsApp válido dentro do filtro inicial
-      const selecionaveis = itensFiltrados.filter((c) => c.temWhatsAppValido)
+      // Base geral: calcula os itens para o segmento inicial
+      let itensIniciais = itensProcessados
+      if (segmentoInicial !== 'todos') {
+        itensIniciais = itensIniciais.filter((i) => i.segmentos.includes(segmentoInicial))
+      }
+      const selecionaveis = itensIniciais.filter((c) => c.temWhatsAppValido)
       const idsIniciais = selecionaveis.slice(0, 5).map((c) => c.cliente.id)
       setSelectedIds(idsIniciais)
-      setClienteFocadoId(idsIniciais[0] || itensFiltrados[0]?.cliente.id || null)
+      setClienteFocadoId(idsIniciais[0] || itensIniciais[0]?.cliente.id || null)
     }
-  }, [open, destinatariosIniciais, segmentoInicial, mensagemPadrao, itensFiltrados])
+  }, [open, destinatariosIniciais, segmentoInicial, mensagemPadrao, itensProcessados])
 
   // Troca de modelo de mensagem pré-cadastrado via dropdown
   const handleSelecionarTemplate = (templateId: string) => {
@@ -546,15 +576,21 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
   }
 
   const handleSelectAll = () => {
-    const idsVisiveis = itensFiltrados.map((c) => c.cliente.id)
-    const todosVisiveisEstaoSelecionados =
-      idsVisiveis.length > 0 && idsVisiveis.every((id) => selectedIds.includes(id))
+    // Seleciona ou desmarca exatamente os clientes correspondentes ao filtro ativo
+    const idsFiltrados = itensFiltrados.map((c) => c.cliente.id)
+    const todosFiltradosEstaoSelecionados =
+      idsFiltrados.length > 0 && idsFiltrados.every((id) => selectedIds.includes(id))
 
-    if (todosVisiveisEstaoSelecionados) {
-      setSelectedIds((prev) => prev.filter((id) => !idsVisiveis.includes(id)))
+    if (todosFiltradosEstaoSelecionados) {
+      setSelectedIds((prev) => prev.filter((id) => !idsFiltrados.includes(id)))
     } else {
-      setSelectedIds((prev) => Array.from(new Set([...prev, ...idsVisiveis])))
+      setSelectedIds((prev) => Array.from(new Set([...prev, ...idsFiltrados])))
     }
+  }
+
+  const handleMudarSegmento = (novoSegmento: SegmentoFiltro) => {
+    setSegmentoAtivo(novoSegmento)
+    setLimiteExibicao(50)
   }
 
   // Salvar número do WhatsApp editado inline
@@ -853,7 +889,7 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
                     <button
                       key={seg.id}
                       type="button"
-                      onClick={() => setSegmentoAtivo(seg.id as SegmentoFiltro)}
+                      onClick={() => handleMudarSegmento(seg.id as SegmentoFiltro)}
                       className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all ${
                         isAtivo
                           ? 'bg-[#0284C7] text-white shadow-2xs'
@@ -910,147 +946,161 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
                   <p>Tente selecionar outro segmento ou limpar a busca.</p>
                 </div>
               ) : (
-                itensFiltrados.map((item) => {
-                  const isChecked = selectedIds.includes(item.cliente.id)
-                  const isFocado = itemFocado?.cliente.id === item.cliente.id
-                  const isEditandoTel = editandoTelefoneId === item.cliente.id
+                <>
+                  {itensFiltrados.slice(0, limiteExibicao).map((item) => {
+                    const isChecked = selectedIds.includes(item.cliente.id)
+                    const isFocado = itemFocado?.cliente.id === item.cliente.id
+                    const isEditandoTel = editandoTelefoneId === item.cliente.id
 
-                  return (
-                    <div
-                      key={item.cliente.id}
-                      onClick={() => setClienteFocadoId(item.cliente.id)}
-                      className={`p-3 transition-colors cursor-pointer flex flex-col gap-1.5 ${
-                        isFocado
-                          ? 'bg-sky-50/70 border-l-4 border-l-[#0284C7]'
-                          : 'hover:bg-slate-50'
-                      }`}
-                    >
-                      <div className="flex items-start justify-between gap-2">
-                        <div
-                          className="flex items-start gap-2.5 flex-1 min-w-0"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            handleToggleCliente(item.cliente.id)
-                          }}
-                        >
-                          <button
-                            type="button"
-                            className="mt-0.5 text-gray-400 hover:text-[#0284C7] transition-colors shrink-0"
+                    return (
+                      <div
+                        key={item.cliente.id}
+                        onClick={() => setClienteFocadoId(item.cliente.id)}
+                        className={`p-3 transition-colors cursor-pointer flex flex-col gap-1.5 ${
+                          isFocado
+                            ? 'bg-sky-50/70 border-l-4 border-l-[#0284C7]'
+                            : 'hover:bg-slate-50'
+                        }`}
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div
+                            className="flex items-start gap-2.5 flex-1 min-w-0"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleToggleCliente(item.cliente.id)
+                            }}
                           >
-                            {isChecked ? (
-                              <CheckSquare className="w-4 h-4 text-[#0284C7]" />
-                            ) : (
-                              <Square className="w-4 h-4 text-gray-400" />
-                            )}
-                          </button>
-                          <div className="min-w-0 flex-1">
-                            <div className="flex items-center gap-1.5 flex-wrap">
-                              <span className="font-bold text-xs sm:text-sm text-gray-900 truncate">
-                                {item.cliente.nome}
-                              </span>
-                              {item.cidade && (
-                                <span className="text-[10px] text-gray-500 bg-gray-100 px-1.5 py-0.2 rounded">
-                                  {item.cidade}
-                                </span>
+                            <button
+                              type="button"
+                              className="mt-0.5 text-gray-400 hover:text-[#0284C7] transition-colors shrink-0"
+                            >
+                              {isChecked ? (
+                                <CheckSquare className="w-4 h-4 text-[#0284C7]" />
+                              ) : (
+                                <Square className="w-4 h-4 text-gray-400" />
                               )}
-                              {item.isExemploDemo && (
-                                <span className="text-[10px] text-amber-800 bg-amber-100 border border-amber-300 px-1.5 py-0.2 rounded font-bold">
-                                  Exemplo (Demo)
+                            </button>
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <span className="font-bold text-xs sm:text-sm text-gray-900 truncate">
+                                  {item.cliente.nome}
                                 </span>
-                              )}
-                            </div>
-                            <div className="flex items-center gap-3 text-[11px] text-gray-500 mt-0.5 flex-wrap">
-                              <span className="flex items-center gap-1 text-amber-700 font-semibold">
-                                <Zap className="w-3 h-3 text-amber-500 shrink-0" />
-                                {item.potenciaTexto}
-                              </span>
-                              {item.valorItem && item.valorItem > 0 ? (
-                                <>
-                                  <span>•</span>
-                                  <span className="text-emerald-700 font-semibold flex items-center gap-0.5">
-                                    <DollarSign className="w-3 h-3" />
-                                    {formatCurrency(item.valorItem)}
+                                {item.cidade && (
+                                  <span className="text-[10px] text-gray-500 bg-gray-100 px-1.5 py-0.2 rounded">
+                                    {item.cidade}
                                   </span>
-                                </>
-                              ) : null}
+                                )}
+                                {item.isExemploDemo && (
+                                  <span className="text-[10px] text-amber-800 bg-amber-100 border border-amber-300 px-1.5 py-0.2 rounded font-bold">
+                                    Exemplo (Demo)
+                                  </span>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-3 text-[11px] text-gray-500 mt-0.5 flex-wrap">
+                                <span className="flex items-center gap-1 text-amber-700 font-semibold">
+                                  <Zap className="w-3 h-3 text-amber-500 shrink-0" />
+                                  {item.potenciaTexto}
+                                </span>
+                                {item.valorItem && item.valorItem > 0 ? (
+                                  <>
+                                    <span>•</span>
+                                    <span className="text-emerald-700 font-semibold flex items-center gap-0.5">
+                                      <DollarSign className="w-3 h-3" />
+                                      {formatCurrency(item.valorItem)}
+                                    </span>
+                                  </>
+                                ) : null}
+                              </div>
                             </div>
                           </div>
                         </div>
-                      </div>
 
-                      {/* Linha do Telefone / WhatsApp */}
-                      <div
-                        className="flex items-center justify-between text-[11px] pt-1 border-t border-gray-100/80 gap-2"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        {isEditandoTel ? (
-                          <div className="flex items-center gap-1.5 w-full">
-                            <Input
-                              value={telefoneEmEdicao}
-                              onChange={(e) =>
-                                setTelefoneEmEdicao(formatWhatsAppPhone(e.target.value))
-                              }
-                              placeholder="(00) 00000-0000"
-                              className="h-7 text-xs bg-white flex-1"
-                              autoFocus
-                            />
-                            <Button
-                              size="sm"
-                              type="button"
-                              onClick={() => handleSalvarTelefoneInline(item.cliente)}
-                              className="h-7 px-2 text-xs bg-[#0284C7] hover:bg-[#0369a1] text-white"
-                            >
-                              Salvar
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              type="button"
-                              onClick={() => {
-                                setEditandoTelefoneId(null)
-                                setTelefoneEmEdicao('')
-                              }}
-                              className="h-7 px-2 text-xs"
-                            >
-                              Cancelar
-                            </Button>
-                          </div>
-                        ) : (
-                          <>
-                            <div className="flex items-center gap-1.5">
-                              <Phone className="w-3 h-3 text-[#0284C7]" />
-                              {item.temWhatsAppValido ? (
-                                <span className="font-medium text-gray-800">
-                                  {item.telefoneAutoritativo}
-                                </span>
-                              ) : (
-                                <span className="font-semibold text-rose-600 flex items-center gap-1">
-                                  <AlertCircle className="w-3 h-3" />
-                                  Sem WhatsApp válido
-                                </span>
-                              )}
-                            </div>
-                            {!item.isExemploDemo && (
-                              <button
+                        {/* Linha do Telefone / WhatsApp */}
+                        <div
+                          className="flex items-center justify-between text-[11px] pt-1 border-t border-gray-100/80 gap-2"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          {isEditandoTel ? (
+                            <div className="flex items-center gap-1.5 w-full">
+                              <Input
+                                value={telefoneEmEdicao}
+                                onChange={(e) =>
+                                  setTelefoneEmEdicao(formatWhatsAppPhone(e.target.value))
+                                }
+                                placeholder="(00) 00000-0000"
+                                className="h-7 text-xs bg-white flex-1"
+                                autoFocus
+                              />
+                              <Button
+                                size="sm"
+                                type="button"
+                                onClick={() => handleSalvarTelefoneInline(item.cliente)}
+                                className="h-7 px-2 text-xs bg-[#0284C7] hover:bg-[#0369a1] text-white"
+                              >
+                                Salvar
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
                                 type="button"
                                 onClick={() => {
-                                  setEditandoTelefoneId(item.cliente.id)
-                                  setTelefoneEmEdicao(item.telefoneAutoritativo)
+                                  setEditandoTelefoneId(null)
+                                  setTelefoneEmEdicao('')
                                 }}
-                                className="text-[10px] text-[#0284C7] hover:underline font-semibold inline-flex items-center gap-1"
+                                className="h-7 px-2 text-xs"
                               >
-                                <Edit2 className="w-2.5 h-2.5" />
-                                <span>
-                                  {item.temWhatsAppValido ? 'Alterar' : 'Informar WhatsApp'}
-                                </span>
-                              </button>
-                            )}
-                          </>
-                        )}
+                                Cancelar
+                              </Button>
+                            </div>
+                          ) : (
+                            <>
+                              <div className="flex items-center gap-1.5">
+                                <Phone className="w-3 h-3 text-[#0284C7]" />
+                                {item.temWhatsAppValido ? (
+                                  <span className="font-medium text-gray-800">
+                                    {item.telefoneAutoritativo}
+                                  </span>
+                                ) : (
+                                  <span className="font-semibold text-rose-600 flex items-center gap-1">
+                                    <AlertCircle className="w-3 h-3" />
+                                    Sem WhatsApp válido
+                                  </span>
+                                )}
+                              </div>
+                              {!item.isExemploDemo && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setEditandoTelefoneId(item.cliente.id)
+                                    setTelefoneEmEdicao(item.telefoneAutoritativo)
+                                  }}
+                                  className="text-[10px] text-[#0284C7] hover:underline font-semibold inline-flex items-center gap-1"
+                                >
+                                  <Edit2 className="w-2.5 h-2.5" />
+                                  <span>
+                                    {item.temWhatsAppValido ? 'Alterar' : 'Informar WhatsApp'}
+                                  </span>
+                                </button>
+                              )}
+                            </>
+                          )}
+                        </div>
                       </div>
+                    )
+                  })}
+
+                  {itensFiltrados.length > limiteExibicao && (
+                    <div className="p-2.5 bg-slate-50 text-center border-t border-slate-200">
+                      <button
+                        type="button"
+                        onClick={() => setLimiteExibicao((prev) => prev + 50)}
+                        className="text-xs font-semibold text-[#0284C7] hover:underline py-1 px-3 rounded-lg hover:bg-sky-50 transition-colors"
+                      >
+                        Carregar mais 50 (mostrando {limiteExibicao} de {itensFiltrados.length})
+                      </button>
                     </div>
-                  )
-                })
+                  )}
+                </>
               )}
             </div>
 
