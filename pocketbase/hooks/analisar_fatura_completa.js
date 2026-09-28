@@ -4,71 +4,46 @@
  * Rota GET /backend/v1/relatorio-fatura-publico/{token}
  */
 
-/**
- * Formata número no padrão brasileiro sem depender de Number.prototype.toLocaleString
- * (o motor Goja do PocketBase não suporta toLocaleString com locale string, lançando
- * "RangeError: toString() radix argument must be between 2 and 36").
- */
-function formatNumeroBR(val, casasDecimais) {
-  if (val === undefined || val === null || val === '') return '0'
-  const num = typeof val === 'number' ? val : parseFloat(val)
-  if (isNaN(num)) return '0'
+routerAdd('POST', '/backend/v1/analisar-fatura-completa', (e) => {
+  const reqStart = Date.now()
 
-  if (typeof casasDecimais === 'number' && casasDecimais >= 0) {
-    const fixed = num.toFixed(casasDecimais)
-    const parts = fixed.split('.')
+  // Helpers inline para evitar ReferenceError no pool isolado de VM do Goja / PocketBase
+  function formatNumeroBR(val, casasDecimais) {
+    if (val === undefined || val === null || val === '') return '0'
+    const num = typeof val === 'number' ? val : parseFloat(val)
+    if (isNaN(num)) return '0'
+
+    if (typeof casasDecimais === 'number' && casasDecimais >= 0) {
+      const fixed = num.toFixed(casasDecimais)
+      const parts = fixed.split('.')
+      const intPart = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, '.')
+      return parts.length > 1 ? `${intPart},${parts[1]}` : intPart
+    }
+
+    const rounded = Math.round(num * 100) / 100
+    const isInt = Math.floor(rounded) === rounded
+    if (isInt) {
+      return Math.floor(rounded)
+        .toString()
+        .replace(/\B(?=(\d{3})+(?!\d))/g, '.')
+    }
+    const parts = rounded.toFixed(2).replace(/0+$/, '').split('.')
     const intPart = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, '.')
     return parts.length > 1 ? `${intPart},${parts[1]}` : intPart
   }
 
-  // Se não informou casas decimais, formata os inteiros e preserva decimais existentes até 2 casas se houver
-  const rounded = Math.round(num * 100) / 100
-  const isInt = Math.floor(rounded) === rounded
-  if (isInt) {
-    return Math.floor(rounded)
-      .toString()
-      .replace(/\B(?=(\d{3})+(?!\d))/g, '.')
+  function safeParseFloat(val, fallback) {
+    const dFallback = typeof fallback === 'number' ? fallback : 0
+    if (val === undefined || val === null || val === '') return dFallback
+    try {
+      if (typeof val === 'number') return isNaN(val) ? dFallback : val
+      const str = String(val).trim().replace(/\./g, '').replace(',', '.')
+      const parsed = parseFloat(str)
+      return isNaN(parsed) ? dFallback : parsed
+    } catch (_) {
+      return dFallback
+    }
   }
-  const parts = rounded.toFixed(2).replace(/0+$/, '').split('.')
-  const intPart = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, '.')
-  return parts.length > 1 ? `${intPart},${parts[1]}` : intPart
-}
-
-/**
- * Sanitiza e analisa inteiros com segurança.
- * Radix sempre forçado entre 2 e 36 (default 10) para evitar quebras por radix inválido.
- */
-function safeParseInt(val, radix, fallback) {
-  const dRadix = typeof radix === 'number' && radix >= 2 && radix <= 36 ? radix : 10
-  const dFallback = typeof fallback === 'number' ? fallback : 0
-  if (val === undefined || val === null || val === '') return dFallback
-  try {
-    const parsed = parseInt(String(val).trim(), dRadix)
-    return isNaN(parsed) ? dFallback : parsed
-  } catch (_) {
-    return dFallback
-  }
-}
-
-/**
- * Sanitiza e analisa floats com segurança.
- */
-function safeParseFloat(val, fallback) {
-  const dFallback = typeof fallback === 'number' ? fallback : 0
-  if (val === undefined || val === null || val === '') return dFallback
-  try {
-    if (typeof val === 'number') return isNaN(val) ? dFallback : val
-    // Converte vírgula decimal brasileira se presente
-    const str = String(val).trim().replace(/\./g, '').replace(',', '.')
-    const parsed = parseFloat(str)
-    return isNaN(parsed) ? dFallback : parsed
-  } catch (_) {
-    return dFallback
-  }
-}
-
-routerAdd('POST', '/backend/v1/analisar-fatura-completa', (e) => {
-  const reqStart = Date.now()
 
   try {
     const authUser = e.auth
