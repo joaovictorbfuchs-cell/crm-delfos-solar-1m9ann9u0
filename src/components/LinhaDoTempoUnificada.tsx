@@ -44,7 +44,9 @@ import { useClientes } from '@/contexts/ClientesContext'
 import { useAuth } from '@/contexts/AuthContext'
 import { calcularPropostaOM, PLANOS_OM_VALORES } from '@/lib/propostaOMGenerator'
 import { StatusBadge } from '@/components/StatusBadge'
-import { ArrowLeft, RotateCcw } from 'lucide-react'
+import { ArrowLeft, RotateCcw, Send, CheckCircle } from 'lucide-react'
+import { ModalEnviarLembreteAutoLeituraWhatsApp } from '@/components/ModalEnviarLembreteAutoLeituraWhatsApp'
+import { ModalRegistrarDadosLeitura } from '@/components/ModalRegistrarDadosLeitura'
 
 // Ordem estrita do funil comercial Delfos Solar
 export const ORDEM_FUNIL_CLIENTE: ClienteStatus[] = [
@@ -85,6 +87,7 @@ export const LinhaDoTempoUnificada: React.FC<LinhaDoTempoUnificadaProps> = ({
     contratosOM,
     documentosCliente,
     updateClienteStatus,
+    refreshData,
   } = useClientes()
   const { isAdmin, userProfile, user } = useAuth()
   const [activeFilter, setActiveFilter] = useState<TimelineFilterTipo>('todas')
@@ -100,6 +103,12 @@ export const LinhaDoTempoUnificada: React.FC<LinhaDoTempoUnificadaProps> = ({
   )
   const [modalContratoViewOpen, setModalContratoViewOpen] = useState(false)
   const [contratoViewDados, setContratoViewDados] = useState<Partial<DadosContratoOM> | null>(null)
+
+  // Modais para lembrete de auto leitura (WhatsApp e Registro de Leitura)
+  const [modalLembreteWhatsAppOpen, setModalLembreteWhatsAppOpen] = useState(false)
+  const [modalRegistrarLeituraOpen, setModalRegistrarLeituraOpen] = useState(false)
+  const [atividadeLembreteSelecionada, setAtividadeLembreteSelecionada] =
+    useState<Atividade | null>(null)
 
   // Etapa atual do cliente no funil
   const estagioAtual = cliente.status || 'Novo Lead'
@@ -335,6 +344,8 @@ export const LinhaDoTempoUnificada: React.FC<LinhaDoTempoUnificadaProps> = ({
       if (atv.status === 'concluida') statusVar = 'success'
       else if (atv.status === 'cancelada') statusVar = 'danger'
       else if (atv.status === 'pendente') statusVar = 'warning'
+      else if (atv.status === 'enviado') statusVar = 'info'
+      else if (atv.status === 'dados_registrados') statusVar = 'success'
 
       const configTipo = getTipoAtividadeConfig(atv.tipo, customDefs)
 
@@ -833,13 +844,21 @@ export const LinhaDoTempoUnificada: React.FC<LinhaDoTempoUnificadaProps> = ({
                               ? 'cursor-pointer hover:opacity-80'
                               : ''
                           } ${
-                            item.statusVariant === 'success'
-                              ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
-                              : item.statusVariant === 'danger'
-                                ? 'bg-red-100 text-red-800 border-red-300'
-                                : item.statusVariant === 'warning'
-                                  ? 'bg-amber-100 text-amber-900 border-amber-300'
-                                  : 'bg-blue-100 text-blue-800 border-blue-200'
+                            item.rawAtividade?.tipo === 'lembrete_auto_leitura'
+                              ? item.rawAtividade.status === 'concluida'
+                                ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
+                                : item.rawAtividade.status === 'dados_registrados'
+                                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                  : item.rawAtividade.status === 'enviado'
+                                    ? 'bg-blue-100 text-blue-800 border-blue-200'
+                                    : 'bg-amber-100 text-amber-900 border-amber-300'
+                              : item.statusVariant === 'success'
+                                ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
+                                : item.statusVariant === 'danger'
+                                  ? 'bg-red-100 text-red-800 border-red-300'
+                                  : item.statusVariant === 'warning'
+                                    ? 'bg-amber-100 text-amber-900 border-amber-300'
+                                    : 'bg-blue-100 text-blue-800 border-blue-200'
                           }`}
                           title={
                             item.rawAtividade && onToggleAtividadeStatus
@@ -847,7 +866,15 @@ export const LinhaDoTempoUnificada: React.FC<LinhaDoTempoUnificadaProps> = ({
                               : undefined
                           }
                         >
-                          {item.status}
+                          {item.rawAtividade?.tipo === 'lembrete_auto_leitura'
+                            ? item.rawAtividade.status === 'concluida'
+                              ? 'Concluída'
+                              : item.rawAtividade.status === 'dados_registrados'
+                                ? 'Dados Registrados'
+                                : item.rawAtividade.status === 'enviado'
+                                  ? 'Enviado'
+                                  : 'Pendente'
+                            : item.status}
                         </button>
                       )}
                     </div>
@@ -1083,6 +1110,55 @@ export const LinhaDoTempoUnificada: React.FC<LinhaDoTempoUnificadaProps> = ({
                         </button>
                       )}
 
+                      {/* Botões específicos para Lembrete de Auto Leitura */}
+                      {item.categoria === 'atividade' &&
+                        item.rawAtividade?.tipo === 'lembrete_auto_leitura' &&
+                        item.rawAtividade?.status !== 'concluida' && (
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            {/* Botão Enviar / Reenviar lembrete por WhatsApp */}
+                            {(item.rawAtividade.status === 'pendente' ||
+                              item.rawAtividade.status === 'enviado' ||
+                              !item.rawAtividade.status) && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  setAtividadeLembreteSelecionada(item.rawAtividade!)
+                                  setModalLembreteWhatsAppOpen(true)
+                                }}
+                                className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-lg transition-colors shadow-2xs"
+                                title={
+                                  item.rawAtividade.status === 'enviado'
+                                    ? 'Reenviar lembrete por WhatsApp via Z-API'
+                                    : 'Enviar lembrete por WhatsApp via Z-API'
+                                }
+                              >
+                                <Send className="w-3 h-3 text-emerald-600" />
+                                <span>
+                                  {item.rawAtividade.status === 'enviado'
+                                    ? 'Reenviar lembrete'
+                                    : 'Enviar lembrete por WhatsApp'}
+                                </span>
+                              </button>
+                            )}
+
+                            {/* Botão Registrar leitura (visível quando status !== 'concluida') */}
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                setAtividadeLembreteSelecionada(item.rawAtividade!)
+                                setModalRegistrarLeituraOpen(true)
+                              }}
+                              className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-lg transition-colors shadow-2xs"
+                              title="Registrar dados e foto da leitura do medidor"
+                            >
+                              <CheckCircle className="w-3 h-3 text-indigo-600" />
+                              <span>Registrar leitura</span>
+                            </button>
+                          </div>
+                        )}
+
                       {/* Botão de excluir para itens que são atividades */}
                       {item.rawAtividade && (
                         <button
@@ -1129,6 +1205,54 @@ export const LinhaDoTempoUnificada: React.FC<LinhaDoTempoUnificadaProps> = ({
           cliente={cliente}
           initialDados={contratoViewDados}
           modoVisualizacaoDireta={true}
+        />
+      )}
+
+      {/* Modal Enviar Lembrete por WhatsApp (Z-API) */}
+      {modalLembreteWhatsAppOpen && atividadeLembreteSelecionada && (
+        <ModalEnviarLembreteAutoLeituraWhatsApp
+          isOpen={modalLembreteWhatsAppOpen}
+          onClose={() => {
+            setModalLembreteWhatsAppOpen(false)
+            setAtividadeLembreteSelecionada(null)
+          }}
+          atividade={atividadeLembreteSelecionada}
+          cliente={cliente || atividadeLembreteSelecionada.expand?.cliente_id || null}
+          onEnviadoSucesso={async () => {
+            try {
+              if (refreshData) {
+                await refreshData()
+              }
+            } catch (err) {
+              console.warn('Erro ao atualizar dados após envio de lembrete:', err)
+            }
+            setModalLembreteWhatsAppOpen(false)
+            setAtividadeLembreteSelecionada(null)
+          }}
+        />
+      )}
+
+      {/* Modal Registrar Dados da Leitura (Texto livre + Foto do medidor) */}
+      {modalRegistrarLeituraOpen && atividadeLembreteSelecionada && (
+        <ModalRegistrarDadosLeitura
+          isOpen={modalRegistrarLeituraOpen}
+          onClose={() => {
+            setModalRegistrarLeituraOpen(false)
+            setAtividadeLembreteSelecionada(null)
+          }}
+          atividade={atividadeLembreteSelecionada}
+          cliente={cliente || atividadeLembreteSelecionada.expand?.cliente_id || null}
+          onSalvoSucesso={async () => {
+            try {
+              if (refreshData) {
+                await refreshData()
+              }
+            } catch (err) {
+              console.warn('Erro ao atualizar dados após registro de leitura:', err)
+            }
+            setModalRegistrarLeituraOpen(false)
+            setAtividadeLembreteSelecionada(null)
+          }}
         />
       )}
 
