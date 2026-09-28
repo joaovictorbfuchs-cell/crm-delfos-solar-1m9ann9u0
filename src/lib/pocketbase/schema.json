@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-28T04:10:18.970Z",
+  "generatedAt": "2026-09-28T04:23:51.281Z",
   "collections": [
     {
       "name": "users",
@@ -894,7 +894,15 @@
           "type": "select",
           "required": false,
           "system": false,
-          "selectValues": ["pendente", "concluida", "cancelada", "agendada", "em_execucao"]
+          "selectValues": [
+            "pendente",
+            "concluida",
+            "cancelada",
+            "agendada",
+            "em_execucao",
+            "enviado",
+            "dados_registrados"
+          ]
         },
         {
           "name": "responsavel_id",
@@ -1137,6 +1145,18 @@
         {
           "name": "data_lembrete",
           "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "dados_leitura_registrados",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "foto_medidor",
+          "type": "file",
           "required": false,
           "system": false
         }

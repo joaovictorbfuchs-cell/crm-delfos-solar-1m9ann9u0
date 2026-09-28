@@ -94,7 +94,14 @@ export type AtividadeTipo =
   // Tipos dinâmicos / personalizados adicionados pelo usuário
   | (string & {})
 
-export type AtividadeStatus = 'pendente' | 'agendada' | 'em_execucao' | 'concluida' | 'cancelada'
+export type AtividadeStatus =
+  | 'pendente'
+  | 'agendada'
+  | 'em_execucao'
+  | 'concluida'
+  | 'cancelada'
+  | 'enviado'
+  | 'dados_registrados'
 
 export type UserRole = 'admin' | 'instalador'
 
@@ -862,6 +869,8 @@ export interface Atividade extends RecordModel {
   parent_id?: string
   datas_leitura?: string[] | string | unknown
   data_lembrete?: string
+  dados_leitura_registrados?: string
+  foto_medidor?: string
   created: string
   updated: string
   expand?: {

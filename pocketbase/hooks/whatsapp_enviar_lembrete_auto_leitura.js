@@ -286,9 +286,10 @@ routerAdd('POST', '/backend/v1/whatsapp/enviar-lembrete-auto-leitura', (e) => {
       })
     }
 
-    // Se enviado com sucesso, atualiza a atividade marcando a data de envio do lembrete
+    // Se enviado com sucesso, atualiza a atividade marcando a data de envio do lembrete e o status para "enviado"
     const agoraIso = new Date().toISOString()
     atvRecord.set('lembrete_whatsapp_enviado_em', agoraIso)
+    atvRecord.set('status', 'enviado')
 
     // Atualiza também dentro de auto_leitura_dados se existir para compatibilidade
     try {
