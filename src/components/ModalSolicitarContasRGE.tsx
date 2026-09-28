@@ -28,7 +28,7 @@ import {
 import { useClientes } from '@/contexts/ClientesContext'
 import { useAuth } from '@/contexts/AuthContext'
 import { ClienteAutocomplete } from '@/components/ClienteAutocomplete'
-import { emailService } from '@/services/emailService'
+import { emailService, enviarEmailViaGmail } from '@/services/emailService'
 import {
   EMAIL_RGE_PADRAO,
   DELFOS_TELEFONE_PADRAO,
@@ -424,28 +424,35 @@ export const ModalSolicitarContasRGE: React.FC<ModalSolicitarContasRGEProps> = (
         }
       }
 
-      // 2. Disparar e-mail via emailService (backend Delfos Resend)
-      let resendId = ''
+      // 2. Disparar e-mail via função "Enviar Email via Gmail" (Composio / delfos.usinas@gmail.com)
+      let emailEnvioId = ''
       let envioSucesso = false
       let erroEnvioMsg = ''
+      let provedorUtilizado = 'Gmail (delfos.usinas@gmail.com)'
 
       try {
-        const envioRes = await emailService.sendEmail({
-          to: emailDestinatario.trim(),
-          subject: assuntoAtual,
-          html: corpoHtmlAtual,
-          attachments: anexosPayload.length > 0 ? anexosPayload : undefined,
-          from: 'Delfos Solar <delfos.usinas@gmail.com>',
+        const envioRes = await enviarEmailViaGmail({
+          destinatario: emailDestinatario.trim(),
+          assunto: assuntoAtual,
+          corpo: corpoHtmlAtual,
+          anexos: anexosPayload.length > 0 ? anexosPayload : undefined,
         })
 
-        if (envioRes.ok) {
+        if (envioRes.ok || envioRes.sucesso) {
           envioSucesso = true
-          resendId = envioRes.id || ''
+          emailEnvioId = envioRes.id || envioRes.message_id || ''
+          if (envioRes.provedor === 'resend_fallback') {
+            provedorUtilizado = 'Resend (fallback)'
+          }
+        } else {
+          erroEnvioMsg = envioRes.error || 'Falha ao enviar e-mail via Gmail.'
         }
       } catch (errEmail: unknown) {
-        console.error('Falha no envio do email Resend:', errEmail)
+        console.error('Falha no envio do email via Gmail:', errEmail)
         erroEnvioMsg =
-          errEmail instanceof Error ? errEmail.message : 'Falha ao conectar com o serviço de email.'
+          errEmail instanceof Error
+            ? errEmail.message
+            : 'Falha ao conectar com o serviço de email do Gmail.'
       }
 
       // 3. Registrar a atividade no banco (continua em aberto, status "pendente")
@@ -453,7 +460,7 @@ export const ModalSolicitarContasRGE: React.FC<ModalSolicitarContasRGEProps> = (
       const tituloFinal = `Solicitar contas RGE — UC ${numeroUc.trim()}`
       const descricaoFinal = `Solicitação de faturas dos últimos 5 anos enviada por e-mail para ${emailDestinatario.trim()} referente à UC ${numeroUc.trim()}.${
         envioSucesso
-          ? ` Envio confirmado via Resend (ID: ${resendId || 'ok'}).`
+          ? ` Envio confirmado via ${provedorUtilizado} (ID: ${emailEnvioId || 'ok'}).`
           : ` Aviso de envio: ${erroEnvioMsg || 'Tentativa registrada'}.`
       } Acompanhamento do protocolo e prazo em aberto.`
 
@@ -475,7 +482,7 @@ export const ModalSolicitarContasRGE: React.FC<ModalSolicitarContasRGEProps> = (
         email_destinatario: emailDestinatario.trim(),
         email_enviado_em: envioSucesso ? agoraIso : undefined,
         email_envio_status: envioSucesso ? 'enviado' : 'falha',
-        email_resend_id: resendId,
+        email_resend_id: emailEnvioId,
         email_log_erro: envioSucesso
           ? undefined
           : erroEnvioMsg || 'Falha ao conectar com o serviço de e-mail',
@@ -485,7 +492,7 @@ export const ModalSolicitarContasRGE: React.FC<ModalSolicitarContasRGEProps> = (
       const atividadeCriada = await addAtividade(novaAtividadePayload)
 
       if (envioSucesso) {
-        toast.success('E-mail enviado à RGE e atividade registrada com sucesso!')
+        toast.success('E-mail enviado via Gmail (delfos.usinas@gmail.com) e atividade registrada!')
       } else {
         toast.warning(
           `Atividade registrada, mas o envio do e-mail reportou: ${erroEnvioMsg}. Verifique os detalhes na atividade.`,
@@ -1016,7 +1023,7 @@ export const ModalSolicitarContasRGE: React.FC<ModalSolicitarContasRGEProps> = (
               </div>
               <p>
                 O e-mail será enviado imediatamente para <strong>{emailDestinatario}</strong> com{' '}
-                {anexos.length} documento(s) em anexo via Resend (remetente:
+                {anexos.length} documento(s) em anexo via Gmail (remetente:
                 delfos.usinas@gmail.com). A atividade ficará registrada em aberto para
                 acompanhamento do retorno e prazo da concessionária.
               </p>

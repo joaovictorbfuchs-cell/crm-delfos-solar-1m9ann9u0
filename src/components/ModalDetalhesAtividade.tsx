@@ -849,21 +849,21 @@ export const ModalDetalhesAtividade: React.FC<ModalDetalhesAtividadeProps> = ({
                     </span>
                   </div>
                   {atividade.email_resend_id && (
-                    <span className="text-[10px] text-gray-400 font-mono">
+                    <span className="text-[11px] font-mono text-gray-500">
                       ID: {atividade.email_resend_id.slice(0, 16)}...
                     </span>
                   )}
                 </div>
               ) : (
                 (atividade.email_envio_status === 'falha' || atividade.email_log_erro) && (
-                  <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-900 space-y-1">
-                    <div className="flex items-center gap-1.5 font-semibold text-rose-800">
-                      <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
-                      <span>Falha no envio do e-mail para a concessionária</span>
+                  <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-900 space-y-1">
+                    <div className="flex items-center gap-1.5 font-semibold text-amber-800">
+                      <AlertCircle className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                      <span>Envio de e-mail com pendência ou erro</span>
                     </div>
-                    <p className="text-[11px] text-rose-700 font-mono bg-white/70 p-2 rounded-lg border border-rose-100 break-words">
-                      {atividade.email_log_erro || 'Falha reportada durante o disparo via Resend.'}
-                    </p>
+                    <p className="text-[11px] text-amber-800 leading-relaxed font-mono">
+                      {atividade.email_log_erro || 'Falha reportada durante o disparo via Gmail.'}
+                    </p>{' '}
                     {atividade.email_destinatario && (
                       <p className="text-[10px] text-rose-600">
                         Destinatário previsto: {atividade.email_destinatario}

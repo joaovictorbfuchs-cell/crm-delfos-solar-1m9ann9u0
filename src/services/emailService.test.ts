@@ -1,5 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { sendEmail, DEFAULT_EMAIL_FROM, emailService } from './emailService'
+import {
+  sendEmail,
+  enviarEmailViaGmail,
+  DEFAULT_EMAIL_FROM,
+  DEFAULT_GMAIL_SENDER,
+  emailService,
+} from './emailService'
 import pb from '@/lib/pocketbase/client'
 
 vi.mock('@/lib/pocketbase/client', () => {
@@ -30,9 +36,69 @@ describe('emailService', () => {
     })
   })
 
-  it('deve exportar o remetente padrão correto Delfos Solar', () => {
+  it('deve exportar o remetente padrão correto Delfos Solar e Gmail', () => {
     expect(DEFAULT_EMAIL_FROM).toBe('Delfos Solar <delfos.usinas@gmail.com>')
+    expect(DEFAULT_GMAIL_SENDER).toBe('delfos.usinas@gmail.com')
     expect(emailService.DEFAULT_EMAIL_FROM).toBe('Delfos Solar <delfos.usinas@gmail.com>')
+    expect(emailService.DEFAULT_GMAIL_SENDER).toBe('delfos.usinas@gmail.com')
+  })
+
+  describe('enviarEmailViaGmail', () => {
+    it('deve validar parâmetros obrigatórios (destinatario, assunto, corpo)', async () => {
+      await expect(
+        enviarEmailViaGmail({
+          destinatario: '',
+          assunto: 'Assunto',
+          corpo: 'Corpo',
+        }),
+      ).rejects.toThrow('Destinatário (email) é obrigatório')
+
+      await expect(
+        enviarEmailViaGmail({
+          destinatario: 'joao@delfosengenharia.com.br',
+          assunto: '  ',
+          corpo: 'Corpo',
+        }),
+      ).rejects.toThrow('Assunto é obrigatório')
+
+      await expect(
+        enviarEmailViaGmail({
+          destinatario: 'joao@delfosengenharia.com.br',
+          assunto: 'Assunto',
+          corpo: '  ',
+        }),
+      ).rejects.toThrow('Corpo da mensagem (texto ou HTML) é obrigatório')
+    })
+
+    it('deve chamar /backend/v1/gmail/send com os dados corretos', async () => {
+      vi.mocked(pb.send).mockResolvedValueOnce({
+        ok: true,
+        sucesso: true,
+        id: 'msg_gmail_12345',
+        message: 'E-mail enviado via Gmail (delfos.usinas@gmail.com) com sucesso.',
+        provedor: 'composio_gmail',
+      })
+
+      const res = await enviarEmailViaGmail({
+        destinatario: 'joao@delfosengenharia.com.br',
+        assunto: 'Solicitação de Faturas RGE - Teste',
+        corpo: '<p>Olá João, teste de envio via Gmail.</p>',
+        anexos: [{ filename: 'doc.pdf', content: 'JVBERi0xLjQK...' }],
+      })
+
+      expect(pb.send).toHaveBeenCalledWith('/backend/v1/gmail/send', {
+        method: 'POST',
+        body: expect.objectContaining({
+          destinatario: 'joao@delfosengenharia.com.br',
+          assunto: 'Solicitação de Faturas RGE - Teste',
+          corpo: '<p>Olá João, teste de envio via Gmail.</p>',
+          anexos: [{ filename: 'doc.pdf', content: 'JVBERi0xLjQK...' }],
+        }),
+      })
+      expect(res.ok).toBe(true)
+      expect(res.id).toBe('msg_gmail_12345')
+      expect(res.provedor).toBe('composio_gmail')
+    })
   })
 
   it('deve falhar se usuário não estiver autenticado', async () => {
@@ -74,13 +140,13 @@ describe('emailService', () => {
         subject: 'Assunto',
         html: '  ',
       }),
-    ).rejects.toThrow('Conteúdo HTML (html) é obrigatório')
+    ).rejects.toThrow('Conteúdo da mensagem (html/body) é obrigatório')
   })
 
   it('deve chamar pb.send com o payload correto e retornar o resultado', async () => {
     const mockResponse = {
       ok: true,
-      id: 'resend_email_12345',
+      id: 'gmail_email_12345',
       message: 'E-mail enviado com sucesso',
     }
     vi.mocked(pb.send).mockResolvedValueOnce(mockResponse)
@@ -96,21 +162,16 @@ describe('emailService', () => {
     })
 
     expect(pb.send).toHaveBeenCalledTimes(1)
-    expect(pb.send).toHaveBeenCalledWith('/backend/v1/email/send', {
+    expect(pb.send).toHaveBeenCalledWith('/backend/v1/gmail/send', {
       method: 'POST',
-      body: {
-        to: 'cliente@exemplo.com',
-        subject: 'Proposta Comercial Delfos',
-        html: '<h1>Sua Proposta</h1><p>Segue proposta em anexo.</p>',
-        from: DEFAULT_EMAIL_FROM,
-        attachment: {
-          filename: 'proposta.pdf',
-          content: 'JVBERi0xLjQK...',
-        },
-      },
+      body: expect.objectContaining({
+        destinatario: 'cliente@exemplo.com',
+        assunto: 'Proposta Comercial Delfos',
+        corpo: '<h1>Sua Proposta</h1><p>Segue proposta em anexo.</p>',
+      }),
     })
-    expect(result).toEqual(mockResponse)
-    expect(result.id).toBe('resend_email_12345')
+    expect(result.ok).toBe(true)
+    expect(result.id).toBe('gmail_email_12345')
   })
 
   it('deve tratar resposta ok: false lançando erro claro', async () => {
