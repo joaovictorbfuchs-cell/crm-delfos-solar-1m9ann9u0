@@ -35,7 +35,7 @@ import { DelfosLogo } from '@/components/DelfosLogo'
 import { NotificacoesBell } from '@/components/NotificacoesBell'
 import { BarraBuscaGlobal } from '@/components/BarraBuscaGlobal'
 import { MobileLayoutChrome } from '@/components/MobileLayoutChrome'
-import AssistenteDelfosChat from '@/components/AssistenteDelfosChat'
+import AssistenteDelfosChat, { AssistenteDelfosBotao } from '@/components/AssistenteDelfosChat'
 import packageJson from '../../package.json'
 
 const APP_VERSION = packageJson.version || '0.0.456'
@@ -439,6 +439,9 @@ export default function Layout() {
                 <NotificacoesBell />
               </>
             )}
+
+            {/* Botão do Assistente Delfos no Header Desktop (ícone pequeno redondo no topo) */}
+            <AssistenteDelfosBotao size="sm" />
 
             {/* Informações do Usuário no Topo com Badge de Perfil */}
             <div className="flex items-center gap-2 sm:gap-3 pl-2 sm:border-l border-gray-200">
