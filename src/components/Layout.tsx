@@ -104,6 +104,8 @@ export default function Layout() {
         return 'Catálogo de Atividades'
       case '/equipamentos':
         return 'Cadastro de Equipamentos'
+      case '/ativos':
+        return 'Cadastro de Ativos das Usinas'
       case '/importar-clientes':
         return 'Importar Clientes (Pipedrive / Conta Azul)'
       case '/importar-contatos-google':
@@ -143,6 +145,7 @@ export default function Layout() {
     { name: 'Catálogo de atividades', path: '/catalogo-atividades', icon: ListChecks },
     { name: 'Automações', path: '/automacoes', icon: Zap },
     { name: 'Cadastro de equipamentos', path: '/equipamentos', icon: Cpu },
+    { name: 'Ativos das usinas', path: '/ativos', icon: Cpu },
     { name: 'Galeria de usinas', path: '/instalacoes-galeria', icon: Images },
     { name: 'Fornecedores', path: '/fornecedores', icon: Truck },
     { name: 'Visão de Contatos', path: '/contatos', icon: Contact },

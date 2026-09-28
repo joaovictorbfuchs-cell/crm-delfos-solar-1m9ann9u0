@@ -20,6 +20,7 @@ import Fornecedores from './pages/Fornecedores'
 import Orcamentos from './pages/Orcamentos'
 import InstalacoesGaleriaPage from './pages/InstalacoesGaleria'
 import EquipamentosPage from './pages/Equipamentos'
+import AtivosPage from './pages/Ativos'
 import AutomacoesPage from './pages/Automacoes'
 import CatalogoAtividades from './pages/CatalogoAtividades'
 import Atividades from './pages/Atividades'
@@ -247,6 +248,14 @@ const App = () => (
               element={
                 <ProtectedRoute requiredRole="admin">
                   <EquipamentosPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/ativos"
+              element={
+                <ProtectedRoute requiredRole="admin">
+                  <AtivosPage />
                 </ProtectedRoute>
               }
             />

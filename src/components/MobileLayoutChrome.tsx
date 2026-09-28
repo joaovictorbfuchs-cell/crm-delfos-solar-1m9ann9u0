@@ -124,6 +124,9 @@ export const MobileLayoutChrome: React.FC<MobileLayoutChromeProps> = ({
     if (location.pathname === '/equipamentos') {
       return { id: 'equipamentos', label: 'Equipamentos', isFunil: false }
     }
+    if (location.pathname === '/ativos') {
+      return { id: 'ativos', label: 'Ativos das Usinas', isFunil: false }
+    }
     if (location.pathname === '/gerenciar-usuarios') {
       return { id: 'gerenciar-usuarios', label: 'Gerenciar Usuários', isFunil: false }
     }
@@ -326,6 +329,7 @@ export const MobileLayoutChrome: React.FC<MobileLayoutChromeProps> = ({
         { label: 'Catálogo de Atividades', path: '/catalogo-atividades', icon: ListChecks },
         { label: 'Automações do CRM', path: '/automacoes', icon: Zap },
         { label: 'Equipamentos', path: '/equipamentos', icon: Cpu },
+        { label: 'Ativos das Usinas', path: '/ativos', icon: Cpu },
         { label: 'Galeria de Usinas', path: '/instalacoes-galeria', icon: Images },
         { label: 'Fornecedores', path: '/fornecedores', icon: Truck },
         { label: 'Importar Clientes', path: '/importar-clientes', icon: FileSpreadsheet },

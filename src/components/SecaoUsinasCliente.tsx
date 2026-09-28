@@ -45,6 +45,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { User, Phone, MessageSquare, Mail } from 'lucide-react'
+import { AbaAtivosUsina } from '@/components/AbaAtivosUsina'
 
 interface SecaoUsinasClienteProps {
   clienteId: string
@@ -1031,6 +1032,9 @@ export const SecaoUsinasCliente: React.FC<SecaoUsinasClienteProps> = ({
                       <p className="text-xs leading-relaxed italic">{usinaDetalhes.observacoes}</p>
                     </div>
                   )}
+
+                  {/* Novo Cadastro de Ativos da Usina (Aditivo) */}
+                  <AbaAtivosUsina usinaId={usinaDetalhes.id} usinaNome={usinaDetalhes.nome} />
 
                   {/* Contrato O&M Vinculado */}
                   {(() => {
