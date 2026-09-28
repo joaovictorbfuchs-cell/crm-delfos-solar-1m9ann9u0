@@ -112,10 +112,10 @@ export const QuickAddAtividade: React.FC<QuickAddAtividadeProps> = ({
       setSubTipo(firstOfCat.id)
       setTitulo(firstOfCat.tituloPadrao)
       if (firstOfCat.id === 'auto_leitura_rge') {
-        if (onSelectTipoEspecial) {
+        if (onOpenModalCompleto) {
+          onOpenModalCompleto('auto_leitura_rge')
+        } else if (onSelectTipoEspecial) {
           onSelectTipoEspecial('auto_leitura_rge')
-        } else if (onOpenModalCompleto) {
-          onOpenModalCompleto()
         }
       } else if (firstOfCat.id === 'solicitar_contas_rge') {
         setIsModalSolicitarContasOpen(true)
@@ -138,10 +138,10 @@ export const QuickAddAtividade: React.FC<QuickAddAtividadeProps> = ({
     setSubTipo(item.id)
     setTitulo(item.tituloPadrao)
     if (item.id === 'auto_leitura_rge') {
-      if (onSelectTipoEspecial) {
+      if (onOpenModalCompleto) {
+        onOpenModalCompleto('auto_leitura_rge')
+      } else if (onSelectTipoEspecial) {
         onSelectTipoEspecial('auto_leitura_rge')
-      } else if (onOpenModalCompleto) {
-        onOpenModalCompleto()
       }
     } else if (item.id === 'analise_fatura') {
       setIsModalAnaliseFaturaOpen(true)
