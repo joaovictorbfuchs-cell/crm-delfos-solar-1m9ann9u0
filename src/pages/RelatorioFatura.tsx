@@ -577,7 +577,7 @@ export const RelatorioFaturaPage: React.FC = () => {
           {/* Energia Injetada */}
           <div className="bg-white p-4 rounded-2xl border border-gray-200 shadow-2xs space-y-1">
             <span className="text-[11px] font-semibold text-emerald-700 uppercase tracking-wider block">
-              Geração / Injetada
+              Energia Injetada
             </span>
             <div className="text-xl sm:text-2xl font-extrabold text-emerald-600 flex items-baseline gap-1">
               {gdCalculada.injetada.toLocaleString('pt-BR')}
