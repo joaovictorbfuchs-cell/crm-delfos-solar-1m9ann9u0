@@ -27,24 +27,3 @@ export function getErrorMessage(error: unknown): string {
   const msgs = Object.values(extractFieldErrors(error))
   return msgs.length > 0 ? msgs.join(' ') : error.message || 'An unexpected error occurred.'
 }
-
-export function isAuthSessionError(error: unknown): boolean {
-  if (!error) return false
-  if (error instanceof ClientResponseError) {
-    return error.status === 401 || error.status === 403
-  }
-  const anyErr = error as { status?: number; statusCode?: number; message?: string }
-  if (
-    anyErr.status === 401 ||
-    anyErr.status === 403 ||
-    anyErr.statusCode === 401 ||
-    anyErr.statusCode === 403
-  ) {
-    return true
-  }
-  const msg = String(anyErr.message || '').toLowerCase()
-  return (
-    msg.includes('token') &&
-    (msg.includes('expired') || msg.includes('invalid') || msg.includes('revoked'))
-  )
-}

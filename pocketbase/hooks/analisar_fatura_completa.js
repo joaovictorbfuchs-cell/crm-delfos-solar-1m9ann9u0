@@ -4,6 +4,69 @@
  * Rota GET /backend/v1/relatorio-fatura-publico/{token}
  */
 
+/**
+ * Formata número no padrão brasileiro sem depender de Number.prototype.toLocaleString
+ * (o motor Goja do PocketBase não suporta toLocaleString com locale string, lançando
+ * "RangeError: toString() radix argument must be between 2 and 36").
+ */
+function formatNumeroBR(val, casasDecimais) {
+  if (val === undefined || val === null || val === '') return '0'
+  const num = typeof val === 'number' ? val : parseFloat(val)
+  if (isNaN(num)) return '0'
+
+  if (typeof casasDecimais === 'number' && casasDecimais >= 0) {
+    const fixed = num.toFixed(casasDecimais)
+    const parts = fixed.split('.')
+    const intPart = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, '.')
+    return parts.length > 1 ? `${intPart},${parts[1]}` : intPart
+  }
+
+  // Se não informou casas decimais, formata os inteiros e preserva decimais existentes até 2 casas se houver
+  const rounded = Math.round(num * 100) / 100
+  const isInt = Math.floor(rounded) === rounded
+  if (isInt) {
+    return Math.floor(rounded)
+      .toString()
+      .replace(/\B(?=(\d{3})+(?!\d))/g, '.')
+  }
+  const parts = rounded.toFixed(2).replace(/0+$/, '').split('.')
+  const intPart = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, '.')
+  return parts.length > 1 ? `${intPart},${parts[1]}` : intPart
+}
+
+/**
+ * Sanitiza e analisa inteiros com segurança.
+ * Radix sempre forçado entre 2 e 36 (default 10) para evitar quebras por radix inválido.
+ */
+function safeParseInt(val, radix, fallback) {
+  const dRadix = typeof radix === 'number' && radix >= 2 && radix <= 36 ? radix : 10
+  const dFallback = typeof fallback === 'number' ? fallback : 0
+  if (val === undefined || val === null || val === '') return dFallback
+  try {
+    const parsed = parseInt(String(val).trim(), dRadix)
+    return isNaN(parsed) ? dFallback : parsed
+  } catch (_) {
+    return dFallback
+  }
+}
+
+/**
+ * Sanitiza e analisa floats com segurança.
+ */
+function safeParseFloat(val, fallback) {
+  const dFallback = typeof fallback === 'number' ? fallback : 0
+  if (val === undefined || val === null || val === '') return dFallback
+  try {
+    if (typeof val === 'number') return isNaN(val) ? dFallback : val
+    // Converte vírgula decimal brasileira se presente
+    const str = String(val).trim().replace(/\./g, '').replace(',', '.')
+    const parsed = parseFloat(str)
+    return isNaN(parsed) ? dFallback : parsed
+  } catch (_) {
+    return dFallback
+  }
+}
+
 routerAdd('POST', '/backend/v1/analisar-fatura-completa', (e) => {
   const reqStart = Date.now()
 
@@ -234,6 +297,8 @@ FORMATO JSON ESPERADO:
       'gemini-3.7-flash',
       'gemini-3.5-flash',
       'gemini-2.5-flash',
+      'gemini-2.0-flash',
+      'gemini-1.5-flash',
     ]
 
     let geminiResponse = null
@@ -360,17 +425,18 @@ FORMATO JSON ESPERADO:
     const energiaInjetadaCalc =
       typeof parsed.medicao_e_creditos?.energia_injetada_geracao?.kwh_injetados_mes === 'number'
         ? parsed.medicao_e_creditos.energia_injetada_geracao.kwh_injetados_mes
-        : parseFloat(parsed.medicao_e_creditos?.energia_injetada_geracao?.kwh_injetados_mes) || 0
+        : safeParseFloat(parsed.medicao_e_creditos?.energia_injetada_geracao?.kwh_injetados_mes, 0)
     const compensadosMesCalc =
       typeof parsed.medicao_e_creditos?.creditos?.creditos_compensados_mes_atual_kwh === 'number'
         ? parsed.medicao_e_creditos.creditos.creditos_compensados_mes_atual_kwh
-        : parseFloat(parsed.medicao_e_creditos?.creditos?.creditos_compensados_mes_atual_kwh) ||
-          parseFloat(parsed.medicao_e_creditos?.creditos?.total_creditos_recebidos_kwh) ||
-          0
+        : safeParseFloat(
+            parsed.medicao_e_creditos?.creditos?.creditos_compensados_mes_atual_kwh,
+            safeParseFloat(parsed.medicao_e_creditos?.creditos?.total_creditos_recebidos_kwh, 0),
+          )
     const saldoAtualInstalacaoCalc =
       typeof parsed.medicao_e_creditos?.saldo_energia?.saldo_atual_instalacao_kwh === 'number'
         ? parsed.medicao_e_creditos.saldo_energia.saldo_atual_instalacao_kwh
-        : parseFloat(parsed.medicao_e_creditos?.saldo_energia?.saldo_atual_instalacao_kwh) || 0
+        : safeParseFloat(parsed.medicao_e_creditos?.saldo_energia?.saldo_atual_instalacao_kwh, 0)
 
     const saldoGeradoNaoUsado = Math.max(
       0,
@@ -394,14 +460,14 @@ FORMATO JSON ESPERADO:
             : 0
         parsed.papel_gd.kwh_enviados_outras_ucs = saldoGeradoNaoUsado
         parsed.papel_gd.kwh_retidos_instalacao = compensadosMesCalc
-        parsed.papel_gd.fluxo_creditos_detalhe = `${saldoGeradoNaoUsado.toLocaleString('pt-BR')} kWh gerados e não consumidos aqui foram creditados em outra(s) UC(s) do arranjo (autoconsumo remoto).`
+        parsed.papel_gd.fluxo_creditos_detalhe = `${formatNumeroBR(saldoGeradoNaoUsado)} kWh gerados e não consumidos aqui foram creditados em outra(s) UC(s) do arranjo (autoconsumo remoto).`
       } else {
         // Acumulou no próprio saldo da instalação
         parsed.papel_gd.participacao_geracao_percentual = 100
         parsed.papel_gd.percentual_energia_fica_instalacao = 100
         parsed.papel_gd.kwh_enviados_outras_ucs = 0
         parsed.papel_gd.kwh_retidos_instalacao = energiaInjetadaCalc
-        parsed.papel_gd.fluxo_creditos_detalhe = `100% dos créditos gerados (${energiaInjetadaCalc.toLocaleString('pt-BR')} kWh) permaneceram nesta instalação.`
+        parsed.papel_gd.fluxo_creditos_detalhe = `100% dos créditos gerados (${formatNumeroBR(energiaInjetadaCalc)} kWh) permaneceram nesta instalação.`
       }
     } else if (energiaInjetadaCalc > 0 && compensadosMesCalc >= energiaInjetadaCalc) {
       // 100% da injeção foi compensada aqui
@@ -409,7 +475,7 @@ FORMATO JSON ESPERADO:
       parsed.papel_gd.percentual_energia_fica_instalacao = 100
       parsed.papel_gd.kwh_enviados_outras_ucs = 0
       parsed.papel_gd.kwh_retidos_instalacao = energiaInjetadaCalc
-      parsed.papel_gd.fluxo_creditos_detalhe = `Toda a energia injetada no ciclo (${energiaInjetadaCalc.toLocaleString('pt-BR')} kWh) foi compensada nesta própria instalação.`
+      parsed.papel_gd.fluxo_creditos_detalhe = `Toda a energia injetada no ciclo (${formatNumeroBR(energiaInjetadaCalc)} kWh) foi compensada nesta própria instalação.`
     }
 
     // Se historico_consumo estiver dentro de medicao_e_creditos ou na raiz de parsed, unificar
@@ -428,31 +494,34 @@ FORMATO JSON ESPERADO:
     const totalPagar =
       typeof parsed.totais?.total_a_pagar_rs === 'number'
         ? parsed.totais.total_a_pagar_rs
-        : parseFloat(parsed.totais?.total_a_pagar_rs) || 0
+        : safeParseFloat(parsed.totais?.total_a_pagar_rs, 0)
     const consumoKwh =
       typeof parsed.medicao_e_creditos?.energia_ativa_consumida?.consumo_mes_kwh === 'number'
         ? parsed.medicao_e_creditos.energia_ativa_consumida.consumo_mes_kwh
-        : 0
+        : safeParseFloat(parsed.medicao_e_creditos?.energia_ativa_consumida?.consumo_mes_kwh, 0)
     const injetadaKwh =
       typeof parsed.medicao_e_creditos?.energia_injetada_geracao?.kwh_injetados_mes === 'number'
         ? parsed.medicao_e_creditos.energia_injetada_geracao.kwh_injetados_mes
-        : 0
+        : safeParseFloat(parsed.medicao_e_creditos?.energia_injetada_geracao?.kwh_injetados_mes, 0)
     const creditosKwh =
       typeof parsed.medicao_e_creditos?.creditos?.total_creditos_recebidos_kwh === 'number'
         ? parsed.medicao_e_creditos.creditos.total_creditos_recebidos_kwh
-        : 0
+        : safeParseFloat(parsed.medicao_e_creditos?.creditos?.total_creditos_recebidos_kwh, 0)
     const saldoKwh =
       typeof parsed.medicao_e_creditos?.saldo_energia?.saldo_atual_instalacao_kwh === 'number'
         ? parsed.medicao_e_creditos.saldo_energia.saldo_atual_instalacao_kwh
-        : 0
+        : safeParseFloat(parsed.medicao_e_creditos?.saldo_energia?.saldo_atual_instalacao_kwh, 0)
     const saldoExpirar =
       typeof parsed.medicao_e_creditos?.saldo_energia?.saldo_a_expirar_proximo_mes_kwh === 'number'
         ? parsed.medicao_e_creditos.saldo_energia.saldo_a_expirar_proximo_mes_kwh
-        : 0
+        : safeParseFloat(
+            parsed.medicao_e_creditos?.saldo_energia?.saldo_a_expirar_proximo_mes_kwh,
+            0,
+          )
     const economiaRs =
       typeof parsed.indicadores?.economia_estimada_mes_rs === 'number'
         ? parsed.indicadores.economia_estimada_mes_rs
-        : 0
+        : safeParseFloat(parsed.indicadores?.economia_estimada_mes_rs, 0)
 
     const ucFatura =
       parsed.dados_cadastrais_fatura?.uc || clienteUcCadastrada || 'não informado na fatura'

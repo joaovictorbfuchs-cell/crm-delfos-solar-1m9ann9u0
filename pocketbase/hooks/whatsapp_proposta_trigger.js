@@ -59,12 +59,13 @@ onRecordAfterUpdateSuccess((e) => {
       }
 
       const valorInvestimento = record.getFloat('valor_investimento') || 0
-      const valorFormatado =
-        'R$ ' +
-        valorInvestimento.toLocaleString('pt-BR', {
-          minimumFractionDigits: 2,
-          maximumFractionDigits: 2,
-        })
+      function formatDinheiroBR(v) {
+        if (!v || isNaN(v)) return '0,00'
+        const parts = Number(v).toFixed(2).split('.')
+        const intPart = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, '.')
+        return `${intPart},${parts[1]}`
+      }
+      const valorFormatado = 'R$ ' + formatDinheiroBR(valorInvestimento)
 
       const enderecoCliente =
         [
@@ -85,7 +86,16 @@ onRecordAfterUpdateSuccess((e) => {
         .replace(/\{\{nome_cliente\}\}/g, clienteRec.getString('nome'))
         .replace(/\{\{valor_proposta\}\}/g, valorFormatado)
         .replace(/\{\{endereco\}\}/g, enderecoCliente)
-        .replace(/\{\{data\}\}/g, new Date().toLocaleDateString('pt-BR'))
+        .replace(
+          /\{\{data\}\}/g,
+          (() => {
+            const d = new Date()
+            const dia = String(d.getDate()).padStart(2, '0')
+            const mes = String(d.getMonth() + 1).padStart(2, '0')
+            const ano = d.getFullYear()
+            return `${dia}/${mes}/${ano}`
+          })(),
+        )
 
       let conversaPropostaId = ''
       try {
