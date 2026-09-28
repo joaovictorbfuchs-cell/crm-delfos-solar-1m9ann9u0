@@ -212,7 +212,16 @@ routerAdd('POST', '/backend/v1/email/send', (e) => {
     }
 
     let userFriendlyMsg = errorMessage
-    if (res.statusCode === 403 || res.statusCode === 401) {
+    const isTestModeOrUnverifiedDomain =
+      res.statusCode === 403 &&
+      (errorMessage.includes('You can only send testing emails to your own email address') ||
+        errorMessage.includes('The gmail.com domain is not verified') ||
+        (errorMessage.includes('testing emails') && errorMessage.includes('resend.com/domains')))
+
+    if (isTestModeOrUnverifiedDomain) {
+      userFriendlyMsg =
+        'O Resend está em modo de teste: enquanto não houver um domínio verificado, só é possível enviar e-mails para o próprio endereço da conta Resend (delfos.usinas@gmail.com). Para liberar o envio para qualquer destinatário, cadastre e verifique um domínio em https://resend.com/domains e use um remetente desse domínio.'
+    } else if (res.statusCode === 403 || res.statusCode === 401) {
       userFriendlyMsg = `Chave de API do Resend inválida ou sem permissão (HTTP ${res.statusCode}): ${errorMessage}`
     } else if (res.statusCode === 422) {
       userFriendlyMsg = `Dados de e-mail rejeitados pelo Resend (HTTP 422): ${errorMessage}`
