@@ -153,7 +153,6 @@ export default function Layout() {
     { name: 'Fornecedores', path: '/fornecedores', icon: Truck },
     { name: 'Visão de Contatos', path: '/contatos', icon: Contact },
     { name: 'Importar Clientes', path: '/importar-clientes', icon: FileSpreadsheet },
-    { name: 'Importar Contatos Google', path: '/importar-contatos-google', icon: Contact },
     { name: 'Gerenciar usuários', path: '/gerenciar-usuarios', icon: UserCog },
   ]
 

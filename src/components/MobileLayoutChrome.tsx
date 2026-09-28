@@ -338,7 +338,6 @@ export const MobileLayoutChrome: React.FC<MobileLayoutChromeProps> = ({
         { label: 'Galeria de Usinas', path: '/instalacoes-galeria', icon: Images },
         { label: 'Fornecedores', path: '/fornecedores', icon: Truck },
         { label: 'Importar Clientes', path: '/importar-clientes', icon: FileSpreadsheet },
-        { label: 'Importar Contatos Google', path: '/importar-contatos-google', icon: Contact },
         ...(isAdmin
           ? [{ label: 'Gerenciar Usuários', path: '/gerenciar-usuarios', icon: UserCog }]
           : []),
