@@ -24,6 +24,7 @@ import {
 } from 'lucide-react'
 import { useClientes } from '@/contexts/ClientesContext'
 import { formatCurrency, formatDate } from '@/lib/formatters'
+import { SecaoContratoUsinas } from './SecaoContratoUsinas'
 import { calcularDiasRestantesDefensivo } from '@/lib/omCategorizacao'
 import type {
   OMAnomaliaEtapa,
@@ -617,6 +618,16 @@ export const FichaOMDrawer: React.FC = () => {
                   </div>
                 )}
               </div>
+
+              {/* Seção Aditiva: Usinas Vinculadas ao Contrato (Relação N:N e Histórico) */}
+              {contrato && (
+                <SecaoContratoUsinas
+                  contratoId={contrato.id}
+                  clienteId={cliente.id}
+                  numeroContrato={contrato.numero_contrato}
+                  plano={contrato.plano}
+                />
+              )}
 
               {/* Resumo do Sistema Fotovoltaico do Cliente */}
               <div className="bg-white rounded-2xl border border-gray-200/80 p-5 shadow-xs space-y-3">

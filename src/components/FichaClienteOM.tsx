@@ -27,6 +27,7 @@ import type { OMPlanoTipo, OMStatusPlano, PropostaOM } from '@/types/crm'
 import { ModalGerarProcuracaoOM } from './ModalGerarProcuracaoOM'
 import { ModalGerarContratoOM } from './ModalGerarContratoOM'
 import { InlineEditField } from './InlineEditField'
+import { SecaoContratoUsinas } from './SecaoContratoUsinas'
 import { toast } from 'sonner'
 
 interface FichaClienteOMProps {
@@ -846,6 +847,17 @@ export const FichaClienteOM: React.FC<FichaClienteOMProps> = ({ clienteId, onNav
               </div>
             </div>
           </div>
+
+          {/* 2.5 SEÇÃO ADITIVA: USINAS COBERTAS PELO CONTRATO (RELAÇÃO N:N COM HISTÓRICO) */}
+          <SecaoContratoUsinas
+            contratoId={contrato.id}
+            clienteId={cliente.id}
+            numeroContrato={contrato.numero_contrato}
+            plano={contrato.plano}
+            onUsinaSelecionada={() => {
+              if (onNavigateToTab) onNavigateToTab('usinas')
+            }}
+          />
 
           {/* 3. PRÓXIMO ATENDIMENTO AGENDADO COM SEU TIPO */}
           <div className="p-3.5 bg-blue-50/60 rounded-xl border border-blue-200 flex items-start gap-3">

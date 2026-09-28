@@ -51,6 +51,7 @@ import type {
 } from '@/types/crm'
 import { categorizarClienteOM, calcularDiasRestantesDefensivo } from '@/lib/omCategorizacao'
 import { ModalRegistrarServicoAvulso } from '@/components/ModalRegistrarServicoAvulso'
+import { SecaoContratoUsinas } from './SecaoContratoUsinas'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -1425,6 +1426,14 @@ export const ListaOM: React.FC<ListaOMProps> = ({
                   </p>
                 </div>
               )}
+
+              {/* Seção Aditiva: Usinas Cobertas pelo Contrato */}
+              <SecaoContratoUsinas
+                contratoId={contratoParaDetalhes.contrato.id}
+                clienteId={contratoParaDetalhes.cliente.id}
+                numeroContrato={contratoParaDetalhes.contrato.numero_contrato}
+                plano={contratoParaDetalhes.contrato.plano}
+              />
             </div>
           )}
 
