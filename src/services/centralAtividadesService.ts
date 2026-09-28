@@ -24,6 +24,8 @@ export interface CentralAtividadeItem {
   fonte: CentralAtividadeFonte
   tipoAtividade: string
   subtipo?: string
+  origem?: string
+  chaveImportacao?: string
   clienteId?: string
   clienteNome: string
   usinaId?: string
@@ -150,7 +152,13 @@ export async function carregarCentralAtividades(
     return undefined
   }
 
-  // A. Atividades (coleção 'atividades')
+  // Conjunto de chaves de importação já presentes na coleção unificada 'atividades'
+  // Chave de importação segue o padrão `${origem}_${id}` (ex: "ordem_servico_xyz", "timeline_om_abc", etc.)
+  const chavesUnificadasSet = new Set<string>()
+
+  // A. Atividades (coleção unificada 'atividades')
+  // Se o registro possuir 'origem' e 'chave_importacao', ele foi migrado/unificado.
+  // Caso contrário, é uma atividade CRM nativa padrão.
   if (atividadesRes.status === 'fulfilled') {
     for (const atv of atividadesRes.value) {
       const dataStr = atv.data || atv.created
@@ -158,17 +166,56 @@ export async function carregarCentralAtividades(
       const usinaNome = getUsinaNome(atv.usina_id, atv.cliente_id)
       const responsavel = atv.responsavel_nome || atv.autor || 'Não atribuído'
 
+      if (atv.chave_importacao) {
+        chavesUnificadasSet.add(atv.chave_importacao)
+      }
+
+      // Se possui origem explícita mapeada, respeita a fonte unificada
+      const origemExplicta = atv.origem as CentralAtividadeFonte | undefined
+      const isUnificadaComOrigem = Boolean(origemExplicta && origemExplicta !== 'atividade')
+
+      let fonte: CentralAtividadeFonte = 'atividade'
+      if (
+        origemExplicta &&
+        [
+          'atividade',
+          'ordem_servico',
+          'manutencao',
+          'servico_avulso',
+          'timeline_om',
+          'anomalia_om',
+        ].includes(origemExplicta)
+      ) {
+        fonte = origemExplicta
+      }
+
       let tipoLabel = 'Atividade'
-      if (atv.tipo) {
+      if (atv.tipo_unificado) {
+        tipoLabel = atv.tipo_unificado
+      } else if (atv.tipo) {
         tipoLabel = formatarTipoAtividade(atv.tipo)
       }
 
+      // Rota original conforme a fonte
+      let rotaOriginal = atv.cliente_id
+        ? `/clientes?openId=${atv.cliente_id}&tab=historico`
+        : '/atividades'
+      if (fonte === 'ordem_servico') {
+        rotaOriginal = '/servicos-campo'
+      } else if (fonte === 'servico_avulso' || fonte === 'timeline_om' || fonte === 'anomalia_om') {
+        rotaOriginal = atv.cliente_id ? `/clientes?openId=${atv.cliente_id}&tab=om` : '/manutencoes'
+      } else if (fonte === 'manutencao') {
+        rotaOriginal = '/manutencoes'
+      }
+
       items.push({
-        id: `atv_${atv.id}`,
+        id: isUnificadaComOrigem ? `unif_${atv.id}` : `atv_${atv.id}`,
         origemId: atv.id,
-        fonte: 'atividade',
+        fonte,
         tipoAtividade: tipoLabel,
-        subtipo: atv.tipo,
+        subtipo: atv.subtipo || atv.tipo,
+        origem: atv.origem,
+        chaveImportacao: atv.chave_importacao,
         clienteId: atv.cliente_id,
         clienteNome: cliNome,
         usinaId: atv.usina_id,
@@ -180,9 +227,7 @@ export async function carregarCentralAtividades(
         data: dataStr,
         titulo: atv.titulo || tipoLabel,
         descricao: atv.descricao,
-        rotaOriginal: atv.cliente_id
-          ? `/clientes?openId=${atv.cliente_id}&tab=historico`
-          : '/atividades',
+        rotaOriginal,
         metadata: {
           valorServico: atv.valor_servico,
           numeroUc: atv.numero_uc,
@@ -191,9 +236,15 @@ export async function carregarCentralAtividades(
     }
   }
 
-  // B. Ordens de Serviço (coleção 'ordens_servico')
+  // B. Ordens de Serviço (coleção 'ordens_servico') com FALLBACK de leitura
+  // Se já existir na estrutura unificada (por chave_importacao `ordem_servico_${os.id}`), não duplica.
   if (ordensServicoRes.status === 'fulfilled') {
     for (const os of ordensServicoRes.value) {
+      const chaveImportacao = `ordem_servico_${os.id}`
+      if (chavesUnificadasSet.has(chaveImportacao)) {
+        continue // Já lido da estrutura unificada
+      }
+
       const dataStr = os.data_agendada || os.created
       const cliNome = getClienteNome(os.cliente_id)
       const usinaNome = getUsinaNome(undefined, os.cliente_id)
@@ -205,6 +256,8 @@ export async function carregarCentralAtividades(
         fonte: 'ordem_servico',
         tipoAtividade: `OS: ${os.tipo_servico || 'Serviço de Campo'}`,
         subtipo: os.tipo_servico,
+        origem: 'ordem_servico',
+        chaveImportacao,
         clienteId: os.cliente_id,
         clienteNome: cliNome,
         usinaNome,
@@ -224,9 +277,14 @@ export async function carregarCentralAtividades(
     }
   }
 
-  // C. Manutenções (coleção 'manutencoes')
+  // C. Manutenções (coleção 'manutencoes') com FALLBACK de leitura
   if (manutencoesRes.status === 'fulfilled') {
     for (const m of manutencoesRes.value) {
+      const chaveImportacao = `manutencao_${m.id}`
+      if (chavesUnificadasSet.has(chaveImportacao)) {
+        continue // Já lido da estrutura unificada
+      }
+
       const dataStr = m.data || m.created
       const cliNome = getClienteNome(m.cliente_id)
       const usinaNome = getUsinaNome(undefined, m.cliente_id)
@@ -238,6 +296,8 @@ export async function carregarCentralAtividades(
         fonte: 'manutencao',
         tipoAtividade: `Manutenção: ${m.tipo || 'Geral'}`,
         subtipo: m.tipo,
+        origem: 'manutencao',
+        chaveImportacao,
         clienteId: m.cliente_id,
         clienteNome: cliNome,
         usinaNome,
@@ -252,9 +312,14 @@ export async function carregarCentralAtividades(
     }
   }
 
-  // D. Serviços Avulsos (coleção 'servicos_avulsos')
+  // D. Serviços Avulsos (coleção 'servicos_avulsos') com FALLBACK de leitura
   if (servicosAvulsosRes.status === 'fulfilled') {
     for (const s of servicosAvulsosRes.value) {
+      const chaveImportacao = `servico_avulso_${s.id}`
+      if (chavesUnificadasSet.has(chaveImportacao)) {
+        continue // Já lido da estrutura unificada
+      }
+
       const dataStr = s.data_servico || s.created
       const cliNome = getClienteNome(s.cliente_id)
       const usinaNome = getUsinaNome(undefined, s.cliente_id)
@@ -266,6 +331,8 @@ export async function carregarCentralAtividades(
         fonte: 'servico_avulso',
         tipoAtividade: `Serviço Avulso: ${formatarTipoServicoAvulso(s.tipo_servico)}`,
         subtipo: s.tipo_servico,
+        origem: 'servico_avulso',
+        chaveImportacao,
         clienteId: s.cliente_id,
         clienteNome: cliNome,
         usinaNome,
@@ -283,9 +350,14 @@ export async function carregarCentralAtividades(
     }
   }
 
-  // E. Linha do Tempo O&M (coleção 'timeline_om')
+  // E. Linha do Tempo O&M (coleção 'timeline_om') com FALLBACK de leitura
   if (timelineOMRes.status === 'fulfilled') {
     for (const t of timelineOMRes.value) {
+      const chaveImportacao = `timeline_om_${t.id}`
+      if (chavesUnificadasSet.has(chaveImportacao)) {
+        continue // Já lido da estrutura unificada
+      }
+
       const dataStr = t.data || t.created
       const cliNome = getClienteNome(t.cliente_id)
       const usinaNome = getUsinaNome(undefined, t.cliente_id)
@@ -297,6 +369,8 @@ export async function carregarCentralAtividades(
         fonte: 'timeline_om',
         tipoAtividade: `Linha do Tempo O&M: ${t.tipo || 'Registro'}`,
         subtipo: t.tipo,
+        origem: 'timeline_om',
+        chaveImportacao,
         clienteId: t.cliente_id,
         clienteNome: cliNome,
         usinaNome,
@@ -311,9 +385,14 @@ export async function carregarCentralAtividades(
     }
   }
 
-  // F. Anomalias O&M (coleção 'anomalias_om')
+  // F. Anomalias O&M (coleção 'anomalias_om') com FALLBACK de leitura
   if (anomaliasOMRes.status === 'fulfilled') {
     for (const anom of anomaliasOMRes.value) {
+      const chaveImportacao = `anomalia_om_${anom.id}`
+      if (chavesUnificadasSet.has(chaveImportacao)) {
+        continue // Já lido da estrutura unificada
+      }
+
       const dataStr = anom.data_abertura || anom.created
       const cliNome = getClienteNome(anom.cliente_id)
       const usinaNome = getUsinaNome(undefined, anom.cliente_id)
@@ -325,6 +404,8 @@ export async function carregarCentralAtividades(
         fonte: 'anomalia_om',
         tipoAtividade: `Anomalia O&M [${anom.severidade || 'Média'}]`,
         subtipo: anom.severidade,
+        origem: 'anomalia_om',
+        chaveImportacao,
         clienteId: anom.cliente_id,
         clienteNome: cliNome,
         usinaNome,

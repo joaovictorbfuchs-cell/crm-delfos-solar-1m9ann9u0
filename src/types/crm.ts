@@ -894,6 +894,11 @@ export interface Atividade extends RecordModel {
   data_lembrete?: string
   dados_leitura_registrados?: string
   foto_medidor?: string
+  // Campos de unificação CRM (Fase A)
+  tipo_unificado?: string
+  subtipo?: string
+  origem?: string
+  chave_importacao?: string
   created: string
   updated: string
   expand?: {
