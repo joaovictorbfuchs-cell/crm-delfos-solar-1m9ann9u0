@@ -3,8 +3,6 @@ import { useParams, Link } from 'react-router-dom'
 import {
   ArrowLeft,
   Sparkles,
-  Zap,
-  TrendingDown,
   Calendar,
   AlertTriangle,
   FileText,
@@ -17,20 +15,37 @@ import {
   Copy,
   Check,
   CheckCircle2,
-  Building,
   Info,
-  ExternalLink,
-  ChevronDown,
-  Percent,
+  BarChart3,
+  Receipt,
+  TrendingUp,
+  TrendingDown,
 } from 'lucide-react'
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip as RechartsTooltip,
+  ResponsiveContainer,
+  Cell,
+} from 'recharts'
 import {
   obterRelatorioFaturaPorToken,
   type AnaliseFaturaRegistro,
   type AnaliseFaturaCompletaDados,
 } from '@/services/analiseFaturaService'
 import { ModalEnviarAnaliseWhatsApp } from '@/components/ModalEnviarAnaliseWhatsApp'
-import { DelfosLogo } from '@/components/DelfosLogo'
 import { useToast } from '@/hooks/use-toast'
+
+interface ConsumoHistoricoItem {
+  mes: string
+  consumo_kwh: number
+  dias_ciclo?: number
+  isMax?: boolean
+  isMin?: boolean
+}
 
 export const RelatorioFaturaPage: React.FC = () => {
   const { token } = useParams<{ token: string }>()
@@ -96,6 +111,217 @@ export const RelatorioFaturaPage: React.FC = () => {
     })
   }
 
+  // Desestruturação segura dos campos da análise
+  const cad = dados?.dados_cadastrais_fatura || {}
+  const periodo = dados?.periodo || {}
+  const papelGd = dados?.papel_gd || {}
+  const medicao = dados?.medicao_e_creditos || {}
+  const itens = dados?.itens_faturados || []
+  const totais = dados?.totais || {}
+  const impostos = dados?.impostos || {}
+  const indicadores = dados?.indicadores || {}
+  const alertas = dados?.alertas || []
+  const recomendacoes = dados?.conclusoes_recomendacoes || []
+
+  // --- 1. LÓGICA DE GD E FLUXO DE CRÉDITOS ---
+  const gdCalculada = useMemo(() => {
+    const injetada =
+      typeof medicao.energia_injetada_geracao?.kwh_injetados_mes === 'number'
+        ? medicao.energia_injetada_geracao.kwh_injetados_mes
+        : registro?.energia_injetada_kwh || 0
+
+    const compensadosMesAtual =
+      typeof medicao.creditos?.creditos_compensados_mes_atual_kwh === 'number'
+        ? medicao.creditos.creditos_compensados_mes_atual_kwh
+        : typeof medicao.creditos?.total_creditos_recebidos_kwh === 'number'
+          ? medicao.creditos.total_creditos_recebidos_kwh
+          : registro?.creditos_compensados_kwh || 0
+
+    const saldoAtualInstalacao =
+      typeof medicao.saldo_energia?.saldo_atual_instalacao_kwh === 'number'
+        ? medicao.saldo_energia.saldo_atual_instalacao_kwh
+        : registro?.saldo_energia_kwh || 0
+
+    const saldoGeradoNaoUsado = Math.max(
+      0,
+      Math.round((injetada - compensadosMesAtual) * 100) / 100,
+    )
+    const acumulouProprio = saldoAtualInstalacao >= saldoGeradoNaoUsado && saldoGeradoNaoUsado > 0
+
+    let participacao = 100
+    let retidoPercent = 100
+    let kwhEnviados = 0
+    let kwhRetidos = injetada
+    let detalheFluxo = ''
+
+    if (injetada > 0 && saldoGeradoNaoUsado > 0) {
+      if (!acumulouProprio) {
+        // Foi para outra instalação do arranjo (autoconsumo remoto)
+        participacao = 0
+        retidoPercent = injetada > 0 ? Math.round((compensadosMesAtual / injetada) * 1000) / 10 : 0
+        kwhEnviados = saldoGeradoNaoUsado
+        kwhRetidos = compensadosMesAtual
+        detalheFluxo = `${saldoGeradoNaoUsado.toLocaleString('pt-BR')} kWh gerados e não consumidos aqui foram creditados em outra(s) UC(s) do arranjo (autoconsumo remoto).`
+      } else {
+        participacao = 100
+        retidoPercent = 100
+        kwhEnviados = 0
+        kwhRetidos = injetada
+        detalheFluxo = `100% da geração excedente (${saldoGeradoNaoUsado.toLocaleString('pt-BR')} kWh) foi acumulada como saldo nesta própria instalação.`
+      }
+    } else if (injetada > 0) {
+      participacao = 100
+      retidoPercent = 100
+      kwhEnviados = 0
+      kwhRetidos = injetada
+      detalheFluxo = `Toda a energia injetada no ciclo (${injetada.toLocaleString('pt-BR')} kWh) foi compensada integralmente nesta instalação.`
+    }
+
+    // Se o backend forneceu campos explícitos já calculados, priorizar
+    if (
+      papelGd.participacao_geracao_percentual !== undefined &&
+      papelGd.participacao_geracao_percentual !== null
+    ) {
+      participacao = papelGd.participacao_geracao_percentual
+    }
+    if (
+      papelGd.percentual_energia_fica_instalacao !== undefined &&
+      papelGd.percentual_energia_fica_instalacao !== null
+    ) {
+      retidoPercent = papelGd.percentual_energia_fica_instalacao
+    }
+    if (papelGd.kwh_enviados_outras_ucs !== undefined && papelGd.kwh_enviados_outras_ucs !== null) {
+      kwhEnviados = papelGd.kwh_enviados_outras_ucs
+    }
+    if (papelGd.fluxo_creditos_detalhe) {
+      detalheFluxo = papelGd.fluxo_creditos_detalhe
+    }
+
+    return {
+      injetada,
+      compensadosMesAtual,
+      saldoGeradoNaoUsado,
+      saldoAtualInstalacao,
+      participacao,
+      retidoPercent,
+      kwhEnviados,
+      kwhRetidos,
+      detalheFluxo,
+    }
+  }, [medicao, registro, papelGd])
+
+  // --- 2. HISTÓRICO DE CONSUMO MENSAL PARA O GRÁFICO ---
+  const historicoConsumoFormatado: ConsumoHistoricoItem[] = useMemo(() => {
+    const rawList = dados?.historico_consumo || medicao.historico_consumo || []
+
+    if (!Array.isArray(rawList) || rawList.length === 0) {
+      // Se não houver histórico extraído, usar ao menos o mês atual se disponível
+      const consumoAtual =
+        medicao.energia_ativa_consumida?.consumo_mes_kwh || registro?.consumo_kwh || 0
+      if (consumoAtual > 0) {
+        return [
+          {
+            mes: periodo.mes_referencia || 'Mês Atual',
+            consumo_kwh: consumoAtual,
+            isMax: true,
+            isMin: true,
+          },
+        ]
+      }
+      return []
+    }
+
+    const items: ConsumoHistoricoItem[] = rawList.map((item) => {
+      const rawKwh =
+        typeof item.consumo_kwh === 'number'
+          ? item.consumo_kwh
+          : parseFloat(String(item.consumo_kwh || 0)) || 0
+      const mesStr = String(item.mes || item.mes_ano || 'Mês')
+      return {
+        mes: mesStr,
+        consumo_kwh: Math.round(rawKwh * 10) / 10,
+        dias_ciclo: item.dias_ciclo,
+      }
+    })
+
+    if (items.length === 0) return []
+
+    // Encontrar maior e menor consumo para destaque visual
+    let maxVal = -Infinity
+    let minVal = Infinity
+    items.forEach((it) => {
+      if (it.consumo_kwh > maxVal) maxVal = it.consumo_kwh
+      if (it.consumo_kwh < minVal) minVal = it.consumo_kwh
+    })
+
+    return items.map((it) => ({
+      ...it,
+      isMax: it.consumo_kwh === maxVal,
+      isMin: it.consumo_kwh === minVal && it.consumo_kwh !== maxVal,
+    }))
+  }, [dados, medicao, registro, periodo])
+
+  const maiorConsumo = useMemo(() => {
+    if (historicoConsumoFormatado.length === 0) return null
+    return [...historicoConsumoFormatado].sort((a, b) => b.consumo_kwh - a.consumo_kwh)[0]
+  }, [historicoConsumoFormatado])
+
+  const menorConsumo = useMemo(() => {
+    if (historicoConsumoFormatado.length === 0) return null
+    return [...historicoConsumoFormatado].sort((a, b) => a.consumo_kwh - b.consumo_kwh)[0]
+  }, [historicoConsumoFormatado])
+
+  const mediaConsumo = useMemo(() => {
+    if (historicoConsumoFormatado.length === 0) return 0
+    const soma = historicoConsumoFormatado.reduce((acc, curr) => acc + curr.consumo_kwh, 0)
+    return Math.round(soma / historicoConsumoFormatado.length)
+  }, [historicoConsumoFormatado])
+
+  // --- 3. RESUMO DE IMPOSTOS E FINANCEIRO ---
+  const resumoImpostos = useMemo(() => {
+    let baseIcms = 0
+    let aliqIcms: number | null = null
+    let valorIcms = impostos.impostos_atuais?.icms_total_rs || 0
+
+    let basePis = 0
+    let valorPis = impostos.impostos_atuais?.pis_total_rs || 0
+
+    let baseCofins = 0
+    let valorCofins = impostos.impostos_atuais?.cofins_total_rs || 0
+
+    // Se houver itens faturados, somar as bases de cálculo e alíquotas com precisão
+    if (itens && itens.length > 0) {
+      itens.forEach((it) => {
+        if (it.icms?.base_calculo && it.icms.base_calculo > baseIcms) {
+          baseIcms = Math.max(baseIcms, it.icms.base_calculo)
+        }
+        if (it.icms?.aliquota && it.icms.aliquota > 0) {
+          aliqIcms = it.icms.aliquota
+        }
+        if (it.pis?.base_calculo && it.pis.base_calculo > basePis) {
+          basePis = Math.max(basePis, it.pis.base_calculo)
+        }
+        if (it.cofins?.base_calculo && it.cofins.base_calculo > baseCofins) {
+          baseCofins = Math.max(baseCofins, it.cofins.base_calculo)
+        }
+      })
+    }
+
+    const totalTributos = valorIcms + valorPis + valorCofins
+
+    return {
+      baseIcms,
+      aliqIcms,
+      valorIcms,
+      basePis,
+      valorPis,
+      baseCofins,
+      valorCofins,
+      totalPisCofins: valorPis + valorCofins,
+      totalTributos,
+    }
+  }, [impostos, itens])
+
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-6 text-center space-y-4">
@@ -104,10 +330,10 @@ export const RelatorioFaturaPage: React.FC = () => {
         </div>
         <div>
           <h2 className="text-xl font-bold text-gray-900">
-            Carregando Análise Técnica da Fatura RGE...
+            Carregando Relatório de Auditoria da Fatura RGE...
           </h2>
           <p className="text-sm text-gray-500">
-            Recuperando tarifas, arranjo de GD, histórico e projeções tributárias
+            Recuperando dados regulatórios, balanço energético e detalhamento tributário
           </p>
         </div>
       </div>
@@ -137,27 +363,21 @@ export const RelatorioFaturaPage: React.FC = () => {
     )
   }
 
-  // Desestruturação segura dos campos da análise
-  const cad = dados.dados_cadastrais_fatura || {}
-  const periodo = dados.periodo || {}
-  const papelGd = dados.papel_gd || {}
-  const medicao = dados.medicao_e_creditos || {}
-  const itens = dados.itens_faturados || []
-  const totais = dados.totais || {}
-  const impostos = dados.impostos || {}
-  const indicadores = dados.indicadores || {}
-  const alertas = dados.alertas || []
-  const recomendacoes = dados.conclusoes_recomendacoes || []
-
   // Rótulo do papel de GD
   const papelLabel =
     papelGd.papel_uc === 'geradora'
       ? 'UC Geradora (Possui Usina)'
       : papelGd.papel_uc === 'receptora_autoconsumo_remoto'
         ? 'UC Receptora (Autoconsumo Remoto)'
-        : 'UC Mista (Consumo e Geração)'
+        : gdCalculada.kwhEnviados > 0
+          ? 'UC Geradora com Autoconsumo Remoto'
+          : 'UC Mista (Consumo e Geração)'
 
   const saldoExpirar = medicao.saldo_energia?.saldo_a_expirar_proximo_mes_kwh || 0
+  const totalDistribuidora =
+    totais.total_distribuidora_rs || totais.total_a_pagar_rs || registro.total_pagar || 0
+  const totalPagar = totais.total_a_pagar_rs || registro.total_pagar || 0
+  const formaPagto = totais.forma_pagamento || 'Código de barras / Boleto / PIX'
 
   return (
     <div className="min-h-screen bg-slate-100 text-slate-800 pb-16">
@@ -266,7 +486,7 @@ export const RelatorioFaturaPage: React.FC = () => {
                 </span>
                 <span className="text-lg font-black text-emerald-300 mt-0.5 block">
                   R${' '}
-                  {(totais.total_a_pagar_rs || registro.total_pagar || 0).toLocaleString('pt-BR', {
+                  {totalPagar.toLocaleString('pt-BR', {
                     minimumFractionDigits: 2,
                   })}
                 </span>
@@ -360,22 +580,22 @@ export const RelatorioFaturaPage: React.FC = () => {
               Geração / Injetada
             </span>
             <div className="text-xl sm:text-2xl font-extrabold text-emerald-600 flex items-baseline gap-1">
-              {(medicao.energia_injetada_geracao?.kwh_injetados_mes || 0).toLocaleString('pt-BR')}
+              {gdCalculada.injetada.toLocaleString('pt-BR')}
               <span className="text-xs text-emerald-600/70 font-normal">kWh</span>
             </div>
             <span className="text-[10px] text-gray-400 block">Injetada na rede RGE</span>
           </div>
 
-          {/* Créditos Compensados */}
+          {/* Créditos Compensados no Mês */}
           <div className="bg-white p-4 rounded-2xl border border-gray-200 shadow-2xs space-y-1">
             <span className="text-[11px] font-semibold text-sky-700 uppercase tracking-wider block">
-              Créditos no Mês
+              Compensados no Mês
             </span>
             <div className="text-xl sm:text-2xl font-extrabold text-sky-600 flex items-baseline gap-1">
-              {(medicao.creditos?.total_creditos_recebidos_kwh || 0).toLocaleString('pt-BR')}
+              {gdCalculada.compensadosMesAtual.toLocaleString('pt-BR')}
               <span className="text-xs text-sky-600/70 font-normal">kWh</span>
             </div>
-            <span className="text-[10px] text-gray-400 block">Compensados na fatura</span>
+            <span className="text-[10px] text-gray-400 block">Abatidos nesta fatura</span>
           </div>
 
           {/* Saldo de Energia */}
@@ -400,12 +620,9 @@ export const RelatorioFaturaPage: React.FC = () => {
               Total a Pagar
             </span>
             <div className="text-xl sm:text-2xl font-extrabold text-gray-900">
-              R${' '}
-              {(totais.total_a_pagar_rs || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+              R$ {totalPagar.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
             </div>
-            <span className="text-[10px] text-gray-400 block">
-              {totais.forma_pagamento || 'Boleto / PIX'}
-            </span>
+            <span className="text-[10px] text-gray-400 truncate block">{formaPagto}</span>
           </div>
 
           {/* Economia Estimada */}
@@ -425,7 +642,354 @@ export const RelatorioFaturaPage: React.FC = () => {
           </div>
         </section>
 
-        {/* 2. Dados do Período de Leitura */}
+        {/* 2. GRÁFICO DE CONSUMO MENSAL (HISTÓRICO DA FATURA) */}
+        <section className="bg-white rounded-3xl p-6 border border-gray-200 shadow-xs space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider flex items-center gap-2">
+                <BarChart3 className="w-4 h-4 text-emerald-600" />
+                <span>Histórico de Consumo Mensal (Mês a Mês - kWh)</span>
+              </h3>
+              <p className="text-xs text-gray-500 mt-0.5">
+                Consumo histórico faturado pela concessionária RGE nos últimos ciclos
+              </p>
+            </div>
+
+            {historicoConsumoFormatado.length > 0 && (
+              <div className="flex flex-wrap items-center gap-2 text-xs">
+                {maiorConsumo && (
+                  <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-amber-50 text-amber-800 border border-amber-200 rounded-lg font-medium">
+                    <TrendingUp className="w-3.5 h-3.5 text-amber-600" />
+                    <span>
+                      Maior: <strong>{maiorConsumo.consumo_kwh.toLocaleString('pt-BR')} kWh</strong>{' '}
+                      ({maiorConsumo.mes})
+                    </span>
+                  </span>
+                )}
+                {menorConsumo && (
+                  <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-50 text-emerald-800 border border-emerald-200 rounded-lg font-medium">
+                    <TrendingDown className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>
+                      Menor: <strong>{menorConsumo.consumo_kwh.toLocaleString('pt-BR')} kWh</strong>{' '}
+                      ({menorConsumo.mes})
+                    </span>
+                  </span>
+                )}
+                {mediaConsumo > 0 && (
+                  <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-slate-100 text-slate-700 border border-slate-200 rounded-lg font-medium">
+                    <span>
+                      Média: <strong>{mediaConsumo.toLocaleString('pt-BR')} kWh/mês</strong>
+                    </span>
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
+
+          {historicoConsumoFormatado.length === 0 ? (
+            <div className="p-8 text-center text-xs text-gray-400 bg-gray-50 rounded-2xl border border-dashed border-gray-200">
+              Histórico de consumo mês a mês não informado detalhadamente na fatura enviada.
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <div className="h-64 sm:h-72 w-full pt-4">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart
+                    data={historicoConsumoFormatado}
+                    margin={{ top: 20, right: 10, left: -15, bottom: 25 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
+                    <XAxis
+                      dataKey="mes"
+                      tick={{ fill: '#64748B', fontSize: 11 }}
+                      interval={0}
+                      angle={-30}
+                      textAnchor="end"
+                      height={40}
+                    />
+                    <YAxis
+                      tick={{ fill: '#64748B', fontSize: 11 }}
+                      tickFormatter={(val) => `${val}`}
+                    />
+                    <RechartsTooltip
+                      formatter={(val: number) => [
+                        `${Number(val).toLocaleString('pt-BR')} kWh`,
+                        'Consumo',
+                      ]}
+                      labelFormatter={(label) => `Mês: ${label}`}
+                      contentStyle={{
+                        backgroundColor: '#0F172A',
+                        borderRadius: '12px',
+                        border: 'none',
+                        color: '#fff',
+                        fontSize: '12px',
+                        boxShadow: '0 10px 15px -3px rgba(0,0,0,0.2)',
+                      }}
+                    />
+                    <Bar dataKey="consumo_kwh" radius={[6, 6, 0, 0]} maxBarSize={45}>
+                      {historicoConsumoFormatado.map((entry, index) => {
+                        // Destaque visual: maior consumo (âmbar/vermelho), menor consumo (esmeralda brilhante), demais (azul ardósia/verde água)
+                        let barColor = '#059669' // Esmeralda padrão
+                        if (entry.isMax)
+                          barColor = '#D97706' // Âmbar para o pico
+                        else if (entry.isMin)
+                          barColor = '#10B981' // Esmeralda mais claro para o mínimo
+                        else barColor = '#0284C7' // Azul céu para regular
+                        return <Cell key={`cell-${index}`} fill={barColor} />
+                      })}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+
+              {/* Legenda visual do gráfico */}
+              <div className="flex flex-wrap items-center justify-center gap-4 text-[11px] text-gray-500 pt-2 border-t border-gray-100">
+                <div className="flex items-center gap-1.5">
+                  <span className="w-3 h-3 rounded bg-amber-600 inline-block" />
+                  <span>Maior consumo faturado</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="w-3 h-3 rounded bg-emerald-500 inline-block" />
+                  <span>Menor consumo faturado</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="w-3 h-3 rounded bg-sky-600 inline-block" />
+                  <span>Consumo mensal nos demais ciclos</span>
+                </div>
+              </div>
+            </div>
+          )}
+        </section>
+
+        {/* 3. RESUMO FINANCEIRO DO QUE FOI PAGO E DOS IMPOSTOS */}
+        <section className="bg-white rounded-3xl p-6 border border-gray-200 shadow-xs space-y-5">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider flex items-center gap-2">
+              <Receipt className="w-4 h-4 text-emerald-600" />
+              <span>Resumo do que Foi Pago e dos Impostos</span>
+            </h3>
+            <span className="text-xs px-2.5 py-1 bg-slate-100 text-slate-700 rounded-full font-semibold border border-slate-200">
+              {totais.forma_pagamento || 'Boleto / PIX'}
+            </span>
+          </div>
+
+          {/* Cards Financeiros do Resumo */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-1">
+              <span className="text-[11px] text-gray-500 uppercase font-semibold tracking-wider block">
+                Total Faturado pela Distribuidora
+              </span>
+              <div className="text-2xl font-black text-gray-900 font-mono">
+                R$ {totalDistribuidora.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+              </div>
+              <span className="text-[11px] text-gray-400 block">Valor bruto apurado na fatura</span>
+            </div>
+
+            <div className="p-4 bg-emerald-50/80 rounded-2xl border border-emerald-200 space-y-1">
+              <span className="text-[11px] text-emerald-800 uppercase font-bold tracking-wider block">
+                Total Efetivamente a Pagar
+              </span>
+              <div className="text-2xl font-black text-emerald-700 font-mono">
+                R$ {totalPagar.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+              </div>
+              <span className="text-[11px] text-emerald-800/80 block">
+                Forma: <strong>{formaPagto}</strong>
+              </span>
+            </div>
+
+            <div className="p-4 bg-purple-50/70 rounded-2xl border border-purple-200 space-y-1">
+              <span className="text-[11px] text-purple-900 uppercase font-bold tracking-wider block">
+                Total de Tributos Inclusos
+              </span>
+              <div className="text-2xl font-black text-purple-700 font-mono">
+                R${' '}
+                {resumoImpostos.totalTributos.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+              </div>
+              <span className="text-[11px] text-purple-800/80 block">
+                ICMS + PIS/PASEP + COFINS
+              </span>
+            </div>
+          </div>
+
+          {/* Tabela de Impostos (Base, Alíquota e Valor) */}
+          <div className="space-y-2">
+            <h4 className="text-xs font-bold text-gray-700 uppercase tracking-wide">
+              Quadro Detalhado de Impostos na Fatura
+            </h4>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs border-collapse">
+                <thead>
+                  <tr className="bg-gray-50 border-b border-gray-200 text-gray-600 font-bold uppercase text-[10px]">
+                    <th className="py-2.5 px-4">Tributo</th>
+                    <th className="py-2.5 px-4 text-right">Base de Cálculo (R$)</th>
+                    <th className="py-2.5 px-4 text-right">Alíquota (%)</th>
+                    <th className="py-2.5 px-4 text-right">Valor do Imposto (R$)</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  <tr>
+                    <td className="py-3 px-4 font-semibold text-gray-900">
+                      ICMS (Imposto sobre Circulação de Mercadorias)
+                    </td>
+                    <td className="py-3 px-4 text-right font-mono text-gray-700">
+                      {resumoImpostos.baseIcms > 0
+                        ? `R$ ${resumoImpostos.baseIcms.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
+                        : '—'}
+                    </td>
+                    <td className="py-3 px-4 text-right font-mono text-gray-700">
+                      {resumoImpostos.aliqIcms !== null
+                        ? `${resumoImpostos.aliqIcms.toFixed(2)}%`
+                        : '—'}
+                    </td>
+                    <td className="py-3 px-4 text-right font-mono font-bold text-gray-900">
+                      R${' '}
+                      {resumoImpostos.valorIcms.toLocaleString('pt-BR', {
+                        minimumFractionDigits: 2,
+                      })}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td className="py-3 px-4 font-semibold text-gray-900">
+                      PIS / PASEP (Programa de Integração Social)
+                    </td>
+                    <td className="py-3 px-4 text-right font-mono text-gray-700">
+                      {resumoImpostos.basePis > 0
+                        ? `R$ ${resumoImpostos.basePis.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
+                        : '—'}
+                    </td>
+                    <td className="py-3 px-4 text-right font-mono text-gray-500">
+                      Conforme tabela distribuidora
+                    </td>
+                    <td className="py-3 px-4 text-right font-mono font-bold text-gray-900">
+                      R${' '}
+                      {resumoImpostos.valorPis.toLocaleString('pt-BR', {
+                        minimumFractionDigits: 2,
+                      })}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td className="py-3 px-4 font-semibold text-gray-900">
+                      COFINS (Contribuição Financiamento Seguridade Social)
+                    </td>
+                    <td className="py-3 px-4 text-right font-mono text-gray-700">
+                      {resumoImpostos.baseCofins > 0
+                        ? `R$ ${resumoImpostos.baseCofins.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
+                        : '—'}
+                    </td>
+                    <td className="py-3 px-4 text-right font-mono text-gray-500">
+                      Conforme tabela distribuidora
+                    </td>
+                    <td className="py-3 px-4 text-right font-mono font-bold text-gray-900">
+                      R${' '}
+                      {resumoImpostos.valorCofins.toLocaleString('pt-BR', {
+                        minimumFractionDigits: 2,
+                      })}
+                    </td>
+                  </tr>
+                </tbody>
+                <tfoot>
+                  <tr className="bg-gray-100 font-bold text-gray-900 border-t-2 border-gray-300">
+                    <td className="py-3 px-4">Total Consolidado de Impostos</td>
+                    <td colSpan={2}></td>
+                    <td className="py-3 px-4 text-right font-mono text-sm text-purple-800">
+                      R${' '}
+                      {resumoImpostos.totalTributos.toLocaleString('pt-BR', {
+                        minimumFractionDigits: 2,
+                      })}
+                    </td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        {/* 4. Arranjo de Geração Distribuída (GD) & Fluxo de Créditos Corrigido */}
+        <section className="bg-white rounded-3xl p-6 border border-gray-200 shadow-xs space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider flex items-center gap-2">
+              <Sun className="w-4 h-4 text-amber-500" />
+              <span>Arranjo de Geração Distribuída (GD) e Fluxo de Créditos</span>
+            </h3>
+            <span className="text-xs px-2.5 py-1 bg-emerald-50 text-emerald-800 rounded-full font-bold border border-emerald-200">
+              {papelLabel}
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+            <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-2 md:col-span-2">
+              <span className="font-bold text-gray-700 block uppercase tracking-wide text-[11px]">
+                Diagnóstico Regulatório e Fluxo de Compensação
+              </span>
+              <p className="text-gray-600 leading-relaxed">
+                {papelGd.descricao_arranjo ||
+                  'Esta instalação participa do Sistema de Compensação de Energia Elétrica (SCEE) conforme a Lei 14.300/2022 e REN ANEEL 1.000/2021.'}
+              </p>
+
+              {/* Destaque do fluxo real de créditos */}
+              <div className="mt-3 p-3 bg-white rounded-xl border border-slate-200 space-y-1">
+                <span className="font-bold text-gray-800 text-[11px] block">Balanço do Ciclo:</span>
+                <p className="text-gray-700 leading-relaxed">{gdCalculada.detalheFluxo}</p>
+                {gdCalculada.kwhEnviados > 0 && (
+                  <p className="text-amber-800 font-medium pt-1">
+                    ℹ️ Como os{' '}
+                    <strong>{gdCalculada.saldoGeradoNaoUsado.toLocaleString('pt-BR')} kWh</strong>{' '}
+                    gerados não foram acumulados no saldo desta instalação ({cad.uc || registro.uc}
+                    ), foram creditados em outra(s) UC(s) vinculada(s) à mesma titularidade
+                    (autoconsumo remoto). Portanto, a participação nesta instalação é de{' '}
+                    <strong>{gdCalculada.participacao}%</strong>.
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <div className="p-4 bg-emerald-50/70 rounded-2xl border border-emerald-200 space-y-2">
+              <span className="font-bold text-emerald-900 block uppercase tracking-wide text-[11px]">
+                Participação e Retenção
+              </span>
+              <div className="space-y-2">
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Participação na Geração:</span>
+                  <strong className="text-emerald-800 font-mono text-sm">
+                    {gdCalculada.participacao}%
+                  </strong>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Energia que Fica no Local:</span>
+                  <strong className="text-emerald-800 font-mono text-sm">
+                    {gdCalculada.retidoPercent}%
+                  </strong>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Compensada aqui:</span>
+                  <strong className="text-gray-900 font-mono">
+                    {gdCalculada.compensadosMesAtual.toLocaleString('pt-BR')} kWh
+                  </strong>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Enviada a outras UCs:</span>
+                  <strong className="text-sky-800 font-mono">
+                    {gdCalculada.kwhEnviados.toLocaleString('pt-BR')} kWh
+                  </strong>
+                </div>
+                <div className="flex justify-between pt-1 border-t border-emerald-200/60">
+                  <span className="text-gray-600">Custo de disponibilidade:</span>
+                  <strong className="text-gray-800">
+                    {indicadores.taxa_minima_disponibilidade_kwh ||
+                      (cad.tipo_fornecimento === 'Trifásico'
+                        ? 100
+                        : cad.tipo_fornecimento === 'Bifásico'
+                          ? 50
+                          : 30)}{' '}
+                    kWh
+                  </strong>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* 5. Dados do Período de Leitura */}
         <section className="bg-white rounded-3xl p-6 border border-gray-200 shadow-xs space-y-4">
           <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider flex items-center gap-2">
             <Calendar className="w-4 h-4 text-emerald-600" />
@@ -478,70 +1042,7 @@ export const RelatorioFaturaPage: React.FC = () => {
           </div>
         </section>
 
-        {/* 3. Arranjo de Geração Distribuída (GD) & Fluxo de Créditos */}
-        <section className="bg-white rounded-3xl p-6 border border-gray-200 shadow-xs space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider flex items-center gap-2">
-              <Sun className="w-4 h-4 text-amber-500" />
-              <span>Arranjo de Geração Distribuída (GD) e Fluxo de Energia</span>
-            </h3>
-            <span className="text-xs px-2.5 py-1 bg-emerald-50 text-emerald-800 rounded-full font-bold border border-emerald-200">
-              {papelLabel}
-            </span>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
-            <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-1 md:col-span-2">
-              <span className="font-bold text-gray-700 block uppercase tracking-wide text-[11px]">
-                Diagnóstico Regulatório do Arranjo
-              </span>
-              <p className="text-gray-600 leading-relaxed">
-                {papelGd.descricao_arranjo ||
-                  'Esta instalação participa do Sistema de Compensação de Energia Elétrica (SCEE). Os créditos excedentes gerados são abatidos das faturas conforme as diretrizes da Lei 14.300/2022 e Resolução Normativa ANEEL 1.000/2021.'}
-              </p>
-            </div>
-
-            <div className="p-4 bg-emerald-50/70 rounded-2xl border border-emerald-200 space-y-2">
-              <span className="font-bold text-emerald-900 block uppercase tracking-wide text-[11px]">
-                Distribuição e Participação
-              </span>
-              <div className="space-y-1.5">
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Participação na Geração:</span>
-                  <strong className="text-emerald-800">
-                    {papelGd.participacao_geracao_percentual !== null &&
-                    papelGd.participacao_geracao_percentual !== undefined
-                      ? `${papelGd.participacao_geracao_percentual}%`
-                      : '100% (Individual)'}
-                  </strong>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Energia retida no ponto:</span>
-                  <strong className="text-emerald-800">
-                    {papelGd.percentual_energia_fica_instalacao !== null &&
-                    papelGd.percentual_energia_fica_instalacao !== undefined
-                      ? `${papelGd.percentual_energia_fica_instalacao}%`
-                      : 'Autoconsumo local'}
-                  </strong>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Taxa de disponibilidade:</span>
-                  <strong className="text-gray-800">
-                    {indicadores.taxa_minima_disponibilidade_kwh ||
-                      (cad.tipo_fornecimento === 'Trifásico'
-                        ? 100
-                        : cad.tipo_fornecimento === 'Bifásico'
-                          ? 50
-                          : 30)}{' '}
-                    kWh
-                  </strong>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* 4. Tabela de Medição, Créditos e Saldo */}
+        {/* 6. Tabela de Medição, Créditos e Saldo */}
         <section className="bg-white rounded-3xl p-6 border border-gray-200 shadow-xs space-y-4">
           <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider flex items-center gap-2">
             <PieChart className="w-4 h-4 text-emerald-600" />
@@ -594,11 +1095,7 @@ export const RelatorioFaturaPage: React.FC = () => {
                     {medicao.energia_injetada_geracao?.multiplicador ?? 1}
                   </td>
                   <td className="py-3 px-4 text-right font-bold text-emerald-600 font-mono">
-                    -
-                    {(medicao.energia_injetada_geracao?.kwh_injetados_mes || 0).toLocaleString(
-                      'pt-BR',
-                    )}{' '}
-                    kWh
+                    -{gdCalculada.injetada.toLocaleString('pt-BR')} kWh
                   </td>
                 </tr>
                 <tr>
@@ -609,11 +1106,7 @@ export const RelatorioFaturaPage: React.FC = () => {
                   <td className="py-3 px-4 text-gray-400 font-mono">—</td>
                   <td className="py-3 px-4 text-gray-400 font-mono">—</td>
                   <td className="py-3 px-4 text-right font-bold text-sky-600 font-mono">
-                    -
-                    {(medicao.creditos?.creditos_compensados_mes_atual_kwh || 0).toLocaleString(
-                      'pt-BR',
-                    )}{' '}
-                    kWh
+                    -{gdCalculada.compensadosMesAtual.toLocaleString('pt-BR')} kWh
                   </td>
                 </tr>
                 {Boolean(medicao.creditos?.creditos_antigos_competencias_anteriores_kwh) && (
@@ -650,7 +1143,7 @@ export const RelatorioFaturaPage: React.FC = () => {
           </div>
         </section>
 
-        {/* 5. Tabela de Itens Faturados com Tarifas, Valores e Impostos */}
+        {/* 7. Tabela de Itens Faturados com Tarifas, Valores e Impostos */}
         <section className="bg-white rounded-3xl p-6 border border-gray-200 shadow-xs space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider flex items-center gap-2">
@@ -728,19 +1221,15 @@ export const RelatorioFaturaPage: React.FC = () => {
                   <td colSpan={2}></td>
                   <td className="py-3 px-3 text-right font-mono text-sm text-emerald-800">
                     R${' '}
-                    {(totais.total_a_pagar_rs || 0).toLocaleString('pt-BR', {
+                    {totalPagar.toLocaleString('pt-BR', {
                       minimumFractionDigits: 2,
                     })}
                   </td>
                   <td className="py-3 px-3 text-right font-mono text-gray-700">
-                    R$ {(impostos.impostos_atuais?.icms_total_rs || 0).toFixed(2)}
+                    R$ {resumoImpostos.valorIcms.toFixed(2)}
                   </td>
                   <td className="py-3 px-3 text-right font-mono text-gray-700">
-                    R${' '}
-                    {(
-                      (impostos.impostos_atuais?.pis_total_rs || 0) +
-                      (impostos.impostos_atuais?.cofins_total_rs || 0)
-                    ).toFixed(2)}
+                    R$ {resumoImpostos.totalPisCofins.toFixed(2)}
                   </td>
                 </tr>
               </tfoot>
@@ -748,141 +1237,7 @@ export const RelatorioFaturaPage: React.FC = () => {
           </div>
         </section>
 
-        {/* 6. Análise Regulatória, Técnica e Simulação Tributária (LC 214/2025) */}
-        <section className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Projeção Tarifária de 9% ao ano */}
-          <div className="bg-white rounded-3xl p-6 border border-gray-200 shadow-xs space-y-4">
-            <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider flex items-center gap-2">
-              <TrendingDown className="w-4 h-4 text-emerald-600" />
-              <span>Projeção de Reajuste Tarifário RGE (+9% ao ano)</span>
-            </h3>
-            <p className="text-xs text-gray-600 leading-relaxed">
-              O histórico médio de reajustes tarifários anuais homologados pela ANEEL para
-              distribuidoras do Sul gira em torno de 9% a.a. Abaixo a projeção do custo da tarifa
-              cheia sem proteção solar:
-            </p>
-
-            <div className="grid grid-cols-4 gap-2 text-center text-xs">
-              <div className="p-3 bg-gray-50 rounded-xl border border-gray-100">
-                <span className="text-[10px] text-gray-500 font-semibold uppercase block">
-                  Atual
-                </span>
-                <strong className="text-gray-900 font-mono text-sm block mt-1">
-                  R${' '}
-                  {(
-                    indicadores.projecao_reajuste_9_ano?.tarifa_atual ||
-                    indicadores.tarifa_cheia_efetiva_rs_kwh ||
-                    1.15
-                  ).toFixed(2)}
-                </strong>
-              </div>
-              <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-100">
-                <span className="text-[10px] text-emerald-700 font-semibold uppercase block">
-                  +1 Ano (+9%)
-                </span>
-                <strong className="text-emerald-800 font-mono text-sm block mt-1">
-                  R${' '}
-                  {(
-                    indicadores.projecao_reajuste_9_ano?.tarifa_1_ano ||
-                    (indicadores.tarifa_cheia_efetiva_rs_kwh || 1.15) * 1.09
-                  ).toFixed(2)}
-                </strong>
-              </div>
-              <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-100">
-                <span className="text-[10px] text-emerald-700 font-semibold uppercase block">
-                  +3 Anos
-                </span>
-                <strong className="text-emerald-800 font-mono text-sm block mt-1">
-                  R${' '}
-                  {(
-                    indicadores.projecao_reajuste_9_ano?.tarifa_3_anos ||
-                    (indicadores.tarifa_cheia_efetiva_rs_kwh || 1.15) * 1.295
-                  ).toFixed(2)}
-                </strong>
-              </div>
-              <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-100">
-                <span className="text-[10px] text-emerald-700 font-semibold uppercase block">
-                  +5 Anos
-                </span>
-                <strong className="text-emerald-800 font-mono text-sm block mt-1">
-                  R${' '}
-                  {(
-                    indicadores.projecao_reajuste_9_ano?.tarifa_5_anos ||
-                    (indicadores.tarifa_cheia_efetiva_rs_kwh || 1.15) * 1.5386
-                  ).toFixed(2)}
-                </strong>
-              </div>
-            </div>
-
-            <div className="p-3 bg-emerald-50/70 border border-emerald-200 rounded-xl text-xs text-emerald-900">
-              Economia estimada em 5 anos protegendo o consumo:{' '}
-              <strong>
-                R${' '}
-                {((indicadores.economia_estimada_mes_rs || 850) * 60 * 1.2).toLocaleString(
-                  'pt-BR',
-                  { maximumFractionDigits: 0 },
-                )}
-              </strong>
-            </div>
-          </div>
-
-          {/* Simulação Reforma Tributária LC 214/2025 (IBS / CBS) */}
-          <div className="bg-white rounded-3xl p-6 border border-gray-200 shadow-xs space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider flex items-center gap-2">
-                <Percent className="w-4 h-4 text-purple-600" />
-                <span>Simulação Reforma Tributária (LC 214/2025)</span>
-              </h3>
-              <span className="text-[10px] px-2 py-0.5 bg-purple-100 text-purple-800 rounded font-bold">
-                Informativo / Simulado
-              </span>
-            </div>
-
-            <p className="text-xs text-gray-600 leading-relaxed">
-              {impostos.reforma_tributaria_lc214_simulacao?.nota ||
-                'Valores meramente SIMULADOS conforme diretrizes gerais da Lei Complementar 214/2025 (IBS estadual/municipal e CBS federal). Não representam cobrança atual na fatura.'}
-            </p>
-
-            <div className="grid grid-cols-2 gap-3 text-xs">
-              <div className="p-3.5 bg-purple-50/60 rounded-xl border border-purple-100 space-y-1">
-                <span className="text-[11px] text-purple-800 font-semibold uppercase block">
-                  IBS Simulado (Estadual/Municipal)
-                </span>
-                <div className="text-lg font-bold text-purple-900 font-mono">
-                  R${' '}
-                  {(
-                    impostos.reforma_tributaria_lc214_simulacao?.ibs_simulado_rs ||
-                    (totais.total_a_pagar_rs || 0) * 0.177
-                  ).toFixed(2)}
-                </div>
-                <span className="text-[10px] text-gray-400 block">
-                  Substituirá o ICMS e ISS na transição
-                </span>
-              </div>
-
-              <div className="p-3.5 bg-purple-50/60 rounded-xl border border-purple-100 space-y-1">
-                <span className="text-[11px] text-purple-800 font-semibold uppercase block">
-                  CBS Simulada (Federal)
-                </span>
-                <div className="text-lg font-bold text-purple-900 font-mono">
-                  R${' '}
-                  {(
-                    impostos.reforma_tributaria_lc214_simulacao?.cbs_simulada_rs ||
-                    (totais.total_a_pagar_rs || 0) * 0.088
-                  ).toFixed(2)}
-                </div>
-                <span className="text-[10px] text-gray-400 block">Substituirá PIS e COFINS</span>
-              </div>
-            </div>
-
-            <div className="text-[11px] text-gray-500 italic">
-              ⚠️ Nota regulatória: A transição da LC 214/2025 prevê regime de não-cumulatividade
-              plena sobre energia elétrica.
-            </div>
-          </div>
-        </section>
-
-        {/* 7. Conclusões e Recomendações Acionáveis */}
+        {/* 8. Conclusões e Recomendações Acionáveis */}
         <section className="bg-white rounded-3xl p-6 border border-gray-200 shadow-xs space-y-4">
           <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider flex items-center gap-2">
             <CheckCircle2 className="w-4 h-4 text-emerald-600" />

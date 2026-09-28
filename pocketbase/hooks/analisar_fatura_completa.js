@@ -113,6 +113,10 @@ ESTRUTURA COMPLETA QUE DEVE SER EXTRAÍDA E CALCULADA:
   * saldo_atual_instalacao_kwh: number
   * saldo_a_expirar_proximo_mes_kwh: number (se > 0, acionar alerta)
   * meses_cobertura_saldo: number (quantos meses de consumo médio o saldo cobre)
+- historico_consumo: array de objetos, um por mês presente no gráfico "Histórico de Consumo" da fatura (geralmente 12 ou 13 meses), EM ORDEM CRONOLÓGICA do mais antigo para o mais recente:
+  { mes: string (ex: "OUT/25"), consumo_kwh: number }
+  Extraia APENAS os valores que estão impressos na fatura. Se a fatura não trouxer histórico de consumo, retorne um array vazio []. NUNCA invente meses ou valores.
+  Cada item pode ter também dias_ciclo: number se informado na fatura.
 
 4. ITENS FATURADOS (array detalhado):
 Para cada item na descrição da fatura (ex: "Consumo Uso Sistema [KWh]-TUSD", "Consumo - TE", "Energia Ativa Injetada TUSD", "Energia Ativa Injetada TE", "Adicional Bandeira Amarela/Vermelha", "Crédito Adicional Bandeira", "Contribuição Custeio IP-CIP", "Ajuste de Saldo", "CDE"):
@@ -343,6 +347,78 @@ FORMATO JSON ESPERADO:
           'O documento enviado não é uma fatura da RGE ou está ilegível.',
         data: parsed,
       })
+    }
+
+    // --- LÓGICA DETERMINÍSTICA DO FLUXO DE CRÉDITOS E PARTICIPAÇÃO NA GD ---
+    // Regra Delfos Solar:
+    // energia_injetada_mes = kWh injetados no mês (ex: 368)
+    // creditos_compensados_mes_atual = kWh compensados no próprio mês (ex: 102)
+    // saldo_gerado_nao_usado = energia_injetada_mes - creditos_compensados_mes_atual (ex: 368 - 102 = 266)
+    // Se saldo_gerado_nao_usado > 0 e a UC NÃO acumulou esse saldo na própria instalação
+    // (o saldo da instalação não subiu naquele valor), então os créditos foram para outra UC do arranjo (autoconsumo remoto).
+    // Nesse caso: participação da UC na geração do arranjo ≈ 0% e fluxo aponta envio para outra UC.
+    const energiaInjetadaCalc =
+      typeof parsed.medicao_e_creditos?.energia_injetada_geracao?.kwh_injetados_mes === 'number'
+        ? parsed.medicao_e_creditos.energia_injetada_geracao.kwh_injetados_mes
+        : parseFloat(parsed.medicao_e_creditos?.energia_injetada_geracao?.kwh_injetados_mes) || 0
+    const compensadosMesCalc =
+      typeof parsed.medicao_e_creditos?.creditos?.creditos_compensados_mes_atual_kwh === 'number'
+        ? parsed.medicao_e_creditos.creditos.creditos_compensados_mes_atual_kwh
+        : parseFloat(parsed.medicao_e_creditos?.creditos?.creditos_compensados_mes_atual_kwh) ||
+          parseFloat(parsed.medicao_e_creditos?.creditos?.total_creditos_recebidos_kwh) ||
+          0
+    const saldoAtualInstalacaoCalc =
+      typeof parsed.medicao_e_creditos?.saldo_energia?.saldo_atual_instalacao_kwh === 'number'
+        ? parsed.medicao_e_creditos.saldo_energia.saldo_atual_instalacao_kwh
+        : parseFloat(parsed.medicao_e_creditos?.saldo_energia?.saldo_atual_instalacao_kwh) || 0
+
+    const saldoGeradoNaoUsado = Math.max(
+      0,
+      Math.round((energiaInjetadaCalc - compensadosMesCalc) * 100) / 100,
+    )
+
+    if (!parsed.papel_gd) {
+      parsed.papel_gd = {}
+    }
+
+    // Se houve injeção superior ao compensado no mês
+    if (energiaInjetadaCalc > 0 && saldoGeradoNaoUsado > 0) {
+      // Se a instalação não teve acréscimo de saldo compatível no próprio saldo (ex: saldo atual é zero ou menor que o excedente, ou fatura indica rateio)
+      const acumulouProprio = saldoAtualInstalacaoCalc >= saldoGeradoNaoUsado
+      if (!acumulouProprio) {
+        // Os créditos foram para outra UC do arranjo (autoconsumo remoto)
+        parsed.papel_gd.participacao_geracao_percentual = 0
+        parsed.papel_gd.percentual_energia_fica_instalacao =
+          energiaInjetadaCalc > 0
+            ? Math.round((compensadosMesCalc / energiaInjetadaCalc) * 1000) / 10
+            : 0
+        parsed.papel_gd.kwh_enviados_outras_ucs = saldoGeradoNaoUsado
+        parsed.papel_gd.kwh_retidos_instalacao = compensadosMesCalc
+        parsed.papel_gd.fluxo_creditos_detalhe = `${saldoGeradoNaoUsado.toLocaleString('pt-BR')} kWh gerados e não consumidos aqui foram creditados em outra(s) UC(s) do arranjo (autoconsumo remoto).`
+      } else {
+        // Acumulou no próprio saldo da instalação
+        parsed.papel_gd.participacao_geracao_percentual = 100
+        parsed.papel_gd.percentual_energia_fica_instalacao = 100
+        parsed.papel_gd.kwh_enviados_outras_ucs = 0
+        parsed.papel_gd.kwh_retidos_instalacao = energiaInjetadaCalc
+        parsed.papel_gd.fluxo_creditos_detalhe = `100% dos créditos gerados (${energiaInjetadaCalc.toLocaleString('pt-BR')} kWh) permaneceram nesta instalação.`
+      }
+    } else if (energiaInjetadaCalc > 0 && compensadosMesCalc >= energiaInjetadaCalc) {
+      // 100% da injeção foi compensada aqui
+      parsed.papel_gd.participacao_geracao_percentual = 100
+      parsed.papel_gd.percentual_energia_fica_instalacao = 100
+      parsed.papel_gd.kwh_enviados_outras_ucs = 0
+      parsed.papel_gd.kwh_retidos_instalacao = energiaInjetadaCalc
+      parsed.papel_gd.fluxo_creditos_detalhe = `Toda a energia injetada no ciclo (${energiaInjetadaCalc.toLocaleString('pt-BR')} kWh) foi compensada nesta própria instalação.`
+    }
+
+    // Se historico_consumo estiver dentro de medicao_e_creditos ou na raiz de parsed, unificar
+    if (parsed.medicao_e_creditos?.historico_consumo && !parsed.historico_consumo) {
+      parsed.historico_consumo = parsed.medicao_e_creditos.historico_consumo
+    }
+    if (parsed.historico_consumo && !parsed.medicao_e_creditos?.historico_consumo) {
+      if (!parsed.medicao_e_creditos) parsed.medicao_e_creditos = {}
+      parsed.medicao_e_creditos.historico_consumo = parsed.historico_consumo
     }
 
     // Gerar token único criptográfico/aleatório para a análise

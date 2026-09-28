@@ -61,7 +61,16 @@ export interface AnaliseFaturaCompletaDados {
     descricao_arranjo?: string
     participacao_geracao_percentual?: number | null
     percentual_energia_fica_instalacao?: number | null
+    kwh_enviados_outras_ucs?: number | null
+    kwh_retidos_instalacao?: number | null
+    fluxo_creditos_detalhe?: string | null
   }
+  historico_consumo?: Array<{
+    mes?: string
+    mes_ano?: string
+    consumo_kwh: number
+    dias_ciclo?: number
+  }>
   medicao_e_creditos?: {
     energia_ativa_consumida?: {
       leitura_anterior?: number
@@ -85,6 +94,12 @@ export interface AnaliseFaturaCompletaDados {
       saldo_a_expirar_proximo_mes_kwh?: number
       meses_cobertura_saldo?: number
     }
+    historico_consumo?: Array<{
+      mes?: string
+      mes_ano?: string
+      consumo_kwh: number
+      dias_ciclo?: number
+    }>
   }
   itens_faturados?: ItemFaturadoDetalhado[]
   totais?: {
