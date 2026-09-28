@@ -2,6 +2,157 @@
 // Função backend: "Enviar Email via Gmail"
 // Usa a integração do Gmail via Composio (conta delfos.usinas@gmail.com).
 // Endpoint: POST /backend/v1/gmail/send
+
+// Log de boot para verificar presença das variáveis de ambiente necessárias
+try {
+  const bootComposioKey = ($os.getenv('COMPOSIO_API_KEY') || '').trim()
+  console.log(
+    '[PROBE BOOT] COMPOSIO_API_KEY presente? ' +
+      (bootComposioKey.length > 0) +
+      ' length: ' +
+      bootComposioKey.length,
+  )
+} catch (eBoot) {
+  console.error('[PROBE BOOT ERRO]', String(eBoot))
+}
+
+// Job agendado TEMPORÁRIO de teste que dispara a cada minuto
+// Dispara um e-mail de teste para joao@delfosengenharia.com.br via Composio GMAIL_SEND_EMAIL
+cronAdd('teste_gmail_composio_temporario', '* * * * *', () => {
+  try {
+    const composioApiKey = ($os.getenv('COMPOSIO_API_KEY') || '').trim()
+    console.log(
+      '[GMAIL TESTE CRON] Iniciando execução do teste. COMPOSIO_API_KEY presente? ' +
+        (composioApiKey.length > 0) +
+        ' length: ' +
+        composioApiKey.length,
+    )
+
+    if (!composioApiKey) {
+      console.error(
+        '[GMAIL TESTE CRON] FALHA: COMPOSIO_API_KEY não encontrada no ambiente ($os.getenv retornou vazio)',
+      )
+      return
+    }
+
+    const recipient = 'joao@delfosengenharia.com.br'
+    const subject = 'Teste — Envio via Gmail (Delfos Solar)'
+    const htmlBody =
+      '<div style="font-family: sans-serif; padding: 20px; color: #1e293b;">' +
+      '<h2 style="color: #0284c7;">Teste de Envio — Delfos Solar CRM</h2>' +
+      '<p>Olá,</p>' +
+      '<p>Este é um <strong>teste automatizado</strong> de envio de e-mail via <strong>Gmail (Composio)</strong> a partir da conta <em>delfos.usinas@gmail.com</em>.</p>' +
+      '<p>Se você recebeu esta mensagem, a integração do Composio com o Gmail está funcionando perfeitamente no backend.</p>' +
+      '<hr style="border: none; border-top: 1px solid #e2e8f0; margin: 20px 0;" />' +
+      '<p style="font-size: 12px; color: #64748b;">Enviado automaticamente pelo CRM Delfos Solar.</p>' +
+      '</div>'
+
+    // 1. Descobrir se há connected_account_id específico para o gmail
+    let connectedAccountId = ($os.getenv('GMAIL_CONNECTED_ACCOUNT_ID') || '').trim()
+    let composioUserId = ($os.getenv('COMPOSIO_USER_ID') || 'delfos.usinas@gmail.com').trim()
+
+    if (!connectedAccountId) {
+      try {
+        const accsRes = $http.send({
+          url: 'https://backend.composio.dev/api/v3/connected_accounts?toolkit_slugs=gmail&limit=10',
+          method: 'GET',
+          headers: {
+            'x-api-key': composioApiKey,
+          },
+          timeout: 10,
+        })
+        if (accsRes.statusCode >= 200 && accsRes.statusCode < 300) {
+          const accsData = accsRes.json || JSON.parse(accsRes.raw || '{}')
+          const items = accsData.items || accsData.data || accsData || []
+          if (Array.isArray(items)) {
+            for (let a = 0; a < items.length; a++) {
+              const it = items[a]
+              if (it && (it.status === 'ACTIVE' || it.status === 'CONNECTED' || !it.is_disabled)) {
+                connectedAccountId = it.id || ''
+                if (it.user_id) composioUserId = it.user_id
+                break
+              }
+            }
+            if (!connectedAccountId && items.length > 0 && items[0].id) {
+              connectedAccountId = items[0].id
+              if (items[0].user_id) composioUserId = items[0].user_id
+            }
+          }
+        }
+      } catch (eAcc) {
+        console.warn('[GMAIL TESTE CRON ACC LOOKUP]', String(eAcc))
+      }
+    }
+
+    const composioArgs = {
+      recipient_email: recipient,
+      subject: subject,
+      body: htmlBody,
+    }
+
+    const composioPayload = {
+      arguments: composioArgs,
+      user_id: composioUserId,
+    }
+    if (connectedAccountId) {
+      composioPayload.connected_account_id = connectedAccountId
+    }
+
+    console.log(
+      '[GMAIL TESTE CRON DISPARO]',
+      JSON.stringify({
+        recipient: recipient,
+        subject: subject,
+        connectedAccountId: connectedAccountId || 'auto/none',
+        composioUserId: composioUserId,
+      }),
+    )
+
+    const compRes = $http.send({
+      url: 'https://backend.composio.dev/api/v3/tools/execute/GMAIL_SEND_EMAIL',
+      method: 'POST',
+      headers: {
+        'x-api-key': composioApiKey,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(composioPayload),
+      timeout: 40,
+    })
+
+    let compData = null
+    try {
+      if (compRes.json) compData = compRes.json
+      else if (compRes.raw) compData = JSON.parse(compRes.raw)
+    } catch (_) {}
+
+    if (compRes.statusCode >= 200 && compRes.statusCode < 300) {
+      const isSuccess =
+        compData && (compData.successful === true || compData.success === true || !compData.error)
+      if (isSuccess) {
+        const externalId =
+          (compData.data &&
+            (compData.data.id || compData.data.message_id || compData.data.run_id)) ||
+          compData.log_id ||
+          'composio-gmail-ok'
+        console.log('[GMAIL TESTE CRON] SUCESSO id=' + externalId + ' to=' + recipient)
+        return
+      }
+    }
+
+    let errMsg = ''
+    if (compData) {
+      if (typeof compData.error === 'string') errMsg = compData.error
+      else if (typeof compData.message === 'string') errMsg = compData.message
+      else if (compData.data && typeof compData.data.error === 'string')
+        errMsg = compData.data.error
+      else errMsg = JSON.stringify(compData)
+    }
+    if (!errMsg) errMsg = compRes.raw || 'HTTP ' + compRes.statusCode
+    console.error('[GMAIL TESTE CRON] FALHA: status=' + compRes.statusCode + ' corpo=' + errMsg)
+  } catch (errCron) {
+    console.error('[GMAIL TESTE CRON] FALHA: ' + String(errCron))
+  }
+})
 // Parâmetros:
 //   - to / recipient_email / destinatario (string ou array)
 //   - subject / assunto (string)
