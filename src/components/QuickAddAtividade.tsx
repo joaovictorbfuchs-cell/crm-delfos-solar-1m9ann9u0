@@ -326,7 +326,7 @@ export const QuickAddAtividade: React.FC<QuickAddAtividadeProps> = ({
           {onOpenModalCompleto && (
             <button
               type="button"
-              onClick={onOpenModalCompleto}
+              onClick={() => onOpenModalCompleto()}
               className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 rounded-lg border border-emerald-200 transition-colors"
               title="Abrir modal Registrar Atividade completo"
             >
