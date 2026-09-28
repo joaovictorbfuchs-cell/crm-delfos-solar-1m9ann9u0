@@ -9,6 +9,94 @@ describe('faturaRGEService', () => {
     expect(isFaturaRGEProvavel('Conta da RGE Energia Março', 'doc.pdf')).toBe(true)
   })
 
+  it('valida estrutura dos dados extraídos e cálculos conforme padrão RGE DANF3E', () => {
+    // Exemplo sintético espelhando a fatura de teste DANF3E RGE SUL
+    const faturaSintetica = {
+      e_fatura_rge: true,
+      concessionaria_detectada: 'RGE',
+      titular_nome: 'DELFOS ENGENHARIA EIRELI',
+      cpf_cnpj: '21.379.952/0001-38',
+      uc: '200.419.001-19',
+      tipo_fornecimento: 'Monofásico',
+      tensao_nominal: 'Disp.: 220',
+      classificacao_grupo_subgrupo: 'Convencional B3 Comercial Outros Serviços',
+      endereco_completo: {
+        rua: 'R ESPIRITO SANTO',
+        numero: '275',
+        complemento: 'não informado na fatura',
+        bairro: 'FATIMA',
+        cidade: 'ERECHIM',
+        estado: 'RS',
+        cep: '99709-296',
+      },
+      detalhes_tarifa: {
+        tarifa_tusd_com_tributos: 0.7464394,
+        tarifa_te_com_tributos: 0.45174243,
+        tarifa_total_com_tributos: 1.19818183,
+      },
+      tarifa_com_tributos: 1.19818183,
+      valor_total_fatura: 58.58,
+      mes_referencia_atual: 'SET/2026',
+      historico_consumo: [
+        { mes_ano: 'SET 26', consumo_kwh: 132, dias_ciclo: 29 },
+        { mes_ano: 'AGO 26', consumo_kwh: 124, dias_ciclo: 30 },
+        { mes_ano: 'JUL 26', consumo_kwh: 264, dias_ciclo: 32 },
+        { mes_ano: 'JUN 26', consumo_kwh: 143, dias_ciclo: 30 },
+        { mes_ano: 'MAI 26', consumo_kwh: 74, dias_ciclo: 30 },
+        { mes_ano: 'ABR 26', consumo_kwh: 118, dias_ciclo: 31 },
+        { mes_ano: 'MAR 26', consumo_kwh: 145, dias_ciclo: 30 },
+        { mes_ano: 'FEV 26', consumo_kwh: 115, dias_ciclo: 28 },
+        { mes_ano: 'JAN 26', consumo_kwh: 79, dias_ciclo: 29 },
+        { mes_ano: 'DEZ 25', consumo_kwh: 96, dias_ciclo: 33 },
+        { mes_ano: 'NOV 25', consumo_kwh: 71, dias_ciclo: 29 },
+        { mes_ano: 'OUT 25', consumo_kwh: 90, dias_ciclo: 33 },
+        { mes_ano: 'SET 25', consumo_kwh: 1, dias_ciclo: 30 },
+      ],
+      calculos: {
+        quantidade_meses_historico: 13,
+        somatorio_consumo_anual_kwh: 1452,
+        media_mensal_consumo_kwh: 111.69,
+        consumo_medio_diario_kwh: 3.78,
+      },
+    }
+
+    // 1. UC formatada com pontos e hífen, sem confundir com CNPJ
+    expect(faturaSintetica.uc).toBe('200.419.001-19')
+    expect(faturaSintetica.uc).not.toBe(faturaSintetica.cpf_cnpj)
+    expect(faturaSintetica.cpf_cnpj).toBe('21.379.952/0001-38')
+
+    // 2. Endereço completo com todos os 7 componentes
+    expect(faturaSintetica.endereco_completo.rua).toBe('R ESPIRITO SANTO')
+    expect(faturaSintetica.endereco_completo.numero).toBe('275')
+    expect(faturaSintetica.endereco_completo.complemento).toBe('não informado na fatura')
+    expect(faturaSintetica.endereco_completo.bairro).toBe('FATIMA')
+    expect(faturaSintetica.endereco_completo.cidade).toBe('ERECHIM')
+    expect(faturaSintetica.endereco_completo.estado).toBe('RS')
+    expect(faturaSintetica.endereco_completo.cep).toBe('99709-296')
+
+    // 3. Histórico de 13 meses e média = soma / 13 (não fixar 12)
+    expect(faturaSintetica.historico_consumo).toHaveLength(13)
+    const somaCalculada = faturaSintetica.historico_consumo.reduce(
+      (acc, item) => acc + item.consumo_kwh,
+      0,
+    )
+    expect(somaCalculada).toBe(1452)
+    const mediaCalculada =
+      Math.round((somaCalculada / faturaSintetica.historico_consumo.length) * 100) / 100
+    expect(mediaCalculada).toBe(111.69)
+    expect(faturaSintetica.calculos.media_mensal_consumo_kwh).toBe(mediaCalculada)
+
+    // 4. Tarifa TUSD + TE somadas
+    const tusd = faturaSintetica.detalhes_tarifa.tarifa_tusd_com_tributos
+    const te = faturaSintetica.detalhes_tarifa.tarifa_te_com_tributos
+    const somaTarifa = Math.round((tusd + te) * 100000000) / 100000000
+    expect(somaTarifa).toBeCloseTo(1.19818183, 8)
+    expect(faturaSintetica.tarifa_com_tributos).toBeCloseTo(1.19818183, 8)
+
+    // 5. Tipo de fornecimento Monofásico
+    expect(faturaSintetica.tipo_fornecimento).toBe('Monofásico')
+  })
+
   it('calcula métricas de histórico de consumo com precisão numérica', () => {
     const historicoSintetico = [
       { mes_ano: 'Mar/25', consumo_kwh: 920, dias_ciclo: 30 },

@@ -66,56 +66,61 @@ routerAdd('POST', '/backend/v1/analisar-fatura-rge', (e) => {
     )
 
     // Instruções rigorosas de extração conforme especificação do usuário
-    const promptInstrucoes = `Você é um analista especialista de alta precisão em faturas de energia elétrica da concessionária RGE (Rio Grande Energia / CPFL Energia) para o CRM Delfos Solar.
+    const promptInstrucoes = `Você é um analista especialista de alta precisão em faturas de energia elétrica da concessionária RGE (Rio Grande Energia / CPFL Energia / RGE SUL - DANF3E) para o CRM Delfos Solar.
 
 Analise cuidadosamente o arquivo da fatura em anexo (ou texto extraído) e extraia os dados estritamente conforme as regras abaixo:
 
-REGRAS OBRIGATÓRIAS DE EXTRAÇÃO:
-1. Todo dado DEVE vir da fatura. Se algum dado não aparecer explicitamente na fatura, preencha com exatamente "não informado na fatura" (ou null para valores numéricos onde indicado).
-2. NUNCA INVENTE VALORES.
-3. Valores monetários devem estar em reais (R$), energia em kWh.
-4. Se o documento estiver ilegível ou claramente NÃO FOR uma fatura de energia da RGE (ou CPFL/RGE Sul), informe no campo "e_fatura_rge": false e detalhe o motivo em "erro_identificacao".
-5. Responda SEMPRE em português brasileiro.
-6. Retorne EXCLUSIVAMENTE um objeto JSON válido, sem texto antes ou depois, sem markdown adicional como \`\`\`json.
+REGRAS OBRIGATÓRIAS E PERMANENTES:
+1. TODO DADO DEVE VIR DA FATURA. Se algum dado não constar na fatura, preencha com exatamente "não informado na fatura" (ou null para valores numéricos onde indicado).
+2. NUNCA INVENTE VALORES. Jamais crie ou deduza informações que não estejam escritas no documento.
+3. Se a fatura estiver ilegível ou claramente NÃO FOR uma fatura de energia da RGE / CPFL / RGE SUL, retorne "e_fatura_rge": false e descreva o motivo em "erro_identificacao".
+4. Responda SEMPRE em português brasileiro.
+5. Retorne EXCLUSIVAMENTE um objeto JSON válido, sem texto antes ou depois, sem blocos markdown.
 
-DISTINÇÃO CRÍTICA ENTRE UC (UNIDADE CONSUMIDORA) E CPF/CNPJ:
-- O número da UC (código do cliente / instalação / unidade consumidora) na RGE geralmente aparece formatado com pontos e hífen, por exemplo: "200.419.001-19" ou números como "00419001-1" / "1002345678".
-- NUNCA confunda o número da UC com CPF (11 dígitos) ou CNPJ (14 dígitos) do titular.
-- NUNCA confunda o número da UC com códigos numéricos do cabeçalho, código de barras, número da nota fiscal, código de débito automático ou chave de acesso da NF3e.
-- O campo "cpf_cnpj" só deve conter o CPF (11 dígitos) ou CNPJ (14 dígitos) real do titular cadastrado.
+INSTRUÇÕES DETALHADAS POR CAMPO:
 
-CAMPOS A EXTRAIR:
-1. "titular_nome": Nome completo ou razão social do titular da conta
-2. "cpf_cnpj": CPF ou CNPJ do titular (formatado com pontuação padrão). Se ausente, preencha "não informado na fatura".
-3. "endereco_completo": {
-     "rua": string,
-     "numero": string,
-     "complemento": string,
-     "bairro": string,
-     "cidade": string,
-     "estado": string,
-     "cep": string
-   }
-4. "uc": Número da Unidade Consumidora / Código da Instalação (ex: "200.419.001-19").
-5. "classificacao_grupo_subgrupo": Classificação do grupo e subgrupo tarifário (ex: "Convencional B3 Comercial Outros Serviços", "B1 Residencial", "B2 Rural", etc.).
-6. "tipo_fornecimento": "monofásico", "bifásico" ou "trifásico" (ou "não informado na fatura").
-7. "tensao_nominal": Tensão nominal da rede (ex: "127V", "220V", "380/220V", "13.8kV", etc. ou "não informado na fatura").
-8. "tarifa_com_tributos": Valor da tarifa total com tributos em R$/kWh (número ou null).
-9. "valor_total_fatura": Valor total a pagar em R$ da fatura atual (número ou null).
-10. "mes_referencia_atual": Mês de referência desta fatura (ex: "03/2025" ou "Mar/2025").
-11. "historico_consumo": Lista com o histórico de consumo dos últimos 12 a 13 meses exatamente como registrado no quadro "Histórico de Consumo" da fatura. Cada item deve conter:
-    - "mes_ano": mês e ano de referência (ex: "03/25", "Fev/25", etc.)
-    - "consumo_kwh": número em kWh
-    - "dias_ciclo": número de dias faturados no ciclo (se constar, senão 30)
+1. NÚMERO DA UC (UNIDADE CONSUMIDORA) - REGRA CRÍTICA:
+   - Localize o rótulo literal "Número da UC" ou "Unidade Consumidora" (a fatura RGE traz explicitamente uma caixa destacada com o título "Número da UC", e há avisos como: "Consulte o novo código nesta fatura, no campo 'Número da UC'").
+   - O valor DEVE ser retornado exatamente como aparece formatado na fatura, com pontos e hífen. Exemplo real: "200.419.001-19".
+   - NUNCA retorne o código de instalação numérico simples (ex: "14303744" que é o medidor/instalação legada).
+   - NUNCA confunda o Número da UC com o CPF ou CNPJ do titular (ex: CNPJ "21.379.952/0001-38").
+   - NUNCA confunda com chave de acesso da NF3e, código de barras, número da nota fiscal ou protocolo de autorização.
 
-CÁLCULOS AUTOMÁTICOS (calcule a partir dos dados do histórico de consumo extraído):
-- "somatorio_consumo_anual_kwh": soma do consumo em kWh de todos os meses do histórico extraído (número).
-- "media_mensal_consumo_kwh": média aritmética do consumo mensal em kWh (número arredondado em 2 casas decimais).
-- "consumo_medio_diario_kwh": consumo médio diário em kWh (média mensal dividida por 30 ou baseada na soma de kWh / soma de dias_ciclo, com 2 casas decimais).
-- "maior_consumo_periodo": { "mes_ano": string, "consumo_kwh": number }
-- "menor_consumo_periodo": { "mes_ano": string, "consumo_kwh": number }
+2. ENDEREÇO COMPLETO DA UNIDADE CONSUMIDORA:
+   - Extraia o endereço completo da unidade consumidora contendo todos os componentes disponíveis na fatura:
+     rua (logradouro), número, complemento, bairro, cidade, estado (UF) e CEP.
+   - Qualquer componente que não constar explicitamente na fatura deve receber exatamente o valor "não informado na fatura".
+   - Exemplo da fatura RGE: rua: "R ESPIRITO SANTO", numero: "275", complemento: "não informado na fatura", bairro: "FATIMA", cidade: "ERECHIM", estado: "RS", cep: "99709-296".
 
-FORMATO DO JSON DE RESPOSTA:
+3. HISTÓRICO DE CONSUMO E CÁLCULO DA MÉDIA:
+   - Extraia TODOS os meses registrados na tabela ou gráfico de histórico ("Consumo / kWh" ou "Consumo faturado / Nº dias") da fatura.
+   - Na fatura RGE podem existir 12, 13 ou outro número de meses registrados (ex: 13 meses: SET 26 com 132 kWh e 29 dias, AGO 26 com 124 kWh e 30 dias, ..., SET 25 com 1 kWh e 30 dias).
+   - Para cada mês do histórico extraia:
+     * "mes_ano": mês e ano exatamente como consta na tabela (ex: "SET 26", "AGO 26", "SET 25")
+     * "consumo_kwh": valor faturado em kWh (número)
+     * "dias_ciclo": número de dias do ciclo faturado (número, ex: 29, 30, 32)
+   - CÁLCULO DA MÉDIA MENSAL: deve ser a SOMA de todos os meses do histórico extraído dividida pelo NÚMERO TOTAL DE MESES DE REGISTRO extraídos (NÃO fixar em 12 meses! Se houver 13 meses, divida por 13; se houver 11, divida por 11).
+
+4. VALOR DA TARIFA (SOMA DAS DUAS COMPONENTES TUSD + TE):
+   - Na tabela de itens faturados da fatura da RGE ("Descrição da operação"), localize as duas componentes de consumo com tributos da distribuidora:
+     * Componente TUSD: "Consumo Uso Sistema [KWh]-TUSD" -> extraia a "Tarifa com tributos R$" (ex: 0,74643940)
+     * Componente TE: "Consumo - TE" -> extraia a "Tarifa com tributos R$" (ex: 0,45174243)
+   - O campo "tarifa_com_tributos" DEVE SER a SOMA exata dessas duas componentes (TUSD com tributos + TE com tributos). Exemplo: 0,74643940 + 0,45174243 = 1.19818183 R$/kWh.
+   - Forneça também o detalhamento no objeto "detalhes_tarifa": { "tarifa_tusd_com_tributos": number, "tarifa_te_com_tributos": number, "tarifa_total_com_tributos": number }.
+
+5. TIPO DE FORNECIMENTO:
+   - Localize o rótulo literal "Tipo de Fornecimento:" na fatura (geralmente próximo a Classificação e Tensão Nominal).
+   - Extraia o valor informado na fatura, tipicamente: "Monofásico", "Bifásico" ou "Trifásico" (ou "não informado na fatura").
+
+6. DEMAIS CAMPOS DA FATURA:
+   - "titular_nome": Razão social ou nome completo do titular (ex: "DELFOS ENGENHARIA EIRELI").
+   - "cpf_cnpj": CPF ou CNPJ formatado (ex: "21.379.952/0001-38").
+   - "classificacao_grupo_subgrupo": ex: "Convencional B3 Comercial Outros Serviços".
+   - "tensao_nominal": ex: "Disp.: 220" ou "220V".
+   - "valor_total_fatura": Valor total a pagar em R$ (número ou null caso esteja zerada / não pague / asteriscos).
+   - "mes_referencia_atual": Mês de referência (ex: "SET/2026").
+
+FORMATO JSON DE RETORNO OBRIGATÓRIO:
 {
   "e_fatura_rge": true,
   "concessionaria_detectada": "RGE",
@@ -136,6 +141,11 @@ FORMATO DO JSON DE RESPOSTA:
   "tipo_fornecimento": string,
   "tensao_nominal": string,
   "tarifa_com_tributos": number | null,
+  "detalhes_tarifa": {
+    "tarifa_tusd_com_tributos": number | null,
+    "tarifa_te_com_tributos": number | null,
+    "tarifa_total_com_tributos": number | null
+  },
   "valor_total_fatura": number | null,
   "mes_referencia_atual": string,
   "historico_consumo": [
@@ -146,6 +156,7 @@ FORMATO DO JSON DE RESPOSTA:
     }
   ],
   "calculos": {
+    "quantidade_meses_historico": number,
     "somatorio_consumo_anual_kwh": number,
     "media_mensal_consumo_kwh": number,
     "consumo_medio_diario_kwh": number,
@@ -352,6 +363,7 @@ FORMATO DO JSON DE RESPOSTA:
     })
 
     const qtdMeses = historico.length > 0 ? historico.length : 1
+    // Média de consumo: soma de todos os meses dividida pelo número de meses de registro (sem fixar em 12)
     const mediaMensal = Math.round((totalAnual / qtdMeses) * 100) / 100
     const mediaDiaria =
       totalDias > 0
@@ -359,6 +371,7 @@ FORMATO DO JSON DE RESPOSTA:
         : Math.round((mediaMensal / 30) * 100) / 100
 
     if (!parsed.calculos) parsed.calculos = {}
+    parsed.calculos.quantidade_meses_historico = historico.length
     parsed.calculos.somatorio_consumo_anual_kwh = Math.round(totalAnual * 100) / 100
     parsed.calculos.media_mensal_consumo_kwh = mediaMensal
     parsed.calculos.consumo_medio_diario_kwh = mediaDiaria
@@ -367,6 +380,53 @@ FORMATO DO JSON DE RESPOSTA:
     }
     if (menorConsumo.consumo_kwh < 999999999) {
       parsed.calculos.menor_consumo_periodo = menorConsumo
+    }
+
+    // Validação da tarifa TUSD + TE: se houver detalhes, garantir a soma determinística
+    if (parsed.detalhes_tarifa) {
+      const tusd = parseFloat(parsed.detalhes_tarifa.tarifa_tusd_com_tributos) || 0
+      const te = parseFloat(parsed.detalhes_tarifa.tarifa_te_com_tributos) || 0
+      if (tusd > 0 && te > 0) {
+        const somaTarifas = Math.round((tusd + te) * 100000000) / 100000000
+        parsed.detalhes_tarifa.tarifa_total_com_tributos = somaTarifas
+        if (
+          !parsed.tarifa_com_tributos ||
+          Math.abs(parsed.tarifa_com_tributos - somaTarifas) > 0.001
+        ) {
+          parsed.tarifa_com_tributos = somaTarifas
+        }
+      }
+    }
+
+    // Reforçar regra de endereço: garantir que todos os 7 componentes existam no objeto
+    if (!parsed.endereco_completo || typeof parsed.endereco_completo !== 'object') {
+      parsed.endereco_completo = {
+        rua: 'não informado na fatura',
+        numero: 'não informado na fatura',
+        complemento: 'não informado na fatura',
+        bairro: 'não informado na fatura',
+        cidade: 'não informado na fatura',
+        estado: 'não informado na fatura',
+        cep: 'não informado na fatura',
+      }
+    } else {
+      const camposEnd = ['rua', 'numero', 'complemento', 'bairro', 'cidade', 'estado', 'cep']
+      camposEnd.forEach((campo) => {
+        const val = parsed.endereco_completo[campo]
+        if (!val || typeof val !== 'string' || !val.trim()) {
+          parsed.endereco_completo[campo] = 'não informado na fatura'
+        } else {
+          parsed.endereco_completo[campo] = val.trim()
+        }
+      })
+    }
+
+    // Normalizar tipo de fornecimento
+    if (parsed.tipo_fornecimento && typeof parsed.tipo_fornecimento === 'string') {
+      const tfLow = parsed.tipo_fornecimento.toLowerCase().trim()
+      if (tfLow.includes('mono')) parsed.tipo_fornecimento = 'Monofásico'
+      else if (tfLow.includes('bi')) parsed.tipo_fornecimento = 'Bifásico'
+      else if (tfLow.includes('tri')) parsed.tipo_fornecimento = 'Trifásico'
     }
 
     // Reforçar regra de ouro: se UC e CPF tiverem os mesmos dígitos, anular CPF

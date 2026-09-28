@@ -441,7 +441,7 @@ export const ImportarDadosDocumento: React.FC<ImportarDadosDocumentoProps> = ({
       items.push({
         id: 'numero_fases',
         categoria: 'dados_tecnicos',
-        label: 'Número de Fases',
+        label: 'Tipo de Fornecimento',
         targetKey: 'numero_fases',
         targetEntity: 'sistema',
         extractedValue: tec.numero_fases,
@@ -775,6 +775,9 @@ export const ImportarDadosDocumento: React.FC<ImportarDadosDocumentoProps> = ({
         }
         if (d.tarifa_com_tributos) {
           res.data.consumo.tarifa = d.tarifa_com_tributos
+        }
+        if (d.detalhes_tarifa?.tarifa_total_com_tributos) {
+          res.data.consumo.tarifa = d.detalhes_tarifa.tarifa_total_com_tributos
         }
         if (
           d.classificacao_grupo_subgrupo &&
@@ -1110,7 +1113,9 @@ export const ImportarDadosDocumento: React.FC<ImportarDadosDocumentoProps> = ({
         clienteUpdates.dados_importados = {
           ...(cliente.dados_importados || {}),
           fatura_rge_calculos: faturaRGEDetectada.calculos,
-          fatura_rge_tarifa: faturaRGEDetectada.tarifa_com_tributos,
+          fatura_rge_tarifa:
+            faturaRGEDetectada.detalhes_tarifa?.tarifa_total_com_tributos ??
+            faturaRGEDetectada.tarifa_com_tributos,
           fatura_rge_total: faturaRGEDetectada.valor_total_fatura,
           fatura_rge_referencia: faturaRGEDetectada.mes_referencia_atual,
         }

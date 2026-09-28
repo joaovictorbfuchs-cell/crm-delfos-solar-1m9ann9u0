@@ -3297,7 +3297,9 @@ export const FichaClienteDrawer: React.FC = () => {
                             </div>
 
                             <div className="flex items-center gap-2">
-                              <span className="text-gray-500 w-16 shrink-0">Fases:</span>
+                              <span className="text-gray-500 w-32 shrink-0">
+                                Tipo de Fornecimento:
+                              </span>
                               <InlineEditField
                                 value={
                                   selectedCliente.tipo_fornecimento ||

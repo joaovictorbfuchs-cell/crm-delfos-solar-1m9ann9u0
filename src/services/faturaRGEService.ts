@@ -11,7 +11,14 @@ export interface HistoricoConsumoItem {
   dias_ciclo: number
 }
 
+export interface DetalhesTarifaFatura {
+  tarifa_tusd_com_tributos?: number | null
+  tarifa_te_com_tributos?: number | null
+  tarifa_total_com_tributos?: number | null
+}
+
 export interface FaturaRGECalculos {
+  quantidade_meses_historico?: number
   somatorio_consumo_anual_kwh: number
   media_mensal_consumo_kwh: number
   consumo_medio_diario_kwh: number
@@ -47,6 +54,7 @@ export interface FaturaRGEDadosExtraidos {
   tipo_fornecimento?: string
   tensao_nominal?: string
   tarifa_com_tributos?: number | null
+  detalhes_tarifa?: DetalhesTarifaFatura
   valor_total_fatura?: number | null
   mes_referencia_atual?: string
   historico_consumo: HistoricoConsumoItem[]

@@ -1848,10 +1848,10 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                     </select>
                   </div>
 
-                  {/* Padrão de Ligação (Fases) */}
+                  {/* Tipo de Fornecimento */}
                   <div>
                     <label className="text-[11px] font-semibold text-gray-700 block mb-1">
-                      Padrão de Ligação (Fases) *
+                      Tipo de Fornecimento *
                     </label>
                     <select
                       value={padraoFases}

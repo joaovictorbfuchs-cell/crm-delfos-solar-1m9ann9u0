@@ -20,10 +20,25 @@ export function extractFieldErrors(error: unknown): FieldErrors {
   return errors
 }
 
+export function isAuthSessionError(error: unknown): boolean {
+  if (!error) return false
+  const err = error as Record<string, unknown>
+  const status = Number(err?.status || err?.statusCode || 0)
+  if (status === 401 || status === 403) return true
+  const msg = String(err?.message || '').toLowerCase()
+  return (
+    msg.includes('token is expired') ||
+    msg.includes('token is invalid') ||
+    msg.includes('session expired') ||
+    msg.includes('unauthorized') ||
+    msg.includes('failed to authenticate')
+  )
+}
+
 export function getErrorMessage(error: unknown): string {
   if (!(error instanceof ClientResponseError)) {
     return error instanceof Error ? error.message : 'An unexpected error occurred.'
   }
   const msgs = Object.values(extractFieldErrors(error))
-  return msgs.length > 0 ? msgs.join(' ') : (error.message || 'An unexpected error occurred.')
+  return msgs.length > 0 ? msgs.join(' ') : error.message || 'An unexpected error occurred.'
 }
