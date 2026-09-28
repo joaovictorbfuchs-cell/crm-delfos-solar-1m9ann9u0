@@ -17,12 +17,22 @@ import {
   Send,
   CalendarDays,
   Sparkles,
+  Plus,
+  Trash2,
+  Layers,
 } from 'lucide-react'
 import { PrazoRGEBadge } from '@/components/PrazoRGEBadge'
 import { useClientes } from '@/contexts/ClientesContext'
 import { ClienteAutocomplete } from '@/components/ClienteAutocomplete'
 import { ATIVIDADES_12_TIPOS, getTipoAtividadeConfig } from '@/constants/atividadesTipos'
 import type { Atividade, AtividadeTipo, AtividadeStatus } from '@/types/crm'
+import {
+  buscarAtividadesFilhasAutoLeitura,
+  sincronizarFilhasNovas,
+  excluirFilhaPorData,
+  normalizarDatasLeitura,
+  formatarDataParaDDMMAAAA,
+} from '@/services/autoLeituraService'
 import {
   SecaoCustosDeslocamentoAtividade,
   type CustosDeslocamentoValues,
@@ -84,11 +94,18 @@ export const ModalDetalhesAtividade: React.FC<ModalDetalhesAtividadeProps> = ({
   const [showSuccessBadge, setShowSuccessBadge] = useState(false)
   const [custosValores, setCustosValores] = useState<CustosDeslocamentoValues | null>(null)
 
+  // Estados dedicados para Auto Leitura RGE mãe e filhas
+  const [datasLeituraAutoLeitura, setDatasLeituraAutoLeitura] = useState<string[]>([])
+  const [novaDataInput, setNovaDataInput] = useState<string>('')
+  const [filhasAutoLeitura, setFilhasAutoLeitura] = useState<Atividade[]>([])
+  const [carregandoFilhas, setCarregandoFilhas] = useState(false)
+
   // Preenchimento dos campos quando uma atividade é selecionada
   useEffect(() => {
     if (isOpen && atividade) {
       setTitulo(atividade.titulo || '')
-      setTipo(atividade.tipo || 'contato_ligacao')
+      const tipoAtv = atividade.tipo || 'contato_ligacao'
+      setTipo(tipoAtv)
       setClienteId(atividade.cliente_id || '')
       setDataHora(toDateTimeLocalValue(atividade.data || atividade.created))
       setResponsavelId(atividade.responsavel_id || '')
@@ -105,6 +122,27 @@ export const ModalDetalhesAtividade: React.FC<ModalDetalhesAtividadeProps> = ({
       setEnderecoUc(atividade.endereco_uc || '')
       setDocumentoTitular(atividade.documento_titular || '')
       setEmailDestinatario(atividade.email_destinatario || '')
+
+      // Se for Auto Leitura RGE mãe, carrega datas_leitura e filhas
+      if (tipoAtv === 'auto_leitura_rge') {
+        const norm = normalizarDatasLeitura(atividade.datas_leitura)
+        setDatasLeituraAutoLeitura(norm)
+        setNovaDataInput('')
+        setCarregandoFilhas(true)
+        buscarAtividadesFilhasAutoLeitura(atividade.id)
+          .then((filhas) => {
+            setFilhasAutoLeitura(filhas)
+          })
+          .catch((err) => {
+            console.warn('Erro ao buscar filhas no modal de detalhes:', err)
+          })
+          .finally(() => {
+            setCarregandoFilhas(false)
+          })
+      } else {
+        setDatasLeituraAutoLeitura([])
+        setFilhasAutoLeitura([])
+      }
 
       setFormError(null)
       setErrors({})
@@ -128,6 +166,42 @@ export const ModalDetalhesAtividade: React.FC<ModalDetalhesAtividadeProps> = ({
     }
   }
 
+  // Adiciona nova data de leitura
+  const handleAddDataLeitura = () => {
+    if (!novaDataInput) return
+    const dataLimpa = novaDataInput.slice(0, 10)
+    if (!datasLeituraAutoLeitura.includes(dataLimpa)) {
+      setDatasLeituraAutoLeitura((prev) => [...prev, dataLimpa].sort())
+    }
+    setNovaDataInput('')
+    setFormError(null)
+  }
+
+  // Remove uma data de leitura da mãe (com confirmação para apagar a filha correspondente se existir)
+  const handleRemoveDataLeitura = async (dataParaRemover: string) => {
+    const filhaCorrespondente = filhasAutoLeitura.find(
+      (f) => (f.data_leitura || f.data || '').slice(0, 10) === dataParaRemover,
+    )
+
+    if (filhaCorrespondente) {
+      const confirmou = window.confirm(
+        `Deseja excluir também a atividade filha "Lembrete de Auto Leitura" (${formatarDataParaDDMMAAAA(
+          dataParaRemover,
+        )})?`,
+      )
+      if (confirmou) {
+        try {
+          await excluirFilhaPorData(atividade.id, dataParaRemover, filhasAutoLeitura)
+          setFilhasAutoLeitura((prev) => prev.filter((f) => f.id !== filhaCorrespondente.id))
+        } catch (err) {
+          console.error('Erro ao excluir atividade filha:', err)
+        }
+      }
+    }
+
+    setDatasLeituraAutoLeitura((prev) => prev.filter((d) => d !== dataParaRemover))
+  }
+
   // Validação dos campos obrigatórios
   const validate = () => {
     const newErrors: {
@@ -148,6 +222,12 @@ export const ModalDetalhesAtividade: React.FC<ModalDetalhesAtividadeProps> = ({
     }
     if (!responsavelId) {
       newErrors.responsavel = 'Selecione um usuário responsável.'
+    }
+
+    // Auto Leitura RGE precisa de pelo menos 1 data de leitura
+    if (tipo === 'auto_leitura_rge' && datasLeituraAutoLeitura.length === 0) {
+      setFormError('Informe pelo menos uma data de leitura para a Auto Leitura RGE.')
+      return false
     }
 
     setErrors(newErrors)
@@ -204,7 +284,32 @@ export const ModalDetalhesAtividade: React.FC<ModalDetalhesAtividadeProps> = ({
         payload.email_destinatario = emailDestinatario.trim()
       }
 
+      // Se for auto_leitura_rge, persiste datas_leitura e numero_uc
+      if (tipo === 'auto_leitura_rge') {
+        payload.datas_leitura = datasLeituraAutoLeitura
+        if (numeroUc) {
+          payload.numero_uc = numeroUc.trim()
+        }
+      }
+
       const updated = await updateAtividade(atividade.id, payload as Partial<Atividade>)
+
+      // Se for auto_leitura_rge, sincroniza filhas novas (deduplicando)
+      if (tipo === 'auto_leitura_rge' && atividade.id) {
+        await sincronizarFilhasNovas(
+          {
+            maeId: atividade.id,
+            clienteId,
+            usinaId: atividade.usina_id,
+            numeroUc: numeroUc || atividade.numero_uc,
+            datasLeitura: datasLeituraAutoLeitura,
+            responsavelId,
+            responsavelNome,
+            autor: atividade.autor,
+          },
+          filhasAutoLeitura,
+        )
+      }
 
       setShowSuccessBadge(true)
       if (onSaved) {
@@ -532,6 +637,162 @@ export const ModalDetalhesAtividade: React.FC<ModalDetalhesAtividadeProps> = ({
               }}
               onChange={setCustosValores}
             />
+          )}
+
+          {/* SEÇÃO ESPECIAL: AUTO LEITURA RGE (MÃE E ATIVIDADES FILHAS) */}
+          {tipo === 'auto_leitura_rge' && (
+            <div className="space-y-4 p-4 rounded-2xl border border-orange-200 bg-orange-50/40 shadow-xs">
+              <div className="flex items-center justify-between flex-wrap gap-2 border-b border-orange-100 pb-2">
+                <div className="flex items-center gap-2">
+                  <div className="p-1.5 rounded-lg bg-orange-100 text-orange-800">
+                    <CalendarDays className="w-4 h-4 text-orange-700" />
+                  </div>
+                  <div>
+                    <h3 className="text-xs font-bold text-gray-900 leading-tight">
+                      Auto Leitura RGE — Ciclo de Leituras
+                    </h3>
+                    <p className="text-[10px] text-gray-500">
+                      Gerencie as datas de leitura da UC e as atividades de lembrete filhas
+                    </p>
+                  </div>
+                </div>
+
+                <span className="text-[11px] font-bold text-orange-800 bg-orange-100 px-2 py-0.5 rounded-full border border-orange-200">
+                  Total: {datasLeituraAutoLeitura.length} datas
+                </span>
+              </div>
+
+              {/* Número da UC */}
+              <div>
+                <label className="text-[11px] font-semibold text-gray-700 block mb-1">
+                  Número da UC (Unidade Consumidora)
+                </label>
+                <input
+                  type="text"
+                  value={numeroUc}
+                  onChange={(e) => setNumeroUc(e.target.value)}
+                  placeholder="Ex: 4004280183"
+                  className="w-full text-xs px-3 py-2 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-orange-500 font-mono bg-white font-medium"
+                />
+              </div>
+
+              {/* Campo para adicionar nova data de leitura */}
+              <div className="space-y-2 pt-2 border-t border-orange-100">
+                <label className="text-[11px] font-semibold text-gray-700 block">
+                  Adicionar nova data de leitura
+                </label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="date"
+                    value={novaDataInput}
+                    onChange={(e) => setNovaDataInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault()
+                        handleAddDataLeitura()
+                      }
+                    }}
+                    className="text-xs px-3 py-2 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-orange-500 bg-white flex-1"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleAddDataLeitura}
+                    disabled={!novaDataInput}
+                    className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-white bg-orange-600 hover:bg-orange-700 disabled:opacity-50 rounded-xl transition-colors shadow-2xs shrink-0"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Adicionar</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Lista das Atividades Filhas / Datas vinculadas */}
+              <div className="space-y-2 pt-2 border-t border-orange-100">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-bold text-gray-700 uppercase tracking-wide flex items-center gap-1">
+                    <Layers className="w-3.5 h-3.5 text-orange-600" />
+                    Atividades Filhas de Lembrete ({datasLeituraAutoLeitura.length})
+                  </span>
+                  {carregandoFilhas && (
+                    <span className="text-[10px] text-gray-400 flex items-center gap-1">
+                      <Loader2 className="w-3 h-3 animate-spin" /> Atualizando...
+                    </span>
+                  )}
+                </div>
+
+                {datasLeituraAutoLeitura.length === 0 ? (
+                  <p className="text-xs text-gray-400 italic text-center py-2 bg-white rounded-xl border border-dashed border-gray-200">
+                    Nenhuma data de leitura cadastrada.
+                  </p>
+                ) : (
+                  <div className="space-y-1.5 max-h-56 overflow-y-auto pr-1">
+                    {datasLeituraAutoLeitura.map((dt, idx) => {
+                      const filha = filhasAutoLeitura.find(
+                        (f) => (f.data_leitura || f.data || '').slice(0, 10) === dt,
+                      )
+                      const dataLembreteFormatada = filha?.data_lembrete
+                        ? new Date(filha.data_lembrete).toLocaleString('pt-BR', {
+                            day: '2-digit',
+                            month: '2-digit',
+                            year: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })
+                        : `${formatarDataParaDDMMAAAA(
+                            new Date(new Date(dt + 'T12:00:00Z').getTime() - 2 * 86400000)
+                              .toISOString()
+                              .slice(0, 10),
+                          )} às 08:00`
+
+                      const statusFilha = filha?.status || 'pendente'
+
+                      return (
+                        <div
+                          key={dt}
+                          className="flex items-center justify-between p-2.5 rounded-xl bg-white border border-orange-100/90 text-xs shadow-2xs hover:border-orange-300 transition-colors"
+                        >
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <span className="w-5 h-5 rounded-full bg-orange-100 text-orange-800 text-[10px] font-bold flex items-center justify-center shrink-0">
+                              {idx + 1}
+                            </span>
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="font-bold text-gray-900">
+                                  Leitura: {formatarDataParaDDMMAAAA(dt)}
+                                </span>
+                                {statusFilha === 'concluida' ? (
+                                  <span className="text-[10px] font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200 inline-flex items-center gap-1">
+                                    <CheckCircle2 className="w-2.5 h-2.5 text-emerald-600" />
+                                    Concluída
+                                  </span>
+                                ) : (
+                                  <span className="text-[10px] font-bold text-amber-800 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200 inline-flex items-center gap-1">
+                                    <Clock className="w-2.5 h-2.5 text-amber-600" />
+                                    Pendente
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-[10px] text-gray-500 mt-0.5">
+                                Lembrete: <strong>{dataLembreteFormatada}</strong>
+                              </p>
+                            </div>
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveDataLeitura(dt)}
+                            className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors shrink-0 ml-2"
+                            title="Remover data e excluir atividade filha correspondente"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
           )}
 
           {/* SEÇÃO ESPECIAL: ACOMPANHAMENTO PÓS-ENVIO RGE */}

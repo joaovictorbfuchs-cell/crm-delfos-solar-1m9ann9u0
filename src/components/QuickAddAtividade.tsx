@@ -111,7 +111,9 @@ export const QuickAddAtividade: React.FC<QuickAddAtividadeProps> = ({
     if (firstOfCat) {
       setSubTipo(firstOfCat.id)
       setTitulo(firstOfCat.tituloPadrao)
-      if (firstOfCat.id === 'solicitar_contas_rge') {
+      if (firstOfCat.id === 'auto_leitura_rge' && onOpenModalCompleto) {
+        onOpenModalCompleto()
+      } else if (firstOfCat.id === 'solicitar_contas_rge') {
         setIsModalSolicitarContasOpen(true)
       } else if (
         onSelectTipoEspecial &&
@@ -131,7 +133,9 @@ export const QuickAddAtividade: React.FC<QuickAddAtividadeProps> = ({
   const handleSelectTipo = (item: TipoAtividadeDef) => {
     setSubTipo(item.id)
     setTitulo(item.tituloPadrao)
-    if (item.id === 'analise_fatura') {
+    if (item.id === 'auto_leitura_rge' && onOpenModalCompleto) {
+      onOpenModalCompleto()
+    } else if (item.id === 'analise_fatura') {
       setIsModalAnaliseFaturaOpen(true)
     } else if (item.id === 'solicitar_contas_rge') {
       setIsModalSolicitarContasOpen(true)
@@ -448,7 +452,8 @@ export const QuickAddAtividade: React.FC<QuickAddAtividadeProps> = ({
                         item.id === 'gerar_contrato' ||
                         item.id === 'oferecer_limpeza_avulsa' ||
                         item.id === 'analise_fatura' ||
-                        item.id === 'solicitar_contas_rge' ? (
+                        item.id === 'solicitar_contas_rge' ||
+                        item.id === 'auto_leitura_rge' ? (
                         <span
                           className={`text-[9px] font-semibold block ${
                             isSelected ? 'text-emerald-100' : 'text-emerald-700'
@@ -460,7 +465,9 @@ export const QuickAddAtividade: React.FC<QuickAddAtividadeProps> = ({
                               ? 'IA Gemini ↗'
                               : item.id === 'solicitar_contas_rge'
                                 ? 'e-mail RGE ↗'
-                                : 'fluxo dedicado ↗'}
+                                : item.id === 'auto_leitura_rge'
+                                  ? 'datas programadas ↗'
+                                  : 'fluxo dedicado ↗'}
                         </span>
                       ) : null}
                     </div>

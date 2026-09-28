@@ -119,6 +119,16 @@ export const AtividadeItem: React.FC<AtividadeItemProps> = ({
                 <span className="truncate">{atividade.expand.usina_id.nome}</span>
               </span>
             )}
+            {/* Lembrete de Auto Leitura: badge com a data de leitura programada */}
+            {atividade.tipo === 'lembrete_auto_leitura' && atividade.data_leitura && (
+              <span className="inline-flex items-center gap-1 font-semibold text-orange-800 bg-orange-50 border border-orange-200 px-1.5 py-0.5 rounded text-[10px]">
+                Leitura:{' '}
+                {new Date(atividade.data_leitura).toLocaleDateString('pt-BR', {
+                  timeZone: 'UTC',
+                })}
+              </span>
+            )}
+
             <div className="flex items-center text-[11px] text-gray-500 gap-1">
               <Calendar className="w-3 h-3 text-gray-400" />
               <span>{formatDateTime(atividade.data || atividade.created)}</span>

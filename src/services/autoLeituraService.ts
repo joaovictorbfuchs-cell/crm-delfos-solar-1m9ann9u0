@@ -319,3 +319,174 @@ export async function buscarHistoricoAutoLeituraCliente(clienteId: string): Prom
     return []
   }
 }
+
+/**
+ * Formata string YYYY-MM-DD para DD/MM/AAAA
+ */
+export function formatarDataParaDDMMAAAA(dataStr: string): string {
+  if (!dataStr) return ''
+  // Se contiver T ou hora, extrai somente YYYY-MM-DD
+  const limpa = dataStr.slice(0, 10)
+  const partes = limpa.split('-')
+  if (partes.length === 3) {
+    const [ano, mes, dia] = partes
+    return `${dia.padStart(2, '0')}/${mes.padStart(2, '0')}/${ano}`
+  }
+  return dataStr
+}
+
+/**
+ * Extrai data normalizada YYYY-MM-DD de uma string ou Date ISO
+ */
+export function extrairDataYYYYMMDD(dataStr?: string | null): string {
+  if (!dataStr) return ''
+  return dataStr.slice(0, 10)
+}
+
+/**
+ * Calcula a data e hora do lembrete: 2 dias antes da data de leitura às 08:00 (UTC/ISO).
+ * Ex: Se dataLeitura = '2027-01-15' -> Lembrete: '2027-01-13T08:00:00.000Z'
+ */
+export function calcularDataLembrete2DiasAntes(dataLeituraYYYYMMDD: string): {
+  dataLembreteIso: string
+  dataLeituraIso: string
+} {
+  const [ano, mes, dia] = dataLeituraYYYYMMDD.split('-').map(Number)
+  // Leitura ao meio dia UTC
+  const leituraDate = new Date(Date.UTC(ano, mes - 1, dia, 12, 0, 0))
+  // Lembrete 2 dias antes às 08:00 UTC
+  const lembreteDate = new Date(Date.UTC(ano, mes - 1, dia - 2, 8, 0, 0))
+
+  return {
+    dataLeituraIso: leituraDate.toISOString(),
+    dataLembreteIso: lembreteDate.toISOString(),
+  }
+}
+
+/**
+ * Normaliza o campo datas_leitura (que pode vir como array ou string JSON) em string[] ordenada
+ */
+export function normalizarDatasLeitura(datas: unknown): string[] {
+  if (!datas) return []
+  let arr: string[] = []
+  if (Array.isArray(datas)) {
+    arr = datas.map((d) => String(d).slice(0, 10)).filter(Boolean)
+  } else if (typeof datas === 'string') {
+    try {
+      const parsed = JSON.parse(datas)
+      if (Array.isArray(parsed)) {
+        arr = parsed.map((d) => String(d).slice(0, 10)).filter(Boolean)
+      } else {
+        arr = [datas.slice(0, 10)]
+      }
+    } catch {
+      arr = [datas.slice(0, 10)]
+    }
+  }
+  // Deduplica e ordena
+  return Array.from(new Set(arr)).sort()
+}
+
+/**
+ * Busca atividades filhas (lembrete_auto_leitura) de uma atividade mãe
+ */
+export async function buscarAtividadesFilhasAutoLeitura(maeId: string): Promise<Atividade[]> {
+  if (!maeId) return []
+  try {
+    const filhas = await pb.collection('atividades').getFullList<Atividade>({
+      filter: `parent_id = '${maeId}'`,
+      sort: 'data_leitura',
+      expand: 'cliente_id,usina_id,responsavel_id',
+    })
+    return filhas
+  } catch (err) {
+    console.error('Erro ao buscar filhas da atividade mãe:', err)
+    return []
+  }
+}
+
+export interface CriarFilhasLembreteParams {
+  maeId: string
+  clienteId: string
+  usinaId?: string
+  numeroUc?: string
+  datasLeitura: string[] // Array de datas YYYY-MM-DD
+  responsavelId?: string
+  responsavelNome?: string
+  autor?: string
+}
+
+/**
+ * Cria atividades filhas para datas que ainda NÃO possuem filha vinculada (deduplicação por data_leitura).
+ * Retorna as atividades criadas.
+ */
+export async function sincronizarFilhasNovas(
+  params: CriarFilhasLembreteParams,
+  filhasExistentes?: Atividade[],
+): Promise<Atividade[]> {
+  const {
+    maeId,
+    clienteId,
+    usinaId,
+    numeroUc,
+    datasLeitura,
+    responsavelId,
+    responsavelNome,
+    autor,
+  } = params
+
+  const existentes = filhasExistentes ?? (await buscarAtividadesFilhasAutoLeitura(maeId))
+  const datasJaExistentes = new Set(
+    existentes.map((f) => extrairDataYYYYMMDD(f.data_leitura || f.data)),
+  )
+
+  const novasDatas = datasLeitura.filter((d) => !datasJaExistentes.has(d))
+  const criadas: Atividade[] = []
+
+  for (const dataStr of novasDatas) {
+    const { dataLeituraIso, dataLembreteIso } = calcularDataLembrete2DiasAntes(dataStr)
+    const dataFormatada = formatarDataParaDDMMAAAA(dataStr)
+    const ucDesc = numeroUc ? ` para a UC ${numeroUc}` : ''
+
+    const filhaRecord = await pb.collection('atividades').create<Atividade>({
+      cliente_id: clienteId,
+      usina_id: usinaId || undefined,
+      numero_uc: numeroUc || undefined,
+      parent_id: maeId,
+      tipo: 'lembrete_auto_leitura',
+      titulo: `Lembrete de Auto Leitura - ${dataFormatada}`,
+      descricao: `Lembrete de leitura${ucDesc}. Data da leitura programada: ${dataFormatada}. Enviar foto do relógio e registrar grandezas 03 e 103.`,
+      data: dataLembreteIso,
+      data_leitura: dataLeituraIso,
+      data_lembrete: dataLembreteIso,
+      status: 'pendente',
+      responsavel_id: responsavelId || undefined,
+      responsavel_nome: responsavelNome || undefined,
+      autor: autor || responsavelNome || 'Sistema Delfos',
+    })
+
+    criadas.push(filhaRecord)
+  }
+
+  return criadas
+}
+
+/**
+ * Exclui a atividade filha correspondente a uma data específica de leitura
+ */
+export async function excluirFilhaPorData(
+  maeId: string,
+  dataLeituraYYYYMMDD: string,
+  filhasExistentes?: Atividade[],
+): Promise<boolean> {
+  const existentes = filhasExistentes ?? (await buscarAtividadesFilhasAutoLeitura(maeId))
+  const alvo = existentes.find(
+    (f) => extrairDataYYYYMMDD(f.data_leitura || f.data) === dataLeituraYYYYMMDD,
+  )
+
+  if (alvo) {
+    await pb.collection('atividades').delete(alvo.id)
+    return true
+  }
+  return false
+}

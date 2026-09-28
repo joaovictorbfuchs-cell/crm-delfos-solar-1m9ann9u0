@@ -20,6 +20,7 @@ import { useClientes } from '@/contexts/ClientesContext'
 import { useAuth } from '@/contexts/AuthContext'
 import { ClienteAutocomplete } from '@/components/ClienteAutocomplete'
 import { fetchUsinasByClienteId } from '@/services/crmService'
+import { formatarDataParaDDMMAAAA, sincronizarFilhasNovas } from '@/services/autoLeituraService'
 import {
   SecaoCustosDeslocamentoAtividade,
   type CustosDeslocamentoValues,
@@ -106,6 +107,12 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
     return now.toISOString().slice(0, 16)
   })
   const [descricao, setDescricao] = useState('')
+
+  // Estados dedicados para Auto Leitura RGE
+  const [numeroUcAutoLeitura, setNumeroUcAutoLeitura] = useState<string>('')
+  const [datasLeituraAutoLeitura, setDatasLeituraAutoLeitura] = useState<string[]>([])
+  const [novaDataInput, setNovaDataInput] = useState<string>('')
+
   const [programacaoLeituras, setProgramacaoLeituras] =
     useState<ProgramacaoLeituraItem[]>(ITENS_EXEMPLO_PROGRAMACAO)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -125,13 +132,15 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
       const conf = getTipoAtividadeConfig(tipoParaUsar)
       setSelectedCategoria(conf.categoria || 'comercial')
       setTitulo(conf.tituloPadrao)
-      if (tipoParaUsar === 'auto_leitura_rge') {
-        setProgramacaoLeituras(ITENS_EXEMPLO_PROGRAMACAO.map((it) => ({ ...it })))
-      }
       if (initialClienteId) {
         setClienteId(initialClienteId)
       } else {
         setClienteId('')
+      }
+
+      if (tipoParaUsar === 'auto_leitura_rge') {
+        setDatasLeituraAutoLeitura([])
+        setNovaDataInput('')
       }
 
       // Definir responsável padrão: usuário logado se encontrado na lista, ou primeiro usuário
@@ -156,15 +165,20 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
     let isMounted = true
 
     // Se veio via prop e bate com o cliente selecionado
+    const cli = clientes.find((c) => c.id === clienteId)
+
     if (usinasProp && usinasProp.length > 0 && initialClienteId === clienteId) {
       setUsinasDoCliente(usinasProp)
-      setSelectedUsinaId(usinasProp.length === 1 ? usinasProp[0].id : '')
+      const usinaPref = usinasProp.length === 1 ? usinasProp[0] : null
+      setSelectedUsinaId(usinaPref?.id || '')
+      setNumeroUcAutoLeitura(usinaPref?.numero_uc || cli?.uc || '')
       return
     }
 
     if (!clienteId) {
       setUsinasDoCliente([])
       setSelectedUsinaId('')
+      setNumeroUcAutoLeitura('')
       return
     }
 
@@ -174,8 +188,10 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
         setUsinasDoCliente(lista || [])
         if (lista && lista.length === 1) {
           setSelectedUsinaId(lista[0].id)
+          setNumeroUcAutoLeitura(lista[0].numero_uc || cli?.uc || '')
         } else {
           setSelectedUsinaId('')
+          setNumeroUcAutoLeitura(cli?.uc || '')
         }
       })
       .catch((err) => {
@@ -183,6 +199,7 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
         if (isMounted) {
           setUsinasDoCliente([])
           setSelectedUsinaId('')
+          setNumeroUcAutoLeitura(cli?.uc || '')
         }
       })
 
@@ -220,12 +237,30 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
     // Regra do usuário: O nome do tipo clicado deve virar AUTOMATICAMENTE o título da atividade
     setTitulo(conf.tituloPadrao)
     if (novoTipo === 'auto_leitura_rge') {
-      setProgramacaoLeituras(ITENS_EXEMPLO_PROGRAMACAO.map((it) => ({ ...it })))
+      // Se tiver UC preenchida, incrementa o título conforme padrão "Auto Leitura RGE - UC <numero>"
+      if (numeroUcAutoLeitura) {
+        setTitulo(`Auto Leitura RGE - UC ${numeroUcAutoLeitura}`)
+      }
     } else if (novoTipo === 'solicitar_contas_rge') {
       setIsModalSolicitarContasOpen(true)
     } else if (novoTipo === 'analise_fatura') {
       setIsModalAnaliseFaturaOpen(true)
     }
+  }
+
+  // Handlers do campo especial de MÚLTIPLAS datas de leitura (Auto Leitura RGE)
+  const handleAddDataLeitura = () => {
+    if (!novaDataInput) return
+    const dataLimpa = novaDataInput.slice(0, 10)
+    if (!datasLeituraAutoLeitura.includes(dataLimpa)) {
+      setDatasLeituraAutoLeitura((prev) => [...prev, dataLimpa].sort())
+    }
+    setNovaDataInput('')
+    setFormError(null)
+  }
+
+  const handleRemoveDataLeitura = (dataParaRemover: string) => {
+    setDatasLeituraAutoLeitura((prev) => prev.filter((d) => d !== dataParaRemover))
   }
 
   const handleAddDataProgramacao = () => {
@@ -265,38 +300,51 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
       return
     }
 
+    // Validação estrita: Auto Leitura RGE exige pelo menos 1 data de leitura informada
+    if (selectedTipo === 'auto_leitura_rge') {
+      if (datasLeituraAutoLeitura.length === 0) {
+        setFormError('Informe pelo menos uma data de leitura para a Auto Leitura RGE.')
+        return
+      }
+    }
+
     try {
       setIsSubmitting(true)
       setFormError(null)
 
       const conf = getTipoAtividadeConfig(selectedTipo, customDefs)
-      const finalTitulo = titulo.trim() || conf.tituloPadrao
+      let finalTitulo = titulo.trim() || conf.tituloPadrao
+
+      if (selectedTipo === 'auto_leitura_rge' && numeroUcAutoLeitura) {
+        if (!finalTitulo || finalTitulo === conf.tituloPadrao) {
+          finalTitulo = `Auto Leitura RGE - UC ${numeroUcAutoLeitura}`
+        }
+      }
 
       const selectedUser = usuarios.find((u) => u.id === responsavelId)
       const responsavelNome = selectedUser?.name || user?.name || 'João Delfos'
 
-      // Se for Auto Leitura - RGE, separar linhas da Distribuidora para salvar como consulta
-      const leiturasDistribuidora =
-        selectedTipo === 'auto_leitura_rge'
-          ? programacaoLeituras
-              .filter((item) => item.responsavel === 'Distribuidora' && item.dataPrevista)
-              .map((item) => ({
-                data: formatarParaDDMMAAAA(item.dataPrevista),
-                responsavel: 'Distribuidora' as const,
-              }))
-          : undefined
+      // Se for Auto Leitura - RGE, primeira data da leitura define a data inicial da mãe
+      const primeiraData = datasLeituraAutoLeitura[0]
+      const dataIsoMae =
+        selectedTipo === 'auto_leitura_rge' && primeiraData
+          ? new Date(primeiraData + 'T08:00:00Z').toISOString()
+          : dataHora
+            ? new Date(dataHora).toISOString()
+            : new Date().toISOString()
 
       const atividadePrincipalPayload: any = {
         cliente_id: clienteId,
         tipo: selectedTipo,
         titulo: finalTitulo,
         descricao: descricao.trim(), // Descrição NÃO é obrigatória
-        data: dataHora ? new Date(dataHora).toISOString() : new Date().toISOString(),
+        data: dataIsoMae,
         responsavel_id: responsavelId || undefined,
         responsavel_nome: responsavelNome,
         status: 'pendente',
         autor: user?.name || 'João Delfos',
         usina_id: selectedUsinaId || undefined,
+        numero_uc: numeroUcAutoLeitura || undefined,
         // Campos de custo e deslocamento
         valor_servico: custosValores?.valorServico ?? undefined,
         valor_por_placa: custosValores?.valorPorPlaca ?? undefined,
@@ -309,40 +357,28 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
         custo_total: custosValores?.custoTotal ?? undefined,
       }
 
-      if (leiturasDistribuidora && leiturasDistribuidora.length > 0) {
-        atividadePrincipalPayload.leituras_programadas_distribuidora = leiturasDistribuidora
+      if (selectedTipo === 'auto_leitura_rge') {
+        atividadePrincipalPayload.datas_leitura = datasLeituraAutoLeitura
       }
 
-      // Salva a atividade principal normalmente (como já funciona hoje)
-      await addAtividade(atividadePrincipalPayload)
+      // Salva a atividade principal (mãe)
+      const maeCriada = await addAtividade(atividadePrincipalPayload)
 
       // Se for Auto Leitura - RGE:
-      // Para cada linha onde o Responsável for 'Cliente', cria automaticamente uma atividade filha
-      // vinculada ao mesmo cliente, com título 'Auto Leitura RGE - [data]' (data em DD/MM/AAAA)
-      if (selectedTipo === 'auto_leitura_rge') {
-        const leiturasCliente = programacaoLeituras.filter(
-          (item) => item.responsavel === 'Cliente' && item.dataPrevista,
-        )
-
-        for (const item of leiturasCliente) {
-          const dataFormatada = formatarParaDDMMAAAA(item.dataPrevista)
-          // Monta data ISO para a atividade filha baseada na data prevista escolhida
-          const [ano, mes, dia] = item.dataPrevista.split('-').map(Number)
-          const dataIsoFilha = new Date(Date.UTC(ano, mes - 1, dia, 12, 0, 0)).toISOString()
-
-          await addAtividade({
-            cliente_id: clienteId,
-            tipo: 'auto_leitura_rge',
-            titulo: `Auto Leitura RGE - ${dataFormatada}`,
-            descricao: `Auto Leitura RGE programada para ${dataFormatada} (Responsável: Cliente)`,
-            data: dataIsoFilha,
-            responsavel_id: responsavelId || undefined,
-            responsavel_nome: responsavelNome,
-            status: 'pendente',
-            autor: user?.name || 'João Delfos',
-            usina_id: selectedUsinaId || undefined,
-          })
-        }
+      // Cria automaticamente uma atividade filha "Lembrete de Auto Leitura" (tipo lembrete_auto_leitura)
+      // para CADA data adicionada, com: mesmo cliente, mesma UC, data da leitura,
+      // data do lembrete = 2 dias antes às 08:00, status pendente e parent_id apontando para a mãe.
+      if (selectedTipo === 'auto_leitura_rge' && maeCriada?.id) {
+        await sincronizarFilhasNovas({
+          maeId: maeCriada.id,
+          clienteId,
+          usinaId: selectedUsinaId || undefined,
+          numeroUc: numeroUcAutoLeitura || undefined,
+          datasLeitura: datasLeituraAutoLeitura,
+          responsavelId: responsavelId || undefined,
+          responsavelNome,
+          autor: user?.name || 'João Delfos',
+        })
       }
 
       setFormSuccess(true)
@@ -640,120 +676,156 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
             />
           </div>
 
-          {/* Seção Condicional: Programar leituras do ano (quando tipo for Auto Leitura - RGE) */}
+          {/* Seção Condicional: Auto Leitura - RGE (Número da UC + Múltiplas datas de leitura) */}
           {selectedTipo === 'auto_leitura_rge' && (
-            <div className="space-y-3 p-4 rounded-xl border border-emerald-200 bg-gradient-to-b from-emerald-50/50 to-white shadow-xs animate-in fade-in duration-200">
-              <div className="flex items-center justify-between flex-wrap gap-2 pb-2 border-b border-emerald-100">
+            <div className="space-y-4 p-4 rounded-2xl border border-orange-200 bg-gradient-to-b from-orange-50/40 via-white to-orange-50/20 shadow-xs animate-in fade-in duration-200">
+              <div className="flex items-center justify-between flex-wrap gap-2 pb-2 border-b border-orange-100">
                 <div className="flex items-center gap-2">
-                  <div className="p-1.5 rounded-lg bg-emerald-100 text-emerald-800">
-                    <CalendarDays className="w-4 h-4 text-emerald-700" />
+                  <div className="p-1.5 rounded-lg bg-orange-100 text-orange-800">
+                    <CalendarDays className="w-4 h-4 text-orange-700" />
                   </div>
                   <div>
                     <h3 className="text-xs sm:text-sm font-bold text-gray-900 leading-tight">
-                      Programar leituras do ano
+                      Configuração da Auto Leitura RGE
                     </h3>
                     <p className="text-[11px] text-gray-500">
-                      Datas com responsável "Cliente" gerarão atividades filhas automáticas
+                      Gera automaticamente atividades filhas com lembrete 2 dias antes às 08:00
                     </p>
                   </div>
                 </div>
-
-                <button
-                  type="button"
-                  onClick={handleAddDataProgramacao}
-                  className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-emerald-800 bg-emerald-100 hover:bg-emerald-200 rounded-lg transition-colors border border-emerald-300"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  <span>Adicionar data</span>
-                </button>
               </div>
 
-              {/* Tabela de Programação */}
-              <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white">
-                <table className="w-full text-left text-xs">
-                  <thead className="bg-gray-50/90 text-gray-600 font-semibold border-b border-gray-200 text-[11px] uppercase tracking-wider">
-                    <tr>
-                      <th className="py-2 px-3">Data Prevista</th>
-                      <th className="py-2 px-3">Responsável</th>
-                      <th className="py-2 px-2 text-right">Ação</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100">
-                    {programacaoLeituras.length === 0 ? (
-                      <tr>
-                        <td
-                          colSpan={3}
-                          className="py-4 text-center text-gray-400 italic text-[11px]"
+              {/* Número da UC preenchido a partir das usinas do cliente */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-gray-700 block">
+                  Número da UC (Unidade Consumidora)
+                </label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <input
+                    type="text"
+                    value={numeroUcAutoLeitura}
+                    onChange={(e) => {
+                      setNumeroUcAutoLeitura(e.target.value)
+                      if (
+                        !titulo ||
+                        titulo === 'Auto Leitura - RGE' ||
+                        titulo.startsWith('Auto Leitura RGE')
+                      ) {
+                        setTitulo(
+                          e.target.value
+                            ? `Auto Leitura RGE - UC ${e.target.value}`
+                            : 'Auto Leitura - RGE',
+                        )
+                      }
+                    }}
+                    placeholder="Ex: 4004280183"
+                    className="w-full text-xs px-3 py-2 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-orange-500 font-mono bg-white font-medium"
+                  />
+
+                  {usinasDoCliente.length > 0 && (
+                    <select
+                      value={selectedUsinaId}
+                      onChange={(e) => {
+                        const usinaId = e.target.value
+                        setSelectedUsinaId(usinaId)
+                        const usina = usinasDoCliente.find((u) => u.id === usinaId)
+                        if (usina?.numero_uc) {
+                          setNumeroUcAutoLeitura(usina.numero_uc)
+                          setTitulo(`Auto Leitura RGE - UC ${usina.numero_uc}`)
+                        }
+                      }}
+                      className="w-full text-xs px-3 py-2 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-orange-500 bg-white"
+                    >
+                      <option value="">Buscar UC pelas usinas cadastradas...</option>
+                      {usinasDoCliente.map((u) => (
+                        <option key={u.id} value={u.id}>
+                          {u.nome} {u.numero_uc ? `(UC: ${u.numero_uc})` : ''}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </div>
+              </div>
+
+              {/* Campo especial de MÚLTIPLAS datas de leitura */}
+              <div className="space-y-2 pt-1 border-t border-orange-100">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-semibold text-gray-700 flex items-center gap-1.5">
+                    <span>Datas de Leitura Programadas</span>
+                    <span className="text-red-500">*</span>
+                  </label>
+                  <span className="text-[11px] font-bold text-orange-800 bg-orange-100 px-2 py-0.5 rounded-full border border-orange-200">
+                    Total: {datasLeituraAutoLeitura.length}{' '}
+                    {datasLeituraAutoLeitura.length === 1 ? 'data' : 'datas'}
+                  </span>
+                </div>
+
+                <p className="text-[11px] text-gray-500">
+                  Adicione as datas previstas de leitura da concessionária. Para cada data, uma
+                  atividade "Lembrete de Auto Leitura" será criada com aviso 2 dias antes às 08:00.
+                </p>
+
+                {/* Input para digitar/selecionar nova data e botão Adicionar */}
+                <div className="flex items-center gap-2">
+                  <input
+                    type="date"
+                    value={novaDataInput}
+                    onChange={(e) => setNovaDataInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault()
+                        handleAddDataLeitura()
+                      }
+                    }}
+                    className="text-xs px-3 py-2 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-orange-500 bg-white flex-1"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleAddDataLeitura}
+                    disabled={!novaDataInput}
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold text-white bg-orange-600 hover:bg-orange-700 disabled:opacity-50 rounded-xl transition-colors shadow-2xs shrink-0"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Adicionar</span>
+                  </button>
+                </div>
+
+                {/* Lista de datas adicionadas */}
+                {datasLeituraAutoLeitura.length === 0 ? (
+                  <div className="p-3 text-center text-xs text-amber-700 bg-amber-50/60 rounded-xl border border-amber-200/80">
+                    Nenhuma data de leitura adicionada ainda. Adicione pelo menos uma data para
+                    continuar.
+                  </div>
+                ) : (
+                  <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+                    {datasLeituraAutoLeitura.map((dt, idx) => (
+                      <div
+                        key={dt}
+                        className="flex items-center justify-between p-2 rounded-xl bg-white border border-gray-200 text-xs hover:border-orange-200 transition-colors"
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className="w-5 h-5 rounded-full bg-orange-100 text-orange-800 text-[10px] font-bold flex items-center justify-center">
+                            {idx + 1}
+                          </span>
+                          <span className="font-semibold text-gray-900">
+                            {formatarDataParaDDMMAAAA(dt)}
+                          </span>
+                          <span className="text-[10px] text-gray-400 hidden sm:inline">
+                            (lembrete 2 dias antes às 08:00)
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveDataLeitura(dt)}
+                          className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                          title="Remover data"
                         >
-                          Nenhuma data programada. Clique em "Adicionar data" para incluir.
-                        </td>
-                      </tr>
-                    ) : (
-                      programacaoLeituras.map((item) => (
-                        <tr key={item.id} className="hover:bg-gray-50/70 transition-colors">
-                          <td className="py-2 px-3">
-                            <input
-                              type="date"
-                              value={item.dataPrevista}
-                              onChange={(e) =>
-                                handleUpdateItemProgramacao(item.id, 'dataPrevista', e.target.value)
-                              }
-                              className="w-full sm:w-44 text-xs px-2.5 py-1.5 rounded-lg border border-gray-200 focus:outline-none focus:ring-1 focus:ring-emerald-500 bg-white text-gray-900"
-                            />
-                            {item.dataPrevista && (
-                              <span className="text-[10px] text-gray-400 ml-1.5 hidden sm:inline">
-                                ({formatarParaDDMMAAAA(item.dataPrevista)})
-                              </span>
-                            )}
-                          </td>
-                          <td className="py-2 px-3">
-                            <select
-                              value={item.responsavel}
-                              onChange={(e) =>
-                                handleUpdateItemProgramacao(
-                                  item.id,
-                                  'responsavel',
-                                  e.target.value as 'Cliente' | 'Distribuidora',
-                                )
-                              }
-                              className="w-full sm:w-36 text-xs px-2.5 py-1.5 rounded-lg border border-gray-200 focus:outline-none focus:ring-1 focus:ring-emerald-500 bg-white text-gray-900 font-medium"
-                            >
-                              <option value="Cliente">Cliente</option>
-                              <option value="Distribuidora">Distribuidora</option>
-                            </select>
-                            {item.responsavel === 'Distribuidora' && (
-                              <span className="text-[10px] text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200 ml-1.5 hidden md:inline">
-                                Apenas consulta
-                              </span>
-                            )}
-                          </td>
-                          <td className="py-2 px-2 text-right">
-                            <button
-                              type="button"
-                              onClick={() => handleRemoveItemProgramacao(item.id)}
-                              className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors inline-flex items-center"
-                              title="Remover linha"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                              <span className="sr-only">Remover</span>
-                            </button>
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
-
-              <div className="flex items-center justify-between text-[11px] text-gray-500 pt-1">
-                <span>
-                  Linhas 'Cliente' viram atividades com a tag verde{' '}
-                  <strong>Aguardando envio</strong>
-                </span>
-                <span className="font-medium text-emerald-800">
-                  {programacaoLeituras.filter((i) => i.responsavel === 'Cliente').length} para o
-                  Cliente
-                </span>
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           )}

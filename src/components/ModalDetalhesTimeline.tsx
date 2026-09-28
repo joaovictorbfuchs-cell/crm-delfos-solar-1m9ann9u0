@@ -622,6 +622,45 @@ export const ModalDetalhesTimeline: React.FC<ModalDetalhesTimelineProps> = ({
                 </div>
               )}
 
+              {/* Destaque para Auto Leitura RGE ou Lembrete de Auto Leitura */}
+              {(item.rawAtividade?.tipo === 'auto_leitura_rge' ||
+                item.rawAtividade?.tipo === 'lembrete_auto_leitura') && (
+                <div className="pt-2 border-t border-gray-100">
+                  <div className="p-3 rounded-xl bg-orange-50/80 border border-orange-200 text-xs text-orange-950 space-y-1.5">
+                    <div className="flex items-center justify-between flex-wrap gap-1 font-bold text-orange-900">
+                      <span>
+                        {item.rawAtividade?.tipo === 'lembrete_auto_leitura'
+                          ? 'Lembrete de Auto Leitura RGE'
+                          : 'Auto Leitura RGE (Atividade Mãe)'}
+                      </span>
+                      {item.rawAtividade?.numero_uc && (
+                        <span className="font-mono text-[10px] bg-white text-orange-900 px-2 py-0.5 rounded border border-orange-200 font-bold">
+                          UC: {item.rawAtividade.numero_uc}
+                        </span>
+                      )}
+                    </div>
+                    {item.rawAtividade?.data_leitura && (
+                      <p className="text-[11px] text-orange-900 font-medium">
+                        Data programada da leitura:{' '}
+                        <strong>
+                          {new Date(item.rawAtividade.data_leitura).toLocaleDateString('pt-BR', {
+                            timeZone: 'UTC',
+                          })}
+                        </strong>
+                      </p>
+                    )}
+                    {item.rawAtividade?.data_lembrete && (
+                      <p className="text-[11px] text-orange-800">
+                        Lembrete programado para:{' '}
+                        <strong>
+                          {new Date(item.rawAtividade.data_lembrete).toLocaleString('pt-BR')}
+                        </strong>
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
+
               {/* Ação especial para Procuração Particular O&M */}
               {(item.titulo === 'Procuração Particular O&M Gerada' ||
                 item.rawAtividade?.tipo === 'gerar_procuracao' ||

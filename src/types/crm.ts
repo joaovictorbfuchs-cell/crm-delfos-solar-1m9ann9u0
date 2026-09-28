@@ -78,6 +78,7 @@ export type AtividadeTipo =
   // 3. Atividades Administrativas / RGE / Pós-Venda:
   | 'analise_fatura'
   | 'auto_leitura_rge'
+  | 'lembrete_auto_leitura'
   | 'relatorio_solarview'
   | 'anexo_g'
   | 'troca_titularidade'
@@ -857,6 +858,10 @@ export interface Atividade extends RecordModel {
   retorno_rge?: string
   prazo_conclusao_rge?: string
   documentos_anexados?: Array<{ nome: string; tamanho?: number; url?: string }> | unknown
+  // Campos de Auto Leitura RGE mãe e filhas
+  parent_id?: string
+  datas_leitura?: string[] | string | unknown
+  data_lembrete?: string
   created: string
   updated: string
   expand?: {
@@ -864,6 +869,7 @@ export interface Atividade extends RecordModel {
     usina_id?: UsinaCliente
     responsavel_id?: SistemaUsuario
     fornecedor_id?: Fornecedor
+    parent_id?: Atividade
   }
 }
 
