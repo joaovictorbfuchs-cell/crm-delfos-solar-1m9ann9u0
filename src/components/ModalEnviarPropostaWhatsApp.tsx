@@ -32,6 +32,10 @@ import {
   extrairContextoProposta,
   construirPropostaSolarPDFInput,
 } from '@/lib/propostaWhatsAppService'
+import {
+  resolverNumeroDestinoCliente,
+  MENSAGEM_ALERTA_SEM_NUMERO,
+} from '@/lib/resolverNumeroDestinoCliente'
 
 export interface ModalEnviarPropostaWhatsAppProps {
   isOpen: boolean
@@ -114,6 +118,11 @@ export const ModalEnviarPropostaWhatsApp: React.FC<ModalEnviarPropostaWhatsAppPr
   // O WhatsApp é o número autoritativo do cliente neste CRM (regra do projeto)
   const numeroInicial = cliente?.whatsapp || cliente?.telefone || ''
 
+  const [origemDestino, setOrigemDestino] = useState<
+    'cliente_whatsapp' | 'contato_adicional_whatsapp' | 'cliente_telefone' | 'nenhum'
+  >('cliente_whatsapp')
+  const [contatoAdicionalNome, setContatoAdicionalNome] = useState<string | undefined>()
+
   const [telefone, setTelefone] = useState<string>(numeroInicial)
   const [mensagem, setMensagem] = useState<string>('')
   const [templateAtivoId, setTemplateAtivoId] = useState<string>('proposta_pronta')
@@ -144,8 +153,10 @@ export const ModalEnviarPropostaWhatsApp: React.FC<ModalEnviarPropostaWhatsAppPr
       setFeedback({
         tipo: 'error',
         texto:
-          validacaoNumero.mensagemErro ||
-          'Informe um número de WhatsApp válido com DDD (ex: 54 99999-9999).',
+          origemDestino === 'nenhum'
+            ? MENSAGEM_ALERTA_SEM_NUMERO
+            : validacaoNumero.mensagemErro ||
+              'Informe um número de WhatsApp válido com DDD (ex: 54 99999-9999).',
       })
       return
     }
@@ -318,8 +329,27 @@ export const ModalEnviarPropostaWhatsApp: React.FC<ModalEnviarPropostaWhatsAppPr
   useEffect(() => {
     if (!isOpen) return
 
-    const numAutoritativo = cliente?.whatsapp || cliente?.telefone || ''
-    setTelefone(formatWhatsAppPhone(numAutoritativo))
+    let cancelResolucao = false
+    async function inicializarNumero() {
+      const res = await resolverNumeroDestinoCliente(cliente)
+      if (cancelResolucao || !isMountedRef.current) return
+      setOrigemDestino(res.origem)
+      setContatoAdicionalNome(res.contatoAdicionalNome)
+      if (res.numeroFormatado) {
+        setTelefone(res.numeroFormatado)
+      } else {
+        const fallback = cliente?.whatsapp || cliente?.telefone || ''
+        setTelefone(formatWhatsAppPhone(fallback))
+      }
+      if (res.origem === 'nenhum') {
+        setFeedback({
+          tipo: 'warning',
+          texto: MENSAGEM_ALERTA_SEM_NUMERO,
+        })
+      }
+    }
+    inicializarNumero()
+
     setFeedback(null)
     setTemplateAtivoId('proposta_pronta')
 
@@ -731,6 +761,18 @@ export const ModalEnviarPropostaWhatsApp: React.FC<ModalEnviarPropostaWhatsAppPr
               } focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-2xs transition-colors`}
             />
 
+            {origemDestino === 'contato_adicional_whatsapp' && (
+              <div className="mt-1.5 px-2.5 py-1 bg-blue-50 border border-blue-200 rounded-lg text-[11px] text-blue-800 flex items-center gap-1.5 font-medium">
+                <span className="font-bold">Contato adicional:</span>
+                <span>{contatoAdicionalNome || 'Contato com WhatsApp'}</span>
+                <span className="text-blue-600">(utilizado como alternativa)</span>
+              </div>
+            )}
+            {origemDestino === 'cliente_telefone' && (
+              <div className="mt-1.5 px-2.5 py-1 bg-amber-50 border border-amber-200 rounded-lg text-[11px] text-amber-800 flex items-center gap-1.5">
+                <span>Usando telefone do cliente (sem WhatsApp cadastrado).</span>
+              </div>
+            )}
             <p className="text-[11px] text-gray-500 mt-1">
               No Delfos Solar o WhatsApp é o número autoritativo do cliente. Se alterado aqui, o
               cadastro é sincronizado automaticamente.

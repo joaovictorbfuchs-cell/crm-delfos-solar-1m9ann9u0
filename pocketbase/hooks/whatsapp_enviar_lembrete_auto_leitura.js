@@ -48,23 +48,60 @@ routerAdd('POST', '/backend/v1/whatsapp/enviar-lembrete-auto-leitura', (e) => {
     // Destino: aceita telefone_destino opcional enviado do modal de conferência
     const rawTelefoneEnviado = (body.telefone_destino || '').trim()
 
-    // Regra do projeto: WhatsApp é o número autoritativo do cliente
-    const rawTelefone = (
-      rawTelefoneEnviado ||
-      clienteRecord.getString('whatsapp') ||
-      clienteRecord.getString('telefone') ||
-      clienteRecord.getString('telefone_secundario') ||
-      ''
-    ).trim()
-
+    // Ordem de resolução exata:
+    // 1. Telefone enviado explicitamente (se fornecido)
+    // 2. WhatsApp cadastrado no cliente
+    // 3. WhatsApp de contato adicional vinculado com is_whatsapp = true
+    // 4. Telefone do cliente
+    let rawTelefone = rawTelefoneEnviado
     if (!rawTelefone) {
-      return e.json(400, {
-        error:
-          'Cliente não possui número de WhatsApp cadastrado. Preencha o WhatsApp na Ficha do Cliente antes de enviar.',
-        ok: false,
-      })
+      const cliWhats = (clienteRecord.getString('whatsapp') || '').trim()
+      const cliTelefone = (
+        clienteRecord.getString('telefone') ||
+        clienteRecord.getString('telefone_secundario') ||
+        ''
+      ).trim()
+
+      if (cliWhats && cliWhats.replace(/\D/g, '').length >= 10) {
+        rawTelefone = cliWhats
+      } else {
+        // Buscar contatos adicionais com is_whatsapp = true
+        try {
+          const contatos = $app.findRecordsByFilter(
+            'contatos_adicionais',
+            `cliente = '${clienteRecord.id}' && is_whatsapp = true`,
+            '-created',
+            10,
+            0,
+          )
+          for (let i = 0; i < contatos.length; i++) {
+            const telC = (contatos[i].getString('telefone') || '').trim()
+            if (telC.replace(/\D/g, '').length >= 10) {
+              rawTelefone = telC
+              break
+            }
+          }
+        } catch (eContatos) {
+          console.log(
+            '[whatsapp_enviar_lembrete] erro ao consultar contatos_adicionais:',
+            eContatos,
+          )
+        }
+
+        // Se ainda não tiver, tenta o telefone do cliente
+        if (!rawTelefone && cliTelefone && cliTelefone.replace(/\D/g, '').length >= 10) {
+          rawTelefone = cliTelefone
+        }
+      }
     }
 
+    if (!rawTelefone || rawTelefone.replace(/\D/g, '').length < 10) {
+      return e.json(400, {
+        ok: false,
+        error:
+          'Envio não realizado: o cliente não possui WhatsApp, contato adicional com WhatsApp ou telefone cadastrado. Atualize o cadastro antes de enviar.',
+      })
+    }
     // Normalizar telefone (apenas dígitos, com DDI 55 caso BR)
     let cleanPhone = rawTelefone.replace(/\D/g, '')
     if (cleanPhone.length >= 10 && cleanPhone.length <= 11 && !cleanPhone.startsWith('55')) {

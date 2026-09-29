@@ -3760,7 +3760,20 @@ export const ModalOrcamentoSolar: React.FC<ModalOrcamentoSolarProps> = ({
                     </button>
                     <button
                       type="button"
-                      onClick={() => setModalWhatsAppOpen(true)}
+                      onClick={async () => {
+                        if (!clienteAtual) return
+                        const resNum = await (
+                          await import('@/lib/resolverNumeroDestinoCliente')
+                        ).resolverNumeroDestinoCliente(clienteAtual)
+                        if (resNum.origem === 'nenhum') {
+                          toast.error(
+                            (await import('@/lib/resolverNumeroDestinoCliente'))
+                              .MENSAGEM_ALERTA_SEM_NUMERO,
+                          )
+                          return
+                        }
+                        setModalWhatsAppOpen(true)
+                      }}
                       disabled={!clienteAtual}
                       className="text-xs font-bold px-3.5 py-1.5 rounded-lg bg-[#25D366] text-white hover:bg-[#1EBE5D] flex items-center gap-1.5 transition-colors shadow-2xs"
                       title="Enviar proposta comercial diretamente pelo WhatsApp via Z-API"

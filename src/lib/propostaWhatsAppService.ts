@@ -1,4 +1,5 @@
 import { formatCurrency, formatWhatsAppPhone, cleanPhoneDigits } from '@/lib/formatters'
+import { resolverNumeroDestinoClienteSync } from '@/lib/resolverNumeroDestinoCliente'
 import type { Cliente, OrcamentoSolar } from '@/types/crm'
 import { calcularOrcamentoSolar } from '@/lib/energiaSolar'
 import type { PropostaSolarPDFInput } from '@/lib/propostaSolarGenerator'
@@ -256,7 +257,11 @@ export function construirPropostaSolarPDFInput(
       endereco: [cliente?.endereco, cliente?.numero, cliente?.bairro].filter(Boolean).join(', '),
       municipio: cliente?.cidade || 'Erechim / RS',
       email: cliente?.email || '',
-      telefone: cliente?.whatsapp || cliente?.telefone || '',
+      telefone:
+        resolverNumeroDestinoClienteSync(cliente).numeroFormatado ||
+        cliente?.whatsapp ||
+        cliente?.telefone ||
+        '',
       tipoCliente: tipoCli,
     },
     representanteComercial:
