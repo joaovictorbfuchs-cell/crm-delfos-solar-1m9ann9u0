@@ -239,17 +239,19 @@ export async function carregarCentralAtividades(
   }
 
   // B. Ordens de Serviço (coleção 'ordens_servico') com FALLBACK de leitura
-  // Se já existir na estrutura unificada (por chave_importacao `ordem_servico_${os.id}`, `piloto-ordem_servico-${os.id}` ou `piloto2-ordem_servico-${os.id}`), não duplica.
+  // Se já existir na estrutura unificada (por chave_importacao `ordem_servico_${os.id}`, `piloto-ordem_servico-${os.id}`, `piloto2-ordem_servico-${os.id}` ou `lote*-ordem_servico-${os.id}`), não duplica.
   if (ordensServicoRes.status === 'fulfilled') {
     for (const os of ordensServicoRes.value) {
       const chaveImportacao = `ordem_servico_${os.id}`
       const chavePiloto = `piloto-ordem_servico-${os.id}`
       const chavePiloto2 = `piloto2-ordem_servico-${os.id}`
-      if (
+      const chaveSuffix = `ordem_servico-${os.id}`
+      const jaExiste =
         chavesUnificadasSet.has(chaveImportacao) ||
         chavesUnificadasSet.has(chavePiloto) ||
-        chavesUnificadasSet.has(chavePiloto2)
-      ) {
+        chavesUnificadasSet.has(chavePiloto2) ||
+        Array.from(chavesUnificadasSet).some((k) => k.endsWith(chaveSuffix))
+      if (jaExiste) {
         continue // Já lido da estrutura unificada
       }
 
@@ -292,11 +294,13 @@ export async function carregarCentralAtividades(
       const chaveImportacao = `manutencao_${m.id}`
       const chavePiloto = `piloto-manutencao-${m.id}`
       const chavePiloto2 = `piloto2-manutencao-${m.id}`
-      if (
+      const chaveSuffix = `manutencao-${m.id}`
+      const jaExiste =
         chavesUnificadasSet.has(chaveImportacao) ||
         chavesUnificadasSet.has(chavePiloto) ||
-        chavesUnificadasSet.has(chavePiloto2)
-      ) {
+        chavesUnificadasSet.has(chavePiloto2) ||
+        Array.from(chavesUnificadasSet).some((k) => k.endsWith(chaveSuffix))
+      if (jaExiste) {
         continue // Já lido da estrutura unificada
       }
 
@@ -334,11 +338,13 @@ export async function carregarCentralAtividades(
       const chaveImportacao = `servico_avulso_${s.id}`
       const chavePiloto = `piloto-servico_avulso-${s.id}`
       const chavePiloto2 = `piloto2-servico_avulso-${s.id}`
-      if (
+      const chaveSuffix = `servico_avulso-${s.id}`
+      const jaExiste =
         chavesUnificadasSet.has(chaveImportacao) ||
         chavesUnificadasSet.has(chavePiloto) ||
-        chavesUnificadasSet.has(chavePiloto2)
-      ) {
+        chavesUnificadasSet.has(chavePiloto2) ||
+        Array.from(chavesUnificadasSet).some((k) => k.endsWith(chaveSuffix))
+      if (jaExiste) {
         continue // Já lido da estrutura unificada
       }
 
@@ -379,11 +385,13 @@ export async function carregarCentralAtividades(
       const chaveImportacao = `timeline_om_${t.id}`
       const chavePiloto = `piloto-timeline_om-${t.id}`
       const chavePiloto2 = `piloto2-timeline_om-${t.id}`
-      if (
+      const chaveSuffix = `timeline_om-${t.id}`
+      const jaExiste =
         chavesUnificadasSet.has(chaveImportacao) ||
         chavesUnificadasSet.has(chavePiloto) ||
-        chavesUnificadasSet.has(chavePiloto2)
-      ) {
+        chavesUnificadasSet.has(chavePiloto2) ||
+        Array.from(chavesUnificadasSet).some((k) => k.endsWith(chaveSuffix))
+      if (jaExiste) {
         continue // Já lido da estrutura unificada
       }
 
@@ -421,11 +429,13 @@ export async function carregarCentralAtividades(
       const chaveImportacao = `anomalia_om_${anom.id}`
       const chavePiloto = `piloto-anomalia_om-${anom.id}`
       const chavePiloto2 = `piloto2-anomalia_om-${anom.id}`
-      if (
+      const chaveSuffix = `anomalia_om-${anom.id}`
+      const jaExiste =
         chavesUnificadasSet.has(chaveImportacao) ||
         chavesUnificadasSet.has(chavePiloto) ||
-        chavesUnificadasSet.has(chavePiloto2)
-      ) {
+        chavesUnificadasSet.has(chavePiloto2) ||
+        Array.from(chavesUnificadasSet).some((k) => k.endsWith(chaveSuffix))
+      if (jaExiste) {
         continue // Já lido da estrutura unificada
       }
 

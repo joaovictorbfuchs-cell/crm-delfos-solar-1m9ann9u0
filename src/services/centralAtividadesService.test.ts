@@ -88,4 +88,58 @@ describe('centralAtividadesService com registros unificados e fallback', () => {
     // total de itens no resultado: 3 (atv_1 unificada de OS, atv_2 nativa, os_200 do fallback)
     expect(data.items).toHaveLength(3)
   })
+
+  it('deduplica registros com chave do lote 1 da carteira', async () => {
+    const mockAtividadesLote1 = [
+      {
+        id: 'atv_lote1_os',
+        cliente_id: 'rvkvuvn4uz9o65a',
+        origem: 'ordem_servico',
+        chave_importacao: 'lote1-ordem_servico-k4qhlltdxvnmycu',
+        registro_original_id: 'k4qhlltdxvnmycu',
+        tipo_unificado: 'OS: Limpeza',
+        titulo: 'OS #VNMYCU — Limpeza',
+        status: 'concluida',
+        created: '2026-09-29T00:50:00Z',
+      },
+    ]
+
+    const mockOrdensServicoLote1 = [
+      {
+        id: 'k4qhlltdxvnmycu',
+        cliente_id: 'rvkvuvn4uz9o65a',
+        tipo_servico: 'Limpeza',
+        status: 'concluida',
+        created: '2026-09-23T14:00:00Z',
+      },
+    ]
+
+    vi.spyOn(pb, 'collection').mockImplementation((colName: string) => {
+      return {
+        getFullList: vi.fn().mockImplementation(async () => {
+          if (colName === 'atividades') return mockAtividadesLote1
+          if (colName === 'ordens_servico') return mockOrdensServicoLote1
+          if (colName === 'manutencoes') return []
+          if (colName === 'servicos_avulsos') return []
+          if (colName === 'timeline_om') return []
+          if (colName === 'anomalias_om') return []
+          if (colName === 'clientes')
+            return [{ id: 'rvkvuvn4uz9o65a', nome: 'Ademar Emílio Berlanda' }]
+          if (colName === 'usinas') return []
+          return []
+        }),
+      } as any
+    })
+
+    const data = await carregarCentralAtividades()
+
+    // O registro k4qhlltdxvnmycu deve aparecer apenas uma vez
+    const itens = data.items.filter(
+      (item) =>
+        item.origemId === 'k4qhlltdxvnmycu' || item.registroOriginalId === 'k4qhlltdxvnmycu',
+    )
+    expect(itens).toHaveLength(1)
+    expect(itens[0].fonte).toBe('ordem_servico')
+    expect(itens[0].titulo).toContain('OS #VNMYCU')
+  })
 })
