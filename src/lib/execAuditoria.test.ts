@@ -1,4 +1,5 @@
 import fs from 'fs'
+import path from 'path'
 import { describe, it, expect } from 'vitest'
 import { runAuditoria } from '../../scripts/auditoria-duplicados.mjs'
 
@@ -9,7 +10,9 @@ describe('Execução Real da Auditoria de Duplicados', () => {
       password: 'Skip@Pass',
     })
     // Captura os dados da auditoria em arquivo para análise e relatório
-    fs.writeFileSync('scripts/auditoria_raw_result.json', JSON.stringify(res, null, 2))
+    const fsPath = path.resolve(process.cwd(), 'scripts/auditoria_raw_result.json')
+    fs.writeFileSync(fsPath, JSON.stringify(res, null, 2))
+    console.log('AUDITORIA_ESCRITA_COM_SUCESSO_EM:', fsPath)
     expect(res.stats.totalContatos).toBeGreaterThan(0)
   }, 120000)
 })

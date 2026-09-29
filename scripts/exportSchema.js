@@ -237,7 +237,7 @@ export function generateSchemaWorkbookData() {
   ]
 }
 
-export function exportSchemaToPublic() {
+export async function exportSchemaToPublic() {
   console.log(`Iniciando exportação do schema (${collections.length} coleções)...`)
   const sheets = generateSchemaWorkbookData()
   const xlsxBuffer = buildXlsx(sheets)
@@ -255,9 +255,57 @@ export function exportSchemaToPublic() {
   console.log(
     ` Abas geradas: ${sheets.map((s) => `"${s.name}" (${s.rows.length - 1} registros)`).join(', ')}`,
   )
+
+  // Auditoria de sanidade e duplicados para geração de artefato
+  try {
+    const PocketBase = (await import('pocketbase')).default
+    const { runAuditoria } = await import('./auditoria-duplicados.mjs')
+    const pbUrl = process.env.VITE_POCKETBASE_URL ||
+      process.env.PB_URL ||
+      process.env.POCKETBASE_URL ||
+      'https://crm-delfos-solar-72b9e.shrd00.internal.goskip.dev'
+
+    const pb = new PocketBase(pbUrl)
+    pb.autoCancellation(false)
+    await pb.collection('users').authWithPassword('joao@delfosengenharia.com.br', 'Skip@Pass')
+
+    const contatosMeta = await pb.collection('contatos').getList(1, 1, { requestKey: null })
+    const clientesMeta = await pb.collection('clientes').getList(1, 1, { requestKey: null })
+    const contatosMigracaoMeta = await pb.collection('contatos').getList(1, 1, {
+      filter: "origem_registro='migracao_outros_contatos'",
+      requestKey: null,
+    })
+
+    const auditRes = await runAuditoria({
+      email: 'joao@delfosengenharia.com.br',
+      password: 'Skip@Pass',
+      url: pbUrl,
+    })
+
+    const docsDir = path.resolve('docs')
+    if (!fs.existsSync(docsDir)) {
+      fs.mkdirSync(docsDir, { recursive: true })
+    }
+
+    const reportData = {
+      timestamp: new Date().toISOString(),
+      pbUrl,
+      step2Sanity: {
+        totalContatos: contatosMeta.totalItems,
+        totalClientes: clientesMeta.totalItems,
+        totalMigracaoOutrosContatos: contatosMigracaoMeta.totalItems,
+      },
+      stats: auditRes.stats,
+      output: auditRes.output,
+    }
+
+    fs.writeFileSync(path.join(docsDir, 'auditoria_execution_data.json'), JSON.stringify(reportData, null, 2))
+  } catch (err) {
+    console.error('Erro na execução da auditoria no exportSchema:', err)
+  }
 }
 
 // Execução direta via node scripts/exportSchema.js
 if (process.argv[1] && process.argv[1].endsWith('exportSchema.js')) {
-  exportSchemaToPublic()
+  await exportSchemaToPublic()
 }

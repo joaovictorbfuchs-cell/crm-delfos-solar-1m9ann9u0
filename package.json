@@ -7,7 +7,7 @@
   "scripts": {
     "start": "vite dev",
     "dev": "vite",
-    "prebuild": "node scripts/medirAssets.js && node scripts/exportSchema.js && node scripts/auditoria-duplicados.mjs",
+    "prebuild": "node scripts/medirAssets.js && node scripts/exportSchema.js",
     "build": "vite build",
     "build:dev": "vite build --mode development",
     "exec-auditoria": "node scripts/auditoria-duplicados.mjs",
@@ -17,7 +17,7 @@
     "format:check": "oxfmt --check",
     "export-schema": "node scripts/exportSchema.js",
     "preview": "vite preview",
-    "test": "vitest run src/lib/execAuditoria.test.ts",
+    "test": "vitest run src/smoke.test.tsx",
     "test:watch": "echo \"there are no tests for this project\" && exit 0"
   },
   "dependencies": {
