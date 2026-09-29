@@ -1,60 +1,58 @@
 import { ClientResponseError } from 'pocketbase'
 
-/**
- * Verifica se um erro retornado pelo PocketBase indica sessão expirada, token inválido ou ausente.
- */
-export function isAuthSessionError(err: unknown): boolean {
-  if (!err) return false
+export type FieldErrors = Record<string, string>
 
-  if (err instanceof ClientResponseError) {
-    return err.status === 401 || err.status === 403
-  }
-
-  const errObj = err as { status?: number; response?: { code?: number; message?: string } }
-  if (errObj.status === 401 || errObj.status === 403) {
-    return true
-  }
-
-  const msg = String((err as any)?.message || '').toLowerCase()
-  return (
-    msg.includes('unauthorized') ||
-    msg.includes('forbidden') ||
-    msg.includes('the request requires valid user authorization') ||
-    msg.includes('failed to authenticate')
-  )
-}
-
-/**
- * Retorna mensagem legível para o usuário a partir de um erro do PocketBase ou genérico.
- */
-export function getErrorMessage(err: unknown, defaultMessage = 'Ocorreu um erro inesperado'): string {
-  if (!err) return defaultMessage
-  if (err instanceof ClientResponseError) {
-    if (err.data?.message) return err.data.message
-    if (err.message) return err.message
-  }
-  if (typeof err === 'object' && err !== null && 'message' in err) {
-    return String((err as any).message)
-  }
-  if (typeof err === 'string') return err
-  return defaultMessage
-}
-
-/**
- * Extrai erros de validação campo a campo do PocketBase.
- */
-export function extractFieldErrors(err: unknown): Record<string, string> {
-  const result: Record<string, string> = {}
-  if (err instanceof ClientResponseError && err.data?.data) {
-    for (const [key, val] of Object.entries(err.data.data)) {
-      if (typeof val === 'object' && val !== null && 'message' in val) {
-        result[key] = String((val as any).message)
-      } else if (typeof val === 'string') {
-        result[key] = val
-      }
+export function extractFieldErrors(error: unknown): FieldErrors {
+  if (!(error instanceof ClientResponseError)) return {}
+  const data = error.response?.data
+  if (!data || typeof data !== 'object') return {}
+  const errors: FieldErrors = {}
+  for (const [field, detail] of Object.entries(data)) {
+    if (
+      detail &&
+      typeof detail === 'object' &&
+      'message' in detail &&
+      typeof (detail as { message: unknown }).message === 'string'
+    ) {
+      errors[field] = (detail as { message: string }).message
     }
   }
-  return result
+  return errors
 }
 
-export default isAuthSessionError
+export function getErrorMessage(error: unknown): string {
+  if (!(error instanceof ClientResponseError)) {
+    return error instanceof Error ? error.message : 'An unexpected error occurred.'
+  }
+  const msgs = Object.values(extractFieldErrors(error))
+  return msgs.length > 0 ? msgs.join(' ') : error.message || 'An unexpected error occurred.'
+}
+
+/**
+ * Identifica se um erro recebido é relacionado a expiração, invalidação ou falha de sessão/autenticação.
+ */
+export function isAuthSessionError(error: unknown): boolean {
+  if (!error) return false
+  if (typeof error === 'object') {
+    const err = error as Record<string, unknown>
+    if (
+      err.status === 401 ||
+      err.status === 403 ||
+      err.statusCode === 401 ||
+      err.statusCode === 403
+    ) {
+      return true
+    }
+    const msg = String(err.message || '').toLowerCase()
+    if (
+      msg.includes('token') &&
+      (msg.includes('expired') || msg.includes('invalid') || msg.includes('revoked'))
+    ) {
+      return true
+    }
+    if (msg.includes('unauthorized') || msg.includes('forbidden') || msg.includes('autentica')) {
+      return true
+    }
+  }
+  return false
+}
