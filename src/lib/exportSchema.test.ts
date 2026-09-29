@@ -116,5 +116,4 @@ describe('Export Schema Script & Data Structure', () => {
     expect(buffer[0]).toBe(0x50)
     expect(buffer[1]).toBe(0x4b)
   })
-
 })
