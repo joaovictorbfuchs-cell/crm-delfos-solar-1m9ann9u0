@@ -2273,11 +2273,9 @@ export const FichaClienteDrawer: React.FC = () => {
                                       </button>
                                     </div>
                                   </div>
-                                )
-                              })()}
-                            </div>
-                          </div>
-                        )
+                                )}
+                              </div>
+                            </div>                        )
                       })()}
 
                       {/* Histórico de Mudanças de Etapa com Datas */}
@@ -3834,11 +3832,11 @@ export const FichaClienteDrawer: React.FC = () => {
                                         )}
                                       </div>
                                     </div>
-                                  ),
+                                  </div>
+                                  </>
                                 )}
                               </div>
-                            </div>
-                          )}
+                            </div>                          )}
                       </div>
 
                       {/* Histórico de Consumo da Fatura RGE (Gemini) */}
@@ -4058,6 +4056,8 @@ export const FichaClienteDrawer: React.FC = () => {
                           </div>
                         </div>
                       )}
+                    </div>
+                  </div>
                     </div>
                   )}
                   {/* ======================================================== */}
