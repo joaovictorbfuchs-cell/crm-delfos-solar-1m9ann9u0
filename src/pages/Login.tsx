@@ -19,7 +19,16 @@ export default function Login() {
   const { login, isAuthenticated, isInstalador, isLoading: isAuthLoading } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
-  const fromLocation = (location.state as any)?.from as string | undefined
+  const locationState = location.state as any
+  const fromLocation = (
+    typeof locationState?.from === 'string'
+      ? locationState.from
+      : typeof locationState?.from?.pathname === 'string'
+        ? locationState.from.pathname +
+          (locationState.from.search || '') +
+          (locationState.from.hash || '')
+        : undefined
+  ) as string | undefined
 
   const [email, setEmail] = useState('joao@delfosengenharia.com.br')
   const [password, setPassword] = useState('Skip@Pass')

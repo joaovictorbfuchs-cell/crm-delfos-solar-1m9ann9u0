@@ -1,5 +1,5 @@
 import React from 'react'
-import { Navigate } from 'react-router-dom'
+import { Navigate, useLocation } from 'react-router-dom'
 import { useAuth } from '@/contexts/AuthContext'
 import { Loader2 } from 'lucide-react'
 import pb from '@/lib/pocketbase/client'
@@ -14,6 +14,7 @@ let lastToastTime = 0
 
 export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, requiredRole }) => {
   const { isAuthenticated, isLoading, isAdmin, isInstalador } = useAuth()
+  const location = useLocation()
   const [safetyTimeoutReached, setSafetyTimeoutReached] = React.useState(false)
 
   // Fallback de segurança: se por qualquer razão o AuthContext ficar com isLoading=true por mais de 3s,
@@ -57,8 +58,10 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, requir
     )
   }
 
+  const currentPath = location.pathname + (location.search || '') + (location.hash || '')
+
   if (!isAuthenticated || !isPbAuthValid) {
-    return <Navigate to="/login" replace />
+    return <Navigate to="/login" state={{ from: currentPath }} replace />
   }
 
   // Se rota requer admin e usuário for instalador, redireciona para /execucao-os
@@ -72,7 +75,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, requir
   }
 
   if (!children) {
-    return <Navigate to="/login" replace />
+    return <Navigate to="/login" state={{ from: currentPath }} replace />
   }
 
   return <>{children}</>
