@@ -137,7 +137,14 @@ import { useAuth } from '@/contexts/AuthContext'
 import { isAuthSessionError } from '@/lib/pocketbase/errors'
 import { pb } from '@/lib/pocketbase/client'
 
-export type ClientTabType = 'historico' | 'projeto' | 'om' | 'whatsapp' | 'usinas'
+export type ClientTabType =
+  | 'historico'
+  | 'projeto'
+  | 'om'
+  | 'whatsapp'
+  | 'usinas'
+  | 'cadastro'
+  | 'contatos'
 
 interface ClientesContextType {
   isSessionExpired: boolean
