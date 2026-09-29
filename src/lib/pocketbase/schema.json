@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-28T23:29:31.504Z",
+  "generatedAt": "2026-09-29T00:01:26.438Z",
   "collections": [
     {
       "name": "users",
@@ -1186,6 +1186,12 @@
         },
         {
           "name": "chave_importacao",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "registro_original_id",
           "type": "text",
           "required": false,
           "system": false

@@ -21,6 +21,7 @@ export type CentralAtividadeFonte =
 export interface CentralAtividadeItem {
   id: string
   origemId: string
+  registroOriginalId?: string
   fonte: CentralAtividadeFonte
   tipoAtividade: string
   subtipo?: string
@@ -211,6 +212,7 @@ export async function carregarCentralAtividades(
       items.push({
         id: isUnificadaComOrigem ? `unif_${atv.id}` : `atv_${atv.id}`,
         origemId: atv.id,
+        registroOriginalId: atv.registro_original_id || atv.id,
         fonte,
         tipoAtividade: tipoLabel,
         subtipo: atv.subtipo || atv.tipo,
@@ -237,11 +239,12 @@ export async function carregarCentralAtividades(
   }
 
   // B. Ordens de Serviço (coleção 'ordens_servico') com FALLBACK de leitura
-  // Se já existir na estrutura unificada (por chave_importacao `ordem_servico_${os.id}`), não duplica.
+  // Se já existir na estrutura unificada (por chave_importacao `ordem_servico_${os.id}` ou `piloto-ordem_servico-${os.id}`), não duplica.
   if (ordensServicoRes.status === 'fulfilled') {
     for (const os of ordensServicoRes.value) {
       const chaveImportacao = `ordem_servico_${os.id}`
-      if (chavesUnificadasSet.has(chaveImportacao)) {
+      const chavePiloto = `piloto-ordem_servico-${os.id}`
+      if (chavesUnificadasSet.has(chaveImportacao) || chavesUnificadasSet.has(chavePiloto)) {
         continue // Já lido da estrutura unificada
       }
 
@@ -253,6 +256,7 @@ export async function carregarCentralAtividades(
       items.push({
         id: `os_${os.id}`,
         origemId: os.id,
+        registroOriginalId: os.id,
         fonte: 'ordem_servico',
         tipoAtividade: `OS: ${os.tipo_servico || 'Serviço de Campo'}`,
         subtipo: os.tipo_servico,
@@ -281,7 +285,8 @@ export async function carregarCentralAtividades(
   if (manutencoesRes.status === 'fulfilled') {
     for (const m of manutencoesRes.value) {
       const chaveImportacao = `manutencao_${m.id}`
-      if (chavesUnificadasSet.has(chaveImportacao)) {
+      const chavePiloto = `piloto-manutencao-${m.id}`
+      if (chavesUnificadasSet.has(chaveImportacao) || chavesUnificadasSet.has(chavePiloto)) {
         continue // Já lido da estrutura unificada
       }
 
@@ -293,6 +298,7 @@ export async function carregarCentralAtividades(
       items.push({
         id: `manut_${m.id}`,
         origemId: m.id,
+        registroOriginalId: m.id,
         fonte: 'manutencao',
         tipoAtividade: `Manutenção: ${m.tipo || 'Geral'}`,
         subtipo: m.tipo,
@@ -316,7 +322,8 @@ export async function carregarCentralAtividades(
   if (servicosAvulsosRes.status === 'fulfilled') {
     for (const s of servicosAvulsosRes.value) {
       const chaveImportacao = `servico_avulso_${s.id}`
-      if (chavesUnificadasSet.has(chaveImportacao)) {
+      const chavePiloto = `piloto-servico_avulso-${s.id}`
+      if (chavesUnificadasSet.has(chaveImportacao) || chavesUnificadasSet.has(chavePiloto)) {
         continue // Já lido da estrutura unificada
       }
 
@@ -328,6 +335,7 @@ export async function carregarCentralAtividades(
       items.push({
         id: `avulso_${s.id}`,
         origemId: s.id,
+        registroOriginalId: s.id,
         fonte: 'servico_avulso',
         tipoAtividade: `Serviço Avulso: ${formatarTipoServicoAvulso(s.tipo_servico)}`,
         subtipo: s.tipo_servico,
@@ -354,7 +362,8 @@ export async function carregarCentralAtividades(
   if (timelineOMRes.status === 'fulfilled') {
     for (const t of timelineOMRes.value) {
       const chaveImportacao = `timeline_om_${t.id}`
-      if (chavesUnificadasSet.has(chaveImportacao)) {
+      const chavePiloto = `piloto-timeline_om-${t.id}`
+      if (chavesUnificadasSet.has(chaveImportacao) || chavesUnificadasSet.has(chavePiloto)) {
         continue // Já lido da estrutura unificada
       }
 
@@ -366,6 +375,7 @@ export async function carregarCentralAtividades(
       items.push({
         id: `timeline_${t.id}`,
         origemId: t.id,
+        registroOriginalId: t.id,
         fonte: 'timeline_om',
         tipoAtividade: `Linha do Tempo O&M: ${t.tipo || 'Registro'}`,
         subtipo: t.tipo,
@@ -389,7 +399,8 @@ export async function carregarCentralAtividades(
   if (anomaliasOMRes.status === 'fulfilled') {
     for (const anom of anomaliasOMRes.value) {
       const chaveImportacao = `anomalia_om_${anom.id}`
-      if (chavesUnificadasSet.has(chaveImportacao)) {
+      const chavePiloto = `piloto-anomalia_om-${anom.id}`
+      if (chavesUnificadasSet.has(chaveImportacao) || chavesUnificadasSet.has(chavePiloto)) {
         continue // Já lido da estrutura unificada
       }
 
@@ -401,6 +412,7 @@ export async function carregarCentralAtividades(
       items.push({
         id: `anomalia_${anom.id}`,
         origemId: anom.id,
+        registroOriginalId: anom.id,
         fonte: 'anomalia_om',
         tipoAtividade: `Anomalia O&M [${anom.severidade || 'Média'}]`,
         subtipo: anom.severidade,
