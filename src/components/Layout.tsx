@@ -33,6 +33,7 @@ import { useClientes } from '@/contexts/ClientesContext'
 import { ModalGerenciarWhatsAppTemplates } from '@/components/ModalGerenciarWhatsAppTemplates'
 import { FichaClienteDrawer } from '@/components/FichaClienteDrawer'
 import { DelfosLogo } from '@/components/DelfosLogo'
+import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { NotificacoesBell } from '@/components/NotificacoesBell'
 import { BarraBuscaGlobal } from '@/components/BarraBuscaGlobal'
 import { MobileLayoutChrome } from '@/components/MobileLayoutChrome'
@@ -495,8 +496,11 @@ export default function Layout() {
       <AssistenteDelfosChat />
 
       {/* Universal Ficha do Cliente Drawer (Apenas para Admin) */}
-      {isAdmin && <FichaClienteDrawer />}
-
+      {isAdmin && (
+        <ErrorBoundary compact errorMessage="Não foi possível carregar a Ficha do Cliente">
+          <FichaClienteDrawer />
+        </ErrorBoundary>
+      )}
       {/* Modal Global de Templates e Gateway WhatsApp (Apenas para Admin) */}
       {isAdmin && (
         <ModalGerenciarWhatsAppTemplates
