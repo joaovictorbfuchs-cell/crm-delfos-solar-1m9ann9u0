@@ -7,7 +7,7 @@
   "scripts": {
     "start": "vite dev",
     "dev": "vite",
-    "prebuild": "node scripts/medirAssets.js && node scripts/exportSchema.js",
+    "prebuild": "node scripts/medirAssets.js && node scripts/exportSchema.js && node scripts/auditoria-duplicados.mjs",
     "build": "vite build",
     "build:dev": "vite build --mode development",
     "lint": "oxlint src",
@@ -17,7 +17,7 @@
     "export-schema": "node scripts/exportSchema.js",
 
     "preview": "vite preview",
-    "test": "vitest run src/lib/exportSchema.test.ts",
+    "test": "vitest run src/lib/execAuditoria.test.ts",
     "test:watch": "echo \"there are no tests for this project\" && exit 0"
   },
   "dependencies": {
