@@ -22,15 +22,22 @@ export function extractFieldErrors(error: unknown): FieldErrors {
 
 export function isAuthSessionError(error: unknown): boolean {
   if (!error || typeof error !== 'object') return false
-  const err = error as { status?: number; statusCode?: number; message?: string }
-  if (err.status === 401 || err.status === 403) return true
-  if (err.statusCode === 401 || err.statusCode === 403) return true
-  if (typeof err.message === 'string') {
-    const msg = err.message.toLowerCase()
-    if (msg.includes('token') && (msg.includes('expired') || msg.includes('invalid'))) return true
-    if (msg.includes('unauthorized') || msg.includes('forbidden')) return true
+  const err = error as {
+    status?: number
+    statusCode?: number
+    message?: string
+    response?: { code?: number; message?: string }
   }
-  return false
+  if (err.status === 401 || err.status === 403 || err.statusCode === 401 || err.statusCode === 403)
+    return true
+  if (err.response?.code === 401 || err.response?.code === 403) return true
+  const msg = (err.message || err.response?.message || '').toLowerCase()
+  return (
+    msg.includes('token') ||
+    msg.includes('expired') ||
+    msg.includes('unauthorized') ||
+    msg.includes('forbidden')
+  )
 }
 
 export function getErrorMessage(error: unknown): string {
