@@ -151,7 +151,6 @@ export default function Layout() {
     { name: 'Ativos das usinas', path: '/ativos', icon: Cpu },
     { name: 'Galeria de usinas', path: '/instalacoes-galeria', icon: Images },
     { name: 'Fornecedores', path: '/fornecedores', icon: Truck },
-    { name: 'Visão de Contatos', path: '/contatos', icon: Contact },
     { name: 'Importar Clientes', path: '/importar-clientes', icon: FileSpreadsheet },
     { name: 'Gerenciar usuários', path: '/gerenciar-usuarios', icon: UserCog },
   ]
@@ -174,6 +173,7 @@ export default function Layout() {
           icon: ShieldCheck,
         },
         { name: 'Clientes', path: '/clientes', icon: Users },
+        { name: 'Contatos', path: '/contatos', icon: Contact },
         { name: 'Base de Conhecimento', path: '/base-conhecimento', icon: BookOpen },
         {
           name: 'Configurações',

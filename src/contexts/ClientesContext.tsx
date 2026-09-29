@@ -2528,6 +2528,26 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       conversa_id: conversaId,
     })
 
+    // Criar também na nova coleção unificada 'contatos'
+    try {
+      let papelUnificado = 'outro'
+      if (contatoData.tipo_contato === 'fornecedor') papelUnificado = 'fornecedor'
+      else if (contatoData.tipo_contato === 'instalador') papelUnificado = 'tecnico'
+      else if (contatoData.tipo_contato === 'parceiro') papelUnificado = 'parceiro'
+
+      await pb.collection('contatos').create({
+        nome: contatoData.nome,
+        telefone: contatoData.telefone,
+        whatsapp: contatoData.telefone,
+        papel: papelUnificado,
+        observacoes: contatoData.observacao || '',
+        conversa_id: conversaId,
+        origem_registro: 'chat_whatsapp',
+      })
+    } catch (syncErr) {
+      console.warn('Erro ao replicar contato para contatos unificados:', syncErr)
+    }
+
     // 2. Finalizar/resolver conversa para remover da fila de novos
     const updatedConversa = await apiFinalizarConversa(conversaId)
 

@@ -1,12 +1,12 @@
-import React, { useState, useMemo } from 'react'
+import React, { useState, useEffect, useMemo, useCallback } from 'react'
 import {
   Users,
   Search,
   Phone,
   Mail,
-  Briefcase,
   Plus,
   Trash2,
+  Edit2,
   ExternalLink,
   Filter,
   CheckCircle2,
@@ -17,13 +17,17 @@ import {
   MessageSquare,
   RotateCcw,
   Sparkles,
-  ChevronRight,
-  Info,
+  Link as LinkIcon,
+  Briefcase,
+  X,
+  FileText,
+  AlertCircle,
+  HelpCircle,
 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useClientes } from '@/contexts/ClientesContext'
-import { Cliente, ContatoAdicional, ContatoConsolidadoItem, PapelContatoTipo } from '@/types/crm'
-import { formatWhatsAppPhone } from '@/lib/formatters'
+import { Cliente, ContatoUnico, PapelContatoUnico, Negocio } from '@/types/crm'
+import { formatWhatsAppPhone, cleanPhoneDigits } from '@/lib/formatters'
 import { WhatsAppIcon } from '@/components/WhatsAppIcon'
 import { toast } from 'sonner'
 import {
@@ -34,299 +38,430 @@ import {
   DialogDescription,
   DialogFooter,
 } from '@/components/ui/dialog'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
+import {
+  fetchContatosUnicos,
+  createContatoUnico,
+  updateContatoUnico,
+  deleteContatoUnico,
+  aplicarRegraWhatsAppAutoritativo,
+} from '@/services/contatosService'
+import { fetchNegocios } from '@/services/negociosService'
+
+// Opções de Papel do Contato
+export const PAPEIS_CONTATO: {
+  value: PapelContatoUnico
+  label: string
+  badge: string
+  desc: string
+}[] = [
+  {
+    value: 'cliente',
+    label: 'Cliente',
+    badge: 'bg-emerald-100 text-emerald-800 border-emerald-300',
+    desc: 'Titular ou contato principal de um cliente cadastrado',
+  },
+  {
+    value: 'lead',
+    label: 'Lead em Negociação',
+    badge: 'bg-amber-100 text-amber-800 border-amber-300',
+    desc: 'Oportunidade em prospecção ou funil de vendas',
+  },
+  {
+    value: 'fornecedor',
+    label: 'Fornecedor',
+    badge: 'bg-purple-100 text-purple-800 border-purple-300',
+    desc: 'Fornecedor de placas, inversores, estruturas ou suprimentos',
+  },
+  {
+    value: 'tecnico',
+    label: 'Técnico / Instalador',
+    badge: 'bg-cyan-100 text-cyan-800 border-cyan-300',
+    desc: 'Engenheiro, eletricista, técnico de campo ou instalador',
+  },
+  {
+    value: 'parceiro',
+    label: 'Parceiro',
+    badge: 'bg-blue-100 text-blue-800 border-blue-300',
+    desc: 'Projetista, integrador parceiro, corretor ou indicador',
+  },
+  {
+    value: 'familiar',
+    label: 'Familiar de Cliente',
+    badge: 'bg-pink-100 text-pink-800 border-pink-300',
+    desc: 'Cônjuge, filho(a) ou parente autorizado do cliente',
+  },
+  {
+    value: 'financeiro',
+    label: 'Financeiro',
+    badge: 'bg-indigo-100 text-indigo-800 border-indigo-300',
+    desc: 'Responsável pelo pagamento, faturamento ou contabilidade',
+  },
+  {
+    value: 'responsavel',
+    label: 'Responsável / Gerente',
+    badge: 'bg-violet-100 text-violet-800 border-violet-300',
+    desc: 'Gerente, administrador ou ponto focal operacional',
+  },
+  {
+    value: 'outro',
+    label: 'Outro Relacionamento',
+    badge: 'bg-gray-100 text-gray-800 border-gray-300',
+    desc: 'Contato geral sem papel fixo no CRM',
+  },
+]
 
 export const ContatosView: React.FC = () => {
   const navigate = useNavigate()
-  const {
-    clientes,
-    contatosAdicionais,
-    openFichaCliente,
-    addContatoAdicional,
-    removeContatoAdicional,
-    refreshContatosAdicionais,
-  } = useClientes()
+  const { clientes, openFichaCliente } = useClientes()
 
-  // Estados de filtro e busca
+  // Lista de contatos da coleção unificada
+  const [contatos, setContatos] = useState<ContatoUnico[]>([])
+  const [negocios, setNegocios] = useState<Negocio[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [isRefreshing, setIsRefreshing] = useState(false)
+
+  // Filtros
   const [searchTerm, setSearchTerm] = useState('')
   const [filtroPapel, setFiltroPapel] = useState<string>('todos')
-  const [filtroApenasWhatsApp, setFiltroApenasWhatsApp] = useState(false)
   const [filtroClienteId, setFiltroClienteId] = useState<string>('todos')
+  const [filtroApenasWhatsApp, setFiltroApenasWhatsApp] = useState(false)
+  const [filtroComVinculo, setFiltroComVinculo] = useState<string>('todos')
 
-  // Modal para adicionar contato adicional
-  const [modalNovoOpen, setModalNovoOpen] = useState(false)
-  const [novoClienteId, setNovoClienteId] = useState('')
-  const [novoNome, setNovoNome] = useState('')
-  const [novoPapel, setNovoPapel] = useState<PapelContatoTipo>('responsavel')
-  const [novoCargo, setNovoCargo] = useState('')
-  const [novoTelefone, setNovoTelefone] = useState('')
-  const [novoEmail, setNovoEmail] = useState('')
-  const [novoIsWhatsapp, setNovoIsWhatsapp] = useState(false)
+  // Modal de Criação / Edição
+  const [modalOpen, setModalOpen] = useState(false)
+  const [contatoEmEdicao, setContatoEmEdicao] = useState<ContatoUnico | null>(null)
+
+  // Form State
+  const [formNome, setFormNome] = useState('')
+  const [formTelefone, setFormTelefone] = useState('')
+  const [formWhatsApp, setFormWhatsApp] = useState('')
+  const [formEmail, setFormEmail] = useState('')
+  const [formPapel, setFormPapel] = useState<PapelContatoUnico>('outro')
+  const [formCargo, setFormCargo] = useState('')
+  const [formObservacoes, setFormObservacoes] = useState('')
+  const [formClientesVinculados, setFormClientesVinculados] = useState<string[]>([])
+  const [formNegociosVinculados, setFormNegociosVinculados] = useState<string[]>([])
   const [isSaving, setIsSaving] = useState(false)
 
-  // Modal confirmação exclusão
-  const [contatoParaExcluir, setContatoParaExcluir] = useState<{ id: string; nome: string } | null>(
-    null,
-  )
+  // Modal Confirmação de Exclusão
+  const [contatoParaExcluir, setContatoParaExcluir] = useState<ContatoUnico | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
 
-  // Map rápido de clientes por id
+  // Modal Visualizar Detalhes
+  const [contatoDetalhes, setContatoDetalhes] = useState<ContatoUnico | null>(null)
+
+  // Carregar contatos e negócios
+  const carregarDados = useCallback(async (isRefresh = false) => {
+    try {
+      if (isRefresh) setIsRefreshing(true)
+      else setIsLoading(true)
+
+      const [contatosData, negociosData] = await Promise.all([
+        fetchContatosUnicos(),
+        fetchNegocios(),
+      ])
+
+      setContatos(contatosData)
+      setNegocios(negociosData)
+    } catch (err) {
+      console.error('Erro ao carregar contatos unificados:', err)
+      toast.error('Erro ao carregar contatos. Tente novamente.')
+    } finally {
+      setIsLoading(false)
+      setIsRefreshing(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    carregarDados()
+  }, [carregarDados])
+
+  // Maps rápidos para resolução de vínculos
   const clientesMap = useMemo(() => {
     const map = new Map<string, Cliente>()
     clientes.forEach((c) => map.set(c.id, c))
     return map
   }, [clientes])
 
-  // Lista consolidada de contatos
-  // 1. Contato principal de cada cliente (nome, telefone/whatsapp autoritativo, email, papel: principal)
-  // 2. Contatos adicionais cadastrados na coleção contatos_adicionais
-  const contatosConsolidados = useMemo<ContatoConsolidadoItem[]>(() => {
-    const itens: ContatoConsolidadoItem[] = []
+  const negociosMap = useMemo(() => {
+    const map = new Map<string, Negocio>()
+    negocios.forEach((n) => map.set(n.id, n))
+    return map
+  }, [negocios])
 
-    // 1. Contatos principais dos clientes
-    clientes.forEach((cli) => {
-      // Regra de autoridade do WhatsApp:
-      // Se whatsapp está preenchido, ele é o autoritativo.
-      // Telefone deve ser igualado ao WhatsApp; se vazio, usa o que houver.
-      const wpp = (cli.whatsapp || '').trim()
-      const tel = (cli.telefone || '').trim()
-      const numeroAutoritativo = wpp || tel
-      const contatoNome =
-        cli.contato_principal?.trim() ||
-        cli.contato?.trim() ||
-        cli.nome?.trim() ||
-        'Contato Principal'
-
-      const cargoInferido =
-        cli.contato && cli.contato !== cli.nome
-          ? 'Responsável / Contato Direto'
-          : cli.tipo_pessoa === 'juridica'
-            ? 'Representante Legal / Titular'
-            : 'Titular / Proprietário'
-
-      itens.push({
-        id: `cli_${cli.id}`,
-        origem: 'cliente_principal',
-        clienteId: cli.id,
-        clienteNome: cli.nome,
-        nome: contatoNome,
-        papel: 'principal',
-        papelLabel: 'Principal',
-        cargo: cargoInferido,
-        telefone: tel || undefined,
-        email: cli.email?.trim() || undefined,
-        isWhatsapp: Boolean(numeroAutoritativo),
-        numeroAutoritativo,
-        rawRecord: cli,
-      })
-    })
-
-    // 2. Contatos adicionais
-    contatosAdicionais.forEach((ca) => {
-      const cli = clientesMap.get(ca.cliente)
-      const cliNome = cli?.nome || 'Cliente não identificado'
-
-      // Papel pode vir do campo ca.papel ou inferido do cargo
-      let papelEfetivo: string = (ca.papel || '').trim().toLowerCase()
-      if (!papelEfetivo) {
-        const cargoLower = (ca.cargo || '').toLowerCase()
-        if (cargoLower.includes('financ')) papelEfetivo = 'financeiro'
-        else if (
-          cargoLower.includes('téc') ||
-          cargoLower.includes('tec') ||
-          cargoLower.includes('engen')
-        )
-          papelEfetivo = 'tecnico'
-        else if (
-          cargoLower.includes('respons') ||
-          cargoLower.includes('gerente') ||
-          cargoLower.includes('diretor')
-        )
-          papelEfetivo = 'responsavel'
-        else papelEfetivo = 'outro'
-      }
-
-      const papelLabels: Record<string, string> = {
-        principal: 'Principal',
-        financeiro: 'Financeiro',
-        tecnico: 'Técnico',
-        responsavel: 'Responsável',
-        outro: 'Outro',
-      }
-
-      const rawTel = (ca.telefone || '').trim()
-      const isWhats = Boolean(ca.is_whatsapp)
-
-      itens.push({
-        id: ca.id,
-        origem: 'contato_adicional',
-        clienteId: ca.cliente,
-        clienteNome: cliNome,
-        nome: ca.nome || 'Contato Adicional',
-        papel: papelEfetivo,
-        papelLabel: papelLabels[papelEfetivo] || papelEfetivo || 'Outro',
-        cargo: ca.cargo?.trim() || undefined,
-        telefone: rawTel || undefined,
-        email: ca.email?.trim() || undefined,
-        isWhatsapp: isWhats,
-        numeroAutoritativo: rawTel,
-        rawRecord: ca,
-      })
-    })
-
-    return itens
-  }, [clientes, contatosAdicionais, clientesMap])
-
-  // Filtragem dos contatos
-  const contatosFiltrados = useMemo(() => {
-    return contatosConsolidados.filter((item) => {
-      // Filtro de busca geral
-      if (searchTerm.trim()) {
-        const query = searchTerm.toLowerCase()
-        const matchNome = item.nome.toLowerCase().includes(query)
-        const matchCliente = item.clienteNome.toLowerCase().includes(query)
-        const matchTelefone = (item.telefone || '').includes(query)
-        const matchEmail = (item.email || '').toLowerCase().includes(query)
-        const matchCargo = (item.cargo || '').toLowerCase().includes(query)
-        const matchPapel = item.papelLabel.toLowerCase().includes(query)
-        if (
-          !matchNome &&
-          !matchCliente &&
-          !matchTelefone &&
-          !matchEmail &&
-          !matchCargo &&
-          !matchPapel
-        ) {
-          return false
-        }
-      }
-
-      // Filtro por papel
-      if (filtroPapel !== 'todos') {
-        if (item.papel !== filtroPapel) return false
-      }
-
-      // Filtro de apenas WhatsApp
-      if (filtroApenasWhatsApp) {
-        if (!item.isWhatsapp) return false
-      }
-
-      // Filtro por cliente específico
-      if (filtroClienteId !== 'todos') {
-        if (item.clienteId !== filtroClienteId) return false
-      }
-
-      return true
-    })
-  }, [contatosConsolidados, searchTerm, filtroPapel, filtroApenasWhatsApp, filtroClienteId])
-
-  // Agrupamento por cliente
-  const contatosAgrupadosPorCliente = useMemo(() => {
-    const mapa = new Map<
-      string,
-      { clienteId: string; clienteNome: string; contatos: ContatoConsolidadoItem[] }
-    >()
-
-    contatosFiltrados.forEach((item) => {
-      if (!mapa.has(item.clienteId)) {
-        mapa.set(item.clienteId, {
-          clienteId: item.clienteId,
-          clienteNome: item.clienteNome,
-          contatos: [],
-        })
-      }
-      mapa.get(item.clienteId)!.contatos.push(item)
-    })
-
-    // Ordenar clientes alfabeticamente
-    return Array.from(mapa.values()).sort((a, b) =>
-      a.clienteNome.localeCompare(b.clienteNome, 'pt-BR', { sensitivity: 'base' }),
-    )
-  }, [contatosFiltrados])
-
-  // Métricas rápidas
-  const totalContatos = contatosConsolidados.length
-  const totalPrincipais = contatosConsolidados.filter(
-    (c) => c.origem === 'cliente_principal',
-  ).length
-  const totalAdicionais = contatosConsolidados.filter(
-    (c) => c.origem === 'contato_adicional',
-  ).length
-  const totalComWhatsapp = contatosConsolidados.filter((c) => c.isWhatsapp).length
-
-  // Abrir chat do WhatsApp ou iniciar conversa na Central de Atendimento
-  const handleIniciarWhatsApp = (item: ContatoConsolidadoItem) => {
-    const num = item.numeroAutoritativo || item.telefone || ''
-    if (!num) {
-      toast.error('Este contato não possui número de WhatsApp cadastrado.')
-      return
-    }
-    // Navega para a central de atendimento com busca pré-preenchida
-    navigate(`/central-atendimento?busca=${encodeURIComponent(num)}`)
+  // Abrir Modal para Novo Contato
+  const handleNovoContato = (prefillClienteId?: string) => {
+    setContatoEmEdicao(null)
+    setFormNome('')
+    setFormTelefone('')
+    setFormWhatsApp('')
+    setFormEmail('')
+    setFormPapel(prefillClienteId ? 'cliente' : 'outro')
+    setFormCargo('')
+    setFormObservacoes('')
+    setFormClientesVinculados(prefillClienteId ? [prefillClienteId] : [])
+    setFormNegociosVinculados([])
+    setModalOpen(true)
   }
 
-  // Salvar novo contato adicional via modal
-  const handleSalvarNovoContato = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!novoClienteId) {
-      toast.error('Selecione o cliente para associar o contato.')
-      return
+  // Abrir Modal para Edição
+  const handleEditarContato = (contato: ContatoUnico) => {
+    setContatoEmEdicao(contato)
+    setFormNome(contato.nome || '')
+    setFormTelefone(contato.telefone || '')
+    setFormWhatsApp(contato.whatsapp || '')
+    setFormEmail(contato.email || '')
+    setFormPapel((contato.papel as PapelContatoUnico) || 'outro')
+    setFormCargo(contato.cargo || '')
+    setFormObservacoes(contato.observacoes || '')
+    setFormClientesVinculados(
+      Array.isArray(contato.clientes_vinculados) ? contato.clientes_vinculados : [],
+    )
+    setFormNegociosVinculados(
+      Array.isArray(contato.negocios_vinculados) ? contato.negocios_vinculados : [],
+    )
+    setModalOpen(true)
+  }
+
+  // Disparar sincronização com a Regra do WhatsApp Autoritativo
+  const handleTelefoneBlur = () => {
+    // Se whatsapp estiver vazio e telefone preenchido: preenche whatsapp
+    if (!formWhatsApp.trim() && formTelefone.trim()) {
+      setFormWhatsApp(formTelefone.trim())
     }
-    if (!novoNome.trim()) {
+  }
+
+  const handleWhatsAppBlur = () => {
+    // Regra autoritativa: se whatsapp estiver preenchido e divergir do telefone, o telefone se iguala ao WhatsApp
+    if (formWhatsApp.trim()) {
+      setFormTelefone(formWhatsApp.trim())
+    }
+  }
+
+  // Submeter Criação / Edição
+  const handleSalvarContato = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!formNome.trim()) {
       toast.error('Informe o nome do contato.')
       return
     }
 
+    // Aplica regra de ouro autoritativa
+    const telefones = aplicarRegraWhatsAppAutoritativo({
+      telefone: formTelefone,
+      whatsapp: formWhatsApp,
+    })
+
     setIsSaving(true)
     try {
-      await addContatoAdicional({
-        cliente: novoClienteId,
-        nome: novoNome.trim(),
-        papel: novoPapel,
-        cargo: novoCargo.trim() || undefined,
-        telefone: novoTelefone.trim() || undefined,
-        email: novoEmail.trim() || undefined,
-        is_whatsapp: novoIsWhatsapp,
-      })
-      toast.success('Contato adicional cadastrado com sucesso!')
-      setModalNovoOpen(false)
-      // Limpa formulário
-      setNovoClienteId('')
-      setNovoNome('')
-      setNovoPapel('responsavel')
-      setNovoCargo('')
-      setNovoTelefone('')
-      setNovoEmail('')
-      setNovoIsWhatsapp(false)
+      if (contatoEmEdicao) {
+        const updated = await updateContatoUnico(contatoEmEdicao.id, {
+          nome: formNome.trim(),
+          telefone: telefones.telefone,
+          whatsapp: telefones.whatsapp,
+          email: formEmail.trim(),
+          papel: formPapel,
+          cargo: formCargo.trim(),
+          observacoes: formObservacoes.trim(),
+          clientes_vinculados: formClientesVinculados,
+          negocios_vinculados: formNegociosVinculados,
+        })
+        setContatos((prev) => prev.map((c) => (c.id === updated.id ? updated : c)))
+        toast.success(`Contato "${updated.nome}" atualizado com sucesso!`)
+      } else {
+        const created = await createContatoUnico({
+          nome: formNome.trim(),
+          telefone: telefones.telefone,
+          whatsapp: telefones.whatsapp,
+          email: formEmail.trim(),
+          papel: formPapel,
+          cargo: formCargo.trim(),
+          observacoes: formObservacoes.trim(),
+          clientes_vinculados: formClientesVinculados,
+          negocios_vinculados: formNegociosVinculados,
+          origem_registro: 'area_contatos_unificada',
+        })
+        setContatos((prev) => [created, ...prev])
+        toast.success(`Contato "${created.nome}" cadastrado com sucesso!`)
+      }
+      setModalOpen(false)
     } catch (err) {
-      console.error('Erro ao adicionar contato:', err)
-      toast.error('Erro ao salvar contato. Tente novamente.')
+      console.error('Erro ao salvar contato:', err)
+      toast.error('Não foi possível salvar o contato. Verifique os dados e tente novamente.')
     } finally {
       setIsSaving(false)
     }
   }
 
-  // Excluir contato adicional
-  const handleExcluirContatoAdicional = async () => {
+  // Confirmar Exclusão
+  const handleConfirmarExclusao = async () => {
     if (!contatoParaExcluir) return
     setIsDeleting(true)
     try {
-      await removeContatoAdicional(contatoParaExcluir.id)
-      toast.success(`Contato "${contatoParaExcluir.nome}" removido com sucesso.`)
+      await deleteContatoUnico(contatoParaExcluir.id)
+      setContatos((prev) => prev.filter((c) => c.id !== contatoParaExcluir.id))
+      toast.success(`Contato "${contatoParaExcluir.nome}" excluído.`)
       setContatoParaExcluir(null)
     } catch (err) {
       console.error('Erro ao excluir contato:', err)
-      toast.error('Erro ao remover contato adicional.')
+      toast.error('Erro ao excluir o contato.')
     } finally {
       setIsDeleting(false)
     }
   }
 
+  // Filtragem dos Contatos
+  const contatosFiltrados = useMemo(() => {
+    return contatos.filter((c) => {
+      // 1. Busca textual (nome, telefone, whatsapp, email, cargo, observações)
+      if (searchTerm.trim()) {
+        const term = searchTerm.toLowerCase().trim()
+        const digitosBusca = cleanPhoneDigits(term)
+        const matchNome = (c.nome || '').toLowerCase().includes(term)
+        const matchEmail = (c.email || '').toLowerCase().includes(term)
+        const matchCargo = (c.cargo || '').toLowerCase().includes(term)
+        const matchObs = (c.observacoes || '').toLowerCase().includes(term)
+        const matchTel = (c.telefone || '').toLowerCase().includes(term)
+        const matchWpp = (c.whatsapp || '').toLowerCase().includes(term)
+        const matchDigitos =
+          digitosBusca.length >= 4 &&
+          (cleanPhoneDigits(c.telefone || '').includes(digitosBusca) ||
+            cleanPhoneDigits(c.whatsapp || '').includes(digitosBusca))
+
+        // Match por nome de cliente vinculado
+        const matchClientesVinculados = (c.clientes_vinculados || []).some((cliId) => {
+          const cli = clientesMap.get(cliId)
+          return cli && cli.nome.toLowerCase().includes(term)
+        })
+
+        if (
+          !matchNome &&
+          !matchEmail &&
+          !matchCargo &&
+          !matchObs &&
+          !matchTel &&
+          !matchWpp &&
+          !matchDigitos &&
+          !matchClientesVinculados
+        ) {
+          return false
+        }
+      }
+
+      // 2. Filtro por papel
+      if (filtroPapel !== 'todos') {
+        if (c.papel !== filtroPapel) return false
+      }
+
+      // 3. Filtro por cliente vinculado
+      if (filtroClienteId !== 'todos') {
+        const vincs = Array.isArray(c.clientes_vinculados) ? c.clientes_vinculados : []
+        if (!vincs.includes(filtroClienteId)) return false
+      }
+
+      // 4. Apenas com WhatsApp
+      if (filtroApenasWhatsApp) {
+        const wppDigits = cleanPhoneDigits(c.whatsapp || '')
+        if (!wppDigits || wppDigits === '00000000000' || wppDigits.length < 8) return false
+      }
+
+      // 5. Filtro de vínculos
+      if (filtroComVinculo === 'com_cliente') {
+        if (!c.clientes_vinculados || c.clientes_vinculados.length === 0) return false
+      } else if (filtroComVinculo === 'sem_vinculo') {
+        const hasCli = c.clientes_vinculados && c.clientes_vinculados.length > 0
+        const hasNeg = c.negocios_vinculados && c.negocios_vinculados.length > 0
+        if (hasCli || hasNeg) return false
+      }
+
+      return true
+    })
+  }, [
+    contatos,
+    searchTerm,
+    filtroPapel,
+    filtroClienteId,
+    filtroApenasWhatsApp,
+    filtroComVinculo,
+    clientesMap,
+  ])
+
+  // Ações de WhatsApp
+  const handleAbrirWhatsApp = (telefoneOuWpp?: string) => {
+    if (!telefoneOuWpp) {
+      toast.error('Este contato não possui número cadastrado.')
+      return
+    }
+    const digitos = cleanPhoneDigits(telefoneOuWpp)
+    if (!digitos || digitos === '00000000000' || digitos.length < 8) {
+      toast.error('Número de WhatsApp inválido.')
+      return
+    }
+    navigate(`/central-atendimento?busca=${encodeURIComponent(digitos)}`)
+  }
+
+  // Toggle vínculo cliente no modal
+  const handleToggleVinculoCliente = (clienteId: string) => {
+    setFormClientesVinculados((prev) =>
+      prev.includes(clienteId) ? prev.filter((id) => id !== clienteId) : [...prev, clienteId],
+    )
+  }
+
+  // Toggle vínculo negócio no modal
+  const handleToggleVinculoNegocio = (negocioId: string) => {
+    setFormNegociosVinculados((prev) =>
+      prev.includes(negocioId) ? prev.filter((id) => id !== negocioId) : [...prev, negocioId],
+    )
+  }
+
+  // Métricas
+  const totalContatos = contatos.length
+  const totalComWhatsApp = contatos.filter((c) => {
+    const d = cleanPhoneDigits(c.whatsapp || '')
+    return d && d !== '00000000000' && d.length >= 8
+  }).length
+  const totalComVinculoCliente = contatos.filter(
+    (c) => c.clientes_vinculados && c.clientes_vinculados.length > 0,
+  ).length
+  const totalSemVinculo = contatos.filter((c) => {
+    const hasCli = c.clientes_vinculados && c.clientes_vinculados.length > 0
+    const hasNeg = c.negocios_vinculados && c.negocios_vinculados.length > 0
+    return !hasCli && !hasNeg
+  }).length
+
+  // Helper para badge de papel
+  const renderPapelBadge = (papelVal: string) => {
+    const found = PAPEIS_CONTATO.find((p) => p.value === papelVal)
+    const label = found?.label || papelVal || 'Outro'
+    const badgeStyle = found?.badge || 'bg-gray-100 text-gray-800 border-gray-300'
+
+    return (
+      <span
+        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border uppercase tracking-wider ${badgeStyle}`}
+        title={found?.desc || label}
+      >
+        {label}
+      </span>
+    )
+  }
+
   return (
     <div className="space-y-4 max-w-7xl mx-auto pb-12">
-      {/* Cabeçalho da Visão Consolidada */}
+      {/* Cabeçalho da Área Única de Contatos */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-white p-3.5 sm:p-4 rounded-2xl border border-gray-200/80 shadow-2xs">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-700">
@@ -335,14 +470,15 @@ export const ContatosView: React.FC = () => {
           <div>
             <div className="flex items-center gap-2">
               <h2 className="text-base sm:text-lg font-bold text-gray-900">
-                Visão Consolidada de Contatos
+                Cadastro Único de Contatos
               </h2>
               <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300">
-                Aditiva
+                Centralizado
               </span>
             </div>
             <p className="text-xs text-gray-500">
-              Todos os contatos principais e adicionais dos clientes organizados em lista única
+              Todos os contatos do CRM reunidos em um único lugar: clientes, leads, fornecedores,
+              técnicos, parceiros e familiares
             </p>
           </div>
         </div>
@@ -352,18 +488,21 @@ export const ContatosView: React.FC = () => {
             type="button"
             variant="outline"
             size="sm"
-            onClick={() => refreshContatosAdicionais()}
+            onClick={() => carregarDados(true)}
+            disabled={isRefreshing}
             className="text-xs border-gray-200 text-gray-700 hover:bg-gray-50 cursor-pointer"
-            title="Atualizar contatos"
+            title="Recarregar contatos do banco"
           >
-            <RotateCcw className="w-3.5 h-3.5 mr-1 text-emerald-600" />
+            <RotateCcw
+              className={`w-3.5 h-3.5 mr-1 text-emerald-600 ${isRefreshing ? 'animate-spin' : ''}`}
+            />
             Atualizar
           </Button>
 
           <Button
             type="button"
             size="sm"
-            onClick={() => setModalNovoOpen(true)}
+            onClick={() => handleNovoContato()}
             className="text-xs font-bold bg-[#16A34A] hover:bg-[#15803D] text-white shadow-2xs cursor-pointer"
           >
             <Plus className="w-3.5 h-3.5 mr-1 stroke-[2.5]" />
@@ -373,12 +512,16 @@ export const ContatosView: React.FC = () => {
       </div>
 
       {/* Regra de Ouro do WhatsApp — Banner Informativo e Auditável */}
-      <div className="bg-gradient-to-r from-emerald-50 via-emerald-50/60 to-white border border-emerald-200/90 rounded-xl p-3 flex items-start gap-2.5 text-xs text-emerald-950 shadow-2xs">
+      <div className="bg-gradient-to-r from-emerald-50 via-emerald-50/70 to-white border border-emerald-200/90 rounded-xl p-3 flex items-start gap-2.5 text-xs text-emerald-950 shadow-2xs">
         <ShieldCheck className="w-4 h-4 text-emerald-700 shrink-0 mt-0.5" />
         <div className="leading-relaxed">
-          <span className="font-bold text-emerald-900">WhatsApp como Fonte da Verdade: </span>
-          O número de WhatsApp cadastrado é autoritativo. Todos os envios de mensagens utilizam
-          exclusivamente o WhatsApp autoritativo do cliente.
+          <span className="font-bold text-emerald-900">
+            Regra Permanente do WhatsApp Autoritativo:{' '}
+          </span>
+          O WhatsApp é a fonte da verdade de contato da Delfos Solar. Quando telefone e WhatsApp
+          divergirem, o telefone é automaticamente igualado ao WhatsApp. Um contato pode existir de
+          forma independente ou estar vinculado a múltiplos clientes e negócios sem duplicar o
+          cadastro.
         </div>
       </div>
 
@@ -387,25 +530,25 @@ export const ContatosView: React.FC = () => {
         <div className="bg-white rounded-xl p-3 border border-gray-200/80 shadow-2xs">
           <span className="text-[11px] font-medium text-gray-500">Total de Contatos</span>
           <div className="text-xl font-bold text-gray-900 mt-0.5">{totalContatos}</div>
-          <span className="text-[10px] text-gray-400">Na base ativa</span>
+          <span className="text-[10px] text-gray-400">Na base centralizada</span>
         </div>
 
         <div className="bg-white rounded-xl p-3 border border-gray-200/80 shadow-2xs">
-          <span className="text-[11px] font-medium text-gray-500">Contatos Principais</span>
-          <div className="text-xl font-bold text-emerald-700 mt-0.5">{totalPrincipais}</div>
-          <span className="text-[10px] text-gray-400">1 por cliente cadastrado</span>
+          <span className="text-[11px] font-medium text-gray-500">Com WhatsApp Ativo</span>
+          <div className="text-xl font-bold text-emerald-700 mt-0.5">{totalComWhatsApp}</div>
+          <span className="text-[10px] text-gray-400">Canal autoritativo pronto</span>
         </div>
 
         <div className="bg-white rounded-xl p-3 border border-gray-200/80 shadow-2xs">
-          <span className="text-[11px] font-medium text-gray-500">Contatos Adicionais</span>
-          <div className="text-xl font-bold text-blue-700 mt-0.5">{totalAdicionais}</div>
-          <span className="text-[10px] text-gray-400">Sócios, financeiro, etc.</span>
+          <span className="text-[11px] font-medium text-gray-500">Vinculados a Clientes</span>
+          <div className="text-xl font-bold text-blue-700 mt-0.5">{totalComVinculoCliente}</div>
+          <span className="text-[10px] text-gray-400">Relação N:N preservada</span>
         </div>
 
         <div className="bg-white rounded-xl p-3 border border-gray-200/80 shadow-2xs">
-          <span className="text-[11px] font-medium text-gray-500">Com WhatsApp</span>
-          <div className="text-xl font-bold text-emerald-600 mt-0.5">{totalComWhatsapp}</div>
-          <span className="text-[10px] text-gray-400">Canais de disparo autorizados</span>
+          <span className="text-[11px] font-medium text-gray-500">Sem Vínculo Cadastrado</span>
+          <div className="text-xl font-bold text-amber-700 mt-0.5">{totalSemVinculo}</div>
+          <span className="text-[10px] text-gray-400">Contatos autônomos/relacionamento</span>
         </div>
       </div>
 
@@ -417,7 +560,7 @@ export const ContatosView: React.FC = () => {
             <Search className="w-3.5 h-3.5 text-gray-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
             <Input
               type="text"
-              placeholder="Buscar por contato, cliente, cargo, telefone ou e-mail..."
+              placeholder="Buscar por nome, telefone, WhatsApp, e-mail, cliente vinculado ou cargo..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-8 pr-8 text-xs bg-gray-50/70 focus:bg-white border-gray-200 h-9"
@@ -433,7 +576,7 @@ export const ContatosView: React.FC = () => {
             )}
           </div>
 
-          {/* Filtros em linha */}
+          {/* Filtros Dropdown */}
           <div className="flex items-center gap-2 flex-wrap">
             {/* Filtro por Papel */}
             <div className="flex items-center gap-1.5 text-xs">
@@ -444,11 +587,11 @@ export const ContatosView: React.FC = () => {
                 className="text-xs bg-gray-50/70 border border-gray-200 rounded-lg px-2.5 py-1.5 focus:outline-hidden focus:ring-1 focus:ring-emerald-500 cursor-pointer"
               >
                 <option value="todos">Todos os Papéis</option>
-                <option value="principal">Principal</option>
-                <option value="financeiro">Financeiro</option>
-                <option value="tecnico">Técnico</option>
-                <option value="responsavel">Responsável</option>
-                <option value="outro">Outro</option>
+                {PAPEIS_CONTATO.map((p) => (
+                  <option key={p.value} value={p.value}>
+                    {p.label}
+                  </option>
+                ))}
               </select>
             </div>
 
@@ -458,7 +601,7 @@ export const ContatosView: React.FC = () => {
               <select
                 value={filtroClienteId}
                 onChange={(e) => setFiltroClienteId(e.target.value)}
-                className="text-xs bg-gray-50/70 border border-gray-200 rounded-lg px-2.5 py-1.5 focus:outline-hidden focus:ring-1 focus:ring-emerald-500 cursor-pointer max-w-[200px] truncate"
+                className="text-xs bg-gray-50/70 border border-gray-200 rounded-lg px-2.5 py-1.5 focus:outline-hidden focus:ring-1 focus:ring-emerald-500 cursor-pointer max-w-[180px] truncate"
               >
                 <option value="todos">Todos os Clientes</option>
                 {clientes.map((cli) => (
@@ -466,6 +609,20 @@ export const ContatosView: React.FC = () => {
                     {cli.nome}
                   </option>
                 ))}
+              </select>
+            </div>
+
+            {/* Filtro por Status do Vínculo */}
+            <div className="flex items-center gap-1.5 text-xs">
+              <LinkIcon className="w-3.5 h-3.5 text-gray-400" />
+              <select
+                value={filtroComVinculo}
+                onChange={(e) => setFiltroComVinculo(e.target.value)}
+                className="text-xs bg-gray-50/70 border border-gray-200 rounded-lg px-2.5 py-1.5 focus:outline-hidden focus:ring-1 focus:ring-emerald-500 cursor-pointer"
+              >
+                <option value="todos">Todos os vínculos</option>
+                <option value="com_cliente">Com cliente vinculado</option>
+                <option value="sem_vinculo">Sem nenhum vínculo</option>
               </select>
             </div>
 
@@ -479,21 +636,23 @@ export const ContatosView: React.FC = () => {
               />
               <span className="flex items-center gap-1 font-medium">
                 <WhatsAppIcon className="w-3 h-3 text-emerald-600" />
-                Apenas com WhatsApp
+                Com WhatsApp
               </span>
             </label>
 
             {(searchTerm ||
               filtroPapel !== 'todos' ||
-              filtroApenasWhatsApp ||
-              filtroClienteId !== 'todos') && (
+              filtroClienteId !== 'todos' ||
+              filtroComVinculo !== 'todos' ||
+              filtroApenasWhatsApp) && (
               <button
                 type="button"
                 onClick={() => {
                   setSearchTerm('')
                   setFiltroPapel('todos')
-                  setFiltroApenasWhatsApp(false)
                   setFiltroClienteId('todos')
+                  setFiltroComVinculo('todos')
+                  setFiltroApenasWhatsApp(false)
                 }}
                 className="text-xs text-emerald-700 hover:text-emerald-900 font-semibold underline px-1 cursor-pointer"
               >
@@ -505,327 +664,423 @@ export const ContatosView: React.FC = () => {
 
         <div className="text-[11px] text-gray-500 flex items-center justify-between border-t border-gray-100 pt-1.5">
           <span>
-            Exibindo <strong>{contatosFiltrados.length}</strong> contatos em{' '}
-            <strong>{contatosAgrupadosPorCliente.length}</strong> clientes
+            Exibindo <strong>{contatosFiltrados.length}</strong> de <strong>{totalContatos}</strong>{' '}
+            contatos cadastrados
           </span>
           <span className="text-[10px] text-gray-400">
-            Dica: clique no nome do cliente para abrir sua Ficha Cadastral completa
+            Dica: clique em "Editar" para vincular um mesmo contato a múltiplos clientes sem
+            duplicar
           </span>
         </div>
       </div>
 
-      {/* Lista Única Agrupada por Cliente */}
-      {contatosAgrupadosPorCliente.length === 0 ? (
+      {/* Lista de Contatos */}
+      {isLoading ? (
         <div className="bg-white rounded-xl border border-gray-200 p-12 text-center text-gray-400 space-y-2">
-          <Users className="w-8 h-8 mx-auto text-gray-300" />
+          <div className="w-8 h-8 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin mx-auto" />
+          <p className="text-xs text-gray-500">Carregando contatos...</p>
+        </div>
+      ) : contatosFiltrados.length === 0 ? (
+        <div className="bg-white rounded-xl border border-gray-200 p-12 text-center text-gray-400 space-y-3">
+          <Users className="w-10 h-10 mx-auto text-gray-300" />
           <p className="text-sm font-semibold text-gray-700">Nenhum contato encontrado</p>
-          <p className="text-xs text-gray-500">
-            Tente ajustar os filtros ou a busca para localizar os contatos desejados.
+          <p className="text-xs text-gray-500 max-w-md mx-auto">
+            {searchTerm || filtroPapel !== 'todos' || filtroClienteId !== 'todos'
+              ? 'Tente ajustar os filtros ou a busca para localizar os contatos desejados.'
+              : 'Cadastre o primeiro contato no sistema usando o botão "Novo Contato" acima.'}
           </p>
+          <Button
+            type="button"
+            size="sm"
+            onClick={() => handleNovoContato()}
+            className="text-xs font-bold bg-[#16A34A] hover:bg-[#15803D] text-white"
+          >
+            <Plus className="w-3.5 h-3.5 mr-1" />
+            Cadastrar Contato
+          </Button>
         </div>
       ) : (
-        <div className="space-y-3.5">
-          {contatosAgrupadosPorCliente.map((grupo) => {
-            const clienteReal = clientesMap.get(grupo.clienteId)
+        <div className="bg-white rounded-xl border border-gray-200/90 shadow-2xs overflow-hidden">
+          {/* Tabela Desktop */}
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs border-collapse">
+              <thead className="bg-[#F8FAF9] border-b border-gray-200 text-gray-600 font-semibold uppercase tracking-wider">
+                <tr>
+                  <th className="py-3 px-4">Nome & Cargo</th>
+                  <th className="py-3 px-3">Papel</th>
+                  <th className="py-3 px-3">WhatsApp / Telefone</th>
+                  <th className="py-3 px-3">E-mail</th>
+                  <th className="py-3 px-4 min-w-[200px]">Clientes Vinculados (N:N)</th>
+                  <th className="py-3 px-4 text-right">Ações</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {contatosFiltrados.map((contato) => {
+                  const numWpp = contato.whatsapp || contato.telefone || ''
+                  const wppDigitos = cleanPhoneDigits(numWpp)
+                  const temWppValido = Boolean(
+                    wppDigitos && wppDigitos !== '00000000000' && wppDigitos.length >= 8,
+                  )
 
-            return (
-              <div
-                key={grupo.clienteId}
-                className="bg-white rounded-xl border border-gray-200/90 shadow-2xs overflow-hidden transition-all hover:border-emerald-300/80"
-              >
-                {/* Cabeçalho do Cliente com Acesso Rápido à Ficha */}
-                <div className="bg-gradient-to-r from-gray-50 via-white to-gray-50/50 px-4 py-2.5 border-b border-gray-200/80 flex items-center justify-between gap-2 flex-wrap">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <button
-                      type="button"
-                      onClick={() => openFichaCliente(grupo.clienteId)}
-                      className="text-xs sm:text-sm font-bold text-gray-900 hover:text-emerald-700 flex items-center gap-1.5 transition-colors cursor-pointer group truncate"
-                      title="Abrir ficha completa do cliente"
-                    >
-                      <Building className="w-3.5 h-3.5 text-emerald-600 shrink-0 group-hover:scale-110 transition-transform" />
-                      <span className="truncate">{grupo.clienteNome}</span>
-                      <ExternalLink className="w-3 h-3 text-gray-400 group-hover:text-emerald-600 shrink-0 opacity-70 group-hover:opacity-100" />
-                    </button>
+                  const clientesIds = Array.isArray(contato.clientes_vinculados)
+                    ? contato.clientes_vinculados
+                    : []
+                  const clientesVinculados = clientesIds
+                    .map((id) => clientesMap.get(id))
+                    .filter(Boolean) as Cliente[]
 
-                    {clienteReal?.cidade && (
-                      <span className="text-[10px] text-gray-500 hidden sm:inline">
-                        • {clienteReal.cidade}
-                        {clienteReal.estado ? `/${clienteReal.estado}` : ''}
-                      </span>
-                    )}
-
-                    {clienteReal?.status && (
-                      <span className="text-[10px] font-semibold px-2 py-0.2 rounded-full bg-gray-100 text-gray-700 border border-gray-200 hidden md:inline">
-                        {clienteReal.status}
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-semibold text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">
-                      {grupo.contatos.length} {grupo.contatos.length === 1 ? 'contato' : 'contatos'}
-                    </span>
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setNovoClienteId(grupo.clienteId)
-                        setModalNovoOpen(true)
-                      }}
-                      className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 hover:text-emerald-800 hover:bg-emerald-50 px-2 py-1 rounded-lg transition-colors cursor-pointer"
-                      title="Adicionar contato para este cliente"
-                    >
-                      <Plus className="w-3 h-3" />
-                      <span>Adicionar</span>
-                    </button>
-                  </div>
-                </div>
-
-                {/* Linhas de Contatos deste Cliente */}
-                <div className="divide-y divide-gray-100">
-                  {grupo.contatos.map((contato) => {
-                    const isPrincipal = contato.origem === 'cliente_principal'
-                    const papelBadgeStyles: Record<string, string> = {
-                      principal: 'bg-emerald-100 text-emerald-800 border-emerald-300',
-                      financeiro: 'bg-blue-100 text-blue-800 border-blue-300',
-                      tecnico: 'bg-amber-100 text-amber-800 border-amber-300',
-                      responsavel: 'bg-purple-100 text-purple-800 border-purple-300',
-                      outro: 'bg-gray-100 text-gray-700 border-gray-300',
-                    }
-
-                    return (
-                      <div
-                        key={contato.id}
-                        className={`p-3 sm:px-4 sm:py-3 flex flex-col md:flex-row md:items-center justify-between gap-2.5 transition-colors ${
-                          isPrincipal ? 'bg-emerald-50/20' : 'hover:bg-gray-50/60'
-                        }`}
-                      >
-                        {/* Identificação e Papel */}
-                        <div className="flex items-center gap-2.5 min-w-[240px]">
-                          <div
-                            className={`w-7 h-7 rounded-full flex items-center justify-center text-xs shrink-0 ${
-                              isPrincipal
-                                ? 'bg-emerald-600 text-white shadow-2xs'
-                                : 'bg-gray-100 text-gray-600 border border-gray-200'
-                            }`}
-                          >
-                            {isPrincipal ? (
-                              <UserCheck className="w-3.5 h-3.5" />
-                            ) : (
-                              <User className="w-3.5 h-3.5" />
-                            )}
+                  return (
+                    <tr key={contato.id} className="hover:bg-emerald-50/20 transition-colors group">
+                      {/* Nome & Cargo */}
+                      <td className="py-3 px-4">
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200 flex items-center justify-center font-bold text-xs shrink-0">
+                            {(contato.nome || 'C').charAt(0).toUpperCase()}
                           </div>
-
                           <div className="min-w-0">
-                            <div className="flex items-center gap-1.5 flex-wrap">
-                              <span className="text-xs font-bold text-gray-900 truncate">
-                                {contato.nome}
-                              </span>
-
-                              {/* Selo do Papel */}
-                              <span
-                                className={`text-[9px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded border ${
-                                  papelBadgeStyles[contato.papel] || papelBadgeStyles.outro
-                                }`}
-                              >
-                                {contato.papelLabel}
-                              </span>
-
-                              {/* Indicador se é WhatsApp autoritativo */}
-                              {contato.isWhatsapp && (
-                                <span
-                                  className="inline-flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-300"
-                                  title="Número de WhatsApp do cliente (fonte da verdade autoritativa)"
-                                >
-                                  <WhatsAppIcon className="w-2.5 h-2.5 text-emerald-600" />
-                                  WhatsApp
-                                </span>
-                              )}
-                            </div>
-
-                            {contato.cargo && (
-                              <p className="text-[10px] text-gray-500 truncate mt-0.5">
+                            <span className="font-bold text-gray-900 block truncate max-w-[220px]">
+                              {contato.nome}
+                            </span>
+                            {contato.cargo ? (
+                              <span className="text-[10px] text-gray-500 block truncate max-w-[220px]">
                                 {contato.cargo}
-                              </p>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* Dados de Comunicação (Telefone / WhatsApp / E-mail) */}
-                        <div className="flex items-center gap-4 text-xs text-gray-600 flex-wrap">
-                          {/* Telefone / WhatsApp */}
-                          <div className="flex items-center gap-1.5 min-w-[130px]">
-                            {contato.isWhatsapp ? (
-                              <WhatsAppIcon className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                              </span>
                             ) : (
-                              <Phone className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                              <span className="text-[10px] text-gray-400 italic block">
+                                Sem cargo registrado
+                              </span>
                             )}
-                            <span className="font-mono text-gray-800 text-[11px]">
-                              {contato.telefone
-                                ? formatWhatsAppPhone(contato.telefone)
-                                : 'Sem telefone'}
-                            </span>
-                          </div>
-
-                          {/* E-mail */}
-                          <div className="flex items-center gap-1.5 min-w-[150px] max-w-[220px]">
-                            <Mail className="w-3.5 h-3.5 text-gray-400 shrink-0" />
-                            <span
-                              className="text-[11px] text-gray-700 truncate"
-                              title={contato.email || 'Não informado'}
-                            >
-                              {contato.email || (
-                                <span className="text-gray-400 italic">Sem e-mail</span>
-                              )}
-                            </span>
                           </div>
                         </div>
+                      </td>
 
-                        {/* Ações: Disparo WhatsApp e Exclusão (se adicional) */}
-                        <div className="flex items-center justify-end gap-1.5 shrink-0 pt-1 md:pt-0 border-t md:border-t-0 border-gray-100">
-                          {/* Botão de WhatsApp */}
-                          {contato.isWhatsapp &&
-                            (contato.numeroAutoritativo || contato.telefone) && (
-                              <button
-                                type="button"
-                                onClick={() => handleIniciarWhatsApp(contato)}
-                                className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 transition-colors shadow-2xs cursor-pointer"
-                                title="Iniciar conversa na Central de Atendimento"
+                      {/* Papel */}
+                      <td className="py-3 px-3 whitespace-nowrap">
+                        {renderPapelBadge(contato.papel)}
+                      </td>
+
+                      {/* WhatsApp / Telefone (com regra autoritativa) */}
+                      <td className="py-3 px-3 whitespace-nowrap">
+                        <div className="space-y-0.5">
+                          {temWppValido ? (
+                            <div className="flex items-center gap-1.5 font-mono text-gray-800">
+                              <WhatsAppIcon className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                              <span className="font-semibold">{formatWhatsAppPhone(numWpp)}</span>
+                              <span
+                                className="text-[9px] bg-emerald-100 text-emerald-800 px-1 py-0.2 rounded font-sans font-bold"
+                                title="Número autoritativo do contato"
                               >
-                                <MessageSquare className="w-3 h-3 text-emerald-600" />
-                                <span className="hidden sm:inline">WhatsApp</span>
-                              </button>
-                            )}
+                                Principal
+                              </span>
+                            </div>
+                          ) : (
+                            <span className="text-gray-400 italic text-[11px] flex items-center gap-1">
+                              <Phone className="w-3 h-3 text-gray-300" />
+                              Sem telefone
+                            </span>
+                          )}
 
-                          {/* Botão de Excluir Contato Adicional (apenas contatos adicionais) */}
-                          {!isPrincipal && (
+                          {contato.telefone &&
+                            contato.telefone !== contato.whatsapp &&
+                            contato.telefone !== '00000000000' && (
+                              <div className="text-[10px] text-gray-400 font-mono">
+                                Tel: {formatWhatsAppPhone(contato.telefone)}
+                              </div>
+                            )}
+                        </div>
+                      </td>
+
+                      {/* E-mail */}
+                      <td className="py-3 px-3">
+                        {contato.email ? (
+                          <div
+                            className="flex items-center gap-1 text-gray-700 truncate max-w-[180px]"
+                            title={contato.email}
+                          >
+                            <Mail className="w-3 h-3 text-gray-400 shrink-0" />
+                            <span className="truncate">{contato.email}</span>
+                          </div>
+                        ) : (
+                          <span className="text-gray-400 italic text-[11px]">Sem e-mail</span>
+                        )}
+                      </td>
+
+                      {/* Clientes Vinculados (N:N) */}
+                      <td className="py-3 px-4">
+                        {clientesVinculados.length > 0 ? (
+                          <div className="flex flex-wrap gap-1 items-center">
+                            {clientesVinculados.map((cli) => (
+                              <button
+                                key={cli.id}
+                                type="button"
+                                onClick={() => openFichaCliente(cli.id)}
+                                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-50 hover:bg-blue-100 text-blue-900 border border-blue-200 text-[10px] font-semibold transition-colors cursor-pointer"
+                                title="Abrir ficha do cliente vinculado"
+                              >
+                                <Building className="w-2.5 h-2.5 text-blue-600" />
+                                <span className="max-w-[130px] truncate">{cli.nome}</span>
+                                <ExternalLink className="w-2.5 h-2.5 opacity-60" />
+                              </button>
+                            ))}
+                          </div>
+                        ) : (
+                          <span className="text-gray-400 italic text-[11px]">
+                            Nenhum cliente vinculado
+                          </span>
+                        )}
+                      </td>
+
+                      {/* Ações */}
+                      <td className="py-3 px-4 text-right whitespace-nowrap">
+                        <div className="flex items-center justify-end gap-1.5">
+                          {/* Botão WhatsApp */}
+                          {temWppValido && (
                             <button
                               type="button"
-                              onClick={() =>
-                                setContatoParaExcluir({
-                                  id: contato.id,
-                                  nome: contato.nome,
-                                })
-                              }
-                              className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors cursor-pointer"
-                              title="Remover contato adicional"
+                              onClick={() => handleAbrirWhatsApp(numWpp)}
+                              className="inline-flex items-center gap-1 px-2 py-1 text-xs font-semibold rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 transition-colors shadow-2xs cursor-pointer"
+                              title="Iniciar conversa no WhatsApp"
                             >
-                              <Trash2 className="w-3.5 h-3.5" />
+                              <MessageSquare className="w-3 h-3 text-emerald-600" />
+                              <span className="hidden sm:inline">WhatsApp</span>
                             </button>
                           )}
+
+                          {/* Ver Detalhes */}
+                          <button
+                            type="button"
+                            onClick={() => setContatoDetalhes(contato)}
+                            className="p-1.5 text-gray-500 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors cursor-pointer"
+                            title="Ver ficha completa do contato"
+                          >
+                            <FileText className="w-3.5 h-3.5" />
+                          </button>
+
+                          {/* Editar */}
+                          <button
+                            type="button"
+                            onClick={() => handleEditarContato(contato)}
+                            className="p-1.5 text-gray-500 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
+                            title="Editar contato e vínculos"
+                          >
+                            <Edit2 className="w-3.5 h-3.5" />
+                          </button>
+
+                          {/* Excluir */}
+                          <button
+                            type="button"
+                            onClick={() => setContatoParaExcluir(contato)}
+                            className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
+                            title="Excluir contato"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
                         </div>
-                      </div>
-                    )
-                  })}
-                </div>
-              </div>
-            )
-          })}
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 
-      {/* Modal para Adicionar Novo Contato Adicional */}
-      <Dialog open={modalNovoOpen} onOpenChange={setModalNovoOpen}>
-        <DialogContent className="sm:max-w-md">
+      {/* Modal de Criação / Edição de Contato */}
+      <Dialog open={modalOpen} onOpenChange={setModalOpen}>
+        <DialogContent className="sm:max-w-xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-base font-bold text-gray-900">
-              <Plus className="w-4 h-4 text-emerald-600" />
-              Adicionar Contato ao Cliente
+              <UserCheck className="w-5 h-5 text-emerald-600" />
+              {contatoEmEdicao ? 'Editar Contato' : 'Novo Contato'}
             </DialogTitle>
             <DialogDescription className="text-xs text-gray-500">
-              Cadastre uma nova pessoa de contato vinculada a um cliente existente.
+              {contatoEmEdicao
+                ? 'Atualize os dados e vínculos deste contato. Um mesmo contato pode estar vinculado a múltiplos clientes.'
+                : 'Cadastre um novo contato independente no CRM ou vincule-o a clientes existentes.'}
             </DialogDescription>
           </DialogHeader>
 
-          <form onSubmit={handleSalvarNovoContato} className="space-y-3 pt-1">
-            <div>
-              <Label className="text-xs font-semibold text-gray-700">Cliente *</Label>
-              <select
-                required
-                value={novoClienteId}
-                onChange={(e) => setNovoClienteId(e.target.value)}
-                className="w-full text-xs bg-white border border-gray-300 rounded-md px-2.5 py-2 mt-1 focus:outline-hidden focus:ring-1 focus:ring-emerald-500 cursor-pointer"
-              >
-                <option value="">Selecione um cliente...</option>
-                {clientes.map((cli) => (
-                  <option key={cli.id} value={cli.id}>
-                    {cli.nome}
-                  </option>
-                ))}
-              </select>
-            </div>
-
+          <form onSubmit={handleSalvarContato} className="space-y-3.5 pt-1">
+            {/* Nome Completo */}
             <div>
               <Label className="text-xs font-semibold text-gray-700">Nome do Contato *</Label>
               <Input
                 required
-                placeholder="Ex: Carlos Oliveira"
-                value={novoNome}
-                onChange={(e) => setNovoNome(e.target.value)}
+                placeholder="Ex: Carlos Eduardo Silveira"
+                value={formNome}
+                onChange={(e) => setFormNome(e.target.value)}
                 className="text-xs mt-1"
+                autoFocus
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-2">
+            {/* Papel e Cargo */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
               <div>
-                <Label className="text-xs font-semibold text-gray-700">Papel *</Label>
+                <Label className="text-xs font-semibold text-gray-700">Papel do Contato *</Label>
                 <select
-                  value={novoPapel}
-                  onChange={(e) => setNovoPapel(e.target.value as PapelContatoTipo)}
+                  value={formPapel}
+                  onChange={(e) => setFormPapel(e.target.value as PapelContatoUnico)}
                   className="w-full text-xs bg-white border border-gray-300 rounded-md px-2.5 py-2 mt-1 focus:outline-hidden focus:ring-1 focus:ring-emerald-500 cursor-pointer"
                 >
-                  <option value="principal">Principal</option>
-                  <option value="financeiro">Financeiro</option>
-                  <option value="tecnico">Técnico</option>
-                  <option value="responsavel">Responsável</option>
-                  <option value="outro">Outro</option>
+                  {PAPEIS_CONTATO.map((p) => (
+                    <option key={p.value} value={p.value}>
+                      {p.label}
+                    </option>
+                  ))}
                 </select>
               </div>
 
               <div>
                 <Label className="text-xs font-semibold text-gray-700">Cargo / Função</Label>
                 <Input
-                  placeholder="Ex: Gerente Financeiro"
-                  value={novoCargo}
-                  onChange={(e) => setNovoCargo(e.target.value)}
+                  placeholder="Ex: Gerente Geral, Sócio, Eletricista..."
+                  value={formCargo}
+                  onChange={(e) => setFormCargo(e.target.value)}
                   className="text-xs mt-1"
                 />
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-2">
+            {/* WhatsApp e Telefone com Regra Autoritativa */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 bg-emerald-50/40 p-2.5 rounded-xl border border-emerald-200">
               <div>
-                <Label className="text-xs font-semibold text-gray-700">Telefone</Label>
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs font-bold text-emerald-900 flex items-center gap-1">
+                    <WhatsAppIcon className="w-3 h-3 text-emerald-600" />
+                    WhatsApp (Autoritativo)
+                  </Label>
+                  <span className="text-[9px] text-emerald-700 font-semibold">
+                    Fonte da Verdade
+                  </span>
+                </div>
                 <Input
                   placeholder="(00) 00000-0000"
-                  value={novoTelefone}
-                  onChange={(e) => setNovoTelefone(formatWhatsAppPhone(e.target.value))}
-                  className="text-xs mt-1"
+                  value={formWhatsApp}
+                  onChange={(e) => setFormWhatsApp(formatWhatsAppPhone(e.target.value))}
+                  onBlur={handleWhatsAppBlur}
+                  className="text-xs mt-1 bg-white border-emerald-300 focus:ring-emerald-500"
                 />
               </div>
 
               <div>
-                <Label className="text-xs font-semibold text-gray-700">E-mail</Label>
+                <Label className="text-xs font-semibold text-gray-700">Telefone / Fixo</Label>
                 <Input
-                  type="email"
-                  placeholder="email@empresa.com"
-                  value={novoEmail}
-                  onChange={(e) => setNovoEmail(e.target.value)}
-                  className="text-xs mt-1"
+                  placeholder="(00) 0000-0000"
+                  value={formTelefone}
+                  onChange={(e) => setFormTelefone(formatWhatsAppPhone(e.target.value))}
+                  onBlur={handleTelefoneBlur}
+                  className="text-xs mt-1 bg-white"
                 />
+              </div>
+
+              <div className="col-span-1 sm:col-span-2 text-[10px] text-emerald-800">
+                • Ao preencher o WhatsApp, o telefone será igualado ao WhatsApp caso divirjam.
               </div>
             </div>
 
-            <div className="pt-1">
-              <label className="inline-flex items-center gap-2 text-xs text-gray-700 cursor-pointer select-none">
-                <input
-                  type="checkbox"
-                  checked={novoIsWhatsapp}
-                  onChange={(e) => setNovoIsWhatsapp(e.target.checked)}
-                  className="w-3.5 h-3.5 text-emerald-600 rounded border-gray-300 focus:ring-emerald-500"
-                />
-                <span>Este número é WhatsApp de contato</span>
-              </label>
+            {/* E-mail */}
+            <div>
+              <Label className="text-xs font-semibold text-gray-700">E-mail</Label>
+              <Input
+                type="email"
+                placeholder="contato@empresa.com.br"
+                value={formEmail}
+                onChange={(e) => setFormEmail(e.target.value)}
+                className="text-xs mt-1"
+              />
+            </div>
+
+            {/* Vínculo N:N com Clientes */}
+            <div className="space-y-1.5 pt-1">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs font-semibold text-gray-800 flex items-center gap-1.5">
+                  <Building className="w-3.5 h-3.5 text-blue-600" />
+                  Vincular a Clientes ({formClientesVinculados.length} selecionados)
+                </Label>
+                <span className="text-[10px] text-gray-400">Relação muitos-para-muitos</span>
+              </div>
+              <div className="max-h-36 overflow-y-auto border border-gray-200 rounded-lg p-2 space-y-1 bg-gray-50/50">
+                {clientes.map((cli) => {
+                  const isChecked = formClientesVinculados.includes(cli.id)
+                  return (
+                    <label
+                      key={cli.id}
+                      className={`flex items-center gap-2 p-1.5 rounded-md text-xs cursor-pointer select-none transition-colors ${
+                        isChecked ? 'bg-blue-100/70 text-blue-900 font-semibold' : 'hover:bg-white'
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isChecked}
+                        onChange={() => handleToggleVinculoCliente(cli.id)}
+                        className="w-3.5 h-3.5 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                      />
+                      <span className="truncate">{cli.nome}</span>
+                      {cli.cidade && (
+                        <span className="text-[10px] text-gray-400 ml-auto">({cli.cidade})</span>
+                      )}
+                    </label>
+                  )
+                })}
+              </div>
+            </div>
+
+            {/* Vínculo com Negócios (se houver negócios cadastrados) */}
+            {negocios.length > 0 && (
+              <div className="space-y-1.5 pt-1">
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs font-semibold text-gray-800 flex items-center gap-1.5">
+                    <Briefcase className="w-3.5 h-3.5 text-amber-600" />
+                    Vincular a Negócios ({formNegociosVinculados.length} selecionados)
+                  </Label>
+                  <span className="text-[10px] text-gray-400">Opcional</span>
+                </div>
+                <div className="max-h-28 overflow-y-auto border border-gray-200 rounded-lg p-2 space-y-1 bg-gray-50/50">
+                  {negocios.map((neg) => {
+                    const isChecked = formNegociosVinculados.includes(neg.id)
+                    const cliDoNeg = neg.cliente_id ? clientesMap.get(neg.cliente_id) : null
+                    return (
+                      <label
+                        key={neg.id}
+                        className={`flex items-center gap-2 p-1.5 rounded-md text-xs cursor-pointer select-none transition-colors ${
+                          isChecked
+                            ? 'bg-amber-100/70 text-amber-900 font-semibold'
+                            : 'hover:bg-white'
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={() => handleToggleVinculoNegocio(neg.id)}
+                          className="w-3.5 h-3.5 text-amber-600 rounded border-gray-300 focus:ring-amber-500"
+                        />
+                        <span className="truncate">
+                          {neg.titulo || 'Negócio'} • R${' '}
+                          {(neg.valor_estimado || neg.valor || 0).toLocaleString('pt-BR')}
+                        </span>
+                        {cliDoNeg && (
+                          <span className="text-[10px] text-gray-400 ml-auto truncate max-w-[120px]">
+                            ({cliDoNeg.nome})
+                          </span>
+                        )}
+                      </label>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Observações */}
+            <div>
+              <Label className="text-xs font-semibold text-gray-700">Observações / Histórico</Label>
+              <Textarea
+                placeholder="Anotações adicionais, como conheceu, produtos de interesse..."
+                value={formObservacoes}
+                onChange={(e) => setFormObservacoes(e.target.value)}
+                className="text-xs mt-1 min-h-[70px]"
+              />
             </div>
 
             <DialogFooter className="pt-2">
@@ -833,7 +1088,7 @@ export const ContatosView: React.FC = () => {
                 type="button"
                 variant="outline"
                 size="sm"
-                onClick={() => setModalNovoOpen(false)}
+                onClick={() => setModalOpen(false)}
                 disabled={isSaving}
                 className="text-xs"
               >
@@ -842,55 +1097,190 @@ export const ContatosView: React.FC = () => {
               <Button
                 type="submit"
                 size="sm"
-                disabled={isSaving || !novoNome.trim() || !novoClienteId}
+                disabled={isSaving || !formNome.trim()}
                 className="text-xs font-bold bg-[#16A34A] hover:bg-[#15803D] text-white"
               >
-                {isSaving ? 'Salvando...' : 'Salvar Contato'}
+                {isSaving ? 'Salvando...' : contatoEmEdicao ? 'Salvar Alterações' : 'Criar Contato'}
               </Button>
             </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
 
-      {/* Modal de Confirmação de Exclusão */}
+      {/* Dialog Detalhes da Ficha do Contato */}
       <Dialog
-        open={Boolean(contatoParaExcluir)}
-        onOpenChange={(open) => !open && setContatoParaExcluir(null)}
+        open={Boolean(contatoDetalhes)}
+        onOpenChange={(open) => !open && setContatoDetalhes(null)}
       >
-        <DialogContent className="sm:max-w-sm">
+        <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle className="text-sm font-bold text-gray-900">
-              Confirmar exclusão
-            </DialogTitle>
-            <DialogDescription className="text-xs text-gray-600">
-              Deseja realmente remover o contato adicional{' '}
-              <strong>"{contatoParaExcluir?.nome}"</strong>? Esta ação não pode ser desfeita.
-            </DialogDescription>
+            <div className="flex items-center gap-2 mb-1">
+              <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold text-sm">
+                {(contatoDetalhes?.nome || 'C').charAt(0).toUpperCase()}
+              </div>
+              <div className="min-w-0">
+                <DialogTitle className="text-base text-gray-900 font-bold truncate">
+                  {contatoDetalhes?.nome}
+                </DialogTitle>
+                <DialogDescription className="text-xs text-gray-500">
+                  {contatoDetalhes?.cargo || 'Contato cadastrado no sistema'}
+                </DialogDescription>
+              </div>
+            </div>
           </DialogHeader>
-          <DialogFooter className="pt-2">
+
+          {contatoDetalhes && (
+            <div className="space-y-3 pt-2">
+              {/* Informações Básicas */}
+              <div className="grid grid-cols-2 gap-2 text-xs bg-gray-50 p-3 rounded-xl border border-gray-100">
+                <div>
+                  <span className="text-[10px] uppercase font-bold text-gray-400 block">Papel</span>
+                  <div className="mt-0.5">{renderPapelBadge(contatoDetalhes.papel)}</div>
+                </div>
+
+                <div>
+                  <span className="text-[10px] uppercase font-bold text-gray-400 block">
+                    WhatsApp (Autoritativo)
+                  </span>
+                  <div className="mt-0.5 font-mono text-gray-800">
+                    {contatoDetalhes.whatsapp
+                      ? formatWhatsAppPhone(contatoDetalhes.whatsapp)
+                      : 'Não informado'}
+                  </div>
+                </div>
+
+                <div>
+                  <span className="text-[10px] uppercase font-bold text-gray-400 block">
+                    Telefone Secundário
+                  </span>
+                  <div className="mt-0.5 font-mono text-gray-800">
+                    {contatoDetalhes.telefone
+                      ? formatWhatsAppPhone(contatoDetalhes.telefone)
+                      : 'Não informado'}
+                  </div>
+                </div>
+
+                <div>
+                  <span className="text-[10px] uppercase font-bold text-gray-400 block">
+                    E-mail
+                  </span>
+                  <div className="mt-0.5 text-gray-800 truncate" title={contatoDetalhes.email}>
+                    {contatoDetalhes.email || 'Não informado'}
+                  </div>
+                </div>
+              </div>
+
+              {/* Clientes Vinculados */}
+              <div className="space-y-1">
+                <span className="text-xs font-bold text-gray-700 uppercase tracking-wider block">
+                  Clientes Vinculados ({contatoDetalhes.clientes_vinculados?.length || 0})
+                </span>
+                {contatoDetalhes.clientes_vinculados &&
+                contatoDetalhes.clientes_vinculados.length > 0 ? (
+                  <div className="flex flex-wrap gap-1.5 p-2 bg-gray-50 rounded-lg border border-gray-100">
+                    {contatoDetalhes.clientes_vinculados.map((cliId) => {
+                      const cli = clientesMap.get(cliId)
+                      if (!cli) return null
+                      return (
+                        <button
+                          key={cli.id}
+                          type="button"
+                          onClick={() => {
+                            setContatoDetalhes(null)
+                            openFichaCliente(cli.id)
+                          }}
+                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-blue-50 hover:bg-blue-100 text-blue-900 border border-blue-200 text-xs font-semibold transition-colors cursor-pointer"
+                        >
+                          <Building className="w-3 h-3 text-blue-600" />
+                          <span>{cli.nome}</span>
+                          <ExternalLink className="w-3 h-3 opacity-60" />
+                        </button>
+                      )
+                    })}
+                  </div>
+                ) : (
+                  <p className="text-xs text-gray-400 italic p-2 bg-gray-50 rounded-lg">
+                    Nenhum cliente vinculado a este contato.
+                  </p>
+                )}
+              </div>
+
+              {/* Observações */}
+              {contatoDetalhes.observacoes && (
+                <div className="space-y-1">
+                  <span className="text-xs font-bold text-gray-700 uppercase tracking-wider block">
+                    Observações e Histórico
+                  </span>
+                  <div className="bg-slate-900 text-slate-100 rounded-xl p-3.5 text-xs font-mono whitespace-pre-wrap leading-relaxed max-h-[220px] overflow-y-auto border border-slate-800 shadow-inner select-text">
+                    {contatoDetalhes.observacoes}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          <DialogFooter className="pt-2 flex items-center justify-between">
             <Button
               type="button"
               variant="outline"
               size="sm"
-              onClick={() => setContatoParaExcluir(null)}
-              disabled={isDeleting}
+              onClick={() => {
+                if (contatoDetalhes) {
+                  const c = contatoDetalhes
+                  setContatoDetalhes(null)
+                  handleEditarContato(c)
+                }
+              }}
               className="text-xs"
             >
-              Cancelar
+              <Edit2 className="w-3.5 h-3.5 mr-1" />
+              Editar Ficha
             </Button>
+
             <Button
               type="button"
-              variant="destructive"
+              variant="outline"
               size="sm"
-              onClick={handleExcluirContatoAdicional}
-              disabled={isDeleting}
-              className="text-xs font-bold"
+              onClick={() => setContatoDetalhes(null)}
+              className="text-xs"
             >
-              {isDeleting ? 'Excluindo...' : 'Remover Contato'}
+              Fechar
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* AlertDialog de Confirmação de Exclusão */}
+      <AlertDialog
+        open={Boolean(contatoParaExcluir)}
+        onOpenChange={(open) => !open && !isDeleting && setContatoParaExcluir(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <div className="flex items-center gap-2 text-red-600 mb-1">
+              <AlertCircle className="w-5 h-5" />
+              <AlertDialogTitle>Excluir Contato</AlertDialogTitle>
+            </div>
+            <AlertDialogDescription className="text-xs text-gray-600">
+              Tem certeza que deseja excluir o contato{' '}
+              <strong className="text-gray-900 font-semibold">"{contatoParaExcluir?.nome}"</strong>?
+              Esta ação removerá o registro do cadastro centralizado de contatos.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting} onClick={() => setContatoParaExcluir(null)}>
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              disabled={isDeleting}
+              onClick={handleConfirmarExclusao}
+              className="bg-red-600 hover:bg-red-700 text-white focus:ring-red-600 text-xs font-bold"
+            >
+              {isDeleting ? 'Excluindo...' : 'Confirmar Exclusão'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

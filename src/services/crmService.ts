@@ -1907,6 +1907,23 @@ export async function moverClienteParaOutrosContatos(
     observacao: observacaoFinal,
   })
 
+  // Criar também no cadastro único 'contatos' de forma aditiva
+  try {
+    const isTelValido = telefoneContato && telefoneContato !== '00000000000'
+    const telWpp = isTelValido ? telefoneContato : ''
+    await pb.collection('contatos').create({
+      nome: nomeContato,
+      telefone: telWpp,
+      whatsapp: telWpp,
+      email: cliente.email || '',
+      papel: 'lead',
+      observacoes: observacaoFinal,
+      origem_registro: 'movido_funil_vendas',
+    })
+  } catch (syncErr) {
+    console.warn('Registro em contatos unificados omitido/falhou:', syncErr)
+  }
+
   // Exclui o cliente e suas coleções dependentes
   await deleteCliente(cliente.id)
 

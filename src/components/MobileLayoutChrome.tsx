@@ -308,6 +308,7 @@ export const MobileLayoutChrome: React.FC<MobileLayoutChromeProps> = ({
         { label: 'Central de Atividades', path: '/central-atividades', icon: Layers },
         { label: 'Atividades & Calendário', path: '/atividades', icon: CalendarCheck },
         { label: 'Gestão de Clientes', path: '/clientes', icon: Users },
+        { label: 'Contatos', path: '/contatos', icon: Contact },
         { label: 'Base de Conhecimento', path: '/base-conhecimento', icon: BookOpen },
       ],
     },

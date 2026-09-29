@@ -18,6 +18,7 @@ import {
   Clock,
   Sparkles,
 } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 import { OutroContato, OutroContatoTipo } from '@/types/crm'
 import { fetchOutrosContatos, deleteOutroContato } from '@/services/crmService'
 import { formatDateTime, formatWhatsAppPhone, cleanPhoneDigits } from '@/lib/formatters'
@@ -46,6 +47,7 @@ interface OutrosContatosViewProps {
 }
 
 export function OutrosContatosView({ onTotalChange }: OutrosContatosViewProps) {
+  const navigate = useNavigate()
   const [contatos, setContatos] = useState<OutroContato[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isRefreshing, setIsRefreshing] = useState(false)
@@ -215,6 +217,39 @@ export function OutrosContatosView({ onTotalChange }: OutrosContatosViewProps) {
 
   return (
     <div className="space-y-4">
+      {/* Banner de Direcionamento para a Nova Área Única de Contatos */}
+      <div className="rounded-2xl bg-gradient-to-r from-emerald-600 to-emerald-700 text-white p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center text-white shrink-0">
+            <Users className="w-5 h-5" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="font-bold text-sm sm:text-base">
+                Nova Área Centralizada de Contatos
+              </span>
+              <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-white/20 text-white">
+                Recomendado
+              </span>
+            </div>
+            <p className="text-xs text-emerald-100 max-w-2xl mt-0.5">
+              Todos os contatos do CRM (clientes, leads, fornecedores, técnicos, parceiros e
+              familiares) agora contam com uma área unificada no menu principal, com vínculo N:N com
+              clientes/negócios e WhatsApp autoritativo.
+            </p>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => navigate('/contatos')}
+          className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white hover:bg-emerald-50 text-emerald-900 font-bold text-xs shrink-0 shadow-xs transition-colors cursor-pointer"
+        >
+          <span>Acessar Cadastro Único</span>
+          <ExternalLink className="w-3.5 h-3.5" />
+        </button>
+      </div>
+
       {/* Banner Explicativo amigável para usuário leigo */}
       <div className="rounded-xl bg-gradient-to-r from-blue-50/80 via-emerald-50/60 to-white border border-blue-200/80 p-4 flex items-start justify-between gap-4 shadow-2xs">
         <div className="flex items-start gap-3">

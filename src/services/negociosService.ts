@@ -39,6 +39,8 @@ export async function fetchNegociosByClienteId(clienteId: string): Promise<Negoc
 /**
  * Busca todos os negócios do sistema (geral).
  */
+export const fetchNegocios = fetchAllNegocios
+
 export async function fetchAllNegocios(): Promise<Negocio[]> {
   try {
     const records = await pb.collection('negocios').getFullList<Negocio>({

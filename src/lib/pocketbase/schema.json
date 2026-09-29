@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-29T11:18:22.038Z",
+  "generatedAt": "2026-09-29T11:34:37.676Z",
   "collections": [
     {
       "name": "users",
@@ -6046,6 +6046,113 @@
         "CREATE INDEX idx_ativos_num_serie ON ativos (numero_serie)",
         "CREATE INDEX `idx_ativos_chave_importacao` ON `ativos` (chave_importacao)"
       ]
+    },
+    {
+      "name": "contatos",
+      "type": "base",
+      "apiRules": {
+        "list": "",
+        "view": "",
+        "create": "",
+        "update": "",
+        "delete": ""
+      },
+      "fields": [
+        {
+          "name": "nome",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "telefone",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "whatsapp",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "email",
+          "type": "email",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "papel",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": [
+            "cliente",
+            "lead",
+            "fornecedor",
+            "tecnico",
+            "parceiro",
+            "familiar",
+            "responsavel",
+            "financeiro",
+            "outro"
+          ]
+        },
+        {
+          "name": "cargo",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "observacoes",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "clientes_vinculados",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "clientes"
+        },
+        {
+          "name": "negocios_vinculados",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "negocios"
+        },
+        {
+          "name": "conversa_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "origem_registro",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": []
     }
   ]
 }

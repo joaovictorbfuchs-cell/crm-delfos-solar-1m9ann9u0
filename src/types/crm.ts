@@ -742,6 +742,40 @@ export interface OutroContato extends RecordModel {
   updated: string
 }
 
+export type PapelContatoUnico =
+  | 'cliente'
+  | 'lead'
+  | 'fornecedor'
+  | 'tecnico'
+  | 'parceiro'
+  | 'familiar'
+  | 'responsavel'
+  | 'financeiro'
+  | 'outro'
+
+export interface ContatoUnico extends RecordModel {
+  id: string
+  collectionId: string
+  collectionName: string
+  nome: string
+  telefone?: string
+  whatsapp?: string
+  email?: string
+  papel: PapelContatoUnico | string
+  cargo?: string
+  observacoes?: string
+  clientes_vinculados?: string[]
+  negocios_vinculados?: string[]
+  conversa_id?: string
+  origem_registro?: string
+  created: string
+  updated: string
+  expand?: {
+    clientes_vinculados?: Cliente[]
+    negocios_vinculados?: Negocio[]
+  }
+}
+
 export interface Sistema extends RecordModel {
   id: string
   collectionId: string
