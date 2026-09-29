@@ -844,7 +844,24 @@ export const FichaClienteDrawer: React.FC = () => {
   }
 
   const handleUpdateClienteField = async (field: keyof Cliente, value: unknown) => {
-    await updateCliente(selectedCliente.id, { [field]: value } as Partial<Cliente>)
+    const patch: Partial<Cliente> = { [field]: value } as Partial<Cliente>
+    if (field === 'whatsapp') {
+      const waVal = String(value || '').trim()
+      // Regra permanente do CRM Delfos Solar:
+      // WhatsApp é o número autoritativo do cliente — quando divergir, o telefone é igualado ao WhatsApp.
+      if (waVal) {
+        patch.telefone = waVal
+      }
+    } else if (field === 'telefone') {
+      const telVal = String(value || '').trim()
+      // Regra permanente do CRM Delfos Solar:
+      // Telefone copia para WhatsApp APENAS se o WhatsApp estiver vazio.
+      const waAtual = (selectedCliente.whatsapp || '').trim()
+      if (!waAtual && telVal) {
+        patch.whatsapp = telVal
+      }
+    }
+    await updateCliente(selectedCliente.id, patch)
   }
 
   const handleUpdateSistemaField = async (field: keyof Sistema, value: unknown) => {
