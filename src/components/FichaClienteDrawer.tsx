@@ -2273,10 +2273,8 @@ export const FichaClienteDrawer: React.FC = () => {
                                       </button>
                                     </div>
                                   </div>
-                                )}
-                              </div>
-                            </div>                        )
-                      })()}
+                                )
+                              })()}
 
                       {/* Histórico de Mudanças de Etapa com Datas */}
                       <div className="space-y-3">
@@ -2346,9 +2344,8 @@ export const FichaClienteDrawer: React.FC = () => {
                         )}
                       </div>
                     </div>
-                  )}
-                </div>
-              )}
+                  </div>
+                </div>              )}
 
               {/* ======================================================== */}
               {/* ABA HISTÓRICO: Linha do tempo, anotações e atividades     */}
