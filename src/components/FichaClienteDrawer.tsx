@@ -2385,8 +2385,7 @@ export const FichaClienteDrawer: React.FC = () => {
               {/* ABA CADASTRO: Identificação PF/PJ + Contatos Adicionais   */}
               {/* ======================================================== */}
               {activeClientTab === 'cadastro' && (
-                <div className="space-y-4">
-                  <div
+                <div className="space-y-4">                  <div
                     ref={detalhesSectionRef}
                     className="p-4 bg-emerald-50/40 rounded-xl border border-emerald-200/70 space-y-4 animate-in fade-in duration-200"
                   >
@@ -4044,7 +4043,6 @@ export const FichaClienteDrawer: React.FC = () => {
                       )}
                     </div>
                   )}
-
                   {/* ======================================================== */}
                   {/* TOPO DA ABA HISTÓRICO: ÁREA RÁPIDA DE NOVA ENTRADA       */}
                   {/* Alterna Anotação vs Agendar Atividade (Seleção 2 etapas) */}
