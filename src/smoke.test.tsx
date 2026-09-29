@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import React from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
+import { render, act } from '@testing-library/react'
 import Login from './pages/Login'
 import App from './App'
 import { AuthProvider } from './contexts/AuthContext'
@@ -84,6 +85,44 @@ describe('Login e App Smoke Tests', () => {
     expect(html).not.toContain('Erro inesperado na aplicação')
     expect(html).toBeDefined()
     expect(html.length).toBeGreaterThan(0)
+  })
+
+  it('montagem REAL no DOM (render completo via React 19) na rota "/" autenticado confirma montagem e ausência de delfos_last_boundary_error', async () => {
+    window.sessionStorage.clear()
+    pb.authStore.save('mock-token-real-render', {
+      id: 'usr-admin-1',
+      collectionId: '_pb_users_auth_',
+      collectionName: 'users',
+      name: 'Administrador Delfos',
+      email: 'admin@delfos.com.br',
+      role: 'admin',
+      ativo: true,
+    })
+
+    window.history.pushState({}, 'Dashboard', '/')
+
+    const originalError = console.error
+    console.error = vi.fn()
+
+    let container: HTMLElement | null = null
+    await act(async () => {
+      const res = render(React.createElement(App, null))
+      container = res.container
+    })
+
+    console.error = originalError
+
+    // Verifica sessionStorage: NÃO pode haver 'delfos_last_boundary_error'
+    const storedError = window.sessionStorage.getItem('delfos_last_boundary_error')
+    expect(storedError).toBeNull()
+
+    // Verifica que o DOM montado contém elementos do CRM e não fallbacks de erro
+    expect(container).not.toBeNull()
+    const textContent = container?.textContent || ''
+    expect(textContent).not.toContain('Ocorreu um problema ao carregar a página inicial do CRM')
+    expect(textContent).not.toContain('Ocorreu um problema ao carregar o Dashboard')
+    expect(textContent).not.toContain('Ops! Algo deu errado')
+    expect(textContent).not.toContain('Erro inesperado na aplicação')
   })
 
   it('renderiza ProtectedRoute com fallback seguro quando deslogado', () => {
