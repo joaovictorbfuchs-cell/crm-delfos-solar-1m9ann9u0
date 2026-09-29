@@ -28,30 +28,23 @@ export function getErrorMessage(error: unknown): string {
   return msgs.length > 0 ? msgs.join(' ') : error.message || 'An unexpected error occurred.'
 }
 
-/**
- * Identifica se um erro recebido é relacionado a expiração, invalidação ou falha de sessão/autenticação.
- */
 export function isAuthSessionError(error: unknown): boolean {
   if (!error) return false
   if (typeof error === 'object') {
-    const err = error as Record<string, unknown>
-    if (
-      err.status === 401 ||
-      err.status === 403 ||
-      err.statusCode === 401 ||
-      err.statusCode === 403
-    ) {
-      return true
-    }
-    const msg = String(err.message || '').toLowerCase()
-    if (
-      msg.includes('token') &&
-      (msg.includes('expired') || msg.includes('invalid') || msg.includes('revoked'))
-    ) {
-      return true
-    }
-    if (msg.includes('unauthorized') || msg.includes('forbidden') || msg.includes('autentica')) {
-      return true
+    const errObj = error as Record<string, unknown>
+    if (errObj.status === 401 || errObj.status === 403) return true
+    if (errObj.statusCode === 401 || errObj.statusCode === 403) return true
+    if (typeof errObj.message === 'string') {
+      const msg = errObj.message.toLowerCase()
+      if (
+        msg.includes('token is expired') ||
+        msg.includes('token expired') ||
+        msg.includes('failed to authenticate') ||
+        msg.includes('unauthorized') ||
+        msg.includes('token is invalid')
+      ) {
+        return true
+      }
     }
   }
   return false

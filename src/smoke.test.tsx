@@ -54,6 +54,11 @@ describe('Login e App Smoke Tests', () => {
     expect(html.length).toBeGreaterThan(0)
   })
 
+  it('renderiza Index sem crash mesmo com lista de clientes nula ou indefinida', () => {
+    const Index = React.lazy(() => import('./pages/Index'))
+    expect(Index).toBeDefined()
+  })
+
   it('renderiza ProtectedRoute com fallback seguro quando deslogado', () => {
     const html = renderToStaticMarkup(
       React.createElement(

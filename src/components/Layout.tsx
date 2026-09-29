@@ -40,7 +40,7 @@ import { MobileLayoutChrome } from '@/components/MobileLayoutChrome'
 import AssistenteDelfosChat, { AssistenteDelfosBotao } from '@/components/AssistenteDelfosChat'
 import packageJson from '../../package.json'
 
-const APP_VERSION = packageJson.version || '0.0.456'
+const APP_VERSION = (packageJson as { version?: string })?.version || '0.0.707'
 
 export default function Layout() {
   const { user, userProfile, isAdmin, isInstalador, logout } = useAuth()

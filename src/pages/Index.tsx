@@ -34,6 +34,7 @@ export default function Index() {
   const negociosEmAberto = safeClientes.filter(
     (c) =>
       Boolean(c) &&
+      c.status &&
       STATUS_EM_ABERTO.includes(c.status) &&
       (c.status as string) !== 'Perdido' &&
       (c.status as string) !== 'Fechado' &&

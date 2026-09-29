@@ -35,6 +35,18 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
     console.error('ErrorBoundary capturou uma exceção:', error, errorInfo)
+    try {
+      console.error('Detalhes do componente capturado pelo ErrorBoundary:', {
+        errorMessage: this.props.errorMessage,
+        message: error?.message,
+        stack: error?.stack,
+        componentStack: errorInfo?.componentStack,
+        url: window.location.href,
+        pathname: window.location.pathname,
+      })
+    } catch {
+      // Ignora erro de logging
+    }
     if (this.props.onError) {
       try {
         this.props.onError(error, errorInfo)
