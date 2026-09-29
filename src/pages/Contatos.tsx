@@ -53,7 +53,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import {
-  fetchContatosUnicos,
+  fetchContatosConsolidados,
   createContatoUnico,
   updateContatoUnico,
   deleteContatoUnico,
@@ -164,27 +164,32 @@ export const ContatosView: React.FC = () => {
   // Modal Visualizar Detalhes
   const [contatoDetalhes, setContatoDetalhes] = useState<ContatoUnico | null>(null)
 
-  // Carregar contatos e negócios
-  const carregarDados = useCallback(async (isRefresh = false) => {
-    try {
-      if (isRefresh) setIsRefreshing(true)
-      else setIsLoading(true)
+  // Carregar contatos e negócios (consolidando contatos, clientes vivos e contatos adicionais)
+  const carregarDados = useCallback(
+    async (isRefresh = false) => {
+      try {
+        if (isRefresh) setIsRefreshing(true)
+        else setIsLoading(true)
 
-      const [contatosData, negociosData] = await Promise.all([
-        fetchContatosUnicos(),
-        fetchNegocios(),
-      ])
+        const [contatosData, negociosData] = await Promise.all([
+          fetchContatosConsolidados({
+            clientesPrecarregados: clientes && clientes.length > 0 ? clientes : undefined,
+          }),
+          fetchNegocios(),
+        ])
 
-      setContatos(contatosData)
-      setNegocios(negociosData)
-    } catch (err) {
-      console.error('Erro ao carregar contatos unificados:', err)
-      toast.error('Erro ao carregar contatos. Tente novamente.')
-    } finally {
-      setIsLoading(false)
-      setIsRefreshing(false)
-    }
-  }, [])
+        setContatos(contatosData)
+        setNegocios(negociosData)
+      } catch (err) {
+        console.error('Erro ao carregar contatos consolidados:', err)
+        toast.error('Erro ao carregar contatos. Tente novamente.')
+      } finally {
+        setIsLoading(false)
+        setIsRefreshing(false)
+      }
+    },
+    [clientes],
+  )
 
   useEffect(() => {
     carregarDados()
@@ -269,19 +274,44 @@ export const ContatosView: React.FC = () => {
     setIsSaving(true)
     try {
       if (contatoEmEdicao) {
-        const updated = await updateContatoUnico(contatoEmEdicao.id, {
-          nome: formNome.trim(),
-          telefone: telefones.telefone,
-          whatsapp: telefones.whatsapp,
-          email: formEmail.trim(),
-          papel: formPapel,
-          cargo: formCargo.trim(),
-          observacoes: formObservacoes.trim(),
-          clientes_vinculados: formClientesVinculados,
-          negocios_vinculados: formNegociosVinculados,
-        })
-        setContatos((prev) => prev.map((c) => (c.id === updated.id ? updated : c)))
-        toast.success(`Contato "${updated.nome}" atualizado com sucesso!`)
+        // Se for um contato consolidado ainda não persistido diretamente em `contatos`
+        const isVirtual =
+          contatoEmEdicao.id.startsWith('cli_') ||
+          contatoEmEdicao.id.startsWith('ca_') ||
+          contatoEmEdicao.origem_registro === 'cliente_base_viva' ||
+          contatoEmEdicao.origem_registro === 'contato_adicional'
+
+        if (isVirtual) {
+          // Persiste na coleção contatos unificada
+          const created = await createContatoUnico({
+            nome: formNome.trim(),
+            telefone: telefones.telefone,
+            whatsapp: telefones.whatsapp,
+            email: formEmail.trim(),
+            papel: formPapel,
+            cargo: formCargo.trim(),
+            observacoes: formObservacoes.trim(),
+            clientes_vinculados: formClientesVinculados,
+            negocios_vinculados: formNegociosVinculados,
+            origem_registro: 'area_contatos_unificada',
+          })
+          setContatos((prev) => prev.map((c) => (c.id === contatoEmEdicao.id ? created : c)))
+          toast.success(`Contato "${created.nome}" consolidado e salvo com sucesso!`)
+        } else {
+          const updated = await updateContatoUnico(contatoEmEdicao.id, {
+            nome: formNome.trim(),
+            telefone: telefones.telefone,
+            whatsapp: telefones.whatsapp,
+            email: formEmail.trim(),
+            papel: formPapel,
+            cargo: formCargo.trim(),
+            observacoes: formObservacoes.trim(),
+            clientes_vinculados: formClientesVinculados,
+            negocios_vinculados: formNegociosVinculados,
+          })
+          setContatos((prev) => prev.map((c) => (c.id === updated.id ? updated : c)))
+          toast.success(`Contato "${updated.nome}" atualizado com sucesso!`)
+        }
       } else {
         const created = await createContatoUnico({
           nome: formNome.trim(),
@@ -312,6 +342,28 @@ export const ContatosView: React.FC = () => {
     if (!contatoParaExcluir) return
     setIsDeleting(true)
     try {
+      // Se for virtual (derivado de cliente ou contato_adicional), avisa e não tenta deletar na tabela contatos
+      if (
+        contatoParaExcluir.id.startsWith('cli_') ||
+        contatoParaExcluir.origem_registro === 'cliente_base_viva'
+      ) {
+        toast.info(
+          'Este contato é o titular de um cliente da base viva. Para removê-lo, gerencie o cliente na tela de Clientes.',
+        )
+        setContatoParaExcluir(null)
+        return
+      }
+      if (
+        contatoParaExcluir.id.startsWith('ca_') ||
+        contatoParaExcluir.origem_registro === 'contato_adicional'
+      ) {
+        toast.info(
+          'Este contato é um contato secundário vinculado a um cliente. Para removê-lo, acesse a ficha do cliente.',
+        )
+        setContatoParaExcluir(null)
+        return
+      }
+
       await deleteContatoUnico(contatoParaExcluir.id)
       setContatos((prev) => prev.filter((c) => c.id !== contatoParaExcluir.id))
       toast.success(`Contato "${contatoParaExcluir.nome}" excluído.`)
