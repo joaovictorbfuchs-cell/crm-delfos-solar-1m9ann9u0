@@ -35,9 +35,10 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, requir
   const isPbAuthValid = Boolean(pb.authStore.isValid)
 
   // Se a sessão expirou ou não for válida no PocketBase, exibir toast informativo
-  // e redirecionar para a tela de login
+  // apenas se o usuário tinha alguma credencial/token prévia que expirou (evitando toast falso ao entrar pela primeira vez deslogado)
   React.useEffect(() => {
-    if (!isLoading && (!isAuthenticated || !isPbAuthValid)) {
+    const hadPreviousToken = Boolean(pb.authStore.token)
+    if (!isLoading && (!isAuthenticated || !isPbAuthValid) && hadPreviousToken) {
       const now = Date.now()
       if (now - lastToastTime > 5000) {
         lastToastTime = now
@@ -64,14 +65,14 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, requir
     return <Navigate to="/login" state={{ from: currentPath }} replace />
   }
 
-  // Se rota requer admin e usuário for instalador, redireciona para /execucao-os
+  // Se rota requer admin e usuário for instalador, redireciona para rota do instalador (/minhas-os)
   if (requiredRole === 'admin' && !isAdmin) {
-    return <Navigate to="/execucao-os" replace />
+    return <Navigate to="/minhas-os" replace />
   }
 
-  // Se for instalador e não for uma rota permitida a instalador
+  // Se for instalador e não for uma rota permitida a instalador, redireciona para /minhas-os
   if (isInstalador && requiredRole !== 'instalador' && requiredRole !== undefined) {
-    return <Navigate to="/execucao-os" replace />
+    return <Navigate to="/minhas-os" replace />
   }
 
   if (!children) {
