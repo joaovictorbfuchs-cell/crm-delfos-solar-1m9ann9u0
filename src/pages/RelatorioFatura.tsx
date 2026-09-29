@@ -74,11 +74,26 @@ export const RelatorioFaturaPage: React.FC = () => {
 
         if (data.cliente_id) {
           try {
-            const cli = await import('@/lib/pocketbase/client').then((m) =>
-              m.default.collection('clientes').getOne(data.cliente_id!),
-            )
-            const tel = cli.whatsapp || cli.telefone || ''
-            if (tel) setClienteTelefone(tel)
+            const clientModule = await import('@/lib/pocketbase/client')
+            const pbInst = clientModule.pb || clientModule.default
+            const cli = await pbInst.collection('clientes').getOne(data.cliente_id!)
+            let contatosDoCli: any[] = []
+            try {
+              contatosDoCli = await pbInst.collection('contatos_adicionais').getFullList({
+                filter: `cliente_id = "${data.cliente_id}"`,
+              })
+            } catch {
+              /* ignore */
+            }
+
+            const { resolverNumeroDestinoCliente } =
+              await import('@/lib/resolverNumeroDestinoCliente')
+            const resolucao = await resolverNumeroDestinoCliente(cli, {
+              contatosAdicionais: contatosDoCli,
+            })
+            if (resolucao.numeroFormatado || resolucao.numero) {
+              setClienteTelefone(resolucao.numeroFormatado || resolucao.numero)
+            }
           } catch {
             /* intentionally ignored */
           }

@@ -38,6 +38,11 @@ import { toast } from 'sonner'
 import { formatCurrency, formatWhatsAppPhone } from '@/lib/formatters'
 import { validarNumeroWhatsApp } from '@/lib/propostaWhatsAppService'
 import { isAuthSessionError } from '@/lib/pocketbase/errors'
+import {
+  resolverNumeroDestinoClienteSync,
+  MENSAGEM_ALERTA_SEM_NUMERO,
+  type OrigemNumeroDestino,
+} from '@/lib/resolverNumeroDestinoCliente'
 import { SessaoExpiradaAlert } from '@/components/SessaoExpiradaAlert'
 import {
   MENSAGEM_OFERTA_LIMPEZA_PADRAO,
@@ -82,6 +87,8 @@ interface ItemClienteOferta {
   potenciaTexto: string
   cidade: string
   telefoneAutoritativo: string
+  origemNumero?: OrigemNumeroDestino
+  contatoAdicionalNome?: string
   temWhatsAppValido: boolean
   numeroLimpo: string
 }
@@ -98,6 +105,7 @@ export const ModalOferecerLimpezaAvulsa: React.FC<ModalOferecerLimpezaAvulsaProp
 }) => {
   const {
     clientes,
+    contatosAdicionais,
     sistemas,
     sendWhatsAppMessage,
     addAtividade,
@@ -161,9 +169,14 @@ export const ModalOferecerLimpezaAvulsa: React.FC<ModalOferecerLimpezaAvulsaProp
         usinaVinculada ? ([usinaVinculada as any] as UsinaCliente[]) : [],
       )
 
-      // Regra de ouro do projeto: WhatsApp é o número autoritativo do cliente; telefone fallback
-      const telAutoritativo = cli.whatsapp || cli.telefone || ''
-      const validacao = validarNumeroWhatsApp(telAutoritativo)
+      // Resolução via utilitário central (WhatsApp -> Contato Adicional -> Telefone)
+      const caDoCli = Array.isArray(contatosAdicionais)
+        ? contatosAdicionais.filter((ca) => ca.cliente_id === cli.id)
+        : []
+      const resolucao = resolverNumeroDestinoClienteSync(cli, caDoCli)
+      const telAutoritativo =
+        resolucao.numeroFormatado || resolucao.numero || cli.whatsapp || cli.telefone || ''
+      const validacao = validarNumeroWhatsApp(resolucao.numero || telAutoritativo)
 
       return {
         cliente: cli,
@@ -174,11 +187,13 @@ export const ModalOferecerLimpezaAvulsa: React.FC<ModalOferecerLimpezaAvulsaProp
         potenciaTexto,
         cidade: (cli.cidade || usinaVinculada?.endereco || 'Erechim').trim(),
         telefoneAutoritativo: telAutoritativo,
-        temWhatsAppValido: validacao.valido,
-        numeroLimpo: validacao.numeroLimpo,
+        origemNumero: resolucao.origem,
+        contatoAdicionalNome: resolucao.contatoAdicionalNome,
+        temWhatsAppValido: validacao.valido && resolucao.origem !== 'nenhum',
+        numeroLimpo: validacao.numeroLimpo || resolucao.numeroLimpo || '',
       }
     })
-  }, [clientes, clienteContexto, sistemaContexto, sistemas, usinasContexto])
+  }, [clientes, contatosAdicionais, clienteContexto, sistemaContexto, sistemas, usinasContexto])
 
   // Filtragem pela busca
   const clientesFiltrados = useMemo(() => {
@@ -216,8 +231,17 @@ export const ModalOferecerLimpezaAvulsa: React.FC<ModalOferecerLimpezaAvulsaProp
         clienteContexto,
         usinaVinculada ? ([usinaVinculada as any] as UsinaCliente[]) : [],
       )
-      const telAutoritativo = clienteContexto.whatsapp || clienteContexto.telefone || ''
-      const validacao = validarNumeroWhatsApp(telAutoritativo)
+      const caDoCli = Array.isArray(contatosAdicionais)
+        ? contatosAdicionais.filter((ca) => ca.cliente_id === clienteContexto.id)
+        : []
+      const resolucao = resolverNumeroDestinoClienteSync(clienteContexto, caDoCli)
+      const telAutoritativo =
+        resolucao.numeroFormatado ||
+        resolucao.numero ||
+        clienteContexto.whatsapp ||
+        clienteContexto.telefone ||
+        ''
+      const validacao = validarNumeroWhatsApp(resolucao.numero || telAutoritativo)
 
       return {
         cliente: clienteContexto,
@@ -228,8 +252,10 @@ export const ModalOferecerLimpezaAvulsa: React.FC<ModalOferecerLimpezaAvulsaProp
         potenciaTexto,
         cidade: (clienteContexto.cidade || usinaVinculada?.endereco || 'Erechim').trim(),
         telefoneAutoritativo: telAutoritativo,
-        temWhatsAppValido: validacao.valido,
-        numeroLimpo: validacao.numeroLimpo,
+        origemNumero: resolucao.origem,
+        contatoAdicionalNome: resolucao.contatoAdicionalNome,
+        temWhatsAppValido: validacao.valido && resolucao.origem !== 'nenhum',
+        numeroLimpo: validacao.numeroLimpo || resolucao.numeroLimpo || '',
       }
     }
 
@@ -240,6 +266,7 @@ export const ModalOferecerLimpezaAvulsa: React.FC<ModalOferecerLimpezaAvulsaProp
     return null
   }, [
     clienteContexto,
+    contatosAdicionais,
     clienteAlvoId,
     clientesProcessados,
     usinasContexto,
@@ -450,18 +477,16 @@ export const ModalOferecerLimpezaAvulsa: React.FC<ModalOferecerLimpezaAvulsaProp
         return
       }
 
-      // Validação do número de WhatsApp do cliente
-      const rawWa = item.cliente.whatsapp || item.cliente.telefone || ''
-      const validacaoWa = validarNumeroWhatsApp(rawWa)
-      if (!validacaoWa.valido) {
-        toast.error('Número de WhatsApp inválido ou não cadastrado.', {
-          description: 'Informe o WhatsApp oficial do cliente antes de enviar a oferta.',
+      // Validação do número de destino via utilitário central
+      if (!item.temWhatsAppValido || !item.numeroLimpo) {
+        toast.error('Envio não realizado', {
+          description: MENSAGEM_ALERTA_SEM_NUMERO,
         })
         return
       }
 
       // Formata número DDI 55 + DDD + dígitos
-      let cleanDigits = validacaoWa.numeroLimpo.replace(/\D/g, '')
+      let cleanDigits = item.numeroLimpo.replace(/\D/g, '')
       if (cleanDigits.length >= 10 && !cleanDigits.startsWith('55')) {
         cleanDigits = `55${cleanDigits}`
       }
@@ -478,7 +503,7 @@ export const ModalOferecerLimpezaAvulsa: React.FC<ModalOferecerLimpezaAvulsaProp
         try {
           await sendWhatsAppMessage({
             cliente_id: item.cliente.id,
-            telefone_destino: validacaoWa.numeroLimpo,
+            telefone_destino: item.numeroLimpo,
             conteudo_final: mensagemFinal,
             tipo_disparo: 'manual',
           })
@@ -537,8 +562,8 @@ export const ModalOferecerLimpezaAvulsa: React.FC<ModalOferecerLimpezaAvulsaProp
     const semWhatsApp = selecionados.filter((c) => !c.temWhatsAppValido)
 
     if (semWhatsApp.length > 0 && semWhatsApp.length === selecionados.length) {
-      toast.error('Nenhum cliente selecionado possui número de WhatsApp válido.', {
-        description: 'Cadastre ou ajuste o WhatsApp dos clientes antes de enviar.',
+      toast.error('Envio não realizado', {
+        description: MENSAGEM_ALERTA_SEM_NUMERO,
       })
       return
     }
@@ -558,10 +583,10 @@ export const ModalOferecerLimpezaAvulsa: React.FC<ModalOferecerLimpezaAvulsaProp
       setProgressoEnvio({ ...estadoEnvio })
 
       // Validação do número antes de enviar
-      if (!item.temWhatsAppValido) {
+      if (!item.temWhatsAppValido || !item.numeroLimpo) {
         estadoEnvio.erros.push({
           clienteNome: item.cliente.nome,
-          erro: 'Cliente não possui número de WhatsApp válido cadastrado.',
+          erro: MENSAGEM_ALERTA_SEM_NUMERO,
         })
         setProgressoEnvio({ ...estadoEnvio })
         continue
@@ -824,18 +849,31 @@ export const ModalOferecerLimpezaAvulsa: React.FC<ModalOferecerLimpezaAvulsaProp
                       </Button>
                     </div>
                   ) : (
-                    <div className="flex items-center gap-2 pt-0.5">
-                      <span className="font-bold text-gray-900 text-sm">
-                        {clienteFocado.telefoneAutoritativo || 'Não cadastrado'}
-                      </span>
-                      {clienteFocado.temWhatsAppValido ? (
-                        <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
-                          Válido
+                    <div className="flex flex-col gap-1 pt-0.5">
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-gray-900 text-sm">
+                          {clienteFocado.telefoneAutoritativo || 'Não cadastrado'}
                         </span>
-                      ) : (
-                        <span className="text-[10px] font-bold text-rose-700 bg-rose-50 px-1.5 py-0.5 rounded border border-rose-200 flex items-center gap-1">
-                          <AlertCircle className="w-3 h-3" />
-                          Inválido
+                        {clienteFocado.temWhatsAppValido ? (
+                          <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
+                            Válido
+                          </span>
+                        ) : (
+                          <span className="text-[10px] font-bold text-rose-700 bg-rose-50 px-1.5 py-0.5 rounded border border-rose-200 flex items-center gap-1">
+                            <AlertCircle className="w-3 h-3" />
+                            Inválido
+                          </span>
+                        )}
+                      </div>
+                      {clienteFocado.origemNumero === 'contato_adicional_whatsapp' && (
+                        <span className="text-[10px] text-blue-700 font-medium">
+                          Contato adicional: {clienteFocado.contatoAdicionalNome || 'Contato'}{' '}
+                          (utilizado como alternativa)
+                        </span>
+                      )}
+                      {clienteFocado.origemNumero === 'cliente_telefone' && (
+                        <span className="text-[10px] text-amber-700 font-medium">
+                          Telefone do cliente (sem WhatsApp cadastrado)
                         </span>
                       )}
                     </div>
@@ -1036,16 +1074,29 @@ export const ModalOferecerLimpezaAvulsa: React.FC<ModalOferecerLimpezaAvulsaProp
                             </div>
                           ) : (
                             <>
-                              <div className="flex items-center gap-1.5">
-                                <Phone className="w-3 h-3 text-emerald-600" />
-                                {item.temWhatsAppValido ? (
-                                  <span className="font-medium text-gray-800">
-                                    {item.telefoneAutoritativo}
+                              <div className="flex flex-col gap-0.5">
+                                <div className="flex items-center gap-1.5">
+                                  <Phone className="w-3 h-3 text-emerald-600" />
+                                  {item.temWhatsAppValido ? (
+                                    <span className="font-medium text-gray-800">
+                                      {item.telefoneAutoritativo}
+                                    </span>
+                                  ) : (
+                                    <span className="font-semibold text-rose-600 flex items-center gap-1">
+                                      <AlertCircle className="w-3 h-3" />
+                                      Sem número cadastrado
+                                    </span>
+                                  )}
+                                </div>
+                                {item.origemNumero === 'contato_adicional_whatsapp' && (
+                                  <span className="text-[10px] text-blue-700 font-medium">
+                                    Contato adicional: {item.contatoAdicionalNome || 'Contato'}{' '}
+                                    (utilizado como alternativa)
                                   </span>
-                                ) : (
-                                  <span className="font-semibold text-rose-600 flex items-center gap-1">
-                                    <AlertCircle className="w-3 h-3" />
-                                    Sem WhatsApp válido
+                                )}
+                                {item.origemNumero === 'cliente_telefone' && (
+                                  <span className="text-[10px] text-amber-700 font-medium">
+                                    Telefone do cliente (sem WhatsApp cadastrado)
                                   </span>
                                 )}
                               </div>

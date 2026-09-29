@@ -46,6 +46,10 @@ import {
   extrairCidadeCliente,
   extrairPrimeiroNomeCliente,
 } from '@/lib/placeholdersMensagemMassa'
+import {
+  resolverNumeroDestinoClienteSync,
+  type OrigemNumeroDestino,
+} from '@/lib/resolverNumeroDestinoCliente'
 import type { Cliente, UsinaCliente, Sistema, WhatsAppTemplate } from '@/types/crm'
 
 export type SegmentoFiltro =
@@ -100,6 +104,8 @@ interface ItemClienteMassa {
   potenciaTexto: string
   cidade: string
   telefoneAutoritativo: string
+  origemNumero?: OrigemNumeroDestino
+  contatoAdicionalNome?: string
   temWhatsAppValido: boolean
   numeroLimpo: string
   valorItem?: number
@@ -199,6 +205,7 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
 }) => {
   const {
     clientes,
+    contatosAdicionais,
     sistemas,
     contratosOM,
     sendWhatsAppMessage,
@@ -399,8 +406,13 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
             : String(dest.potenciaManual)
           : extrairPotenciaClienteTexto(cli, usinaVinculada)
         const cidade = dest.cidadeManual || extrairCidadeCliente(cli, usinaVinculada)
-        const telAutoritativo = cli.whatsapp || cli.telefone || ''
-        const validacao = validarNumeroWhatsApp(telAutoritativo)
+        const caDoCli = Array.isArray(contatosAdicionais)
+          ? contatosAdicionais.filter((c) => c.cliente_id === cli.id)
+          : []
+        const resolucao = resolverNumeroDestinoClienteSync(cli, caDoCli)
+        const telAutoritativo =
+          resolucao.numeroFormatado || resolucao.numero || cli.whatsapp || cli.telefone || ''
+        const validacao = validarNumeroWhatsApp(resolucao.numero || telAutoritativo)
 
         return {
           cliente: cli,
@@ -408,8 +420,10 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
           potenciaTexto,
           cidade,
           telefoneAutoritativo: telAutoritativo,
-          temWhatsAppValido: validacao.valido,
-          numeroLimpo: validacao.numeroLimpo,
+          origemNumero: resolucao.origem,
+          contatoAdicionalNome: resolucao.contatoAdicionalNome,
+          temWhatsAppValido: validacao.valido && resolucao.origem !== 'nenhum',
+          numeroLimpo: validacao.numeroLimpo || resolucao.numeroLimpo || '',
           valorItem: dest.valor,
           origemItem: dest.origemItem,
           segmentos: classificarSegmentosCliente(cli),
@@ -421,8 +435,13 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
         const usinaVinculada = sistemas.find((s) => s.cliente_id === cli.id)
         const potenciaTexto = extrairPotenciaClienteTexto(cli, usinaVinculada)
         const cidade = extrairCidadeCliente(cli, usinaVinculada)
-        const telAutoritativo = cli.whatsapp || cli.telefone || ''
-        const validacao = validarNumeroWhatsApp(telAutoritativo)
+        const caDoCli = Array.isArray(contatosAdicionais)
+          ? contatosAdicionais.filter((c) => c.cliente_id === cli.id)
+          : []
+        const resolucao = resolverNumeroDestinoClienteSync(cli, caDoCli)
+        const telAutoritativo =
+          resolucao.numeroFormatado || resolucao.numero || cli.whatsapp || cli.telefone || ''
+        const validacao = validarNumeroWhatsApp(resolucao.numero || telAutoritativo)
 
         return {
           cliente: cli,
@@ -430,8 +449,10 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
           potenciaTexto,
           cidade,
           telefoneAutoritativo: telAutoritativo,
-          temWhatsAppValido: validacao.valido,
-          numeroLimpo: validacao.numeroLimpo,
+          origemNumero: resolucao.origem,
+          contatoAdicionalNome: resolucao.contatoAdicionalNome,
+          temWhatsAppValido: validacao.valido && resolucao.origem !== 'nenhum',
+          numeroLimpo: validacao.numeroLimpo || resolucao.numeroLimpo || '',
           valorItem: cli.valor_final || cli.valor_estimado || 0,
           segmentos: classificarSegmentosCliente(cli),
         }
@@ -444,7 +465,7 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
     }
 
     return listaBase
-  }, [destinatariosIniciais, clientes, sistemas, classificarSegmentosCliente])
+  }, [destinatariosIniciais, clientes, contatosAdicionais, sistemas, classificarSegmentosCliente])
 
   // Filtragem por Segmento e por Busca
   const itensFiltrados = useMemo(() => {
@@ -630,19 +651,22 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
     const semWhatsApp = selecionados.filter((c) => !c.temWhatsAppValido)
 
     if (semWhatsApp.length > 0 && semWhatsApp.length === selecionados.length) {
-      toast.error('Nenhum cliente selecionado possui número de WhatsApp válido.', {
-        description: 'Cadastre ou ajuste o WhatsApp dos clientes antes de enviar.',
+      toast.error('Nenhum cliente selecionado possui número de destino válido.', {
+        description:
+          'Cadastre WhatsApp, contato adicional ou telefone dos clientes antes de enviar.',
       })
       return
     }
 
     setIsEnviando(true)
+    let totalPuladosSemNumero = 0
     const estadoEnvio = {
       total: selecionados.length,
       atual: 0,
       sucessos: [] as string[],
       erros: [] as Array<{ clienteNome: string; erro: string }>,
       avisosDemo: [] as string[],
+      puladosSemNumero: 0,
     }
     setProgressoEnvio({ ...estadoEnvio })
 
@@ -661,10 +685,13 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
         continue
       }
 
-      if (!item.temWhatsAppValido) {
+      // Clientes sem nenhum número cadastrado são pulados
+      if (!item.temWhatsAppValido || !item.numeroLimpo) {
+        totalPuladosSemNumero++
+        estadoEnvio.puladosSemNumero = totalPuladosSemNumero
         estadoEnvio.erros.push({
           clienteNome: item.cliente.nome,
-          erro: 'Cliente não possui número de WhatsApp válido cadastrado.',
+          erro: 'Envio não realizado: o cliente não possui WhatsApp, contato adicional ou telefone cadastrado.',
         })
         setProgressoEnvio({ ...estadoEnvio })
         continue
@@ -728,17 +755,41 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
     setIsEnviando(false)
 
     if (estadoEnvio.sucessos.length > 0) {
-      toast.success(`${estadoEnvio.sucessos.length} mensagem(ns) enviada(s) com sucesso!`, {
-        description:
-          'Atividade "mensagem_enviada" registrada no histórico de cada cliente e vinculada à conversa.',
-      })
+      const avisoPulados =
+        totalPuladosSemNumero > 0
+          ? ` (${totalPuladosSemNumero} ${
+              totalPuladosSemNumero === 1
+                ? 'cliente sem número cadastrado não recebeu o envio'
+                : 'clientes sem número cadastrado não receberam o envio'
+            })`
+          : ''
+      toast.success(
+        `${estadoEnvio.sucessos.length} mensagem(ns) enviada(s) com sucesso!${avisoPulados}`,
+        {
+          description:
+            'Atividade "mensagem_enviada" registrada no histórico de cada cliente e vinculada à conversa.',
+        },
+      )
       if (onSuccess) onSuccess()
     }
 
-    if (estadoEnvio.erros.length > 0) {
-      toast.error(`Falha no envio para ${estadoEnvio.erros.length} cliente(s)`, {
-        description: 'Verifique as falhas parciais detalhadas na barra de envio.',
-      })
+    if (totalPuladosSemNumero > 0 && estadoEnvio.sucessos.length === 0) {
+      toast.warning(
+        `${totalPuladosSemNumero} ${
+          totalPuladosSemNumero === 1
+            ? 'cliente sem número cadastrado não recebeu o envio'
+            : 'clientes sem número cadastrado não receberam o envio'
+        }.`,
+      )
+    }
+
+    if (estadoEnvio.erros.length > 0 && estadoEnvio.erros.length > totalPuladosSemNumero) {
+      toast.error(
+        `Falha no envio para ${estadoEnvio.erros.length - totalPuladosSemNumero} cliente(s)`,
+        {
+          description: 'Verifique as falhas parciais detalhadas na barra de envio.',
+        },
+      )
     }
   }
 
@@ -1054,16 +1105,29 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
                             </div>
                           ) : (
                             <>
-                              <div className="flex items-center gap-1.5">
-                                <Phone className="w-3 h-3 text-[#0284C7]" />
-                                {item.temWhatsAppValido ? (
-                                  <span className="font-medium text-gray-800">
-                                    {item.telefoneAutoritativo}
+                              <div className="flex flex-col gap-0.5">
+                                <div className="flex items-center gap-1.5">
+                                  <Phone className="w-3 h-3 text-[#0284C7]" />
+                                  {item.temWhatsAppValido ? (
+                                    <span className="font-medium text-gray-800">
+                                      {item.telefoneAutoritativo}
+                                    </span>
+                                  ) : (
+                                    <span className="font-semibold text-rose-600 flex items-center gap-1">
+                                      <AlertCircle className="w-3 h-3" />
+                                      Sem número cadastrado
+                                    </span>
+                                  )}
+                                </div>
+                                {item.origemNumero === 'contato_adicional_whatsapp' && (
+                                  <span className="text-[10px] text-blue-700 font-medium">
+                                    Contato adicional: {item.contatoAdicionalNome || 'Contato'}{' '}
+                                    (utilizado como alternativa)
                                   </span>
-                                ) : (
-                                  <span className="font-semibold text-rose-600 flex items-center gap-1">
-                                    <AlertCircle className="w-3 h-3" />
-                                    Sem WhatsApp válido
+                                )}
+                                {item.origemNumero === 'cliente_telefone' && (
+                                  <span className="text-[10px] text-amber-700 font-medium">
+                                    Telefone fixo/comercial (sem WhatsApp próprio)
                                   </span>
                                 )}
                               </div>

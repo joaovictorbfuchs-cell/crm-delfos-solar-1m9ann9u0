@@ -111,7 +111,8 @@ export const ModalSolicitacaoInformacoes: React.FC<ModalSolicitacaoInformacoesPr
         setDestinoNumero(fallback)
       }
     }
-    resolverDestino()    if (open && cliente) {
+    if (open && cliente) {
+      resolverDestino()
       const itensSalvos = Array.isArray(cliente.pendencias_informacoes)
         ? cliente.pendencias_informacoes
         : []
@@ -474,7 +475,8 @@ export const ModalSolicitacaoInformacoes: React.FC<ModalSolicitacaoInformacoesPr
                   </span>
                   {origemDestino === 'contato_adicional_whatsapp' && (
                     <span className="text-[10px] text-blue-700 font-medium block mt-0.5">
-                      Contato adicional: {contatoAdicionalNome || 'Contato'} (utilizado como alternativa)
+                      Contato adicional: {contatoAdicionalNome || 'Contato'} (utilizado como
+                      alternativa)
                     </span>
                   )}
                   {origemDestino === 'cliente_telefone' && (
@@ -589,7 +591,8 @@ export const ModalSolicitacaoInformacoes: React.FC<ModalSolicitacaoInformacoesPr
                       <p className="text-[10px] text-amber-700 text-center font-medium">
                         {MENSAGEM_ALERTA_SEM_NUMERO}
                       </p>
-                    )}                  </Tooltip>
+                    )}{' '}
+                  </Tooltip>
                 </TooltipProvider>
               </div>
 

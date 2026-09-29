@@ -14,6 +14,11 @@ import {
 import pb from '@/lib/pocketbase/client'
 import { useToast } from '@/hooks/use-toast'
 import type { AnaliseFaturaRegistro } from '@/services/analiseFaturaService'
+import {
+  resolverNumeroDestinoCliente,
+  MENSAGEM_ALERTA_SEM_NUMERO,
+  type OrigemNumeroDestino,
+} from '@/lib/resolverNumeroDestinoCliente'
 
 export interface ModalEnviarAnaliseWhatsAppProps {
   isOpen: boolean
@@ -21,6 +26,7 @@ export interface ModalEnviarAnaliseWhatsAppProps {
   analise: AnaliseFaturaRegistro
   linkRelatorio: string
   telefoneDestino?: string
+  clienteId?: string
   onEnviadoSucesso?: () => void
 }
 
@@ -63,13 +69,72 @@ export const ModalEnviarAnaliseWhatsApp: React.FC<ModalEnviarAnaliseWhatsAppProp
   })
 
   const [telefone, setTelefone] = useState(telefoneDestino || '')
+  const [origemNumero, setOrigemNumero] = useState<OrigemNumeroDestino | 'manual' | null>(null)
+  const [contatoAdicionalNome, setContatoAdicionalNome] = useState<string | undefined>(undefined)
+  const [resolvendoNumero, setResolvendoNumero] = useState(false)
   const [mensagem, setMensagem] = useState(textoPadrao)
   const [isSending, setIsSending] = useState(false)
   const [copiedLink, setCopiedLink] = useState(false)
 
+  // Ao abrir ou mudar de análise/telefone, resolver número via utilitário central
   React.useEffect(() => {
-    if (telefoneDestino) setTelefone(telefoneDestino)
-  }, [telefoneDestino])
+    let cancelado = false
+
+    async function resolverDestino() {
+      const cliId = analise.cliente_id
+      if (cliId) {
+        setResolvendoNumero(true)
+        try {
+          const cli = await pb.collection('clientes').getOne(cliId)
+          let contatosDoCli: any[] = []
+          try {
+            const cas = await pb.collection('contatos_adicionais').getFullList({
+              filter: `cliente_id = "${cliId}"`,
+            })
+            contatosDoCli = cas
+          } catch {
+            /* ignore */
+          }
+
+          if (cancelado) return
+
+          const resolucao = await resolverNumeroDestinoCliente(cli, {
+            contatosAdicionais: contatosDoCli,
+          })
+
+          if (cancelado) return
+
+          setOrigemNumero(resolucao.origem)
+          setContatoAdicionalNome(resolucao.contatoAdicionalNome)
+          if (resolucao.numeroFormatado || resolucao.numero) {
+            setTelefone(resolucao.numeroFormatado || resolucao.numero)
+          } else if (telefoneDestino) {
+            setTelefone(telefoneDestino)
+          } else {
+            setTelefone('')
+          }
+          return
+        } catch {
+          /* fallback */
+        } finally {
+          if (!cancelado) setResolvendoNumero(false)
+        }
+      }
+
+      // Se não há cliente_id ou falhou a busca remota, usar telefoneDestino passado
+      if (telefoneDestino) {
+        setTelefone(telefoneDestino)
+      }
+    }
+
+    if (isOpen) {
+      resolverDestino()
+    }
+
+    return () => {
+      cancelado = true
+    }
+  }, [isOpen, analise.cliente_id, telefoneDestino])
 
   React.useEffect(() => {
     setMensagem(textoPadrao)
@@ -118,10 +183,11 @@ export const ModalEnviarAnaliseWhatsApp: React.FC<ModalEnviarAnaliseWhatsAppProp
   }
 
   const handleEnviarWhatsApp = async () => {
-    if (!telefone.trim()) {
+    const rawDigitos = telefone.replace(/\D/g, '')
+    if (!rawDigitos || rawDigitos.length < 10) {
       toast({
-        title: 'Telefone ausente',
-        description: 'Informe o WhatsApp de destino com DDD.',
+        title: 'Envio não realizado',
+        description: MENSAGEM_ALERTA_SEM_NUMERO,
         variant: 'destructive',
       })
       return
@@ -257,11 +323,30 @@ export const ModalEnviarAnaliseWhatsApp: React.FC<ModalEnviarAnaliseWhatsAppProp
               <input
                 type="tel"
                 value={telefone}
-                onChange={(e) => setTelefone(e.target.value)}
-                placeholder="Ex: 54999998888"
+                onChange={(e) => {
+                  setTelefone(e.target.value)
+                  setOrigemNumero('manual')
+                }}
+                placeholder={resolvendoNumero ? 'Identificando número...' : 'Ex: (54) 99999-8888'}
                 className="w-full px-3 py-2 bg-white rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-medium text-gray-900"
               />
             </div>
+            {origemNumero === 'contato_adicional_whatsapp' && (
+              <p className="text-[11px] text-blue-700 bg-blue-50 border border-blue-200 rounded-lg p-2 font-medium">
+                Contato adicional: {contatoAdicionalNome || 'Contato'} (utilizado como alternativa)
+              </p>
+            )}
+            {origemNumero === 'cliente_telefone' && (
+              <p className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-2 font-medium">
+                Aviso: Utilizando o telefone geral do cliente (sem WhatsApp cadastrado).
+              </p>
+            )}
+            {!telefone.trim() && !resolvendoNumero && (
+              <p className="text-[11px] text-rose-600 bg-rose-50 border border-rose-200 rounded-lg p-2 font-medium flex items-center gap-1.5">
+                <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                {MENSAGEM_ALERTA_SEM_NUMERO}
+              </p>
+            )}
           </div>
 
           {/* Tags rápidas para personalização */}

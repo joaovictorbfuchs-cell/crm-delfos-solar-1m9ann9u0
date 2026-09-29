@@ -42,6 +42,10 @@ import {
 } from 'lucide-react'
 import { WhatsAppIcon } from './WhatsAppIcon'
 import { cleanPhoneDigits } from '@/lib/formatters'
+import {
+  resolverNumeroDestinoClienteSync,
+  type OrigemNumeroDestino,
+} from '@/lib/resolverNumeroDestinoCliente'
 import { useClientes } from '@/contexts/ClientesContext'
 import {
   formatCurrency,
@@ -203,6 +207,7 @@ export const FichaClienteDrawer: React.FC = () => {
     manutencoes,
     atividades,
     profissionais,
+    contatosAdicionais,
     projetoEventos,
     updateCliente,
     updateClienteStatus,
@@ -454,6 +459,23 @@ export const FichaClienteDrawer: React.FC = () => {
       return timeB - timeA
     })
   }, [atividades, propostasOM, selectedCliente])
+
+  // WhatsApp autoritativo para o drawer via utilitário central de resolução
+  const contatosDoCliDrawer = useMemo(() => {
+    if (!selectedCliente?.id || !Array.isArray(contatosAdicionais)) return []
+    return contatosAdicionais.filter((ca) => ca.cliente_id === selectedCliente.id)
+  }, [selectedCliente?.id, contatosAdicionais])
+
+  const resolucaoDestinoDrawer = useMemo(() => {
+    if (!selectedCliente)
+      return {
+        numero: '',
+        numeroLimpo: '',
+        origem: 'nenhum' as OrigemNumeroDestino,
+        contatoAdicionalNome: undefined,
+      }
+    return resolverNumeroDestinoClienteSync(selectedCliente, contatosDoCliDrawer)
+  }, [selectedCliente, contatosDoCliDrawer])
 
   // Próxima atividade agendada: atividade pendente com data futura mais próxima (ou a pendente mais próxima de agora)
   const proximaAtividade = useMemo<Atividade | null>(() => {
@@ -870,9 +892,9 @@ export const FichaClienteDrawer: React.FC = () => {
     selectedCliente.classe_consumo || selectedSistema?.classe_consumo || ''
   const tarifaExibida = selectedCliente.tarifa ?? selectedSistema?.tarifa ?? 0
 
-  // WhatsApp autoritativo para o drawer
-  const rawWaDrawer = selectedCliente.whatsapp || selectedCliente.telefone || ''
-  const cleanWaDrawer = cleanPhoneDigits(rawWaDrawer)
+  const cleanWaDrawer = cleanPhoneDigits(
+    resolucaoDestinoDrawer.numero || selectedCliente.whatsapp || selectedCliente.telefone || '',
+  )
   const waDigitsDrawer =
     cleanWaDrawer.length >= 10 && !cleanWaDrawer.startsWith('55')
       ? `55${cleanWaDrawer}`
@@ -4322,8 +4344,12 @@ export const FichaClienteDrawer: React.FC = () => {
               href={`https://wa.me/${waDigitsDrawer}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="w-10 h-10 rounded-xl bg-[#25D366] hover:bg-[#20ba59] active:scale-95 text-white flex items-center justify-center shrink-0 transition-transform shadow-2xs"
-              title={`Conversar com ${selectedCliente.nome} no WhatsApp`}
+              className="w-10 h-10 rounded-xl bg-[#25D366] hover:bg-[#20ba59] active:scale-95 text-white flex items-center justify-center shrink-0 transition-transform shadow-2xs relative"
+              title={
+                resolucaoDestinoDrawer.origem === 'contato_adicional_whatsapp'
+                  ? `Conversar no WhatsApp via contato adicional: ${resolucaoDestinoDrawer.contatoAdicionalNome || 'Contato'}`
+                  : `Conversar com ${selectedCliente.nome} no WhatsApp`
+              }
               aria-label="Conversar no WhatsApp"
             >
               <WhatsAppIcon className="w-4 h-4" />

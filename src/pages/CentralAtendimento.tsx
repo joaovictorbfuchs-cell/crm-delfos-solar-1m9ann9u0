@@ -40,6 +40,10 @@ import { MoreVertical, UserCheck, Building2 } from 'lucide-react'
 import { formatWhatsAppPhone, cleanPhoneDigits } from '@/lib/formatters'
 import { fetchOutrosContatos, createWhatsAppConversa } from '@/services/crmService'
 import {
+  resolverNumeroDestinoCliente,
+  MENSAGEM_ALERTA_SEM_NUMERO,
+} from '@/lib/resolverNumeroDestinoCliente'
+import {
   playWhatsAppNotificationSound,
   isDesktopNotificationSupported,
   getDesktopNotificationPermission,
@@ -587,16 +591,52 @@ export const CentralAtendimento: React.FC = () => {
 
   // Iniciar nova conversa ou abrir conversa existente com cliente do banco
   const handleSelecionarClienteBanco = async (item: BancoClienteResultado) => {
-    const rawNumber = item.whatsapp || item.telefone
-    const cleanNum = cleanPhoneDigits(rawNumber)
-    if (!cleanNum) {
-      toast({
-        title: 'Telefone não disponível',
-        description:
-          'Este cadastro não possui número de WhatsApp ou telefone válido para iniciar conversa.',
-        variant: 'destructive',
+    let cleanNum = ''
+
+    // Se a origem for cliente principal, aplicar a cascata central (WhatsApp -> Contato Adicional -> Telefone)
+    if (item.origem === 'cliente' && item.clienteId) {
+      const cliCompleto =
+        clientesMap.get(item.clienteId) ||
+        ({
+          id: item.clienteId,
+          nome: item.nome,
+          whatsapp: item.whatsapp,
+          telefone: item.telefone,
+        } as Cliente)
+      const contatosDoCli = contatosAdicionais.filter((ca) => ca.cliente_id === item.clienteId)
+      const resolucao = await resolverNumeroDestinoCliente(cliCompleto, {
+        contatosAdicionais: contatosDoCli,
       })
-      return
+
+      if (!resolucao.numero) {
+        toast({
+          title: 'Envio não realizado',
+          description: MENSAGEM_ALERTA_SEM_NUMERO,
+          variant: 'destructive',
+        })
+        return
+      }
+
+      cleanNum = cleanPhoneDigits(resolucao.numero)
+      if (resolucao.origem === 'contato_adicional_whatsapp') {
+        toast({
+          title: 'Usando contato adicional',
+          description: `Contato adicional: ${resolucao.contatoAdicionalNome || 'Contato'} (utilizado como alternativa)`,
+        })
+      }
+    } else {
+      // Contato adicional ou outro contato selecionado diretamente
+      const rawNumber = item.whatsapp || item.telefone
+      cleanNum = cleanPhoneDigits(rawNumber)
+      if (!cleanNum || cleanNum.length < 10) {
+        toast({
+          title: 'Telefone não disponível',
+          description:
+            'Este cadastro não possui número de WhatsApp ou telefone válido para iniciar conversa.',
+          variant: 'destructive',
+        })
+        return
+      }
     }
 
     // Normalizar para formato E.164 (com DDI 55 se 10 ou 11 dígitos brasileiros)
