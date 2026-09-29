@@ -2275,6 +2275,10 @@ export const FichaClienteDrawer: React.FC = () => {
                                   </div>
                                 )
                               })()}
+                            </div>
+                          </div>
+                        )
+                      })()}
 
                       {/* Histórico de Mudanças de Etapa com Datas */}
                       <div className="space-y-3">
@@ -2344,8 +2348,7 @@ export const FichaClienteDrawer: React.FC = () => {
                         )}
                       </div>
                     </div>
-                  </div>
-                </div>              )}
+                  )}
 
               {/* ======================================================== */}
               {/* ABA HISTÓRICO: Linha do tempo, anotações e atividades     */}
@@ -3829,11 +3832,11 @@ export const FichaClienteDrawer: React.FC = () => {
                                         )}
                                       </div>
                                     </div>
-                                  </div>
-                                  </>
+                                  )
                                 )}
                               </div>
-                            </div>                          )}
+                            </div>
+                          )}
                       </div>
 
                       {/* Histórico de Consumo da Fatura RGE (Gemini) */}
@@ -4055,7 +4058,7 @@ export const FichaClienteDrawer: React.FC = () => {
                       )}
                     </div>
                   </div>
-                    </div>
+                  </div>
                   )}
                   {/* ======================================================== */}
                   {/* TOPO DA ABA HISTÓRICO: ÁREA RÁPIDA DE NOVA ENTRADA       */}
