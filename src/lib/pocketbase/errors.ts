@@ -20,36 +20,13 @@ export function extractFieldErrors(error: unknown): FieldErrors {
   return errors
 }
 
-/**
- * Detecta se o erro decorre de sessão expirada / não autorizada (401, 403, token inválido).
- * Utilizado pelos interceptores e contextos do CRM Delfos Solar.
- */
 export function isAuthSessionError(error: unknown): boolean {
-  if (!error || typeof error !== 'object') return false
-  const err = error as Record<string, unknown>
-
-  if (err.status === 401 || err.status === 403) return true
-  if (err.statusCode === 401 || err.statusCode === 403) return true
-
-  const message = typeof err.message === 'string' ? err.message.toLowerCase() : ''
-  if (
-    message.includes('token') &&
-    (message.includes('expired') ||
-      message.includes('invalid') ||
-      message.includes('required') ||
-      message.includes('missing'))
-  ) {
-    return true
+  if (!error) return false
+  if (error instanceof ClientResponseError) {
+    return error.status === 401 || error.status === 403
   }
-
-  if (err.response && typeof err.response === 'object') {
-    const res = err.response as Record<string, unknown>
-    if (res.code === 401 || res.code === 403 || res.status === 401 || res.status === 403) {
-      return true
-    }
-  }
-
-  return false
+  const status = (error as any)?.status
+  return status === 401 || status === 403
 }
 
 export function getErrorMessage(error: unknown): string {
