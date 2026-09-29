@@ -38,11 +38,9 @@ export function isAuthSessionError(error: unknown): boolean {
       const msg = errObj.message.toLowerCase()
       if (
         msg.includes('token is expired') ||
-        msg.includes('token expired') ||
         msg.includes('the request requires valid user authorization') ||
-        msg.includes('the request requires valid admin authorization') ||
-        msg.includes('unauthorized') ||
-        msg.includes('forbidden')
+        msg.includes('failed to authenticate') ||
+        msg.includes('token expired')
       ) {
         return true
       }

@@ -12,6 +12,8 @@ import {
   BellOff,
   Database,
   X,
+  FileSpreadsheet,
+  DownloadCloud,
 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useClientes } from '@/contexts/ClientesContext'
@@ -50,6 +52,7 @@ import {
   requestDesktopNotificationPermission,
   showWhatsAppDesktopNotification,
 } from '@/lib/whatsappAudioNotification'
+import { exportarPlanilhaCentralAtendimento } from '@/lib/exportCentralAtendimentoXlsx'
 
 export const CentralAtendimento: React.FC = () => {
   const navigate = useNavigate()
@@ -87,6 +90,7 @@ export const CentralAtendimento: React.FC = () => {
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [modalTemplatesOpen, setModalTemplatesOpen] = useState(false)
   const [isStartingConversa, setIsStartingConversa] = useState(false)
+  const [isExportingPlanilha, setIsExportingPlanilha] = useState(false)
   const [outrosContatosLista, setOutrosContatosLista] = useState<OutroContato[]>([])
   const [activeMobileTab, setActiveMobileTab] = useState<'novos' | 'atendimento' | 'resolvidos'>(
     'novos',
@@ -210,6 +214,36 @@ export const CentralAtendimento: React.FC = () => {
       await refreshConversas()
     } finally {
       setIsRefreshing(false)
+    }
+  }
+
+  // Exportar planilha Excel (.xlsx) da Central de Atendimento
+  const handleExportarPlanilha = async () => {
+    setIsExportingPlanilha(true)
+    try {
+      const resultado = exportarPlanilhaCentralAtendimento({
+        clientes: Array.isArray(clientes) ? clientes : [],
+        contatosAdicionais: Array.isArray(contatosAdicionais) ? contatosAdicionais : [],
+        outrosContatos: Array.isArray(outrosContatosLista) ? outrosContatosLista : [],
+        conversasWhatsApp: Array.isArray(whatsAppConversas) ? whatsAppConversas : [],
+      })
+
+      toast({
+        title: 'Planilha exportada com sucesso!',
+        description: `${resultado.totalExportados} contatos na Base Completa. Abas: Repetidos (${resultado.totalRepetidos}), Erros (${resultado.totalErrosDigitacao}), Testes (${resultado.totalDadosTeste}), Sem fone (${resultado.totalSemTelefone}).`,
+      })
+    } catch (err: unknown) {
+      console.error('Erro ao exportar planilha da Central de Atendimento:', err)
+      toast({
+        title: 'Erro ao exportar planilha',
+        description:
+          err instanceof Error
+            ? err.message
+            : 'Não foi possível gerar o arquivo Excel da Central de Atendimento.',
+        variant: 'destructive',
+      })
+    } finally {
+      setIsExportingPlanilha(false)
     }
   }
 
@@ -926,6 +960,26 @@ export const CentralAtendimento: React.FC = () => {
             <span className="hidden md:inline">
               {isRefreshing ? 'Atualizando...' : 'Atualizar'}
             </span>
+          </button>
+
+          {/* Botão de Exportação de Planilha Excel (.xlsx) */}
+          <button
+            type="button"
+            onClick={handleExportarPlanilha}
+            disabled={isExportingPlanilha}
+            className="inline-flex items-center justify-center gap-1.5 px-3 py-2 bg-emerald-700 hover:bg-emerald-800 text-white active:scale-[0.98] text-xs font-bold rounded-xl shadow-2xs hover:shadow-xs transition-all shrink-0 cursor-pointer disabled:opacity-50"
+            title="Exportar planilha completa (.xlsx) com abas de Base Completa, Repetidos, Erros de digitação, Testes e Sem telefone"
+            aria-label="Exportar planilha da Central de Atendimento"
+          >
+            {isExportingPlanilha ? (
+              <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+            ) : (
+              <FileSpreadsheet className="w-3.5 h-3.5" />
+            )}
+            <span className="hidden sm:inline">
+              {isExportingPlanilha ? 'Exportando...' : 'Exportar Planilha'}
+            </span>
+            <span className="sm:hidden">{isExportingPlanilha ? '...' : 'Planilha'}</span>
           </button>
 
           {/* Botão de Visão Consolidada de Contatos */}
