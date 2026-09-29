@@ -41,9 +41,21 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
         message: error?.message,
         stack: error?.stack,
         componentStack: errorInfo?.componentStack,
-        url: window.location.href,
-        pathname: window.location.pathname,
+        url: typeof window !== 'undefined' ? window.location?.href : '',
+        pathname: typeof window !== 'undefined' ? window.location?.pathname : '',
       })
+      // Armazena no sessionStorage para facilitar inspeção em caso de tela de erro
+      if (typeof window !== 'undefined' && window.sessionStorage) {
+        window.sessionStorage.setItem(
+          'delfos_last_boundary_error',
+          JSON.stringify({
+            message: error?.message,
+            stack: error?.stack,
+            componentStack: errorInfo?.componentStack,
+            time: new Date().toISOString(),
+          }),
+        )
+      }
     } catch {
       // Ignora erro de logging
     }
@@ -118,10 +130,17 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
                 Ocorreu um erro inesperado ao carregar este componente. O restante do aplicativo
                 continua disponível.
               </p>
-              {this.state.error?.message && (
-                <p className="text-[11px] text-red-500 font-mono mt-2 bg-red-100/60 p-2 rounded-lg text-left break-all">
-                  {this.state.error.message}
-                </p>
+              {this.state.error && (
+                <div className="mt-2 text-left bg-red-100/60 p-2.5 rounded-lg border border-red-200/80">
+                  <p className="text-[11px] text-red-700 font-mono font-bold break-all">
+                    {this.state.error.name}: {this.state.error.message}
+                  </p>
+                  {this.state.error.stack && (
+                    <pre className="text-[10px] text-red-600 font-mono mt-1 overflow-x-auto max-h-40 whitespace-pre-wrap">
+                      {this.state.error.stack}
+                    </pre>
+                  )}
+                </div>
               )}
             </div>
             <div className="flex items-center gap-2">
