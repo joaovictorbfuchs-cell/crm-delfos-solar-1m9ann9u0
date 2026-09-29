@@ -88,6 +88,7 @@ import { SecaoAcessoSolarview } from './SecaoAcessoSolarview'
 import { DatasheetBadge } from './DatasheetBadge'
 import { SecaoUsinasCliente } from './SecaoUsinasCliente'
 import { SecaoContatosAdicionais } from './SecaoContatosAdicionais'
+import { AbaAtivosUsina } from './AbaAtivosUsina'
 import { CardNegociosCliente } from './CardNegociosCliente'
 import { useAuth } from '@/contexts/AuthContext'
 import {
@@ -1337,26 +1338,23 @@ export const FichaClienteDrawer: React.FC = () => {
               detalhesOpen ? 'hidden md:flex' : 'flex'
             }`}
           >
-            {/* Header com Abas:
-                - No MOBILE: apenas as 2 abas requeridas ("Linha do tempo" e "Detalhes")
-                - No DESKTOP: abas completas inalteradas ("Atividades", "Projeto", "O&M", "WhatsApp" + botão Ver Detalhes)
-            */}
-            {/* 1. ABAS MOBILE (md:hidden) */}
-            <div className="md:hidden sticky top-0 z-10 bg-white border-b border-gray-200 px-3 pt-2 flex items-center gap-2">
+            {/* Header com Abas (Mobile e Desktop) */}
+            {/* 1. ABAS MOBILE (md:hidden) — scroll horizontal suave para todas as abas */}
+            <div className="md:hidden sticky top-0 z-10 bg-white border-b border-gray-200 px-3 pt-2 flex items-center gap-1.5 overflow-x-auto no-scrollbar">
               <button
                 type="button"
                 onClick={() => {
                   setActiveClientTab('historico')
                   setDetalhesOpen(false)
                 }}
-                className={`flex-1 py-2 text-xs font-bold border-b-2 flex items-center justify-center gap-1.5 transition-colors ${
-                  activeClientTab === 'historico' && !detalhesOpen
+                className={`shrink-0 py-2 px-3 text-xs font-bold border-b-2 flex items-center justify-center gap-1.5 transition-colors ${
+                  activeClientTab === 'historico'
                     ? 'border-[#16A34A] text-[#166534] bg-emerald-50/60'
                     : 'border-transparent text-gray-500 hover:text-gray-800'
                 }`}
               >
                 <Clock className="w-3.5 h-3.5 text-[#16A34A]" />
-                <span>Linha do tempo</span>
+                <span>Atividades</span>
                 {timelineAtividades.length > 0 && (
                   <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-emerald-100 text-emerald-800 font-bold">
                     {timelineAtividades.length}
@@ -1367,27 +1365,96 @@ export const FichaClienteDrawer: React.FC = () => {
               <button
                 type="button"
                 onClick={() => {
-                  setActiveClientTab('historico')
-                  setDetalhesOpen(true)
+                  setActiveClientTab('cadastro')
+                  setDetalhesOpen(false)
                 }}
-                className={`flex-1 py-2 text-xs font-bold border-b-2 flex items-center justify-center gap-1.5 transition-colors ${
-                  detalhesOpen
+                className={`shrink-0 py-2 px-3 text-xs font-bold border-b-2 flex items-center justify-center gap-1.5 transition-colors ${
+                  activeClientTab === 'cadastro'
                     ? 'border-[#16A34A] text-[#166534] bg-emerald-50/60'
                     : 'border-transparent text-gray-500 hover:text-gray-800'
                 }`}
               >
-                <FileText className="w-3.5 h-3.5 text-emerald-600" />
-                <span>Detalhes</span>
+                <User className="w-3.5 h-3.5 text-emerald-600" />
+                <span>Cadastro</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveClientTab('usinas')
+                  setDetalhesOpen(false)
+                }}
+                className={`shrink-0 py-2 px-3 text-xs font-bold border-b-2 flex items-center justify-center gap-1.5 transition-colors ${
+                  activeClientTab === 'usinas'
+                    ? 'border-[#16A34A] text-[#166534] bg-emerald-50/60'
+                    : 'border-transparent text-gray-500 hover:text-gray-800'
+                }`}
+              >
+                <Sun className="w-3.5 h-3.5 text-amber-500" />
+                <span>Usinas</span>
+                {usinasDoCliente.length > 0 && (
+                  <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-amber-100 text-amber-800 font-bold">
+                    {usinasDoCliente.length}
+                  </span>
+                )}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveClientTab('projeto')
+                  setDetalhesOpen(false)
+                }}
+                className={`shrink-0 py-2 px-3 text-xs font-bold border-b-2 flex items-center justify-center gap-1.5 transition-colors ${
+                  activeClientTab === 'projeto'
+                    ? 'border-[#16A34A] text-[#166534] bg-emerald-50/60'
+                    : 'border-transparent text-gray-500 hover:text-gray-800'
+                }`}
+              >
+                <FolderKanban className="w-3.5 h-3.5 text-emerald-600" />
+                <span>Projeto</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveClientTab('om')
+                  setDetalhesOpen(false)
+                }}
+                className={`shrink-0 py-2 px-3 text-xs font-bold border-b-2 flex items-center justify-center gap-1.5 transition-colors ${
+                  activeClientTab === 'om'
+                    ? 'border-[#16A34A] text-[#166534] bg-emerald-50/60'
+                    : 'border-transparent text-gray-500 hover:text-gray-800'
+                }`}
+              >
+                <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+                <span>O&M</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveClientTab('whatsapp')
+                  setDetalhesOpen(false)
+                }}
+                className={`shrink-0 py-2 px-3 text-xs font-bold border-b-2 flex items-center justify-center gap-1.5 transition-colors ${
+                  activeClientTab === 'whatsapp'
+                    ? 'border-[#16A34A] text-[#166534] bg-emerald-50/60'
+                    : 'border-transparent text-gray-500 hover:text-gray-800'
+                }`}
+              >
+                <MessageSquare className="w-3.5 h-3.5 text-emerald-600" />
+                <span>WhatsApp</span>
               </button>
             </div>
 
             {/* 2. ABAS DESKTOP (hidden md:flex) */}
-            <div className="hidden md:flex sticky top-0 z-10 bg-white border-b border-gray-200 px-4 pt-3 items-center justify-between gap-2">
+            <div className="hidden md:flex sticky top-0 z-10 bg-white border-b border-gray-200 px-4 pt-3 items-center justify-between gap-2 overflow-x-auto">
               <div className="flex items-center gap-2">
                 <button
                   type="button"
                   onClick={() => setActiveClientTab('historico')}
-                  className={`px-4 py-2 text-xs font-bold border-b-2 rounded-t-md flex items-center gap-2 transition-colors ${
+                  className={`px-3.5 py-2 text-xs font-bold border-b-2 rounded-t-md flex items-center gap-1.5 transition-colors ${
                     activeClientTab === 'historico'
                       ? 'border-[#16A34A] text-[#166534] bg-emerald-50/60'
                       : 'border-transparent text-gray-500 hover:text-gray-800 hover:bg-gray-50'
@@ -1404,8 +1471,39 @@ export const FichaClienteDrawer: React.FC = () => {
 
                 <button
                   type="button"
+                  onClick={() => setActiveClientTab('cadastro')}
+                  className={`px-3.5 py-2 text-xs font-bold border-b-2 rounded-t-md flex items-center gap-1.5 transition-colors ${
+                    activeClientTab === 'cadastro'
+                      ? 'border-[#16A34A] text-[#166534] bg-emerald-50/60'
+                      : 'border-transparent text-gray-500 hover:text-gray-800 hover:bg-gray-50'
+                  }`}
+                >
+                  <User className="w-4 h-4 text-emerald-600" />
+                  <span>Cadastro</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setActiveClientTab('usinas')}
+                  className={`px-3.5 py-2 text-xs font-bold border-b-2 rounded-t-md flex items-center gap-1.5 transition-colors ${
+                    activeClientTab === 'usinas'
+                      ? 'border-[#16A34A] text-[#166534] bg-emerald-50/60'
+                      : 'border-transparent text-gray-500 hover:text-gray-800 hover:bg-gray-50'
+                  }`}
+                >
+                  <Sun className="w-4 h-4 text-amber-500" />
+                  <span>Usinas</span>
+                  {usinasDoCliente.length > 0 && (
+                    <span className="px-2 py-0.5 rounded-full text-[10px] bg-amber-100 text-amber-800 font-bold">
+                      {usinasDoCliente.length}
+                    </span>
+                  )}
+                </button>
+
+                <button
+                  type="button"
                   onClick={() => setActiveClientTab('projeto')}
-                  className={`px-4 py-2 text-xs font-bold border-b-2 rounded-t-md flex items-center gap-2 transition-colors ${
+                  className={`px-3.5 py-2 text-xs font-bold border-b-2 rounded-t-md flex items-center gap-1.5 transition-colors ${
                     activeClientTab === 'projeto'
                       ? 'border-[#16A34A] text-[#166534] bg-emerald-50/60'
                       : 'border-transparent text-gray-500 hover:text-gray-800 hover:bg-gray-50'
@@ -1423,7 +1521,7 @@ export const FichaClienteDrawer: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setActiveClientTab('om')}
-                  className={`px-4 py-2 text-xs font-bold border-b-2 rounded-t-md flex items-center gap-2 transition-colors ${
+                  className={`px-3.5 py-2 text-xs font-bold border-b-2 rounded-t-md flex items-center gap-1.5 transition-colors ${
                     activeClientTab === 'om'
                       ? 'border-[#16A34A] text-[#166534] bg-emerald-50/60'
                       : 'border-transparent text-gray-500 hover:text-gray-800 hover:bg-gray-50'
@@ -1436,7 +1534,7 @@ export const FichaClienteDrawer: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setActiveClientTab('whatsapp')}
-                  className={`px-4 py-2 text-xs font-bold border-b-2 rounded-t-md flex items-center gap-2 transition-colors ${
+                  className={`px-3.5 py-2 text-xs font-bold border-b-2 rounded-t-md flex items-center gap-1.5 transition-colors ${
                     activeClientTab === 'whatsapp'
                       ? 'border-[#16A34A] text-[#166534] bg-emerald-50/60'
                       : 'border-transparent text-gray-500 hover:text-gray-800 hover:bg-gray-50'
@@ -1452,27 +1550,14 @@ export const FichaClienteDrawer: React.FC = () => {
                 </button>
               </div>
 
-              {/* Botão de alternar visualização dos Dados Completos / Técnicos (Desktop) */}
+              {/* Botão de atalho para Cadastro rápido */}
               <button
                 type="button"
-                onClick={handleToggleDetalhes}
-                className={`text-xs font-semibold px-3 py-1.5 rounded-lg border transition-all flex items-center gap-1.5 ${
-                  detalhesOpen && activeClientTab === 'historico'
-                    ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
-                    : 'bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100'
-                }`}
+                onClick={() => setActiveClientTab('cadastro')}
+                className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-gray-200 bg-gray-50 text-gray-700 hover:bg-gray-100 transition-all flex items-center gap-1.5 shrink-0"
               >
-                <FileText className="w-3.5 h-3.5 text-emerald-600" />
-                <span>
-                  {detalhesOpen && activeClientTab === 'historico'
-                    ? 'Ocultar Detalhes Cadastrais'
-                    : 'Ver Detalhes Cadastrais & Técnicos'}
-                </span>
-                {detalhesOpen && activeClientTab === 'historico' ? (
-                  <ChevronUp className="w-3.5 h-3.5 text-emerald-700" />
-                ) : (
-                  <ChevronDown className="w-3.5 h-3.5 text-emerald-700" />
-                )}
+                <User className="w-3.5 h-3.5 text-emerald-600" />
+                <span>Ver Cadastro Completo</span>
               </button>
             </div>
 
@@ -2255,40 +2340,67 @@ export const FichaClienteDrawer: React.FC = () => {
               {/* ======================================================== */}
               {activeClientTab === 'historico' && (
                 <>
-                  {/* ======================================================== */}
-                  {/* SEÇÃO EXPANSÍVEL: DADOS CADASTRAIS E TÉCNICOS COMPLETOS  */}
-                  {/* Preserva edição inline completa e todos os campos       */}
-                  {/* ======================================================== */}
-                  {detalhesOpen && (
-                    <div
-                      ref={detalhesSectionRef}
-                      id="secao-detalhes-cadastrais-tecnicos"
-                      className="rounded-2xl border border-emerald-200/90 bg-emerald-50/20 p-4 space-y-4 animate-in fade-in duration-200"
-                    >
-                      <div className="flex items-center justify-between pb-2 border-b border-emerald-200/60">
-                        <div className="flex items-center gap-2">
-                          <div className="p-1.5 bg-emerald-100 text-emerald-800 rounded-lg">
-                            <FileText className="w-4 h-4" />
-                          </div>
-                          <div>
-                            <h3 className="text-xs font-bold uppercase tracking-wider text-emerald-950">
-                              Dados Completos Cadastrais e Técnicos
-                            </h3>
-                            <p className="text-[11px] text-gray-500">
-                              Edite os campos diretamente com um clique no lápis de edição.
-                            </p>
-                          </div>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => setDetalhesOpen(false)}
-                          className="text-xs text-gray-500 hover:text-gray-800 flex items-center gap-1 font-medium"
-                        >
-                          <ChevronUp className="w-3.5 h-3.5" />
-                          Recolher
-                        </button>
-                      </div>
+                  {/* Card de Negócios Vinculados */}
+                  {selectedCliente && (
+                    <div className="mb-4">
+                      <CardNegociosCliente
+                        clienteId={selectedCliente.id}
+                        clienteNome={selectedCliente.nome}
+                        clienteTelefone={selectedCliente.telefone}
+                        clienteDocumento={selectedCliente.cpf_cnpj}
+                        clienteEndereco={selectedCliente.endereco}
+                        clienteCidade={selectedCliente.cidade}
+                        clienteUf={selectedCliente.uf}
+                        clienteBairro={selectedCliente.bairro}
+                        clienteCep={selectedCliente.cep}
+                      />
+                    </div>
+                  )}
 
+                  {/* Linha do Tempo Unificada do Cliente */}
+                  <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
+                    <LinhaDoTempoUnificada
+                      clienteId={selectedCliente.id}
+                      clienteNome={selectedCliente.nome}
+                      clienteTelefone={selectedCliente.telefone}
+                      clienteEmail={selectedCliente.email}
+                      clienteOrigem={selectedCliente.origem}
+                      atividades={timelineAtividades}
+                      mensagensWhatsApp={whatsAppMensagens.filter((m) => m.cliente_id === selectedCliente.id)}
+                      onNovaAtividadeClick={() => {
+                        setIsAtividadeModalOpen(true)
+                      }}
+                      onNovaMensagemWhatsAppClick={() => {
+                        setActiveClientTab('whatsapp')
+                      }}
+                      onAtividadeUpdated={() => {
+                        carregarTimelineAtividades(selectedCliente.id)
+                      }}
+                    />
+                  </div>
+                </>
+              )}
+
+              {/* ======================================================== */}
+              {/* ABA CADASTRO: Identificação PF/PJ + Contatos Adicionais   */}
+              {/* ======================================================== */}
+              {activeClientTab === 'cadastro' && (
+                <div className="space-y-4">
+                  <div
+                    ref={detalhesSectionRef}
+                    className="p-4 bg-emerald-50/40 rounded-xl border border-emerald-200/70 space-y-4 animate-in fade-in duration-200"
+                  >
+                    <div className="flex items-center justify-between pb-2 border-b border-emerald-200/50">
+                      <div className="flex items-center gap-2">
+                        <User className="w-4 h-4 text-emerald-700" />
+                        <h4 className="text-xs font-bold uppercase tracking-wider text-emerald-900">
+                          Identificação & Contatos do Cliente
+                        </h4>
+                      </div>
+                      <span className="text-[11px] text-gray-500">
+                        Edição inline: clique no lápis para alterar
+                      </span>
+                    </div>
                       {/* Destaque Inicial: Geração Média Mensal */}
                       <div className="p-4 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-700 text-white shadow-sm space-y-1">
                         <div className="flex items-center justify-between text-xs font-medium text-emerald-100">
