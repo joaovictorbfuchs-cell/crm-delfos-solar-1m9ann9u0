@@ -22,7 +22,9 @@ import {
   ExternalLink,
   ChevronRight,
   Info,
+  Download,
 } from 'lucide-react'
+import { ModalImportarInversores } from '@/components/ModalImportarInversores'
 import { toast } from 'sonner'
 import type {
   AtivoUsina,
@@ -75,10 +77,11 @@ export default function AtivosPage() {
   const [garantiaFiltro, setGarantiaFiltro] = useState<string>('todos')
   const [busca, setBusca] = useState<string>('')
 
-  // Modais de Criação / Edição
+  // Modais de Criação / Edição / Importação
   const [modalOpen, setModalOpen] = useState<boolean>(false)
   const [editingItem, setEditingItem] = useState<AtivoUsina | null>(null)
   const [modalDeleteOpen, setModalDeleteOpen] = useState<boolean>(false)
+  const [modalImportarOpen, setModalImportarOpen] = useState<boolean>(false)
   const [itemParaExcluir, setItemParaExcluir] = useState<AtivoUsina | null>(null)
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false)
   const [isDeleting, setIsDeleting] = useState<boolean>(false)
@@ -357,6 +360,18 @@ export default function AtivosPage() {
           >
             <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
             <span>Atualizar</span>
+          </Button>
+
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setModalImportarOpen(true)}
+            className="text-xs font-bold gap-1.5 border-amber-300 bg-amber-50/60 hover:bg-amber-100 text-amber-950 rounded-xl shadow-2xs"
+            title="Copiar inversores já cadastrados em cliente_inversores para a coleção de ativos"
+          >
+            <Download className="w-3.5 h-3.5 text-[#E0A838]" />
+            <span>Importar de cliente_inversores</span>
           </Button>
 
           <Button
@@ -949,6 +964,16 @@ export default function AtivosPage() {
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* ======================================================== */}
+      {/* MODAL: IMPORTAR INVERSORES DE CLIENTE_INVERSORES         */}
+      {/* ======================================================== */}
+      <ModalImportarInversores
+        open={modalImportarOpen}
+        onOpenChange={setModalImportarOpen}
+        onSucesso={carregarDados}
+        usuarioId={user?.id}
+      />
 
       {/* ======================================================== */}
       {/* MODAL: CONFIRMAR EXCLUSÃO                                */}

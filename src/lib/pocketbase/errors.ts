@@ -28,21 +28,19 @@ export function getErrorMessage(error: unknown): string {
   return msgs.length > 0 ? msgs.join(' ') : error.message || 'An unexpected error occurred.'
 }
 
-export function isAuthSessionError(err: unknown): boolean {
+export function isAuthSessionError(err: any): boolean {
   if (!err) return false
-  if (typeof err === 'object') {
-    const errorObj = err as Record<string, unknown>
-    const status = errorObj.status ?? errorObj.statusCode
-    if (status === 401 || status === 403) return true
-    const message = typeof errorObj.message === 'string' ? errorObj.message.toLowerCase() : ''
-    if (
-      message.includes('token is expired') ||
-      message.includes('the request requires valid user authorization token') ||
-      message.includes('failed to authenticate') ||
-      message.includes('invalid or expired token')
-    ) {
-      return true
-    }
+  if (err.status === 401 || err.status === 403) return true
+  if (err.statusCode === 401 || err.statusCode === 403) return true
+  const msg = (err.message || '').toLowerCase()
+  if (
+    msg.includes('token is expired') ||
+    msg.includes('token expired') ||
+    msg.includes('failed to authenticate') ||
+    msg.includes('unauthorized') ||
+    msg.includes('forbidden')
+  ) {
+    return true
   }
   return false
 }

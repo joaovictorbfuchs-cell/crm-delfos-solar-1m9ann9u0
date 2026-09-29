@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-29T02:33:58.658Z",
+  "generatedAt": "2026-09-29T11:04:21.232Z",
   "collections": [
     {
       "name": "users",
@@ -5946,7 +5946,7 @@
         {
           "name": "usina_id",
           "type": "relation",
-          "required": true,
+          "required": false,
           "system": false,
           "collectionRef": "usinas"
         },
@@ -6026,12 +6026,25 @@
           "required": false,
           "system": false,
           "autodateTriggers": ["onCreate", "onUpdate"]
+        },
+        {
+          "name": "chave_importacao",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "cliente_inversor_id",
+          "type": "text",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": [
         "CREATE INDEX idx_ativos_usina ON ativos (usina_id)",
         "CREATE INDEX idx_ativos_tipo ON ativos (tipo)",
-        "CREATE INDEX idx_ativos_num_serie ON ativos (numero_serie)"
+        "CREATE INDEX idx_ativos_num_serie ON ativos (numero_serie)",
+        "CREATE INDEX `idx_ativos_chave_importacao` ON `ativos` (chave_importacao)"
       ]
     }
   ]
