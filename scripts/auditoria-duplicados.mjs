@@ -1,8 +1,60 @@
 import PocketBase from 'pocketbase'
+import fs from 'fs'
+import path from 'path'
 
-const pbUrl = 'https://crm-delfos-solar-72b9e.shrd00.internal.goskip.dev'
-const pb = new PocketBase(pbUrl)
-pb.autoCancellation(false)
+// Função auxiliar para carregar variáveis do .env caso não estejam no process.env
+function loadEnvFile() {
+  const envPath = path.resolve('.env')
+  if (fs.existsSync(envPath)) {
+    try {
+      const content = fs.readFileSync(envPath, 'utf8')
+      const lines = content.split('\n')
+      for (const line of lines) {
+        const trimmed = line.trim()
+        if (!trimmed || trimmed.startsWith('#')) continue
+        const eqIdx = trimmed.indexOf('=')
+        if (eqIdx !== -1) {
+          const key = trimmed.slice(0, eqIdx).trim()
+          let val = trimmed.slice(eqIdx + 1).trim()
+          if (
+            (val.startsWith('"') && val.endsWith('"')) ||
+            (val.startsWith("'") && val.endsWith("'"))
+          ) {
+            val = val.slice(1, -1)
+          }
+          if (!process.env[key]) {
+            process.env[key] = val
+          }
+        }
+      }
+    } catch {
+      // Ignora erro ao ler .env
+    }
+  }
+}
+
+loadEnvFile()
+
+// Credenciais e URL obtidas via ambiente (com suporte a nomes comuns)
+const pbUrl =
+  process.env.VITE_POCKETBASE_URL ||
+  process.env.PB_URL ||
+  process.env.POCKETBASE_URL ||
+  'https://crm-delfos-solar-72b9e.shrd00.internal.goskip.dev'
+
+const authEmail =
+  process.env.PB_USER_EMAIL ||
+  process.env.PB_ADMIN_EMAIL ||
+  process.env.POCKETBASE_USER ||
+  process.env.POCKETBASE_EMAIL ||
+  process.env.PB_AUTH_EMAIL
+
+const authPassword =
+  process.env.PB_USER_PASSWORD ||
+  process.env.PB_ADMIN_PASSWORD ||
+  process.env.POCKETBASE_PASS ||
+  process.env.POCKETBASE_PASSWORD ||
+  process.env.PB_AUTH_PASSWORD
 
 // Normalização de telefone/whatsapp
 export function normalizePhone(raw) {
@@ -51,7 +103,52 @@ export function cleanNameSuffixes(name) {
     .trim()
 }
 
-export async function runAuditoria() {
+/**
+ * Busca com paginação garantida e validação estrita de contagem do PocketBase.
+ * Compara o total de registros retornados com serverTotalItems.
+ * Se houver divergência, ou se o número for suspeitamente baixo em uma coleção existente, aborta com erro explícito.
+ */
+async function fetchAllWithSanityCheck(pb, collectionName, minExpected = 1) {
+  // 1. Pergunta ao servidor o total oficial através de perPage=1
+  const meta = await pb.collection(collectionName).getList(1, 1, {
+    requestKey: null,
+  })
+  const serverTotalItems = meta.totalItems
+
+  if (serverTotalItems < minExpected) {
+    throw new Error(
+      `[SANITY CHECK FALHOU] A coleção '${collectionName}' retornou ${serverTotalItems} itens no servidor, abaixo do mínimo esperado (${minExpected}). Possível perda de dados ou ambiente incorreto!`,
+    )
+  }
+
+  // 2. Paginação iterativa com perPage=200 para carregar todos os registros com segurança
+  const pageSize = 200
+  let page = 1
+  const records = []
+
+  while (true) {
+    const res = await pb.collection(collectionName).getList(page, pageSize, {
+      requestKey: null,
+      sort: 'created',
+    })
+    records.push(...res.items)
+    if (page >= res.totalPages || res.items.length === 0) {
+      break
+    }
+    page++
+  }
+
+  // 3. Validação de integridade entre quantidade carregada e total do servidor
+  if (records.length !== serverTotalItems) {
+    throw new Error(
+      `[SANITY CHECK FALHOU] Divergência na contagem de '${collectionName}': carregados localmente ${records.length} registros, mas o servidor relata totalItems = ${serverTotalItems}. Abortando para evitar dados incompletos!`,
+    )
+  }
+
+  return { records, totalItems: serverTotalItems }
+}
+
+export async function runAuditoria(customEnv = {}) {
   const output = []
   const log = (...args) => {
     console.log(...args)
@@ -60,29 +157,68 @@ export async function runAuditoria() {
 
   log('=== INICIANDO AUDITORIA DE DUPLICIDADES NO CRM DELFOS SOLAR ===\n')
 
-  // Autenticação com credencial de admin/colaborador
-  try {
-    await pb.collection('users').authWithPassword('joao@delfosengenharia.com.br', 'Skip@Pass')
-    log('Autenticação com PocketBase: SUCESSO (usuário joao@delfosengenharia.com.br)')
-  } catch (err) {
-    log('FALHA na autenticação PocketBase:', err.message)
-    throw err
+  const email = customEnv.email || authEmail
+  const password = customEnv.password || authPassword
+  const url = customEnv.url || pbUrl
+
+  if (!email || !password) {
+    const msg =
+      '[ERRO DE SEGURANÇA] Credenciais do PocketBase não definidas! ' +
+      'Por favor, defina PB_USER_EMAIL e PB_USER_PASSWORD no arquivo .env ou no ambiente antes de executar a auditoria.'
+    log(msg)
+    throw new Error(msg)
   }
 
-  // 1. Leitura Completa com Paginação de ambas as coleções
+  const pb = new PocketBase(url)
+  pb.autoCancellation(false)
+
+  // Autenticação com credencial segura
+  try {
+    await pb.collection('users').authWithPassword(email, password)
+    log(`Autenticação com PocketBase: SUCESSO (usuário autenticado: ${email})`)
+  } catch (err) {
+    const msg = `FALHA na autenticação PocketBase com usuário '${email}': ${err.message}`
+    log(msg)
+    throw new Error(msg)
+  }
+
+  // 1. Leitura Completa com Paginação e Verificação de Sanidade
   log('\n--- 1. LEITURA COMPLETA DAS COLEÇÕES (SANITY CHECK) ---')
 
-  const contatos = await pb.collection('contatos').getFullList({
-    requestKey: null,
-    sort: 'created',
-  })
-  log(`Total de registros lidos na coleção 'contatos': ${contatos.length}`)
+  // No Delfos Solar, contatos possui centenas de registros (migrados do funil/outros contatos)
+  // e clientes também possui centenas de registros.
+  const contatosResult = await fetchAllWithSanityCheck(pb, 'contatos', 10)
+  const clientesResult = await fetchAllWithSanityCheck(pb, 'clientes', 10)
 
-  const clientes = await pb.collection('clientes').getFullList({
-    requestKey: null,
-    sort: 'created',
+  const contatos = contatosResult.records
+  const clientes = clientesResult.records
+
+  log(
+    `Total confirmado na coleção 'contatos': ${contatos.length} (validado com o servidor: ${contatosResult.totalItems})`,
+  )
+  log(
+    `Total confirmado na coleção 'clientes': ${clientes.length} (validado com o servidor: ${clientesResult.totalItems})`,
+  )
+
+  // Resumo de contatos por papel
+  const papelCount = {}
+  contatos.forEach((c) => {
+    const papel = c.papel || 'não definido'
+    papelCount[papel] = (papelCount[papel] || 0) + 1
   })
-  log(`Total de registros lidos na coleção 'clientes': ${clientes.length}`)
+
+  // Resumo de clientes por status
+  const statusClientesCount = {}
+  clientes.forEach((c) => {
+    const st = c.status || 'sem status'
+    statusClientesCount[st] = (statusClientesCount[st] || 0) + 1
+  })
+
+  log('\n--- RESUMO NUMÉRICO INICIAL ---')
+  log(`Total geral de contatos: ${contatos.length}`)
+  log('Distribuição de contatos por papel:', papelCount)
+  log(`Total geral de clientes: ${clientes.length}`)
+  log('Distribuição de clientes por status:', statusClientesCount)
 
   // Mapa de clientes por ID para resolução rápida de nomes de clientes vinculados
   const clienteMap = new Map()
@@ -117,10 +253,10 @@ export async function runAuditoria() {
   const clientesComNumeroValido = clientesComNumero.filter((c) => c.normPhone.length >= 8)
 
   log(
-    `Registros em 'contatos' com número de telefone/WhatsApp válido: ${contatosComNumeroValido.length}`,
+    `Registros em 'contatos' com telefone/WhatsApp válido: ${contatosComNumeroValido.length} de ${contatos.length}`,
   )
   log(
-    `Registros em 'clientes' com número de telefone/WhatsApp válido: ${clientesComNumeroValido.length}`,
+    `Registros em 'clientes' com telefone/WhatsApp válido: ${clientesComNumeroValido.length} de ${clientes.length}`,
   )
 
   // Helper para resolver nomes de clientes vinculados a um contato
@@ -266,7 +402,6 @@ export async function runAuditoria() {
     '\n--- 2.b) Contatos com nome muito parecido (sufixos, acentos, sobrenome+inicial ou mesmo telefone) ---',
   )
   let count2b = 0
-  // Compara pares de contatos
   for (let i = 0; i < contatosComNumero.length; i++) {
     for (let j = i + 1; j < contatosComNumero.length; j++) {
       const c1 = contatosComNumero[i]
@@ -310,7 +445,6 @@ export async function runAuditoria() {
               !c1.normPhone ||
               !c2.normPhone
             ) {
-              // Verifica se a diferença é pequena (ex: nome do meio abreviado)
               isSimilar = true
               motivo = `Mesmo primeiro nome ("${first1}") e último sobrenome ("${last1}")`
             }
@@ -387,6 +521,42 @@ export async function runAuditoria() {
     log('Nenhum par de clientes com nome muito parecido E mesmo WhatsApp encontrado.')
   }
 
+  log('\n======================================================')
+  log('RESUMO DOS RESULTADOS DA AUDITORIA')
+  log('======================================================')
+  log(`Total contatos lidos e validados: ${contatos.length}`)
+  log(`Total clientes lidos e validados: ${clientes.length}`)
+  log(`Grupo 1.a (mesmo WhatsApp em múltiplos contatos): ${count1a} casos`)
+  log(`Grupo 1.b (mesmo WhatsApp em múltiplos clientes): ${count1b} casos`)
+  log(`Grupo 1.c (mesmo WhatsApp entre contato e cliente com nomes distintos): ${count1c} casos`)
+  log(`Grupo 2.a (contatos com nome idêntico): ${count2a} casos`)
+  log(`Grupo 2.b (contatos com nomes parecidos/sufixos): ${count2b} casos`)
+  log(`Grupo 2.c (clientes com nomes parecidos e mesmo WhatsApp): ${count2c} casos`)
   log('\n=== AUDITORIA CONCLUÍDA COM SUCESSO ===\n')
-  return output.join('\n')
+
+  return {
+    output: output.join('\n'),
+    stats: {
+      totalContatos: contatos.length,
+      totalClientes: clientes.length,
+      contatosComNumeroValido: contatosComNumeroValido.length,
+      clientesComNumeroValido: clientesComNumeroValido.length,
+      papelCount,
+      statusClientesCount,
+      count1a,
+      count1b,
+      count1c,
+      count2a,
+      count2b,
+      count2c,
+    },
+  }
+}
+
+// Execução direta via `node scripts/auditoria-duplicados.mjs`
+if (process.argv[1] && process.argv[1].endsWith('auditoria-duplicados.mjs')) {
+  runAuditoria().catch((err) => {
+    console.error('ERRO FATAL NA AUDITORIA:', err.message)
+    process.exit(1)
+  })
 }

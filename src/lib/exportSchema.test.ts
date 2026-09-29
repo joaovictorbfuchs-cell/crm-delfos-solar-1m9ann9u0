@@ -37,9 +37,6 @@ describe('Diagnostico Imagens', () => {
     USINAS_PORTFOLIO_PADRAO.forEach((u) => {
       report[u.id] = { strLen: u.fotoBase64.length, bytes: calcBytes(u.fotoBase64) }
     })
-    const { runAuditoria } = await import('../../scripts/auditoria-duplicados.mjs')
-    const output = await runAuditoria()
-    throw new Error(`AUDITORIA_OUTPUT_START:\n${output}\n:AUDITORIA_OUTPUT_END`)
   })
 })
 
@@ -119,4 +116,5 @@ describe('Export Schema Script & Data Structure', () => {
     expect(buffer[0]).toBe(0x50)
     expect(buffer[1]).toBe(0x4b)
   })
+
 })
