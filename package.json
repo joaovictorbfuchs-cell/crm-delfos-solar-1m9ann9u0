@@ -10,7 +10,6 @@
     "prebuild": "node scripts/medirAssets.js && node scripts/exportSchema.js",
     "build": "vite build",
     "build:dev": "vite build --mode development",
-    "exec-auditoria": "node scripts/auditoria-duplicados.mjs",
     "lint": "oxlint src",
     "lint:fix": "oxlint src --fix",
     "format": "oxfmt",

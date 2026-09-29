@@ -18,3 +18,5 @@ files.forEach((f) => {
 console.log('--- ASSETS STATS ---')
 console.log(JSON.stringify(stats, null, 2))
 console.log('--------------------')
+
+fs.writeFileSync('test_marker.txt', 'EXECUTOU MEDIRASSETS', 'utf8')
