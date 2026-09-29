@@ -28,6 +28,11 @@ import { useClientes } from '@/contexts/ClientesContext'
 import type { Cliente, WhatsAppTemplate } from '@/types/crm'
 import { formatDateTime, formatCurrency, formatWhatsAppPhone } from '@/lib/formatters'
 import { getWhatsAppMediaUrl } from '@/lib/whatsappGateway'
+import {
+  resolverNumeroDestinoCliente,
+  MENSAGEM_ALERTA_SEM_NUMERO,
+  type OrigemNumeroDestino,
+} from '@/lib/resolverNumeroDestinoCliente'
 
 interface FichaClienteWhatsAppProps {
   cliente: Cliente
@@ -53,6 +58,27 @@ export const FichaClienteWhatsApp: React.FC<FichaClienteWhatsAppProps> = ({
   const [telefoneDestino, setTelefoneDestino] = useState<string>(
     cliente.whatsapp || cliente.telefone || '',
   )
+  const [origemDestino, setOrigemDestino] = useState<OrigemNumeroDestino>('nenhum')
+  const [contatoAdicionalNome, setContatoAdicionalNome] = useState<string | undefined>()
+
+  React.useEffect(() => {
+    let cancel = false
+    async function carregarDestino() {
+      const res = await resolverNumeroDestinoCliente(cliente)
+      if (cancel) return
+      setOrigemDestino(res.origem)
+      setContatoAdicionalNome(res.contatoAdicionalNome)
+      if (res.numeroFormatado) {
+        setTelefoneDestino(res.numeroFormatado)
+      } else {
+        setTelefoneDestino(formatWhatsAppPhone(cliente.whatsapp || cliente.telefone || ''))
+      }
+    }
+    carregarDestino()
+    return () => {
+      cancel = true
+    }
+  }, [cliente])
   const [mensagemTexto, setMensagemTexto] = useState<string>('')
   const [agendarEnvio, setAgendarEnvio] = useState<boolean>(false)
   const [dataHoraAgendada, setDataHoraAgendada] = useState<string>('')
@@ -139,7 +165,7 @@ export const FichaClienteWhatsApp: React.FC<FichaClienteWhatsAppProps> = ({
     if (!tel) {
       setFeedback({
         tipo: 'error',
-        texto: 'Por favor, informe o número de WhatsApp do destinatário.',
+        texto: MENSAGEM_ALERTA_SEM_NUMERO,
       })
       return
     }
@@ -387,7 +413,9 @@ export const FichaClienteWhatsApp: React.FC<FichaClienteWhatsAppProps> = ({
           {/* Quick info do número atual */}
           <div className="flex items-center gap-1.5 text-xs bg-emerald-50 text-emerald-900 px-2.5 py-1 rounded-lg border border-emerald-200 font-semibold">
             <Phone className="w-3.5 h-3.5 text-emerald-600" />
-            <span>Destino: {cliente.whatsapp || cliente.telefone || 'Sem número'}</span>
+            <span>
+              Destino: {telefoneDestino || cliente.whatsapp || cliente.telefone || 'Sem número'}
+            </span>
           </div>
         </div>
 
@@ -450,9 +478,26 @@ export const FichaClienteWhatsApp: React.FC<FichaClienteWhatsAppProps> = ({
                 placeholder="(54) 99876-5432"
                 className="w-full text-xs font-semibold px-3 py-2.5 rounded-xl border border-gray-300 bg-white text-gray-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-2xs"
               />
+              {origemDestino === 'contato_adicional_whatsapp' && (
+                <div className="mt-1 px-2.5 py-1 bg-blue-50 border border-blue-200 rounded-lg text-[11px] text-blue-800 flex items-center gap-1.5 font-medium">
+                  <span className="font-bold">Contato adicional:</span>
+                  <span>{contatoAdicionalNome || 'Contato com WhatsApp'}</span>
+                  <span className="text-blue-600">(utilizado como alternativa)</span>
+                </div>
+              )}
+              {origemDestino === 'cliente_telefone' && (
+                <div className="mt-1 px-2.5 py-1 bg-amber-50 border border-amber-200 rounded-lg text-[11px] text-amber-800 flex items-center gap-1.5">
+                  <span>Usando telefone do cliente (sem WhatsApp cadastrado).</span>
+                </div>
+              )}
+              {origemDestino === 'nenhum' && !telefoneDestino && (
+                <p className="mt-1 text-[11px] text-rose-600 font-semibold flex items-center gap-1">
+                  <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                  {MENSAGEM_ALERTA_SEM_NUMERO}
+                </p>
+              )}
             </div>
           </div>
-
           {/* Área de Texto da Mensagem */}
           <div>
             <div className="flex items-center justify-between mb-1.5">

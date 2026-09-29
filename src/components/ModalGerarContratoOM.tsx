@@ -50,6 +50,11 @@ import { formatCurrency, formatWhatsAppPhone } from '@/lib/formatters'
 import { sendWhatsAppMensagem } from '@/services/crmService'
 import { getFriendlyWhatsAppErrorMessage } from '@/lib/whatsappGateway'
 import { toast } from 'sonner'
+import {
+  resolverNumeroDestinoCliente,
+  MENSAGEM_ALERTA_SEM_NUMERO,
+  type OrigemNumeroDestino,
+} from '@/lib/resolverNumeroDestinoCliente'
 
 export interface ModalGerarContratoOMProps {
   open: boolean
@@ -80,6 +85,8 @@ export const ModalGerarContratoOM: React.FC<ModalGerarContratoOMProps> = ({
   const [formEndereco, setFormEndereco] = useState('')
   const [formMunicipio, setFormMunicipio] = useState('')
   const [formTelefone, setFormTelefone] = useState('')
+  const [origemDestino, setOrigemDestino] = useState<OrigemNumeroDestino>('nenhum')
+  const [contatoAdicionalNome, setContatoAdicionalNome] = useState<string | undefined>()
   const [formEmail, setFormEmail] = useState('')
 
   // Dados Técnicos do Sistema
@@ -103,6 +110,18 @@ export const ModalGerarContratoOM: React.FC<ModalGerarContratoOMProps> = ({
   // Ao abrir o modal, pré-carrega os dados da ficha do cliente ou initialDados
   useEffect(() => {
     if (open && cliente) {
+      let cancelResolucao = false
+      async function resolverTelefoneCliente() {
+        const res = await resolverNumeroDestinoCliente(cliente)
+        if (cancelResolucao) return
+        setOrigemDestino(res.origem)
+        setContatoAdicionalNome(res.contatoAdicionalNome)
+        if (res.numeroFormatado && !initialDados?.telefone) {
+          setFormTelefone(res.numeroFormatado)
+        }
+      }
+      resolverTelefoneCliente()
+
       setAtividadeRegistrada(false)
 
       if (initialDados) {
@@ -223,6 +242,10 @@ export const ModalGerarContratoOM: React.FC<ModalGerarContratoOMProps> = ({
       setFormDataExtenso(formatarDataExtenso(new Date()))
       setFormServicosAdicionais(SERVICOS_ADICIONAIS_PADRAO)
       setEtapa(modoVisualizacaoDireta ? 'previsualizacao' : 'revisao')
+
+      return () => {
+        cancelResolucao = true
+      }
     }
   }, [open, cliente, propostaOM, initialDados, modoVisualizacaoDireta])
 
@@ -332,9 +355,7 @@ export const ModalGerarContratoOM: React.FC<ModalGerarContratoOMProps> = ({
   // 2. Enviar pelo WhatsApp diretamente via Z-API
   const handleEnviarWhatsApp = async () => {
     if (!temTelefoneValido) {
-      toast.error(
-        'O cliente não possui telefone de contato válido cadastrado para envio via WhatsApp.',
-      )
+      toast.error(MENSAGEM_ALERTA_SEM_NUMERO)
       return
     }
 
@@ -492,10 +513,24 @@ export const ModalGerarContratoOM: React.FC<ModalGerarContratoOMProps> = ({
                   </Label>
                   <Input
                     value={formTelefone}
-                    onChange={(e) => setFormTelefone(formatWhatsAppPhone(e.target.value))}
+                    onChange={(e) => {
+                      setFormTelefone(formatWhatsAppPhone(e.target.value))
+                    }}
                     placeholder="(54) 99712-8844"
                     className="h-9 text-xs mt-1 bg-white font-mono"
                   />
+                  {origemDestino === 'contato_adicional_whatsapp' && (
+                    <div className="mt-1.5 px-2.5 py-1 bg-blue-50 border border-blue-200 rounded-lg text-[11px] text-blue-800 flex items-center gap-1.5 font-medium">
+                      <span className="font-bold">Contato adicional:</span>
+                      <span>{contatoAdicionalNome || 'Contato com WhatsApp'}</span>
+                      <span className="text-blue-600">(utilizado como alternativa)</span>
+                    </div>
+                  )}
+                  {origemDestino === 'cliente_telefone' && (
+                    <div className="mt-1.5 px-2.5 py-1 bg-amber-50 border border-amber-200 rounded-lg text-[11px] text-amber-800 flex items-center gap-1.5">
+                      <span>Usando telefone do cliente (sem WhatsApp cadastrado).</span>
+                    </div>
+                  )}
                   <p className="text-[10px] text-gray-400 mt-1">
                     Substitui «Telefone». Usado para envio do contrato via WhatsApp.
                   </p>

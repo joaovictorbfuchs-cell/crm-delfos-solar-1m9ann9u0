@@ -27,6 +27,11 @@ import { toast } from '@/hooks/use-toast'
 import { Cliente } from '@/types/crm'
 import { sendWhatsAppMensagem } from '@/services/crmService'
 import { getFriendlyWhatsAppErrorMessage } from '@/lib/whatsappGateway'
+import {
+  resolverNumeroDestinoCliente,
+  MENSAGEM_ALERTA_SEM_NUMERO,
+  type OrigemNumeroDestino,
+} from '@/lib/resolverNumeroDestinoCliente'
 
 export const ITENS_SOLICITACAO_INFORMACOES = [
   'Nome completo',
@@ -87,10 +92,26 @@ export const ModalSolicitacaoInformacoes: React.FC<ModalSolicitacaoInformacoesPr
   const [isCopiado, setIsCopiado] = useState<boolean>(false)
   const [isSalvando, setIsSalvando] = useState<boolean>(false)
   const [isSendingWhatsApp, setIsSendingWhatsApp] = useState<boolean>(false)
+  const [destinoNumero, setDestinoNumero] = useState<string>('')
+  const [origemDestino, setOrigemDestino] = useState<OrigemNumeroDestino>('nenhum')
+  const [contatoAdicionalNome, setContatoAdicionalNome] = useState<string | undefined>()
 
-  // Ao abrir o modal ou mudar o cliente, carrega as pendências salvas
+  // Ao abrir o modal, pré-carrega pendências existentes no cliente ou detecta automaticamente
   useEffect(() => {
-    if (open && cliente) {
+    let cancel = false
+    async function resolverDestino() {
+      const res = await resolverNumeroDestinoCliente(cliente)
+      if (cancel) return
+      setOrigemDestino(res.origem)
+      setContatoAdicionalNome(res.contatoAdicionalNome)
+      if (res.numero) {
+        setDestinoNumero(res.numero)
+      } else {
+        const fallback = (cliente.whatsapp || cliente.telefone || '').replace(/\D/g, '')
+        setDestinoNumero(fallback)
+      }
+    }
+    resolverDestino()    if (open && cliente) {
       const itensSalvos = Array.isArray(cliente.pendencias_informacoes)
         ? cliente.pendencias_informacoes
         : []
@@ -105,12 +126,15 @@ export const ModalSolicitacaoInformacoes: React.FC<ModalSolicitacaoInformacoesPr
         setMensagemTentouGerar(false)
       }
     }
+    return () => {
+      cancel = true
+    }
   }, [open, cliente])
 
   // Normalização de telefone
-  const telefoneCru = (cliente.whatsapp || cliente.telefone || '').trim()
-  const cleanPhoneDigits = useMemo(() => telefoneCru.replace(/\D/g, ''), [telefoneCru])
+  const cleanPhoneDigits = destinoNumero
   const temTelefoneValido = cleanPhoneDigits.length >= 10
+  const telefoneExibicao = (cliente.whatsapp || cliente.telefone || destinoNumero).trim()
 
   const handleToggleItem = async (item: string) => {
     const jaMarcado = pendentes.includes(item)
@@ -215,7 +239,14 @@ export const ModalSolicitacaoInformacoes: React.FC<ModalSolicitacaoInformacoesPr
   }
 
   const handleEnviarWhatsApp = async () => {
-    if (!temTelefoneValido) return
+    if (!temTelefoneValido) {
+      toast({
+        title: 'Envio não realizado',
+        description: MENSAGEM_ALERTA_SEM_NUMERO,
+        variant: 'destructive',
+      })
+      return
+    }
     const textoAEnviar = mensagemGerada || gerarTextoMensagemSolicitacao(cliente.nome, pendentes)
     if (!textoAEnviar.trim()) {
       toast({
@@ -439,13 +470,23 @@ export const ModalSolicitacaoInformacoes: React.FC<ModalSolicitacaoInformacoesPr
                     Destinatário / WhatsApp:
                   </span>
                   <span className="font-semibold text-gray-800 truncate block">
-                    {cliente.nome} {telefoneCru ? `• ${telefoneCru}` : ''}
+                    {cliente.nome} {telefoneExibicao ? `• ${telefoneExibicao}` : ''}
                   </span>
+                  {origemDestino === 'contato_adicional_whatsapp' && (
+                    <span className="text-[10px] text-blue-700 font-medium block mt-0.5">
+                      Contato adicional: {contatoAdicionalNome || 'Contato'} (utilizado como alternativa)
+                    </span>
+                  )}
+                  {origemDestino === 'cliente_telefone' && (
+                    <span className="text-[10px] text-amber-700 font-medium block mt-0.5">
+                      Usando telefone do cliente (sem WhatsApp cadastrado).
+                    </span>
+                  )}
                 </div>
                 {!temTelefoneValido && (
                   <span className="text-[10px] text-amber-800 bg-amber-50 px-2 py-0.5 rounded border border-amber-200 font-semibold shrink-0 flex items-center gap-1">
                     <AlertCircle className="w-3 h-3 text-amber-600" />
-                    Sem telefone
+                    Sem número cadastrado
                   </span>
                 )}
               </div>
@@ -545,12 +586,10 @@ export const ModalSolicitacaoInformacoes: React.FC<ModalSolicitacaoInformacoesPr
                       </span>
                     </TooltipTrigger>
                     {!temTelefoneValido && (
-                      <TooltipContent className="bg-gray-900 text-white text-xs max-w-xs">
-                        Telefone não cadastrado na ficha do cliente. Cadastre o telefone ou WhatsApp
-                        para habilitar o envio direto.
-                      </TooltipContent>
-                    )}
-                  </Tooltip>
+                      <p className="text-[10px] text-amber-700 text-center font-medium">
+                        {MENSAGEM_ALERTA_SEM_NUMERO}
+                      </p>
+                    )}                  </Tooltip>
                 </TooltipProvider>
               </div>
 

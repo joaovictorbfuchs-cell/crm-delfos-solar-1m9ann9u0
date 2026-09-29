@@ -23,6 +23,11 @@ import type { Cliente, Sistema } from '@/types/crm'
 import { DEFAULT_SOLARVIEW_CONFIG, sendWhatsAppMensagem } from '@/services/crmService'
 import { cleanPhoneDigits } from '@/lib/formatters'
 import { getFriendlyWhatsAppErrorMessage } from '@/lib/whatsappGateway'
+import {
+  resolverNumeroDestinoCliente,
+  MENSAGEM_ALERTA_SEM_NUMERO,
+  type OrigemNumeroDestino,
+} from '@/lib/resolverNumeroDestinoCliente'
 
 interface SecaoAcessoSolarviewProps {
   cliente: Cliente
@@ -60,9 +65,26 @@ export const SecaoAcessoSolarview: React.FC<SecaoAcessoSolarviewProps> = ({
   const [isSaving, setIsSaving] = useState(false)
   const [saveSuccess, setSaveSuccess] = useState(false)
   const [isSendingWhatsApp, setIsSendingWhatsApp] = useState(false)
+  const [resolvedTelefoneDigitos, setResolvedTelefoneDigitos] = useState<string>('')
+  const [resolvedOrigem, setResolvedOrigem] = useState<OrigemNumeroDestino>('nenhum')
+  const [resolvedContatoNome, setResolvedContatoNome] = useState<string | undefined>()
 
   // Sincroniza estado quando cliente mudar
   useEffect(() => {
+    let cancel = false
+    async function resolverDestino() {
+      const res = await resolverNumeroDestinoCliente(cliente)
+      if (cancel) return
+      setResolvedOrigem(res.origem)
+      setResolvedContatoNome(res.contatoAdicionalNome)
+      if (res.numero) {
+        setResolvedTelefoneDigitos(res.numero)
+      } else {
+        const fallback = cleanPhoneDigits(cliente.whatsapp || cliente.telefone || '')
+        setResolvedTelefoneDigitos(fallback)
+      }
+    }
+    resolverDestino()
     setLogin(cliente.solarview_login || sistema?.solarview_login || '')
     setSenha(cliente.solarview_senha || sistema?.solarview_senha || '')
     setLinkIos(
@@ -93,6 +115,11 @@ export const SecaoAcessoSolarview: React.FC<SecaoAcessoSolarviewProps> = ({
     sistema?.solarview_link_android,
     sistema?.solarview_link_texto,
   ])
+
+  useEffect(() => {
+    // cleanup hook se desmontar
+    return () => {}
+  }, [])
 
   // Copiar valor para área de transferência
   const handleCopy = async (field: string, text: string) => {
@@ -156,14 +183,13 @@ export const SecaoAcessoSolarview: React.FC<SecaoAcessoSolarviewProps> = ({
   }
 
   // Validação do telefone para envio via WhatsApp
-  const telefoneCru = cliente.whatsapp || cliente.telefone || ''
-  const telefoneDigitos = cleanPhoneDigits(telefoneCru)
+  const telefoneDigitos = resolvedTelefoneDigitos
   const temTelefoneValido = telefoneDigitos.length >= 10
 
   // Disparo de credenciais Solarview pelo WhatsApp diretamente via Z-API
   const handleEnviarWhatsAppSolarview = async () => {
     if (!temTelefoneValido) {
-      toast.error('O cliente não possui telefone de contato cadastrado na ficha.')
+      toast.error(MENSAGEM_ALERTA_SEM_NUMERO)
       return
     }
 
@@ -488,7 +514,7 @@ export const SecaoAcessoSolarview: React.FC<SecaoAcessoSolarviewProps> = ({
             disabled={!temTelefoneValido || isSendingWhatsApp}
             title={
               temTelefoneValido
-                ? `Enviar dados Solarview via WhatsApp para ${telefoneCru}`
+                ? `Enviar dados Solarview via WhatsApp para ${telefoneDigitos}`
                 : 'Cliente sem telefone de contato cadastrado na ficha'
             }
             className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg transition-all shadow-2xs ${
@@ -519,14 +545,20 @@ export const SecaoAcessoSolarview: React.FC<SecaoAcessoSolarviewProps> = ({
         </div>
       </div>
 
+      {/* Contexto de contato adicional */}
+      {resolvedOrigem === 'contato_adicional_whatsapp' && temTelefoneValido && (
+        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-blue-50 border border-blue-200 text-[11px] text-blue-800 font-medium">
+          <span className="font-bold">Contato adicional:</span>
+          <span>{resolvedContatoNome || 'Contato com WhatsApp'}</span>
+          <span className="text-blue-600">(utilizado como alternativa)</span>
+        </div>
+      )}
+
       {/* Aviso caso cliente não tenha telefone */}
       {!temTelefoneValido && (
         <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-amber-50/80 border border-amber-200 text-[11px] text-amber-800">
           <AlertCircle className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-          <span>
-            Cliente sem telefone cadastrado. Cadastre o número para habilitar o envio dos dados do
-            Solarview via WhatsApp.
-          </span>
+          <span>{MENSAGEM_ALERTA_SEM_NUMERO}</span>
         </div>
       )}
     </div>

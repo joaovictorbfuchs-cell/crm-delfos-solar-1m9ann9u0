@@ -36,6 +36,11 @@ import {
 } from '@/services/crmService'
 import { cleanPhoneDigits } from '@/lib/formatters'
 import { getFriendlyWhatsAppErrorMessage } from '@/lib/whatsappGateway'
+import {
+  resolverNumeroDestinoCliente,
+  MENSAGEM_ALERTA_SEM_NUMERO,
+  type OrigemNumeroDestino,
+} from '@/lib/resolverNumeroDestinoCliente'
 import { DatasheetBadge } from './DatasheetBadge'
 import {
   AlertDialog,
@@ -87,6 +92,29 @@ export const SecaoMonitoramentoInversor: React.FC<SecaoMonitoramentoInversorProp
   const [isSaving, setIsSaving] = useState(false)
   const [saveSuccess, setSaveSuccess] = useState(false)
   const [isSendingWhatsApp, setIsSendingWhatsApp] = useState(false)
+  const [resolvedTelefoneDigitos, setResolvedTelefoneDigitos] = useState<string>('')
+  const [resolvedOrigem, setResolvedOrigem] = useState<OrigemNumeroDestino>('nenhum')
+  const [resolvedContatoNome, setResolvedContatoNome] = useState<string | undefined>()
+
+  useEffect(() => {
+    let cancel = false
+    async function resolverDestino() {
+      const res = await resolverNumeroDestinoCliente(cliente)
+      if (cancel) return
+      setResolvedOrigem(res.origem)
+      setResolvedContatoNome(res.contatoAdicionalNome)
+      if (res.numero) {
+        setResolvedTelefoneDigitos(res.numero)
+      } else {
+        const fallback = cleanPhoneDigits(cliente.whatsapp || cliente.telefone || '')
+        setResolvedTelefoneDigitos(fallback)
+      }
+    }
+    resolverDestino()
+    return () => {
+      cancel = true
+    }
+  }, [cliente])
 
   // Diálogo de confirmação para exclusão
   const [inversorParaExcluir, setInversorParaExcluir] = useState<InversorFormItem | null>(null)
@@ -472,14 +500,13 @@ export const SecaoMonitoramentoInversor: React.FC<SecaoMonitoramentoInversorProp
   }
 
   // Validação de telefone para envio pelo WhatsApp
-  const telefoneCru = cliente.whatsapp || cliente.telefone || ''
-  const telefoneDigitos = cleanPhoneDigits(telefoneCru)
+  const telefoneDigitos = resolvedTelefoneDigitos
   const temTelefoneValido = telefoneDigitos.length >= 10
 
   // Disparo de credenciais pelo WhatsApp diretamente via Z-API listando TODOS os inversores
   const handleEnviarWhatsApp = async () => {
     if (!temTelefoneValido) {
-      toast.error('O cliente não possui telefone de contato cadastrado na ficha.')
+      toast.error(MENSAGEM_ALERTA_SEM_NUMERO)
       return
     }
 
@@ -946,7 +973,7 @@ export const SecaoMonitoramentoInversor: React.FC<SecaoMonitoramentoInversorProp
             disabled={!temTelefoneValido || isSendingWhatsApp}
             title={
               temTelefoneValido
-                ? `Enviar credenciais dos ${inversores.length} inversor(es) via WhatsApp para ${telefoneCru}`
+                ? `Enviar credenciais dos ${inversores.length} inversor(es) via WhatsApp para ${telefoneDigitos}`
                 : 'Cliente sem telefone de contato cadastrado na ficha'
             }
             className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg transition-all shadow-2xs ${
@@ -977,14 +1004,20 @@ export const SecaoMonitoramentoInversor: React.FC<SecaoMonitoramentoInversorProp
         </div>
       </div>
 
+      {/* Contexto de contato adicional */}
+      {resolvedOrigem === 'contato_adicional_whatsapp' && temTelefoneValido && (
+        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-blue-50 border border-blue-200 text-[11px] text-blue-800 font-medium">
+          <span className="font-bold">Contato adicional:</span>
+          <span>{resolvedContatoNome || 'Contato com WhatsApp'}</span>
+          <span className="text-blue-600">(utilizado como alternativa)</span>
+        </div>
+      )}
+
       {/* Aviso caso cliente não tenha telefone */}
       {!temTelefoneValido && (
         <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-amber-50/80 border border-amber-200 text-[11px] text-amber-800">
           <AlertCircle className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-          <span>
-            Cliente sem telefone/WhatsApp válido cadastrado. Cadastre o telefone na coluna da
-            direita para habilitar o envio das credenciais com um clique.
-          </span>
+          <span>{MENSAGEM_ALERTA_SEM_NUMERO}</span>
         </div>
       )}
 

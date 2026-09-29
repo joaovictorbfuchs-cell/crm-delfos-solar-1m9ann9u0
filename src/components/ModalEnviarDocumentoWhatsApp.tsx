@@ -19,6 +19,11 @@ import { formatWhatsAppPhone } from '@/lib/formatters'
 import { gerarBase64OrcamentoSolar, gerarBase64PropostaOM } from '@/lib/pdfWhatsAppService'
 import type { PropostaSolarPDFInput } from '@/lib/propostaSolarGenerator'
 import type { PropostaPDFInput } from '@/lib/propostaOMGenerator'
+import {
+  resolverNumeroDestinoCliente,
+  MENSAGEM_ALERTA_SEM_NUMERO,
+  type OrigemNumeroDestino,
+} from '@/lib/resolverNumeroDestinoCliente'
 
 export interface ModalEnviarDocumentoWhatsAppProps {
   isOpen: boolean
@@ -44,6 +49,8 @@ export const ModalEnviarDocumentoWhatsApp: React.FC<ModalEnviarDocumentoWhatsApp
   const { sendWhatsAppDocument, updateCliente, whatsAppConfig } = useClientes()
 
   const [telefone, setTelefone] = useState<string>(cliente.whatsapp || cliente.telefone || '')
+  const [origemDestino, setOrigemDestino] = useState<OrigemNumeroDestino>('nenhum')
+  const [contatoAdicionalNome, setContatoAdicionalNome] = useState<string | undefined>()
   const [mensagem, setMensagem] = useState<string>('')
   const [nomeArquivo, setNomeArquivo] = useState<string>('')
   const [base64Doc, setBase64Doc] = useState<string>('')
@@ -83,7 +90,27 @@ export const ModalEnviarDocumentoWhatsApp: React.FC<ModalEnviarDocumentoWhatsApp
   useEffect(() => {
     if (!isOpen) return
 
-    setTelefone(cliente.whatsapp || cliente.telefone || '')
+    let cancelResolucao = false
+    async function inicializarNumero() {
+      const res = await resolverNumeroDestinoCliente(cliente)
+      if (cancelResolucao) return
+      setOrigemDestino(res.origem)
+      setContatoAdicionalNome(res.contatoAdicionalNome)
+      if (res.numeroFormatado) {
+        setTelefone(res.numeroFormatado)
+      } else {
+        const fallback = cliente.whatsapp || cliente.telefone || ''
+        setTelefone(formatWhatsAppPhone(fallback))
+      }
+      if (res.origem === 'nenhum') {
+        setFeedback({
+          tipo: 'warning',
+          texto: MENSAGEM_ALERTA_SEM_NUMERO,
+        })
+      }
+    }
+    inicializarNumero()
+
     setFeedback(null)
     setIsGenerating(true)
 
@@ -148,6 +175,10 @@ export const ModalEnviarDocumentoWhatsApp: React.FC<ModalEnviarDocumentoWhatsApp
     }
 
     prepararDocumento()
+
+    return () => {
+      cancelResolucao = true
+    }
   }, [isOpen, cliente, tipo, dadosSolar, dadosOM])
 
   if (!isOpen) return null
@@ -349,17 +380,32 @@ export const ModalEnviarDocumentoWhatsApp: React.FC<ModalEnviarDocumentoWhatsApp
             <input
               type="text"
               value={telefone}
-              onChange={(e) => setTelefone(formatWhatsAppPhone(e.target.value))}
+              onChange={(e) => {
+                setTelefone(formatWhatsAppPhone(e.target.value))
+              }}
               placeholder="(54) 99999-9999"
               className={`w-full text-xs font-bold px-3.5 py-2.5 rounded-xl border ${
                 !temNumeroValido ? 'border-amber-400 bg-amber-50/30' : 'border-gray-300 bg-white'
               } text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-2xs`}
             />
 
+            {origemDestino === 'contato_adicional_whatsapp' && (
+              <div className="mt-1.5 px-2.5 py-1 bg-blue-50 border border-blue-200 rounded-lg text-[11px] text-blue-800 flex items-center gap-1.5 font-medium">
+                <span className="font-bold">Contato adicional:</span>
+                <span>{contatoAdicionalNome || 'Contato com WhatsApp'}</span>
+                <span className="text-blue-600">(utilizado como alternativa)</span>
+              </div>
+            )}
+            {origemDestino === 'cliente_telefone' && (
+              <div className="mt-1.5 px-2.5 py-1 bg-amber-50 border border-amber-200 rounded-lg text-[11px] text-amber-800 flex items-center gap-1.5">
+                <span>Usando telefone do cliente (sem WhatsApp cadastrado).</span>
+              </div>
+            )}
+
             {!temNumeroValido && (
               <p className="text-[11px] text-amber-700 mt-1 flex items-center gap-1 font-semibold">
                 <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-                Informe o número com DDD para habilitar o envio.
+                {MENSAGEM_ALERTA_SEM_NUMERO}
               </p>
             )}
           </div>

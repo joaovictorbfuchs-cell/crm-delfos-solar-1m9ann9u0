@@ -41,6 +41,11 @@ import {
 import { formatarCPF } from '@/lib/cpfValidator'
 import { formatWhatsAppPhone } from '@/lib/formatters'
 import { sendWhatsAppMensagem } from '@/services/crmService'
+import {
+  resolverNumeroDestinoCliente,
+  MENSAGEM_ALERTA_SEM_NUMERO,
+  type OrigemNumeroDestino,
+} from '@/lib/resolverNumeroDestinoCliente'
 import { getFriendlyWhatsAppErrorMessage } from '@/lib/whatsappGateway'
 import { toast } from '@/hooks/use-toast'
 
@@ -100,12 +105,38 @@ export const ModalConfirmarDocumentoProjeto: React.FC<ModalConfirmarDocumentoPro
 
   // Estados para envio WhatsApp na etapa pós-confirmação
   const [whatsAppTelefone, setWhatsAppTelefone] = useState('')
+  const [origemDestino, setOrigemDestino] = useState<OrigemNumeroDestino>('nenhum')
+  const [contatoAdicionalNome, setContatoAdicionalNome] = useState<string | undefined>()
   const [whatsAppMensagem, setWhatsAppMensagem] = useState('')
   const [pdfBaixado, setPdfBaixado] = useState(false)
   const [isSendingWhatsApp, setIsSendingWhatsApp] = useState(false)
 
   useEffect(() => {
     if (open) {
+      let cancelResolucao = false
+      async function inicializarDestino() {
+        if (_clienteId) {
+          const res = await resolverNumeroDestinoCliente({ id: _clienteId })
+          if (cancelResolucao) return
+          if (res.origem !== 'nenhum' && res.numeroFormatado) {
+            setWhatsAppTelefone(res.numeroFormatado)
+            setOrigemDestino(res.origem)
+            setContatoAdicionalNome(res.contatoAdicionalNome)
+            return
+          }
+        }
+        // Fallback para os dados iniciais passados
+        const fallbackTel = dadosIniciais.titularTelefone || dadosIniciais.clienteTelefone || ''
+        if (fallbackTel) {
+          setWhatsAppTelefone(formatWhatsAppPhone(fallbackTel))
+          setOrigemDestino('cliente_telefone')
+        } else {
+          setWhatsAppTelefone('')
+          setOrigemDestino('nenhum')
+        }
+      }
+      inicializarDestino()
+
       const initial: DadosDocumentoProjetoInput = {
         tipo,
         clienteNome: dadosIniciais.clienteNome || '',
@@ -137,10 +168,6 @@ export const ModalConfirmarDocumentoProjeto: React.FC<ModalConfirmarDocumentoPro
       setStep('revisao')
       setPdfBaixado(false)
 
-      // Telefone preferencial do cliente ou titular
-      const tel = initial.titularTelefone || initial.clienteTelefone || ''
-      setWhatsAppTelefone(tel)
-
       const docNomeCurto =
         tipo === 'procuracao'
           ? 'a procuração'
@@ -154,8 +181,12 @@ export const ModalConfirmarDocumentoProjeto: React.FC<ModalConfirmarDocumentoPro
       setWhatsAppMensagem(
         `Olá ${clientePrimeiroNome}! Segue em anexo ${docNomeCurto} da Delfos Solar referente ao seu projeto fotovoltaico de ${initial.potenciaKwp} kWp para assinatura. Ficamos à disposição caso tenha qualquer dúvida!`,
       )
+
+      return () => {
+        cancelResolucao = true
+      }
     }
-  }, [open, tipo, dadosIniciais])
+  }, [open, tipo, dadosIniciais, _clienteId])
 
   const handleCpfChange = (
     field: 'clienteCpfCnpj' | 'titularCpf' | 'novoTitularCpf',
@@ -189,7 +220,9 @@ export const ModalConfirmarDocumentoProjeto: React.FC<ModalConfirmarDocumentoPro
     setWhatsAppMensagem(
       `Olá ${clientePrimeiroNome}! Segue em anexo ${docNomeCurto} da Delfos Solar referente ao seu projeto fotovoltaico de ${formData.potenciaKwp} kWp para conferência e assinatura.`,
     )
-    setWhatsAppTelefone(formData.titularTelefone || formData.clienteTelefone || '')
+    if (!whatsAppTelefone) {
+      setWhatsAppTelefone(formData.titularTelefone || formData.clienteTelefone || '')
+    }
     setStep('pos_confirmacao')
   }
 
@@ -207,8 +240,8 @@ export const ModalConfirmarDocumentoProjeto: React.FC<ModalConfirmarDocumentoPro
     const cleanPhone = whatsAppTelefone.replace(/\D/g, '')
     if (cleanPhone.length < 10) {
       toast({
-        title: 'Telefone inválido',
-        description: 'Informe um número de telefone com DDD válido para envio.',
+        title: 'Envio não realizado',
+        description: MENSAGEM_ALERTA_SEM_NUMERO,
         variant: 'destructive',
       })
       return
@@ -657,11 +690,25 @@ export const ModalConfirmarDocumentoProjeto: React.FC<ModalConfirmarDocumentoPro
                   <Input
                     className="h-8 text-xs mt-1 bg-white"
                     value={whatsAppTelefone}
-                    onChange={(e) => setWhatsAppTelefone(formatWhatsAppPhone(e.target.value))}
+                    onChange={(e) => {
+                      setWhatsAppTelefone(formatWhatsAppPhone(e.target.value))
+                    }}
                     placeholder="(54) 99712-8844"
                   />
+                  {origemDestino === 'contato_adicional_whatsapp' && (
+                    <div className="mt-1.5 px-2.5 py-1 bg-blue-50 border border-blue-200 rounded-lg text-[11px] text-blue-800 flex items-center gap-1.5 font-medium">
+                      <span className="font-bold">Contato adicional:</span>
+                      <span>{contatoAdicionalNome || 'Contato com WhatsApp'}</span>
+                      <span className="text-blue-600">(utilizado como alternativa)</span>
+                    </div>
+                  )}
+                  {origemDestino === 'cliente_telefone' && (
+                    <div className="mt-1.5 px-2.5 py-1 bg-amber-50 border border-amber-200 rounded-lg text-[11px] text-amber-800 flex items-center gap-1.5">
+                      <span>Usando telefone do cliente (sem WhatsApp cadastrado).</span>
+                    </div>
+                  )}
                   <p className="text-[10px] text-slate-500 mt-1">
-                    Preenchido automaticamente a partir do cadastro do cliente/titular da conta.
+                    Preenchido automaticamente a partir da resolução de destino do cliente.
                   </p>
                 </div>
 
