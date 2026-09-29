@@ -2353,56 +2353,12 @@ export const FichaClienteDrawer: React.FC = () => {
               )}
 
               {/* ======================================================== */}
-              {/* ABA HISTÓRICO: Linha do tempo, anotações e atividades     */}
-              {/* ======================================================== */}
-              {activeClientTab === 'historico' && (
-                <>
-                  {/* Card de Negócios Vinculados */}
-                  {selectedCliente && (
-                    <div className="mb-4">
-                      <CardNegociosCliente
-                        clienteId={selectedCliente.id}
-                        clienteNome={selectedCliente.nome}
-                        clienteTelefone={selectedCliente.telefone}
-                        clienteDocumento={selectedCliente.cpf_cnpj}
-                        clienteEndereco={selectedCliente.endereco}
-                        clienteCidade={selectedCliente.cidade}
-                        clienteUf={selectedCliente.uf}
-                        clienteBairro={selectedCliente.bairro}
-                        clienteCep={selectedCliente.cep}
-                      />
-                    </div>
-                  )}
-
-                  {/* Linha do Tempo Unificada do Cliente */}
-                  <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
-                    <LinhaDoTempoUnificada
-                      clienteId={selectedCliente.id}
-                      clienteNome={selectedCliente.nome}
-                      clienteTelefone={selectedCliente.telefone}
-                      clienteEmail={selectedCliente.email}
-                      clienteOrigem={selectedCliente.origem}
-                      atividades={timelineAtividades}
-                      mensagensWhatsApp={whatsAppMensagens.filter((m) => m.cliente_id === selectedCliente.id)}
-                      onNovaAtividadeClick={() => {
-                        setIsAtividadeModalOpen(true)
-                      }}
-                      onNovaMensagemWhatsAppClick={() => {
-                        setActiveClientTab('whatsapp')
-                      }}
-                      onAtividadeUpdated={() => {
-                        carregarTimelineAtividades(selectedCliente.id)
-                      }}
-                    />
-                  </div>
-                </>
-              )}
-
-              {/* ======================================================== */}
               {/* ABA CADASTRO: Identificação PF/PJ + Contatos Adicionais   */}
               {/* ======================================================== */}
               {activeClientTab === 'cadastro' && (
-                <div className="space-y-4">                  <div
+                <div className="space-y-4">
+                  {' '}
+                  <div
                     ref={detalhesSectionRef}
                     className="p-4 bg-emerald-50/40 rounded-xl border border-emerald-200/70 space-y-4 animate-in fade-in duration-200"
                   >
@@ -2417,1648 +2373,1626 @@ export const FichaClienteDrawer: React.FC = () => {
                         Edição inline: clique no lápis para alterar
                       </span>
                     </div>
-                      {/* Destaque Inicial: Geração Média Mensal */}
-                      <div className="p-4 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-700 text-white shadow-sm space-y-1">
-                        <div className="flex items-center justify-between text-xs font-medium text-emerald-100">
-                          <span className="flex items-center gap-1.5 uppercase tracking-wider text-[10px] font-bold">
-                            <Sun className="w-4 h-4 text-amber-300 animate-pulse" />
-                            Geração Média Mensal (kWh)
-                          </span>
-                          <span className="text-[10px] bg-white/20 px-2 py-0.5 rounded backdrop-blur-xs">
-                            Estimativa Solar
-                          </span>
-                        </div>
-                        <div className="flex items-baseline gap-2 pt-1">
-                          <InlineEditField
-                            value={selectedSistema?.geracao_media_mensal_kwh ?? geracaoExibida}
-                            displayValue={
-                              <span className="text-2xl font-black tracking-tight text-white">
-                                {(
-                                  selectedSistema?.geracao_media_mensal_kwh ?? geracaoExibida
-                                ).toLocaleString('pt-BR')}
-                              </span>
-                            }
-                            type="number"
-                            unit="kWh/mês"
-                            step="1"
-                            min={0}
-                            className="text-white"
-                            inputClassName="text-gray-900"
-                            onSave={async (val) =>
-                              handleUpdateSistemaField('geracao_media_mensal_kwh', Number(val))
-                            }
-                          />
-                          <span className="text-sm font-semibold text-emerald-100">kWh / mês</span>
-                        </div>
-                        <p className="text-[11px] text-emerald-100/90 pt-0.5">
-                          Baseado na irradiação da região e potência instalada ({potenciaExibida}{' '}
-                          kWp).
-                        </p>
+                    {/* Destaque Inicial: Geração Média Mensal */}
+                    <div className="p-4 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-700 text-white shadow-sm space-y-1">
+                      <div className="flex items-center justify-between text-xs font-medium text-emerald-100">
+                        <span className="flex items-center gap-1.5 uppercase tracking-wider text-[10px] font-bold">
+                          <Sun className="w-4 h-4 text-amber-300 animate-pulse" />
+                          Geração Média Mensal (kWh)
+                        </span>
+                        <span className="text-[10px] bg-white/20 px-2 py-0.5 rounded backdrop-blur-xs">
+                          Estimativa Solar
+                        </span>
+                      </div>
+                      <div className="flex items-baseline gap-2 pt-1">
+                        <InlineEditField
+                          value={selectedSistema?.geracao_media_mensal_kwh ?? geracaoExibida}
+                          displayValue={
+                            <span className="text-2xl font-black tracking-tight text-white">
+                              {(
+                                selectedSistema?.geracao_media_mensal_kwh ?? geracaoExibida
+                              ).toLocaleString('pt-BR')}
+                            </span>
+                          }
+                          type="number"
+                          unit="kWh/mês"
+                          step="1"
+                          min={0}
+                          className="text-white"
+                          inputClassName="text-gray-900"
+                          onSave={async (val) =>
+                            handleUpdateSistemaField('geracao_media_mensal_kwh', Number(val))
+                          }
+                        />
+                        <span className="text-sm font-semibold text-emerald-100">kWh / mês</span>
+                      </div>
+                      <p className="text-[11px] text-emerald-100/90 pt-0.5">
+                        Baseado na irradiação da região e potência instalada ({potenciaExibida}{' '}
+                        kWp).
+                      </p>
+                    </div>
+
+                    {/* Dados Cadastrais */}
+                    <div className="bg-white rounded-xl p-4 border border-gray-200/80 shadow-xs space-y-3">
+                      <div className="flex items-center justify-between border-b border-gray-100 pb-2">
+                        <h4 className="text-xs font-bold uppercase tracking-wider text-gray-700 flex items-center gap-1.5">
+                          <FileText className="w-3.5 h-3.5 text-emerald-600" />
+                          Identificação da Pessoa / Empresa
+                        </h4>
+                        <span className="text-[10px] uppercase font-semibold text-gray-400 bg-gray-50 px-2 py-0.5 rounded border border-gray-200">
+                          PF / PJ
+                        </span>
                       </div>
 
-                      {/* Dados Cadastrais */}
-                      <div className="bg-white rounded-xl p-4 border border-gray-200/80 shadow-xs space-y-3">
-                        <div className="flex items-center justify-between border-b border-gray-100 pb-2">
-                          <h4 className="text-xs font-bold uppercase tracking-wider text-gray-700 flex items-center gap-1.5">
-                            <FileText className="w-3.5 h-3.5 text-emerald-600" />
-                            Identificação da Pessoa / Empresa
-                          </h4>
-                          <span className="text-[10px] uppercase font-semibold text-gray-400 bg-gray-50 px-2 py-0.5 rounded border border-gray-200">
-                            PF / PJ
-                          </span>
+                      <div className="space-y-2 text-xs">
+                        <div className="flex items-center gap-2">
+                          <User className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                          <span className="text-gray-500 w-24 shrink-0">Nome completo:</span>
+                          <InlineEditField
+                            value={selectedCliente.nome}
+                            displayValue={
+                              <span className="font-semibold text-gray-800">
+                                {selectedCliente.nome}
+                              </span>
+                            }
+                            type="text"
+                            placeholder="Nome do cliente"
+                            onSave={async (val) => handleUpdateClienteField('nome', String(val))}
+                          />
                         </div>
 
-                        <div className="space-y-2 text-xs">
-                          <div className="flex items-center gap-2">
-                            <User className="w-3.5 h-3.5 text-gray-400 shrink-0" />
-                            <span className="text-gray-500 w-24 shrink-0">Nome completo:</span>
-                            <InlineEditField
-                              value={selectedCliente.nome}
-                              displayValue={
-                                <span className="font-semibold text-gray-800">
-                                  {selectedCliente.nome}
-                                </span>
-                              }
-                              type="text"
-                              placeholder="Nome do cliente"
-                              onSave={async (val) => handleUpdateClienteField('nome', String(val))}
-                            />
-                          </div>
+                        <div className="flex items-center gap-2">
+                          <Building className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                          <span className="text-gray-500 w-24 shrink-0">Nome fantasia:</span>
+                          <InlineEditField
+                            value={selectedCliente.nome_fantasia}
+                            displayValue={
+                              <span className="font-medium text-gray-800">
+                                {selectedCliente.nome_fantasia || 'Não informado'}
+                              </span>
+                            }
+                            type="text"
+                            placeholder="Nome comercial ou fazenda"
+                            onSave={async (val) =>
+                              handleUpdateClienteField('nome_fantasia', String(val))
+                            }
+                          />
+                        </div>
 
-                          <div className="flex items-center gap-2">
-                            <Building className="w-3.5 h-3.5 text-gray-400 shrink-0" />
-                            <span className="text-gray-500 w-24 shrink-0">Nome fantasia:</span>
-                            <InlineEditField
-                              value={selectedCliente.nome_fantasia}
-                              displayValue={
-                                <span className="font-medium text-gray-800">
-                                  {selectedCliente.nome_fantasia || 'Não informado'}
-                                </span>
-                              }
-                              type="text"
-                              placeholder="Nome comercial ou fazenda"
-                              onSave={async (val) =>
-                                handleUpdateClienteField('nome_fantasia', String(val))
-                              }
-                            />
-                          </div>
+                        <div className="flex items-center gap-2">
+                          <FileText className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                          <span className="text-gray-500 w-24 shrink-0">Razão social:</span>
+                          <InlineEditField
+                            value={selectedCliente.razao_social}
+                            displayValue={
+                              <span className="font-medium text-gray-800">
+                                {selectedCliente.razao_social || 'Não informada'}
+                              </span>
+                            }
+                            type="text"
+                            placeholder="Razão social completa"
+                            onSave={async (val) =>
+                              handleUpdateClienteField('razao_social', String(val))
+                            }
+                          />
+                        </div>
 
-                          <div className="flex items-center gap-2">
-                            <FileText className="w-3.5 h-3.5 text-gray-400 shrink-0" />
-                            <span className="text-gray-500 w-24 shrink-0">Razão social:</span>
-                            <InlineEditField
-                              value={selectedCliente.razao_social}
-                              displayValue={
-                                <span className="font-medium text-gray-800">
-                                  {selectedCliente.razao_social || 'Não informada'}
-                                </span>
-                              }
-                              type="text"
-                              placeholder="Razão social completa"
-                              onSave={async (val) =>
-                                handleUpdateClienteField('razao_social', String(val))
-                              }
-                            />
-                          </div>
-
-                          {/* Banner de conflito se a consulta via Ficha encontrar divergências */}
-                          {conflitosCnpjCliente.length > 0 && (
-                            <div className="p-3 bg-amber-50 border border-amber-300 rounded-xl space-y-2 text-xs text-amber-900 my-2">
-                              <div className="flex items-center gap-2">
-                                <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
-                                <span className="font-bold">
-                                  A Receita Federal retornou dados diferentes dos atuais (
-                                  {conflitosCnpjCliente.length} campos):
-                                </span>
-                              </div>
-                              <div className="bg-white/80 rounded-lg p-2 border border-amber-200 divide-y divide-amber-100 max-h-36 overflow-y-auto">
-                                {conflitosCnpjCliente.map((c) => (
-                                  <div
-                                    key={c.campo}
-                                    className="py-1 text-[11px] grid grid-cols-1 sm:grid-cols-3 gap-1"
-                                  >
-                                    <span className="font-semibold text-gray-700">{c.label}:</span>
-                                    <span className="text-gray-500 line-through truncate">
-                                      Atual: {c.valorAtual || '(vazio)'}
-                                    </span>
-                                    <span className="text-emerald-800 font-medium truncate sm:text-right">
-                                      Receita: {c.valorReceita}
-                                    </span>
-                                  </div>
-                                ))}
-                              </div>
-                              <div className="flex items-center justify-end gap-2 pt-1">
-                                <button
-                                  type="button"
-                                  onClick={() => {
+                        {/* Banner de conflito se a consulta via Ficha encontrar divergências */}
+                        {conflitosCnpjCliente.length > 0 && (
+                          <div className="p-3 bg-amber-50 border border-amber-300 rounded-xl space-y-2 text-xs text-amber-900 my-2">
+                            <div className="flex items-center gap-2">
+                              <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+                              <span className="font-bold">
+                                A Receita Federal retornou dados diferentes dos atuais (
+                                {conflitosCnpjCliente.length} campos):
+                              </span>
+                            </div>
+                            <div className="bg-white/80 rounded-lg p-2 border border-amber-200 divide-y divide-amber-100 max-h-36 overflow-y-auto">
+                              {conflitosCnpjCliente.map((c) => (
+                                <div
+                                  key={c.campo}
+                                  className="py-1 text-[11px] grid grid-cols-1 sm:grid-cols-3 gap-1"
+                                >
+                                  <span className="font-semibold text-gray-700">{c.label}:</span>
+                                  <span className="text-gray-500 line-through truncate">
+                                    Atual: {c.valorAtual || '(vazio)'}
+                                  </span>
+                                  <span className="text-emerald-800 font-medium truncate sm:text-right">
+                                    Receita: {c.valorReceita}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                            <div className="flex items-center justify-end gap-2 pt-1">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setConflitosCnpjCliente([])
+                                  setPendenteDadosReceitaCliente(null)
+                                }}
+                                className="px-2.5 py-1 bg-white hover:bg-gray-100 text-gray-700 border border-gray-300 rounded-lg font-semibold text-[11px]"
+                              >
+                                Manter meus dados
+                              </button>
+                              <button
+                                type="button"
+                                onClick={async () => {
+                                  if (pendenteDadosReceitaCliente) {
+                                    const d = pendenteDadosReceitaCliente
+                                    const payload: any = {}
+                                    if (d.razao_social) payload.razao_social = d.razao_social
+                                    if (d.nome_fantasia) payload.nome_fantasia = d.nome_fantasia
+                                    if (d.logradouro) payload.endereco = d.logradouro
+                                    if (d.numero) payload.numero = d.numero
+                                    if (d.complemento) payload.complemento = d.complemento
+                                    if (d.bairro) payload.bairro = d.bairro
+                                    if (d.municipio) payload.cidade = d.municipio
+                                    if (d.uf) payload.estado = d.uf
+                                    if (d.cep) payload.cep = d.cep
+                                    if (d.telefone) payload.telefone = d.telefone
+                                    if (d.email) payload.email = d.email
+                                    if (d.situacao_cadastral)
+                                      payload.situacao_cadastral = d.situacao_cadastral
+                                    if (d.cnae_principal) payload.cnae_principal = d.cnae_principal
+                                    if (d.data_abertura)
+                                      payload.data_nascimento_fundacao = d.data_abertura
+                                    await updateCliente(selectedCliente.id, payload)
                                     setConflitosCnpjCliente([])
                                     setPendenteDadosReceitaCliente(null)
-                                  }}
-                                  className="px-2.5 py-1 bg-white hover:bg-gray-100 text-gray-700 border border-gray-300 rounded-lg font-semibold text-[11px]"
-                                >
-                                  Manter meus dados
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={async () => {
-                                    if (pendenteDadosReceitaCliente) {
-                                      const d = pendenteDadosReceitaCliente
-                                      const payload: any = {}
-                                      if (d.razao_social) payload.razao_social = d.razao_social
-                                      if (d.nome_fantasia) payload.nome_fantasia = d.nome_fantasia
-                                      if (d.logradouro) payload.endereco = d.logradouro
-                                      if (d.numero) payload.numero = d.numero
-                                      if (d.complemento) payload.complemento = d.complemento
-                                      if (d.bairro) payload.bairro = d.bairro
-                                      if (d.municipio) payload.cidade = d.municipio
-                                      if (d.uf) payload.estado = d.uf
-                                      if (d.cep) payload.cep = d.cep
-                                      if (d.telefone) payload.telefone = d.telefone
-                                      if (d.email) payload.email = d.email
-                                      if (d.situacao_cadastral)
-                                        payload.situacao_cadastral = d.situacao_cadastral
-                                      if (d.cnae_principal)
-                                        payload.cnae_principal = d.cnae_principal
-                                      if (d.data_abertura)
-                                        payload.data_nascimento_fundacao = d.data_abertura
-                                      await updateCliente(selectedCliente.id, payload)
-                                      setConflitosCnpjCliente([])
-                                      setPendenteDadosReceitaCliente(null)
-                                      alert(
-                                        'Dados atualizados com sucesso a partir da Receita Federal!',
-                                      )
-                                    }
-                                  }}
-                                  className="px-3 py-1 bg-[#16A34A] hover:bg-[#15803D] text-white rounded-lg font-bold text-[11px] shadow-xs"
-                                >
-                                  Usar dados da Receita
-                                </button>
-                              </div>
-                            </div>
-                          )}
-
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 border-t border-gray-100">
-                            <div className="flex items-center gap-2">
-                              <Hash className="w-3.5 h-3.5 text-gray-400 shrink-0" />
-                              <span className="text-gray-500 w-16 shrink-0">CNPJ:</span>
-                              <div className="flex items-center gap-1.5 flex-1 min-w-0">
-                                <InlineEditField
-                                  value={selectedCliente.cnpj}
-                                  displayValue={
-                                    <span className="font-mono text-gray-800 text-[11px] bg-gray-50 px-1.5 py-0.5 rounded border border-gray-200">
-                                      {selectedCliente.cnpj || 'Não inf.'}
-                                    </span>
+                                    alert(
+                                      'Dados atualizados com sucesso a partir da Receita Federal!',
+                                    )
                                   }
-                                  type="text"
-                                  placeholder="00.000.000/0000-00"
-                                  onSave={async (val) => {
-                                    const rawVal = String(val)
-                                    const digits = rawVal.replace(/\D/g, '')
-                                    const formatted = formatarCNPJ(rawVal)
-                                    await handleUpdateClienteField('cnpj', formatted)
-
-                                    if (digits.length === 14) {
-                                      setIsCnpjBuscandoReceita(true)
-                                      try {
-                                        const { consultarCNPJReceita } =
-                                          await import('@/services/cnpjLookupService')
-                                        const res = await consultarCNPJReceita(digits)
-                                        if (res.success && res.data) {
-                                          const d = res.data
-                                          const conflitos: any[] = []
-                                          if (
-                                            selectedCliente.razao_social &&
-                                            selectedCliente.razao_social.trim().toLowerCase() !==
-                                              d.razao_social.toLowerCase()
-                                          ) {
-                                            conflitos.push({
-                                              campo: 'razao_social',
-                                              label: 'Razão Social',
-                                              valorAtual: selectedCliente.razao_social,
-                                              valorReceita: d.razao_social,
-                                            })
-                                          }
-                                          if (
-                                            selectedCliente.endereco &&
-                                            selectedCliente.endereco.trim().toLowerCase() !==
-                                              d.logradouro.toLowerCase()
-                                          ) {
-                                            conflitos.push({
-                                              campo: 'endereco',
-                                              label: 'Logradouro',
-                                              valorAtual: selectedCliente.endereco,
-                                              valorReceita: d.logradouro,
-                                            })
-                                          }
-                                          if (
-                                            selectedCliente.cidade &&
-                                            selectedCliente.cidade.trim().toLowerCase() !==
-                                              d.municipio.toLowerCase()
-                                          ) {
-                                            conflitos.push({
-                                              campo: 'cidade',
-                                              label: 'Cidade',
-                                              valorAtual: selectedCliente.cidade,
-                                              valorReceita: d.municipio,
-                                            })
-                                          }
-                                          if (conflitos.length > 0) {
-                                            setConflitosCnpjCliente(conflitos)
-                                            setPendenteDadosReceitaCliente(d)
-                                          } else {
-                                            const payload: any = {}
-                                            if (!selectedCliente.razao_social && d.razao_social)
-                                              payload.razao_social = d.razao_social
-                                            if (!selectedCliente.nome_fantasia && d.nome_fantasia)
-                                              payload.nome_fantasia = d.nome_fantasia
-                                            if (!selectedCliente.endereco && d.logradouro)
-                                              payload.endereco = d.logradouro
-                                            if (!selectedCliente.numero && d.numero)
-                                              payload.numero = d.numero
-                                            if (!selectedCliente.complemento && d.complemento)
-                                              payload.complemento = d.complemento
-                                            if (!selectedCliente.bairro && d.bairro)
-                                              payload.bairro = d.bairro
-                                            if (!selectedCliente.cidade && d.municipio)
-                                              payload.cidade = d.municipio
-                                            if (!selectedCliente.estado && d.uf)
-                                              payload.estado = d.uf
-                                            if (!selectedCliente.cep && d.cep) payload.cep = d.cep
-                                            if (!selectedCliente.telefone && d.telefone)
-                                              payload.telefone = d.telefone
-                                            if (!selectedCliente.email && d.email)
-                                              payload.email = d.email
-                                            if (d.situacao_cadastral)
-                                              payload.situacao_cadastral = d.situacao_cadastral
-                                            if (d.cnae_principal)
-                                              payload.cnae_principal = d.cnae_principal
-                                            if (
-                                              !selectedCliente.data_nascimento_fundacao &&
-                                              d.data_abertura
-                                            )
-                                              payload.data_nascimento_fundacao = d.data_abertura
-                                            await updateCliente(selectedCliente.id, payload)
-                                          }
-                                        }
-                                      } catch (e) {
-                                        console.error('Erro na busca CNPJ:', e)
-                                      } finally {
-                                        setIsCnpjBuscandoReceita(false)
-                                      }
-                                    }
-                                  }}
-                                />
-                                {isCnpjBuscandoReceita && (
-                                  <span title="Buscando na Receita Federal...">
-                                    <Loader2 className="w-3.5 h-3.5 text-emerald-600 animate-spin shrink-0" />
-                                  </span>
-                                )}
-                              </div>
+                                }}
+                                className="px-3 py-1 bg-[#16A34A] hover:bg-[#15803D] text-white rounded-lg font-bold text-[11px] shadow-xs"
+                              >
+                                Usar dados da Receita
+                              </button>
                             </div>
-                            <div className="flex items-center gap-2">
-                              <Hash className="w-3.5 h-3.5 text-gray-400 shrink-0" />
-                              <span className="text-gray-500 w-12 shrink-0">CPF:</span>
+                          </div>
+                        )}
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 border-t border-gray-100">
+                          <div className="flex items-center gap-2">
+                            <Hash className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                            <span className="text-gray-500 w-16 shrink-0">CNPJ:</span>
+                            <div className="flex items-center gap-1.5 flex-1 min-w-0">
                               <InlineEditField
-                                value={selectedCliente.cpf}
+                                value={selectedCliente.cnpj}
                                 displayValue={
                                   <span className="font-mono text-gray-800 text-[11px] bg-gray-50 px-1.5 py-0.5 rounded border border-gray-200">
-                                    {selectedCliente.cpf || 'Não inf.'}
+                                    {selectedCliente.cnpj || 'Não inf.'}
                                   </span>
                                 }
                                 type="text"
-                                placeholder="000.000.000-00"
-                                onSave={async (val) => handleUpdateClienteField('cpf', String(val))}
+                                placeholder="00.000.000/0000-00"
+                                onSave={async (val) => {
+                                  const rawVal = String(val)
+                                  const digits = rawVal.replace(/\D/g, '')
+                                  const formatted = formatarCNPJ(rawVal)
+                                  await handleUpdateClienteField('cnpj', formatted)
+
+                                  if (digits.length === 14) {
+                                    setIsCnpjBuscandoReceita(true)
+                                    try {
+                                      const { consultarCNPJReceita } =
+                                        await import('@/services/cnpjLookupService')
+                                      const res = await consultarCNPJReceita(digits)
+                                      if (res.success && res.data) {
+                                        const d = res.data
+                                        const conflitos: any[] = []
+                                        if (
+                                          selectedCliente.razao_social &&
+                                          selectedCliente.razao_social.trim().toLowerCase() !==
+                                            d.razao_social.toLowerCase()
+                                        ) {
+                                          conflitos.push({
+                                            campo: 'razao_social',
+                                            label: 'Razão Social',
+                                            valorAtual: selectedCliente.razao_social,
+                                            valorReceita: d.razao_social,
+                                          })
+                                        }
+                                        if (
+                                          selectedCliente.endereco &&
+                                          selectedCliente.endereco.trim().toLowerCase() !==
+                                            d.logradouro.toLowerCase()
+                                        ) {
+                                          conflitos.push({
+                                            campo: 'endereco',
+                                            label: 'Logradouro',
+                                            valorAtual: selectedCliente.endereco,
+                                            valorReceita: d.logradouro,
+                                          })
+                                        }
+                                        if (
+                                          selectedCliente.cidade &&
+                                          selectedCliente.cidade.trim().toLowerCase() !==
+                                            d.municipio.toLowerCase()
+                                        ) {
+                                          conflitos.push({
+                                            campo: 'cidade',
+                                            label: 'Cidade',
+                                            valorAtual: selectedCliente.cidade,
+                                            valorReceita: d.municipio,
+                                          })
+                                        }
+                                        if (conflitos.length > 0) {
+                                          setConflitosCnpjCliente(conflitos)
+                                          setPendenteDadosReceitaCliente(d)
+                                        } else {
+                                          const payload: any = {}
+                                          if (!selectedCliente.razao_social && d.razao_social)
+                                            payload.razao_social = d.razao_social
+                                          if (!selectedCliente.nome_fantasia && d.nome_fantasia)
+                                            payload.nome_fantasia = d.nome_fantasia
+                                          if (!selectedCliente.endereco && d.logradouro)
+                                            payload.endereco = d.logradouro
+                                          if (!selectedCliente.numero && d.numero)
+                                            payload.numero = d.numero
+                                          if (!selectedCliente.complemento && d.complemento)
+                                            payload.complemento = d.complemento
+                                          if (!selectedCliente.bairro && d.bairro)
+                                            payload.bairro = d.bairro
+                                          if (!selectedCliente.cidade && d.municipio)
+                                            payload.cidade = d.municipio
+                                          if (!selectedCliente.estado && d.uf) payload.estado = d.uf
+                                          if (!selectedCliente.cep && d.cep) payload.cep = d.cep
+                                          if (!selectedCliente.telefone && d.telefone)
+                                            payload.telefone = d.telefone
+                                          if (!selectedCliente.email && d.email)
+                                            payload.email = d.email
+                                          if (d.situacao_cadastral)
+                                            payload.situacao_cadastral = d.situacao_cadastral
+                                          if (d.cnae_principal)
+                                            payload.cnae_principal = d.cnae_principal
+                                          if (
+                                            !selectedCliente.data_nascimento_fundacao &&
+                                            d.data_abertura
+                                          )
+                                            payload.data_nascimento_fundacao = d.data_abertura
+                                          await updateCliente(selectedCliente.id, payload)
+                                        }
+                                      }
+                                    } catch (e) {
+                                      console.error('Erro na busca CNPJ:', e)
+                                    } finally {
+                                      setIsCnpjBuscandoReceita(false)
+                                    }
+                                  }
+                                }}
                               />
+                              {isCnpjBuscandoReceita && (
+                                <span title="Buscando na Receita Federal...">
+                                  <Loader2 className="w-3.5 h-3.5 text-emerald-600 animate-spin shrink-0" />
+                                </span>
+                              )}
                             </div>
                           </div>
-
-                          {/* Situação Cadastral e CNAE */}
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                            <div className="flex items-center gap-2">
-                              <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                              <span className="text-gray-500 w-16 shrink-0">Situação:</span>
-                              <InlineEditField
-                                value={selectedCliente.situacao_cadastral}
-                                displayValue={
-                                  <span className="font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded text-[11px] border border-emerald-200">
-                                    {selectedCliente.situacao_cadastral || 'Não inf.'}
-                                  </span>
-                                }
-                                type="text"
-                                placeholder="Ex: ATIVA"
-                                onSave={async (val) =>
-                                  handleUpdateClienteField('situacao_cadastral', String(val))
-                                }
-                              />
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <Layers className="w-3.5 h-3.5 text-gray-400 shrink-0" />
-                              <span className="text-gray-500 w-12 shrink-0">CNAE:</span>
-                              <InlineEditField
-                                value={selectedCliente.cnae_principal}
-                                displayValue={
-                                  <span
-                                    className="text-gray-800 text-[11px] truncate block max-w-[180px]"
-                                    title={selectedCliente.cnae_principal}
-                                  >
-                                    {selectedCliente.cnae_principal || 'Não inf.'}
-                                  </span>
-                                }
-                                type="text"
-                                placeholder="CNAE Principal"
-                                onSave={async (val) =>
-                                  handleUpdateClienteField('cnae_principal', String(val))
-                                }
-                              />
-                            </div>
-                          </div>
-
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                            <div className="flex items-center gap-2">
-                              <FileText className="w-3.5 h-3.5 text-gray-400 shrink-0" />
-                              <span className="text-gray-500 w-16 shrink-0">Inscr. Est.:</span>
-                              <InlineEditField
-                                value={selectedCliente.inscricao_estadual}
-                                displayValue={
-                                  <span className="text-gray-800">
-                                    {selectedCliente.inscricao_estadual || 'Não informada'}
-                                  </span>
-                                }
-                                type="text"
-                                placeholder="039/0129482 ou Isento"
-                                onSave={async (val) =>
-                                  handleUpdateClienteField('inscricao_estadual', String(val))
-                                }
-                              />
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <FileText className="w-3.5 h-3.5 text-gray-400 shrink-0" />
-                              <span className="text-gray-500 w-12 shrink-0">RG:</span>
-                              <InlineEditField
-                                value={selectedCliente.rg}
-                                displayValue={
-                                  <span className="text-gray-800">
-                                    {selectedCliente.rg || 'Não inf.'}
-                                  </span>
-                                }
-                                type="text"
-                                placeholder="RG"
-                                onSave={async (val) => handleUpdateClienteField('rg', String(val))}
-                              />
-                            </div>
-                          </div>
-
-                          <div className="flex items-center gap-2 pt-1 border-t border-gray-100">
-                            <Calendar className="w-3.5 h-3.5 text-gray-400 shrink-0" />
-                            <span className="text-gray-500 w-24 shrink-0">Nasc./Fund.:</span>
+                          <div className="flex items-center gap-2">
+                            <Hash className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                            <span className="text-gray-500 w-12 shrink-0">CPF:</span>
                             <InlineEditField
-                              value={selectedCliente.data_nascimento_fundacao}
+                              value={selectedCliente.cpf}
                               displayValue={
-                                <span className="font-medium text-gray-800">
-                                  {selectedCliente.data_nascimento_fundacao
-                                    ? formatDate(selectedCliente.data_nascimento_fundacao)
-                                    : 'Não informada'}
+                                <span className="font-mono text-gray-800 text-[11px] bg-gray-50 px-1.5 py-0.5 rounded border border-gray-200">
+                                  {selectedCliente.cpf || 'Não inf.'}
                                 </span>
                               }
-                              type="date"
-                              placeholder="DD/MM/AAAA"
+                              type="text"
+                              placeholder="000.000.000-00"
+                              onSave={async (val) => handleUpdateClienteField('cpf', String(val))}
+                            />
+                          </div>
+                        </div>
+
+                        {/* Situação Cadastral e CNAE */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          <div className="flex items-center gap-2">
+                            <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                            <span className="text-gray-500 w-16 shrink-0">Situação:</span>
+                            <InlineEditField
+                              value={selectedCliente.situacao_cadastral}
+                              displayValue={
+                                <span className="font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded text-[11px] border border-emerald-200">
+                                  {selectedCliente.situacao_cadastral || 'Não inf.'}
+                                </span>
+                              }
+                              type="text"
+                              placeholder="Ex: ATIVA"
                               onSave={async (val) =>
-                                handleUpdateClienteField('data_nascimento_fundacao', String(val))
+                                handleUpdateClienteField('situacao_cadastral', String(val))
+                              }
+                            />
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Layers className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                            <span className="text-gray-500 w-12 shrink-0">CNAE:</span>
+                            <InlineEditField
+                              value={selectedCliente.cnae_principal}
+                              displayValue={
+                                <span
+                                  className="text-gray-800 text-[11px] truncate block max-w-[180px]"
+                                  title={selectedCliente.cnae_principal}
+                                >
+                                  {selectedCliente.cnae_principal || 'Não inf.'}
+                                </span>
+                              }
+                              type="text"
+                              placeholder="CNAE Principal"
+                              onSave={async (val) =>
+                                handleUpdateClienteField('cnae_principal', String(val))
+                              }
+                            />
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          <div className="flex items-center gap-2">
+                            <FileText className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                            <span className="text-gray-500 w-16 shrink-0">Inscr. Est.:</span>
+                            <InlineEditField
+                              value={selectedCliente.inscricao_estadual}
+                              displayValue={
+                                <span className="text-gray-800">
+                                  {selectedCliente.inscricao_estadual || 'Não informada'}
+                                </span>
+                              }
+                              type="text"
+                              placeholder="039/0129482 ou Isento"
+                              onSave={async (val) =>
+                                handleUpdateClienteField('inscricao_estadual', String(val))
+                              }
+                            />
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <FileText className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                            <span className="text-gray-500 w-12 shrink-0">RG:</span>
+                            <InlineEditField
+                              value={selectedCliente.rg}
+                              displayValue={
+                                <span className="text-gray-800">
+                                  {selectedCliente.rg || 'Não inf.'}
+                                </span>
+                              }
+                              type="text"
+                              placeholder="RG"
+                              onSave={async (val) => handleUpdateClienteField('rg', String(val))}
+                            />
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2 pt-1 border-t border-gray-100">
+                          <Calendar className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                          <span className="text-gray-500 w-24 shrink-0">Nasc./Fund.:</span>
+                          <InlineEditField
+                            value={selectedCliente.data_nascimento_fundacao}
+                            displayValue={
+                              <span className="font-medium text-gray-800">
+                                {selectedCliente.data_nascimento_fundacao
+                                  ? formatDate(selectedCliente.data_nascimento_fundacao)
+                                  : 'Não informada'}
+                              </span>
+                            }
+                            type="date"
+                            placeholder="DD/MM/AAAA"
+                            onSave={async (val) =>
+                              handleUpdateClienteField('data_nascimento_fundacao', String(val))
+                            }
+                          />
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <User className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                          <span className="text-gray-500 w-24 shrink-0">Contato resp.:</span>
+                          <InlineEditField
+                            value={selectedCliente.contato}
+                            displayValue={
+                              <span className="font-medium text-gray-800">
+                                {selectedCliente.contato || 'Não informado'}
+                              </span>
+                            }
+                            type="text"
+                            placeholder="Nome do responsável ou sócio"
+                            onSave={async (val) => handleUpdateClienteField('contato', String(val))}
+                          />
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <Mail className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                          <span className="text-gray-500 w-24 shrink-0">Email:</span>
+                          <InlineEditField
+                            value={selectedCliente.email}
+                            displayValue={
+                              <span className="text-emerald-700 font-medium">
+                                {selectedCliente.email || 'Não informado'}
+                              </span>
+                            }
+                            type="text"
+                            placeholder="email@exemplo.com.br"
+                            onSave={async (val) => handleUpdateClienteField('email', String(val))}
+                          />
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <Phone className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                          <span className="text-gray-500 w-24 shrink-0">Telefone:</span>
+                          <InlineEditField
+                            value={selectedCliente.telefone}
+                            displayValue={
+                              <span className="font-medium text-gray-800">
+                                {selectedCliente.telefone || 'Não informado'}
+                              </span>
+                            }
+                            type="text"
+                            placeholder="(00) 00000-0000"
+                            onSave={async (val) =>
+                              handleUpdateClienteField('telefone', formatWhatsAppPhone(String(val)))
+                            }
+                          />
+                        </div>
+
+                        <div className="flex items-center gap-2 bg-emerald-50/50 p-1.5 rounded-lg border border-emerald-100">
+                          <MessageSquare className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                          <span className="text-emerald-900 font-semibold w-24 shrink-0">
+                            WhatsApp:
+                          </span>
+                          <InlineEditField
+                            value={selectedCliente.whatsapp || selectedCliente.telefone || ''}
+                            displayValue={
+                              <span className="font-bold text-emerald-700">
+                                {selectedCliente.whatsapp ||
+                                  selectedCliente.telefone ||
+                                  'Não informado'}
+                              </span>
+                            }
+                            type="text"
+                            placeholder="(00) 00000-0000"
+                            onSave={async (val) =>
+                              handleUpdateClienteField('whatsapp', formatWhatsAppPhone(String(val)))
+                            }
+                          />
+                        </div>
+
+                        {/* Endereço detalhado */}
+                        <div className="pt-2 border-t border-gray-100 space-y-2">
+                          <div className="flex items-center gap-2">
+                            <Home className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                            <span className="text-gray-500 w-24 shrink-0">Logradouro:</span>
+                            <InlineEditField
+                              value={selectedCliente.endereco}
+                              displayValue={
+                                <span className="font-medium text-gray-800">
+                                  {selectedCliente.endereco || 'Não informado'}
+                                </span>
+                              }
+                              type="text"
+                              placeholder="Rua, Av..."
+                              className="flex-1"
+                              onSave={async (val) =>
+                                handleUpdateClienteField('endereco', String(val))
+                              }
+                            />
+                          </div>
+
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            <div className="flex items-center gap-2">
+                              <span className="text-gray-500 w-16 shrink-0 pl-5">Número:</span>
+                              <InlineEditField
+                                value={selectedCliente.numero}
+                                displayValue={
+                                  <span className="text-gray-800">
+                                    {selectedCliente.numero || 'S/N'}
+                                  </span>
+                                }
+                                type="text"
+                                placeholder="Nº"
+                                onSave={async (val) =>
+                                  handleUpdateClienteField('numero', String(val))
+                                }
+                              />
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-gray-500 w-16 shrink-0">Bairro:</span>
+                              <InlineEditField
+                                value={selectedCliente.bairro}
+                                displayValue={
+                                  <span className="text-gray-800">
+                                    {selectedCliente.bairro || 'Não inf.'}
+                                  </span>
+                                }
+                                type="text"
+                                placeholder="Bairro"
+                                onSave={async (val) =>
+                                  handleUpdateClienteField('bairro', String(val))
+                                }
+                              />
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            <div className="flex items-center gap-2">
+                              <span className="text-gray-500 w-16 shrink-0 pl-5">CEP:</span>
+                              <InlineEditField
+                                value={selectedCliente.cep}
+                                displayValue={
+                                  <span className="font-mono text-gray-800 text-[11px]">
+                                    {selectedCliente.cep || '00000-000'}
+                                  </span>
+                                }
+                                type="text"
+                                placeholder="00000-000"
+                                onSave={async (val) => handleUpdateClienteField('cep', String(val))}
+                              />
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-gray-500 w-16 shrink-0">Estado:</span>
+                              <InlineEditField
+                                value={
+                                  selectedCliente.estado ||
+                                  (selectedCliente.cidade?.includes('/SC') ? 'SC' : 'RS')
+                                }
+                                displayValue={
+                                  <span className="font-bold text-gray-800 uppercase">
+                                    {selectedCliente.estado ||
+                                      (selectedCliente.cidade?.includes('/SC') ? 'SC' : 'RS')}
+                                  </span>
+                                }
+                                type="text"
+                                placeholder="RS / SC"
+                                onSave={async (val) =>
+                                  handleUpdateClienteField('estado', String(val))
+                                }
+                              />
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            <span className="text-gray-500 w-24 shrink-0 pl-5">Complemento:</span>
+                            <InlineEditField
+                              value={selectedCliente.complemento}
+                              displayValue={
+                                <span className="text-gray-700 italic">
+                                  {selectedCliente.complemento || 'Nenhum'}
+                                </span>
+                              }
+                              type="text"
+                              placeholder="Sala, bloco..."
+                              className="flex-1"
+                              onSave={async (val) =>
+                                handleUpdateClienteField('complemento', String(val))
+                              }
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Seção Contatos Adicionais (Contato Principal + Contatos Adicionais) */}
+                    <SecaoContatosAdicionais cliente={selectedCliente} />
+
+                    {/* Localização da Instalação */}
+                    <div className="bg-white rounded-xl p-4 border border-gray-200/80 shadow-xs space-y-2.5">
+                      <div className="text-[11px] uppercase font-bold text-gray-500 tracking-wider flex items-center gap-1.5">
+                        <MapPin className="w-3.5 h-3.5 text-emerald-600" />
+                        Localização da Instalação
+                      </div>
+
+                      <div className="space-y-2 text-xs">
+                        <div className="flex items-center gap-2">
+                          <span className="text-gray-500 w-24 shrink-0">Cidade / UF:</span>
+                          <InlineEditField
+                            value={selectedCliente.cidade}
+                            displayValue={
+                              <span className="font-semibold text-gray-800">
+                                {selectedCliente.cidade || 'Não informada'}
+                              </span>
+                            }
+                            type="text"
+                            placeholder="Cidade/UF"
+                            onSave={async (val) => handleUpdateClienteField('cidade', String(val))}
+                          />
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 border-t border-gray-100">
+                          <div className="flex items-center gap-2">
+                            <Compass className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                            <span className="text-gray-500 w-16 shrink-0">Latitude:</span>
+                            <InlineEditField
+                              value={selectedSistema?.latitude ?? 0}
+                              displayValue={
+                                <span className="font-mono text-gray-800 text-[11px]">
+                                  {selectedSistema?.latitude
+                                    ? `${selectedSistema.latitude}°`
+                                    : 'Não inf.'}
+                                </span>
+                              }
+                              type="number"
+                              step="0.0001"
+                              unit="°"
+                              placeholder="-27.6341"
+                              onSave={async (val) =>
+                                handleUpdateSistemaField('latitude', Number(val))
                               }
                             />
                           </div>
 
                           <div className="flex items-center gap-2">
-                            <User className="w-3.5 h-3.5 text-gray-400 shrink-0" />
-                            <span className="text-gray-500 w-24 shrink-0">Contato resp.:</span>
+                            <Compass className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                            <span className="text-gray-500 w-16 shrink-0">Longitude:</span>
                             <InlineEditField
-                              value={selectedCliente.contato}
+                              value={selectedSistema?.longitude ?? 0}
                               displayValue={
-                                <span className="font-medium text-gray-800">
-                                  {selectedCliente.contato || 'Não informado'}
+                                <span className="font-mono text-gray-800 text-[11px]">
+                                  {selectedSistema?.longitude
+                                    ? `${selectedSistema.longitude}°`
+                                    : 'Não inf.'}
                                 </span>
                               }
-                              type="text"
-                              placeholder="Nome do responsável ou sócio"
+                              type="number"
+                              step="0.0001"
+                              unit="°"
+                              placeholder="-52.2739"
                               onSave={async (val) =>
-                                handleUpdateClienteField('contato', String(val))
+                                handleUpdateSistemaField('longitude', Number(val))
                               }
                             />
                           </div>
+                        </div>
+                      </div>
+                    </div>
 
+                    {/* SEÇÃO: Titular / Responsável pela Unidade Consumidora */}
+                    <div className="bg-white rounded-xl p-4 border border-emerald-200/90 shadow-xs space-y-3">
+                      <div className="flex items-center justify-between border-b border-gray-100 pb-2">
+                        <div className="flex items-center gap-2">
+                          <UserCheck className="w-4 h-4 text-emerald-600 shrink-0" />
+                          <div>
+                            <h4 className="text-xs font-bold uppercase tracking-wider text-gray-800">
+                              Titular / Responsável pela Unidade Consumidora
+                            </h4>
+                            <p className="text-[10px] text-gray-500">
+                              Utilizado na elaboração de Procuração, Contratos e Anexos da
+                              Concessionária.
+                            </p>
+                          </div>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            const updates: Partial<Cliente> = {
+                              titular_nome: selectedCliente.nome || '',
+                              titular_cpf: selectedCliente.cpf || selectedCliente.cnpj || '',
+                              titular_telefone:
+                                selectedCliente.telefone || selectedCliente.whatsapp || '',
+                              titular_email: selectedCliente.email || '',
+                            }
+                            await updateCliente(selectedCliente.id, updates)
+                          }}
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-bold rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-300 transition-colors shadow-2xs"
+                          title="Copiar nome, CPF, telefone e email do cadastro principal do cliente para os dados do titular"
+                        >
+                          <Copy className="w-3.5 h-3.5 text-emerald-600" />
+                          <span>Usar dados do cliente</span>
+                        </button>
+                      </div>
+
+                      <div className="space-y-2 text-xs">
+                        {/* Nome Completo do Titular */}
+                        <div className="flex items-center gap-2">
+                          <User className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                          <span className="text-gray-500 w-24 shrink-0">Nome completo:</span>
+                          <InlineEditField
+                            value={selectedCliente.titular_nome || ''}
+                            displayValue={
+                              <span className="font-semibold text-gray-800">
+                                {selectedCliente.titular_nome || (
+                                  <span className="text-gray-400 italic">Não informado</span>
+                                )}
+                              </span>
+                            }
+                            type="text"
+                            placeholder="Nome completo do titular na fatura de energia"
+                            onSave={async (val) =>
+                              handleUpdateClienteField('titular_nome', String(val).trim())
+                            }
+                          />
+                        </div>
+
+                        {/* CPF do Titular com máscara */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                           <div className="flex items-center gap-2">
-                            <Mail className="w-3.5 h-3.5 text-gray-400 shrink-0" />
-                            <span className="text-gray-500 w-24 shrink-0">Email:</span>
+                            <Hash className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                            <span className="text-gray-500 w-24 shrink-0">CPF:</span>
                             <InlineEditField
-                              value={selectedCliente.email}
+                              value={selectedCliente.titular_cpf || ''}
                               displayValue={
-                                <span className="text-emerald-700 font-medium">
-                                  {selectedCliente.email || 'Não informado'}
+                                <span className="font-mono text-gray-800 text-[11px] bg-gray-50 px-1.5 py-0.5 rounded border border-gray-200">
+                                  {selectedCliente.titular_cpf
+                                    ? formatarCPF(selectedCliente.titular_cpf)
+                                    : '000.000.000-00'}
                                 </span>
                               }
                               type="text"
-                              placeholder="email@exemplo.com.br"
-                              onSave={async (val) => handleUpdateClienteField('email', String(val))}
+                              placeholder="000.000.000-00"
+                              onSave={async (val) => {
+                                const raw = String(val)
+                                const formatted = formatarCPF(raw)
+                                await handleUpdateClienteField('titular_cpf', formatted)
+                              }}
                             />
                           </div>
 
+                          {/* Telefone do Titular com máscara */}
                           <div className="flex items-center gap-2">
                             <Phone className="w-3.5 h-3.5 text-gray-400 shrink-0" />
-                            <span className="text-gray-500 w-24 shrink-0">Telefone:</span>
+                            <span className="text-gray-500 w-16 shrink-0">Telefone:</span>
                             <InlineEditField
-                              value={selectedCliente.telefone}
+                              value={selectedCliente.titular_telefone || ''}
                               displayValue={
                                 <span className="font-medium text-gray-800">
-                                  {selectedCliente.telefone || 'Não informado'}
+                                  {selectedCliente.titular_telefone || 'Não informado'}
                                 </span>
                               }
                               type="text"
                               placeholder="(00) 00000-0000"
                               onSave={async (val) =>
                                 handleUpdateClienteField(
-                                  'telefone',
+                                  'titular_telefone',
                                   formatWhatsAppPhone(String(val)),
                                 )
                               }
                             />
                           </div>
+                        </div>
 
-                          <div className="flex items-center gap-2 bg-emerald-50/50 p-1.5 rounded-lg border border-emerald-100">
-                            <MessageSquare className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                            <span className="text-emerald-900 font-semibold w-24 shrink-0">
-                              WhatsApp:
+                        {/* Email do Titular */}
+                        <div className="flex items-center gap-2">
+                          <Mail className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                          <span className="text-gray-500 w-24 shrink-0">Email:</span>
+                          <InlineEditField
+                            value={selectedCliente.titular_email || ''}
+                            displayValue={
+                              <span className="text-emerald-700 font-medium">
+                                {selectedCliente.titular_email || 'Não informado'}
+                              </span>
+                            }
+                            type="text"
+                            placeholder="email@exemplo.com.br"
+                            onSave={async (val) =>
+                              handleUpdateClienteField('titular_email', String(val).trim())
+                            }
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Concessionária de Energia */}
+                    <div className="bg-white rounded-xl p-4 border border-gray-200/80 shadow-xs space-y-2.5">
+                      <div className="text-[11px] uppercase font-bold text-gray-500 tracking-wider flex items-center gap-1.5">
+                        <Activity className="w-3.5 h-3.5 text-emerald-600" />
+                        Concessionária de Energia
+                      </div>
+
+                      <div className="space-y-2 text-xs">
+                        <div className="flex items-center gap-2">
+                          <span className="text-gray-500 w-24 shrink-0">Nº da UC:</span>
+                          <InlineEditField
+                            value={ucExibida}
+                            displayValue={
+                              <span className="font-mono font-bold text-gray-900 bg-gray-50 px-2 py-0.5 rounded border border-gray-200 text-xs">
+                                {ucExibida || 'Não informada'}
+                              </span>
+                            }
+                            type="text"
+                            placeholder="Ex: 3012847561"
+                            onSave={async (val) =>
+                              handleUpdateSistemaField('numero_uc', String(val))
+                            }
+                          />
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          <div className="flex items-center gap-2">
+                            <span className="text-gray-500 w-24 shrink-0">Concessionária:</span>
+                            <InlineEditField
+                              value={concessionariaExibida}
+                              displayValue={
+                                <span className="font-bold text-gray-800 bg-gray-50 px-2 py-0.5 rounded border border-gray-200">
+                                  {concessionariaExibida || 'Não informada'}
+                                </span>
+                              }
+                              type="text"
+                              placeholder="RGE, CPFL, Celesc..."
+                              onSave={async (val) => {
+                                await handleUpdateClienteField('concessionaria', String(val))
+                                await handleUpdateSistemaField('concessionaria', String(val))
+                              }}
+                            />
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            <span className="text-gray-500 w-20 shrink-0">Classe:</span>
+                            <InlineEditField
+                              value={classeConsumoExibida}
+                              displayValue={
+                                <span className="font-medium text-gray-800 bg-gray-50 px-2 py-0.5 rounded border border-gray-200">
+                                  {classeConsumoExibida || 'Não inf.'}
+                                </span>
+                              }
+                              type="text"
+                              placeholder="Residencial, Comercial..."
+                              onSave={async (val) => {
+                                await handleUpdateClienteField('classe_consumo', String(val))
+                                await handleUpdateSistemaField('classe_consumo', String(val))
+                              }}
+                            />
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          <div className="flex items-center gap-2">
+                            <span className="text-gray-500 w-24 shrink-0 font-medium">
+                              Consumo médio:
                             </span>
                             <InlineEditField
-                              value={selectedCliente.whatsapp || selectedCliente.telefone || ''}
+                              value={
+                                selectedCliente.consumo_medio ??
+                                selectedCliente.consumo_kwh_mes ??
+                                0
+                              }
                               displayValue={
-                                <span className="font-bold text-emerald-700">
-                                  {selectedCliente.whatsapp ||
-                                    selectedCliente.telefone ||
+                                <span className="font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 text-xs">
+                                  {(selectedCliente.consumo_medio ??
+                                  selectedCliente.consumo_kwh_mes)
+                                    ? `${selectedCliente.consumo_medio ?? selectedCliente.consumo_kwh_mes} kWh/mês`
+                                    : 'Não informado'}
+                                </span>
+                              }
+                              type="number"
+                              unit="kWh/mês"
+                              placeholder="Ex: 650"
+                              onSave={async (val) => {
+                                const num = Number(val) || 0
+                                await handleUpdateClienteField('consumo_medio', num)
+                                await handleUpdateClienteField('consumo_kwh_mes', num)
+                              }}
+                            />
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            <span className="text-gray-500 w-20 shrink-0">Tarifa:</span>
+                            <InlineEditField
+                              value={tarifaExibida}
+                              displayValue={
+                                <span
+                                  className="font-mono text-gray-800 text-[11px] bg-gray-50 px-1.5 py-0.5 rounded border border-gray-200"
+                                  title={`R$ ${tarifaExibida}`}
+                                >
+                                  {tarifaExibida > 0
+                                    ? `R$ ${Number(tarifaExibida).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 8 })}`
+                                    : 'Não inf.'}
+                                </span>
+                              }
+                              type="number"
+                              step="0.0001"
+                              placeholder="0.9500"
+                              onSave={async (val) => {
+                                const num = Number(val) || 0
+                                await handleUpdateClienteField('tarifa', num)
+                                await handleUpdateSistemaField('tarifa', num)
+                              }}
+                            />
+                          </div>
+                        </div>
+
+                        {/* Campos específicos da Fatura RGE / Gemini */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 border-t border-gray-100">
+                          <div className="flex items-center gap-2">
+                            <span className="text-gray-500 w-24 shrink-0">Grupo/Subgrupo:</span>
+                            <InlineEditField
+                              value={selectedCliente.grupo_subgrupo || ''}
+                              displayValue={
+                                <span className="font-medium text-gray-800 text-xs">
+                                  {selectedCliente.grupo_subgrupo || 'Não informado'}
+                                </span>
+                              }
+                              type="text"
+                              placeholder="Ex: Convencional B3..."
+                              onSave={async (val) =>
+                                handleUpdateClienteField('grupo_subgrupo', String(val))
+                              }
+                            />
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            <span className="text-gray-500 w-20 shrink-0">Tensão Nom.:</span>
+                            <InlineEditField
+                              value={selectedCliente.tensao_nominal || ''}
+                              displayValue={
+                                <span className="font-medium text-gray-800 text-xs">
+                                  {selectedCliente.tensao_nominal || 'Não informada'}
+                                </span>
+                              }
+                              type="text"
+                              placeholder="Ex: 220V, 380V..."
+                              onSave={async (val) =>
+                                handleUpdateClienteField('tensao_nominal', String(val))
+                              }
+                            />
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          <div className="flex items-center gap-2">
+                            <span className="text-gray-500 w-24 shrink-0">Consumo Anual:</span>
+                            <InlineEditField
+                              value={selectedCliente.consumo_anual_kwh || 0}
+                              displayValue={
+                                <span className="font-bold text-gray-800 text-xs">
+                                  {selectedCliente.consumo_anual_kwh
+                                    ? `${selectedCliente.consumo_anual_kwh} kWh/ano`
+                                    : 'Não informado'}
+                                </span>
+                              }
+                              type="number"
+                              unit="kWh"
+                              placeholder="Ex: 7200"
+                              onSave={async (val) =>
+                                handleUpdateClienteField('consumo_anual_kwh', Number(val) || 0)
+                              }
+                            />
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            <span className="text-gray-500 w-20 shrink-0">Média/Dia:</span>
+                            <InlineEditField
+                              value={selectedCliente.consumo_medio_diario_kwh || 0}
+                              displayValue={
+                                <span className="font-bold text-gray-800 text-xs">
+                                  {selectedCliente.consumo_medio_diario_kwh
+                                    ? `${selectedCliente.consumo_medio_diario_kwh} kWh/dia`
+                                    : 'Não inf.'}
+                                </span>
+                              }
+                              type="number"
+                              unit="kWh"
+                              placeholder="Ex: 24"
+                              onSave={async (val) =>
+                                handleUpdateClienteField(
+                                  'consumo_medio_diario_kwh',
+                                  Number(val) || 0,
+                                )
+                              }
+                            />
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-gray-500 w-24 shrink-0">Padrão entrada:</span>
+                          <InlineEditField
+                            value={selectedSistema?.padrao_entrada ?? 'RIC BT Categoria A2'}
+                            displayValue={
+                              <span className="font-medium text-gray-800">
+                                {selectedSistema?.padrao_entrada || 'Não informado'}
+                              </span>
+                            }
+                            type="text"
+                            placeholder="Ex: RIC BT Categoria A2"
+                            onSave={async (val) =>
+                              handleUpdateSistemaField('padrao_entrada', String(val))
+                            }
+                          />
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          <div className="flex items-center gap-2">
+                            <span className="text-gray-500 w-20 shrink-0">Atendimento:</span>
+                            <InlineEditField
+                              value={selectedSistema?.tipo_atendimento || 'aéreo'}
+                              displayValue={
+                                <span className="capitalize font-medium text-gray-800 bg-gray-50 px-2 py-0.5 rounded border border-gray-200">
+                                  {selectedSistema?.tipo_atendimento || 'aéreo'}
+                                </span>
+                              }
+                              type="select"
+                              options={ATENDIMENTOS}
+                              onSave={async (val) =>
+                                handleUpdateSistemaField('tipo_atendimento', val as TipoAtendimento)
+                              }
+                            />
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            <span className="text-gray-500 w-32 shrink-0">
+                              Tipo de Fornecimento:
+                            </span>
+                            <InlineEditField
+                              value={
+                                selectedCliente.tipo_fornecimento ||
+                                selectedSistema?.numero_fases ||
+                                'trifásico'
+                              }
+                              displayValue={
+                                <span className="capitalize font-medium text-gray-800 bg-gray-50 px-2 py-0.5 rounded border border-gray-200">
+                                  {selectedCliente.tipo_fornecimento ||
+                                    selectedSistema?.numero_fases ||
+                                    'trifásico'}
+                                </span>
+                              }
+                              type="select"
+                              options={FASES}
+                              onSave={async (val) => {
+                                await handleUpdateSistemaField('numero_fases', val as NumeroFases)
+                                await handleUpdateClienteField('tipo_fornecimento', String(val))
+                              }}
+                            />
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 border-t border-gray-100">
+                          <div className="flex items-center gap-2">
+                            <span className="text-gray-500 w-20 shrink-0">Seção cabos:</span>
+                            <InlineEditField
+                              value={selectedSistema?.secao_cabos || '16 mm²'}
+                              displayValue={
+                                <span className="font-medium text-gray-800">
+                                  {selectedSistema?.secao_cabos || 'Não informada'}
+                                </span>
+                              }
+                              type="text"
+                              unit="mm²"
+                              placeholder="Ex: 16 mm²"
+                              onSave={async (val) =>
+                                handleUpdateSistemaField('secao_cabos', String(val))
+                              }
+                            />
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            <Gauge className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                            <span className="text-gray-500 w-16 shrink-0">Disjuntor:</span>
+                            <InlineEditField
+                              value={selectedSistema?.amperagem_disjuntor || '40 A'}
+                              displayValue={
+                                <span className="font-semibold text-gray-800 bg-gray-50 px-2 py-0.5 rounded border border-gray-200">
+                                  {selectedSistema?.amperagem_disjuntor || 'Não inf.'}
+                                </span>
+                              }
+                              type="text"
+                              unit="A"
+                              placeholder="Ex: 40 A"
+                              onSave={async (val) =>
+                                handleUpdateSistemaField('amperagem_disjuntor', String(val))
+                              }
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Instalação Elétrica e Telhado */}
+                    <div className="bg-white rounded-xl p-4 border border-gray-200/80 shadow-xs space-y-2.5">
+                      <div className="text-[11px] uppercase font-bold text-gray-500 tracking-wider flex items-center gap-1.5">
+                        <Zap className="w-3.5 h-3.5 text-emerald-600" />
+                        Instalação Elétrica e Telhado
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs">
+                        <div className="p-2.5 bg-gray-50/70 rounded-lg border border-gray-200">
+                          <div className="text-[10px] text-gray-400 flex items-center gap-1 mb-1 uppercase font-semibold">
+                            <Calendar className="w-3 h-3" />
+                            Data Instalação
+                          </div>
+                          <InlineEditField
+                            value={dataInstalacaoExibida}
+                            displayValue={
+                              <span className="font-bold text-gray-800">
+                                {dataInstalacaoExibida
+                                  ? formatDate(dataInstalacaoExibida)
+                                  : 'Não definida'}
+                              </span>
+                            }
+                            type="date"
+                            placeholder="DD/MM/AAAA"
+                            onSave={async (val) =>
+                              handleUpdateSistemaField('data_instalacao', String(val))
+                            }
+                          />
+                        </div>
+
+                        <div className="p-2.5 bg-gray-50/70 rounded-lg border border-gray-200">
+                          <div className="text-[10px] text-gray-400 flex items-center gap-1 mb-1 uppercase font-semibold">
+                            <Zap className="w-3 h-3 text-emerald-600" />
+                            Potência Total
+                          </div>
+                          <InlineEditField
+                            value={potenciaExibida}
+                            displayValue={
+                              <span className="font-black text-emerald-700 text-sm">
+                                {potenciaExibida} kWp
+                              </span>
+                            }
+                            type="number"
+                            step="0.1"
+                            min={0}
+                            unit="kWp"
+                            placeholder="0"
+                            onSave={async (val) =>
+                              handleUpdateSistemaField('potencia_total_kwp', Number(val))
+                            }
+                          />
+                        </div>
+
+                        <div className="p-2.5 bg-gray-50/70 rounded-lg border border-gray-200">
+                          <div className="text-[10px] text-gray-400 flex items-center gap-1 mb-1 uppercase font-semibold">
+                            <Home className="w-3 h-3" />
+                            Tipo Telhado
+                          </div>
+                          <InlineEditField
+                            value={telhadoExibido}
+                            displayValue={
+                              <span className="font-semibold text-gray-800 text-xs">
+                                {getTelhadoLabel(telhadoExibido)}
+                              </span>
+                            }
+                            type="select"
+                            options={TELHADOS}
+                            onSave={async (val) =>
+                              handleUpdateSistemaField('tipo_telhado', val as TelhadoTipo)
+                            }
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Equipamentos Fotovoltaicos */}
+                    <div className="bg-white rounded-xl p-4 border border-gray-200/80 shadow-xs space-y-3">
+                      <div className="text-[11px] uppercase font-bold text-gray-500 tracking-wider flex items-center gap-1.5">
+                        <Layers className="w-3.5 h-3.5 text-emerald-600" />
+                        Equipamentos Fotovoltaicos
+                      </div>
+
+                      {/* Módulos */}
+                      <div className="p-3 bg-gray-50/50 rounded-lg border border-gray-200 space-y-2 text-xs">
+                        <div className="flex items-center justify-between border-b border-gray-200/70 pb-1.5">
+                          <span className="font-bold text-gray-800 flex items-center gap-1.5">
+                            <Layers className="w-3.5 h-3.5 text-blue-600" />
+                            Módulos Fotovoltaicos
+                          </span>
+                          <div className="flex items-center gap-1">
+                            <span className="text-[10px] text-gray-400 uppercase font-semibold">
+                              Qtd:
+                            </span>
+                            <InlineEditField
+                              value={
+                                selectedSistema?.quantidade_modulos ??
+                                selectedSistema?.quantidade_placas ??
+                                selectedCliente.placas_qtd ??
+                                0
+                              }
+                              displayValue={
+                                <span className="font-bold text-blue-800 bg-blue-50 px-2 py-0.5 rounded text-xs border border-blue-200">
+                                  {selectedSistema?.quantidade_modulos ??
+                                    selectedSistema?.quantidade_placas ??
+                                    selectedCliente.placas_qtd ??
+                                    0}{' '}
+                                  un
+                                </span>
+                              }
+                              type="number"
+                              step="1"
+                              min={0}
+                              unit="un"
+                              placeholder="0"
+                              onSave={async (val) => {
+                                const num = Number(val)
+                                await handleUpdateSistemaField('quantidade_modulos', num)
+                                await handleUpdateSistemaField('quantidade_placas', num)
+                              }}
+                            />
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          <div className="flex items-center gap-2">
+                            <span className="text-gray-500 w-16 shrink-0">Fabricante:</span>
+                            <InlineEditField
+                              value={
+                                selectedSistema?.fabricante_modulos ||
+                                selectedSistema?.marca_placas ||
+                                selectedCliente.placas_marca ||
+                                'Canadian Solar'
+                              }
+                              displayValue={
+                                <span className="font-medium text-gray-800">
+                                  {selectedSistema?.fabricante_modulos ||
+                                    selectedSistema?.marca_placas ||
+                                    selectedCliente.placas_marca ||
                                     'Não informado'}
                                 </span>
                               }
                               type="text"
-                              placeholder="(00) 00000-0000"
-                              onSave={async (val) =>
-                                handleUpdateClienteField(
-                                  'whatsapp',
-                                  formatWhatsAppPhone(String(val)),
-                                )
-                              }
+                              placeholder="Canadian Solar, Trina Solar"
+                              onSave={async (val) => {
+                                const s = String(val)
+                                await handleUpdateSistemaField('fabricante_modulos', s)
+                                await handleUpdateSistemaField('marca_placas', s)
+                              }}
                             />
                           </div>
 
-                          {/* Endereço detalhado */}
-                          <div className="pt-2 border-t border-gray-100 space-y-2">
-                            <div className="flex items-center gap-2">
-                              <Home className="w-3.5 h-3.5 text-gray-400 shrink-0" />
-                              <span className="text-gray-500 w-24 shrink-0">Logradouro:</span>
-                              <InlineEditField
-                                value={selectedCliente.endereco}
-                                displayValue={
-                                  <span className="font-medium text-gray-800">
-                                    {selectedCliente.endereco || 'Não informado'}
-                                  </span>
-                                }
-                                type="text"
-                                placeholder="Rua, Av..."
-                                className="flex-1"
-                                onSave={async (val) =>
-                                  handleUpdateClienteField('endereco', String(val))
-                                }
-                              />
-                            </div>
-
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                              <div className="flex items-center gap-2">
-                                <span className="text-gray-500 w-16 shrink-0 pl-5">Número:</span>
-                                <InlineEditField
-                                  value={selectedCliente.numero}
-                                  displayValue={
-                                    <span className="text-gray-800">
-                                      {selectedCliente.numero || 'S/N'}
-                                    </span>
-                                  }
-                                  type="text"
-                                  placeholder="Nº"
-                                  onSave={async (val) =>
-                                    handleUpdateClienteField('numero', String(val))
-                                  }
-                                />
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <span className="text-gray-500 w-16 shrink-0">Bairro:</span>
-                                <InlineEditField
-                                  value={selectedCliente.bairro}
-                                  displayValue={
-                                    <span className="text-gray-800">
-                                      {selectedCliente.bairro || 'Não inf.'}
-                                    </span>
-                                  }
-                                  type="text"
-                                  placeholder="Bairro"
-                                  onSave={async (val) =>
-                                    handleUpdateClienteField('bairro', String(val))
-                                  }
-                                />
-                              </div>
-                            </div>
-
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                              <div className="flex items-center gap-2">
-                                <span className="text-gray-500 w-16 shrink-0 pl-5">CEP:</span>
-                                <InlineEditField
-                                  value={selectedCliente.cep}
-                                  displayValue={
-                                    <span className="font-mono text-gray-800 text-[11px]">
-                                      {selectedCliente.cep || '00000-000'}
-                                    </span>
-                                  }
-                                  type="text"
-                                  placeholder="00000-000"
-                                  onSave={async (val) =>
-                                    handleUpdateClienteField('cep', String(val))
-                                  }
-                                />
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <span className="text-gray-500 w-16 shrink-0">Estado:</span>
-                                <InlineEditField
-                                  value={
-                                    selectedCliente.estado ||
-                                    (selectedCliente.cidade?.includes('/SC') ? 'SC' : 'RS')
-                                  }
-                                  displayValue={
-                                    <span className="font-bold text-gray-800 uppercase">
-                                      {selectedCliente.estado ||
-                                        (selectedCliente.cidade?.includes('/SC') ? 'SC' : 'RS')}
-                                    </span>
-                                  }
-                                  type="text"
-                                  placeholder="RS / SC"
-                                  onSave={async (val) =>
-                                    handleUpdateClienteField('estado', String(val))
-                                  }
-                                />
-                              </div>
-                            </div>
-
-                            <div className="flex items-center gap-2">
-                              <span className="text-gray-500 w-24 shrink-0 pl-5">Complemento:</span>
-                              <InlineEditField
-                                value={selectedCliente.complemento}
-                                displayValue={
-                                  <span className="text-gray-700 italic">
-                                    {selectedCliente.complemento || 'Nenhum'}
-                                  </span>
-                                }
-                                type="text"
-                                placeholder="Sala, bloco..."
-                                className="flex-1"
-                                onSave={async (val) =>
-                                  handleUpdateClienteField('complemento', String(val))
-                                }
-                              />
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Seção Contatos Adicionais (Contato Principal + Contatos Adicionais) */}
-                      <SecaoContatosAdicionais cliente={selectedCliente} />
-
-                      {/* Localização da Instalação */}
-                      <div className="bg-white rounded-xl p-4 border border-gray-200/80 shadow-xs space-y-2.5">
-                        <div className="text-[11px] uppercase font-bold text-gray-500 tracking-wider flex items-center gap-1.5">
-                          <MapPin className="w-3.5 h-3.5 text-emerald-600" />
-                          Localização da Instalação
-                        </div>
-
-                        <div className="space-y-2 text-xs">
                           <div className="flex items-center gap-2">
-                            <span className="text-gray-500 w-24 shrink-0">Cidade / UF:</span>
+                            <span className="text-gray-500 w-16 shrink-0">Pot. Pico:</span>
                             <InlineEditField
-                              value={selectedCliente.cidade}
+                              value={selectedSistema?.potencia_pico_modulos_kwp ?? potenciaExibida}
                               displayValue={
-                                <span className="font-semibold text-gray-800">
-                                  {selectedCliente.cidade || 'Não informada'}
-                                </span>
-                              }
-                              type="text"
-                              placeholder="Cidade/UF"
-                              onSave={async (val) =>
-                                handleUpdateClienteField('cidade', String(val))
-                              }
-                            />
-                          </div>
-
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 border-t border-gray-100">
-                            <div className="flex items-center gap-2">
-                              <Compass className="w-3.5 h-3.5 text-gray-400 shrink-0" />
-                              <span className="text-gray-500 w-16 shrink-0">Latitude:</span>
-                              <InlineEditField
-                                value={selectedSistema?.latitude ?? 0}
-                                displayValue={
-                                  <span className="font-mono text-gray-800 text-[11px]">
-                                    {selectedSistema?.latitude
-                                      ? `${selectedSistema.latitude}°`
-                                      : 'Não inf.'}
-                                  </span>
-                                }
-                                type="number"
-                                step="0.0001"
-                                unit="°"
-                                placeholder="-27.6341"
-                                onSave={async (val) =>
-                                  handleUpdateSistemaField('latitude', Number(val))
-                                }
-                              />
-                            </div>
-
-                            <div className="flex items-center gap-2">
-                              <Compass className="w-3.5 h-3.5 text-gray-400 shrink-0" />
-                              <span className="text-gray-500 w-16 shrink-0">Longitude:</span>
-                              <InlineEditField
-                                value={selectedSistema?.longitude ?? 0}
-                                displayValue={
-                                  <span className="font-mono text-gray-800 text-[11px]">
-                                    {selectedSistema?.longitude
-                                      ? `${selectedSistema.longitude}°`
-                                      : 'Não inf.'}
-                                  </span>
-                                }
-                                type="number"
-                                step="0.0001"
-                                unit="°"
-                                placeholder="-52.2739"
-                                onSave={async (val) =>
-                                  handleUpdateSistemaField('longitude', Number(val))
-                                }
-                              />
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* SEÇÃO: Titular / Responsável pela Unidade Consumidora */}
-                      <div className="bg-white rounded-xl p-4 border border-emerald-200/90 shadow-xs space-y-3">
-                        <div className="flex items-center justify-between border-b border-gray-100 pb-2">
-                          <div className="flex items-center gap-2">
-                            <UserCheck className="w-4 h-4 text-emerald-600 shrink-0" />
-                            <div>
-                              <h4 className="text-xs font-bold uppercase tracking-wider text-gray-800">
-                                Titular / Responsável pela Unidade Consumidora
-                              </h4>
-                              <p className="text-[10px] text-gray-500">
-                                Utilizado na elaboração de Procuração, Contratos e Anexos da
-                                Concessionária.
-                              </p>
-                            </div>
-                          </div>
-
-                          <button
-                            type="button"
-                            onClick={async () => {
-                              const updates: Partial<Cliente> = {
-                                titular_nome: selectedCliente.nome || '',
-                                titular_cpf: selectedCliente.cpf || selectedCliente.cnpj || '',
-                                titular_telefone:
-                                  selectedCliente.telefone || selectedCliente.whatsapp || '',
-                                titular_email: selectedCliente.email || '',
-                              }
-                              await updateCliente(selectedCliente.id, updates)
-                            }}
-                            className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-bold rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-300 transition-colors shadow-2xs"
-                            title="Copiar nome, CPF, telefone e email do cadastro principal do cliente para os dados do titular"
-                          >
-                            <Copy className="w-3.5 h-3.5 text-emerald-600" />
-                            <span>Usar dados do cliente</span>
-                          </button>
-                        </div>
-
-                        <div className="space-y-2 text-xs">
-                          {/* Nome Completo do Titular */}
-                          <div className="flex items-center gap-2">
-                            <User className="w-3.5 h-3.5 text-gray-400 shrink-0" />
-                            <span className="text-gray-500 w-24 shrink-0">Nome completo:</span>
-                            <InlineEditField
-                              value={selectedCliente.titular_nome || ''}
-                              displayValue={
-                                <span className="font-semibold text-gray-800">
-                                  {selectedCliente.titular_nome || (
-                                    <span className="text-gray-400 italic">Não informado</span>
-                                  )}
-                                </span>
-                              }
-                              type="text"
-                              placeholder="Nome completo do titular na fatura de energia"
-                              onSave={async (val) =>
-                                handleUpdateClienteField('titular_nome', String(val).trim())
-                              }
-                            />
-                          </div>
-
-                          {/* CPF do Titular com máscara */}
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                            <div className="flex items-center gap-2">
-                              <Hash className="w-3.5 h-3.5 text-gray-400 shrink-0" />
-                              <span className="text-gray-500 w-24 shrink-0">CPF:</span>
-                              <InlineEditField
-                                value={selectedCliente.titular_cpf || ''}
-                                displayValue={
-                                  <span className="font-mono text-gray-800 text-[11px] bg-gray-50 px-1.5 py-0.5 rounded border border-gray-200">
-                                    {selectedCliente.titular_cpf
-                                      ? formatarCPF(selectedCliente.titular_cpf)
-                                      : '000.000.000-00'}
-                                  </span>
-                                }
-                                type="text"
-                                placeholder="000.000.000-00"
-                                onSave={async (val) => {
-                                  const raw = String(val)
-                                  const formatted = formatarCPF(raw)
-                                  await handleUpdateClienteField('titular_cpf', formatted)
-                                }}
-                              />
-                            </div>
-
-                            {/* Telefone do Titular com máscara */}
-                            <div className="flex items-center gap-2">
-                              <Phone className="w-3.5 h-3.5 text-gray-400 shrink-0" />
-                              <span className="text-gray-500 w-16 shrink-0">Telefone:</span>
-                              <InlineEditField
-                                value={selectedCliente.titular_telefone || ''}
-                                displayValue={
-                                  <span className="font-medium text-gray-800">
-                                    {selectedCliente.titular_telefone || 'Não informado'}
-                                  </span>
-                                }
-                                type="text"
-                                placeholder="(00) 00000-0000"
-                                onSave={async (val) =>
-                                  handleUpdateClienteField(
-                                    'titular_telefone',
-                                    formatWhatsAppPhone(String(val)),
-                                  )
-                                }
-                              />
-                            </div>
-                          </div>
-
-                          {/* Email do Titular */}
-                          <div className="flex items-center gap-2">
-                            <Mail className="w-3.5 h-3.5 text-gray-400 shrink-0" />
-                            <span className="text-gray-500 w-24 shrink-0">Email:</span>
-                            <InlineEditField
-                              value={selectedCliente.titular_email || ''}
-                              displayValue={
-                                <span className="text-emerald-700 font-medium">
-                                  {selectedCliente.titular_email || 'Não informado'}
-                                </span>
-                              }
-                              type="text"
-                              placeholder="email@exemplo.com.br"
-                              onSave={async (val) =>
-                                handleUpdateClienteField('titular_email', String(val).trim())
-                              }
-                            />
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Concessionária de Energia */}
-                      <div className="bg-white rounded-xl p-4 border border-gray-200/80 shadow-xs space-y-2.5">
-                        <div className="text-[11px] uppercase font-bold text-gray-500 tracking-wider flex items-center gap-1.5">
-                          <Activity className="w-3.5 h-3.5 text-emerald-600" />
-                          Concessionária de Energia
-                        </div>
-
-                        <div className="space-y-2 text-xs">
-                          <div className="flex items-center gap-2">
-                            <span className="text-gray-500 w-24 shrink-0">Nº da UC:</span>
-                            <InlineEditField
-                              value={ucExibida}
-                              displayValue={
-                                <span className="font-mono font-bold text-gray-900 bg-gray-50 px-2 py-0.5 rounded border border-gray-200 text-xs">
-                                  {ucExibida || 'Não informada'}
-                                </span>
-                              }
-                              type="text"
-                              placeholder="Ex: 3012847561"
-                              onSave={async (val) =>
-                                handleUpdateSistemaField('numero_uc', String(val))
-                              }
-                            />
-                          </div>
-
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                            <div className="flex items-center gap-2">
-                              <span className="text-gray-500 w-24 shrink-0">Concessionária:</span>
-                              <InlineEditField
-                                value={concessionariaExibida}
-                                displayValue={
-                                  <span className="font-bold text-gray-800 bg-gray-50 px-2 py-0.5 rounded border border-gray-200">
-                                    {concessionariaExibida || 'Não informada'}
-                                  </span>
-                                }
-                                type="text"
-                                placeholder="RGE, CPFL, Celesc..."
-                                onSave={async (val) => {
-                                  await handleUpdateClienteField('concessionaria', String(val))
-                                  await handleUpdateSistemaField('concessionaria', String(val))
-                                }}
-                              />
-                            </div>
-
-                            <div className="flex items-center gap-2">
-                              <span className="text-gray-500 w-20 shrink-0">Classe:</span>
-                              <InlineEditField
-                                value={classeConsumoExibida}
-                                displayValue={
-                                  <span className="font-medium text-gray-800 bg-gray-50 px-2 py-0.5 rounded border border-gray-200">
-                                    {classeConsumoExibida || 'Não inf.'}
-                                  </span>
-                                }
-                                type="text"
-                                placeholder="Residencial, Comercial..."
-                                onSave={async (val) => {
-                                  await handleUpdateClienteField('classe_consumo', String(val))
-                                  await handleUpdateSistemaField('classe_consumo', String(val))
-                                }}
-                              />
-                            </div>
-                          </div>
-
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                            <div className="flex items-center gap-2">
-                              <span className="text-gray-500 w-24 shrink-0 font-medium">
-                                Consumo médio:
-                              </span>
-                              <InlineEditField
-                                value={
-                                  selectedCliente.consumo_medio ??
-                                  selectedCliente.consumo_kwh_mes ??
-                                  0
-                                }
-                                displayValue={
-                                  <span className="font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 text-xs">
-                                    {(selectedCliente.consumo_medio ??
-                                    selectedCliente.consumo_kwh_mes)
-                                      ? `${selectedCliente.consumo_medio ?? selectedCliente.consumo_kwh_mes} kWh/mês`
-                                      : 'Não informado'}
-                                  </span>
-                                }
-                                type="number"
-                                unit="kWh/mês"
-                                placeholder="Ex: 650"
-                                onSave={async (val) => {
-                                  const num = Number(val) || 0
-                                  await handleUpdateClienteField('consumo_medio', num)
-                                  await handleUpdateClienteField('consumo_kwh_mes', num)
-                                }}
-                              />
-                            </div>
-
-                            <div className="flex items-center gap-2">
-                              <span className="text-gray-500 w-20 shrink-0">Tarifa:</span>
-                              <InlineEditField
-                                value={tarifaExibida}
-                                displayValue={
-                                  <span
-                                    className="font-mono text-gray-800 text-[11px] bg-gray-50 px-1.5 py-0.5 rounded border border-gray-200"
-                                    title={`R$ ${tarifaExibida}`}
-                                  >
-                                    {tarifaExibida > 0
-                                      ? `R$ ${Number(tarifaExibida).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 8 })}`
-                                      : 'Não inf.'}
-                                  </span>
-                                }
-                                type="number"
-                                step="0.0001"
-                                placeholder="0.9500"
-                                onSave={async (val) => {
-                                  const num = Number(val) || 0
-                                  await handleUpdateClienteField('tarifa', num)
-                                  await handleUpdateSistemaField('tarifa', num)
-                                }}
-                              />
-                            </div>
-                          </div>
-
-                          {/* Campos específicos da Fatura RGE / Gemini */}
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 border-t border-gray-100">
-                            <div className="flex items-center gap-2">
-                              <span className="text-gray-500 w-24 shrink-0">Grupo/Subgrupo:</span>
-                              <InlineEditField
-                                value={selectedCliente.grupo_subgrupo || ''}
-                                displayValue={
-                                  <span className="font-medium text-gray-800 text-xs">
-                                    {selectedCliente.grupo_subgrupo || 'Não informado'}
-                                  </span>
-                                }
-                                type="text"
-                                placeholder="Ex: Convencional B3..."
-                                onSave={async (val) =>
-                                  handleUpdateClienteField('grupo_subgrupo', String(val))
-                                }
-                              />
-                            </div>
-
-                            <div className="flex items-center gap-2">
-                              <span className="text-gray-500 w-20 shrink-0">Tensão Nom.:</span>
-                              <InlineEditField
-                                value={selectedCliente.tensao_nominal || ''}
-                                displayValue={
-                                  <span className="font-medium text-gray-800 text-xs">
-                                    {selectedCliente.tensao_nominal || 'Não informada'}
-                                  </span>
-                                }
-                                type="text"
-                                placeholder="Ex: 220V, 380V..."
-                                onSave={async (val) =>
-                                  handleUpdateClienteField('tensao_nominal', String(val))
-                                }
-                              />
-                            </div>
-                          </div>
-
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                            <div className="flex items-center gap-2">
-                              <span className="text-gray-500 w-24 shrink-0">Consumo Anual:</span>
-                              <InlineEditField
-                                value={selectedCliente.consumo_anual_kwh || 0}
-                                displayValue={
-                                  <span className="font-bold text-gray-800 text-xs">
-                                    {selectedCliente.consumo_anual_kwh
-                                      ? `${selectedCliente.consumo_anual_kwh} kWh/ano`
-                                      : 'Não informado'}
-                                  </span>
-                                }
-                                type="number"
-                                unit="kWh"
-                                placeholder="Ex: 7200"
-                                onSave={async (val) =>
-                                  handleUpdateClienteField('consumo_anual_kwh', Number(val) || 0)
-                                }
-                              />
-                            </div>
-
-                            <div className="flex items-center gap-2">
-                              <span className="text-gray-500 w-20 shrink-0">Média/Dia:</span>
-                              <InlineEditField
-                                value={selectedCliente.consumo_medio_diario_kwh || 0}
-                                displayValue={
-                                  <span className="font-bold text-gray-800 text-xs">
-                                    {selectedCliente.consumo_medio_diario_kwh
-                                      ? `${selectedCliente.consumo_medio_diario_kwh} kWh/dia`
-                                      : 'Não inf.'}
-                                  </span>
-                                }
-                                type="number"
-                                unit="kWh"
-                                placeholder="Ex: 24"
-                                onSave={async (val) =>
-                                  handleUpdateClienteField(
-                                    'consumo_medio_diario_kwh',
-                                    Number(val) || 0,
-                                  )
-                                }
-                              />
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <span className="text-gray-500 w-24 shrink-0">Padrão entrada:</span>
-                            <InlineEditField
-                              value={selectedSistema?.padrao_entrada ?? 'RIC BT Categoria A2'}
-                              displayValue={
-                                <span className="font-medium text-gray-800">
-                                  {selectedSistema?.padrao_entrada || 'Não informado'}
-                                </span>
-                              }
-                              type="text"
-                              placeholder="Ex: RIC BT Categoria A2"
-                              onSave={async (val) =>
-                                handleUpdateSistemaField('padrao_entrada', String(val))
-                              }
-                            />
-                          </div>
-
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                            <div className="flex items-center gap-2">
-                              <span className="text-gray-500 w-20 shrink-0">Atendimento:</span>
-                              <InlineEditField
-                                value={selectedSistema?.tipo_atendimento || 'aéreo'}
-                                displayValue={
-                                  <span className="capitalize font-medium text-gray-800 bg-gray-50 px-2 py-0.5 rounded border border-gray-200">
-                                    {selectedSistema?.tipo_atendimento || 'aéreo'}
-                                  </span>
-                                }
-                                type="select"
-                                options={ATENDIMENTOS}
-                                onSave={async (val) =>
-                                  handleUpdateSistemaField(
-                                    'tipo_atendimento',
-                                    val as TipoAtendimento,
-                                  )
-                                }
-                              />
-                            </div>
-
-                            <div className="flex items-center gap-2">
-                              <span className="text-gray-500 w-32 shrink-0">
-                                Tipo de Fornecimento:
-                              </span>
-                              <InlineEditField
-                                value={
-                                  selectedCliente.tipo_fornecimento ||
-                                  selectedSistema?.numero_fases ||
-                                  'trifásico'
-                                }
-                                displayValue={
-                                  <span className="capitalize font-medium text-gray-800 bg-gray-50 px-2 py-0.5 rounded border border-gray-200">
-                                    {selectedCliente.tipo_fornecimento ||
-                                      selectedSistema?.numero_fases ||
-                                      'trifásico'}
-                                  </span>
-                                }
-                                type="select"
-                                options={FASES}
-                                onSave={async (val) => {
-                                  await handleUpdateSistemaField('numero_fases', val as NumeroFases)
-                                  await handleUpdateClienteField('tipo_fornecimento', String(val))
-                                }}
-                              />
-                            </div>
-                          </div>
-
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 border-t border-gray-100">
-                            <div className="flex items-center gap-2">
-                              <span className="text-gray-500 w-20 shrink-0">Seção cabos:</span>
-                              <InlineEditField
-                                value={selectedSistema?.secao_cabos || '16 mm²'}
-                                displayValue={
-                                  <span className="font-medium text-gray-800">
-                                    {selectedSistema?.secao_cabos || 'Não informada'}
-                                  </span>
-                                }
-                                type="text"
-                                unit="mm²"
-                                placeholder="Ex: 16 mm²"
-                                onSave={async (val) =>
-                                  handleUpdateSistemaField('secao_cabos', String(val))
-                                }
-                              />
-                            </div>
-
-                            <div className="flex items-center gap-2">
-                              <Gauge className="w-3.5 h-3.5 text-gray-400 shrink-0" />
-                              <span className="text-gray-500 w-16 shrink-0">Disjuntor:</span>
-                              <InlineEditField
-                                value={selectedSistema?.amperagem_disjuntor || '40 A'}
-                                displayValue={
-                                  <span className="font-semibold text-gray-800 bg-gray-50 px-2 py-0.5 rounded border border-gray-200">
-                                    {selectedSistema?.amperagem_disjuntor || 'Não inf.'}
-                                  </span>
-                                }
-                                type="text"
-                                unit="A"
-                                placeholder="Ex: 40 A"
-                                onSave={async (val) =>
-                                  handleUpdateSistemaField('amperagem_disjuntor', String(val))
-                                }
-                              />
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Instalação Elétrica e Telhado */}
-                      <div className="bg-white rounded-xl p-4 border border-gray-200/80 shadow-xs space-y-2.5">
-                        <div className="text-[11px] uppercase font-bold text-gray-500 tracking-wider flex items-center gap-1.5">
-                          <Zap className="w-3.5 h-3.5 text-emerald-600" />
-                          Instalação Elétrica e Telhado
-                        </div>
-
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs">
-                          <div className="p-2.5 bg-gray-50/70 rounded-lg border border-gray-200">
-                            <div className="text-[10px] text-gray-400 flex items-center gap-1 mb-1 uppercase font-semibold">
-                              <Calendar className="w-3 h-3" />
-                              Data Instalação
-                            </div>
-                            <InlineEditField
-                              value={dataInstalacaoExibida}
-                              displayValue={
-                                <span className="font-bold text-gray-800">
-                                  {dataInstalacaoExibida
-                                    ? formatDate(dataInstalacaoExibida)
-                                    : 'Não definida'}
-                                </span>
-                              }
-                              type="date"
-                              placeholder="DD/MM/AAAA"
-                              onSave={async (val) =>
-                                handleUpdateSistemaField('data_instalacao', String(val))
-                              }
-                            />
-                          </div>
-
-                          <div className="p-2.5 bg-gray-50/70 rounded-lg border border-gray-200">
-                            <div className="text-[10px] text-gray-400 flex items-center gap-1 mb-1 uppercase font-semibold">
-                              <Zap className="w-3 h-3 text-emerald-600" />
-                              Potência Total
-                            </div>
-                            <InlineEditField
-                              value={potenciaExibida}
-                              displayValue={
-                                <span className="font-black text-emerald-700 text-sm">
-                                  {potenciaExibida} kWp
+                                <span className="font-semibold text-emerald-800">
+                                  {selectedSistema?.potencia_pico_modulos_kwp ?? potenciaExibida}{' '}
+                                  kWp
                                 </span>
                               }
                               type="number"
-                              step="0.1"
+                              step="0.01"
                               min={0}
                               unit="kWp"
                               placeholder="0"
                               onSave={async (val) =>
-                                handleUpdateSistemaField('potencia_total_kwp', Number(val))
+                                handleUpdateSistemaField('potencia_pico_modulos_kwp', Number(val))
                               }
                             />
                           </div>
+                        </div>
 
-                          <div className="p-2.5 bg-gray-50/70 rounded-lg border border-gray-200">
-                            <div className="text-[10px] text-gray-400 flex items-center gap-1 mb-1 uppercase font-semibold">
-                              <Home className="w-3 h-3" />
-                              Tipo Telhado
-                            </div>
+                        <div className="flex items-center justify-between gap-2 pt-1 border-t border-gray-100 flex-wrap">
+                          <div className="flex items-center gap-2 flex-1 min-w-[200px]">
+                            <span className="text-gray-500 w-16 shrink-0">Modelo:</span>
                             <InlineEditField
-                              value={telhadoExibido}
+                              value={
+                                selectedSistema?.modelo_modulos || 'CS3W-455MS MONOCRISTAL 455Wp'
+                              }
                               displayValue={
-                                <span className="font-semibold text-gray-800 text-xs">
-                                  {getTelhadoLabel(telhadoExibido)}
+                                <span className="font-mono text-gray-800 text-[11px] bg-white px-2 py-0.5 rounded border border-gray-200">
+                                  {selectedSistema?.modelo_modulos ||
+                                    'CS3W-455MS MONOCRISTAL 455Wp'}
                                 </span>
                               }
-                              type="select"
-                              options={TELHADOS}
+                              type="text"
+                              placeholder="Modelo do módulo"
+                              className="flex-1"
                               onSave={async (val) =>
-                                handleUpdateSistemaField('tipo_telhado', val as TelhadoTipo)
+                                handleUpdateSistemaField('modelo_modulos', String(val))
                               }
                             />
                           </div>
+                          <DatasheetBadge
+                            marca={
+                              selectedSistema?.fabricante_modulos ||
+                              selectedSistema?.marca_placas ||
+                              selectedCliente.placas_marca ||
+                              ''
+                            }
+                            modelo={selectedSistema?.modelo_modulos || ''}
+                            tipo="modulo_fv"
+                            mostrarLinkBusca={true}
+                          />
                         </div>
                       </div>
 
-                      {/* Equipamentos Fotovoltaicos */}
-                      <div className="bg-white rounded-xl p-4 border border-gray-200/80 shadow-xs space-y-3">
-                        <div className="text-[11px] uppercase font-bold text-gray-500 tracking-wider flex items-center gap-1.5">
-                          <Layers className="w-3.5 h-3.5 text-emerald-600" />
-                          Equipamentos Fotovoltaicos
-                        </div>
-
-                        {/* Módulos */}
-                        <div className="p-3 bg-gray-50/50 rounded-lg border border-gray-200 space-y-2 text-xs">
-                          <div className="flex items-center justify-between border-b border-gray-200/70 pb-1.5">
-                            <span className="font-bold text-gray-800 flex items-center gap-1.5">
-                              <Layers className="w-3.5 h-3.5 text-blue-600" />
-                              Módulos Fotovoltaicos
-                            </span>
-                            <div className="flex items-center gap-1">
-                              <span className="text-[10px] text-gray-400 uppercase font-semibold">
-                                Qtd:
-                              </span>
-                              <InlineEditField
-                                value={
-                                  selectedSistema?.quantidade_modulos ??
-                                  selectedSistema?.quantidade_placas ??
-                                  selectedCliente.placas_qtd ??
-                                  0
-                                }
-                                displayValue={
-                                  <span className="font-bold text-blue-800 bg-blue-50 px-2 py-0.5 rounded text-xs border border-blue-200">
-                                    {selectedSistema?.quantidade_modulos ??
-                                      selectedSistema?.quantidade_placas ??
-                                      selectedCliente.placas_qtd ??
-                                      0}{' '}
-                                    un
-                                  </span>
-                                }
-                                type="number"
-                                step="1"
-                                min={0}
-                                unit="un"
-                                placeholder="0"
-                                onSave={async (val) => {
-                                  const num = Number(val)
-                                  await handleUpdateSistemaField('quantidade_modulos', num)
-                                  await handleUpdateSistemaField('quantidade_placas', num)
-                                }}
-                              />
-                            </div>
-                          </div>
-
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                            <div className="flex items-center gap-2">
-                              <span className="text-gray-500 w-16 shrink-0">Fabricante:</span>
-                              <InlineEditField
-                                value={
-                                  selectedSistema?.fabricante_modulos ||
-                                  selectedSistema?.marca_placas ||
-                                  selectedCliente.placas_marca ||
-                                  'Canadian Solar'
-                                }
-                                displayValue={
-                                  <span className="font-medium text-gray-800">
-                                    {selectedSistema?.fabricante_modulos ||
-                                      selectedSistema?.marca_placas ||
-                                      selectedCliente.placas_marca ||
-                                      'Não informado'}
-                                  </span>
-                                }
-                                type="text"
-                                placeholder="Canadian Solar, Trina Solar"
-                                onSave={async (val) => {
-                                  const s = String(val)
-                                  await handleUpdateSistemaField('fabricante_modulos', s)
-                                  await handleUpdateSistemaField('marca_placas', s)
-                                }}
-                              />
-                            </div>
-
-                            <div className="flex items-center gap-2">
-                              <span className="text-gray-500 w-16 shrink-0">Pot. Pico:</span>
-                              <InlineEditField
-                                value={
-                                  selectedSistema?.potencia_pico_modulos_kwp ?? potenciaExibida
-                                }
-                                displayValue={
-                                  <span className="font-semibold text-emerald-800">
-                                    {selectedSistema?.potencia_pico_modulos_kwp ?? potenciaExibida}{' '}
-                                    kWp
-                                  </span>
-                                }
-                                type="number"
-                                step="0.01"
-                                min={0}
-                                unit="kWp"
-                                placeholder="0"
-                                onSave={async (val) =>
-                                  handleUpdateSistemaField('potencia_pico_modulos_kwp', Number(val))
-                                }
-                              />
-                            </div>
-                          </div>
-
-                          <div className="flex items-center justify-between gap-2 pt-1 border-t border-gray-100 flex-wrap">
-                            <div className="flex items-center gap-2 flex-1 min-w-[200px]">
-                              <span className="text-gray-500 w-16 shrink-0">Modelo:</span>
-                              <InlineEditField
-                                value={
-                                  selectedSistema?.modelo_modulos || 'CS3W-455MS MONOCRISTAL 455Wp'
-                                }
-                                displayValue={
-                                  <span className="font-mono text-gray-800 text-[11px] bg-white px-2 py-0.5 rounded border border-gray-200">
-                                    {selectedSistema?.modelo_modulos ||
-                                      'CS3W-455MS MONOCRISTAL 455Wp'}
-                                  </span>
-                                }
-                                type="text"
-                                placeholder="Modelo do módulo"
-                                className="flex-1"
-                                onSave={async (val) =>
-                                  handleUpdateSistemaField('modelo_modulos', String(val))
-                                }
-                              />
-                            </div>
-                            <DatasheetBadge
-                              marca={
-                                selectedSistema?.fabricante_modulos ||
-                                selectedSistema?.marca_placas ||
-                                selectedCliente.placas_marca ||
-                                ''
-                              }
-                              modelo={selectedSistema?.modelo_modulos || ''}
-                              tipo="modulo_fv"
-                              mostrarLinkBusca={true}
-                            />
-                          </div>
-                        </div>
-
-                        {/* Monitoramento do Inversor (App, Login, Senha, Link Datalogger, Marca, Modelo, Potência & Padrões por Marca) */}
-                        <SecaoMonitoramentoInversor
-                          cliente={selectedCliente}
-                          sistema={selectedSistema}
-                          onUpdateClienteField={handleUpdateClienteField}
-                          onUpdateSistemaField={handleUpdateSistemaField}
-                        />
-
-                        {/* Acesso ao Aplicativo Solarview (Login, Senha, Links iOS/Android & Envio WhatsApp) */}
-                        <SecaoAcessoSolarview
-                          cliente={selectedCliente}
-                          sistema={selectedSistema}
-                          onUpdateClienteField={handleUpdateClienteField}
-                          onUpdateSistemaField={handleUpdateSistemaField}
-                        />
-                      </div>
-
-                      {/* Histórico de Origem do Cliente & Dados da Importação */}
-                      <div className="bg-white rounded-xl p-4 border border-blue-200/80 shadow-xs space-y-3">
-                        <div className="flex items-center justify-between border-b border-blue-100 pb-2">
-                          <div className="flex items-center gap-1.5">
-                            <Sparkles className="w-3.5 h-3.5 text-blue-600" />
-                            <h4 className="text-xs font-bold uppercase tracking-wider text-blue-900">
-                              Origem e Histórico de Importação
-                            </h4>
-                          </div>
-                          <OrigemClienteBadge cliente={selectedCliente} showSublabel />
-                        </div>
-
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-                          <div className="p-2.5 rounded-lg bg-blue-50/50 border border-blue-100 space-y-0.5">
-                            <div className="text-[10px] font-bold text-blue-800 uppercase tracking-wider">
-                              Canal / Origem Cadastrada
-                            </div>
-                            <div className="font-semibold text-gray-800">
-                              {selectedCliente.origem_lead ||
-                                selectedCliente.como_conheceu ||
-                                'Não especificado'}
-                            </div>
-                          </div>
-
-                          <div className="p-2.5 rounded-lg bg-blue-50/50 border border-blue-100 space-y-0.5">
-                            <div className="text-[10px] font-bold text-blue-800 uppercase tracking-wider">
-                              Como Conheceu / Integração
-                            </div>
-                            <div className="font-semibold text-gray-800">
-                              {selectedCliente.como_conheceu ||
-                                (selectedCliente.dados_importados as any)?.origem_integracao ||
-                                'Cadastro no CRM'}
-                            </div>
-                          </div>
-                        </div>
-
-                        {selectedCliente.dados_importados &&
-                          typeof selectedCliente.dados_importados === 'object' &&
-                          Object.keys(selectedCliente.dados_importados).length > 0 && (
-                            <div className="pt-2 border-t border-blue-100 space-y-2">
-                              <div className="flex items-center justify-between">
-                                <span className="text-[11px] font-bold text-blue-900 uppercase">
-                                  Campos Preservados da Planilha / CRM
-                                </span>
-                                <span className="text-[10px] uppercase font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
-                                  {Object.keys(selectedCliente.dados_importados).length} campo(s)
-                                </span>
-                              </div>
-
-                              <p className="text-[11px] text-gray-500">
-                                Campos e colunas que vieram da planilha e foram preservados
-                                integralmente neste cliente:
-                              </p>
-
-                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-                                {Object.entries(selectedCliente.dados_importados).map(
-                                  ([chave, valor]) => (
-                                    <div
-                                      key={chave}
-                                      className="p-2.5 rounded-lg bg-gray-50/70 border border-gray-200 space-y-1"
-                                    >
-                                      <div
-                                        className="text-[10px] font-bold text-gray-500 uppercase tracking-wider truncate"
-                                        title={chave}
-                                      >
-                                        {chave}
-                                      </div>
-                                      <div className="font-semibold text-gray-800 break-words text-xs">
-                                        {valor !== null && valor !== undefined && valor !== '' ? (
-                                          String(valor)
-                                        ) : (
-                                          <span className="text-gray-400 italic">Vazio</span>
-                                        )}
-                                      </div>
-                                    </div>
-                                  )
-                                )}
-                              </div>
-                            </div>
-                          )}
-                      </div>
-
-                      {/* Histórico de Consumo da Fatura RGE (Gemini) */}
-                      {Array.isArray(selectedCliente.historico_consumo_fatura) &&
-                        selectedCliente.historico_consumo_fatura.length > 0 &&
-                        (() => {
-                          const historicoExibicao = normalizarEOordenarHistorico(
-                            selectedCliente.historico_consumo_fatura,
-                          )
-                          const metricas = calcularMetricasHistorico(historicoExibicao)
-                          const totalAnualExibicao =
-                            selectedCliente.consumo_anual_kwh ||
-                            metricas.somatorio_consumo_anual_kwh
-                          const mediaDiariaExibicao =
-                            selectedCliente.consumo_medio_diario_kwh ||
-                            metricas.consumo_medio_diario_kwh
-
-                          return (
-                            <div className="bg-white rounded-xl p-4 border border-amber-200/80 shadow-xs space-y-3">
-                              <div className="flex items-center justify-between flex-wrap gap-2">
-                                <div className="text-[11px] uppercase font-bold text-amber-900 tracking-wider flex items-center gap-1.5">
-                                  <Activity className="w-4 h-4 text-amber-600" />
-                                  <span>
-                                    Histórico de Faturas RGE ({historicoExibicao.length} meses)
-                                  </span>
-                                </div>
-                                <div className="flex items-center gap-2 text-xs font-semibold text-gray-600">
-                                  {totalAnualExibicao ? (
-                                    <span className="bg-amber-50 text-amber-900 px-2 py-0.5 rounded border border-amber-200">
-                                      Total: {totalAnualExibicao} kWh/ano
-                                    </span>
-                                  ) : null}
-                                  {mediaDiariaExibicao ? (
-                                    <span className="bg-amber-50 text-amber-900 px-2 py-0.5 rounded border border-amber-200">
-                                      Diário: {mediaDiariaExibicao} kWh/dia
-                                    </span>
-                                  ) : null}
-                                </div>
-                              </div>
-
-                              <div className="grid grid-cols-3 sm:grid-cols-6 md:grid-cols-12 gap-1.5 text-center pt-1">
-                                {historicoExibicao.map((item, idx) => (
-                                  <div
-                                    key={idx}
-                                    className="p-1.5 bg-amber-50/50 rounded-lg border border-amber-200/70 flex flex-col justify-center"
-                                  >
-                                    <span className="text-[10px] font-semibold text-gray-500">
-                                      {item.mes_ano}
-                                    </span>
-                                    <span className="text-xs font-bold text-gray-900">
-                                      {item.consumo_kwh}
-                                    </span>
-                                    <span className="text-[9px] text-gray-400">
-                                      {item.dias_ciclo || 30} dias
-                                    </span>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          )
-                        })()}
-
-                      {/* Usinas Fotovoltaicas do Cliente integradas na Ficha Cadastral */}
-                      <SecaoUsinasCliente
-                        clienteId={selectedCliente.id}
-                        clienteNome={selectedCliente.nome}
-                        clienteDocumento={selectedCliente.cpf || selectedCliente.cnpj || ''}
+                      {/* Monitoramento do Inversor (App, Login, Senha, Link Datalogger, Marca, Modelo, Potência & Padrões por Marca) */}
+                      <SecaoMonitoramentoInversor
                         cliente={selectedCliente}
-                        isAdmin={isAdmin}
-                        usinas={usinasDoCliente}
-                        contratos={contratosOM.filter((c) => c.cliente_id === selectedCliente.id)}
-                        onCreateUsina={async (data) => {
-                          await createUsina(data)
-                          await recarregarUsinas()
-                        }}
-                        onUpdateUsina={async (usinaId, data) => {
-                          await updateUsina(usinaId, data)
-                          await recarregarUsinas()
-                        }}
-                        onDeleteUsina={async (usinaId) => {
-                          await deleteUsina(usinaId)
-                          await recarregarUsinas()
-                        }}
-                        onVincularContrato={async (usinaId, contratoId) => {
-                          await updateUsina(usinaId, { contrato_id: contratoId })
-                          await recarregarUsinas()
-                          toast.success('Contrato O&M vinculado com sucesso!')
-                        }}
-                        onAbrirModalNovoContrato={(usina) => {
-                          setContratoOMDetalhesDados({
-                            nomeRazaoSocial:
-                              selectedCliente.razao_social ||
-                              selectedCliente.nome ||
-                              selectedCliente.titular_nome ||
-                              '',
-                            cpfCnpj:
-                              selectedCliente.cnpj ||
-                              selectedCliente.cpf ||
-                              selectedCliente.titular_cpf ||
-                              '',
-                            enderecoInstalacao: usina.endereco || selectedCliente.endereco || '',
-                            municipio: selectedCliente.cidade || 'Erechim/RS',
-                            telefone:
-                              selectedCliente.telefone ||
-                              selectedCliente.whatsapp ||
-                              selectedCliente.titular_telefone ||
-                              '',
-                            email: selectedCliente.email || selectedCliente.titular_email || '',
-                            numeroModulos: usina.qtd_modulos || selectedCliente.placas_qtd || '0',
-                            marcaInversores:
-                              usina.inversores_info ||
-                              selectedCliente.inversor_marca ||
-                              selectedCliente.inversor_modelo ||
-                              'Growatt',
-                            localInstalacao: usina.tipo_estrutura === 'solo' ? 'Solo' : 'Telhado',
-                            enderecoInstalacaoDiferente:
-                              usina.endereco || selectedCliente.usina_endereco || '',
-                          })
-                          setModoVisualizacaoContratoDireta(false)
-                          setModalContratoOMOpen(true)
-                        }}
-                        onRenovarContrato={async (_usina, contrato) => {
-                          try {
-                            await renovarContratoOM(contrato.id, 12)
-                            await recarregarUsinas()
-                            toast.success(
-                              `Contrato ${contrato.numero_contrato || `#${contrato.id.slice(0, 6)}`} renovado por +12 meses com sucesso!`,
-                            )
-                          } catch (err) {
-                            console.error('Erro ao renovar contrato O&M:', err)
-                            toast.error('Erro ao renovar contrato O&M. Tente novamente.')
-                          }
-                        }}
-                        onVerDetalhesContrato={(contrato, usina) => {
-                          const docContrato = documentosCliente.find(
-                            (d) => d.cliente_id === selectedCliente.id && d.tipo === 'contrato',
-                          )
-                          const dadosBase = (docContrato?.dados_documento as any) || {}
-                          setContratoOMDetalhesDados({
-                            ...dadosBase,
-                            nomeRazaoSocial:
-                              dadosBase.nomeRazaoSocial ||
-                              selectedCliente.razao_social ||
-                              selectedCliente.nome ||
-                              selectedCliente.titular_nome ||
-                              '',
-                            cpfCnpj:
-                              dadosBase.cpfCnpj ||
-                              selectedCliente.cnpj ||
-                              selectedCliente.cpf ||
-                              selectedCliente.titular_cpf ||
-                              '',
-                            enderecoInstalacao:
-                              usina?.endereco ||
-                              dadosBase.enderecoInstalacao ||
-                              selectedCliente.endereco ||
-                              '',
-                            municipio:
-                              dadosBase.municipio || selectedCliente.cidade || 'Erechim/RS',
-                            telefone:
-                              dadosBase.telefone ||
-                              selectedCliente.telefone ||
-                              selectedCliente.whatsapp ||
-                              '',
-                            email: dadosBase.email || selectedCliente.email || '',
-                            numeroModulos:
-                              usina?.qtd_modulos ||
-                              dadosBase.numeroModulos ||
-                              selectedCliente.placas_qtd ||
-                              '0',
-                            marcaInversores:
-                              usina?.inversores_info ||
-                              dadosBase.marcaInversores ||
-                              selectedCliente.inversor_marca ||
-                              '',
-                            localInstalacao:
-                              usina?.tipo_estrutura === 'solo'
-                                ? 'Solo'
-                                : dadosBase.localInstalacao || 'Telhado',
-                            planoSelecionado:
-                              contrato.plano || dadosBase.planoSelecionado || 'Essencial',
-                            valorMensal: contrato.valor_mensal || dadosBase.valorMensal || 190,
-                            valorTotal: contrato.valor_anual || dadosBase.valorTotal || 2280,
-                          })
-                          setModoVisualizacaoContratoDireta(true)
-                          setModalContratoOMOpen(true)
-                        }}
+                        sistema={selectedSistema}
+                        onUpdateClienteField={handleUpdateClienteField}
+                        onUpdateSistemaField={handleUpdateSistemaField}
                       />
 
-                      {/* Histórico de Manutenções na seção de Detalhes */}
-                      {clientManutencoes.length > 0 && (
-                        <div className="bg-white rounded-xl p-4 border border-gray-200/80 shadow-xs space-y-3">
-                          <h4 className="text-xs font-bold uppercase tracking-wider text-gray-700 flex items-center gap-1.5">
-                            <Wrench className="w-3.5 h-3.5 text-emerald-600" />
-                            Histórico de Ordens de Manutenção ({clientManutencoes.length})
+                      {/* Acesso ao Aplicativo Solarview (Login, Senha, Links iOS/Android & Envio WhatsApp) */}
+                      <SecaoAcessoSolarview
+                        cliente={selectedCliente}
+                        sistema={selectedSistema}
+                        onUpdateClienteField={handleUpdateClienteField}
+                        onUpdateSistemaField={handleUpdateSistemaField}
+                      />
+                    </div>
+
+                    {/* Histórico de Origem do Cliente & Dados da Importação */}
+                    <div className="bg-white rounded-xl p-4 border border-blue-200/80 shadow-xs space-y-3">
+                      <div className="flex items-center justify-between border-b border-blue-100 pb-2">
+                        <div className="flex items-center gap-1.5">
+                          <Sparkles className="w-3.5 h-3.5 text-blue-600" />
+                          <h4 className="text-xs font-bold uppercase tracking-wider text-blue-900">
+                            Origem e Histórico de Importação
                           </h4>
-                          <div className="space-y-2.5">
-                            {clientManutencoes.map((m) => (
-                              <div
-                                key={m.id}
-                                className="p-3 rounded-lg border border-gray-200 bg-gray-50/50 space-y-2 text-xs"
-                              >
-                                <div className="flex items-center justify-between flex-wrap gap-2">
-                                  <div className="flex items-center gap-2">
-                                    {getServiceIcon(m.tipo)}
-                                    <span className="font-semibold text-gray-900">{m.tipo}</span>
-                                  </div>
-                                  <StatusBadge status={m.status} />
-                                </div>
-                                <div className="text-[11px] text-gray-500 flex items-center gap-2">
-                                  <span>{formatDate(m.data)}</span>
-                                  {m.tecnico && <span>• Técnico: {m.tecnico}</span>}
-                                </div>
-                                {m.descricao && <p className="text-gray-600">{m.descricao}</p>}
-                              </div>
-                            ))}
+                        </div>
+                        <OrigemClienteBadge cliente={selectedCliente} showSublabel />
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                        <div className="p-2.5 rounded-lg bg-blue-50/50 border border-blue-100 space-y-0.5">
+                          <div className="text-[10px] font-bold text-blue-800 uppercase tracking-wider">
+                            Canal / Origem Cadastrada
+                          </div>
+                          <div className="font-semibold text-gray-800">
+                            {selectedCliente.origem_lead ||
+                              selectedCliente.como_conheceu ||
+                              'Não especificado'}
                           </div>
                         </div>
-                      )}
+
+                        <div className="p-2.5 rounded-lg bg-blue-50/50 border border-blue-100 space-y-0.5">
+                          <div className="text-[10px] font-bold text-blue-800 uppercase tracking-wider">
+                            Como Conheceu / Integração
+                          </div>
+                          <div className="font-semibold text-gray-800">
+                            {selectedCliente.como_conheceu ||
+                              (selectedCliente.dados_importados as any)?.origem_integracao ||
+                              'Cadastro no CRM'}
+                          </div>
+                        </div>
+                      </div>
+
+                      {selectedCliente.dados_importados &&
+                        typeof selectedCliente.dados_importados === 'object' &&
+                        Object.keys(selectedCliente.dados_importados).length > 0 && (
+                          <div className="pt-2 border-t border-blue-100 space-y-2">
+                            <div className="flex items-center justify-between">
+                              <span className="text-[11px] font-bold text-blue-900 uppercase">
+                                Campos Preservados da Planilha / CRM
+                              </span>
+                              <span className="text-[10px] uppercase font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
+                                {Object.keys(selectedCliente.dados_importados).length} campo(s)
+                              </span>
+                            </div>
+
+                            <p className="text-[11px] text-gray-500">
+                              Campos e colunas que vieram da planilha e foram preservados
+                              integralmente neste cliente:
+                            </p>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                              {Object.entries(selectedCliente.dados_importados).map(
+                                ([chave, valor]) => (
+                                  <div
+                                    key={chave}
+                                    className="p-2.5 rounded-lg bg-gray-50/70 border border-gray-200 space-y-1"
+                                  >
+                                    <div
+                                      className="text-[10px] font-bold text-gray-500 uppercase tracking-wider truncate"
+                                      title={chave}
+                                    >
+                                      {chave}
+                                    </div>
+                                    <div className="font-semibold text-gray-800 break-words text-xs">
+                                      {valor !== null && valor !== undefined && valor !== '' ? (
+                                        String(valor)
+                                      ) : (
+                                        <span className="text-gray-400 italic">Vazio</span>
+                                      )}
+                                    </div>
+                                  </div>
+                                ),
+                              )}
+                            </div>
+                          </div>
+                        )}
                     </div>
+
+                    {/* Histórico de Consumo da Fatura RGE (Gemini) */}
+                    {Array.isArray(selectedCliente.historico_consumo_fatura) &&
+                      selectedCliente.historico_consumo_fatura.length > 0 &&
+                      (() => {
+                        const historicoExibicao = normalizarEOordenarHistorico(
+                          selectedCliente.historico_consumo_fatura,
+                        )
+                        const metricas = calcularMetricasHistorico(historicoExibicao)
+                        const totalAnualExibicao =
+                          selectedCliente.consumo_anual_kwh || metricas.somatorio_consumo_anual_kwh
+                        const mediaDiariaExibicao =
+                          selectedCliente.consumo_medio_diario_kwh ||
+                          metricas.consumo_medio_diario_kwh
+
+                        return (
+                          <div className="bg-white rounded-xl p-4 border border-amber-200/80 shadow-xs space-y-3">
+                            <div className="flex items-center justify-between flex-wrap gap-2">
+                              <div className="text-[11px] uppercase font-bold text-amber-900 tracking-wider flex items-center gap-1.5">
+                                <Activity className="w-4 h-4 text-amber-600" />
+                                <span>
+                                  Histórico de Faturas RGE ({historicoExibicao.length} meses)
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-2 text-xs font-semibold text-gray-600">
+                                {totalAnualExibicao ? (
+                                  <span className="bg-amber-50 text-amber-900 px-2 py-0.5 rounded border border-amber-200">
+                                    Total: {totalAnualExibicao} kWh/ano
+                                  </span>
+                                ) : null}
+                                {mediaDiariaExibicao ? (
+                                  <span className="bg-amber-50 text-amber-900 px-2 py-0.5 rounded border border-amber-200">
+                                    Diário: {mediaDiariaExibicao} kWh/dia
+                                  </span>
+                                ) : null}
+                              </div>
+                            </div>
+
+                            <div className="grid grid-cols-3 sm:grid-cols-6 md:grid-cols-12 gap-1.5 text-center pt-1">
+                              {historicoExibicao.map((item, idx) => (
+                                <div
+                                  key={idx}
+                                  className="p-1.5 bg-amber-50/50 rounded-lg border border-amber-200/70 flex flex-col justify-center"
+                                >
+                                  <span className="text-[10px] font-semibold text-gray-500">
+                                    {item.mes_ano}
+                                  </span>
+                                  <span className="text-xs font-bold text-gray-900">
+                                    {item.consumo_kwh}
+                                  </span>
+                                  <span className="text-[9px] text-gray-400">
+                                    {item.dias_ciclo || 30} dias
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )
+                      })()}
+
+                    {/* Usinas Fotovoltaicas do Cliente integradas na Ficha Cadastral */}
+                    <SecaoUsinasCliente
+                      clienteId={selectedCliente.id}
+                      clienteNome={selectedCliente.nome}
+                      clienteDocumento={selectedCliente.cpf || selectedCliente.cnpj || ''}
+                      cliente={selectedCliente}
+                      isAdmin={isAdmin}
+                      usinas={usinasDoCliente}
+                      contratos={contratosOM.filter((c) => c.cliente_id === selectedCliente.id)}
+                      onCreateUsina={async (data) => {
+                        await createUsina(data)
+                        await recarregarUsinas()
+                      }}
+                      onUpdateUsina={async (usinaId, data) => {
+                        await updateUsina(usinaId, data)
+                        await recarregarUsinas()
+                      }}
+                      onDeleteUsina={async (usinaId) => {
+                        await deleteUsina(usinaId)
+                        await recarregarUsinas()
+                      }}
+                      onVincularContrato={async (usinaId, contratoId) => {
+                        await updateUsina(usinaId, { contrato_id: contratoId })
+                        await recarregarUsinas()
+                        toast.success('Contrato O&M vinculado com sucesso!')
+                      }}
+                      onAbrirModalNovoContrato={(usina) => {
+                        setContratoOMDetalhesDados({
+                          nomeRazaoSocial:
+                            selectedCliente.razao_social ||
+                            selectedCliente.nome ||
+                            selectedCliente.titular_nome ||
+                            '',
+                          cpfCnpj:
+                            selectedCliente.cnpj ||
+                            selectedCliente.cpf ||
+                            selectedCliente.titular_cpf ||
+                            '',
+                          enderecoInstalacao: usina.endereco || selectedCliente.endereco || '',
+                          municipio: selectedCliente.cidade || 'Erechim/RS',
+                          telefone:
+                            selectedCliente.telefone ||
+                            selectedCliente.whatsapp ||
+                            selectedCliente.titular_telefone ||
+                            '',
+                          email: selectedCliente.email || selectedCliente.titular_email || '',
+                          numeroModulos: usina.qtd_modulos || selectedCliente.placas_qtd || '0',
+                          marcaInversores:
+                            usina.inversores_info ||
+                            selectedCliente.inversor_marca ||
+                            selectedCliente.inversor_modelo ||
+                            'Growatt',
+                          localInstalacao: usina.tipo_estrutura === 'solo' ? 'Solo' : 'Telhado',
+                          enderecoInstalacaoDiferente:
+                            usina.endereco || selectedCliente.usina_endereco || '',
+                        })
+                        setModoVisualizacaoContratoDireta(false)
+                        setModalContratoOMOpen(true)
+                      }}
+                      onRenovarContrato={async (_usina, contrato) => {
+                        try {
+                          await renovarContratoOM(contrato.id, 12)
+                          await recarregarUsinas()
+                          toast.success(
+                            `Contrato ${contrato.numero_contrato || `#${contrato.id.slice(0, 6)}`} renovado por +12 meses com sucesso!`,
+                          )
+                        } catch (err) {
+                          console.error('Erro ao renovar contrato O&M:', err)
+                          toast.error('Erro ao renovar contrato O&M. Tente novamente.')
+                        }
+                      }}
+                      onVerDetalhesContrato={(contrato, usina) => {
+                        const docContrato = documentosCliente.find(
+                          (d) => d.cliente_id === selectedCliente.id && d.tipo === 'contrato',
+                        )
+                        const dadosBase = (docContrato?.dados_documento as any) || {}
+                        setContratoOMDetalhesDados({
+                          ...dadosBase,
+                          nomeRazaoSocial:
+                            dadosBase.nomeRazaoSocial ||
+                            selectedCliente.razao_social ||
+                            selectedCliente.nome ||
+                            selectedCliente.titular_nome ||
+                            '',
+                          cpfCnpj:
+                            dadosBase.cpfCnpj ||
+                            selectedCliente.cnpj ||
+                            selectedCliente.cpf ||
+                            selectedCliente.titular_cpf ||
+                            '',
+                          enderecoInstalacao:
+                            usina?.endereco ||
+                            dadosBase.enderecoInstalacao ||
+                            selectedCliente.endereco ||
+                            '',
+                          municipio: dadosBase.municipio || selectedCliente.cidade || 'Erechim/RS',
+                          telefone:
+                            dadosBase.telefone ||
+                            selectedCliente.telefone ||
+                            selectedCliente.whatsapp ||
+                            '',
+                          email: dadosBase.email || selectedCliente.email || '',
+                          numeroModulos:
+                            usina?.qtd_modulos ||
+                            dadosBase.numeroModulos ||
+                            selectedCliente.placas_qtd ||
+                            '0',
+                          marcaInversores:
+                            usina?.inversores_info ||
+                            dadosBase.marcaInversores ||
+                            selectedCliente.inversor_marca ||
+                            '',
+                          localInstalacao:
+                            usina?.tipo_estrutura === 'solo'
+                              ? 'Solo'
+                              : dadosBase.localInstalacao || 'Telhado',
+                          planoSelecionado:
+                            contrato.plano || dadosBase.planoSelecionado || 'Essencial',
+                          valorMensal: contrato.valor_mensal || dadosBase.valorMensal || 190,
+                          valorTotal: contrato.valor_anual || dadosBase.valorTotal || 2280,
+                        })
+                        setModoVisualizacaoContratoDireta(true)
+                        setModalContratoOMOpen(true)
+                      }}
+                    />
+
+                    {/* Histórico de Manutenções na seção de Detalhes */}
+                    {clientManutencoes.length > 0 && (
+                      <div className="bg-white rounded-xl p-4 border border-gray-200/80 shadow-xs space-y-3">
+                        <h4 className="text-xs font-bold uppercase tracking-wider text-gray-700 flex items-center gap-1.5">
+                          <Wrench className="w-3.5 h-3.5 text-emerald-600" />
+                          Histórico de Ordens de Manutenção ({clientManutencoes.length})
+                        </h4>
+                        <div className="space-y-2.5">
+                          {clientManutencoes.map((m) => (
+                            <div
+                              key={m.id}
+                              className="p-3 rounded-lg border border-gray-200 bg-gray-50/50 space-y-2 text-xs"
+                            >
+                              <div className="flex items-center justify-between flex-wrap gap-2">
+                                <div className="flex items-center gap-2">
+                                  {getServiceIcon(m.tipo)}
+                                  <span className="font-semibold text-gray-900">{m.tipo}</span>
+                                </div>
+                                <StatusBadge status={m.status} />
+                              </div>
+                              <div className="text-[11px] text-gray-500 flex items-center gap-2">
+                                <span>{formatDate(m.data)}</span>
+                                {m.tecnico && <span>• Técnico: {m.tecnico}</span>}
+                              </div>
+                              {m.descricao && <p className="text-gray-600">{m.descricao}</p>}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
