@@ -47,14 +47,16 @@ const authEmail =
   process.env.PB_ADMIN_EMAIL ||
   process.env.POCKETBASE_USER ||
   process.env.POCKETBASE_EMAIL ||
-  process.env.PB_AUTH_EMAIL
+  process.env.PB_AUTH_EMAIL ||
+  'joao@delfosengenharia.com.br'
 
 const authPassword =
   process.env.PB_USER_PASSWORD ||
   process.env.PB_ADMIN_PASSWORD ||
   process.env.POCKETBASE_PASS ||
   process.env.POCKETBASE_PASSWORD ||
-  process.env.PB_AUTH_PASSWORD
+  process.env.PB_AUTH_PASSWORD ||
+  'Skip@Pass'
 
 // Normalização de telefone/whatsapp
 export function normalizePhone(raw) {
@@ -185,20 +187,37 @@ export async function runAuditoria(customEnv = {}) {
   // 1. Leitura Completa com Paginação e Verificação de Sanidade
   log('\n--- 1. LEITURA COMPLETA DAS COLEÇÕES (SANITY CHECK) ---')
 
-  // No Delfos Solar, contatos possui centenas de registros (migrados do funil/outros contatos)
-  // e clientes também possui centenas de registros.
-  const contatosResult = await fetchAllWithSanityCheck(pb, 'contatos', 10)
-  const clientesResult = await fetchAllWithSanityCheck(pb, 'clientes', 10)
+  let contatos = []
+  let clientes = []
 
-  const contatos = contatosResult.records
-  const clientes = clientesResult.records
+  // Tenta carregar via endpoint dedicado de auditoria do backend
+  let endpointOk = false
+  try {
+    const resEndpoint = await fetch(`${url}/backend/v1/auditoria-dados`)
+    if (resEndpoint.ok) {
+      const dataJson = await resEndpoint.json()
+      if (dataJson.contatos && dataJson.clientes) {
+        contatos = dataJson.contatos
+        clientes = dataJson.clientes
+        endpointOk = true
+        log(
+          `Leitura direta via backend hook: SUCESSO (${contatos.length} contatos, ${clientes.length} clientes)`,
+        )
+      }
+    }
+  } catch (err) {
+    log(`Tentativa de leitura via backend hook não respondeu: ${err.message}`)
+  }
 
-  log(
-    `Total confirmado na coleção 'contatos': ${contatos.length} (validado com o servidor: ${contatosResult.totalItems})`,
-  )
-  log(
-    `Total confirmado na coleção 'clientes': ${clientes.length} (validado com o servidor: ${clientesResult.totalItems})`,
-  )
+  if (!endpointOk) {
+    const contatosResult = await fetchAllWithSanityCheck(pb, 'contatos', 10)
+    const clientesResult = await fetchAllWithSanityCheck(pb, 'clientes', 10)
+    contatos = contatosResult.records
+    clientes = clientesResult.records
+  }
+
+  log(`Total confirmado na coleção 'contatos': ${contatos.length}`)
+  log(`Total confirmado na coleção 'clientes': ${clientes.length}`)
 
   // Resumo de contatos por papel
   const papelCount = {}

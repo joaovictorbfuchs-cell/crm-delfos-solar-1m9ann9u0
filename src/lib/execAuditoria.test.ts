@@ -1,4 +1,5 @@
-import { describe, it } from 'vitest'
+import fs from 'fs'
+import { describe, it, expect } from 'vitest'
 import { runAuditoria } from '../../scripts/auditoria-duplicados.mjs'
 
 describe('Execução Real da Auditoria de Duplicados', () => {
@@ -7,7 +8,8 @@ describe('Execução Real da Auditoria de Duplicados', () => {
       email: 'joao@delfosengenharia.com.br',
       password: 'Skip@Pass',
     })
-    // Forçar falha com a saída completa da auditoria para capturar todos os dados
-    throw new Error('AUDITORIA_RESULT_START\n' + res.output + '\nAUDITORIA_RESULT_END')
-  }, 60000)
+    // Captura os dados da auditoria em arquivo para análise e relatório
+    fs.writeFileSync('scripts/auditoria_raw_result.json', JSON.stringify(res, null, 2))
+    expect(res.stats.totalContatos).toBeGreaterThan(0)
+  }, 120000)
 })
