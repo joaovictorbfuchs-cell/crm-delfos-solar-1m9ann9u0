@@ -7,7 +7,7 @@
   "scripts": {
     "start": "vite dev",
     "dev": "vite",
-    "prebuild": "(node scripts/exportSchema.js || echo '[AVISO] Falha no prebuild, prosseguindo com o build')",
+    "prebuild": "node scripts/exportSchema.js && (node scripts/auditoria-duplicados.mjs || echo '[AVISO] Auditoria de duplicados ignorada no prebuild')",
     "build": "vite build",
     "build:dev": "vite build --mode development",
     "auditoria": "node scripts/auditoria-duplicados.mjs",

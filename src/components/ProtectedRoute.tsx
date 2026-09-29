@@ -53,30 +53,33 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, requir
 
   if (isLoading && !safetyTimeoutReached) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#F8FAF9]">
+      <div className="min-h-screen flex flex-col items-center justify-center gap-3 bg-[#F8FAF9] text-gray-500">
         <Loader2 className="w-8 h-8 animate-spin text-[#16A34A]" />
+        <span className="text-xs font-medium">Validando acesso ao Delfos Solar...</span>
       </div>
     )
   }
 
   const currentPath = location.pathname + (location.search || '') + (location.hash || '')
 
+  // Se o usuário não está autenticado ou o token não é válido, redireciona para o login
   if (!isAuthenticated || !isPbAuthValid) {
     return <Navigate to="/login" state={{ from: currentPath }} replace />
   }
 
-  // Se rota requer admin e usuário for instalador, redireciona para rota do instalador (/minhas-os)
+  // Se rota requer admin e usuário não for admin (ex.: instalador), redireciona para /minhas-os
   if (requiredRole === 'admin' && !isAdmin) {
     return <Navigate to="/minhas-os" replace />
   }
 
-  // Se for instalador e não for uma rota permitida a instalador, redireciona para /minhas-os
+  // Se for instalador e tentar acessar rota restrita (não sendo permitido a instalador), redireciona para /minhas-os
   if (isInstalador && requiredRole !== 'instalador' && requiredRole !== undefined) {
     return <Navigate to="/minhas-os" replace />
   }
 
+  // Se não houver children ou se for a rota pai do layout sem sub-conteúdo
   if (!children) {
-    return <Navigate to="/login" state={{ from: currentPath }} replace />
+    return null
   }
 
   return <>{children}</>

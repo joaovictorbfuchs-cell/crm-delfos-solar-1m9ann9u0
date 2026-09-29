@@ -2349,6 +2349,8 @@ export const FichaClienteDrawer: React.FC = () => {
                       </div>
                     </div>
                   )}
+                </div>
+              )}
 
               {/* ======================================================== */}
               {/* ABA HISTÓRICO: Linha do tempo, anotações e atividades     */}
@@ -4058,8 +4060,14 @@ export const FichaClienteDrawer: React.FC = () => {
                       )}
                     </div>
                   </div>
-                  </div>
-                  )}
+                </div>
+              )}
+
+              {/* ======================================================== */}
+              {/* ABA HISTÓRICO: Linha do tempo, anotações e atividades     */}
+              {/* ======================================================== */}
+              {activeClientTab === 'historico' && (
+                <>
                   {/* ======================================================== */}
                   {/* TOPO DA ABA HISTÓRICO: ÁREA RÁPIDA DE NOVA ENTRADA       */}
                   {/* Alterna Anotação vs Agendar Atividade (Seleção 2 etapas) */}

@@ -117,11 +117,9 @@ const App = () => (
             <Route
               path="/"
               element={
-                <ProtectedRoute requiredRole="admin">
-                  <ErrorBoundary errorMessage="Ocorreu um problema ao carregar o Dashboard">
-                    <Index />
-                  </ErrorBoundary>
-                </ProtectedRoute>
+                <ErrorBoundary errorMessage="Ocorreu um problema ao carregar o Dashboard">
+                  <Index />
+                </ErrorBoundary>
               }
             />
             <Route
