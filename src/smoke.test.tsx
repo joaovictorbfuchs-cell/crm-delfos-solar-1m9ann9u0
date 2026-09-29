@@ -59,6 +59,33 @@ describe('Login e App Smoke Tests', () => {
     expect(Index).toBeDefined()
   })
 
+  it('renderiza rota "/" autenticado montando Layout e Index sem cair no ErrorBoundary', () => {
+    // Simula usuário autenticado no authStore
+    pb.authStore.save('mock-token-12345', {
+      id: 'usr123',
+      collectionId: '_pb_users_auth_',
+      collectionName: 'users',
+      name: 'João Delfos',
+      email: 'joao@delfosengenharia.com.br',
+      role: 'admin',
+    })
+
+    window.history.pushState({}, 'Dashboard', '/')
+    const originalError = console.error
+    console.error = vi.fn()
+
+    const html = renderToStaticMarkup(React.createElement(App, null))
+    console.error = originalError
+
+    // Confirma que não caiu em nenhum ErrorBoundary na rota "/"
+    expect(html).not.toContain('Ocorreu um problema ao carregar a página inicial do CRM')
+    expect(html).not.toContain('Ocorreu um problema ao carregar o Dashboard')
+    expect(html).not.toContain('Ops! Algo deu errado')
+    expect(html).not.toContain('Erro inesperado na aplicação')
+    expect(html).toBeDefined()
+    expect(html.length).toBeGreaterThan(0)
+  })
+
   it('renderiza ProtectedRoute com fallback seguro quando deslogado', () => {
     const html = renderToStaticMarkup(
       React.createElement(
