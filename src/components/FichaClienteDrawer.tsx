@@ -1357,7 +1357,7 @@ export const FichaClienteDrawer: React.FC = () => {
           >
             {/* Header com Abas (Mobile e Desktop) */}
             {/* 1. ABAS MOBILE (md:hidden) — scroll horizontal suave para todas as abas */}
-            <div className="md:hidden sticky top-0 z-10 bg-white border-b border-gray-200 px-3 pt-2 flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+            <div className="md:hidden sticky top-0 z-20 bg-white border-b border-gray-200 px-3 pt-2 pb-1 flex items-center gap-1.5 overflow-x-auto no-scrollbar shrink-0 min-h-[44px]">
               <button
                 type="button"
                 onClick={() => {
@@ -1466,7 +1466,7 @@ export const FichaClienteDrawer: React.FC = () => {
             </div>
 
             {/* 2. ABAS DESKTOP (hidden md:flex) */}
-            <div className="hidden md:flex sticky top-0 z-10 bg-white border-b border-gray-200 px-4 pt-3 items-center justify-between gap-2 overflow-x-auto">
+            <div className="hidden md:flex shrink-0 min-h-[48px] sticky top-0 z-20 bg-white border-b border-gray-200 px-4 pt-2.5 pb-2 items-center justify-between gap-2 overflow-x-auto">
               <div className="flex items-center gap-2">
                 <button
                   type="button"
