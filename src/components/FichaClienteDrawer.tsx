@@ -89,6 +89,12 @@ import { DatasheetBadge } from './DatasheetBadge'
 import { SecaoUsinasCliente } from './SecaoUsinasCliente'
 import { SecaoContatosAdicionais } from './SecaoContatosAdicionais'
 import { AbaAtivosUsina } from './AbaAtivosUsina'
+import {
+  detectarDuplicidadeTelefone,
+  executarMesclagemDuplicado,
+  type ContatoCorrespondente,
+} from '@/services/duplicidadeContatoService'
+import { ModalAvisoDuplicidadeTelefone } from './ModalAvisoDuplicidadeTelefone'
 import { CardNegociosCliente } from './CardNegociosCliente'
 import { useAuth } from '@/contexts/AuthContext'
 import {
@@ -843,7 +849,43 @@ export const FichaClienteDrawer: React.FC = () => {
     }
   }
 
-  const handleUpdateClienteField = async (field: keyof Cliente, value: unknown) => {
+  // Estado para detecção de duplicidade de Telefone/WhatsApp na Ficha do Cliente
+  const [duplicadosFicha, setDuplicadosFicha] = useState<ContatoCorrespondente[]>([])
+  const [modalDuplicidadeFichaAberto, setModalDuplicidadeFichaAberto] = useState(false)
+  const [campoDuplicidadePendente, setCampoDuplicidadePendente] = useState<{
+    field: 'telefone' | 'whatsapp'
+    value: string
+  } | null>(null)
+  const [isMesclandoFicha, setIsMesclandoFicha] = useState(false)
+
+  const handleUpdateClienteField = async (
+    field: keyof Cliente,
+    value: unknown,
+    ignorarChecagemDuplicados = false,
+  ) => {
+    // Se o campo editado for telefone ou whatsapp, checa duplicidade primeiro
+    if (
+      !ignorarChecagemDuplicados &&
+      (field === 'telefone' || field === 'whatsapp') &&
+      typeof value === 'string' &&
+      value.trim()
+    ) {
+      const duplicados = await detectarDuplicidadeTelefone({
+        telefone: field === 'telefone' ? value : selectedCliente.telefone,
+        whatsapp: field === 'whatsapp' ? value : selectedCliente.whatsapp,
+        ignorarId: selectedCliente.id,
+        ignorarOrigem: 'cliente',
+        clientesPrecarregados: clientes,
+      })
+
+      if (duplicados.length > 0) {
+        setCampoDuplicidadePendente({ field, value })
+        setDuplicadosFicha(duplicados)
+        setModalDuplicidadeFichaAberto(true)
+        return
+      }
+    }
+
     const patch: Partial<Cliente> = { [field]: value } as Partial<Cliente>
     // Telefone e WhatsApp são independentes (regra atualizada a pedido do usuário)
     await updateCliente(selectedCliente.id, patch)
@@ -4930,6 +4972,56 @@ export const FichaClienteDrawer: React.FC = () => {
           </AlertDialogContent>
         </AlertDialog>
       )}
+
+      {/* Modal Aviso de Duplicidade de Telefone / WhatsApp na Ficha */}
+      <ModalAvisoDuplicidadeTelefone
+        isOpen={modalDuplicidadeFichaAberto}
+        onClose={() => {
+          setModalDuplicidadeFichaAberto(false)
+          setCampoDuplicidadePendente(null)
+        }}
+        duplicados={duplicadosFicha}
+        numeroInformado={campoDuplicidadePendente?.value || ''}
+        nomeInformado={selectedCliente.nome}
+        modo="edicao"
+        onConfirmarMesclar={async (destino) => {
+          setIsMesclandoFicha(true)
+          try {
+            await executarMesclagemDuplicado({
+              registroDestino: destino,
+              dadosNovos: {
+                ...selectedCliente,
+                ...(campoDuplicidadePendente
+                  ? { [campoDuplicidadePendente.field]: campoDuplicidadePendente.value }
+                  : {}),
+              },
+              idOrigemEdicao: selectedCliente.id,
+              origemEdicaoTipo: 'cliente',
+            })
+            toast.success(`Cliente mesclado com sucesso em "${destino.nome}"!`)
+            setModalDuplicidadeFichaAberto(false)
+            setCampoDuplicidadePendente(null)
+            closeFichaCliente()
+            await recarregarClientes()
+          } catch (err) {
+            console.error('Erro ao mesclar cliente na ficha:', err)
+            toast.error('Não foi possível mesclar os registros.')
+          } finally {
+            setIsMesclandoFicha(false)
+          }
+        }}
+        onContinuarMesmoAssim={async () => {
+          if (campoDuplicidadePendente) {
+            const { field, value } = campoDuplicidadePendente
+            setModalDuplicidadeFichaAberto(false)
+            setCampoDuplicidadePendente(null)
+            await handleUpdateClienteField(field, value, true)
+          } else {
+            setModalDuplicidadeFichaAberto(false)
+          }
+        }}
+        isCarregando={isMesclandoFicha}
+      />
 
       {/* Modal Gerar Contrato O&M a partir da Linha do Tempo / Histórico */}
       {selectedCliente && (

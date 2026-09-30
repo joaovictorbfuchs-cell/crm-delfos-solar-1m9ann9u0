@@ -59,6 +59,12 @@ import {
   deleteContatoUnico,
   aplicarRegraWhatsAppAutoritativo,
 } from '@/services/contatosService'
+import {
+  detectarDuplicidadeTelefone,
+  executarMesclagemDuplicado,
+  type ContatoCorrespondente,
+} from '@/services/duplicidadeContatoService'
+import { ModalAvisoDuplicidadeTelefone } from '@/components/ModalAvisoDuplicidadeTelefone'
 import { fetchNegocios } from '@/services/negociosService'
 
 // Opções de Papel do Contato
@@ -144,6 +150,11 @@ export const ContatosView: React.FC = () => {
   // Modal de Criação / Edição
   const [modalOpen, setModalOpen] = useState(false)
   const [contatoEmEdicao, setContatoEmEdicao] = useState<ContatoUnico | null>(null)
+
+  // Detecção de Duplicidade de Telefone/WhatsApp
+  const [duplicadosEncontrados, setDuplicadosEncontrados] = useState<ContatoCorrespondente[]>([])
+  const [modalDuplicidadeAberto, setModalDuplicidadeAberto] = useState(false)
+  const [isMesclando, setIsMesclando] = useState(false)
 
   // Form State
   const [formNome, setFormNome] = useState('')
@@ -257,9 +268,8 @@ export const ContatosView: React.FC = () => {
     }
   }
 
-  // Submeter Criação / Edição
-  const handleSalvarContato = async (e: React.FormEvent) => {
-    e.preventDefault()
+  // Executa salvamento real do contato (direto ou após confirmação de duplicidade)
+  const executarPersistenciaContato = async (ignorarChecagemDuplicados = false) => {
     if (!formNome.trim()) {
       toast.error('Informe o nome do contato.')
       return
@@ -270,6 +280,24 @@ export const ContatosView: React.FC = () => {
       telefone: formTelefone,
       whatsapp: formWhatsApp,
     })
+
+    // 1. Checagem de duplicidade de Telefone / WhatsApp antes de persistir
+    if (!ignorarChecagemDuplicados && (telefones.telefone || telefones.whatsapp)) {
+      const duplicados = await detectarDuplicidadeTelefone({
+        telefone: telefones.telefone,
+        whatsapp: telefones.whatsapp,
+        ignorarId: contatoEmEdicao?.id,
+        ignorarOrigem: 'contato_unico',
+        clientesPrecarregados: clientes,
+        contatosUnicosPrecarregados: contatos,
+      })
+
+      if (duplicados.length > 0) {
+        setDuplicadosEncontrados(duplicados)
+        setModalDuplicidadeAberto(true)
+        return
+      }
+    }
 
     setIsSaving(true)
     try {
@@ -334,6 +362,43 @@ export const ContatosView: React.FC = () => {
       toast.error('Não foi possível salvar o contato. Verifique os dados e tente novamente.')
     } finally {
       setIsSaving(false)
+    }
+  }
+
+  // Submeter Criação / Edição
+  const handleSalvarContato = async (e: React.FormEvent) => {
+    e.preventDefault()
+    await executarPersistenciaContato(false)
+  }
+
+  // Callback de mesclagem acionado pelo modal de duplicidade
+  const handleConfirmarMesclagemContato = async (destino: ContatoCorrespondente) => {
+    setIsMesclando(true)
+    try {
+      await executarMesclagemDuplicado({
+        registroDestino: destino,
+        dadosNovos: {
+          nome: formNome.trim(),
+          telefone: formTelefone.trim() || undefined,
+          whatsapp: formWhatsApp.trim() || undefined,
+          email: formEmail.trim() || undefined,
+          cargo: formCargo.trim() || undefined,
+          observacoes: formObservacoes.trim() || undefined,
+          papel: formPapel,
+        },
+        idOrigemEdicao: contatoEmEdicao?.id,
+        origemEdicaoTipo: 'contato_unico',
+      })
+
+      toast.success(`Contato mesclado com sucesso em "${destino.nome}"!`)
+      setModalDuplicidadeAberto(false)
+      setModalOpen(false)
+      await carregarDados(true)
+    } catch (err) {
+      console.error('Erro ao mesclar contato:', err)
+      toast.error('Não foi possível mesclar os registros.')
+    } finally {
+      setIsMesclando(false)
     }
   }
 
@@ -1180,6 +1245,22 @@ export const ContatosView: React.FC = () => {
               </div>
             </div>
           </DialogHeader>
+
+          {/* Modal de Aviso de Duplicidade de Telefone / WhatsApp */}
+          <ModalAvisoDuplicidadeTelefone
+            isOpen={modalDuplicidadeAberto}
+            onClose={() => setModalDuplicidadeAberto(false)}
+            duplicados={duplicadosEncontrados}
+            numeroInformado={formWhatsApp || formTelefone}
+            nomeInformado={formNome}
+            modo={contatoEmEdicao ? 'edicao' : 'criacao'}
+            onConfirmarMesclar={handleConfirmarMesclagemContato}
+            onContinuarMesmoAssim={async () => {
+              setModalDuplicidadeAberto(false)
+              await executarPersistenciaContato(true)
+            }}
+            isCarregando={isMesclando}
+          />
 
           {contatoDetalhes && (
             <div className="space-y-3 pt-2">
