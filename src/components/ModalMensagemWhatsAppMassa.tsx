@@ -46,6 +46,7 @@ import {
   extrairCidadeCliente,
   extrairPrimeiroNomeCliente,
 } from '@/lib/placeholdersMensagemMassa'
+import { aplicarPrefixoMensagemManual } from '@/lib/whatsappPrefixo'
 import {
   resolverNumeroDestinoClienteSync,
   type OrigemNumeroDestino,
@@ -697,13 +698,14 @@ export const ModalMensagemWhatsAppMassa: React.FC<ModalMensagemWhatsAppMassaProp
         continue
       }
 
-      const mensagemFinal = resolverPlaceholdersMensagemMassa({
+      const mensagemBase = resolverPlaceholdersMensagemMassa({
         template: templateTexto,
         cliente: item.cliente,
         usina: item.usina,
         valor: item.valorItem,
         cidadeManual: item.cidade,
       })
+      const mensagemFinal = aplicarPrefixoMensagemManual(mensagemBase)
 
       try {
         // Disparo via gateway Z-API Z-API

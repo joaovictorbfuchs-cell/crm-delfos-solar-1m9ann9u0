@@ -19,6 +19,7 @@ import {
   MENSAGEM_ALERTA_SEM_NUMERO,
   type OrigemNumeroDestino,
 } from '@/lib/resolverNumeroDestinoCliente'
+import { aplicarPrefixoMensagemManual } from '@/lib/whatsappPrefixo'
 
 export interface ModalEnviarAnaliseWhatsAppProps {
   isOpen: boolean
@@ -196,10 +197,11 @@ export const ModalEnviarAnaliseWhatsApp: React.FC<ModalEnviarAnaliseWhatsAppProp
     try {
       setIsSending(true)
 
+      const mensagemComPrefixo = aplicarPrefixoMensagemManual(mensagem)
       const payload = {
         cliente_id: analise.cliente_id || '',
         telefone_destino: telefone,
-        conteudo_final: mensagem,
+        conteudo_final: mensagemComPrefixo,
         tipo_disparo: 'analise_fatura',
         referencia_id: analise.id,
       }

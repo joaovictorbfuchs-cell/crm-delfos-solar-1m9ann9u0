@@ -35,6 +35,7 @@ import {
 import type { WhatsAppConversa, WhatsAppMensagem, Cliente, WhatsAppTemplate } from '@/types/crm'
 import { useClientes } from '@/contexts/ClientesContext'
 import { useAuth } from '@/contexts/AuthContext'
+import { aplicarPrefixoMensagemManual } from '@/lib/whatsappPrefixo'
 import { formatDateTime, formatCurrency, formatWhatsAppPhone } from '@/lib/formatters'
 import { getWhatsAppMediaUrl } from '@/lib/whatsappGateway'
 import { GravadorAudioWhatsApp } from '@/components/GravadorAudioWhatsApp'
@@ -456,11 +457,12 @@ export const ConversaChatView: React.FC<ConversaChatViewProps> = ({
     setFeedback(null)
 
     try {
+      const conteudoComPrefixo = aplicarPrefixoMensagemManual(msg)
       const res = await sendWhatsAppMessage({
         cliente_id: cliente?.id || undefined,
         conversa_id: conversa.id,
         telefone_destino: conversa.numero,
-        conteudo_final: msg,
+        conteudo_final: conteudoComPrefixo,
         template_id: selectedTemplateId || undefined,
         tipo_disparo: 'manual',
       })

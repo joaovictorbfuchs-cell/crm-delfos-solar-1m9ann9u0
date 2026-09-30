@@ -43,6 +43,7 @@ import {
   MENSAGEM_ALERTA_SEM_NUMERO,
   type OrigemNumeroDestino,
 } from '@/lib/resolverNumeroDestinoCliente'
+import { aplicarPrefixoMensagemManual } from '@/lib/whatsappPrefixo'
 import { SessaoExpiradaAlert } from '@/components/SessaoExpiradaAlert'
 import {
   MENSAGEM_OFERTA_LIMPEZA_PADRAO,
@@ -491,7 +492,7 @@ export const ModalOferecerLimpezaAvulsa: React.FC<ModalOferecerLimpezaAvulsaProp
         cleanDigits = `55${cleanDigits}`
       }
 
-      const mensagemFinal = mensagemPreviaResolvida
+      const mensagemFinal = aplicarPrefixoMensagemManual(mensagemPreviaResolvida)
       const whatsappUrl = `https://wa.me/${cleanDigits}?text=${encodeURIComponent(mensagemFinal)}`
 
       setIsEnviando(true)
@@ -593,13 +594,14 @@ export const ModalOferecerLimpezaAvulsa: React.FC<ModalOferecerLimpezaAvulsaProp
       }
 
       // Mensagem personalizada resolvida para este cliente específico
-      const mensagemFinal = resolverPlaceholdersOfertaLimpeza({
+      const mensagemBase = resolverPlaceholdersOfertaLimpeza({
         template: templateTexto,
         cliente: item.cliente,
         usinasDoCliente: item.usina ? ([item.usina as any] as UsinaCliente[]) : [],
         valorServico: valorTotalCalculado,
         tarifa: TARIFA_ENERGIA_PADRAO,
       })
+      const mensagemFinal = aplicarPrefixoMensagemManual(mensagemBase)
 
       try {
         // 1. Dispara via WhatsApp Gateway (Z-API)

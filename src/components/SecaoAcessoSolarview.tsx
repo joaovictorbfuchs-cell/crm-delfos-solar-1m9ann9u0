@@ -23,6 +23,7 @@ import type { Cliente, Sistema } from '@/types/crm'
 import { DEFAULT_SOLARVIEW_CONFIG, sendWhatsAppMensagem } from '@/services/crmService'
 import { cleanPhoneDigits } from '@/lib/formatters'
 import { getFriendlyWhatsAppErrorMessage } from '@/lib/whatsappGateway'
+import { aplicarPrefixoMensagemManual } from '@/lib/whatsappPrefixo'
 import {
   resolverNumeroDestinoCliente,
   MENSAGEM_ALERTA_SEM_NUMERO,
@@ -209,13 +210,14 @@ export const SecaoAcessoSolarview: React.FC<SecaoAcessoSolarviewProps> = ({
     ].filter((l) => l !== null)
 
     const textoFormatado = linhasMensagem.join('\n')
+    const textoComPrefixo = aplicarPrefixoMensagemManual(textoFormatado)
 
     setIsSendingWhatsApp(true)
     try {
       const res = await sendWhatsAppMensagem({
         clienteId: cliente.id,
         telefone: telefoneDigitos,
-        mensagem: textoFormatado,
+        mensagem: textoComPrefixo,
         origem: 'secao_solarview',
       })
 

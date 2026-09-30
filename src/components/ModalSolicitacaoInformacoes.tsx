@@ -28,11 +28,11 @@ import { Cliente } from '@/types/crm'
 import { sendWhatsAppMensagem } from '@/services/crmService'
 import { getFriendlyWhatsAppErrorMessage } from '@/lib/whatsappGateway'
 import {
-  resolverNumeroDestinoCliente,
+  resolverNumeroDestinoClienteSync,
   MENSAGEM_ALERTA_SEM_NUMERO,
   type OrigemNumeroDestino,
 } from '@/lib/resolverNumeroDestinoCliente'
-
+import { aplicarPrefixoMensagemManual } from '@/lib/whatsappPrefixo'
 export const ITENS_SOLICITACAO_INFORMACOES = [
   'Nome completo',
   'CPF',
@@ -260,10 +260,11 @@ export const ModalSolicitacaoInformacoes: React.FC<ModalSolicitacaoInformacoesPr
 
     setIsSendingWhatsApp(true)
     try {
+      const textoComPrefixo = aplicarPrefixoMensagemManual(textoAEnviar)
       const res = await sendWhatsAppMensagem({
         clienteId: cliente.id,
         telefone: cleanPhoneDigits,
-        mensagem: textoAEnviar,
+        mensagem: textoComPrefixo,
         origem: 'modal_solicitacao_informacoes',
       })
 

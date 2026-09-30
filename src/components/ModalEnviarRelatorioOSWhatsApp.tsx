@@ -13,6 +13,7 @@ import {
   Download,
 } from 'lucide-react'
 import { useClientes } from '@/contexts/ClientesContext'
+import { aplicarPrefixoMensagemManual } from '@/lib/whatsappPrefixo'
 import type { OrdemServico, Cliente, Sistema } from '@/types/crm'
 import { formatWhatsAppPhone } from '@/lib/formatters'
 import { gerarPdfRelatorioOS } from '@/lib/relatorioOSPdf'
@@ -190,12 +191,15 @@ export const ModalEnviarRelatorioOSWhatsApp: React.FC<ModalEnviarRelatorioOSWhat
         return
       }
 
+      const legendaTrimmed = mensagem.trim()
+      const legendaComPrefixo = legendaTrimmed ? aplicarPrefixoMensagemManual(legendaTrimmed) : ''
+
       const res = await sendWhatsAppDocument({
         cliente_id: cliente?.id,
         telefone_destino: telLimpo,
         tipo: 'documento',
         referencia_id: os.id,
-        legenda: mensagem.trim(),
+        legenda: legendaComPrefixo,
         nome_arquivo: nomeArquivo || `Relatorio_OS_${os.id.slice(-6).toUpperCase()}.pdf`,
         base64: base64Doc,
       })

@@ -1,6 +1,6 @@
 # Relatório de Auditoria de Duplicados e Vínculos de Contatos — CRM Delfos Solar
 
-**Data/Hora da Execução:** 2026-09-30T22:50:26.350Z  
+**Data/Hora da Execução:** 2026-09-30T23:06:11.716Z  
 **Ambiente do Banco:** https://crm-delfos-solar-72b9e.shrd00.internal.goskip.dev  
 **Usuário Autenticado:** joao@delfosengenharia.com.br  
 **Validação de Sanidade:** APROVADA (Total carregado bate exatamente com o totalItems do PocketBase)
@@ -12,7 +12,7 @@
 | Métrica | Quantidade | Observações / Detalhes |
 | :--- | :---: | :--- |
 | **Total de Registros em Contatos** | **91** | Base validada contra o banco PocketBase via paginação estrita |
-| **Total de Registros em Clientes** | **1555** | Base validada contra o banco PocketBase via paginação estrita |
+| **Total de Registros em Clientes** | **1540** | Base validada contra o banco PocketBase via paginação estrita |
 | **Contatos com Telefone/WhatsApp Válido** | **4** | Apenas 4 registros possuem WhatsApp/telefone preenchido |
 | **Contatos com Telefone/WhatsApp Vazio** | **87** | Registros migrados originalmente com dados cadastrais sem telefone direto |
 | **Contatos com origem `migracao_outros_contatos`** | **91** | Registros unificados na migração de dados |
@@ -31,12 +31,11 @@
 
 ## 3. Distribuição de Clientes por Status
 
-- **Orçamento:** 11 clientes
-- **Negociação:** 4 clientes
-- **Novo Lead:** 1087 clientes
-- **Fechado:** 450 clientes
-- **Levantamento:** 2 clientes
-- **Contato Futuro:** 1 clientes
+- **Orçamento:** 8 clientes
+- **Negociação:** 3 clientes
+- **Novo Lead:** 1086 clientes
+- **Fechado:** 442 clientes
+- **Levantamento:** 1 clientes
 
 ---
 
@@ -52,7 +51,7 @@
   - Debora - Erva Mate Barão: `(54) 9639-2709`
 
 - **1.b) Mesmo WhatsApp em 2+ `clientes` diferentes:**  
-  **131 casos.** Casos detectados onde um mesmo número de WhatsApp está associado a múltiplos cadastros na coleção `clientes` (incluindo usinas/filiais, cotações de demonstração e cadastros repetidos com status distintos).
+  **130 casos.** Casos detectados onde um mesmo número de WhatsApp está associado a múltiplos cadastros na coleção `clientes` (incluindo usinas/filiais, cotações de demonstração e cadastros repetidos com status distintos).
 
 - **1.c) Mesmo WhatsApp entre `contatos` e `clientes` com nomes diferentes:**  
   **0 casos.** Nenhuma colisão cruzada com nomes divergentes.
@@ -83,8 +82,8 @@
   - Total paginado e acumulado localmente: **91**
   - Resultado: **BATEU 100% (Sem divergência)**
 - **Coleção `clientes`:**
-  - Total informado pelo servidor (`totalItems`): **1555**
-  - Total paginado e acumulado localmente: **1555**
+  - Total informado pelo servidor (`totalItems`): **1540**
+  - Total paginado e acumulado localmente: **1540**
   - Resultado: **BATEU 100% (Sem divergência)**
 
 ---
@@ -99,15 +98,15 @@ Autenticação com PocketBase: SUCESSO (usuário autenticado: joao@delfosengenha
 --- 1. LEITURA COMPLETA DAS COLEÇÕES (SANITY CHECK) ---
 Executando paginação direta via SDK/PocketBase API com sanity check...
 Total confirmado na coleção 'contatos': 91
-Total confirmado na coleção 'clientes': 1555
+Total confirmado na coleção 'clientes': 1540
 
 --- RESUMO NUMÉRICO INICIAL ---
 Total geral de contatos: 91
 Distribuição de contatos por papel: {"fornecedor":1,"outro":90}
-Total geral de clientes: 1555
-Distribuição de clientes por status: {"Orçamento":11,"Negociação":4,"Novo Lead":1087,"Fechado":450,"Levantamento":2,"Contato Futuro":1}
+Total geral de clientes: 1540
+Distribuição de clientes por status: {"Orçamento":8,"Negociação":3,"Novo Lead":1086,"Fechado":442,"Levantamento":1}
 Registros em 'contatos' com telefone/WhatsApp válido: 4 de 91
-Registros em 'clientes' com telefone/WhatsApp válido: 685 de 1555
+Registros em 'clientes' com telefone/WhatsApp válido: 678 de 1540
 
 ======================================================
 GRUPO 1 — MESMO WHATSAPP EM REGISTROS DIFERENTES
@@ -654,18 +653,9 @@ Nenhum caso encontrado de mesmo WhatsApp compartilhado entre múltiplos registro
   1. Nome Cliente: "wilsom Bawer" | WhatsApp original: "(54) 99685-1251" | ID: 6we92mtriza9i6t | Status: Fechado | Cidade: Erechim | Criado em: 2026-09-13 17:00:23.374Z
   2. Nome Cliente: "Wilson Bauer" | WhatsApp original: "(54) 99685-1251" | ID: lc9wpvkvg4udwjp | Status: Novo Lead | Cidade: Três Arroios | Criado em: 2026-09-13 17:00:23.586Z
 
-[Caso 1.b #130] Número normalizado: 54991823400 (4 clientes)
+[Caso 1.b #130] Número normalizado: 54991823400 (2 clientes)
   1. Nome Cliente: "Supermercado Central de Alimentos" | WhatsApp original: "(54) 99182-3400" | ID: 95mx59d6wyxn9am | Status: Orçamento | Cidade: Passo Fundo | Criado em: 2026-09-19 23:55:42.472Z
-  2. Nome Cliente: "Frigorífico Sul Carnes S/A" | WhatsApp original: "(54) 99182-3400" | ID: x89wskwtc0trjyh | Status: Orçamento | Cidade: Erechim | Criado em: 2026-09-19 23:55:42.472Z
-  3. Nome Cliente: "Granja Esperança do Campo" | WhatsApp original: "(54) 99182-3400" | ID: wta8ia0wagr023z | Status: Orçamento | Cidade: Getúlio Vargas | Criado em: 2026-09-19 23:55:42.473Z
-  4. Nome Cliente: "Residência Família Andrade" | WhatsApp original: "(54) 99182-3400" | ID: b0acgp36ridahiu | Status: Orçamento | Cidade: Erechim | Criado em: 2026-09-19 23:55:42.474Z
-
-[Caso 1.b #131] Número normalizado: 54998761234 (5 clientes)
-  1. Nome Cliente: "João Silva" | WhatsApp original: "(54) 99876-1234" | ID: 7p8hzz82co0xuia | Status: Levantamento | Cidade: Passo Fundo/RS | Criado em: 2026-09-22 21:29:07.913Z
-  2. Nome Cliente: "Maria Oliveira" | WhatsApp original: "(54) 99876-1234" | ID: jx0o20zdorivfsv | Status: Orçamento | Cidade: Erechim/RS | Criado em: 2026-09-22 21:29:07.914Z
-  3. Nome Cliente: "Carlos Santos" | WhatsApp original: "(54) 99876-1234" | ID: 2xn3wiepfl5uyv6 | Status: Negociação | Cidade: Passo Fundo/RS | Criado em: 2026-09-22 21:29:07.916Z
-  4. Nome Cliente: "Cooperativa Agrícola Esperança" | WhatsApp original: "(54) 99876-1234" | ID: 266akob5f991ami | Status: Contato Futuro | Cidade: Getúlio Vargas/RS | Criado em: 2026-09-22 21:29:07.917Z
-  5. Nome Cliente: "Transportes Rápido Gaúcho" | WhatsApp original: "(54) 99876-1234" | ID: w6mw0471z8g76xi | Status: Orçamento | Cidade: Erechim/RS | Criado em: 2026-09-22 21:29:07.919Z
+  2. Nome Cliente: "Residência Família Andrade" | WhatsApp original: "(54) 99182-3400" | ID: b0acgp36ridahiu | Status: Orçamento | Cidade: Erechim | Criado em: 2026-09-19 23:55:42.474Z
 
 --- 1.c) Mesmo WhatsApp entre registro de "contatos" e de "clientes" (nomes diferentes) ---
 Nenhum caso encontrado de mesmo WhatsApp entre "contatos" e "clientes" com nomes diferentes.
@@ -809,9 +799,9 @@ Nenhum contato com nome idêntico encontrado.
 RESUMO DOS RESULTADOS DA AUDITORIA
 ======================================================
 Total contatos lidos e validados: 91
-Total clientes lidos e validados: 1555
+Total clientes lidos e validados: 1540
 Grupo 1.a (mesmo WhatsApp em múltiplos contatos): 0 casos
-Grupo 1.b (mesmo WhatsApp em múltiplos clientes): 131 casos
+Grupo 1.b (mesmo WhatsApp em múltiplos clientes): 130 casos
 Grupo 1.c (mesmo WhatsApp entre contato e cliente com nomes distintos): 0 casos
 Grupo 2.a (contatos com nome idêntico): 0 casos
 Grupo 2.b (contatos com nomes parecidos/sufixos): 1 casos

@@ -14,6 +14,7 @@ import {
   Info,
 } from 'lucide-react'
 import { useClientes } from '@/contexts/ClientesContext'
+import { aplicarPrefixoMensagemManual } from '@/lib/whatsappPrefixo'
 import type { Cliente } from '@/types/crm'
 import { formatWhatsAppPhone } from '@/lib/formatters'
 import { gerarBase64OrcamentoSolar, gerarBase64PropostaOM } from '@/lib/pdfWhatsAppService'
@@ -221,12 +222,15 @@ export const ModalEnviarDocumentoWhatsApp: React.FC<ModalEnviarDocumentoWhatsApp
         return
       }
 
+      const legendaTrimmed = mensagem.trim()
+      const legendaComPrefixo = legendaTrimmed ? aplicarPrefixoMensagemManual(legendaTrimmed) : ''
+
       const res = await sendWhatsAppDocument({
         cliente_id: cliente.id,
         telefone_destino: telLimpo,
         tipo: tipo,
         referencia_id: referenciaId,
-        legenda: mensagem.trim(),
+        legenda: legendaComPrefixo,
         nome_arquivo: nomeArquivo || 'proposta-delfos.pdf',
         base64: base64Doc,
       })

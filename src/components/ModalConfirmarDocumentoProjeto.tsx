@@ -48,6 +48,7 @@ import {
 } from '@/lib/resolverNumeroDestinoCliente'
 import { getFriendlyWhatsAppErrorMessage } from '@/lib/whatsappGateway'
 import { toast } from '@/hooks/use-toast'
+import { aplicarPrefixoMensagemManual } from '@/lib/whatsappPrefixo'
 
 interface ModalConfirmarDocumentoProjetoProps {
   open: boolean
@@ -255,10 +256,11 @@ export const ModalConfirmarDocumentoProjeto: React.FC<ModalConfirmarDocumentoPro
 
     setIsSendingWhatsApp(true)
     try {
+      const mensagemComPrefixo = aplicarPrefixoMensagemManual(whatsAppMensagem)
       const res = await sendWhatsAppMensagem({
         clienteId: _clienteId,
         telefone: cleanPhone,
-        mensagem: whatsAppMensagem,
+        mensagem: mensagemComPrefixo,
         origem: `modal_documento_projeto_${tipo}`,
       })
 

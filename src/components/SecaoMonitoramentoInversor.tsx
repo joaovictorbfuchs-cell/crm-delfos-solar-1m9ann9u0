@@ -536,13 +536,14 @@ export const SecaoMonitoramentoInversor: React.FC<SecaoMonitoramentoInversorProp
     )
 
     const textoFormatado = linhasMensagem.filter((l) => l !== null).join('\n')
+    const textoComPrefixo = aplicarPrefixoMensagemManual(textoFormatado)
 
     setIsSendingWhatsApp(true)
     try {
       const res = await sendWhatsAppMensagem({
         clienteId: cliente.id,
         telefone: telefoneDigitos,
-        mensagem: textoFormatado,
+        mensagem: textoComPrefixo,
         origem: 'secao_monitoramento_inversor',
       })
 

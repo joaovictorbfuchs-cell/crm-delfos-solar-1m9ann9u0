@@ -15,6 +15,7 @@ import {
 } from 'lucide-react'
 import { formatWhatsAppPhone } from '@/lib/formatters'
 import { validarNumeroWhatsApp } from '@/lib/propostaWhatsAppService'
+import { aplicarPrefixoMensagemManual } from '@/lib/whatsappPrefixo'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 
 export interface ModalConfirmarEnvioWhatsAppProps {
@@ -231,9 +232,10 @@ export const ModalConfirmarEnvioWhatsAppContent: React.FC<ModalConfirmarEnvioWha
         }, 45000)
       })
 
+      const mensagemFinal = aplicarPrefixoMensagemManual(mensagemLimpa)
       const envioPromise = onConfirmarEnvio({
         telefone: validacaoNumero.numeroFormatado || validacaoNumero.numeroLimpo,
-        mensagem: mensagemLimpa,
+        mensagem: mensagemFinal,
       })
 
       const resultado = await Promise.race([envioPromise, envioTimeoutPromise])

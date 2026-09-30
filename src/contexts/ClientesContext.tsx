@@ -136,6 +136,7 @@ import { useRealtime } from '@/hooks/use-realtime'
 import { useAuth } from '@/contexts/AuthContext'
 import { isAuthSessionError } from '@/lib/pocketbase/errors'
 import { pb } from '@/lib/pocketbase/client'
+import { aplicarPrefixoMensagemManual, jaPossuiPrefixoManual } from '@/lib/whatsappPrefixo'
 
 export type ClientTabType =
   | 'historico'
@@ -2574,7 +2575,22 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     tipo_disparo?: string
     referencia_id?: string
   }) => {
-    const res = await apiSendWhatsAppMensagem(data)
+    // Proteção: se o envio for manual e o texto ainda não tiver o prefixo [Nome]:, aplica automaticamente
+    let conteudoAjustado = data.conteudo_final
+    if (
+      data.tipo_disparo === 'manual' &&
+      conteudoAjustado &&
+      !jaPossuiPrefixoManual(conteudoAjustado)
+    ) {
+      conteudoAjustado = aplicarPrefixoMensagemManual(conteudoAjustado)
+    }
+
+    const payloadFinal =
+      conteudoAjustado !== data.conteudo_final
+        ? { ...data, conteudo_final: conteudoAjustado }
+        : data
+
+    const res = await apiSendWhatsAppMensagem(payloadFinal)
     // Atualiza mensagens e conversas
     const [msgsRes, convsRes] = await Promise.allSettled([
       fetchWhatsAppMensagens(),

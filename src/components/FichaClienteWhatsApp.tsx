@@ -25,6 +25,7 @@ import {
   X,
 } from 'lucide-react'
 import { useClientes } from '@/contexts/ClientesContext'
+import { aplicarPrefixoMensagemManual } from '@/lib/whatsappPrefixo'
 import type { Cliente, WhatsAppTemplate } from '@/types/crm'
 import { formatDateTime, formatCurrency, formatWhatsAppPhone } from '@/lib/formatters'
 import { getWhatsAppMediaUrl } from '@/lib/whatsappGateway'
@@ -207,10 +208,11 @@ export const FichaClienteWhatsApp: React.FC<FichaClienteWhatsAppProps> = ({
         })
       }
 
+      const msgComPrefixo = aplicarPrefixoMensagemManual(msg)
       const res = await sendWhatsAppMessage({
         cliente_id: cliente.id,
         telefone_destino: tel,
-        conteudo_final: msg,
+        conteudo_final: msgComPrefixo,
         template_id: selectedTemplateId || undefined,
         agendado_para:
           agendarEnvio && dataHoraAgendada ? new Date(dataHoraAgendada).toISOString() : null,

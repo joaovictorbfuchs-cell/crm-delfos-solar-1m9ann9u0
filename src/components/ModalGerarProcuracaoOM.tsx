@@ -41,11 +41,11 @@ import { sendWhatsAppMensagem } from '@/services/crmService'
 import { getFriendlyWhatsAppErrorMessage } from '@/lib/whatsappGateway'
 import { toast } from 'sonner'
 import {
-  resolverNumeroDestinoCliente,
+  resolverNumeroDestinoClienteSync,
   MENSAGEM_ALERTA_SEM_NUMERO,
   type OrigemNumeroDestino,
 } from '@/lib/resolverNumeroDestinoCliente'
-
+import { aplicarPrefixoMensagemManual } from '@/lib/whatsappPrefixo'
 export interface ModalGerarProcuracaoOMProps {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -223,13 +223,14 @@ export const ModalGerarProcuracaoOM: React.FC<ModalGerarProcuracaoOMProps> = ({
 
     const primeiroNome = (dadosConsolidados.nome || 'Cliente').split(' ')[0]
     const mensagemTexto = `Olá ${primeiroNome}! Segue em anexo a procuração da Delfos Solar para conferência e assinatura, autorizando os trâmites junto à concessionária de energia. Por favor, assine no campo indicado e nos devolva a via preenchida. Ficamos à disposição!`
+    const mensagemComPrefixo = aplicarPrefixoMensagemManual(mensagemTexto)
 
     setIsSendingWhatsApp(true)
     try {
       const res = await sendWhatsAppMensagem({
         clienteId: cliente.id,
         telefone: telefoneApenasDigitos,
-        mensagem: mensagemTexto,
+        mensagem: mensagemComPrefixo,
         origem: 'modal_procuracao_om',
       })
 

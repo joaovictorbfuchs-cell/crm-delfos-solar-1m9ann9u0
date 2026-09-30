@@ -51,11 +51,11 @@ import { sendWhatsAppMensagem } from '@/services/crmService'
 import { getFriendlyWhatsAppErrorMessage } from '@/lib/whatsappGateway'
 import { toast } from 'sonner'
 import {
-  resolverNumeroDestinoCliente,
+  resolverNumeroDestinoClienteSync,
   MENSAGEM_ALERTA_SEM_NUMERO,
   type OrigemNumeroDestino,
 } from '@/lib/resolverNumeroDestinoCliente'
-
+import { aplicarPrefixoMensagemManual } from '@/lib/whatsappPrefixo'
 export interface ModalGerarContratoOMProps {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -367,13 +367,14 @@ export const ModalGerarContratoOM: React.FC<ModalGerarContratoOMProps> = ({
 
     const primeiroNome = (dadosConsolidados.nomeRazaoSocial || 'Cliente').split(' ')[0]
     const mensagemTexto = `Olá ${primeiroNome}! Segue em anexo o Contrato de Prestação de Serviços de Operação e Manutenção (O&M) da Delfos Solar no ${dadosConsolidados.planoSelecionado} para sua conferência e assinatura. O valor mensal é de ${formatCurrency(dadosConsolidados.valorMensal)} (${dadosConsolidados.valorEscritoMensal}). Ficamos à total disposição para qualquer dúvida!`
+    const mensagemComPrefixo = aplicarPrefixoMensagemManual(mensagemTexto)
 
     setIsSendingWhatsApp(true)
     try {
       const res = await sendWhatsAppMensagem({
         clienteId: cliente.id,
         telefone: telefoneApenasDigitos,
-        mensagem: mensagemTexto,
+        mensagem: mensagemComPrefixo,
         origem: 'modal_contrato_om',
       })
 

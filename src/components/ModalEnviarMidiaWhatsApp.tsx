@@ -23,6 +23,7 @@ import {
 } from 'lucide-react'
 import { useClientes } from '@/contexts/ClientesContext'
 import { useToast } from '@/hooks/use-toast'
+import { aplicarPrefixoMensagemManual } from '@/lib/whatsappPrefixo'
 import pb from '@/lib/pocketbase/client'
 
 export type TipoMidiaEnvio = 'imagem' | 'video' | 'documento'
@@ -195,6 +196,9 @@ export const ModalEnviarMidiaWhatsApp: React.FC<ModalEnviarMidiaWhatsAppProps> =
         message: string
       }
 
+      const legendaTrimmed = legenda.trim()
+      const legendaComPrefixo = legendaTrimmed ? aplicarPrefixoMensagemManual(legendaTrimmed) : ''
+
       if (tipoMidia === 'imagem') {
         res = await sendWhatsAppImageMessage({
           cliente_id: clienteId,
@@ -202,7 +206,7 @@ export const ModalEnviarMidiaWhatsApp: React.FC<ModalEnviarMidiaWhatsAppProps> =
           telefone_destino: telefoneDestino,
           imagem: base64Fallback || mediaPbUrl,
           imagem_url: mediaPbUrl,
-          legenda: legenda.trim(),
+          legenda: legendaComPrefixo,
           nome_arquivo: selectedFile.name,
           record_id: createdMsgRecord.id,
         })
@@ -213,7 +217,7 @@ export const ModalEnviarMidiaWhatsApp: React.FC<ModalEnviarMidiaWhatsAppProps> =
           telefone_destino: telefoneDestino,
           video: mediaPbUrl || base64Fallback,
           video_url: mediaPbUrl,
-          legenda: legenda.trim(),
+          legenda: legendaComPrefixo,
           nome_arquivo: selectedFile.name,
           record_id: createdMsgRecord.id,
         })
@@ -226,7 +230,7 @@ export const ModalEnviarMidiaWhatsApp: React.FC<ModalEnviarMidiaWhatsAppProps> =
           nome_arquivo: selectedFile.name,
           base64: base64Fallback,
           documento_url: mediaPbUrl,
-          legenda: legenda.trim(),
+          legenda: legendaComPrefixo,
           record_id: createdMsgRecord.id,
         })
       }

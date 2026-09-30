@@ -22,6 +22,7 @@ import {
   Trash2,
 } from 'lucide-react'
 import { useClientes } from '@/contexts/ClientesContext'
+import { aplicarPrefixoMensagemManual } from '@/lib/whatsappPrefixo'
 import type { Cliente, OrcamentoSolar } from '@/types/crm'
 import { formatCurrency, formatWhatsAppPhone } from '@/lib/formatters'
 import { gerarBase64OrcamentoSolar } from '@/lib/pdfWhatsAppService'
@@ -230,12 +231,13 @@ export const ModalEnviarPropostaWhatsApp: React.FC<ModalEnviarPropostaWhatsAppPr
           return
         }
 
+        const legendaComPrefixo = aplicarPrefixoMensagemManual(mensagemLimpa)
         const envioPromise = sendWhatsAppDocument({
           cliente_id: clienteId,
           telefone_destino: validacaoNumero.numeroLimpo,
           tipo: 'orcamento_solar',
           referencia_id: orcamento.id,
-          legenda: mensagemLimpa,
+          legenda: legendaComPrefixo,
           nome_arquivo: nomeFinal,
           base64: base64Final,
         })
@@ -243,10 +245,11 @@ export const ModalEnviarPropostaWhatsApp: React.FC<ModalEnviarPropostaWhatsAppPr
         resultado = await Promise.race([envioPromise, envioTimeoutPromise])
       } else {
         // Envio somente de texto
+        const conteudoComPrefixo = aplicarPrefixoMensagemManual(mensagemLimpa)
         const envioPromise = sendWhatsAppMessage({
           cliente_id: clienteId,
           telefone_destino: validacaoNumero.numeroLimpo,
-          conteudo_final: mensagemLimpa,
+          conteudo_final: conteudoComPrefixo,
           tipo_disparo: 'manual',
           referencia_id: orcamento.id,
         })
