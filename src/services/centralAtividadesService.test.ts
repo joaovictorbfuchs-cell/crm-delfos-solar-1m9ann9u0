@@ -1,5 +1,9 @@
 import { describe, it, expect, vi } from 'vitest'
-import { carregarCentralAtividades } from './centralAtividadesService'
+import {
+  carregarCentralAtividades,
+  bulkAtualizarResponsavelCentral,
+  bulkExcluirItensCentral,
+} from './centralAtividadesService'
 import pb from '@/lib/pocketbase/client'
 
 describe('centralAtividadesService com registros unificados e fallback', () => {
@@ -204,5 +208,80 @@ describe('centralAtividadesService com registros unificados e fallback', () => {
     const apenasManut = data.items.filter((it) => it.categoriaId === 'manutencao')
     expect(apenasManut).toHaveLength(1)
     expect(apenasManut[0].id).toContain('atv_manut')
+  })
+
+  it('permite atualizar responsável em lote (bulkAtualizarResponsavelCentral)', async () => {
+    const mockUpdate = vi.fn().mockResolvedValue({})
+    vi.spyOn(pb, 'collection').mockReturnValue({
+      update: mockUpdate,
+    } as any)
+
+    const items = [
+      {
+        id: 'unif_atv1',
+        origemId: 'atv1',
+        fonte: 'atividade' as const,
+        categoriaId: 'comercial' as const,
+        categoriaNome: 'Comerciais',
+        tipoAtividade: 'Ligação',
+        titulo: 'Teste 1',
+        status: 'Pendente',
+        statusRaw: 'pendente',
+        responsavel: 'Antigo',
+        clienteNome: 'Cliente 1',
+        data: '2026-03-30',
+        hora: '10:00',
+      },
+      {
+        id: 'os_200',
+        origemId: 'os_200',
+        fonte: 'ordem_servico' as const,
+        categoriaId: 'manutencao' as const,
+        categoriaNome: 'Manutenção',
+        tipoAtividade: 'OS',
+        titulo: 'Teste 2',
+        status: 'Pendente',
+        statusRaw: 'pendente',
+        responsavel: 'Antigo',
+        clienteNome: 'Cliente 2',
+        data: '2026-03-30',
+        hora: '10:00',
+      },
+    ]
+
+    const res = await bulkAtualizarResponsavelCentral(items, 'user_123', 'Novo Responsável')
+    expect(res.sucessos).toBe(2)
+    expect(res.falhas).toBe(0)
+    expect(mockUpdate).toHaveBeenCalled()
+  })
+
+  it('permite excluir atividades em lote (bulkExcluirItensCentral)', async () => {
+    const mockDelete = vi.fn().mockResolvedValue({})
+    vi.spyOn(pb, 'collection').mockReturnValue({
+      delete: mockDelete,
+    } as any)
+
+    const items = [
+      {
+        id: 'unif_atv1',
+        origemId: 'atv1',
+        fonte: 'atividade' as const,
+        categoriaId: 'comercial' as const,
+        categoriaNome: 'Comerciais',
+        tipoAtividade: 'Ligação',
+        titulo: 'Teste 1',
+        status: 'Pendente',
+        statusRaw: 'pendente',
+        responsavel: 'Antigo',
+        clienteNome: 'Cliente 1',
+        data: '2026-03-30',
+        hora: '10:00',
+      },
+    ]
+
+    const res = await bulkExcluirItensCentral(items)
+    expect(res.sucessos).toBe(1)
+    expect(res.falhas).toBe(0)
+    expect(mockDelete).toHaveBeenCalledWith('atv1')
   })
 })

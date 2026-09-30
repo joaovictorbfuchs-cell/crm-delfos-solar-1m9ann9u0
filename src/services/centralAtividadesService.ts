@@ -813,3 +813,151 @@ export function filtrarCentralAtividades(
     return true
   })
 }
+
+/**
+ * Atualiza o responsável de múltiplos itens da Central de Atividades em lote.
+ * Suporta atividades unificadas ('atividades') e fontes legadas ('ordens_servico', 'manutencoes', etc.).
+ */
+export async function bulkAtualizarResponsavelCentral(
+  items: CentralAtividadeItem[],
+  responsavelId: string,
+  responsavelNome: string,
+): Promise<{ sucessos: number; falhas: number }> {
+  let sucessos = 0
+  let falhas = 0
+
+  await Promise.all(
+    items.map(async (item) => {
+      try {
+        if (item.fonte === 'ordem_servico') {
+          // Atualiza na coleção de ordens de serviço
+          await pb.collection('ordens_servico').update(item.origemId, {
+            atribuida_a: responsavelNome,
+            responsavel_usuario_id: responsavelId || null,
+          })
+          // Se houver cópia unificada com chave de importação ou id unificado, tenta sincronizar também
+          if (item.id.startsWith('unif_')) {
+            const atvId = item.id.replace('unif_', '')
+            await pb
+              .collection('atividades')
+              .update(atvId, {
+                responsavel_id: responsavelId || null,
+                responsavel_nome: responsavelNome,
+              })
+              .catch(() => null)
+          }
+        } else if (item.fonte === 'manutencao') {
+          await pb.collection('manutencoes').update(item.origemId, {
+            tecnico: responsavelNome,
+          })
+          if (item.id.startsWith('unif_')) {
+            const atvId = item.id.replace('unif_', '')
+            await pb
+              .collection('atividades')
+              .update(atvId, {
+                responsavel_id: responsavelId || null,
+                responsavel_nome: responsavelNome,
+              })
+              .catch(() => null)
+          }
+        } else if (item.fonte === 'timeline_om') {
+          await pb.collection('timeline_om').update(item.origemId, {
+            autor: responsavelNome,
+          })
+        } else if (item.fonte === 'anomalia_om') {
+          await pb.collection('anomalias_om').update(item.origemId, {
+            tecnico_nome: responsavelNome,
+          })
+        } else {
+          // Atividade padrão do CRM (coleção 'atividades')
+          await pb.collection('atividades').update(item.origemId, {
+            responsavel_id: responsavelId || null,
+            responsavel_nome: responsavelNome,
+            autor: responsavelNome,
+          })
+        }
+        sucessos++
+      } catch (err) {
+        console.warn(`Erro ao atualizar responsável do item ${item.id}:`, err)
+        falhas++
+      }
+    }),
+  )
+
+  return { sucessos, falhas }
+}
+
+/**
+ * Exclui múltiplos itens da Central de Atividades em lote.
+ * Remove da coleção correta (atividades, ordens_servico, manutencoes, etc.) e
+ * limpa também a cópia unificada caso exista.
+ */
+export async function bulkExcluirItensCentral(
+  items: CentralAtividadeItem[],
+): Promise<{ sucessos: number; falhas: number }> {
+  let sucessos = 0
+  let falhas = 0
+
+  await Promise.all(
+    items.map(async (item) => {
+      try {
+        if (item.fonte === 'ordem_servico') {
+          await pb
+            .collection('ordens_servico')
+            .delete(item.origemId)
+            .catch(() => null)
+          if (item.id.startsWith('unif_')) {
+            const atvId = item.id.replace('unif_', '')
+            await pb
+              .collection('atividades')
+              .delete(atvId)
+              .catch(() => null)
+          }
+        } else if (item.fonte === 'manutencao') {
+          await pb
+            .collection('manutencoes')
+            .delete(item.origemId)
+            .catch(() => null)
+          if (item.id.startsWith('unif_')) {
+            const atvId = item.id.replace('unif_', '')
+            await pb
+              .collection('atividades')
+              .delete(atvId)
+              .catch(() => null)
+          }
+        } else if (item.fonte === 'servico_avulso') {
+          await pb
+            .collection('servicos_avulsos')
+            .delete(item.origemId)
+            .catch(() => null)
+          if (item.id.startsWith('unif_')) {
+            const atvId = item.id.replace('unif_', '')
+            await pb
+              .collection('atividades')
+              .delete(atvId)
+              .catch(() => null)
+          }
+        } else if (item.fonte === 'timeline_om') {
+          await pb
+            .collection('timeline_om')
+            .delete(item.origemId)
+            .catch(() => null)
+        } else if (item.fonte === 'anomalia_om') {
+          await pb
+            .collection('anomalias_om')
+            .delete(item.origemId)
+            .catch(() => null)
+        } else {
+          // Atividade padrão do CRM
+          await pb.collection('atividades').delete(item.origemId)
+        }
+        sucessos++
+      } catch (err) {
+        console.warn(`Erro ao excluir item ${item.id}:`, err)
+        falhas++
+      }
+    }),
+  )
+
+  return { sucessos, falhas }
+}
