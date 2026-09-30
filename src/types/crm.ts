@@ -363,12 +363,30 @@ export interface UsinaCliente extends RecordModel {
   tipo_caixa_medicao?: string
 
   // Localização / Tarifa
+  cidade?: string
+  estado?: string
+  cep?: string
+  bairro?: string
+  numero?: string
+  complemento?: string
   latitude?: number
   longitude?: number
   tarifa?: number
   consumo_medio?: number
+  consumo_kwh_mes?: number
+  consumo_anual_kwh?: number
+  consumo_medio_diario_kwh?: number
   classe_consumo?: string
   geracao_media_mensal_kwh?: number
+
+  // Titular / Responsável da Usina
+  titular_nome?: string
+  titular_cpf?: string
+  titular_telefone?: string
+  titular_email?: string
+
+  // Concessionária e Fornecimento adicionais
+  tipo_fornecimento?: string
 
   // Monitoramento
   monitoramento_app_nome?: string

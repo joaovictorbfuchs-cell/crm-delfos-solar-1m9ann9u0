@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-30T23:36:52.727Z",
+  "generatedAt": "2026-09-30T23:52:32.289Z",
   "collections": [
     {
       "name": "users",
@@ -4759,6 +4759,90 @@
         },
         {
           "name": "consumo_medio",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "cidade",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "estado",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "cep",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "bairro",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "numero",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "complemento",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "titular_nome",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "titular_cpf",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "titular_telefone",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "titular_email",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "tipo_fornecimento",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "consumo_kwh_mes",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "consumo_anual_kwh",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "consumo_medio_diario_kwh",
           "type": "number",
           "required": false,
           "system": false

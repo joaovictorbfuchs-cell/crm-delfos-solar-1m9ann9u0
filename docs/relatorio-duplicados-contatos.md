@@ -1,6 +1,6 @@
 # Relatório de Auditoria de Duplicados e Vínculos de Contatos — CRM Delfos Solar
 
-**Data/Hora da Execução:** 2026-09-30T23:40:14.575Z  
+**Data/Hora da Execução:** 2026-09-30T23:56:47.527Z  
 **Ambiente do Banco:** https://crm-delfos-solar-72b9e.shrd00.internal.goskip.dev  
 **Usuário Autenticado:** joao@delfosengenharia.com.br  
 **Validação de Sanidade:** APROVADA (Total carregado bate exatamente com o totalItems do PocketBase)
@@ -12,7 +12,7 @@
 | Métrica | Quantidade | Observações / Detalhes |
 | :--- | :---: | :--- |
 | **Total de Registros em Contatos** | **91** | Base validada contra o banco PocketBase via paginação estrita |
-| **Total de Registros em Clientes** | **1539** | Base validada contra o banco PocketBase via paginação estrita |
+| **Total de Registros em Clientes** | **1533** | Base validada contra o banco PocketBase via paginação estrita |
 | **Contatos com Telefone/WhatsApp Válido** | **4** | Apenas 4 registros possuem WhatsApp/telefone preenchido |
 | **Contatos com Telefone/WhatsApp Vazio** | **87** | Registros migrados originalmente com dados cadastrais sem telefone direto |
 | **Contatos com origem `migracao_outros_contatos`** | **91** | Registros unificados na migração de dados |
@@ -33,8 +33,8 @@
 
 - **Orçamento:** 8 clientes
 - **Negociação:** 3 clientes
-- **Novo Lead:** 1085 clientes
-- **Fechado:** 442 clientes
+- **Novo Lead:** 1083 clientes
+- **Fechado:** 438 clientes
 - **Levantamento:** 1 clientes
 
 ---
@@ -51,7 +51,7 @@
   - Debora - Erva Mate Barão: `(54) 9639-2709`
 
 - **1.b) Mesmo WhatsApp em 2+ `clientes` diferentes:**  
-  **130 casos.** Casos detectados onde um mesmo número de WhatsApp está associado a múltiplos cadastros na coleção `clientes` (incluindo usinas/filiais, cotações de demonstração e cadastros repetidos com status distintos).
+  **129 casos.** Casos detectados onde um mesmo número de WhatsApp está associado a múltiplos cadastros na coleção `clientes` (incluindo usinas/filiais, cotações de demonstração e cadastros repetidos com status distintos).
 
 - **1.c) Mesmo WhatsApp entre `contatos` e `clientes` com nomes diferentes:**  
   **0 casos.** Nenhuma colisão cruzada com nomes divergentes.
@@ -82,8 +82,8 @@
   - Total paginado e acumulado localmente: **91**
   - Resultado: **BATEU 100% (Sem divergência)**
 - **Coleção `clientes`:**
-  - Total informado pelo servidor (`totalItems`): **1539**
-  - Total paginado e acumulado localmente: **1539**
+  - Total informado pelo servidor (`totalItems`): **1533**
+  - Total paginado e acumulado localmente: **1533**
   - Resultado: **BATEU 100% (Sem divergência)**
 
 ---
@@ -98,15 +98,15 @@ Autenticação com PocketBase: SUCESSO (usuário autenticado: joao@delfosengenha
 --- 1. LEITURA COMPLETA DAS COLEÇÕES (SANITY CHECK) ---
 Executando paginação direta via SDK/PocketBase API com sanity check...
 Total confirmado na coleção 'contatos': 91
-Total confirmado na coleção 'clientes': 1539
+Total confirmado na coleção 'clientes': 1533
 
 --- RESUMO NUMÉRICO INICIAL ---
 Total geral de contatos: 91
 Distribuição de contatos por papel: {"fornecedor":1,"outro":90}
-Total geral de clientes: 1539
-Distribuição de clientes por status: {"Orçamento":8,"Negociação":3,"Novo Lead":1085,"Fechado":442,"Levantamento":1}
+Total geral de clientes: 1533
+Distribuição de clientes por status: {"Orçamento":8,"Negociação":3,"Novo Lead":1083,"Fechado":438,"Levantamento":1}
 Registros em 'contatos' com telefone/WhatsApp válido: 4 de 91
-Registros em 'clientes' com telefone/WhatsApp válido: 679 de 1539
+Registros em 'clientes' com telefone/WhatsApp válido: 676 de 1533
 
 ======================================================
 GRUPO 1 — MESMO WHATSAPP EM REGISTROS DIFERENTES
@@ -559,101 +559,96 @@ Nenhum caso encontrado de mesmo WhatsApp compartilhado entre múltiplos registro
   1. Nome Cliente: "Mateus Klein" | WhatsApp original: "(54) 9650-5560" | ID: fssyad1g02euwh6 | Status: Fechado | Cidade: Erechim | Criado em: 2026-09-13 16:57:40.351Z
   2. Nome Cliente: "Mateus Dall Agnolo Klein" | WhatsApp original: "(54) 9650-5560" | ID: swjjvfb6a6xkosi | Status: Novo Lead | Cidade: Erechim | Criado em: 2026-09-30 17:58:24.532Z
 
-[Caso 1.b #107] Número normalizado: 54991766675 (2 clientes)
-  1. Nome Cliente: "Mauro" | WhatsApp original: "(54) 99176-6675" | ID: o6jfjrphga2zibb | Status: Fechado | Cidade: Erechim | Criado em: 2026-09-13 16:57:44.097Z
-  2. Nome Cliente: "MAURO SERRAGLIO usina" | WhatsApp original: "(54) 99176-6675" | ID: 7khfcm2hb8i86rh | Status: Fechado | Cidade: Erechim | Criado em: 2026-09-13 16:57:46.300Z
-
-[Caso 1.b #108] Número normalizado: 5491766675 (3 clientes)
+[Caso 1.b #107] Número normalizado: 5491766675 (2 clientes)
   1. Nome Cliente: "Mauro Antônio Serraglio" | WhatsApp original: "(54) 9176-6675" | ID: 0krwqgjuzi9su73 | Status: Fechado | Cidade: Barra do Rio Azul | Criado em: 2026-09-13 16:57:45.218Z
-  2. Nome Cliente: "MAURO ANTONIO SERRAGLIO - USINA" | WhatsApp original: "(54) 9176-6675" | ID: mb78hxit51ug87y | Status: Fechado | Cidade: Barra do Rio Azul | Criado em: 2026-09-13 16:57:46.063Z
-  3. Nome Cliente: "Odecir Kovaleski" | WhatsApp original: "(54) 9176-6675" | ID: p3cze7zrtvxzdkz | Status: Fechado | Cidade: Erechim | Criado em: 2026-09-13 16:58:17.137Z
+  2. Nome Cliente: "Odecir Kovaleski" | WhatsApp original: "(54) 9176-6675" | ID: p3cze7zrtvxzdkz | Status: Fechado | Cidade: Erechim | Criado em: 2026-09-13 16:58:17.137Z
 
-[Caso 1.b #109] Número normalizado: 54999673917 (2 clientes)
+[Caso 1.b #108] Número normalizado: 54999673917 (2 clientes)
   1. Nome Cliente: "Mecânica Agricola Strieski LTDA (Erechim)" | WhatsApp original: "(54) 99967-3917" | ID: an1mcopxwq7zgjh | Status: Fechado | Cidade: Erechim | Criado em: 2026-09-13 16:57:49.084Z
   2. Nome Cliente: "Mecânica Strieski" | WhatsApp original: "(54) 99967-3917" | ID: epuylevl9iy7454 | Status: Novo Lead | Cidade: Erechim | Criado em: 2026-09-13 16:57:49.937Z
 
-[Caso 1.b #110] Número normalizado: 54999297330 (2 clientes)
+[Caso 1.b #109] Número normalizado: 54999297330 (2 clientes)
   1. Nome Cliente: "Mercado Parque Livia (Titular: Deisiele Morais do Nascimento)" | WhatsApp original: "(54) 99929-7330" | ID: ar0nrt89900qyy2 | Status: Fechado | Cidade: Erechim | Criado em: 2026-09-13 16:57:52.541Z
   2. Nome Cliente: "Mercado Parque Livia (Titular: Tiago Correa Minimercado)" | WhatsApp original: "(54) 99929-7330" | ID: kz8myh1ta0qvsei | Status: Fechado | Cidade: Erechim | Criado em: 2026-09-13 16:57:52.769Z
 
-[Caso 1.b #111] Número normalizado: 54999755623 (2 clientes)
+[Caso 1.b #110] Número normalizado: 54999755623 (2 clientes)
   1. Nome Cliente: "Moacir Folador" | WhatsApp original: "(54) 99975-5623" | ID: wrcbhcdqru0675q | Status: Novo Lead | Cidade: Barão de Cotegipe | Criado em: 2026-09-13 16:57:57.085Z
   2. Nome Cliente: "Moacir Folador (Barão de Cotegipe)" | WhatsApp original: "(54) 99975-5623" | ID: 8tctf55y3jhegta | Status: Novo Lead | Cidade: Erechim | Criado em: 2026-09-13 18:18:56.085Z
 
-[Caso 1.b #112] Número normalizado: 54991337984 (2 clientes)
+[Caso 1.b #111] Número normalizado: 54991337984 (2 clientes)
   1. Nome Cliente: "Neiva - Divanir" | WhatsApp original: "(54) 99133-7984" | ID: u1hg9rrvpegvfgz | Status: Novo Lead | Cidade: Erechim | Criado em: 2026-09-13 16:58:07.820Z
   2. Nome Cliente: "Divanir Lúcia Onetta" | WhatsApp original: "(54) 99133-7984" | ID: 6s7hfjppwogsziy | Status: Novo Lead | Cidade: Erechim | Criado em: 2026-09-30 17:58:01.107Z
 
-[Caso 1.b #113] Número normalizado: 54997034522 (2 clientes)
+[Caso 1.b #112] Número normalizado: 54997034522 (2 clientes)
   1. Nome Cliente: "Paulinho Benka" | WhatsApp original: "(54) 99703-4522" | ID: 6fk63h551429s1v | Status: Novo Lead | Cidade: Erechim | Criado em: 2026-09-13 16:58:26.903Z
   2. Nome Cliente: "Paulinho Altair Benka" | WhatsApp original: "(54) 99703-4522" | ID: uj5mlsosumg6yiq | Status: Novo Lead | Cidade: Erechim | Criado em: 2026-09-30 17:58:27.938Z
 
-[Caso 1.b #114] Número normalizado: 54981066611 (2 clientes)
+[Caso 1.b #113] Número normalizado: 54981066611 (2 clientes)
   1. Nome Cliente: "PAULO ANTONIO ESTHERIS" | WhatsApp original: "(54) 98106-6611" | ID: sin5v0wq705ls1b | Status: Novo Lead | Cidade: Erechim | Criado em: 2026-09-13 16:58:30.230Z
   2. Nome Cliente: "Tania Estheris" | WhatsApp original: "(54) 98106-6611" | ID: uy059s4oxsx0ah2 | Status: Novo Lead | Cidade: Erechim | Criado em: 2026-09-13 16:59:42.820Z
 
-[Caso 1.b #115] Número normalizado: 5491420648 (2 clientes)
+[Caso 1.b #114] Número normalizado: 5491420648 (2 clientes)
   1. Nome Cliente: "PAULO RICARDO ZANELLA" | WhatsApp original: "(54) 9142-0648" | ID: vbqv0luejiemzdo | Status: Fechado | Cidade: Erechim | Criado em: 2026-09-13 16:58:32.431Z
   2. Nome Cliente: "Paulo Zanella" | WhatsApp original: "(54) 9142-0648" | ID: ej8092v5qp6kot1 | Status: Fechado | Cidade: Erechim | Criado em: 2026-09-13 16:58:35.556Z
 
-[Caso 1.b #116] Número normalizado: 5430153966 (2 clientes)
+[Caso 1.b #115] Número normalizado: 5430153966 (2 clientes)
   1. Nome Cliente: "PRIME RESIDENCE" | WhatsApp original: "(54) 3015-3966" | ID: 5bx755g00lmdlv2 | Status: Fechado | Cidade: Erechim | Criado em: 2026-09-13 16:58:38.360Z
   2. Nome Cliente: "Arsie" | WhatsApp original: "(54) 3015-3966" | ID: l67kuxvuqrptif3 | Status: Novo Lead | Cidade: Erechim | Criado em: 2026-09-13 18:19:28.463Z
 
-[Caso 1.b #117] Número normalizado: 5496035811 (2 clientes)
+[Caso 1.b #116] Número normalizado: 5496035811 (2 clientes)
   1. Nome Cliente: "RAMPI AUTO PECAS LTDA" | WhatsApp original: "(54) 9603-5811" | ID: n4i4mgh5nw5vkyp | Status: Fechado | Cidade: TRES ARROIOS | Criado em: 2026-09-13 16:58:43.984Z
   2. Nome Cliente: "Maritana Rampi" | WhatsApp original: "(54) 9603-5811" | ID: rvpuzwj0wpszrcr | Status: Novo Lead | Cidade: Erechim | Criado em: 2026-09-13 18:17:35.292Z
 
-[Caso 1.b #118] Número normalizado: 5435223081 (2 clientes)
+[Caso 1.b #117] Número normalizado: 5435223081 (2 clientes)
   1. Nome Cliente: "RAVENA BEACH" | WhatsApp original: "(54) 3522-3081" | ID: xvtsocjrdba5h4f | Status: Fechado | Cidade: Erechim | Criado em: 2026-09-13 16:58:44.876Z
   2. Nome Cliente: "RAVENA BEACH ESPORTE E LAZER LTDA" | WhatsApp original: "(54) 3522-3081" | ID: j90e3isabnb9x4r | Status: Novo Lead | Cidade: Erechim | Criado em: 2026-09-13 18:11:08.652Z
 
-[Caso 1.b #119] Número normalizado: 5499826484 (2 clientes)
+[Caso 1.b #118] Número normalizado: 5499826484 (2 clientes)
   1. Nome Cliente: "Roberto José Moretto" | WhatsApp original: "(54) 9982-6484" | ID: 9lururc04u6lyks | Status: Fechado | Cidade: Erechim | Criado em: 2026-09-13 16:58:58.427Z
   2. Nome Cliente: "Roberto Moretto (Titular: Marcelo Matheus Moretto)" | WhatsApp original: "(54) 9982-6484" | ID: jf0l0mn1uvl8ra2 | Status: Novo Lead | Cidade: Erechim | Criado em: 2026-09-13 18:19:29.317Z
 
-[Caso 1.b #120] Número normalizado: 54996672828 (3 clientes)
+[Caso 1.b #119] Número normalizado: 54996672828 (3 clientes)
   1. Nome Cliente: "Rodrigo Pretto Buss" | WhatsApp original: "(54) 99667-2828" | ID: chhhrvtc2x4535q | Status: Fechado | Cidade: Planalto | Criado em: 2026-09-13 16:59:03.922Z
   2. Nome Cliente: "Tarcisio Folador (Barão de Cotegipe)" | WhatsApp original: "(54) 99667-2828" | ID: p6llvpf7pmuyatt | Status: Fechado | Cidade: Erechim | Criado em: 2026-09-13 16:59:43.046Z
   3. Nome Cliente: "Rodrigo Buss" | WhatsApp original: "(54) 99667-2828" | ID: drsvd23qzy0idid | Status: Novo Lead | Cidade: Erechim | Criado em: 2026-09-13 18:19:40.922Z
 
-[Caso 1.b #121] Número normalizado: 54991669768 (2 clientes)
+[Caso 1.b #120] Número normalizado: 54991669768 (2 clientes)
   1. Nome Cliente: "Rogerio Reuwsaat (Erechim)" | WhatsApp original: "(54) 99166-9768" | ID: 2cnzru5u8nopaye | Status: Fechado | Cidade: Erechim | Criado em: 2026-09-13 16:59:07.023Z
   2. Nome Cliente: "Sergio Lupge (Campinas do Sul)" | WhatsApp original: "(54) 99166-9768" | ID: yxf1imtuk1a4bln | Status: Novo Lead | Cidade: Campinas do Sul | Criado em: 2026-09-13 16:59:21.302Z
 
-[Caso 1.b #122] Número normalizado: 54981223408 (2 clientes)
+[Caso 1.b #121] Número normalizado: 54981223408 (2 clientes)
   1. Nome Cliente: "Rotary Club Erechim Paiol Grande" | WhatsApp original: "(54) 98122-3408" | ID: 1xcqqi9btuanxak | Status: Fechado | Cidade: Erechim | Criado em: 2026-09-13 16:59:11.279Z
   2. Nome Cliente: "Vianei - Adriana Amaro" | WhatsApp original: "(54) 98122-3408" | ID: vzgy1hc438eb0em | Status: Fechado | Cidade: Erechim | Criado em: 2026-09-13 17:00:06.039Z
 
-[Caso 1.b #123] Número normalizado: 5499978070 (2 clientes)
+[Caso 1.b #122] Número normalizado: 5499978070 (2 clientes)
   1. Nome Cliente: "SES SERVICOS ELETRICOS E SEGURANCA LTDA" | WhatsApp original: "(54) 9997-8070" | ID: eu1mjbosw4cacco | Status: Fechado | Cidade: Passo Fundo | Criado em: 2026-09-13 16:59:22.881Z
   2. Nome Cliente: "Tarcisio José" | WhatsApp original: "(54) 9997-8070" | ID: 7juen5yrxn421qg | Status: Novo Lead | Cidade: Erechim | Criado em: 2026-09-30 17:58:37.865Z
 
-[Caso 1.b #124] Número normalizado: 5491426649 (2 clientes)
+[Caso 1.b #123] Número normalizado: 5491426649 (2 clientes)
   1. Nome Cliente: "Metal Mecânica Solução Ltda." | WhatsApp original: "(54) 9142-6649" | ID: o0olajza1e5zgw7 | Status: Fechado | Cidade: Erechim | Criado em: 2026-09-13 16:59:34.433Z
   2. Nome Cliente: "Josiane Otto" | WhatsApp original: "(54) 9142-6649" | ID: yknd0fdjmcl87co | Status: Novo Lead | Cidade: Erechim | Criado em: 2026-09-30 17:58:14.706Z
 
-[Caso 1.b #125] Número normalizado: 54999487758 (2 clientes)
+[Caso 1.b #124] Número normalizado: 54999487758 (2 clientes)
   1. Nome Cliente: "Taise Pedroti" | WhatsApp original: "(54) 99948-7758" | ID: dw53sdwdqi6d8j9 | Status: Fechado | Cidade: Erechim | Criado em: 2026-09-13 16:59:39.929Z
   2. Nome Cliente: "Taíse Pedroti" | WhatsApp original: "(54) 99948-7758" | ID: xxzy7jn26018d74 | Status: Novo Lead | Cidade: Passo Fundo | Criado em: 2026-09-13 16:59:40.201Z
 
-[Caso 1.b #126] Número normalizado: 54991877208 (2 clientes)
+[Caso 1.b #125] Número normalizado: 54991877208 (2 clientes)
   1. Nome Cliente: "Tiago João - Ponte Preta" | WhatsApp original: "(54) 99187-7208" | ID: 1rsbdnqen834k04 | Status: Fechado | Cidade: Ponte Preta | Criado em: 2026-09-13 16:59:47.303Z
   2. Nome Cliente: "Tiago João Scatolin" | WhatsApp original: "(54) 99187-7208" | ID: odavmgf638lil4o | Status: Novo Lead | Cidade: Erechim | Criado em: 2026-09-13 18:18:14.114Z
 
-[Caso 1.b #127] Número normalizado: 54992292500 (2 clientes)
+[Caso 1.b #126] Número normalizado: 54992292500 (2 clientes)
   1. Nome Cliente: "Valderi Meneghetti" | WhatsApp original: "(54) 99229-2500" | ID: ieia0tl8ebqgza3 | Status: Fechado | Cidade: São Valentim | Criado em: 2026-09-13 16:59:55.883Z
   2. Nome Cliente: "Valderi Meneguetti" | WhatsApp original: "(54) 99229-2500" | ID: y4p4qt2mf7ka4gf | Status: Fechado | Cidade: Erechim | Criado em: 2026-09-13 16:59:56.894Z
 
-[Caso 1.b #128] Número normalizado: 5499452785 (2 clientes)
+[Caso 1.b #127] Número normalizado: 5499452785 (2 clientes)
   1. Nome Cliente: "Vinicius" | WhatsApp original: "(54) 9945-2785" | ID: erowhg1lr1i0oz7 | Status: Fechado | Cidade: Erechim | Criado em: 2026-09-13 17:00:11.344Z
   2. Nome Cliente: "Vinicius Scalco" | WhatsApp original: "(54) 9945-2785" | ID: k53vbpxz6afpwoa | Status: Fechado | Cidade: Erechim | Criado em: 2026-09-13 17:00:15.818Z
 
-[Caso 1.b #129] Número normalizado: 54996851251 (2 clientes)
+[Caso 1.b #128] Número normalizado: 54996851251 (2 clientes)
   1. Nome Cliente: "wilsom Bawer" | WhatsApp original: "(54) 99685-1251" | ID: 6we92mtriza9i6t | Status: Fechado | Cidade: Erechim | Criado em: 2026-09-13 17:00:23.374Z
   2. Nome Cliente: "Wilson Bauer" | WhatsApp original: "(54) 99685-1251" | ID: lc9wpvkvg4udwjp | Status: Novo Lead | Cidade: Três Arroios | Criado em: 2026-09-13 17:00:23.586Z
 
-[Caso 1.b #130] Número normalizado: 54991823400 (2 clientes)
+[Caso 1.b #129] Número normalizado: 54991823400 (2 clientes)
   1. Nome Cliente: "Supermercado Central de Alimentos" | WhatsApp original: "(54) 99182-3400" | ID: 95mx59d6wyxn9am | Status: Orçamento | Cidade: Passo Fundo | Criado em: 2026-09-19 23:55:42.472Z
   2. Nome Cliente: "Residência Família Andrade" | WhatsApp original: "(54) 99182-3400" | ID: b0acgp36ridahiu | Status: Orçamento | Cidade: Erechim | Criado em: 2026-09-19 23:55:42.474Z
 
@@ -799,9 +794,9 @@ Nenhum contato com nome idêntico encontrado.
 RESUMO DOS RESULTADOS DA AUDITORIA
 ======================================================
 Total contatos lidos e validados: 91
-Total clientes lidos e validados: 1539
+Total clientes lidos e validados: 1533
 Grupo 1.a (mesmo WhatsApp em múltiplos contatos): 0 casos
-Grupo 1.b (mesmo WhatsApp em múltiplos clientes): 130 casos
+Grupo 1.b (mesmo WhatsApp em múltiplos clientes): 129 casos
 Grupo 1.c (mesmo WhatsApp entre contato e cliente com nomes distintos): 0 casos
 Grupo 2.a (contatos com nome idêntico): 0 casos
 Grupo 2.b (contatos com nomes parecidos/sufixos): 1 casos
