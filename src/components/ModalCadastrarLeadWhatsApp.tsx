@@ -33,6 +33,13 @@ import {
   normalizarEOordenarHistorico,
   calcularMetricasHistorico,
 } from '@/lib/historicoConsumoFatura'
+import { ModalAvisoDuplicidadeTelefone } from '@/components/ModalAvisoDuplicidadeTelefone'
+import {
+  detectarDuplicidadeTelefone,
+  executarMesclagemDuplicado,
+  type ContatoCorrespondente,
+} from '@/services/duplicidadeContatoService'
+import { useClientes } from '@/contexts/ClientesContext'
 interface ModalCadastrarLeadWhatsAppProps {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -57,6 +64,7 @@ export const ModalCadastrarLeadWhatsApp: React.FC<ModalCadastrarLeadWhatsAppProp
   conversaNome,
   onSubmit,
 }) => {
+  const { clientes, refreshData } = useClientes()
   const [cnpj, setCnpj] = useState('')
   const [nome, setNome] = useState('')
   const [razaoSocial, setRazaoSocial] = useState('')
@@ -73,6 +81,11 @@ export const ModalCadastrarLeadWhatsApp: React.FC<ModalCadastrarLeadWhatsAppProp
   const [modalImportarContaOpen, setModalImportarContaOpen] = useState(false)
   const [dadosFaturaArmazenados, setDadosFaturaArmazenados] =
     useState<DadosImportadosContaRGE | null>(null)
+
+  // Detecção de duplicidade de Telefone/WhatsApp
+  const [duplicadosEncontrados, setDuplicadosEncontrados] = useState<ContatoCorrespondente[]>([])
+  const [modalDuplicidadeAberto, setModalDuplicidadeAberto] = useState(false)
+  const [isMesclando, setIsMesclando] = useState(false)
 
   const {
     status: cnpjStatus,
@@ -110,6 +123,8 @@ export const ModalCadastrarLeadWhatsApp: React.FC<ModalCadastrarLeadWhatsAppProp
       setConflitosCnpj([])
       setPendenteDadosReceita(null)
       setDadosFaturaArmazenados(null)
+      setDuplicadosEncontrados([])
+      setModalDuplicidadeAberto(false)
       resetCnpjLookup()
     }
   }, [open, conversaNumero, conversaNome, resetCnpjLookup])
@@ -246,8 +261,7 @@ export const ModalCadastrarLeadWhatsApp: React.FC<ModalCadastrarLeadWhatsAppProp
       }
     }
 
-    try {
-      setIsSubmitting(true)
+    const montarPayloadWhatsAppLead = () => {
       const payload: Record<string, unknown> = {
         nome: nome.trim(),
         telefone: telefone.trim(),
@@ -308,22 +322,75 @@ export const ModalCadastrarLeadWhatsApp: React.FC<ModalCadastrarLeadWhatsAppProp
         }
       }
 
-      await onSubmit(payload as any)
-      onOpenChange(false)
-    } catch (err) {
-      console.error('Erro ao cadastrar lead:', err)
-      const rawMsg = getErrorMessage(err)
-      if (
-        !rawMsg ||
-        rawMsg.toLowerCase().includes('failed to create record') ||
-        rawMsg.toLowerCase().includes('an unexpected error occurred')
-      ) {
-        setErrorMsg('Não foi possível salvar o cadastro. Verifique os campos e tente novamente.')
-      } else {
-        setErrorMsg(rawMsg)
+      return payload
+    }
+
+    const salvarLead = async () => {
+      try {
+        setIsSubmitting(true)
+        const payload = montarPayloadWhatsAppLead()
+        await onSubmit(payload as any)
+        onOpenChange(false)
+      } catch (err) {
+        console.error('Erro ao cadastrar lead:', err)
+        const rawMsg = getErrorMessage(err)
+        if (
+          !rawMsg ||
+          rawMsg.toLowerCase().includes('failed to create record') ||
+          rawMsg.toLowerCase().includes('an unexpected error occurred')
+        ) {
+          setErrorMsg('Não foi possível salvar o cadastro. Verifique os campos e tente novamente.')
+        } else {
+          setErrorMsg(rawMsg)
+        }
+      } finally {
+        setIsSubmitting(false)
       }
+    }
+
+    // Detecção de duplicidade
+    if (telefone.trim()) {
+      const duplicados = await detectarDuplicidadeTelefone({
+        telefone: telefone.trim(),
+        whatsapp: telefone.trim(),
+        ignorarOrigem: 'cliente',
+        clientesPrecarregados: clientes,
+      })
+
+      if (duplicados.length > 0) {
+        setDuplicadosEncontrados(duplicados)
+        setModalDuplicidadeAberto(true)
+        return
+      }
+    }
+
+    await salvarLead()
+  }
+
+  const handleConfirmarMesclagem = async (destino: ContatoCorrespondente) => {
+    setIsMesclando(true)
+    try {
+      await executarMesclagemDuplicado({
+        registroDestino: destino,
+        dadosNovos: {
+          nome: nome.trim(),
+          telefone: telefone.trim(),
+          email: email.trim() || undefined,
+          cpf: cpf.trim() || undefined,
+          endereco: endereco.trim() || undefined,
+        },
+      })
+
+      setModalDuplicidadeAberto(false)
+      onOpenChange(false)
+      if (refreshData) {
+        await refreshData()
+      }
+    } catch (err) {
+      console.error('Erro ao mesclar cadastro:', err)
+      setErrorMsg('Não foi possível mesclar com o registro existente.')
     } finally {
-      setIsSubmitting(false)
+      setIsMesclando(false)
     }
   }
 
@@ -568,6 +635,41 @@ export const ModalCadastrarLeadWhatsApp: React.FC<ModalCadastrarLeadWhatsAppProp
         isOpen={modalImportarContaOpen}
         onClose={() => setModalImportarContaOpen(false)}
         onConfirmar={handleAplicarDadosConta}
+      />
+
+      {/* Modal Aviso de Duplicidade de Telefone/WhatsApp */}
+      <ModalAvisoDuplicidadeTelefone
+        isOpen={modalDuplicidadeAberto}
+        onClose={() => setModalDuplicidadeAberto(false)}
+        duplicados={duplicadosEncontrados}
+        numeroInformado={telefone.trim()}
+        nomeInformado={nome.trim()}
+        modo="criacao"
+        onConfirmarMesclar={handleConfirmarMesclagem}
+        onContinuarMesmoAssim={async () => {
+          setModalDuplicidadeAberto(false)
+          try {
+            setIsSubmitting(true)
+            const payload: Record<string, unknown> = {
+              nome: nome.trim(),
+              telefone: telefone.trim(),
+              email: email.trim() || undefined,
+              cpf: cpf.trim() || undefined,
+              endereco: endereco.trim() || undefined,
+              tipo_cliente: tipoCliente,
+              produto: tipoCliente as ProdutoTipo,
+              origem_lead: origemLead,
+            }
+            await onSubmit(payload as any)
+            onOpenChange(false)
+          } catch (err) {
+            console.error('Erro ao salvar lead sem mesclar:', err)
+            setErrorMsg('Erro ao salvar lead.')
+          } finally {
+            setIsSubmitting(false)
+          }
+        }}
+        isCarregando={isMesclando}
       />
     </Dialog>
   )

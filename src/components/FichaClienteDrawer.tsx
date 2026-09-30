@@ -204,6 +204,8 @@ const FASES: { value: NumeroFases; label: string }[] = [
 export const FichaClienteDrawer: React.FC = () => {
   const { user, isAdmin } = useAuth()
   const {
+    clientes,
+    refreshData,
     selectedCliente,
     selectedClienteId,
     selectedSistema,
@@ -245,6 +247,15 @@ export const FichaClienteDrawer: React.FC = () => {
   // Modal e estado para Excluir Cliente
   const [modalExcluirClienteOpen, setModalExcluirClienteOpen] = useState(false)
   const [isDeletingCliente, setIsDeletingCliente] = useState(false)
+
+  // Estado para detecção de duplicidade de Telefone/WhatsApp na Ficha do Cliente
+  const [duplicadosFicha, setDuplicadosFicha] = useState<ContatoCorrespondente[]>([])
+  const [modalDuplicidadeFichaAberto, setModalDuplicidadeFichaAberto] = useState(false)
+  const [campoDuplicidadePendente, setCampoDuplicidadePendente] = useState<{
+    field: 'telefone' | 'whatsapp'
+    value: string
+  } | null>(null)
+  const [isMesclandoFicha, setIsMesclandoFicha] = useState(false)
 
   // Modais de Ganho / Perdido / Nova Oportunidade (Reabertura)
   const [modalPerdidoOpen, setModalPerdidoOpen] = useState(false)
@@ -848,15 +859,6 @@ export const FichaClienteDrawer: React.FC = () => {
       setIsCreatingProjeto(false)
     }
   }
-
-  // Estado para detecção de duplicidade de Telefone/WhatsApp na Ficha do Cliente
-  const [duplicadosFicha, setDuplicadosFicha] = useState<ContatoCorrespondente[]>([])
-  const [modalDuplicidadeFichaAberto, setModalDuplicidadeFichaAberto] = useState(false)
-  const [campoDuplicidadePendente, setCampoDuplicidadePendente] = useState<{
-    field: 'telefone' | 'whatsapp'
-    value: string
-  } | null>(null)
-  const [isMesclandoFicha, setIsMesclandoFicha] = useState(false)
 
   const handleUpdateClienteField = async (
     field: keyof Cliente,
@@ -5002,7 +5004,9 @@ export const FichaClienteDrawer: React.FC = () => {
             setModalDuplicidadeFichaAberto(false)
             setCampoDuplicidadePendente(null)
             closeFichaCliente()
-            await recarregarClientes()
+            if (refreshData) {
+              await refreshData()
+            }
           } catch (err) {
             console.error('Erro ao mesclar cliente na ficha:', err)
             toast.error('Não foi possível mesclar os registros.')

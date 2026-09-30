@@ -104,28 +104,22 @@ export async function detectarDuplicidadeTelefone(
       const [resClientes, resContatosAdic, resContatosUnicos] = await Promise.allSettled([
         clientes.length > 0
           ? Promise.resolve(clientes)
-          : pb
-              .collection('clientes')
-              .getFullList<Cliente>({
-                fields: 'id,nome,telefone,whatsapp,email,empresa,cidade,status',
-                requestKey: null,
-              }),
+          : pb.collection('clientes').getFullList<Cliente>({
+              fields: 'id,nome,telefone,whatsapp,email,empresa,cidade,status',
+              requestKey: null,
+            }),
         contatosAdicionais.length > 0
           ? Promise.resolve(contatosAdicionais)
-          : pb
-              .collection('contatos_adicionais')
-              .getFullList<ContatoAdicional>({
-                fields: 'id,nome,telefone,is_whatsapp,email,cliente,cargo,papel',
-                requestKey: null,
-              }),
+          : pb.collection('contatos_adicionais').getFullList<ContatoAdicional>({
+              fields: 'id,nome,telefone,is_whatsapp,email,cliente,cargo,papel',
+              requestKey: null,
+            }),
         contatosUnicos.length > 0
           ? Promise.resolve(contatosUnicos)
-          : pb
-              .collection('contatos')
-              .getFullList<ContatoUnico>({
-                fields: 'id,nome,telefone,whatsapp,email,clientes_vinculados,papel',
-                requestKey: null,
-              }),
+          : pb.collection('contatos').getFullList<ContatoUnico>({
+              fields: 'id,nome,telefone,whatsapp,email,clientes_vinculados,papel',
+              requestKey: null,
+            }),
       ])
 
       if (resClientes.status === 'fulfilled') {
@@ -334,18 +328,17 @@ export function fundirRegistrosComPrioridadeDestino<T extends Record<string, any
   }
 
   // Preservar observações com nota de auditoria aditiva se houver observação na origem
-  if (
-    origem.observacoes &&
-    typeof origem.observacoes === 'string' &&
-    origem.observacoes.trim() !== ''
-  ) {
-    const obsDestino = typeof destino.observacoes === 'string' ? destino.observacoes.trim() : ''
-    const obsOrigem = origem.observacoes.trim()
+  const obsOrigemRaw = (origem as Record<string, unknown>).observacoes
+  const obsDestinoRaw = (destino as Record<string, unknown>).observacoes
+  if (obsOrigemRaw && typeof obsOrigemRaw === 'string' && obsOrigemRaw.trim() !== '') {
+    const obsDestino = typeof obsDestinoRaw === 'string' ? obsDestinoRaw.trim() : ''
+    const obsOrigem = obsOrigemRaw.trim()
 
     if (obsDestino && !obsDestino.includes(obsOrigem)) {
-      resultado.observacoes = `${obsDestino}\n\n[Histórico mesclado]: ${obsOrigem}` as any
+      ;(resultado as Record<string, unknown>).observacoes =
+        `${obsDestino}\n\n[Histórico mesclado]: ${obsOrigem}`
     } else if (!obsDestino) {
-      resultado.observacoes = obsOrigem as any
+      ;(resultado as Record<string, unknown>).observacoes = obsOrigem
     }
   }
 

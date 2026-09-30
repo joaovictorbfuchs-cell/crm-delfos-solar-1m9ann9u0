@@ -21,6 +21,13 @@ import {
 import { formatWhatsAppPhone } from '@/lib/formatters'
 import { Contact, Loader2, CheckCircle2, AlertCircle } from 'lucide-react'
 import { OutroContatoTipo } from '@/types/crm'
+import { ModalAvisoDuplicidadeTelefone } from '@/components/ModalAvisoDuplicidadeTelefone'
+import {
+  detectarDuplicidadeTelefone,
+  executarMesclagemDuplicado,
+  type ContatoCorrespondente,
+} from '@/services/duplicidadeContatoService'
+import { useClientes } from '@/contexts/ClientesContext'
 
 interface ModalCadastrarOutroContatoWhatsAppProps {
   open: boolean
@@ -38,12 +45,18 @@ interface ModalCadastrarOutroContatoWhatsAppProps {
 export const ModalCadastrarOutroContatoWhatsApp: React.FC<
   ModalCadastrarOutroContatoWhatsAppProps
 > = ({ open, onOpenChange, conversaNumero, conversaNome, onSubmit }) => {
+  const { clientes, refreshData } = useClientes()
   const [nome, setNome] = useState('')
   const [telefone, setTelefone] = useState('')
   const [tipoContato, setTipoContato] = useState<OutroContatoTipo>('parceiro')
   const [observacao, setObservacao] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
+
+  // Duplicidade
+  const [duplicadosEncontrados, setDuplicadosEncontrados] = useState<ContatoCorrespondente[]>([])
+  const [modalDuplicidadeAberto, setModalDuplicidadeAberto] = useState(false)
+  const [isMesclando, setIsMesclando] = useState(false)
 
   useEffect(() => {
     if (open) {
@@ -54,6 +67,8 @@ export const ModalCadastrarOutroContatoWhatsApp: React.FC<
       setTipoContato('parceiro')
       setObservacao('')
       setErrorMsg(null)
+      setDuplicadosEncontrados([])
+      setModalDuplicidadeAberto(false)
     }
   }, [open, conversaNumero, conversaNome])
 
@@ -76,29 +91,71 @@ export const ModalCadastrarOutroContatoWhatsApp: React.FC<
       return
     }
 
-    try {
-      setIsSubmitting(true)
-      await onSubmit({
-        nome: nome.trim(),
-        telefone: telefone.trim(),
-        tipo_contato: tipoContato,
-        observacao: observacao.trim() || undefined,
-      })
-      onOpenChange(false)
-    } catch (err) {
-      console.error('Erro ao cadastrar contato:', err)
-      const rawMsg = err instanceof Error ? err.message : String(err || '')
-      if (
-        !rawMsg ||
-        rawMsg.toLowerCase().includes('failed to create record') ||
-        rawMsg.toLowerCase().includes('an unexpected error occurred')
-      ) {
-        setErrorMsg('Não foi possível salvar o contato. Verifique os campos e tente novamente.')
-      } else {
-        setErrorMsg(rawMsg)
+    const executarSalvar = async () => {
+      try {
+        setIsSubmitting(true)
+        await onSubmit({
+          nome: nome.trim(),
+          telefone: telefone.trim(),
+          tipo_contato: tipoContato,
+          observacao: observacao.trim() || undefined,
+        })
+        onOpenChange(false)
+      } catch (err) {
+        console.error('Erro ao cadastrar contato:', err)
+        const rawMsg = err instanceof Error ? err.message : String(err || '')
+        if (
+          !rawMsg ||
+          rawMsg.toLowerCase().includes('failed to create record') ||
+          rawMsg.toLowerCase().includes('an unexpected error occurred')
+        ) {
+          setErrorMsg('Não foi possível salvar o contato. Verifique os campos e tente novamente.')
+        } else {
+          setErrorMsg(rawMsg)
+        }
+      } finally {
+        setIsSubmitting(false)
       }
+    }
+
+    if (telefone.trim()) {
+      const duplicados = await detectarDuplicidadeTelefone({
+        telefone: telefone.trim(),
+        whatsapp: telefone.trim(),
+        clientesPrecarregados: clientes,
+      })
+
+      if (duplicados.length > 0) {
+        setDuplicadosEncontrados(duplicados)
+        setModalDuplicidadeAberto(true)
+        return
+      }
+    }
+
+    await executarSalvar()
+  }
+
+  const handleConfirmarMesclagem = async (destino: ContatoCorrespondente) => {
+    setIsMesclando(true)
+    try {
+      await executarMesclagemDuplicado({
+        registroDestino: destino,
+        dadosNovos: {
+          nome: nome.trim(),
+          telefone: telefone.trim(),
+          observacoes: observacao.trim() || undefined,
+        },
+      })
+      setModalDuplicidadeAberto(false)
+      onOpenChange(false)
+      if (refreshData) {
+        await refreshData()
+      }
+    } catch (err) {
+      console.error('Erro ao mesclar outro contato:', err)
+      setErrorMsg('Não foi possível mesclar com o registro existente.')
     } finally {
-      setIsSubmitting(false)
+      setIsMesclando(false)
     }
   }
 
@@ -221,6 +278,36 @@ export const ModalCadastrarOutroContatoWhatsApp: React.FC<
           </DialogFooter>
         </form>
       </DialogContent>
+
+      {/* Modal Aviso de Duplicidade de Telefone/WhatsApp */}
+      <ModalAvisoDuplicidadeTelefone
+        isOpen={modalDuplicidadeAberto}
+        onClose={() => setModalDuplicidadeAberto(false)}
+        duplicados={duplicadosEncontrados}
+        numeroInformado={telefone.trim()}
+        nomeInformado={nome.trim()}
+        modo="criacao"
+        onConfirmarMesclar={handleConfirmarMesclagem}
+        onContinuarMesmoAssim={async () => {
+          setModalDuplicidadeAberto(false)
+          try {
+            setIsSubmitting(true)
+            await onSubmit({
+              nome: nome.trim(),
+              telefone: telefone.trim(),
+              tipo_contato: tipoContato,
+              observacao: observacao.trim() || undefined,
+            })
+            onOpenChange(false)
+          } catch (err) {
+            console.error('Erro ao salvar sem mesclar:', err)
+            setErrorMsg('Erro ao salvar contato.')
+          } finally {
+            setIsSubmitting(false)
+          }
+        }}
+        isCarregando={isMesclando}
+      />
     </Dialog>
   )
 }

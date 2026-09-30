@@ -37,6 +37,13 @@ import {
 } from '@/lib/historicoConsumoFatura'
 import { Zap } from 'lucide-react'
 import { toast } from 'sonner'
+import { ModalAvisoDuplicidadeTelefone } from '@/components/ModalAvisoDuplicidadeTelefone'
+import {
+  detectarDuplicidadeTelefone,
+  executarMesclagemDuplicado,
+  type ContatoCorrespondente,
+} from '@/services/duplicidadeContatoService'
+import { useClientes } from '@/contexts/ClientesContext'
 
 export type EntidadeTipo = 'cliente' | 'fornecedor'
 
@@ -98,6 +105,7 @@ export const ModalCadastroClienteFornecedor: React.FC<ModalCadastroClienteFornec
   onSubmit,
   dadosIniciais,
 }) => {
+  const { clientes, refreshData } = useClientes()
   const [tipoPessoa, setTipoPessoa] = useState<TipoPessoa>(dadosIniciais?.tipo_pessoa || 'juridica')
 
   // Documentos
@@ -167,6 +175,11 @@ export const ModalCadastroClienteFornecedor: React.FC<ModalCadastroClienteFornec
   const [modalImportarContaOpen, setModalImportarContaOpen] = useState(false)
   const [dadosFaturaArmazenados, setDadosFaturaArmazenados] =
     useState<DadosImportadosContaRGE | null>(null)
+
+  // Estados de detecção de duplicidade de Telefone/WhatsApp
+  const [duplicadosEncontrados, setDuplicadosEncontrados] = useState<ContatoCorrespondente[]>([])
+  const [modalDuplicidadeAberto, setModalDuplicidadeAberto] = useState(false)
+  const [isMesclando, setIsMesclando] = useState(false)
 
   // Consulta CNPJ
   const {
@@ -260,6 +273,8 @@ export const ModalCadastroClienteFornecedor: React.FC<ModalCadastroClienteFornec
     setEspecialidadeCustomErro(null)
     setConflitosCnpj([])
     setPendenteDadosReceita(null)
+    setDuplicadosEncontrados([])
+    setModalDuplicidadeAberto(false)
     resetCnpjLookup()
   }
 
@@ -457,83 +472,101 @@ export const ModalCadastroClienteFornecedor: React.FC<ModalCadastroClienteFornec
       }
     }
 
-    try {
-      setIsSubmitting(true)
-      await onSubmit({
-        tipo_pessoa: tipoPessoa,
-        cpf: tipoPessoa === 'fisica' ? cpf.trim() || undefined : undefined,
-        cnpj: tipoPessoa === 'juridica' ? cnpj.trim() || undefined : undefined,
-        nome: nome.trim(),
-        razao_social: tipoPessoa === 'juridica' ? razaoSocial.trim() || nome.trim() : undefined,
-        nome_fantasia: tipoPessoa === 'juridica' ? nomeFantasia.trim() || undefined : undefined,
-        situacao_cadastral:
-          tipoPessoa === 'juridica' ? situacaoCadastral.trim() || undefined : undefined,
-        cnae_principal: tipoPessoa === 'juridica' ? cnaePrincipal.trim() || undefined : undefined,
-        data_abertura: tipoPessoa === 'juridica' ? dataAbertura.trim() || undefined : undefined,
+    const montarPayloadDados = (): DadosCadastroForm => ({
+      tipo_pessoa: tipoPessoa,
+      cpf: tipoPessoa === 'fisica' ? cpf.trim() || undefined : undefined,
+      cnpj: tipoPessoa === 'juridica' ? cnpj.trim() || undefined : undefined,
+      nome: nome.trim(),
+      razao_social: tipoPessoa === 'juridica' ? razaoSocial.trim() || nome.trim() : undefined,
+      nome_fantasia: tipoPessoa === 'juridica' ? nomeFantasia.trim() || undefined : undefined,
+      situacao_cadastral:
+        tipoPessoa === 'juridica' ? situacaoCadastral.trim() || undefined : undefined,
+      cnae_principal: tipoPessoa === 'juridica' ? cnaePrincipal.trim() || undefined : undefined,
+      data_abertura: tipoPessoa === 'juridica' ? dataAbertura.trim() || undefined : undefined,
+      telefone: telefone.trim(),
+      telefone_secundario: telefoneSecundario.trim() || undefined,
+      email: email.trim() || undefined,
+      contato_principal: contatoPrincipal.trim() || undefined,
+      atividade_principal: atividadePrincipal || 'Instalador',
+      como_conheceu: comoConheceu || 'Indicação',
+      observacoes: observacoes.trim() || undefined,
+      endereco: endereco.trim() || undefined,
+      numero: numero.trim() || undefined,
+      complemento: complemento.trim() || undefined,
+      bairro: bairro.trim() || undefined,
+      cidade: cidade.trim() || undefined,
+      estado: estado.trim().toUpperCase() || undefined,
+      cep: cep.trim() || undefined,
+      especialidade:
+        tipoEntidade === 'fornecedor'
+          ? especialidadeSelect === 'outros'
+            ? especialidadeCustom.trim()
+            : especialidadeSelect
+          : undefined,
+      ...(dadosFaturaArmazenados?.historico_consumo_fatura
+        ? (() => {
+            const histTratado = normalizarEOordenarHistorico(
+              dadosFaturaArmazenados.historico_consumo_fatura,
+            )
+            const metricas = calcularMetricasHistorico(histTratado)
+            return {
+              historico_consumo_fatura: histTratado,
+              uc: dadosFaturaArmazenados.uc || undefined,
+              numero_uc: dadosFaturaArmazenados.uc || undefined,
+              consumo_kwh_mes:
+                dadosFaturaArmazenados.consumo_kwh_mes ??
+                (metricas.quantidade_meses_historico > 0
+                  ? metricas.media_mensal_consumo_kwh
+                  : undefined),
+              consumo_medio:
+                dadosFaturaArmazenados.consumo_medio ??
+                (metricas.quantidade_meses_historico > 0
+                  ? metricas.media_mensal_consumo_kwh
+                  : undefined),
+              consumo_anual_kwh:
+                dadosFaturaArmazenados.consumo_anual_kwh ??
+                (metricas.quantidade_meses_historico > 0
+                  ? metricas.somatorio_consumo_anual_kwh
+                  : undefined),
+              consumo_medio_diario_kwh:
+                metricas.quantidade_meses_historico > 0
+                  ? metricas.consumo_medio_diario_kwh
+                  : undefined,
+              tarifa: dadosFaturaArmazenados.tarifa ?? undefined,
+            }
+          })()
+        : dadosFaturaArmazenados
+          ? {
+              uc: dadosFaturaArmazenados.uc || undefined,
+              numero_uc: dadosFaturaArmazenados.uc || undefined,
+              consumo_kwh_mes: dadosFaturaArmazenados.consumo_kwh_mes ?? undefined,
+              consumo_medio: dadosFaturaArmazenados.consumo_medio ?? undefined,
+              consumo_anual_kwh: dadosFaturaArmazenados.consumo_anual_kwh ?? undefined,
+              tarifa: dadosFaturaArmazenados.tarifa ?? undefined,
+            }
+          : {}),
+    })
+
+    // Se houver telefone, checa duplicidade primeiro
+    if (telefone.trim()) {
+      const duplicados = await detectarDuplicidadeTelefone({
         telefone: telefone.trim(),
-        telefone_secundario: telefoneSecundario.trim() || undefined,
-        email: email.trim() || undefined,
-        contato_principal: contatoPrincipal.trim() || undefined,
-        atividade_principal: atividadePrincipal || 'Instalador',
-        como_conheceu: comoConheceu || 'Indicação',
-        observacoes: observacoes.trim() || undefined,
-        endereco: endereco.trim() || undefined,
-        numero: numero.trim() || undefined,
-        complemento: complemento.trim() || undefined,
-        bairro: bairro.trim() || undefined,
-        cidade: cidade.trim() || undefined,
-        estado: estado.trim().toUpperCase() || undefined,
-        cep: cep.trim() || undefined,
-        especialidade:
-          tipoEntidade === 'fornecedor'
-            ? especialidadeSelect === 'outros'
-              ? especialidadeCustom.trim()
-              : especialidadeSelect
-            : undefined,
-        ...(dadosFaturaArmazenados?.historico_consumo_fatura
-          ? (() => {
-              const histTratado = normalizarEOordenarHistorico(
-                dadosFaturaArmazenados.historico_consumo_fatura,
-              )
-              const metricas = calcularMetricasHistorico(histTratado)
-              return {
-                historico_consumo_fatura: histTratado,
-                uc: dadosFaturaArmazenados.uc || undefined,
-                numero_uc: dadosFaturaArmazenados.uc || undefined,
-                consumo_kwh_mes:
-                  dadosFaturaArmazenados.consumo_kwh_mes ??
-                  (metricas.quantidade_meses_historico > 0
-                    ? metricas.media_mensal_consumo_kwh
-                    : undefined),
-                consumo_medio:
-                  dadosFaturaArmazenados.consumo_medio ??
-                  (metricas.quantidade_meses_historico > 0
-                    ? metricas.media_mensal_consumo_kwh
-                    : undefined),
-                consumo_anual_kwh:
-                  dadosFaturaArmazenados.consumo_anual_kwh ??
-                  (metricas.quantidade_meses_historico > 0
-                    ? metricas.somatorio_consumo_anual_kwh
-                    : undefined),
-                consumo_medio_diario_kwh:
-                  metricas.quantidade_meses_historico > 0
-                    ? metricas.consumo_medio_diario_kwh
-                    : undefined,
-                tarifa: dadosFaturaArmazenados.tarifa ?? undefined,
-              }
-            })()
-          : dadosFaturaArmazenados
-            ? {
-                uc: dadosFaturaArmazenados.uc || undefined,
-                numero_uc: dadosFaturaArmazenados.uc || undefined,
-                consumo_kwh_mes: dadosFaturaArmazenados.consumo_kwh_mes ?? undefined,
-                consumo_medio: dadosFaturaArmazenados.consumo_medio ?? undefined,
-                consumo_anual_kwh: dadosFaturaArmazenados.consumo_anual_kwh ?? undefined,
-                tarifa: dadosFaturaArmazenados.tarifa ?? undefined,
-              }
-            : {}),
+        whatsapp: telefone.trim(),
+        ignorarOrigem: tipoEntidade === 'cliente' ? 'cliente' : undefined,
+        clientesPrecarregados: clientes,
       })
 
+      if (duplicados.length > 0) {
+        setDuplicadosEncontrados(duplicados)
+        setModalDuplicidadeAberto(true)
+        return
+      }
+    }
+
+    try {
+      setIsSubmitting(true)
+      const payload = montarPayloadDados()
+      await onSubmit(payload)
       toast.success(
         `${tipoEntidade === 'cliente' ? 'Cliente' : 'Fornecedor'} cadastrado com sucesso!`,
       )
@@ -544,6 +577,42 @@ export const ModalCadastroClienteFornecedor: React.FC<ModalCadastroClienteFornec
       toast.error('Ocorreu um erro ao salvar o registro. Verifique os dados.')
     } finally {
       setIsSubmitting(false)
+    }
+  }
+
+  const handleConfirmarMesclagem = async (destino: ContatoCorrespondente) => {
+    setIsMesclando(true)
+    try {
+      await executarMesclagemDuplicado({
+        registroDestino: destino,
+        dadosNovos: {
+          nome: nome.trim(),
+          telefone: telefone.trim(),
+          email: email.trim() || undefined,
+          cidade: cidade.trim() || undefined,
+          estado: estado.trim() || undefined,
+          endereco: endereco.trim() || undefined,
+          numero: numero.trim() || undefined,
+          bairro: bairro.trim() || undefined,
+          cep: cep.trim() || undefined,
+          cpf: tipoPessoa === 'fisica' ? cpf.trim() || undefined : undefined,
+          cnpj: tipoPessoa === 'juridica' ? cnpj.trim() || undefined : undefined,
+          observacoes: observacoes.trim() || undefined,
+        },
+      })
+
+      toast.success(`Registro mesclado com sucesso em "${destino.nome}"!`)
+      setModalDuplicidadeAberto(false)
+      onClose()
+      resetForm()
+      if (refreshData) {
+        await refreshData()
+      }
+    } catch (err) {
+      console.error('Erro ao mesclar cadastro:', err)
+      toast.error('Não foi possível mesclar com o registro existente.')
+    } finally {
+      setIsMesclando(false)
     }
   }
 
@@ -1216,6 +1285,71 @@ export const ModalCadastroClienteFornecedor: React.FC<ModalCadastroClienteFornec
         isOpen={modalImportarContaOpen}
         onClose={() => setModalImportarContaOpen(false)}
         onConfirmar={handleAplicarDadosConta}
+      />
+
+      {/* Modal Aviso de Duplicidade de Telefone/WhatsApp */}
+      <ModalAvisoDuplicidadeTelefone
+        isOpen={modalDuplicidadeAberto}
+        onClose={() => setModalDuplicidadeAberto(false)}
+        duplicados={duplicadosEncontrados}
+        numeroInformado={telefone.trim()}
+        nomeInformado={nome.trim()}
+        modo="criacao"
+        onConfirmarMesclar={handleConfirmarMesclagem}
+        onContinuarMesmoAssim={async () => {
+          setModalDuplicidadeAberto(false)
+          // Salva direto ignorando o aviso
+          try {
+            setIsSubmitting(true)
+            await onSubmit({
+              tipo_pessoa: tipoPessoa,
+              cpf: tipoPessoa === 'fisica' ? cpf.trim() || undefined : undefined,
+              cnpj: tipoPessoa === 'juridica' ? cnpj.trim() || undefined : undefined,
+              nome: nome.trim(),
+              razao_social:
+                tipoPessoa === 'juridica' ? razaoSocial.trim() || nome.trim() : undefined,
+              nome_fantasia:
+                tipoPessoa === 'juridica' ? nomeFantasia.trim() || undefined : undefined,
+              situacao_cadastral:
+                tipoPessoa === 'juridica' ? situacaoCadastral.trim() || undefined : undefined,
+              cnae_principal:
+                tipoPessoa === 'juridica' ? cnaePrincipal.trim() || undefined : undefined,
+              data_abertura:
+                tipoPessoa === 'juridica' ? dataAbertura.trim() || undefined : undefined,
+              telefone: telefone.trim(),
+              telefone_secundario: telefoneSecundario.trim() || undefined,
+              email: email.trim() || undefined,
+              contato_principal: contatoPrincipal.trim() || undefined,
+              atividade_principal: atividadePrincipal || 'Instalador',
+              como_conheceu: comoConheceu || 'Indicação',
+              observacoes: observacoes.trim() || undefined,
+              endereco: endereco.trim() || undefined,
+              numero: numero.trim() || undefined,
+              complemento: complemento.trim() || undefined,
+              bairro: bairro.trim() || undefined,
+              cidade: cidade.trim() || undefined,
+              estado: estado.trim().toUpperCase() || undefined,
+              cep: cep.trim() || undefined,
+              especialidade:
+                tipoEntidade === 'fornecedor'
+                  ? especialidadeSelect === 'outros'
+                    ? especialidadeCustom.trim()
+                    : especialidadeSelect
+                  : undefined,
+            })
+            toast.success(
+              `${tipoEntidade === 'cliente' ? 'Cliente' : 'Fornecedor'} cadastrado com sucesso!`,
+            )
+            onClose()
+            resetForm()
+          } catch (err) {
+            console.error('Erro ao salvar sem mesclar:', err)
+            toast.error('Erro ao salvar registro.')
+          } finally {
+            setIsSubmitting(false)
+          }
+        }}
+        isCarregando={isMesclando}
       />
     </div>
   )

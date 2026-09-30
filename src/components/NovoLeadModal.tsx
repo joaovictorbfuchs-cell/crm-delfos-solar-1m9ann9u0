@@ -20,6 +20,12 @@ import {
   normalizarEOordenarHistorico,
   calcularMetricasHistorico,
 } from '@/lib/historicoConsumoFatura'
+import { ModalAvisoDuplicidadeTelefone } from '@/components/ModalAvisoDuplicidadeTelefone'
+import {
+  detectarDuplicidadeTelefone,
+  executarMesclagemDuplicado,
+  type ContatoCorrespondente,
+} from '@/services/duplicidadeContatoService'
 
 interface NovoLeadModalProps {
   isOpen: boolean
@@ -37,7 +43,7 @@ const PRODUTOS: ProdutoTipo[] = [
 ]
 
 export const NovoLeadModal: React.FC<NovoLeadModalProps> = ({ isOpen, onClose }) => {
-  const { addCliente } = useClientes()
+  const { addCliente, clientes, refreshData } = useClientes()
   const { toast } = useToast()
 
   const [cnpj, setCnpj] = useState('')
@@ -68,6 +74,11 @@ export const NovoLeadModal: React.FC<NovoLeadModalProps> = ({ isOpen, onClose })
   const [modalImportarContaOpen, setModalImportarContaOpen] = useState(false)
   const [dadosFaturaArmazenados, setDadosFaturaArmazenados] =
     useState<DadosImportadosContaRGE | null>(null)
+
+  // Estados para detecção e aviso de duplicidade de Telefone/WhatsApp
+  const [duplicadosEncontrados, setDuplicadosEncontrados] = useState<ContatoCorrespondente[]>([])
+  const [modalDuplicidadeAberto, setModalDuplicidadeAberto] = useState(false)
+  const [isMesclando, setIsMesclando] = useState(false)
 
   const {
     status: cnpjStatus,
@@ -123,6 +134,8 @@ export const NovoLeadModal: React.FC<NovoLeadModalProps> = ({ isOpen, onClose })
     setConflitosCnpj([])
     setPendenteDadosReceita(null)
     setDadosFaturaArmazenados(null)
+    setDuplicadosEncontrados([])
+    setModalDuplicidadeAberto(false)
     resetCnpjLookup()
   }
 
@@ -241,105 +254,119 @@ export const NovoLeadModal: React.FC<NovoLeadModalProps> = ({ isOpen, onClose })
   }
 
   const handleClose = () => {
-    if (isSubmitting) return
+    if (isSubmitting || isMesclando) return
     resetForm()
     onClose()
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!validate()) return
+  const montarPayloadLead = () => {
+    const consumoNum = consumoKwhMes ? Number(consumoKwhMes) : 0
+    const potenciaEstimada = consumoNum > 0 ? Number((consumoNum / 120).toFixed(1)) : 0
+    const valorEstimado = potenciaEstimada > 0 ? Math.round(potenciaEstimada * 3500) : 0
+
+    const telFinal = telefone.trim() || whatsapp.trim()
+    const whatsFinal = whatsapp.trim() || telefone.trim()
+
+    const payloadNovoCliente: Record<string, unknown> = {
+      nome: nome.trim(),
+      razao_social: razaoSocial.trim() || undefined,
+      nome_fantasia: nomeFantasia.trim() || undefined,
+      cnpj: cnpj.trim() || undefined,
+      telefone: telFinal,
+      whatsapp: whatsFinal,
+      email: email.trim() || undefined,
+      endereco: endereco.trim() || undefined,
+      numero: numero.trim() || undefined,
+      complemento: complemento.trim() || undefined,
+      bairro: bairro.trim() || undefined,
+      estado: estado.trim() || undefined,
+      cep: cep.trim() || undefined,
+      cnae_principal: cnaePrincipal.trim() || undefined,
+      situacao_cadastral: situacaoCadastral.trim() || undefined,
+      data_nascimento_fundacao: dataAbertura.trim() || undefined,
+      tipo_cliente: cnpj.replace(/\D/g, '').length === 14 ? 'comercial' : 'residencial',
+      consumo_kwh_mes: consumoNum,
+      origem_lead: origem,
+      produto:
+        tipoVenda === 'Energia Solar' ? 'Energia Solar' : (tipoVenda as unknown as ProdutoTipo),
+      tipo_venda: tipoVenda,
+      status: 'Novo Lead',
+      cidade: cidade.trim() || 'Erechim/RS',
+      potencia_kwp: potenciaEstimada,
+      valor_estimado: valorEstimado,
+    }
+
+    if (dadosFaturaArmazenados) {
+      if (dadosFaturaArmazenados.uc) {
+        payloadNovoCliente.uc = dadosFaturaArmazenados.uc
+        payloadNovoCliente.numero_uc = dadosFaturaArmazenados.uc
+      }
+      if (dadosFaturaArmazenados.cpf) {
+        payloadNovoCliente.cpf = dadosFaturaArmazenados.cpf
+      }
+      if (dadosFaturaArmazenados.classificacao_grupo_subgrupo) {
+        payloadNovoCliente.grupo_subgrupo = dadosFaturaArmazenados.classificacao_grupo_subgrupo
+      }
+      if (dadosFaturaArmazenados.tipo_fornecimento) {
+        payloadNovoCliente.tipo_fornecimento = dadosFaturaArmazenados.tipo_fornecimento
+      }
+      if (dadosFaturaArmazenados.tensao_nominal) {
+        payloadNovoCliente.tensao_nominal = dadosFaturaArmazenados.tensao_nominal
+      }
+      if (dadosFaturaArmazenados.historico_consumo_fatura) {
+        const histTratado = normalizarEOordenarHistorico(
+          dadosFaturaArmazenados.historico_consumo_fatura,
+        )
+        payloadNovoCliente.historico_consumo_fatura = histTratado
+
+        const metricas = calcularMetricasHistorico(histTratado)
+        if (metricas.quantidade_meses_historico > 0) {
+          payloadNovoCliente.consumo_medio =
+            dadosFaturaArmazenados.consumo_medio ?? metricas.media_mensal_consumo_kwh
+          payloadNovoCliente.consumo_anual_kwh =
+            dadosFaturaArmazenados.consumo_anual_kwh ?? metricas.somatorio_consumo_anual_kwh
+          payloadNovoCliente.consumo_medio_diario_kwh = metricas.consumo_medio_diario_kwh
+        }
+      }
+      if (
+        payloadNovoCliente.consumo_medio === undefined &&
+        dadosFaturaArmazenados.consumo_medio !== undefined
+      ) {
+        payloadNovoCliente.consumo_medio = dadosFaturaArmazenados.consumo_medio
+      }
+      if (
+        payloadNovoCliente.consumo_anual_kwh === undefined &&
+        dadosFaturaArmazenados.consumo_anual_kwh !== undefined
+      ) {
+        payloadNovoCliente.consumo_anual_kwh = dadosFaturaArmazenados.consumo_anual_kwh
+      }
+      if (dadosFaturaArmazenados.tarifa !== undefined) {
+        payloadNovoCliente.tarifa = dadosFaturaArmazenados.tarifa
+      }
+    }
+
+    return payloadNovoCliente
+  }
+
+  const executarPersistenciaLead = async (ignorarDuplicidade = false) => {
+    if (!ignorarDuplicidade && (telefone.trim() || whatsapp.trim())) {
+      const duplicados = await detectarDuplicidadeTelefone({
+        telefone: telefone.trim() || undefined,
+        whatsapp: whatsapp.trim() || undefined,
+        ignorarOrigem: 'cliente',
+        clientesPrecarregados: clientes,
+      })
+
+      if (duplicados.length > 0) {
+        setDuplicadosEncontrados(duplicados)
+        setModalDuplicidadeAberto(true)
+        return
+      }
+    }
 
     try {
       setIsSubmitting(true)
-
-      const consumoNum = consumoKwhMes ? Number(consumoKwhMes) : 0
-      // Estimativa inicial automática de potência (base 120 kWh/kWp no sul do Brasil) e valor (R$ 3.500/kWp)
-      const potenciaEstimada = consumoNum > 0 ? Number((consumoNum / 120).toFixed(1)) : 0
-      const valorEstimado = potenciaEstimada > 0 ? Math.round(potenciaEstimada * 3500) : 0
-
-      const telFinal = telefone.trim() || whatsapp.trim()
-      const whatsFinal = whatsapp.trim() || telefone.trim()
-
-      const payloadNovoCliente: Record<string, unknown> = {
-        nome: nome.trim(),
-        razao_social: razaoSocial.trim() || undefined,
-        nome_fantasia: nomeFantasia.trim() || undefined,
-        cnpj: cnpj.trim() || undefined,
-        telefone: telFinal,
-        whatsapp: whatsFinal,
-        email: email.trim() || undefined,
-        endereco: endereco.trim() || undefined,
-        numero: numero.trim() || undefined,
-        complemento: complemento.trim() || undefined,
-        bairro: bairro.trim() || undefined,
-        estado: estado.trim() || undefined,
-        cep: cep.trim() || undefined,
-        cnae_principal: cnaePrincipal.trim() || undefined,
-        situacao_cadastral: situacaoCadastral.trim() || undefined,
-        data_nascimento_fundacao: dataAbertura.trim() || undefined,
-        tipo_cliente: cnpj.replace(/\D/g, '').length === 14 ? 'comercial' : 'residencial',
-        consumo_kwh_mes: consumoNum,
-        origem_lead: origem,
-        produto:
-          tipoVenda === 'Energia Solar' ? 'Energia Solar' : (tipoVenda as unknown as ProdutoTipo),
-        tipo_venda: tipoVenda,
-        status: 'Novo Lead',
-        cidade: cidade.trim() || 'Erechim/RS',
-        potencia_kwp: potenciaEstimada,
-        valor_estimado: valorEstimado,
-      }
-
-      // Adiciona campos extraídos da fatura caso tenham sido importados
-      if (dadosFaturaArmazenados) {
-        if (dadosFaturaArmazenados.uc) {
-          payloadNovoCliente.uc = dadosFaturaArmazenados.uc
-          payloadNovoCliente.numero_uc = dadosFaturaArmazenados.uc
-        }
-        if (dadosFaturaArmazenados.cpf) {
-          payloadNovoCliente.cpf = dadosFaturaArmazenados.cpf
-        }
-        if (dadosFaturaArmazenados.classificacao_grupo_subgrupo) {
-          payloadNovoCliente.grupo_subgrupo = dadosFaturaArmazenados.classificacao_grupo_subgrupo
-        }
-        if (dadosFaturaArmazenados.tipo_fornecimento) {
-          payloadNovoCliente.tipo_fornecimento = dadosFaturaArmazenados.tipo_fornecimento
-        }
-        if (dadosFaturaArmazenados.tensao_nominal) {
-          payloadNovoCliente.tensao_nominal = dadosFaturaArmazenados.tensao_nominal
-        }
-        if (dadosFaturaArmazenados.historico_consumo_fatura) {
-          const histTratado = normalizarEOordenarHistorico(
-            dadosFaturaArmazenados.historico_consumo_fatura,
-          )
-          payloadNovoCliente.historico_consumo_fatura = histTratado
-
-          const metricas = calcularMetricasHistorico(histTratado)
-          if (metricas.quantidade_meses_historico > 0) {
-            payloadNovoCliente.consumo_medio =
-              dadosFaturaArmazenados.consumo_medio ?? metricas.media_mensal_consumo_kwh
-            payloadNovoCliente.consumo_anual_kwh =
-              dadosFaturaArmazenados.consumo_anual_kwh ?? metricas.somatorio_consumo_anual_kwh
-            payloadNovoCliente.consumo_medio_diario_kwh = metricas.consumo_medio_diario_kwh
-          }
-        }
-        if (
-          payloadNovoCliente.consumo_medio === undefined &&
-          dadosFaturaArmazenados.consumo_medio !== undefined
-        ) {
-          payloadNovoCliente.consumo_medio = dadosFaturaArmazenados.consumo_medio
-        }
-        if (
-          payloadNovoCliente.consumo_anual_kwh === undefined &&
-          dadosFaturaArmazenados.consumo_anual_kwh !== undefined
-        ) {
-          payloadNovoCliente.consumo_anual_kwh = dadosFaturaArmazenados.consumo_anual_kwh
-        }
-        if (dadosFaturaArmazenados.tarifa !== undefined) {
-          payloadNovoCliente.tarifa = dadosFaturaArmazenados.tarifa
-        }
-      }
-
+      const payloadNovoCliente = montarPayloadLead()
       await addCliente(payloadNovoCliente as any)
 
       toast({
@@ -357,6 +384,43 @@ export const NovoLeadModal: React.FC<NovoLeadModalProps> = ({ isOpen, onClose })
       })
     } finally {
       setIsSubmitting(false)
+    }
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!validate()) return
+    await executarPersistenciaLead(false)
+  }
+
+  const handleConfirmarMesclagem = async (destino: ContatoCorrespondente) => {
+    setIsMesclando(true)
+    try {
+      const payloadNovoCliente = montarPayloadLead()
+      await executarMesclagemDuplicado({
+        registroDestino: destino,
+        dadosNovos: payloadNovoCliente,
+      })
+
+      toast({
+        title: 'Lead mesclado com sucesso!',
+        description: `Informações consolidadas no registro existente "${destino.nome}".`,
+      })
+
+      setModalDuplicidadeAberto(false)
+      handleClose()
+      if (refreshData) {
+        await refreshData()
+      }
+    } catch (err) {
+      console.error('Erro ao mesclar lead:', err)
+      toast({
+        variant: 'destructive',
+        title: 'Erro ao mesclar',
+        description: 'Não foi possível mesclar com o registro existente.',
+      })
+    } finally {
+      setIsMesclando(false)
     }
   }
 
@@ -741,6 +805,22 @@ export const NovoLeadModal: React.FC<NovoLeadModalProps> = ({ isOpen, onClose })
         isOpen={modalImportarContaOpen}
         onClose={() => setModalImportarContaOpen(false)}
         onConfirmar={handleAplicarDadosConta}
+      />
+
+      {/* Modal Aviso de Duplicidade de Telefone/WhatsApp */}
+      <ModalAvisoDuplicidadeTelefone
+        isOpen={modalDuplicidadeAberto}
+        onClose={() => setModalDuplicidadeAberto(false)}
+        duplicados={duplicadosEncontrados}
+        numeroInformado={whatsapp.trim() || telefone.trim()}
+        nomeInformado={nome.trim()}
+        modo="criacao"
+        onConfirmarMesclar={handleConfirmarMesclagem}
+        onContinuarMesmoAssim={async () => {
+          setModalDuplicidadeAberto(false)
+          await executarPersistenciaLead(true)
+        }}
+        isCarregando={isMesclando}
       />
     </div>
   )
