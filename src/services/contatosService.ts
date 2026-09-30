@@ -18,28 +18,10 @@ export function aplicarRegraWhatsAppAutoritativo(dados: { telefone?: string; wha
   telefone: string
   whatsapp: string
 } {
-  const tel = (dados.telefone || '').trim()
-  const wpp = (dados.whatsapp || '').trim()
-
-  // Se WhatsApp preenchido, ele é o autoritativo: telefone se iguala a ele se divergirem
-  if (wpp) {
-    return {
-      whatsapp: wpp,
-      telefone: wpp,
-    }
-  }
-
-  // Se WhatsApp vazio e telefone preenchido: copia telefone para WhatsApp
-  if (tel) {
-    return {
-      whatsapp: tel,
-      telefone: tel,
-    }
-  }
-
+  // Regra atualizada: telefone e WhatsApp agora são independentes e mantêm seus próprios valores
   return {
-    whatsapp: '',
-    telefone: '',
+    whatsapp: (dados.whatsapp || '').trim(),
+    telefone: (dados.telefone || '').trim(),
   }
 }
 

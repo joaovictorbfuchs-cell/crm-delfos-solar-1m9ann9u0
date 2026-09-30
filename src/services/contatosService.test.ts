@@ -9,31 +9,31 @@ import type { Cliente, ContatoAdicional, ContatoUnico } from '@/types/crm'
 
 describe('contatosService', () => {
   describe('aplicarRegraWhatsAppAutoritativo', () => {
-    it('quando WhatsApp e telefone divergirem, o telefone é igualado ao WhatsApp (regra de ouro)', () => {
+    it('campos telefone e WhatsApp são independentes (regra atualizada do usuário)', () => {
       const res = aplicarRegraWhatsAppAutoritativo({
         telefone: '(54) 3522-1234',
         whatsapp: '(54) 99123-4567',
       })
       expect(res.whatsapp).toBe('(54) 99123-4567')
-      expect(res.telefone).toBe('(54) 99123-4567')
+      expect(res.telefone).toBe('(54) 3522-1234')
     })
 
-    it('quando WhatsApp estiver vazio e telefone preenchido, telefone é copiado para WhatsApp', () => {
+    it('quando WhatsApp estiver vazio e telefone preenchido, mantém telefone e não copia para WhatsApp', () => {
       const res = aplicarRegraWhatsAppAutoritativo({
         telefone: '(54) 99123-4567',
         whatsapp: '',
       })
-      expect(res.whatsapp).toBe('(54) 99123-4567')
+      expect(res.whatsapp).toBe('')
       expect(res.telefone).toBe('(54) 99123-4567')
     })
 
-    it('quando WhatsApp preenchido e telefone vazio, telefone recebe o WhatsApp', () => {
+    it('quando WhatsApp preenchido e telefone vazio, mantém WhatsApp e não copia para telefone', () => {
       const res = aplicarRegraWhatsAppAutoritativo({
         telefone: '',
         whatsapp: '(54) 98888-7777',
       })
       expect(res.whatsapp).toBe('(54) 98888-7777')
-      expect(res.telefone).toBe('(54) 98888-7777')
+      expect(res.telefone).toBe('')
     })
 
     it('quando ambos vazios, retorna strings vazias', () => {

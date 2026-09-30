@@ -3,42 +3,13 @@
 // 1. Se whatsapp preenchido e telefone vazio ou diferente -> telefone = whatsapp (copia WhatsApp para telefone)
 // 2. Se whatsapp vazio e telefone preenchido -> whatsapp = telefone (mantém comportamento de importação/criação onde só existe telefone)
 
+// Regra atualizada: telefone e whatsapp são campos independentes.
+// Não há mais cópia automática de WhatsApp para Telefone nem de Telefone para WhatsApp.
+
 onRecordCreate((e) => {
-  try {
-    const record = e.record
-    const tel = (record.getString('telefone') || '').trim()
-    const wpp = (record.getString('whatsapp') || '').trim()
-
-    if (wpp) {
-      if (!tel || tel !== wpp) {
-        record.set('telefone', record.getString('whatsapp'))
-      }
-    } else if (tel) {
-      record.set('whatsapp', record.getString('telefone'))
-    }
-  } catch (err) {
-    console.log('[CLIENTES_SYNC_WHATSAPP CREATE ERRO]:', err)
-  }
-
   return e.next()
 }, 'clientes')
 
 onRecordUpdate((e) => {
-  try {
-    const record = e.record
-    const tel = (record.getString('telefone') || '').trim()
-    const wpp = (record.getString('whatsapp') || '').trim()
-
-    if (wpp) {
-      if (!tel || tel !== wpp) {
-        record.set('telefone', record.getString('whatsapp'))
-      }
-    } else if (tel) {
-      record.set('whatsapp', record.getString('telefone'))
-    }
-  } catch (err) {
-    console.log('[CLIENTES_SYNC_WHATSAPP UPDATE ERRO]:', err)
-  }
-
   return e.next()
 }, 'clientes')

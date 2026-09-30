@@ -26,8 +26,16 @@ import {
   EyeOff,
   UserCheck,
   Layers,
+  Phone,
 } from 'lucide-react'
 import { useClientes } from '@/contexts/ClientesContext'
+import { ModalFilaImportacaoCsv } from '@/components/ModalFilaImportacaoCsv'
+import {
+  ItemImportacaoContatoCsv,
+  DecisaoContatoCsv,
+  analisarLinhaContatoCsv,
+  CSV_EXEMPLO_CONTATOS,
+} from '@/services/importacaoCsvContatosService'
 import { StatusBadge } from '@/components/StatusBadge'
 import { parseSpreadsheetFile, ParsedTableData } from '@/lib/spreadsheetParser'
 import {
@@ -88,6 +96,13 @@ export default function ImportarClientes() {
 
   const fileInputRef = useRef<HTMLInputElement>(null)
 
+  // Estado para a Importação de Contatos por CSV (Requisito novo)
+  const [modalCsvContatosAberto, setModalCsvContatosAberto] = useState<boolean>(false)
+  const [itensCsvContatos, setItensCsvContatos] = useState<ItemImportacaoContatoCsv[]>([])
+  const [isProcessandoCsvContatos, setIsProcessandoCsvContatos] = useState<boolean>(false)
+  const [progressoCsvContatos, setProgressoCsvContatos] = useState<number>(0)
+  const fileInputCsvContatosRef = useRef<HTMLInputElement>(null)
+
   // Troca de fonte
   const handleSelecionarFonte = (fonte: ImportFonte) => {
     if (fonte === fonteAtiva) return
@@ -102,6 +117,144 @@ export default function ImportarClientes() {
     setMostrarMapeamentoAvancado(false)
     setEtapaPipedrive('upload')
     setItensRevisao([])
+  }
+
+  // Manipulador para carregar CSV de contatos
+  const handleUploadCsvContatos = async (file: File) => {
+    try {
+      const parsed = await parseSpreadsheetFile(file)
+      if (!parsed.rows || parsed.rows.length === 0) {
+        toast.error('O arquivo CSV está vazio ou não possui contatos válidos.')
+        return
+      }
+
+      // Analisa cada linha do CSV contra os clientes já cadastrados
+      const analisados: ItemImportacaoContatoCsv[] = parsed.rows.map((row, index) =>
+        analisarLinhaContatoCsv(row, parsed.headers, clientes, index),
+      )
+
+      setItensCsvContatos(analisados)
+      setModalCsvContatosAberto(true)
+
+      const identicos = analisados.filter((i) => i.status === 'identico').length
+      const diferentes = analisados.filter((i) => i.status === 'diferente').length
+      const novos = analisados.filter((i) => i.status === 'nao_encontrado').length
+
+      toast.success(
+        `CSV processado: ${analisados.length} contatos lidos (${identicos} idênticos, ${diferentes} diferentes, ${novos} não cadastrados).`,
+      )
+    } catch (err: any) {
+      console.error('Erro ao ler CSV de contatos:', err)
+      toast.error(err?.message || 'Erro ao processar arquivo CSV.')
+    }
+  }
+
+  // Simular exemplo do CSV de contatos
+  const handleCarregarExemploCsvContatos = async () => {
+    const blob = new Blob([CSV_EXEMPLO_CONTATOS], { type: 'text/csv;charset=utf-8;' })
+    const file = new File([blob], 'exemplo_contatos_crm.csv', { type: 'text/csv' })
+    await handleUploadCsvContatos(file)
+  }
+
+  // Alterar decisão de um contato individualmente na fila de pendências
+  const handleAlterarDecisaoContatoCsv = (
+    idTemp: string,
+    decisao: DecisaoContatoCsv,
+    clienteMescla?: any,
+  ) => {
+    setItensCsvContatos((prev) =>
+      prev.map((item) => {
+        if (item.idTemp !== idTemp) return item
+        return {
+          ...item,
+          decisao,
+          clienteSelecionadoParaMescla: clienteMescla || item.clienteSelecionadoParaMescla,
+          resolvido: true,
+        }
+      }),
+    )
+  }
+
+  // Executar a aplicação das escolhas do CSV de contatos
+  const handleExecutarImportacaoCsvContatos = async () => {
+    if (itensCsvContatos.length === 0) return
+
+    setIsProcessandoCsvContatos(true)
+    setProgressoCsvContatos(0)
+
+    let mantidos = 0
+    let atualizados = 0
+    let criados = 0
+    let mesclados = 0
+    let ignorados = 0
+    let erros = 0
+
+    const total = itensCsvContatos.length
+
+    for (let i = 0; i < total; i++) {
+      const item = itensCsvContatos[i]
+
+      try {
+        if (item.decisao === 'manter_atual') {
+          // Mantém o cadastro como está
+          mantidos++
+        } else if (item.decisao === 'atualizar_whatsapp' && item.clienteEncontrado) {
+          // Regra: "grave o número de telefone da planilha como o número de WhatsApp do contato daquele cliente, sem alterar o campo Telefone."
+          await updateCliente(item.clienteEncontrado.id, {
+            whatsapp: item.telefoneCsvFormatado || item.telefoneCsv,
+          })
+          atualizados++
+        } else if (item.decisao === 'criar_novo') {
+          // Cria novo cliente no CRM com o número do CSV como WhatsApp
+          await addCliente({
+            nome: item.nomeCsv,
+            whatsapp: item.telefoneCsvFormatado || item.telefoneCsv,
+            telefone: '', // Sem alterar campo Telefone
+            email: item.emailCsv || '',
+            cidade: item.cidadeCsv || 'Erechim',
+            estado: 'RS',
+            tipo_pessoa: 'fisica',
+            status: 'Novo Lead',
+            origem_lead: 'Outro',
+            como_conheceu: 'Importação CSV de Contatos',
+            observacoes: `Contato importado via CSV em ${new Date().toLocaleDateString('pt-BR')}`,
+            potencia_kwp: 5.5,
+            uc: '',
+            data_instalacao: '',
+            inversor_marca: 'Deye',
+            inversor_modelo: '',
+            placas_marca: 'Canadian Solar',
+            placas_qtd: 0,
+            telhado_tipo: 'ceramico',
+          })
+          criados++
+        } else if (item.decisao === 'mesclar_existente' && item.clienteSelecionadoParaMescla) {
+          // Mescla com cliente existente: atualiza o WhatsApp desse cliente
+          await updateCliente(item.clienteSelecionadoParaMescla.id, {
+            whatsapp: item.telefoneCsvFormatado || item.telefoneCsv,
+            email: item.clienteSelecionadoParaMescla.email || item.emailCsv || undefined,
+            cidade: item.clienteSelecionadoParaMescla.cidade || item.cidadeCsv || undefined,
+          })
+          mesclados++
+        } else if (item.decisao === 'ignorar') {
+          ignorados++
+        }
+      } catch (err) {
+        console.error(`Erro ao processar contato ${item.nomeCsv}:`, err)
+        erros++
+      }
+
+      setProgressoCsvContatos(Math.round(((i + 1) / total) * 100))
+    }
+
+    setIsProcessandoCsvContatos(false)
+    setModalCsvContatosAberto(false)
+
+    toast.success(
+      `Importação de contatos concluída! ${mantidos} mantidos, ${atualizados} atualizados, ${criados} criados, ${mesclados} mesclados${
+        ignorados > 0 ? `, ${ignorados} ignorados` : ''
+      }${erros > 0 ? ` (${erros} erros)` : ''}.`,
+    )
   }
 
   // Gera a lista de revisão para o Pipedrive comparando com clientes existentes do sistema
@@ -659,74 +812,121 @@ export default function ImportarClientes() {
           </button>
         </div>
 
-        {/* Abas das Fontes: Pipedrive vs Conta Azul */}
-        <div className="mt-6 pt-5 border-t border-gray-100 flex flex-wrap gap-3">
-          <button
-            type="button"
-            onClick={() => handleSelecionarFonte('pipedrive')}
-            className={`flex items-center gap-3 px-5 py-3 rounded-xl border text-sm font-bold transition-all cursor-pointer ${
-              fonteAtiva === 'pipedrive'
-                ? 'bg-emerald-600 text-white border-emerald-600 shadow-md shadow-emerald-600/20'
-                : 'bg-white text-gray-700 border-gray-200 hover:border-emerald-300 hover:bg-emerald-50/40'
-            }`}
-          >
-            <div
-              className={`w-8 h-8 rounded-lg flex items-center justify-center font-black text-xs ${
+        {/* Abas das Fontes: Pipedrive vs Conta Azul vs Importar Contatos por CSV */}
+        <div className="mt-6 pt-5 border-t border-gray-100 flex flex-wrap gap-3 items-center justify-between">
+          <div className="flex flex-wrap gap-3">
+            <button
+              type="button"
+              onClick={() => handleSelecionarFonte('pipedrive')}
+              className={`flex items-center gap-3 px-5 py-3 rounded-xl border text-sm font-bold transition-all cursor-pointer ${
                 fonteAtiva === 'pipedrive'
-                  ? 'bg-white text-emerald-700'
-                  : 'bg-emerald-100 text-emerald-800'
+                  ? 'bg-emerald-600 text-white border-emerald-600 shadow-md shadow-emerald-600/20'
+                  : 'bg-white text-gray-700 border-gray-200 hover:border-emerald-300 hover:bg-emerald-50/40'
               }`}
             >
-              PD
-            </div>
-            <div className="text-left">
-              <div className="leading-tight flex items-center gap-2">
-                <span>1. Importar do Pipedrive</span>
-                <span className="text-[10px] px-1.5 py-0.2 rounded bg-emerald-500/20 border border-emerald-400/40 text-emerald-100">
-                  Deduplicação Ativa
-                </span>
-              </div>
               <div
-                className={`text-[11px] font-normal ${
-                  fonteAtiva === 'pipedrive' ? 'text-emerald-100' : 'text-gray-400'
+                className={`w-8 h-8 rounded-lg flex items-center justify-center font-black text-xs ${
+                  fonteAtiva === 'pipedrive'
+                    ? 'bg-white text-emerald-700'
+                    : 'bg-emerald-100 text-emerald-800'
                 }`}
               >
-                Revisão lado a lado vs. Conta Azul
+                PD
               </div>
-            </div>
-            {fonteAtiva === 'pipedrive' && <Check className="w-4 h-4 ml-2" />}
-          </button>
+              <div className="text-left">
+                <div className="leading-tight flex items-center gap-2">
+                  <span>1. Importar do Pipedrive</span>
+                  <span className="text-[10px] px-1.5 py-0.2 rounded bg-emerald-500/20 border border-emerald-400/40 text-emerald-100">
+                    Deduplicação Ativa
+                  </span>
+                </div>
+                <div
+                  className={`text-[11px] font-normal ${
+                    fonteAtiva === 'pipedrive' ? 'text-emerald-100' : 'text-gray-400'
+                  }`}
+                >
+                  Revisão lado a lado vs. Conta Azul
+                </div>
+              </div>
+              {fonteAtiva === 'pipedrive' && <Check className="w-4 h-4 ml-2" />}
+            </button>
 
-          <button
-            type="button"
-            onClick={() => handleSelecionarFonte('conta_azul')}
-            className={`flex items-center gap-3 px-5 py-3 rounded-xl border text-sm font-bold transition-all cursor-pointer ${
-              fonteAtiva === 'conta_azul'
-                ? 'bg-emerald-600 text-white border-emerald-600 shadow-md shadow-emerald-600/20'
-                : 'bg-white text-gray-700 border-gray-200 hover:border-emerald-300 hover:bg-emerald-50/40'
-            }`}
-          >
-            <div
-              className={`w-8 h-8 rounded-lg flex items-center justify-center font-black text-xs ${
+            <button
+              type="button"
+              onClick={() => handleSelecionarFonte('conta_azul')}
+              className={`flex items-center gap-3 px-5 py-3 rounded-xl border text-sm font-bold transition-all cursor-pointer ${
                 fonteAtiva === 'conta_azul'
-                  ? 'bg-white text-emerald-700'
-                  : 'bg-blue-100 text-blue-800'
+                  ? 'bg-emerald-600 text-white border-emerald-600 shadow-md shadow-emerald-600/20'
+                  : 'bg-white text-gray-700 border-gray-200 hover:border-emerald-300 hover:bg-emerald-50/40'
               }`}
             >
-              CA
-            </div>
-            <div className="text-left">
-              <div className="leading-tight">2. Importar do Conta Azul</div>
               <div
-                className={`text-[11px] font-normal ${
-                  fonteAtiva === 'conta_azul' ? 'text-emerald-100' : 'text-gray-400'
+                className={`w-8 h-8 rounded-lg flex items-center justify-center font-black text-xs ${
+                  fonteAtiva === 'conta_azul'
+                    ? 'bg-white text-emerald-700'
+                    : 'bg-blue-100 text-blue-800'
                 }`}
               >
-                Cadastros fiscais, CPF/CNPJ e contatos
+                CA
               </div>
-            </div>
-            {fonteAtiva === 'conta_azul' && <Check className="w-4 h-4 ml-2" />}
-          </button>
+              <div className="text-left">
+                <div className="leading-tight">2. Importar do Conta Azul</div>
+                <div
+                  className={`text-[11px] font-normal ${
+                    fonteAtiva === 'conta_azul' ? 'text-emerald-100' : 'text-gray-400'
+                  }`}
+                >
+                  Cadastros fiscais, CPF/CNPJ e contatos
+                </div>
+              </div>
+              {fonteAtiva === 'conta_azul' && <Check className="w-4 h-4 ml-2" />}
+            </button>
+          </div>
+
+          {/* Botão solicitado pelo usuário: ao lado dos botões de importação pelo Pipedrive e Conta Azul */}
+          <div className="flex items-center gap-2">
+            <input
+              ref={fileInputCsvContatosRef}
+              type="file"
+              accept=".csv"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0]
+                if (file) handleUploadCsvContatos(file)
+                if (e.target) e.target.value = ''
+              }}
+            />
+
+            <button
+              type="button"
+              onClick={() => fileInputCsvContatosRef.current?.click()}
+              className="flex items-center gap-3 px-5 py-3 rounded-xl border-2 border-emerald-600 bg-emerald-50 hover:bg-emerald-100/80 text-emerald-900 text-sm font-bold shadow-xs hover:shadow transition-all cursor-pointer"
+            >
+              <div className="w-8 h-8 rounded-lg bg-emerald-600 text-white flex items-center justify-center font-bold text-xs shadow-xs">
+                <FileSpreadsheet className="w-4 h-4" />
+              </div>
+              <div className="text-left">
+                <div className="leading-tight flex items-center gap-1.5">
+                  <span>Importar Contatos por CSV</span>
+                  <span className="text-[10px] px-1.5 py-0.2 rounded bg-emerald-200 text-emerald-800 font-extrabold">
+                    Novo
+                  </span>
+                </div>
+                <div className="text-[11px] font-normal text-emerald-700">
+                  Compara WhatsApp e mantém sem duplicar
+                </div>
+              </div>
+            </button>
+
+            <button
+              type="button"
+              onClick={handleCarregarExemploCsvContatos}
+              className="p-3 rounded-xl border border-gray-200 hover:bg-gray-100 text-gray-500 hover:text-emerald-700 transition-colors"
+              title="Carregar CSV de contatos de demonstração"
+            >
+              <Sparkles className="w-4 h-4" />
+            </button>
+          </div>
         </div>
       </div>
 
@@ -1697,6 +1897,22 @@ export default function ImportarClientes() {
           </div>
         </div>
       )}
+
+      {/* Modal / Fila de Importação de Contatos por CSV */}
+      <ModalFilaImportacaoCsv
+        isOpen={modalCsvContatosAberto}
+        onClose={() => {
+          if (!isProcessandoCsvContatos) {
+            setModalCsvContatosAberto(false)
+          }
+        }}
+        itens={itensCsvContatos}
+        clientesExistentes={clientes}
+        onAlterarDecisao={handleAlterarDecisaoContatoCsv}
+        onExecutarImportacao={handleExecutarImportacaoCsvContatos}
+        isProcessando={isProcessandoCsvContatos}
+        progresso={progressoCsvContatos}
+      />
     </div>
   )
 }
