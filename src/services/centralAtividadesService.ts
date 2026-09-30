@@ -10,6 +10,9 @@ import type {
   UsinaCliente,
 } from '@/types/crm'
 
+import type { AtividadeCategoriaId } from '@/types/crm'
+import { CATEGORIAS_ATIVIDADES } from '@/constants/atividadesTipos'
+
 export type CentralAtividadeFonte =
   | 'atividade'
   | 'ordem_servico'
@@ -23,7 +26,10 @@ export interface CentralAtividadeItem {
   origemId: string
   registroOriginalId?: string
   fonte: CentralAtividadeFonte
+  categoriaId: AtividadeCategoriaId
+  categoriaNome: string
   tipoAtividade: string
+  tipoId?: string
   subtipo?: string
   origem?: string
   chaveImportacao?: string
@@ -43,6 +49,7 @@ export interface CentralAtividadeItem {
 }
 
 export interface CentralAtividadesFiltros {
+  categoriaId?: AtividadeCategoriaId | 'todos'
   tipoFonte?: CentralAtividadeFonte | 'todos'
   status?: string | 'todos'
   responsavel?: string | 'todos'
@@ -51,11 +58,92 @@ export interface CentralAtividadesFiltros {
   buscaTexto?: string
 }
 
+export interface CategoriaContagemItem {
+  id: AtividadeCategoriaId
+  nome: string
+  count: number
+}
+
 export interface CentralAtividadesData {
   items: CentralAtividadeItem[]
   responsaveisDisponiveis: string[]
   statusDisponiveis: string[]
+  categoriasDisponiveis: CategoriaContagemItem[]
+  /** @deprecated Mantido para retrocompatibilidade caso algum teste ainda acesse tiposDisponiveis */
   tiposDisponiveis: { id: CentralAtividadeFonte; label: string; count: number }[]
+}
+
+/**
+ * Mapeia qualquer atividade, ordem de serviço, manutenção, serviço avulso ou anomalia
+ * para exatamente uma das 3 categorias oficiais do CRM:
+ * 1. 'comercial' -> Atividades Comerciais
+ * 2. 'manutencao' -> Atividades de Manutenção
+ * 3. 'administrativo_pos_venda' -> Atividades Administrativas
+ */
+export function determinarCategoriaAtividade(
+  fonte: CentralAtividadeFonte,
+  tipo?: string,
+  subtipo?: string,
+): AtividadeCategoriaId {
+  // Se for OS, Manutenção O&M, Serviço Avulso ou Anomalia O&M -> Categoria Manutenção
+  if (
+    fonte === 'ordem_servico' ||
+    fonte === 'manutencao' ||
+    fonte === 'servico_avulso' ||
+    fonte === 'anomalia_om'
+  ) {
+    return 'manutencao'
+  }
+
+  const t = (tipo || '').toLowerCase().trim()
+  const st = (subtipo || '').toLowerCase().trim()
+
+  // Atividades de Manutenção explícitas
+  if (
+    [
+      'instalacao',
+      'limpeza_manutencao',
+      'configuracao_datalogger',
+      'garantia_equipamento',
+      'visita_tecnica',
+    ].includes(t) ||
+    st.includes('limpeza') ||
+    st.includes('manuten') ||
+    st.includes('garantia') ||
+    st.includes('instal') ||
+    st.includes('datalogger')
+  ) {
+    return 'manutencao'
+  }
+
+  // Atividades Administrativas / RGE / Pós-Venda
+  if (
+    [
+      'analise_fatura',
+      'auto_leitura_rge',
+      'lembrete_auto_leitura',
+      'relatorio_solarview',
+      'anexo_g',
+      'troca_titularidade',
+      'transferencia_creditos',
+      'gerar_procuracao',
+      'gerar_contrato',
+      'solicitar_contas_rge',
+      'anotacao',
+    ].includes(t) ||
+    t.includes('auto_leitura') ||
+    t.includes('fatura') ||
+    t.includes('solarview') ||
+    t.includes('procuracao') ||
+    t.includes('contrato') ||
+    t.includes('titularidade') ||
+    fonte === 'timeline_om'
+  ) {
+    return 'administrativo_pos_venda'
+  }
+
+  // Atividades Comerciais (contato, reuniao, proposta, follow-up, ligar indicacao, reativacao, etc.)
+  return 'comercial'
 }
 
 /**
@@ -197,6 +285,13 @@ export async function carregarCentralAtividades(
         tipoLabel = formatarTipoAtividade(atv.tipo)
       }
 
+      // Determinar categoria unificada oficial
+      const catId =
+        (atv.categoria_unificada as AtividadeCategoriaId) ||
+        determinarCategoriaAtividade(fonte, atv.tipo, atv.subtipo)
+      const catDef = CATEGORIAS_ATIVIDADES.find((c) => c.id === catId)
+      const catNome = catDef?.nome || 'Comercial'
+
       // Rota original conforme a fonte
       let rotaOriginal = atv.cliente_id
         ? `/clientes?openId=${atv.cliente_id}&tab=historico`
@@ -214,7 +309,10 @@ export async function carregarCentralAtividades(
         origemId: atv.id,
         registroOriginalId: atv.registro_original_id || atv.id,
         fonte,
+        categoriaId: catId,
+        categoriaNome: catNome,
         tipoAtividade: tipoLabel,
+        tipoId: atv.tipo,
         subtipo: atv.subtipo || atv.tipo,
         origem: atv.origem,
         chaveImportacao: atv.chave_importacao,
@@ -265,7 +363,10 @@ export async function carregarCentralAtividades(
         origemId: os.id,
         registroOriginalId: os.id,
         fonte: 'ordem_servico',
+        categoriaId: 'manutencao',
+        categoriaNome: 'Manutenção',
         tipoAtividade: `OS: ${os.tipo_servico || 'Serviço de Campo'}`,
+        tipoId: 'ordem_servico',
         subtipo: os.tipo_servico,
         origem: 'ordem_servico',
         chaveImportacao,
@@ -314,7 +415,10 @@ export async function carregarCentralAtividades(
         origemId: m.id,
         registroOriginalId: m.id,
         fonte: 'manutencao',
+        categoriaId: 'manutencao',
+        categoriaNome: 'Manutenção',
         tipoAtividade: `Manutenção: ${m.tipo || 'Geral'}`,
+        tipoId: 'manutencao',
         subtipo: m.tipo,
         origem: 'manutencao',
         chaveImportacao,
@@ -358,7 +462,10 @@ export async function carregarCentralAtividades(
         origemId: s.id,
         registroOriginalId: s.id,
         fonte: 'servico_avulso',
+        categoriaId: 'manutencao',
+        categoriaNome: 'Manutenção',
         tipoAtividade: `Serviço Avulso: ${formatarTipoServicoAvulso(s.tipo_servico)}`,
+        tipoId: 'servico_avulso',
         subtipo: s.tipo_servico,
         origem: 'servico_avulso',
         chaveImportacao,
@@ -405,7 +512,10 @@ export async function carregarCentralAtividades(
         origemId: t.id,
         registroOriginalId: t.id,
         fonte: 'timeline_om',
+        categoriaId: 'administrativo_pos_venda',
+        categoriaNome: 'Administrativas',
         tipoAtividade: `Linha do Tempo O&M: ${t.tipo || 'Registro'}`,
+        tipoId: 'timeline_om',
         subtipo: t.tipo,
         origem: 'timeline_om',
         chaveImportacao,
@@ -449,7 +559,10 @@ export async function carregarCentralAtividades(
         origemId: anom.id,
         registroOriginalId: anom.id,
         fonte: 'anomalia_om',
+        categoriaId: 'manutencao',
+        categoriaNome: 'Manutenção',
         tipoAtividade: `Anomalia O&M [${anom.severidade || 'Média'}]`,
+        tipoId: 'anomalia_om',
         subtipo: anom.severidade,
         origem: 'anomalia_om',
         chaveImportacao,
@@ -501,7 +614,39 @@ export async function carregarCentralAtividades(
   })
   const statusDisponiveis = Array.from(statusSet).sort()
 
-  // Contagem por tipo de fonte
+  // Contagem por Categoria Oficial (Comerciais, Manutenção, Administrativas)
+  const countsByCategoria: Record<AtividadeCategoriaId, number> = {
+    comercial: 0,
+    manutencao: 0,
+    administrativo_pos_venda: 0,
+  }
+  for (const it of items) {
+    if (it.categoriaId && countsByCategoria[it.categoriaId] !== undefined) {
+      countsByCategoria[it.categoriaId]++
+    } else {
+      countsByCategoria.comercial++
+    }
+  }
+
+  const categoriasDisponiveis: CategoriaContagemItem[] = [
+    {
+      id: 'comercial',
+      nome: 'Comerciais',
+      count: countsByCategoria.comercial,
+    },
+    {
+      id: 'manutencao',
+      nome: 'Manutenção',
+      count: countsByCategoria.manutencao,
+    },
+    {
+      id: 'administrativo_pos_venda',
+      nome: 'Administrativas',
+      count: countsByCategoria.administrativo_pos_venda,
+    },
+  ]
+
+  // Contagem por tipo de fonte (para retrocompatibilidade)
   const countsByFonte = items.reduce(
     (acc, curr) => {
       acc[curr.fonte] = (acc[curr.fonte] || 0) + 1
@@ -510,28 +655,6 @@ export async function carregarCentralAtividades(
     {} as Record<CentralAtividadeFonte, number>,
   )
 
-  const tiposDisponiveis: { id: CentralAtividadeFonte; label: string; count: number }[] = [
-    { id: 'atividade', label: 'Atividades do CRM', count: countsByFonte.atividade || 0 },
-    {
-      id: 'ordem_servico',
-      label: 'Ordens de Serviço (OS)',
-      count: countsByFonte.ordem_servico || 0,
-    },
-    {
-      id: 'manutencao',
-      label: 'Manutenções Preventivas/Corretivas',
-      count: countsByFonte.manutencao || 0,
-    },
-    { id: 'servico_avulso', label: 'Serviços Avulsos', count: countsByFonte.servico_avulso || 0 },
-    {
-      id: 'linha_do_tempo' as any,
-      label: 'Linha do Tempo O&M',
-      count: countsByFonte.timeline_om || 0,
-    },
-    { id: 'anomalia_om', label: 'Anomalias O&M', count: countsByFonte.anomalia_om || 0 },
-  ].filter((t) => (t.id === ('linha_do_tempo' as any) ? true : true)) as any
-
-  // Corrige 'timeline_om' como chave real
   const tiposCorrigidos: { id: CentralAtividadeFonte; label: string; count: number }[] = [
     { id: 'atividade', label: 'Atividades do CRM', count: countsByFonte.atividade || 0 },
     {
@@ -549,6 +672,7 @@ export async function carregarCentralAtividades(
     items,
     responsaveisDisponiveis,
     statusDisponiveis,
+    categoriasDisponiveis,
     tiposDisponiveis: tiposCorrigidos,
   }
 }
@@ -624,4 +748,68 @@ function formatarTipoServicoAvulso(tipo?: string): string {
     outro: 'Outro Serviço Técnico',
   }
   return map[tipo] || tipo
+}
+
+/**
+ * Aplica os filtros na lista de itens da Central de Atividades
+ */
+export function filtrarCentralAtividades(
+  items: CentralAtividadeItem[],
+  filtros: CentralAtividadesFiltros,
+): CentralAtividadeItem[] {
+  return items.filter((item) => {
+    // 1. Filtro por categoria unificada (Comerciais, Manutenção, Administrativas)
+    if (filtros.categoriaId && filtros.categoriaId !== 'todos') {
+      if (item.categoriaId !== filtros.categoriaId) {
+        return false
+      }
+    }
+
+    // 2. Filtro por fonte (retrocompatibilidade)
+    if (filtros.tipoFonte && filtros.tipoFonte !== 'todos') {
+      if (item.fonte !== filtros.tipoFonte) {
+        return false
+      }
+    }
+
+    // 3. Filtro por status
+    if (filtros.status && filtros.status !== 'todos') {
+      if (item.status !== filtros.status && item.statusRaw !== filtros.status) {
+        return false
+      }
+    }
+
+    // 4. Filtro por responsável
+    if (filtros.responsavel && filtros.responsavel !== 'todos') {
+      if (item.responsavel !== filtros.responsavel) {
+        return false
+      }
+    }
+
+    // 5. Filtro por intervalo de datas
+    if (filtros.dataInicio && item.data) {
+      const dataItem = item.data.slice(0, 10)
+      if (dataItem < filtros.dataInicio) return false
+    }
+    if (filtros.dataFim && item.data) {
+      const dataItem = item.data.slice(0, 10)
+      if (dataItem > filtros.dataFim) return false
+    }
+
+    // 6. Busca textual
+    if (filtros.buscaTexto && filtros.buscaTexto.trim() !== '') {
+      const q = filtros.buscaTexto.toLowerCase().trim()
+      const matchTitulo = (item.titulo || '').toLowerCase().includes(q)
+      const matchDesc = (item.descricao || '').toLowerCase().includes(q)
+      const matchCli = (item.clienteNome || '').toLowerCase().includes(q)
+      const matchTipo = (item.tipoAtividade || '').toLowerCase().includes(q)
+      const matchResp = (item.responsavel || '').toLowerCase().includes(q)
+      const matchUsina = (item.usinaNome || '').toLowerCase().includes(q)
+      if (!matchTitulo && !matchDesc && !matchCli && !matchTipo && !matchResp && !matchUsina) {
+        return false
+      }
+    }
+
+    return true
+  })
 }

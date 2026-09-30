@@ -140,6 +140,69 @@ describe('centralAtividadesService com registros unificados e fallback', () => {
     )
     expect(itens).toHaveLength(1)
     expect(itens[0].fonte).toBe('ordem_servico')
+    expect(itens[0].categoriaId).toBe('manutencao')
     expect(itens[0].titulo).toContain('OS #VNMYCU')
+  })
+
+  it('classifica corretamente e filtra pelas 3 categorias unificadas (Comerciais, Manutenção, Administrativas)', async () => {
+    const mockAtividades = [
+      {
+        id: 'atv_comercial',
+        cliente_id: 'c1',
+        tipo: 'contato_ligacao',
+        titulo: 'Ligar para cliente',
+        status: 'pendente',
+        created: '2026-09-29T10:00:00Z',
+      },
+      {
+        id: 'atv_manut',
+        cliente_id: 'c1',
+        tipo: 'limpeza_manutencao',
+        titulo: 'Limpeza de módulos',
+        status: 'pendente',
+        created: '2026-09-29T11:00:00Z',
+      },
+      {
+        id: 'atv_admin',
+        cliente_id: 'c1',
+        tipo: 'auto_leitura_rge',
+        titulo: 'Auto leitura RGE',
+        status: 'pendente',
+        created: '2026-09-29T12:00:00Z',
+      },
+    ]
+
+    vi.spyOn(pb, 'collection').mockImplementation((colName: string) => {
+      return {
+        getFullList: vi.fn().mockImplementation(async () => {
+          if (colName === 'atividades') return mockAtividades
+          if (colName === 'ordens_servico') return []
+          if (colName === 'manutencoes') return []
+          if (colName === 'servicos_avulsos') return []
+          if (colName === 'timeline_om') return []
+          if (colName === 'anomalias_om') return []
+          if (colName === 'clientes') return [{ id: 'c1', nome: 'Cliente Solar' }]
+          if (colName === 'usinas') return []
+          return []
+        }),
+      } as any
+    })
+
+    const data = await carregarCentralAtividades()
+
+    // Verifica que categoriasDisponiveis contem exatamente 3 categorias
+    expect(data.categoriasDisponiveis).toHaveLength(3)
+    const com = data.categoriasDisponiveis.find((c) => c.id === 'comercial')
+    const man = data.categoriasDisponiveis.find((c) => c.id === 'manutencao')
+    const adm = data.categoriasDisponiveis.find((c) => c.id === 'administrativo_pos_venda')
+
+    expect(com?.count).toBe(1)
+    expect(man?.count).toBe(1)
+    expect(adm?.count).toBe(1)
+
+    // Testar filtrarCentralAtividades
+    const apenasManut = data.items.filter((it) => it.categoriaId === 'manutencao')
+    expect(apenasManut).toHaveLength(1)
+    expect(apenasManut[0].id).toContain('atv_manut')
   })
 })
