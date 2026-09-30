@@ -496,7 +496,13 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
                           : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-100'
                       }`}
                     >
-                      {cat.nome.replace('Atividades ', '')}
+                      {cat.id === 'comercial'
+                        ? 'Comercial'
+                        : cat.id === 'manutencao'
+                          ? 'Manutenção'
+                          : cat.id === 'administrativo_pos_venda'
+                            ? 'Administrativas'
+                            : cat.nome.replace(/^Atividades (de )?/, '')}
                     </button>
                   )
                 })}
