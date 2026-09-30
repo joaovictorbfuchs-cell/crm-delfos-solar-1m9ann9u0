@@ -200,7 +200,7 @@ export async function carregarCentralAtividades(
       // Rota original conforme a fonte
       let rotaOriginal = atv.cliente_id
         ? `/clientes?openId=${atv.cliente_id}&tab=historico`
-        : '/atividades'
+        : '/central-atividades'
       if (fonte === 'ordem_servico') {
         rotaOriginal = '/servicos-campo'
       } else if (fonte === 'servico_avulso' || fonte === 'timeline_om' || fonte === 'anomalia_om') {

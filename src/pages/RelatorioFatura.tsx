@@ -367,7 +367,7 @@ export const RelatorioFaturaPage: React.FC = () => {
             {error || 'Não foi possível carregar os dados desta análise.'}
           </p>
           <Link
-            to="/atividades"
+            to="/central-atividades"
             className="inline-flex items-center gap-2 px-4 py-2 mt-4 bg-emerald-600 text-white text-xs font-bold rounded-xl hover:bg-emerald-700 transition-colors shadow-xs"
           >
             <ArrowLeft className="w-4 h-4" />
@@ -401,7 +401,7 @@ export const RelatorioFaturaPage: React.FC = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Link
-              to="/atividades"
+              to="/central-atividades"
               className="p-2 text-gray-500 hover:text-gray-900 hover:bg-gray-100 rounded-xl transition-colors"
               title="Voltar ao CRM"
             >

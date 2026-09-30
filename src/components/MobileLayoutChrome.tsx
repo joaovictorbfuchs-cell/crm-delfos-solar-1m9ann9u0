@@ -77,7 +77,6 @@ export const MobileLayoutChrome: React.FC<MobileLayoutChromeProps> = ({
   const [comercialTipoVenda, setComercialTipoVenda] = useState('todos')
   const [clientesStatus, setClientesStatus] = useState('todos')
   const [projetosProfissional, setProjetosProfissional] = useState('todos')
-  const [atividadesResponsavel, setAtividadesResponsavel] = useState('todos')
 
   // Identificação do título central do funil / aba atual
   const currentFunil = React.useMemo(() => {
@@ -89,9 +88,6 @@ export const MobileLayoutChrome: React.FC<MobileLayoutChromeProps> = ({
     }
     if (location.pathname === '/central-atividades') {
       return { id: 'central-atividades', label: 'Central de Atividades', isFunil: false }
-    }
-    if (location.pathname === '/atividades') {
-      return { id: 'atividades', label: 'Atividades', isFunil: false }
     }
     if (location.pathname === '/clientes') {
       return { id: 'clientes', label: 'Clientes', isFunil: false }
@@ -142,8 +138,6 @@ export const MobileLayoutChrome: React.FC<MobileLayoutChromeProps> = ({
     if (location.pathname === '/comercial') {
       window.dispatchEvent(new CustomEvent('delfos:abrir-novo-lead'))
     } else if (location.pathname === '/projetos') {
-      window.dispatchEvent(new CustomEvent('delfos:abrir-novo-lead'))
-    } else if (location.pathname === '/atividades') {
       window.dispatchEvent(new CustomEvent('delfos:abrir-novo-lead'))
     } else if (location.pathname === '/clientes') {
       window.dispatchEvent(new CustomEvent('delfos:abrir-novo-lead'))
@@ -224,42 +218,13 @@ export const MobileLayoutChrome: React.FC<MobileLayoutChromeProps> = ({
         },
       ]
     }
-    if (location.pathname === '/atividades') {
-      return [
-        {
-          id: 'responsavel',
-          label: 'Responsável',
-          selectedValue: atividadesResponsavel,
-          options: [
-            { id: 'todos', label: 'Todos os responsáveis' },
-            ...profissionais.map((p) => ({ id: p.id, label: p.nome || p.name || 'Profissional' })),
-          ],
-          onChange: (val: string) => {
-            setAtividadesResponsavel(val)
-            window.dispatchEvent(
-              new CustomEvent('delfos:mobile-filter-change', {
-                detail: { responsavelId: val },
-              }),
-            )
-          },
-        },
-      ]
-    }
     return []
-  }, [
-    location.pathname,
-    comercialTipoVenda,
-    clientesStatus,
-    projetosProfissional,
-    atividadesResponsavel,
-    profissionais,
-  ])
+  }, [location.pathname, comercialTipoVenda, clientesStatus, projetosProfissional, profissionais])
 
   const activeFiltersCount =
     (comercialTipoVenda !== 'todos' && location.pathname === '/comercial' ? 1 : 0) +
     (clientesStatus !== 'todos' && location.pathname === '/clientes' ? 1 : 0) +
-    (projetosProfissional !== 'todos' && location.pathname === '/projetos' ? 1 : 0) +
-    (atividadesResponsavel !== 'todos' && location.pathname === '/atividades' ? 1 : 0)
+    (projetosProfissional !== 'todos' && location.pathname === '/projetos' ? 1 : 0)
 
   // Itens da bottom bar enxuta
   const bottomBarTabs = [
@@ -271,11 +236,11 @@ export const MobileLayoutChrome: React.FC<MobileLayoutChromeProps> = ({
       isActive: location.pathname === '/comercial',
     },
     {
-      id: 'atividades',
+      id: 'central-atividades',
       label: 'Atividades',
-      path: '/atividades',
-      icon: CalendarCheck,
-      isActive: location.pathname === '/atividades',
+      path: '/central-atividades',
+      icon: Layers,
+      isActive: location.pathname === '/central-atividades',
     },
     {
       id: 'clientes',
@@ -306,7 +271,6 @@ export const MobileLayoutChrome: React.FC<MobileLayoutChromeProps> = ({
         { label: 'Funil de Projetos', path: '/projetos', icon: FolderKanban },
         { label: 'Propostas & Orçamentos', path: '/propostas', icon: Sun },
         { label: 'Central de Atividades', path: '/central-atividades', icon: Layers },
-        { label: 'Atividades & Calendário', path: '/atividades', icon: CalendarCheck },
         { label: 'Gestão de Clientes', path: '/clientes', icon: Users },
         { label: 'Contatos', path: '/contatos', icon: Contact },
         { label: 'Base de Conhecimento', path: '/base-conhecimento', icon: BookOpen },
@@ -436,23 +400,6 @@ export const MobileLayoutChrome: React.FC<MobileLayoutChromeProps> = ({
                   <span>Central de Atividades</span>
                 </div>
                 {location.pathname === '/central-atividades' && (
-                  <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                )}
-              </DropdownMenuItem>
-
-              <DropdownMenuItem
-                onClick={() => navigate('/atividades')}
-                className={`flex items-center justify-between cursor-pointer py-2 px-2.5 rounded-lg text-xs font-medium ${
-                  location.pathname === '/atividades'
-                    ? 'bg-emerald-50 text-emerald-800 font-bold'
-                    : 'text-gray-700'
-                }`}
-              >
-                <div className="flex items-center gap-2">
-                  <CalendarCheck className="w-4 h-4 text-amber-600" />
-                  <span>Atividades & Calendário</span>
-                </div>
-                {location.pathname === '/atividades' && (
                   <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
                 )}
               </DropdownMenuItem>
@@ -726,14 +673,12 @@ export const MobileLayoutChrome: React.FC<MobileLayoutChromeProps> = ({
           setComercialTipoVenda('todos')
           setClientesStatus('todos')
           setProjetosProfissional('todos')
-          setAtividadesResponsavel('todos')
           window.dispatchEvent(
             new CustomEvent('delfos:mobile-filter-change', {
               detail: {
                 tipoVenda: 'todos',
                 statusFilter: 'todos',
                 profissionalId: 'todos',
-                responsavelId: 'todos',
               },
             }),
           )

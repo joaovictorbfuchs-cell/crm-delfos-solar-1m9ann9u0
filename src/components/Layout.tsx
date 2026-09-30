@@ -166,7 +166,6 @@ export default function Layout() {
         { name: 'Propostas', path: '/propostas', icon: Sun },
         { name: 'Central de Atividades', path: '/central-atividades', icon: Layers },
         { name: 'Projetos', path: '/projetos', icon: FolderKanban },
-        { name: 'Atividades', path: '/atividades', icon: CalendarCheck },
         { name: 'Serviços de Campo', path: '/servicos-campo', icon: Wrench },
         {
           name: 'O&M / Manutenções',
