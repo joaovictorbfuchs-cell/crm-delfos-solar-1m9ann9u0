@@ -236,31 +236,37 @@ export default function CentralAtividadesPage() {
   }, [allItems])
 
   // Converter itens da central para o formato Atividade esperado pelo AtividadesCalendario
-const atividadesParaCalendario = useMemo<Atividade[]>(() => {
-  return filteredItems.map((it) => ({
-    id: it.origemId || it.id,
-    collectionId: 'atividades',
-    collectionName: 'atividades',
-    cliente_id: it.clienteId || '',
-    responsavel_id: it.responsavelId || '',
-    responsavel_nome: it.responsavel,
-    autor: it.responsavel,
-    tipo: (it.tipoId || it.subtipo || 'contato_ligacao') as any,
-    categoria: it.categoriaId,
-    status: (it.statusRaw === 'concluida' || it.statusRaw === 'concluido' || it.status === 'Concluído' ? 'concluida' : 'pendente') as AtividadeStatus,
-    titulo: it.titulo,
-    descricao: it.descricao || '',
-    data: it.data,
-    created: it.data,
-    updated: it.data,
-    expand: it.clienteId ? {
-      cliente_id: {
-        id: it.clienteId,
-        nome: it.clienteNome,
-      } as any,
-    } : undefined,
-  }))
-}, [filteredItems])
+  const atividadesParaCalendario = useMemo<Atividade[]>(() => {
+    return filteredItems.map((it) => ({
+      id: it.origemId || it.id,
+      collectionId: 'atividades',
+      collectionName: 'atividades',
+      cliente_id: it.clienteId || '',
+      responsavel_id: it.responsavelId || '',
+      responsavel_nome: it.responsavel,
+      autor: it.responsavel,
+      tipo: (it.tipoId || it.subtipo || 'contato_ligacao') as any,
+      categoria: it.categoriaId,
+      status: (it.statusRaw === 'concluida' ||
+      it.statusRaw === 'concluido' ||
+      it.status === 'Concluído'
+        ? 'concluida'
+        : 'pendente') as AtividadeStatus,
+      titulo: it.titulo,
+      descricao: it.descricao || '',
+      data: it.data,
+      created: it.data,
+      updated: it.data,
+      expand: it.clienteId
+        ? {
+            cliente_id: {
+              id: it.clienteId,
+              nome: it.clienteNome,
+            } as any,
+          }
+        : undefined,
+    }))
+  }, [filteredItems])
 
   const [usuarioCalendarioFiltro, setUsuarioCalendarioFiltro] = useState<string>('todos')
 
