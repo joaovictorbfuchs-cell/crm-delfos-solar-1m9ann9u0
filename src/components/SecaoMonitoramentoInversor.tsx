@@ -42,6 +42,7 @@ import {
   type OrigemNumeroDestino,
 } from '@/lib/resolverNumeroDestinoCliente'
 import { DatasheetBadge } from './DatasheetBadge'
+import { aplicarPrefixoMensagemManual } from '@/lib/whatsappPrefixo'
 import {
   AlertDialog,
   AlertDialogAction,

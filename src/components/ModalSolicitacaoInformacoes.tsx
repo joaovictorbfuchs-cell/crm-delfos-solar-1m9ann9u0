@@ -28,6 +28,7 @@ import { Cliente } from '@/types/crm'
 import { sendWhatsAppMensagem } from '@/services/crmService'
 import { getFriendlyWhatsAppErrorMessage } from '@/lib/whatsappGateway'
 import {
+  resolverNumeroDestinoCliente,
   resolverNumeroDestinoClienteSync,
   MENSAGEM_ALERTA_SEM_NUMERO,
   type OrigemNumeroDestino,

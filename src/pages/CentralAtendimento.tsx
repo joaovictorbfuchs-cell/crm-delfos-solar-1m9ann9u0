@@ -41,6 +41,7 @@ import {
 import { MoreVertical, UserCheck, Building2 } from 'lucide-react'
 import { formatWhatsAppPhone, cleanPhoneDigits } from '@/lib/formatters'
 import { fetchOutrosContatos, createWhatsAppConversa } from '@/services/crmService'
+import { fetchContatosUnicos } from '@/services/contatosService'
 import {
   resolverNumeroDestinoCliente,
   MENSAGEM_ALERTA_SEM_NUMERO,
@@ -92,20 +93,36 @@ export const CentralAtendimento: React.FC = () => {
   const [isStartingConversa, setIsStartingConversa] = useState(false)
   const [isExportingPlanilha, setIsExportingPlanilha] = useState(false)
   const [outrosContatosLista, setOutrosContatosLista] = useState<OutroContato[]>([])
+  const [contatosUnicosLista, setContatosUnicosLista] = useState<
+    import('@/types/crm').ContatoUnico[]
+  >([])
   const [activeMobileTab, setActiveMobileTab] = useState<'novos' | 'atendimento' | 'resolvidos'>(
     'novos',
   )
 
-  // Carregar outros_contatos uma vez ao montar a tela para busca rápida
+  // Carregar outros_contatos e contatos da coleção unificada uma vez ao montar a tela para busca rápida
   useEffect(() => {
     let mounted = true
-    fetchOutrosContatos()
-      .then((data) => {
-        if (mounted) setOutrosContatosLista(Array.isArray(data) ? data : [])
+    Promise.allSettled([fetchOutrosContatos(), fetchContatosUnicos()])
+      .then(([outrosRes, unicosRes]) => {
+        if (!mounted) return
+        if (outrosRes.status === 'fulfilled' && Array.isArray(outrosRes.value)) {
+          setOutrosContatosLista(outrosRes.value)
+        } else {
+          setOutrosContatosLista([])
+        }
+        if (unicosRes.status === 'fulfilled' && Array.isArray(unicosRes.value)) {
+          setContatosUnicosLista(unicosRes.value)
+        } else {
+          setContatosUnicosLista([])
+        }
       })
       .catch((err) => {
-        console.warn('Não foi possível pré-carregar outros_contatos:', err)
-        if (mounted) setOutrosContatosLista([])
+        console.warn('Não foi possível pré-carregar contatos para busca:', err)
+        if (mounted) {
+          setOutrosContatosLista([])
+          setContatosUnicosLista([])
+        }
       })
     return () => {
       mounted = false
@@ -278,6 +295,18 @@ export const CentralAtendimento: React.FC = () => {
 
     const safeConversas = Array.isArray(whatsAppConversas) ? whatsAppConversas : []
 
+    // Mapear conversas que possuem mensagens no histórico correspondentes ao termo buscado
+    const conversasComMensagemMatch = new Set<string>()
+    if (normalizedTerm && Array.isArray(whatsAppMensagens)) {
+      whatsAppMensagens.forEach((msg) => {
+        if (!msg || !msg.conversa_id) return
+        const textoNorm = normalizeSearchText(msg.texto)
+        if (textoNorm && textoNorm.includes(normalizedTerm)) {
+          conversasComMensagemMatch.add(msg.conversa_id)
+        }
+      })
+    }
+
     const filterFn = (conv: WhatsAppConversa) => {
       if (!normalizedTerm) return true
       const cli = conv.cliente_id ? clientesMap.get(conv.cliente_id) : null
@@ -339,12 +368,22 @@ export const CentralAtendimento: React.FC = () => {
         normalizeSearchText(conv.ultima_mensagem_preview).includes(normalizedTerm),
       )
 
+      // Busca por histórico de mensagens da conversa (ponto 4)
+      const matchHistoricoMensagem = conversasComMensagemMatch.has(conv.id)
+
       // Busca por nome do atendente
       const matchAtendente = Boolean(
         conv.atendente && normalizeSearchText(conv.atendente).includes(normalizedTerm),
       )
 
-      return matchNumero || matchNome || matchTelefoneCliente || matchPreview || matchAtendente
+      return (
+        matchNumero ||
+        matchNome ||
+        matchTelefoneCliente ||
+        matchPreview ||
+        matchHistoricoMensagem ||
+        matchAtendente
+      )
     }
 
     const agora = Date.now()
@@ -371,13 +410,15 @@ export const CentralAtendimento: React.FC = () => {
       .filter((c) => {
         if (!c || c.status !== 'resolvido') return false
         if (!filterFn(c)) return false
+        // Se há termo de busca ativo e a conversa corresponde ao termo, NÃO excluir mesmo que resolvida há mais de 24h
+        if (normalizedTerm) return true
         const t = c.resolvida_em ? safeTime(c.resolvida_em) : safeTime(c.updated || c.created)
         return t >= limite24h
       })
       .sort((a, b) => safeTime(b.resolvida_em || b.updated) - safeTime(a.resolvida_em || a.updated))
 
     return { novos, emAtendimento, resolvidos }
-  }, [whatsAppConversas, searchTerm, clientesMap])
+  }, [whatsAppConversas, whatsAppMensagens, searchTerm, clientesMap])
 
   // Conversa ativa selecionada
   const selectedConversa = useMemo(() => {
@@ -422,55 +463,71 @@ export const CentralAtendimento: React.FC = () => {
     }
   }
 
-  // Conjunto de telefones presentes nas conversas ATIVAS (não resolvidas) do WhatsApp (normalizados) para deduplicação
-  const conversasAtivasTelefonesNormalizados = useMemo(() => {
-    const set = new Set<string>()
-    if (!Array.isArray(whatsAppConversas)) return set
+  // Mapa de conversas existentes por telefone e por clienteId (qualquer status, inclusive ativas)
+  // Permite verificar se o cliente/contato encontrado já tem conversa aberta e qual é
+  const conversasPorTelefoneOuCliente = useMemo(() => {
+    const porTelefone = new Map<string, WhatsAppConversa>()
+    const porCliente = new Map<string, WhatsAppConversa>()
+
+    if (!Array.isArray(whatsAppConversas)) {
+      return { porTelefone, porCliente }
+    }
+
     whatsAppConversas.forEach((conv) => {
-      // Deduplicar apenas conversas que NÃO estão resolvidas, permitindo reabrir/iniciar caso resolvida
-      if (!conv || conv.status === 'resolvido') return
+      if (!conv) return
+      if (conv.cliente_id && !porCliente.has(conv.cliente_id)) {
+        porCliente.set(conv.cliente_id, conv)
+      }
       const digits = cleanPhoneDigits(conv.numero || '')
       if (digits) {
-        set.add(digits)
+        if (!porTelefone.has(digits)) porTelefone.set(digits, conv)
         const sem55 =
           digits.startsWith('55') && (digits.length === 12 || digits.length === 13)
             ? digits.slice(2)
             : digits
-        set.add(sem55)
+        if (!porTelefone.has(sem55)) porTelefone.set(sem55, conv)
         const com55 = digits.startsWith('55') ? digits : `55${digits}`
-        set.add(com55)
+        if (!porTelefone.has(com55)) porTelefone.set(com55, conv)
       }
     })
-    return set
+
+    return { porTelefone, porCliente }
   }, [whatsAppConversas])
 
-  // Conjunto de IDs de clientes com conversas ATIVAS (não resolvidas)
-  const clientesComConversaAtivaIds = useMemo(() => {
-    const set = new Set<string>()
-    if (!Array.isArray(whatsAppConversas)) return set
-    whatsAppConversas.forEach((conv) => {
-      if (conv && conv.cliente_id && conv.status !== 'resolvido') {
-        set.add(conv.cliente_id)
+  // Helper para localizar conversa existente para um determinado telefone ou clienteId
+  const findConversaExistente = (
+    clienteId?: string,
+    telefone?: string,
+  ): WhatsAppConversa | null => {
+    if (clienteId && conversasPorTelefoneOuCliente.porCliente.has(clienteId)) {
+      return conversasPorTelefoneOuCliente.porCliente.get(clienteId) || null
+    }
+    if (telefone) {
+      const clean = cleanPhoneDigits(telefone)
+      if (clean && conversasPorTelefoneOuCliente.porTelefone.has(clean)) {
+        return conversasPorTelefoneOuCliente.porTelefone.get(clean) || null
       }
-    })
-    return set
-  }, [whatsAppConversas])
+    }
+    return null
+  }
 
-  // Tipo unificado para itens de clientes/contatos encontrados no banco sem conversa
+  // Tipo unificado para itens de clientes/contatos encontrados no banco
   interface BancoClienteResultado {
     id: string
-    origem: 'cliente' | 'contato_adicional' | 'outro_contato'
+    origem: 'cliente' | 'contato_adicional' | 'outro_contato' | 'contato_unico'
     nome: string
     telefone: string
     whatsapp: string
     cidade?: string
-    clienteId?: string // Se for contato adicional ou cliente direto
+    clienteId?: string // Se for contato adicional, contato único ou cliente direto
     documento?: string
     tipoBadge: string
     subtitulo?: string
+    conversaExistenteId?: string
+    temConversaAtiva?: boolean
   }
 
-  // Busca no banco de clientes, contatos adicionais e outros contatos
+  // Busca no banco de clientes, contatos adicionais, outros contatos e contatos da coleção unificada
   const clientesBancoFiltrados = useMemo(() => {
     const rawTerm = searchTerm.trim()
     if (!rawTerm || rawTerm.length < 2) return []
@@ -512,16 +569,11 @@ export const CentralAtendimento: React.FC = () => {
     const safeClientes = Array.isArray(clientes) ? clientes : []
     const safeContatosAdicionais = Array.isArray(contatosAdicionais) ? contatosAdicionais : []
     const safeOutrosContatos = Array.isArray(outrosContatosLista) ? outrosContatosLista : []
+    const safeContatosUnicos = Array.isArray(contatosUnicosLista) ? contatosUnicosLista : []
 
-    // 1. Tabela clientes
+    // 1. Tabela clientes (NÃO bloqueia mais clientes com conversa ativa — exibe com opção de abrir conversa existente)
     safeClientes.forEach((cli) => {
       if (!cli) return
-      // Não duplicar se cliente já possui conversa ATIVA
-      if (clientesComConversaAtivaIds.has(cli.id)) return
-
-      const numWhats = cli.whatsapp || cli.telefone || ''
-      const numClean = cleanPhoneDigits(numWhats)
-      if (numClean && conversasAtivasTelefonesNormalizados.has(numClean)) return
 
       const match =
         matchesQuery(cli.nome, cli.telefone, cli.whatsapp) ||
@@ -534,6 +586,7 @@ export const CentralAtendimento: React.FC = () => {
         const chave = `cli_${cli.id}`
         if (!jaInseridosChaves.has(chave)) {
           jaInseridosChaves.add(chave)
+          const convExistente = findConversaExistente(cli.id, cli.whatsapp || cli.telefone)
           resultados.push({
             id: cli.id,
             origem: 'cliente',
@@ -545,48 +598,95 @@ export const CentralAtendimento: React.FC = () => {
             documento: cli.documento || cli.cpf || cli.cnpj,
             tipoBadge: cli.tipo === 'pj' ? 'Empresa / PJ' : 'Cliente Cadastrado',
             subtitulo: cli.email || cli.tipo_cliente || undefined,
+            conversaExistenteId: convExistente?.id,
+            temConversaAtiva: Boolean(convExistente && convExistente.status !== 'resolvido'),
           })
         }
       }
     })
 
-    // 2. Tabela contatos_adicionais
+    // 2. Tabela contatos_adicionais (suporta contato.cliente || contato.cliente_id e exibe conversa existente quando houver)
     safeContatosAdicionais.forEach((contato) => {
       if (!contato) return
-      const fone = contato.telefone || contato.whatsapp || ''
-      const foneClean = cleanPhoneDigits(fone)
-      if (foneClean && conversasAtivasTelefonesNormalizados.has(foneClean)) return
+      const fone = contato.telefone || (contato as any).whatsapp || ''
 
-      const cliPai = contato.cliente_id ? clientesMap.get(contato.cliente_id) : undefined
+      const clientePaiId = (contato as any).cliente || (contato as any).cliente_id || undefined
+      const cliPai = clientePaiId ? clientesMap.get(clientePaiId) : undefined
       const match =
-        matchesQuery(contato.nome, contato.telefone, contato.whatsapp) ||
+        matchesQuery(contato.nome, contato.telefone, (contato as any).whatsapp) ||
         matchesQuery(contato.cargo) ||
+        matchesQuery(contato.papel) ||
         (cliPai && matchesQuery(cliPai.nome))
 
       if (match) {
         const chave = `contato_adic_${contato.id}`
         if (!jaInseridosChaves.has(chave)) {
           jaInseridosChaves.add(chave)
+          const convExistente = findConversaExistente(clientePaiId, fone)
           resultados.push({
             id: contato.id,
             origem: 'contato_adicional',
             nome: contato.nome || 'Contato Adicional',
             telefone: contato.telefone || '',
-            whatsapp: contato.whatsapp || contato.telefone || '',
+            whatsapp: (contato as any).whatsapp || contato.telefone || '',
             cidade: cliPai?.cidade,
-            clienteId: contato.cliente_id,
+            clienteId: clientePaiId,
             tipoBadge: `Contato Adicional${cliPai ? ` (${cliPai.nome})` : ''}`,
             subtitulo: contato.cargo || (cliPai ? `Cliente: ${cliPai.nome}` : undefined),
+            conversaExistenteId: convExistente?.id,
+            temConversaAtiva: Boolean(convExistente && convExistente.status !== 'resolvido'),
           })
         }
       }
     })
 
-    // 3. Tabela outros_contatos
+    // 3. Coleção unificada contatos (incluída na busca com cliente pai vinculado quando houver)
+    safeContatosUnicos.forEach((cu) => {
+      if (!cu) return
+      const fone = cu.whatsapp || cu.telefone || ''
+
+      // Primeiro cliente vinculado na relação N:N, se houver
+      const clientePaiId =
+        Array.isArray(cu.clientes_vinculados) && cu.clientes_vinculados.length > 0
+          ? cu.clientes_vinculados[0]
+          : undefined
+      const cliPai = clientePaiId ? clientesMap.get(clientePaiId) : undefined
+
+      const match =
+        matchesQuery(cu.nome, cu.telefone, cu.whatsapp) ||
+        matchesQuery(cu.cargo) ||
+        matchesQuery(cu.papel) ||
+        matchesQuery(cu.observacoes) ||
+        (cliPai && matchesQuery(cliPai.nome))
+
+      if (match) {
+        const chave = `contato_unico_${cu.id}`
+        if (!jaInseridosChaves.has(chave)) {
+          jaInseridosChaves.add(chave)
+          const convExistente = findConversaExistente(clientePaiId, fone)
+          resultados.push({
+            id: cu.id,
+            origem: 'contato_unico',
+            nome: cu.nome || 'Contato',
+            telefone: cu.telefone || '',
+            whatsapp: cu.whatsapp || cu.telefone || '',
+            cidade: cliPai?.cidade,
+            clienteId: clientePaiId,
+            tipoBadge: cu.papel
+              ? `Contato (${cu.papel})${cliPai ? ` • ${cliPai.nome}` : ''}`
+              : `Contato${cliPai ? ` • ${cliPai.nome}` : ''}`,
+            subtitulo:
+              cu.cargo || cu.observacoes || (cliPai ? `Cliente: ${cliPai.nome}` : undefined),
+            conversaExistenteId: convExistente?.id,
+            temConversaAtiva: Boolean(convExistente && convExistente.status !== 'resolvido'),
+          })
+        }
+      }
+    })
+
+    // 4. Tabela outros_contatos
     safeOutrosContatos.forEach((outro) => {
       if (!outro) return
-      const foneClean = cleanPhoneDigits(outro.telefone || '')
-      if (foneClean && conversasAtivasTelefonesNormalizados.has(foneClean)) return
 
       const match =
         matchesQuery(outro.nome, outro.telefone) ||
@@ -597,6 +697,7 @@ export const CentralAtendimento: React.FC = () => {
         const chave = `outro_${outro.id}`
         if (!jaInseridosChaves.has(chave)) {
           jaInseridosChaves.add(chave)
+          const convExistente = findConversaExistente(undefined, outro.telefone)
           resultados.push({
             id: outro.id,
             origem: 'outro_contato',
@@ -607,6 +708,8 @@ export const CentralAtendimento: React.FC = () => {
               ? `Outro Contato (${outro.tipo_contato})`
               : 'Outro Contato',
             subtitulo: outro.observacao || outro.tipo_contato,
+            conversaExistenteId: convExistente?.id,
+            temConversaAtiva: Boolean(convExistente && convExistente.status !== 'resolvido'),
           })
         }
       }
@@ -618,13 +721,24 @@ export const CentralAtendimento: React.FC = () => {
     clientes,
     contatosAdicionais,
     outrosContatosLista,
+    contatosUnicosLista,
     clientesMap,
-    conversasAtivasTelefonesNormalizados,
-    clientesComConversaAtivaIds,
+    conversasPorTelefoneOuCliente,
   ])
 
   // Iniciar nova conversa ou abrir conversa existente com cliente do banco
   const handleSelecionarClienteBanco = async (item: BancoClienteResultado) => {
+    // Se o item já tem ID de conversa existente detectado, abrir imediatamente
+    if (item.conversaExistenteId) {
+      setSelectedConversaId(item.conversaExistenteId)
+      setSearchTerm('')
+      toast({
+        title: 'Conversa aberta',
+        description: `Exibindo chat com ${item.nome}.`,
+      })
+      return
+    }
+
     let cleanNum = ''
 
     // Se a origem for cliente principal, aplicar a cascata central (WhatsApp -> Contato Adicional -> Telefone)
@@ -637,7 +751,9 @@ export const CentralAtendimento: React.FC = () => {
           whatsapp: item.whatsapp,
           telefone: item.telefone,
         } as Cliente)
-      const contatosDoCli = contatosAdicionais.filter((ca) => ca.cliente_id === item.clienteId)
+      const contatosDoCli = contatosAdicionais.filter(
+        (ca) => ((ca as any).cliente || ca.cliente_id) === item.clienteId,
+      )
       const resolucao = await resolverNumeroDestinoCliente(cliCompleto, {
         contatosAdicionais: contatosDoCli,
       })
@@ -659,7 +775,7 @@ export const CentralAtendimento: React.FC = () => {
         })
       }
     } else {
-      // Contato adicional ou outro contato selecionado diretamente
+      // Contato adicional, contato único ou outro contato selecionado diretamente
       const rawNumber = item.whatsapp || item.telefone
       cleanNum = cleanPhoneDigits(rawNumber)
       if (!cleanNum || cleanNum.length < 10) {
@@ -679,6 +795,7 @@ export const CentralAtendimento: React.FC = () => {
 
     // 1. Verificar se por ventura já existe conversa com esse número (ou número sem DDI 55)
     const conversaExistente = whatsAppConversas.find((conv) => {
+      if (item.clienteId && conv.cliente_id === item.clienteId) return true
       const cNum = cleanPhoneDigits(conv.numero || '')
       if (cNum === numeroFinal || cNum === cleanNum) return true
       if (numeroFinal.startsWith('55') && cNum === numeroFinal.slice(2)) return true
@@ -868,10 +985,18 @@ export const CentralAtendimento: React.FC = () => {
                       >
                         <div className="flex items-start justify-between gap-2">
                           <div className="min-w-0 flex-1">
-                            <div className="flex items-center gap-1.5">
+                            <div className="flex items-center gap-1.5 flex-wrap">
                               <span className="text-xs font-bold text-gray-900 group-hover:text-emerald-950 break-words leading-snug">
                                 {item.nome}
                               </span>
+                              <span className="text-[9px] px-1.5 py-0.5 rounded-md font-medium bg-gray-100 text-gray-600 border border-gray-200">
+                                {item.tipoBadge}
+                              </span>
+                              {item.temConversaAtiva && (
+                                <span className="text-[9px] px-1.5 py-0.5 rounded-md font-semibold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                                  Conversa Ativa
+                                </span>
+                              )}
                             </div>
                             {item.subtitulo && (
                               <p className="text-[10px] text-gray-500 break-words leading-tight mt-0.5">
@@ -895,10 +1020,17 @@ export const CentralAtendimento: React.FC = () => {
                             )}
                           </div>
 
-                          <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-700 group-hover:text-emerald-800 shrink-0 ml-auto">
-                            <MessageSquare className="w-3 h-3 text-emerald-600" />
-                            Iniciar Chat
-                          </span>
+                          {item.conversaExistenteId ? (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-blue-700 group-hover:text-blue-800 shrink-0 ml-auto bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
+                              <MessageSquare className="w-3 h-3 text-blue-600" />
+                              Abrir Conversa Existente
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-700 group-hover:text-emerald-800 shrink-0 ml-auto">
+                              <MessageSquare className="w-3 h-3 text-emerald-600" />
+                              Iniciar Chat
+                            </span>
+                          )}
                         </div>
                       </button>
                     )

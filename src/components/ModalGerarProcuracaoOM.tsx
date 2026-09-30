@@ -41,6 +41,7 @@ import { sendWhatsAppMensagem } from '@/services/crmService'
 import { getFriendlyWhatsAppErrorMessage } from '@/lib/whatsappGateway'
 import { toast } from 'sonner'
 import {
+  resolverNumeroDestinoCliente,
   resolverNumeroDestinoClienteSync,
   MENSAGEM_ALERTA_SEM_NUMERO,
   type OrigemNumeroDestino,

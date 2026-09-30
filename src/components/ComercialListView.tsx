@@ -695,9 +695,8 @@ export const ComercialListView: React.FC<ComercialListViewProps> = ({
 
           <div className="flex items-center gap-2 justify-between sm:justify-end text-xs text-gray-600">
             <span className="font-medium text-[11px] sm:text-xs">
-              Exibindo{' '}
-              <strong className="text-gray-900 font-bold">{filteredClientes.length}</strong> de{' '}
-              <strong className="text-gray-900 font-bold">{clientesAtivos.length}</strong> negócios
+              Exibindo <strong className="text-gray-900 font-bold">{filteredItens.length}</strong>{' '}
+              de <strong className="text-gray-900 font-bold">{itensAtivos.length}</strong> negócios
             </span>
             <Button
               variant="outline"
@@ -726,9 +725,9 @@ export const ComercialListView: React.FC<ComercialListViewProps> = ({
                   : 'bg-gray-50/80 text-gray-700 border-gray-200 font-medium'
               }`}
             >
-              <option value="todos">Todas as Etapas ({clientesAtivos.length})</option>
+              <option value="todos">Todas as Etapas ({itensAtivos.length})</option>
               {ETAPAS_FUNIL.map((etapa) => {
-                const count = clientesAtivos.filter((c) => c.status === etapa.id).length
+                const count = itensAtivos.filter((c) => c.status === etapa.id).length
                 return (
                   <option key={etapa.id} value={etapa.id}>
                     {etapa.label} ({count})
@@ -755,11 +754,10 @@ export const ComercialListView: React.FC<ComercialListViewProps> = ({
               <option value="todos">Todos os Responsáveis</option>
               <option value="sem_responsavel">Não atribuído</option>
               {usuarios.map((u) => {
-                const count = clientesAtivos.filter(
+                const count = itensAtivos.filter(
                   (c) =>
-                    c.responsavel_id === u.id ||
-                    (c.responsavel_nome &&
-                      c.responsavel_nome.toLowerCase() === u.name.toLowerCase()),
+                    c.responsavelId === u.id ||
+                    (c.responsavelNome && c.responsavelNome.toLowerCase() === u.name.toLowerCase()),
                 ).length
                 return (
                   <option key={u.id} value={u.id}>
@@ -786,7 +784,7 @@ export const ComercialListView: React.FC<ComercialListViewProps> = ({
             >
               <option value="todos">Todos os Motivos</option>
               {MOTIVOS_PERDA_OPCOES.map((m) => {
-                const count = clientesAtivos.filter((c) => c.motivo_perda === m.id).length
+                const count = itensAtivos.filter((c) => c.motivoPerda === m.id).length
                 return (
                   <option key={m.id} value={m.id}>
                     {m.label} ({count})
@@ -812,7 +810,7 @@ export const ComercialListView: React.FC<ComercialListViewProps> = ({
             >
               <option value="todos">Todos os Tipos</option>
               {TIPOS_NEGOCIO_OPCOES.map((t) => {
-                const count = clientesAtivos.filter((c) => normalizarTipoNegocio(c) === t.id).length
+                const count = itensAtivos.filter((c) => c.tipoNegocio === t.id).length
                 return (
                   <option key={t.id} value={t.id}>
                     {t.label} ({count})
@@ -872,7 +870,7 @@ export const ComercialListView: React.FC<ComercialListViewProps> = ({
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 text-sm">
-              {filteredClientes.length === 0 ? (
+              {filteredItens.length === 0 ? (
                 <tr>
                   <td colSpan={8} className="py-12 text-center text-gray-400">
                     <Filter className="w-8 h-8 mx-auto text-gray-300 mb-2" />
@@ -885,10 +883,10 @@ export const ComercialListView: React.FC<ComercialListViewProps> = ({
                   </td>
                 </tr>
               ) : (
-                filteredClientes.map((cliente) => {
-                  const isSelected = selectedIds.includes(cliente.id)
-                  const responsavelTexto = cliente.responsavel_nome || 'Não atribuído'
-                  const tipoNegocioNorm = normalizarTipoNegocio(cliente)
+                filteredItens.map((item) => {
+                  const isSelected = selectedIds.includes(item.id)
+                  const responsavelTexto = item.responsavelNome || 'Não atribuído'
+                  const tipoNegocioNorm = item.tipoNegocio
 
                   // Detalhes de visualização do Tipo de Negócio
                   const tipoNegocioBadge =
@@ -915,14 +913,14 @@ export const ComercialListView: React.FC<ComercialListViewProps> = ({
                     )
 
                   // Motivo da Perda (exibido com badge legível quando houver motivo ou quando for perdido)
-                  const motivoObj = cliente.motivo_perda
-                    ? MOTIVOS_PERDA_OPCOES.find((m) => m.id === cliente.motivo_perda)
+                  const motivoObj = item.motivoPerda
+                    ? MOTIVOS_PERDA_OPCOES.find((m) => m.id === item.motivoPerda)
                     : null
 
                   return (
                     <tr
-                      key={cliente.id}
-                      onClick={() => openFichaCliente(cliente.id)}
+                      key={item.id}
+                      onClick={() => openFichaCliente(item.clienteId || item.id)}
                       className={`cursor-pointer transition-colors group ${
                         isSelected ? 'bg-emerald-50/70 hover:bg-emerald-50' : 'hover:bg-gray-50/80'
                       }`}
@@ -930,7 +928,7 @@ export const ComercialListView: React.FC<ComercialListViewProps> = ({
                       {/* Checkbox de Seleção */}
                       <td
                         className="py-3 px-3.5 text-center"
-                        onClick={(e) => handleToggleSelectOne(cliente.id, e)}
+                        onClick={(e) => handleToggleSelectOne(item.id, e)}
                       >
                         <button
                           type="button"
@@ -947,15 +945,15 @@ export const ComercialListView: React.FC<ComercialListViewProps> = ({
                       {/* Nome do Cliente */}
                       <td className="py-3 px-3">
                         <div className="font-semibold text-gray-900 group-hover:text-emerald-700 transition-colors">
-                          {cliente.nome}
+                          {item.nomeCliente}
                         </div>
                         <div className="flex items-center gap-2 text-xs text-gray-500 mt-0.5">
-                          {cliente.cidade && <span>{cliente.cidade}</span>}
-                          {cliente.potencia_kwp ? (
+                          {item.cidade && <span>{item.cidade}</span>}
+                          {item.potenciaKwp ? (
                             <>
                               <span>•</span>
                               <span className="text-amber-700 font-medium">
-                                {cliente.potencia_kwp} kWp
+                                {item.potenciaKwp} kWp
                               </span>
                             </>
                           ) : null}
@@ -967,12 +965,12 @@ export const ComercialListView: React.FC<ComercialListViewProps> = ({
 
                       {/* Valor Estimado */}
                       <td className="py-3 px-3 text-right font-semibold text-gray-800 whitespace-nowrap">
-                        {cliente.valor_estimado
-                          ? formatCurrency(cliente.valor_estimado, {
+                        {item.valorEstimado
+                          ? formatCurrency(item.valorEstimado, {
                               recorrente: Boolean(
-                                cliente.recorrencia_mensal ||
-                                (cliente.nome &&
-                                  cliente.nome.trim().toLowerCase() === 'joão silva'),
+                                item.recorrenciaMensal ||
+                                (item.nomeCliente &&
+                                  item.nomeCliente.trim().toLowerCase() === 'joão silva'),
                               ),
                               periodicidade: 'mês',
                             })
@@ -981,7 +979,7 @@ export const ComercialListView: React.FC<ComercialListViewProps> = ({
 
                       {/* Etapa Atual */}
                       <td className="py-3 px-3 text-center whitespace-nowrap">
-                        <StatusBadge status={cliente.status} />
+                        <StatusBadge status={item.status} />
                       </td>
 
                       {/* Responsável */}
@@ -992,7 +990,7 @@ export const ComercialListView: React.FC<ComercialListViewProps> = ({
                           </div>
                           <span
                             className={`truncate max-w-[140px] ${
-                              cliente.responsavel_nome ? 'font-medium' : 'text-gray-400 italic'
+                              item.responsavelNome ? 'font-medium' : 'text-gray-400 italic'
                             }`}
                             title={responsavelTexto}
                           >
@@ -1003,18 +1001,18 @@ export const ComercialListView: React.FC<ComercialListViewProps> = ({
 
                       {/* Motivo da Perda */}
                       <td className="py-3 px-3 text-xs whitespace-nowrap">
-                        {cliente.motivo_perda ? (
+                        {item.motivoPerda ? (
                           <span
                             className={`inline-block px-2 py-0.5 rounded-full text-[11px] font-semibold border ${
                               motivoObj
                                 ? motivoObj.cor
                                 : 'bg-gray-100 text-gray-700 border-gray-200'
                             }`}
-                            title={cliente.observacoes_perda || undefined}
+                            title={item.observacoesPerda || undefined}
                           >
-                            {motivoObj ? motivoObj.label : cliente.motivo_perda}
+                            {motivoObj ? motivoObj.label : item.motivoPerda}
                           </span>
-                        ) : cliente.status === 'Perdido' ? (
+                        ) : item.status === 'Perdido' ? (
                           <span className="text-gray-400 text-xs italic">Não informado</span>
                         ) : (
                           <span className="text-gray-300 text-xs">—</span>
@@ -1041,7 +1039,7 @@ export const ComercialListView: React.FC<ComercialListViewProps> = ({
                                 Ações do Cliente
                               </DropdownMenuLabel>
                               <DropdownMenuItem
-                                onClick={() => openFichaCliente(cliente.id)}
+                                onClick={() => openFichaCliente(item.clienteId || item.id)}
                                 className="cursor-pointer gap-2 text-xs"
                               >
                                 <User className="w-3.5 h-3.5 text-gray-500" />
@@ -1051,11 +1049,20 @@ export const ComercialListView: React.FC<ComercialListViewProps> = ({
                               <DropdownMenuItem
                                 onClick={async () => {
                                   try {
-                                    await updateClienteStatus(cliente.id, 'Fechado')
+                                    if (item.negocioId) {
+                                      await updateNegocio(item.negocioId, {
+                                        status: 'ganho',
+                                        etapa_funil: 'contrato assinado',
+                                        data_fechamento: new Date().toISOString(),
+                                      })
+                                    } else {
+                                      await updateClienteStatus(item.id, 'Fechado')
+                                    }
                                     toast({
                                       title: 'Lead fechado!',
-                                      description: `"${cliente.nome}" foi marcado como Fechado.`,
+                                      description: `"${item.nomeCliente}" foi marcado como Fechado.`,
                                     })
+                                    if (onNegociosChanged) onNegociosChanged()
                                   } catch (err) {
                                     console.error('Erro ao marcar fechado:', err)
                                     toast({
@@ -1074,11 +1081,18 @@ export const ComercialListView: React.FC<ComercialListViewProps> = ({
                               <DropdownMenuItem
                                 onClick={async () => {
                                   try {
-                                    await updateClienteStatus(cliente.id, 'Perdido')
+                                    if (item.negocioId) {
+                                      await updateNegocio(item.negocioId, {
+                                        status: 'perdido',
+                                      })
+                                    } else {
+                                      await updateClienteStatus(item.id, 'Perdido')
+                                    }
                                     toast({
                                       title: 'Lead perdido',
-                                      description: `"${cliente.nome}" foi marcado como Perdido.`,
+                                      description: `"${item.nomeCliente}" foi marcado como Perdido.`,
                                     })
+                                    if (onNegociosChanged) onNegociosChanged()
                                   } catch (err) {
                                     console.error('Erro ao marcar perdido:', err)
                                     toast({
@@ -1097,7 +1111,7 @@ export const ComercialListView: React.FC<ComercialListViewProps> = ({
                               <DropdownMenuSeparator />
 
                               <DropdownMenuItem
-                                onClick={() => setClienteParaMover(cliente)}
+                                onClick={() => setItemParaMover(item)}
                                 className="cursor-pointer gap-2 text-blue-600 focus:text-blue-700 focus:bg-blue-50 text-xs font-medium"
                               >
                                 <Contact className="w-3.5 h-3.5 text-blue-600 shrink-0" />
@@ -1107,15 +1121,18 @@ export const ComercialListView: React.FC<ComercialListViewProps> = ({
                               <DropdownMenuItem
                                 onClick={async () => {
                                   const confirmou = window.confirm(
-                                    `Deseja arquivar o cliente "${cliente.nome}"? Ele sairá da visualização do funil comercial.`,
+                                    `Deseja arquivar o cliente "${item.nomeCliente}"? Ele sairá da visualização do funil comercial.`,
                                   )
                                   if (!confirmou) return
                                   try {
-                                    await updateCliente(cliente.id, { arquivado: true })
+                                    await updateCliente(item.clienteId || item.id, {
+                                      arquivado: true,
+                                    })
                                     toast({
                                       title: 'Cliente arquivado',
-                                      description: `"${cliente.nome}" foi arquivado com sucesso.`,
+                                      description: `"${item.nomeCliente}" foi arquivado com sucesso.`,
                                     })
+                                    if (onNegociosChanged) onNegociosChanged()
                                   } catch (err) {
                                     console.error('Erro ao arquivar:', err)
                                     toast({
@@ -1135,7 +1152,7 @@ export const ComercialListView: React.FC<ComercialListViewProps> = ({
 
                           <button
                             type="button"
-                            onClick={() => openFichaCliente(cliente.id)}
+                            onClick={() => openFichaCliente(item.clienteId || item.id)}
                             className="text-gray-300 hover:text-emerald-600 transition-colors p-1"
                             title="Abrir ficha"
                           >
@@ -1526,10 +1543,10 @@ export const ComercialListView: React.FC<ComercialListViewProps> = ({
 
       {/* AlertDialog de Confirmação para Mover Cliente Individual para Outros Contatos */}
       <AlertDialog
-        open={Boolean(clienteParaMover)}
+        open={Boolean(itemParaMover)}
         onOpenChange={(open) => {
           if (!open && !isMovingContatos) {
-            setClienteParaMover(null)
+            setItemParaMover(null)
           }
         }}
       >
@@ -1543,32 +1560,37 @@ export const ComercialListView: React.FC<ComercialListViewProps> = ({
             </div>
             <AlertDialogDescription className="text-sm text-slate-600">
               Deseja mover o cliente{' '}
-              <strong className="text-slate-900 font-semibold">"{clienteParaMover?.nome}"</strong>{' '}
+              <strong className="text-slate-900 font-semibold">
+                "{itemParaMover?.nomeCliente}"
+              </strong>{' '}
               para Outros Contatos? Ele será removido do funil de vendas e seus dados serão
               preservados na lista de Outros Contatos.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="mt-2">
-            <AlertDialogCancel
-              disabled={isMovingContatos}
-              onClick={() => setClienteParaMover(null)}
-            >
+            <AlertDialogCancel disabled={isMovingContatos} onClick={() => setItemParaMover(null)}>
               Cancelar
             </AlertDialogCancel>
             <AlertDialogAction
               disabled={isMovingContatos}
               onClick={async (e) => {
                 e.preventDefault()
-                if (!clienteParaMover) return
-                const nomeCliente = clienteParaMover.nome
+                if (!itemParaMover) return
+                const nomeCliente = itemParaMover.nomeCliente
                 try {
                   setIsMovingContatos(true)
-                  await moverClienteParaOutrosContatos(clienteParaMover)
+                  if (itemParaMover.rawCliente) {
+                    await moverClienteParaOutrosContatos(itemParaMover.rawCliente)
+                  }
+                  if (itemParaMover.negocioId) {
+                    await bulkDeleteNegocios([itemParaMover.negocioId])
+                  }
                   toast({
                     title: 'Contato movido com sucesso',
                     description: `"${nomeCliente}" foi transferido para Outros Contatos e removido do funil.`,
                   })
-                  setClienteParaMover(null)
+                  setItemParaMover(null)
+                  if (onNegociosChanged) onNegociosChanged()
                 } catch (err) {
                   console.error('Erro ao mover cliente para outros contatos:', err)
                   toast({
