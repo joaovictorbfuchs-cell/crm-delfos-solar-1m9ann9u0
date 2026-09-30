@@ -1,6 +1,6 @@
 # Relatório de Auditoria de Duplicados e Vínculos de Contatos — CRM Delfos Solar
 
-**Data/Hora da Execução:** 2026-09-30T23:06:11.716Z  
+**Data/Hora da Execução:** 2026-09-30T23:20:44.486Z  
 **Ambiente do Banco:** https://crm-delfos-solar-72b9e.shrd00.internal.goskip.dev  
 **Usuário Autenticado:** joao@delfosengenharia.com.br  
 **Validação de Sanidade:** APROVADA (Total carregado bate exatamente com o totalItems do PocketBase)
@@ -9,16 +9,16 @@
 
 ## 1. Resumo Executivo das Métricas
 
-| Métrica | Quantidade | Observações / Detalhes |
-| :--- | :---: | :--- |
-| **Total de Registros em Contatos** | **91** | Base validada contra o banco PocketBase via paginação estrita |
-| **Total de Registros em Clientes** | **1540** | Base validada contra o banco PocketBase via paginação estrita |
-| **Contatos com Telefone/WhatsApp Válido** | **4** | Apenas 4 registros possuem WhatsApp/telefone preenchido |
-| **Contatos com Telefone/WhatsApp Vazio** | **87** | Registros migrados originalmente com dados cadastrais sem telefone direto |
-| **Contatos com origem `migracao_outros_contatos`** | **91** | Registros unificados na migração de dados |
-| **Duplicados Reais em Contatos** | **0** | Nenhum registro duplicado identificado entre si na coleção `contatos` |
-| **Vínculos Legítimos de Mesma Pessoa em Clientes Distintos** | **0** | Não há contatos com clientes múltiplos vinculados na tabela `contatos` |
-| **Possíveis Duplicados Reais na Coleção Clientes** | **1 par** | "Adenilse Pasine" e "Adenilse Pasini" (dados técnicos e potências idênticos) |
+| Métrica                                                      | Quantidade | Observações / Detalhes                                                       |
+| :----------------------------------------------------------- | :--------: | :--------------------------------------------------------------------------- |
+| **Total de Registros em Contatos**                           |   **91**   | Base validada contra o banco PocketBase via paginação estrita                |
+| **Total de Registros em Clientes**                           |  **1539**  | Base validada contra o banco PocketBase via paginação estrita                |
+| **Contatos com Telefone/WhatsApp Válido**                    |   **4**    | Apenas 4 registros possuem WhatsApp/telefone preenchido                      |
+| **Contatos com Telefone/WhatsApp Vazio**                     |   **87**   | Registros migrados originalmente com dados cadastrais sem telefone direto    |
+| **Contatos com origem `migracao_outros_contatos`**           |   **91**   | Registros unificados na migração de dados                                    |
+| **Duplicados Reais em Contatos**                             |   **0**    | Nenhum registro duplicado identificado entre si na coleção `contatos`        |
+| **Vínculos Legítimos de Mesma Pessoa em Clientes Distintos** |   **0**    | Não há contatos com clientes múltiplos vinculados na tabela `contatos`       |
+| **Possíveis Duplicados Reais na Coleção Clientes**           | **1 par**  | "Adenilse Pasine" e "Adenilse Pasini" (dados técnicos e potências idênticos) |
 
 ---
 
@@ -33,7 +33,7 @@
 
 - **Orçamento:** 8 clientes
 - **Negociação:** 3 clientes
-- **Novo Lead:** 1086 clientes
+- **Novo Lead:** 1085 clientes
 - **Fechado:** 442 clientes
 - **Levantamento:** 1 clientes
 
@@ -68,7 +68,7 @@
 
 - **2.c) Clientes com nome muito parecido E mesmo WhatsApp:**  
   **30 casos.**
-  - *Nota Cadastral:* Foi identificado na coleção `clientes` o caso clássico de duplicidade:
+  - _Nota Cadastral:_ Foi identificado na coleção `clientes` o caso clássico de duplicidade:
     - Cliente 1: **"Adenilse Pasine"** (ID: `ubp8yld8rd4nke9`, WhatsApp: `555499918473`, Potência: `6.9 kWp`, Inversor: `Deye`, Módulos: `13 Canadian Solar`)
     - Cliente 2: **"Adenilse Pasini"** (ID: `y5et4jlz5tfrg4x`, WhatsApp vazio, CPF: `909.710.190-53`, Potência: `6.9 kWp`, Inversor: `Deye`, Módulos: `13 Canadian Solar`)
     - Como o segundo registro está com o WhatsApp vazio, ele não pontua no critério restrito de mesmo WhatsApp, mas representa a mesma pessoa física com grafia Pasine/Pasini.
@@ -82,8 +82,8 @@
   - Total paginado e acumulado localmente: **91**
   - Resultado: **BATEU 100% (Sem divergência)**
 - **Coleção `clientes`:**
-  - Total informado pelo servidor (`totalItems`): **1540**
-  - Total paginado e acumulado localmente: **1540**
+  - Total informado pelo servidor (`totalItems`): **1539**
+  - Total paginado e acumulado localmente: **1539**
   - Resultado: **BATEU 100% (Sem divergência)**
 
 ---
@@ -98,15 +98,15 @@ Autenticação com PocketBase: SUCESSO (usuário autenticado: joao@delfosengenha
 --- 1. LEITURA COMPLETA DAS COLEÇÕES (SANITY CHECK) ---
 Executando paginação direta via SDK/PocketBase API com sanity check...
 Total confirmado na coleção 'contatos': 91
-Total confirmado na coleção 'clientes': 1540
+Total confirmado na coleção 'clientes': 1539
 
 --- RESUMO NUMÉRICO INICIAL ---
 Total geral de contatos: 91
 Distribuição de contatos por papel: {"fornecedor":1,"outro":90}
-Total geral de clientes: 1540
-Distribuição de clientes por status: {"Orçamento":8,"Negociação":3,"Novo Lead":1086,"Fechado":442,"Levantamento":1}
+Total geral de clientes: 1539
+Distribuição de clientes por status: {"Orçamento":8,"Negociação":3,"Novo Lead":1085,"Fechado":442,"Levantamento":1}
 Registros em 'contatos' com telefone/WhatsApp válido: 4 de 91
-Registros em 'clientes' com telefone/WhatsApp válido: 678 de 1540
+Registros em 'clientes' com telefone/WhatsApp válido: 679 de 1539
 
 ======================================================
 GRUPO 1 — MESMO WHATSAPP EM REGISTROS DIFERENTES
@@ -799,7 +799,7 @@ Nenhum contato com nome idêntico encontrado.
 RESUMO DOS RESULTADOS DA AUDITORIA
 ======================================================
 Total contatos lidos e validados: 91
-Total clientes lidos e validados: 1540
+Total clientes lidos e validados: 1539
 Grupo 1.a (mesmo WhatsApp em múltiplos contatos): 0 casos
 Grupo 1.b (mesmo WhatsApp em múltiplos clientes): 130 casos
 Grupo 1.c (mesmo WhatsApp entre contato e cliente com nomes distintos): 0 casos

@@ -606,30 +606,8 @@ export const ConversaChatView: React.FC<ConversaChatViewProps> = ({
         {/* Ícones do Cabeçalho: Ligação e Mais Opções */}
         <div className="flex items-center gap-1 shrink-0 text-[#54656f]">
           {/* Botão de Chamada de Vídeo (decorativo/informativo) */}
-          <button
-            type="button"
-            onClick={() => {
-              setCallNotice(true)
-              setTimeout(() => setCallNotice(false), 3000)
-            }}
-            className="p-2 text-[#54656f] hover:text-[#111b21] hover:bg-black/5 rounded-full transition-colors"
-            title="Chamada de vídeo (WhatsApp)"
-          >
-            <Video className="w-5 h-5" />
-          </button>
 
           {/* Botão de Ligação por Voz (decorativo/informativo) */}
-          <button
-            type="button"
-            onClick={() => {
-              setCallNotice(true)
-              setTimeout(() => setCallNotice(false), 3000)
-            }}
-            className="p-2 text-[#54656f] hover:text-[#111b21] hover:bg-black/5 rounded-full transition-colors"
-            title="Chamada de voz (WhatsApp)"
-          >
-            <Phone className="w-4.5 h-4.5" />
-          </button>
 
           <div className="h-5 w-px bg-gray-300 mx-1 hidden sm:block" />
 
