@@ -13,11 +13,11 @@ import {
   Loader2,
   type LucideIcon,
 } from 'lucide-react'
-import type { Cliente, ClienteStatus, Atividade } from '@/types/crm'
+import type { Cliente, ClienteStatus, Atividade, Negocio, EtapaFunilSelect } from '@/types/crm'
 import { formatCurrency } from '@/lib/formatters'
 import { useClientes } from '@/contexts/ClientesContext'
 import { FUNIL_ETAPAS_CONFIG } from '@/components/StatusBadge'
-import { getTipoVendaConfig, getTipoVendaBadgeInfo } from '@/constants/tipoVenda'
+import { getTipoVendaBadgeInfo } from '@/constants/tipoVenda'
 import { useToast } from '@/hooks/use-toast'
 import { MobileKanbanViewport, type MobileKanbanStage } from '@/components/MobileKanbanViewport'
 import { WhatsAppIcon } from '@/components/WhatsAppIcon'
@@ -39,9 +39,55 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
+import { updateNegocio, deleteNegocio } from '@/services/negociosService'
+
+// Mapa bidirecional de etapas entre o funil comercial e as colunas do Kanban
+const STATUS_TO_ETAPA_NEGOCIO: Record<string, EtapaFunilSelect> = {
+  'Novo Lead': 'novo lead',
+  Levantamento: 'qualificado',
+  Orçamento: 'proposta enviada',
+  Negociação: 'negociação',
+  'Contato Futuro': 'novo lead',
+  Fechado: 'contrato assinado',
+}
+
+const ETAPA_NEGOCIO_TO_STATUS: Record<string, ClienteStatus> = {
+  'novo lead': 'Novo Lead',
+  qualificado: 'Levantamento',
+  'proposta enviada': 'Orçamento',
+  negociação: 'Negociação',
+  'contrato assinado': 'Fechado',
+}
+
+export interface KanbanCardItem {
+  id: string
+  negocioId?: string
+  clienteId: string
+  titulo: string
+  nomeCliente: string
+  status: ClienteStatus
+  etapaFunil?: EtapaFunilSelect
+  valorEstimado: number
+  cidade: string
+  estado?: string
+  tipoVenda: string
+  potenciaKwp: number
+  reabertura: boolean
+  motivoReabertura?: string
+  recorrenciaMensal: boolean
+  whatsapp?: string
+  telefone?: string
+  created: string
+  updated: string
+  rawNegocio?: Negocio
+  rawCliente?: Cliente
+}
 
 interface KanbanBoardProps {
-  clientes: Cliente[]
+  clientes?: Cliente[]
+  negocios?: Negocio[]
+  onNegocioUpdated?: () => void
+  onNegocioDeleted?: (negocioId: string) => void
 }
 
 export interface KanbanColumnDef {
@@ -96,7 +142,12 @@ export const KANBAN_COLUMNS: KanbanColumnDef[] = [
   },
 ]
 
-export const KanbanBoard: React.FC<KanbanBoardProps> = ({ clientes: clientesProp }) => {
+export const KanbanBoard: React.FC<KanbanBoardProps> = ({
+  clientes: clientesProp,
+  negocios: negociosProp,
+  onNegocioUpdated,
+  onNegocioDeleted,
+}) => {
   const {
     openFichaCliente,
     updateClienteStatus,
@@ -106,11 +157,57 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ clientes: clientesProp
   } = useClientes()
   const { toast } = useToast()
 
-  const [clienteParaMover, setClienteParaMover] = useState<Cliente | null>(null)
+  const [itemParaMover, setItemParaMover] = useState<KanbanCardItem | null>(null)
   const [isMovingContato, setIsMovingContato] = useState(false)
 
-  // Sanitização e normalização defensiva dos clientes:
-  const clientes = useMemo(() => {
+  // Normalização unificada: se negocios foram passados, alimentamos com negócios.
+  // Caso contrário, mantemos compatibilidade com a lista de clientes.
+  const cards = useMemo<KanbanCardItem[]>(() => {
+    if (Array.isArray(negociosProp) && negociosProp.length > 0) {
+      return negociosProp
+        .filter((n) => {
+          if (!n || !n.id) return false
+          if (n.status === 'ganho' || n.status === 'perdido') return false
+          const cli = n.expand?.cliente_id
+          if (cli && (cli.arquivado || cli.transferido_pos_vendas)) return false
+          return true
+        })
+        .map((n) => {
+          const cli = n.expand?.cliente_id
+          const etapa = n.etapa_funil || 'novo lead'
+          const statusKanban = ETAPA_NEGOCIO_TO_STATUS[etapa] || 'Novo Lead'
+          const nomeCliente = (cli?.nome || cli?.razao_social || 'Cliente vinculado').trim()
+          const tituloNegocio = (n.titulo || '').trim() || nomeCliente
+
+          const valorFinal =
+            Number(n.valor) || Number(n.valor_estimado) || (cli?.valor_estimado ?? 0)
+
+          return {
+            id: n.id,
+            negocioId: n.id,
+            clienteId: n.cliente_id || cli?.id || '',
+            titulo: tituloNegocio,
+            nomeCliente,
+            status: statusKanban,
+            etapaFunil: n.etapa_funil,
+            valorEstimado: valorFinal,
+            cidade: cli?.cidade || '',
+            estado: cli?.estado || '',
+            tipoVenda: n.tipo_venda || cli?.tipo_venda || 'Energia Solar',
+            potenciaKwp: Number(cli?.potencia_kwp) || 0,
+            reabertura: Boolean(n.reabertura || cli?.reabertura),
+            motivoReabertura: n.motivo_reabertura || cli?.motivo_reabertura,
+            recorrenciaMensal: Boolean(n.recorrencia_mensal || cli?.recorrencia_mensal),
+            whatsapp: cli?.whatsapp || '',
+            telefone: cli?.telefone || '',
+            created: n.created || cli?.created || '',
+            updated: n.updated || cli?.updated || '',
+            rawNegocio: n,
+            rawCliente: cli,
+          }
+        })
+    }
+
     return (Array.isArray(clientesProp) ? clientesProp : [])
       .filter(
         (c) =>
@@ -121,17 +218,26 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ clientes: clientesProp
           !c.transferido_pos_vendas,
       )
       .map((c) => ({
-        ...c,
         id: String(c.id || ''),
-        nome: typeof c.nome === 'string' && c.nome.trim() ? c.nome.trim() : 'Cliente sem nome',
+        clienteId: String(c.id || ''),
+        titulo: (c.nome || '').trim() || 'Cliente sem nome',
+        nomeCliente: (c.nome || '').trim() || 'Cliente sem nome',
         status: (c.status || 'Novo Lead') as ClienteStatus,
-        valor_estimado: Number(c.valor_estimado) || 0,
+        valorEstimado: Number(c.valor_estimado) || 0,
         cidade: typeof c.cidade === 'string' ? c.cidade : '',
-        produto: typeof c.produto === 'string' ? c.produto : 'Energia Solar',
-        tipo_venda: c.tipo_venda || '',
-        potencia_kwp: Number(c.potencia_kwp) || 0,
+        estado: c.estado || '',
+        tipoVenda: c.tipo_venda || 'Energia Solar',
+        potenciaKwp: Number(c.potencia_kwp) || 0,
+        reabertura: Boolean(c.reabertura),
+        motivoReabertura: c.motivo_reabertura,
+        recorrenciaMensal: Boolean(c.recorrencia_mensal),
+        whatsapp: c.whatsapp || '',
+        telefone: c.telefone || '',
+        created: c.created || '',
+        updated: c.updated || '',
+        rawCliente: c,
       }))
-  }, [clientesProp])
+  }, [negociosProp, clientesProp])
 
   // Mapeamento otimizado de próxima atividade agendada por cliente
   const proximaAcaoPorCliente = useMemo(() => {
@@ -176,9 +282,9 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ clientes: clientesProp
     return mapa
   }, [atividades])
 
-  // Cálculo de dias na etapa para cada cliente
-  const getDiasNaEtapa = (client: Cliente) => {
-    const rawDate = client.updated || client.created
+  // Cálculo de dias na etapa para cada card (negócio ou cliente)
+  const getDiasNaEtapa = (item: KanbanCardItem) => {
+    const rawDate = item.updated || item.created
     if (!rawDate) return 0
     const diffMs = Date.now() - new Date(rawDate).getTime()
     const dias = Math.floor(diffMs / (1000 * 60 * 60 * 24))
@@ -222,16 +328,45 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ clientes: clientesProp
     longPressTimer?: ReturnType<typeof setTimeout>
   } | null>(null)
 
-  const handleCardClick = (clientId: string) => {
+  const handleCardClick = (item: KanbanCardItem) => {
     // Se estava arrastando no touch, ignora o clique
     if (touchStateRef.current?.isDragging) return
-    openFichaCliente(clientId)
+    // Abre a ficha do cliente vinculado
+    if (item.clienteId) {
+      openFichaCliente(item.clienteId)
+    }
+  }
+
+  const moverEtapaCard = async (cardId: string, targetStatus: ClienteStatus) => {
+    const targetCard = cards.find((c) => c.id === cardId)
+    if (!targetCard || targetCard.status === targetStatus) return
+
+    try {
+      if (targetCard.negocioId) {
+        // Atualiza a etapa do negócio
+        const novaEtapa = STATUS_TO_ETAPA_NEGOCIO[targetStatus] || 'novo lead'
+        await updateNegocio(targetCard.negocioId, {
+          etapa_funil: novaEtapa,
+        })
+        if (onNegocioUpdated) onNegocioUpdated()
+      } else {
+        // Modo legado cliente
+        await updateClienteStatus(cardId, targetStatus)
+      }
+    } catch (err) {
+      console.error('Falha ao mover card:', err)
+      toast({
+        title: 'Erro ao mover negócio',
+        description: 'Não foi possível alterar a etapa no funil.',
+        variant: 'destructive',
+      })
+    }
   }
 
   // HTML5 Drag and Drop Handlers (Desktop / Pointer)
-  const handleDragStart = (e: React.DragEvent, client: Cliente) => {
-    setDraggedClientId(client.id)
-    e.dataTransfer.setData('text/plain', client.id)
+  const handleDragStart = (e: React.DragEvent, item: KanbanCardItem) => {
+    setDraggedClientId(item.id)
+    e.dataTransfer.setData('text/plain', item.id)
     e.dataTransfer.effectAllowed = 'move'
   }
 
@@ -260,33 +395,21 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ clientes: clientesProp
 
   const handleDrop = async (e: React.DragEvent, targetStatus: ClienteStatus) => {
     e.preventDefault()
-    const clientId = e.dataTransfer.getData('text/plain') || draggedClientId
+    const cardId = e.dataTransfer.getData('text/plain') || draggedClientId
     setDraggedClientId(null)
     setDragOverColumnId(null)
 
-    if (!clientId) return
-    const targetClient = clientes.find((c) => c.id === clientId)
-    if (!targetClient || targetClient.status === targetStatus) return
-
-    try {
-      await updateClienteStatus(clientId, targetStatus)
-    } catch (err) {
-      console.error('Falha ao mover card:', err)
-      toast({
-        title: 'Erro ao mover cliente',
-        description: 'Não foi possível alterar a etapa do cliente.',
-        variant: 'destructive',
-      })
-    }
+    if (!cardId) return
+    await moverEtapaCard(cardId, targetStatus)
   }
 
   // Touch Handlers para dispositivos móveis
-  const handleTouchStart = (e: React.TouchEvent, client: Cliente) => {
+  const handleTouchStart = (e: React.TouchEvent, item: KanbanCardItem) => {
     const touch = e.touches[0]
     const targetCard = e.currentTarget as HTMLElement
 
     const state = {
-      clientId: client.id,
+      clientId: item.id,
       initialX: touch.clientX,
       initialY: touch.clientY,
       currentX: touch.clientX,
@@ -301,7 +424,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ clientes: clientesProp
       if (!touchStateRef.current) return
       touchStateRef.current.isDragging = true
       setIsTouchDragging(true)
-      setDraggedClientId(client.id)
+      setDraggedClientId(item.id)
 
       const ghost = targetCard.cloneNode(true) as HTMLElement
       ghost.style.position = 'fixed'
@@ -375,13 +498,8 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ clientes: clientesProp
 
       if (colEl) {
         const targetStatus = colEl.getAttribute('data-column-id') as ClienteStatus
-        const client = clientes.find((c) => c.id === clientId)
-        if (targetStatus && client && client.status !== targetStatus) {
-          try {
-            await updateClienteStatus(clientId, targetStatus)
-          } catch (err) {
-            console.error('Falha ao mover card touch:', err)
-          }
+        if (targetStatus) {
+          await moverEtapaCard(clientId, targetStatus)
         }
       }
     }
@@ -404,8 +522,8 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ clientes: clientesProp
 
   // Renderizador de uma coluna individual (reutilizado tanto no layout Desktop quanto Mobile)
   const renderColumnContent = (col: KanbanColumnDef, isMobile = false) => {
-    const colClients = clientes.filter((c) => (c.status || '') === col.id)
-    const totalColValue = colClients.reduce((sum, c) => sum + (Number(c.valor_estimado) || 0), 0)
+    const colCards = cards.filter((c) => (c.status || '') === col.id)
+    const totalColValue = colCards.reduce((sum, c) => sum + (Number(c.valorEstimado) || 0), 0)
     const isOver = dragOverColumnId === col.id
 
     return (
@@ -442,7 +560,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ clientes: clientesProp
                   : 'bg-white text-slate-700 border-slate-200 shadow-2xs'
               }`}
             >
-              {colClients.length}
+              {colCards.length}
             </span>
           </div>
 
@@ -461,7 +579,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ clientes: clientesProp
         <div
           className={`space-y-2.5 flex-1 ${isMobile ? 'min-h-[260px]' : 'min-h-[320px]'} flex flex-col min-w-0`}
         >
-          {colClients.length === 0 ? (
+          {colCards.length === 0 ? (
             <div
               className={`h-28 flex-1 flex items-center justify-center border-2 border-dashed rounded-lg text-xs text-center p-2 transition-colors ${
                 isOver
@@ -469,54 +587,65 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ clientes: clientesProp
                   : 'border-slate-300/80 text-slate-400 bg-white/40'
               }`}
             >
-              {isOver ? 'Soltar aqui' : 'Nenhum lead nesta etapa'}
+              {isOver ? 'Soltar aqui' : 'Nenhum negócio nesta etapa'}
             </div>
           ) : (
-            colClients.map((client) => {
-              const isDraggingThis = draggedClientId === client.id
-              const proximaAcao = proximaAcaoPorCliente.get(client.id)
+            colCards.map((card) => {
+              const isDraggingThis = draggedClientId === card.id
+              // Atividades vinculadas ao cliente_id
+              const proximaAcao = card.clienteId
+                ? proximaAcaoPorCliente.get(card.clienteId)
+                : undefined
               const isLeadFrio = !proximaAcao
-              const diasNaEtapa = getDiasNaEtapa(client)
+              const diasNaEtapa = getDiasNaEtapa(card)
               const tempoAlerta = diasNaEtapa > 7
-              const isReaberto = Boolean(client.reabertura)
+              const isReaberto = Boolean(card.reabertura)
 
-              // WhatsApp autoritativo: campo whatsapp tem prioridade sobre telefone
-              const rawWa = client.whatsapp || client.telefone || ''
+              // WhatsApp autoritativo
+              const rawWa = card.whatsapp || card.telefone || ''
               const cleanWa = cleanPhoneDigits(rawWa)
               const waDigits =
                 cleanWa.length >= 10 && !cleanWa.startsWith('55') ? `55${cleanWa}` : cleanWa
 
               // ==============================================================
-              // VERSÃO MOBILE DO CARD: SUPER SIMPLIFICADA (NOME + WHATSAPP)
+              // VERSÃO MOBILE DO CARD: SUPER SIMPLIFICADA (TÍTULO/CLIENTE + WHATSAPP)
               // ==============================================================
               if (isMobile) {
                 return (
                   <div
-                    key={client.id}
+                    key={card.id}
                     draggable
-                    onDragStart={(e) => handleDragStart(e, client)}
+                    onDragStart={(e) => handleDragStart(e, card)}
                     onDragEnd={handleDragEnd}
-                    onTouchStart={(e) => handleTouchStart(e, client)}
+                    onTouchStart={(e) => handleTouchStart(e, card)}
                     onTouchMove={handleTouchMove}
                     onTouchEnd={handleTouchEnd}
-                    onClick={() => handleCardClick(client.id)}
+                    onClick={() => handleCardClick(card)}
                     className={`bg-white rounded-xl p-3 border transition-all duration-150 cursor-pointer active:cursor-grabbing group relative overflow-hidden min-w-0 flex items-center justify-between gap-2.5 ${
                       isDraggingThis
                         ? 'opacity-40 scale-95 border-emerald-400 shadow-inner'
                         : 'border-slate-200/90 shadow-2xs hover:shadow-xs active:bg-gray-50'
                     }`}
                   >
-                    {/* Nome do cliente/negócio + Etiqueta de tipo de negócio */}
+                    {/* Título do negócio / Nome do cliente + Etiqueta de tipo de negócio */}
                     <div className="flex-1 min-w-0 pr-1">
                       <div
                         className="font-bold text-sm text-slate-900 truncate leading-snug"
-                        title={client.nome}
+                        title={card.titulo}
                       >
-                        {client.nome}
+                        {card.titulo}
                       </div>
+                      {card.nomeCliente && card.nomeCliente !== card.titulo && (
+                        <div
+                          className="text-xs text-slate-500 truncate"
+                          title={`Cliente: ${card.nomeCliente}`}
+                        >
+                          {card.nomeCliente}
+                        </div>
+                      )}
                       <div className="mt-1 flex items-center gap-1.5 min-w-0">
                         {(() => {
-                          const badgeInfo = getTipoVendaBadgeInfo(client.tipo_venda)
+                          const badgeInfo = getTipoVendaBadgeInfo(card.tipoVenda)
                           const TipoIcon = badgeInfo.icon
                           return (
                             <span
@@ -543,8 +672,8 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ clientes: clientesProp
                         rel="noopener noreferrer"
                         onClick={(e) => e.stopPropagation()}
                         className="w-8 h-8 rounded-full bg-[#25D366] hover:bg-[#20ba59] active:scale-95 text-white flex items-center justify-center shadow-xs shrink-0 transition-transform"
-                        title={`Conversar com ${client.nome} no WhatsApp`}
-                        aria-label={`Conversar com ${client.nome} no WhatsApp`}
+                        title={`Conversar com ${card.nomeCliente} no WhatsApp`}
+                        aria-label={`Conversar com ${card.nomeCliente} no WhatsApp`}
                       >
                         <WhatsAppIcon className="w-4 h-4" />
                       </a>
@@ -553,7 +682,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ clientes: clientesProp
                         type="button"
                         onClick={(e) => {
                           e.stopPropagation()
-                          handleCardClick(client.id)
+                          handleCardClick(card)
                         }}
                         className="w-8 h-8 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center shrink-0"
                         title="Sem número de WhatsApp cadastrado (clique para editar)"
@@ -567,18 +696,18 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ clientes: clientesProp
               }
 
               // ==============================================================
-              // VERSÃO DESKTOP DO CARD: COMPLETA E INALTERADA
+              // VERSÃO DESKTOP DO CARD: COMPLETA COM TÍTULO E CLIENTE
               // ==============================================================
               return (
                 <div
-                  key={client.id}
+                  key={card.id}
                   draggable
-                  onDragStart={(e) => handleDragStart(e, client)}
+                  onDragStart={(e) => handleDragStart(e, card)}
                   onDragEnd={handleDragEnd}
-                  onTouchStart={(e) => handleTouchStart(e, client)}
+                  onTouchStart={(e) => handleTouchStart(e, card)}
                   onTouchMove={handleTouchMove}
                   onTouchEnd={handleTouchEnd}
-                  onClick={() => handleCardClick(client.id)}
+                  onClick={() => handleCardClick(card)}
                   className={`bg-white rounded-lg p-3 border transition-all duration-150 cursor-pointer active:cursor-grabbing group relative overflow-hidden min-w-0 ${
                     isReaberto ? 'border-l-4 border-l-amber-500' : ''
                   } ${
@@ -589,22 +718,32 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ clientes: clientesProp
                         : 'border-slate-200 shadow-xs hover:shadow-md hover:-translate-y-0.5 hover:border-emerald-300'
                   }`}
                 >
-                  {/* Linha 1: Nome do cliente + Badge Cliente Ativo + Menu ⋮ */}
+                  {/* Linha 1: Título do negócio / Nome do cliente + Badge Cliente Ativo + Menu ⋮ */}
                   <div className="flex items-start justify-between gap-1.5 min-w-0">
-                    <div className="flex items-center gap-1.5 flex-1 min-w-0">
-                      <div
-                        className="font-bold text-sm text-slate-900 group-hover:text-emerald-700 transition-colors truncate min-w-0 leading-tight"
-                        title={client.nome}
-                      >
-                        {client.nome}
-                      </div>
-                      {isReaberto && (
-                        <span
-                          className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-extrabold bg-amber-100 text-amber-900 border border-amber-300 shrink-0"
-                          title={`Cliente Ativo • Oportunidade Reaberta: ${client.motivo_reabertura || 'Nova oportunidade comercial'}`}
+                    <div className="flex flex-col flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <div
+                          className="font-bold text-sm text-slate-900 group-hover:text-emerald-700 transition-colors truncate min-w-0 leading-tight"
+                          title={card.titulo}
                         >
-                          <span className="w-1.5 h-1.5 rounded-full bg-amber-600 animate-pulse" />
-                          Cliente Ativo
+                          {card.titulo}
+                        </div>
+                        {isReaberto && (
+                          <span
+                            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-extrabold bg-amber-100 text-amber-900 border border-amber-300 shrink-0"
+                            title={`Cliente Ativo • Oportunidade Reaberta: ${card.motivoReabertura || 'Nova oportunidade comercial'}`}
+                          >
+                            <span className="w-1.5 h-1.5 rounded-full bg-amber-600 animate-pulse" />
+                            Cliente Ativo
+                          </span>
+                        )}
+                      </div>
+                      {card.nomeCliente && card.nomeCliente !== card.titulo && (
+                        <span
+                          className="text-xs text-slate-500 truncate font-normal mt-0.5"
+                          title={`Cliente vinculado: ${card.nomeCliente}`}
+                        >
+                          {card.nomeCliente}
                         </span>
                       )}
                     </div>
@@ -618,23 +757,23 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ clientes: clientesProp
                         <DropdownMenuTrigger asChild>
                           <button
                             type="button"
-                            title="Opções do lead"
+                            title="Opções do negócio"
                             className="p-1 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors opacity-80 group-hover:opacity-100 focus:opacity-100"
                           >
                             <MoreVertical className="w-3.5 h-3.5" />
                           </button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="w-48 text-xs">
-                          {/* Opções de mover para outras etapas diretamente pelo menu ⋮ (essencial no mobile) */}
+                          {/* Opções de mover para outras etapas diretamente pelo menu ⋮ */}
                           {KANBAN_COLUMNS.filter((other) => other.id !== col.id).map((other) => (
                             <DropdownMenuItem
                               key={other.id}
                               onClick={async () => {
                                 try {
-                                  await updateClienteStatus(client.id, other.id)
+                                  await moverEtapaCard(card.id, other.id)
                                   toast({
                                     title: 'Etapa atualizada',
-                                    description: `"${client.nome}" movido para ${other.title}.`,
+                                    description: `"${card.titulo}" movido para ${other.title}.`,
                                   })
                                 } catch (err) {
                                   console.error('Erro ao mover lead:', err)
@@ -654,16 +793,25 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ clientes: clientesProp
                           <DropdownMenuItem
                             onClick={async () => {
                               try {
-                                await updateClienteStatus(client.id, 'Fechado')
+                                if (card.negocioId) {
+                                  await updateNegocio(card.negocioId, {
+                                    status: 'ganho',
+                                    etapa_funil: 'contrato assinado',
+                                    data_fechamento: new Date().toISOString(),
+                                  })
+                                  if (onNegocioUpdated) onNegocioUpdated()
+                                } else {
+                                  await updateClienteStatus(card.id, 'Fechado')
+                                }
                                 toast({
-                                  title: 'Lead ganho!',
-                                  description: `"${client.nome}" foi marcado como Fechado.`,
+                                  title: 'Negócio ganho!',
+                                  description: `"${card.titulo}" foi marcado como Ganho.`,
                                 })
                               } catch (err) {
-                                console.error('Erro ao marcar lead como ganho:', err)
+                                console.error('Erro ao marcar como ganho:', err)
                                 toast({
                                   title: 'Erro ao marcar ganho',
-                                  description: 'Não foi possível atualizar a etapa do lead.',
+                                  description: 'Não foi possível atualizar o negócio.',
                                   variant: 'destructive',
                                 })
                               }
@@ -677,16 +825,23 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ clientes: clientesProp
                           <DropdownMenuItem
                             onClick={async () => {
                               try {
-                                await updateClienteStatus(client.id, 'Perdido')
+                                if (card.negocioId) {
+                                  await updateNegocio(card.negocioId, {
+                                    status: 'perdido',
+                                  })
+                                  if (onNegocioUpdated) onNegocioUpdated()
+                                } else {
+                                  await updateClienteStatus(card.id, 'Perdido')
+                                }
                                 toast({
-                                  title: 'Lead perdido',
-                                  description: `"${client.nome}" foi marcado como Perdido.`,
+                                  title: 'Negócio marcado como perdido',
+                                  description: `"${card.titulo}" foi atualizado.`,
                                 })
                               } catch (err) {
-                                console.error('Erro ao marcar lead como perdido:', err)
+                                console.error('Erro ao marcar perdido:', err)
                                 toast({
                                   title: 'Erro ao marcar perdido',
-                                  description: 'Não foi possível atualizar a etapa do lead.',
+                                  description: 'Não foi possível atualizar o negócio.',
                                   variant: 'destructive',
                                 })
                               }
@@ -701,7 +856,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ clientes: clientesProp
 
                           <DropdownMenuItem
                             onClick={() => {
-                              setClienteParaMover(client)
+                              setItemParaMover(card)
                             }}
                             className="cursor-pointer gap-2 text-blue-600 focus:text-blue-700 focus:bg-blue-50 font-medium"
                           >
@@ -709,32 +864,63 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ clientes: clientesProp
                             <span>Mover para contatos</span>
                           </DropdownMenuItem>
 
-                          <DropdownMenuItem
-                            onClick={async () => {
-                              const confirmou = window.confirm(
-                                `Deseja arquivar o cliente "${client.nome}"? Ele sairá da visualização do funil.`,
-                              )
-                              if (!confirmou) return
-                              try {
-                                await updateCliente(client.id, { arquivado: true })
-                                toast({
-                                  title: 'Cliente arquivado',
-                                  description: `"${client.nome}" foi arquivado com sucesso.`,
-                                })
-                              } catch (err) {
-                                console.error('Erro ao arquivar:', err)
-                                toast({
-                                  title: 'Erro ao arquivar',
-                                  description: 'Não foi possível arquivar o cliente.',
-                                  variant: 'destructive',
-                                })
-                              }
-                            }}
-                            className="cursor-pointer gap-2 text-rose-600 focus:text-rose-700 focus:bg-rose-50"
-                          >
-                            <Archive className="w-3.5 h-3.5" />
-                            <span>Arquivar lead</span>
-                          </DropdownMenuItem>
+                          {card.negocioId ? (
+                            <DropdownMenuItem
+                              onClick={async () => {
+                                const confirmou = window.confirm(
+                                  `Deseja excluir o negócio "${card.titulo}" do funil?\n\nO cliente vinculado (${card.nomeCliente}) permanecerá intacto no cadastro.`,
+                                )
+                                if (!confirmou) return
+                                try {
+                                  await deleteNegocio(card.negocioId!)
+                                  toast({
+                                    title: 'Negócio excluído',
+                                    description: `O negócio foi removido. O cliente "${card.nomeCliente}" continua no cadastro.`,
+                                  })
+                                  if (onNegocioDeleted) onNegocioDeleted(card.negocioId!)
+                                  else if (onNegocioUpdated) onNegocioUpdated()
+                                } catch (err) {
+                                  console.error('Erro ao excluir negócio:', err)
+                                  toast({
+                                    title: 'Erro ao excluir negócio',
+                                    description: 'Não foi possível remover o negócio do funil.',
+                                    variant: 'destructive',
+                                  })
+                                }
+                              }}
+                              className="cursor-pointer gap-2 text-rose-600 focus:text-rose-700 focus:bg-rose-50"
+                            >
+                              <Archive className="w-3.5 h-3.5" />
+                              <span>Excluir negócio</span>
+                            </DropdownMenuItem>
+                          ) : (
+                            <DropdownMenuItem
+                              onClick={async () => {
+                                const confirmou = window.confirm(
+                                  `Deseja arquivar "${card.titulo}"? Ele sairá da visualização do funil.`,
+                                )
+                                if (!confirmou) return
+                                try {
+                                  await updateCliente(card.id, { arquivado: true })
+                                  toast({
+                                    title: 'Arquivado com sucesso',
+                                    description: `"${card.titulo}" foi arquivado.`,
+                                  })
+                                } catch (err) {
+                                  console.error('Erro ao arquivar:', err)
+                                  toast({
+                                    title: 'Erro ao arquivar',
+                                    description: 'Não foi possível arquivar o registro.',
+                                    variant: 'destructive',
+                                  })
+                                }
+                              }}
+                              className="cursor-pointer gap-2 text-rose-600 focus:text-rose-700 focus:bg-rose-50"
+                            >
+                              <Archive className="w-3.5 h-3.5" />
+                              <span>Arquivar lead</span>
+                            </DropdownMenuItem>
+                          )}
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </div>
@@ -744,11 +930,8 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ clientes: clientesProp
                   <div className="mt-1 flex items-center justify-between gap-1 min-w-0">
                     <span className="font-bold text-xs truncate" style={{ color: '#1a3a5c' }}>
                       {(() => {
-                        const isRecorrente = Boolean(
-                          client.recorrencia_mensal ||
-                          (client.nome && client.nome.trim().toLowerCase() === 'joão silva'),
-                        )
-                        return formatCurrency(client.valor_estimado || 0, {
+                        const isRecorrente = Boolean(card.recorrenciaMensal)
+                        return formatCurrency(card.valorEstimado || 0, {
                           recorrente: isRecorrente,
                           periodicidade: 'mês',
                         })
@@ -758,14 +941,14 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ clientes: clientesProp
 
                   {/* Linha 3: Localização + Tipo de Venda */}
                   {(() => {
-                    const badgeInfo = getTipoVendaBadgeInfo(client.tipo_venda)
+                    const badgeInfo = getTipoVendaBadgeInfo(card.tipoVenda)
                     const TipoIcon = badgeInfo.icon
                     return (
                       <div className="mt-1.5 flex items-center justify-between text-[11px] text-muted-foreground gap-1.5 min-w-0">
-                        {client.cidade ? (
+                        {card.cidade ? (
                           <span className="inline-flex items-center gap-1 truncate shrink min-w-0">
                             <MapPin className="w-3 h-3 text-slate-400 shrink-0" />
-                            <span className="truncate">{client.cidade}</span>
+                            <span className="truncate">{card.cidade}</span>
                           </span>
                         ) : (
                           <span className="inline-flex items-center gap-1 text-slate-400">
@@ -838,7 +1021,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ clientes: clientesProp
           )}
 
           {/* Drop indicator quando há cards na coluna e o usuário está passando por cima */}
-          {isOver && colClients.length > 0 && (
+          {isOver && colCards.length > 0 && (
             <div className="h-10 rounded-lg border-2 border-dashed border-emerald-400 bg-emerald-100/50 flex items-center justify-center text-xs text-emerald-700 font-medium">
               Soltar aqui
             </div>
@@ -851,13 +1034,13 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ clientes: clientesProp
   // Prepara as etapas mobile
   const mobileStages: MobileKanbanStage[] = useMemo(() => {
     return KANBAN_COLUMNS.map((col) => {
-      const colClients = clientes.filter((c) => (c.status || '') === col.id)
-      const totalColValue = colClients.reduce((sum, c) => sum + (Number(c.valor_estimado) || 0), 0)
+      const colCards = cards.filter((c) => (c.status || '') === col.id)
+      const totalColValue = colCards.reduce((sum, c) => sum + (Number(c.valorEstimado) || 0), 0)
       return {
         id: col.id,
         title: col.title,
         shortTitle: col.title.replace(/^[0-9]+\s*-\s*/, ''),
-        count: colClients.length,
+        count: colCards.length,
         totalSubtitle: `Acumulado: ${formatCurrency(totalColValue)}`,
         icon: col.icon,
         iconColorClass: col.iconColorClass,
@@ -865,7 +1048,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ clientes: clientesProp
         content: renderColumnContent(col, true),
       }
     })
-  }, [clientes, dragOverColumnId, draggedClientId, proximaAcaoPorCliente])
+  }, [cards, dragOverColumnId, draggedClientId, proximaAcaoPorCliente])
 
   return (
     <div className="w-full pb-6 pt-1 select-none">
@@ -883,10 +1066,10 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ clientes: clientesProp
 
       {/* AlertDialog de Confirmação para Mover Cliente para Outros Contatos */}
       <AlertDialog
-        open={Boolean(clienteParaMover)}
+        open={Boolean(itemParaMover)}
         onOpenChange={(open) => {
           if (!open && !isMovingContato) {
-            setClienteParaMover(null)
+            setItemParaMover(null)
           }
         }}
       >
@@ -900,29 +1083,38 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ clientes: clientesProp
             </div>
             <AlertDialogDescription className="text-sm text-slate-600">
               Deseja mover o cliente{' '}
-              <strong className="text-slate-900 font-semibold">"{clienteParaMover?.nome}"</strong>{' '}
+              <strong className="text-slate-900 font-semibold">
+                "{itemParaMover?.nomeCliente}"
+              </strong>{' '}
               para Outros Contatos? Ele será removido do funil de vendas e seus dados serão
               preservados na lista de Outros Contatos.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="mt-2">
-            <AlertDialogCancel disabled={isMovingContato} onClick={() => setClienteParaMover(null)}>
+            <AlertDialogCancel disabled={isMovingContato} onClick={() => setItemParaMover(null)}>
               Cancelar
             </AlertDialogCancel>
             <AlertDialogAction
               disabled={isMovingContato}
               onClick={async (e) => {
                 e.preventDefault()
-                if (!clienteParaMover) return
-                const nomeCliente = clienteParaMover.nome
+                if (!itemParaMover) return
+                const nomeCliente = itemParaMover.nomeCliente
                 try {
                   setIsMovingContato(true)
-                  await moverClienteParaOutrosContatos(clienteParaMover)
+                  if (itemParaMover.rawCliente) {
+                    await moverClienteParaOutrosContatos(itemParaMover.rawCliente)
+                  }
+                  if (itemParaMover.negocioId) {
+                    await deleteNegocio(itemParaMover.negocioId)
+                    if (onNegocioDeleted) onNegocioDeleted(itemParaMover.negocioId)
+                    else if (onNegocioUpdated) onNegocioUpdated()
+                  }
                   toast({
                     title: 'Contato movido com sucesso',
                     description: `"${nomeCliente}" foi transferido para Outros Contatos e removido do funil.`,
                   })
-                  setClienteParaMover(null)
+                  setItemParaMover(null)
                 } catch (err) {
                   console.error('Erro ao mover cliente para outros contatos:', err)
                   toast({

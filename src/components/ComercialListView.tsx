@@ -27,7 +27,7 @@ import {
   CarFront,
 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
-import type { Cliente, ClienteStatus, SistemaUsuario } from '@/types/crm'
+import type { Cliente, ClienteStatus, Negocio, EtapaFunilSelect } from '@/types/crm'
 import { formatCurrency } from '@/lib/formatters'
 import { StatusBadge } from '@/components/StatusBadge'
 import { useClientes } from '@/contexts/ClientesContext'
@@ -59,10 +59,54 @@ import {
 } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
 import { toast } from '@/hooks/use-toast'
+import { updateNegocio, deleteNegocio, bulkDeleteNegocios } from '@/services/negociosService'
+
+const STATUS_TO_ETAPA_NEGOCIO: Record<string, EtapaFunilSelect> = {
+  'Novo Lead': 'novo lead',
+  Levantamento: 'qualificado',
+  Orçamento: 'proposta enviada',
+  Negociação: 'negociação',
+  'Contato Futuro': 'novo lead',
+  Fechado: 'contrato assinado',
+}
+
+const ETAPA_NEGOCIO_TO_STATUS: Record<string, ClienteStatus> = {
+  'novo lead': 'Novo Lead',
+  qualificado: 'Levantamento',
+  'proposta enviada': 'Orçamento',
+  negociação: 'Negociação',
+  'contrato assinado': 'Fechado',
+}
+
+export interface ComercialListItem {
+  id: string
+  negocioId?: string
+  clienteId: string
+  titulo: string
+  nomeCliente: string
+  cidade: string
+  estado?: string
+  potenciaKwp: number
+  tipoNegocio: TipoNegocioOpcao
+  valorEstimado: number
+  status: ClienteStatus
+  etapaFunil?: EtapaFunilSelect
+  responsavelId?: string
+  responsavelNome?: string
+  motivoPerda?: string
+  observacoesPerda?: string
+  reabertura: boolean
+  motivoReabertura?: string
+  recorrenciaMensal: boolean
+  rawNegocio?: Negocio
+  rawCliente?: Cliente
+}
 
 interface ComercialListViewProps {
-  clientes: Cliente[]
+  clientes?: Cliente[]
+  negocios?: Negocio[]
   onBackToKanban: () => void
+  onNegociosChanged?: () => void
 }
 
 const ETAPAS_FUNIL: { id: ClienteStatus; label: string }[] = [
@@ -135,7 +179,9 @@ export function normalizarTipoNegocio(cliente: Cliente): TipoNegocioOpcao {
 
 export const ComercialListView: React.FC<ComercialListViewProps> = ({
   clientes: clientesProp,
+  negocios: negociosProp,
   onBackToKanban,
+  onNegociosChanged,
 }) => {
   const navigate = useNavigate()
   const {
@@ -162,7 +208,7 @@ export const ComercialListView: React.FC<ComercialListViewProps> = ({
   const [isProcessing, setIsProcessing] = useState(false)
 
   // Mover para outros contatos (individual e em lote)
-  const [clienteParaMover, setClienteParaMover] = useState<Cliente | null>(null)
+  const [itemParaMover, setItemParaMover] = useState<ComercialListItem | null>(null)
   const [modalConfirmarMoverContatosLoteOpen, setModalConfirmarMoverContatosLoteOpen] =
     useState(false)
   const [isMovingContatos, setIsMovingContatos] = useState(false)
@@ -177,10 +223,97 @@ export const ComercialListView: React.FC<ComercialListViewProps> = ({
   const [modalConfirmarArquivarOpen, setModalConfirmarArquivarOpen] = useState(false)
   const [modalConfirmarExcluirLoteOpen, setModalConfirmarExcluirLoteOpen] = useState(false)
 
-  // Excluir registros já arquivados e negócios já transferidos para Pós-Vendas
-  const clientesAtivos = useMemo(() => {
-    return clientesProp.filter((c) => !c.arquivado && !c.transferido_pos_vendas)
-  }, [clientesProp])
+  // Itens unificados de negócios (ou clientes no modo compatibilidade)
+  const itensAtivos = useMemo<ComercialListItem[]>(() => {
+    if (Array.isArray(negociosProp) && negociosProp.length > 0) {
+      return negociosProp
+        .filter((n) => {
+          if (!n || !n.id) return false
+          const cli = n.expand?.cliente_id
+          if (cli && (cli.arquivado || cli.transferido_pos_vendas)) return false
+          return true
+        })
+        .map((n) => {
+          const cli = n.expand?.cliente_id
+          const etapa = n.etapa_funil || 'novo lead'
+          let statusKanban: ClienteStatus = ETAPA_NEGOCIO_TO_STATUS[etapa] || 'Novo Lead'
+          if (n.status === 'ganho') statusKanban = 'Fechado'
+          else if (n.status === 'perdido') statusKanban = 'Perdido'
+
+          const nomeCliente = (cli?.nome || cli?.razao_social || 'Cliente vinculado').trim()
+          const tituloNegocio = (n.titulo || '').trim() || nomeCliente
+
+          // Normaliza tipo de negócio
+          let tipoNegocio: TipoNegocioOpcao = 'energia solar'
+          if (cli) {
+            tipoNegocio = normalizarTipoNegocio(cli)
+          } else if (n.tipo_venda || n.tipo_negocio) {
+            const raw = `${n.tipo_venda || ''} ${n.tipo_negocio || ''}`.toLowerCase()
+            if (raw.includes('carregador') || raw.includes('veículo') || raw.includes('ev')) {
+              tipoNegocio = 'carregadores veiculares'
+            } else if (raw.includes('bateria') || raw.includes('storage')) {
+              tipoNegocio = 'baterias'
+            } else if (raw.includes('o&m') || raw.includes('plano')) {
+              tipoNegocio = 'Planos de O&M'
+            }
+          }
+
+          const valorFinal =
+            Number(n.valor) || Number(n.valor_estimado) || (cli?.valor_estimado ?? 0)
+
+          const respUser = n.expand?.consultor_responsavel
+          const responsavelId = n.consultor_responsavel || cli?.responsavel_id
+          const responsavelNome = respUser?.name || cli?.responsavel_nome
+
+          return {
+            id: n.id,
+            negocioId: n.id,
+            clienteId: n.cliente_id || cli?.id || '',
+            titulo: tituloNegocio,
+            nomeCliente,
+            cidade: cli?.cidade || '',
+            estado: cli?.estado || '',
+            potenciaKwp: Number(cli?.potencia_kwp) || 0,
+            tipoNegocio,
+            valorEstimado: valorFinal,
+            status: statusKanban,
+            etapaFunil: n.etapa_funil,
+            responsavelId,
+            responsavelNome,
+            motivoPerda: n.motivo_perda || cli?.motivo_perda,
+            observacoesPerda: cli?.observacoes_perda,
+            reabertura: Boolean(n.reabertura || cli?.reabertura),
+            motivoReabertura: n.motivo_reabertura || cli?.motivo_reabertura,
+            recorrenciaMensal: Boolean(n.recorrencia_mensal || cli?.recorrencia_mensal),
+            rawNegocio: n,
+            rawCliente: cli,
+          }
+        })
+    }
+
+    return (Array.isArray(clientesProp) ? clientesProp : [])
+      .filter((c) => !c.arquivado && !c.transferido_pos_vendas)
+      .map((c) => ({
+        id: c.id,
+        clienteId: c.id,
+        titulo: (c.nome || '').trim() || 'Cliente sem nome',
+        nomeCliente: (c.nome || '').trim() || 'Cliente sem nome',
+        cidade: c.cidade || '',
+        estado: c.estado || '',
+        potenciaKwp: Number(c.potencia_kwp) || 0,
+        tipoNegocio: normalizarTipoNegocio(c),
+        valorEstimado: Number(c.valor_estimado) || 0,
+        status: (c.status || 'Novo Lead') as ClienteStatus,
+        responsavelId: c.responsavel_id,
+        responsavelNome: c.responsavel_nome,
+        motivoPerda: c.motivo_perda,
+        observacoesPerda: c.observacoes_perda,
+        reabertura: Boolean(c.reabertura),
+        motivoReabertura: c.motivo_reabertura,
+        recorrenciaMensal: Boolean(c.recorrencia_mensal),
+        rawCliente: c,
+      }))
+  }, [negociosProp, clientesProp])
 
   // Filtros ativos contagem e flag
   const hasActiveFilters =
@@ -199,53 +332,53 @@ export const ComercialListView: React.FC<ComercialListViewProps> = ({
   }
 
   // Filtragem combinada (E): Busca textual + Etapa + Responsável + Motivo da Perda + Tipo de Negócio
-  const filteredClientes = useMemo(() => {
+  const filteredItens = useMemo(() => {
     const termo = busca.trim().toLowerCase()
 
-    return clientesAtivos.filter((c) => {
-      // 1. Busca textual (nome, cidade, responsável)
+    return itensAtivos.filter((item) => {
+      // 1. Busca textual (titulo, cliente, cidade, responsável)
       if (termo) {
-        const matchNome = (c.nome || '').toLowerCase().includes(termo)
-        const matchCidade = (c.cidade || '').toLowerCase().includes(termo)
-        const matchResp = (c.responsavel_nome || '').toLowerCase().includes(termo)
-        if (!matchNome && !matchCidade && !matchResp) return false
+        const matchTitulo = (item.titulo || '').toLowerCase().includes(termo)
+        const matchNome = (item.nomeCliente || '').toLowerCase().includes(termo)
+        const matchCidade = (item.cidade || '').toLowerCase().includes(termo)
+        const matchResp = (item.responsavelNome || '').toLowerCase().includes(termo)
+        if (!matchTitulo && !matchNome && !matchCidade && !matchResp) return false
       }
 
       // 2. Filtro Etapa
       if (filtroEtapa !== 'todos') {
-        if (c.status !== filtroEtapa) return false
+        if (item.status !== filtroEtapa) return false
       }
 
       // 3. Filtro Responsável
       if (filtroResponsavel !== 'todos') {
         if (filtroResponsavel === 'sem_responsavel') {
-          if (c.responsavel_id || c.responsavel_nome) return false
+          if (item.responsavelId || item.responsavelNome) return false
         } else {
-          const matchId = c.responsavel_id === filtroResponsavel
+          const matchId = item.responsavelId === filtroResponsavel
           const userObj = usuarios.find((u) => u.id === filtroResponsavel)
           const matchNome =
             userObj &&
-            c.responsavel_nome &&
-            c.responsavel_nome.toLowerCase() === userObj.name.toLowerCase()
+            item.responsavelNome &&
+            item.responsavelNome.toLowerCase() === userObj.name.toLowerCase()
           if (!matchId && !matchNome) return false
         }
       }
 
       // 4. Filtro Motivo da Perda
       if (filtroMotivoPerda !== 'todos') {
-        if (c.motivo_perda !== filtroMotivoPerda) return false
+        if (item.motivoPerda !== filtroMotivoPerda) return false
       }
 
       // 5. Filtro Tipo de Negócio
       if (filtroTipoNegocio !== 'todos') {
-        const tipoNorm = normalizarTipoNegocio(c)
-        if (tipoNorm !== filtroTipoNegocio) return false
+        if (item.tipoNegocio !== filtroTipoNegocio) return false
       }
 
       return true
     })
   }, [
-    clientesAtivos,
+    itensAtivos,
     busca,
     filtroEtapa,
     filtroResponsavel,
@@ -256,16 +389,16 @@ export const ComercialListView: React.FC<ComercialListViewProps> = ({
 
   // Seleção rápida
   const allFilteredSelected =
-    filteredClientes.length > 0 && filteredClientes.every((c) => selectedIds.includes(c.id))
+    filteredItens.length > 0 && filteredItens.every((c) => selectedIds.includes(c.id))
 
   const handleToggleSelectAll = () => {
     if (allFilteredSelected) {
       // Remove da seleção apenas os que estão visíveis no filtro atual
-      const currentIds = new Set(filteredClientes.map((c) => c.id))
+      const currentIds = new Set(filteredItens.map((c) => c.id))
       setSelectedIds((prev) => prev.filter((id) => !currentIds.has(id)))
     } else {
       // Adiciona todos os visíveis
-      const currentIds = filteredClientes.map((c) => c.id)
+      const currentIds = filteredItens.map((c) => c.id)
       setSelectedIds((prev) => Array.from(new Set([...prev, ...currentIds])))
     }
   }
@@ -287,13 +420,29 @@ export const ComercialListView: React.FC<ComercialListViewProps> = ({
     if (selectedIds.length === 0) return
     setIsProcessing(true)
     try {
-      await bulkUpdateEtapa(selectedIds, etapaDestino)
+      const itensSelecionados = itensAtivos.filter((i) => selectedIds.includes(i.id))
+      const negociosSelecionados = itensSelecionados.filter((i) => i.negocioId)
+
+      if (negociosSelecionados.length > 0) {
+        const novaEtapa = STATUS_TO_ETAPA_NEGOCIO[etapaDestino] || 'novo lead'
+        await Promise.all(
+          negociosSelecionados.map((n) => updateNegocio(n.negocioId!, { etapa_funil: novaEtapa })),
+        )
+      }
+
+      // Clientes legados (se houver sem negócio)
+      const clientesSemNegocio = itensSelecionados.filter((i) => !i.negocioId).map((i) => i.id)
+      if (clientesSemNegocio.length > 0) {
+        await bulkUpdateEtapa(clientesSemNegocio, etapaDestino)
+      }
+
       toast({
         title: 'Etapa atualizada!',
         description: `${selectedIds.length} negócio(s) movido(s) para "${etapaDestino}".`,
       })
       setSelectedIds([])
       setModalMoverEtapaOpen(false)
+      if (onNegociosChanged) onNegociosChanged()
     } catch (err) {
       toast({
         title: 'Erro ao mover negócios',
@@ -313,13 +462,30 @@ export const ComercialListView: React.FC<ComercialListViewProps> = ({
 
     setIsProcessing(true)
     try {
-      await bulkUpdateResponsavel(selectedIds, responsavelDestinoId, nome)
+      const itensSelecionados = itensAtivos.filter((i) => selectedIds.includes(i.id))
+      const negociosSelecionados = itensSelecionados.filter((i) => i.negocioId)
+
+      if (negociosSelecionados.length > 0) {
+        await Promise.all(
+          negociosSelecionados.map((n) =>
+            updateNegocio(n.negocioId!, { consultor_responsavel: responsavelDestinoId }),
+          ),
+        )
+      }
+
+      // Clientes legados
+      const clientesSemNegocio = itensSelecionados.filter((i) => !i.negocioId).map((i) => i.id)
+      if (clientesSemNegocio.length > 0) {
+        await bulkUpdateResponsavel(clientesSemNegocio, responsavelDestinoId, nome)
+      }
+
       toast({
         title: 'Responsável atribuído!',
         description: `${selectedIds.length} negócio(s) atribuído(s) a ${nome}.`,
       })
       setSelectedIds([])
       setModalResponsavelOpen(false)
+      if (onNegociosChanged) onNegociosChanged()
     } catch (err) {
       toast({
         title: 'Erro ao atribuir responsável',
@@ -336,12 +502,33 @@ export const ComercialListView: React.FC<ComercialListViewProps> = ({
     if (selectedIds.length === 0) return
     setIsProcessing(true)
     try {
-      await bulkMarcarFechado(selectedIds)
+      const itensSelecionados = itensAtivos.filter((i) => selectedIds.includes(i.id))
+      const negociosSelecionados = itensSelecionados.filter((i) => i.negocioId)
+
+      if (negociosSelecionados.length > 0) {
+        const agora = new Date().toISOString()
+        await Promise.all(
+          negociosSelecionados.map((n) =>
+            updateNegocio(n.negocioId!, {
+              status: 'ganho',
+              etapa_funil: 'contrato assinado',
+              data_fechamento: agora,
+            }),
+          ),
+        )
+      }
+
+      const clientesSemNegocio = itensSelecionados.filter((i) => !i.negocioId).map((i) => i.id)
+      if (clientesSemNegocio.length > 0) {
+        await bulkMarcarFechado(clientesSemNegocio)
+      }
+
       toast({
         title: 'Negócios Fechados!',
         description: `${selectedIds.length} negócio(s) marcado(s) como Fechado com sucesso!`,
       })
       setSelectedIds([])
+      if (onNegociosChanged) onNegociosChanged()
     } catch (err) {
       toast({
         title: 'Erro ao marcar fechado',
@@ -358,13 +545,20 @@ export const ComercialListView: React.FC<ComercialListViewProps> = ({
     if (selectedIds.length === 0) return
     setIsProcessing(true)
     try {
-      await bulkArquivar(selectedIds)
+      const itensSelecionados = itensAtivos.filter((i) => selectedIds.includes(i.id))
+      const clientIds = Array.from(
+        new Set(itensSelecionados.map((i) => i.clienteId).filter(Boolean)),
+      )
+      if (clientIds.length > 0) {
+        await bulkArquivar(clientIds)
+      }
       toast({
         title: 'Negócios Arquivados',
         description: `${selectedIds.length} negócio(s) arquivado(s) do funil comercial ativo.`,
       })
       setSelectedIds([])
       setModalConfirmarArquivarOpen(false)
+      if (onNegociosChanged) onNegociosChanged()
     } catch (err) {
       toast({
         title: 'Erro ao arquivar',
@@ -379,35 +573,32 @@ export const ComercialListView: React.FC<ComercialListViewProps> = ({
   // 5. Mover Selecionados para Outros Contatos em Lote
   const handleConfirmMoverContatosLote = async () => {
     if (selectedIds.length === 0) return
-    const clientesSelecionados = clientesAtivos.filter((c) => selectedIds.includes(c.id))
-    if (clientesSelecionados.length === 0) return
+    const itensSelecionados = itensAtivos.filter((i) => selectedIds.includes(i.id))
+    const clientesParaMover = itensSelecionados
+      .map((i) => i.rawCliente)
+      .filter((c): c is Cliente => Boolean(c))
 
-    const total = clientesSelecionados.length
     setIsMovingContatos(true)
     setIsProcessing(true)
 
     try {
-      const { sucesso, falhas } = await bulkMoverClientesParaOutrosContatos(clientesSelecionados)
-      if (falhas === 0) {
-        toast({
-          title: 'Contatos movidos com sucesso',
-          description: `${sucesso} cliente${sucesso > 1 ? 's' : ''} movido${sucesso > 1 ? 's' : ''} para Outros Contatos com sucesso.`,
-        })
-      } else if (sucesso > 0) {
-        toast({
-          title: 'Operação parcialmente concluída',
-          description: `${sucesso} cliente(s) movido(s), porém ${falhas} falharam. Os dados foram recarregados.`,
-          variant: 'destructive',
-        })
-      } else {
-        toast({
-          title: 'Erro ao mover contatos',
-          description: `Não foi possível mover os ${falhas} cliente(s) selecionado(s).`,
-          variant: 'destructive',
-        })
+      if (clientesParaMover.length > 0) {
+        await bulkMoverClientesParaOutrosContatos(clientesParaMover)
       }
+
+      // Remove os negócios do funil
+      const negocioIds = itensSelecionados.map((i) => i.negocioId).filter(Boolean) as string[]
+      if (negocioIds.length > 0) {
+        await bulkDeleteNegocios(negocioIds)
+      }
+
+      toast({
+        title: 'Contatos movidos com sucesso',
+        description: `${selectedIds.length} item(ns) movido(s) para Outros Contatos e removido(s) do funil.`,
+      })
       setSelectedIds([])
       setModalConfirmarMoverContatosLoteOpen(false)
+      if (onNegociosChanged) onNegociosChanged()
     } catch (err) {
       console.error('Erro ao mover clientes em lote para outros contatos:', err)
       toast({
@@ -429,24 +620,39 @@ export const ComercialListView: React.FC<ComercialListViewProps> = ({
     navigate('/clientes')
   }
 
-  // 8. Excluir Selecionados em Lote
+  // 8. Excluir Selecionados em Lote (IMPORTANTE: EXCLUI APENAS NEGÓCIOS, PRESERVANDO CLIENTES)
   const handleConfirmExcluirLote = async () => {
     if (selectedIds.length === 0) return
     const count = selectedIds.length
     setIsProcessing(true)
     try {
-      await bulkRemoveClientes(selectedIds)
-      toast({
-        title: 'Clientes excluídos',
-        description: `${count} cliente${count > 1 ? 's' : ''} excluído${count > 1 ? 's' : ''} permanentemente com sucesso.`,
-      })
+      const itensSelecionados = itensAtivos.filter((i) => selectedIds.includes(i.id))
+      const negocioIds = itensSelecionados.map((i) => i.negocioId).filter(Boolean) as string[]
+
+      if (negocioIds.length > 0) {
+        // Exclui APENAS os negócios. Os clientes permanecem 100% intactos no cadastro.
+        await bulkDeleteNegocios(negocioIds)
+        toast({
+          title: 'Negócios excluídos',
+          description: `${negocioIds.length} negócio(s) removido(s) do funil. Todos os clientes vinculados continuam intactos no cadastro.`,
+        })
+      } else {
+        // Modo legado sem coleção de negócios
+        await bulkRemoveClientes(selectedIds)
+        toast({
+          title: 'Registros excluídos',
+          description: `${count} registro(s) excluído(s).`,
+        })
+      }
+
       setSelectedIds([])
       setModalConfirmarExcluirLoteOpen(false)
+      if (onNegociosChanged) onNegociosChanged()
     } catch (err) {
-      console.error('Erro ao excluir clientes em lote:', err)
+      console.error('Erro ao excluir negócios em lote:', err)
       toast({
-        title: 'Erro ao excluir clientes',
-        description: 'Ocorreu um erro ao excluir os clientes selecionados.',
+        title: 'Erro ao excluir negócios',
+        description: 'Ocorreu um erro ao remover os negócios selecionados.',
         variant: 'destructive',
       })
     } finally {
@@ -456,10 +662,10 @@ export const ComercialListView: React.FC<ComercialListViewProps> = ({
 
   // Cálculos para resumo no topo da lista
   const valorTotalSelecionado = useMemo(() => {
-    return clientesAtivos
+    return itensAtivos
       .filter((c) => selectedIds.includes(c.id))
-      .reduce((sum, c) => sum + (c.valor_estimado || 0), 0)
-  }, [clientesAtivos, selectedIds])
+      .reduce((sum, c) => sum + (c.valorEstimado || 0), 0)
+  }, [itensAtivos, selectedIds])
 
   return (
     <div className="space-y-4">

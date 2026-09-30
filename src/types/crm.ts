@@ -159,8 +159,10 @@ export interface Negocio extends RecordModel {
   collectionId: string
   collectionName: string
   cliente_id: string
+  titulo?: string
   tipo_negocio?: TipoNegocioSelect
   tipo_venda?: TipoVendaSelect | string
+  valor?: number
   valor_estimado?: number
   valor_final?: number
   recorrencia_mensal?: boolean
@@ -173,10 +175,12 @@ export interface Negocio extends RecordModel {
   reabertura?: boolean
   motivo_reabertura?: string
   condicao_pagamento?: string
+  consultor_responsavel?: string
   created: string
   updated: string
   expand?: {
     cliente_id?: Cliente
+    consultor_responsavel?: SistemaUsuario
   }
 }
 
