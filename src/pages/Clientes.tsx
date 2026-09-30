@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { fetchOutrosContatos } from '@/services/crmService'
+import { fetchContatosUnicos } from '@/services/contatosService'
 import {
   Search,
   Eye,
@@ -27,6 +28,15 @@ import {
   Briefcase,
   GitFork,
   Check,
+  Filter,
+  FileSpreadsheet,
+  ArrowRightLeft,
+  Phone,
+  PhoneOff,
+  UserCheck,
+  UserX,
+  SlidersHorizontal,
+  Info,
 } from 'lucide-react'
 import { useClientes } from '@/contexts/ClientesContext'
 import {
@@ -40,6 +50,22 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuSubContent,
 } from '@/components/ui/dropdown-menu'
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+  SheetFooter,
+} from '@/components/ui/sheet'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog'
 import { WhatsAppIcon } from '@/components/WhatsAppIcon'
 import { SessaoExpiradaAlert } from '@/components/SessaoExpiradaAlert'
 import { ModalMesclarClientes } from '@/components/ModalMesclarClientes'
@@ -61,14 +87,43 @@ import { StatusBadge, ProductBadge } from '@/components/StatusBadge'
 import { OrigemClienteBadge } from '@/components/OrigemClienteBadge'
 import { identificarOrigemCliente } from '@/lib/origemCliente'
 import { formatCurrency } from '@/lib/formatters'
+import { exportarClientesSegmentadosXlsx } from '@/lib/exportClientesSegmentadosXlsx'
 import {
   ModalCadastroClienteFornecedor,
   DadosCadastroForm,
 } from '@/components/ModalCadastroClienteFornecedor'
+import type { Cliente, ClienteStatus, ContatoAdicional } from '@/types/crm'
 
 export type SortField = 'nome' | 'origem' | 'produto' | 'cidade' | 'potencia' | 'valor' | 'status'
 export type SortDirection = 'asc' | 'desc'
 export type SubAbaClientes = 'base' | 'outros_contatos'
+
+// Lista canônica de etapas do funil comercial Delfos Solar
+export const ETAPAS_FUNIL_CLIENTES: { id: ClienteStatus; label: string; cor: string }[] = [
+  { id: 'Novo Lead', label: '1 - Novo Lead', cor: 'bg-slate-100 text-slate-800 border-slate-300' },
+  { id: 'Levantamento', label: '2 - Levantamento', cor: 'bg-sky-100 text-sky-800 border-sky-300' },
+  {
+    id: 'Orçamento',
+    label: '3 - Proposta Enviada',
+    cor: 'bg-indigo-100 text-indigo-800 border-indigo-300',
+  },
+  {
+    id: 'Negociação',
+    label: '4 - Negociação',
+    cor: 'bg-amber-100 text-amber-800 border-amber-300',
+  },
+  {
+    id: 'Contato Futuro',
+    label: '5 - Contato Futuro',
+    cor: 'bg-gray-100 text-gray-800 border-gray-300',
+  },
+  {
+    id: 'Fechado',
+    label: 'Fechado (Ganho)',
+    cor: 'bg-emerald-100 text-emerald-800 border-emerald-300',
+  },
+  { id: 'Perdido', label: 'Perdido', cor: 'bg-rose-100 text-rose-800 border-rose-300' },
+]
 
 export default function Clientes() {
   const navigate = useNavigate()
@@ -96,24 +151,77 @@ export default function Clientes() {
     isSessionExpired,
     authError,
     clientes,
+    contatosAdicionais = [],
     isLoading,
     openFichaCliente,
     addCliente,
     updateCliente,
     updateClienteStatus,
+    bulkUpdateEtapa,
     removeCliente,
     bulkRemoveClientes,
     mesclarClientes,
   } = useClientes()
+
+  // Mapear contatos únicos da área unificada vinculados aos clientes (N:N)
+  const [contatosUnicosVinculadosMap, setContatosUnicosVinculadosMap] = useState<
+    Map<string, number>
+  >(new Map())
+  useEffect(() => {
+    let mounted = true
+    fetchContatosUnicos()
+      .then((unicos) => {
+        if (!mounted) return
+        const map = new Map<string, number>()
+        unicos.forEach((cu) => {
+          if (Array.isArray(cu.clientes_vinculados)) {
+            cu.clientes_vinculados.forEach((cid) => {
+              if (cid) map.set(cid, (map.get(cid) || 0) + 1)
+            })
+          }
+        })
+        setContatosUnicosVinculadosMap(map)
+      })
+      .catch((err) => {
+        console.warn('Erro ao carregar contatos únicos para contagem de vínculos:', err)
+      })
+    return () => {
+      mounted = false
+    }
+  }, [])
+
   const [searchTerm, setSearchTerm] = useState('')
   const [isModalNovoOpen, setIsModalNovoOpen] = useState(false)
 
-  // Ouvinte para receber alteração de busca/filtro do drawer mobile
+  // Painel lateral de filtros (Drawer / Sheet)
+  const [isFilterDrawerOpen, setIsFilterDrawerOpen] = useState(false)
+
+  // Estados dos Filtros Avançados
+  // 1. Etapas do funil comercial (multiseleção: array com os IDs selecionados)
+  const [selectedEtapas, setSelectedEtapas] = useState<string[]>([])
+
+  // 2. Filtros tem/não tem (Sim/Não checkboxes independentes)
+  // Se ambos marcados ou ambos desmarcados => sem restrição
+  const [telefoneSim, setTelefoneSim] = useState(false)
+  const [telefoneNao, setTelefoneNao] = useState(false)
+
+  const [whatsAppSim, setWhatsAppSim] = useState(false)
+  const [whatsAppNao, setWhatsAppNao] = useState(false)
+
+  const [contatoVinculadoSim, setContatoVinculadoSim] = useState(false)
+  const [contatoVinculadoNao, setContatoVinculadoNao] = useState(false)
+
+  // Ouvinte para receber alteração de busca/filtro do drawer mobile global
   useEffect(() => {
     const handleMobileFilterChange = (e: Event) => {
       const customEvent = e as CustomEvent<{ statusFilter?: string }>
       if (customEvent.detail && customEvent.detail.statusFilter !== undefined) {
-        setFiltroStatus(customEvent.detail.statusFilter)
+        const st = customEvent.detail.statusFilter
+        if (st === 'todos') {
+          setSelectedEtapas([])
+        } else {
+          setSelectedEtapas([st])
+        }
       }
     }
     window.addEventListener('delfos:mobile-filter-change', handleMobileFilterChange)
@@ -132,6 +240,7 @@ export default function Clientes() {
       window.removeEventListener('delfos:abrir-novo-lead', handleOpenNovoCliente)
     }
   }, [])
+
   const [isModalOferecerLimpezaOpen, setIsModalOferecerLimpezaOpen] = useState(false)
   const [isModalMensagemMassaOpen, setIsModalMensagemMassaOpen] = useState(false)
   const [clienteParaExcluir, setClienteParaExcluir] = useState<{ id: string; nome: string } | null>(
@@ -141,106 +250,91 @@ export default function Clientes() {
 
   // Seleção múltipla
   const [selectedIds, setSelectedIds] = useState<string[]>([])
+
+  // Ações em lote
   const [isModalExcluirLoteOpen, setIsModalExcluirLoteOpen] = useState(false)
   const [isDeletingLote, setIsDeletingLote] = useState(false)
+  const [textoConfirmacaoExclusao, setTextoConfirmacaoExclusao] = useState('')
+
+  const [isModalMoverEtapaLoteOpen, setIsModalMoverEtapaLoteOpen] = useState(false)
+  const [etapaDestinoLote, setEtapaDestinoLote] = useState<ClienteStatus>('Novo Lead')
+  const [isMovingEtapaLote, setIsMovingEtapaLote] = useState(false)
 
   // Mesclagem de clientes
   const [isModalMesclarOpen, setIsModalMesclarOpen] = useState(false)
   const [clienteMesclarInicial, setClienteMesclarInicial] = useState<any>(null)
 
-  // Requisito 2: Ordenação alfabética por padrão (A-Z respeitando pt-BR)
+  // Ordenação alfabética por padrão (A-Z respeitando pt-BR)
   const [sortField, setSortField] = useState<SortField>('nome')
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc')
 
-  // Requisito 3: Filtros por coluna na primeira linha da tabela
-  const [filtroOrigem, setFiltroOrigem] = useState<string>('todos')
-  const [filtroCidade, setFiltroCidade] = useState<string>('todos')
-  const [filtroStatus, setFiltroStatus] = useState<string>('todos')
-  const [filtroProduto, setFiltroProduto] = useState<string>('todos')
+  // Mapear antecipadamente a origem e status de telefone/whatsapp/contato de cada cliente para performance
+  const clientesComMetadados = useMemo(() => {
+    // Mapa auxiliar de contatos adicionais por cliente_id
+    const contatosAdicionaisMap = new Map<string, ContatoAdicional[]>()
+    ;(contatosAdicionais || []).forEach((ca) => {
+      if (!ca.cliente) return
+      const list = contatosAdicionaisMap.get(ca.cliente) || []
+      list.push(ca)
+      contatosAdicionaisMap.set(ca.cliente, list)
+    })
 
-  // Mapear antecipadamente a origem de cada cliente para performance
-  const clientesComOrigem = useMemo(() => {
-    return clientes.map((c) => ({
-      ...c,
-      origemInfo: identificarOrigemCliente(c),
-    }))
-  }, [clientes])
+    return clientes.map((c) => {
+      const telDigits = (c.telefone || '').replace(/\D/g, '')
+      const temTelefone = telDigits.length >= 8
 
-  // Valores distintos presentes na base para os filtros de coluna
-  const distinctOrigens = useMemo(() => {
-    const map = new Map<string, { label: string; count: number }>()
-    clientesComOrigem.forEach((c) => {
-      const key = c.origemInfo.label
-      const cur = map.get(key)
-      if (cur) {
-        cur.count += 1
-      } else {
-        map.set(key, { label: key, count: 1 })
+      const waDigits = (c.whatsapp || '').replace(/\D/g, '')
+      const temWhatsApp = waDigits.length >= 8
+
+      const totalAdicionais = (contatosAdicionaisMap.get(c.id) || []).length
+      const totalUnicos = contatosUnicosVinculadosMap.get(c.id) || 0
+      const temNomeContato = Boolean(c.contato_principal?.trim() || c.contato?.trim())
+      const temContatoVinculado = totalAdicionais > 0 || totalUnicos > 0 || temNomeContato
+
+      return {
+        ...c,
+        origemInfo: identificarOrigemCliente(c),
+        temTelefone,
+        temWhatsApp,
+        temContatoVinculado,
+        totalVinculos: totalAdicionais + totalUnicos + (temNomeContato ? 1 : 0),
       }
     })
-    return Array.from(map.entries())
-      .map(([key, v]) => ({ value: key, label: v.label, count: v.count }))
-      .sort((a, b) => a.label.localeCompare(b.label, 'pt-BR'))
-  }, [clientesComOrigem])
+  }, [clientes, contatosAdicionais, contatosUnicosVinculadosMap])
 
-  const distinctCidades = useMemo(() => {
-    const map = new Map<string, number>()
-    clientesComOrigem.forEach((c) => {
-      const cidade = (c.cidade || '').trim() || 'Não informada'
-      map.set(cidade, (map.get(cidade) || 0) + 1)
-    })
-    return Array.from(map.entries())
-      .map(([cidade, count]) => ({ value: cidade, label: cidade, count }))
-      .sort((a, b) => a.label.localeCompare(b.label, 'pt-BR'))
-  }, [clientesComOrigem])
+  // Contagem de filtros ativos no botão de funil
+  const activeFiltersCount = useMemo(() => {
+    let count = 0
+    if (selectedEtapas.length > 0) count += 1
+    if ((telefoneSim || telefoneNao) && !(telefoneSim && telefoneNao)) count += 1
+    if ((whatsAppSim || whatsAppNao) && !(whatsAppSim && whatsAppNao)) count += 1
+    if (
+      (contatoVinculadoSim || contatoVinculadoNao) &&
+      !(contatoVinculadoSim && contatoVinculadoNao)
+    )
+      count += 1
+    return count
+  }, [
+    selectedEtapas,
+    telefoneSim,
+    telefoneNao,
+    whatsAppSim,
+    whatsAppNao,
+    contatoVinculadoSim,
+    contatoVinculadoNao,
+  ])
 
-  const distinctStatuses = useMemo(() => {
-    const map = new Map<string, number>()
-    // Garantir que todos os status cadastrais padrão estejam mapeados mesmo se contagem for 0
-    const padroes = [
-      'Novo Lead',
-      'Levantamento',
-      'Orçamento',
-      'Negociação',
-      'Fechado',
-      'Contato Futuro',
-      'Perdido',
-    ]
-    padroes.forEach((p) => map.set(p, 0))
-
-    clientesComOrigem.forEach((c) => {
-      const status = (c.status || '').trim() || 'Outro'
-      map.set(status, (map.get(status) || 0) + 1)
-    })
-    return Array.from(map.entries())
-      .map(([status, count]) => ({ value: status, label: status, count }))
-      .sort((a, b) => a.label.localeCompare(b.label, 'pt-BR'))
-  }, [clientesComOrigem])
-
-  const distinctProdutos = useMemo(() => {
-    const map = new Map<string, number>()
-    clientesComOrigem.forEach((c) => {
-      const prod = (c.produto || '').trim() || 'Energia Solar'
-      map.set(prod, (map.get(prod) || 0) + 1)
-    })
-    return Array.from(map.entries())
-      .map(([prod, count]) => ({ value: prod, label: prod, count }))
-      .sort((a, b) => a.label.localeCompare(b.label, 'pt-BR'))
-  }, [clientesComOrigem])
-
-  // Contagem de filtros ativos
-  const hasActiveColumnFilters =
-    filtroOrigem !== 'todos' ||
-    filtroCidade !== 'todos' ||
-    filtroStatus !== 'todos' ||
-    filtroProduto !== 'todos'
+  const hasAnyFilterActive = activeFiltersCount > 0 || Boolean(searchTerm.trim())
 
   const handleLimparTodosFiltros = () => {
     setSearchTerm('')
-    setFiltroOrigem('todos')
-    setFiltroCidade('todos')
-    setFiltroStatus('todos')
-    setFiltroProduto('todos')
+    setSelectedEtapas([])
+    setTelefoneSim(false)
+    setTelefoneNao(false)
+    setWhatsAppSim(false)
+    setWhatsAppNao(false)
+    setContatoVinculadoSim(false)
+    setContatoVinculadoNao(false)
     setSortField('nome')
     setSortDirection('asc')
   }
@@ -254,10 +348,10 @@ export default function Clientes() {
     }
   }
 
-  // Filtragem combinada (Search + Filtros de Coluna com AND) e Ordenação
+  // Filtragem combinada (Search + Drawer Filtros com AND entre grupos e OR dentro) e Ordenação
   const processedClientes = useMemo(() => {
     // 1. Filtragem
-    const filtered = clientesComOrigem.filter((c) => {
+    const filtered = clientesComMetadados.filter((c) => {
       // Busca textual geral
       if (searchTerm.trim()) {
         const lower = searchTerm.toLowerCase()
@@ -269,32 +363,43 @@ export default function Clientes() {
           (c.cpf && c.cpf.includes(searchTerm)) ||
           (c.cidade && c.cidade.toLowerCase().includes(lower)) ||
           (c.uc && c.uc.includes(lower)) ||
+          (c.telefone && c.telefone.includes(searchTerm)) ||
+          (c.whatsapp && c.whatsapp.includes(searchTerm)) ||
           c.origemInfo.label.toLowerCase().includes(lower)
 
         if (!matchesSearch) return false
       }
 
-      // Filtro Coluna Origem
-      if (filtroOrigem !== 'todos') {
-        if (c.origemInfo.label !== filtroOrigem) return false
+      // Filtro 1: Etapas do Funil (multiseleção com OR)
+      if (selectedEtapas.length > 0) {
+        const statusAtual = (c.status || '').trim() || 'Novo Lead'
+        if (!selectedEtapas.includes(statusAtual)) {
+          return false
+        }
       }
 
-      // Filtro Coluna Cidade
-      if (filtroCidade !== 'todos') {
-        const cid = (c.cidade || '').trim() || 'Não informada'
-        if (cid !== filtroCidade) return false
+      // Filtro 2: Telefone cadastrado (Sim / Não)
+      // Se ambos marcados ou ambos desmarcados, aceita todos
+      const telRestrito = (telefoneSim || telefoneNao) && !(telefoneSim && telefoneNao)
+      if (telRestrito) {
+        if (telefoneSim && !c.temTelefone) return false
+        if (telefoneNao && c.temTelefone) return false
       }
 
-      // Filtro Coluna Status
-      if (filtroStatus !== 'todos') {
-        const st = (c.status || '').trim() || 'Outro'
-        if (st !== filtroStatus) return false
+      // Filtro 3: WhatsApp cadastrado (Sim / Não)
+      const waRestrito = (whatsAppSim || whatsAppNao) && !(whatsAppSim && whatsAppNao)
+      if (waRestrito) {
+        if (whatsAppSim && !c.temWhatsApp) return false
+        if (whatsAppNao && c.temWhatsApp) return false
       }
 
-      // Filtro Coluna Produto
-      if (filtroProduto !== 'todos') {
-        const pr = (c.produto || '').trim() || 'Energia Solar'
-        if (pr !== filtroProduto) return false
+      // Filtro 4: Algum contato vinculado (Sim / Não)
+      const contatoRestrito =
+        (contatoVinculadoSim || contatoVinculadoNao) &&
+        !(contatoVinculadoSim && contatoVinculadoNao)
+      if (contatoRestrito) {
+        if (contatoVinculadoSim && !c.temContatoVinculado) return false
+        if (contatoVinculadoNao && c.temContatoVinculado) return false
       }
 
       return true
@@ -343,17 +448,22 @@ export default function Clientes() {
       return sortDirection === 'asc' ? result : -result
     })
   }, [
-    clientesComOrigem,
+    clientesComMetadados,
     searchTerm,
-    filtroOrigem,
-    filtroCidade,
-    filtroStatus,
-    filtroProduto,
+    selectedEtapas,
+    telefoneSim,
+    telefoneNao,
+    whatsAppSim,
+    whatsAppNao,
+    contatoVinculadoSim,
+    contatoVinculadoNao,
     sortField,
     sortDirection,
   ])
 
-  // Helpers de seleção múltipla (após processedClientes)
+  // Limpar seleção de IDs que já não estejam na lista processada (quando filtros mudam)
+  // Mantemos apenas selecionados válidos
+  const selectedCount = selectedIds.length
   const isAllSelected =
     processedClientes.length > 0 && processedClientes.every((c) => selectedIds.includes(c.id))
   const isSomeSelected = processedClientes.some((c) => selectedIds.includes(c.id)) && !isAllSelected
@@ -373,6 +483,75 @@ export default function Clientes() {
     )
   }
 
+  // Lista de clientes selecionados atualmente
+  const clientesSelecionados = useMemo(() => {
+    if (selectedIds.length === 0) return []
+    const set = new Set(selectedIds)
+    return clientes.filter((c) => set.has(c.id))
+  }, [clientes, selectedIds])
+
+  // Ação em lote: Exportar Excel (.xlsx) segmentado
+  const handleExportarExcelLote = (somenteSelecionados = false) => {
+    const listaAlvo =
+      somenteSelecionados && clientesSelecionados.length > 0
+        ? clientesSelecionados
+        : processedClientes
+
+    if (listaAlvo.length === 0) {
+      alert('Não há clientes na lista para exportar.')
+      return
+    }
+
+    const prefixo = somenteSelecionados
+      ? `clientes-selecionados-${listaAlvo.length}`
+      : `clientes-filtrados-${listaAlvo.length}`
+
+    exportarClientesSegmentadosXlsx({
+      clientes: listaAlvo,
+      contatosAdicionais,
+      contatosUnicosVinculadosMap,
+      nomePrefixo: prefixo,
+    })
+  }
+
+  // Ação em lote: Mover para outra etapa do funil
+  const handleConfirmarMoverEtapaLote = async () => {
+    if (selectedIds.length === 0) return
+    try {
+      setIsMovingEtapaLote(true)
+      await bulkUpdateEtapa(selectedIds, etapaDestinoLote)
+      setIsModalMoverEtapaLoteOpen(false)
+      setSelectedIds([])
+    } catch (err) {
+      console.error('Erro ao mover clientes de etapa em lote:', err)
+      alert('Ocorreu um erro ao mover os clientes de etapa. Tente novamente.')
+    } finally {
+      setIsMovingEtapaLote(false)
+    }
+  }
+
+  // Ação em lote: Excluir clientes selecionados com verificação de segurança reforçada
+  const handleExcluirLote = async () => {
+    if (selectedIds.length === 0) return
+    if (textoConfirmacaoExclusao.trim() !== String(selectedIds.length)) {
+      alert(`Por favor, digite "${selectedIds.length}" para confirmar a exclusão.`)
+      return
+    }
+
+    try {
+      setIsDeletingLote(true)
+      await bulkRemoveClientes(selectedIds)
+      setSelectedIds([])
+      setIsModalExcluirLoteOpen(false)
+      setTextoConfirmacaoExclusao('')
+    } catch (err) {
+      console.error('Erro ao excluir clientes em lote:', err)
+      alert('Erro ao excluir clientes selecionados. Tente novamente.')
+    } finally {
+      setIsDeletingLote(false)
+    }
+  }
+
   const handleAbrirMesclagem = (cliente?: any, e?: React.MouseEvent) => {
     if (e) e.stopPropagation()
     if (cliente) {
@@ -384,21 +563,6 @@ export default function Clientes() {
       setClienteMesclarInicial(null)
     }
     setIsModalMesclarOpen(true)
-  }
-
-  const handleExcluirLote = async () => {
-    if (selectedIds.length === 0) return
-    try {
-      setIsDeletingLote(true)
-      await bulkRemoveClientes(selectedIds)
-      setSelectedIds([])
-      setIsModalExcluirLoteOpen(false)
-    } catch (err) {
-      console.error('Erro ao excluir clientes em lote:', err)
-      alert('Erro ao excluir clientes selecionados. Tente novamente.')
-    } finally {
-      setIsDeletingLote(false)
-    }
   }
 
   const handleSalvarCliente = async (dados: DadosCadastroForm) => {
@@ -523,7 +687,7 @@ export default function Clientes() {
           </button>
         </div>
 
-        {/* Botões de Ação (visíveis em todas as telas; no mobile ficam logo abaixo do seletor de sub-abas garantindo 100% de visibilidade sem truncamento ou sobreposição) */}
+        {/* Botões de Ação do Topo */}
         <div className="flex items-center justify-end gap-2 shrink-0">
           <button
             type="button"
@@ -557,70 +721,181 @@ export default function Clientes() {
       {/* Conteúdo da Sub-Aba 1: Base de Clientes */}
       {activeSubTab === 'base' && (
         <>
-          {/* Barra de Ações em Massa (quando houver seleção) */}
+          {/* BARRA SUPERIOR DE FILTROS REORGANIZADA (Botão Único de Funil + Contador ao Lado + Busca Rápida) */}
+          <div className="bg-white rounded-2xl p-3 border border-gray-200/90 shadow-2xs flex flex-col md:flex-row md:items-center justify-between gap-3">
+            {/* Lado Esquerdo: Botão Único com Ícone de Funil + Contador de Clientes Filtrados */}
+            <div className="flex items-center gap-2.5 flex-wrap">
+              {/* Botão de Funil (Abre o Drawer Lateral de Filtros Combinados) */}
+              <button
+                type="button"
+                onClick={() => setIsFilterDrawerOpen(true)}
+                className={`inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all shadow-xs active:scale-[0.98] cursor-pointer ${
+                  activeFiltersCount > 0
+                    ? 'bg-emerald-600 text-white hover:bg-emerald-700 ring-2 ring-emerald-400 ring-offset-1'
+                    : 'bg-white text-gray-700 hover:text-emerald-700 hover:bg-emerald-50/50 border border-gray-300'
+                }`}
+                title="Abrir painel com todas as opções de filtros combinados"
+              >
+                <Filter
+                  className={`w-4 h-4 ${activeFiltersCount > 0 ? 'text-white' : 'text-emerald-600'}`}
+                />
+                <span>Filtros</span>
+                {activeFiltersCount > 0 && (
+                  <span className="w-5 h-5 rounded-full bg-white text-emerald-800 text-[11px] font-extrabold flex items-center justify-center">
+                    {activeFiltersCount}
+                  </span>
+                )}
+              </button>
+
+              {/* CONTADOR AO LADO DO BOTÃO DE FILTRO (Requisito 3) */}
+              <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gray-50 border border-gray-200 text-xs font-semibold text-gray-700">
+                <Users className="w-3.5 h-3.5 text-gray-500" />
+                <span>
+                  <strong className="text-emerald-700 font-extrabold">
+                    {processedClientes.length}
+                  </strong>
+                  {processedClientes.length === 1 ? ' cliente encontrado' : ' clientes encontrados'}
+                </span>
+                {processedClientes.length !== clientes.length && (
+                  <span className="text-[11px] text-gray-400 font-normal">
+                    (de {clientes.length} no total)
+                  </span>
+                )}
+              </div>
+
+              {/* Botão para limpar filtros caso haja algum ativo */}
+              {hasAnyFilterActive && (
+                <button
+                  type="button"
+                  onClick={handleLimparTodosFiltros}
+                  className="inline-flex items-center gap-1 text-xs text-gray-500 hover:text-red-600 font-medium underline px-1 py-1 cursor-pointer transition-colors"
+                  title="Limpar todos os filtros e pesquisa"
+                >
+                  <RotateCcw className="w-3 h-3" />
+                  <span>Limpar filtros</span>
+                </button>
+              )}
+            </div>
+
+            {/* Lado Direito: Busca Rápida Textual + Exportar Planilha Filtrada */}
+            <div className="flex items-center gap-2 w-full md:w-auto">
+              <div className="relative flex-1 md:w-64">
+                <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <input
+                  type="text"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder="Buscar por nome, CPF/CNPJ, cidade, tel..."
+                  className="w-full pl-9 pr-8 py-1.5 text-xs bg-gray-50 hover:bg-white focus:bg-white border border-gray-200 focus:border-emerald-500 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all placeholder:text-gray-400"
+                />
+                {searchTerm && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchTerm('')}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+
+              {/* Botão de Exportar Lista Filtrada em Excel */}
+              <button
+                type="button"
+                onClick={() => handleExportarExcelLote(false)}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 rounded-xl text-xs font-bold transition-all shadow-2xs shrink-0 cursor-pointer"
+                title="Exportar a lista atual para Excel (.xlsx) segmentada por grupos de telefone, WhatsApp e contatos"
+              >
+                <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-700" />
+                <span className="hidden sm:inline">Gerar Lista (.xlsx)</span>
+              </button>
+            </div>
+          </div>
+
+          {/* BARRA DE AÇÕES EM LOTE (Exibida sempre que houver clientes selecionados) (Requisitos 4 e 5) */}
           {selectedIds.length > 0 && (
-            <div className="bg-emerald-50 border-2 border-emerald-500 rounded-xl p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
-              <div className="flex items-center gap-2">
-                <span className="w-6 h-6 rounded-full bg-emerald-600 text-white flex items-center justify-center text-xs font-bold shrink-0">
+            <div className="bg-emerald-50/90 border-2 border-emerald-500 rounded-2xl p-3 flex flex-col md:flex-row md:items-center justify-between gap-3 shadow-xs animate-in fade-in duration-200">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="w-7 h-7 rounded-full bg-emerald-700 text-white flex items-center justify-center text-xs font-black shadow-xs">
                   {selectedIds.length}
                 </span>
-                <span className="text-xs font-bold text-emerald-950">
-                  {selectedIds.length === 1
-                    ? '1 cliente selecionado'
-                    : `${selectedIds.length} clientes selecionados`}
-                </span>
+                <div>
+                  <span className="text-xs font-bold text-emerald-950 block sm:inline">
+                    {selectedIds.length === 1
+                      ? '1 cliente selecionado'
+                      : `${selectedIds.length} clientes selecionados`}
+                  </span>
+                  <span className="text-[11px] text-emerald-800 font-medium sm:ml-2 block sm:inline">
+                    (de {processedClientes.length} no resultado filtrado)
+                  </span>
+                </div>
                 <button
                   type="button"
                   onClick={() => setSelectedIds([])}
-                  className="text-xs text-gray-500 hover:text-gray-700 underline ml-2 cursor-pointer"
+                  className="text-xs text-gray-600 hover:text-red-700 underline ml-2 cursor-pointer font-medium"
                 >
                   Desmarcar todos
                 </button>
               </div>
 
+              {/* Conjunto de Ações em Lote */}
               <div className="flex items-center gap-2 flex-wrap">
-                {/* Botão Enviar Mensagem para Selecionados */}
+                {/* Ação 1: Gerar Lista Segmentada em Excel (.xlsx) dos selecionados */}
+                <button
+                  type="button"
+                  onClick={() => handleExportarExcelLote(true)}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-emerald-100/70 text-emerald-900 border border-emerald-300 rounded-xl text-xs font-bold transition-all shadow-2xs cursor-pointer"
+                  title="Gerar planilha .xlsx segmentando os clientes selecionados (com/sem telefone, com/sem WhatsApp, com/sem contato vinculado)"
+                >
+                  <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-700" />
+                  <span>Gerar Lista Excel ({selectedIds.length})</span>
+                </button>
+
+                {/* Ação 2: Mover para outra etapa do funil */}
+                <button
+                  type="button"
+                  onClick={() => setIsModalMoverEtapaLoteOpen(true)}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-all shadow-2xs cursor-pointer"
+                  title="Mover os clientes selecionados para outra etapa do funil comercial"
+                >
+                  <ArrowRightLeft className="w-3.5 h-3.5" />
+                  <span>Mover de Etapa ({selectedIds.length})</span>
+                </button>
+
+                {/* Ação 3: Mensagem WhatsApp em Massa */}
                 <button
                   type="button"
                   onClick={() => setIsModalMensagemMassaOpen(true)}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#16A34A] hover:bg-[#15803D] text-white rounded-lg text-xs font-bold transition-colors shadow-2xs cursor-pointer"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#16A34A] hover:bg-[#15803D] text-white rounded-xl text-xs font-bold transition-all shadow-2xs cursor-pointer"
                   title="Enviar mensagem para selecionados via WhatsApp"
                 >
                   <MessageSquare className="w-3.5 h-3.5" />
-                  <span>Enviar mensagem para selecionados ({selectedIds.length})</span>
+                  <span>WhatsApp ({selectedIds.length})</span>
                 </button>
 
-                {/* Botão Oferecer Limpeza para Selecionados */}
-                <button
-                  type="button"
-                  onClick={() => setIsModalOferecerLimpezaOpen(true)}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-xs font-bold transition-colors shadow-2xs cursor-pointer"
-                  title="Oferecer limpeza para os clientes selecionados via WhatsApp"
-                >
-                  <Sparkles className="w-3.5 h-3.5" />
-                  <span>Oferecer Limpeza ({selectedIds.length})</span>
-                </button>
-
-                {/* Botão Mesclar */}
+                {/* Ação 4: Mesclar */}
                 <button
                   type="button"
                   onClick={() => handleAbrirMesclagem()}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white text-emerald-800 hover:bg-emerald-100/70 border border-emerald-300 rounded-lg text-xs font-bold transition-colors shadow-2xs cursor-pointer"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white text-emerald-800 hover:bg-emerald-100/70 border border-emerald-300 rounded-xl text-xs font-bold transition-all shadow-2xs cursor-pointer"
                   title="Mesclar cadastros selecionados em um só cliente mestre"
                 >
                   <GitMerge className="w-3.5 h-3.5 text-emerald-700" />
                   <span>Mesclar</span>
                 </button>
 
-                {/* Botão Excluir em Lote */}
+                {/* Ação 5: Deletar clientes selecionados (com confirmação reforçada) */}
                 <button
                   type="button"
-                  onClick={() => setIsModalExcluirLoteOpen(true)}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-bold transition-colors shadow-2xs cursor-pointer"
-                  title="Excluir todos os clientes selecionados"
+                  onClick={() => {
+                    setTextoConfirmacaoExclusao('')
+                    setIsModalExcluirLoteOpen(true)
+                  }}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-bold transition-all shadow-2xs cursor-pointer"
+                  title="Excluir permanentemente todos os clientes selecionados"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
-                  <span>Excluir Selecionados ({selectedIds.length})</span>
+                  <span>Deletar ({selectedIds.length})</span>
                 </button>
               </div>
             </div>
@@ -630,35 +905,34 @@ export default function Clientes() {
           {isSessionExpired ? null : processedClientes.length === 0 ? (
             <div className="bg-white rounded-xl border border-gray-200 p-12 text-center text-gray-500 space-y-3">
               <p className="text-sm">Nenhum cliente encontrado com os filtros aplicados.</p>
-              {(searchTerm || hasActiveColumnFilters) && (
+              {hasAnyFilterActive && (
                 <button
                   type="button"
                   onClick={handleLimparTodosFiltros}
-                  className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-50 text-emerald-800 font-bold text-xs rounded-lg border border-emerald-200 hover:bg-emerald-100 transition-colors"
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-50 text-emerald-800 font-bold text-xs rounded-lg border border-emerald-200 hover:bg-emerald-100 transition-colors cursor-pointer"
                 >
                   <RotateCcw className="w-3.5 h-3.5" />
-                  <span>Limpar Busca e Filtros</span>
+                  <span>Limpar Filtros e Busca</span>
                 </button>
               )}
             </div>
           ) : (
             <>
-              {/* Desktop Table View com Filtros e Ordenação nos Cabeçalhos */}
+              {/* Desktop Table View com Ordenação nos Cabeçalhos e Checkbox Selecionar Todos */}
               <div className="hidden md:block bg-white rounded-xl border border-gray-200/80 shadow-xs overflow-hidden">
                 <table className="w-full text-left text-sm border-collapse">
-                  {/* LINHA 1 DE CABEÇALHO: Títulos das Colunas com Ordenação */}
-                  <thead className="bg-[#F8FAF9] border-b border-gray-200 text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                  <thead className="bg-[#F8FAF9] border-b border-gray-200 text-xs font-semibold text-gray-700 uppercase tracking-wider select-none">
                     <tr>
-                      {/* Checkbox Selecionar Todos */}
-                      <th className="py-3 px-3 w-10 text-center select-none">
+                      {/* Checkbox Selecionar Todos do Resultado Filtrado */}
+                      <th className="py-3 px-3 w-10 text-center">
                         <button
                           type="button"
                           onClick={handleToggleSelectAll}
-                          className="text-gray-500 hover:text-emerald-700 p-0.5 rounded transition-colors"
+                          className="text-gray-500 hover:text-emerald-700 p-0.5 rounded transition-colors cursor-pointer"
                           title={
                             isAllSelected
-                              ? 'Desmarcar todos'
-                              : 'Selecionar todos os clientes listados'
+                              ? 'Desmarcar todos os clientes do resultado'
+                              : 'Selecionar todos os clientes do resultado filtrado'
                           }
                         >
                           {isAllSelected ? (
@@ -674,7 +948,7 @@ export default function Clientes() {
                       {/* Nome */}
                       <th
                         onClick={() => handleSortToggle('nome')}
-                        className="py-3 px-4 cursor-pointer hover:bg-gray-100 transition-colors select-none group"
+                        className="py-3 px-4 cursor-pointer hover:bg-gray-100 transition-colors group"
                       >
                         <div className="flex items-center gap-1.5">
                           <span>Nome do Cliente</span>
@@ -690,10 +964,15 @@ export default function Clientes() {
                         </div>
                       </th>
 
+                      {/* Telefones / Contatos Cadastrados */}
+                      <th className="py-3 px-4">
+                        <span>Telefone & Contatos</span>
+                      </th>
+
                       {/* Origem */}
                       <th
                         onClick={() => handleSortToggle('origem')}
-                        className="py-3 px-4 cursor-pointer hover:bg-gray-100 transition-colors select-none group"
+                        className="py-3 px-4 cursor-pointer hover:bg-gray-100 transition-colors group"
                       >
                         <div className="flex items-center gap-1.5">
                           <span>Origem</span>
@@ -707,25 +986,10 @@ export default function Clientes() {
                         </div>
                       </th>
 
-                      {/* Produto */}
-                      <th
-                        onClick={() => handleSortToggle('produto')}
-                        className="py-3 px-4 cursor-pointer hover:bg-gray-100 transition-colors select-none group"
-                      >
-                        <div className="flex items-center gap-1.5">
-                          <span>Produto</span>
-                          {sortField === 'produto' && (
-                            <span className="text-emerald-700 font-bold">
-                              {sortDirection === 'asc' ? '↑' : '↓'}
-                            </span>
-                          )}
-                        </div>
-                      </th>
-
                       {/* Cidade */}
                       <th
                         onClick={() => handleSortToggle('cidade')}
-                        className="py-3 px-4 cursor-pointer hover:bg-gray-100 transition-colors select-none group"
+                        className="py-3 px-4 cursor-pointer hover:bg-gray-100 transition-colors group"
                       >
                         <div className="flex items-center gap-1.5">
                           <span>Cidade</span>
@@ -740,7 +1004,7 @@ export default function Clientes() {
                       {/* Potência */}
                       <th
                         onClick={() => handleSortToggle('potencia')}
-                        className="py-3 px-4 cursor-pointer hover:bg-gray-100 transition-colors select-none group"
+                        className="py-3 px-4 cursor-pointer hover:bg-gray-100 transition-colors group"
                       >
                         <div className="flex items-center gap-1.5">
                           <span>Potência</span>
@@ -755,7 +1019,7 @@ export default function Clientes() {
                       {/* Valor Estimado */}
                       <th
                         onClick={() => handleSortToggle('valor')}
-                        className="py-3 px-4 cursor-pointer hover:bg-gray-100 transition-colors select-none group"
+                        className="py-3 px-4 cursor-pointer hover:bg-gray-100 transition-colors group"
                       >
                         <div className="flex items-center gap-1.5">
                           <span>Valor Estimado</span>
@@ -767,13 +1031,13 @@ export default function Clientes() {
                         </div>
                       </th>
 
-                      {/* Status Comercial */}
+                      {/* Etapa Comercial (Status) */}
                       <th
                         onClick={() => handleSortToggle('status')}
-                        className="py-3 px-4 cursor-pointer hover:bg-gray-100 transition-colors select-none group"
+                        className="py-3 px-4 cursor-pointer hover:bg-gray-100 transition-colors group"
                       >
                         <div className="flex items-center gap-1.5">
-                          <span>Status</span>
+                          <span>Etapa no Funil</span>
                           {sortField === 'status' && (
                             <span className="text-emerald-700 font-bold">
                               {sortDirection === 'asc' ? '↑' : '↓'}
@@ -784,141 +1048,6 @@ export default function Clientes() {
 
                       {/* Ação */}
                       <th className="py-3 px-4 text-right">Ação</th>
-                    </tr>
-
-                    {/* LINHA 2 DO CABEÇALHO: Filtros por Coluna Diretos na Primeira Linha */}
-                    <tr className="bg-emerald-50/30 border-b border-gray-200/90 text-normal lowercase">
-                      {/* Placeholder Checkbox */}
-                      <th className="py-2 px-3 text-center"></th>
-
-                      {/* Busca Rápida por Nome */}
-                      <th className="py-2 px-3">
-                        <div className="relative">
-                          <input
-                            type="text"
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            placeholder="Filtrar nome..."
-                            className="w-full text-xs font-normal px-2 py-1 bg-white border border-gray-200 rounded-md focus:outline-none focus:ring-1 focus:ring-emerald-500"
-                          />
-                          {searchTerm && (
-                            <button
-                              type="button"
-                              onClick={() => setSearchTerm('')}
-                              className="absolute right-1.5 top-1.5 text-gray-400 hover:text-gray-600"
-                            >
-                              <X className="w-3 h-3" />
-                            </button>
-                          )}
-                        </div>
-                      </th>
-
-                      {/* Filtro Dropdown: Origem */}
-                      <th className="py-2 px-3">
-                        <select
-                          value={filtroOrigem}
-                          onChange={(e) => setFiltroOrigem(e.target.value)}
-                          className={`w-full text-xs px-2 py-1 rounded-md border focus:outline-none focus:ring-1 focus:ring-emerald-500 cursor-pointer ${
-                            filtroOrigem !== 'todos'
-                              ? 'bg-blue-50 text-blue-900 border-blue-400 font-bold'
-                              : 'bg-white text-gray-700 border-gray-200 font-normal'
-                          }`}
-                          title="Filtrar por Origem"
-                        >
-                          <option value="todos">Todas origens</option>
-                          {distinctOrigens.map((o) => (
-                            <option key={o.value} value={o.value}>
-                              {o.label} ({o.count})
-                            </option>
-                          ))}
-                        </select>
-                      </th>
-
-                      {/* Filtro Dropdown: Produto */}
-                      <th className="py-2 px-3">
-                        <select
-                          value={filtroProduto}
-                          onChange={(e) => setFiltroProduto(e.target.value)}
-                          className={`w-full text-xs px-2 py-1 rounded-md border focus:outline-none focus:ring-1 focus:ring-emerald-500 cursor-pointer ${
-                            filtroProduto !== 'todos'
-                              ? 'bg-purple-50 text-purple-900 border-purple-400 font-bold'
-                              : 'bg-white text-gray-700 border-gray-200 font-normal'
-                          }`}
-                          title="Filtrar por Produto"
-                        >
-                          <option value="todos">Todos produtos</option>
-                          {distinctProdutos.map((p) => (
-                            <option key={p.value} value={p.value}>
-                              {p.label} ({p.count})
-                            </option>
-                          ))}
-                        </select>
-                      </th>
-
-                      {/* Filtro Dropdown: Cidade */}
-                      <th className="py-2 px-3">
-                        <select
-                          value={filtroCidade}
-                          onChange={(e) => setFiltroCidade(e.target.value)}
-                          className={`w-full text-xs px-2 py-1 rounded-md border focus:outline-none focus:ring-1 focus:ring-emerald-500 cursor-pointer ${
-                            filtroCidade !== 'todos'
-                              ? 'bg-emerald-50 text-emerald-900 border-emerald-400 font-bold'
-                              : 'bg-white text-gray-700 border-gray-200 font-normal'
-                          }`}
-                          title="Filtrar por Cidade"
-                        >
-                          <option value="todos">Todas cidades</option>
-                          {distinctCidades.map((c) => (
-                            <option key={c.value} value={c.value}>
-                              {c.label} ({c.count})
-                            </option>
-                          ))}
-                        </select>
-                      </th>
-
-                      {/* Potência (placeholder informativo) */}
-                      <th className="py-2 px-3 text-[11px] text-gray-400 font-normal italic">
-                        kWp
-                      </th>
-
-                      {/* Valor (placeholder informativo) */}
-                      <th className="py-2 px-3 text-[11px] text-gray-400 font-normal italic">R$</th>
-
-                      {/* Filtro Dropdown: Status */}
-                      <th className="py-2 px-3">
-                        <select
-                          value={filtroStatus}
-                          onChange={(e) => setFiltroStatus(e.target.value)}
-                          className={`w-full text-xs px-2 py-1 rounded-md border focus:outline-none focus:ring-1 focus:ring-emerald-500 cursor-pointer ${
-                            filtroStatus !== 'todos'
-                              ? 'bg-amber-50 text-amber-900 border-amber-400 font-bold'
-                              : 'bg-white text-gray-700 border-gray-200 font-normal'
-                          }`}
-                          title="Filtrar por Status"
-                        >
-                          <option value="todos">Todos status</option>
-                          {distinctStatuses.map((s) => (
-                            <option key={s.value} value={s.value}>
-                              {s.label} ({s.count})
-                            </option>
-                          ))}
-                        </select>
-                      </th>
-
-                      {/* Ação: Botão Limpar se algum filtro estiver ativo */}
-                      <th className="py-2 px-3 text-right">
-                        {hasActiveColumnFilters && (
-                          <button
-                            type="button"
-                            onClick={handleLimparTodosFiltros}
-                            className="text-[11px] font-semibold text-gray-500 hover:text-red-600 underline inline-flex items-center gap-0.5"
-                            title="Limpar todos os seletores"
-                          >
-                            <X className="w-3 h-3" />
-                            Limpar
-                          </button>
-                        )}
-                      </th>
                     </tr>
                   </thead>
 
@@ -942,7 +1071,7 @@ export default function Clientes() {
                           >
                             <button
                               type="button"
-                              className="text-gray-400 hover:text-emerald-700 p-0.5 rounded transition-colors"
+                              className="text-gray-400 hover:text-emerald-700 p-0.5 rounded transition-colors cursor-pointer"
                               title={isChecked ? 'Desmarcar' : 'Selecionar'}
                             >
                               {isChecked ? (
@@ -976,26 +1105,63 @@ export default function Clientes() {
                               {c.cpf && (
                                 <span className="text-gray-600 font-medium">CPF: {c.cpf}</span>
                               )}
-                              {c.whatsapp ? (
-                                <span className="text-emerald-700 font-semibold flex items-center gap-0.5">
-                                  <MessageSquare className="w-3 h-3 text-emerald-600" />
-                                  {c.whatsapp}
-                                </span>
-                              ) : c.telefone ? (
-                                <span>{c.telefone}</span>
-                              ) : null}
                               {c.uc && <span>• UC: {c.uc}</span>}
                             </div>
                           </td>
 
-                          {/* Origem / Importação (Requisito 1) */}
-                          <td className="py-3 px-4 whitespace-nowrap">
-                            <OrigemClienteBadge origemInfo={c.origemInfo} />
+                          {/* Telefones / Contatos Cadastrados com Badges Visuais Claros */}
+                          <td className="py-3 px-4">
+                            <div className="flex flex-col gap-1 items-start text-xs">
+                              {/* WhatsApp / Telefone */}
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                {c.temWhatsApp ? (
+                                  <span
+                                    className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-800 border border-emerald-200 font-semibold"
+                                    title={`WhatsApp: ${c.whatsapp}`}
+                                  >
+                                    <MessageSquare className="w-3 h-3 text-emerald-600" />
+                                    <span>{c.whatsapp}</span>
+                                  </span>
+                                ) : c.temTelefone ? (
+                                  <span
+                                    className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-gray-100 text-gray-700 border border-gray-200"
+                                    title={`Telefone: ${c.telefone}`}
+                                  >
+                                    <Phone className="w-3 h-3 text-gray-500" />
+                                    <span>{c.telefone}</span>
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-gray-50 text-gray-400 border border-gray-200 italic text-[11px]">
+                                    <PhoneOff className="w-3 h-3 text-gray-400" />
+                                    Sem telefone
+                                  </span>
+                                )}
+                              </div>
+
+                              {/* Vínculo de Contato */}
+                              {c.temContatoVinculado ? (
+                                <span
+                                  className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200"
+                                  title={`Possui ${c.totalVinculos} contato(s) vinculado(s)`}
+                                >
+                                  <UserCheck className="w-2.5 h-2.5 text-blue-600" />
+                                  <span>Contato vinculado</span>
+                                </span>
+                              ) : (
+                                <span
+                                  className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded text-[10px] font-normal text-gray-400"
+                                  title="Sem outros contatos vinculados a este cliente"
+                                >
+                                  <UserX className="w-2.5 h-2.5 text-gray-300" />
+                                  <span>Sem contato</span>
+                                </span>
+                              )}
+                            </div>
                           </td>
 
-                          {/* Produto */}
+                          {/* Origem */}
                           <td className="py-3 px-4 whitespace-nowrap">
-                            <ProductBadge produto={c.produto || 'Energia Solar'} />
+                            <OrigemClienteBadge origemInfo={c.origemInfo} />
                           </td>
 
                           {/* Cidade */}
@@ -1019,7 +1185,7 @@ export default function Clientes() {
                             {formatCurrency(c.valor_estimado)}
                           </td>
 
-                          {/* Status Comercial */}
+                          {/* Status / Etapa Comercial */}
                           <td className="py-3 px-4 whitespace-nowrap">
                             <div className="flex flex-col gap-1 items-start">
                               <StatusBadge status={c.status} />
@@ -1124,8 +1290,35 @@ export default function Clientes() {
                 </table>
               </div>
 
-              {/* Mobile Cards View Simplificado */}
+              {/* Mobile Cards View */}
               <div className="md:hidden space-y-2.5">
+                {/* Selecionar todos no mobile */}
+                <div className="bg-white p-2.5 rounded-xl border border-gray-200 flex items-center justify-between text-xs">
+                  <button
+                    type="button"
+                    onClick={handleToggleSelectAll}
+                    className="flex items-center gap-2 font-bold text-gray-700"
+                  >
+                    {isAllSelected ? (
+                      <CheckSquare className="w-4 h-4 text-emerald-600" />
+                    ) : isSomeSelected ? (
+                      <MinusSquare className="w-4 h-4 text-emerald-600" />
+                    ) : (
+                      <Square className="w-4 h-4 text-gray-400" />
+                    )}
+                    <span>
+                      {isAllSelected
+                        ? 'Desmarcar todos'
+                        : `Selecionar todos (${processedClientes.length})`}
+                    </span>
+                  </button>
+                  {selectedIds.length > 0 && (
+                    <span className="text-emerald-700 font-extrabold text-[11px]">
+                      {selectedIds.length} marcado{selectedIds.length > 1 ? 's' : ''}
+                    </span>
+                  )}
+                </div>
+
                 {processedClientes.map((c) => {
                   const rawWa = (c.whatsapp || '').trim() || (c.telefone || '').trim()
                   let waDigits = rawWa.replace(/\D/g, '')
@@ -1143,25 +1336,63 @@ export default function Clientes() {
                     'energia solar'
                   ).toLowerCase()
 
+                  const isChecked = selectedIds.includes(c.id)
+
                   return (
                     <div
                       key={c.id}
                       onClick={() => openFichaCliente(c.id)}
-                      className="bg-white rounded-xl p-3.5 border border-gray-200/90 shadow-2xs hover:border-emerald-300 transition-all cursor-pointer flex items-center justify-between gap-3 active:scale-[0.99]"
+                      className={`bg-white rounded-xl p-3.5 border transition-all cursor-pointer flex items-center justify-between gap-3 active:scale-[0.99] ${
+                        isChecked
+                          ? 'border-emerald-500 bg-emerald-50/50'
+                          : 'border-gray-200/90 shadow-2xs hover:border-emerald-300'
+                      }`}
                     >
-                      {/* Nome do cliente em destaque (clique abre a ficha completa) */}
+                      {/* Checkbox Individual no Mobile */}
+                      <button
+                        type="button"
+                        onClick={(e) => handleToggleSelectOne(c.id, e)}
+                        className="p-1 -ml-1 text-gray-400 hover:text-emerald-600 shrink-0"
+                      >
+                        {isChecked ? (
+                          <CheckSquare className="w-5 h-5 text-emerald-600" />
+                        ) : (
+                          <Square className="w-5 h-5 text-gray-300" />
+                        )}
+                      </button>
+
+                      {/* Nome do cliente e badges */}
                       <div className="flex-1 min-w-0 pr-1">
-                        <h4 className="font-extrabold text-gray-900 text-base leading-snug truncate">
-                          {c.nome}
-                        </h4>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <h4 className="font-extrabold text-gray-900 text-sm leading-snug truncate">
+                            {c.nome}
+                          </h4>
+                          {c.tipo_pessoa === 'juridica' || c.cnpj ? (
+                            <span className="text-[9px] font-bold px-1 rounded bg-blue-50 text-blue-700 border border-blue-200">
+                              PJ
+                            </span>
+                          ) : (
+                            <span className="text-[9px] font-bold px-1 rounded bg-amber-50 text-amber-800 border border-amber-200">
+                              PF
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-[11px] text-gray-500 flex items-center gap-2 flex-wrap mt-0.5">
+                          <span className="font-medium text-emerald-700">
+                            {c.status || 'Novo Lead'}
+                          </span>
+                          {c.cidade && <span>• {c.cidade}</span>}
+                          {c.temContatoVinculado && (
+                            <span className="text-blue-700 font-semibold">• Contato vinc.</span>
+                          )}
+                        </div>
                       </div>
 
                       {/* Ações diretas: WhatsApp + Menu ⋮ */}
                       <div
-                        className="flex items-center gap-2 shrink-0"
+                        className="flex items-center gap-1.5 shrink-0"
                         onClick={(e) => e.stopPropagation()}
                       >
-                        {/* Botão WhatsApp direto */}
                         {waDigits ? (
                           <a
                             href={`https://wa.me/${waDigits}`}
@@ -1169,9 +1400,9 @@ export default function Clientes() {
                             rel="noopener noreferrer"
                             aria-label={`Conversar com ${c.nome} no WhatsApp`}
                             title={`Conversar com ${c.nome} no WhatsApp`}
-                            className="w-9 h-9 rounded-full bg-[#25D366] hover:bg-[#20ba59] active:scale-95 text-white flex items-center justify-center shadow-xs transition-transform cursor-pointer"
+                            className="w-8 h-8 rounded-full bg-[#25D366] hover:bg-[#20ba59] active:scale-95 text-white flex items-center justify-center shadow-xs transition-transform cursor-pointer"
                           >
-                            <WhatsAppIcon className="w-5 h-5" />
+                            <WhatsAppIcon className="w-4 h-4" />
                           </a>
                         ) : (
                           <button
@@ -1179,26 +1410,24 @@ export default function Clientes() {
                             onClick={() => openFichaCliente(c.id, 'whatsapp')}
                             aria-label="Abrir WhatsApp do cliente"
                             title="Sem WhatsApp direto - abrir ficha"
-                            className="w-9 h-9 rounded-full bg-emerald-50 text-emerald-600 hover:bg-emerald-100 active:scale-95 flex items-center justify-center border border-emerald-200 transition-colors cursor-pointer"
+                            className="w-8 h-8 rounded-full bg-emerald-50 text-emerald-600 hover:bg-emerald-100 active:scale-95 flex items-center justify-center border border-emerald-200 transition-colors cursor-pointer"
                           >
-                            <WhatsAppIcon className="w-5 h-5 opacity-70" />
+                            <WhatsAppIcon className="w-4 h-4 opacity-70" />
                           </button>
                         )}
 
-                        {/* Menu dos Três Pontinhos ⋮ */}
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <button
                               type="button"
                               aria-label="Opções do cliente"
                               title="Opções do cliente"
-                              className="w-9 h-9 rounded-full flex items-center justify-center text-gray-500 hover:text-gray-900 hover:bg-gray-100 active:scale-95 transition-colors cursor-pointer"
+                              className="w-8 h-8 rounded-full flex items-center justify-center text-gray-500 hover:text-gray-900 hover:bg-gray-100 active:scale-95 transition-colors cursor-pointer"
                             >
-                              <MoreVertical className="w-5 h-5" />
+                              <MoreVertical className="w-4 h-4" />
                             </button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end" className="w-56 text-xs p-1.5 shadow-lg">
-                            {/* Ação 1: Mesclar clientes */}
                             <DropdownMenuItem
                               onClick={() => handleAbrirMesclagem(c)}
                               className="cursor-pointer gap-2 py-2 px-2.5 font-medium text-gray-700"
@@ -1207,7 +1436,6 @@ export default function Clientes() {
                               <span>Mesclar clientes</span>
                             </DropdownMenuItem>
 
-                            {/* Ação 2: Ver etapa do funil */}
                             <DropdownMenuItem
                               onClick={() => {
                                 const etapaMsg = c.status
@@ -1228,7 +1456,6 @@ export default function Clientes() {
 
                             <DropdownMenuSeparator className="my-1" />
 
-                            {/* Ação 3: Tipo de negócio (Solar, O&M ou Baterias) via Submenu */}
                             <DropdownMenuSub>
                               <DropdownMenuSubTrigger className="cursor-pointer gap-2 py-2 px-2.5 font-medium text-gray-700">
                                 <Briefcase className="w-4 h-4 text-amber-600 shrink-0" />
@@ -1263,7 +1490,7 @@ export default function Clientes() {
                                         produto: 'Energia Solar',
                                       })
                                     } catch (err) {
-                                      console.error('Erro ao definir tipo de negócio Solar:', err)
+                                      console.error('Erro ao definir tipo Solar:', err)
                                     }
                                   }}
                                   className="cursor-pointer flex items-center justify-between py-2 px-2.5 text-xs font-semibold"
@@ -1289,7 +1516,7 @@ export default function Clientes() {
                                         produto: 'Plano de O&M',
                                       })
                                     } catch (err) {
-                                      console.error('Erro ao definir tipo de negócio O&M:', err)
+                                      console.error('Erro ao definir tipo O&M:', err)
                                     }
                                   }}
                                   className="cursor-pointer flex items-center justify-between py-2 px-2.5 text-xs font-semibold"
@@ -1311,42 +1538,13 @@ export default function Clientes() {
                                         produto: 'Sistemas Híbridos',
                                       })
                                     } catch (err) {
-                                      console.error(
-                                        'Erro ao definir tipo de negócio Baterias:',
-                                        err,
-                                      )
+                                      console.error('Erro ao definir tipo Baterias:', err)
                                     }
                                   }}
                                   className="cursor-pointer flex items-center justify-between py-2 px-2.5 text-xs font-semibold"
                                 >
                                   <span>Baterias</span>
                                   {tipoNegocioAtual.includes('bateria') && (
-                                    <Check className="w-3.5 h-3.5 text-emerald-600" />
-                                  )}
-                                </DropdownMenuItem>
-
-                                <DropdownMenuItem
-                                  onClick={async () => {
-                                    try {
-                                      await updateCliente(c.id, {
-                                        tipo_venda: 'Carregadores Veículos Elétricos',
-                                        tipo_negocio: 'carregadores veiculares',
-                                        produto: 'Carregadores Veículos Elétricos',
-                                      })
-                                    } catch (err) {
-                                      console.error(
-                                        'Erro ao definir tipo de negócio Carregadores VE:',
-                                        err,
-                                      )
-                                    }
-                                  }}
-                                  className="cursor-pointer flex items-center justify-between py-2 px-2.5 text-xs font-semibold"
-                                >
-                                  <span>Carregadores Veículos Elétricos</span>
-                                  {(tipoNegocioAtual.includes('carregador') ||
-                                    tipoNegocioAtual.includes('veículo') ||
-                                    tipoNegocioAtual.includes('veiculo') ||
-                                    tipoNegocioAtual.includes('wallbox')) && (
                                     <Check className="w-3.5 h-3.5 text-emerald-600" />
                                   )}
                                 </DropdownMenuItem>
@@ -1361,6 +1559,310 @@ export default function Clientes() {
               </div>
             </>
           )}
+
+          {/* PAINEL LATERAL DE FILTROS COMBINADOS (Sheet / Drawer lateral do botão de funil) (Requisitos 1 e 2) */}
+          <Sheet open={isFilterDrawerOpen} onOpenChange={setIsFilterDrawerOpen}>
+            <SheetContent
+              side="right"
+              className="w-full sm:max-w-md p-0 flex flex-col bg-white overflow-hidden shadow-2xl"
+            >
+              <SheetHeader className="p-5 border-b border-gray-100 bg-gray-50/70 text-left">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center shrink-0">
+                    <Filter className="w-5 h-5 text-emerald-700" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <SheetTitle className="text-base font-extrabold text-gray-900 flex items-center gap-2">
+                      <span>Filtros de Clientes</span>
+                      {activeFiltersCount > 0 && (
+                        <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300">
+                          {activeFiltersCount} ativo{activeFiltersCount > 1 ? 's' : ''}
+                        </span>
+                      )}
+                    </SheetTitle>
+                    <SheetDescription className="text-xs text-gray-500">
+                      Combine múltiplos filtros ao mesmo tempo para refinar sua lista.
+                    </SheetDescription>
+                  </div>
+                </div>
+              </SheetHeader>
+
+              {/* Corpo de Filtros */}
+              <div className="flex-1 overflow-y-auto p-5 space-y-6">
+                {/* 1. FILTRO DE ETAPA DO FUNIL COMERCIAL (Multiseleção) */}
+                <div className="space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold uppercase tracking-wider text-gray-800 flex items-center gap-1.5">
+                      <GitFork className="w-3.5 h-3.5 text-emerald-600" />
+                      <span>Etapa do Funil Comercial</span>
+                    </label>
+                    {selectedEtapas.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setSelectedEtapas([])}
+                        className="text-[11px] text-gray-500 hover:text-red-600 underline font-medium cursor-pointer"
+                      >
+                        Limpar etapas
+                      </button>
+                    )}
+                  </div>
+                  <p className="text-[11px] text-gray-500">
+                    Selecione uma ou mais etapas para listar clientes presentes em qualquer uma
+                    delas:
+                  </p>
+
+                  <div className="grid grid-cols-1 gap-1.5">
+                    {ETAPAS_FUNIL_CLIENTES.map((etapa) => {
+                      const isSelected = selectedEtapas.includes(etapa.id)
+                      const count = clientesComMetadados.filter(
+                        (c) => (c.status || 'Novo Lead') === etapa.id,
+                      ).length
+
+                      return (
+                        <button
+                          key={etapa.id}
+                          type="button"
+                          onClick={() => {
+                            setSelectedEtapas((prev) =>
+                              prev.includes(etapa.id)
+                                ? prev.filter((id) => id !== etapa.id)
+                                : [...prev, etapa.id],
+                            )
+                          }}
+                          className={`flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold text-left transition-all border cursor-pointer ${
+                            isSelected
+                              ? 'bg-emerald-50 border-emerald-500 text-emerald-950 font-bold shadow-2xs'
+                              : 'bg-white border-gray-200/90 text-gray-700 hover:bg-gray-50'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2">
+                            <div
+                              className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${
+                                isSelected
+                                  ? 'bg-emerald-600 border-emerald-600 text-white'
+                                  : 'border-gray-300 bg-white'
+                              }`}
+                            >
+                              {isSelected && <Check className="w-3 h-3 stroke-[3]" />}
+                            </div>
+                            <span>{etapa.label}</span>
+                          </div>
+                          <span
+                            className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                              isSelected
+                                ? 'bg-emerald-200 text-emerald-900'
+                                : 'bg-gray-100 text-gray-600'
+                            }`}
+                          >
+                            {count}
+                          </span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+
+                <div className="border-t border-gray-200/80 pt-4 space-y-4">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-gray-800 flex items-center gap-1.5">
+                    <SlidersHorizontal className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>Filtros de Dados de Contato</span>
+                  </h4>
+
+                  {/* 2. FILTRO: TELEFONE CADASTRADO (SIM / NÃO) */}
+                  <div className="p-3 bg-gray-50/80 rounded-xl border border-gray-200 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-gray-800 flex items-center gap-1.5">
+                        <Phone className="w-3.5 h-3.5 text-gray-600" />
+                        <span>Telefone cadastrado</span>
+                      </span>
+                      {(telefoneSim || telefoneNao) && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setTelefoneSim(false)
+                            setTelefoneNao(false)
+                          }}
+                          className="text-[10px] text-gray-400 hover:text-red-600 underline font-medium cursor-pointer"
+                        >
+                          Limpar
+                        </button>
+                      )}
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <label
+                        className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold border cursor-pointer transition-all ${
+                          telefoneSim
+                            ? 'bg-emerald-50 border-emerald-500 text-emerald-900 font-bold'
+                            : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={telefoneSim}
+                          onChange={(e) => setTelefoneSim(e.target.checked)}
+                          className="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500"
+                        />
+                        <span>Sim (Tem)</span>
+                      </label>
+                      <label
+                        className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold border cursor-pointer transition-all ${
+                          telefoneNao
+                            ? 'bg-rose-50 border-rose-400 text-rose-900 font-bold'
+                            : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={telefoneNao}
+                          onChange={(e) => setTelefoneNao(e.target.checked)}
+                          className="w-4 h-4 rounded text-rose-600 focus:ring-rose-500"
+                        />
+                        <span>Não (Sem)</span>
+                      </label>
+                    </div>
+                  </div>
+
+                  {/* 3. FILTRO: WHATSAPP CADASTRADO (SIM / NÃO) */}
+                  <div className="p-3 bg-gray-50/80 rounded-xl border border-gray-200 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-gray-800 flex items-center gap-1.5">
+                        <WhatsAppIcon className="w-3.5 h-3.5 text-emerald-600" />
+                        <span>WhatsApp cadastrado</span>
+                      </span>
+                      {(whatsAppSim || whatsAppNao) && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setWhatsAppSim(false)
+                            setWhatsAppNao(false)
+                          }}
+                          className="text-[10px] text-gray-400 hover:text-red-600 underline font-medium cursor-pointer"
+                        >
+                          Limpar
+                        </button>
+                      )}
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <label
+                        className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold border cursor-pointer transition-all ${
+                          whatsAppSim
+                            ? 'bg-emerald-50 border-emerald-500 text-emerald-900 font-bold'
+                            : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={whatsAppSim}
+                          onChange={(e) => setWhatsAppSim(e.target.checked)}
+                          className="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500"
+                        />
+                        <span>Sim (Tem)</span>
+                      </label>
+                      <label
+                        className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold border cursor-pointer transition-all ${
+                          whatsAppNao
+                            ? 'bg-rose-50 border-rose-400 text-rose-900 font-bold'
+                            : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={whatsAppNao}
+                          onChange={(e) => setWhatsAppNao(e.target.checked)}
+                          className="w-4 h-4 rounded text-rose-600 focus:ring-rose-500"
+                        />
+                        <span>Não (Sem)</span>
+                      </label>
+                    </div>
+                  </div>
+
+                  {/* 4. FILTRO: CONTATO VINCULADO (SIM / NÃO) */}
+                  <div className="p-3 bg-gray-50/80 rounded-xl border border-gray-200 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-gray-800 flex items-center gap-1.5">
+                        <UserCheck className="w-3.5 h-3.5 text-blue-600" />
+                        <span>Contato vinculado</span>
+                      </span>
+                      {(contatoVinculadoSim || contatoVinculadoNao) && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setContatoVinculadoSim(false)
+                            setContatoVinculadoNao(false)
+                          }}
+                          className="text-[10px] text-gray-400 hover:text-red-600 underline font-medium cursor-pointer"
+                        >
+                          Limpar
+                        </button>
+                      )}
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <label
+                        className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold border cursor-pointer transition-all ${
+                          contatoVinculadoSim
+                            ? 'bg-blue-50 border-blue-500 text-blue-900 font-bold'
+                            : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={contatoVinculadoSim}
+                          onChange={(e) => setContatoVinculadoSim(e.target.checked)}
+                          className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500"
+                        />
+                        <span>Sim (Tem)</span>
+                      </label>
+                      <label
+                        className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold border cursor-pointer transition-all ${
+                          contatoVinculadoNao
+                            ? 'bg-rose-50 border-rose-400 text-rose-900 font-bold'
+                            : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={contatoVinculadoNao}
+                          onChange={(e) => setContatoVinculadoNao(e.target.checked)}
+                          className="w-4 h-4 rounded text-rose-600 focus:ring-rose-500"
+                        />
+                        <span>Não (Sem)</span>
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Rodapé do Drawer com Resumo e Botão de Aplicar */}
+              <SheetFooter className="p-4 border-t border-gray-100 bg-gray-50/90 flex flex-row items-center justify-between gap-2">
+                <div className="text-xs text-gray-600 font-medium">
+                  Resultado:{' '}
+                  <strong className="text-emerald-700 font-extrabold text-sm">
+                    {processedClientes.length}
+                  </strong>{' '}
+                  clientes
+                </div>
+
+                <div className="flex items-center gap-2">
+                  {hasAnyFilterActive && (
+                    <button
+                      type="button"
+                      onClick={handleLimparTodosFiltros}
+                      className="px-3 py-2 text-xs font-semibold text-gray-600 hover:text-red-600 rounded-xl hover:bg-gray-200 transition-colors cursor-pointer"
+                    >
+                      Limpar tudo
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setIsFilterDrawerOpen(false)}
+                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-xs transition-colors cursor-pointer"
+                  >
+                    Ver Resultado ({processedClientes.length})
+                  </button>
+                </div>
+              </SheetFooter>
+            </SheetContent>
+          </Sheet>
 
           {/* Modal de Cadastro Unificado PF/PJ com Consulta CNPJ */}
           <ModalCadastroClienteFornecedor
@@ -1404,44 +1906,157 @@ export default function Clientes() {
             }}
           />
 
-          {/* Confirmação Segura de Exclusão em Lote */}
+          {/* MODAL DE AÇÃO EM LOTE: MOVER PARA OUTRA ETAPA DO FUNIL (Requisito 4 e 5) */}
+          <Dialog
+            open={isModalMoverEtapaLoteOpen}
+            onOpenChange={(open) => {
+              if (!open && !isMovingEtapaLote) {
+                setIsModalMoverEtapaLoteOpen(false)
+              }
+            }}
+          >
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2 text-base text-gray-900 font-extrabold">
+                  <ArrowRightLeft className="w-5 h-5 text-blue-600" />
+                  <span>Mover {selectedIds.length} Clientes de Etapa</span>
+                </DialogTitle>
+                <DialogDescription className="text-xs text-gray-500">
+                  Selecione a etapa de destino no funil comercial para os clientes selecionados.
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="py-3 space-y-3">
+                <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 flex items-start gap-2.5">
+                  <Info className="w-4 h-4 text-blue-700 shrink-0 mt-0.5" />
+                  <div className="text-xs text-blue-900">
+                    <p className="font-semibold">
+                      Você está prestes a mover <strong>{selectedIds.length} clientes</strong>{' '}
+                      simultaneamente.
+                    </p>
+                    <p className="text-[11px] text-blue-700 mt-0.5">
+                      Esta ação atualizará o status de todos eles no funil comercial de vendas.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-gray-700">
+                    Escolha a Etapa de Destino:
+                  </label>
+                  <select
+                    value={etapaDestinoLote}
+                    onChange={(e) => setEtapaDestinoLote(e.target.value as ClienteStatus)}
+                    className="w-full text-xs font-semibold px-3 py-2 bg-white border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                  >
+                    {ETAPAS_FUNIL_CLIENTES.map((etapa) => (
+                      <option key={etapa.id} value={etapa.id}>
+                        {etapa.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <DialogFooter className="flex flex-row items-center justify-end gap-2">
+                <button
+                  type="button"
+                  disabled={isMovingEtapaLote}
+                  onClick={() => setIsModalMoverEtapaLoteOpen(false)}
+                  className="px-4 py-2 text-xs font-bold text-gray-600 hover:text-gray-900 rounded-xl hover:bg-gray-100 transition-colors cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  disabled={isMovingEtapaLote}
+                  onClick={handleConfirmarMoverEtapaLote}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-xs font-bold rounded-xl shadow-xs transition-colors cursor-pointer flex items-center gap-1.5"
+                >
+                  {isMovingEtapaLote ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>Movendo...</span>
+                    </>
+                  ) : (
+                    <span>Confirmar Mudança de Etapa</span>
+                  )}
+                </button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          {/* CONFIRMAÇÃO REFORÇADA DE EXCLUSÃO EM LOTE (Requisitos 4 e 5) */}
           <AlertDialog
             open={isModalExcluirLoteOpen}
             onOpenChange={(open) => {
               if (!open && !isDeletingLote) {
                 setIsModalExcluirLoteOpen(false)
+                setTextoConfirmacaoExclusao('')
               }
             }}
           >
-            <AlertDialogContent>
+            <AlertDialogContent className="max-w-md">
               <AlertDialogHeader>
                 <AlertDialogTitle className="text-red-600 flex items-center gap-2">
                   <Trash2 className="w-5 h-5" />
-                  Confirmar Exclusão de {selectedIds.length} Clientes
+                  Atenção: Exclusão de {selectedIds.length} Clientes
                 </AlertDialogTitle>
-                <AlertDialogDescription>
-                  Você está prestes a excluir permanentemente{' '}
-                  <strong className="text-gray-900 font-semibold">
-                    {selectedIds.length}{' '}
-                    {selectedIds.length === 1 ? 'cliente selecionado' : 'clientes selecionados'}
-                  </strong>
-                  . Esta operação removerá também os registros dependentes vinculados (orçamentos,
-                  manutenções, propostas, atividades, etc.).
-                  <br />
-                  <br />
-                  Esta ação <span className="text-red-600 font-bold">não pode ser desfeita</span>.
-                  Deseja continuar?
+                <AlertDialogDescription asChild>
+                  <div className="space-y-3 text-xs text-gray-600 text-left">
+                    <p>
+                      Você selecionou{' '}
+                      <strong className="text-gray-900 font-bold">
+                        {selectedIds.length} {selectedIds.length === 1 ? 'cliente' : 'clientes'}
+                      </strong>{' '}
+                      para exclusão definitiva.
+                    </p>
+                    <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-red-900 space-y-1">
+                      <p className="font-bold flex items-center gap-1">
+                        <span>Aviso de impacto irreversível:</span>
+                      </p>
+                      <p className="text-[11px] text-red-800">
+                        Esta operação apagará permanentemente o cadastro e todos os registros
+                        vinculados (orçamentos, manutenções, propostas, atividades na timeline,
+                        etc.).
+                      </p>
+                    </div>
+
+                    <div className="space-y-1 pt-1">
+                      <label className="text-xs font-bold text-gray-800 block">
+                        Para confirmar a exclusão sem enganos, digite exatamente{' '}
+                        <span className="text-red-600 font-black px-1 py-0.5 bg-red-100 rounded">
+                          {selectedIds.length}
+                        </span>{' '}
+                        abaixo:
+                      </label>
+                      <input
+                        type="text"
+                        value={textoConfirmacaoExclusao}
+                        onChange={(e) => setTextoConfirmacaoExclusao(e.target.value)}
+                        placeholder={`Digite ${selectedIds.length} para confirmar`}
+                        className="w-full text-xs font-mono font-bold px-3 py-2 bg-white border border-red-300 focus:border-red-600 rounded-lg focus:outline-none focus:ring-1 focus:ring-red-500"
+                      />
+                    </div>
+                  </div>
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
-                <AlertDialogCancel disabled={isDeletingLote}>Cancelar</AlertDialogCancel>
-                <AlertDialogAction
+                <AlertDialogCancel
                   disabled={isDeletingLote}
+                  onClick={() => setTextoConfirmacaoExclusao('')}
+                >
+                  Cancelar
+                </AlertDialogCancel>
+                <AlertDialogAction
+                  disabled={
+                    isDeletingLote || textoConfirmacaoExclusao.trim() !== String(selectedIds.length)
+                  }
                   onClick={async (e) => {
                     e.preventDefault()
                     await handleExcluirLote()
                   }}
-                  className="bg-red-600 hover:bg-red-700 text-white focus:ring-red-600 font-bold"
+                  className="bg-red-600 hover:bg-red-700 disabled:opacity-40 disabled:hover:bg-red-600 text-white focus:ring-red-600 font-bold"
                 >
                   {isDeletingLote ? (
                     <>
@@ -1456,7 +2071,7 @@ export default function Clientes() {
             </AlertDialogContent>
           </AlertDialog>
 
-          {/* Confirmação Segura de Exclusão de Cliente */}
+          {/* Confirmação Segura de Exclusão Individual de Cliente */}
           <AlertDialog
             open={Boolean(clienteParaExcluir)}
             onOpenChange={(open) => {
