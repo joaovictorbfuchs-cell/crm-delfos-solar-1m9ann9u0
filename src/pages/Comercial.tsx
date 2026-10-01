@@ -3,7 +3,6 @@ import {
   List,
   Loader2,
   UserPlus,
-  Briefcase,
   LayoutGrid,
   RefreshCw,
   AlertCircle,
@@ -17,7 +16,6 @@ import { ComercialListView } from '@/components/ComercialListView'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { formatCurrency } from '@/lib/formatters'
 import { NovoLeadModal } from '@/components/NovoLeadModal'
-import { ModalNovoNegocioFunil } from '@/components/ModalNovoNegocioFunil'
 import { Button } from '@/components/ui/button'
 import { toast } from '@/hooks/use-toast'
 import { TIPOS_VENDA_OPTIONS, TIPOS_VENDA_CONFIG } from '@/constants/tipoVenda'
@@ -29,7 +27,6 @@ export default function Comercial() {
   const { clientes, isLoading, error, refreshData, updateClienteStatus, openFichaCliente } =
     useClientes()
   const [isNovoLeadOpen, setIsNovoLeadOpen] = useState(false)
-  const [isNovoNegocioOpen, setIsNovoNegocioOpen] = useState(false)
   const [negociosList, setNegociosList] = useState<Negocio[]>([])
   const [viewMode, setViewMode] = useState<'kanban' | 'list' | 'perdidos'>('kanban')
   const [isRefreshing, setIsRefreshing] = useState(false)
@@ -556,22 +553,13 @@ export default function Comercial() {
         )}
       </div>
 
-      {/* Modal Novo Negócio Funil */}
-      <ModalNovoNegocioFunil
-        open={isNovoNegocioOpen}
-        onOpenChange={setIsNovoNegocioOpen}
-        onCreated={() => {
-          carregarNegocios()
-          refreshData()
-        }}
-      />
-
-      {/* Modal Novo Lead */}
+      {/* Modal Novo Lead / Novo Negócio unificado (com todas as funcionalidades da aba novo lead) */}
       <NovoLeadModal
         isOpen={isNovoLeadOpen}
         onClose={() => {
           setIsNovoLeadOpen(false)
           carregarNegocios()
+          refreshData()
         }}
       />
     </div>

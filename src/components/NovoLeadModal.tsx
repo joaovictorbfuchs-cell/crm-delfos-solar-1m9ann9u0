@@ -1,5 +1,7 @@
 import React, { useState } from 'react'
-import { X, UserPlus, AlertCircle, Loader2, Sparkles, FileText, Zap } from 'lucide-react'
+import { X, UserPlus, AlertCircle, Loader2, Sparkles, FileText, Zap, Building2 } from 'lucide-react'
+import { ClienteAutocomplete } from '@/components/ClienteAutocomplete'
+import type { Cliente } from '@/types/crm'
 import { useClientes } from '@/contexts/ClientesContext'
 import { useToast } from '@/hooks/use-toast'
 import type { OrigemLeadTipo, ProdutoTipo, TipoVendaSelect } from '@/types/crm'
@@ -48,6 +50,13 @@ export const NovoLeadModal: React.FC<NovoLeadModalProps> = ({ isOpen, onClose })
   const { addCliente, clientes, refreshData } = useClientes()
   const { toast } = useToast()
 
+  // Modo de seleção: cadastrar novo cliente/lead ou vincular a cliente existente
+  const [modoCliente, setModoCliente] = useState<'novo' | 'existente'>('novo')
+  const [clienteExistenteId, setClienteExistenteId] = useState<string>('')
+  const [clienteExistenteSelecionado, setClienteExistenteSelecionado] = useState<Cliente | null>(
+    null,
+  )
+
   const [cnpj, setCnpj] = useState('')
   const [nome, setNome] = useState('')
   const [razaoSocial, setRazaoSocial] = useState('')
@@ -94,14 +103,20 @@ export const NovoLeadModal: React.FC<NovoLeadModalProps> = ({ isOpen, onClose })
 
   const validate = () => {
     const newErrors: { [key: string]: string } = {}
-    if (!nome.trim()) {
-      newErrors.nome = 'Informe o nome do lead'
-    }
-    if (!telefone.trim() && !whatsapp.trim()) {
-      newErrors.telefone = 'Informe o telefone ou WhatsApp de contato'
-    }
-    if (!origem) {
-      newErrors.origem = 'Selecione a origem do lead'
+    if (modoCliente === 'existente') {
+      if (!clienteExistenteId) {
+        newErrors.clienteExistente = 'Selecione um cliente existente para vincular o negócio'
+      }
+    } else {
+      if (!nome.trim()) {
+        newErrors.nome = 'Informe o nome do lead'
+      }
+      if (!telefone.trim() && !whatsapp.trim()) {
+        newErrors.telefone = 'Informe o telefone ou WhatsApp de contato'
+      }
+      if (!origem) {
+        newErrors.origem = 'Selecione a origem do lead'
+      }
     }
     if (consumoKwhMes && (isNaN(Number(consumoKwhMes)) || Number(consumoKwhMes) < 0)) {
       newErrors.consumo = 'Consumo deve ser um número positivo'
@@ -111,6 +126,9 @@ export const NovoLeadModal: React.FC<NovoLeadModalProps> = ({ isOpen, onClose })
   }
 
   const resetForm = () => {
+    setModoCliente('novo')
+    setClienteExistenteId('')
+    setClienteExistenteSelecionado(null)
     setCnpj('')
     setNome('')
     setRazaoSocial('')
@@ -141,8 +159,21 @@ export const NovoLeadModal: React.FC<NovoLeadModalProps> = ({ isOpen, onClose })
     resetCnpjLookup()
   }
 
+  const handleSelectClienteExistente = (id: string, cli?: Cliente) => {
+    setClienteExistenteId(id)
+    setClienteExistenteSelecionado(cli || null)
+    if (errors.clienteExistente) {
+      setErrors((prev) => {
+        const next = { ...prev }
+        delete next.clienteExistente
+        return next
+      })
+    }
+  }
+
   const handleAplicarDadosConta = (dados: DadosImportadosContaRGE) => {
     setDadosFaturaArmazenados(dados)
+    setModoCliente('novo')
 
     // Preenche automaticamente os campos do cadastro do lead
     if (dados.nome) {
@@ -351,6 +382,74 @@ export const NovoLeadModal: React.FC<NovoLeadModalProps> = ({ isOpen, onClose })
   }
 
   const executarPersistenciaLead = async (ignorarDuplicidade = false) => {
+    // Caso 1: Negócio para Cliente Existente
+    if (modoCliente === 'existente') {
+      const cliRef =
+        clienteExistenteSelecionado || clientes.find((c) => c.id === clienteExistenteId)
+      if (!cliRef) {
+        toast({
+          variant: 'destructive',
+          title: 'Cliente não encontrado',
+          description: 'Selecione um cliente válido da lista.',
+        })
+        return
+      }
+
+      try {
+        setIsSubmitting(true)
+        const consumoNum = consumoKwhMes
+          ? Number(consumoKwhMes)
+          : Number(cliRef.consumo_kwh_mes || 0)
+        const potenciaEstimada =
+          consumoNum > 0 ? Number((consumoNum / 120).toFixed(1)) : Number(cliRef.potencia_kwp || 0)
+        const valorEstimado =
+          potenciaEstimada > 0
+            ? Math.round(potenciaEstimada * 3500)
+            : Number(cliRef.valor_estimado || 0)
+
+        const nomeClean = removerPrefixoMensagemManual(cliRef.nome.trim())
+        await createNegocio({
+          cliente_id: cliRef.id,
+          titulo: `Negócio - ${nomeClean}`,
+          tipo_negocio:
+            tipoVenda === 'O&M (Operação e Manutenção)'
+              ? 'renovação'
+              : tipoVenda === 'Carregadores Veículos Elétricos'
+                ? 'serviço'
+                : tipoVenda === 'Baterias'
+                  ? 'bateria'
+                  : 'venda usina',
+          tipo_venda: tipoVenda,
+          etapa_funil: 'novo lead',
+          status: 'em andamento',
+          valor_estimado: valorEstimado,
+          probabilidade: 10,
+        })
+
+        toast({
+          title: 'Negócio criado com sucesso!',
+          description: `Novo negócio para "${nomeClean}" adicionado à coluna "Novo Lead".`,
+        })
+
+        if (refreshData) {
+          await refreshData()
+        }
+
+        handleClose()
+      } catch (err: unknown) {
+        console.error('Erro ao criar negócio para cliente existente:', err)
+        toast({
+          variant: 'destructive',
+          title: 'Erro ao criar negócio',
+          description: err instanceof Error ? err.message : 'Tente novamente.',
+        })
+      } finally {
+        setIsSubmitting(false)
+      }
+      return
+    }
+
+    // Caso 2: Novo Cliente / Lead
     if (!ignorarDuplicidade && (telefone.trim() || whatsapp.trim())) {
       const duplicados = await detectarDuplicidadeTelefone({
         telefone: telefone.trim() || undefined,
@@ -377,7 +476,14 @@ export const NovoLeadModal: React.FC<NovoLeadModalProps> = ({ isOpen, onClose })
         await createNegocio({
           cliente_id: clienteCriado.id,
           titulo: `Negócio - ${nomeClean}`,
-          tipo_negocio: 'venda usina',
+          tipo_negocio:
+            tipoVenda === 'O&M (Operação e Manutenção)'
+              ? 'renovação'
+              : tipoVenda === 'Carregadores Veículos Elétricos'
+                ? 'serviço'
+                : tipoVenda === 'Baterias'
+                  ? 'bateria'
+                  : 'venda usina',
           tipo_venda: tipoVenda,
           etapa_funil: 'novo lead',
           status: 'em andamento',
@@ -392,7 +498,7 @@ export const NovoLeadModal: React.FC<NovoLeadModalProps> = ({ isOpen, onClose })
       }
 
       toast({
-        title: 'Lead cadastrado com sucesso!',
+        title: 'Lead e Negócio cadastrados com sucesso!',
         description: `${nome.trim()} adicionado à coluna "Novo Lead" do funil.`,
       })
 
@@ -464,9 +570,9 @@ export const NovoLeadModal: React.FC<NovoLeadModalProps> = ({ isOpen, onClose })
               <UserPlus className="w-5 h-5 text-emerald-700" />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-gray-900">+ Novo Lead</h2>
+              <h2 className="text-lg font-bold text-gray-900">+ Novo Negócio / Lead</h2>
               <p className="text-xs text-gray-500">
-                Cadastre uma nova oportunidade no funil comercial
+                Cadastre uma nova oportunidade no funil comercial (novo lead ou cliente existente)
               </p>
             </div>
           </div>
@@ -482,6 +588,75 @@ export const NovoLeadModal: React.FC<NovoLeadModalProps> = ({ isOpen, onClose })
 
         {/* Form Body */}
         <form onSubmit={handleSubmit} className="p-6 space-y-4 max-h-[80vh] overflow-y-auto">
+          {/* SELETOR: NOVO LEAD / CLIENTE OU VINCULAR A CLIENTE EXISTENTE */}
+          <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                <Building2 className="w-4 h-4 text-emerald-600" />
+                Vincular Oportunidade
+              </span>
+              <div className="flex items-center gap-1 bg-white p-0.5 rounded-lg border border-slate-200 text-[11px]">
+                <button
+                  type="button"
+                  onClick={() => setModoCliente('novo')}
+                  className={`px-3 py-1 rounded-md font-semibold transition-all cursor-pointer ${
+                    modoCliente === 'novo'
+                      ? 'bg-emerald-600 text-white shadow-2xs font-bold'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  + Novo Lead / Cliente
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setModoCliente('existente')}
+                  className={`px-3 py-1 rounded-md font-semibold transition-all cursor-pointer ${
+                    modoCliente === 'existente'
+                      ? 'bg-emerald-600 text-white shadow-2xs font-bold'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  Cliente Existente
+                </button>
+              </div>
+            </div>
+
+            {modoCliente === 'existente' && (
+              <div className="space-y-1.5 pt-1">
+                <ClienteAutocomplete
+                  clientes={clientes}
+                  value={clienteExistenteId}
+                  onChange={handleSelectClienteExistente}
+                  placeholder="Buscar cliente existente por nome, telefone, cidade ou documento..."
+                />
+                {errors.clienteExistente && (
+                  <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
+                    <AlertCircle className="w-3.5 h-3.5" />
+                    {errors.clienteExistente}
+                  </p>
+                )}
+                {clienteExistenteSelecionado && (
+                  <div className="p-2 bg-emerald-50 border border-emerald-200 rounded-lg text-xs text-emerald-900 flex items-center justify-between">
+                    <div>
+                      <p className="font-bold">{clienteExistenteSelecionado.nome}</p>
+                      <p className="text-[11px] text-emerald-700">
+                        {clienteExistenteSelecionado.telefone ||
+                          clienteExistenteSelecionado.whatsapp ||
+                          'Sem telefone'}
+                        {clienteExistenteSelecionado.cidade
+                          ? ` • ${clienteExistenteSelecionado.cidade}`
+                          : ''}
+                      </p>
+                    </div>
+                    <span className="text-[10px] font-bold px-2 py-0.5 bg-emerald-200 text-emerald-900 rounded-full">
+                      Vinculado
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
           {/* BOTÃO EM DESTAQUE: IMPORTAR DADOS DA CONTA */}
           <div className="p-3 bg-gradient-to-r from-emerald-500/10 via-teal-500/10 to-emerald-500/5 rounded-xl border border-emerald-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
             <div className="flex items-center gap-2.5">
@@ -604,187 +779,217 @@ export const NovoLeadModal: React.FC<NovoLeadModalProps> = ({ isOpen, onClose })
             </div>
           </div>
 
-          {/* Campo CNPJ opcional com consulta automática */}
-          <div className="p-3.5 bg-gray-50 rounded-xl border border-gray-200/80 space-y-2">
-            <CnpjInputWithLookup
-              value={cnpj}
-              onChange={(val) => {
-                setCnpj(val)
-                if (conflitosCnpj.length > 0) setConflitosCnpj([])
-              }}
-              onBlur={handleCnpjBlur}
-              onLookupClick={() =>
-                lookupCnpj(cnpj, true).then((r) => r && aplicarDadosReceita(r, true))
-              }
-              status={cnpjStatus}
-              errorMessage={cnpjErrorMessage}
-              isLoading={isCnpjLoading}
-              label="CNPJ (Empresa / PJ) - Consulta Automática"
-              helperText="Preencha os 14 dígitos e saia do campo para buscar dados da Receita Federal"
-            />
+          {/* Campos exclusivos para cadastro de NOVO lead */}
+          {modoCliente === 'novo' ? (
+            <>
+              {/* Campo CNPJ opcional com consulta automática */}
+              <div className="p-3.5 bg-gray-50 rounded-xl border border-gray-200/80 space-y-2">
+                <CnpjInputWithLookup
+                  value={cnpj}
+                  onChange={(val) => {
+                    setCnpj(val)
+                    if (conflitosCnpj.length > 0) setConflitosCnpj([])
+                  }}
+                  onBlur={handleCnpjBlur}
+                  onLookupClick={() =>
+                    lookupCnpj(cnpj, true).then((r) => r && aplicarDadosReceita(r, true))
+                  }
+                  status={cnpjStatus}
+                  errorMessage={cnpjErrorMessage}
+                  isLoading={isCnpjLoading}
+                  label="CNPJ (Empresa / PJ) - Consulta Automática"
+                  helperText="Preencha os 14 dígitos e saia do campo para buscar dados da Receita Federal"
+                />
 
-            <CnpjConflictBanner
-              conflitos={conflitosCnpj}
-              onManterMeusDados={() => {
-                setConflitosCnpj([])
-                setPendenteDadosReceita(null)
-              }}
-              onUsarDadosReceita={() => {
-                if (pendenteDadosReceita) aplicarDadosReceita(pendenteDadosReceita, true)
-              }}
-            />
+                <CnpjConflictBanner
+                  conflitos={conflitosCnpj}
+                  onManterMeusDados={() => {
+                    setConflitosCnpj([])
+                    setPendenteDadosReceita(null)
+                  }}
+                  onUsarDadosReceita={() => {
+                    if (pendenteDadosReceita) aplicarDadosReceita(pendenteDadosReceita, true)
+                  }}
+                />
 
-            {situacaoCadastral && (
-              <div className="flex items-center gap-2 pt-1 text-xs text-gray-600 flex-wrap">
-                <span className="font-semibold text-gray-700">Situação:</span>
-                <span className="px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 font-bold text-[10px]">
-                  {situacaoCadastral}
-                </span>
-                {cnaePrincipal && (
-                  <span className="text-[11px] text-gray-500 truncate" title={cnaePrincipal}>
-                    • CNAE: {cnaePrincipal}
-                  </span>
+                {situacaoCadastral && (
+                  <div className="flex items-center gap-2 pt-1 text-xs text-gray-600 flex-wrap">
+                    <span className="font-semibold text-gray-700">Situação:</span>
+                    <span className="px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 font-bold text-[10px]">
+                      {situacaoCadastral}
+                    </span>
+                    {cnaePrincipal && (
+                      <span className="text-[11px] text-gray-500 truncate" title={cnaePrincipal}>
+                        • CNAE: {cnaePrincipal}
+                      </span>
+                    )}
+                  </div>
                 )}
               </div>
-            )}
-          </div>
 
-          {/* Nome */}
-          <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-gray-600 mb-1.5">
-              Nome do Lead / Razão Social <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="text"
-              placeholder="Ex: João da Silva ou Fazenda Esperança"
-              value={nome}
-              onChange={(e) => setNome(e.target.value)}
-              className={`w-full px-3.5 py-2.5 text-sm bg-gray-50 border rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-colors ${
-                errors.nome ? 'border-red-500 bg-red-50/20' : 'border-gray-200'
-              }`}
-            />
-            {errors.nome && (
-              <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
-                <AlertCircle className="w-3.5 h-3.5" />
-                {errors.nome}
-              </p>
-            )}
-          </div>
+              {/* Nome */}
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-gray-600 mb-1.5">
+                  Nome do Lead / Razão Social <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  placeholder="Ex: João da Silva ou Fazenda Esperança"
+                  value={nome}
+                  onChange={(e) => setNome(e.target.value)}
+                  className={`w-full px-3.5 py-2.5 text-sm bg-gray-50 border rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-colors ${
+                    errors.nome ? 'border-red-500 bg-red-50/20' : 'border-gray-200'
+                  }`}
+                />
+                {errors.nome && (
+                  <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
+                    <AlertCircle className="w-3.5 h-3.5" />
+                    {errors.nome}
+                  </p>
+                )}
+              </div>
 
-          {/* Telefone, WhatsApp e Consumo */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-gray-600 mb-1.5">
-                WhatsApp <span className="text-emerald-600 font-bold">(XX) XXXXX-XXXX</span>
-              </label>
-              <input
-                type="text"
-                placeholder="(54) 99876-5432"
-                value={whatsapp}
-                onChange={(e) => {
-                  const formatted = formatWhatsAppPhone(e.target.value)
-                  setWhatsapp(formatted)
-                  if (!telefone) setTelefone(formatted)
-                }}
-                className="w-full px-3.5 py-2.5 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-colors"
-              />
+              {/* Telefone, WhatsApp e Consumo */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-gray-600 mb-1.5">
+                    WhatsApp <span className="text-emerald-600 font-bold">(XX) XXXXX-XXXX</span>
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="(54) 99876-5432"
+                    value={whatsapp}
+                    onChange={(e) => {
+                      const formatted = formatWhatsAppPhone(e.target.value)
+                      setWhatsapp(formatted)
+                      if (!telefone) setTelefone(formatted)
+                    }}
+                    className="w-full px-3.5 py-2.5 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-colors"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-gray-600 mb-1.5">
+                    Telefone <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="(54) 3522-1234"
+                    value={telefone}
+                    onChange={(e) => setTelefone(formatWhatsAppPhone(e.target.value))}
+                    className={`w-full px-3.5 py-2.5 text-sm bg-gray-50 border rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-colors ${
+                      errors.telefone ? 'border-red-500 bg-red-50/20' : 'border-gray-200'
+                    }`}
+                  />
+                  {errors.telefone && (
+                    <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
+                      <AlertCircle className="w-3.5 h-3.5" />
+                      {errors.telefone}
+                    </p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-gray-600 mb-1.5">
+                    Consumo (kWh/mês)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="1"
+                    placeholder="Ex: 850"
+                    value={consumoKwhMes}
+                    onChange={(e) => setConsumoKwhMes(e.target.value)}
+                    className={`w-full px-3.5 py-2.5 text-sm bg-gray-50 border rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-colors ${
+                      errors.consumo ? 'border-red-500 bg-red-50/20' : 'border-gray-200'
+                    }`}
+                  />
+                  {errors.consumo && (
+                    <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
+                      <AlertCircle className="w-3.5 h-3.5" />
+                      {errors.consumo}
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {/* Origem e Produto */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-gray-600 mb-1.5">
+                    Origem do Lead <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    value={origem}
+                    onChange={(e) => setOrigem(e.target.value as OrigemLeadTipo)}
+                    className="w-full px-3.5 py-2.5 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-colors"
+                  >
+                    {ORIGENS.map((opt) => (
+                      <option key={opt} value={opt}>
+                        {opt}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-gray-600 mb-1.5">
+                    Produto / Serviço
+                  </label>
+                  <select
+                    value={produto}
+                    onChange={(e) => setProduto(e.target.value as ProdutoTipo)}
+                    className="w-full px-3.5 py-2.5 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-colors"
+                  >
+                    {PRODUTOS.map((opt) => (
+                      <option key={opt} value={opt}>
+                        {opt}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Cidade / Região (opcional, padrão Erechim/RS) */}
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-gray-600 mb-1.5">
+                  Cidade / Região
+                </label>
+                <input
+                  type="text"
+                  placeholder="Ex: Erechim/RS, Passo Fundo/RS, Chapecó/SC"
+                  value={cidade}
+                  onChange={(e) => setCidade(e.target.value)}
+                  className="w-full px-3.5 py-2.5 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-colors"
+                />
+              </div>
+            </>
+          ) : (
+            /* Modo Cliente Existente: campos complementares deste negócio */
+            <div className="p-3.5 bg-gray-50 rounded-xl border border-gray-200/80 space-y-3">
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-gray-600 mb-1.5">
+                  Consumo Estimado (kWh/mês)
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  step="1"
+                  placeholder={
+                    clienteExistenteSelecionado?.consumo_kwh_mes
+                      ? `Padrão do cliente: ${clienteExistenteSelecionado.consumo_kwh_mes} kWh/mês`
+                      : 'Ex: 850'
+                  }
+                  value={consumoKwhMes}
+                  onChange={(e) => setConsumoKwhMes(e.target.value)}
+                  className="w-full px-3.5 py-2.5 text-sm bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-colors"
+                />
+                <span className="text-[11px] text-gray-500 mt-1 block">
+                  Caso preenchido, calcula automaticamente potência estimada e valor no funil.
+                </span>
+              </div>
             </div>
-
-            <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-gray-600 mb-1.5">
-                Telefone <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                placeholder="(54) 3522-1234"
-                value={telefone}
-                onChange={(e) => setTelefone(formatWhatsAppPhone(e.target.value))}
-                className={`w-full px-3.5 py-2.5 text-sm bg-gray-50 border rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-colors ${
-                  errors.telefone ? 'border-red-500 bg-red-50/20' : 'border-gray-200'
-                }`}
-              />
-              {errors.telefone && (
-                <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
-                  <AlertCircle className="w-3.5 h-3.5" />
-                  {errors.telefone}
-                </p>
-              )}
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-gray-600 mb-1.5">
-                Consumo (kWh/mês)
-              </label>
-              <input
-                type="number"
-                min="0"
-                step="1"
-                placeholder="Ex: 850"
-                value={consumoKwhMes}
-                onChange={(e) => setConsumoKwhMes(e.target.value)}
-                className={`w-full px-3.5 py-2.5 text-sm bg-gray-50 border rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-colors ${
-                  errors.consumo ? 'border-red-500 bg-red-50/20' : 'border-gray-200'
-                }`}
-              />
-              {errors.consumo && (
-                <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
-                  <AlertCircle className="w-3.5 h-3.5" />
-                  {errors.consumo}
-                </p>
-              )}
-            </div>
-          </div>
-
-          {/* Origem e Produto */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-gray-600 mb-1.5">
-                Origem do Lead <span className="text-red-500">*</span>
-              </label>
-              <select
-                value={origem}
-                onChange={(e) => setOrigem(e.target.value as OrigemLeadTipo)}
-                className="w-full px-3.5 py-2.5 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-colors"
-              >
-                {ORIGENS.map((opt) => (
-                  <option key={opt} value={opt}>
-                    {opt}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-gray-600 mb-1.5">
-                Produto / Serviço
-              </label>
-              <select
-                value={produto}
-                onChange={(e) => setProduto(e.target.value as ProdutoTipo)}
-                className="w-full px-3.5 py-2.5 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-colors"
-              >
-                {PRODUTOS.map((opt) => (
-                  <option key={opt} value={opt}>
-                    {opt}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          {/* Cidade / Região (opcional, padrão Erechim/RS) */}
-          <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-gray-600 mb-1.5">
-              Cidade / Região
-            </label>
-            <input
-              type="text"
-              placeholder="Ex: Erechim/RS, Passo Fundo/RS, Chapecó/SC"
-              value={cidade}
-              onChange={(e) => setCidade(e.target.value)}
-              className="w-full px-3.5 py-2.5 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-colors"
-            />
-          </div>
+          )}
 
           <div className="p-3 bg-emerald-50/60 rounded-lg border border-emerald-100 flex items-start gap-2 text-xs text-emerald-800">
             <Sparkles className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
@@ -812,8 +1017,10 @@ export const NovoLeadModal: React.FC<NovoLeadModalProps> = ({ isOpen, onClose })
               {isSubmitting ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  Cadastrando...
+                  Salvando...
                 </>
+              ) : modoCliente === 'existente' ? (
+                'Criar Negócio'
               ) : (
                 'Salvar Lead'
               )}
