@@ -95,23 +95,134 @@ export default function ExecucaoOS() {
   const [selectedPrestadorFilter, setSelectedPrestadorFilter] = useState<string>('todos')
   const [selectedPeriodoFilter, setSelectedPeriodoFilter] = useState<string>('todos')
 
-  // Carrega OSs e prestadores do banco
+  // Mapeamento de tipo de atividade de campo para tipo_servico suportado pela tela
+  const mapTipoAtividadeParaTipoServico = (tipo?: string): OSTipoServico => {
+    switch (tipo) {
+      case 'limpeza_manutencao':
+        return 'Limpeza'
+      case 'instalacao':
+        return 'Instalação'
+      case 'visita_tecnica':
+        return 'Manutenção'
+      case 'garantia_equipamento':
+        return 'Garantia'
+      case 'configuracao_datalogger':
+        return 'Configuração de Datalogger'
+      default:
+        return 'Manutenção'
+    }
+  }
+
+  // Mapeamento de status da atividade para OSStatus
+  const mapStatusAtividadeParaOSStatus = (
+    status?: string,
+  ): 'pendente' | 'concluida' | 'cancelada' => {
+    if (status === 'concluida') return 'concluida'
+    if (status === 'cancelada') return 'cancelada'
+    return 'pendente'
+  }
+
+  // Carrega OSs, atividades de manutenção e prestadores do banco
   const carregarDados = async () => {
     setIsLoading(true)
     try {
       const { fetchProfissionais } = await import('@/services/crmService')
       const responsavelFiltro = isInstalador && userProfile?.id ? userProfile.id : undefined
-      const promises: [Promise<OrdemServico[]>, Promise<SistemaUsuario[]>, Promise<any[]>] = [
+
+      // Filtro OR para as atividades de manutenção/campo
+      const filterAtividades =
+        "(tipo='limpeza_manutencao' || tipo='instalacao' || tipo='visita_tecnica' || tipo='garantia_equipamento' || tipo='configuracao_datalogger')"
+
+      const promises = [
         fetchOrdensServico(undefined, responsavelFiltro),
+        pb.collection('atividades').getFullList({
+          filter: filterAtividades,
+          sort: '-data,-created',
+          expand: 'cliente_id,usina_id,responsavel_id,fornecedor_id',
+          requestKey: null,
+        }),
         isAdmin ? fetchInstaladoresAtivos() : Promise.resolve([]),
         fetchProfissionais ? fetchProfissionais() : Promise.resolve([]),
-      ]
-      const [osList, instList, profList] = await Promise.all(promises)
-      setOrdens(Array.isArray(osList) ? osList : [])
+      ] as const
+
+      const [osList, atividadesList, instList, profList] = await Promise.all(promises)
+
+      // Mapear cada atividade para o formato OrdemServico com origem 'atividades'
+      const atividadesMapeadas: OrdemServico[] = (
+        Array.isArray(atividadesList) ? atividadesList : []
+      ).map((atv: any) => {
+        const cli = atv.expand?.cliente_id
+        const usina = atv.expand?.usina_id
+        const resp = atv.expand?.responsavel_id
+        const forn = atv.expand?.fornecedor_id
+
+        // Endereço: usina expand -> cliente expand -> endereco_uc
+        const endereco = atv.endereco_uc || usina?.endereco || cli?.endereco || cli?.cidade || ''
+
+        // Atribuído a: responsavel_nome -> equipe_nome -> fornecedor -> autor
+        const atribuidaA =
+          atv.responsavel_nome ||
+          resp?.name ||
+          atv.equipe_nome ||
+          forn?.nome_empresa ||
+          forn?.contato_nome ||
+          atv.autor ||
+          ''
+
+        // Instruções combinando título e descrição quando existirem
+        const instrucoesPartes = [atv.titulo, atv.descricao].filter(Boolean)
+        const instrucoes = instrucoesPartes.length > 0 ? instrucoesPartes.join('\n\n') : undefined
+
+        const tipoServico = mapTipoAtividadeParaTipoServico(atv.tipo)
+        const status = mapStatusAtividadeParaOSStatus(atv.status)
+
+        return {
+          id: atv.id,
+          collectionId: atv.collectionId || 'atividades',
+          collectionName: atv.collectionName || 'atividades',
+          cliente_id: atv.cliente_id,
+          tipo_servico: tipoServico,
+          endereco,
+          data_agendada: atv.data || atv.created,
+          status,
+          atribuida_a: atribuidaA,
+          responsavel_usuario_id: atv.responsavel_id || undefined,
+          profissional_id: undefined,
+          instrucoes,
+          detalhes_execucao: atv.descricao || '',
+          concluida_em: status === 'concluida' ? atv.updated || atv.data : undefined,
+          origem: 'atividades',
+          created: atv.created,
+          updated: atv.updated,
+          expand: {
+            cliente_id: cli,
+            responsavel_usuario_id: resp,
+          },
+        } as OrdemServico
+      })
+
+      // Coexistência e deduplicação: OSs reais têm precedência se houver mesmo id
+      const osReais = Array.isArray(osList) ? osList : []
+      const osIdSet = new Set(osReais.map((o) => o.id))
+      const atividadesDeduplicadas = atividadesMapeadas.filter((a) => !osIdSet.has(a.id))
+      const ordensCombinadas = [...osReais, ...atividadesDeduplicadas]
+
+      // Se instalador comum logado, filtra as combinadas pelo responsavel se aplicável
+      const ordensFinais =
+        responsavelFiltro && !isAdmin
+          ? ordensCombinadas.filter(
+              (o) =>
+                o.responsavel_usuario_id === responsavelFiltro ||
+                (userProfile?.name &&
+                  o.atribuida_a?.toLowerCase().includes(userProfile.name.toLowerCase())),
+            )
+          : ordensCombinadas
+
+      setOrdens(ordensFinais)
       setInstaladores(Array.isArray(instList) ? instList : [])
       setProfissionais(Array.isArray(profList) ? profList : [])
     } catch (err) {
-      console.error('Erro ao carregar dados de OS:', err)
+      console.error('Erro ao carregar dados de OS e atividades:', err)
       toast({
         variant: 'destructive',
         title: 'Erro ao carregar serviços de campo',
@@ -302,16 +413,21 @@ export default function ExecucaoOS() {
     }
   }
 
-  // Excluir OS com confirmação
+  // Excluir OS com confirmação (suporta coleção ordens_servico ou atividades)
   const handleConfirmarExclusaoOS = async () => {
     if (!osParaExcluir) return
     setIsDeletingOS(true)
     try {
-      await deleteOrdemServico(osParaExcluir.id)
+      if (osParaExcluir.origem === 'atividades') {
+        const { deleteAtividade } = await import('@/services/crmService')
+        await deleteAtividade(osParaExcluir.id)
+      } else {
+        await deleteOrdemServico(osParaExcluir.id)
+      }
       setOrdens((prev) => prev.filter((o) => o.id !== osParaExcluir.id))
       toast({
-        title: 'Ordem de serviço excluída com sucesso',
-        description: `OS #${osParaExcluir.id.slice(0, 8)} foi removida.`,
+        title: 'Serviço de campo excluído com sucesso',
+        description: `#${osParaExcluir.id.slice(0, 8)} foi removido(a).`,
       })
       setOsParaExcluir(null)
     } catch (err) {
@@ -335,28 +451,48 @@ export default function ExecucaoOS() {
       const targetProf = profissionais.find((p) => p.id === selectedProfissionalId)
       const nomeFinal = targetInstalador?.name || targetProf?.nome || ''
 
-      const { updateOrdemServico } = await import('@/services/crmService')
-      const updated = await updateOrdemServico(osParaAtribuir.id, {
-        responsavel_usuario_id: selectedInstaladorId || '',
-        profissional_id: selectedProfissionalId || '',
-        atribuida_a: nomeFinal,
-      })
+      if (osParaAtribuir.origem === 'atividades') {
+        const { updateAtividade } = await import('@/services/crmService')
+        const updated = await updateAtividade(osParaAtribuir.id, {
+          responsavel_id: selectedInstaladorId || undefined,
+          responsavel_nome: nomeFinal,
+        })
+        setOrdens((prev) =>
+          prev.map((item) =>
+            item.id === updated.id
+              ? {
+                  ...item,
+                  responsavel_usuario_id: updated.responsavel_id || undefined,
+                  atribuida_a: updated.responsavel_nome || nomeFinal,
+                }
+              : item,
+          ),
+        )
+      } else {
+        const { updateOrdemServico } = await import('@/services/crmService')
+        const updated = await updateOrdemServico(osParaAtribuir.id, {
+          responsavel_usuario_id: selectedInstaladorId || '',
+          profissional_id: selectedProfissionalId || '',
+          atribuida_a: nomeFinal,
+        })
 
-      setOrdens((prev) =>
-        prev.map((item) =>
-          item.id === updated.id
-            ? {
-                ...item,
-                responsavel_usuario_id: updated.responsavel_usuario_id,
-                profissional_id: updated.profissional_id,
-                atribuida_a: updated.atribuida_a,
-              }
-            : item,
-        ),
-      )
+        setOrdens((prev) =>
+          prev.map((item) =>
+            item.id === updated.id
+              ? {
+                  ...item,
+                  responsavel_usuario_id: updated.responsavel_usuario_id,
+                  profissional_id: updated.profissional_id,
+                  atribuida_a: updated.atribuida_a,
+                }
+              : item,
+          ),
+        )
+      }
+
       toast({
         title: 'Prestador reatribuído com sucesso!',
-        description: nomeFinal ? `OS reatribuída para ${nomeFinal}.` : 'Atribuição removida.',
+        description: nomeFinal ? `Serviço reatribuído para ${nomeFinal}.` : 'Atribuição removida.',
       })
       setOsParaAtribuir(null)
     } catch (err) {
@@ -713,11 +849,18 @@ export default function ExecucaoOS() {
                     }`}
                   >
                     <div>
-                      {/* Topo do Card: Tipo do Serviço, Status e Ação de Exclusão (Admin) */}
+                      {/* Topo do Card: Tipo do Serviço, Origem, Status e Ação de Exclusão (Admin) */}
                       <div className="flex items-center justify-between gap-2 mb-2.5">
-                        <span className="text-[11px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-200/80">
-                          {os.tipo_servico}
-                        </span>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="text-[11px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-200/80">
+                            {os.tipo_servico}
+                          </span>
+                          {os.origem === 'atividades' && (
+                            <span className="text-[10px] font-semibold tracking-wide px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 border border-blue-200/80">
+                              Atividade
+                            </span>
+                          )}
+                        </div>
 
                         <div className="flex items-center gap-1.5 ml-auto">
                           {os.status === 'concluida' ? (

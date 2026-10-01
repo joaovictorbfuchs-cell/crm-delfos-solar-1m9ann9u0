@@ -1266,6 +1266,7 @@ export interface OrdemServico extends RecordModel {
   fotos?: string[]
   concluida_em?: string
   relatorio_pdf?: string
+  origem?: string
   created: string
   updated: string
   expand?: {
