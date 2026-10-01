@@ -1052,12 +1052,7 @@ export const Orcamentos: React.FC = () => {
                             return <span className="font-semibold text-gray-800">—</span>
                           }
                           return (
-                            <>
-                              <span className="font-semibold text-gray-800">{payback} meses</span>
-                              <div className="text-[10px] text-gray-400">
-                                (~{(payback / 12).toFixed(1)} anos)
-                              </div>
-                            </>
+                            <span className="font-semibold text-gray-800">{payback} meses</span>
                           )
                         })()}
                       </td>

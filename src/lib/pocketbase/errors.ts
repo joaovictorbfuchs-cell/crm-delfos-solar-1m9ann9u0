@@ -20,28 +20,21 @@ export function extractFieldErrors(error: unknown): FieldErrors {
   return errors
 }
 
+export function isAuthSessionError(error: unknown): boolean {
+  if (error instanceof ClientResponseError) {
+    return error.status === 401 || error.status === 403
+  }
+  if (typeof error === 'object' && error !== null && 'status' in error) {
+    const s = (error as { status?: unknown }).status
+    return s === 401 || s === 403
+  }
+  return false
+}
+
 export function getErrorMessage(error: unknown): string {
   if (!(error instanceof ClientResponseError)) {
     return error instanceof Error ? error.message : 'An unexpected error occurred.'
   }
   const msgs = Object.values(extractFieldErrors(error))
   return msgs.length > 0 ? msgs.join(' ') : error.message || 'An unexpected error occurred.'
-}
-
-/**
- * Identifica se o erro é decorrente de sessão/token expirado ou não autorizado (401/403).
- */
-export function isAuthSessionError(error: unknown): boolean {
-  if (!error || typeof error !== 'object') return false
-  const err = error as Record<string, any>
-  const status = Number(err.status ?? err.statusCode ?? err.response?.status)
-  if (status === 401 || status === 403) return true
-  const msg = String(err.message || '').toLowerCase()
-  return (
-    msg.includes('token is expired') ||
-    msg.includes('failed to authenticate') ||
-    msg.includes('token is invalid') ||
-    msg.includes('unauthorized') ||
-    msg.includes('forbidden')
-  )
 }
