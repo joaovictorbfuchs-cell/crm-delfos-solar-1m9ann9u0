@@ -409,6 +409,10 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
     const targetCard = cards.find((c) => c.id === cardId)
     if (!targetCard || targetCard.status === targetStatus) return
 
+    // Atualização otimista imediata para feedback instantâneo ao usuário
+    const previousStatus = targetCard.status
+    targetCard.status = targetStatus
+
     try {
       if (targetCard.negocioId) {
         // Atualiza a etapa do negócio
@@ -416,16 +420,30 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
         await updateNegocio(targetCard.negocioId, {
           etapa_funil: novaEtapa,
         })
+        toast({
+          title: 'Etapa atualizada',
+          description: `"${targetCard.titulo}" movido para ${targetStatus}.`,
+        })
         if (onNegocioUpdated) onNegocioUpdated()
+        await refreshData()
       } else {
-        // Modo legado cliente
+        // Modo legado cliente (ou card sem negócio ainda)
         await updateClienteStatus(cardId, targetStatus)
+        toast({
+          title: 'Etapa atualizada',
+          description: `"${targetCard.titulo}" movido para ${targetStatus}.`,
+        })
+        if (onNegocioUpdated) onNegocioUpdated()
       }
-    } catch (err) {
+    } catch (err: any) {
+      // Reverte em caso de erro
+      targetCard.status = previousStatus
       console.error('Falha ao mover card:', err)
+      const errorMsg =
+        err?.message || err?.data?.message || 'Não foi possível alterar a etapa no funil.'
       toast({
         title: 'Erro ao mover negócio',
-        description: 'Não foi possível alterar a etapa no funil.',
+        description: errorMsg,
         variant: 'destructive',
       })
     }
