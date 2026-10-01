@@ -55,8 +55,10 @@ import {
   Home,
   Wrench,
   Copy,
+  UploadCloud,
 } from 'lucide-react'
 import { AbaAtivosUsina } from '@/components/AbaAtivosUsina'
+import { ModalImportarDocumentoUsina } from '@/components/ModalImportarDocumentoUsina'
 import { InlineEditField } from '@/components/InlineEditField'
 import { DatasheetBadge } from '@/components/DatasheetBadge'
 import { formatarCPF } from '@/lib/cpfValidator'
@@ -125,6 +127,7 @@ export const SecaoUsinasCliente: React.FC<SecaoUsinasClienteProps> = ({
   const [usinaDetalhes, setUsinaDetalhes] = useState<UsinaCliente | null>(null)
   const [isEditingDetalhes, setIsEditingDetalhes] = useState(false)
   const [isSavingDetalhes, setIsSavingDetalhes] = useState(false)
+  const [modalImportarDocUsinaOpen, setModalImportarDocUsinaOpen] = useState(false)
 
   // Form states para edição na ficha própria
   const [editNome, setEditNome] = useState('')
@@ -746,6 +749,17 @@ export const SecaoUsinasCliente: React.FC<SecaoUsinasClienteProps> = ({
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           {usinaDetalhes && (
             <>
+              {/* Modal de Importar Dados da Usina por Documento */}
+              <ModalImportarDocumentoUsina
+                open={modalImportarDocUsinaOpen}
+                onOpenChange={setModalImportarDocUsinaOpen}
+                usina={usinaDetalhes}
+                clienteNome={clienteNome}
+                onApplyImport={async (updates) => {
+                  await handleUpdateUsinaMultipleFields(updates)
+                }}
+              />
+
               <DialogHeader>
                 <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                   <div className="flex items-center gap-2.5">
@@ -764,15 +778,28 @@ export const SecaoUsinasCliente: React.FC<SecaoUsinasClienteProps> = ({
 
                   <div className="flex items-center gap-2">
                     {!isEditingDetalhes ? (
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        onClick={() => setIsEditingDetalhes(true)}
-                        className="text-xs font-bold border-slate-300 hover:bg-slate-50"
-                      >
-                        Editar Ficha
-                      </Button>
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => setModalImportarDocUsinaOpen(true)}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg shadow-xs transition-all hover:scale-[1.02] bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-300"
+                          title="Importar dados da usina automaticamente por documento técnico (Projeto, Inversores, Módulos ou Conta)"
+                        >
+                          <UploadCloud className="w-4 h-4 text-emerald-600" />
+                          <span className="hidden sm:inline">Importar por Documento</span>
+                          <span className="sm:hidden">Importar Doc</span>
+                        </button>
+
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setIsEditingDetalhes(true)}
+                          className="text-xs font-bold border-slate-300 hover:bg-slate-50"
+                        >
+                          Editar Ficha
+                        </Button>
+                      </>
                     ) : (
                       <Button
                         type="button"
