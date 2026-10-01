@@ -57,8 +57,7 @@ import {
   Copy,
   UploadCloud,
 } from 'lucide-react'
-import { AbaAtivosUsina } from '@/components/AbaAtivosUsina'
-import { SecaoAtivosUsinaEquipamentos } from '@/components/SecaoAtivosUsinaEquipamentos'
+import { BlocoAtivosDaUsina } from '@/components/BlocoAtivosDaUsina'
 import { ModalImportarDocumentoUsina } from '@/components/ModalImportarDocumentoUsina'
 import { InlineEditField } from '@/components/InlineEditField'
 import { DatasheetBadge } from '@/components/DatasheetBadge'
@@ -747,7 +746,7 @@ export const SecaoUsinasCliente: React.FC<SecaoUsinasClienteProps> = ({
           }
         }}
       >
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-5xl w-[95vw] max-h-[92vh] overflow-y-auto">
           {usinaDetalhes && (
             <>
               {/* Modal de Importar Dados da Usina por Documento */}
@@ -1636,221 +1635,16 @@ export const SecaoUsinasCliente: React.FC<SecaoUsinasClienteProps> = ({
                     </div>
                   </div>
 
-                  {/* GRUPO 5: Equipamentos Fotovoltaicos */}
-                  <div className="bg-white rounded-xl p-4 border border-gray-200/80 shadow-xs space-y-3">
-                    <div className="flex items-center justify-between border-b border-gray-100 pb-2">
-                      <div className="text-[11px] uppercase font-bold text-gray-500 tracking-wider flex items-center gap-1.5">
-                        <Layers className="w-3.5 h-3.5 text-emerald-600" />
-                        Equipamentos Fotovoltaicos
-                      </div>
-                      <span className="text-[10px] text-gray-400">Edição inline</span>
-                    </div>
-
-                    <div className="space-y-2 text-xs">
-                      {/* Potência total kWp, Qtd de Módulos e Geração Estimada kWh/mês */}
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                        <div className="flex items-center gap-2">
-                          <Zap className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-                          <span className="text-gray-500 w-24 shrink-0 font-medium">Potência:</span>
-                          <InlineEditField
-                            value={usinaDetalhes.potencia_kwp ?? 0}
-                            displayValue={
-                              <span className="font-black text-emerald-700 text-sm">
-                                {usinaDetalhes.potencia_kwp || 0} kWp
-                              </span>
-                            }
-                            type="number"
-                            step="0.01"
-                            min={0}
-                            unit="kWp"
-                            placeholder="0"
-                            onSave={async (val) =>
-                              handleUpdateUsinaField('potencia_kwp', Number(val) || 0)
-                            }
-                          />
-                        </div>
-
-                        <div className="flex items-center gap-2">
-                          <Layers className="w-3.5 h-3.5 text-blue-600 shrink-0" />
-                          <span className="text-gray-500 w-20 shrink-0 font-medium">Módulos:</span>
-                          <InlineEditField
-                            value={usinaDetalhes.qtd_modulos ?? 0}
-                            displayValue={
-                              <span className="font-bold text-blue-800 bg-blue-50 px-2 py-0.5 rounded text-xs border border-blue-200">
-                                {usinaDetalhes.qtd_modulos || 0} un
-                              </span>
-                            }
-                            type="number"
-                            step="1"
-                            min={0}
-                            unit="un"
-                            placeholder="0"
-                            onSave={async (val) =>
-                              handleUpdateUsinaField('qtd_modulos', Number(val) || 0)
-                            }
-                          />
-                        </div>
-
-                        <div className="flex items-center gap-2">
-                          <TrendingUp className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                          <span className="text-gray-500 w-20 shrink-0 font-medium">Geração:</span>
-                          <InlineEditField
-                            value={usinaDetalhes.geracao_estimada_kwh ?? 0}
-                            displayValue={
-                              <span className="font-bold text-emerald-800 text-xs">
-                                {usinaDetalhes.geracao_estimada_kwh
-                                  ? `${usinaDetalhes.geracao_estimada_kwh} kWh/mês`
-                                  : 'Não inf.'}
-                              </span>
-                            }
-                            type="number"
-                            step="1"
-                            min={0}
-                            unit="kWh/mês"
-                            placeholder="Ex: 1150"
-                            onSave={async (val) =>
-                              handleUpdateUsinaField('geracao_estimada_kwh', Number(val) || 0)
-                            }
-                          />
-                        </div>
-                      </div>
-
-                      {/* Fabricante dos Módulos e Modelo dos Módulos com Datasheet */}
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 border-t border-gray-100">
-                        <div className="flex items-center gap-2">
-                          <span className="text-gray-500 w-24 shrink-0">Fabricante:</span>
-                          <InlineEditField
-                            value={
-                              usinaDetalhes.fabricante_modulos || usinaDetalhes.marca_placas || ''
-                            }
-                            displayValue={
-                              <span className="font-medium text-gray-800">
-                                {usinaDetalhes.fabricante_modulos ||
-                                  usinaDetalhes.marca_placas ||
-                                  'Não inf.'}
-                              </span>
-                            }
-                            type="text"
-                            placeholder="Canadian Solar, JA Solar, Trina..."
-                            onSave={async (val) => {
-                              const s = String(val).trim()
-                              await handleUpdateUsinaMultipleFields({
-                                fabricante_modulos: s,
-                                marca_placas: s,
-                              })
-                            }}
-                          />
-                        </div>
-
-                        <div className="flex items-center gap-2">
-                          <span className="text-gray-500 w-20 shrink-0">Modelo:</span>
-                          <InlineEditField
-                            value={usinaDetalhes.modelo_modulos || ''}
-                            displayValue={
-                              <span className="font-mono text-gray-800 text-[11px] bg-white px-2 py-0.5 rounded border border-gray-200">
-                                {usinaDetalhes.modelo_modulos || 'Não inf.'}
-                              </span>
-                            }
-                            type="text"
-                            placeholder="Modelo do módulo"
-                            className="flex-1"
-                            onSave={async (val) =>
-                              handleUpdateUsinaField('modelo_modulos', String(val).trim())
-                            }
-                          />
-                        </div>
-                      </div>
-
-                      {/* Datasheet Badge do Módulo com link dinâmico */}
-                      <div className="flex items-center justify-between gap-2 pt-1 border-t border-gray-100 flex-wrap">
-                        <span className="text-gray-400 text-[11px]">Datasheet do Módulo:</span>
-                        <div className="flex items-center gap-2">
-                          {(() => {
-                            const eqModulo = encontrarDatasheetModuloUsina(usinaDetalhes)
-                            if (eqModulo && eqModulo.datasheet_pdf) {
-                              const url = getDatasheetEquipamentoUrl(eqModulo)
-                              if (url) {
-                                return (
-                                  <a
-                                    href={url}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    onClick={(e) => e.stopPropagation()}
-                                    className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100 px-2 py-1 rounded-lg border border-emerald-300 transition-colors shrink-0 shadow-2xs"
-                                    title={`Abrir Datasheet PDF (${eqModulo.marca} ${eqModulo.modelo})`}
-                                  >
-                                    <FileText className="w-3 h-3 text-emerald-600" />
-                                    <span>Datasheet PDF ({eqModulo.marca})</span>
-                                    <ExternalLink className="w-2.5 h-2.5 text-emerald-600" />
-                                  </a>
-                                )
-                              }
-                            }
-                            return null
-                          })()}
-                          <DatasheetBadge
-                            marca={
-                              usinaDetalhes.fabricante_modulos || usinaDetalhes.marca_placas || ''
-                            }
-                            modelo={usinaDetalhes.modelo_modulos || ''}
-                            tipo="modulo_fv"
-                            mostrarLinkBusca={true}
-                          />
-                        </div>
-                      </div>
-
-                      {/* Inversor(es): Marca / Modelo / Potência + Datasheet */}
-                      <div className="p-3 bg-gray-50/70 rounded-lg border border-gray-200 space-y-2 mt-2">
-                        <div className="flex items-center justify-between">
-                          <span className="text-gray-600 font-bold flex items-center gap-1.5 text-xs">
-                            <Cpu className="w-3.5 h-3.5 text-purple-600" />
-                            Inversor(es) (Marca / Modelo / Potência)
-                          </span>
-                          {(() => {
-                            const eq = encontrarEquipamentoComDatasheet(
-                              usinaDetalhes.inversores_info || '',
-                            )
-                            if (eq && eq.datasheet_pdf) {
-                              const url = getDatasheetEquipamentoUrl(eq)
-                              if (url) {
-                                return (
-                                  <a
-                                    href={url}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="inline-flex items-center gap-1.5 text-[11px] font-bold text-emerald-700 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100 px-2 py-1 rounded-lg border border-emerald-200 transition-colors shadow-2xs"
-                                    title={`Abrir Datasheet PDF em nova aba (${eq.marca} ${eq.modelo})`}
-                                  >
-                                    <FileText className="w-3 h-3 text-emerald-600" />
-                                    <span>Ver Datasheet (PDF)</span>
-                                    <ExternalLink className="w-2.5 h-2.5 text-emerald-600" />
-                                  </a>
-                                )
-                              }
-                            }
-                            return null
-                          })()}
-                        </div>
-
-                        <div className="flex items-center gap-2">
-                          <InlineEditField
-                            value={usinaDetalhes.inversores_info || ''}
-                            displayValue={
-                              <span className="font-semibold text-gray-800 text-xs">
-                                {usinaDetalhes.inversores_info || 'Não inf.'}
-                              </span>
-                            }
-                            type="text"
-                            placeholder="Ex: Growatt MIN 8000TL-X (8 kWp) ou Deye SUN-15K-G04"
-                            className="w-full"
-                            onSave={async (val) =>
-                              handleUpdateUsinaField('inversores_info', String(val).trim())
-                            }
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
+                  {/* Bloco Unificado: Ativos da Usina (Consolida Equipamentos Fotovoltaicos, Relação de Ativos e Ativos Cadastrados) */}
+                  <BlocoAtivosDaUsina
+                    usina={usinaDetalhes}
+                    clienteNome={clienteNome}
+                    catalogoEquipamentos={catalogoEquipamentos}
+                    onUpdateUsinaField={handleUpdateUsinaField}
+                    onUpdateUsinaMultipleFields={handleUpdateUsinaMultipleFields}
+                    encontrarDatasheetModuloUsina={encontrarDatasheetModuloUsina}
+                    encontrarEquipamentoComDatasheet={encontrarEquipamentoComDatasheet}
+                  />
 
                   {/* Observações Técnicas */}
                   {usinaDetalhes.observacoes && (
@@ -1862,15 +1656,6 @@ export const SecaoUsinasCliente: React.FC<SecaoUsinasClienteProps> = ({
                       <p className="text-xs leading-relaxed italic">{usinaDetalhes.observacoes}</p>
                     </div>
                   )}
-
-                  {/* Gestão de Equipamentos como Ativos da Usina (Aditivo) */}
-                  <SecaoAtivosUsinaEquipamentos
-                    usinaId={usinaDetalhes.id}
-                    usinaNome={usinaDetalhes.nome}
-                  />
-
-                  {/* Novo Cadastro de Ativos da Usina (Aditivo) */}
-                  <AbaAtivosUsina usinaId={usinaDetalhes.id} usinaNome={usinaDetalhes.nome} />
 
                   {/* Contrato O&M Vinculado */}
                   {(() => {

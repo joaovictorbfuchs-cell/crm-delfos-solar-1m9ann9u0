@@ -225,7 +225,7 @@ export const BlocoAtivosDaUsina: React.FC<BlocoAtivosDaUsinaProps> = ({
       const payload: SalvarAtivoDados = {
         usina_id: usina.id,
         tipo: novoAtivoTipo,
-        tipo_outro_descricao: novoAtivoTipo === 'outro' ? novoAtivoTipoOutro.trim() : undefined,
+        tipo_outro_descricao: novoAtivoTipo === 'outros' ? novoAtivoTipoOutro.trim() : undefined,
         fabricante: novoAtivoFabricante.trim(),
         modelo: novoAtivoModelo.trim(),
         numero_serie: novoAtivoNumeroSerie.trim() || undefined,
@@ -1026,11 +1026,10 @@ export const BlocoAtivosDaUsina: React.FC<BlocoAtivosDaUsinaProps> = ({
                     className="w-full text-xs px-3 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-[#0F2038] bg-white"
                   >
                     <option value="inversor">Inversor</option>
-                    <option value="modulo">Módulo Fotovoltaico</option>
+                    <option value="placa_solar">Módulo Fotovoltaico</option>
                     <option value="bateria">Bateria</option>
                     <option value="string_box">String Box</option>
-                    <option value="transformador">Transformador</option>
-                    <option value="outro">Outro Equipamento</option>
+                    <option value="outros">Outro Equipamento</option>
                   </select>
                 </div>
 
@@ -1046,14 +1045,14 @@ export const BlocoAtivosDaUsina: React.FC<BlocoAtivosDaUsinaProps> = ({
                     className="w-full text-xs px-3 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-[#0F2038] bg-white"
                   >
                     <option value="operacional">Operacional</option>
-                    <option value="em_manutencao">Em Manutenção</option>
-                    <option value="com_defeito">Com Defeito</option>
+                    <option value="em_alerta">Em Alerta</option>
+                    <option value="manutencao">Em Manutenção</option>
                     <option value="desativado">Desativado</option>
                   </select>
                 </div>
               </div>
 
-              {novoAtivoTipo === 'outro' && (
+              {novoAtivoTipo === 'outros' && (
                 <div>
                   <label className="text-[11px] font-bold text-slate-700 uppercase block mb-1">
                     Descrição do Tipo
