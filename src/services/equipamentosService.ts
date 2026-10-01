@@ -7,6 +7,7 @@ export async function fetchEquipamentos(tipo?: TipoEquipamento): Promise<Equipam
     const records = await pb.collection('equipamentos').getFullList<Equipamento>({
       filter: filter || undefined,
       sort: 'tipo,marca,modelo',
+      expand: 'fornecedor_id',
     })
     return records
   } catch (err) {
@@ -34,6 +35,21 @@ export async function createEquipamento(
     !isNaN(Number(dados.garantia_anos))
   ) {
     cleaned.garantia_anos = Number(dados.garantia_anos)
+  }
+
+  if (dados.datasheet_url !== undefined) {
+    cleaned.datasheet_url = dados.datasheet_url ? dados.datasheet_url.trim() : ''
+  }
+  if (dados.datalogger_url !== undefined) {
+    cleaned.datalogger_url = dados.datalogger_url ? dados.datalogger_url.trim() : ''
+  }
+  if (dados.fornecedor_id !== undefined) {
+    cleaned.fornecedor_id = dados.fornecedor_id || null
+  }
+  if (dados.telefone_suporte_fornecedor !== undefined) {
+    cleaned.telefone_suporte_fornecedor = dados.telefone_suporte_fornecedor
+      ? dados.telefone_suporte_fornecedor.trim()
+      : ''
   }
 
   if (arquivoFoto || arquivoDatasheet) {
@@ -85,6 +101,20 @@ export async function updateEquipamento(
       cleaned.garantia_anos = Number(dados.garantia_anos)
     }
   }
+  if (dados.datasheet_url !== undefined) {
+    cleaned.datasheet_url = dados.datasheet_url ? dados.datasheet_url.trim() : ''
+  }
+  if (dados.datalogger_url !== undefined) {
+    cleaned.datalogger_url = dados.datalogger_url ? dados.datalogger_url.trim() : ''
+  }
+  if (dados.fornecedor_id !== undefined) {
+    cleaned.fornecedor_id = dados.fornecedor_id || null
+  }
+  if (dados.telefone_suporte_fornecedor !== undefined) {
+    cleaned.telefone_suporte_fornecedor = dados.telefone_suporte_fornecedor
+      ? dados.telefone_suporte_fornecedor.trim()
+      : ''
+  }
 
   if (removerFoto && !arquivoFoto) {
     cleaned.foto = null
@@ -125,8 +155,18 @@ export function getFotoEquipamentoUrl(equipamento: Equipamento): string | null {
 }
 
 export function getDatasheetEquipamentoUrl(equipamento: Equipamento): string | null {
+  if (equipamento.datasheet_url && equipamento.datasheet_url.trim()) {
+    return equipamento.datasheet_url.trim()
+  }
   if (equipamento.datasheet_pdf) {
     return pb.files.getURL(equipamento, equipamento.datasheet_pdf)
+  }
+  return null
+}
+
+export function getDataloggerEquipamentoUrl(equipamento: Equipamento): string | null {
+  if (equipamento.datalogger_url && equipamento.datalogger_url.trim()) {
+    return equipamento.datalogger_url.trim()
   }
   return null
 }
@@ -292,7 +332,7 @@ export function encontrarEquipamentoCorrespondente(
 
   // Filtra por tipo e presença de datasheet (se exigido)
   const candidatos = catalogo.filter((eq) => {
-    if (apenasComDatasheet && !eq.datasheet_pdf) return false
+    if (apenasComDatasheet && !eq.datasheet_pdf && !eq.datasheet_url) return false
     if (tipo && eq.tipo !== tipo) return false
     return true
   })

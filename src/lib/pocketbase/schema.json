@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-01T00:10:29.236Z",
+  "generatedAt": "2026-10-01T00:30:56.279Z",
   "collections": [
     {
       "name": "users",
@@ -5093,7 +5093,7 @@
           "type": "select",
           "required": true,
           "system": false,
-          "selectValues": ["inversor", "modulo_fv"]
+          "selectValues": ["inversor", "modulo_fv", "outro"]
         },
         {
           "name": "marca",
@@ -5148,6 +5148,31 @@
         {
           "name": "datasheet_pdf",
           "type": "file",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "datasheet_url",
+          "type": "url",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "datalogger_url",
+          "type": "url",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "fornecedor_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "fornecedores"
+        },
+        {
+          "name": "telefone_suporte_fornecedor",
+          "type": "text",
           "required": false,
           "system": false
         }
@@ -6237,6 +6262,69 @@
         }
       ],
       "indexes": []
+    },
+    {
+      "name": "usina_equipamentos",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "usina_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "usinas"
+        },
+        {
+          "name": "equipamento_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "equipamentos"
+        },
+        {
+          "name": "quantidade",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "numero_serie",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "observacoes",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_usina_equipamentos_usina ON usina_equipamentos (usina_id)",
+        "CREATE INDEX idx_usina_equipamentos_equipamento ON usina_equipamentos (equipamento_id)"
+      ]
     }
   ]
 }

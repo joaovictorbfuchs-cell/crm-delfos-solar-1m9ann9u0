@@ -1,5 +1,5 @@
-import React, { useState } from 'react'
-import { X, Cpu, Sun, AlertCircle, RefreshCw } from 'lucide-react'
+import React, { useState, useEffect } from 'react'
+import { X, Cpu, Sun, Wrench, AlertCircle, RefreshCw } from 'lucide-react'
 import { createEquipamento } from '@/services/equipamentosService'
 import type { Equipamento, TipoEquipamento } from '@/types/equipamentos'
 import { toast } from 'sonner'
@@ -34,8 +34,19 @@ export function ModalCadastroEquipamentoRapido({
   const [fornecedor, setFornecedor] = useState(fornecedorNome)
   const [garantiaAnos, setGarantiaAnos] = useState<string>(tipoInicial === 'inversor' ? '10' : '15')
   const [descricaoPadrao, setDescricaoPadrao] = useState('')
+  const [datasheetUrl, setDatasheetUrl] = useState('')
+  const [dataloggerUrl, setDataloggerUrl] = useState('')
+  const [fornecedorId, setFornecedorId] = useState('')
+  const [telefoneSuporte, setTelefoneSuporte] = useState('')
+  const [fornecedores, setFornecedores] = useState<any[]>([])
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+
+  useEffect(() => {
+    import('@/services/crmService').then(({ fetchFornecedores }) => {
+      fetchFornecedores().then(setFornecedores).catch(console.error)
+    })
+  }, [])
 
   // Sincroniza com as props quando o modal abre
   React.useEffect(() => {
@@ -92,6 +103,10 @@ export function ModalCadastroEquipamentoRapido({
         potencia_w: potNum,
         descricao_padrao: descFinal,
         garantia_anos: garantiaAnos ? Number(garantiaAnos) : null,
+        datasheet_url: datasheetUrl.trim() || undefined,
+        datalogger_url: dataloggerUrl.trim() || undefined,
+        fornecedor_id: fornecedorId || undefined,
+        telefone_suporte_fornecedor: telefoneSuporte.trim() || undefined,
       })
 
       toast.success(
@@ -269,20 +284,89 @@ export function ModalCadastroEquipamentoRapido({
             />
           </div>
 
+          {/* Links Técnicos */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-[11px] font-bold text-gray-700 uppercase block mb-1">
+                Link Datasheet (URL)
+              </label>
+              <input
+                type="url"
+                value={datasheetUrl}
+                onChange={(e) => setDatasheetUrl(e.target.value)}
+                placeholder="https://..."
+                className="w-full text-xs px-3 py-2 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              />
+            </div>
+            <div>
+              <label className="text-[11px] font-bold text-gray-700 uppercase block mb-1">
+                Link Datalogger (URL)
+              </label>
+              <input
+                type="url"
+                value={dataloggerUrl}
+                onChange={(e) => setDataloggerUrl(e.target.value)}
+                placeholder="https://..."
+                className="w-full text-xs px-3 py-2 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              />
+            </div>
+          </div>
+
+          {/* Fornecedor e Suporte */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-[11px] font-bold text-gray-700 uppercase block mb-1">
+                Fornecedor
+              </label>
+              <select
+                value={fornecedorId}
+                onChange={(e) => {
+                  const val = e.target.value
+                  setFornecedorId(val)
+                  if (val) {
+                    const f = fornecedores.find((item) => item.id === val)
+                    if (f && !telefoneSuporte) {
+                      setTelefoneSuporte(f.telefone_suporte || f.whatsapp || f.telefone || '')
+                    }
+                  }
+                }}
+                className="w-full text-xs px-3 py-2 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
+              >
+                <option value="">Selecione o fornecedor...</option>
+                {fornecedores.map((f) => (
+                  <option key={f.id} value={f.id}>
+                    {f.nome_empresa}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="text-[11px] font-bold text-gray-700 uppercase block mb-1">
+                Telefone Suporte
+              </label>
+              <input
+                type="text"
+                value={telefoneSuporte}
+                onChange={(e) => setTelefoneSuporte(e.target.value)}
+                placeholder="(54) 99999-9999"
+                className="w-full text-xs px-3 py-2 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              />
+            </div>
+          </div>
+
           {/* Descrição Padrão */}
           <div>
             <label className="text-[11px] font-bold text-gray-700 uppercase block mb-1">
-              Descrição Padrão / Observações
+              Descrição Técnica (opcional)
             </label>
             <textarea
               rows={2}
               value={descricaoPadrao}
               onChange={(e) => setDescricaoPadrao(e.target.value)}
-              placeholder="Ex: Módulo bifacial N-Type com células TOPCon..."
-              className="w-full text-xs px-3 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 resize-none"
+              placeholder="Características do equipamento..."
+              className="w-full text-xs px-3 py-2 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 resize-none"
             />
           </div>
-
           {/* Rodapé */}
           <div className="pt-2 border-t border-gray-100 flex items-center justify-end gap-2">
             <button

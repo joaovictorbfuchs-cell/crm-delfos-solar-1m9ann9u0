@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react'
+import React, { useRef, useState, useEffect } from 'react'
 import {
   AlertCircle,
   CheckCircle2,
@@ -14,6 +14,8 @@ import {
   UploadCloud,
   User,
   Zap,
+  Sun,
+  Plus,
 } from 'lucide-react'
 import {
   Dialog,
@@ -30,6 +32,10 @@ import {
   extrairDadosDocumento,
   type DocumentoExtraidoData,
 } from '@/services/documentExtractionService'
+import { fetchEquipamentos } from '@/services/equipamentosService'
+import { vincularEquipamentoUsina } from '@/services/usinaEquipamentosService'
+import { ModalCadastroEquipamentoRapido } from '@/components/ModalCadastroEquipamentoRapido'
+import type { Equipamento, TipoEquipamento } from '@/types/equipamentos'
 import type { UsinaCliente } from '@/types/crm'
 
 export interface ModalImportarDocumentoUsinaProps {
@@ -90,6 +96,43 @@ export const ModalImportarDocumentoUsina: React.FC<ModalImportarDocumentoUsinaPr
   const [selecionados, setSelecionados] = useState<Record<string, boolean>>({})
   const [isSalvando, setIsSalvando] = useState(false)
 
+  // Estado dos equipamentos extraídos e detecção no catálogo
+  const [catalogoEquipamentos, setCatalogoEquipamentos] = useState<Equipamento[]>([])
+  const [sugestaoModulo, setSugestaoModulo] = useState<{
+    fabricante: string
+    modelo: string
+    potenciaW: number
+    existente: Equipamento | null
+  } | null>(null)
+  const [sugestaoInversor, setSugestaoInversor] = useState<{
+    fabricante: string
+    modelo: string
+    potenciaW: number
+    existente: Equipamento | null
+  } | null>(null)
+
+  // Modais de cadastro rápido quando o usuário quiser criar na hora
+  const [modalCriarRapido, setModalCriarRapido] = useState<{
+    aberto: boolean
+    tipo: TipoEquipamento
+    fabricante: string
+    modelo: string
+    potenciaW: number
+  }>({
+    aberto: false,
+    tipo: 'inversor',
+    fabricante: '',
+    modelo: '',
+    potenciaW: 0,
+  })
+
+  // Carregar catálogo de equipamentos para comparação inteligente
+  useEffect(() => {
+    if (open) {
+      fetchEquipamentos().then(setCatalogoEquipamentos).catch(console.error)
+    }
+  }, [open])
+
   const resetarEstado = () => {
     setArquivo(null)
     setIsArrastando(false)
@@ -99,6 +142,8 @@ export const ModalImportarDocumentoUsina: React.FC<ModalImportarDocumentoUsinaPr
     setCamposExtraidos([])
     setSelecionados({})
     setIsSalvando(false)
+    setSugestaoModulo(null)
+    setSugestaoInversor(null)
   }
 
   const handleFechar = () => {
@@ -582,6 +627,76 @@ export const ModalImportarDocumentoUsina: React.FC<ModalImportarDocumentoUsinaPr
         selecaoInicial[c.id] = true
       })
       setSelecionados(selecaoInicial)
+
+      // Identificação inteligente de equipamentos extraídos no catálogo
+      const tec = res.data.dados_tecnicos || {}
+      const normalizar = (s: string) =>
+        s
+          .toLowerCase()
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '')
+          .trim()
+
+      // Verificar Módulo
+      if (tec.fabricante_modulos || tec.modelo_modulos) {
+        const fab = (tec.fabricante_modulos || '').trim()
+        const mod = (tec.modelo_modulos || '').trim()
+        const potCalc =
+          tec.potencia_kwp && tec.numero_modulos
+            ? Math.round((tec.potencia_kwp * 1000) / tec.numero_modulos)
+            : 0
+
+        const achado = catalogoEquipamentos.find((eq) => {
+          if (eq.tipo !== 'modulo_fv') return false
+          const eqFab = normalizar(eq.marca)
+          const eqMod = normalizar(eq.modelo)
+          const targetFab = normalizar(fab)
+          const targetMod = normalizar(mod)
+          return (
+            (targetFab && eqFab.includes(targetFab)) ||
+            (targetMod && eqMod.includes(targetMod)) ||
+            (targetMod && targetMod.includes(eqMod))
+          )
+        })
+
+        setSugestaoModulo({
+          fabricante: fab,
+          modelo: mod,
+          potenciaW: potCalc,
+          existente: achado || null,
+        })
+      } else {
+        setSugestaoModulo(null)
+      }
+
+      // Verificar Inversor
+      if (tec.fabricante_inversores || tec.modelo_inversores) {
+        const fab = (tec.fabricante_inversores || '').trim()
+        const mod = (tec.modelo_inversores || '').trim()
+        const potW = tec.potencia_kwp ? Math.round(tec.potencia_kwp * 1000) : 5000
+
+        const achado = catalogoEquipamentos.find((eq) => {
+          if (eq.tipo !== 'inversor') return false
+          const eqFab = normalizar(eq.marca)
+          const eqMod = normalizar(eq.modelo)
+          const targetFab = normalizar(fab)
+          const targetMod = normalizar(mod)
+          return (
+            (targetFab && eqFab.includes(targetFab)) ||
+            (targetMod && eqMod.includes(targetMod)) ||
+            (targetMod && targetMod.includes(eqMod))
+          )
+        })
+
+        setSugestaoInversor({
+          fabricante: fab,
+          modelo: mod,
+          potenciaW: potW,
+          existente: achado || null,
+        })
+      } else {
+        setSugestaoInversor(null)
+      }
     } catch (err: unknown) {
       console.error('[ModalImportarDocumentoUsina] Erro ao extrair:', err)
       const msg = err instanceof Error ? err.message : 'Falha ao processar o documento.'
@@ -666,6 +781,33 @@ export const ModalImportarDocumentoUsina: React.FC<ModalImportarDocumentoUsinaPr
       })
 
       await onApplyImport(updates, resumo)
+
+      // Se houver equipamentos existentes correspondentes, vincular como ativo da usina automaticamente
+      if (sugestaoModulo?.existente) {
+        try {
+          const qtd = updates.qtd_modulos ?? usina.qtd_modulos ?? 1
+          await vincularEquipamentoUsina({
+            usina_id: usina.id,
+            equipamento_id: sugestaoModulo.existente.id,
+            quantidade: Number(qtd),
+            observacoes: 'Importado via documento técnico',
+          })
+        } catch (e) {
+          console.warn('Erro ao auto-vincular módulo como ativo:', e)
+        }
+      }
+      if (sugestaoInversor?.existente) {
+        try {
+          await vincularEquipamentoUsina({
+            usina_id: usina.id,
+            equipamento_id: sugestaoInversor.existente.id,
+            quantidade: 1,
+            observacoes: 'Importado via documento técnico',
+          })
+        } catch (e) {
+          console.warn('Erro ao auto-vincular inversor como ativo:', e)
+        }
+      }
 
       toast({
         title: 'Ficha da usina atualizada!',
@@ -894,8 +1036,126 @@ export const ModalImportarDocumentoUsina: React.FC<ModalImportarDocumentoUsinaPr
                 </span>
               </div>
 
+              {/* Card de Gestão de Equipamentos como Ativos Identificados no Documento */}
+              {(sugestaoModulo || sugestaoInversor) && (
+                <div className="p-3.5 bg-emerald-50/70 rounded-xl border border-emerald-300 space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Cpu className="w-4 h-4 text-emerald-700" />
+                      <span className="font-bold text-xs text-emerald-950">
+                        Equipamentos Identificados para Ativos da Usina
+                      </span>
+                    </div>
+                    <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-full border border-emerald-200">
+                      Catálogo de Ativos
+                    </span>
+                  </div>
+
+                  <p className="text-[11px] text-emerald-900 leading-relaxed">
+                    Os equipamentos abaixo foram encontrados no documento. Se já existirem no
+                    catálogo, serão vinculados automaticamente como ativos da usina ao salvar. Caso
+                    ainda não existam, você pode cadastrá-los na hora com 1 clique:
+                  </p>
+
+                  <div className="space-y-2 pt-1">
+                    {/* Módulo Fotovoltaico */}
+                    {sugestaoModulo && (
+                      <div className="p-2.5 bg-white rounded-lg border border-emerald-200 flex items-center justify-between gap-2 flex-wrap">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <Sun className="w-4 h-4 text-amber-500 shrink-0" />
+                          <div className="truncate">
+                            <span className="font-bold text-slate-800 text-xs block truncate">
+                              Módulo: {sugestaoModulo.fabricante || 'Fabricante não inf.'}{' '}
+                              {sugestaoModulo.modelo || ''}
+                            </span>
+                            <span className="text-[10px] text-slate-500">
+                              {sugestaoModulo.existente ? (
+                                <span className="text-emerald-700 font-semibold">
+                                  ✓ Encontrado no catálogo ({sugestaoModulo.existente.marca}{' '}
+                                  {sugestaoModulo.existente.modelo}) — será vinculado como ativo
+                                </span>
+                              ) : (
+                                <span className="text-amber-700 font-semibold">
+                                  Ainda não cadastrado no catálogo de equipamentos
+                                </span>
+                              )}
+                            </span>
+                          </div>
+                        </div>
+
+                        {!sugestaoModulo.existente && (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setModalCriarRapido({
+                                aberto: true,
+                                tipo: 'modulo_fv',
+                                fabricante: sugestaoModulo.fabricante,
+                                modelo: sugestaoModulo.modelo,
+                                potenciaW: sugestaoModulo.potenciaW || 550,
+                              })
+                            }
+                            className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold inline-flex items-center gap-1 shadow-2xs shrink-0"
+                          >
+                            <Plus className="w-3 h-3" />
+                            <span>Cadastrar Módulo na Hora</span>
+                          </button>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Inversor */}
+                    {sugestaoInversor && (
+                      <div className="p-2.5 bg-white rounded-lg border border-emerald-200 flex items-center justify-between gap-2 flex-wrap">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <Cpu className="w-4 h-4 text-blue-600 shrink-0" />
+                          <div className="truncate">
+                            <span className="font-bold text-slate-800 text-xs block truncate">
+                              Inversor: {sugestaoInversor.fabricante || 'Fabricante não inf.'}{' '}
+                              {sugestaoInversor.modelo || ''}
+                            </span>
+                            <span className="text-[10px] text-slate-500">
+                              {sugestaoInversor.existente ? (
+                                <span className="text-emerald-700 font-semibold">
+                                  ✓ Encontrado no catálogo ({sugestaoInversor.existente.marca}{' '}
+                                  {sugestaoInversor.existente.modelo}) — será vinculado como ativo
+                                </span>
+                              ) : (
+                                <span className="text-amber-700 font-semibold">
+                                  Ainda não cadastrado no catálogo de equipamentos
+                                </span>
+                              )}
+                            </span>
+                          </div>
+                        </div>
+
+                        {!sugestaoInversor.existente && (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setModalCriarRapido({
+                                aberto: true,
+                                tipo: 'inversor',
+                                fabricante: sugestaoInversor.fabricante,
+                                modelo: sugestaoInversor.modelo,
+                                potenciaW: sugestaoInversor.potenciaW || 5000,
+                              })
+                            }
+                            className="px-2.5 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold inline-flex items-center gap-1 shadow-2xs shrink-0"
+                          >
+                            <Plus className="w-3 h-3" />
+                            <span>Cadastrar Inversor na Hora</span>
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
               {/* Categorias de Resumo */}
               <div className="space-y-3">
+                {' '}
                 {/* 1. Dados Técnicos */}
                 {itensTecnicos.length > 0 && (
                   <CardCategoriaUsina
@@ -907,7 +1167,6 @@ export const ModalImportarDocumentoUsina: React.FC<ModalImportarDocumentoUsinaPr
                     onToggleCategoria={(forcar) => toggleCategoria('tecnico', forcar)}
                   />
                 )}
-
                 {/* 2. Consumo e Concessionária */}
                 {itensConsumo.length > 0 && (
                   <CardCategoriaUsina
@@ -919,7 +1178,6 @@ export const ModalImportarDocumentoUsina: React.FC<ModalImportarDocumentoUsinaPr
                     onToggleCategoria={(forcar) => toggleCategoria('consumo', forcar)}
                   />
                 )}
-
                 {/* 3. Endereço da Usina */}
                 {itensEndereco.length > 0 && (
                   <CardCategoriaUsina
@@ -931,7 +1189,6 @@ export const ModalImportarDocumentoUsina: React.FC<ModalImportarDocumentoUsinaPr
                     onToggleCategoria={(forcar) => toggleCategoria('endereco', forcar)}
                   />
                 )}
-
                 {/* 4. Titular da Usina */}
                 {itensTitular.length > 0 && (
                   <CardCategoriaUsina
@@ -981,6 +1238,43 @@ export const ModalImportarDocumentoUsina: React.FC<ModalImportarDocumentoUsinaPr
           )}
         </DialogFooter>
       </DialogContent>
+
+      {/* Modal de cadastro rápido na hora da importação */}
+      {modalCriarRapido.aberto && (
+        <ModalCadastroEquipamentoRapido
+          isOpen={modalCriarRapido.aberto}
+          onClose={() => setModalCriarRapido((prev) => ({ ...prev, aberto: false }))}
+          tipoInicial={modalCriarRapido.tipo}
+          marcaInicial={modalCriarRapido.fabricante}
+          modeloInicial={modalCriarRapido.modelo}
+          potenciaInicial={modalCriarRapido.potenciaW}
+          onEquipamentoCadastrado={async (novo) => {
+            // Atualiza catálogo local e estado de sugestão
+            const atualizados = await fetchEquipamentos()
+            setCatalogoEquipamentos(atualizados)
+            if (novo.tipo === 'modulo_fv') {
+              setSugestaoModulo((prev) => (prev ? { ...prev, existente: novo } : null))
+            } else if (novo.tipo === 'inversor') {
+              setSugestaoInversor((prev) => (prev ? { ...prev, existente: novo } : null))
+            }
+            // Auto vincula imediatamente à usina como ativo
+            try {
+              await vincularEquipamentoUsina({
+                usina_id: usina.id,
+                equipamento_id: novo.id,
+                quantidade: 1,
+                observacoes: 'Cadastrado e vinculado durante importação do documento',
+              })
+              toast({
+                title: 'Equipamento cadastrado e vinculado!',
+                description: `${novo.marca} ${novo.modelo} foi salvo no catálogo e vinculado como ativo da usina.`,
+              })
+            } catch (err) {
+              console.warn('Erro ao auto-vincular ativo recém criado:', err)
+            }
+          }}
+        />
+      )}
     </Dialog>
   )
 }

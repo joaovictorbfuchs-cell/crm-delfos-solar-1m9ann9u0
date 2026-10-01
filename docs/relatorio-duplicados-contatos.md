@@ -1,6 +1,6 @@
 # Relatório de Auditoria de Duplicados e Vínculos de Contatos — CRM Delfos Solar
 
-**Data/Hora da Execução:** 2026-10-01T00:20:48.385Z  
+**Data/Hora da Execução:** 2026-10-01T00:37:28.798Z  
 **Ambiente do Banco:** https://crm-delfos-solar-72b9e.shrd00.internal.goskip.dev  
 **Usuário Autenticado:** joao@delfosengenharia.com.br  
 **Validação de Sanidade:** APROVADA (Total carregado bate exatamente com o totalItems do PocketBase)

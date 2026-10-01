@@ -28,26 +28,7 @@ export function getErrorMessage(error: unknown): string {
   return msgs.length > 0 ? msgs.join(' ') : error.message || 'An unexpected error occurred.'
 }
 
-/**
- * Verifica se um erro corresponde a expiração/invalidação de sessão ou falta de autenticação (401/403).
- */
-export function isAuthSessionError(err: unknown): boolean {
-  if (!err) return false
-  if (typeof err === 'object') {
-    const candidate = err as Record<string, unknown>
-    if (candidate.status === 401 || candidate.status === 403) return true
-    if (candidate.statusCode === 401 || candidate.statusCode === 403) return true
-    if (typeof candidate.message === 'string') {
-      const msg = candidate.message.toLowerCase()
-      if (
-        msg.includes('token is expired') ||
-        msg.includes('token expired') ||
-        msg.includes('failed to authenticate') ||
-        msg.includes('the request requires valid user authorization')
-      ) {
-        return true
-      }
-    }
-  }
-  return false
+export function isAuthSessionError(error: unknown): boolean {
+  if (!(error instanceof ClientResponseError)) return false
+  return error.status === 401 || error.status === 403
 }

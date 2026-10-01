@@ -58,6 +58,7 @@ import {
   UploadCloud,
 } from 'lucide-react'
 import { AbaAtivosUsina } from '@/components/AbaAtivosUsina'
+import { SecaoAtivosUsinaEquipamentos } from '@/components/SecaoAtivosUsinaEquipamentos'
 import { ModalImportarDocumentoUsina } from '@/components/ModalImportarDocumentoUsina'
 import { InlineEditField } from '@/components/InlineEditField'
 import { DatasheetBadge } from '@/components/DatasheetBadge'
@@ -1861,6 +1862,12 @@ export const SecaoUsinasCliente: React.FC<SecaoUsinasClienteProps> = ({
                       <p className="text-xs leading-relaxed italic">{usinaDetalhes.observacoes}</p>
                     </div>
                   )}
+
+                  {/* Gestão de Equipamentos como Ativos da Usina (Aditivo) */}
+                  <SecaoAtivosUsinaEquipamentos
+                    usinaId={usinaDetalhes.id}
+                    usinaNome={usinaDetalhes.nome}
+                  />
 
                   {/* Novo Cadastro de Ativos da Usina (Aditivo) */}
                   <AbaAtivosUsina usinaId={usinaDetalhes.id} usinaNome={usinaDetalhes.nome} />

@@ -21,9 +21,14 @@ import {
   CheckCircle2,
   FileUp,
   AlertTriangle,
+  Link as LinkIcon,
+  Phone,
+  Building2,
+  Settings,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import type { Equipamento, TipoEquipamento } from '@/types/equipamentos'
+import type { Fornecedor } from '@/types/crm'
 import {
   fetchEquipamentos,
   createEquipamento,
@@ -31,15 +36,22 @@ import {
   deleteEquipamento,
   getFotoEquipamentoUrl,
   getDatasheetEquipamentoUrl,
+  getDataloggerEquipamentoUrl,
   formatarPotenciaEquipamento,
 } from '@/services/equipamentosService'
+import { fetchFornecedores } from '@/services/crmService'
 import { extractDatasheetFromPdf } from '@/lib/datasheetExtractor'
 import { extractFieldErrors } from '@/lib/pocketbase/errors'
+import { normalizarDigitosDestino } from '@/lib/resolverNumeroDestinoCliente'
+import { aplicarPrefixoMensagemManual } from '@/lib/whatsappPrefixo'
+import { useAuth } from '@/contexts/AuthContext'
 
-type TabFiltro = 'todos' | 'inversor' | 'modulo_fv'
+type TabFiltro = 'todos' | 'inversor' | 'modulo_fv' | 'outro'
 
 export function EquipamentosPage() {
+  const { user } = useAuth()
   const [equipamentos, setEquipamentos] = useState<Equipamento[]>([])
+  const [fornecedores, setFornecedores] = useState<Fornecedor[]>([])
   const [loading, setLoading] = useState<boolean>(true)
   const [tabAtiva, setTabAtiva] = useState<TabFiltro>('todos')
   const [busca, setBusca] = useState<string>('')
@@ -57,6 +69,10 @@ export function EquipamentosPage() {
   const [potenciaW, setPotenciaW] = useState<string>('')
   const [descricaoPadrao, setDescricaoPadrao] = useState<string>('')
   const [garantiaAnos, setGarantiaAnos] = useState<string>('')
+  const [datasheetUrl, setDatasheetUrl] = useState<string>('')
+  const [dataloggerUrl, setDataloggerUrl] = useState<string>('')
+  const [fornecedorId, setFornecedorId] = useState<string>('')
+  const [telefoneSuporte, setTelefoneSuporte] = useState<string>('')
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [removerFotoExistente, setRemoverFotoExistente] = useState<boolean>(false)
@@ -81,8 +97,9 @@ export function EquipamentosPage() {
   const carregar = async () => {
     setLoading(true)
     try {
-      const data = await fetchEquipamentos()
-      setEquipamentos(data)
+      const [dataEq, dataForn] = await Promise.all([fetchEquipamentos(), fetchFornecedores()])
+      setEquipamentos(dataEq)
+      setFornecedores(dataForn)
     } catch (err) {
       console.error('Erro ao carregar equipamentos:', err)
       toast.error('Erro ao carregar lista de equipamentos.')
@@ -97,12 +114,16 @@ export function EquipamentosPage() {
 
   const handleOpenCreate = () => {
     setEditingItem(null)
-    setTipo(tabAtiva === 'modulo_fv' ? 'modulo_fv' : 'inversor')
+    setTipo(tabAtiva === 'modulo_fv' ? 'modulo_fv' : tabAtiva === 'outro' ? 'outro' : 'inversor')
     setMarca('')
     setModelo('')
     setPotenciaW('')
     setDescricaoPadrao('')
     setGarantiaAnos('')
+    setDatasheetUrl('')
+    setDataloggerUrl('')
+    setFornecedorId('')
+    setTelefoneSuporte('')
     setSelectedFile(null)
     setPreviewUrl(null)
     setRemoverFotoExistente(false)
@@ -128,6 +149,10 @@ export function EquipamentosPage() {
         ? String(item.garantia_anos)
         : '',
     )
+    setDatasheetUrl(item.datasheet_url || '')
+    setDataloggerUrl(item.datalogger_url || '')
+    setFornecedorId(item.fornecedor_id || '')
+    setTelefoneSuporte(item.telefone_suporte_fornecedor || '')
     setSelectedFile(null)
     setRemoverFotoExistente(false)
     const urlAtual = getFotoEquipamentoUrl(item)
@@ -141,6 +166,31 @@ export function EquipamentosPage() {
 
     setErrorMessage(null)
     setModalOpen(true)
+  }
+
+  // Preencher telefone de suporte se mudar o fornecedor e o campo estiver vazio
+  const handleFornecedorChange = (novoId: string) => {
+    setFornecedorId(novoId)
+    if (novoId) {
+      const forn = fornecedores.find((f) => f.id === novoId)
+      if (forn && (!telefoneSuporte || !telefoneSuporte.trim())) {
+        const tel = forn.telefone_suporte || forn.telefone || forn.whatsapp || ''
+        if (tel) setTelefoneSuporte(tel)
+      }
+    }
+  }
+
+  const handleOpenWhatsAppSuporte = (numero: string, _nomeFornecedor?: string) => {
+    const limpo = normalizarDigitosDestino(numero)
+    if (!limpo || limpo.length < 10) {
+      toast.warning('Número de telefone do suporte inválido.')
+      return
+    }
+    const msg = aplicarPrefixoMensagemManual(
+      'Olá! Preciso de suporte técnico sobre o equipamento Delfos Solar.',
+      user?.name,
+    )
+    window.open(`https://wa.me/${limpo}?text=${encodeURIComponent(msg)}`, '_blank')
   }
 
   const handleOpenDeleteConfirm = (item: Equipamento) => {
@@ -319,6 +369,10 @@ export function EquipamentosPage() {
         potencia_w: potenciaNum,
         descricao_padrao: descricaoPadrao.trim(),
         garantia_anos: garantiaNum,
+        datasheet_url: datasheetUrl.trim(),
+        datalogger_url: dataloggerUrl.trim(),
+        fornecedor_id: fornecedorId || undefined,
+        telefone_suporte_fornecedor: telefoneSuporte.trim(),
       }
 
       if (editingItem) {
@@ -402,7 +456,8 @@ export function EquipamentosPage() {
     const total = equipamentos.length
     const inversores = equipamentos.filter((e) => e.tipo === 'inversor').length
     const modulos = equipamentos.filter((e) => e.tipo === 'modulo_fv').length
-    return { total, inversores, modulos }
+    const outros = equipamentos.filter((e) => e.tipo === 'outro').length
+    return { total, inversores, modulos, outros }
   }, [equipamentos])
 
   // Lista filtrada
@@ -545,6 +600,26 @@ export function EquipamentosPage() {
               {contagens.modulos}
             </span>
           </button>
+
+          <button
+            type="button"
+            onClick={() => setTabAtiva('outro')}
+            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
+              tabAtiva === 'outro'
+                ? 'bg-white text-purple-800 shadow-xs'
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            <Wrench className="w-3.5 h-3.5 text-purple-600" />
+            <span>Outros</span>
+            <span
+              className={`px-1.5 py-0.2 rounded-full text-[10px] ${
+                tabAtiva === 'outro' ? 'bg-purple-100 text-purple-800' : 'bg-gray-200 text-gray-700'
+              }`}
+            >
+              {contagens.outros}
+            </span>
+          </button>
         </div>
 
         {/* Busca e Totalizador */}
@@ -645,15 +720,21 @@ export function EquipamentosPage() {
                   <div className="absolute top-3 left-3">
                     <span
                       className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold shadow-xs ${
-                        isInversor ? 'bg-blue-600 text-white' : 'bg-amber-500 text-white'
+                        isInversor
+                          ? 'bg-blue-600 text-white'
+                          : item.tipo === 'modulo_fv'
+                            ? 'bg-amber-500 text-white'
+                            : 'bg-purple-600 text-white'
                       }`}
                     >
                       {isInversor ? (
                         <Cpu className="w-3.5 h-3.5" />
-                      ) : (
+                      ) : item.tipo === 'modulo_fv' ? (
                         <Sun className="w-3.5 h-3.5" />
+                      ) : (
+                        <Wrench className="w-3.5 h-3.5" />
                       )}
-                      {isInversor ? 'Inversor' : 'Módulo FV'}
+                      {isInversor ? 'Inversor' : item.tipo === 'modulo_fv' ? 'Módulo FV' : 'Outro'}
                     </span>
                   </div>
 
@@ -677,7 +758,7 @@ export function EquipamentosPage() {
                       {item.modelo}
                     </h3>
 
-                    {/* Metadados Técnicos: Garantia e Datasheet */}
+                    {/* Metadados Técnicos: Garantia e Links */}
                     <div className="flex items-center flex-wrap gap-2 mt-2.5">
                       {item.garantia_anos !== undefined && item.garantia_anos !== null ? (
                         <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-200">
@@ -691,20 +772,86 @@ export function EquipamentosPage() {
                         </span>
                       )}
 
-                      {item.datasheet_pdf && (
+                      {/* Datasheet (link ou PDF) */}
+                      {getDatasheetEquipamentoUrl(item) && (
                         <a
-                          href={getDatasheetEquipamentoUrl(item) || '#'}
+                          href={getDatasheetEquipamentoUrl(item)!}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-800 bg-emerald-100/70 hover:bg-emerald-200/80 px-2.5 py-0.5 rounded-lg border border-emerald-300 transition-colors"
-                          title="Abrir datasheet oficial em PDF"
+                          title="Abrir datasheet do equipamento"
                         >
                           <FileText className="w-3 h-3 text-emerald-700" />
-                          <span>Datasheet (PDF)</span>
+                          <span>Datasheet</span>
                           <ExternalLink className="w-2.5 h-2.5 ml-0.5 text-emerald-600" />
                         </a>
                       )}
+
+                      {/* Configurar Datalogger */}
+                      {getDataloggerEquipamentoUrl(item) && (
+                        <a
+                          href={getDataloggerEquipamentoUrl(item)!}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-[11px] font-bold text-blue-800 bg-blue-100/70 hover:bg-blue-200/80 px-2.5 py-0.5 rounded-lg border border-blue-300 transition-colors"
+                          title="Abrir página/link de configuração do datalogger"
+                        >
+                          <Settings className="w-3 h-3 text-blue-700" />
+                          <span>Configurar Datalogger</span>
+                          <ExternalLink className="w-2.5 h-2.5 ml-0.5 text-blue-600" />
+                        </a>
+                      )}
                     </div>
+
+                    {/* Bloco Fornecedor + Suporte */}
+                    {(item.expand?.fornecedor_id || item.telefone_suporte_fornecedor) && (
+                      <div className="mt-3 p-2.5 bg-gray-50 rounded-xl border border-gray-200 text-xs flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <Building2 className="w-4 h-4 text-emerald-700 shrink-0" />
+                          <div className="truncate">
+                            <span className="text-[10px] uppercase font-bold text-gray-400 block leading-tight">
+                              Fornecedor / Suporte
+                            </span>
+                            <span className="font-semibold text-gray-800 truncate block text-xs">
+                              {item.expand?.fornecedor_id?.nome_empresa || 'Fornecedor cadastrado'}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Botão Telefone / WhatsApp do Suporte */}
+                        {(item.telefone_suporte_fornecedor ||
+                          item.expand?.fornecedor_id?.telefone_suporte ||
+                          item.expand?.fornecedor_id?.whatsapp ||
+                          item.expand?.fornecedor_id?.telefone) && (
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            {(() => {
+                              const tel =
+                                item.telefone_suporte_fornecedor ||
+                                item.expand?.fornecedor_id?.telefone_suporte ||
+                                item.expand?.fornecedor_id?.whatsapp ||
+                                item.expand?.fornecedor_id?.telefone ||
+                                ''
+                              return (
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    handleOpenWhatsAppSuporte(
+                                      tel,
+                                      item.expand?.fornecedor_id?.nome_empresa,
+                                    )
+                                  }
+                                  className="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold text-[11px] shadow-2xs transition-colors"
+                                  title={`Entrar em contato com o suporte: ${tel}`}
+                                >
+                                  <Phone className="w-3 h-3" />
+                                  <span>{tel}</span>
+                                </button>
+                              )
+                            })()}
+                          </div>
+                        )}
+                      </div>
+                    )}
 
                     {/* Descrição Padrão */}
                     <div className="mt-3">
@@ -803,11 +950,11 @@ export function EquipamentosPage() {
                 <label className="text-[11px] font-bold text-gray-700 uppercase block mb-1.5">
                   Tipo de Equipamento *
                 </label>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-3 gap-2">
                   <button
                     type="button"
                     onClick={() => setTipo('inversor')}
-                    className={`flex items-center justify-center gap-2 p-3 rounded-xl border text-xs font-bold transition-all ${
+                    className={`flex items-center justify-center gap-1.5 p-2.5 rounded-xl border text-xs font-bold transition-all ${
                       tipo === 'inversor'
                         ? 'bg-blue-50 border-blue-500 text-blue-900 shadow-xs ring-1 ring-blue-500'
                         : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
@@ -821,7 +968,7 @@ export function EquipamentosPage() {
                   <button
                     type="button"
                     onClick={() => setTipo('modulo_fv')}
-                    className={`flex items-center justify-center gap-2 p-3 rounded-xl border text-xs font-bold transition-all ${
+                    className={`flex items-center justify-center gap-1.5 p-2.5 rounded-xl border text-xs font-bold transition-all ${
                       tipo === 'modulo_fv'
                         ? 'bg-amber-50 border-amber-500 text-amber-900 shadow-xs ring-1 ring-amber-500'
                         : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
@@ -831,6 +978,20 @@ export function EquipamentosPage() {
                       className={`w-4 h-4 ${tipo === 'modulo_fv' ? 'text-amber-600' : 'text-gray-400'}`}
                     />
                     <span>Módulo FV</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setTipo('outro')}
+                    className={`flex items-center justify-center gap-1.5 p-2.5 rounded-xl border text-xs font-bold transition-all ${
+                      tipo === 'outro'
+                        ? 'bg-purple-50 border-purple-500 text-purple-900 shadow-xs ring-1 ring-purple-500'
+                        : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
+                    }`}
+                  >
+                    <Wrench
+                      className={`w-4 h-4 ${tipo === 'outro' ? 'text-purple-600' : 'text-gray-400'}`}
+                    />
+                    <span>Outro</span>
                   </button>
                 </div>
               </div>
@@ -922,6 +1083,85 @@ export function EquipamentosPage() {
                   </div>
                   <span className="text-[10px] text-gray-400 block mt-1">
                     Tempo de garantia legal/de fábrica
+                  </span>
+                </div>
+              </div>
+
+              {/* Links Técnicos: Datasheet URL e Datalogger URL */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                <div>
+                  <label className="text-[11px] font-bold text-gray-700 uppercase flex items-center gap-1 mb-1">
+                    <LinkIcon className="w-3 h-3 text-emerald-600" />
+                    <span>Link do Datasheet (URL)</span>
+                  </label>
+                  <input
+                    type="url"
+                    value={datasheetUrl}
+                    onChange={(e) => setDatasheetUrl(e.target.value)}
+                    placeholder="https://exemplo.com/datasheet.pdf"
+                    className="w-full text-xs px-3 py-2 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                  />
+                  <span className="text-[10px] text-gray-400 block mt-1">
+                    Link direto do fabricante ou catálogo online
+                  </span>
+                </div>
+
+                <div>
+                  <label className="text-[11px] font-bold text-gray-700 uppercase flex items-center gap-1 mb-1">
+                    <Settings className="w-3 h-3 text-blue-600" />
+                    <span>Link Datalogger (URL)</span>
+                  </label>
+                  <input
+                    type="url"
+                    value={dataloggerUrl}
+                    onChange={(e) => setDataloggerUrl(e.target.value)}
+                    placeholder="https://server.growatt.com ou IP local"
+                    className="w-full text-xs px-3 py-2 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                  />
+                  <span className="text-[10px] text-gray-400 block mt-1">
+                    Link para configurar o monitoramento/datalogger
+                  </span>
+                </div>
+              </div>
+
+              {/* Fornecedor e Telefone do Suporte */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                <div>
+                  <label className="text-[11px] font-bold text-gray-700 uppercase flex items-center gap-1 mb-1">
+                    <Building2 className="w-3 h-3 text-emerald-600" />
+                    <span>Fornecedor (Menu Fornecedores)</span>
+                  </label>
+                  <select
+                    value={fornecedorId}
+                    onChange={(e) => handleFornecedorChange(e.target.value)}
+                    className="w-full text-xs px-3 py-2 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-white"
+                  >
+                    <option value="">Selecione um fornecedor cadastrado...</option>
+                    {fornecedores.map((f) => (
+                      <option key={f.id} value={f.id}>
+                        {f.nome_empresa} {f.cidade ? `(${f.cidade}/${f.uf || ''})` : ''}
+                      </option>
+                    ))}
+                  </select>
+                  <span className="text-[10px] text-gray-400 block mt-1">
+                    Vinculado ao menu de fornecedores do CRM
+                  </span>
+                </div>
+
+                <div>
+                  <label className="text-[11px] font-bold text-gray-700 uppercase flex items-center gap-1 mb-1">
+                    <Phone className="w-3 h-3 text-emerald-600" />
+                    <span>Telefone Suporte do Fornecedor</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={telefoneSuporte}
+                    onChange={(e) => setTelefoneSuporte(e.target.value)}
+                    placeholder="(54) 99999-9999 ou 0800..."
+                    className="w-full text-xs px-3 py-2 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                  />
+                  <span className="text-[10px] text-gray-400 block mt-1">
+                    Suporte técnico / WhatsApp da garantia
                   </span>
                 </div>
               </div>
