@@ -44,8 +44,41 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
-import { User, Phone, MessageSquare, Mail } from 'lucide-react'
+import {
+  User,
+  Phone,
+  MessageSquare,
+  Mail,
+  Compass,
+  UserCheck,
+  Activity,
+  Home,
+  Wrench,
+  Copy,
+} from 'lucide-react'
 import { AbaAtivosUsina } from '@/components/AbaAtivosUsina'
+import { InlineEditField } from '@/components/InlineEditField'
+import { DatasheetBadge } from '@/components/DatasheetBadge'
+import { formatarCPF } from '@/lib/cpfValidator'
+import { TipoAtendimento, NumeroFases, TelhadoTipo } from '@/types/crm'
+
+const TELHADOS_USINA: { value: TelhadoTipo; label: string }[] = [
+  { value: 'ceramico', label: 'Cerâmico' },
+  { value: 'metalico', label: 'Metálico' },
+  { value: 'laje', label: 'Laje' },
+  { value: 'fibrocimento', label: 'Fibrocimento' },
+]
+
+const ATENDIMENTOS_USINA: { value: TipoAtendimento; label: string }[] = [
+  { value: 'aéreo', label: 'Aéreo' },
+  { value: 'subterrâneo', label: 'Subterrâneo' },
+]
+
+const FASES_USINA: { value: NumeroFases; label: string }[] = [
+  { value: 'monofásico', label: 'Monofásico' },
+  { value: 'bifásico', label: 'Bifásico' },
+  { value: 'trifásico', label: 'Trifásico' },
+]
 
 interface SecaoUsinasClienteProps {
   clienteId: string
@@ -211,6 +244,35 @@ export const SecaoUsinasCliente: React.FC<SecaoUsinasClienteProps> = ({
     setEditTipoUsina(usina.tipo_usina || 'residencial')
     setEditObservacoes(usina.observacoes || '')
     setIsEditingDetalhes(false)
+  }
+
+  // Atualização atômica inline de campos da usina atualmente aberta na ficha
+  const handleUpdateUsinaField = async (field: keyof UsinaCliente, value: unknown) => {
+    if (!usinaDetalhes) return
+    try {
+      const payload: Partial<UsinaCliente> = { [field]: value }
+      if (onUpdateUsina) {
+        await onUpdateUsina(usinaDetalhes.id, payload)
+      }
+      setUsinaDetalhes((prev) => (prev ? { ...prev, ...payload } : null))
+    } catch (err) {
+      console.error(`Erro ao atualizar campo "${String(field)}" da usina:`, err)
+      throw err
+    }
+  }
+
+  // Atualização em lote de múltiplos campos da usina (ex: copiar dados do cliente para titular)
+  const handleUpdateUsinaMultipleFields = async (updates: Partial<UsinaCliente>) => {
+    if (!usinaDetalhes) return
+    try {
+      if (onUpdateUsina) {
+        await onUpdateUsina(usinaDetalhes.id, updates)
+      }
+      setUsinaDetalhes((prev) => (prev ? { ...prev, ...updates } : null))
+    } catch (err) {
+      console.error('Erro ao atualizar múltiplos campos da usina:', err)
+      throw err
+    }
   }
 
   const handleSalvarEdicaoFicha = async () => {
@@ -870,155 +932,895 @@ export const SecaoUsinasCliente: React.FC<SecaoUsinasClienteProps> = ({
                     </div>
                   </div>
 
-                  {/* Endereço de Instalação */}
-                  <div className="p-3.5 rounded-xl border border-slate-200 bg-white space-y-1">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1">
-                      <MapPin className="w-3.5 h-3.5 text-slate-500" />
-                      Endereço de Instalação
-                    </span>
-                    <p className="text-sm font-semibold text-slate-800">
-                      {usinaDetalhes.endereco || 'Endereço não informado'}
-                    </p>
+                  {/* ======================================================== */}
+                  {/* 5 GRUPOS DE INFORMAÇÕES COM EDIÇÃO INLINE DA USINA       */}
+                  {/* Padrão visual idêntico aos cards de FichaClienteDrawer   */}
+                  {/* ======================================================== */}
+
+                  {/* GRUPO 1: Localização da Instalação */}
+                  <div className="bg-white rounded-xl p-4 border border-gray-200/80 shadow-xs space-y-3">
+                    <div className="flex items-center justify-between border-b border-gray-100 pb-2">
+                      <div className="text-[11px] uppercase font-bold text-gray-500 tracking-wider flex items-center gap-1.5">
+                        <MapPin className="w-3.5 h-3.5 text-emerald-600" />
+                        Localização da Instalação
+                      </div>
+                      <span className="text-[10px] text-gray-400">Edição inline</span>
+                    </div>
+
+                    <div className="space-y-2 text-xs">
+                      {/* Endereço */}
+                      <div className="flex items-center gap-2">
+                        <span className="text-gray-500 w-24 shrink-0">Endereço:</span>
+                        <InlineEditField
+                          value={usinaDetalhes.endereco || ''}
+                          displayValue={
+                            <span className="font-semibold text-gray-800">
+                              {usinaDetalhes.endereco || 'Não inf.'}
+                            </span>
+                          }
+                          type="text"
+                          placeholder="Logradouro ou Linha/Estrada"
+                          onSave={async (val) =>
+                            handleUpdateUsinaField('endereco', String(val).trim())
+                          }
+                        />
+                      </div>
+
+                      {/* Número e Complemento */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-gray-500 w-24 shrink-0">Número:</span>
+                          <InlineEditField
+                            value={usinaDetalhes.numero || ''}
+                            displayValue={
+                              <span className="font-medium text-gray-800">
+                                {usinaDetalhes.numero || 'Não inf.'}
+                              </span>
+                            }
+                            type="text"
+                            placeholder="Nº ou S/N"
+                            onSave={async (val) =>
+                              handleUpdateUsinaField('numero', String(val).trim())
+                            }
+                          />
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <span className="text-gray-500 w-24 shrink-0">Complemento:</span>
+                          <InlineEditField
+                            value={usinaDetalhes.complemento || ''}
+                            displayValue={
+                              <span className="font-medium text-gray-800">
+                                {usinaDetalhes.complemento || 'Não inf.'}
+                              </span>
+                            }
+                            type="text"
+                            placeholder="Galpão, Apto, Bloco..."
+                            onSave={async (val) =>
+                              handleUpdateUsinaField('complemento', String(val).trim())
+                            }
+                          />
+                        </div>
+                      </div>
+
+                      {/* Bairro e CEP */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-gray-500 w-24 shrink-0">Bairro:</span>
+                          <InlineEditField
+                            value={usinaDetalhes.bairro || ''}
+                            displayValue={
+                              <span className="font-medium text-gray-800">
+                                {usinaDetalhes.bairro || 'Não inf.'}
+                              </span>
+                            }
+                            type="text"
+                            placeholder="Bairro ou Comunidade"
+                            onSave={async (val) =>
+                              handleUpdateUsinaField('bairro', String(val).trim())
+                            }
+                          />
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <span className="text-gray-500 w-24 shrink-0">CEP:</span>
+                          <InlineEditField
+                            value={usinaDetalhes.cep || ''}
+                            displayValue={
+                              <span className="font-mono text-gray-800 text-[11px] bg-gray-50 px-1.5 py-0.5 rounded border border-gray-200">
+                                {usinaDetalhes.cep || 'Não inf.'}
+                              </span>
+                            }
+                            type="text"
+                            placeholder="00000-000"
+                            onSave={async (val) =>
+                              handleUpdateUsinaField('cep', String(val).trim())
+                            }
+                          />
+                        </div>
+                      </div>
+
+                      {/* Cidade/UF */}
+                      <div className="flex items-center gap-2">
+                        <span className="text-gray-500 w-24 shrink-0">Cidade/UF:</span>
+                        <InlineEditField
+                          value={
+                            usinaDetalhes.cidade && usinaDetalhes.estado
+                              ? `${usinaDetalhes.cidade}/${usinaDetalhes.estado}`
+                              : usinaDetalhes.cidade || usinaDetalhes.estado || ''
+                          }
+                          displayValue={
+                            <span className="font-medium text-gray-800">
+                              {usinaDetalhes.cidade
+                                ? `${usinaDetalhes.cidade}${usinaDetalhes.estado ? ` - ${usinaDetalhes.estado}` : ''}`
+                                : 'Não inf.'}
+                            </span>
+                          }
+                          type="text"
+                          placeholder="Cidade - UF"
+                          onSave={async (val) => {
+                            const raw = String(val).trim()
+                            if (raw.includes('-')) {
+                              const [c, uf] = raw.split('-')
+                              await handleUpdateUsinaMultipleFields({
+                                cidade: c.trim(),
+                                estado: uf.trim(),
+                              })
+                            } else if (raw.includes('/')) {
+                              const [c, uf] = raw.split('/')
+                              await handleUpdateUsinaMultipleFields({
+                                cidade: c.trim(),
+                                estado: uf.trim(),
+                              })
+                            } else {
+                              await handleUpdateUsinaField('cidade', raw)
+                            }
+                          }}
+                        />
+                      </div>
+
+                      {/* Coordenadas Geográficas: Latitude e Longitude */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 border-t border-gray-100">
+                        <div className="flex items-center gap-2">
+                          <Compass className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                          <span className="text-gray-500 w-20 shrink-0">Latitude:</span>
+                          <InlineEditField
+                            value={usinaDetalhes.latitude ?? 0}
+                            displayValue={
+                              <span className="font-mono text-gray-800 text-[11px]">
+                                {usinaDetalhes.latitude !== undefined &&
+                                usinaDetalhes.latitude !== null &&
+                                usinaDetalhes.latitude !== 0
+                                  ? `${usinaDetalhes.latitude}°`
+                                  : 'Não inf.'}
+                              </span>
+                            }
+                            type="number"
+                            step="0.0001"
+                            unit="°"
+                            placeholder="-27.6341"
+                            onSave={async (val) =>
+                              handleUpdateUsinaField('latitude', Number(val) || 0)
+                            }
+                          />
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <Compass className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                          <span className="text-gray-500 w-20 shrink-0">Longitude:</span>
+                          <InlineEditField
+                            value={usinaDetalhes.longitude ?? 0}
+                            displayValue={
+                              <span className="font-mono text-gray-800 text-[11px]">
+                                {usinaDetalhes.longitude !== undefined &&
+                                usinaDetalhes.longitude !== null &&
+                                usinaDetalhes.longitude !== 0
+                                  ? `${usinaDetalhes.longitude}°`
+                                  : 'Não inf.'}
+                              </span>
+                            }
+                            type="number"
+                            step="0.0001"
+                            unit="°"
+                            placeholder="-52.2739"
+                            onSave={async (val) =>
+                              handleUpdateUsinaField('longitude', Number(val) || 0)
+                            }
+                          />
+                        </div>
+                      </div>
+                    </div>
                   </div>
 
-                  {/* Grade Técnica Principal */}
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-                    <div className="p-3 rounded-xl bg-amber-50/50 border border-amber-200">
-                      <span className="text-[10px] font-bold uppercase text-amber-900 block flex items-center gap-1">
-                        <Zap className="w-3 h-3 text-amber-600" />
-                        Potência
-                      </span>
-                      <div className="text-base font-black text-[#0F2038] mt-0.5">
-                        {usinaDetalhes.potencia_kwp || 0}{' '}
-                        <span className="text-xs font-normal">kWp</span>
+                  {/* GRUPO 2: Titular / Responsável */}
+                  <div className="bg-white rounded-xl p-4 border border-gray-200/80 shadow-xs space-y-3">
+                    <div className="flex items-center justify-between border-b border-gray-100 pb-2">
+                      <div className="text-[11px] uppercase font-bold text-gray-500 tracking-wider flex items-center gap-1.5">
+                        <UserCheck className="w-3.5 h-3.5 text-emerald-600" />
+                        Titular / Responsável
                       </div>
+
+                      {cliente && (
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            const updates: Partial<UsinaCliente> = {
+                              titular_nome: cliente.nome || cliente.titular_nome || '',
+                              titular_cpf: cliente.cpf || cliente.cnpj || cliente.titular_cpf || '',
+                              titular_telefone:
+                                cliente.telefone ||
+                                cliente.whatsapp ||
+                                cliente.titular_telefone ||
+                                '',
+                              titular_email: cliente.email || cliente.titular_email || '',
+                            }
+                            await handleUpdateUsinaMultipleFields(updates)
+                          }}
+                          className="inline-flex items-center gap-1.5 px-2 py-0.5 text-[10px] font-bold rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-300 transition-colors shadow-2xs"
+                          title="Copiar nome, CPF, telefone e e-mail da ficha principal do cliente para o titular desta usina"
+                        >
+                          <Copy className="w-3 h-3 text-emerald-600" />
+                          <span>Copiar do cliente</span>
+                        </button>
+                      )}
                     </div>
 
-                    <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
-                      <div className="flex items-center justify-between gap-1">
-                        <span className="text-[10px] font-bold uppercase text-slate-500 block flex items-center gap-1">
-                          <Layers className="w-3 h-3 text-blue-600" />
-                          Qtd. Módulos
-                        </span>
-                        {(() => {
-                          const eqModulo = encontrarDatasheetModuloUsina(usinaDetalhes)
-                          if (!eqModulo || !eqModulo.datasheet_pdf) return null
-                          const url = getDatasheetEquipamentoUrl(eqModulo)
-                          if (!url) return null
-                          return (
-                            <a
-                              href={url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              onClick={(e) => e.stopPropagation()}
-                              className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100 px-1.5 py-0.5 rounded border border-emerald-200 transition-colors shrink-0"
-                              title={`Abrir Datasheet PDF (${eqModulo.marca} ${eqModulo.modelo})`}
-                            >
-                              <FileText className="w-2.5 h-2.5" />
-                              <span>Datasheet</span>
-                              <ExternalLink className="w-2 h-2" />
-                            </a>
-                          )
-                        })()}
+                    <div className="space-y-2 text-xs">
+                      {/* Nome do Titular */}
+                      <div className="flex items-center gap-2">
+                        <User className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                        <span className="text-gray-500 w-24 shrink-0">Nome:</span>
+                        <InlineEditField
+                          value={usinaDetalhes.titular_nome || ''}
+                          displayValue={
+                            <span className="font-semibold text-gray-800">
+                              {usinaDetalhes.titular_nome || 'Não inf.'}
+                            </span>
+                          }
+                          type="text"
+                          placeholder="Nome completo do titular na fatura"
+                          onSave={async (val) =>
+                            handleUpdateUsinaField('titular_nome', String(val).trim())
+                          }
+                        />
                       </div>
-                      <div className="text-base font-bold text-slate-800 mt-0.5">
-                        {usinaDetalhes.qtd_modulos || 0}{' '}
-                        <span className="text-xs font-normal text-slate-500">placas</span>
-                      </div>
-                    </div>
 
-                    <div className="p-3 rounded-xl bg-emerald-50/50 border border-emerald-200">
-                      <span className="text-[10px] font-bold uppercase text-emerald-900 block flex items-center gap-1">
-                        <TrendingUp className="w-3 h-3 text-emerald-600" />
-                        Geração Estimada
-                      </span>
-                      <div className="text-base font-bold text-emerald-800 mt-0.5">
-                        {usinaDetalhes.geracao_estimada_kwh
-                          ? `${usinaDetalhes.geracao_estimada_kwh} kWh/mês`
-                          : 'N/A'}
-                      </div>
-                    </div>
+                      {/* CPF com máscara */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <div className="flex items-center gap-2">
+                          <Hash className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                          <span className="text-gray-500 w-24 shrink-0">CPF:</span>
+                          <InlineEditField
+                            value={usinaDetalhes.titular_cpf || ''}
+                            displayValue={
+                              <span className="font-mono text-gray-800 text-[11px] bg-gray-50 px-1.5 py-0.5 rounded border border-gray-200">
+                                {usinaDetalhes.titular_cpf
+                                  ? formatarCPF(usinaDetalhes.titular_cpf)
+                                  : 'Não inf.'}
+                              </span>
+                            }
+                            type="text"
+                            placeholder="000.000.000-00"
+                            onSave={async (val) => {
+                              const raw = String(val)
+                              const formatted = formatarCPF(raw)
+                              await handleUpdateUsinaField('titular_cpf', formatted)
+                            }}
+                          />
+                        </div>
 
-                    <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
-                      <span className="text-[10px] font-bold uppercase text-slate-500 block flex items-center gap-1">
-                        <Calendar className="w-3 h-3 text-slate-600" />
-                        Instalação
-                      </span>
-                      <div className="text-sm font-semibold text-slate-800 mt-0.5">
-                        {usinaDetalhes.data_instalacao
-                          ? formatDate(usinaDetalhes.data_instalacao)
-                          : 'Não informada'}
+                        {/* Telefone / WhatsApp */}
+                        <div className="flex items-center gap-2">
+                          <Phone className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                          <span className="text-gray-500 w-20 shrink-0">Telefone:</span>
+                          <InlineEditField
+                            value={usinaDetalhes.titular_telefone || ''}
+                            displayValue={
+                              <span className="font-medium text-gray-800">
+                                {usinaDetalhes.titular_telefone
+                                  ? formatWhatsAppPhone(usinaDetalhes.titular_telefone)
+                                  : 'Não inf.'}
+                              </span>
+                            }
+                            type="text"
+                            placeholder="(00) 00000-0000"
+                            onSave={async (val) =>
+                              handleUpdateUsinaField(
+                                'titular_telefone',
+                                formatWhatsAppPhone(String(val)),
+                              )
+                            }
+                          />
+                        </div>
+                      </div>
+
+                      {/* E-mail */}
+                      <div className="flex items-center gap-2">
+                        <Mail className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                        <span className="text-gray-500 w-24 shrink-0">E-mail:</span>
+                        <InlineEditField
+                          value={usinaDetalhes.titular_email || ''}
+                          displayValue={
+                            <span className="text-emerald-700 font-medium">
+                              {usinaDetalhes.titular_email || 'Não inf.'}
+                            </span>
+                          }
+                          type="text"
+                          placeholder="email@exemplo.com.br"
+                          onSave={async (val) =>
+                            handleUpdateUsinaField('titular_email', String(val).trim())
+                          }
+                        />
                       </div>
                     </div>
                   </div>
 
-                  {/* Equipamentos & Medição */}
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-                    <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-1 sm:col-span-2">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1">
-                          <Cpu className="w-3.5 h-3.5 text-purple-600" />
-                          Inversor(es)
-                        </span>
-
-                        {(() => {
-                          const eq = encontrarEquipamentoComDatasheet(
-                            usinaDetalhes.inversores_info || '',
-                          )
-                          if (!eq || !eq.datasheet_pdf) return null
-                          const url = getDatasheetEquipamentoUrl(eq)
-                          if (!url) return null
-                          return (
-                            <a
-                              href={url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-700 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100 px-2 py-1 rounded-lg border border-emerald-200 transition-colors shadow-2xs"
-                              title={`Abrir Datasheet PDF em nova aba (${eq.marca} ${eq.modelo})`}
-                            >
-                              <FileText className="w-3.5 h-3.5 text-emerald-600" />
-                              <span>Ver Datasheet (PDF)</span>
-                              <ExternalLink className="w-3 h-3 text-emerald-600" />
-                            </a>
-                          )
-                        })()}
-                      </div>
-                      <p className="font-semibold text-slate-800 text-xs">
-                        {usinaDetalhes.inversores_info || 'Inversor não especificado'}
-                      </p>
-                    </div>
-
-                    <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1">
-                        <Gauge className="w-3.5 h-3.5 text-blue-600" />
-                        Nº do Medidor
-                      </span>
-                      <p className="font-bold text-slate-800 text-xs">
-                        {usinaDetalhes.numero_medidor || 'Não informado'}
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Dados de Concessionária e UC */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                    <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1">
-                        <Hash className="w-3.5 h-3.5 text-slate-500" />
-                        Número da UC (Unidade Consumidora)
-                      </span>
-                      <p className="font-semibold text-slate-800 text-xs">
-                        {usinaDetalhes.numero_uc || 'Não informada'}
-                      </p>
-                    </div>
-
-                    <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1">
-                        <Building className="w-3.5 h-3.5 text-slate-500" />
+                  {/* GRUPO 3: Concessionária de Energia */}
+                  <div className="bg-white rounded-xl p-4 border border-gray-200/80 shadow-xs space-y-3">
+                    <div className="flex items-center justify-between border-b border-gray-100 pb-2">
+                      <div className="text-[11px] uppercase font-bold text-gray-500 tracking-wider flex items-center gap-1.5">
+                        <Activity className="w-3.5 h-3.5 text-emerald-600" />
                         Concessionária de Energia
-                      </span>
-                      <p className="font-semibold text-slate-800 text-xs">
-                        {usinaDetalhes.concessionaria || 'RGE Sul'}
-                      </p>
+                      </div>
+                      <span className="text-[10px] text-gray-400">Edição inline</span>
+                    </div>
+
+                    <div className="space-y-2 text-xs">
+                      {/* Número da UC */}
+                      <div className="flex items-center gap-2">
+                        <span className="text-gray-500 w-28 shrink-0">Número da UC:</span>
+                        <InlineEditField
+                          value={usinaDetalhes.numero_uc || ''}
+                          displayValue={
+                            <span className="font-mono font-bold text-gray-900 bg-gray-50 px-2 py-0.5 rounded border border-gray-200 text-xs">
+                              {usinaDetalhes.numero_uc || 'Não inf.'}
+                            </span>
+                          }
+                          type="text"
+                          placeholder="Ex: 1004589231"
+                          onSave={async (val) =>
+                            handleUpdateUsinaField('numero_uc', String(val).trim())
+                          }
+                        />
+                      </div>
+
+                      {/* Concessionária e Classe de Consumo */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-gray-500 w-28 shrink-0">Concessionária:</span>
+                          <InlineEditField
+                            value={usinaDetalhes.concessionaria || 'RGE Sul'}
+                            displayValue={
+                              <span className="font-bold text-gray-800 bg-gray-50 px-2 py-0.5 rounded border border-gray-200">
+                                {usinaDetalhes.concessionaria || 'Não inf.'}
+                              </span>
+                            }
+                            type="text"
+                            placeholder="RGE, CPFL, Celesc..."
+                            onSave={async (val) =>
+                              handleUpdateUsinaField('concessionaria', String(val).trim())
+                            }
+                          />
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <span className="text-gray-500 w-24 shrink-0">Classe:</span>
+                          <InlineEditField
+                            value={usinaDetalhes.classe_consumo || ''}
+                            displayValue={
+                              <span className="font-medium text-gray-800 bg-gray-50 px-2 py-0.5 rounded border border-gray-200">
+                                {usinaDetalhes.classe_consumo || 'Não inf.'}
+                              </span>
+                            }
+                            type="text"
+                            placeholder="Residencial, Comercial, Rural..."
+                            onSave={async (val) =>
+                              handleUpdateUsinaField('classe_consumo', String(val).trim())
+                            }
+                          />
+                        </div>
+                      </div>
+
+                      {/* Tarifa R$/kWh e Tipo de Fornecimento */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-gray-500 w-28 shrink-0">Tarifa R$/kWh:</span>
+                          <InlineEditField
+                            value={usinaDetalhes.tarifa ?? 0}
+                            displayValue={
+                              <span
+                                className="font-mono text-gray-800 text-[11px] bg-gray-50 px-1.5 py-0.5 rounded border border-gray-200"
+                                title={`R$ ${usinaDetalhes.tarifa || 0}`}
+                              >
+                                {Number(usinaDetalhes.tarifa) > 0
+                                  ? `R$ ${Number(usinaDetalhes.tarifa).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 4 })}`
+                                  : 'Não inf.'}
+                              </span>
+                            }
+                            type="number"
+                            step="0.0001"
+                            placeholder="0.9500"
+                            onSave={async (val) =>
+                              handleUpdateUsinaField('tarifa', Number(val) || 0)
+                            }
+                          />
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <span className="text-gray-500 w-24 shrink-0">Fornecimento:</span>
+                          <InlineEditField
+                            value={usinaDetalhes.tipo_fornecimento || 'trifásico'}
+                            displayValue={
+                              <span className="capitalize font-medium text-gray-800 bg-gray-50 px-2 py-0.5 rounded border border-gray-200">
+                                {usinaDetalhes.tipo_fornecimento || 'trifásico'}
+                              </span>
+                            }
+                            type="select"
+                            options={FASES_USINA}
+                            onSave={async (val) =>
+                              handleUpdateUsinaField('tipo_fornecimento', String(val))
+                            }
+                          />
+                        </div>
+                      </div>
+
+                      {/* Consumos: Médio Mensal, Anual e Diário */}
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1 border-t border-gray-100">
+                        <div className="flex items-center gap-2">
+                          <span className="text-gray-500 w-28 sm:w-20 shrink-0 font-medium">
+                            Cons. Médio:
+                          </span>
+                          <InlineEditField
+                            value={usinaDetalhes.consumo_kwh_mes ?? 0}
+                            displayValue={
+                              <span className="font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 text-xs">
+                                {usinaDetalhes.consumo_kwh_mes
+                                  ? `${usinaDetalhes.consumo_kwh_mes} kWh/mês`
+                                  : 'Não inf.'}
+                              </span>
+                            }
+                            type="number"
+                            unit="kWh/mês"
+                            placeholder="Ex: 650"
+                            onSave={async (val) =>
+                              handleUpdateUsinaField('consumo_kwh_mes', Number(val) || 0)
+                            }
+                          />
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <span className="text-gray-500 w-28 sm:w-20 shrink-0">Cons. Anual:</span>
+                          <InlineEditField
+                            value={usinaDetalhes.consumo_anual_kwh ?? 0}
+                            displayValue={
+                              <span className="font-bold text-gray-800 text-xs">
+                                {usinaDetalhes.consumo_anual_kwh
+                                  ? `${usinaDetalhes.consumo_anual_kwh} kWh/ano`
+                                  : 'Não inf.'}
+                              </span>
+                            }
+                            type="number"
+                            unit="kWh/ano"
+                            placeholder="Ex: 7800"
+                            onSave={async (val) =>
+                              handleUpdateUsinaField('consumo_anual_kwh', Number(val) || 0)
+                            }
+                          />
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <span className="text-gray-500 w-28 sm:w-20 shrink-0">Méd./Dia:</span>
+                          <InlineEditField
+                            value={usinaDetalhes.consumo_medio_diario_kwh ?? 0}
+                            displayValue={
+                              <span className="font-bold text-gray-800 text-xs">
+                                {usinaDetalhes.consumo_medio_diario_kwh
+                                  ? `${usinaDetalhes.consumo_medio_diario_kwh} kWh/dia`
+                                  : 'Não inf.'}
+                              </span>
+                            }
+                            type="number"
+                            unit="kWh/dia"
+                            placeholder="Ex: 25"
+                            onSave={async (val) =>
+                              handleUpdateUsinaField('consumo_medio_diario_kwh', Number(val) || 0)
+                            }
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* GRUPO 4: Instalação Elétrica */}
+                  <div className="bg-white rounded-xl p-4 border border-gray-200/80 shadow-xs space-y-3">
+                    <div className="flex items-center justify-between border-b border-gray-100 pb-2">
+                      <div className="text-[11px] uppercase font-bold text-gray-500 tracking-wider flex items-center gap-1.5">
+                        <Zap className="w-3.5 h-3.5 text-emerald-600" />
+                        Instalação Elétrica
+                      </div>
+                      <span className="text-[10px] text-gray-400">Edição inline</span>
+                    </div>
+
+                    <div className="space-y-2 text-xs">
+                      {/* Data de Instalação e Tipo Telhado / Estrutura */}
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                        <div className="flex items-center gap-2">
+                          <Calendar className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                          <span className="text-gray-500 w-24 shrink-0">Instalação:</span>
+                          <InlineEditField
+                            value={
+                              usinaDetalhes.data_instalacao
+                                ? usinaDetalhes.data_instalacao.split(' ')[0].split('T')[0]
+                                : ''
+                            }
+                            displayValue={
+                              <span className="font-bold text-gray-800">
+                                {usinaDetalhes.data_instalacao
+                                  ? formatDate(usinaDetalhes.data_instalacao)
+                                  : 'Não inf.'}
+                              </span>
+                            }
+                            type="date"
+                            placeholder="DD/MM/AAAA"
+                            onSave={async (val) =>
+                              handleUpdateUsinaField(
+                                'data_instalacao',
+                                val ? `${String(val)} 12:00:00.000Z` : undefined,
+                              )
+                            }
+                          />
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <Home className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                          <span className="text-gray-500 w-20 shrink-0">Telhado:</span>
+                          <InlineEditField
+                            value={usinaDetalhes.tipo_telhado || 'metalico'}
+                            displayValue={
+                              <span className="capitalize font-semibold text-gray-800">
+                                {usinaDetalhes.tipo_telhado || 'Não inf.'}
+                              </span>
+                            }
+                            type="select"
+                            options={TELHADOS_USINA}
+                            onSave={async (val) =>
+                              handleUpdateUsinaField('tipo_telhado', String(val))
+                            }
+                          />
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <Wrench className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                          <span className="text-gray-500 w-20 shrink-0">Estrutura:</span>
+                          <InlineEditField
+                            value={usinaDetalhes.tipo_estrutura || 'telhado'}
+                            displayValue={
+                              <span className="capitalize font-semibold text-gray-800">
+                                {usinaDetalhes.tipo_estrutura || 'telhado'}
+                              </span>
+                            }
+                            type="select"
+                            options={[
+                              { value: 'telhado', label: 'Telhado' },
+                              { value: 'solo', label: 'Solo' },
+                            ]}
+                            onSave={async (val) =>
+                              handleUpdateUsinaField('tipo_estrutura', String(val))
+                            }
+                          />
+                        </div>
+                      </div>
+
+                      {/* Padrão de Entrada e Tipo de Atendimento */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-gray-500 w-28 shrink-0">Padrão Entrada:</span>
+                          <InlineEditField
+                            value={usinaDetalhes.padrao_entrada || ''}
+                            displayValue={
+                              <span className="font-medium text-gray-800">
+                                {usinaDetalhes.padrao_entrada || 'Não inf.'}
+                              </span>
+                            }
+                            type="text"
+                            placeholder="Ex: RIC BT Categoria A2"
+                            onSave={async (val) =>
+                              handleUpdateUsinaField('padrao_entrada', String(val).trim())
+                            }
+                          />
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <span className="text-gray-500 w-24 shrink-0">Atendimento:</span>
+                          <InlineEditField
+                            value={usinaDetalhes.tipo_atendimento || 'aéreo'}
+                            displayValue={
+                              <span className="capitalize font-medium text-gray-800 bg-gray-50 px-2 py-0.5 rounded border border-gray-200">
+                                {usinaDetalhes.tipo_atendimento || 'aéreo'}
+                              </span>
+                            }
+                            type="select"
+                            options={ATENDIMENTOS_USINA}
+                            onSave={async (val) =>
+                              handleUpdateUsinaField('tipo_atendimento', String(val))
+                            }
+                          />
+                        </div>
+                      </div>
+
+                      {/* Seção de Cabos, Amperagem do Disjuntor e Número do Medidor */}
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1 border-t border-gray-100">
+                        <div className="flex items-center gap-2">
+                          <span className="text-gray-500 w-24 shrink-0">Seção Cabos:</span>
+                          <InlineEditField
+                            value={usinaDetalhes.secao_cabos || ''}
+                            displayValue={
+                              <span className="font-medium text-gray-800">
+                                {usinaDetalhes.secao_cabos || 'Não inf.'}
+                              </span>
+                            }
+                            type="text"
+                            unit="mm²"
+                            placeholder="Ex: 16 mm²"
+                            onSave={async (val) =>
+                              handleUpdateUsinaField('secao_cabos', String(val).trim())
+                            }
+                          />
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <Gauge className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                          <span className="text-gray-500 w-16 shrink-0">Disjuntor:</span>
+                          <InlineEditField
+                            value={usinaDetalhes.amperagem_disjuntor || ''}
+                            displayValue={
+                              <span className="font-semibold text-gray-800 bg-gray-50 px-2 py-0.5 rounded border border-gray-200">
+                                {usinaDetalhes.amperagem_disjuntor || 'Não inf.'}
+                              </span>
+                            }
+                            type="text"
+                            unit="A"
+                            placeholder="Ex: 40 A"
+                            onSave={async (val) =>
+                              handleUpdateUsinaField('amperagem_disjuntor', String(val).trim())
+                            }
+                          />
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <Hash className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                          <span className="text-gray-500 w-20 shrink-0">Nº Medidor:</span>
+                          <InlineEditField
+                            value={usinaDetalhes.numero_medidor || ''}
+                            displayValue={
+                              <span className="font-mono font-bold text-gray-800 bg-gray-50 px-1.5 py-0.5 rounded border border-gray-200 text-[11px]">
+                                {usinaDetalhes.numero_medidor || 'Não inf.'}
+                              </span>
+                            }
+                            type="text"
+                            placeholder="Ex: MED-RS-884210"
+                            onSave={async (val) =>
+                              handleUpdateUsinaField('numero_medidor', String(val).trim())
+                            }
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* GRUPO 5: Equipamentos Fotovoltaicos */}
+                  <div className="bg-white rounded-xl p-4 border border-gray-200/80 shadow-xs space-y-3">
+                    <div className="flex items-center justify-between border-b border-gray-100 pb-2">
+                      <div className="text-[11px] uppercase font-bold text-gray-500 tracking-wider flex items-center gap-1.5">
+                        <Layers className="w-3.5 h-3.5 text-emerald-600" />
+                        Equipamentos Fotovoltaicos
+                      </div>
+                      <span className="text-[10px] text-gray-400">Edição inline</span>
+                    </div>
+
+                    <div className="space-y-2 text-xs">
+                      {/* Potência total kWp, Qtd de Módulos e Geração Estimada kWh/mês */}
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                        <div className="flex items-center gap-2">
+                          <Zap className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                          <span className="text-gray-500 w-24 shrink-0 font-medium">Potência:</span>
+                          <InlineEditField
+                            value={usinaDetalhes.potencia_kwp ?? 0}
+                            displayValue={
+                              <span className="font-black text-emerald-700 text-sm">
+                                {usinaDetalhes.potencia_kwp || 0} kWp
+                              </span>
+                            }
+                            type="number"
+                            step="0.01"
+                            min={0}
+                            unit="kWp"
+                            placeholder="0"
+                            onSave={async (val) =>
+                              handleUpdateUsinaField('potencia_kwp', Number(val) || 0)
+                            }
+                          />
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <Layers className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                          <span className="text-gray-500 w-20 shrink-0 font-medium">Módulos:</span>
+                          <InlineEditField
+                            value={usinaDetalhes.qtd_modulos ?? 0}
+                            displayValue={
+                              <span className="font-bold text-blue-800 bg-blue-50 px-2 py-0.5 rounded text-xs border border-blue-200">
+                                {usinaDetalhes.qtd_modulos || 0} un
+                              </span>
+                            }
+                            type="number"
+                            step="1"
+                            min={0}
+                            unit="un"
+                            placeholder="0"
+                            onSave={async (val) =>
+                              handleUpdateUsinaField('qtd_modulos', Number(val) || 0)
+                            }
+                          />
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <TrendingUp className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                          <span className="text-gray-500 w-20 shrink-0 font-medium">Geração:</span>
+                          <InlineEditField
+                            value={usinaDetalhes.geracao_estimada_kwh ?? 0}
+                            displayValue={
+                              <span className="font-bold text-emerald-800 text-xs">
+                                {usinaDetalhes.geracao_estimada_kwh
+                                  ? `${usinaDetalhes.geracao_estimada_kwh} kWh/mês`
+                                  : 'Não inf.'}
+                              </span>
+                            }
+                            type="number"
+                            step="1"
+                            min={0}
+                            unit="kWh/mês"
+                            placeholder="Ex: 1150"
+                            onSave={async (val) =>
+                              handleUpdateUsinaField('geracao_estimada_kwh', Number(val) || 0)
+                            }
+                          />
+                        </div>
+                      </div>
+
+                      {/* Fabricante dos Módulos e Modelo dos Módulos com Datasheet */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 border-t border-gray-100">
+                        <div className="flex items-center gap-2">
+                          <span className="text-gray-500 w-24 shrink-0">Fabricante:</span>
+                          <InlineEditField
+                            value={
+                              usinaDetalhes.fabricante_modulos || usinaDetalhes.marca_placas || ''
+                            }
+                            displayValue={
+                              <span className="font-medium text-gray-800">
+                                {usinaDetalhes.fabricante_modulos ||
+                                  usinaDetalhes.marca_placas ||
+                                  'Não inf.'}
+                              </span>
+                            }
+                            type="text"
+                            placeholder="Canadian Solar, JA Solar, Trina..."
+                            onSave={async (val) => {
+                              const s = String(val).trim()
+                              await handleUpdateUsinaMultipleFields({
+                                fabricante_modulos: s,
+                                marca_placas: s,
+                              })
+                            }}
+                          />
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <span className="text-gray-500 w-20 shrink-0">Modelo:</span>
+                          <InlineEditField
+                            value={usinaDetalhes.modelo_modulos || ''}
+                            displayValue={
+                              <span className="font-mono text-gray-800 text-[11px] bg-white px-2 py-0.5 rounded border border-gray-200">
+                                {usinaDetalhes.modelo_modulos || 'Não inf.'}
+                              </span>
+                            }
+                            type="text"
+                            placeholder="Modelo do módulo"
+                            className="flex-1"
+                            onSave={async (val) =>
+                              handleUpdateUsinaField('modelo_modulos', String(val).trim())
+                            }
+                          />
+                        </div>
+                      </div>
+
+                      {/* Datasheet Badge do Módulo com link dinâmico */}
+                      <div className="flex items-center justify-between gap-2 pt-1 border-t border-gray-100 flex-wrap">
+                        <span className="text-gray-400 text-[11px]">Datasheet do Módulo:</span>
+                        <div className="flex items-center gap-2">
+                          {(() => {
+                            const eqModulo = encontrarDatasheetModuloUsina(usinaDetalhes)
+                            if (eqModulo && eqModulo.datasheet_pdf) {
+                              const url = getDatasheetEquipamentoUrl(eqModulo)
+                              if (url) {
+                                return (
+                                  <a
+                                    href={url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100 px-2 py-1 rounded-lg border border-emerald-300 transition-colors shrink-0 shadow-2xs"
+                                    title={`Abrir Datasheet PDF (${eqModulo.marca} ${eqModulo.modelo})`}
+                                  >
+                                    <FileText className="w-3 h-3 text-emerald-600" />
+                                    <span>Datasheet PDF ({eqModulo.marca})</span>
+                                    <ExternalLink className="w-2.5 h-2.5 text-emerald-600" />
+                                  </a>
+                                )
+                              }
+                            }
+                            return null
+                          })()}
+                          <DatasheetBadge
+                            marca={
+                              usinaDetalhes.fabricante_modulos || usinaDetalhes.marca_placas || ''
+                            }
+                            modelo={usinaDetalhes.modelo_modulos || ''}
+                            tipo="modulo_fv"
+                            mostrarLinkBusca={true}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Inversor(es): Marca / Modelo / Potência + Datasheet */}
+                      <div className="p-3 bg-gray-50/70 rounded-lg border border-gray-200 space-y-2 mt-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-gray-600 font-bold flex items-center gap-1.5 text-xs">
+                            <Cpu className="w-3.5 h-3.5 text-purple-600" />
+                            Inversor(es) (Marca / Modelo / Potência)
+                          </span>
+                          {(() => {
+                            const eq = encontrarEquipamentoComDatasheet(
+                              usinaDetalhes.inversores_info || '',
+                            )
+                            if (eq && eq.datasheet_pdf) {
+                              const url = getDatasheetEquipamentoUrl(eq)
+                              if (url) {
+                                return (
+                                  <a
+                                    href={url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center gap-1.5 text-[11px] font-bold text-emerald-700 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100 px-2 py-1 rounded-lg border border-emerald-200 transition-colors shadow-2xs"
+                                    title={`Abrir Datasheet PDF em nova aba (${eq.marca} ${eq.modelo})`}
+                                  >
+                                    <FileText className="w-3 h-3 text-emerald-600" />
+                                    <span>Ver Datasheet (PDF)</span>
+                                    <ExternalLink className="w-2.5 h-2.5 text-emerald-600" />
+                                  </a>
+                                )
+                              }
+                            }
+                            return null
+                          })()}
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <InlineEditField
+                            value={usinaDetalhes.inversores_info || ''}
+                            displayValue={
+                              <span className="font-semibold text-gray-800 text-xs">
+                                {usinaDetalhes.inversores_info || 'Não inf.'}
+                              </span>
+                            }
+                            type="text"
+                            placeholder="Ex: Growatt MIN 8000TL-X (8 kWp) ou Deye SUN-15K-G04"
+                            className="w-full"
+                            onSave={async (val) =>
+                              handleUpdateUsinaField('inversores_info', String(val).trim())
+                            }
+                          />
+                        </div>
+                      </div>
                     </div>
                   </div>
 
@@ -1559,6 +2361,14 @@ export const SecaoUsinasCliente: React.FC<SecaoUsinasClienteProps> = ({
                   className="mt-1"
                 />
               </div>
+            </div>
+
+            {/* Dica de preenchimento inline completo após cadastro */}
+            <div className="p-2.5 rounded-lg bg-emerald-50/70 border border-emerald-200 text-emerald-800 text-[11px] flex items-center justify-between gap-2">
+              <span>
+                💡 Titular, Coordenadas GPS, Consumos e Detalhes Elétricos podem ser completados
+                diretamente na Ficha com edição inline.
+              </span>
             </div>
 
             <div>
