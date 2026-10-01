@@ -81,7 +81,7 @@ import { ModalGerarContratoOM } from './ModalGerarContratoOM'
 import { ModalNovaAtividade } from './ModalNovaAtividade'
 import { ModalSolicitacaoInformacoes } from './ModalSolicitacaoInformacoes'
 import { ModalMarcarPerdido } from './ModalMarcarPerdido'
-import { ModalNovaOportunidade } from './ModalNovaOportunidade'
+
 import { X as IconX } from 'lucide-react'
 import { SecaoMonitoramentoInversor } from './SecaoMonitoramentoInversor'
 import { SecaoAcessoSolarview } from './SecaoAcessoSolarview'
@@ -260,7 +260,7 @@ export const FichaClienteDrawer: React.FC = () => {
 
   // Modais de Ganho / Perdido / Nova Oportunidade (Reabertura) / Novo Negócio
   const [modalPerdidoOpen, setModalPerdidoOpen] = useState(false)
-  const [modalNovaOportunidadeOpen, setModalNovaOportunidadeOpen] = useState(false)
+
   const [modalNovoNegocioOpen, setModalNovoNegocioOpen] = useState(false)
   const [negociosKeyAtualizacao, setNegociosKeyAtualizacao] = useState(0)
 
@@ -1077,7 +1077,7 @@ export const FichaClienteDrawer: React.FC = () => {
                       <span>Novo Negócio</span>
                     </DropdownMenuItem>
 
-                    {/* Marcar como Perdido / Reabrir Oportunidade */}
+                    {/* Marcar como Perdido */}
                     {[
                       'Novo Lead',
                       'Levantamento',
@@ -1085,24 +1085,16 @@ export const FichaClienteDrawer: React.FC = () => {
                       'Negociação',
                       'Contato Futuro',
                     ].includes(selectedCliente.status) &&
-                    !selectedCliente.transferido_pos_vendas &&
-                    !selectedCliente.status_pos_vendas ? (
-                      <DropdownMenuItem
-                        onClick={() => setModalPerdidoOpen(true)}
-                        className="cursor-pointer gap-2 text-rose-700 focus:text-rose-800 focus:bg-rose-50 font-medium"
-                      >
-                        <XCircle className="w-4 h-4 text-rose-600 shrink-0" />
-                        <span>Marcar como Perdido</span>
-                      </DropdownMenuItem>
-                    ) : (
-                      <DropdownMenuItem
-                        onClick={() => setModalNovaOportunidadeOpen(true)}
-                        className="cursor-pointer gap-2 text-amber-700 focus:text-amber-800 focus:bg-amber-50 font-medium"
-                      >
-                        <Sparkles className="w-4 h-4 text-amber-600 shrink-0" />
-                        <span>Nova Oportunidade</span>
-                      </DropdownMenuItem>
-                    )}
+                      !selectedCliente.transferido_pos_vendas &&
+                      !selectedCliente.status_pos_vendas && (
+                        <DropdownMenuItem
+                          onClick={() => setModalPerdidoOpen(true)}
+                          className="cursor-pointer gap-2 text-rose-700 focus:text-rose-800 focus:bg-rose-50 font-medium"
+                        >
+                          <XCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                          <span>Marcar como Perdido</span>
+                        </DropdownMenuItem>
+                      )}
 
                     <DropdownMenuSeparator />
 
@@ -4892,30 +4884,6 @@ export const FichaClienteDrawer: React.FC = () => {
             } catch (err) {
               console.error('Erro ao marcar perdido:', err)
               toast.error('Erro ao registrar cliente como perdido. Tente novamente.')
-              throw err
-            }
-          }}
-        />
-      )}
-
-      {/* Modal Nova Oportunidade (Reabertura Comercial de Cliente Fechado) */}
-      {selectedCliente && (
-        <ModalNovaOportunidade
-          cliente={selectedCliente}
-          open={modalNovaOportunidadeOpen}
-          onOpenChange={setModalNovaOportunidadeOpen}
-          usuarios={usuarios}
-          onConfirm={async (dadosReabertura) => {
-            const nomeCli = selectedCliente.nome
-            try {
-              await reabrirOportunidade(selectedCliente.id, dadosReabertura)
-              toast.success(
-                `Oportunidade reaberta com sucesso! Cliente "${nomeCli}" retornado ao funil na etapa "${dadosReabertura.etapa_destino || 'Novo Lead'}" com badge "Cliente Ativo".`,
-              )
-              setModalNovaOportunidadeOpen(false)
-            } catch (err) {
-              console.error('Erro ao reabrir oportunidade:', err)
-              toast.error('Erro ao reabrir oportunidade comercial. Tente novamente.')
               throw err
             }
           }}

@@ -90,7 +90,6 @@ export function OrigemClienteBadge({
     }
   }
 
-  return
-  null
+  return null
 }
 export type { OrigemClienteTipo, OrigemClienteInfo }
