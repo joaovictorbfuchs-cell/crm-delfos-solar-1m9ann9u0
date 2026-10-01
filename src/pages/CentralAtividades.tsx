@@ -593,9 +593,6 @@ export default function CentralAtividadesPage() {
                 <h1 className="text-xl sm:text-2xl font-extrabold text-gray-900 tracking-tight">
                   Central de Atividades
                 </h1>
-                <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
-                  Painel Único
-                </span>
               </div>
             </div>
           </div>
