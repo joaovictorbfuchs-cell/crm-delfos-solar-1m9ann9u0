@@ -40,6 +40,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { updateNegocio, deleteNegocio } from '@/services/negociosService'
+import { removerPrefixoMensagemManual } from '@/lib/whatsappPrefixo'
 
 // Mapa bidirecional de etapas entre o funil comercial e as colunas do Kanban
 const STATUS_TO_ETAPA_NEGOCIO: Record<string, EtapaFunilSelect> = {
@@ -177,7 +178,8 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
           const etapa = n.etapa_funil || 'novo lead'
           const statusKanban = ETAPA_NEGOCIO_TO_STATUS[etapa] || 'Novo Lead'
           const nomeCliente = (cli?.nome || cli?.razao_social || 'Cliente vinculado').trim()
-          const tituloNegocio = (n.titulo || '').trim() || nomeCliente
+          const rawTitulo = (n.titulo || '').trim() || nomeCliente
+          const tituloNegocio = removerPrefixoMensagemManual(rawTitulo) || nomeCliente
 
           const valorFinal =
             Number(n.valor) || Number(n.valor_estimado) || (cli?.valor_estimado ?? 0)
@@ -220,7 +222,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
       .map((c) => ({
         id: String(c.id || ''),
         clienteId: String(c.id || ''),
-        titulo: (c.nome || '').trim() || 'Cliente sem nome',
+        titulo: removerPrefixoMensagemManual((c.nome || '').trim()) || 'Cliente sem nome',
         nomeCliente: (c.nome || '').trim() || 'Cliente sem nome',
         status: (c.status || 'Novo Lead') as ClienteStatus,
         valorEstimado: Number(c.valor_estimado) || 0,

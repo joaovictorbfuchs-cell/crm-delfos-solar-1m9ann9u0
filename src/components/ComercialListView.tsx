@@ -60,6 +60,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { toast } from '@/hooks/use-toast'
 import { updateNegocio, deleteNegocio, bulkDeleteNegocios } from '@/services/negociosService'
+import { removerPrefixoMensagemManual } from '@/lib/whatsappPrefixo'
 
 const STATUS_TO_ETAPA_NEGOCIO: Record<string, EtapaFunilSelect> = {
   'Novo Lead': 'novo lead',
@@ -241,7 +242,8 @@ export const ComercialListView: React.FC<ComercialListViewProps> = ({
           else if (n.status === 'perdido') statusKanban = 'Perdido'
 
           const nomeCliente = (cli?.nome || cli?.razao_social || 'Cliente vinculado').trim()
-          const tituloNegocio = (n.titulo || '').trim() || nomeCliente
+          const rawTitulo = (n.titulo || '').trim() || nomeCliente
+          const tituloNegocio = removerPrefixoMensagemManual(rawTitulo) || nomeCliente
 
           // Normaliza tipo de negócio
           let tipoNegocio: TipoNegocioOpcao = 'energia solar'
@@ -296,7 +298,7 @@ export const ComercialListView: React.FC<ComercialListViewProps> = ({
       .map((c) => ({
         id: c.id,
         clienteId: c.id,
-        titulo: (c.nome || '').trim() || 'Cliente sem nome',
+        titulo: removerPrefixoMensagemManual((c.nome || '').trim()) || 'Cliente sem nome',
         nomeCliente: (c.nome || '').trim() || 'Cliente sem nome',
         cidade: c.cidade || '',
         estado: c.estado || '',

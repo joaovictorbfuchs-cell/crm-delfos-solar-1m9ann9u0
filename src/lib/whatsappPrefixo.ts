@@ -47,6 +47,15 @@ export function jaPossuiPrefixoManual(texto: string): boolean {
  * 2. Se o texto estiver vazio ou apenas espaços, retorna vazio sem inventar mensagem.
  * 3. Usa o primeiro nome do usuário logado (ou nomeCustomizado se passado).
  */
+/**
+ * Remove qualquer prefixo no formato "[Nome]: " do início do texto.
+ * Utilizado para garantir que títulos de cards e oportunidades no funil não exibam o prefixo do WhatsApp.
+ */
+export function removerPrefixoMensagemManual(texto?: string): string {
+  if (!texto || typeof texto !== 'string') return ''
+  return texto.replace(REGEX_PREFIXO_MANUAL, '').trim()
+}
+
 export function aplicarPrefixoMensagemManual(texto: string, nomeCustomizado?: string): string {
   if (!texto || typeof texto !== 'string') return ''
   const trimmed = texto.trim()

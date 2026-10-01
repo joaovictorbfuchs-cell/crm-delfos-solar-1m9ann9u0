@@ -96,6 +96,7 @@ import {
 } from '@/services/duplicidadeContatoService'
 import { ModalAvisoDuplicidadeTelefone } from './ModalAvisoDuplicidadeTelefone'
 import { CardNegociosCliente } from './CardNegociosCliente'
+import { ModalNovoNegocioFunil } from './ModalNovoNegocioFunil'
 import { useAuth } from '@/contexts/AuthContext'
 import {
   fetchUsinasByClienteId,
@@ -257,9 +258,11 @@ export const FichaClienteDrawer: React.FC = () => {
   } | null>(null)
   const [isMesclandoFicha, setIsMesclandoFicha] = useState(false)
 
-  // Modais de Ganho / Perdido / Nova Oportunidade (Reabertura)
+  // Modais de Ganho / Perdido / Nova Oportunidade (Reabertura) / Novo Negócio
   const [modalPerdidoOpen, setModalPerdidoOpen] = useState(false)
   const [modalNovaOportunidadeOpen, setModalNovaOportunidadeOpen] = useState(false)
+  const [modalNovoNegocioOpen, setModalNovoNegocioOpen] = useState(false)
+  const [negociosKeyAtualizacao, setNegociosKeyAtualizacao] = useState(0)
 
   // Estado e carregamento de usinas do cliente selecionado
   const [usinasDoCliente, setUsinasDoCliente] = useState<UsinaCliente[]>([])
@@ -1081,6 +1084,15 @@ export const FichaClienteDrawer: React.FC = () => {
 
                     <DropdownMenuSeparator />
 
+                    {/* Ação Novo Negócio vinculada a este cliente */}
+                    <DropdownMenuItem
+                      onClick={() => setModalNovoNegocioOpen(true)}
+                      className="cursor-pointer gap-2 text-emerald-700 focus:text-emerald-800 focus:bg-emerald-50 font-medium"
+                    >
+                      <Briefcase className="w-4 h-4 text-emerald-600 shrink-0" />
+                      <span>Novo Negócio</span>
+                    </DropdownMenuItem>
+
                     {/* Marcar como Perdido / Reabrir Oportunidade */}
                     {[
                       'Novo Lead',
@@ -1317,6 +1329,18 @@ export const FichaClienteDrawer: React.FC = () => {
                 </button>
               )
             )}
+
+            {/* Ação Novo Negócio no Top Header da Ficha (aditiva, abre modal com cliente pré-preenchido) */}
+            <button
+              type="button"
+              onClick={() => setModalNovoNegocioOpen(true)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#0F2038] hover:bg-[#1A365D] text-[#E0A838] hover:text-white border border-[#E0A838]/40 text-xs font-bold rounded-lg shadow-xs transition-all hover:scale-[1.02]"
+              title="Adicionar um novo negócio para este cliente"
+            >
+              <Briefcase className="w-3.5 h-3.5 text-[#E0A838]" />
+              <span className="hidden sm:inline">+ Novo Negócio</span>
+              <span className="sm:hidden">+ Negócio</span>
+            </button>
 
             <button
               type="button"
@@ -4204,6 +4228,7 @@ export const FichaClienteDrawer: React.FC = () => {
                   {/* ======================================================== */}
                   <div id="secao-negocios-cliente">
                     <CardNegociosCliente
+                      key={`card-negocios-${selectedCliente.id}-${negociosKeyAtualizacao}`}
                       clienteId={selectedCliente.id}
                       clienteNome={selectedCliente.nome}
                     />
@@ -4355,20 +4380,30 @@ export const FichaClienteDrawer: React.FC = () => {
               )}
             </div>
 
-            {/* Negócios do Cliente (Card Resumo Lateral Clicável) */}
+            {/* Negócios do Cliente (Card Resumo Lateral Clicável com ação Novo Negócio) */}
             <div className="bg-white rounded-xl p-3.5 border border-amber-200/80 shadow-xs space-y-2">
               <div className="flex items-center justify-between">
                 <span className="text-[10px] uppercase font-bold text-[#0F2038] tracking-wider flex items-center gap-1">
                   <Briefcase className="w-3.5 h-3.5 text-[#E0A838]" />
                   Negócios & Oportunidades
                 </span>
-                <button
-                  type="button"
-                  onClick={handleRolarParaNegocios}
-                  className="text-[10px] text-amber-700 hover:text-amber-900 font-bold underline"
-                >
-                  Ver todos
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setModalNovoNegocioOpen(true)}
+                    className="text-[10px] text-emerald-700 hover:text-emerald-900 font-bold hover:underline"
+                    title="Criar novo negócio para este cliente"
+                  >
+                    + Novo
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleRolarParaNegocios}
+                    className="text-[10px] text-amber-700 hover:text-amber-900 font-bold underline"
+                  >
+                    Ver todos
+                  </button>
+                </div>
               </div>
               <p className="text-[11px] text-slate-500 leading-snug">
                 Gerencie as oportunidades e vendas vinculadas a este cliente na seção "Negócios
@@ -4626,6 +4661,20 @@ export const FichaClienteDrawer: React.FC = () => {
           open={drawerAtividadesManutencaoOpen}
           onOpenChange={setDrawerAtividadesManutencaoOpen}
           cliente={selectedCliente}
+        />
+      )}
+
+      {/* Modal Novo Negócio para o Cliente (aditivo à Ficha) */}
+      {selectedCliente && (
+        <ModalNovoNegocioFunil
+          open={modalNovoNegocioOpen}
+          onOpenChange={setModalNovoNegocioOpen}
+          clientePredefinido={selectedCliente}
+          clienteIdPredefinido={selectedCliente.id}
+          onCreated={() => {
+            setNegociosKeyAtualizacao((k) => k + 1)
+            if (refreshData) refreshData()
+          }}
         />
       )}
 

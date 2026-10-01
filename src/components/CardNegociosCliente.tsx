@@ -33,6 +33,7 @@ import {
   deleteNegocio,
   fetchNegociosByClienteId,
 } from '@/services/negociosService'
+import { removerPrefixoMensagemManual } from '@/lib/whatsappPrefixo'
 import { formatCurrency } from '@/lib/formatters'
 import { toast } from 'sonner'
 
@@ -763,8 +764,10 @@ export const ModalNovoNegocio: React.FC<ModalNovoNegocioProps> = ({
     if (!clienteId) return
     setIsSubmitting(true)
     try {
+      const nomeLimpo = removerPrefixoMensagemManual(clienteNome)
       await createNegocio({
         cliente_id: clienteId,
+        titulo: `Negócio - ${nomeLimpo}`,
         tipo_negocio: tipo,
         etapa_funil: etapa,
         status,

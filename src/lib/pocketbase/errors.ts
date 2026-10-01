@@ -2,6 +2,28 @@ import { ClientResponseError } from 'pocketbase'
 
 export type FieldErrors = Record<string, string>
 
+export function isAuthSessionError(error: unknown): boolean {
+  if (!error) return false
+  if (error instanceof ClientResponseError) {
+    return error.status === 401 || error.status === 403
+  }
+  const maybe = error as { status?: number; message?: string }
+  if (typeof maybe.status === 'number' && (maybe.status === 401 || maybe.status === 403)) {
+    return true
+  }
+  if (typeof maybe.message === 'string') {
+    const msg = maybe.message.toLowerCase()
+    return (
+      msg.includes('unauthorized') ||
+      msg.includes('forbidden') ||
+      msg.includes('token expired') ||
+      msg.includes('invalid token') ||
+      msg.includes('failed to authenticate')
+    )
+  }
+  return false
+}
+
 export function extractFieldErrors(error: unknown): FieldErrors {
   if (!(error instanceof ClientResponseError)) return {}
   const data = error.response?.data
@@ -18,24 +40,6 @@ export function extractFieldErrors(error: unknown): FieldErrors {
     }
   }
   return errors
-}
-
-export function isAuthSessionError(error: unknown): boolean {
-  if (!error) return false
-  if (error instanceof ClientResponseError) {
-    return error.status === 401 || error.status === 403
-  }
-  const status =
-    (error as { status?: number; statusCode?: number })?.status ??
-    (error as { status?: number; statusCode?: number })?.statusCode
-  if (status === 401 || status === 403) return true
-  const msg = String((error as { message?: string })?.message || '').toLowerCase()
-  return (
-    msg.includes('token') ||
-    msg.includes('unauthorized') ||
-    msg.includes('forbidden') ||
-    msg.includes('autenticação')
-  )
 }
 
 export function getErrorMessage(error: unknown): string {

@@ -1,6 +1,6 @@
 # Relatório de Auditoria de Duplicados e Vínculos de Contatos — CRM Delfos Solar
 
-**Data/Hora da Execução:** 2026-10-01T02:01:12.320Z  
+**Data/Hora da Execução:** 2026-10-01T02:18:39.254Z  
 **Ambiente do Banco:** https://crm-delfos-solar-72b9e.shrd00.internal.goskip.dev  
 **Usuário Autenticado:** joao@delfosengenharia.com.br  
 **Validação de Sanidade:** APROVADA (Total carregado bate exatamente com o totalItems do PocketBase)
@@ -119,7 +119,7 @@ Nenhum caso encontrado de mesmo WhatsApp compartilhado entre múltiplos registro
 
 [Caso 1.b #1] Número normalizado: 54981108228 (2 clientes)
   1. Nome Cliente: "João Victor Bagetti Fuchs" | WhatsApp original: "(54) 98110-8228" | ID: 4bb6q12dbgk5sa4 | Status: Fechado | Cidade: Erechim | Criado em: 2026-09-11 17:19:48.868Z
-  2. Nome Cliente: "Delfos Engenharia Ltda" | WhatsApp original: "(54) 98110-8228" | ID: 50vyppm3qwwuz62 | Status: Fechado | Cidade: São Valentim | Criado em: 2026-09-13 16:54:13.834Z
+  2. Nome Cliente: "Delfos Engenharia Ltda" | WhatsApp original: "(54) 98110-8228" | ID: 50vyppm3qwwuz62 | Status: Fechado | Cidade: Erechim | Criado em: 2026-09-13 16:54:13.834Z
 
 [Caso 1.b #2] Número normalizado: 54981540399 (2 clientes)
   1. Nome Cliente: "Adriana Paula Daniel (Leonardo Canova)" | WhatsApp original: "(54) 98154-0399" | ID: 2g8ialg82d8xaw5 | Status: Novo Lead | Cidade: Erechim | Criado em: 2026-09-13 16:52:35.608Z

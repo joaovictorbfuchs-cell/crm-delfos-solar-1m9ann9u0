@@ -12,6 +12,8 @@ import {
   CnpjConflictField,
 } from '@/components/CnpjInputWithLookup'
 import { CnpjDataNormalized } from '@/services/cnpjLookupService'
+import { createNegocio } from '@/services/negociosService'
+import { removerPrefixoMensagemManual } from '@/lib/whatsappPrefixo'
 import {
   ModalImportarContaRGE,
   type DadosImportadosContaRGE,
@@ -367,7 +369,27 @@ export const NovoLeadModal: React.FC<NovoLeadModalProps> = ({ isOpen, onClose })
     try {
       setIsSubmitting(true)
       const payloadNovoCliente = montarPayloadLead()
-      await addCliente(payloadNovoCliente as any)
+      const clienteCriado = await addCliente(payloadNovoCliente as any)
+
+      // Registra também o Negócio correspondente na coleção `negocios` (100% aditivo)
+      try {
+        const nomeClean = removerPrefixoMensagemManual(nome.trim())
+        await createNegocio({
+          cliente_id: clienteCriado.id,
+          titulo: `Negócio - ${nomeClean}`,
+          tipo_negocio: 'venda usina',
+          tipo_venda: tipoVenda,
+          etapa_funil: 'novo lead',
+          status: 'em andamento',
+          valor_estimado: Number(payloadNovoCliente.valor_estimado || 0),
+          probabilidade: 10,
+        })
+      } catch (errNegocio) {
+        console.warn(
+          'Aviso: cliente criado mas falhou ao criar registro inicial em negocios:',
+          errNegocio,
+        )
+      }
 
       toast({
         title: 'Lead cadastrado com sucesso!',

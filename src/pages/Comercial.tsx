@@ -3,6 +3,7 @@ import {
   List,
   Loader2,
   UserPlus,
+  Briefcase,
   LayoutGrid,
   RefreshCw,
   AlertCircle,
@@ -16,19 +17,38 @@ import { ComercialListView } from '@/components/ComercialListView'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { formatCurrency } from '@/lib/formatters'
 import { NovoLeadModal } from '@/components/NovoLeadModal'
+import { ModalNovoNegocioFunil } from '@/components/ModalNovoNegocioFunil'
 import { Button } from '@/components/ui/button'
 import { toast } from '@/hooks/use-toast'
 import { TIPOS_VENDA_OPTIONS, TIPOS_VENDA_CONFIG } from '@/constants/tipoVenda'
 import { Filter } from 'lucide-react'
+import { fetchNegocios } from '@/services/negociosService'
+import type { Negocio } from '@/types/crm'
 
 export default function Comercial() {
   const { clientes, isLoading, error, refreshData, updateClienteStatus, openFichaCliente } =
     useClientes()
   const [isNovoLeadOpen, setIsNovoLeadOpen] = useState(false)
+  const [isNovoNegocioOpen, setIsNovoNegocioOpen] = useState(false)
+  const [negociosList, setNegociosList] = useState<Negocio[]>([])
   const [viewMode, setViewMode] = useState<'kanban' | 'list' | 'perdidos'>('kanban')
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [buscaPerdidos, setBuscaPerdidos] = useState('')
   const [reativandoId, setReativandoId] = useState<string | null>(null)
+
+  // Carrega negócios vinculados da coleção `negocios`
+  const carregarNegocios = React.useCallback(async () => {
+    try {
+      const data = await fetchNegocios()
+      setNegociosList(data)
+    } catch (err) {
+      console.warn('Erro ao carregar lista de negócios no Comercial:', err)
+    }
+  }, [])
+
+  useEffect(() => {
+    carregarNegocios()
+  }, [carregarNegocios])
 
   // Filtro de tipo de negócio do funil comercial ("todos" ou uma das 4 categorias)
   const [filtroTipoVenda, setFiltroTipoVenda] = useState<string>('todos')
@@ -61,7 +81,7 @@ export default function Comercial() {
   const handleRefresh = async () => {
     setIsRefreshing(true)
     try {
-      await refreshData()
+      await Promise.all([refreshData(), carregarNegocios()])
     } finally {
       setIsRefreshing(false)
     }
@@ -79,7 +99,7 @@ export default function Comercial() {
     return true
   })
 
-  // Contagem por categoria para exibir nos seletores e manter contadores precisos
+  // Contagem por categoria considerando negócios (quando presentes) e clientes
   const contagemPorTipoVenda = React.useMemo(() => {
     const counts: Record<string, number> = {
       todos: 0,
@@ -88,6 +108,19 @@ export default function Comercial() {
       Baterias: 0,
       'Carregadores Veículos Elétricos': 0,
     }
+
+    if (negociosList.length > 0) {
+      for (const n of negociosList) {
+        if (n.status === 'ganho' || n.status === 'perdido') continue
+        counts.todos += 1
+        const tv = (n.tipo_venda || '').trim()
+        if (tv && counts[tv] !== undefined) {
+          counts[tv] += 1
+        }
+      }
+      return counts
+    }
+
     for (const c of clientes) {
       if (c.arquivado || c.transferido_pos_vendas) continue
       if (c.status === 'Fechado' || c.status === 'Perdido') continue
@@ -98,7 +131,7 @@ export default function Comercial() {
       }
     }
     return counts
-  }, [clientes])
+  }, [clientes, negociosList])
 
   // Clientes perdidos
   const clientesPerdidos = clientes.filter((c) => c.status === 'Perdido' && !c.arquivado)
@@ -254,6 +287,16 @@ export default function Comercial() {
               <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
             </Button>
 
+            {/* Botão Novo Negócio (vinculado a cliente existente ou novo cliente) */}
+            <button
+              onClick={() => setIsNovoNegocioOpen(true)}
+              className="h-10 inline-flex items-center justify-center gap-2 px-4 bg-[#0F2038] hover:bg-[#1A365D] active:scale-[0.98] text-[#E0A838] hover:text-white text-sm font-bold rounded-xl shadow-sm hover:shadow-md transition-all shrink-0 cursor-pointer border border-[#E0A838]/30"
+              title="Criar novo negócio vinculado a cliente"
+            >
+              <Briefcase className="w-4 h-4 stroke-[2.5] text-[#E0A838]" />
+              <span>+ Novo Negócio</span>
+            </button>
+
             {/* Botão Novo Lead (apenas desktop — no mobile fica no header superior com o botão +) */}
             <button
               onClick={() => setIsNovoLeadOpen(true)}
@@ -348,12 +391,20 @@ export default function Comercial() {
         {/* Alternância de Visualização */}
         {viewMode === 'kanban' ? (
           <ErrorBoundary compact errorMessage="Não foi possível exibir o funil de vendas.">
-            <KanbanBoard clientes={clientesAtivos} />
+            <KanbanBoard
+              clientes={clientesAtivos}
+              negocios={negociosList}
+              onNegocioUpdated={carregarNegocios}
+              onNegocioDeleted={carregarNegocios}
+            />
           </ErrorBoundary>
         ) : viewMode === 'list' ? (
           <ErrorBoundary compact errorMessage="Não foi possível exibir o funil de vendas.">
             <ComercialListView
               clientes={clientesAtivos}
+              negocios={negociosList}
+              onNegocioUpdated={carregarNegocios}
+              onNegocioDeleted={carregarNegocios}
               onBackToKanban={() => setViewMode('kanban')}
             />
           </ErrorBoundary>
@@ -515,8 +566,24 @@ export default function Comercial() {
         )}
       </div>
 
+      {/* Modal Novo Negócio Funil */}
+      <ModalNovoNegocioFunil
+        open={isNovoNegocioOpen}
+        onOpenChange={setIsNovoNegocioOpen}
+        onCreated={() => {
+          carregarNegocios()
+          refreshData()
+        }}
+      />
+
       {/* Modal Novo Lead */}
-      <NovoLeadModal isOpen={isNovoLeadOpen} onClose={() => setIsNovoLeadOpen(false)} />
+      <NovoLeadModal
+        isOpen={isNovoLeadOpen}
+        onClose={() => {
+          setIsNovoLeadOpen(false)
+          carregarNegocios()
+        }}
+      />
     </div>
   )
 }
