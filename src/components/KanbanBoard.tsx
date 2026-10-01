@@ -11,11 +11,13 @@ import {
   Archive,
   Contact,
   Loader2,
+  Pencil,
   type LucideIcon,
 } from 'lucide-react'
 import type { Cliente, ClienteStatus, Atividade, Negocio, EtapaFunilSelect } from '@/types/crm'
 import { formatCurrency } from '@/lib/formatters'
 import { useClientes } from '@/contexts/ClientesContext'
+import { getValorExibicaoCard } from '@/lib/orcamentoValorCard'
 import { FUNIL_ETAPAS_CONFIG } from '@/components/StatusBadge'
 import { getTipoVendaBadgeInfo } from '@/constants/tipoVenda'
 import { useToast } from '@/hooks/use-toast'
@@ -39,6 +41,15 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { Button } from '@/components/ui/button'
 import { updateNegocio, deleteNegocio } from '@/services/negociosService'
 import { removerPrefixoMensagemManual } from '@/lib/whatsappPrefixo'
 
@@ -155,11 +166,56 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
     updateCliente,
     moverClienteParaOutrosContatos,
     atividades,
+    orcamentosSolar,
   } = useClientes()
   const { toast } = useToast()
 
   const [itemParaMover, setItemParaMover] = useState<KanbanCardItem | null>(null)
   const [isMovingContato, setIsMovingContato] = useState(false)
+
+  // Edição do nome do negócio (Kanban)
+  const [editingCard, setEditingCard] = useState<KanbanCardItem | null>(null)
+  const [novoTituloInput, setNovoTituloInput] = useState('')
+  const [isSavingTitulo, setIsSavingTitulo] = useState(false)
+
+  useEffect(() => {
+    if (editingCard) {
+      setNovoTituloInput(editingCard.titulo)
+    }
+  }, [editingCard])
+
+  const handleSalvarTituloNegocio = async () => {
+    if (!editingCard || !editingCard.negocioId) return
+    const limpo = novoTituloInput.trim()
+    if (!limpo) {
+      toast({
+        title: 'Nome obrigatório',
+        description: 'Informe um nome para o negócio.',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    setIsSavingTitulo(true)
+    try {
+      await updateNegocio(editingCard.negocioId, { titulo: limpo })
+      toast({
+        title: 'Nome atualizado',
+        description: 'O nome do negócio foi atualizado com sucesso.',
+      })
+      setEditingCard(null)
+      if (onNegocioUpdated) onNegocioUpdated()
+    } catch (err) {
+      console.error('Erro ao atualizar nome do negócio:', err)
+      toast({
+        title: 'Erro ao atualizar',
+        description: 'Não foi possível alterar o nome do negócio.',
+        variant: 'destructive',
+      })
+    } finally {
+      setIsSavingTitulo(false)
+    }
+  }
 
   // Normalização unificada: se negocios foram passados, alimentamos com negócios.
   // Caso contrário, mantemos compatibilidade com a lista de clientes.
@@ -181,8 +237,14 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
           const rawTitulo = (n.titulo || '').trim() || nomeCliente
           const tituloNegocio = removerPrefixoMensagemManual(rawTitulo) || nomeCliente
 
-          const valorFinal =
-            Number(n.valor) || Number(n.valor_estimado) || (cli?.valor_estimado ?? 0)
+          const cardValor = getValorExibicaoCard(orcamentosSolar, {
+            negocioId: n.id,
+            clienteId: n.cliente_id || cli?.id,
+            valorFinal: Number(n.valor_final || n.valor),
+            valorEstimado: Number(n.valor_estimado) || (cli?.valor_estimado ?? 0),
+            status: n.status,
+          })
+          const valorFinal = cardValor.valor
 
           return {
             id: n.id,
@@ -225,7 +287,11 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
         titulo: removerPrefixoMensagemManual((c.nome || '').trim()) || 'Cliente sem nome',
         nomeCliente: (c.nome || '').trim() || 'Cliente sem nome',
         status: (c.status || 'Novo Lead') as ClienteStatus,
-        valorEstimado: Number(c.valor_estimado) || 0,
+        valorEstimado: getValorExibicaoCard(orcamentosSolar, {
+          clienteId: c.id,
+          valorEstimado: Number(c.valor_estimado) || 0,
+          status: c.status,
+        }).valor,
         cidade: typeof c.cidade === 'string' ? c.cidade : '',
         estado: c.estado || '',
         tipoVenda: c.tipo_venda || 'Energia Solar',
@@ -239,7 +305,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
         updated: c.updated || '',
         rawCliente: c,
       }))
-  }, [negociosProp, clientesProp])
+  }, [negociosProp, clientesProp, orcamentosSolar])
 
   // Mapeamento otimizado de próxima atividade agendada por cliente
   const proximaAcaoPorCliente = useMemo(() => {
@@ -629,20 +695,35 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                         : 'border-slate-200/90 shadow-2xs hover:shadow-xs active:bg-gray-50'
                     }`}
                   >
-                    {/* Título do negócio / Nome do cliente + Etiqueta de tipo de negócio */}
+                    {/* Título principal: Nome do cliente (em destaque); Subtítulo: título do negócio */}
                     <div className="flex-1 min-w-0 pr-1">
-                      <div
-                        className="font-bold text-sm text-slate-900 truncate leading-snug"
-                        title={card.titulo}
-                      >
-                        {card.titulo}
-                      </div>
-                      {card.nomeCliente && card.nomeCliente !== card.titulo && (
+                      <div className="flex items-center gap-1">
                         <div
-                          className="text-xs text-slate-500 truncate"
-                          title={`Cliente: ${card.nomeCliente}`}
+                          className="font-bold text-sm text-slate-900 truncate leading-snug flex-1"
+                          title={card.nomeCliente || card.titulo}
                         >
-                          {card.nomeCliente}
+                          {card.nomeCliente || card.titulo}
+                        </div>
+                        {card.negocioId && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setEditingCard(card)
+                            }}
+                            className="p-1 rounded text-slate-400 hover:text-slate-700 active:bg-slate-200 shrink-0"
+                            title="Editar nome do negócio"
+                          >
+                            <Pencil className="w-3 h-3" />
+                          </button>
+                        )}
+                      </div>
+                      {card.titulo && card.titulo !== card.nomeCliente && (
+                        <div
+                          className="text-xs text-slate-600 truncate font-medium mt-0.5"
+                          title={`Negócio: ${card.titulo}`}
+                        >
+                          {card.titulo}
                         </div>
                       )}
                       <div className="mt-1 flex items-center gap-1.5 min-w-0">
@@ -720,16 +801,29 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                         : 'border-slate-200 shadow-xs hover:shadow-md hover:-translate-y-0.5 hover:border-emerald-300'
                   }`}
                 >
-                  {/* Linha 1: Título do negócio / Nome do cliente + Badge Cliente Ativo + Menu ⋮ */}
+                  {/* Linha 1: Título principal = Nome do cliente + Badge Cliente Ativo + Lápis Editar + Menu ⋮ */}
                   <div className="flex items-start justify-between gap-1.5 min-w-0">
                     <div className="flex flex-col flex-1 min-w-0">
                       <div className="flex items-center gap-1.5 min-w-0">
                         <div
                           className="font-bold text-sm text-slate-900 group-hover:text-emerald-700 transition-colors truncate min-w-0 leading-tight"
-                          title={card.titulo}
+                          title={card.nomeCliente || card.titulo}
                         >
-                          {card.titulo}
+                          {card.nomeCliente || card.titulo}
                         </div>
+                        {card.negocioId && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setEditingCard(card)
+                            }}
+                            className="p-1 rounded text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors opacity-70 group-hover:opacity-100 shrink-0"
+                            title="Editar nome do negócio"
+                          >
+                            <Pencil className="w-3 h-3" />
+                          </button>
+                        )}
                         {isReaberto && (
                           <span
                             className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-extrabold bg-amber-100 text-amber-900 border border-amber-300 shrink-0"
@@ -740,12 +834,12 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                           </span>
                         )}
                       </div>
-                      {card.nomeCliente && card.nomeCliente !== card.titulo && (
+                      {card.titulo && card.titulo !== card.nomeCliente && (
                         <span
-                          className="text-xs text-slate-500 truncate font-normal mt-0.5"
-                          title={`Cliente vinculado: ${card.nomeCliente}`}
+                          className="text-xs text-slate-600 truncate font-medium mt-0.5"
+                          title={`Negócio: ${card.titulo}`}
                         >
-                          {card.nomeCliente}
+                          {card.titulo}
                         </span>
                       )}
                     </div>
@@ -791,6 +885,18 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                           ))}
 
                           <DropdownMenuSeparator />
+
+                          {card.negocioId && (
+                            <DropdownMenuItem
+                              onClick={() => {
+                                setEditingCard(card)
+                              }}
+                              className="cursor-pointer gap-2 text-slate-700 text-xs font-medium"
+                            >
+                              <Pencil className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                              <span>Editar nome do negócio</span>
+                            </DropdownMenuItem>
+                          )}
 
                           <DropdownMenuItem
                             onClick={async () => {
@@ -1065,6 +1171,71 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
           {KANBAN_COLUMNS.map((col) => renderColumnContent(col, false))}
         </div>
       </div>
+
+      {/* Dialog: Editar Nome do Negócio */}
+      <Dialog
+        open={Boolean(editingCard)}
+        onOpenChange={(open) => {
+          if (!open && !isSavingTitulo) {
+            setEditingCard(null)
+          }
+        }}
+      >
+        <DialogContent className="max-w-md" onClick={(e) => e.stopPropagation()}>
+          <DialogHeader>
+            <DialogTitle className="text-base font-bold text-slate-900 flex items-center gap-2">
+              <Pencil className="w-4 h-4 text-amber-500" />
+              Editar Nome do Negócio
+            </DialogTitle>
+            <DialogDescription className="text-xs text-slate-500">
+              Altere o título do negócio no funil comercial. O cliente{' '}
+              <strong className="text-slate-800">{editingCard?.nomeCliente}</strong> permanece
+              intacto.
+            </DialogDescription>
+          </DialogHeader>
+
+          <form
+            onSubmit={(e) => {
+              e.preventDefault()
+              handleSalvarTituloNegocio()
+            }}
+            className="space-y-4 py-2"
+          >
+            <div>
+              <label className="text-xs font-bold text-slate-700 block mb-1.5">
+                Nome do Negócio *
+              </label>
+              <input
+                type="text"
+                value={novoTituloInput}
+                onChange={(e) => setNovoTituloInput(e.target.value)}
+                placeholder="Ex: Usina Solar 10 kWp - Sede"
+                className="w-full text-sm px-3 py-2 rounded-lg border border-slate-300 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                autoFocus
+              />
+            </div>
+
+            <DialogFooter className="gap-2 sm:gap-0">
+              <Button
+                type="button"
+                variant="outline"
+                disabled={isSavingTitulo}
+                onClick={() => setEditingCard(null)}
+                className="text-xs"
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="submit"
+                disabled={isSavingTitulo || !novoTituloInput.trim()}
+                className="text-xs bg-[#0F2038] hover:bg-[#1A365D] text-white"
+              >
+                {isSavingTitulo ? 'Salvando...' : 'Salvar Nome'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       {/* AlertDialog de Confirmação para Mover Cliente para Outros Contatos */}
       <AlertDialog

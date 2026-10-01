@@ -2,9 +2,7 @@ import React, { useState, useEffect } from 'react'
 import {
   Briefcase,
   DollarSign,
-  TrendingUp,
   X,
-  CheckCircle2,
   AlertCircle,
   RotateCcw,
   Plus,
@@ -27,6 +25,8 @@ import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { Textarea } from '@/components/ui/textarea'
 import type { Negocio, TipoNegocioSelect, EtapaFunilSelect, NegocioStatus } from '@/types/crm'
+import { useClientes } from '@/contexts/ClientesContext'
+import { getValorExibicaoCard } from '@/lib/orcamentoValorCard'
 import {
   createNegocio,
   updateNegocio,
@@ -94,6 +94,7 @@ export const CardNegociosCliente: React.FC<CardNegociosClienteProps> = ({
   clienteNome,
   onNegociosChange,
 }) => {
+  const { orcamentosSolar } = useClientes()
   const [negocios, setNegocios] = useState<Negocio[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [negocioSelecionado, setNegocioSelecionado] = useState<Negocio | null>(null)
@@ -126,12 +127,6 @@ export const CardNegociosCliente: React.FC<CardNegociosClienteProps> = ({
     await carregarNegocios()
     if (onNegociosChange) onNegociosChange()
   }
-
-  // Totais rápidos
-  const totalEstimado = negocios.reduce((acc, n) => acc + (Number(n.valor_estimado) || 0), 0)
-  const totalGanho = negocios
-    .filter((n) => n.status === 'ganho')
-    .reduce((acc, n) => acc + (Number(n.valor_final || n.valor_estimado) || 0), 0)
 
   return (
     <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs space-y-4">
@@ -170,35 +165,6 @@ export const CardNegociosCliente: React.FC<CardNegociosClienteProps> = ({
         </Button>
       </div>
 
-      {/* Mini resumo de valores */}
-      {negocios.length > 0 && (
-        <div className="grid grid-cols-2 gap-2 text-xs">
-          <div className="p-2.5 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between">
-            <div>
-              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
-                Total Estimado
-              </span>
-              <span className="text-sm font-black text-slate-800">
-                {formatCurrency(totalEstimado)}
-              </span>
-            </div>
-            <TrendingUp className="w-4 h-4 text-slate-400" />
-          </div>
-
-          <div className="p-2.5 bg-emerald-50/70 rounded-xl border border-emerald-200 flex items-center justify-between">
-            <div>
-              <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 block">
-                Total Ganho
-              </span>
-              <span className="text-sm font-black text-emerald-800">
-                {formatCurrency(totalGanho)}
-              </span>
-            </div>
-            <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-          </div>
-        </div>
-      )}
-
       {/* Lista de cards clicáveis de negócio */}
       {isLoading ? (
         <div className="py-6 text-center text-xs text-slate-400">Carregando negócios...</div>
@@ -225,8 +191,14 @@ export const CardNegociosCliente: React.FC<CardNegociosClienteProps> = ({
           {negocios.map((neg) => {
             const statusConfig =
               STATUS_NEGOCIO_OPCOES.find((s) => s.value === neg.status) || STATUS_NEGOCIO_OPCOES[0]
-            const valorExibir =
-              neg.status === 'ganho' && neg.valor_final ? neg.valor_final : neg.valor_estimado || 0
+            const cardValor = getValorExibicaoCard(orcamentosSolar, {
+              negocioId: neg.id,
+              clienteId,
+              valorFinal: neg.valor_final,
+              valorEstimado: neg.valor_estimado,
+              status: neg.status,
+            })
+            const valorExibir = cardValor.valor
 
             return (
               <div
@@ -251,6 +223,15 @@ export const CardNegociosCliente: React.FC<CardNegociosClienteProps> = ({
                         className="text-[9px] font-bold px-1 py-0 bg-purple-50 text-purple-700 border-purple-200"
                       >
                         Reaberto
+                      </Badge>
+                    )}
+                    {cardValor.isOrcamento && (
+                      <Badge
+                        variant="outline"
+                        className="text-[9px] font-bold px-1 py-0 bg-emerald-50 text-emerald-700 border-emerald-200"
+                        title={`Valor da revisão ${cardValor.numeroRevisao ?? 1} do orçamento`}
+                      >
+                        Rev. {cardValor.numeroRevisao ?? 1}
                       </Badge>
                     )}
                   </div>

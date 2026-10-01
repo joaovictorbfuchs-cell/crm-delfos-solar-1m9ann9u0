@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useEffect } from 'react'
 import {
   Search,
   CheckSquare,
@@ -25,12 +25,14 @@ import {
   Zap,
   Battery,
   CarFront,
+  Pencil,
 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import type { Cliente, ClienteStatus, Negocio, EtapaFunilSelect } from '@/types/crm'
 import { formatCurrency } from '@/lib/formatters'
 import { StatusBadge } from '@/components/StatusBadge'
 import { useClientes } from '@/contexts/ClientesContext'
+import { getValorExibicaoCard } from '@/lib/orcamentoValorCard'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -188,6 +190,7 @@ export const ComercialListView: React.FC<ComercialListViewProps> = ({
   const {
     openFichaCliente,
     usuarios,
+    orcamentosSolar,
     bulkUpdateEtapa,
     bulkUpdateResponsavel,
     bulkMarcarFechado,
@@ -223,6 +226,50 @@ export const ComercialListView: React.FC<ComercialListViewProps> = ({
 
   const [modalConfirmarArquivarOpen, setModalConfirmarArquivarOpen] = useState(false)
   const [modalConfirmarExcluirLoteOpen, setModalConfirmarExcluirLoteOpen] = useState(false)
+
+  // Edição do nome do negócio
+  const [editingNegocio, setEditingNegocio] = useState<{ id: string; titulo: string } | null>(null)
+  const [novoTituloInput, setNovoTituloInput] = useState('')
+  const [isSavingTitulo, setIsSavingTitulo] = useState(false)
+
+  useEffect(() => {
+    if (editingNegocio) {
+      setNovoTituloInput(editingNegocio.titulo)
+    }
+  }, [editingNegocio])
+
+  const handleSalvarTituloNegocio = async () => {
+    if (!editingNegocio) return
+    const limpo = novoTituloInput.trim()
+    if (!limpo) {
+      toast({
+        title: 'Nome obrigatório',
+        description: 'Informe um nome para o negócio.',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    setIsSavingTitulo(true)
+    try {
+      await updateNegocio(editingNegocio.id, { titulo: limpo })
+      toast({
+        title: 'Nome atualizado',
+        description: 'O nome do negócio foi atualizado com sucesso.',
+      })
+      setEditingNegocio(null)
+      if (onNegociosChanged) onNegociosChanged()
+    } catch (err) {
+      console.error('Erro ao atualizar nome do negócio:', err)
+      toast({
+        title: 'Erro ao atualizar',
+        description: 'Não foi possível alterar o nome do negócio.',
+        variant: 'destructive',
+      })
+    } finally {
+      setIsSavingTitulo(false)
+    }
+  }
 
   // Itens unificados de negócios (ou clientes no modo compatibilidade)
   const itensAtivos = useMemo<ComercialListItem[]>(() => {
@@ -260,8 +307,14 @@ export const ComercialListView: React.FC<ComercialListViewProps> = ({
             }
           }
 
-          const valorFinal =
-            Number(n.valor) || Number(n.valor_estimado) || (cli?.valor_estimado ?? 0)
+          const cardValor = getValorExibicaoCard(orcamentosSolar, {
+            negocioId: n.id,
+            clienteId: n.cliente_id || cli?.id,
+            valorFinal: Number(n.valor_final || n.valor),
+            valorEstimado: Number(n.valor_estimado) || (cli?.valor_estimado ?? 0),
+            status: n.status,
+          })
+          const valorFinal = cardValor.valor
 
           const respUser = n.expand?.consultor_responsavel
           const responsavelId = n.consultor_responsavel || cli?.responsavel_id
@@ -304,7 +357,11 @@ export const ComercialListView: React.FC<ComercialListViewProps> = ({
         estado: c.estado || '',
         potenciaKwp: Number(c.potencia_kwp) || 0,
         tipoNegocio: normalizarTipoNegocio(c),
-        valorEstimado: Number(c.valor_estimado) || 0,
+        valorEstimado: getValorExibicaoCard(orcamentosSolar, {
+          clienteId: c.id,
+          valorEstimado: Number(c.valor_estimado) || 0,
+          status: c.status,
+        }).valor,
         status: (c.status || 'Novo Lead') as ClienteStatus,
         responsavelId: c.responsavel_id,
         responsavelNome: c.responsavel_nome,
@@ -951,11 +1008,34 @@ export const ComercialListView: React.FC<ComercialListViewProps> = ({
 
                       {/* Nome do Cliente */}
                       <td className="py-3 px-3">
-                        <div className="font-semibold text-gray-900 group-hover:text-emerald-700 transition-colors">
-                          {item.nomeCliente}
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="font-semibold text-gray-900 group-hover:text-emerald-700 transition-colors">
+                            {item.nomeCliente}
+                          </span>
+                          {item.negocioId && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                setEditingNegocio({
+                                  id: item.negocioId!,
+                                  titulo: item.titulo || item.nomeCliente,
+                                })
+                              }}
+                              className="p-1 rounded text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors opacity-70 group-hover:opacity-100"
+                              title="Editar nome do negócio"
+                            >
+                              <Pencil className="w-3 h-3" />
+                            </button>
+                          )}
                         </div>
-                        <div className="flex items-center gap-2 text-xs text-gray-500 mt-0.5">
-                          {item.cidade && <span>{item.cidade}</span>}
+                        <div className="flex items-center gap-2 text-xs text-gray-500 mt-0.5 flex-wrap">
+                          {item.titulo && item.titulo !== item.nomeCliente && (
+                            <span className="text-slate-600 font-medium" title="Nome do negócio">
+                              {item.titulo}
+                            </span>
+                          )}
+                          {item.cidade && <span>• {item.cidade}</span>}
                           {item.potenciaKwp ? (
                             <>
                               <span>•</span>
@@ -1480,6 +1560,69 @@ export const ComercialListView: React.FC<ComercialListViewProps> = ({
               {isProcessing ? 'Arquivando...' : 'Sim, Arquivar Negócios'}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal: Editar Nome do Negócio */}
+      <Dialog
+        open={Boolean(editingNegocio)}
+        onOpenChange={(open) => {
+          if (!open && !isSavingTitulo) {
+            setEditingNegocio(null)
+          }
+        }}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-base font-bold text-slate-900 flex items-center gap-2">
+              <Pencil className="w-4 h-4 text-amber-500" />
+              Editar Nome do Negócio
+            </DialogTitle>
+            <DialogDescription className="text-xs text-slate-500">
+              Altere o título do negócio comercial. O cadastro do cliente permanece inalterado.
+            </DialogDescription>
+          </DialogHeader>
+
+          <form
+            onSubmit={(e) => {
+              e.preventDefault()
+              handleSalvarTituloNegocio()
+            }}
+            className="space-y-4 py-2"
+          >
+            <div>
+              <label className="text-xs font-bold text-slate-700 block mb-1.5">
+                Nome do Negócio *
+              </label>
+              <input
+                type="text"
+                value={novoTituloInput}
+                onChange={(e) => setNovoTituloInput(e.target.value)}
+                placeholder="Ex: Usina Solar 10 kWp - Sede"
+                className="w-full text-sm px-3 py-2 rounded-lg border border-slate-300 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                autoFocus
+              />
+            </div>
+
+            <DialogFooter className="gap-2 sm:gap-0">
+              <Button
+                type="button"
+                variant="outline"
+                disabled={isSavingTitulo}
+                onClick={() => setEditingNegocio(null)}
+                className="text-xs"
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="submit"
+                disabled={isSavingTitulo || !novoTituloInput.trim()}
+                className="text-xs bg-[#0F2038] hover:bg-[#1A365D] text-white"
+              >
+                {isSavingTitulo ? 'Salvando...' : 'Salvar Nome'}
+              </Button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
 

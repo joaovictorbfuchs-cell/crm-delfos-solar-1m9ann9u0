@@ -1399,6 +1399,7 @@ export interface OrcamentoSolar extends RecordModel {
   collectionId: string
   collectionName: string
   cliente_id: string
+  negocio_id?: string
   status: OrcamentoSolarStatus
   numero_revisao?: number
   revisao_de?: string
@@ -1425,6 +1426,7 @@ export interface OrcamentoSolar extends RecordModel {
   area_necessaria_m2: number
   codigo_finame?: string
   valor_investimento: number
+  valor_total?: number
   // Custos
   custo_mao_de_obra?: number
   custo_materiais_equipamentos?: number

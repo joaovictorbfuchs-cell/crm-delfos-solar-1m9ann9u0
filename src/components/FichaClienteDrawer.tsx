@@ -951,22 +951,6 @@ export const FichaClienteDrawer: React.FC = () => {
       : cleanWaDrawer
   const rawTelDrawer = cleanPhoneDigits(selectedCliente.telefone || '')
 
-  // Funil comercial padrão ordenado para a barra de progresso mobile
-  const FUNIL_PROGRESS_STAGES: ClienteStatus[] = [
-    'Novo Lead',
-    'Levantamento',
-    'Orçamento',
-    'Negociação',
-    'Fechado',
-  ]
-  const currentStageIndex = FUNIL_PROGRESS_STAGES.indexOf(selectedCliente.status as ClienteStatus)
-  const stageProgressPct =
-    selectedCliente.status === 'Perdido'
-      ? 100
-      : currentStageIndex >= 0
-        ? Math.round(((currentStageIndex + 1) / FUNIL_PROGRESS_STAGES.length) * 100)
-        : 20
-
   const handleShareCliente = async () => {
     const shareText = `Cliente: ${selectedCliente.nome}\nStatus: ${selectedCliente.status}\nValor: ${formatCurrency(selectedCliente.valor_estimado || 0)}\nWhatsApp: ${selectedCliente.whatsapp || selectedCliente.telefone || 'N/A'}`
     if (typeof navigator !== 'undefined' && navigator.share) {
@@ -1150,26 +1134,6 @@ export const FichaClienteDrawer: React.FC = () => {
               <span className="text-xs font-semibold text-slate-500 truncate">
                 • {selectedCliente.status}
               </span>
-            </div>
-
-            {/* Barra de progresso visual mostrando a etapa atual do funil */}
-            <div className="mt-2.5">
-              <div className="flex items-center justify-between text-[11px] font-semibold text-slate-600 mb-1">
-                <span>Etapa: {selectedCliente.status}</span>
-                <span>{stageProgressPct}%</span>
-              </div>
-              <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden border border-slate-200">
-                <div
-                  className={`h-full rounded-full transition-all duration-300 ${
-                    selectedCliente.status === 'Perdido'
-                      ? 'bg-rose-500'
-                      : selectedCliente.status === 'Fechado'
-                        ? 'bg-emerald-600'
-                        : 'bg-emerald-500'
-                  }`}
-                  style={{ width: `${stageProgressPct}%` }}
-                />
-              </div>
             </div>
           </div>
         </div>
