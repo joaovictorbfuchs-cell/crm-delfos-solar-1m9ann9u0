@@ -1644,6 +1644,7 @@ export const SecaoUsinasCliente: React.FC<SecaoUsinasClienteProps> = ({
                     onUpdateUsinaMultipleFields={handleUpdateUsinaMultipleFields}
                     encontrarDatasheetModuloUsina={encontrarDatasheetModuloUsina}
                     encontrarEquipamentoComDatasheet={encontrarEquipamentoComDatasheet}
+                    onCloseModalUsina={() => setUsinaDetalhes(null)}
                   />
 
                   {/* Observações Técnicas */}

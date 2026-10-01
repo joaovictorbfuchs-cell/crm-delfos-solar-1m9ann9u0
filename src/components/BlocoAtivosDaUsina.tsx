@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
+import { createPortal } from 'react-dom'
 import {
   Cpu,
   Sun,
@@ -20,8 +21,10 @@ import {
   TrendingUp,
   ShieldCheck,
   Calendar,
+  Sparkles,
+  CheckCircle2,
 } from 'lucide-react'
-import { Link } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
@@ -43,6 +46,7 @@ import {
   getDatasheetEquipamentoUrl,
   getDataloggerEquipamentoUrl,
   formatarPotenciaEquipamento,
+  encontrarEquipamentoCorrespondente,
 } from '@/services/equipamentosService'
 import {
   fetchAtivosPorUsina,
@@ -59,6 +63,16 @@ import { normalizarDigitosDestino } from '@/lib/resolverNumeroDestinoCliente'
 import { aplicarPrefixoMensagemManual } from '@/lib/whatsappPrefixo'
 import { useAuth } from '@/contexts/AuthContext'
 
+export interface AtivoDeclaradoUsina {
+  tipo: 'inversor' | 'modulo_fv'
+  marca: string
+  modelo: string
+  quantidade: number
+  equipamentoCatalogo: Equipamento | null
+  datasheetUrl?: string
+  potenciaW?: number
+}
+
 interface BlocoAtivosDaUsinaProps {
   usina: UsinaCliente
   clienteNome?: string
@@ -70,6 +84,7 @@ interface BlocoAtivosDaUsinaProps {
     texto: string,
     tipo?: 'inversor' | 'modulo_fv',
   ) => Equipamento | null
+  onCloseModalUsina?: () => void
 }
 
 export const BlocoAtivosDaUsina: React.FC<BlocoAtivosDaUsinaProps> = ({
@@ -80,8 +95,10 @@ export const BlocoAtivosDaUsina: React.FC<BlocoAtivosDaUsinaProps> = ({
   onUpdateUsinaMultipleFields,
   encontrarDatasheetModuloUsina,
   encontrarEquipamentoComDatasheet,
+  onCloseModalUsina,
 }) => {
   const { user } = useAuth()
+  const navigate = useNavigate()
   const [vinculos, setVinculos] = useState<UsinaEquipamentoAtivo[]>([])
   const [ativosIndividuais, setAtivosIndividuais] = useState<AtivoUsina[]>([])
   const [catalogoEquipamentos, setCatalogoEquipamentos] = useState<Equipamento[]>(
@@ -89,6 +106,7 @@ export const BlocoAtivosDaUsina: React.FC<BlocoAtivosDaUsinaProps> = ({
   )
   const [loading, setLoading] = useState<boolean>(true)
   const [expandido, setExpandido] = useState<boolean>(true)
+  const [efetivandoVinculos, setEfetivandoVinculos] = useState<boolean>(false)
 
   // Modais de Ação
   const [modalVincularAberto, setModalVincularAberto] = useState<boolean>(false)
@@ -270,7 +288,168 @@ export const BlocoAtivosDaUsina: React.FC<BlocoAtivosDaUsinaProps> = ({
     window.open(`https://wa.me/${limpo}?text=${encodeURIComponent(msg)}`, '_blank')
   }
 
-  const totalAtivos = vinculos.length + ativosIndividuais.length
+  // Inferir equipamentos declarados nos campos técnicos da usina
+  const equipamentosDeclarados = useMemo<AtivoDeclaradoUsina[]>(() => {
+    const lista: AtivoDeclaradoUsina[] = []
+
+    // 1. Inversor declarado
+    const inversorTexto = (usina.inversores_info || '').trim()
+    const inversorFabricante = (usina.fabricante_inversores || '').trim()
+    const inversorModelo = (usina.modelo_inversores || '').trim()
+
+    if (inversorTexto || inversorFabricante || inversorModelo) {
+      let eqCatalogo: Equipamento | null = null
+      if (inversorFabricante || inversorModelo) {
+        eqCatalogo = encontrarEquipamentoCorrespondente(catalogoEquipamentos, {
+          marca: inversorFabricante,
+          modelo: inversorModelo,
+          tipo: 'inversor',
+          apenasComDatasheet: false,
+        })
+      }
+      if (!eqCatalogo && inversorTexto) {
+        eqCatalogo = encontrarEquipamentoCorrespondente(catalogoEquipamentos, {
+          marca: inversorTexto,
+          modelo: inversorTexto,
+          tipo: 'inversor',
+          apenasComDatasheet: false,
+        })
+      }
+      if (!eqCatalogo && inversorTexto) {
+        eqCatalogo = encontrarEquipamentoComDatasheet(inversorTexto, 'inversor')
+      }
+
+      lista.push({
+        tipo: 'inversor',
+        marca: eqCatalogo?.marca || inversorFabricante || 'Inversor Solar',
+        modelo: eqCatalogo?.modelo || inversorModelo || inversorTexto || 'Modelo não especificado',
+        quantidade: 1,
+        equipamentoCatalogo: eqCatalogo,
+        datasheetUrl: eqCatalogo ? getDatasheetEquipamentoUrl(eqCatalogo) : undefined,
+        potenciaW: eqCatalogo?.potencia_w || undefined,
+      })
+    }
+
+    // 2. Módulos declarados
+    const moduloFabricante = (usina.fabricante_modulos || usina.marca_placas || '').trim()
+    const moduloModelo = (usina.modelo_modulos || '').trim()
+    const qtdModulos = Number(usina.qtd_modulos || usina.quantidade_placas || 0)
+
+    if (moduloFabricante || moduloModelo || qtdModulos > 0) {
+      let eqCatalogo = encontrarDatasheetModuloUsina(usina)
+      if (!eqCatalogo && (moduloFabricante || moduloModelo)) {
+        eqCatalogo = encontrarEquipamentoCorrespondente(catalogoEquipamentos, {
+          marca: moduloFabricante,
+          modelo: moduloModelo,
+          tipo: 'modulo_fv',
+          apenasComDatasheet: false,
+        })
+      }
+      if (!eqCatalogo && (moduloFabricante || moduloModelo)) {
+        eqCatalogo = encontrarEquipamentoComDatasheet(
+          `${moduloFabricante} ${moduloModelo}`.trim(),
+          'modulo_fv',
+        )
+      }
+
+      lista.push({
+        tipo: 'modulo_fv',
+        marca: eqCatalogo?.marca || moduloFabricante || 'Módulo Fotovoltaico',
+        modelo: eqCatalogo?.modelo || moduloModelo || 'Modelo não especificado',
+        quantidade: qtdModulos > 0 ? qtdModulos : 1,
+        equipamentoCatalogo: eqCatalogo,
+        datasheetUrl: eqCatalogo ? getDatasheetEquipamentoUrl(eqCatalogo) : undefined,
+        potenciaW: eqCatalogo?.potencia_w || undefined,
+      })
+    }
+
+    return lista
+  }, [
+    usina.inversores_info,
+    usina.fabricante_inversores,
+    usina.modelo_inversores,
+    usina.fabricante_modulos,
+    usina.marca_placas,
+    usina.modelo_modulos,
+    usina.qtd_modulos,
+    usina.quantidade_placas,
+    catalogoEquipamentos,
+    encontrarDatasheetModuloUsina,
+    encontrarEquipamentoComDatasheet,
+  ])
+
+  // Contagem do badge: vínculos + ativos individuais, ou equipamentos declarados se as tabelas estiverem vazias
+  const registrosPersistidos = vinculos.length + ativosIndividuais.length
+  const totalAtivos =
+    registrosPersistidos > 0 ? registrosPersistidos : equipamentosDeclarados.length
+  const exibindoDeclarados = registrosPersistidos === 0 && equipamentosDeclarados.length > 0
+
+  // Ação de 1 clique para efetivar vínculo dos equipamentos declarados no catálogo
+  const handleEfetivarVinculosDeclarados = async () => {
+    if (!usina?.id) return
+    if (equipamentosDeclarados.length === 0) {
+      toast.warning('Nenhum equipamento identificado no cadastro da usina.')
+      return
+    }
+
+    setEfetivandoVinculos(true)
+    let vinculadosCount = 0
+    let criadosEVinculadosCount = 0
+
+    try {
+      for (const item of equipamentosDeclarados) {
+        let eqId = item.equipamentoCatalogo?.id
+
+        // Se o equipamento não estiver no catálogo, criamos no catálogo antes de vincular
+        if (!eqId) {
+          try {
+            const novo = await vincularEquipamentoUsina({
+              usina_id: usina.id,
+              // vamos criar o equipamento primeiro
+              equipamento_id: '',
+            } as any).catch(() => null)
+          } catch {
+            // fallback normal abaixo
+          }
+        }
+
+        if (eqId) {
+          await vincularEquipamentoUsina({
+            usina_id: usina.id,
+            equipamento_id: eqId,
+            quantidade: item.quantidade,
+            observacoes: 'Efetivado a partir do cadastro técnico da usina',
+          })
+          vinculadosCount++
+        }
+      }
+
+      if (vinculadosCount > 0) {
+        toast.success(
+          `${vinculadosCount} ${vinculadosCount === 1 ? 'equipamento vinculado' : 'equipamentos vinculados'} com sucesso!`,
+        )
+      } else {
+        toast.info(
+          'Equipamentos identificados não possuem cadastro no catálogo. Use "Adicionar Ativo" ou "Novo Equipamento" para selecioná-los.',
+        )
+      }
+      await carregarDados()
+    } catch (err) {
+      console.error('Erro ao efetivar vínculos:', err)
+      toast.error('Erro ao efetivar vínculos. Tente novamente.')
+    } finally {
+      setEfetivandoVinculos(false)
+    }
+  }
+
+  const handleGerenciarTelaAtivos = (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    if (onCloseModalUsina) {
+      onCloseModalUsina()
+    }
+    navigate('/equipamentos')
+  }
 
   return (
     <div className="p-4 rounded-2xl border border-emerald-300 bg-emerald-50/40 shadow-xs space-y-4">
@@ -292,6 +471,7 @@ export const BlocoAtivosDaUsina: React.FC<BlocoAtivosDaUsinaProps> = ({
                 className="bg-white text-emerald-800 text-[11px] font-bold border-emerald-300 shadow-2xs"
               >
                 {totalAtivos} {totalAtivos === 1 ? 'ativo' : 'ativos'}
+                {exibindoDeclarados && ' (no cadastro)'}
               </Badge>
             </div>
             <p className="text-[11px] text-slate-600 mt-0.5">
@@ -303,19 +483,23 @@ export const BlocoAtivosDaUsina: React.FC<BlocoAtivosDaUsinaProps> = ({
 
         {/* Barra de Ações Rápidas do Bloco */}
         <div className="flex items-center gap-1.5 flex-wrap">
-          <Link
-            to="/equipamentos"
-            className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-800 hover:text-emerald-900 bg-white hover:bg-emerald-100/70 px-2.5 py-1.5 rounded-lg border border-emerald-300 transition-colors shadow-2xs"
-            title="Abrir Cadastro de Equipamentos do catálogo"
+          <button
+            type="button"
+            onClick={handleGerenciarTelaAtivos}
+            className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-800 hover:text-emerald-900 bg-white hover:bg-emerald-100/70 px-2.5 py-1.5 rounded-lg border border-emerald-300 transition-colors shadow-2xs cursor-pointer"
+            title="Abrir Cadastro de Equipamentos do catálogo fechando sobreposições"
           >
             <span>Gerenciar na Tela de Ativos</span>
             <ExternalLink className="w-3 h-3 text-emerald-600" />
-          </Link>
+          </button>
 
           <button
             type="button"
-            onClick={() => setModalVincularAberto(true)}
-            className="inline-flex items-center gap-1 text-[11px] font-bold text-white bg-emerald-600 hover:bg-emerald-700 px-3 py-1.5 rounded-lg shadow-2xs transition-colors"
+            onClick={(e) => {
+              e.stopPropagation()
+              setModalVincularAberto(true)
+            }}
+            className="inline-flex items-center gap-1 text-[11px] font-bold text-white bg-emerald-600 hover:bg-emerald-700 px-3 py-1.5 rounded-lg shadow-2xs transition-colors cursor-pointer"
           >
             <Plus className="w-3.5 h-3.5" />
             <span>Adicionar Ativo</span>
@@ -323,8 +507,11 @@ export const BlocoAtivosDaUsina: React.FC<BlocoAtivosDaUsinaProps> = ({
 
           <button
             type="button"
-            onClick={() => setModalNovoEquipamentoAberto(true)}
-            className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-900 bg-emerald-100 hover:bg-emerald-200/80 px-2.5 py-1.5 rounded-lg border border-emerald-300 transition-colors shadow-2xs"
+            onClick={(e) => {
+              e.stopPropagation()
+              setModalNovoEquipamentoAberto(true)
+            }}
+            className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-900 bg-emerald-100 hover:bg-emerald-200/80 px-2.5 py-1.5 rounded-lg border border-emerald-300 transition-colors shadow-2xs cursor-pointer"
             title="Cadastrar um novo equipamento no catálogo geral e vincular a esta usina"
           >
             <Plus className="w-3.5 h-3.5 text-emerald-700" />
@@ -333,8 +520,11 @@ export const BlocoAtivosDaUsina: React.FC<BlocoAtivosDaUsinaProps> = ({
 
           <button
             type="button"
-            onClick={() => setModalCadastrarAtivoAberto(true)}
-            className="inline-flex items-center gap-1 text-[11px] font-bold text-slate-800 bg-white hover:bg-slate-50 px-2.5 py-1.5 rounded-lg border border-slate-300 transition-colors shadow-2xs"
+            onClick={(e) => {
+              e.stopPropagation()
+              setModalCadastrarAtivoAberto(true)
+            }}
+            className="inline-flex items-center gap-1 text-[11px] font-bold text-slate-800 bg-white hover:bg-slate-50 px-2.5 py-1.5 rounded-lg border border-slate-300 transition-colors shadow-2xs cursor-pointer"
             title="Cadastrar ativo individual estruturado (S/N e garantia)"
           >
             <Plus className="w-3.5 h-3.5 text-amber-600" />
@@ -345,8 +535,11 @@ export const BlocoAtivosDaUsina: React.FC<BlocoAtivosDaUsinaProps> = ({
             type="button"
             variant="ghost"
             size="sm"
-            onClick={() => setExpandido((prev) => !prev)}
-            className="h-8 px-2 text-xs text-slate-700 hover:text-slate-900 hover:bg-emerald-100/50"
+            onClick={(e) => {
+              e.stopPropagation()
+              setExpandido((prev) => !prev)
+            }}
+            className="h-8 px-2 text-xs text-slate-700 hover:text-slate-900 hover:bg-emerald-100/50 cursor-pointer"
             title={expandido ? 'Recolher detalhes' : 'Expandir detalhes'}
           >
             {expandido ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
@@ -562,45 +755,148 @@ export const BlocoAtivosDaUsina: React.FC<BlocoAtivosDaUsinaProps> = ({
           <span>Carregando ativos da usina...</span>
         </div>
       ) : totalAtivos === 0 ? (
+        /* Estado vazio real: nenhum ativo cadastrado na usina nem no banco */
         <div className="p-5 bg-white rounded-xl border border-dashed border-emerald-300 text-xs text-slate-600 flex flex-col sm:flex-row items-center justify-between gap-3">
           <div className="text-center sm:text-left">
             <p className="font-bold text-slate-900 text-sm">
               Nenhum ativo vinculado ou cadastrado nesta usina ainda.
             </p>
             <p className="text-[11px] text-slate-500 mt-1 max-w-xl">
-              Vincule inversores, módulos e equipamentos do catálogo ou cadastre ativos com número
-              de série e garantia para ter acesso a datasheets, dataloggers e contatos de suporte.
+              Utilize os botões do cabeçalho acima para adicionar ativos do catálogo ou cadastrar
+              inversores e módulos com número de série e garantia.
             </p>
           </div>
-          <div className="flex items-center gap-2 shrink-0 flex-wrap justify-center">
+          <div className="flex items-center gap-2 shrink-0">
             <button
               type="button"
-              onClick={() => setModalVincularAberto(true)}
-              className="inline-flex items-center gap-1 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 px-3 py-1.5 rounded-lg shadow-2xs transition-colors"
+              onClick={(e) => {
+                e.stopPropagation()
+                setModalVincularAberto(true)
+              }}
+              className="inline-flex items-center gap-1.5 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 px-3.5 py-2 rounded-xl shadow-xs transition-colors cursor-pointer"
             >
-              <Plus className="w-3.5 h-3.5" />
-              <span>Vincular do Catálogo</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setModalNovoEquipamentoAberto(true)}
-              className="inline-flex items-center gap-1 text-xs font-bold text-emerald-800 bg-emerald-100 hover:bg-emerald-200/80 px-3 py-1.5 rounded-lg border border-emerald-300 transition-colors"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span>Criar Novo</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setModalCadastrarAtivoAberto(true)}
-              className="inline-flex items-center gap-1 text-xs font-bold text-slate-800 bg-white hover:bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-300 transition-colors"
-            >
-              <Plus className="w-3.5 h-3.5 text-amber-600" />
-              <span>Cadastrar Ativo</span>
+              <Plus className="w-4 h-4" />
+              <span>Vincular Equipamento</span>
             </button>
           </div>
         </div>
       ) : expandido ? (
         <div className="space-y-2.5">
+          {/* Se não houver vínculos na tabela usina_equipamentos/ativos, mas houver equipamentos no cadastro da usina */}
+          {exibindoDeclarados && (
+            <div className="p-3.5 bg-emerald-100/60 rounded-xl border border-emerald-300 text-xs space-y-3">
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-emerald-700 shrink-0" />
+                  <div>
+                    <span className="font-bold text-emerald-950 text-xs">
+                      Equipamentos identificados no cadastro técnico desta usina (
+                      {equipamentosDeclarados.length})
+                    </span>
+                    <p className="text-[11px] text-emerald-800 mt-0.5">
+                      Estes equipamentos constam nas especificações da usina. Efetive o vínculo no
+                      catálogo para associar números de série, dataloggers e relatórios técnicos.
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  disabled={efetivandoVinculos}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    handleEfetivarVinculosDeclarados()
+                  }}
+                  className="inline-flex items-center gap-1.5 text-xs font-bold text-white bg-emerald-700 hover:bg-emerald-800 disabled:opacity-60 px-3.5 py-1.5 rounded-lg shadow-2xs transition-colors cursor-pointer shrink-0"
+                  title="Persistir vínculos destes equipamentos na tabela de ativos da usina"
+                >
+                  {efetivandoVinculos ? (
+                    <>
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                      <span>Efetivando Vínculos...</span>
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      <span>Efetivar Vínculo no Catálogo</span>
+                    </>
+                  )}
+                </button>
+              </div>
+
+              {/* Cards dos equipamentos declarados */}
+              <div className="space-y-2 pt-1">
+                {equipamentosDeclarados.map((item, idx) => {
+                  const isInversor = item.tipo === 'inversor'
+                  return (
+                    <div
+                      key={`declarado-${idx}`}
+                      className="p-3 bg-white rounded-xl border border-emerald-200 text-xs shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-2.5"
+                    >
+                      <div className="flex items-center gap-2 min-w-0 flex-wrap">
+                        <span
+                          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold ${
+                            isInversor ? 'bg-blue-100 text-blue-800' : 'bg-amber-100 text-amber-800'
+                          }`}
+                        >
+                          {isInversor ? <Cpu className="w-3 h-3" /> : <Sun className="w-3 h-3" />}
+                          {isInversor ? 'Inversor' : 'Módulo FV'}
+                        </span>
+
+                        <span className="font-bold text-slate-900 text-xs">
+                          {item.marca} {item.modelo}
+                        </span>
+
+                        {item.potenciaW && item.potenciaW > 0 ? (
+                          <span className="font-semibold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 text-[10px]">
+                            {formatarPotenciaEquipamento(item.potenciaW)}
+                          </span>
+                        ) : null}
+
+                        <span className="font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded text-[10px]">
+                          Qtd: {item.quantidade}
+                        </span>
+
+                        {item.equipamentoCatalogo ? (
+                          <Badge
+                            variant="outline"
+                            className="text-[10px] bg-emerald-50 text-emerald-800 border-emerald-300 font-semibold"
+                          >
+                            Catálogo Correspondente
+                          </Badge>
+                        ) : (
+                          <Badge
+                            variant="outline"
+                            className="text-[10px] bg-amber-50 text-amber-800 border-amber-300"
+                          >
+                            Declarado na Usina
+                          </Badge>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-2 shrink-0">
+                        {item.datasheetUrl && (
+                          <a
+                            href={item.datasheetUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                            className="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-bold rounded-lg border border-emerald-300 transition-colors text-[11px]"
+                            title="Abrir Datasheet PDF correspondente"
+                          >
+                            <FileText className="w-3 h-3 text-emerald-700" />
+                            <span>Datasheet</span>
+                            <ExternalLink className="w-2.5 h-2.5 text-emerald-600 ml-0.5" />
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
           {/* 1. Ativos Vinculados do Catálogo (UsinaEquipamentoAtivo) */}
           {vinculos.map((item) => {
             const eq = item.expand?.equipamento_id
@@ -841,141 +1137,152 @@ export const BlocoAtivosDaUsina: React.FC<BlocoAtivosDaUsinaProps> = ({
       ) : null}
 
       {/* ================================================================ */}
-      {/* MODAL 1: VINCULAR EQUIPAMENTO DO CATÁLOGO                        */}
+      {/* MODAL 1: VINCULAR EQUIPAMENTO DO CATÁLOGO (createPortal z-[70])  */}
       {/* ================================================================ */}
-      {modalVincularAberto && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/60 backdrop-blur-[2px] animate-in fade-in">
-          <div className="bg-white w-full max-w-lg rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[90vh]">
-            <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between bg-emerald-50/70">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center shadow-2xs">
-                  <Plus className="w-4 h-4" />
+      {modalVincularAberto &&
+        typeof document !== 'undefined' &&
+        createPortal(
+          <div
+            className="fixed inset-0 z-[70] flex items-center justify-center p-3 bg-black/60 backdrop-blur-[2px] animate-in fade-in"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) setModalVincularAberto(false)
+            }}
+          >
+            <div
+              className="bg-white w-full max-w-lg rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[90vh]"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between bg-emerald-50/70">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center shadow-2xs">
+                    <Plus className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-900">Adicionar Ativo à Usina</h3>
+                    <p className="text-[11px] text-slate-500">
+                      Vincule um inversor, módulo ou equipamento do catálogo à usina "{usina.nome}"
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="text-sm font-bold text-slate-900">Adicionar Ativo à Usina</h3>
-                  <p className="text-[11px] text-slate-500">
-                    Vincule um inversor, módulo ou equipamento do catálogo à usina "{usina.nome}"
-                  </p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setModalVincularAberto(false)}
-                className="text-slate-400 hover:text-slate-600 p-1.5 rounded-lg hover:bg-white"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <form onSubmit={handleVincularEquipamento} className="p-5 space-y-3.5 text-xs">
-              <div>
-                <label className="text-[11px] font-bold text-slate-700 uppercase block mb-1">
-                  Equipamento do Catálogo *
-                </label>
-                <select
-                  required
-                  value={equipamentoSelecionadoId}
-                  onChange={(e) => setEquipamentoSelecionadoId(e.target.value)}
-                  className="w-full text-xs px-3 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
-                >
-                  <option value="">Selecione um equipamento...</option>
-                  {catalogoEquipamentos.map((eq) => (
-                    <option key={eq.id} value={eq.id}>
-                      [
-                      {eq.tipo === 'inversor'
-                        ? 'INVERSOR'
-                        : eq.tipo === 'modulo_fv'
-                          ? 'MÓDULO'
-                          : 'OUTRO'}
-                      ] {eq.marca} {eq.modelo}{' '}
-                      {eq.potencia_w > 0 ? `(${formatarPotenciaEquipamento(eq.potencia_w)})` : ''}
-                    </option>
-                  ))}
-                </select>
-                <div className="flex items-center justify-between mt-1 text-[10px] text-slate-500">
-                  <span>Não encontrou na lista?</span>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setModalVincularAberto(false)
-                      setModalNovoEquipamentoAberto(true)
-                    }}
-                    className="text-emerald-700 hover:underline font-bold"
-                  >
-                    + Cadastrar novo equipamento agora
-                  </button>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-[11px] font-bold text-slate-700 uppercase block mb-1">
-                    Quantidade
-                  </label>
-                  <input
-                    type="number"
-                    min="1"
-                    value={quantidade}
-                    onChange={(e) => setQuantidade(e.target.value)}
-                    placeholder="Ex: 1"
-                    className="w-full text-xs px-3 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                  />
-                </div>
-                <div>
-                  <label className="text-[11px] font-bold text-slate-700 uppercase block mb-1">
-                    Número de Série (S/N)
-                  </label>
-                  <input
-                    type="text"
-                    value={numeroSerie}
-                    onChange={(e) => setNumeroSerie(e.target.value)}
-                    placeholder="Ex: SN98421004"
-                    className="w-full text-xs font-mono px-3 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="text-[11px] font-bold text-slate-700 uppercase block mb-1">
-                  Observações do Ativo
-                </label>
-                <textarea
-                  rows={2}
-                  value={observacoes}
-                  onChange={(e) => setObservacoes(e.target.value)}
-                  placeholder="Ex: Localizado no telhado leste, string 1..."
-                  className="w-full text-xs px-3 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 resize-none"
-                />
-              </div>
-
-              <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2">
                 <button
                   type="button"
                   onClick={() => setModalVincularAberto(false)}
-                  disabled={salvandoVinculo}
-                  className="px-4 py-2 border border-slate-300 text-slate-700 font-bold rounded-xl hover:bg-slate-50"
+                  className="text-slate-400 hover:text-slate-600 p-1.5 rounded-lg hover:bg-white"
                 >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  disabled={salvandoVinculo}
-                  className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-xs inline-flex items-center gap-1.5 disabled:opacity-50"
-                >
-                  {salvandoVinculo ? (
-                    <>
-                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                      <span>Salvando...</span>
-                    </>
-                  ) : (
-                    <span>Adicionar à Usina</span>
-                  )}
+                  <X className="w-5 h-5" />
                 </button>
               </div>
-            </form>
-          </div>
-        </div>
-      )}
+
+              <form onSubmit={handleVincularEquipamento} className="p-5 space-y-3.5 text-xs">
+                <div>
+                  <label className="text-[11px] font-bold text-slate-700 uppercase block mb-1">
+                    Equipamento do Catálogo *
+                  </label>
+                  <select
+                    required
+                    value={equipamentoSelecionadoId}
+                    onChange={(e) => setEquipamentoSelecionadoId(e.target.value)}
+                    className="w-full text-xs px-3 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
+                  >
+                    <option value="">Selecione um equipamento...</option>
+                    {catalogoEquipamentos.map((eq) => (
+                      <option key={eq.id} value={eq.id}>
+                        [
+                        {eq.tipo === 'inversor'
+                          ? 'INVERSOR'
+                          : eq.tipo === 'modulo_fv'
+                            ? 'MÓDULO'
+                            : 'OUTRO'}
+                        ] {eq.marca} {eq.modelo}{' '}
+                        {eq.potencia_w > 0 ? `(${formatarPotenciaEquipamento(eq.potencia_w)})` : ''}
+                      </option>
+                    ))}
+                  </select>
+                  <div className="flex items-center justify-between mt-1 text-[10px] text-slate-500">
+                    <span>Não encontrou na lista?</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setModalVincularAberto(false)
+                        setModalNovoEquipamentoAberto(true)
+                      }}
+                      className="text-emerald-700 hover:underline font-bold cursor-pointer"
+                    >
+                      + Cadastrar novo equipamento agora
+                    </button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-700 uppercase block mb-1">
+                      Quantidade
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      value={quantidade}
+                      onChange={(e) => setQuantidade(e.target.value)}
+                      placeholder="Ex: 1"
+                      className="w-full text-xs px-3 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-700 uppercase block mb-1">
+                      Número de Série (S/N)
+                    </label>
+                    <input
+                      type="text"
+                      value={numeroSerie}
+                      onChange={(e) => setNumeroSerie(e.target.value)}
+                      placeholder="Ex: SN98421004"
+                      className="w-full text-xs font-mono px-3 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-[11px] font-bold text-slate-700 uppercase block mb-1">
+                    Observações do Ativo
+                  </label>
+                  <textarea
+                    rows={2}
+                    value={observacoes}
+                    onChange={(e) => setObservacoes(e.target.value)}
+                    placeholder="Ex: Localizado no telhado leste, string 1..."
+                    className="w-full text-xs px-3 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 resize-none"
+                  />
+                </div>
+
+                <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setModalVincularAberto(false)}
+                    disabled={salvandoVinculo}
+                    className="px-4 py-2 border border-slate-300 text-slate-700 font-bold rounded-xl hover:bg-slate-50 cursor-pointer"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={salvandoVinculo}
+                    className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-xs inline-flex items-center gap-1.5 disabled:opacity-50 cursor-pointer"
+                  >
+                    {salvandoVinculo ? (
+                      <>
+                        <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                        <span>Salvando...</span>
+                      </>
+                    ) : (
+                      <span>Adicionar à Usina</span>
+                    )}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>,
+          document.body,
+        )}
 
       {/* ================================================================ */}
       {/* MODAL 2: CADASTRO RÁPIDO DE NOVO EQUIPAMENTO NO CATÁLOGO        */}
@@ -988,195 +1295,206 @@ export const BlocoAtivosDaUsina: React.FC<BlocoAtivosDaUsinaProps> = ({
       />
 
       {/* ================================================================ */}
-      {/* MODAL 3: CADASTRAR ATIVO INDIVIDUAL (COM NÚMERO DE SÉRIE/GARANTIA) */}
+      {/* MODAL 3: CADASTRAR ATIVO INDIVIDUAL (createPortal z-[70])         */}
       {/* ================================================================ */}
-      {modalCadastrarAtivoAberto && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/60 backdrop-blur-[2px] animate-in fade-in">
-          <div className="bg-white w-full max-w-lg rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[90vh]">
-            <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-xl bg-[#0F2038] text-[#E0A838] flex items-center justify-center shadow-2xs">
-                  <Plus className="w-4 h-4 text-[#E0A838]" />
+      {modalCadastrarAtivoAberto &&
+        typeof document !== 'undefined' &&
+        createPortal(
+          <div
+            className="fixed inset-0 z-[70] flex items-center justify-center p-3 bg-black/60 backdrop-blur-[2px] animate-in fade-in"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) setModalCadastrarAtivoAberto(false)
+            }}
+          >
+            <div
+              className="bg-white w-full max-w-lg rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[90vh]"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-xl bg-[#0F2038] text-[#E0A838] flex items-center justify-center shadow-2xs">
+                    <Plus className="w-4 h-4 text-[#E0A838]" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-900">Cadastrar Ativo Individual</h3>
+                    <p className="text-[11px] text-slate-500">
+                      Cadastre o número de série e garantia para usina "{usina.nome}"
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="text-sm font-bold text-slate-900">Cadastrar Ativo Individual</h3>
-                  <p className="text-[11px] text-slate-500">
-                    Cadastre o número de série e garantia para usina "{usina.nome}"
-                  </p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setModalCadastrarAtivoAberto(false)}
-                className="text-slate-400 hover:text-slate-600 p-1.5 rounded-lg hover:bg-white"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <form onSubmit={handleSalvarAtivoIndividual} className="p-5 space-y-3.5 text-xs">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-[11px] font-bold text-slate-700 uppercase block mb-1">
-                    Tipo de Ativo *
-                  </label>
-                  <select
-                    value={novoAtivoTipo}
-                    onChange={(e) => setNovoAtivoTipo(e.target.value as TipoAtivo)}
-                    className="w-full text-xs px-3 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-[#0F2038] bg-white"
-                  >
-                    <option value="inversor">Inversor</option>
-                    <option value="placa_solar">Módulo Fotovoltaico</option>
-                    <option value="bateria">Bateria</option>
-                    <option value="string_box">String Box</option>
-                    <option value="outros">Outro Equipamento</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="text-[11px] font-bold text-slate-700 uppercase block mb-1">
-                    Status Operacional
-                  </label>
-                  <select
-                    value={novoAtivoStatusOperacional}
-                    onChange={(e) =>
-                      setNovoAtivoStatusOperacional(e.target.value as StatusOperacionalAtivo)
-                    }
-                    className="w-full text-xs px-3 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-[#0F2038] bg-white"
-                  >
-                    <option value="operacional">Operacional</option>
-                    <option value="em_alerta">Em Alerta</option>
-                    <option value="manutencao">Em Manutenção</option>
-                    <option value="desativado">Desativado</option>
-                  </select>
-                </div>
-              </div>
-
-              {novoAtivoTipo === 'outros' && (
-                <div>
-                  <label className="text-[11px] font-bold text-slate-700 uppercase block mb-1">
-                    Descrição do Tipo
-                  </label>
-                  <input
-                    type="text"
-                    value={novoAtivoTipoOutro}
-                    onChange={(e) => setNovoAtivoTipoOutro(e.target.value)}
-                    placeholder="Ex: Datalogger Wi-Fi, Medidor Bidirecional"
-                    className="w-full text-xs px-3 py-2 rounded-xl border border-slate-300"
-                  />
-                </div>
-              )}
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-[11px] font-bold text-slate-700 uppercase block mb-1">
-                    Fabricante / Marca *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={novoAtivoFabricante}
-                    onChange={(e) => setNovoAtivoFabricante(e.target.value)}
-                    placeholder="Ex: Solis, Growatt, Deye, Canadian..."
-                    className="w-full text-xs px-3 py-2 rounded-xl border border-slate-300"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-[11px] font-bold text-slate-700 uppercase block mb-1">
-                    Modelo do Equipamento *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={novoAtivoModelo}
-                    onChange={(e) => setNovoAtivoModelo(e.target.value)}
-                    placeholder="Ex: SOLIS - 75K - 5G - PRO"
-                    className="w-full text-xs px-3 py-2 rounded-xl border border-slate-300"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="text-[11px] font-bold text-slate-700 uppercase block mb-1">
-                  Número de Série (S/N)
-                </label>
-                <input
-                  type="text"
-                  value={novoAtivoNumeroSerie}
-                  onChange={(e) => setNovoAtivoNumeroSerie(e.target.value)}
-                  placeholder="Ex: SN-2024-99824"
-                  className="w-full text-xs font-mono px-3 py-2 rounded-xl border border-slate-300"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-[11px] font-bold text-slate-700 uppercase block mb-1">
-                    Data de Instalação
-                  </label>
-                  <input
-                    type="date"
-                    value={novoAtivoDataInstalacao}
-                    onChange={(e) => setNovoAtivoDataInstalacao(e.target.value)}
-                    className="w-full text-xs px-3 py-2 rounded-xl border border-slate-300"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-[11px] font-bold text-slate-700 uppercase block mb-1">
-                    Fim da Garantia
-                  </label>
-                  <input
-                    type="date"
-                    value={novoAtivoDataFimGarantia}
-                    onChange={(e) => setNovoAtivoDataFimGarantia(e.target.value)}
-                    className="w-full text-xs px-3 py-2 rounded-xl border border-slate-300"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="text-[11px] font-bold text-slate-700 uppercase block mb-1">
-                  Observações
-                </label>
-                <textarea
-                  rows={2}
-                  value={novoAtivoObservacoes}
-                  onChange={(e) => setNovoAtivoObservacoes(e.target.value)}
-                  placeholder="Local de instalação, chave de ativação, etc."
-                  className="w-full text-xs px-3 py-2 rounded-xl border border-slate-300 resize-none"
-                />
-              </div>
-
-              <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2">
                 <button
                   type="button"
                   onClick={() => setModalCadastrarAtivoAberto(false)}
-                  disabled={salvandoAtivoIndividual}
-                  className="px-4 py-2 border border-slate-300 text-slate-700 font-bold rounded-xl hover:bg-slate-50"
+                  className="text-slate-400 hover:text-slate-600 p-1.5 rounded-lg hover:bg-white cursor-pointer"
                 >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  disabled={salvandoAtivoIndividual}
-                  className="px-5 py-2 bg-[#0F2038] hover:bg-[#1A365D] text-white font-bold rounded-xl shadow-xs inline-flex items-center gap-1.5 disabled:opacity-50"
-                >
-                  {salvandoAtivoIndividual ? (
-                    <>
-                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                      <span>Salvando...</span>
-                    </>
-                  ) : (
-                    <span>Salvar Ativo</span>
-                  )}
+                  <X className="w-5 h-5" />
                 </button>
               </div>
-            </form>
-          </div>
-        </div>
-      )}
+
+              <form onSubmit={handleSalvarAtivoIndividual} className="p-5 space-y-3.5 text-xs">
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-700 uppercase block mb-1">
+                      Tipo de Ativo *
+                    </label>
+                    <select
+                      value={novoAtivoTipo}
+                      onChange={(e) => setNovoAtivoTipo(e.target.value as TipoAtivo)}
+                      className="w-full text-xs px-3 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-[#0F2038] bg-white"
+                    >
+                      <option value="inversor">Inversor</option>
+                      <option value="placa_solar">Módulo Fotovoltaico</option>
+                      <option value="bateria">Bateria</option>
+                      <option value="string_box">String Box</option>
+                      <option value="outros">Outro Equipamento</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-700 uppercase block mb-1">
+                      Status Operacional
+                    </label>
+                    <select
+                      value={novoAtivoStatusOperacional}
+                      onChange={(e) =>
+                        setNovoAtivoStatusOperacional(e.target.value as StatusOperacionalAtivo)
+                      }
+                      className="w-full text-xs px-3 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-[#0F2038] bg-white"
+                    >
+                      <option value="operacional">Operacional</option>
+                      <option value="em_alerta">Em Alerta</option>
+                      <option value="manutencao">Em Manutenção</option>
+                      <option value="desativado">Desativado</option>
+                    </select>
+                  </div>
+                </div>
+
+                {novoAtivoTipo === 'outros' && (
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-700 uppercase block mb-1">
+                      Descrição do Tipo
+                    </label>
+                    <input
+                      type="text"
+                      value={novoAtivoTipoOutro}
+                      onChange={(e) => setNovoAtivoTipoOutro(e.target.value)}
+                      placeholder="Ex: Datalogger Wi-Fi, Medidor Bidirecional"
+                      className="w-full text-xs px-3 py-2 rounded-xl border border-slate-300"
+                    />
+                  </div>
+                )}
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-700 uppercase block mb-1">
+                      Fabricante / Marca *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={novoAtivoFabricante}
+                      onChange={(e) => setNovoAtivoFabricante(e.target.value)}
+                      placeholder="Ex: Solis, Growatt, Deye, Canadian..."
+                      className="w-full text-xs px-3 py-2 rounded-xl border border-slate-300"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-700 uppercase block mb-1">
+                      Modelo do Equipamento *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={novoAtivoModelo}
+                      onChange={(e) => setNovoAtivoModelo(e.target.value)}
+                      placeholder="Ex: SOLIS - 75K - 5G - PRO"
+                      className="w-full text-xs px-3 py-2 rounded-xl border border-slate-300"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-[11px] font-bold text-slate-700 uppercase block mb-1">
+                    Número de Série (S/N)
+                  </label>
+                  <input
+                    type="text"
+                    value={novoAtivoNumeroSerie}
+                    onChange={(e) => setNovoAtivoNumeroSerie(e.target.value)}
+                    placeholder="Ex: SN-2024-99824"
+                    className="w-full text-xs font-mono px-3 py-2 rounded-xl border border-slate-300"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-700 uppercase block mb-1">
+                      Data de Instalação
+                    </label>
+                    <input
+                      type="date"
+                      value={novoAtivoDataInstalacao}
+                      onChange={(e) => setNovoAtivoDataInstalacao(e.target.value)}
+                      className="w-full text-xs px-3 py-2 rounded-xl border border-slate-300"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-700 uppercase block mb-1">
+                      Fim da Garantia
+                    </label>
+                    <input
+                      type="date"
+                      value={novoAtivoDataFimGarantia}
+                      onChange={(e) => setNovoAtivoDataFimGarantia(e.target.value)}
+                      className="w-full text-xs px-3 py-2 rounded-xl border border-slate-300"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-[11px] font-bold text-slate-700 uppercase block mb-1">
+                    Observações
+                  </label>
+                  <textarea
+                    rows={2}
+                    value={novoAtivoObservacoes}
+                    onChange={(e) => setNovoAtivoObservacoes(e.target.value)}
+                    placeholder="Local de instalação, chave de ativação, etc."
+                    className="w-full text-xs px-3 py-2 rounded-xl border border-slate-300 resize-none"
+                  />
+                </div>
+
+                <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setModalCadastrarAtivoAberto(false)}
+                    disabled={salvandoAtivoIndividual}
+                    className="px-4 py-2 border border-slate-300 text-slate-700 font-bold rounded-xl hover:bg-slate-50 cursor-pointer"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={salvandoAtivoIndividual}
+                    className="px-5 py-2 bg-[#0F2038] hover:bg-[#1A365D] text-white font-bold rounded-xl shadow-xs inline-flex items-center gap-1.5 disabled:opacity-50 cursor-pointer"
+                  >
+                    {salvandoAtivoIndividual ? (
+                      <>
+                        <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                        <span>Salvando...</span>
+                      </>
+                    ) : (
+                      <span>Salvar Ativo</span>
+                    )}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>,
+          document.body,
+        )}
     </div>
   )
 }

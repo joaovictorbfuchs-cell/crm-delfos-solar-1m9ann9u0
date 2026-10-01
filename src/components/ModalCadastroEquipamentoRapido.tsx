@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { X, Cpu, Sun, Wrench, AlertCircle, RefreshCw } from 'lucide-react'
 import { createEquipamento } from '@/services/equipamentosService'
 import type { Equipamento, TipoEquipamento } from '@/types/equipamentos'
@@ -122,9 +123,17 @@ export function ModalCadastroEquipamentoRapido({
     }
   }
 
-  return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center p-3 bg-black/70 backdrop-blur-[2px] animate-in fade-in">
-      <div className="bg-white w-full max-w-lg rounded-2xl shadow-2xl border border-gray-200 overflow-hidden flex flex-col max-h-[92vh]">
+  const modalContent = (
+    <div
+      className="fixed inset-0 z-[70] flex items-center justify-center p-3 bg-black/70 backdrop-blur-[2px] animate-in fade-in"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose()
+      }}
+    >
+      <div
+        className="bg-white w-full max-w-lg rounded-2xl shadow-2xl border border-gray-200 overflow-hidden flex flex-col max-h-[92vh]"
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Topo */}
         <div className="px-5 py-3.5 border-b border-gray-100 flex items-center justify-between bg-emerald-50/70">
           <div className="flex items-center gap-2.5">
@@ -396,4 +405,9 @@ export function ModalCadastroEquipamentoRapido({
       </div>
     </div>
   )
+
+  if (typeof document !== 'undefined') {
+    return createPortal(modalContent, document.body)
+  }
+  return modalContent
 }
