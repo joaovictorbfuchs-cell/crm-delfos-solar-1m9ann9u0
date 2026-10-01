@@ -352,10 +352,10 @@ export function RelatorioOSPrestador({ ordens, onSelectOS }: RelatorioOSPrestado
             variant="ghost"
             size="sm"
             onClick={mesAnterior}
-            className="h-9 w-9 p-0 rounded-lg hover:bg-white text-gray-700"
+            className="h-8 w-8 p-0 rounded-lg hover:bg-white text-gray-700"
             title="Mês anterior"
           >
-            <ChevronLeft className="w-5 h-5" />
+            <ChevronLeft className="w-4 h-4" />
           </Button>
 
           <div className="px-3 text-center min-w-[150px]">
@@ -374,10 +374,10 @@ export function RelatorioOSPrestador({ ordens, onSelectOS }: RelatorioOSPrestado
             variant="ghost"
             size="sm"
             onClick={mesSeguinte}
-            className="h-9 w-9 p-0 rounded-lg hover:bg-white text-gray-700"
+            className="h-8 w-8 p-0 rounded-lg hover:bg-white text-gray-700"
             title="Próximo mês"
           >
-            <ChevronRight className="w-5 h-5" />
+            <ChevronRight className="w-4 h-4" />
           </Button>
 
           {!isMesAtual && (
@@ -717,25 +717,38 @@ export function RelatorioOSPrestador({ ordens, onSelectOS }: RelatorioOSPrestado
                             }}
                             className="bg-white rounded-xl p-3 sm:p-3.5 border border-gray-200 hover:border-emerald-500 hover:shadow-xs transition-all cursor-pointer flex flex-col sm:flex-row sm:items-center justify-between gap-2.5"
                           >
-                            <div className="flex items-start sm:items-center gap-3">
+                            <div className="flex items-start sm:items-center gap-3 min-w-0 flex-1">
                               <span className="p-1.5 rounded-lg bg-emerald-100 text-[#166534] shrink-0">
                                 <CheckCircle2 className="w-4 h-4" />
                               </span>
-                              <div>
+                              <div className="min-w-0 flex-1">
                                 <div className="flex items-center gap-2 flex-wrap">
-                                  <span className="text-xs font-bold text-gray-900">
+                                  <span
+                                    title={
+                                      cliente?.nome || cliente?.razao_social || 'Cliente Solar'
+                                    }
+                                    className="text-xs font-bold text-gray-900 line-clamp-2 leading-snug"
+                                  >
                                     {cliente?.nome || cliente?.razao_social || 'Cliente Solar'}
                                   </span>
                                   <Badge
                                     variant="outline"
-                                    className={`text-[10px] font-bold uppercase ${getBadgeColor(
+                                    className={`text-[10px] font-bold uppercase shrink-0 ${getBadgeColor(
                                       os.tipo_servico,
                                     )}`}
                                   >
                                     {os.tipo_servico}
                                   </Badge>
                                 </div>
-                                <div className="text-[11px] text-gray-500 mt-0.5 line-clamp-1">
+                                <div
+                                  title={[
+                                    os.endereco || cliente?.endereco || 'Sem endereço',
+                                    cliente?.cidade,
+                                  ]
+                                    .filter(Boolean)
+                                    .join(' • ')}
+                                  className="text-[11px] text-gray-500 mt-0.5 line-clamp-2 leading-relaxed break-words"
+                                >
                                   {os.endereco || cliente?.endereco || 'Sem endereço'}
                                   {cliente?.cidade ? ` • ${cliente.cidade}` : ''}
                                 </div>
@@ -775,7 +788,7 @@ export function RelatorioOSPrestador({ ordens, onSelectOS }: RelatorioOSPrestado
                                   size="sm"
                                   disabled={gerandoPdfOsId === os.id}
                                   onClick={() => handleVerRelatorioPdf(os)}
-                                  className="h-7 px-2 text-[10px] font-bold text-emerald-800 border-emerald-300 hover:bg-emerald-50 bg-white"
+                                  className="h-8 px-2.5 text-[10px] font-bold text-emerald-800 border-emerald-300 hover:bg-emerald-50 bg-white"
                                   title="Ver Relatório Técnico de Execução em PDF"
                                 >
                                   <FileText className="w-3 h-3 mr-1 text-emerald-600" />
@@ -786,7 +799,7 @@ export function RelatorioOSPrestador({ ordens, onSelectOS }: RelatorioOSPrestado
                                   type="button"
                                   size="sm"
                                   onClick={() => setOsParaWhatsApp(os)}
-                                  className="h-7 px-2 text-[10px] font-bold bg-[#16A34A] hover:bg-[#15803D] text-white"
+                                  className="h-8 px-2.5 text-[10px] font-bold bg-[#16A34A] hover:bg-[#15803D] text-white"
                                   title="Enviar Relatório Técnico de Execução por WhatsApp"
                                 >
                                   <Send className="w-3 h-3 mr-1" />

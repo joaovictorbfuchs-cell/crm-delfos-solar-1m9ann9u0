@@ -175,18 +175,18 @@ export default function MinhasOS() {
   }
 
   return (
-    <div className="space-y-5 max-w-5xl mx-auto pb-12">
+    <div className="space-y-3.5 max-w-5xl mx-auto pb-10">
       {/* Top Banner de Minhas OS */}
-      <div className="bg-white rounded-2xl p-4 sm:p-6 border border-[#E5E7EB] shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <span className="p-2.5 rounded-xl bg-emerald-100 text-[#166534] inline-flex items-center justify-center shadow-2xs">
-            <Wrench className="w-6 h-6" />
+      <div className="bg-white rounded-xl p-3 sm:p-4 border border-[#E5E7EB] shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex items-center gap-2.5">
+          <span className="p-1.5 rounded-lg bg-emerald-100 text-[#166534] inline-flex items-center justify-center shadow-2xs">
+            <Wrench className="w-4 h-4" />
           </span>
           <div>
-            <h2 className="text-lg sm:text-xl font-bold text-gray-900 leading-tight">
+            <h2 className="text-base sm:text-lg font-bold text-gray-900 leading-tight">
               Minhas Ordens de Serviço
             </h2>
-            <p className="text-xs text-gray-500">
+            <p className="text-[11px] sm:text-xs text-gray-500">
               Atividades e manutenções solares atribuídas a você ({currentUserName || 'Prestador'})
             </p>
           </div>
@@ -197,29 +197,31 @@ export default function MinhasOS() {
           variant="outline"
           onClick={carregarDados}
           disabled={isLoading}
-          className="h-11 px-4 rounded-xl border-gray-200 hover:bg-gray-50 text-gray-700 flex items-center gap-2 self-start sm:self-auto"
+          className="h-8 px-3 rounded-lg border-gray-200 hover:bg-gray-50 text-gray-700 flex items-center gap-1.5 self-start sm:self-auto text-xs font-semibold"
           title="Atualizar Minhas OS"
         >
-          <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin text-emerald-600' : ''}`} />
-          <span className="text-xs font-semibold">Atualizar</span>
+          <RefreshCw
+            className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin text-emerald-600' : ''}`}
+          />
+          <span>Atualizar</span>
         </Button>
       </div>
 
       {/* Tabs: Pendentes (e em andamento) vs Calendário vs Concluídas (Histórico) */}
-      <div className="grid grid-cols-3 gap-2 p-1.5 bg-gray-100/90 rounded-2xl border border-gray-200">
+      <div className="grid grid-cols-3 gap-1.5 p-1 bg-gray-100/90 rounded-xl border border-gray-200">
         <button
           type="button"
           onClick={() => setActiveTab('pendentes')}
-          className={`h-12 sm:h-11 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-1.5 sm:gap-2 ${
+          className={`h-8 sm:h-8 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
             activeTab === 'pendentes'
-              ? 'bg-white text-emerald-800 shadow-xs border border-gray-200/80'
+              ? 'bg-white text-emerald-800 shadow-2xs border border-gray-200/80'
               : 'text-gray-600 hover:text-gray-900'
           }`}
         >
-          <Clock className="w-4 h-4 text-amber-600" />
+          <Clock className="w-3.5 h-3.5 text-amber-600 shrink-0" />
           <span>Pendentes</span>
           <span
-            className={`px-1.5 sm:px-2 py-0.5 rounded-full text-[10px] sm:text-[11px] font-black ${
+            className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${
               activeTab === 'pendentes'
                 ? 'bg-amber-100 text-amber-800'
                 : 'bg-gray-200 text-gray-700'
@@ -232,16 +234,16 @@ export default function MinhasOS() {
         <button
           type="button"
           onClick={() => setActiveTab('calendario')}
-          className={`h-12 sm:h-11 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-1.5 sm:gap-2 ${
+          className={`h-8 sm:h-8 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
             activeTab === 'calendario'
-              ? 'bg-white text-emerald-800 shadow-xs border border-gray-200/80'
+              ? 'bg-white text-emerald-800 shadow-2xs border border-gray-200/80'
               : 'text-gray-600 hover:text-gray-900'
           }`}
         >
-          <Calendar className="w-4 h-4 text-emerald-600" />
+          <Calendar className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
           <span>Calendário</span>
           <span
-            className={`px-1.5 sm:px-2 py-0.5 rounded-full text-[10px] sm:text-[11px] font-black ${
+            className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${
               activeTab === 'calendario'
                 ? 'bg-emerald-100 text-emerald-800'
                 : 'bg-gray-200 text-gray-700'
@@ -254,16 +256,16 @@ export default function MinhasOS() {
         <button
           type="button"
           onClick={() => setActiveTab('concluidas')}
-          className={`h-12 sm:h-11 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-1.5 sm:gap-2 ${
+          className={`h-8 sm:h-8 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
             activeTab === 'concluidas'
-              ? 'bg-white text-emerald-800 shadow-xs border border-gray-200/80'
+              ? 'bg-white text-emerald-800 shadow-2xs border border-gray-200/80'
               : 'text-gray-600 hover:text-gray-900'
           }`}
         >
-          <CheckCheck className="w-4 h-4 text-emerald-600" />
+          <CheckCheck className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
           <span>Histórico Concluídas</span>
           <span
-            className={`px-1.5 sm:px-2 py-0.5 rounded-full text-[10px] sm:text-[11px] font-black ${
+            className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${
               activeTab === 'concluidas'
                 ? 'bg-emerald-100 text-emerald-800'
                 : 'bg-gray-200 text-gray-700'
@@ -292,22 +294,22 @@ export default function MinhasOS() {
       ) : (
         <>
           {/* Busca e Filtros */}
-          <div className="bg-white rounded-2xl p-3 sm:p-4 border border-gray-200 shadow-2xs flex flex-col sm:flex-row gap-2.5">
+          <div className="bg-white rounded-xl p-2.5 sm:p-3 border border-gray-200 shadow-2xs flex flex-col sm:flex-row gap-2">
             <div className="relative flex-1">
-              <Search className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+              <Search className="w-3.5 h-3.5 text-gray-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
               <Input
                 type="text"
                 placeholder="Buscar por cliente ou endereço..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-9 h-11 text-xs sm:text-sm rounded-xl border-gray-200 focus:border-emerald-600"
+                className="pl-8 h-8 text-xs rounded-lg border-gray-200 focus:border-emerald-600"
               />
             </div>
 
             <select
               value={selectedTipoFilter}
               onChange={(e) => setSelectedTipoFilter(e.target.value)}
-              className="h-11 px-3 text-xs sm:text-sm font-medium rounded-xl border border-gray-200 bg-white text-gray-800 focus:outline-hidden focus:border-emerald-600"
+              className="h-8 px-2.5 text-xs font-medium rounded-lg border border-gray-200 bg-white text-gray-800 focus:outline-hidden focus:border-emerald-600"
             >
               <option value="todos">Todos os Serviços</option>
               <option value="Limpeza">Limpeza</option>
@@ -327,15 +329,15 @@ export default function MinhasOS() {
               </p>
             </div>
           ) : filteredList.length === 0 ? (
-            <div className="bg-white rounded-2xl p-8 border border-gray-200 text-center flex flex-col items-center justify-center">
-              <div className="w-14 h-14 rounded-2xl bg-gray-100 flex items-center justify-center text-gray-400 mb-3">
+            <div className="bg-white rounded-xl p-8 border border-gray-200 text-center flex flex-col items-center justify-center">
+              <div className="w-12 h-12 rounded-xl bg-gray-100 flex items-center justify-center text-gray-400 mb-3">
                 {activeTab === 'pendentes' ? (
-                  <CheckCircle2 className="w-8 h-8 text-emerald-600" />
+                  <CheckCircle2 className="w-7 h-7 text-emerald-600" />
                 ) : (
-                  <FileText className="w-8 h-8 text-gray-400" />
+                  <FileText className="w-7 h-7 text-gray-400" />
                 )}
               </div>
-              <h3 className="text-base font-bold text-gray-900 mb-1">
+              <h3 className="text-sm sm:text-base font-bold text-gray-900 mb-1">
                 {activeTab === 'pendentes'
                   ? 'Você não possui OSs pendentes no momento'
                   : 'Nenhuma OS concluída no seu histórico'}
@@ -347,9 +349,18 @@ export default function MinhasOS() {
               </p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
               {filteredList.map((os) => {
                 const cliente = os.expand?.cliente_id
+                const clienteNome =
+                  cliente?.nome || cliente?.razao_social || os.endereco || 'Cliente Solar'
+                const enderecoFormatado = [
+                  os.endereco || cliente?.endereco || 'Endereço não informado',
+                  cliente?.cidade ? cliente.cidade : null,
+                ]
+                  .filter(Boolean)
+                  .join(' • ')
+
                 const checklistTotal = os.checklist?.length || 0
                 const checklistFeitos = os.checklist?.filter((c) => c.concluido).length || 0
                 const fotosQtd = os.fotos?.length || 0
@@ -368,7 +379,7 @@ export default function MinhasOS() {
                         setSelectedOS(os)
                       }
                     }}
-                    className={`bg-white rounded-2xl p-4 sm:p-5 border transition-all text-left flex flex-col justify-between group cursor-pointer shadow-2xs hover:shadow-md hover:border-emerald-500 active:scale-[0.99] ${
+                    className={`bg-white rounded-xl p-3 sm:p-3.5 border transition-all text-left flex flex-col justify-between group cursor-pointer shadow-2xs hover:shadow-xs hover:border-emerald-500 active:scale-[0.99] ${
                       os.status === 'concluida'
                         ? 'border-gray-200 bg-gray-50/50'
                         : emAndamento
@@ -378,25 +389,25 @@ export default function MinhasOS() {
                   >
                     <div>
                       {/* Topo do Card */}
-                      <div className="flex items-center justify-between gap-2 mb-2.5">
-                        <span className="text-[11px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-200/80">
+                      <div className="flex items-center justify-between gap-1.5 mb-1.5">
+                        <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-800 border border-emerald-200/80">
                           {os.tipo_servico}
                         </span>
 
-                        <div className="flex items-center gap-1.5 ml-auto">
+                        <div className="flex items-center gap-1 ml-auto">
                           {os.status === 'concluida' ? (
-                            <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-100/80 px-2.5 py-0.5 rounded-full">
-                              <CheckCircle2 className="w-3.5 h-3.5" />
+                            <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-100/80 px-2 py-0.5 rounded-full">
+                              <CheckCircle2 className="w-3 h-3 shrink-0" />
                               Concluída
                             </span>
                           ) : emAndamento ? (
-                            <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-800 bg-amber-100 px-2.5 py-0.5 rounded-full animate-pulse">
-                              <PlayCircle className="w-3.5 h-3.5 text-amber-600" />
+                            <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-800 bg-amber-100 px-2 py-0.5 rounded-full animate-pulse">
+                              <PlayCircle className="w-3 h-3 text-amber-600 shrink-0" />
                               Em Andamento
                             </span>
                           ) : (
-                            <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-700 bg-amber-100/80 px-2.5 py-0.5 rounded-full">
-                              <Clock className="w-3.5 h-3.5" />
+                            <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-700 bg-amber-100/80 px-2 py-0.5 rounded-full">
+                              <Clock className="w-3 h-3 shrink-0" />
                               Pendente
                             </span>
                           )}
@@ -408,57 +419,62 @@ export default function MinhasOS() {
                                 e.stopPropagation()
                                 setOsParaExcluir(os)
                               }}
-                              className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
+                              className="h-8 w-8 inline-flex items-center justify-center text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
                               title="Excluir ordem de serviço"
                               aria-label="Excluir ordem de serviço"
                             >
-                              <Trash2 className="w-4 h-4" />
+                              <Trash2 className="w-3.5 h-3.5" />
                             </button>
                           )}
                         </div>
                       </div>
 
-                      {/* Nome do Cliente */}
-                      <h3 className="text-base sm:text-lg font-bold text-gray-900 group-hover:text-emerald-700 transition-colors mb-2">
-                        {cliente?.nome || cliente?.razao_social || os.endereco || 'Cliente Solar'}
+                      {/* Nome do Cliente - legível com 2 linhas e title */}
+                      <h3
+                        title={clienteNome}
+                        className="text-sm sm:text-base font-bold text-gray-900 group-hover:text-emerald-700 transition-colors line-clamp-2 leading-snug mb-1"
+                      >
+                        {clienteNome}
                       </h3>
 
-                      {/* Endereço */}
-                      <div className="flex items-start gap-2 text-xs text-gray-600 mb-2">
+                      {/* Endereço - quebra elegante em 2 linhas com title completo */}
+                      <div
+                        title={enderecoFormatado}
+                        className="flex items-start gap-1.5 text-xs text-gray-600 mb-1.5"
+                      >
                         <MapPin className="w-3.5 h-3.5 text-gray-400 shrink-0 mt-0.5" />
-                        <span className="line-clamp-2">
-                          {os.endereco || cliente?.endereco || 'Endereço não informado'}
-                          {cliente?.cidade ? ` • ${cliente.cidade}` : ''}
+                        <span className="line-clamp-2 leading-relaxed break-words">
+                          {enderecoFormatado}
                         </span>
                       </div>
 
                       {/* Data Agendada */}
-                      <div className="flex items-center gap-2 text-xs text-gray-600 mb-3">
+                      <div className="flex items-center gap-1.5 text-xs text-gray-600 mb-2">
                         <Calendar className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                        <span>
+                        <span className="text-[11px] sm:text-xs">
                           Data: <strong>{formatDateTime(os.data_agendada)}</strong>
                         </span>
                       </div>
                     </div>
 
                     {/* Rodapé do Card */}
-                    <div className="pt-3 border-t border-gray-100 flex items-center justify-between gap-2 mt-2 flex-wrap">
-                      <div className="flex items-center gap-2 text-[11px] text-gray-500">
+                    <div className="pt-2 border-t border-gray-100 flex items-center justify-between gap-2 mt-1 flex-wrap">
+                      <div className="flex items-center gap-1.5 text-[10px] sm:text-[11px] text-gray-500">
                         {checklistTotal > 0 && (
-                          <span className="bg-gray-100 px-2 py-0.5 rounded font-medium">
+                          <span className="bg-gray-100 px-1.5 py-0.5 rounded font-medium">
                             Checklist: {checklistFeitos}/{checklistTotal}
                           </span>
                         )}
                         {fotosQtd > 0 && (
-                          <span className="bg-gray-100 px-2 py-0.5 rounded font-medium">
+                          <span className="bg-gray-100 px-1.5 py-0.5 rounded font-medium">
                             📷 {fotosQtd} foto(s)
                           </span>
                         )}
                       </div>
 
-                      <div className="inline-flex items-center gap-1 text-xs font-bold text-emerald-700 group-hover:translate-x-0.5 transition-transform">
+                      <div className="h-8 px-2 inline-flex items-center gap-1 text-xs font-bold text-emerald-700 group-hover:translate-x-0.5 transition-transform">
                         <span>{os.status === 'concluida' ? 'Ver Detalhes' : 'Executar OS'}</span>
-                        <ChevronRight className="w-4 h-4" />
+                        <ChevronRight className="w-3.5 h-3.5" />
                       </div>
                     </div>
                   </div>

@@ -490,7 +490,7 @@ export function CalendarioExecucaoOS({
               variant="outline"
               size="sm"
               onClick={handlePrev}
-              className="h-9 px-2.5 rounded-xl border-gray-200 hover:bg-gray-50 text-gray-700 text-xs font-semibold flex items-center gap-1"
+              className="h-8 px-2.5 rounded-lg border-gray-200 hover:bg-gray-50 text-gray-700 text-xs font-semibold flex items-center gap-1"
               title={
                 viewMode === 'mes'
                   ? 'Mês anterior'
@@ -514,7 +514,7 @@ export function CalendarioExecucaoOS({
               variant="outline"
               size="sm"
               onClick={handleCurrent}
-              className="h-9 px-3 rounded-xl border-emerald-200 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-xs font-bold shadow-2xs"
+              className="h-8 px-3 rounded-lg border-emerald-200 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-xs font-bold shadow-2xs"
               title={
                 viewMode === 'mes'
                   ? 'Voltar para o mês corrente'
@@ -531,7 +531,7 @@ export function CalendarioExecucaoOS({
               variant="outline"
               size="sm"
               onClick={handleNext}
-              className="h-9 px-2.5 rounded-xl border-gray-200 hover:bg-gray-50 text-gray-700 text-xs font-semibold flex items-center gap-1"
+              className="h-8 px-2.5 rounded-lg border-gray-200 hover:bg-gray-50 text-gray-700 text-xs font-semibold flex items-center gap-1"
               title={
                 viewMode === 'mes'
                   ? 'Próximo mês'
@@ -755,11 +755,11 @@ export function CalendarioExecucaoOS({
                 type="button"
                 variant="outline"
                 size="sm"
-                onClick={handleCurrentMonth}
-                className="rounded-xl border-emerald-300 text-emerald-800 hover:bg-emerald-50 text-xs font-bold"
+                onClick={handleCurrent}
+                className="h-8 px-3 rounded-lg border-emerald-300 text-emerald-800 hover:bg-emerald-50 text-xs font-bold"
               >
-                Ir para o Mês Atual
-              </Button>
+                Ir para a Semana Atual
+              </Button>{' '}
             </div>
           )}
         </>
@@ -958,10 +958,10 @@ export function CalendarioExecucaoOS({
                 variant="outline"
                 size="sm"
                 onClick={handleCurrent}
-                className="rounded-xl border-emerald-300 text-emerald-800 hover:bg-emerald-50 text-xs font-bold"
+                className="h-8 px-3 rounded-lg border-emerald-300 text-emerald-800 hover:bg-emerald-50 text-xs font-bold"
               >
-                Ir para a Semana Atual
-              </Button>
+                Ir para o Dia de Hoje
+              </Button>{' '}
             </div>
           )}
         </>
@@ -1010,10 +1010,10 @@ export function CalendarioExecucaoOS({
                 variant="outline"
                 size="sm"
                 onClick={handleCurrent}
-                className="mt-2 rounded-xl border-emerald-300 text-emerald-800 hover:bg-emerald-50 text-xs font-bold"
+                className="h-8 px-3 rounded-lg border-emerald-300 text-emerald-800 hover:bg-emerald-50 text-xs font-bold"
               >
-                Voltar para Hoje
-              </Button>
+                Ir para o Mês Atual
+              </Button>{' '}
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
@@ -1068,14 +1068,20 @@ export function CalendarioExecucaoOS({
                       </div>
 
                       {/* Nome do Cliente */}
-                      <h5 className="text-sm sm:text-base font-bold text-gray-900 group-hover:text-emerald-700 transition-colors mb-1">
+                      <h5
+                        title={clienteNome}
+                        className="text-sm sm:text-base font-bold text-gray-900 group-hover:text-emerald-700 transition-colors line-clamp-2 leading-snug mb-1"
+                      >
                         {clienteNome}
                       </h5>
 
                       {/* Endereço */}
-                      <div className="flex items-start gap-1.5 text-xs text-gray-600 mb-2">
+                      <div
+                        title={os.endereco || 'Endereço não informado'}
+                        className="flex items-start gap-1.5 text-xs text-gray-600 mb-2"
+                      >
                         <MapPin className="w-3.5 h-3.5 text-gray-400 shrink-0 mt-0.5" />
-                        <span className="line-clamp-2">
+                        <span className="line-clamp-2 leading-relaxed break-words">
                           {os.endereco || 'Endereço não informado'}
                         </span>
                       </div>
@@ -1202,14 +1208,20 @@ export function CalendarioExecucaoOS({
                       </div>
 
                       {/* Nome do Cliente */}
-                      <h5 className="text-sm sm:text-base font-bold text-gray-900 group-hover:text-emerald-700 transition-colors mb-1">
+                      <h5
+                        title={clienteNome}
+                        className="text-sm sm:text-base font-bold text-gray-900 group-hover:text-emerald-700 transition-colors line-clamp-2 leading-snug mb-1"
+                      >
                         {clienteNome}
                       </h5>
 
                       {/* Endereço */}
-                      <div className="flex items-start gap-1.5 text-xs text-gray-600 mb-2">
+                      <div
+                        title={os.endereco || 'Endereço não informado'}
+                        className="flex items-start gap-1.5 text-xs text-gray-600 mb-2"
+                      >
                         <MapPin className="w-3.5 h-3.5 text-gray-400 shrink-0 mt-0.5" />
-                        <span className="line-clamp-1">
+                        <span className="line-clamp-2 leading-relaxed break-words">
                           {os.endereco || 'Endereço não informado'}
                         </span>
                       </div>

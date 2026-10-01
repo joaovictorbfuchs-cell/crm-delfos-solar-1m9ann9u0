@@ -333,7 +333,7 @@ export const BotaoEnviarOSWhatsApp: React.FC<BotaoEnviarOSWhatsAppProps> = ({
               size={size}
               onClick={handleAbrirConferencia}
               disabled={status === 'loading'}
-              className={`transition-all duration-150 inline-flex items-center gap-1.5 font-medium select-none ${
+              className={`h-8 px-2.5 text-[11px] transition-all duration-150 inline-flex items-center gap-1.5 font-medium select-none ${
                 status === 'success'
                   ? 'bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600'
                   : status === 'error'
@@ -344,24 +344,24 @@ export const BotaoEnviarOSWhatsApp: React.FC<BotaoEnviarOSWhatsAppProps> = ({
               {status === 'loading' ? (
                 <>
                   <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-700" />
-                  {showLabel && <span className="text-xs">Enviando...</span>}
+                  {showLabel && <span className="text-[11px]">Enviando...</span>}
                 </>
               ) : status === 'success' ? (
                 <>
                   <Check className="w-3.5 h-3.5 stroke-[3] text-white" />
-                  {showLabel && <span className="text-xs font-bold text-white">Enviado ✓</span>}
+                  {showLabel && <span className="text-[11px] font-bold text-white">Enviado ✓</span>}
                 </>
               ) : status === 'error' ? (
                 <>
                   <AlertCircle className="w-3.5 h-3.5 text-rose-600" />
                   {showLabel && (
-                    <span className="text-xs text-rose-700 font-semibold">Tentar envio</span>
+                    <span className="text-[11px] text-rose-700 font-semibold">Tentar envio</span>
                   )}
                 </>
               ) : (
                 <>
                   <MessageSquare className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                  {showLabel && <span className="text-xs">{label}</span>}
+                  {showLabel && <span className="text-[11px]">{label}</span>}
                 </>
               )}
             </Button>
