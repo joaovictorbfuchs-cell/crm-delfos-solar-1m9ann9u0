@@ -622,28 +622,33 @@ export const ComercialListView: React.FC<ComercialListViewProps> = ({
     navigate('/clientes')
   }
 
-  // 8. Excluir Selecionados em Lote (IMPORTANTE: EXCLUI APENAS NEGÓCIOS, PRESERVANDO CLIENTES)
+  // 8. Excluir Selecionados em Lote (REGRA VIGENTE: EXCLUI APENAS NEGÓCIOS DO FUNIL, NUNCA CLIENTES)
   const handleConfirmExcluirLote = async () => {
     if (selectedIds.length === 0) return
-    const count = selectedIds.length
     setIsProcessing(true)
     try {
       const itensSelecionados = itensAtivos.filter((i) => selectedIds.includes(i.id))
       const negocioIds = itensSelecionados.map((i) => i.negocioId).filter(Boolean) as string[]
 
       if (negocioIds.length > 0) {
-        // Exclui APENAS os negócios. Os clientes permanecem 100% intactos no cadastro.
+        // Exclui APENAS os negócios da coleção `negocios`. Os clientes vinculados permanecem 100% intactos no cadastro.
         await bulkDeleteNegocios(negocioIds)
         toast({
           title: 'Negócios excluídos',
-          description: `${negocioIds.length} negócio(s) removido(s) do funil. Todos os clientes vinculados continuam intactos no cadastro.`,
+          description: `${negocioIds.length} negócio(s) removido(s) do funil comercial. Todos os clientes vinculados continuam 100% intactos no cadastro.`,
         })
       } else {
-        // Modo legado sem coleção de negócios
-        await bulkRemoveClientes(selectedIds)
+        // Se nenhum negócio individual da coleção `negocios` foi encontrado, remove os itens do funil ativo
+        // através de bulkArquivar para preservar o cadastro dos clientes e todos os seus dados vinculados.
+        const clienteIds = Array.from(
+          new Set(itensSelecionados.map((i) => i.clienteId || i.id).filter(Boolean)),
+        )
+        if (clienteIds.length > 0) {
+          await bulkArquivar(clienteIds)
+        }
         toast({
-          title: 'Registros excluídos',
-          description: `${count} registro(s) excluído(s).`,
+          title: 'Itens removidos do funil',
+          description: `${clienteIds.length} lead(s) removido(s) do funil comercial ativo. Os dados cadastrais continuam intactos.`,
         })
       }
 
@@ -1279,7 +1284,7 @@ export const ComercialListView: React.FC<ComercialListViewProps> = ({
               <span>Arquivar</span>
             </Button>
 
-            {/* 5. Excluir Selecionados (Destrutivo) */}
+            {/* 5. Excluir Selecionados (Destrutivo para Negócios, Clientes Preservados) */}
             <Button
               type="button"
               size="sm"
@@ -1287,7 +1292,7 @@ export const ComercialListView: React.FC<ComercialListViewProps> = ({
               onClick={() => setModalConfirmarExcluirLoteOpen(true)}
               disabled={isProcessing}
               className="bg-rose-600 hover:bg-rose-700 active:bg-rose-800 text-white text-xs gap-1.5 h-8 px-2.5 font-semibold shadow-xs"
-              title="Excluir permanentemente todos os clientes selecionados"
+              title="Excluir permanentemente todos os negócios selecionados do funil comercial (os clientes permanecem intactos)"
             >
               <Trash2 className="w-3.5 h-3.5" />
               <span>Excluir ({selectedIds.length})</span>
@@ -1478,7 +1483,7 @@ export const ComercialListView: React.FC<ComercialListViewProps> = ({
         </DialogContent>
       </Dialog>
 
-      {/* Modal 5: Confirmar Exclusão em Lote */}
+      {/* Modal 5: Confirmar Exclusão em Lote (Exclui apenas negócios; clientes continuam intactos) */}
       <Dialog
         open={modalConfirmarExcluirLoteOpen}
         onOpenChange={(open) => {
@@ -1489,27 +1494,47 @@ export const ComercialListView: React.FC<ComercialListViewProps> = ({
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-rose-600">
               <Trash2 className="w-5 h-5 text-rose-600" />
-              Excluir permanentemente {selectedIds.length} cliente(s)?
+              Excluir permanentemente {selectedIds.length} negócio(s)?
             </DialogTitle>
             <DialogDescription>
               Você está prestes a excluir definitivamente{' '}
               <strong className="text-gray-900 font-semibold">
-                {selectedIds.length} cliente{selectedIds.length > 1 ? 's' : ''}
+                {selectedIds.length} negócio{selectedIds.length > 1 ? 's' : ''} / lead
+                {selectedIds.length > 1 ? 's' : ''}
               </strong>{' '}
-              do funil de vendas. Esta ação é irreversível e removerá também todos os dados e
-              registros vinculados (orçamentos, propostas, atividades e documentos).
+              do funil de vendas. Esta ação é irreversível para os negócios selecionados.
             </DialogDescription>
           </DialogHeader>
 
-          <div className="py-2.5 text-xs text-rose-800 bg-rose-50 p-3 rounded-lg border border-rose-200 flex items-start gap-2">
-            <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
-            <div>
-              <p className="font-semibold">Atenção: Ação permanente (sem lixeira)</p>
-              <p className="mt-0.5 text-rose-700">
-                Os registros serão apagados definitivamente do sistema. Se você deseja apenas
-                retirar os leads do funil sem perder o histórico, utilize a opção
-                &quot;Arquivar&quot;.
-              </p>
+          <div className="space-y-2.5 py-1">
+            {/* Aviso de preservação do cliente e seus dados */}
+            <div className="py-2.5 text-xs text-emerald-900 bg-emerald-50 p-3 rounded-lg border border-emerald-200 flex items-start gap-2">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+              <div>
+                <p className="font-semibold text-emerald-950">
+                  Seus clientes continuam 100% seguros
+                </p>
+                <p className="mt-0.5 text-emerald-800">
+                  Os clientes vinculados e seus cadastros, propostas, orçamentos, atividades e
+                  documentos <strong className="font-semibold">NÃO serão apagados</strong> e
+                  permanecem intactos no CRM.
+                </p>
+              </div>
+            </div>
+
+            {/* Alerta de ação permanente apenas para os negócios */}
+            <div className="py-2 text-xs text-rose-800 bg-rose-50/80 p-3 rounded-lg border border-rose-200 flex items-start gap-2">
+              <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+              <div>
+                <p className="font-semibold text-rose-900">
+                  Atenção: Ação permanente para os negócios
+                </p>
+                <p className="mt-0.5 text-rose-700">
+                  Os negócios selecionados serão removidos definitivamente das etapas do funil
+                  comercial. Se deseja apenas ocultá-los do funil ativo sem excluí-los, use a opção
+                  &quot;Arquivar&quot;.
+                </p>
+              </div>
             </div>
           </div>
 
@@ -1533,7 +1558,7 @@ export const ComercialListView: React.FC<ComercialListViewProps> = ({
               {isProcessing ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Excluindo clientes...
+                  Excluindo negócios...
                 </>
               ) : (
                 `Sim, Excluir (${selectedIds.length})`
