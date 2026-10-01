@@ -1643,14 +1643,33 @@ export async function sendWhatsAppMensagem(data: {
   message: string
   data?: import('@/types/crm').WhatsAppMensagem
 }> {
+  // Salvaguarda central: se for envio manual ou não especificado e não tiver o prefixo [Nome]:, garante a aplicação
+  let conteudoTratado = (data.conteudo_final || data.mensagem || '').trim()
+  const tipoFinal = data.tipo_disparo || data.origem || 'manual'
+  const isAuto =
+    tipoFinal === 'webhook' ||
+    tipoFinal === 'gatilho_automatico' ||
+    tipoFinal === 'automacao_sistema'
+  if (!isAuto && conteudoTratado) {
+    try {
+      const { jaPossuiPrefixoManual, aplicarPrefixoMensagemManual } =
+        await import('@/lib/whatsappPrefixo')
+      if (!jaPossuiPrefixoManual(conteudoTratado)) {
+        conteudoTratado = aplicarPrefixoMensagemManual(conteudoTratado)
+      }
+    } catch (_) {
+      // Se não carregar módulo dinâmico, mantém intacto
+    }
+  }
+
   const payload = {
     cliente_id: data.cliente_id || data.clienteId,
     conversa_id: data.conversa_id,
     telefone_destino: data.telefone_destino || data.telefone || '',
-    conteudo_final: data.conteudo_final || data.mensagem || '',
+    conteudo_final: conteudoTratado,
     template_id: data.template_id,
     agendado_para: data.agendado_para,
-    tipo_disparo: data.tipo_disparo || data.origem || 'manual',
+    tipo_disparo: tipoFinal,
     referencia_id: data.referencia_id,
   }
 

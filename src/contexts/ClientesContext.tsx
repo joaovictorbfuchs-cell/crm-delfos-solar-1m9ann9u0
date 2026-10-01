@@ -2575,19 +2575,23 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     tipo_disparo?: string
     referencia_id?: string
   }) => {
-    // Proteção: se o envio for manual e o texto ainda não tiver o prefixo [Nome]:, aplica automaticamente
-    let conteudoAjustado = data.conteudo_final
-    if (
-      data.tipo_disparo === 'manual' &&
-      conteudoAjustado &&
-      !jaPossuiPrefixoManual(conteudoAjustado)
-    ) {
+    // Salvaguarda central obrigatória: o prefixo manual de WhatsApp [Nome]: deve ser aplicado
+    // num ponto único central garantindo que NENHUM envio manual saia sem o prefixo.
+    // Qualquer envio não disparado por webhook ou gatilho estritamente automatizado é considerado
+    // manual por padrão, garantindo que o prefixo [Nome]: sempre esteja presente se faltar.
+    let conteudoAjustado = data.conteudo_final || ''
+    const isDisparoAutomatico =
+      data.tipo_disparo === 'webhook' ||
+      data.tipo_disparo === 'gatilho_automatico' ||
+      data.tipo_disparo === 'automacao_sistema'
+
+    if (!isDisparoAutomatico && conteudoAjustado && !jaPossuiPrefixoManual(conteudoAjustado)) {
       conteudoAjustado = aplicarPrefixoMensagemManual(conteudoAjustado)
     }
 
     const payloadFinal =
       conteudoAjustado !== data.conteudo_final
-        ? { ...data, conteudo_final: conteudoAjustado }
+        ? { ...data, conteudo_final: conteudoAjustado, tipo_disparo: data.tipo_disparo || 'manual' }
         : data
 
     const res = await apiSendWhatsAppMensagem(payloadFinal)
