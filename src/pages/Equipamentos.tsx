@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import {
   Wrench,
   Cpu,
@@ -25,6 +26,8 @@ import {
   Phone,
   Building2,
   Settings,
+  ArrowUpDown,
+  Download,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import type { Equipamento, TipoEquipamento } from '@/types/equipamentos'
@@ -39,22 +42,30 @@ import {
   getDataloggerEquipamentoUrl,
   formatarPotenciaEquipamento,
 } from '@/services/equipamentosService'
+import { fetchContagemUsoEquipamentosEmUsinas } from '@/services/usinaEquipamentosService'
 import { fetchFornecedores } from '@/services/crmService'
 import { extractDatasheetFromPdf } from '@/lib/datasheetExtractor'
 import { extractFieldErrors } from '@/lib/pocketbase/errors'
 import { normalizarDigitosDestino } from '@/lib/resolverNumeroDestinoCliente'
 import { aplicarPrefixoMensagemManual } from '@/lib/whatsappPrefixo'
 import { useAuth } from '@/contexts/AuthContext'
+import { buildXlsxBuffer, downloadFileInBrowser, type XlsxSheet } from '@/lib/xlsxBuilderClient'
 
 type TabFiltro = 'todos' | 'inversor' | 'modulo_fv' | 'outro'
+type CriterioOrdenacao = 'recentes' | 'marca_asc' | 'modelo_asc' | 'potencia_desc' | 'potencia_asc'
 
 export function EquipamentosPage() {
   const { user } = useAuth()
+  const [searchParams, setSearchParams] = useSearchParams()
+
   const [equipamentos, setEquipamentos] = useState<Equipamento[]>([])
   const [fornecedores, setFornecedores] = useState<Fornecedor[]>([])
+  const [contagemUsinas, setContagemUsinas] = useState<Record<string, number>>({})
   const [loading, setLoading] = useState<boolean>(true)
   const [tabAtiva, setTabAtiva] = useState<TabFiltro>('todos')
-  const [busca, setBusca] = useState<string>('')
+  const [busca, setBusca] = useState<string>(() => searchParams.get('busca') || '')
+  const [ordenacao, setOrdenacao] = useState<CriterioOrdenacao>('recentes')
+  const [filtroFornecedor, setFiltroFornecedor] = useState<string>('todos')
 
   // Modal / Form state
   const [modalOpen, setModalOpen] = useState<boolean>(false)
@@ -94,12 +105,25 @@ export function EquipamentosPage() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
+  // Sincronizar parâmetro de URL se mudar externamente
+  useEffect(() => {
+    const buscaUrl = searchParams.get('busca')
+    if (buscaUrl !== null && buscaUrl !== busca) {
+      setBusca(buscaUrl)
+    }
+  }, [searchParams])
+
   const carregar = async () => {
     setLoading(true)
     try {
-      const [dataEq, dataForn] = await Promise.all([fetchEquipamentos(), fetchFornecedores()])
+      const [dataEq, dataForn, mapaUsinas] = await Promise.all([
+        fetchEquipamentos(),
+        fetchFornecedores(),
+        fetchContagemUsoEquipamentosEmUsinas(),
+      ])
       setEquipamentos(dataEq)
       setFornecedores(dataForn)
+      setContagemUsinas(mapaUsinas)
     } catch (err) {
       console.error('Erro ao carregar equipamentos:', err)
       toast.error('Erro ao carregar lista de equipamentos.')
@@ -180,16 +204,17 @@ export function EquipamentosPage() {
     }
   }
 
-  const handleOpenWhatsAppSuporte = (numero: string, _nomeFornecedor?: string) => {
+  const handleOpenWhatsAppSuporte = (numero: string, marcaEq?: string, modeloEq?: string) => {
     const limpo = normalizarDigitosDestino(numero)
     if (!limpo || limpo.length < 10) {
       toast.warning('Número de telefone do suporte inválido.')
       return
     }
-    const msg = aplicarPrefixoMensagemManual(
-      'Olá! Preciso de suporte técnico sobre o equipamento Delfos Solar.',
-      user?.name,
-    )
+    const identificador = [marcaEq, modeloEq].filter(Boolean).join(' ').trim()
+    const corpo = identificador
+      ? `Olá! Preciso de suporte técnico sobre o equipamento ${identificador}.`
+      : 'Olá! Preciso de suporte técnico sobre o equipamento Delfos Solar.'
+    const msg = aplicarPrefixoMensagemManual(corpo, user?.name)
     window.open(`https://wa.me/${limpo}?text=${encodeURIComponent(msg)}`, '_blank')
   }
 
@@ -460,11 +485,15 @@ export function EquipamentosPage() {
     return { total, inversores, modulos, outros }
   }, [equipamentos])
 
-  // Lista filtrada
+  // Lista filtrada e ordenada
   const filtrados = useMemo(() => {
-    return equipamentos.filter((item) => {
+    const base = equipamentos.filter((item) => {
       // Filtro por tab
       if (tabAtiva !== 'todos' && item.tipo !== tabAtiva) {
+        return false
+      }
+      // Filtro por fornecedor
+      if (filtroFornecedor !== 'todos' && item.fornecedor_id !== filtroFornecedor) {
         return false
       }
       // Filtro por busca
@@ -476,7 +505,136 @@ export function EquipamentosPage() {
       const matchPotencia = String(item.potencia_w).includes(term)
       return matchMarca || matchModelo || matchDescricao || matchPotencia
     })
-  }, [equipamentos, tabAtiva, busca])
+
+    return base.sort((a, b) => {
+      switch (ordenacao) {
+        case 'marca_asc': {
+          const compMarca = (a.marca || '').localeCompare(b.marca || '', 'pt-BR', {
+            sensitivity: 'base',
+          })
+          if (compMarca !== 0) return compMarca
+          return (a.modelo || '').localeCompare(b.modelo || '', 'pt-BR', { sensitivity: 'base' })
+        }
+        case 'modelo_asc':
+          return (a.modelo || '').localeCompare(b.modelo || '', 'pt-BR', { sensitivity: 'base' })
+        case 'potencia_desc':
+          return (Number(b.potencia_w) || 0) - (Number(a.potencia_w) || 0)
+        case 'potencia_asc':
+          return (Number(a.potencia_w) || 0) - (Number(b.potencia_w) || 0)
+        case 'recentes':
+        default: {
+          const dtA = a.created ? new Date(a.created).getTime() : 0
+          const dtB = b.created ? new Date(b.created).getTime() : 0
+          if (dtA !== dtB) return dtB - dtA
+          return (b.id || '').localeCompare(a.id || '')
+        }
+      }
+    })
+  }, [equipamentos, tabAtiva, filtroFornecedor, busca, ordenacao])
+
+  // Atualizar campo de busca e sincronizar URL de forma limpa
+  const handleBuscaChange = (novoValor: string) => {
+    setBusca(novoValor)
+    const novosParams = new URLSearchParams(searchParams)
+    if (novoValor.trim()) {
+      novosParams.set('busca', novoValor.trim())
+    } else {
+      novosParams.delete('busca')
+    }
+    setSearchParams(novosParams, { replace: true })
+  }
+
+  // Exportar Excel (.xlsx) da lista filtrada atual
+  const handleExportarExcel = () => {
+    if (filtrados.length === 0) {
+      toast.info('Não há equipamentos na lista filtrada para exportar.')
+      return
+    }
+
+    try {
+      const colWidths = [
+        16, // Tipo
+        22, // Marca
+        30, // Modelo
+        16, // Potência (W)
+        16, // Garantia (anos)
+        28, // Fornecedor
+        22, // Telefone Suporte
+        36, // Datasheet (URL)
+        36, // Datalogger (URL)
+        46, // Descrição Padrão
+        16, // Usinas Vinculadas
+      ]
+
+      const cabecalho = [
+        'Tipo',
+        'Marca',
+        'Modelo',
+        'Potência (W)',
+        'Garantia (anos)',
+        'Fornecedor',
+        'Telefone Suporte',
+        'Datasheet (URL)',
+        'Datalogger (URL)',
+        'Descrição Padrão',
+        'Em uso em Usina(s)',
+      ]
+
+      const rows: (string | number)[][] = [cabecalho]
+
+      filtrados.forEach((item) => {
+        const tipoLabel =
+          item.tipo === 'inversor' ? 'Inversor' : item.tipo === 'modulo_fv' ? 'Módulo FV' : 'Outro'
+
+        const fornNome =
+          item.expand?.fornecedor_id?.nome_empresa ||
+          fornecedores.find((f) => f.id === item.fornecedor_id)?.nome_empresa ||
+          ''
+
+        const telSuporte =
+          item.telefone_suporte_fornecedor ||
+          item.expand?.fornecedor_id?.telefone_suporte ||
+          item.expand?.fornecedor_id?.whatsapp ||
+          item.expand?.fornecedor_id?.telefone ||
+          ''
+
+        const urlDatasheet = getDatasheetEquipamentoUrl(item) || ''
+        const urlDatalogger = getDataloggerEquipamentoUrl(item) || ''
+        const usinasCount = contagemUsinas[item.id] || 0
+
+        rows.push([
+          tipoLabel,
+          item.marca || '',
+          item.modelo || '',
+          Number(item.potencia_w) || 0,
+          item.garantia_anos !== undefined && item.garantia_anos !== null
+            ? Number(item.garantia_anos)
+            : '',
+          fornNome,
+          telSuporte,
+          urlDatasheet,
+          urlDatalogger,
+          item.descricao_padrao || '',
+          usinasCount,
+        ])
+      })
+
+      const sheet: XlsxSheet = {
+        name: 'Equipamentos',
+        rows,
+        colWidths,
+      }
+
+      const buffer = buildXlsxBuffer([sheet])
+      const dataHoje = new Date().toISOString().slice(0, 10)
+      const nomeArquivo = `catalogo-equipamentos-${dataHoje}.xlsx`
+      downloadFileInBrowser(buffer, nomeArquivo)
+      toast.success(`Planilha com ${filtrados.length} equipamento(s) exportada com sucesso!`)
+    } catch (err) {
+      console.error('Erro ao exportar equipamentos para Excel:', err)
+      toast.error('Não foi possível gerar a planilha Excel. Tente novamente.')
+    }
+  }
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
@@ -496,7 +654,7 @@ export function EquipamentosPage() {
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
           <button
             onClick={carregar}
             disabled={loading}
@@ -505,6 +663,18 @@ export function EquipamentosPage() {
           >
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
           </button>
+
+          <button
+            type="button"
+            onClick={handleExportarExcel}
+            disabled={filtrados.length === 0}
+            className="inline-flex items-center justify-center gap-2 px-3.5 py-2.5 bg-white hover:bg-gray-50 text-gray-700 hover:text-emerald-800 border border-gray-200 text-xs sm:text-sm font-semibold rounded-xl shadow-2xs transition-all active:scale-[0.98] disabled:opacity-50"
+            title="Exportar equipamentos filtrados para planilha Excel (.xlsx)"
+          >
+            <Download className="w-4 h-4 text-emerald-600" />
+            <span>Exportar Excel</span>
+          </button>
+
           <button
             onClick={handleOpenCreate}
             className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-[#16A34A] hover:bg-[#15803D] text-white text-xs sm:text-sm font-bold rounded-xl shadow-xs transition-all hover:shadow active:scale-[0.98]"
@@ -533,120 +703,186 @@ export function EquipamentosPage() {
         </div>
       </div>
 
-      {/* Barra de Filtros e Busca */}
-      <div className="bg-white p-3 sm:p-4 rounded-2xl border border-gray-200 shadow-2xs flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
-        {/* Tabs de Tipo */}
-        <div className="inline-flex p-1 bg-gray-100 rounded-xl">
-          <button
-            type="button"
-            onClick={() => setTabAtiva('todos')}
-            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
-              tabAtiva === 'todos'
-                ? 'bg-white text-emerald-800 shadow-xs'
-                : 'text-gray-600 hover:text-gray-900'
-            }`}
-          >
-            <Layers className="w-3.5 h-3.5" />
-            <span>Todos</span>
-            <span
-              className={`px-1.5 py-0.2 rounded-full text-[10px] ${
+      {/* Barra de Filtros, Ordenação e Busca */}
+      <div className="bg-white p-3 sm:p-4 rounded-2xl border border-gray-200 shadow-2xs space-y-3">
+        <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
+          {/* Tabs de Tipo */}
+          <div className="inline-flex p-1 bg-gray-100 rounded-xl overflow-x-auto">
+            <button
+              type="button"
+              onClick={() => setTabAtiva('todos')}
+              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${
                 tabAtiva === 'todos'
-                  ? 'bg-emerald-100 text-emerald-800'
-                  : 'bg-gray-200 text-gray-700'
+                  ? 'bg-white text-emerald-800 shadow-xs'
+                  : 'text-gray-600 hover:text-gray-900'
               }`}
             >
-              {contagens.total}
-            </span>
-          </button>
+              <Layers className="w-3.5 h-3.5" />
+              <span>Todos</span>
+              <span
+                className={`px-1.5 py-0.2 rounded-full text-[10px] ${
+                  tabAtiva === 'todos'
+                    ? 'bg-emerald-100 text-emerald-800'
+                    : 'bg-gray-200 text-gray-700'
+                }`}
+              >
+                {contagens.total}
+              </span>
+            </button>
 
-          <button
-            type="button"
-            onClick={() => setTabAtiva('inversor')}
-            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
-              tabAtiva === 'inversor'
-                ? 'bg-white text-blue-800 shadow-xs'
-                : 'text-gray-600 hover:text-gray-900'
-            }`}
-          >
-            <Cpu className="w-3.5 h-3.5 text-blue-600" />
-            <span>Inversores</span>
-            <span
-              className={`px-1.5 py-0.2 rounded-full text-[10px] ${
-                tabAtiva === 'inversor' ? 'bg-blue-100 text-blue-800' : 'bg-gray-200 text-gray-700'
+            <button
+              type="button"
+              onClick={() => setTabAtiva('inversor')}
+              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${
+                tabAtiva === 'inversor'
+                  ? 'bg-white text-blue-800 shadow-xs'
+                  : 'text-gray-600 hover:text-gray-900'
               }`}
             >
-              {contagens.inversores}
-            </span>
-          </button>
+              <Cpu className="w-3.5 h-3.5 text-blue-600" />
+              <span>Inversores</span>
+              <span
+                className={`px-1.5 py-0.2 rounded-full text-[10px] ${
+                  tabAtiva === 'inversor'
+                    ? 'bg-blue-100 text-blue-800'
+                    : 'bg-gray-200 text-gray-700'
+                }`}
+              >
+                {contagens.inversores}
+              </span>
+            </button>
 
-          <button
-            type="button"
-            onClick={() => setTabAtiva('modulo_fv')}
-            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
-              tabAtiva === 'modulo_fv'
-                ? 'bg-white text-amber-800 shadow-xs'
-                : 'text-gray-600 hover:text-gray-900'
-            }`}
-          >
-            <Sun className="w-3.5 h-3.5 text-amber-600" />
-            <span>Módulos FV</span>
-            <span
-              className={`px-1.5 py-0.2 rounded-full text-[10px] ${
+            <button
+              type="button"
+              onClick={() => setTabAtiva('modulo_fv')}
+              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${
                 tabAtiva === 'modulo_fv'
-                  ? 'bg-amber-100 text-amber-800'
-                  : 'bg-gray-200 text-gray-700'
+                  ? 'bg-white text-amber-800 shadow-xs'
+                  : 'text-gray-600 hover:text-gray-900'
               }`}
             >
-              {contagens.modulos}
-            </span>
-          </button>
+              <Sun className="w-3.5 h-3.5 text-amber-600" />
+              <span>Módulos FV</span>
+              <span
+                className={`px-1.5 py-0.2 rounded-full text-[10px] ${
+                  tabAtiva === 'modulo_fv'
+                    ? 'bg-amber-100 text-amber-800'
+                    : 'bg-gray-200 text-gray-700'
+                }`}
+              >
+                {contagens.modulos}
+              </span>
+            </button>
 
-          <button
-            type="button"
-            onClick={() => setTabAtiva('outro')}
-            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
-              tabAtiva === 'outro'
-                ? 'bg-white text-purple-800 shadow-xs'
-                : 'text-gray-600 hover:text-gray-900'
-            }`}
-          >
-            <Wrench className="w-3.5 h-3.5 text-purple-600" />
-            <span>Outros</span>
-            <span
-              className={`px-1.5 py-0.2 rounded-full text-[10px] ${
-                tabAtiva === 'outro' ? 'bg-purple-100 text-purple-800' : 'bg-gray-200 text-gray-700'
+            <button
+              type="button"
+              onClick={() => setTabAtiva('outro')}
+              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${
+                tabAtiva === 'outro'
+                  ? 'bg-white text-purple-800 shadow-xs'
+                  : 'text-gray-600 hover:text-gray-900'
               }`}
             >
-              {contagens.outros}
+              <Wrench className="w-3.5 h-3.5 text-purple-600" />
+              <span>Outros</span>
+              <span
+                className={`px-1.5 py-0.2 rounded-full text-[10px] ${
+                  tabAtiva === 'outro'
+                    ? 'bg-purple-100 text-purple-800'
+                    : 'bg-gray-200 text-gray-700'
+                }`}
+              >
+                {contagens.outros}
+              </span>
+            </button>
+          </div>
+
+          {/* Busca e Totalizador */}
+          <div className="flex items-center gap-3">
+            <div className="relative w-full sm:w-72 md:w-80">
+              <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                value={busca}
+                onChange={(e) => handleBuscaChange(e.target.value)}
+                placeholder="Buscar por marca, modelo, potência..."
+                className="w-full text-xs pl-9 pr-8 py-2 rounded-xl border border-gray-200 bg-gray-50/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all"
+              />
+              {busca && (
+                <button
+                  type="button"
+                  onClick={() => handleBuscaChange('')}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-0.5"
+                  title="Limpar busca"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+            <span className="text-xs text-gray-500 font-medium whitespace-nowrap hidden sm:inline">
+              Exibindo: <strong>{filtrados.length}</strong>
             </span>
-          </button>
+          </div>
         </div>
 
-        {/* Busca e Totalizador */}
-        <div className="flex items-center gap-3">
-          <div className="relative w-full sm:w-80">
-            <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
-            <input
-              type="text"
-              value={busca}
-              onChange={(e) => setBusca(e.target.value)}
-              placeholder="Buscar por marca, modelo, potência..."
-              className="w-full text-xs pl-9 pr-3 py-2 rounded-xl border border-gray-200 bg-gray-50/50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all"
-            />
-            {busca && (
-              <button
-                type="button"
-                onClick={() => setBusca('')}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-0.5"
-                title="Limpar busca"
+        {/* Linha de Ordenação e Filtro por Fornecedor */}
+        <div className="pt-2 border-t border-gray-100 flex flex-wrap items-center justify-between gap-2.5 text-xs">
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Seletor de Fornecedor */}
+            <div className="flex items-center gap-1.5">
+              <Building2 className="w-3.5 h-3.5 text-gray-400" />
+              <label htmlFor="select-fornecedor-filtro" className="text-gray-500 font-medium">
+                Fornecedor:
+              </label>
+              <select
+                id="select-fornecedor-filtro"
+                value={filtroFornecedor}
+                onChange={(e) => setFiltroFornecedor(e.target.value)}
+                className="text-xs font-semibold py-1.5 px-2.5 rounded-lg border border-gray-200 bg-gray-50/60 hover:bg-white focus:bg-white focus:outline-none focus:ring-1 focus:ring-emerald-500 text-gray-700"
               >
-                <X className="w-3.5 h-3.5" />
-              </button>
-            )}
+                <option value="todos">Todos os fornecedores</option>
+                {fornecedores.map((f) => (
+                  <option key={f.id} value={f.id}>
+                    {f.nome_empresa}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Seletor de Ordenação */}
+            <div className="flex items-center gap-1.5">
+              <ArrowUpDown className="w-3.5 h-3.5 text-gray-400" />
+              <label htmlFor="select-ordenacao" className="text-gray-500 font-medium">
+                Ordenar por:
+              </label>
+              <select
+                id="select-ordenacao"
+                value={ordenacao}
+                onChange={(e) => setOrdenacao(e.target.value as CriterioOrdenacao)}
+                className="text-xs font-semibold py-1.5 px-2.5 rounded-lg border border-gray-200 bg-gray-50/60 hover:bg-white focus:bg-white focus:outline-none focus:ring-1 focus:ring-emerald-500 text-gray-700"
+              >
+                <option value="recentes">Mais recentes (padrão)</option>
+                <option value="marca_asc">Marca A-Z</option>
+                <option value="modelo_asc">Modelo A-Z</option>
+                <option value="potencia_desc">Maior potência</option>
+                <option value="potencia_asc">Menor potência</option>
+              </select>
+            </div>
           </div>
-          <span className="text-xs text-gray-500 font-medium whitespace-nowrap hidden sm:inline">
-            Total: <strong>{filtrados.length}</strong>
-          </span>
+
+          {(filtroFornecedor !== 'todos' || ordenacao !== 'recentes' || busca) && (
+            <button
+              type="button"
+              onClick={() => {
+                setFiltroFornecedor('todos')
+                setOrdenacao('recentes')
+                handleBuscaChange('')
+              }}
+              className="text-[11px] font-semibold text-emerald-700 hover:text-emerald-800 hover:underline inline-flex items-center gap-1"
+            >
+              <span>Limpar filtros</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -801,6 +1037,20 @@ export function EquipamentosPage() {
                           <ExternalLink className="w-2.5 h-2.5 ml-0.5 text-blue-600" />
                         </a>
                       )}
+
+                      {/* Contador de uso como ativo de usina */}
+                      {Boolean(contagemUsinas[item.id]) && (
+                        <span
+                          className="inline-flex items-center gap-1 text-[11px] font-semibold text-amber-800 bg-amber-50 px-2 py-0.5 rounded-lg border border-amber-200 shadow-2xs"
+                          title={`Este equipamento está vinculado como ativo em ${contagemUsinas[item.id]} usina(s)`}
+                        >
+                          <Building2 className="w-3 h-3 text-amber-600" />
+                          <span>
+                            Em uso em {contagemUsinas[item.id]}{' '}
+                            {contagemUsinas[item.id] === 1 ? 'usina' : 'usinas'}
+                          </span>
+                        </span>
+                      )}
                     </div>
 
                     {/* Bloco Fornecedor + Suporte */}
@@ -835,10 +1085,7 @@ export function EquipamentosPage() {
                                 <button
                                   type="button"
                                   onClick={() =>
-                                    handleOpenWhatsAppSuporte(
-                                      tel,
-                                      item.expand?.fornecedor_id?.nome_empresa,
-                                    )
+                                    handleOpenWhatsAppSuporte(tel, item.marca, item.modelo)
                                   }
                                   className="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold text-[11px] shadow-2xs transition-colors"
                                   title={`Entrar em contato com o suporte: ${tel}`}
@@ -1393,6 +1640,17 @@ export function EquipamentosPage() {
                 </strong>
                 ? Esta ação não pode ser desfeita.
               </p>
+              {Boolean(contagemUsinas[itemParaExcluir.id]) && (
+                <div className="mt-3 p-2.5 bg-amber-50 border border-amber-300 rounded-xl text-left flex items-start gap-2 text-xs text-amber-900">
+                  <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                  <p className="leading-snug">
+                    <strong>Atenção:</strong> Este equipamento está vinculado a{' '}
+                    <strong>{contagemUsinas[itemParaExcluir.id]}</strong>{' '}
+                    {contagemUsinas[itemParaExcluir.id] === 1 ? 'ativo' : 'ativos'} de usina.
+                    Verifique antes de excluir.
+                  </p>
+                </div>
+              )}
             </div>
             <div className="pt-2 flex items-center justify-center gap-3">
               <button
