@@ -1,6 +1,6 @@
 # Relatório de Auditoria de Duplicados e Vínculos de Contatos — CRM Delfos Solar
 
-**Data/Hora da Execução:** 2026-10-01T02:32:17.284Z  
+**Data/Hora da Execução:** 2026-10-01T02:35:57.713Z  
 **Ambiente do Banco:** https://crm-delfos-solar-72b9e.shrd00.internal.goskip.dev  
 **Usuário Autenticado:** joao@delfosengenharia.com.br  
 **Validação de Sanidade:** APROVADA (Total carregado bate exatamente com o totalItems do PocketBase)
@@ -9,16 +9,16 @@
 
 ## 1. Resumo Executivo das Métricas
 
-| Métrica | Quantidade | Observações / Detalhes |
-| :--- | :---: | :--- |
-| **Total de Registros em Contatos** | **91** | Base validada contra o banco PocketBase via paginação estrita |
-| **Total de Registros em Clientes** | **1533** | Base validada contra o banco PocketBase via paginação estrita |
-| **Contatos com Telefone/WhatsApp Válido** | **4** | Apenas 4 registros possuem WhatsApp/telefone preenchido |
-| **Contatos com Telefone/WhatsApp Vazio** | **87** | Registros migrados originalmente com dados cadastrais sem telefone direto |
-| **Contatos com origem `migracao_outros_contatos`** | **91** | Registros unificados na migração de dados |
-| **Duplicados Reais em Contatos** | **0** | Nenhum registro duplicado identificado entre si na coleção `contatos` |
-| **Vínculos Legítimos de Mesma Pessoa em Clientes Distintos** | **0** | Não há contatos com clientes múltiplos vinculados na tabela `contatos` |
-| **Possíveis Duplicados Reais na Coleção Clientes** | **1 par** | "Adenilse Pasine" e "Adenilse Pasini" (dados técnicos e potências idênticos) |
+| Métrica                                                      | Quantidade | Observações / Detalhes                                                       |
+| :----------------------------------------------------------- | :--------: | :--------------------------------------------------------------------------- |
+| **Total de Registros em Contatos**                           |   **91**   | Base validada contra o banco PocketBase via paginação estrita                |
+| **Total de Registros em Clientes**                           |  **1533**  | Base validada contra o banco PocketBase via paginação estrita                |
+| **Contatos com Telefone/WhatsApp Válido**                    |   **4**    | Apenas 4 registros possuem WhatsApp/telefone preenchido                      |
+| **Contatos com Telefone/WhatsApp Vazio**                     |   **87**   | Registros migrados originalmente com dados cadastrais sem telefone direto    |
+| **Contatos com origem `migracao_outros_contatos`**           |   **91**   | Registros unificados na migração de dados                                    |
+| **Duplicados Reais em Contatos**                             |   **0**    | Nenhum registro duplicado identificado entre si na coleção `contatos`        |
+| **Vínculos Legítimos de Mesma Pessoa em Clientes Distintos** |   **0**    | Não há contatos com clientes múltiplos vinculados na tabela `contatos`       |
+| **Possíveis Duplicados Reais na Coleção Clientes**           | **1 par**  | "Adenilse Pasine" e "Adenilse Pasini" (dados técnicos e potências idênticos) |
 
 ---
 
@@ -68,7 +68,7 @@
 
 - **2.c) Clientes com nome muito parecido E mesmo WhatsApp:**  
   **30 casos.**
-  - *Nota Cadastral:* Foi identificado na coleção `clientes` o caso clássico de duplicidade:
+  - _Nota Cadastral:_ Foi identificado na coleção `clientes` o caso clássico de duplicidade:
     - Cliente 1: **"Adenilse Pasine"** (ID: `ubp8yld8rd4nke9`, WhatsApp: `555499918473`, Potência: `6.9 kWp`, Inversor: `Deye`, Módulos: `13 Canadian Solar`)
     - Cliente 2: **"Adenilse Pasini"** (ID: `y5et4jlz5tfrg4x`, WhatsApp vazio, CPF: `909.710.190-53`, Potência: `6.9 kWp`, Inversor: `Deye`, Módulos: `13 Canadian Solar`)
     - Como o segundo registro está com o WhatsApp vazio, ele não pontua no critério restrito de mesmo WhatsApp, mas representa a mesma pessoa física com grafia Pasine/Pasini.

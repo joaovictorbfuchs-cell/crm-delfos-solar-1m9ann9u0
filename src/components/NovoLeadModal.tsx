@@ -78,6 +78,7 @@ export const NovoLeadModal: React.FC<NovoLeadModalProps> = ({ isOpen, onClose })
   const [origem, setOrigem] = useState<OrigemLeadTipo>('Indicação')
   const [produto, setProduto] = useState<ProdutoTipo>('Energia Solar')
   const [cidade, setCidade] = useState('Erechim/RS')
+  const [valorEstimadoExistente, setValorEstimadoExistente] = useState<string>('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [errors, setErrors] = useState<{ [key: string]: string }>({})
   const [conflitosCnpj, setConflitosCnpj] = useState<CnpjConflictField[]>([])
@@ -570,9 +571,9 @@ export const NovoLeadModal: React.FC<NovoLeadModalProps> = ({ isOpen, onClose })
               <UserPlus className="w-5 h-5 text-emerald-700" />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-gray-900">+ Novo Negócio / Lead</h2>
+              <h2 className="text-lg font-bold text-gray-900">+ Novo Negócio</h2>
               <p className="text-xs text-gray-500">
-                Cadastre uma nova oportunidade no funil comercial (novo lead ou cliente existente)
+                Cadastre uma nova oportunidade no funil comercial
               </p>
             </div>
           </div>
@@ -588,39 +589,38 @@ export const NovoLeadModal: React.FC<NovoLeadModalProps> = ({ isOpen, onClose })
 
         {/* Form Body */}
         <form onSubmit={handleSubmit} className="p-6 space-y-4 max-h-[80vh] overflow-y-auto">
-          {/* SELETOR: NOVO LEAD / CLIENTE OU VINCULAR A CLIENTE EXISTENTE */}
+          {/* SELETOR NO TOPO: NOVO CLIENTE (DEFAULT) OU CLIENTE EXISTENTE */}
           <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
                 <Building2 className="w-4 h-4 text-emerald-600" />
-                Vincular Oportunidade
+                Vincular a:
               </span>
               <div className="flex items-center gap-1 bg-white p-0.5 rounded-lg border border-slate-200 text-[11px]">
                 <button
                   type="button"
                   onClick={() => setModoCliente('novo')}
-                  className={`px-3 py-1 rounded-md font-semibold transition-all cursor-pointer ${
+                  className={`px-3 py-1 rounded-md font-semibold transition-all ${
                     modoCliente === 'novo'
                       ? 'bg-emerald-600 text-white shadow-2xs font-bold'
                       : 'text-slate-600 hover:text-slate-900'
                   }`}
                 >
-                  + Novo Lead / Cliente
+                  Novo cliente
                 </button>
                 <button
                   type="button"
                   onClick={() => setModoCliente('existente')}
-                  className={`px-3 py-1 rounded-md font-semibold transition-all cursor-pointer ${
+                  className={`px-3 py-1 rounded-md font-semibold transition-all ${
                     modoCliente === 'existente'
                       ? 'bg-emerald-600 text-white shadow-2xs font-bold'
                       : 'text-slate-600 hover:text-slate-900'
                   }`}
                 >
-                  Cliente Existente
+                  Cliente existente
                 </button>
               </div>
             </div>
-
             {modoCliente === 'existente' && (
               <div className="space-y-1.5 pt-1">
                 <ClienteAutocomplete
@@ -1020,7 +1020,7 @@ export const NovoLeadModal: React.FC<NovoLeadModalProps> = ({ isOpen, onClose })
                   Salvando...
                 </>
               ) : modoCliente === 'existente' ? (
-                'Criar Negócio'
+                'Salvar Negócio'
               ) : (
                 'Salvar Lead'
               )}
