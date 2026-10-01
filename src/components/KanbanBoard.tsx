@@ -165,6 +165,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
     updateClienteStatus,
     updateCliente,
     moverClienteParaOutrosContatos,
+    refreshData,
     atividades,
     orcamentosSolar,
   } = useClientes()
