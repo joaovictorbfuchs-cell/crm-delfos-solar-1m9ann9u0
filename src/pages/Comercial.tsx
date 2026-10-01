@@ -287,23 +287,14 @@ export default function Comercial() {
               <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
             </Button>
 
-            {/* Botão Novo Negócio (vinculado a cliente existente ou novo cliente) */}
-            <button
-              onClick={() => setIsNovoNegocioOpen(true)}
-              className="h-10 inline-flex items-center justify-center gap-2 px-4 bg-[#0F2038] hover:bg-[#1A365D] active:scale-[0.98] text-[#E0A838] hover:text-white text-sm font-bold rounded-xl shadow-sm hover:shadow-md transition-all shrink-0 cursor-pointer border border-[#E0A838]/30"
-              title="Criar novo negócio vinculado a cliente"
-            >
-              <Briefcase className="w-4 h-4 stroke-[2.5] text-[#E0A838]" />
-              <span>+ Novo Negócio</span>
-            </button>
-
-            {/* Botão Novo Lead (apenas desktop — no mobile fica no header superior com o botão +) */}
+            {/* Botão único Novo Negócio / Lead unificado (abre o fluxo rico de Novo Lead) */}
             <button
               onClick={() => setIsNovoLeadOpen(true)}
               className="h-10 inline-flex items-center justify-center gap-2 px-4 bg-[#16A34A] hover:bg-[#15803D] active:scale-[0.98] text-white text-sm font-bold rounded-xl shadow-sm hover:shadow-md transition-all shrink-0 cursor-pointer"
+              title="Criar novo negócio / lead no funil comercial"
             >
               <UserPlus className="w-4 h-4 stroke-[2.5]" />
-              <span>+ Novo Lead</span>
+              <span>+ Novo Negócio</span>
             </button>
           </div>
         </div>
