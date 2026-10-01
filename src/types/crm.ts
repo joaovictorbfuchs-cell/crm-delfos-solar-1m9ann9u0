@@ -143,6 +143,7 @@ export type TipoNegocioSelect =
   | 'expansão'
   | 'renovação'
   | 'serviço'
+  | 'venda bateria'
   | TipoVendaSelect
 
 export type EtapaFunilSelect =

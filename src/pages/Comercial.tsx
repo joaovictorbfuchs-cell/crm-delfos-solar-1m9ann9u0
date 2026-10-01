@@ -403,9 +403,8 @@ export default function Comercial() {
             <ComercialListView
               clientes={clientesAtivos}
               negocios={negociosList}
-              onNegocioUpdated={carregarNegocios}
-              onNegocioDeleted={carregarNegocios}
               onBackToKanban={() => setViewMode('kanban')}
+              onNegociosChanged={carregarNegocios}
             />
           </ErrorBoundary>
         ) : (
