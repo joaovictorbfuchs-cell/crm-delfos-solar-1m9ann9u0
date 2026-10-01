@@ -1264,35 +1264,18 @@ export const FichaClienteDrawer: React.FC = () => {
             {['Novo Lead', 'Levantamento', 'Orçamento', 'Negociação', 'Contato Futuro'].includes(
               selectedCliente.status,
             ) &&
-            !selectedCliente.transferido_pos_vendas &&
-            !selectedCliente.status_pos_vendas ? (
-              <button
-                type="button"
-                onClick={() => setModalPerdidoOpen(true)}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-300 text-xs font-bold rounded-lg shadow-xs transition-all hover:scale-[1.02] active:scale-95"
-                title="Marcar oportunidade como Perdido (registrar motivo)"
-              >
-                <IconX className="w-3.5 h-3.5 shrink-0 text-rose-700" />
-                <span>Marcar como Perdido</span>
-              </button>
-            ) : (
-              (selectedCliente.transferido_pos_vendas ||
-                Boolean(selectedCliente.status_pos_vendas) ||
-                selectedCliente.status === 'Fechado' ||
-                contratosOM.some(
-                  (c) => c.cliente_id === selectedCliente.id && c.status === 'Ativo',
-                )) && (
+              !selectedCliente.transferido_pos_vendas &&
+              !selectedCliente.status_pos_vendas && (
                 <button
                   type="button"
-                  onClick={() => setModalNovaOportunidadeOpen(true)}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-600 hover:bg-amber-700 active:bg-amber-800 text-white text-xs font-bold rounded-lg shadow-xs transition-all hover:scale-[1.02] active:scale-95 ring-1 ring-amber-500/50"
-                  title="Reabrir cliente no Funil de Vendas com uma Nova Oportunidade Comercial"
+                  onClick={() => setModalPerdidoOpen(true)}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-300 text-xs font-bold rounded-lg shadow-xs transition-all hover:scale-[1.02] active:scale-95"
+                  title="Marcar oportunidade como Perdido (registrar motivo)"
                 >
-                  <Sparkles className="w-3.5 h-3.5 shrink-0 text-amber-200" />
-                  <span>Nova Oportunidade</span>
+                  <IconX className="w-3.5 h-3.5 shrink-0 text-rose-700" />
+                  <span>Marcar como Perdido</span>
                 </button>
-              )
-            )}
+              )}
 
             {/* Ação Novo Negócio no Top Header da Ficha (aditiva, abre modal com cliente pré-preenchido) */}
             <button

@@ -90,19 +90,7 @@ export function OrigemClienteBadge({
     }
   }
 
-  return (
-    <span
-      className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-xs font-semibold border transition-colors ${getStyleClasses()} ${className}`}
-      title={info.sublabel ? `${info.label} (${info.sublabel})` : info.label}
-    >
-      {renderIcon()}
-      <span className="truncate">{info.label}</span>
-      {showSublabel && info.sublabel && (
-        <span className="text-[10px] opacity-75 font-normal hidden sm:inline">
-          • {info.sublabel}
-        </span>
-      )}
-    </span>
-  )
+  return
+  null
 }
 export type { OrigemClienteTipo, OrigemClienteInfo }
