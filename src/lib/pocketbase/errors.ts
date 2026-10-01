@@ -38,23 +38,13 @@ export function isAuthSessionError(error: unknown): boolean {
       const msg = errObj.message.toLowerCase()
       if (
         msg.includes('token is expired') ||
-        msg.includes('invalid token') ||
-        msg.includes('unauthorized') ||
-        msg.includes('the request requires valid user authorization')
+        msg.includes('token is invalid') ||
+        msg.includes('failed to authenticate') ||
+        (msg.includes('something went wrong while processing your request') &&
+          (errObj.status === 401 || errObj.status === 403))
       ) {
         return true
       }
-    }
-  }
-  if (error instanceof Error) {
-    const msg = error.message.toLowerCase()
-    if (
-      msg.includes('token is expired') ||
-      msg.includes('invalid token') ||
-      msg.includes('unauthorized') ||
-      msg.includes('the request requires valid user authorization')
-    ) {
-      return true
     }
   }
   return false
