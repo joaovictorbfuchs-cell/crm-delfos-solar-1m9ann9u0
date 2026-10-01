@@ -61,6 +61,7 @@ interface ModalNovaAtividadeProps {
   onClose: () => void
   initialTipo?: AtividadeTipo | null
   initialClienteId?: string | null
+  initialUsinaId?: string | null
   usinas?: UsinaCliente[]
 }
 
@@ -89,6 +90,7 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
   onClose,
   initialTipo,
   initialClienteId,
+  initialUsinaId,
   usinas: usinasProp,
 }) => {
   const { clientes, usuarios, addAtividade, tiposAtividadesCustom } = useClientes()
@@ -99,7 +101,7 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
   const [titulo, setTitulo] = useState('')
   const [clienteId, setClienteId] = useState(initialClienteId || '')
   const [usinasDoCliente, setUsinasDoCliente] = useState<UsinaCliente[]>(usinasProp || [])
-  const [selectedUsinaId, setSelectedUsinaId] = useState<string>('')
+  const [selectedUsinaId, setSelectedUsinaId] = useState<string>(initialUsinaId || '')
   const [responsavelId, setResponsavelId] = useState('')
   const [dataHora, setDataHora] = useState(() => {
     const now = new Date()
@@ -137,6 +139,9 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
       } else {
         setClienteId('')
       }
+      if (initialUsinaId) {
+        setSelectedUsinaId(initialUsinaId)
+      }
 
       if (tipoParaUsar === 'auto_leitura_rge') {
         setDatasLeituraAutoLeitura([])
@@ -156,7 +161,7 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
       setFormError(null)
       setFormSuccess(false)
     }
-  }, [isOpen, initialTipo, initialClienteId, clientes, usuarios, user])
+  }, [isOpen, initialTipo, initialClienteId, initialUsinaId, clientes, usuarios, user])
 
   // Carregar ou sincronizar usinas do cliente selecionado
   useEffect(() => {
@@ -169,15 +174,16 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
 
     if (usinasProp && usinasProp.length > 0 && initialClienteId === clienteId) {
       setUsinasDoCliente(usinasProp)
-      const usinaPref = usinasProp.length === 1 ? usinasProp[0] : null
-      setSelectedUsinaId(usinaPref?.id || '')
+      const usinaAlvo = initialUsinaId ? usinasProp.find((u) => u.id === initialUsinaId) : null
+      const usinaPref = usinaAlvo || (usinasProp.length === 1 ? usinasProp[0] : null)
+      setSelectedUsinaId(usinaPref?.id || initialUsinaId || '')
       setNumeroUcAutoLeitura(usinaPref?.numero_uc || cli?.uc || '')
       return
     }
 
     if (!clienteId) {
       setUsinasDoCliente([])
-      setSelectedUsinaId('')
+      setSelectedUsinaId(initialUsinaId || '')
       setNumeroUcAutoLeitura('')
       return
     }
@@ -186,11 +192,15 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
       .then((lista) => {
         if (!isMounted) return
         setUsinasDoCliente(lista || [])
-        if (lista && lista.length === 1) {
+        const usinaAlvo = initialUsinaId ? lista?.find((u) => u.id === initialUsinaId) : null
+        if (usinaAlvo) {
+          setSelectedUsinaId(usinaAlvo.id)
+          setNumeroUcAutoLeitura(usinaAlvo.numero_uc || cli?.uc || '')
+        } else if (lista && lista.length === 1) {
           setSelectedUsinaId(lista[0].id)
           setNumeroUcAutoLeitura(lista[0].numero_uc || cli?.uc || '')
         } else {
-          setSelectedUsinaId('')
+          setSelectedUsinaId(initialUsinaId || '')
           setNumeroUcAutoLeitura(cli?.uc || '')
         }
       })
@@ -198,7 +208,7 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
         console.warn('Erro ao buscar usinas do cliente no modal de atividade:', err)
         if (isMounted) {
           setUsinasDoCliente([])
-          setSelectedUsinaId('')
+          setSelectedUsinaId(initialUsinaId || '')
           setNumeroUcAutoLeitura(cli?.uc || '')
         }
       })
@@ -206,7 +216,7 @@ export const ModalNovaAtividade: React.FC<ModalNovaAtividadeProps> = ({
     return () => {
       isMounted = false
     }
-  }, [isOpen, clienteId, usinasProp, initialClienteId])
+  }, [isOpen, clienteId, usinasProp, initialClienteId, initialUsinaId])
 
   const customDefs = React.useMemo(() => {
     return (tiposAtividadesCustom || []).map((t) => buildCustomTipoDef(t))

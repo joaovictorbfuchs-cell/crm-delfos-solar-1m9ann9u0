@@ -59,6 +59,7 @@ import {
 } from 'lucide-react'
 import { BlocoAtivosDaUsina } from '@/components/BlocoAtivosDaUsina'
 import { ModalImportarDocumentoUsina } from '@/components/ModalImportarDocumentoUsina'
+import { ModalNovaAtividade } from '@/components/ModalNovaAtividade'
 import { InlineEditField } from '@/components/InlineEditField'
 import { DatasheetBadge } from '@/components/DatasheetBadge'
 import { formatarCPF } from '@/lib/cpfValidator'
@@ -128,6 +129,7 @@ export const SecaoUsinasCliente: React.FC<SecaoUsinasClienteProps> = ({
   const [isEditingDetalhes, setIsEditingDetalhes] = useState(false)
   const [isSavingDetalhes, setIsSavingDetalhes] = useState(false)
   const [modalImportarDocUsinaOpen, setModalImportarDocUsinaOpen] = useState(false)
+  const [modalNovaAtividadeUsinaOpen, setModalNovaAtividadeUsinaOpen] = useState(false)
 
   // Form states para edição na ficha própria
   const [editNome, setEditNome] = useState('')
@@ -779,6 +781,17 @@ export const SecaoUsinasCliente: React.FC<SecaoUsinasClienteProps> = ({
                   <div className="flex items-center gap-2">
                     {!isEditingDetalhes ? (
                       <>
+                        <Button
+                          type="button"
+                          size="sm"
+                          onClick={() => setModalNovaAtividadeUsinaOpen(true)}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg shadow-xs transition-all hover:scale-[1.02] bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-700"
+                          title="Criar nova atividade vinculada a esta usina"
+                        >
+                          <Wrench className="w-4 h-4 text-white" />
+                          <span>Nova Atividade</span>
+                        </Button>
+
                         <button
                           type="button"
                           onClick={() => setModalImportarDocUsinaOpen(true)}
@@ -1993,6 +2006,15 @@ export const SecaoUsinasCliente: React.FC<SecaoUsinasClienteProps> = ({
                   </div>
                 </div>
               </DialogFooter>
+
+              {/* Modal Nova Atividade vinculada a esta usina */}
+              <ModalNovaAtividade
+                isOpen={modalNovaAtividadeUsinaOpen}
+                onClose={() => setModalNovaAtividadeUsinaOpen(false)}
+                initialClienteId={clienteId}
+                initialUsinaId={usinaDetalhes.id}
+                usinas={usinas}
+              />
             </>
           )}
         </DialogContent>
