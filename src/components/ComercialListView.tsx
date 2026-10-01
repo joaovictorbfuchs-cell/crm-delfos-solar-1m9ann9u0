@@ -658,14 +658,22 @@ export const ComercialListView: React.FC<ComercialListViewProps> = ({
       setSelectedIds([])
       setModalConfirmarMoverContatosLoteOpen(false)
       if (onNegociosChanged) onNegociosChanged()
-    } catch (err) {
+    } catch (err: any) {
       console.error('Erro ao mover clientes em lote para outros contatos:', err)
+      const details = err?.result
+      let errorDescription =
+        'Ocorreu um erro ao mover os clientes selecionados para Outros Contatos.'
+      if (details) {
+        const { failedCount, total, firstErrorMessage } = details
+        errorDescription = `Falha ao remover ${failedCount} de ${total} negócio(s).${
+          firstErrorMessage ? ` Motivo: ${firstErrorMessage}` : ''
+        }`
+      } else if (err instanceof Error && err.message) {
+        errorDescription = err.message
+      }
       toast({
         title: 'Erro ao mover clientes',
-        description:
-          err instanceof Error
-            ? err.message
-            : 'Ocorreu um erro ao mover os clientes selecionados para Outros Contatos.',
+        description: errorDescription,
         variant: 'destructive',
       })
     } finally {
@@ -689,10 +697,10 @@ export const ComercialListView: React.FC<ComercialListViewProps> = ({
 
       if (negocioIds.length > 0) {
         // Exclui APENAS os negócios da coleção `negocios`. Os clientes vinculados permanecem 100% intactos no cadastro.
-        await bulkDeleteNegocios(negocioIds)
+        const result = await bulkDeleteNegocios(negocioIds)
         toast({
-          title: 'Negócios excluídos',
-          description: `${negocioIds.length} negócio(s) removido(s) do funil comercial. Todos os clientes vinculados continuam 100% intactos no cadastro.`,
+          title: 'Negócios excluídos com sucesso',
+          description: `${result.successCount} negócio(s) removido(s) do funil comercial. Todos os clientes vinculados continuam 100% intactos no cadastro.`,
         })
       } else {
         // Se nenhum negócio individual da coleção `negocios` foi encontrado, remove os itens do funil ativo
@@ -712,13 +720,26 @@ export const ComercialListView: React.FC<ComercialListViewProps> = ({
       setSelectedIds([])
       setModalConfirmarExcluirLoteOpen(false)
       if (onNegociosChanged) onNegociosChanged()
-    } catch (err) {
+    } catch (err: any) {
       console.error('Erro ao excluir negócios em lote:', err)
+      const details = err?.result
+      let errorDescription = 'Ocorreu um erro ao remover os negócios selecionados.'
+      if (details) {
+        const { failedCount, total, firstErrorMessage } = details
+        errorDescription = `Falha ao excluir ${failedCount} de ${total} negócio(s).${
+          firstErrorMessage ? ` Motivo: ${firstErrorMessage}` : ''
+        }`
+      } else if (err instanceof Error && err.message) {
+        errorDescription = err.message
+      }
+
       toast({
         title: 'Erro ao excluir negócios',
-        description: 'Ocorreu um erro ao remover os negócios selecionados.',
+        description: errorDescription,
         variant: 'destructive',
       })
+      // Mesmo em falha parcial, sincroniza para refletir os que foram excluídos
+      if (onNegociosChanged) onNegociosChanged()
     } finally {
       setIsProcessing(false)
     }
@@ -1761,14 +1782,18 @@ export const ComercialListView: React.FC<ComercialListViewProps> = ({
                   })
                   setItemParaMover(null)
                   if (onNegociosChanged) onNegociosChanged()
-                } catch (err) {
+                } catch (err: any) {
                   console.error('Erro ao mover cliente para outros contatos:', err)
+                  const details = err?.result
+                  let msg = 'Não foi possível mover o cliente para Outros Contatos.'
+                  if (details?.firstErrorMessage) {
+                    msg = `Erro ao remover negócio do funil: ${details.firstErrorMessage}`
+                  } else if (err instanceof Error && err.message) {
+                    msg = err.message
+                  }
                   toast({
                     title: 'Erro ao mover contato',
-                    description:
-                      err instanceof Error
-                        ? err.message
-                        : 'Não foi possível mover o cliente para Outros Contatos.',
+                    description: msg,
                     variant: 'destructive',
                   })
                 } finally {

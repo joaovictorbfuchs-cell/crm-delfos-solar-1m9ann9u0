@@ -132,19 +132,144 @@ export async function deleteNegocio(id: string): Promise<boolean> {
   return await pb.collection('negocios').delete(id)
 }
 
+export interface BulkDeleteNegociosResult {
+  total: number
+  successCount: number
+  failedCount: number
+  failedIds: string[]
+  firstErrorMessage?: string
+}
+
 /**
- * Exclui múltiplos negócios em lote.
+ * Exclui múltiplos negócios em lote com controle de taxa (concorrência limitada e retries com backoff).
  * ATENÇÃO: Exclui APENAS os registros de negócios. Os clientes permanecem 100% intactos.
+ *
+ * Utiliza concorrência controlada (ex.: 6 requisições simultâneas) e retentativas exponenciais
+ * em caso de rate limit (HTTP 429) ou erros transitórios de rede, evitando estouro de cota e rejeições em massa.
  */
-export async function bulkDeleteNegocios(negocioIds: string[]): Promise<boolean> {
-  if (!negocioIds || negocioIds.length === 0) return true
-  const results = await Promise.allSettled(
-    negocioIds.map((id) => pb.collection('negocios').delete(id)),
-  )
-  const failed = results.filter((r) => r.status === 'rejected')
-  if (failed.length > 0) {
-    console.error(`Falha ao excluir ${failed.length} de ${negocioIds.length} negócios`, failed)
-    throw new Error(`Falha ao excluir ${failed.length} negócio(s).`)
+export async function bulkDeleteNegocios(
+  negocioIds: string[],
+  options?: {
+    concurrency?: number
+    onProgress?: (progress: { completed: number; total: number; failed: number }) => void
+  },
+): Promise<BulkDeleteNegociosResult> {
+  const ids = Array.isArray(negocioIds) ? Array.from(new Set(negocioIds.filter(Boolean))) : []
+  const total = ids.length
+  if (total === 0) {
+    return {
+      total: 0,
+      successCount: 0,
+      failedCount: 0,
+      failedIds: [],
+    }
   }
-  return true
+
+  const concurrency = Math.max(1, Math.min(options?.concurrency ?? 6, 12))
+  const failedItems: Array<{ id: string; error: unknown; message: string }> = []
+  let completed = 0
+  let cursor = 0
+
+  async function deleteOneWithRetry(id: string): Promise<void> {
+    const maxRetries = 3
+    let attempt = 0
+    let delay = 300
+
+    while (attempt <= maxRetries) {
+      try {
+        await pb.collection('negocios').delete(id, { requestKey: null })
+        return
+      } catch (err: any) {
+        attempt++
+        const status = err?.status || err?.statusCode
+        // 404 significa que já foi excluído anteriormente — tratamos como sucesso idempotente
+        if (status === 404) {
+          return
+        }
+
+        const isRateLimit = status === 429
+        const isNetworkErr =
+          status === 0 ||
+          err?.name === 'TypeError' ||
+          /failed to fetch|network|timeout/i.test(String(err?.message || ''))
+        const isServerTransient = status >= 500 && status < 600
+
+        const canRetry = attempt <= maxRetries && (isRateLimit || isNetworkErr || isServerTransient)
+        if (!canRetry) {
+          // Extrai mensagem real do PocketBase / Error
+          let msg = 'Erro desconhecido'
+          if (err?.message) {
+            msg = String(err.message)
+          }
+          if (err?.response?.message) {
+            msg = String(err.response.message)
+          }
+          if (status === 429) {
+            msg = 'Limite de requisições excedido (429)'
+          }
+          failedItems.push({ id, error: err, message: msg })
+          return
+        }
+
+        // Backoff exponencial com jitter para rate limits
+        const jitter = Math.floor(Math.random() * 150)
+        const waitMs = isRateLimit ? delay * 2 + jitter : delay + jitter
+        await new Promise((resolve) => setTimeout(resolve, waitMs))
+        delay *= 1.8
+      }
+    }
+  }
+
+  // Fila concorrente limitada
+  const workers = Array.from({ length: Math.min(concurrency, total) }, async () => {
+    while (cursor < total) {
+      const idx = cursor++
+      const id = ids[idx]
+      await deleteOneWithRetry(id)
+      completed++
+      if (options?.onProgress) {
+        options.onProgress({
+          completed,
+          total,
+          failed: failedItems.length,
+        })
+      }
+    }
+  })
+
+  await Promise.all(workers)
+
+  const failedCount = failedItems.length
+  const successCount = total - failedCount
+  const firstErrorMessage = failedItems[0]?.message
+
+  if (failedCount > 0) {
+    const reasonsSummary = failedItems
+      .slice(0, 5)
+      .map((f) => `ID ${f.id}: ${f.message}`)
+      .join('; ')
+    console.error(
+      `Falha ao excluir ${failedCount} de ${total} negócios. Exemplos de motivo: ${reasonsSummary}`,
+      failedItems.map((f) => ({ id: f.id, message: f.message, status: (f.error as any)?.status })),
+    )
+
+    const err = new Error(
+      `Falha ao excluir ${failedCount} de ${total} negócio(s). ${firstErrorMessage ? `Motivo: ${firstErrorMessage}` : ''}`,
+    )
+    ;(err as any).result = {
+      total,
+      successCount,
+      failedCount,
+      failedIds: failedItems.map((f) => f.id),
+      firstErrorMessage,
+    }
+    throw err
+  }
+
+  return {
+    total,
+    successCount,
+    failedCount: 0,
+    failedIds: [],
+  }
 }
