@@ -18,6 +18,7 @@ import {
 } from 'lucide-react'
 import type { Projeto, ProjetoEtapa, Profissional, Atividade, OrcamentoSolar } from '@/types/crm'
 import { useClientes } from '@/contexts/ClientesContext'
+import { useToast } from '@/hooks/use-toast'
 import { MobileKanbanViewport, type MobileKanbanStage } from '@/components/MobileKanbanViewport'
 import { WhatsAppIcon } from '@/components/WhatsAppIcon'
 import { cleanPhoneDigits } from '@/lib/formatters'
@@ -33,6 +34,7 @@ interface KanbanProjetosProps {
   projetos: Projeto[]
   profissionais: Profissional[]
   onOpenAtribuirModal: (projeto: Projeto, targetEtapa?: ProjetoEtapa) => void
+  onProjetoUpdated?: () => void
 }
 
 export interface ProjetoColumnDef {
@@ -116,14 +118,44 @@ export const PROJETOS_COLUMNS: ProjetoColumnDef[] = [
   },
 ]
 
+// Normalizador seguro de etapas para projetos com valores legados ou case mismatch
+export const normalizeProjetoEtapa = (etapaRaw?: string): ProjetoEtapa => {
+  if (!etapaRaw) return 'Levantamento de Informações'
+  const trimmed = etapaRaw.trim()
+
+  // Match exato com as 6 etapas padrão
+  const exata = PROJETOS_COLUMNS.find((c) => c.id === trimmed)
+  if (exata) return exata.id
+
+  const lower = trimmed.toLowerCase()
+  if (lower.includes('levantamento')) return 'Levantamento de Informações'
+  if (lower.includes('elabora') || lower.includes('projeto')) return 'Elaboração de Projeto'
+  if (lower.includes('pedido') || lower.includes('compra')) return 'Pedido de Compra'
+  if (lower.includes('material') || lower.includes('aguardando')) return 'Aguardando Material'
+  if (lower.includes('instala')) return 'Instalação'
+  if (lower.includes('conclu') || lower.includes('homolog') || lower.includes('finaliz'))
+    return 'Concluído'
+
+  // Fallback seguro aditivo: garante que o card permaneça visível e movível na 1ª etapa
+  return 'Levantamento de Informações'
+}
+
 export const KanbanProjetos: React.FC<KanbanProjetosProps> = ({
   projetos,
   profissionais,
   onOpenAtribuirModal,
+  onProjetoUpdated,
 }) => {
   const navigate = useNavigate()
-  const { openFichaCliente, updateProjeto, updateProjetoEtapa, atividades, orcamentosSolar } =
-    useClientes()
+  const {
+    openFichaCliente,
+    updateProjeto,
+    updateProjetoEtapa,
+    refreshData,
+    atividades,
+    orcamentosSolar,
+  } = useClientes()
+  const { toast } = useToast()
 
   const [draggedProjetoId, setDraggedProjetoId] = useState<string | null>(null)
   const [dragOverColumnId, setDragOverColumnId] = useState<ProjetoEtapa | null>(null)
@@ -344,6 +376,57 @@ export const KanbanProjetos: React.FC<KanbanProjetosProps> = ({
     }
   }
 
+  // Função centralizada para mover etapa de projeto com atualização otimista, rollback, toast e refresh
+  const moverEtapaProjeto = async (
+    projId: string,
+    targetEtapa: ProjetoEtapa,
+    options?: {
+      profissional_id?: string
+      profissional_nome?: string
+      descricao?: string
+      abrirModalAtribuir?: boolean
+    },
+  ) => {
+    const targetProj = projetos.find((p) => p.id === projId)
+    if (!targetProj) return
+    if (targetProj.etapa === targetEtapa && !options?.profissional_id) return
+
+    const previousEtapa = targetProj.etapa
+    const tituloCard = targetProj.titulo_usina || getTituloUsina(targetProj)
+
+    // Atualização otimista imediata na referência do card para feedback instantâneo na UI
+    targetProj.etapa = targetEtapa
+
+    try {
+      await updateProjetoEtapa(projId, targetEtapa, options)
+      toast({
+        title: 'Etapa atualizada',
+        description: `"${tituloCard}" movido para ${targetEtapa}.`,
+      })
+      if (onProjetoUpdated) onProjetoUpdated()
+      await refreshData()
+
+      // Se moveu para Instalação e ainda não tem profissional, abre modal para atribuir
+      if (
+        options?.abrirModalAtribuir ||
+        (targetEtapa === 'Instalação' && !targetProj.profissional_id)
+      ) {
+        onOpenAtribuirModal(targetProj, targetEtapa)
+      }
+    } catch (err: any) {
+      // Reverte em caso de erro
+      targetProj.etapa = previousEtapa
+      console.error('Falha ao mover card de projeto:', err)
+      const errorMsg =
+        err?.message || err?.data?.message || 'Não foi possível alterar a etapa do projeto.'
+      toast({
+        title: 'Erro ao mover projeto',
+        description: errorMsg,
+        variant: 'destructive',
+      })
+    }
+  }
+
   const handleDrop = async (e: React.DragEvent, targetEtapa: ProjetoEtapa) => {
     e.preventDefault()
     const projId = e.dataTransfer.getData('text/plain') || draggedProjetoId
@@ -352,22 +435,10 @@ export const KanbanProjetos: React.FC<KanbanProjetosProps> = ({
 
     if (!projId) return
     const targetProj = projetos.find((p) => p.id === projId)
-    if (!targetProj || targetProj.etapa === targetEtapa) return
+    if (!targetProj) return
 
-    // Se a etapa de destino for Instalação (ou se o projeto ainda não tiver responsável),
-    // podemos abrir o modal de seleção para o usuário escolher o instalador
-    if (targetEtapa === 'Instalação' && !targetProj.profissional_id) {
-      onOpenAtribuirModal(targetProj, targetEtapa)
-      // Primeiro atualiza a etapa
-      await updateProjetoEtapa(projId, targetEtapa)
-      return
-    }
-
-    try {
-      await updateProjetoEtapa(projId, targetEtapa)
-    } catch (err) {
-      console.error('Falha ao mover card de projeto:', err)
-    }
+    const precisaAtribuir = targetEtapa === 'Instalação' && !targetProj.profissional_id
+    await moverEtapaProjeto(projId, targetEtapa, { abrirModalAtribuir: precisaAtribuir })
   }
 
   // Touch Handlers para mobile
@@ -464,14 +535,8 @@ export const KanbanProjetos: React.FC<KanbanProjetosProps> = ({
         const targetEtapa = colEl.getAttribute('data-projeto-column-id') as ProjetoEtapa
         const proj = projetos.find((p) => p.id === projetoId)
         if (targetEtapa && proj && proj.etapa !== targetEtapa) {
-          try {
-            await updateProjetoEtapa(projetoId, targetEtapa)
-            if (targetEtapa === 'Instalação' && !proj.profissional_id) {
-              onOpenAtribuirModal(proj, targetEtapa)
-            }
-          } catch (err) {
-            console.error('Falha ao mover card touch:', err)
-          }
+          const precisaAtribuir = targetEtapa === 'Instalação' && !proj.profissional_id
+          await moverEtapaProjeto(projetoId, targetEtapa, { abrirModalAtribuir: precisaAtribuir })
         }
       }
     }
@@ -494,7 +559,8 @@ export const KanbanProjetos: React.FC<KanbanProjetosProps> = ({
 
   // Renderizador de uma coluna individual de Projetos (reutilizado em Desktop e Mobile)
   const renderColumnContent = (col: ProjetoColumnDef, isMobile = false) => {
-    const colProjetos = projetos.filter((p) => p.etapa === col.id)
+    // Usa normalizador para garantir que cards legados ou com diferenças de escrita fiquem na coluna correta
+    const colProjetos = projetos.filter((p) => normalizeProjetoEtapa(p.etapa) === col.id)
     const totalKwp = colProjetos.reduce((sum, p) => sum + (p.potencia_kwp || 0), 0)
     const isOver = dragOverColumnId === col.id
 
@@ -713,14 +779,11 @@ export const KanbanProjetos: React.FC<KanbanProjetosProps> = ({
                             <DropdownMenuItem
                               key={other.id}
                               onClick={async () => {
-                                try {
-                                  await updateProjetoEtapa(proj.id, other.id)
-                                  if (other.id === 'Instalação' && !proj.profissional_id) {
-                                    onOpenAtribuirModal(proj, other.id)
-                                  }
-                                } catch (err) {
-                                  console.error('Erro ao mover projeto:', err)
-                                }
+                                const precisaAtribuir =
+                                  other.id === 'Instalação' && !proj.profissional_id
+                                await moverEtapaProjeto(proj.id, other.id, {
+                                  abrirModalAtribuir: precisaAtribuir,
+                                })
                               }}
                               className="cursor-pointer gap-2 text-slate-700 text-xs"
                             >
@@ -754,11 +817,7 @@ export const KanbanProjetos: React.FC<KanbanProjetosProps> = ({
                               <DropdownMenuSeparator />
                               <DropdownMenuItem
                                 onClick={async () => {
-                                  try {
-                                    await updateProjetoEtapa(proj.id, 'Concluído')
-                                  } catch (err) {
-                                    console.error('Erro ao concluir projeto:', err)
-                                  }
+                                  await moverEtapaProjeto(proj.id, 'Concluído')
                                 }}
                                 className="cursor-pointer gap-2 text-emerald-700 focus:text-emerald-800 focus:bg-emerald-50 font-medium"
                               >
@@ -901,7 +960,7 @@ export const KanbanProjetos: React.FC<KanbanProjetosProps> = ({
   // Prepara as etapas mobile para o MobileKanbanViewport
   const mobileStages: MobileKanbanStage[] = useMemo(() => {
     return PROJETOS_COLUMNS.map((col) => {
-      const colProjetos = projetos.filter((p) => p.etapa === col.id)
+      const colProjetos = projetos.filter((p) => normalizeProjetoEtapa(p.etapa) === col.id)
       const totalKwp = colProjetos.reduce((sum, p) => sum + (p.potencia_kwp || 0), 0)
       return {
         id: col.id,
