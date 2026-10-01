@@ -75,7 +75,7 @@ export const RelatorioFaturaPage: React.FC = () => {
         if (data.cliente_id) {
           try {
             const clientModule = await import('@/lib/pocketbase/client')
-            const pbInst = clientModule.pb || clientModule.default
+            const pbInst = (clientModule as any).pb || clientModule.default
             const cli = await pbInst.collection('clientes').getOne(data.cliente_id!)
             let contatosDoCli: any[] = []
             try {

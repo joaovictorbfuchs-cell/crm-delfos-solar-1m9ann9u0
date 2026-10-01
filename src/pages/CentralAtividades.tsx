@@ -24,6 +24,7 @@ import {
   Plus,
   MessageSquare,
   ListTodo,
+  Settings2,
   Briefcase,
   FileText,
   UserCheck,
@@ -67,6 +68,7 @@ import {
 import { AtividadesCalendario } from '@/components/AtividadesCalendario'
 import { ModalNovaAtividade } from '@/components/ModalNovaAtividade'
 import { ModalDisparoMensagensMassa } from '@/components/ModalDisparoMensagensMassa'
+import { ModalGerenciarAtividades } from '@/components/ModalGerenciarAtividades'
 import type { Atividade, AtividadeCategoriaId, AtividadeStatus } from '@/types/crm'
 
 const ITEMS_PER_PAGE = 25
@@ -93,6 +95,7 @@ export default function CentralAtividadesPage() {
   // Modais
   const [modalNovaAtividadeOpen, setModalNovaAtividadeOpen] = useState(false)
   const [modalMensagemMassaOpen, setModalMensagemMassaOpen] = useState(false)
+  const [modalGerenciarAtividadesOpen, setModalGerenciarAtividadesOpen] = useState(false)
 
   // Drawer lateral de filtros combinados
   const [isFilterDrawerOpen, setIsFilterDrawerOpen] = useState(false)
@@ -677,6 +680,17 @@ export default function CentralAtividadesPage() {
 
           <Button
             type="button"
+            variant="outline"
+            onClick={() => setModalGerenciarAtividadesOpen(true)}
+            className="h-9 px-3.5 rounded-xl border-amber-300 text-amber-900 bg-amber-50 hover:bg-amber-100/70 font-semibold text-xs shadow-2xs inline-flex items-center gap-1.5 cursor-pointer"
+            title="Gerenciar padrões de atividades, checklists e links"
+          >
+            <Settings2 className="w-3.5 h-3.5 text-amber-600" />
+            <span>Gerenciar Atividades</span>
+          </Button>
+
+          <Button
+            type="button"
             onClick={() => setModalMensagemMassaOpen(true)}
             className="h-9 px-3.5 rounded-xl bg-[#0284C7] hover:bg-[#0369a1] text-white font-semibold text-xs shadow-xs inline-flex items-center gap-1.5 cursor-pointer"
             title="Disparar mensagens em massa via WhatsApp"
@@ -1135,6 +1149,13 @@ export default function CentralAtividadesPage() {
         segmentoInicial="todos"
         titulo="Disparar Mensagens em Massa via WhatsApp"
         descricao="Envie mensagens personalizadas via WhatsApp para clientes com registro automático na Central de Atividades."
+      />
+
+      {/* 6. Modal Gerenciar Atividades (Padrões, Checklists e Links) */}
+      <ModalGerenciarAtividades
+        open={modalGerenciarAtividadesOpen}
+        onOpenChange={setModalGerenciarAtividadesOpen}
+        onSuccess={() => fetchData(true)}
       />
 
       {/* 6. Painel Lateral (Drawer / Sheet) de Filtros Combináveis */}

@@ -40,6 +40,12 @@ export type AtividadeCategoriaId = 'comercial' | 'manutencao' | 'administrativo_
 
 export type CatalogoTipoExecucao = 'equipe_interna' | 'fornecedor_externo'
 
+export interface TipoAtividadeChecklistItem {
+  id: string
+  texto: string
+  concluido?: boolean
+}
+
 export interface TipoAtividadeCustomItem extends RecordModel {
   id: string
   collectionId: string
@@ -51,10 +57,12 @@ export interface TipoAtividadeCustomItem extends RecordModel {
   descricao?: string
   is_padrao?: boolean
   valor_base?: number
+  valor_por_placa?: number
   frequencia_meses?: number
   tipo_execucao?: CatalogoTipoExecucao
   orientacoes_tecnicas?: string
   links_uteis?: string
+  checklist?: TipoAtividadeChecklistItem[]
   documento_modelo?: string
   ativo?: boolean
   created: string

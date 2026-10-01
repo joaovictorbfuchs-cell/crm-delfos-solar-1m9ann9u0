@@ -17,6 +17,7 @@ import { useClientes } from '@/contexts/ClientesContext'
 import type {
   AtividadeCategoriaId,
   CatalogoTipoExecucao,
+  TipoAtividadeChecklistItem,
   TipoAtividadeCustomItem,
 } from '@/types/crm'
 import {
@@ -52,6 +53,11 @@ import {
   Layers,
   Briefcase,
   FileSpreadsheet,
+  CheckSquare,
+  Plus,
+  Trash2,
+  ExternalLink,
+  Link2,
 } from 'lucide-react'
 
 // Ícones disponíveis para seleção no tipo de atividade
@@ -147,6 +153,15 @@ export const ModalEditarTipoAtividade: React.FC<ModalEditarTipoAtividadeProps> =
   const [tipoExecucao, setTipoExecucao] = useState<CatalogoTipoExecucao>('equipe_interna')
   const [orientacoesTecnicas, setOrientacoesTecnicas] = useState('')
   const [linksUteis, setLinksUteis] = useState('')
+  // Checklist dinâmico
+  const [checklistItems, setChecklistItems] = useState<TipoAtividadeChecklistItem[]>([])
+  const [novoItemChecklist, setNovoItemChecklist] = useState('')
+  // Links úteis dinâmicos
+  const [listaLinksUteis, setListaLinksUteis] = useState<
+    Array<{ id: string; titulo: string; url: string }>
+  >([])
+  const [novoLinkTitulo, setNovoLinkTitulo] = useState('')
+  const [novoLinkUrl, setNovoLinkUrl] = useState('')
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [selectedFileName, setSelectedFileName] = useState<string>('')
   const [ativo, setAtivo] = useState(true)
@@ -195,6 +210,56 @@ export const ModalEditarTipoAtividade: React.FC<ModalEditarTipoAtividadeProps> =
       setLinksUteis(atividadeParaEditar.links_uteis || '')
       setSelectedFileName(atividadeParaEditar.documento_modelo || '')
       setAtivo(atividadeParaEditar.ativo !== false)
+
+      // Carregar checklist existente
+      if (Array.isArray(atividadeParaEditar.checklist)) {
+        setChecklistItems(
+          atividadeParaEditar.checklist.map((c, i) => ({
+            id: c.id || `chk_${Date.now()}_${i}`,
+            texto: c.texto || '',
+            concluido: Boolean(c.concluido),
+          })),
+        )
+      } else {
+        setChecklistItems([])
+      }
+      setNovoItemChecklist('')
+
+      // Carregar links úteis existentes
+      if (atividadeParaEditar.links_uteis) {
+        const linhas = atividadeParaEditar.links_uteis
+          .split('\n')
+          .map((l) => l.trim())
+          .filter(Boolean)
+        const parseados: Array<{ id: string; titulo: string; url: string }> = []
+        linhas.forEach((linha, i) => {
+          if (linha.includes(' - http')) {
+            const [t, ...resto] = linha.split(' - ')
+            parseados.push({
+              id: `link_${Date.now()}_${i}`,
+              titulo: t.trim(),
+              url: resto.join(' - ').trim(),
+            })
+          } else if (linha.startsWith('http://') || linha.startsWith('https://')) {
+            parseados.push({
+              id: `link_${Date.now()}_${i}`,
+              titulo: `Link ${i + 1}`,
+              url: linha,
+            })
+          } else {
+            parseados.push({
+              id: `link_${Date.now()}_${i}`,
+              titulo: linha,
+              url: '',
+            })
+          }
+        })
+        setListaLinksUteis(parseados)
+      } else {
+        setListaLinksUteis([])
+      }
+      setNovoLinkTitulo('')
+      setNovoLinkUrl('')
     } else if (padraoParaEditar) {
       setNome(padraoParaEditar.tituloPadrao || '')
       setCategoria(padraoParaEditar.categoria || 'comercial')
@@ -217,6 +282,11 @@ export const ModalEditarTipoAtividade: React.FC<ModalEditarTipoAtividadeProps> =
       setTipoExecucao('equipe_interna')
       setOrientacoesTecnicas('')
       setLinksUteis('')
+      setChecklistItems([])
+      setNovoItemChecklist('')
+      setListaLinksUteis([])
+      setNovoLinkTitulo('')
+      setNovoLinkUrl('')
       setSelectedFileName('')
       setAtivo(true)
     } else {
@@ -232,6 +302,11 @@ export const ModalEditarTipoAtividade: React.FC<ModalEditarTipoAtividadeProps> =
       setTipoExecucao('equipe_interna')
       setOrientacoesTecnicas('')
       setLinksUteis('')
+      setChecklistItems([])
+      setNovoItemChecklist('')
+      setListaLinksUteis([])
+      setNovoLinkTitulo('')
+      setNovoLinkUrl('')
       setSelectedFileName('')
       setAtivo(true)
     }
@@ -267,6 +342,14 @@ export const ModalEditarTipoAtividade: React.FC<ModalEditarTipoAtividadeProps> =
     setFormError(null)
 
     try {
+      // Consolidar links_uteis: se houver itens na listaLinksUteis, formatar
+      let linksConsolidados = linksUteis.trim()
+      if (listaLinksUteis.length > 0) {
+        linksConsolidados = listaLinksUteis
+          .map((l) => (l.url ? `${l.titulo} - ${l.url}` : l.titulo))
+          .join('\n')
+      }
+
       const payload: any = {
         nome: nome.trim(),
         categoria,
@@ -278,7 +361,8 @@ export const ModalEditarTipoAtividade: React.FC<ModalEditarTipoAtividadeProps> =
         frequencia_meses: numFreq,
         tipo_execucao: tipoExecucao,
         orientacoes_tecnicas: orientacoesTecnicas.trim() || undefined,
-        links_uteis: linksUteis.trim() || undefined,
+        links_uteis: linksConsolidados || undefined,
+        checklist: checklistItems,
         ativo,
       }
 
@@ -562,19 +646,191 @@ export const ModalEditarTipoAtividade: React.FC<ModalEditarTipoAtividadeProps> =
             />
           </div>
 
-          {/* Links Úteis */}
-          <div className="space-y-1.5">
-            <Label htmlFor="edit-links" className="text-xs font-semibold text-gray-700">
-              Links Úteis (Normas, Manuais, Portais de RMA)
-            </Label>
-            <Textarea
-              id="edit-links"
-              rows={2}
-              placeholder="URLs úteis para a equipe (separadas por linha ou espaço)..."
-              value={linksUteis}
-              onChange={(e) => setLinksUteis(e.target.value)}
-              className="text-xs bg-white resize-none"
-            />
+          {/* Checklist Dinâmico de Padrão */}
+          <div className="space-y-2 p-3.5 rounded-xl bg-amber-50/50 border border-amber-200">
+            <div className="flex items-center justify-between">
+              <Label className="text-xs font-bold text-amber-950 flex items-center gap-1.5">
+                <CheckSquare className="w-4 h-4 text-amber-600" />
+                <span>Checklist do Padrão ({checklistItems.length} itens)</span>
+              </Label>
+              <span className="text-[10px] text-amber-700 font-medium">
+                Itens para conferência pela equipe técnica
+              </span>
+            </div>
+
+            {/* Input para adicionar novo item ao checklist */}
+            <div className="flex items-center gap-2">
+              <Input
+                placeholder="Ex: Verificar aperto de conectores MC4..."
+                value={novoItemChecklist}
+                onChange={(e) => setNovoItemChecklist(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault()
+                    if (novoItemChecklist.trim()) {
+                      setChecklistItems((prev) => [
+                        ...prev,
+                        {
+                          id: `chk_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+                          texto: novoItemChecklist.trim(),
+                          concluido: false,
+                        },
+                      ])
+                      setNovoItemChecklist('')
+                    }
+                  }
+                }}
+                className="text-xs bg-white"
+              />
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => {
+                  if (novoItemChecklist.trim()) {
+                    setChecklistItems((prev) => [
+                      ...prev,
+                      {
+                        id: `chk_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+                        texto: novoItemChecklist.trim(),
+                        concluido: false,
+                      },
+                    ])
+                    setNovoItemChecklist('')
+                  }
+                }}
+                disabled={!novoItemChecklist.trim()}
+                className="h-8 px-3 bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold shrink-0 cursor-pointer"
+              >
+                <Plus className="w-3.5 h-3.5 mr-1" />
+                Adicionar
+              </Button>
+            </div>
+
+            {/* Lista de itens do checklist */}
+            {checklistItems.length > 0 ? (
+              <div className="space-y-1.5 pt-1">
+                {checklistItems.map((item, idx) => (
+                  <div
+                    key={item.id || idx}
+                    className="flex items-center justify-between gap-2 p-2 rounded-lg bg-white border border-amber-200/80 text-xs shadow-2xs"
+                  >
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="w-5 h-5 rounded-md bg-amber-100 text-amber-800 text-[10px] font-bold flex items-center justify-center shrink-0">
+                        {idx + 1}
+                      </span>
+                      <span className="text-gray-800 font-medium truncate">{item.texto}</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setChecklistItems((prev) => prev.filter((_, i) => i !== idx))}
+                      className="p-1 text-gray-400 hover:text-red-600 rounded transition-colors shrink-0"
+                      title="Remover item do checklist"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-[11px] text-amber-800/70 italic">
+                Nenhum item adicionado ao checklist ainda. Digite acima e clique em Adicionar ou
+                pressione Enter.
+              </p>
+            )}
+          </div>
+
+          {/* Links Úteis Dinâmicos */}
+          <div className="space-y-2 p-3.5 rounded-xl bg-slate-50 border border-slate-200">
+            <div className="flex items-center justify-between">
+              <Label className="text-xs font-bold text-gray-800 flex items-center gap-1.5">
+                <Link2 className="w-4 h-4 text-emerald-600" />
+                <span>Links Úteis ({listaLinksUteis.length})</span>
+              </Label>
+              <span className="text-[10px] text-gray-500 font-medium">
+                Normas, manuais e portais de suporte
+              </span>
+            </div>
+
+            {/* Inclusão de novo link */}
+            <div className="grid grid-cols-1 sm:grid-cols-12 gap-2">
+              <div className="sm:col-span-5">
+                <Input
+                  placeholder="Título (Ex: Manual Técnico)"
+                  value={novoLinkTitulo}
+                  onChange={(e) => setNovoLinkTitulo(e.target.value)}
+                  className="text-xs bg-white"
+                />
+              </div>
+              <div className="sm:col-span-5">
+                <Input
+                  placeholder="URL (https://...)"
+                  value={novoLinkUrl}
+                  onChange={(e) => setNovoLinkUrl(e.target.value)}
+                  className="text-xs bg-white"
+                />
+              </div>
+              <div className="sm:col-span-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={() => {
+                    if (novoLinkTitulo.trim() || novoLinkUrl.trim()) {
+                      setListaLinksUteis((prev) => [
+                        ...prev,
+                        {
+                          id: `link_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+                          titulo: novoLinkTitulo.trim() || novoLinkUrl.trim(),
+                          url: novoLinkUrl.trim(),
+                        },
+                      ])
+                      setNovoLinkTitulo('')
+                      setNovoLinkUrl('')
+                    }
+                  }}
+                  disabled={!novoLinkTitulo.trim() && !novoLinkUrl.trim()}
+                  className="w-full h-8 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold cursor-pointer"
+                >
+                  <Plus className="w-3.5 h-3.5 mr-1" />
+                  Incluir
+                </Button>
+              </div>
+            </div>
+
+            {/* Lista de links cadastrados */}
+            {listaLinksUteis.length > 0 && (
+              <div className="space-y-1.5 pt-1">
+                {listaLinksUteis.map((lk, idx) => (
+                  <div
+                    key={lk.id || idx}
+                    className="flex items-center justify-between gap-2 p-2 rounded-lg bg-white border border-gray-200 text-xs shadow-2xs"
+                  >
+                    <div className="flex items-center gap-2 min-w-0">
+                      <Link2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                      <span className="font-semibold text-gray-800 truncate">{lk.titulo}</span>
+                      {lk.url && (
+                        <a
+                          href={lk.url.startsWith('http') ? lk.url : `https://${lk.url}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-[11px] text-emerald-600 hover:underline flex items-center gap-0.5 truncate"
+                        >
+                          <span className="truncate max-w-[200px]">{lk.url}</span>
+                          <ExternalLink className="w-2.5 h-2.5 shrink-0" />
+                        </a>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setListaLinksUteis((prev) => prev.filter((_, i) => i !== idx))}
+                      className="p-1 text-gray-400 hover:text-red-600 rounded transition-colors shrink-0"
+                      title="Remover link"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Documento Modelo (Anexo) */}

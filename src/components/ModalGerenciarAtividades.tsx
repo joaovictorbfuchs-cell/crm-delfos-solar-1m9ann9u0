@@ -33,11 +33,13 @@ import type { TipoAtividadeCustomItem } from '@/types/crm'
 interface ModalGerenciarAtividadesProps {
   open: boolean
   onOpenChange: (open: boolean) => void
+  onSuccess?: () => void
 }
 
 export const ModalGerenciarAtividades: React.FC<ModalGerenciarAtividadesProps> = ({
   open,
   onOpenChange,
+  onSuccess,
 }) => {
   const { tiposAtividadesCustom, addTipoAtividadeCustom, removeTipoAtividadeCustom } = useClientes()
 
@@ -485,6 +487,7 @@ export const ModalGerenciarAtividades: React.FC<ModalGerenciarAtividadesProps> =
         onOpenChange={setIsEditarOpen}
         atividadeParaEditar={customParaEditar}
         padraoParaEditar={padraoParaEditar}
+        onSuccess={onSuccess}
       />
     </Dialog>
   )

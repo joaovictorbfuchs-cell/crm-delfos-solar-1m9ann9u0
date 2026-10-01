@@ -293,10 +293,12 @@ interface ClientesContextType {
     descricao?: string
     is_padrao?: boolean
     valor_base?: number
+    valor_por_placa?: number
     frequencia_meses?: number
     tipo_execucao?: import('@/types/crm').CatalogoTipoExecucao
     orientacoes_tecnicas?: string
     links_uteis?: string
+    checklist?: import('@/types/crm').TipoAtividadeChecklistItem[]
     ativo?: boolean
     documento_modelo?: File | null
   }) => Promise<import('@/types/crm').TipoAtividadeCustomItem>
@@ -310,10 +312,12 @@ interface ClientesContextType {
       descricao: string
       is_padrao: boolean
       valor_base: number
+      valor_por_placa: number
       frequencia_meses: number
       tipo_execucao: import('@/types/crm').CatalogoTipoExecucao
       orientacoes_tecnicas: string
       links_uteis: string
+      checklist: import('@/types/crm').TipoAtividadeChecklistItem[]
       ativo: boolean
       documento_modelo?: File | null
     }>,
@@ -1498,10 +1502,12 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     descricao?: string
     is_padrao?: boolean
     valor_base?: number
+    valor_por_placa?: number
     frequencia_meses?: number
     tipo_execucao?: import('@/types/crm').CatalogoTipoExecucao
     orientacoes_tecnicas?: string
     links_uteis?: string
+    checklist?: import('@/types/crm').TipoAtividadeChecklistItem[]
     ativo?: boolean
     documento_modelo?: File | null
   }) => {
@@ -1525,10 +1531,12 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       descricao: string
       is_padrao: boolean
       valor_base: number
+      valor_por_placa: number
       frequencia_meses: number
       tipo_execucao: import('@/types/crm').CatalogoTipoExecucao
       orientacoes_tecnicas: string
       links_uteis: string
+      checklist: import('@/types/crm').TipoAtividadeChecklistItem[]
       ativo: boolean
       documento_modelo?: File | null
     }>,

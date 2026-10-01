@@ -2418,10 +2418,12 @@ export async function createTipoAtividadeCustom(data: {
   descricao?: string
   is_padrao?: boolean
   valor_base?: number
+  valor_por_placa?: number
   frequencia_meses?: number
   tipo_execucao?: import('@/types/crm').CatalogoTipoExecucao
   orientacoes_tecnicas?: string
   links_uteis?: string
+  checklist?: import('@/types/crm').TipoAtividadeChecklistItem[]
   ativo?: boolean
   documento_modelo?: File | null
 }): Promise<import('@/types/crm').TipoAtividadeCustomItem> {
@@ -2434,10 +2436,16 @@ export async function createTipoAtividadeCustom(data: {
     formData.append('descricao', data.descricao || '')
     formData.append('is_padrao', String(Boolean(data.is_padrao)))
     formData.append('valor_base', String(data.valor_base ?? 0))
+    if (data.valor_por_placa !== undefined) {
+      formData.append('valor_por_placa', String(data.valor_por_placa ?? 0))
+    }
     formData.append('frequencia_meses', String(data.frequencia_meses ?? 0))
     formData.append('tipo_execucao', data.tipo_execucao || 'equipe_interna')
     formData.append('orientacoes_tecnicas', data.orientacoes_tecnicas || '')
     formData.append('links_uteis', data.links_uteis || '')
+    if (data.checklist) {
+      formData.append('checklist', JSON.stringify(data.checklist))
+    }
     formData.append('ativo', String(data.ativo ?? true))
     formData.append('documento_modelo', data.documento_modelo)
 
@@ -2447,7 +2455,7 @@ export async function createTipoAtividadeCustom(data: {
     return record
   }
 
-  const payload = {
+  const payload: Record<string, any> = {
     nome: data.nome.trim(),
     categoria: data.categoria,
     cor: data.cor || '',
@@ -2455,12 +2463,17 @@ export async function createTipoAtividadeCustom(data: {
     descricao: data.descricao || '',
     is_padrao: Boolean(data.is_padrao),
     valor_base: data.valor_base ?? 0,
+    valor_por_placa: data.valor_por_placa ?? 0,
     frequencia_meses: data.frequencia_meses ?? 0,
     tipo_execucao: data.tipo_execucao || 'equipe_interna',
     orientacoes_tecnicas: data.orientacoes_tecnicas || '',
     links_uteis: data.links_uteis || '',
     ativo: data.ativo ?? true,
   }
+  if (data.checklist !== undefined) {
+    payload.checklist = data.checklist
+  }
+
   const record = await pb
     .collection('tipos_atividades_custom')
     .create<import('@/types/crm').TipoAtividadeCustomItem>(payload)
@@ -2477,10 +2490,12 @@ export async function updateTipoAtividadeCustom(
     descricao: string
     is_padrao: boolean
     valor_base: number
+    valor_por_placa: number
     frequencia_meses: number
     tipo_execucao: import('@/types/crm').CatalogoTipoExecucao
     orientacoes_tecnicas: string
     links_uteis: string
+    checklist: import('@/types/crm').TipoAtividadeChecklistItem[]
     ativo: boolean
     documento_modelo?: File | null
   }>,
@@ -2489,7 +2504,11 @@ export async function updateTipoAtividadeCustom(
     const formData = new FormData()
     Object.entries(data).forEach(([key, val]) => {
       if (val !== undefined && val !== null && key !== 'documento_modelo') {
-        formData.append(key, String(val))
+        if (typeof val === 'object') {
+          formData.append(key, JSON.stringify(val))
+        } else {
+          formData.append(key, String(val))
+        }
       }
     })
     formData.append('documento_modelo', data.documento_modelo)

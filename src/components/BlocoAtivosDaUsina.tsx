@@ -288,6 +288,38 @@ export const BlocoAtivosDaUsina: React.FC<BlocoAtivosDaUsinaProps> = ({
     window.open(`https://wa.me/${limpo}?text=${encodeURIComponent(msg)}`, '_blank')
   }
 
+  // Deduplicação visual (Problema 2):
+  // Verifica se já existem equipamentos do catálogo vinculados para inversor e módulo
+  const temEquipamentoCatalogoInversor = useMemo(() => {
+    const temVinculoInversor = vinculos.some((v) => v.expand?.equipamento_id?.tipo === 'inversor')
+    const temAtivoIndividualInversor = ativosIndividuais.some(
+      (a) =>
+        a.tipo === 'inversor' ||
+        a.fabricante?.toLowerCase().includes('solis') ||
+        a.fabricante?.toLowerCase().includes('growatt') ||
+        a.fabricante?.toLowerCase().includes('deye') ||
+        a.modelo?.toLowerCase().includes('solis') ||
+        a.modelo?.toLowerCase().includes('inversor'),
+    )
+    return temVinculoInversor || temAtivoIndividualInversor
+  }, [vinculos, ativosIndividuais])
+
+  const temEquipamentoCatalogoModulo = useMemo(() => {
+    const temVinculoModulo = vinculos.some((v) => v.expand?.equipamento_id?.tipo === 'modulo_fv')
+    const temAtivoIndividualModulo = ativosIndividuais.some(
+      (a) =>
+        a.tipo === 'placa_solar' ||
+        (a.tipo as string) === 'modulo_fv' ||
+        a.fabricante?.toLowerCase().includes('sunova') ||
+        a.fabricante?.toLowerCase().includes('canadian') ||
+        a.fabricante?.toLowerCase().includes('ja solar') ||
+        a.fabricante?.toLowerCase().includes('trina') ||
+        a.modelo?.toLowerCase().includes('placa') ||
+        a.modelo?.toLowerCase().includes('modulo'),
+    )
+    return temVinculoModulo || temAtivoIndividualModulo
+  }, [vinculos, ativosIndividuais])
+
   // Inferir equipamentos declarados nos campos técnicos da usina
   const equipamentosDeclarados = useMemo<AtivoDeclaradoUsina[]>(() => {
     const lista: AtivoDeclaradoUsina[] = []
@@ -622,128 +654,160 @@ export const BlocoAtivosDaUsina: React.FC<BlocoAtivosDaUsinaProps> = ({
           </div>
         </div>
 
-        {/* Fabricante e Modelo dos Módulos com Datasheet */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1 border-t border-slate-100 text-xs">
-          <div className="flex items-center gap-2">
-            <span className="text-slate-500 w-24 shrink-0 font-medium">Fabricante:</span>
-            <InlineEditField
-              value={usina.fabricante_modulos || usina.marca_placas || ''}
-              displayValue={
-                <span className="font-medium text-slate-800">
-                  {usina.fabricante_modulos || usina.marca_placas || 'Não inf.'}
-                </span>
-              }
-              type="text"
-              placeholder="Canadian Solar, JA Solar, Trina..."
-              onSave={async (val) => {
-                const s = String(val).trim()
-                await onUpdateUsinaMultipleFields({
-                  fabricante_modulos: s,
-                  marca_placas: s,
-                })
-              }}
-            />
+        {/* Fabricante e Modelo dos Módulos com Datasheet (Deduplicação quando já vinculado ao catálogo) */}
+        {temEquipamentoCatalogoModulo ? (
+          <div className="pt-2 border-t border-slate-100 flex items-center justify-between gap-2 text-xs">
+            <div className="flex items-center gap-2">
+              <Sun className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+              <span className="text-slate-600 font-medium">Módulos Fotovoltaicos:</span>
+            </div>
+            <Badge
+              variant="outline"
+              className="bg-emerald-50 text-emerald-800 border-emerald-200 text-[11px] font-medium"
+            >
+              Equipamentos gerenciados nos cards de ativos abaixo com datasheet oficial.
+            </Badge>
           </div>
+        ) : (
+          <>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1 border-t border-slate-100 text-xs">
+              <div className="flex items-center gap-2">
+                <span className="text-slate-500 w-24 shrink-0 font-medium">Fabricante:</span>
+                <InlineEditField
+                  value={usina.fabricante_modulos || usina.marca_placas || ''}
+                  displayValue={
+                    <span className="font-medium text-slate-800">
+                      {usina.fabricante_modulos || usina.marca_placas || 'Não inf.'}
+                    </span>
+                  }
+                  type="text"
+                  placeholder="Canadian Solar, JA Solar, Trina..."
+                  onSave={async (val) => {
+                    const s = String(val).trim()
+                    await onUpdateUsinaMultipleFields({
+                      fabricante_modulos: s,
+                      marca_placas: s,
+                    })
+                  }}
+                />
+              </div>
 
-          <div className="flex items-center gap-2">
-            <span className="text-slate-500 w-20 shrink-0 font-medium">Modelo:</span>
-            <InlineEditField
-              value={usina.modelo_modulos || ''}
-              displayValue={
-                <span className="font-mono text-slate-800 text-[11px] bg-slate-50 px-2 py-0.5 rounded border border-slate-200">
-                  {usina.modelo_modulos || 'Não inf.'}
-                </span>
-              }
-              type="text"
-              placeholder="Modelo do módulo"
-              className="flex-1"
-              onSave={async (val) => onUpdateUsinaField('modelo_modulos', String(val).trim())}
-            />
+              <div className="flex items-center gap-2">
+                <span className="text-slate-500 w-20 shrink-0 font-medium">Modelo:</span>
+                <InlineEditField
+                  value={usina.modelo_modulos || ''}
+                  displayValue={
+                    <span className="font-mono text-slate-800 text-[11px] bg-slate-50 px-2 py-0.5 rounded border border-slate-200">
+                      {usina.modelo_modulos || 'Não inf.'}
+                    </span>
+                  }
+                  type="text"
+                  placeholder="Modelo do módulo"
+                  className="flex-1"
+                  onSave={async (val) => onUpdateUsinaField('modelo_modulos', String(val).trim())}
+                />
+              </div>
+            </div>
+
+            {/* Datasheet Badge do Módulo */}
+            <div className="flex items-center justify-between gap-2 pt-1 border-t border-slate-100 flex-wrap text-xs">
+              <span className="text-slate-500 text-[11px] font-medium">Datasheet do Módulo:</span>
+              <div className="flex items-center gap-2">
+                {(() => {
+                  const eqModulo = encontrarDatasheetModuloUsina(usina)
+                  if (eqModulo && eqModulo.datasheet_pdf) {
+                    const url = getDatasheetEquipamentoUrl(eqModulo)
+                    if (url) {
+                      return (
+                        <a
+                          href={url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                          className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100 px-2 py-1 rounded-lg border border-emerald-300 transition-colors shrink-0 shadow-2xs"
+                          title={`Abrir Datasheet PDF (${eqModulo.marca} ${eqModulo.modelo})`}
+                        >
+                          <FileText className="w-3 h-3 text-emerald-600" />
+                          <span>Datasheet PDF ({eqModulo.marca})</span>
+                          <ExternalLink className="w-2.5 h-2.5 text-emerald-600" />
+                        </a>
+                      )
+                    }
+                  }
+                  return null
+                })()}
+                <DatasheetBadge
+                  marca={usina.fabricante_modulos || usina.marca_placas || ''}
+                  modelo={usina.modelo_modulos || ''}
+                  tipo="modulo_fv"
+                  mostrarLinkBusca={true}
+                />
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* Inversor(es): Marca / Modelo / Potência + Datasheet (Deduplicação quando já vinculado ao catálogo) */}
+        {temEquipamentoCatalogoInversor ? (
+          <div className="pt-2 border-t border-slate-100 flex items-center justify-between gap-2 text-xs">
+            <div className="flex items-center gap-2">
+              <Cpu className="w-3.5 h-3.5 text-purple-600 shrink-0" />
+              <span className="text-slate-600 font-medium">Inversores Fotovoltaicos:</span>
+            </div>
+            <Badge
+              variant="outline"
+              className="bg-emerald-50 text-emerald-800 border-emerald-200 text-[11px] font-medium"
+            >
+              Equipamentos gerenciados nos cards de ativos abaixo com datasheet oficial.
+            </Badge>
           </div>
-        </div>
-
-        {/* Datasheet Badge do Módulo */}
-        <div className="flex items-center justify-between gap-2 pt-1 border-t border-slate-100 flex-wrap text-xs">
-          <span className="text-slate-500 text-[11px] font-medium">Datasheet do Módulo:</span>
-          <div className="flex items-center gap-2">
-            {(() => {
-              const eqModulo = encontrarDatasheetModuloUsina(usina)
-              if (eqModulo && eqModulo.datasheet_pdf) {
-                const url = getDatasheetEquipamentoUrl(eqModulo)
-                if (url) {
-                  return (
-                    <a
-                      href={url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      onClick={(e) => e.stopPropagation()}
-                      className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100 px-2 py-1 rounded-lg border border-emerald-300 transition-colors shrink-0 shadow-2xs"
-                      title={`Abrir Datasheet PDF (${eqModulo.marca} ${eqModulo.modelo})`}
-                    >
-                      <FileText className="w-3 h-3 text-emerald-600" />
-                      <span>Datasheet PDF ({eqModulo.marca})</span>
-                      <ExternalLink className="w-2.5 h-2.5 text-emerald-600" />
-                    </a>
-                  )
+        ) : (
+          <div className="p-3 bg-slate-50/80 rounded-xl border border-slate-200 space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-slate-700 font-bold flex items-center gap-1.5 text-xs">
+                <Cpu className="w-3.5 h-3.5 text-purple-600" />
+                Inversor(es) da Usina (Marca / Modelo / Potência)
+              </span>
+              {(() => {
+                const eq = encontrarEquipamentoComDatasheet(usina.inversores_info || '')
+                if (eq && eq.datasheet_pdf) {
+                  const url = getDatasheetEquipamentoUrl(eq)
+                  if (url) {
+                    return (
+                      <a
+                        href={url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 text-[11px] font-bold text-emerald-700 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100 px-2 py-1 rounded-lg border border-emerald-200 transition-colors shadow-2xs"
+                        title={`Abrir Datasheet PDF em nova aba (${eq.marca} ${eq.modelo})`}
+                      >
+                        <FileText className="w-3 h-3 text-emerald-600" />
+                        <span>Ver Datasheet (PDF)</span>
+                        <ExternalLink className="w-2.5 h-2.5 text-emerald-600" />
+                      </a>
+                    )
+                  }
                 }
-              }
-              return null
-            })()}
-            <DatasheetBadge
-              marca={usina.fabricante_modulos || usina.marca_placas || ''}
-              modelo={usina.modelo_modulos || ''}
-              tipo="modulo_fv"
-              mostrarLinkBusca={true}
-            />
-          </div>
-        </div>
+                return null
+              })()}
+            </div>
 
-        {/* Inversor(es): Marca / Modelo / Potência + Datasheet */}
-        <div className="p-3 bg-slate-50/80 rounded-xl border border-slate-200 space-y-2">
-          <div className="flex items-center justify-between">
-            <span className="text-slate-700 font-bold flex items-center gap-1.5 text-xs">
-              <Cpu className="w-3.5 h-3.5 text-purple-600" />
-              Inversor(es) da Usina (Marca / Modelo / Potência)
-            </span>
-            {(() => {
-              const eq = encontrarEquipamentoComDatasheet(usina.inversores_info || '')
-              if (eq && eq.datasheet_pdf) {
-                const url = getDatasheetEquipamentoUrl(eq)
-                if (url) {
-                  return (
-                    <a
-                      href={url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1.5 text-[11px] font-bold text-emerald-700 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100 px-2 py-1 rounded-lg border border-emerald-200 transition-colors shadow-2xs"
-                      title={`Abrir Datasheet PDF em nova aba (${eq.marca} ${eq.modelo})`}
-                    >
-                      <FileText className="w-3 h-3 text-emerald-600" />
-                      <span>Ver Datasheet (PDF)</span>
-                      <ExternalLink className="w-2.5 h-2.5 text-emerald-600" />
-                    </a>
-                  )
+            <div className="flex items-center gap-2">
+              <InlineEditField
+                value={usina.inversores_info || ''}
+                displayValue={
+                  <span className="font-semibold text-slate-800 text-xs">
+                    {usina.inversores_info || 'Não inf.'}
+                  </span>
                 }
-              }
-              return null
-            })()}
+                type="text"
+                placeholder="Ex: Solis SOLIS - 75K - 5G - PRO ou Growatt MIN 8000TL-X"
+                className="w-full"
+                onSave={async (val) => onUpdateUsinaField('inversores_info', String(val).trim())}
+              />
+            </div>
           </div>
-
-          <div className="flex items-center gap-2">
-            <InlineEditField
-              value={usina.inversores_info || ''}
-              displayValue={
-                <span className="font-semibold text-slate-800 text-xs">
-                  {usina.inversores_info || 'Não inf.'}
-                </span>
-              }
-              type="text"
-              placeholder="Ex: Solis SOLIS - 75K - 5G - PRO ou Growatt MIN 8000TL-X"
-              className="w-full"
-              onSave={async (val) => onUpdateUsinaField('inversores_info', String(val).trim())}
-            />
-          </div>
-        </div>
+        )}
       </div>
 
       {/* ================================================================ */}
