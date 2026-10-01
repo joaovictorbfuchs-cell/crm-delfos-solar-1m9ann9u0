@@ -1311,17 +1311,6 @@ export const FichaClienteDrawer: React.FC = () => {
             </button>
 
             <button
-              type="button"
-              onClick={() => setDrawerAtividadesManutencaoOpen(true)}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 text-xs font-bold rounded-lg shadow-xs transition-all hover:scale-[1.02]"
-              title="Visualizar e gerenciar atividades de manutenção, serviços e designar equipes"
-            >
-              <Wrench className="w-4 h-4 text-emerald-600" />
-              <span className="hidden sm:inline">Atividades de Manutenção</span>
-              <span className="sm:hidden">Atividades Manutenção</span>
-            </button>
-
-            <button
               onClick={closeFichaCliente}
               className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors shrink-0"
               title="Fechar ficha"
