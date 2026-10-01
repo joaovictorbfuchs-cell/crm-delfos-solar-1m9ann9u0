@@ -22,7 +22,6 @@ import InstalacoesGaleriaPage from './pages/InstalacoesGaleria'
 import EquipamentosPage from './pages/Equipamentos'
 import AtivosPage from './pages/Ativos'
 import AutomacoesPage from './pages/Automacoes'
-import CatalogoAtividades from './pages/CatalogoAtividades'
 import Atividades from './pages/Atividades'
 import CentralAtividades from './pages/CentralAtividades'
 import ExecucaoOS from './pages/ExecucaoOS'
@@ -268,14 +267,6 @@ const App = () => (
                 </ProtectedRoute>
               }
             />
-            <Route
-              path="/catalogo-atividades"
-              element={
-                <ProtectedRoute requiredRole="admin">
-                  <CatalogoAtividades />
-                </ProtectedRoute>
-              }
-            />{' '}
             <Route
               path="/gerenciar-usuarios"
               element={

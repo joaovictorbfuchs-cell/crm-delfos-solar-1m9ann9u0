@@ -39,10 +39,10 @@ export function isAuthSessionError(error: unknown): boolean {
       if (
         msg.includes('token is expired') ||
         msg.includes('token expired') ||
-        msg.includes('failed to authenticate') ||
         msg.includes('the request requires valid user authorization') ||
+        msg.includes('failed to authenticate') ||
         msg.includes('unauthorized') ||
-        msg.includes('forbidden')
+        msg.includes('jwt expired')
       ) {
         return true
       }

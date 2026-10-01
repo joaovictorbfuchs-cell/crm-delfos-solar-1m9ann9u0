@@ -104,8 +104,6 @@ export default function Layout() {
         return 'Visão Consolidada de Contatos'
       case '/automacoes':
         return 'Automações do CRM'
-      case '/catalogo-atividades':
-        return 'Catálogo de Atividades'
       case '/equipamentos':
         return 'Cadastro de Equipamentos'
       case '/ativos':
@@ -146,7 +144,6 @@ export default function Layout() {
   }
 
   const configuracoesSubItems: NavSubItem[] = [
-    { name: 'Catálogo de atividades', path: '/catalogo-atividades', icon: ListChecks },
     { name: 'Automações', path: '/automacoes', icon: Zap },
     { name: 'Cadastro de equipamentos', path: '/equipamentos', icon: Cpu },
     { name: 'Ativos das usinas', path: '/ativos', icon: Cpu },
