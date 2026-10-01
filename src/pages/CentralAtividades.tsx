@@ -585,15 +585,15 @@ export default function CentralAtividadesPage() {
   return (
     <div className="space-y-5 max-w-7xl mx-auto pb-12">
       {/* 1. Header Unificado com Navegação de Visão (Tabela vs Calendário) e Botões de Ação */}
-      <div className="bg-white rounded-2xl p-4 sm:p-5 border border-[#E5E7EB] shadow-xs flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
-        <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-          <div className="flex items-center gap-2.5">
-            <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center shadow-2xs shrink-0">
-              <Layers className="w-5 h-5 stroke-[2.2]" />
+      <div className="bg-white rounded-2xl p-3 sm:p-4 border border-[#E5E7EB] shadow-xs flex flex-col md:flex-row items-stretch md:items-center justify-between gap-2.5 sm:gap-3 flex-nowrap overflow-x-auto min-w-0">
+        <div className="flex items-center gap-2.5 sm:gap-3 shrink-0 flex-nowrap">
+          <div className="flex items-center gap-2 shrink-0">
+            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center shadow-2xs shrink-0">
+              <Layers className="w-4 h-4 sm:w-5 sm:h-5 stroke-[2.2]" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="text-xl sm:text-2xl font-extrabold text-gray-900 tracking-tight">
+                <h1 className="text-base sm:text-lg lg:text-xl font-extrabold text-gray-900 tracking-tight whitespace-nowrap">
                   Central de Atividades
                 </h1>
               </div>
@@ -601,11 +601,11 @@ export default function CentralAtividadesPage() {
           </div>
 
           {/* Seletor Segmentado de Visão: Lista / Calendário */}
-          <div className="inline-flex items-center p-1 bg-gray-100/90 rounded-xl border border-gray-200/80 shadow-2xs text-xs font-semibold sm:ml-4">
+          <div className="inline-flex items-center p-0.5 sm:p-1 bg-gray-100/90 rounded-xl border border-gray-200/80 shadow-2xs text-xs font-semibold shrink-0">
             <button
               type="button"
               onClick={() => setViewMode('tabela')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
+              className={`flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-lg transition-all cursor-pointer whitespace-nowrap ${
                 viewMode === 'tabela'
                   ? 'bg-white text-emerald-800 font-bold shadow-2xs'
                   : 'text-gray-600 hover:text-gray-900'
@@ -617,7 +617,7 @@ export default function CentralAtividadesPage() {
             <button
               type="button"
               onClick={() => setViewMode('calendario')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
+              className={`flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-lg transition-all cursor-pointer whitespace-nowrap ${
                 viewMode === 'calendario'
                   ? 'bg-white text-emerald-800 font-bold shadow-2xs'
                   : 'text-gray-600 hover:text-gray-900'
@@ -629,13 +629,13 @@ export default function CentralAtividadesPage() {
           </div>
         </div>
 
-        {/* Ações da Central: Botão de Funil de Filtros + Contador + Atualizar + Disparar Mensagens + Nova Atividade */}
-        <div className="flex items-center gap-2 self-stretch sm:self-auto flex-wrap justify-end">
+        {/* Ações da Central: Botão de Funil de Filtros + Contador + Atualizar + Gerenciar Atividades + Disparar Mensagens + Nova Atividade */}
+        <div className="flex items-center gap-1.5 sm:gap-2 flex-nowrap shrink-0 justify-start md:justify-end overflow-x-visible">
           {/* Botão com Ícone de Funil para abrir Drawer lateral de Filtros */}
           <button
             type="button"
             onClick={() => setIsFilterDrawerOpen(true)}
-            className={`h-9 px-3.5 rounded-xl text-xs font-bold transition-all shadow-xs inline-flex items-center gap-2 cursor-pointer border ${
+            className={`h-9 px-2.5 sm:px-3 rounded-xl text-xs font-bold transition-all shadow-xs inline-flex items-center gap-1.5 cursor-pointer border shrink-0 whitespace-nowrap ${
               activeFiltersCount > 0
                 ? 'bg-emerald-600 text-white border-emerald-600 hover:bg-emerald-700 ring-2 ring-emerald-400/40'
                 : 'bg-white hover:bg-gray-50 text-gray-700 border-gray-200'
@@ -655,7 +655,7 @@ export default function CentralAtividadesPage() {
 
           {/* Contador de resultado filtrado ao lado do botão de funil */}
           <div
-            className="h-9 inline-flex items-center gap-1.5 px-3 rounded-xl bg-gray-50 border border-gray-200 text-xs font-semibold text-gray-700 shadow-2xs"
+            className="h-9 inline-flex items-center gap-1 px-2.5 sm:px-3 rounded-xl bg-gray-50 border border-gray-200 text-xs font-semibold text-gray-700 shadow-2xs shrink-0 whitespace-nowrap"
             title="Total de atividades filtradas sobre o total consolidado"
           >
             <span>
@@ -669,20 +669,20 @@ export default function CentralAtividadesPage() {
             variant="outline"
             onClick={() => fetchData(true)}
             disabled={refreshing || loading}
-            className="h-9 px-3 rounded-xl border-gray-200 hover:bg-gray-50 text-gray-700 text-xs font-semibold"
+            className="h-9 px-2.5 sm:px-3 rounded-xl border-gray-200 hover:bg-gray-50 text-gray-700 text-xs font-semibold shrink-0 whitespace-nowrap"
             title="Atualizar dados da Central"
           >
             <RefreshCw
-              className={`w-3.5 h-3.5 mr-1.5 ${refreshing ? 'animate-spin text-emerald-600' : ''}`}
+              className={`w-3.5 h-3.5 mr-1 ${refreshing ? 'animate-spin text-emerald-600' : ''}`}
             />
-            <span>Atualizar</span>
+            <span className="hidden xl:inline">Atualizar</span>
           </Button>
 
           <Button
             type="button"
             variant="outline"
             onClick={() => setModalGerenciarAtividadesOpen(true)}
-            className="h-9 px-3.5 rounded-xl border-amber-300 text-amber-900 bg-amber-50 hover:bg-amber-100/70 font-semibold text-xs shadow-2xs inline-flex items-center gap-1.5 cursor-pointer"
+            className="h-9 px-2.5 sm:px-3 rounded-xl border-amber-300 text-amber-900 bg-amber-50 hover:bg-amber-100/70 font-semibold text-xs shadow-2xs inline-flex items-center gap-1.5 cursor-pointer shrink-0 whitespace-nowrap"
             title="Gerenciar padrões de atividades, checklists e links"
           >
             <Settings2 className="w-3.5 h-3.5 text-amber-600" />
@@ -692,7 +692,7 @@ export default function CentralAtividadesPage() {
           <Button
             type="button"
             onClick={() => setModalMensagemMassaOpen(true)}
-            className="h-9 px-3.5 rounded-xl bg-[#0284C7] hover:bg-[#0369a1] text-white font-semibold text-xs shadow-xs inline-flex items-center gap-1.5 cursor-pointer"
+            className="h-9 px-2.5 sm:px-3 rounded-xl bg-[#0284C7] hover:bg-[#0369a1] text-white font-semibold text-xs shadow-xs inline-flex items-center gap-1.5 cursor-pointer shrink-0 whitespace-nowrap"
             title="Disparar mensagens em massa via WhatsApp"
           >
             <MessageSquare className="w-3.5 h-3.5" />
@@ -702,7 +702,7 @@ export default function CentralAtividadesPage() {
           <Button
             type="button"
             onClick={() => setModalNovaAtividadeOpen(true)}
-            className="h-9 px-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs inline-flex items-center gap-1.5 cursor-pointer"
+            className="h-9 px-2.5 sm:px-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs inline-flex items-center gap-1.5 cursor-pointer shrink-0 whitespace-nowrap"
             title="Criar nova atividade no CRM"
           >
             <Plus className="w-3.5 h-3.5" />
