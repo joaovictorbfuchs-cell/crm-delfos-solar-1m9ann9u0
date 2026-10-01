@@ -288,7 +288,18 @@ export const ModalConfirmarEnvioWhatsAppContent: React.FC<ModalConfirmarEnvioWha
       console.error('Erro ao enviar mensagem via WhatsApp:', err)
       if (!isMountedRef.current) return
 
-      const errStr = err instanceof Error ? err.message : String(err)
+      let errStr = 'Não foi possível enviar a mensagem.'
+      if (err && typeof err === 'object') {
+        const errObj = err as any
+        errStr =
+          errObj?.data?.error ||
+          errObj?.response?.error ||
+          errObj?.message ||
+          (err instanceof Error ? err.message : String(err))
+      } else if (typeof err === 'string') {
+        errStr = err
+      }
+
       const isTimeout =
         errStr.includes('Tempo limite de 45s excedido') ||
         errStr.includes('45s') ||

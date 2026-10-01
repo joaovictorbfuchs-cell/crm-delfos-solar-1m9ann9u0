@@ -16,21 +16,53 @@ routerAdd('POST', '/backend/v1/whatsapp/enviar-os', (e) => {
       return e.json(400, { error: 'os_id é obrigatório', ok: false })
     }
 
-    // Buscar a Ordem de Serviço
+    // Buscar a Ordem de Serviço (ou Atividade de Campo com origem em atividades)
     let osRec = null
+    let isAtividade = false
     try {
       osRec = $app.findRecordsByFilter('ordens_servico', "id = '" + osId + "'", '', 1, 0)[0]
     } catch (_) {}
 
     if (!osRec) {
-      return e.json(404, { error: 'Ordem de serviço não encontrada', ok: false })
+      try {
+        osRec = $app.findRecordsByFilter('atividades', "id = '" + osId + "'", '', 1, 0)[0]
+        if (osRec) {
+          isAtividade = true
+        }
+      } catch (_) {}
     }
 
-    const responsavelId = osRec.getString('responsavel_usuario_id')
+    if (!osRec) {
+      return e.json(404, { error: 'Ordem de serviço ou atividade não encontrada', ok: false })
+    }
+
+    let responsavelId = isAtividade
+      ? osRec.getString('responsavel_id')
+      : osRec.getString('responsavel_usuario_id')
+
+    // Fallback: se não tiver ID direto mas tiver responsavel_nome, tenta localizar pelo nome do usuário
+    if (!responsavelId && isAtividade) {
+      const respNome = (osRec.getString('responsavel_nome') || '').trim()
+      if (respNome) {
+        try {
+          const uMatch = $app.findRecordsByFilter(
+            '_pb_users_auth_',
+            "name ~ '" + respNome.replace(/'/g, "\\'") + "'",
+            '',
+            1,
+            0,
+          )[0]
+          if (uMatch) {
+            responsavelId = uMatch.id
+          }
+        } catch (_) {}
+      }
+    }
+
     if (!responsavelId) {
       return e.json(400, {
         error:
-          'Esta OS não possui um instalador responsável atribuído. Atribua um técnico antes de enviar.',
+          'Este serviço de campo não possui um instalador responsável atribuído. Atribua um técnico antes de enviar.',
         ok: false,
         code: 'SEM_RESPONSAVEL',
       })
@@ -82,7 +114,9 @@ routerAdd('POST', '/backend/v1/whatsapp/enviar-os', (e) => {
 
     // Buscar dados do cliente
     let clienteNome = 'Cliente Solar'
-    let clienteEndereco = osRec.getString('endereco') || ''
+    let clienteEndereco = isAtividade
+      ? osRec.getString('endereco_uc') || ''
+      : osRec.getString('endereco') || ''
     const clienteId = osRec.getString('cliente_id')
     if (clienteId) {
       try {
@@ -110,12 +144,27 @@ routerAdd('POST', '/backend/v1/whatsapp/enviar-os', (e) => {
       } catch (_) {}
     }
 
+    // Se ainda sem endereço e for atividade vinculada a usina, busca usina
+    if (!clienteEndereco && isAtividade) {
+      const usinaId = osRec.getString('usina_id')
+      if (usinaId) {
+        try {
+          const uRec = $app.findRecordsByFilter('usinas', "id = '" + usinaId + "'", '', 1, 0)[0]
+          if (uRec && uRec.getString('endereco')) {
+            clienteEndereco = uRec.getString('endereco')
+          }
+        } catch (_) {}
+      }
+    }
+
     if (!clienteEndereco) {
       clienteEndereco = 'Endereço a confirmar no CRM'
     }
 
     // Formatar data agendada (ex: dd/mm/aaaa)
-    const rawDataAgendada = osRec.getString('data_agendada')
+    const rawDataAgendada = isAtividade
+      ? osRec.getString('data') || osRec.getString('created')
+      : osRec.getString('data_agendada')
     let dataFormatada = 'A definir'
     if (rawDataAgendada) {
       try {
@@ -131,7 +180,26 @@ routerAdd('POST', '/backend/v1/whatsapp/enviar-os', (e) => {
       }
     }
 
-    const tipoServico = osRec.getString('tipo_servico') || 'Manutenção'
+    let tipoServico = 'Manutenção'
+    if (isAtividade) {
+      const atvTitulo = osRec.getString('titulo')
+      const atvTipo = osRec.getString('tipo')
+      if (atvTitulo) {
+        tipoServico = atvTitulo
+      } else if (atvTipo === 'limpeza_manutencao') {
+        tipoServico = 'Limpeza e Manutenção'
+      } else if (atvTipo === 'instalacao') {
+        tipoServico = 'Instalação'
+      } else if (atvTipo === 'visita_tecnica') {
+        tipoServico = 'Visita Técnica'
+      } else if (atvTipo === 'garantia_equipamento') {
+        tipoServico = 'Garantia'
+      } else if (atvTipo === 'configuracao_datalogger') {
+        tipoServico = 'Configuração de Datalogger'
+      }
+    } else {
+      tipoServico = osRec.getString('tipo_servico') || 'Manutenção'
+    }
 
     // Template ou mensagem padrão idêntica à do hook automático
     let tpl = null
@@ -164,16 +232,27 @@ routerAdd('POST', '/backend/v1/whatsapp/enviar-os', (e) => {
     // Localizar ou criar conversa vinculada ao cliente ou número do destinatário
     let conversaOSId = ''
     try {
-      const helper = require(`${__hooks}/whatsapp_conversa_helper.js`)
-      const conv = helper.ensureConversaForMessage(
-        $app,
-        clienteId,
-        instaladorTelefone,
-        conteudo,
-        authUser,
+      // Tenta localizar conversa existente com esse número ou cliente
+      const convs = $app.findRecordsByFilter(
+        'whatsapp_conversas',
+        "telefone_cliente ~ '" + instaladorTelefone.replace(/\D/g, '').slice(-8) + "'",
+        '-updated',
+        1,
+        0,
       )
-      if (conv) {
-        conversaOSId = conv.id
+      if (convs && convs.length > 0) {
+        conversaOSId = convs[0].id
+      } else if (clienteId) {
+        const convsCli = $app.findRecordsByFilter(
+          'whatsapp_conversas',
+          "cliente_id = '" + clienteId + "'",
+          '-updated',
+          1,
+          0,
+        )
+        if (convsCli && convsCli.length > 0) {
+          conversaOSId = convsCli[0].id
+        }
       }
     } catch (errConv) {
       console.log('[WHATSAPP ENVIAR OS CONV HELPER AVISO]', errConv)

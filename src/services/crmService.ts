@@ -2643,11 +2643,68 @@ export async function fetchOrdemServicoById(
     const record = await pb
       .collection('ordens_servico')
       .getOne<import('@/types/crm').OrdemServico>(id, {
-        expand: 'cliente_id,profissional_id',
+        expand: 'cliente_id,profissional_id,responsavel_usuario_id',
       })
     return record
   } catch (err) {
-    console.error('Erro ao obter ordem de serviço:', err)
+    // Se não encontrou na coleção ordens_servico, tentar na coleção atividades (Serviços de Campo suporta atividades de manutenção)
+    try {
+      const atv: any = await pb.collection('atividades').getOne(id, {
+        expand: 'cliente_id,usina_id,responsavel_id,fornecedor_id',
+      })
+      if (atv) {
+        const cli = atv.expand?.cliente_id
+        const usina = atv.expand?.usina_id
+        const resp = atv.expand?.responsavel_id
+        const forn = atv.expand?.fornecedor_id
+
+        const endereco = atv.endereco_uc || usina?.endereco || cli?.endereco || cli?.cidade || ''
+        const atribuidaA =
+          atv.responsavel_nome ||
+          resp?.name ||
+          atv.equipe_nome ||
+          forn?.nome_empresa ||
+          forn?.contato_nome ||
+          atv.autor ||
+          ''
+
+        const instrucoesPartes = [atv.titulo, atv.descricao].filter(Boolean)
+        const instrucoes = instrucoesPartes.length > 0 ? instrucoesPartes.join('\n\n') : undefined
+
+        return {
+          id: atv.id,
+          collectionId: atv.collectionId || 'atividades',
+          collectionName: atv.collectionName || 'atividades',
+          cliente_id: atv.cliente_id,
+          tipo_servico: atv.titulo || 'Manutenção',
+          endereco,
+          data_agendada: atv.data || atv.created,
+          status:
+            atv.status === 'concluida'
+              ? 'concluida'
+              : atv.status === 'cancelada'
+                ? 'cancelada'
+                : 'pendente',
+          atribuida_a: atribuidaA,
+          responsavel_usuario_id: atv.responsavel_id || undefined,
+          profissional_id: undefined,
+          instrucoes,
+          detalhes_execucao: atv.descricao || '',
+          concluida_em: atv.status === 'concluida' ? atv.updated || atv.data : undefined,
+          origem: 'atividades',
+          created: atv.created,
+          updated: atv.updated,
+          expand: {
+            cliente_id: cli,
+            responsavel_usuario_id: resp,
+          },
+        } as import('@/types/crm').OrdemServico
+      }
+    } catch (_) {
+      /* não encontrado em atividades também */
+    }
+
+    console.error('Erro ao obter ordem de serviço ou atividade de campo:', err)
     return null
   }
 }

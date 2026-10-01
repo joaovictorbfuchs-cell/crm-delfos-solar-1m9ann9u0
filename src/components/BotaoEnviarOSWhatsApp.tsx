@@ -268,9 +268,14 @@ export const BotaoEnviarOSWhatsApp: React.FC<BotaoEnviarOSWhatsAppProps> = ({
       }
     } catch (err: any) {
       console.error('Erro ao enviar OS por WhatsApp:', err)
+      const msg =
+        err?.data?.error ||
+        err?.response?.error ||
+        err?.message ||
+        'Não foi possível concluir o envio por WhatsApp.'
+
       if (isMountedRef.current) {
         setStatus('error')
-        const msg = err?.data?.error || err?.message || 'Falha de conexão com o servidor'
         setFeedbackMsg(msg)
 
         if (
@@ -285,6 +290,10 @@ export const BotaoEnviarOSWhatsApp: React.FC<BotaoEnviarOSWhatsAppProps> = ({
               onClick: () => navigate('/usuarios'),
             },
             duration: 7000,
+          })
+        } else if (err?.data?.code === 'SEM_RESPONSAVEL') {
+          toast.error('OS sem responsável', {
+            description: 'Atribua um técnico à ordem de serviço antes de enviar.',
           })
         } else {
           toast.error('Erro ao disparar WhatsApp da OS', {
@@ -301,7 +310,13 @@ export const BotaoEnviarOSWhatsApp: React.FC<BotaoEnviarOSWhatsAppProps> = ({
         }, 4500)
       }
 
-      throw err
+      // Retornar objeto de falha em vez de relançar erro não tratado para não estourar o ErrorBoundary
+      return {
+        ok: false,
+        sent: false,
+        message: msg,
+        error: msg,
+      }
     }
   }
 
