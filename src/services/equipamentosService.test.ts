@@ -3,6 +3,9 @@ import {
   marcasEquivalentes,
   modelosEquivalentes,
   encontrarEquipamentoCorrespondente,
+  formatarPotenciaEquipamento,
+  converterKwParaWatts,
+  converterWattsParaKwString,
 } from './equipamentosService'
 import type { Equipamento } from '@/types/equipamentos'
 
@@ -93,5 +96,33 @@ describe('equipamentosService - correspondência tolerante para datasheet', () =
       apenasComDatasheet: true,
     })
     expect(matchTrina).toBeNull()
+  })
+
+  it('converte corretamente kW digitado pelo usuário para Watts', () => {
+    expect(converterKwParaWatts('6')).toBe(6000)
+    expect(converterKwParaWatts('6.0')).toBe(6000)
+    expect(converterKwParaWatts('5,5')).toBe(5500)
+    expect(converterKwParaWatts('0.55')).toBe(550)
+    expect(converterKwParaWatts('0,585')).toBe(585)
+    expect(converterKwParaWatts(10)).toBe(10000)
+    expect(converterKwParaWatts('')).toBe(0)
+    expect(converterKwParaWatts(null)).toBe(0)
+  })
+
+  it('converte Watts do banco para string de kW para inputs', () => {
+    expect(converterWattsParaKwString(6000)).toBe('6')
+    expect(converterWattsParaKwString(5000)).toBe('5')
+    expect(converterWattsParaKwString(5500)).toBe('5.5')
+    expect(converterWattsParaKwString(550)).toBe('0.55')
+    expect(converterWattsParaKwString(585)).toBe('0.585')
+    expect(converterWattsParaKwString(0)).toBe('')
+    expect(converterWattsParaKwString(null)).toBe('')
+  })
+
+  it('formata potência com kW em primeiro plano e Watts como referência', () => {
+    expect(formatarPotenciaEquipamento(6000)).toBe('6 kW (6.000 W)')
+    expect(formatarPotenciaEquipamento(5500)).toBe('5,5 kW (5.500 W)')
+    expect(formatarPotenciaEquipamento(550)).toBe('0,55 kW (550 W)')
+    expect(formatarPotenciaEquipamento(0)).toBe('0 kW')
   })
 })

@@ -172,15 +172,39 @@ export function getDataloggerEquipamentoUrl(equipamento: Equipamento): string | 
 }
 
 export function formatarPotenciaEquipamento(potenciaW: number): string {
-  if (!potenciaW || isNaN(potenciaW)) return '0 W'
-  if (potenciaW >= 1000) {
-    const kw = potenciaW / 1000
-    // Se for redondo (ex 6.0 kW => 6 kW ou 5.5 kW)
-    const formattedKw = Number.isInteger(kw) ? `${kw} kW` : `${kw.toFixed(1).replace('.', ',')} kW`
-    const formattedW = `${potenciaW.toLocaleString('pt-BR')} W`
-    return `${formattedW} (${formattedKw})`
+  if (!potenciaW || isNaN(potenciaW)) return '0 kW'
+  const kw = potenciaW / 1000
+  // Formata o valor em kW com precisão de até 3 casas decimais sem zeros à direita (ex: 6 kW, 5.5 kW, 0.55 kW)
+  const kwFormatado = parseFloat(kw.toFixed(3)).toLocaleString('pt-BR', {
+    maximumFractionDigits: 3,
+  })
+  const formattedW = `${Math.round(potenciaW).toLocaleString('pt-BR')} W`
+  return `${kwFormatado} kW (${formattedW})`
+}
+
+/**
+ * Converte valor em kW (número ou string digitada pelo usuário, ex "6" ou "0,55" ou "0.55")
+ * para Watts inteiros para armazenamento no banco de dados.
+ */
+export function converterKwParaWatts(valorKw: number | string | null | undefined): number {
+  if (valorKw === null || valorKw === undefined) return 0
+  const normalizado =
+    typeof valorKw === 'number' ? valorKw : parseFloat(String(valorKw).trim().replace(',', '.'))
+  if (isNaN(normalizado) || normalizado <= 0) return 0
+  return Math.round(normalizado * 1000)
+}
+
+/**
+ * Converte valor em Watts (armazenado no banco) para string amigável de kW para edição em input.
+ * Ex: 6000 W -> "6", 5500 W -> "5.5", 550 W -> "0.55", 585 W -> "0.585".
+ */
+export function converterWattsParaKwString(potenciaW: number | null | undefined): string {
+  if (potenciaW === null || potenciaW === undefined || isNaN(potenciaW) || potenciaW <= 0) {
+    return ''
   }
-  return `${potenciaW.toLocaleString('pt-BR')} W`
+  const kw = potenciaW / 1000
+  // Retorna string numérica limpa (usando ponto para input type="number")
+  return String(parseFloat(kw.toFixed(4)))
 }
 
 // -------------------------------------------------------------

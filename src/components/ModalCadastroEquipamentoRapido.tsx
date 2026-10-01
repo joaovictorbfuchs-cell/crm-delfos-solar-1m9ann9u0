@@ -80,13 +80,15 @@ export function ModalCadastroEquipamentoRapido({
       setErrorMessage('Informe o modelo do equipamento.')
       return
     }
-    const potNum = Number(potenciaW)
-    if (!potNum || potNum <= 0) {
+    const potRaw = Number(potenciaW)
+    if (!potRaw || potRaw <= 0) {
       setErrorMessage(
-        'Informe uma potência válida em Watts (ex: 550 para módulo, 5000 para inversor 5kW).',
+        'Informe uma potência válida (ex: 550 para módulo 550W, 5000 para inversor 5kW ou 5 para 5kW).',
       )
       return
     }
+    // Suporta tanto digitação em kW (< 100) quanto em Watts diretos para máxima robustez
+    const potNum = potRaw < 100 ? Math.round(potRaw * 1000) : Math.round(potRaw)
 
     setIsSubmitting(true)
     setErrorMessage(null)
