@@ -2736,46 +2736,194 @@ export async function createOrdemServico(data: {
   return record
 }
 
+/**
+ * Helper para atualizar registro na coleção `atividades` mapeando os campos de execução de campo
+ * e retornando a projeção em formato OrdemServico compatível com a UI.
+ */
+async function updateAtividadeComoOrdemServico(
+  id: string,
+  data: Partial<import('@/types/crm').OrdemServico>,
+  newPhotos?: File[],
+  relatorioPdfFile?: File,
+): Promise<import('@/types/crm').OrdemServico> {
+  const payloadAtividade: Record<string, unknown> = {}
+
+  // Mapear status: OSStatus ('pendente' | 'concluida' | 'cancelada') para select de atividades
+  if (data.status) {
+    payloadAtividade.status =
+      data.status === 'concluida'
+        ? 'concluida'
+        : data.status === 'cancelada'
+          ? 'cancelada'
+          : 'em_execucao'
+  }
+
+  // Descrição / detalhes de execução: anexa ou atualiza
+  if (data.detalhes_execucao !== undefined) {
+    payloadAtividade.descricao = data.detalhes_execucao
+  }
+
+  // Responsável
+  if (data.responsavel_usuario_id !== undefined) {
+    payloadAtividade.responsavel_id = data.responsavel_usuario_id || null
+  }
+  if (data.atribuida_a !== undefined) {
+    payloadAtividade.responsavel_nome = data.atribuida_a || ''
+  }
+
+  // Arquivo de cronograma ou medidor se vier arquivo
+  const fileToUpload = relatorioPdfFile || (newPhotos && newPhotos[0])
+  let atvRecord: any
+  if (fileToUpload) {
+    const formData = new FormData()
+    Object.entries(payloadAtividade).forEach(([k, v]) => {
+      if (v !== undefined && v !== null) {
+        if (typeof v === 'object') formData.append(k, JSON.stringify(v))
+        else formData.append(k, String(v))
+      }
+    })
+    if (relatorioPdfFile) {
+      formData.append('cronograma_arquivo', relatorioPdfFile)
+    } else if (newPhotos && newPhotos[0]) {
+      formData.append('foto_medidor', newPhotos[0])
+    }
+    atvRecord = await pb.collection('atividades').update(id, formData, {
+      expand: 'cliente_id,usina_id,responsavel_id,fornecedor_id',
+    })
+  } else {
+    atvRecord = await pb.collection('atividades').update(id, payloadAtividade, {
+      expand: 'cliente_id,usina_id,responsavel_id,fornecedor_id',
+    })
+  }
+
+  const cli = atvRecord.expand?.cliente_id
+  const usina = atvRecord.expand?.usina_id
+  const resp = atvRecord.expand?.responsavel_id
+  const forn = atvRecord.expand?.fornecedor_id
+  const endereco = atvRecord.endereco_uc || usina?.endereco || cli?.endereco || cli?.cidade || ''
+  const atribuidaA =
+    atvRecord.responsavel_nome ||
+    resp?.name ||
+    atvRecord.equipe_nome ||
+    forn?.nome_empresa ||
+    atvRecord.autor ||
+    data.atribuida_a ||
+    ''
+
+  const instrucoesPartes = [atvRecord.titulo, atvRecord.descricao].filter(Boolean)
+  const instrucoes =
+    data.instrucoes !== undefined
+      ? data.instrucoes
+      : instrucoesPartes.length > 0
+        ? instrucoesPartes.join('\n\n')
+        : undefined
+
+  const osStatus: import('@/types/crm').OSStatus =
+    atvRecord.status === 'concluida'
+      ? 'concluida'
+      : atvRecord.status === 'cancelada'
+        ? 'cancelada'
+        : 'pendente'
+
+  return {
+    id: atvRecord.id,
+    collectionId: atvRecord.collectionId || 'atividades',
+    collectionName: atvRecord.collectionName || 'atividades',
+    cliente_id: atvRecord.cliente_id,
+    tipo_servico: data.tipo_servico || atvRecord.titulo || 'Manutenção',
+    endereco,
+    data_agendada: atvRecord.data || atvRecord.created,
+    status: osStatus,
+    atribuida_a: atribuidaA,
+    responsavel_usuario_id: atvRecord.responsavel_id || undefined,
+    profissional_id: undefined,
+    instrucoes,
+    checklist: data.checklist,
+    detalhes_execucao: atvRecord.descricao || data.detalhes_execucao || '',
+    concluida_em: osStatus === 'concluida' ? atvRecord.updated || atvRecord.data : undefined,
+    origem: 'atividades',
+    created: atvRecord.created,
+    updated: atvRecord.updated,
+    expand: {
+      cliente_id: cli,
+      responsavel_usuario_id: resp,
+    },
+  } as import('@/types/crm').OrdemServico
+}
+
 export async function updateOrdemServico(
   id: string,
   data: Partial<import('@/types/crm').OrdemServico>,
   newPhotos?: File[],
   relatorioPdfFile?: File,
 ): Promise<import('@/types/crm').OrdemServico> {
+  // Se o objeto explicitamente indicar origem 'atividades', direcionar diretamente
+  if (data.origem === 'atividades') {
+    return await updateAtividadeComoOrdemServico(id, data, newPhotos, relatorioPdfFile)
+  }
+
   const hasFiles = (newPhotos && newPhotos.length > 0) || Boolean(relatorioPdfFile)
-  if (hasFiles) {
-    const formData = new FormData()
-    Object.entries(data).forEach(([key, val]) => {
-      if (val !== undefined && val !== null && key !== 'fotos' && key !== 'relatorio_pdf') {
-        if (typeof val === 'object') {
-          formData.append(key, JSON.stringify(val))
-        } else {
-          formData.append(key, String(val))
+
+  try {
+    if (hasFiles) {
+      const formData = new FormData()
+      Object.entries(data).forEach(([key, val]) => {
+        if (
+          val !== undefined &&
+          val !== null &&
+          key !== 'fotos' &&
+          key !== 'relatorio_pdf' &&
+          key !== 'origem'
+        ) {
+          if (typeof val === 'object') {
+            formData.append(key, JSON.stringify(val))
+          } else {
+            formData.append(key, String(val))
+          }
+        }
+      })
+      if (newPhotos) {
+        for (const file of newPhotos) {
+          formData.append('fotos', file)
         }
       }
-    })
-    if (newPhotos) {
-      for (const file of newPhotos) {
-        formData.append('fotos', file)
+      if (relatorioPdfFile) {
+        formData.append('relatorio_pdf', relatorioPdfFile)
       }
+      const record = await pb
+        .collection('ordens_servico')
+        .update<import('@/types/crm').OrdemServico>(id, formData, {
+          expand: 'cliente_id,profissional_id,responsavel_usuario_id',
+        })
+      return record
     }
-    if (relatorioPdfFile) {
-      formData.append('relatorio_pdf', relatorioPdfFile)
-    }
+
+    const payloadSemOrigem = { ...data }
+    delete (payloadSemOrigem as Record<string, unknown>).origem
+
     const record = await pb
       .collection('ordens_servico')
-      .update<import('@/types/crm').OrdemServico>(id, formData, {
+      .update<import('@/types/crm').OrdemServico>(id, payloadSemOrigem, {
         expand: 'cliente_id,profissional_id,responsavel_usuario_id',
       })
     return record
-  }
+  } catch (err: any) {
+    // Se recebeu 404 (recurso não encontrado em ordens_servico), tentar na coleção atividades (fallback defensivo)
+    const is404 =
+      err?.status === 404 ||
+      err?.statusCode === 404 ||
+      (typeof err?.message === 'string' && err.message.toLowerCase().includes("wasn't found"))
 
-  const record = await pb
-    .collection('ordens_servico')
-    .update<import('@/types/crm').OrdemServico>(id, data, {
-      expand: 'cliente_id,profissional_id,responsavel_usuario_id',
-    })
-  return record
+    if (is404) {
+      try {
+        return await updateAtividadeComoOrdemServico(id, data, newPhotos, relatorioPdfFile)
+      } catch (errAtividade) {
+        console.error('Falha ao atualizar em atividades após 404 em ordens_servico:', errAtividade)
+      }
+    }
+
+    throw err
+  }
 }
 
 /**
@@ -2785,18 +2933,41 @@ export async function salvarRelatorioPdfOrdemServico(
   id: string,
   pdfFile: File,
 ): Promise<import('@/types/crm').OrdemServico> {
-  const formData = new FormData()
-  formData.append('relatorio_pdf', pdfFile)
-  return await pb
-    .collection('ordens_servico')
-    .update<import('@/types/crm').OrdemServico>(id, formData, {
-      expand: 'cliente_id,profissional_id,responsavel_usuario_id',
-    })
+  try {
+    const formData = new FormData()
+    formData.append('relatorio_pdf', pdfFile)
+    return await pb
+      .collection('ordens_servico')
+      .update<import('@/types/crm').OrdemServico>(id, formData, {
+        expand: 'cliente_id,profissional_id,responsavel_usuario_id',
+      })
+  } catch (err: any) {
+    const is404 =
+      err?.status === 404 ||
+      err?.statusCode === 404 ||
+      (typeof err?.message === 'string' && err.message.toLowerCase().includes("wasn't found"))
+    if (is404) {
+      return await updateAtividadeComoOrdemServico(id, {}, undefined, pdfFile)
+    }
+    throw err
+  }
 }
 
 export async function deleteOrdemServico(id: string): Promise<boolean> {
-  await pb.collection('ordens_servico').delete(id)
-  return true
+  try {
+    await pb.collection('ordens_servico').delete(id)
+    return true
+  } catch (err: any) {
+    const is404 =
+      err?.status === 404 ||
+      err?.statusCode === 404 ||
+      (typeof err?.message === 'string' && err.message.toLowerCase().includes("wasn't found"))
+    if (is404) {
+      await pb.collection('atividades').delete(id)
+      return true
+    }
+    throw err
+  }
 }
 
 export async function finalizarOrdemServico(
@@ -2809,6 +2980,7 @@ export async function finalizarOrdemServico(
     cliente_id?: string
     tipo_servico?: string
     tecnico_nome?: string
+    origem?: string
   },
 ): Promise<import('@/types/crm').OrdemServico> {
   const concluida_em = new Date().toISOString()
@@ -2820,6 +2992,9 @@ export async function finalizarOrdemServico(
   if (dadosFinalizacao.checklist) {
     payload.checklist = dadosFinalizacao.checklist
   }
+  if (dadosFinalizacao.origem) {
+    payload.origem = dadosFinalizacao.origem
+  }
 
   const updatedOS = await updateOrdemServico(
     id,
@@ -2828,8 +3003,9 @@ export async function finalizarOrdemServico(
     dadosFinalizacao.relatorioPdfFile,
   )
 
-  // Registrar atividade na timeline/histórico do cliente
-  if (dadosFinalizacao.cliente_id) {
+  // Registrar atividade na timeline/histórico do cliente se for OS original
+  // (se já for da coleção atividades, o próprio registro da atividade já foi marcado como concluído)
+  if (dadosFinalizacao.cliente_id && updatedOS.origem !== 'atividades') {
     try {
       const tipoAtividade =
         dadosFinalizacao.tipo_servico === 'Instalação'
