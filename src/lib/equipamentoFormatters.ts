@@ -138,3 +138,55 @@ export function formatarTextoModuloDocx({
   const textoLimpo = textoCard.endsWith('.') ? textoCard.slice(0, -1) : textoCard
   return `${quantidade}x ${textoLimpo}`
 }
+
+/**
+ * Formata potência de equipamento conforme regra do tipo:
+ * - Placa solar unitária: sempre Watts (W)
+ * - Inversor: sempre kW
+ */
+export function formatarPotenciaEquipamentoUnidade(
+  potenciaW: number | null | undefined,
+  tipo?: string | null,
+): string {
+  if (potenciaW === null || potenciaW === undefined || isNaN(potenciaW) || potenciaW <= 0) {
+    return tipo === 'modulo_fv' ? '0 W' : '0 kW'
+  }
+  const isModulo = tipo === 'modulo_fv' || (!tipo && potenciaW <= 800)
+  const kw = potenciaW / 1000
+  const kwFormatado = parseFloat(kw.toFixed(3)).toLocaleString('pt-BR', {
+    maximumFractionDigits: 3,
+  })
+  const formattedW = `${Math.round(potenciaW).toLocaleString('pt-BR')} W`
+
+  if (isModulo) {
+    return `${formattedW} (${kwFormatado} kW)`
+  }
+  return `${kwFormatado} kW (${formattedW})`
+}
+
+/**
+ * Formata potência de pico (soma das placas) sempre em kW / kWp
+ */
+export function formatarPotenciaPico(
+  potencia: number | null | undefined,
+  opcoes?: { valorJaEmKw?: boolean; sufixoKwp?: boolean },
+): string {
+  const val = Number(potencia) || 0
+  if (val <= 0 || isNaN(val)) {
+    return opcoes?.sufixoKwp ? '0 kWp' : '0 kW'
+  }
+  const kw =
+    opcoes?.valorJaEmKw !== undefined
+      ? opcoes.valorJaEmKw
+        ? val
+        : val / 1000
+      : val > 500
+        ? val / 1000
+        : val
+
+  const kwFormatado = parseFloat(kw.toFixed(3)).toLocaleString('pt-BR', {
+    maximumFractionDigits: 2,
+  })
+  const sufixo = opcoes?.sufixoKwp ? 'kWp' : 'kW'
+  return `${kwFormatado} ${sufixo}`
+}

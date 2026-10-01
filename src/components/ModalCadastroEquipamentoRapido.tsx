@@ -29,9 +29,12 @@ export function ModalCadastroEquipamentoRapido({
   const [tipo, setTipo] = useState<TipoEquipamento>(tipoInicial)
   const [marca, setMarca] = useState(marcaInicial)
   const [modelo, setModelo] = useState(modeloInicial)
-  const [potenciaW, setPotenciaW] = useState<string>(
-    potenciaInicial > 0 ? String(potenciaInicial) : '',
-  )
+  const [potenciaInput, setPotenciaInput] = useState<string>(() => {
+    if (!potenciaInicial || potenciaInicial <= 0) return ''
+    return tipoInicial === 'modulo_fv'
+      ? String(Math.round(potenciaInicial))
+      : String(parseFloat((potenciaInicial / 1000).toFixed(4)))
+  })
   const [fornecedor, setFornecedor] = useState(fornecedorNome)
   const [garantiaAnos, setGarantiaAnos] = useState<string>(tipoInicial === 'inversor' ? '10' : '15')
   const [descricaoPadrao, setDescricaoPadrao] = useState('')
@@ -55,7 +58,15 @@ export function ModalCadastroEquipamentoRapido({
       setTipo(tipoInicial)
       setMarca(marcaInicial)
       setModelo(modeloInicial)
-      setPotenciaW(potenciaInicial > 0 ? String(potenciaInicial) : '')
+      if (potenciaInicial > 0) {
+        setPotenciaInput(
+          tipoInicial === 'modulo_fv'
+            ? String(Math.round(potenciaInicial))
+            : String(parseFloat((potenciaInicial / 1000).toFixed(4))),
+        )
+      } else {
+        setPotenciaInput('')
+      }
       setFornecedor(fornecedorNome)
       setGarantiaAnos(tipoInicial === 'inversor' ? '10' : '15')
       setDescricaoPadrao(
@@ -80,15 +91,22 @@ export function ModalCadastroEquipamentoRapido({
       setErrorMessage('Informe o modelo do equipamento.')
       return
     }
-    const potRaw = Number(potenciaW)
-    if (!potRaw || potRaw <= 0) {
+    const potRaw = parseFloat(potenciaInput.trim().replace(',', '.'))
+    if (isNaN(potRaw) || potRaw <= 0) {
       setErrorMessage(
-        'Informe uma potência válida (ex: 550 para módulo 550W, 5000 para inversor 5kW ou 5 para 5kW).',
+        tipo === 'modulo_fv'
+          ? 'Informe uma potência válida em Watts (W) para a placa solar (ex: 550 ou 585).'
+          : 'Informe uma potência válida em kW para o inversor (ex: 5 ou 6).',
       )
       return
     }
-    // Suporta tanto digitação em kW (< 100) quanto em Watts diretos para máxima robustez
-    const potNum = potRaw < 100 ? Math.round(potRaw * 1000) : Math.round(potRaw)
+    // Regra do usuário: Placa solar em Watts (W), Inversor em kW
+    let potNum: number
+    if (tipo === 'modulo_fv') {
+      potNum = potRaw < 5 ? Math.round(potRaw * 1000) : Math.round(potRaw)
+    } else {
+      potNum = potRaw >= 500 ? Math.round(potRaw) : Math.round(potRaw * 1000)
+    }
 
     setIsSubmitting(true)
     setErrorMessage(null)
@@ -180,7 +198,17 @@ export function ModalCadastroEquipamentoRapido({
             <div className="grid grid-cols-2 gap-2">
               <button
                 type="button"
-                onClick={() => setTipo('modulo_fv')}
+                onClick={() => {
+                  if (tipo !== 'modulo_fv') {
+                    const num = parseFloat(potenciaInput.replace(',', '.'))
+                    if (!isNaN(num) && num > 0) {
+                      // Estava em kW (inversor) -> converte para W
+                      const w = num < 500 ? Math.round(num * 1000) : Math.round(num)
+                      setPotenciaInput(String(w))
+                    }
+                    setTipo('modulo_fv')
+                  }
+                }}
                 className={`flex items-center justify-center gap-2 p-2.5 rounded-xl border text-xs font-bold transition-all ${
                   tipo === 'modulo_fv'
                     ? 'bg-amber-50 border-amber-500 text-amber-900 shadow-xs ring-1 ring-amber-500'
@@ -190,11 +218,21 @@ export function ModalCadastroEquipamentoRapido({
                 <Sun
                   className={`w-4 h-4 ${tipo === 'modulo_fv' ? 'text-amber-600' : 'text-gray-400'}`}
                 />
-                <span>Módulo FV</span>
+                <span>Módulo FV (W)</span>
               </button>
               <button
                 type="button"
-                onClick={() => setTipo('inversor')}
+                onClick={() => {
+                  if (tipo !== 'inversor') {
+                    const num = parseFloat(potenciaInput.replace(',', '.'))
+                    if (!isNaN(num) && num > 0) {
+                      // Estava em W (módulo) -> converte para kW
+                      const kw = num >= 5 ? parseFloat((num / 1000).toFixed(4)) : num
+                      setPotenciaInput(String(kw))
+                    }
+                    setTipo('inversor')
+                  }
+                }}
                 className={`flex items-center justify-center gap-2 p-2.5 rounded-xl border text-xs font-bold transition-all ${
                   tipo === 'inversor'
                     ? 'bg-blue-50 border-blue-500 text-blue-900 shadow-xs ring-1 ring-blue-500'
@@ -204,7 +242,7 @@ export function ModalCadastroEquipamentoRapido({
                 <Cpu
                   className={`w-4 h-4 ${tipo === 'inversor' ? 'text-blue-600' : 'text-gray-400'}`}
                 />
-                <span>Inversor</span>
+                <span>Inversor (kW)</span>
               </button>
             </div>
           </div>
@@ -239,28 +277,31 @@ export function ModalCadastroEquipamentoRapido({
             </div>
           </div>
 
-          {/* Potência (W) e Garantia (anos) */}
+          {/* Potência (W para Placas, kW para Inversores) e Garantia (anos) */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
             <div>
               <label className="text-[11px] font-bold text-gray-700 uppercase block mb-1">
-                Potência (W) *
+                {tipo === 'modulo_fv' ? 'Potência (W) *' : 'Potência (kW) *'}
               </label>
               <div className="relative">
                 <input
                   type="number"
-                  min="1"
+                  step="any"
+                  min="0.001"
                   required
-                  value={potenciaW}
-                  onChange={(e) => setPotenciaW(e.target.value)}
-                  placeholder={tipo === 'inversor' ? 'Ex: 5000' : 'Ex: 550'}
+                  value={potenciaInput}
+                  onChange={(e) => setPotenciaInput(e.target.value)}
+                  placeholder={tipo === 'inversor' ? 'Ex: 5 ou 6' : 'Ex: 550 ou 585'}
                   className="w-full text-xs font-semibold pl-3 pr-10 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 />
                 <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] font-bold text-gray-400 pointer-events-none">
-                  W
+                  {tipo === 'modulo_fv' ? 'W' : 'kW'}
                 </span>
               </div>
               <span className="text-[10px] text-gray-400 block mt-0.5">
-                {tipo === 'inversor' ? 'Ex: 5000 W (5 kW), 7300 W' : 'Ex: 550 W, 610 W, 620 W'}
+                {tipo === 'inversor'
+                  ? 'Inversor: sempre em kW (ex: 5 kW, 6 kW, 7.5 kW)'
+                  : 'Placa solar: sempre em Watts (ex: 550 W, 585 W)'}
               </span>
             </div>
             <div>

@@ -171,20 +171,163 @@ export function getDataloggerEquipamentoUrl(equipamento: Equipamento): string | 
   return null
 }
 
-export function formatarPotenciaEquipamento(potenciaW: number): string {
-  if (!potenciaW || isNaN(potenciaW)) return '0 kW'
-  const kw = potenciaW / 1000
-  // Formata o valor em kW com precisão de até 3 casas decimais sem zeros à direita (ex: 6 kW, 5.5 kW, 0.55 kW)
-  const kwFormatado = parseFloat(kw.toFixed(3)).toLocaleString('pt-BR', {
+export type UnidadePotenciaTipo = 'W' | 'kW'
+
+/**
+ * Retorna a unidade padrão de potência de acordo com o tipo do equipamento:
+ * - Placa solar / Módulo fotovoltaico unitário: SEMPRE Watts ("W")
+ * - Inversor: SEMPRE "kW"
+ * - Outros / Geral: "kW"
+ *
+ * (Para potência de pico / soma das placas, a regra é SEMPRE "kW").
+ */
+export function getUnidadePorTipo(tipo?: TipoEquipamento | string | null): UnidadePotenciaTipo {
+  if (tipo === 'modulo_fv') return 'W'
+  return 'kW'
+}
+
+/**
+ * Retorna o rótulo do campo de entrada conforme o tipo do equipamento.
+ */
+export function getRotuloCampoPotencia(tipo?: TipoEquipamento | string | null): string {
+  return tipo === 'modulo_fv' ? 'Potência (W)' : 'Potência (kW)'
+}
+
+/**
+ * Formata um valor de potência (em Watts do banco) de forma condicional ao tipo de equipamento:
+ * 1. Placa solar / Módulo FV: "550 W" (ou "550 W (0,55 kW)" se incluirReferencia = true)
+ * 2. Inversor: "6 kW" (ou "6 kW (6.000 W)" se incluirReferencia = true)
+ * 3. Outro: padrão inversor "kW"
+ */
+export function formatarPotenciaPorTipo(
+  potenciaW: number | null | undefined,
+  tipo?: TipoEquipamento | string | null,
+  opcoes?: { incluirReferencia?: boolean },
+): string {
+  const pot = Number(potenciaW) || 0
+  if (pot <= 0 || isNaN(pot)) {
+    return tipo === 'modulo_fv' ? '0 W' : '0 kW'
+  }
+
+  const incluirRef = opcoes?.incluirReferencia ?? true
+  const isModulo = tipo === 'modulo_fv'
+
+  const kw = pot / 1000
+  const kwFormatado = parseFloat(kw.toFixed(4)).toLocaleString('pt-BR', {
     maximumFractionDigits: 3,
   })
-  const formattedW = `${Math.round(potenciaW).toLocaleString('pt-BR')} W`
-  return `${kwFormatado} kW (${formattedW})`
+  const wFormatado = Math.round(pot).toLocaleString('pt-BR')
+
+  if (isModulo) {
+    if (!incluirRef) return `${wFormatado} W`
+    return `${wFormatado} W (${kwFormatado} kW)`
+  }
+
+  if (!incluirRef) return `${kwFormatado} kW`
+  return `${kwFormatado} kW (${wFormatado} W)`
+}
+
+/**
+ * Formata a potência de pico (soma das placas) sempre em kW / kWp.
+ * Ex: 7.32 -> "7,32 kW" (ou "7,32 kWp" se sulfixoKwp = true).
+ */
+export function formatarPotenciaPico(
+  potenciaKwOuWatts: number | null | undefined,
+  opcoes?: { valorJaEmKw?: boolean; sufixoKwp?: boolean },
+): string {
+  const val = Number(potenciaKwOuWatts) || 0
+  if (val <= 0 || isNaN(val)) {
+    return opcoes?.sufixoKwp ? '0 kWp' : '0 kW'
+  }
+
+  // Se o valor estiver em Watts (> 100 por convenção ou indicado explicitamente)
+  const kw =
+    opcoes?.valorJaEmKw !== undefined
+      ? opcoes.valorJaEmKw
+        ? val
+        : val / 1000
+      : val > 500
+        ? val / 1000
+        : val
+
+  const kwFormatado = parseFloat(kw.toFixed(3)).toLocaleString('pt-BR', {
+    maximumFractionDigits: 2,
+  })
+  const sufixo = opcoes?.sufixoKwp ? 'kWp' : 'kW'
+  return `${kwFormatado} ${sufixo}`
+}
+
+/**
+ * Converte valor digitado no input (seja em W para placa solar ou em kW para inversor)
+ * para Watts inteiros para armazenamento no banco de dados.
+ */
+export function converterInputParaWatts(
+  valorInput: number | string | null | undefined,
+  tipo?: TipoEquipamento | string | null,
+): number {
+  if (valorInput === null || valorInput === undefined) return 0
+  const normalizado =
+    typeof valorInput === 'number'
+      ? valorInput
+      : parseFloat(String(valorInput).trim().replace(',', '.'))
+  if (isNaN(normalizado) || normalizado <= 0) return 0
+
+  if (tipo === 'modulo_fv') {
+    // Placa solar é digitada em Watts. Se o usuário digitar um decimal menor que 5 (ex: 0.55),
+    // interpretamos defensivamente como kW e convertemos para Watts.
+    if (normalizado < 5) {
+      return Math.round(normalizado * 1000)
+    }
+    return Math.round(normalizado)
+  }
+
+  // Inversor ou Outro é digitado em kW. Se o usuário digitar algo > 500 (ex: 5000),
+  // interpretamos defensivamente que já digitou em Watts diretos.
+  if (normalizado >= 500) {
+    return Math.round(normalizado)
+  }
+  return Math.round(normalizado * 1000)
+}
+
+/**
+ * Converte valor em Watts do banco para string amigável de edição no input dependendo do tipo:
+ * - Módulo FV (W): 550 W -> "550", 585 W -> "585"
+ * - Inversor (kW): 6000 W -> "6", 5500 W -> "5.5"
+ */
+export function converterWattsParaInput(
+  potenciaW: number | null | undefined,
+  tipo?: TipoEquipamento | string | null,
+): string {
+  if (potenciaW === null || potenciaW === undefined || isNaN(potenciaW) || potenciaW <= 0) {
+    return ''
+  }
+  if (tipo === 'modulo_fv') {
+    return String(Math.round(potenciaW))
+  }
+  const kw = potenciaW / 1000
+  return String(parseFloat(kw.toFixed(4)))
+}
+
+export function formatarPotenciaEquipamento(
+  potenciaW: number,
+  tipo?: TipoEquipamento | string | null,
+): string {
+  if (!potenciaW || isNaN(potenciaW)) {
+    return tipo === 'modulo_fv' ? '0 W' : '0 kW'
+  }
+  // Se o tipo foi informado, aplica a regra oficial
+  if (tipo) {
+    return formatarPotenciaPorTipo(potenciaW, tipo, { incluirReferencia: true })
+  }
+  // Se não foi informado tipo, se for <= 800W deduz módulo FV, senão inversor
+  const tipoDeduzido = potenciaW <= 800 ? 'modulo_fv' : 'inversor'
+  return formatarPotenciaPorTipo(potenciaW, tipoDeduzido, { incluirReferencia: true })
 }
 
 /**
  * Converte valor em kW (número ou string digitada pelo usuário, ex "6" ou "0,55" ou "0.55")
  * para Watts inteiros para armazenamento no banco de dados.
+ * Mantida para retrocompatibilidade total.
  */
 export function converterKwParaWatts(valorKw: number | string | null | undefined): number {
   if (valorKw === null || valorKw === undefined) return 0
@@ -197,6 +340,7 @@ export function converterKwParaWatts(valorKw: number | string | null | undefined
 /**
  * Converte valor em Watts (armazenado no banco) para string amigável de kW para edição em input.
  * Ex: 6000 W -> "6", 5500 W -> "5.5", 550 W -> "0.55", 585 W -> "0.585".
+ * Mantida para retrocompatibilidade total.
  */
 export function converterWattsParaKwString(potenciaW: number | null | undefined): string {
   if (potenciaW === null || potenciaW === undefined || isNaN(potenciaW) || potenciaW <= 0) {

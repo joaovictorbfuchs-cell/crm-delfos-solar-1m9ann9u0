@@ -28,24 +28,20 @@ export function getErrorMessage(error: unknown): string {
   return msgs.length > 0 ? msgs.join(' ') : error.message || 'An unexpected error occurred.'
 }
 
+/**
+ * Identifica se o erro é decorrente de sessão/token expirado ou não autorizado (401/403).
+ */
 export function isAuthSessionError(error: unknown): boolean {
-  if (!error) return false
-  if (typeof error === 'object') {
-    const errObj = error as Record<string, unknown>
-    if (errObj.status === 401 || errObj.status === 403) return true
-    if (errObj.statusCode === 401 || errObj.statusCode === 403) return true
-    if (typeof errObj.message === 'string') {
-      const msg = errObj.message.toLowerCase()
-      if (
-        msg.includes('token is expired') ||
-        msg.includes('invalid token') ||
-        msg.includes('failed to authenticate') ||
-        msg.includes('unauthorized') ||
-        msg.includes('forbidden')
-      ) {
-        return true
-      }
-    }
-  }
-  return false
+  if (!error || typeof error !== 'object') return false
+  const err = error as Record<string, any>
+  const status = Number(err.status ?? err.statusCode ?? err.response?.status)
+  if (status === 401 || status === 403) return true
+  const msg = String(err.message || '').toLowerCase()
+  return (
+    msg.includes('token is expired') ||
+    msg.includes('failed to authenticate') ||
+    msg.includes('token is invalid') ||
+    msg.includes('unauthorized') ||
+    msg.includes('forbidden')
+  )
 }

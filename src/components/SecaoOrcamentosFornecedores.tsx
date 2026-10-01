@@ -948,7 +948,7 @@ export function SecaoOrcamentosFornecedores({
                               <span className="text-[10px] font-bold text-blue-700 flex items-center justify-center gap-0.5">
                                 <Zap className="w-2.5 h-2.5 text-blue-500" />
                                 {infoInversor?.potenciaW
-                                  ? formatarPotenciaEquipamento(infoInversor.potenciaW)
+                                  ? formatarPotenciaEquipamento(infoInversor.potenciaW, 'inversor')
                                   : '—'}
                               </span>
                             </div>

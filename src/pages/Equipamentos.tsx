@@ -41,8 +41,13 @@ import {
   getDatasheetEquipamentoUrl,
   getDataloggerEquipamentoUrl,
   formatarPotenciaEquipamento,
+  formatarPotenciaPorTipo,
+  converterInputParaWatts,
+  converterWattsParaInput,
   converterKwParaWatts,
   converterWattsParaKwString,
+  getUnidadePorTipo,
+  getRotuloCampoPotencia,
 } from '@/services/equipamentosService'
 import { fetchContagemUsoEquipamentosEmUsinas } from '@/services/usinaEquipamentosService'
 import { fetchFornecedores } from '@/services/crmService'
@@ -79,7 +84,7 @@ export function EquipamentosPage() {
   const [tipo, setTipo] = useState<TipoEquipamento>('inversor')
   const [marca, setMarca] = useState<string>('')
   const [modelo, setModelo] = useState<string>('')
-  const [potenciaKw, setPotenciaKw] = useState<string>('')
+  const [potenciaInput, setPotenciaInput] = useState<string>('')
   const [descricaoPadrao, setDescricaoPadrao] = useState<string>('')
   const [garantiaAnos, setGarantiaAnos] = useState<string>('')
   const [datasheetUrl, setDatasheetUrl] = useState<string>('')
@@ -140,10 +145,12 @@ export function EquipamentosPage() {
 
   const handleOpenCreate = () => {
     setEditingItem(null)
-    setTipo(tabAtiva === 'modulo_fv' ? 'modulo_fv' : tabAtiva === 'outro' ? 'outro' : 'inversor')
+    const novoTipo: TipoEquipamento =
+      tabAtiva === 'modulo_fv' ? 'modulo_fv' : tabAtiva === 'outro' ? 'outro' : 'inversor'
+    setTipo(novoTipo)
     setMarca('')
     setModelo('')
-    setPotenciaKw('')
+    setPotenciaInput('')
     setDescricaoPadrao('')
     setGarantiaAnos('')
     setDatasheetUrl('')
@@ -166,7 +173,7 @@ export function EquipamentosPage() {
     setTipo(item.tipo)
     setMarca(item.marca || '')
     setModelo(item.modelo || '')
-    setPotenciaKw(converterWattsParaKwString(item.potencia_w))
+    setPotenciaInput(converterWattsParaInput(item.potencia_w, item.tipo))
     setDescricaoPadrao(item.descricao_padrao || '')
     setGarantiaAnos(
       item.garantia_anos !== undefined && item.garantia_anos !== null
@@ -285,8 +292,9 @@ export function EquipamentosPage() {
         setModelo(extraidos.modelo)
         camposPreenchidos.push('Modelo')
       }
+      const tipoFinal = extraidos.tipo || tipo
       if (extraidos.potencia_w) {
-        setPotenciaKw(converterWattsParaKwString(extraidos.potencia_w))
+        setPotenciaInput(converterWattsParaInput(extraidos.potencia_w, tipoFinal))
         camposPreenchidos.push('Potência')
       }
       if (extraidos.garantia_anos !== undefined && extraidos.garantia_anos !== null) {
@@ -367,15 +375,17 @@ export function EquipamentosPage() {
       return
     }
 
-    const cleanedPotenciaKw = potenciaKw.trim().replace(',', '.')
-    const potenciaKwNum = parseFloat(cleanedPotenciaKw)
-    if (!cleanedPotenciaKw || isNaN(potenciaKwNum) || potenciaKwNum <= 0) {
+    const cleanedPotencia = potenciaInput.trim().replace(',', '.')
+    const potenciaNum = parseFloat(cleanedPotencia)
+    if (!cleanedPotencia || isNaN(potenciaNum) || potenciaNum <= 0) {
       setErrorMessage(
-        'Por favor, informe uma potência válida em kW (número maior que zero, ex: 6 para inversor de 6 kW ou 0.55 para painel de 550W).',
+        tipo === 'modulo_fv'
+          ? 'Por favor, informe uma potência válida em Watts (W) para a placa solar (ex: 550 ou 585).'
+          : 'Por favor, informe uma potência válida em kW para o inversor (ex: 5 ou 6).',
       )
       return
     }
-    const potenciaWatts = converterKwParaWatts(potenciaKwNum)
+    const potenciaWatts = converterInputParaWatts(potenciaNum, tipo)
 
     let garantiaNum: number | null = null
     if (garantiaAnos.trim()) {
@@ -437,7 +447,7 @@ export function EquipamentosPage() {
               tipo: 'Tipo',
               marca: 'Marca',
               modelo: 'Modelo',
-              potencia_w: 'Potência (kW)',
+              potencia_w: tipo === 'modulo_fv' ? 'Potência (W)' : 'Potência (kW)',
               descricao_padrao: 'Descrição Padrão',
               garantia_anos: 'Garantia (anos)',
               foto: 'Foto',
@@ -564,6 +574,8 @@ export function EquipamentosPage() {
         16, // Tipo
         22, // Marca
         30, // Modelo
+        22, // Potência Nominal (Regra do Tipo: Placa em W, Inversor em kW)
+        18, // Unidade
         18, // Potência (kW)
         18, // Potência (W)
         16, // Garantia (anos)
@@ -579,6 +591,8 @@ export function EquipamentosPage() {
         'Tipo',
         'Marca',
         'Modelo',
+        'Potência Nominal (por tipo)',
+        'Unidade',
         'Potência (kW)',
         'Potência (W)',
         'Garantia (anos)',
@@ -613,11 +627,16 @@ export function EquipamentosPage() {
         const usinasCount = contagemUsinas[item.id] || 0
         const potW = Number(item.potencia_w) || 0
         const potKw = potW ? parseFloat((potW / 1000).toFixed(4)) : 0
+        const unidade = getUnidadePorTipo(item.tipo)
+        // Regra do usuário: Placa solar unitária SEMPRE em Watts (W), Inversor SEMPRE em kW
+        const potenciaNominalValor = item.tipo === 'modulo_fv' ? potW : potKw
 
         rows.push([
           tipoLabel,
           item.marca || '',
           item.modelo || '',
+          potenciaNominalValor,
+          unidade,
           potKw,
           potW,
           item.garantia_anos !== undefined && item.garantia_anos !== null
@@ -708,10 +727,10 @@ export function EquipamentosPage() {
             Catálogo Integrado às Propostas Comerciais
           </p>
           <p className="text-emerald-800 leading-relaxed">
-            Os dados cadastrados aqui (marca, modelo, potência em kW, descrição técnica e garantia
-            em anos) são usados na geração de orçamentos e propostas comerciais fotovoltaicas da
-            Delfos Solar. Mantenha as fotos e descrições padronizadas para uma apresentação
-            profissional aos clientes.
+            Os dados cadastrados aqui (marca, modelo, potência em W para placas e em kW para
+            inversores, descrição técnica e garantia em anos) são usados na geração de orçamentos e
+            propostas comerciais fotovoltaicas da Delfos Solar. Mantenha as fotos e descrições
+            padronizadas para uma apresentação profissional aos clientes.
           </p>
         </div>
       </div>
@@ -991,7 +1010,7 @@ export function EquipamentosPage() {
                   <div className="absolute top-3 right-3">
                     <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-black bg-gray-900/80 text-white backdrop-blur-xs shadow-xs">
                       <Zap className="w-3 h-3 text-amber-300" />
-                      {formatarPotenciaEquipamento(item.potencia_w)}
+                      {formatarPotenciaPorTipo(item.potencia_w, item.tipo)}
                     </span>
                   </div>
                 </div>
@@ -1213,7 +1232,17 @@ export function EquipamentosPage() {
                 <div className="grid grid-cols-3 gap-2">
                   <button
                     type="button"
-                    onClick={() => setTipo('inversor')}
+                    onClick={() => {
+                      if (tipo !== 'inversor') {
+                        // Se estiver trocando de módulo (W) para inversor (kW), converte valor se existir
+                        const num = parseFloat(potenciaInput.replace(',', '.'))
+                        if (!isNaN(num) && num > 0) {
+                          const potW = converterInputParaWatts(num, tipo)
+                          setPotenciaInput(converterWattsParaInput(potW, 'inversor'))
+                        }
+                        setTipo('inversor')
+                      }
+                    }}
                     className={`flex items-center justify-center gap-1.5 p-2.5 rounded-xl border text-xs font-bold transition-all ${
                       tipo === 'inversor'
                         ? 'bg-blue-50 border-blue-500 text-blue-900 shadow-xs ring-1 ring-blue-500'
@@ -1227,7 +1256,17 @@ export function EquipamentosPage() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => setTipo('modulo_fv')}
+                    onClick={() => {
+                      if (tipo !== 'modulo_fv') {
+                        // Se estiver trocando de inversor (kW) para módulo (W), converte valor se existir
+                        const num = parseFloat(potenciaInput.replace(',', '.'))
+                        if (!isNaN(num) && num > 0) {
+                          const potW = converterInputParaWatts(num, tipo)
+                          setPotenciaInput(converterWattsParaInput(potW, 'modulo_fv'))
+                        }
+                        setTipo('modulo_fv')
+                      }
+                    }}
                     className={`flex items-center justify-center gap-1.5 p-2.5 rounded-xl border text-xs font-bold transition-all ${
                       tipo === 'modulo_fv'
                         ? 'bg-amber-50 border-amber-500 text-amber-900 shadow-xs ring-1 ring-amber-500'
@@ -1241,7 +1280,16 @@ export function EquipamentosPage() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => setTipo('outro')}
+                    onClick={() => {
+                      if (tipo !== 'outro') {
+                        const num = parseFloat(potenciaInput.replace(',', '.'))
+                        if (!isNaN(num) && num > 0) {
+                          const potW = converterInputParaWatts(num, tipo)
+                          setPotenciaInput(converterWattsParaInput(potW, 'outro'))
+                        }
+                        setTipo('outro')
+                      }
+                    }}
                     className={`flex items-center justify-center gap-1.5 p-2.5 rounded-xl border text-xs font-bold transition-all ${
                       tipo === 'outro'
                         ? 'bg-purple-50 border-purple-500 text-purple-900 shadow-xs ring-1 ring-purple-500'
@@ -1292,11 +1340,11 @@ export function EquipamentosPage() {
                 </div>
               </div>
 
-              {/* Potência (kW) e Garantia (anos) */}
+              {/* Potência (W para Placas, kW para Inversores) e Garantia (anos) */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
                 <div>
                   <label className="text-[11px] font-bold text-gray-700 uppercase block mb-1">
-                    Potência (kW) *
+                    {getRotuloCampoPotencia(tipo)} *
                   </label>
                   <div className="relative">
                     <input
@@ -1304,28 +1352,38 @@ export function EquipamentosPage() {
                       step="any"
                       min="0.001"
                       required
-                      value={potenciaKw}
+                      value={potenciaInput}
                       onChange={(e) => {
-                        setPotenciaKw(e.target.value)
+                        setPotenciaInput(e.target.value)
                         if (errorMessage) setErrorMessage(null)
                       }}
-                      placeholder="Ex: 6 para inversor de 6 kW ou 0.55 para painel de 550W"
+                      placeholder={
+                        tipo === 'modulo_fv'
+                          ? 'Ex: 550 para painel de 550 W'
+                          : 'Ex: 6 para inversor de 6 kW'
+                      }
                       className="w-full text-xs font-semibold pl-3 pr-10 py-2 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
                     />
                     <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] font-bold text-gray-400 pointer-events-none">
-                      kW
+                      {getUnidadePorTipo(tipo)}
                     </span>
                   </div>
                   <span className="text-[10px] text-gray-500 block mt-1">
                     {(() => {
-                      const potNum = parseFloat((potenciaKw || '').replace(',', '.'))
-                      const watts = !isNaN(potNum) && potNum > 0 ? Math.round(potNum * 1000) : null
-                      if (watts) {
-                        return `Equivale a ${watts.toLocaleString('pt-BR')} W no sistema`
+                      const potNum = parseFloat((potenciaInput || '').replace(',', '.'))
+                      if (isNaN(potNum) || potNum <= 0) {
+                        return tipo === 'modulo_fv'
+                          ? 'Placa solar unitária: sempre em Watts (W). Ex: 550 W, 585 W.'
+                          : 'Inversor: sempre em kW. Ex: 5 kW, 6 kW, 7.5 kW.'
                       }
-                      return tipo === 'inversor'
-                        ? 'Exemplo: digite 5 para 5 kW ou 6 para 6 kW'
-                        : 'Exemplo: digite 0.55 para 550 W ou 0.585 para 585 W'
+                      const potWatts = converterInputParaWatts(potNum, tipo)
+                      const potKw = (potWatts / 1000).toLocaleString('pt-BR', {
+                        maximumFractionDigits: 3,
+                      })
+                      const potW = Math.round(potWatts).toLocaleString('pt-BR')
+                      return tipo === 'modulo_fv'
+                        ? `Equivale a ${potKw} kW no sistema (${potW} W)`
+                        : `Equivale a ${potW} W no sistema (${potKw} kW)`
                     })()}
                   </span>
                 </div>
@@ -1520,8 +1578,8 @@ export function EquipamentosPage() {
 
                 <p className="text-[11px] text-emerald-900 leading-relaxed">
                   Envie o PDF do datasheet para preencher automaticamente marca, modelo, potência
-                  (kW), garantia, eficiência e descrição técnica priorizando a tabela técnica. Você
-                  poderá revisar e corrigir antes de salvar.
+                  (em W para placas e kW para inversores), garantia, eficiência e descrição técnica
+                  priorizando a tabela técnica. Você poderá revisar e corrigir antes de salvar.{' '}
                 </p>
 
                 <input

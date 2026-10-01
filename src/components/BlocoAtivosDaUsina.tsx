@@ -913,7 +913,7 @@ export const BlocoAtivosDaUsina: React.FC<BlocoAtivosDaUsinaProps> = ({
 
                         {item.potenciaW && item.potenciaW > 0 ? (
                           <span className="font-semibold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 text-[10px]">
-                            {formatarPotenciaEquipamento(item.potenciaW)}
+                            {formatarPotenciaEquipamento(item.potenciaW, item.tipo)}
                           </span>
                         ) : null}
 
@@ -1010,7 +1010,7 @@ export const BlocoAtivosDaUsina: React.FC<BlocoAtivosDaUsinaProps> = ({
 
                     {eq.potencia_w > 0 && (
                       <span className="font-semibold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 text-[10px]">
-                        {formatarPotenciaEquipamento(eq.potencia_w)}
+                        {formatarPotenciaEquipamento(eq.potencia_w, eq.tipo)}
                       </span>
                     )}
 
@@ -1258,7 +1258,9 @@ export const BlocoAtivosDaUsina: React.FC<BlocoAtivosDaUsinaProps> = ({
                             ? 'MÓDULO'
                             : 'OUTRO'}
                         ] {eq.marca} {eq.modelo}{' '}
-                        {eq.potencia_w > 0 ? `(${formatarPotenciaEquipamento(eq.potencia_w)})` : ''}
+                        {eq.potencia_w > 0
+                          ? `(${formatarPotenciaEquipamento(eq.potencia_w, eq.tipo)})`
+                          : ''}
                       </option>
                     ))}
                   </select>
