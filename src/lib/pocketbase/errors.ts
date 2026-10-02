@@ -29,25 +29,27 @@ export function getErrorMessage(error: unknown): string {
 }
 
 export function isAuthSessionError(error: unknown): boolean {
-  if (!error || typeof error !== 'object') return false
-  const err = error as Record<string, unknown>
-  if (
-    err.status === 401 ||
-    err.status === 403 ||
-    err.statusCode === 401 ||
-    err.statusCode === 403
-  ) {
-    return true
-  }
-  const message = typeof err.message === 'string' ? err.message.toLowerCase() : ''
-  if (
-    message.includes('token is expired') ||
-    message.includes('failed to authenticate') ||
-    message.includes('token expired') ||
-    message.includes('unauthorized') ||
-    message.includes('forbidden')
-  ) {
-    return true
+  if (!error) return false
+  if (typeof error === 'object') {
+    const errObj = error as Record<string, unknown>
+    if (errObj.status === 401 || errObj.status === 403) return true
+    if (errObj.statusCode === 401 || errObj.statusCode === 403) return true
+    if (typeof errObj.message === 'string') {
+      const msg = errObj.message.toLowerCase()
+      if (
+        msg.includes('token') &&
+        (msg.includes('expired') || msg.includes('invalid') || msg.includes('missing'))
+      ) {
+        return true
+      }
+      if (
+        msg.includes('authenticate') ||
+        msg.includes('unauthorized') ||
+        msg.includes('forbidden')
+      ) {
+        return true
+      }
+    }
   }
   return false
 }

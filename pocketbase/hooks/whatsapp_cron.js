@@ -5,7 +5,9 @@
 cronAdd('whatsapp_worker', '*/2 * * * *', () => {
   try {
     const now = new Date()
-    const nowIso = now.toISOString()
+    // Normalizar formato de data para o padrão do PocketBase (espaço em vez de 'T')
+    // para comparação lexicográfica correta contra campos datetime do banco.
+    const nowIso = now.toISOString().replace('T', ' ')
     let rawApiUrl = ($os.getenv('WHATSAPP_API_URL') || '').trim()
     rawApiUrl = rawApiUrl.replace(/[\r\n\t]/g, '').trim()
 
