@@ -1547,16 +1547,6 @@ export const FichaClienteDrawer: React.FC = () => {
                   )}
                 </button>
               </div>
-
-              {/* Botão de atalho para Cadastro rápido */}
-              <button
-                type="button"
-                onClick={() => setActiveClientTab('cadastro')}
-                className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-gray-200 bg-gray-50 text-gray-700 hover:bg-gray-100 transition-all flex items-center gap-1.5 shrink-0"
-              >
-                <User className="w-3.5 h-3.5 text-emerald-600" />
-                <span>Ver Cadastro Completo</span>
-              </button>
             </div>
 
             {/* Conteúdo do Painel Principal */}
@@ -3084,28 +3074,96 @@ export const FichaClienteDrawer: React.FC = () => {
                     {/* Seção Contatos Adicionais (Contato Principal + Contatos Adicionais) */}
                     <SecaoContatosAdicionais cliente={selectedCliente} />
 
-                    {/* Localização da Instalação */}
-                    <div className="bg-white rounded-xl p-4 border border-gray-200/80 shadow-xs space-y-2.5">
-                      <div className="text-[11px] uppercase font-bold text-gray-500 tracking-wider flex items-center gap-1.5">
-                        <MapPin className="w-3.5 h-3.5 text-emerald-600" />
-                        Localização da Instalação
+                    {/* Histórico de Origem do Cliente & Dados da Importação */}
+                    <div className="bg-white rounded-xl p-4 border border-blue-200/80 shadow-xs space-y-3">
+                      <div className="flex items-center justify-between border-b border-blue-100 pb-2">
+                        <div className="flex items-center gap-1.5">
+                          <Sparkles className="w-3.5 h-3.5 text-blue-600" />
+                          <h4 className="text-xs font-bold uppercase tracking-wider text-blue-900">
+                            Origem e Histórico de Importação
+                          </h4>
+                        </div>
+                        <OrigemClienteBadge cliente={selectedCliente} showSublabel />
                       </div>
 
-                      <div className="space-y-2 text-xs">
-                        <div className="flex items-center gap-2">
-                          <span className="text-gray-500 w-24 shrink-0">Cidade / UF:</span>
-                          <InlineEditField
-                            value={selectedCliente.cidade}
-                            displayValue={
-                              <span className="font-semibold text-gray-800">
-                                {selectedCliente.cidade || 'Não informada'}
-                              </span>
-                            }
-                            type="text"
-                            placeholder="Cidade/UF"
-                            onSave={async (val) => handleUpdateClienteField('cidade', String(val))}
-                          />
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                        <div className="p-2.5 rounded-lg bg-blue-50/50 border border-blue-100 space-y-0.5">
+                          <div className="text-[10px] font-bold text-blue-800 uppercase tracking-wider">
+                            Canal / Origem Cadastrada
+                          </div>
+                          <div className="font-semibold text-gray-800">
+                            {selectedCliente.origem_lead ||
+                              selectedCliente.como_conheceu ||
+                              'Não especificado'}
+                          </div>
                         </div>
+
+                        <div className="p-2.5 rounded-lg bg-blue-50/50 border border-blue-100 space-y-0.5">
+                          <div className="text-[10px] font-bold text-blue-800 uppercase tracking-wider">
+                            Como Conheceu / Integração
+                          </div>
+                          <div className="font-semibold text-gray-800">
+                            {selectedCliente.como_conheceu ||
+                              (selectedCliente.dados_importados as any)?.origem_integracao ||
+                              'Cadastro no CRM'}
+                          </div>
+                        </div>
+                      </div>
+
+                      {selectedCliente.dados_importados &&
+                        typeof selectedCliente.dados_importados === 'object' &&
+                        Object.keys(selectedCliente.dados_importados).length > 0 && (
+                          <div className="pt-2 border-t border-blue-100 space-y-2">
+                            <div className="flex items-center justify-between">
+                              <span className="text-[11px] font-bold text-blue-900 uppercase">
+                                Campos Preservados da Planilha / CRM
+                              </span>
+                              <span className="text-[10px] uppercase font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
+                                {Object.keys(selectedCliente.dados_importados).length} campo(s)
+                              </span>
+                            </div>
+
+                            <p className="text-[11px] text-gray-500">
+                              Campos e colunas que vieram da planilha e foram preservados
+                              integralmente neste cliente:
+                            </p>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                              {Object.entries(selectedCliente.dados_importados).map(
+                                ([chave, valor]) => (
+                                  <div
+                                    key={chave}
+                                    className="p-2.5 rounded-lg bg-gray-50/70 border border-gray-200 space-y-1"
+                                  >
+                                    <div
+                                      className="text-[10px] font-bold text-gray-500 uppercase tracking-wider truncate"
+                                      title={chave}
+                                    >
+                                      {chave}
+                                    </div>
+                                    <div className="font-semibold text-gray-800 break-words text-xs">
+                                      {valor !== null && valor !== undefined && valor !== '' ? (
+                                        String(valor)
+                                      ) : (
+                                        <span className="text-gray-400 italic">Vazio</span>
+                                      )}
+                                    </div>
+                                  </div>
+                                ),
+                              )}
+                            </div>
+                          </div>
+                        )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* ======================================================== */}
+              {/* ABA HISTÓRICO: Linha do tempo, anotações e atividades     */}
+              {/* ======================================================== */}
+              {activeClientTab === 'historico' && (
+                <>
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 border-t border-gray-100">
                           <div className="flex items-center gap-2">
@@ -3792,328 +3850,6 @@ export const FichaClienteDrawer: React.FC = () => {
                         </div>
                       </div>
 
-                      {/* Monitoramento do Inversor (App, Login, Senha, Link Datalogger, Marca, Modelo, Potência & Padrões por Marca) */}
-                      <SecaoMonitoramentoInversor
-                        cliente={selectedCliente}
-                        sistema={selectedSistema}
-                        onUpdateClienteField={handleUpdateClienteField}
-                        onUpdateSistemaField={handleUpdateSistemaField}
-                      />
-
-                      {/* Acesso ao Aplicativo Solarview (Login, Senha, Links iOS/Android & Envio WhatsApp) */}
-                      <SecaoAcessoSolarview
-                        cliente={selectedCliente}
-                        sistema={selectedSistema}
-                        onUpdateClienteField={handleUpdateClienteField}
-                        onUpdateSistemaField={handleUpdateSistemaField}
-                      />
-                    </div>
-
-                    {/* Histórico de Origem do Cliente & Dados da Importação */}
-                    <div className="bg-white rounded-xl p-4 border border-blue-200/80 shadow-xs space-y-3">
-                      <div className="flex items-center justify-between border-b border-blue-100 pb-2">
-                        <div className="flex items-center gap-1.5">
-                          <Sparkles className="w-3.5 h-3.5 text-blue-600" />
-                          <h4 className="text-xs font-bold uppercase tracking-wider text-blue-900">
-                            Origem e Histórico de Importação
-                          </h4>
-                        </div>
-                        <OrigemClienteBadge cliente={selectedCliente} showSublabel />
-                      </div>
-
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-                        <div className="p-2.5 rounded-lg bg-blue-50/50 border border-blue-100 space-y-0.5">
-                          <div className="text-[10px] font-bold text-blue-800 uppercase tracking-wider">
-                            Canal / Origem Cadastrada
-                          </div>
-                          <div className="font-semibold text-gray-800">
-                            {selectedCliente.origem_lead ||
-                              selectedCliente.como_conheceu ||
-                              'Não especificado'}
-                          </div>
-                        </div>
-
-                        <div className="p-2.5 rounded-lg bg-blue-50/50 border border-blue-100 space-y-0.5">
-                          <div className="text-[10px] font-bold text-blue-800 uppercase tracking-wider">
-                            Como Conheceu / Integração
-                          </div>
-                          <div className="font-semibold text-gray-800">
-                            {selectedCliente.como_conheceu ||
-                              (selectedCliente.dados_importados as any)?.origem_integracao ||
-                              'Cadastro no CRM'}
-                          </div>
-                        </div>
-                      </div>
-
-                      {selectedCliente.dados_importados &&
-                        typeof selectedCliente.dados_importados === 'object' &&
-                        Object.keys(selectedCliente.dados_importados).length > 0 && (
-                          <div className="pt-2 border-t border-blue-100 space-y-2">
-                            <div className="flex items-center justify-between">
-                              <span className="text-[11px] font-bold text-blue-900 uppercase">
-                                Campos Preservados da Planilha / CRM
-                              </span>
-                              <span className="text-[10px] uppercase font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
-                                {Object.keys(selectedCliente.dados_importados).length} campo(s)
-                              </span>
-                            </div>
-
-                            <p className="text-[11px] text-gray-500">
-                              Campos e colunas que vieram da planilha e foram preservados
-                              integralmente neste cliente:
-                            </p>
-
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-                              {Object.entries(selectedCliente.dados_importados).map(
-                                ([chave, valor]) => (
-                                  <div
-                                    key={chave}
-                                    className="p-2.5 rounded-lg bg-gray-50/70 border border-gray-200 space-y-1"
-                                  >
-                                    <div
-                                      className="text-[10px] font-bold text-gray-500 uppercase tracking-wider truncate"
-                                      title={chave}
-                                    >
-                                      {chave}
-                                    </div>
-                                    <div className="font-semibold text-gray-800 break-words text-xs">
-                                      {valor !== null && valor !== undefined && valor !== '' ? (
-                                        String(valor)
-                                      ) : (
-                                        <span className="text-gray-400 italic">Vazio</span>
-                                      )}
-                                    </div>
-                                  </div>
-                                ),
-                              )}
-                            </div>
-                          </div>
-                        )}
-                    </div>
-
-                    {/* Histórico de Consumo da Fatura RGE (Gemini) */}
-                    {Array.isArray(selectedCliente.historico_consumo_fatura) &&
-                      selectedCliente.historico_consumo_fatura.length > 0 &&
-                      (() => {
-                        const historicoExibicao = normalizarEOordenarHistorico(
-                          selectedCliente.historico_consumo_fatura,
-                        )
-                        const metricas = calcularMetricasHistorico(historicoExibicao)
-                        const totalAnualExibicao =
-                          selectedCliente.consumo_anual_kwh || metricas.somatorio_consumo_anual_kwh
-                        const mediaDiariaExibicao =
-                          selectedCliente.consumo_medio_diario_kwh ||
-                          metricas.consumo_medio_diario_kwh
-
-                        return (
-                          <div className="bg-white rounded-xl p-4 border border-amber-200/80 shadow-xs space-y-3">
-                            <div className="flex items-center justify-between flex-wrap gap-2">
-                              <div className="text-[11px] uppercase font-bold text-amber-900 tracking-wider flex items-center gap-1.5">
-                                <Activity className="w-4 h-4 text-amber-600" />
-                                <span>
-                                  Histórico de Faturas RGE ({historicoExibicao.length} meses)
-                                </span>
-                              </div>
-                              <div className="flex items-center gap-2 text-xs font-semibold text-gray-600">
-                                {totalAnualExibicao ? (
-                                  <span className="bg-amber-50 text-amber-900 px-2 py-0.5 rounded border border-amber-200">
-                                    Total: {totalAnualExibicao} kWh/ano
-                                  </span>
-                                ) : null}
-                                {mediaDiariaExibicao ? (
-                                  <span className="bg-amber-50 text-amber-900 px-2 py-0.5 rounded border border-amber-200">
-                                    Diário: {mediaDiariaExibicao} kWh/dia
-                                  </span>
-                                ) : null}
-                              </div>
-                            </div>
-
-                            <div className="grid grid-cols-3 sm:grid-cols-6 md:grid-cols-12 gap-1.5 text-center pt-1">
-                              {historicoExibicao.map((item, idx) => (
-                                <div
-                                  key={idx}
-                                  className="p-1.5 bg-amber-50/50 rounded-lg border border-amber-200/70 flex flex-col justify-center"
-                                >
-                                  <span className="text-[10px] font-semibold text-gray-500">
-                                    {item.mes_ano}
-                                  </span>
-                                  <span className="text-xs font-bold text-gray-900">
-                                    {item.consumo_kwh}
-                                  </span>
-                                  <span className="text-[9px] text-gray-400">
-                                    {item.dias_ciclo || 30} dias
-                                  </span>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )
-                      })()}
-
-                    {/* Usinas Fotovoltaicas do Cliente integradas na Ficha Cadastral */}
-                    <SecaoUsinasCliente
-                      clienteId={selectedCliente.id}
-                      clienteNome={selectedCliente.nome}
-                      clienteDocumento={selectedCliente.cpf || selectedCliente.cnpj || ''}
-                      cliente={selectedCliente}
-                      isAdmin={isAdmin}
-                      usinas={usinasDoCliente}
-                      contratos={contratosOM.filter((c) => c.cliente_id === selectedCliente.id)}
-                      onCreateUsina={async (data) => {
-                        await createUsina(data)
-                        await recarregarUsinas()
-                      }}
-                      onUpdateUsina={async (usinaId, data) => {
-                        await updateUsina(usinaId, data)
-                        await recarregarUsinas()
-                      }}
-                      onDeleteUsina={async (usinaId) => {
-                        await deleteUsina(usinaId)
-                        await recarregarUsinas()
-                      }}
-                      onVincularContrato={async (usinaId, contratoId) => {
-                        await updateUsina(usinaId, { contrato_id: contratoId })
-                        await recarregarUsinas()
-                        toast.success('Contrato O&M vinculado com sucesso!')
-                      }}
-                      onAbrirModalNovoContrato={(usina) => {
-                        setContratoOMDetalhesDados({
-                          nomeRazaoSocial:
-                            selectedCliente.razao_social ||
-                            selectedCliente.nome ||
-                            selectedCliente.titular_nome ||
-                            '',
-                          cpfCnpj:
-                            selectedCliente.cnpj ||
-                            selectedCliente.cpf ||
-                            selectedCliente.titular_cpf ||
-                            '',
-                          enderecoInstalacao: usina.endereco || selectedCliente.endereco || '',
-                          municipio: selectedCliente.cidade || 'Erechim/RS',
-                          telefone:
-                            selectedCliente.telefone ||
-                            selectedCliente.whatsapp ||
-                            selectedCliente.titular_telefone ||
-                            '',
-                          email: selectedCliente.email || selectedCliente.titular_email || '',
-                          numeroModulos: usina.qtd_modulos || selectedCliente.placas_qtd || '0',
-                          marcaInversores:
-                            usina.inversores_info ||
-                            selectedCliente.inversor_marca ||
-                            selectedCliente.inversor_modelo ||
-                            'Growatt',
-                          localInstalacao: usina.tipo_estrutura === 'solo' ? 'Solo' : 'Telhado',
-                          enderecoInstalacaoDiferente:
-                            usina.endereco || selectedCliente.usina_endereco || '',
-                        })
-                        setModoVisualizacaoContratoDireta(false)
-                        setModalContratoOMOpen(true)
-                      }}
-                      onRenovarContrato={async (_usina, contrato) => {
-                        try {
-                          await renovarContratoOM(contrato.id, 12)
-                          await recarregarUsinas()
-                          toast.success(
-                            `Contrato ${contrato.numero_contrato || `#${contrato.id.slice(0, 6)}`} renovado por +12 meses com sucesso!`,
-                          )
-                        } catch (err) {
-                          console.error('Erro ao renovar contrato O&M:', err)
-                          toast.error('Erro ao renovar contrato O&M. Tente novamente.')
-                        }
-                      }}
-                      onVerDetalhesContrato={(contrato, usina) => {
-                        const docContrato = documentosCliente.find(
-                          (d) => d.cliente_id === selectedCliente.id && d.tipo === 'contrato',
-                        )
-                        const dadosBase = (docContrato?.dados_documento as any) || {}
-                        setContratoOMDetalhesDados({
-                          ...dadosBase,
-                          nomeRazaoSocial:
-                            dadosBase.nomeRazaoSocial ||
-                            selectedCliente.razao_social ||
-                            selectedCliente.nome ||
-                            selectedCliente.titular_nome ||
-                            '',
-                          cpfCnpj:
-                            dadosBase.cpfCnpj ||
-                            selectedCliente.cnpj ||
-                            selectedCliente.cpf ||
-                            selectedCliente.titular_cpf ||
-                            '',
-                          enderecoInstalacao:
-                            usina?.endereco ||
-                            dadosBase.enderecoInstalacao ||
-                            selectedCliente.endereco ||
-                            '',
-                          municipio: dadosBase.municipio || selectedCliente.cidade || 'Erechim/RS',
-                          telefone:
-                            dadosBase.telefone ||
-                            selectedCliente.telefone ||
-                            selectedCliente.whatsapp ||
-                            '',
-                          email: dadosBase.email || selectedCliente.email || '',
-                          numeroModulos:
-                            usina?.qtd_modulos ||
-                            dadosBase.numeroModulos ||
-                            selectedCliente.placas_qtd ||
-                            '0',
-                          marcaInversores:
-                            usina?.inversores_info ||
-                            dadosBase.marcaInversores ||
-                            selectedCliente.inversor_marca ||
-                            '',
-                          localInstalacao:
-                            usina?.tipo_estrutura === 'solo'
-                              ? 'Solo'
-                              : dadosBase.localInstalacao || 'Telhado',
-                          planoSelecionado:
-                            contrato.plano || dadosBase.planoSelecionado || 'Essencial',
-                          valorMensal: contrato.valor_mensal || dadosBase.valorMensal || 190,
-                          valorTotal: contrato.valor_anual || dadosBase.valorTotal || 2280,
-                        })
-                        setModoVisualizacaoContratoDireta(true)
-                        setModalContratoOMOpen(true)
-                      }}
-                    />
-
-                    {/* Histórico de Manutenções na seção de Detalhes */}
-                    {clientManutencoes.length > 0 && (
-                      <div className="bg-white rounded-xl p-4 border border-gray-200/80 shadow-xs space-y-3">
-                        <h4 className="text-xs font-bold uppercase tracking-wider text-gray-700 flex items-center gap-1.5">
-                          <Wrench className="w-3.5 h-3.5 text-emerald-600" />
-                          Histórico de Ordens de Manutenção ({clientManutencoes.length})
-                        </h4>
-                        <div className="space-y-2.5">
-                          {clientManutencoes.map((m) => (
-                            <div
-                              key={m.id}
-                              className="p-3 rounded-lg border border-gray-200 bg-gray-50/50 space-y-2 text-xs"
-                            >
-                              <div className="flex items-center justify-between flex-wrap gap-2">
-                                <div className="flex items-center gap-2">
-                                  {getServiceIcon(m.tipo)}
-                                  <span className="font-semibold text-gray-900">{m.tipo}</span>
-                                </div>
-                                <StatusBadge status={m.status} />
-                              </div>
-                              <div className="text-[11px] text-gray-500 flex items-center gap-2">
-                                <span>{formatDate(m.data)}</span>
-                                {m.tecnico && <span>• Técnico: {m.tecnico}</span>}
-                              </div>
-                              {m.descricao && <p className="text-gray-600">{m.descricao}</p>}
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* ======================================================== */}
-              {/* ABA HISTÓRICO: Linha do tempo, anotações e atividades     */}
-              {/* ======================================================== */}
-              {activeClientTab === 'historico' && (
                 <>
                   {/* ======================================================== */}
                   {/* TOPO DA ABA HISTÓRICO: ÁREA RÁPIDA DE NOVA ENTRADA       */}
