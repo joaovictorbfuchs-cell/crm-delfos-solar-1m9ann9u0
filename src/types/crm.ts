@@ -342,6 +342,25 @@ export type UsinaTipoEstrutura = 'solo' | 'telhado'
 export type UsinaStatus = 'ativo' | 'inativo'
 export type UsinaTipo = 'residencial' | 'comercial' | 'industrial' | 'rural' | 'investidor'
 
+export interface DocumentoUsinaItem {
+  id: string
+  nome_arquivo: string
+  categoria?:
+    | 'projeto'
+    | 'datasheet_inversor'
+    | 'datasheet_modulo'
+    | 'memorial'
+    | 'fatura'
+    | 'outro'
+    | string
+  url?: string
+  tamanho?: number
+  tipo_mime?: string
+  criado_em?: string
+  origem?: 'upload' | 'legado_datasheet_inversor' | 'legado_datasheet_modulo' | string
+  observacoes?: string
+}
+
 export interface UsinaCliente extends RecordModel {
   id: string
   collectionId: string
@@ -422,6 +441,9 @@ export interface UsinaCliente extends RecordModel {
   // Links de documentação técnica / datasheets
   datasheet_inversor_url?: string
   datasheet_modulo_url?: string
+
+  // Lista dinâmica de documentos anexados (aditivo)
+  documentos_usina?: DocumentoUsinaItem[]
 
   created: string
   updated: string

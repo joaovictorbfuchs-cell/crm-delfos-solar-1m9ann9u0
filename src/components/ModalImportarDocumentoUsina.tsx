@@ -43,7 +43,11 @@ export interface ModalImportarDocumentoUsinaProps {
   onOpenChange: (open: boolean) => void
   usina: UsinaCliente
   clienteNome: string
-  onApplyImport: (updates: Partial<UsinaCliente>, resumoCampos: string[]) => Promise<void>
+  onApplyImport: (
+    updates: Partial<UsinaCliente>,
+    resumoCampos: string[],
+    modo?: 'adicionar' | 'sobrescrever',
+  ) => Promise<void>
 }
 
 interface CampoExtraidoUsina {
@@ -95,6 +99,24 @@ export const ModalImportarDocumentoUsina: React.FC<ModalImportarDocumentoUsinaPr
   const [camposExtraidos, setCamposExtraidos] = useState<CampoExtraidoUsina[]>([])
   const [selecionados, setSelecionados] = useState<Record<string, boolean>>({})
   const [isSalvando, setIsSalvando] = useState(false)
+
+  // Modo de importação: 'adicionar' vs 'sobrescrever'
+  // Regra: "Adicionar" deve ser a opção padrão quando a usina já tiver documentos/dados.
+  const [modoImportacao, setModoImportacao] = useState<'adicionar' | 'sobrescrever'>('adicionar')
+
+  useEffect(() => {
+    if (open) {
+      // Se a usina já tem inversores_info, potência, módulos ou documentos, padronizar 'adicionar'
+      const jaTemDadosOuDocs = Boolean(
+        (usina.documentos_usina && usina.documentos_usina.length > 0) ||
+        usina.datasheet_inversor_url ||
+        usina.datasheet_modulo_url ||
+        (usina.inversores_info && usina.inversores_info.trim().length > 0) ||
+        (usina.potencia_kwp && usina.potencia_kwp > 0),
+      )
+      setModoImportacao(jaTemDadosOuDocs ? 'adicionar' : 'sobrescrever')
+    }
+  }, [open, usina])
 
   // Estado dos equipamentos extraídos e detecção no catálogo
   const [catalogoEquipamentos, setCatalogoEquipamentos] = useState<Equipamento[]>([])
@@ -761,26 +783,152 @@ export const ModalImportarDocumentoUsina: React.FC<ModalImportarDocumentoUsinaPr
       const updates: Partial<UsinaCliente> = {}
       const resumo: string[] = []
 
-      escolhidos.forEach((item) => {
-        resumo.push(`${item.label}: ${item.valorFormatado}`)
-        ;(updates as Record<string, unknown>)[item.chaveUsina] = item.valorBruto
+      // Converter arquivo para data URL permanente caso haja arquivo anexado
+      let novoDocItem: import('@/types/crm').DocumentoUsinaItem | null = null
+      if (arquivo) {
+        let fileDataUrl = ''
+        try {
+          fileDataUrl = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader()
+            reader.onload = () => resolve(reader.result as string)
+            reader.onerror = (e) => reject(e)
+            reader.readAsDataURL(arquivo)
+          })
+        } catch (e) {
+          console.warn('[ModalImportarDocumentoUsina] Erro ao ler base64 do arquivo:', e)
+        }
 
-        // Campos complementares retrocompatíveis
-        if (item.chaveUsina === 'fabricante_modulos') {
-          updates.marca_placas = String(item.valorBruto)
+        // Categoria inferida
+        let categoriaInferida:
+          | 'projeto'
+          | 'datasheet_inversor'
+          | 'datasheet_modulo'
+          | 'memorial'
+          | 'fatura'
+          | 'outro' = 'projeto'
+        const lowerName = arquivo.name.toLowerCase()
+        if (lowerName.includes('inversor') || lowerName.includes('inverter')) {
+          categoriaInferida = 'datasheet_inversor'
+        } else if (
+          lowerName.includes('modulo') ||
+          lowerName.includes('módulo') ||
+          lowerName.includes('painel') ||
+          lowerName.includes('placa')
+        ) {
+          categoriaInferida = 'datasheet_modulo'
+        } else if (
+          lowerName.includes('conta') ||
+          lowerName.includes('fatura') ||
+          lowerName.includes('rge') ||
+          lowerName.includes('cpfl')
+        ) {
+          categoriaInferida = 'fatura'
+        } else if (lowerName.includes('memorial') || lowerName.includes('art')) {
+          categoriaInferida = 'memorial'
         }
-        if (item.chaveUsina === 'qtd_modulos') {
-          updates.quantidade_placas = Number(item.valorBruto)
-        }
-        if (item.chaveUsina === 'geracao_estimada_kwh') {
-          updates.geracao_media_mensal_kwh = Number(item.valorBruto)
-        }
-        if (item.chaveUsina === 'consumo_kwh_mes') {
-          updates.consumo_medio = Number(item.valorBruto)
-        }
-      })
 
-      await onApplyImport(updates, resumo)
+        novoDocItem = {
+          id: `doc_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+          nome_arquivo: arquivo.name,
+          categoria: categoriaInferida,
+          url: fileDataUrl || '',
+          tamanho: arquivo.size,
+          tipo_mime: arquivo.type || 'application/pdf',
+          criado_em: new Date().toISOString(),
+          origem: 'upload',
+          observacoes:
+            modoImportacao === 'adicionar'
+              ? 'Adicionado à usina (ampliação/equipamento adicional)'
+              : 'Importado por upload (substituição)',
+        }
+      }
+
+      if (modoImportacao === 'adicionar') {
+        // MODO ADICIONAR: Concatena à lista de documentos_usina e soma/anexa campos de texto e equipamentos
+        const docsExistentes = Array.isArray(usina.documentos_usina)
+          ? [...usina.documentos_usina]
+          : []
+        if (novoDocItem) {
+          docsExistentes.push(novoDocItem)
+        }
+        updates.documentos_usina = docsExistentes
+
+        escolhidos.forEach((item) => {
+          resumo.push(`${item.label}: ${item.valorFormatado}`)
+
+          // Regras especiais de concatenação / soma no modo adicionar:
+          if (item.chaveUsina === 'inversores_info') {
+            const atual = (usina.inversores_info || '').trim()
+            const novoVal = String(item.valorBruto || '').trim()
+            if (atual && novoVal && !atual.toLowerCase().includes(novoVal.toLowerCase())) {
+              updates.inversores_info = `${atual} + ${novoVal} (Ampliação)`
+            } else if (!atual) {
+              updates.inversores_info = novoVal
+            }
+          } else if (item.chaveUsina === 'potencia_kwp') {
+            const atual = Number(usina.potencia_kwp) || 0
+            const novoVal = Number(item.valorBruto) || 0
+            // Se já tem potência e veio um valor, somar
+            if (atual > 0 && novoVal > 0) {
+              updates.potencia_kwp = Number((atual + novoVal).toFixed(2))
+            } else if (novoVal > 0) {
+              updates.potencia_kwp = novoVal
+            }
+          } else if (item.chaveUsina === 'qtd_modulos') {
+            const atual = Number(usina.qtd_modulos ?? usina.quantidade_placas) || 0
+            const novoVal = Number(item.valorBruto) || 0
+            if (atual > 0 && novoVal > 0) {
+              updates.qtd_modulos = atual + novoVal
+              updates.quantidade_placas = atual + novoVal
+            } else if (novoVal > 0) {
+              updates.qtd_modulos = novoVal
+              updates.quantidade_placas = novoVal
+            }
+          } else if (item.chaveUsina === 'geracao_estimada_kwh') {
+            const atual = Number(usina.geracao_estimada_kwh ?? usina.geracao_media_mensal_kwh) || 0
+            const novoVal = Number(item.valorBruto) || 0
+            if (atual > 0 && novoVal > 0) {
+              updates.geracao_estimada_kwh = atual + novoVal
+              updates.geracao_media_mensal_kwh = atual + novoVal
+            } else if (novoVal > 0) {
+              updates.geracao_estimada_kwh = novoVal
+              updates.geracao_media_mensal_kwh = novoVal
+            }
+          } else {
+            // Demais campos (ex: endereço, concessionária, titular, modelo de módulo):
+            // se o campo na usina estiver vazio, preenche; se já tiver valor, mantém o existente ou atualiza caso não preenchido
+            const valAtual = (usina as Record<string, unknown>)[item.chaveUsina]
+            if (valAtual === undefined || valAtual === null || valAtual === '') {
+              ;(updates as Record<string, unknown>)[item.chaveUsina] = item.valorBruto
+            }
+          }
+        })
+      } else {
+        // MODO SOBRESCREVER: Comportamento padrão de substituição
+        const docsExistentes = novoDocItem ? [novoDocItem] : usina.documentos_usina || []
+        updates.documentos_usina = docsExistentes
+
+        escolhidos.forEach((item) => {
+          resumo.push(`${item.label}: ${item.valorFormatado}`)
+          ;(updates as Record<string, unknown>)[item.chaveUsina] = item.valorBruto
+
+          // Campos complementares retrocompatíveis
+          if (item.chaveUsina === 'fabricante_modulos') {
+            updates.marca_placas = String(item.valorBruto)
+          }
+          if (item.chaveUsina === 'qtd_modulos') {
+            updates.quantidade_placas = Number(item.valorBruto)
+          }
+          if (item.chaveUsina === 'geracao_estimada_kwh') {
+            updates.geracao_media_mensal_kwh = Number(item.valorBruto)
+          }
+          if (item.chaveUsina === 'consumo_kwh_mes') {
+            updates.consumo_medio = Number(item.valorBruto)
+          }
+        })
+      }
+
+      await onApplyImport(updates, resumo, modoImportacao)
 
       // Se houver equipamentos existentes correspondentes, vincular como ativo da usina automaticamente
       if (sugestaoModulo?.existente) {
@@ -829,6 +977,13 @@ export const ModalImportarDocumentoUsina: React.FC<ModalImportarDocumentoUsinaPr
   }
 
   const totalSelecionados = camposExtraidos.filter((c) => selecionados[c.id]).length
+  const temDocsOuDadosExistentes = Boolean(
+    (usina.documentos_usina && usina.documentos_usina.length > 0) ||
+    usina.datasheet_inversor_url ||
+    usina.datasheet_modulo_url ||
+    (usina.inversores_info && usina.inversores_info.trim().length > 0) ||
+    (usina.potencia_kwp && usina.potencia_kwp > 0),
+  )
 
   const itensTecnicos = camposExtraidos.filter((c) => c.categoria === 'tecnico')
   const itensConsumo = camposExtraidos.filter((c) => c.categoria === 'consumo')
@@ -1025,6 +1180,92 @@ export const ModalImportarDocumentoUsina: React.FC<ModalImportarDocumentoUsinaPr
                     <strong>{usina.nome}</strong>. Campos não encontrados no documento não são
                     inventados e permanecem em branco para preenchimento manual.
                   </p>
+                </div>
+              </div>
+
+              {/* OPÇÃO DE IMPORTAÇÃO: ADICIONAR AOS EXISTENTES vs SOBRESCREVER */}
+              <div className="p-3.5 rounded-xl border border-slate-200 bg-slate-50/80 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-extrabold uppercase tracking-wider text-[#0F2038] flex items-center gap-1.5">
+                    <Layers className="w-3.5 h-3.5 text-[#E0A838]" />
+                    Modo de Importação na Usina
+                  </span>
+                  {temDocsOuDadosExistentes && (
+                    <span className="text-[10px] font-bold text-amber-800 bg-amber-100/80 px-2 py-0.5 rounded border border-amber-300">
+                      Usina já possui equipamentos/documentos cadastrados
+                    </span>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  {/* Opção 1: Adicionar aos existentes */}
+                  <div
+                    onClick={() => setModoImportacao('adicionar')}
+                    className={`p-3 rounded-xl border-2 cursor-pointer transition-all ${
+                      modoImportacao === 'adicionar'
+                        ? 'border-emerald-600 bg-emerald-50/80 shadow-xs'
+                        : 'border-slate-200 bg-white hover:border-slate-300 opacity-80'
+                    }`}
+                  >
+                    <div className="flex items-start gap-2.5">
+                      <input
+                        type="radio"
+                        id="modo_adicionar"
+                        name="modo_importacao"
+                        checked={modoImportacao === 'adicionar'}
+                        onChange={() => setModoImportacao('adicionar')}
+                        className="mt-0.5 text-emerald-600 focus:ring-emerald-500"
+                      />
+                      <div className="space-y-1">
+                        <label
+                          htmlFor="modo_adicionar"
+                          className="font-bold text-xs text-slate-900 flex items-center gap-1.5 cursor-pointer"
+                        >
+                          <span>Adicionar aos existentes</span>
+                          <span className="text-[10px] font-bold bg-emerald-200/70 text-emerald-900 px-1.5 py-0.2 rounded">
+                            Recomendado
+                          </span>
+                        </label>
+                        <p className="text-[11px] text-slate-600 leading-relaxed">
+                          Soma o novo documento à lista sem apagar nada. Anexa informações de novos
+                          inversores (ex: ampliação) e soma potências/módulos quando aplicável.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Opção 2: Sobrescrever */}
+                  <div
+                    onClick={() => setModoImportacao('sobrescrever')}
+                    className={`p-3 rounded-xl border-2 cursor-pointer transition-all ${
+                      modoImportacao === 'sobrescrever'
+                        ? 'border-[#0F2038] bg-slate-100 shadow-xs'
+                        : 'border-slate-200 bg-white hover:border-slate-300 opacity-80'
+                    }`}
+                  >
+                    <div className="flex items-start gap-2.5">
+                      <input
+                        type="radio"
+                        id="modo_sobrescrever"
+                        name="modo_importacao"
+                        checked={modoImportacao === 'sobrescrever'}
+                        onChange={() => setModoImportacao('sobrescrever')}
+                        className="mt-0.5 text-[#0F2038] focus:ring-slate-500"
+                      />
+                      <div className="space-y-1">
+                        <label
+                          htmlFor="modo_sobrescrever"
+                          className="font-bold text-xs text-slate-900 cursor-pointer"
+                        >
+                          Sobrescrever ficha e documento
+                        </label>
+                        <p className="text-[11px] text-slate-600 leading-relaxed">
+                          Substitui os campos da usina e define este arquivo como o documento
+                          técnico atual da usina.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
 

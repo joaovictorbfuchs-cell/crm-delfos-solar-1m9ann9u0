@@ -757,7 +757,7 @@ export const SecaoUsinasCliente: React.FC<SecaoUsinasClienteProps> = ({
                 onOpenChange={setModalImportarDocUsinaOpen}
                 usina={usinaDetalhes}
                 clienteNome={clienteNome}
-                onApplyImport={async (updates) => {
+                onApplyImport={async (updates, _resumo, _modo) => {
                   await handleUpdateUsinaMultipleFields(updates)
                 }}
               />

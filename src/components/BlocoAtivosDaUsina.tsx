@@ -20,6 +20,10 @@ import {
   Calendar,
   Sparkles,
   CheckCircle2,
+  Download,
+  Eye,
+  Paperclip,
+  UploadCloud,
 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import {
@@ -39,7 +43,7 @@ import type {
   TipoAtivo,
   StatusOperacionalAtivo,
 } from '@/types/ativos'
-import type { UsinaCliente } from '@/types/crm'
+import type { UsinaCliente, DocumentoUsinaItem } from '@/types/crm'
 import {
   fetchEquipamentosPorUsina,
   vincularEquipamentoUsina,
@@ -136,6 +140,15 @@ export const BlocoAtivosDaUsina: React.FC<BlocoAtivosDaUsinaProps> = ({
   const [novoAtivoStatusOperacional, setNovoAtivoStatusOperacional] =
     useState<StatusOperacionalAtivo>('operacional')
   const [novoAtivoObservacoes, setNovoAtivoObservacoes] = useState<string>('')
+
+  // Estado para exclusão/gerenciamento de documentos anexados
+  const [docParaExcluir, setDocParaExcluir] = useState<DocumentoUsinaItem | null>(null)
+  const [removendoDoc, setRemovendoDoc] = useState<boolean>(false)
+  const [uploadManualAberto, setUploadManualAberto] = useState<boolean>(false)
+  const [uploadManualArquivo, setUploadManualArquivo] = useState<File | null>(null)
+  const [uploadManualCategoria, setUploadManualCategoria] = useState<string>('projeto')
+  const [uploadManualSalvando, setUploadManualSalvando] = useState<boolean>(false)
+  const inputManualRef = React.useRef<HTMLInputElement | null>(null)
 
   const carregarDados = async () => {
     if (!usina?.id) return
@@ -290,6 +303,135 @@ export const BlocoAtivosDaUsina: React.FC<BlocoAtivosDaUsinaProps> = ({
       user?.name,
     )
     window.open(`https://wa.me/${limpo}?text=${encodeURIComponent(msg)}`, '_blank')
+  }
+
+  // Lista Consolidada de Documentos Anexados à Usina (Aditivos + Legados)
+  const listaConsolidadaDocumentos = useMemo<DocumentoUsinaItem[]>(() => {
+    const lista: DocumentoUsinaItem[] = []
+
+    // 1. Documentos novos do campo json documentos_usina
+    if (Array.isArray(usina.documentos_usina)) {
+      usina.documentos_usina.forEach((doc) => {
+        if (doc && doc.id) {
+          lista.push(doc)
+        }
+      })
+    }
+
+    // 2. Legado: datasheet_inversor_url
+    if (usina.datasheet_inversor_url && usina.datasheet_inversor_url.trim()) {
+      const jaExiste = lista.some((d) => d.url === usina.datasheet_inversor_url)
+      if (!jaExiste) {
+        lista.push({
+          id: 'legado_inversor',
+          nome_arquivo: 'Datasheet Inversor (Legado)',
+          categoria: 'datasheet_inversor',
+          url: usina.datasheet_inversor_url,
+          criado_em: usina.created || new Date().toISOString(),
+          origem: 'legado_datasheet_inversor',
+          observacoes: 'Documento original cadastrado no campo datasheet_inversor_url',
+        })
+      }
+    }
+
+    // 3. Legado: datasheet_modulo_url
+    if (usina.datasheet_modulo_url && usina.datasheet_modulo_url.trim()) {
+      const jaExiste = lista.some((d) => d.url === usina.datasheet_modulo_url)
+      if (!jaExiste) {
+        lista.push({
+          id: 'legado_modulo',
+          nome_arquivo: 'Datasheet Módulos (Legado)',
+          categoria: 'datasheet_modulo',
+          url: usina.datasheet_modulo_url,
+          criado_em: usina.created || new Date().toISOString(),
+          origem: 'legado_datasheet_modulo',
+          observacoes: 'Documento original cadastrado no campo datasheet_modulo_url',
+        })
+      }
+    }
+
+    return lista
+  }, [
+    usina.documentos_usina,
+    usina.datasheet_inversor_url,
+    usina.datasheet_modulo_url,
+    usina.created,
+  ])
+
+  // Exclusão individual de documento com confirmação
+  const handleConfirmarExcluirDoc = async () => {
+    if (!docParaExcluir) return
+    setRemovendoDoc(true)
+    try {
+      if (docParaExcluir.id === 'legado_inversor') {
+        // Limpar campo legado datasheet_inversor_url
+        await onUpdateUsinaField('datasheet_inversor_url', '')
+      } else if (docParaExcluir.id === 'legado_modulo') {
+        // Limpar campo legado datasheet_modulo_url
+        await onUpdateUsinaField('datasheet_modulo_url', '')
+      } else {
+        // Remover da lista de documentos_usina
+        const docsAtuais = Array.isArray(usina.documentos_usina) ? usina.documentos_usina : []
+        const novaLista = docsAtuais.filter((d) => d.id !== docParaExcluir.id)
+        await onUpdateUsinaField('documentos_usina', novaLista)
+      }
+      toast.success(`Documento "${docParaExcluir.nome_arquivo}" removido com sucesso.`)
+      setDocParaExcluir(null)
+    } catch (err) {
+      console.error('[BlocoAtivosDaUsina] Erro ao remover documento:', err)
+      toast.error('Não foi possível remover o documento.')
+    } finally {
+      setRemovendoDoc(false)
+    }
+  }
+
+  // Upload manual rápido de documento direto na ficha
+  const handleSalvarUploadManual = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!uploadManualArquivo) {
+      toast.warning('Selecione um arquivo para upload.')
+      return
+    }
+
+    setUploadManualSalvando(true)
+    try {
+      let fileDataUrl = ''
+      try {
+        fileDataUrl = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader()
+          reader.onload = () => resolve(reader.result as string)
+          reader.onerror = (err) => reject(err)
+          reader.readAsDataURL(uploadManualArquivo)
+        })
+      } catch (err) {
+        console.warn('Erro ao ler base64:', err)
+      }
+
+      const novoItem: DocumentoUsinaItem = {
+        id: `doc_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+        nome_arquivo: uploadManualArquivo.name,
+        categoria: uploadManualCategoria,
+        url: fileDataUrl,
+        tamanho: uploadManualArquivo.size,
+        tipo_mime: uploadManualArquivo.type || 'application/pdf',
+        criado_em: new Date().toISOString(),
+        origem: 'upload',
+      }
+
+      const docsAtuais = Array.isArray(usina.documentos_usina) ? [...usina.documentos_usina] : []
+      docsAtuais.push(novoItem)
+
+      await onUpdateUsinaField('documentos_usina', docsAtuais)
+      toast.success(`Documento "${uploadManualArquivo.name}" adicionado com sucesso!`)
+      setUploadManualAberto(false)
+      setUploadManualArquivo(null)
+      setUploadManualCategoria('projeto')
+    } catch (err) {
+      console.error('Erro ao salvar documento anexado:', err)
+      toast.error('Erro ao anexar documento.')
+    } finally {
+      setUploadManualSalvando(false)
+    }
   }
 
   // Deduplicação visual (Problema 2):
@@ -1203,6 +1345,300 @@ export const BlocoAtivosDaUsina: React.FC<BlocoAtivosDaUsinaProps> = ({
           })}
         </div>
       ) : null}
+
+      {/* ================================================================ */}
+      {/* SEÇÃO ADITIVA: DOCUMENTOS E DATASHEETS ANEXADOS À USINA          */}
+      {/* ================================================================ */}
+      <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-2xs space-y-3">
+        <div className="flex items-center justify-between border-b border-slate-100 pb-2.5 flex-wrap gap-2">
+          <div className="flex items-center gap-2">
+            <div className="p-1.5 bg-blue-50 text-blue-700 rounded-lg">
+              <Paperclip className="w-4 h-4 text-blue-600" />
+            </div>
+            <div>
+              <div className="text-xs font-bold text-slate-900 flex items-center gap-2">
+                <span>Documentos e Datasheets Anexados</span>
+                <span className="text-[10px] font-bold bg-blue-100 text-blue-800 px-2 py-0.2 rounded-full">
+                  {listaConsolidadaDocumentos.length}
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-500">
+                Projetos, memoriais, datasheets de inversores/módulos e faturas vinculadas à usina
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setUploadManualAberto(true)}
+              className="inline-flex items-center gap-1.5 text-[11px] font-bold text-blue-700 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-lg border border-blue-200 transition-colors shadow-2xs cursor-pointer"
+              title="Adicionar documento avulso à usina"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Anexar Documento</span>
+            </button>
+          </div>
+        </div>
+
+        {listaConsolidadaDocumentos.length === 0 ? (
+          <div className="py-6 text-center text-xs text-slate-500 bg-slate-50/60 rounded-xl border border-dashed border-slate-200 space-y-1">
+            <FileText className="w-6 h-6 text-slate-400 mx-auto" />
+            <p className="font-semibold text-slate-700">Nenhum documento anexado ainda.</p>
+            <p className="text-[11px] text-slate-400">
+              Faça upload pelo botão acima ou importe via "Importar por Documento".
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {listaConsolidadaDocumentos.map((doc) => {
+              const categoriaLabel =
+                doc.categoria === 'datasheet_inversor'
+                  ? 'Datasheet Inversor'
+                  : doc.categoria === 'datasheet_modulo'
+                    ? 'Datasheet Módulo'
+                    : doc.categoria === 'projeto'
+                      ? 'Projeto / Memorial'
+                      : doc.categoria === 'memorial'
+                        ? 'Memorial Descritivo'
+                        : doc.categoria === 'fatura'
+                          ? 'Conta / Fatura'
+                          : 'Documento Técnico'
+
+              const categoriaCor =
+                doc.categoria === 'datasheet_inversor'
+                  ? 'bg-blue-50 text-blue-800 border-blue-200'
+                  : doc.categoria === 'datasheet_modulo'
+                    ? 'bg-amber-50 text-amber-800 border-amber-200'
+                    : doc.categoria === 'fatura'
+                      ? 'bg-purple-50 text-purple-800 border-purple-200'
+                      : 'bg-emerald-50 text-emerald-800 border-emerald-200'
+
+              return (
+                <div
+                  key={doc.id}
+                  className="p-3 bg-slate-50/70 hover:bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between gap-3 flex-wrap transition-colors"
+                >
+                  <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                    <div className="p-2 bg-white rounded-lg border border-slate-200 shadow-2xs shrink-0">
+                      <FileText className="w-4 h-4 text-slate-600" />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="font-bold text-slate-900 text-xs truncate max-w-sm">
+                          {doc.nome_arquivo}
+                        </span>
+                        <Badge
+                          variant="outline"
+                          className={`text-[10px] font-semibold border ${categoriaCor}`}
+                        >
+                          {categoriaLabel}
+                        </Badge>
+                        {doc.origem?.includes('legado') && (
+                          <Badge
+                            variant="outline"
+                            className="text-[9px] bg-slate-100 text-slate-600 border-slate-300"
+                          >
+                            Legado
+                          </Badge>
+                        )}
+                      </div>
+                      <div className="text-[11px] text-slate-500 mt-0.5 flex items-center gap-2 flex-wrap">
+                        {doc.criado_em && <span>Anexado em {formatDate(doc.criado_em)}</span>}
+                        {doc.tamanho && doc.tamanho > 0 && (
+                          <span>• {(doc.tamanho / 1024).toFixed(0)} KB</span>
+                        )}
+                        {doc.observacoes && (
+                          <span className="italic text-slate-400 truncate max-w-xs">
+                            "{doc.observacoes}"
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 shrink-0">
+                    {doc.url ? (
+                      <>
+                        <a
+                          href={doc.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 px-2.5 py-1 bg-white hover:bg-slate-100 text-slate-700 text-xs font-semibold rounded-lg border border-slate-200 transition-colors shadow-2xs"
+                          title="Visualizar documento em nova aba"
+                        >
+                          <Eye className="w-3.5 h-3.5 text-slate-500" />
+                          <span>Visualizar</span>
+                        </a>
+
+                        <a
+                          href={doc.url}
+                          download={doc.nome_arquivo || 'documento_usina'}
+                          className="inline-flex items-center gap-1 px-2.5 py-1 bg-white hover:bg-slate-100 text-slate-700 text-xs font-semibold rounded-lg border border-slate-200 transition-colors shadow-2xs"
+                          title="Baixar arquivo"
+                        >
+                          <Download className="w-3.5 h-3.5 text-slate-500" />
+                          <span>Download</span>
+                        </a>
+                      </>
+                    ) : (
+                      <span className="text-[10px] text-slate-400 italic">Sem URL disponível</span>
+                    )}
+
+                    <button
+                      type="button"
+                      onClick={() => setDocParaExcluir(doc)}
+                      className="p-1.5 text-slate-400 hover:text-red-600 rounded-lg hover:bg-red-50 transition-colors cursor-pointer"
+                      title="Excluir documento"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* MODAL DE CONFIRMAÇÃO DE EXCLUSÃO DE DOCUMENTO */}
+      <Dialog
+        open={Boolean(docParaExcluir)}
+        onOpenChange={(val) => !val && setDocParaExcluir(null)}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-sm font-bold text-slate-900 flex items-center gap-2">
+              <Trash2 className="w-4 h-4 text-red-600" />
+              Confirmar Exclusão do Documento
+            </DialogTitle>
+            <DialogDescription className="text-xs text-slate-500">
+              Tem certeza que deseja remover o documento{' '}
+              <strong>"{docParaExcluir?.nome_arquivo}"</strong> da usina{' '}
+              <strong>{usina.nome}</strong>?
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="p-3 bg-red-50/60 rounded-xl border border-red-200 text-xs text-red-800">
+            Esta ação não poderá ser desfeita. O documento deixará de aparecer na lista técnica da
+            usina.
+          </div>
+
+          <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2">
+            <button
+              type="button"
+              disabled={removendoDoc}
+              onClick={() => setDocParaExcluir(null)}
+              className="px-3.5 py-1.5 border border-slate-300 text-slate-700 text-xs font-semibold rounded-lg hover:bg-slate-50 cursor-pointer"
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              disabled={removendoDoc}
+              onClick={handleConfirmarExcluirDoc}
+              className="px-4 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-lg shadow-2xs inline-flex items-center gap-1.5 disabled:opacity-50 cursor-pointer"
+            >
+              {removendoDoc ? (
+                <>
+                  <RefreshCw className="w-3 h-3 animate-spin" />
+                  <span>Removendo...</span>
+                </>
+              ) : (
+                <span>Sim, Excluir Documento</span>
+              )}
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* MODAL DE ANEXAR DOCUMENTO MANUALMENTE */}
+      <Dialog open={uploadManualAberto} onOpenChange={setUploadManualAberto}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-sm font-bold text-slate-900 flex items-center gap-2">
+              <Paperclip className="w-4 h-4 text-blue-600" />
+              Anexar Documento à Usina
+            </DialogTitle>
+            <DialogDescription className="text-xs text-slate-500">
+              Adicione projetos, memoriais ou datasheets adicionais à usina "{usina.nome}"
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={handleSalvarUploadManual} className="space-y-3.5 text-xs">
+            <div>
+              <label className="text-[11px] font-bold text-slate-700 uppercase block mb-1">
+                Tipo / Categoria do Documento *
+              </label>
+              <select
+                value={uploadManualCategoria}
+                onChange={(e) => setUploadManualCategoria(e.target.value)}
+                className="w-full text-xs px-3 py-2 rounded-xl border border-slate-300 bg-white"
+              >
+                <option value="projeto">Projeto Técnico / Memorial</option>
+                <option value="datasheet_inversor">
+                  Datasheet do Inversor (Adicional/Ampliação)
+                </option>
+                <option value="datasheet_modulo">Datasheet do Módulo (Adicional/Ampliação)</option>
+                <option value="fatura">Conta / Fatura de Energia</option>
+                <option value="memorial">ART / Parecer de Acesso</option>
+                <option value="outro">Outro Documento Técnico</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="text-[11px] font-bold text-slate-700 uppercase block mb-1">
+                Arquivo (PDF, Imagem, Excel) *
+              </label>
+              <input
+                ref={inputManualRef}
+                type="file"
+                required
+                accept=".pdf,.jpg,.jpeg,.png,.webp,.xlsx,.csv"
+                onChange={(e) => {
+                  const f = e.target.files?.[0]
+                  if (f) setUploadManualArquivo(f)
+                }}
+                className="w-full text-xs file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 border border-slate-300 rounded-xl p-1.5"
+              />
+              {uploadManualArquivo && (
+                <div className="mt-1 text-[11px] text-slate-500 flex items-center gap-1.5">
+                  <FileText className="w-3 h-3 text-slate-400" />
+                  <span>{uploadManualArquivo.name}</span>
+                  <span>({(uploadManualArquivo.size / 1024).toFixed(0)} KB)</span>
+                </div>
+              )}
+            </div>
+
+            <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setUploadManualAberto(false)
+                  setUploadManualArquivo(null)
+                }}
+                className="px-3.5 py-1.5 border border-slate-300 text-slate-700 text-xs font-semibold rounded-lg hover:bg-slate-50 cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                disabled={uploadManualSalvando || !uploadManualArquivo}
+                className="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg shadow-2xs inline-flex items-center gap-1.5 disabled:opacity-50 cursor-pointer"
+              >
+                {uploadManualSalvando ? (
+                  <>
+                    <RefreshCw className="w-3 h-3 animate-spin" />
+                    <span>Salvando...</span>
+                  </>
+                ) : (
+                  <span>Salvar Documento</span>
+                )}
+              </button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       {/* ================================================================ */}
       {/* MODAL 1: VINCULAR EQUIPAMENTO DO CATÁLOGO (Dialog Radix/shadcn)   */}

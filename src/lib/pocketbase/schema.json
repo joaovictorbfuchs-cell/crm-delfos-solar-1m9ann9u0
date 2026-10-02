@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-02T16:13:25.580Z",
+  "generatedAt": "2026-10-02T16:25:21.490Z",
   "collections": [
     {
       "name": "users",
@@ -4884,6 +4884,12 @@
         {
           "name": "datasheet_modulo_url",
           "type": "url",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "documentos_usina",
+          "type": "json",
           "required": false,
           "system": false
         }
