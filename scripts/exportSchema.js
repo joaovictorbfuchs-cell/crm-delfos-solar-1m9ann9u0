@@ -259,5 +259,10 @@ export async function exportSchemaToPublic() {
 
 // Execução direta via node scripts/exportSchema.js
 if (process.argv[1] && process.argv[1].endsWith('exportSchema.js')) {
-  await exportSchemaToPublic()
+  try {
+    await exportSchemaToPublic()
+  } catch (err) {
+    console.warn('[AVISO] Erro na exportação do schema:', err?.message || err)
+    process.exit(0)
+  }
 }

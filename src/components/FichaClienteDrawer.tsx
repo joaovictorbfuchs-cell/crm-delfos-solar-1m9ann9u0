@@ -16,14 +16,8 @@ import {
   User,
   Building,
   Hash,
-  Compass,
-  Activity,
-  Gauge,
   Sun,
-  DollarSign,
   TrendingUp,
-  ChevronDown,
-  ChevronUp,
   CalendarCheck2,
   Sparkles,
   FolderKanban,
@@ -31,7 +25,6 @@ import {
   UserCheck,
   Plus,
   MessageSquare,
-  Copy,
   XCircle,
   RotateCcw,
   Briefcase,
@@ -47,14 +40,8 @@ import {
   type OrigemNumeroDestino,
 } from '@/lib/resolverNumeroDestinoCliente'
 import { useClientes } from '@/contexts/ClientesContext'
-import {
-  formatCurrency,
-  formatDate,
-  formatDateTime,
-  getTelhadoLabel,
-  formatWhatsAppPhone,
-} from '@/lib/formatters'
-import { StatusBadge, ProductBadge } from './StatusBadge'
+import { formatCurrency, formatDate, formatDateTime, formatWhatsAppPhone } from '@/lib/formatters'
+import { StatusBadge } from './StatusBadge'
 import { OrigemClienteBadge } from './OrigemClienteBadge'
 import { InlineEditField } from './InlineEditField'
 import { AtividadeItem } from './AtividadeItem'
@@ -127,8 +114,6 @@ import type { OrcamentoSolar } from '@/types/crm'
 import {
   ShieldCheck,
   FileCheck,
-  ExternalLink,
-  Download,
   UploadCloud,
   Send,
   AlertCircle,
@@ -139,36 +124,16 @@ import {
 } from 'lucide-react'
 import { formatarCNPJ } from '@/lib/orcamentoParser'
 import { formatarCPF } from '@/lib/cpfValidator'
-import {
-  abrirPropostaEmNovaAba,
-  baixarPropostaHTML,
-  calcularPropostaOM,
-} from '@/lib/propostaOMGenerator'
-import {
-  normalizarEOordenarHistorico,
-  calcularMetricasHistorico,
-} from '@/lib/historicoConsumoFatura'
 import type { PropostaOM } from '@/types/crm'
 import type {
   Cliente,
   Sistema,
   ClienteStatus,
   ProdutoTipo,
-  TelhadoTipo,
-  TipoAtendimento,
-  NumeroFases,
   Atividade,
   AtividadeTipo,
   ProjetoEtapa,
 } from '@/types/crm'
-
-const PRODUTOS: ProdutoTipo[] = [
-  'Energia Solar',
-  'Plano de O&M',
-  'Sistemas Híbridos',
-  'Carregadores veiculares',
-  'Manutenção avulsa',
-]
 
 const ETAPAS_STATUS: { value: ClienteStatus; label: string }[] = [
   { value: 'Novo Lead', label: '1 - Novo Lead' },
@@ -178,24 +143,6 @@ const ETAPAS_STATUS: { value: ClienteStatus; label: string }[] = [
   { value: 'Fechado', label: '5 - Fechado' },
   { value: 'Contato Futuro', label: '6 - Contato Futuro' },
   { value: 'Perdido', label: 'Perdido (Sai do funil)' },
-]
-
-const TELHADOS: { value: TelhadoTipo; label: string }[] = [
-  { value: 'ceramico', label: 'Cerâmico' },
-  { value: 'metalico', label: 'Metálico' },
-  { value: 'laje', label: 'Laje' },
-  { value: 'fibrocimento', label: 'Fibrocimento' },
-]
-
-const ATENDIMENTOS: { value: TipoAtendimento; label: string }[] = [
-  { value: 'aéreo', label: 'Aéreo' },
-  { value: 'subterrâneo', label: 'Subterrâneo' },
-]
-
-const FASES: { value: NumeroFases; label: string }[] = [
-  { value: 'monofásico', label: 'Monofásico' },
-  { value: 'bifásico', label: 'Bifásico' },
-  { value: 'trifásico', label: 'Trifásico' },
 ]
 
 export const FichaClienteDrawer: React.FC = () => {
@@ -898,10 +845,6 @@ export const FichaClienteDrawer: React.FC = () => {
       await updateCliente(selectedCliente.id, { potencia_kwp: Number(value) || 0 })
     } else if (field === 'numero_uc') {
       await updateCliente(selectedCliente.id, { uc: String(value || '') })
-    } else if (field === 'data_instalacao') {
-      await updateCliente(selectedCliente.id, { data_instalacao: String(value || '') })
-    } else if (field === 'tipo_telhado') {
-      await updateCliente(selectedCliente.id, { telhado_tipo: value as TelhadoTipo })
     }
     await recarregarUsinas()
   }
@@ -928,15 +871,6 @@ export const FichaClienteDrawer: React.FC = () => {
   const geracaoExibida =
     selectedSistema?.geracao_media_mensal_kwh ??
     (potenciaExibida > 0 ? Math.round(potenciaExibida * 125) : 0)
-  const dataInstalacaoExibida =
-    selectedSistema?.data_instalacao || selectedCliente.data_instalacao || ''
-  const ucExibida = selectedSistema?.numero_uc || selectedCliente.uc || ''
-  const telhadoExibido = selectedSistema?.tipo_telhado || selectedCliente.telhado_tipo || 'ceramico'
-  const concessionariaExibida =
-    selectedCliente.concessionaria || selectedSistema?.concessionaria || ''
-  const classeConsumoExibida =
-    selectedCliente.classe_consumo || selectedSistema?.classe_consumo || ''
-  const tarifaExibida = selectedCliente.tarifa ?? selectedSistema?.tarifa ?? 0
 
   const cleanWaDrawer = cleanPhoneDigits(
     resolucaoDestinoDrawer.numero || selectedCliente.whatsapp || selectedCliente.telefone || '',

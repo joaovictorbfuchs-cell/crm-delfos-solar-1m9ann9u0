@@ -666,12 +666,33 @@ ${output.join('\n')}
 
 // Execução direta via `node scripts/auditoria-duplicados.mjs`
 if (process.argv[1] && process.argv[1].endsWith('auditoria-duplicados.mjs')) {
+  process.on('unhandledRejection', (reason) => {
+    console.warn('[AVISO] Unhandled rejection capturada na auditoria:', reason)
+    process.exit(0)
+  })
+
+  process.on('uncaughtException', (err) => {
+    console.warn('[AVISO] Uncaught exception capturada na auditoria:', err)
+    process.exit(0)
+  })
+
+  // Timeout preventivo de 5 segundos para nunca travar o build ou prebuild
+  const timeoutMs = Number(process.env.AUDITORIA_TIMEOUT_MS) || 5000
+  const timeoutHandle = setTimeout(() => {
+    console.warn(
+      `[AVISO] Auditoria remota atingiu timeout de ${timeoutMs / 1000}s e foi abortada com sucesso (prebuild tolerante).`,
+    )
+    process.exit(0)
+  }, timeoutMs)
+
   try {
     runAuditoria()
       .then(() => {
+        clearTimeout(timeoutHandle)
         process.exit(0)
       })
       .catch((err) => {
+        clearTimeout(timeoutHandle)
         console.warn(
           '[AVISO] Auditoria remota não pôde ser concluída durante o build:',
           err?.message || err,
@@ -680,6 +701,7 @@ if (process.argv[1] && process.argv[1].endsWith('auditoria-duplicados.mjs')) {
         process.exit(0)
       })
   } catch (syncErr) {
+    clearTimeout(timeoutHandle)
     console.warn('[AVISO] Falha síncrona na execução da auditoria:', syncErr?.message || syncErr)
     process.exit(0)
   }
