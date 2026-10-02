@@ -450,10 +450,8 @@ export async function sincronizarFilhasNovas(
 
     const normalizarDataPb = (d: string) => d.replace('T', ' ').replace(/\.\d{3}Z?$/, '')
 
-    const filhaRecord = await pb.collection('atividades').create<Atividade>({
+    const filhaPayload: Record<string, any> = {
       cliente_id: clienteId,
-      usina_id: usinaId || undefined,
-      numero_uc: numeroUc || undefined,
       parent_id: maeId,
       tipo: 'lembrete_auto_leitura',
       titulo: `Lembrete de Auto Leitura - ${dataFormatada}`,
@@ -462,10 +460,23 @@ export async function sincronizarFilhasNovas(
       data_leitura: normalizarDataPb(dataLeituraIso),
       data_lembrete: normalizarDataPb(dataLembreteIso),
       status: 'pendente',
-      responsavel_id: responsavelId || undefined,
-      responsavel_nome: responsavelNome || undefined,
       autor: autor || responsavelNome || 'Sistema Delfos',
-    })
+    }
+
+    if (usinaId && usinaId.trim()) {
+      filhaPayload.usina_id = usinaId.trim()
+    }
+    if (numeroUc && numeroUc.trim()) {
+      filhaPayload.numero_uc = numeroUc.trim()
+    }
+    if (responsavelId && responsavelId.trim()) {
+      filhaPayload.responsavel_id = responsavelId.trim()
+    }
+    if (responsavelNome && responsavelNome.trim()) {
+      filhaPayload.responsavel_nome = responsavelNome.trim()
+    }
+
+    const filhaRecord = await pb.collection('atividades').create<Atividade>(filhaPayload as any)
 
     criadas.push(filhaRecord)
   }
