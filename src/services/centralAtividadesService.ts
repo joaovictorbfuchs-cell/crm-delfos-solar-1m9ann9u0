@@ -51,6 +51,7 @@ export interface CentralAtividadeItem {
 export interface CentralAtividadesFiltros {
   categoriaId?: AtividadeCategoriaId | 'todos'
   tipoFonte?: CentralAtividadeFonte | 'todos'
+  tipoEspecifico?: string | 'todos'
   status?: string | 'todos'
   responsavel?: string | 'todos'
   dataInicio?: string // YYYY-MM-DD
@@ -608,10 +609,17 @@ export async function carregarCentralAtividades(
   // Extrair lista de status únicos normalizados
   const statusSet = new Set<string>()
   items.forEach((item) => {
+    if (item.statusRaw && item.statusRaw.trim() !== '') {
+      statusSet.add(item.statusRaw.trim())
+    }
     if (item.status && item.status.trim() !== '') {
       statusSet.add(item.status.trim())
     }
   })
+  // Garante os status padrões mais comuns mesmo se a base estiver vazia
+  ;['pendente', 'concluida', 'em_execucao', 'cancelada', 'agendada'].forEach((st) =>
+    statusSet.add(st),
+  )
   const statusDisponiveis = Array.from(statusSet).sort()
 
   // Contagem por Categoria Oficial (Comerciais, Manutenção, Administrativas)
@@ -772,9 +780,62 @@ export function filtrarCentralAtividades(
       }
     }
 
-    // 3. Filtro por status
+    // 2.1. Filtro por tipo específico de atividade (se selecionado)
+    if (filtros.tipoEspecifico && filtros.tipoEspecifico !== 'todos') {
+      const matchTipoId = item.tipoId === filtros.tipoEspecifico
+      const matchSubtipo = item.subtipo === filtros.tipoEspecifico
+      const matchTipoAtv = item.tipoAtividade === filtros.tipoEspecifico
+      if (!matchTipoId && !matchSubtipo && !matchTipoAtv) {
+        return false
+      }
+    }
+
+    // 3. Filtro por status / etapa
     if (filtros.status && filtros.status !== 'todos') {
-      if (item.status !== filtros.status && item.statusRaw !== filtros.status) {
+      const sFiltro = filtros.status.toLowerCase().trim()
+      const sItem = (item.status || '').toLowerCase().trim()
+      const sRaw = (item.statusRaw || '').toLowerCase().trim()
+      const sFmt = formatarStatus(item.statusRaw || '')
+        .toLowerCase()
+        .trim()
+
+      const matchExato = sItem === sFiltro || sRaw === sFiltro || sFmt === sFiltro
+
+      // Compatibilidade semântica: pendente engloba agendado/aberto
+      const matchPendente =
+        (sFiltro === 'pendente' ||
+          sFiltro === 'pendente / agendado' ||
+          sFiltro === 'agendada' ||
+          sFiltro === 'agendado') &&
+        ['pendente', 'aberto', 'agendado', 'agendada', 'pendente / agendado'].includes(
+          sRaw || sItem,
+        )
+
+      // Compatibilidade semântica: concluído engloba resolvido/faturado
+      const matchConcluido =
+        (sFiltro === 'concluida' || sFiltro === 'concluido' || sFiltro === 'concluído') &&
+        ['concluida', 'concluido', 'concluído', 'resolvido', 'faturado', 'finalizada'].includes(
+          sRaw || sItem,
+        )
+
+      // Compatibilidade semântica: em execução engloba andamento/análise
+      const matchExecucao =
+        (sFiltro === 'em_execucao' || sFiltro === 'em execução' || sFiltro === 'em andamento') &&
+        [
+          'em_andamento',
+          'em andamento',
+          'em execução',
+          'em_execucao',
+          'em análise',
+          'em analise',
+        ].includes(sRaw || sItem)
+
+      // Compatibilidade semântica: cancelado
+      const matchCancelado =
+        (sFiltro === 'cancelada' || sFiltro === 'cancelado') &&
+        ['cancelada', 'cancelado', 'rejeitada', 'rejeitado'].includes(sRaw || sItem)
+
+      if (!matchExato && !matchPendente && !matchConcluido && !matchExecucao && !matchCancelado) {
         return false
       }
     }
