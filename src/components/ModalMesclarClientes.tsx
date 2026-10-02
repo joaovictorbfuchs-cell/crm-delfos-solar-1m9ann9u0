@@ -16,7 +16,15 @@ import {
   Calendar,
   X,
   Search,
+  UserPlus,
+  Briefcase,
+  Star,
+  Activity,
+  DollarSign,
+  Sun,
+  ClipboardList,
 } from 'lucide-react'
+import { contarVinculosCliente, type VinculosClienteSumario } from '@/services/crmService'
 import type { Cliente } from '@/types/crm'
 import {
   Dialog,
@@ -35,11 +43,7 @@ interface ModalMesclarClientesProps {
   onClose: () => void
   clienteInicial?: Cliente | null
   todosClientes: Cliente[]
-  onConfirmarMesclagem: (opcoes: {
-    clienteMestreId: string
-    clienteSecundarioId: string
-    camposSobrescritos: Partial<Cliente>
-  }) => Promise<void>
+  onConfirmarMesclagem: (opcoes: import('@/services/crmService').MesclagemOpcoes) => Promise<void>
 }
 
 type CampoMesclavel =
@@ -105,6 +109,19 @@ export const ModalMesclarClientes: React.FC<ModalMesclarClientesProps> = ({
   const [mestreId, setMestreId] = useState<string>('')
   const [secundarioId, setSecundarioId] = useState<string>('')
   const [buscaSecundario, setBuscaSecundario] = useState<string>('')
+  const [modoMesclagem, setModoMesclagem] = useState<
+    'unificar_cliente' | 'converter_contato_adicional'
+  >('unificar_cliente')
+  const [contatoPapel, setContatoPapel] = useState<
+    'principal' | 'financeiro' | 'tecnico' | 'responsavel' | 'outro'
+  >('outro')
+  const [contatoCargo, setContatoCargo] = useState<string>('')
+  const [contatoIsWhatsapp, setContatoIsWhatsapp] = useState<boolean>(true)
+  const [contatoIsPrincipal, setContatoIsPrincipal] = useState<boolean>(false)
+
+  const [sumarioVinculos, setSumarioVinculos] = useState<VinculosClienteSumario | null>(null)
+  const [carregandoSumario, setCarregandoSumario] = useState<boolean>(false)
+
   const [escolhasCampos, setEscolhasCampos] = useState<
     Record<CampoMesclavel, 'mestre' | 'secundario'>
   >({} as any)
@@ -120,8 +137,27 @@ export const ModalMesclarClientes: React.FC<ModalMesclarClientesProps> = ({
       }
       setSecundarioId('')
       setBuscaSecundario('')
+      setModoMesclagem('unificar_cliente')
+      setContatoPapel('outro')
+      setContatoCargo('')
+      setContatoIsPrincipal(false)
+      setContatoIsWhatsapp(true)
+      setSumarioVinculos(null)
     }
   }, [isOpen, clienteInicial, todosClientes])
+
+  // Carregar contagem de vínculos quando secundário for selecionado
+  useEffect(() => {
+    if (secundarioId) {
+      setCarregandoSumario(true)
+      contarVinculosCliente(secundarioId)
+        .then((res) => setSumarioVinculos(res))
+        .catch(console.error)
+        .finally(() => setCarregandoSumario(false))
+    } else {
+      setSumarioVinculos(null)
+    }
+  }, [secundarioId])
 
   const clienteMestre = useMemo(() => {
     return todosClientes.find((c) => c.id === mestreId) || null
@@ -198,7 +234,31 @@ export const ModalMesclarClientes: React.FC<ModalMesclarClientesProps> = ({
   const handleConfirmar = async () => {
     if (!clienteMestre || !clienteSecundario) return
 
-    // Construir os campos consolidados conforme escolha do usuário
+    if (modoMesclagem === 'converter_contato_adicional') {
+      try {
+        setIsSubmitting(true)
+        await onConfirmarMesclagem({
+          clienteMestreId: clienteMestre.id,
+          clienteSecundarioId: clienteSecundario.id,
+          camposSobrescritos: {},
+          modo: 'converter_contato_adicional',
+          contatoAdicionalConfig: {
+            papel: contatoIsPrincipal ? 'principal' : contatoPapel,
+            cargo: contatoCargo.trim() || undefined,
+            is_principal: contatoIsPrincipal,
+            is_whatsapp: contatoIsWhatsapp,
+          },
+        })
+        onClose()
+      } catch (err) {
+        console.error('Falha ao converter cliente em contato adicional:', err)
+      } finally {
+        setIsSubmitting(false)
+      }
+      return
+    }
+
+    // Modo padrão: unificar_cliente
     const camposSobrescritos: Partial<Cliente> = {}
 
     CAMPOS_CONFIG.forEach(({ key }) => {
@@ -211,7 +271,6 @@ export const ModalMesclarClientes: React.FC<ModalMesclarClientesProps> = ({
       }
     })
 
-    // Fusão inteligente das observações caso ambos tenham anotações
     if (clienteSecundario.observacoes && clienteSecundario.observacoes.trim()) {
       const obsMestre = clienteMestre.observacoes || ''
       const obsSec = clienteSecundario.observacoes.trim()
@@ -222,7 +281,6 @@ export const ModalMesclarClientes: React.FC<ModalMesclarClientesProps> = ({
       }
     }
 
-    // Preservar ou fundir dados_importados
     if (clienteSecundario.dados_importados) {
       camposSobrescritos.dados_importados = {
         ...(clienteMestre.dados_importados || {}),
@@ -238,6 +296,7 @@ export const ModalMesclarClientes: React.FC<ModalMesclarClientesProps> = ({
         clienteMestreId: clienteMestre.id,
         clienteSecundarioId: clienteSecundario.id,
         camposSobrescritos,
+        modo: 'unificar_cliente',
       })
       onClose()
     } catch (err) {
@@ -272,6 +331,74 @@ export const ModalMesclarClientes: React.FC<ModalMesclarClientesProps> = ({
 
         {/* Corpo com scroll */}
         <div className="flex-1 overflow-y-auto p-5 space-y-6">
+          {/* Seletor de Modo de Mesclagem */}
+          <div className="bg-emerald-50/60 border border-emerald-200 rounded-xl p-3.5 space-y-2">
+            <label className="text-xs font-bold text-gray-800 uppercase tracking-wider block">
+              Como deseja realizar a mesclagem?
+            </label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              <button
+                type="button"
+                onClick={() => setModoMesclagem('unificar_cliente')}
+                className={`p-3 rounded-lg border text-left transition-all flex items-start gap-2.5 ${
+                  modoMesclagem === 'unificar_cliente'
+                    ? 'bg-white border-emerald-600 shadow-xs ring-2 ring-emerald-500/20'
+                    : 'bg-white/60 border-gray-200 hover:bg-white text-gray-600'
+                }`}
+              >
+                <div
+                  className={`w-5 h-5 rounded-full border flex items-center justify-center shrink-0 mt-0.5 ${
+                    modoMesclagem === 'unificar_cliente'
+                      ? 'border-emerald-600 bg-emerald-600 text-white'
+                      : 'border-gray-300'
+                  }`}
+                >
+                  {modoMesclagem === 'unificar_cliente' && <Check className="w-3 h-3" />}
+                </div>
+                <div>
+                  <div className="text-xs font-bold text-gray-900 flex items-center gap-1.5">
+                    <GitMerge className="w-3.5 h-3.5 text-emerald-600" />
+                    Unificar os dois cadastros como Cliente
+                  </div>
+                  <p className="text-[11px] text-gray-500 mt-0.5">
+                    Funde os campos de ambos em um único cadastro de cliente mestre. O cliente
+                    duplicado deixa de existir.
+                  </p>
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setModoMesclagem('converter_contato_adicional')}
+                className={`p-3 rounded-lg border text-left transition-all flex items-start gap-2.5 ${
+                  modoMesclagem === 'converter_contato_adicional'
+                    ? 'bg-white border-emerald-600 shadow-xs ring-2 ring-emerald-500/20'
+                    : 'bg-white/60 border-gray-200 hover:bg-white text-gray-600'
+                }`}
+              >
+                <div
+                  className={`w-5 h-5 rounded-full border flex items-center justify-center shrink-0 mt-0.5 ${
+                    modoMesclagem === 'converter_contato_adicional'
+                      ? 'border-emerald-600 bg-emerald-600 text-white'
+                      : 'border-gray-300'
+                  }`}
+                >
+                  {modoMesclagem === 'converter_contato_adicional' && <Check className="w-3 h-3" />}
+                </div>
+                <div>
+                  <div className="text-xs font-bold text-gray-900 flex items-center gap-1.5">
+                    <UserPlus className="w-3.5 h-3.5 text-emerald-600" />
+                    Converter em contato adicional do cliente
+                  </div>
+                  <p className="text-[11px] text-gray-500 mt-0.5">
+                    Transfere tudo (oportunidades, usinas, histórico) para o cliente principal e
+                    transforma o outro em contato adicional.
+                  </p>
+                </div>
+              </button>
+            </div>
+          </div>
+
           {/* Seção 1: Seleção do Cliente Mestre e Secundário */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Card Cliente Mestre (O que FICA) */}
@@ -401,8 +528,166 @@ export const ModalMesclarClientes: React.FC<ModalMesclarClientesProps> = ({
             </div>
           </div>
 
+          {/* Seção 2: Painel Dinâmico Conforme Modo de Mesclagem */}
+          {clienteMestre &&
+            clienteSecundario &&
+            modoMesclagem === 'converter_contato_adicional' && (
+              <div className="space-y-4 border border-emerald-200 bg-emerald-50/30 rounded-xl p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="text-sm font-bold text-gray-900 flex items-center gap-1.5">
+                      <UserPlus className="w-4 h-4 text-emerald-600" />
+                      Configuração do Contato Adicional Gerado
+                    </h4>
+                    <p className="text-xs text-gray-500">
+                      O cadastro de <strong>{clienteSecundario.nome}</strong> será excluído como
+                      cliente e mantido como contato em <strong>{clienteMestre.nome}</strong>.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Sumário do que será transferido */}
+                <div className="bg-white border border-emerald-200 rounded-lg p-3 space-y-2">
+                  <div className="text-xs font-bold text-emerald-900 flex items-center gap-1.5">
+                    <Activity className="w-4 h-4 text-emerald-600" />
+                    <span>Sumário do que será transferido para {clienteMestre.nome}:</span>
+                  </div>
+                  {carregandoSumario ? (
+                    <div className="text-xs text-gray-400 py-1">Calculando vínculos...</div>
+                  ) : sumarioVinculos ? (
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+                      <div className="p-2 rounded bg-gray-50 border border-gray-100">
+                        <span className="text-[10px] text-gray-500 uppercase font-semibold block">
+                          Negócios
+                        </span>
+                        <span className="text-base font-bold text-gray-900">
+                          {sumarioVinculos.negocios}
+                        </span>
+                      </div>
+                      <div className="p-2 rounded bg-gray-50 border border-gray-100">
+                        <span className="text-[10px] text-gray-500 uppercase font-semibold block">
+                          Atividades
+                        </span>
+                        <span className="text-base font-bold text-gray-900">
+                          {sumarioVinculos.atividades}
+                        </span>
+                      </div>
+                      <div className="p-2 rounded bg-gray-50 border border-gray-100">
+                        <span className="text-[10px] text-gray-500 uppercase font-semibold block">
+                          Usinas
+                        </span>
+                        <span className="text-base font-bold text-gray-900">
+                          {sumarioVinculos.usinas}
+                        </span>
+                      </div>
+                      <div className="p-2 rounded bg-gray-50 border border-gray-100">
+                        <span className="text-[10px] text-gray-500 uppercase font-semibold block">
+                          Orçamentos
+                        </span>
+                        <span className="text-base font-bold text-gray-900">
+                          {sumarioVinculos.orcamentos}
+                        </span>
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+
+                {/* Campos do Contato Adicional */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs bg-white p-3 rounded-lg border border-gray-200">
+                  <div>
+                    <label className="block text-[11px] font-semibold text-gray-700 mb-1">
+                      Nome no contato adicional
+                    </label>
+                    <input
+                      type="text"
+                      disabled
+                      value={clienteSecundario.nome}
+                      className="w-full px-2.5 py-1.5 text-xs bg-gray-100 border border-gray-200 rounded-md text-gray-700"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-semibold text-gray-700 mb-1">
+                      Papel do contato
+                    </label>
+                    <select
+                      value={contatoPapel}
+                      onChange={(e) => setContatoPapel(e.target.value as any)}
+                      className="w-full px-2.5 py-1.5 text-xs bg-white border border-gray-300 rounded-md focus:ring-1 focus:ring-emerald-500 cursor-pointer"
+                    >
+                      <option value="principal">Principal</option>
+                      <option value="financeiro">Financeiro</option>
+                      <option value="tecnico">Técnico</option>
+                      <option value="responsavel">Responsável</option>
+                      <option value="outro">Outro</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-semibold text-gray-700 mb-1">
+                      Cargo / Função
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Ex: Sócio, Gerente, Esposa, Contato Operacional"
+                      value={contatoCargo}
+                      onChange={(e) => setContatoCargo(e.target.value)}
+                      className="w-full px-2.5 py-1.5 text-xs bg-white border border-gray-300 rounded-md focus:ring-1 focus:ring-emerald-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-semibold text-gray-700 mb-1">
+                      Telefone / WhatsApp herdado
+                    </label>
+                    <input
+                      type="text"
+                      disabled
+                      value={
+                        clienteSecundario.whatsapp || clienteSecundario.telefone || 'Não informado'
+                      }
+                      className="w-full px-2.5 py-1.5 text-xs bg-gray-100 border border-gray-200 rounded-md text-gray-700"
+                    />
+                  </div>
+
+                  <div className="sm:col-span-2 pt-2 border-t border-gray-100 space-y-2">
+                    <label className="inline-flex items-center gap-2 text-xs text-gray-700 cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={contatoIsPrincipal}
+                        onChange={(e) => setContatoIsPrincipal(e.target.checked)}
+                        className="w-4 h-4 text-emerald-600 rounded border-gray-300 focus:ring-emerald-500"
+                      />
+                      <span className="font-semibold text-emerald-900 flex items-center gap-1">
+                        <Star className="w-3.5 h-3.5 fill-emerald-600 text-emerald-600" />
+                        Definir como Contato Principal de {clienteMestre.nome}
+                      </span>
+                    </label>
+                    <p className="text-[11px] text-gray-500 pl-6">
+                      Se marcado, as mensagens de WhatsApp disparadas para o cliente passarão a ser
+                      enviadas prioritariamente para esta pessoa.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Alerta claro de exclusão */}
+                <div className="p-3 bg-amber-50 border border-amber-300 rounded-xl text-xs text-amber-900 flex items-start gap-2">
+                  <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                  <div className="space-y-0.5">
+                    <p className="font-bold">Aviso de exclusão do cadastro independente:</p>
+                    <p className="text-[11px] text-amber-800">
+                      O registro de cliente de <strong>{clienteSecundario.nome}</strong> será
+                      excluído da lista geral de clientes. Todos os negócios, atividades, usinas e
+                      histórico serão transferidos integralmente para{' '}
+                      <strong>{clienteMestre.nome}</strong>.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
           {/* Seção 2: Tabela de Escolha Campo a Campo */}
-          {clienteMestre && clienteSecundario ? (
+          {clienteMestre && clienteSecundario && modoMesclagem === 'unificar_cliente' ? (
             <div className="space-y-2.5">
               <div className="flex items-center justify-between">
                 <div>
@@ -587,8 +872,19 @@ export const ModalMesclarClientes: React.FC<ModalMesclarClientesProps> = ({
             onClick={handleConfirmar}
             className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold gap-1.5"
           >
-            <GitMerge className="w-4 h-4" />
-            <span>{isSubmitting ? 'Mesclando cadastros...' : 'Confirmar e Mesclar Clientes'}</span>
+            {modoMesclagem === 'converter_contato_adicional' ? (
+              <>
+                <UserPlus className="w-4 h-4" />
+                <span>{isSubmitting ? 'Convertendo...' : 'Confirmar Conversão em Contato'}</span>
+              </>
+            ) : (
+              <>
+                <GitMerge className="w-4 h-4" />
+                <span>
+                  {isSubmitting ? 'Mesclando cadastros...' : 'Confirmar e Mesclar Clientes'}
+                </span>
+              </>
+            )}
           </Button>
         </div>
       </DialogContent>

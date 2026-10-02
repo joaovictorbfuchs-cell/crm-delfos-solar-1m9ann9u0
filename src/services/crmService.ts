@@ -697,27 +697,116 @@ export interface MesclagemOpcoes {
   clienteMestreId: string
   clienteSecundarioId: string
   camposSobrescritos: Partial<Cliente>
+  modo?: 'unificar_cliente' | 'converter_contato_adicional'
+  contatoAdicionalConfig?: {
+    papel?: 'principal' | 'financeiro' | 'tecnico' | 'responsavel' | 'outro'
+    is_whatsapp?: boolean
+    is_principal?: boolean
+    cargo?: string
+  }
+}
+
+export interface VinculosClienteSumario {
+  negocios: number
+  atividades: number
+  usinas: number
+  orcamentos: number
+  contratosOM: number
+  projetos: number
+  ordensServico: number
+  conversasWhatsApp: number
+  contatosAdicionais: number
+  total: number
 }
 
 /**
- * Mescla com segurança o clienteSecundario no clienteMestre:
- * 1. Reatribui todas as relações (atividades, propostas, orçamentos, contratos O&M, manutenções,
- *    conversas WhatsApp, mensagens, projetos, usinas, inversores, etc.) do cliente secundário para o mestre.
- * 2. Atualiza o cadastro do cliente mestre com os campos selecionados e funde observações/histórico.
- * 3. Registra atividade no histórico do cliente mestre informando sobre a fusão.
- * 4. Exclui o cliente secundário com segurança após a reatribuição.
+ * Conta os vínculos existentes de um cliente para exibir no sumário pré-conversão/mesclagem
  */
-export async function mesclarClientes({
-  clienteMestreId,
-  clienteSecundarioId,
-  camposSobrescritos,
-}: MesclagemOpcoes): Promise<Cliente> {
-  if (clienteMestreId === clienteSecundarioId) {
-    throw new Error('Não é possível mesclar um cliente nele mesmo.')
+export async function contarVinculosCliente(clienteId: string): Promise<VinculosClienteSumario> {
+  const sumario: VinculosClienteSumario = {
+    negocios: 0,
+    atividades: 0,
+    usinas: 0,
+    orcamentos: 0,
+    contratosOM: 0,
+    projetos: 0,
+    ordensServico: 0,
+    conversasWhatsApp: 0,
+    contatosAdicionais: 0,
+    total: 0,
   }
 
-  // 1. Reatribuir coleções que usam `cliente_id`
+  if (!clienteId) return sumario
+
+  const safeCount = async (collection: string, filterField: string): Promise<number> => {
+    try {
+      const res = await pb.collection(collection).getList(1, 1, {
+        filter: `${filterField} = '${clienteId}'`,
+        requestKey: null,
+      })
+      return res.totalItems
+    } catch {
+      return 0
+    }
+  }
+
+  const [
+    negocios,
+    atividades,
+    usinas,
+    orcamentos,
+    contratosOM,
+    projetos,
+    ordensServico,
+    conversasWhatsApp,
+    contatosAdicionais,
+  ] = await Promise.all([
+    safeCount('negocios', 'cliente_id'),
+    safeCount('atividades', 'cliente_id'),
+    safeCount('usinas', 'cliente_id'),
+    safeCount('orcamentos_solar', 'cliente_id'),
+    safeCount('contratos_om', 'cliente_id'),
+    safeCount('projetos', 'cliente_id'),
+    safeCount('ordens_servico', 'cliente_id'),
+    safeCount('whatsapp_conversas', 'cliente_id'),
+    safeCount('contatos_adicionais', 'cliente'),
+  ])
+
+  sumario.negocios = negocios
+  sumario.atividades = atividades
+  sumario.usinas = usinas
+  sumario.orcamentos = orcamentos
+  sumario.contratosOM = contratosOM
+  sumario.projetos = projetos
+  sumario.ordensServico = ordensServico
+  sumario.conversasWhatsApp = conversasWhatsApp
+  sumario.contatosAdicionais = contatosAdicionais
+  sumario.total =
+    negocios +
+    atividades +
+    usinas +
+    orcamentos +
+    contratosOM +
+    projetos +
+    ordensServico +
+    conversasWhatsApp +
+    contatosAdicionais
+
+  return sumario
+}
+
+/**
+ * Reatribui em lote todos os vínculos de um cliente de origem para um cliente destino.
+ */
+export async function reatribuirTodosVinculosCliente(
+  clienteOrigemId: string,
+  clienteDestinoId: string,
+): Promise<void> {
+  if (clienteOrigemId === clienteDestinoId) return
+
+  // 1. Coleções com cliente_id
   const collectionsComClienteId = [
+    'negocios',
     'atividades',
     'propostas_om',
     'orcamentos_solar',
@@ -736,80 +825,259 @@ export async function mesclarClientes({
     'cliente_inversores',
     'usinas',
     'projetos',
+    'analises_fatura',
+    'notificacoes_internas',
   ]
 
   for (const col of collectionsComClienteId) {
     try {
       const records = await pb.collection(col).getFullList({
-        filter: `cliente_id = '${clienteSecundarioId}'`,
+        filter: `cliente_id = '${clienteOrigemId}'`,
         fields: 'id',
+        requestKey: null,
       })
       for (const rec of records) {
         try {
-          await pb.collection(col).update(rec.id, { cliente_id: clienteMestreId })
+          await pb.collection(col).update(rec.id, { cliente_id: clienteDestinoId })
         } catch (err) {
-          console.warn(`Falha ao reatribuir ${col} ${rec.id} para cliente ${clienteMestreId}:`, err)
+          console.warn(
+            `Falha ao reatribuir ${col} ${rec.id} para cliente ${clienteDestinoId}:`,
+            err,
+          )
         }
       }
     } catch (err) {
-      console.warn(`Erro ao consultar ${col} para reatribuição na mesclagem:`, err)
+      console.warn(`Erro ao consultar ${col} para reatribuição:`, err)
     }
   }
 
-  // 2. Reatribuir contatos_adicionais (campo se chama `cliente`)
+  // 2. Contatos adicionais existentes no cliente origem (campo: `cliente`)
   try {
     const contatos = await pb.collection('contatos_adicionais').getFullList({
-      filter: `cliente = '${clienteSecundarioId}'`,
+      filter: `cliente = '${clienteOrigemId}'`,
       fields: 'id',
+      requestKey: null,
     })
     for (const c of contatos) {
       try {
-        await pb.collection('contatos_adicionais').update(c.id, { cliente: clienteMestreId })
+        await pb.collection('contatos_adicionais').update(c.id, { cliente: clienteDestinoId })
       } catch (err) {
         console.warn(`Falha ao reatribuir contato_adicional ${c.id}:`, err)
       }
     }
   } catch (err) {
-    console.warn('Erro ao reatribuir contatos_adicionais na mesclagem:', err)
+    console.warn('Erro ao reatribuir contatos_adicionais:', err)
   }
 
-  // 3. Reatribuir transferencias_creditos (origem ou destino)
+  // 3. Transferências de créditos (cliente_origem_id e cliente_destino_id)
   try {
     const transfOrigem = await pb.collection('transferencias_creditos').getFullList({
-      filter: `cliente_origem_id = '${clienteSecundarioId}'`,
+      filter: `cliente_origem_id = '${clienteOrigemId}'`,
       fields: 'id',
+      requestKey: null,
     })
     for (const t of transfOrigem) {
       try {
         await pb
           .collection('transferencias_creditos')
-          .update(t.id, { cliente_origem_id: clienteMestreId })
+          .update(t.id, { cliente_origem_id: clienteDestinoId })
       } catch {
         /* ignore */
       }
     }
 
     const transfDestino = await pb.collection('transferencias_creditos').getFullList({
-      filter: `cliente_destino_id = '${clienteSecundarioId}'`,
+      filter: `cliente_destino_id = '${clienteOrigemId}'`,
       fields: 'id',
+      requestKey: null,
     })
     for (const t of transfDestino) {
       try {
         await pb
           .collection('transferencias_creditos')
-          .update(t.id, { cliente_destino_id: clienteMestreId })
+          .update(t.id, { cliente_destino_id: clienteDestinoId })
       } catch {
         /* ignore */
       }
     }
   } catch (err) {
-    console.warn('Erro ao reatribuir transferencias_creditos na mesclagem:', err)
+    console.warn('Erro ao reatribuir transferencias_creditos:', err)
   }
 
-  // 4. Atualizar o cliente mestre com os campos definidos
+  // 4. Coleção `contatos` (relação contatos com clientes_vinculados)
+  try {
+    const contatosRel = await pb.collection('contatos').getFullList({
+      filter: `clientes_vinculados ~ '${clienteOrigemId}'`,
+      requestKey: null,
+    })
+    for (const c of contatosRel) {
+      const vinculados: string[] = Array.isArray(c.clientes_vinculados) ? c.clientes_vinculados : []
+      const novosVinculados = Array.from(
+        new Set(vinculados.filter((id) => id !== clienteOrigemId).concat(clienteDestinoId)),
+      )
+      try {
+        await pb.collection('contatos').update(c.id, { clientes_vinculados: novosVinculados })
+      } catch {
+        /* ignore */
+      }
+    }
+  } catch {
+    /* ignore se coleção não tiver registros */
+  }
+}
+
+/**
+ * Converte um cliente em Contato Adicional de outro cliente:
+ * - Cria um novo contato adicional no cliente destino com os dados do cliente origem
+ * - Transfere todos os vínculos (negócios, usinas, atividades, orçamentos, etc.) para o destino
+ * - Transfere os contatos adicionais que já estavam no cliente origem
+ * - Registra nota de auditoria na timeline
+ * - Exclui o cadastro do cliente convertido
+ */
+export async function converterClienteEmContatoAdicional({
+  clientePrincipalId,
+  clienteConvertidoId,
+  papel = 'outro',
+  cargo,
+  is_principal = false,
+  is_whatsapp,
+}: {
+  clientePrincipalId: string
+  clienteConvertidoId: string
+  papel?: 'principal' | 'financeiro' | 'tecnico' | 'responsavel' | 'outro'
+  cargo?: string
+  is_principal?: boolean
+  is_whatsapp?: boolean
+}): Promise<{ clientePrincipal: Cliente; contatoAdicionalId: string }> {
+  if (clientePrincipalId === clienteConvertidoId) {
+    throw new Error('Não é possível converter um cliente nele mesmo.')
+  }
+
+  const [clientePrincipal, clienteOrigem] = await Promise.all([
+    pb.collection('clientes').getOne<Cliente>(clientePrincipalId),
+    pb.collection('clientes').getOne<Cliente>(clienteConvertidoId),
+  ])
+
+  // Se for marcado como principal, desmarcar qualquer outro contato principal existente
+  if (is_principal || papel === 'principal') {
+    try {
+      const anteriores = await pb.collection('contatos_adicionais').getFullList({
+        filter: `cliente = '${clientePrincipalId}' && (is_principal = true || papel = 'principal')`,
+        fields: 'id,papel',
+        requestKey: null,
+      })
+      for (const ant of anteriores) {
+        await pb.collection('contatos_adicionais').update(ant.id, {
+          is_principal: false,
+          papel: ant.papel === 'principal' ? 'outro' : ant.papel,
+        })
+      }
+    } catch (e) {
+      console.warn('Aviso ao desmarcar contato principal anterior:', e)
+    }
+  }
+
+  // 1. Criar o registro em contatos_adicionais no cliente principal
+  const telContato = clienteOrigem.whatsapp || clienteOrigem.telefone || undefined
+  const novoContato = await pb
+    .collection('contatos_adicionais')
+    .create<import('@/types/crm').ContatoAdicional>({
+      cliente: clientePrincipalId,
+      nome: clienteOrigem.nome || 'Contato Adicional',
+      cargo:
+        cargo || (clienteOrigem.tipo_pessoa === 'juridica' ? 'Representante Legal' : 'Contato'),
+      papel: is_principal ? 'principal' : papel,
+      telefone: telContato,
+      email: clienteOrigem.email || undefined,
+      is_whatsapp: typeof is_whatsapp === 'boolean' ? is_whatsapp : Boolean(clienteOrigem.whatsapp),
+      is_principal: Boolean(is_principal || papel === 'principal'),
+    })
+
+  // 2. Reatribuir todos os vínculos (negócios, atividades, orçamentos, etc.) da origem para o destino
+  await reatribuirTodosVinculosCliente(clienteConvertidoId, clientePrincipalId)
+
+  // 3. Fundir anotações / histórico
+  let novasObservacoes = clientePrincipal.observacoes || ''
+  if (clienteOrigem.observacoes && clienteOrigem.observacoes.trim()) {
+    const obsOrigem = clienteOrigem.observacoes.trim()
+    if (!novasObservacoes.includes(obsOrigem)) {
+      novasObservacoes = novasObservacoes
+        ? `${novasObservacoes}\n\n[Histórico do cadastro convertido (${clienteOrigem.nome})]: ${obsOrigem}`
+        : `[Histórico de ${clienteOrigem.nome}]: ${obsOrigem}`
+    }
+  }
+
+  const clienteAtualizado = await updateCliente(clientePrincipalId, {
+    observacoes: novasObservacoes || undefined,
+  })
+
+  // 4. Registrar atividade de auditoria
+  try {
+    await createAtividade({
+      cliente_id: clientePrincipalId,
+      tipo: 'anotacao',
+      titulo: 'Cliente convertido em contato adicional',
+      descricao: `O cliente "${clienteOrigem.nome}" (ID: ${clienteConvertidoId}) foi convertido em contato adicional deste cliente em ${new Date().toLocaleString('pt-BR')}. Todas as oportunidades, negócios, usinas, atividades e orçamentos vinculados foram transferidos para este cadastro com sucesso.`,
+      data: new Date().toISOString(),
+      status: 'concluida',
+      autor: 'Sistema Delfos',
+    })
+  } catch (e) {
+    console.warn('Falha ao registrar atividade de conversão em contato adicional:', e)
+  }
+
+  // 5. Excluir o cadastro de cliente de origem
+  try {
+    await pb.collection('clientes').delete(clienteConvertidoId)
+  } catch (err) {
+    console.warn(`Falha ao excluir cliente convertido ${clienteConvertidoId}:`, err)
+  }
+
+  return {
+    clientePrincipal: clienteAtualizado,
+    contatoAdicionalId: novoContato.id,
+  }
+}
+
+/**
+ * Mescla com segurança o clienteSecundario no clienteMestre:
+ * Pode ser:
+ * - 'unificar_cliente': funde dados e campos no cliente mestre e exclui o secundário (padrão)
+ * - 'converter_contato_adicional': transforma o clienteSecundario em contato adicional do clienteMestre, transferindo tudo e excluindo o cadastro secundário
+ */
+export async function mesclarClientes({
+  clienteMestreId,
+  clienteSecundarioId,
+  camposSobrescritos,
+  modo = 'unificar_cliente',
+  contatoAdicionalConfig,
+}: MesclagemOpcoes): Promise<Cliente> {
+  if (clienteMestreId === clienteSecundarioId) {
+    throw new Error('Não é possível mesclar um cliente nele mesmo.')
+  }
+
+  if (modo === 'converter_contato_adicional') {
+    const res = await converterClienteEmContatoAdicional({
+      clientePrincipalId: clienteMestreId,
+      clienteConvertidoId: clienteSecundarioId,
+      papel:
+        contatoAdicionalConfig?.papel ||
+        (contatoAdicionalConfig?.is_principal ? 'principal' : 'outro'),
+      cargo: contatoAdicionalConfig?.cargo,
+      is_principal: contatoAdicionalConfig?.is_principal,
+      is_whatsapp: contatoAdicionalConfig?.is_whatsapp,
+    })
+    return res.clientePrincipal
+  }
+
+  // Modo unificar_cliente:
+  // 1. Reatribuir coleções que usam `cliente_id` e contatos adicionais
+  await reatribuirTodosVinculosCliente(clienteSecundarioId, clienteMestreId)
+
+  // 2. Atualizar o cliente mestre com os campos definidos
   const clienteAtualizado = await updateCliente(clienteMestreId, camposSobrescritos)
 
-  // 5. Registrar atividade informativa de auditoria no cliente mestre
+  // 3. Registrar atividade informativa de auditoria no cliente mestre
   try {
     await createAtividade({
       cliente_id: clienteMestreId,
@@ -824,7 +1092,7 @@ export async function mesclarClientes({
     console.warn('Falha ao registrar atividade de mesclagem:', e)
   }
 
-  // 6. Agora que todos os relacionamentos foram migrados, excluir o registro do cliente secundário
+  // 4. Agora que todos os relacionamentos foram migrados, excluir o registro do cliente secundário
   try {
     await pb.collection('clientes').delete(clienteSecundarioId)
   } catch (err) {
@@ -2021,11 +2289,50 @@ export async function updateContatoAdicional(
     telefone: string
     email: string
     is_whatsapp: boolean
+    is_principal: boolean
   }>,
 ): Promise<import('@/types/crm').ContatoAdicional> {
   return await pb
     .collection('contatos_adicionais')
     .update<import('@/types/crm').ContatoAdicional>(id, data)
+}
+
+/**
+ * Define um contato como o Contato Principal do cliente.
+ * Se contatoAdicionalId for fornecido, marca ele com is_principal=true (e papel='principal')
+ * e desmarca todos os outros contatos adicionais deste cliente.
+ * Se contatoAdicionalId for null, significa que o contato direto do cliente foi escolhido como principal,
+ * então desmarca todos os contatos adicionais como principal.
+ */
+export async function definirContatoPrincipal({
+  clienteId,
+  contatoAdicionalId,
+}: {
+  clienteId: string
+  contatoAdicionalId: string | null
+}): Promise<void> {
+  const todos = await pb
+    .collection('contatos_adicionais')
+    .getFullList<import('@/types/crm').ContatoAdicional>({
+      filter: `cliente = '${clienteId}'`,
+      requestKey: null,
+    })
+
+  for (const c of todos) {
+    const deveSerPrincipal = Boolean(contatoAdicionalId && c.id === contatoAdicionalId)
+    const jaEraPrincipal = Boolean(c.is_principal || c.papel === 'principal')
+
+    if (deveSerPrincipal !== jaEraPrincipal || (deveSerPrincipal && !c.is_principal)) {
+      try {
+        await pb.collection('contatos_adicionais').update(c.id, {
+          is_principal: deveSerPrincipal,
+          papel: deveSerPrincipal ? 'principal' : c.papel === 'principal' ? 'outro' : c.papel,
+        })
+      } catch (err) {
+        console.warn(`Falha ao atualizar contato principal ${c.id}:`, err)
+      }
+    }
+  }
 }
 
 export async function deleteContatoAdicional(id: string): Promise<boolean> {

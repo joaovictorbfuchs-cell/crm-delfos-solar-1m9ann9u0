@@ -77,8 +77,15 @@ export const ModalEnviarRelatorioOSWhatsApp: React.FC<ModalEnviarRelatorioOSWhat
   useEffect(() => {
     if (!isOpen) return
 
-    const telInicial = cliente?.whatsapp || cliente?.telefone || ''
-    setTelefone(telInicial)
+    import('@/lib/resolverNumeroDestinoCliente').then(({ resolverNumeroDestinoCliente }) => {
+      resolverNumeroDestinoCliente(cliente).then((res) => {
+        if (res.numeroFormatado) {
+          setTelefone(res.numeroFormatado)
+        } else {
+          setTelefone(cliente?.whatsapp || cliente?.telefone || '')
+        }
+      })
+    })
     setFeedback(null)
     setIsGenerating(true)
 

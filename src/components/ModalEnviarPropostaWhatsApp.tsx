@@ -120,7 +120,11 @@ export const ModalEnviarPropostaWhatsApp: React.FC<ModalEnviarPropostaWhatsAppPr
   const numeroInicial = cliente?.whatsapp || cliente?.telefone || ''
 
   const [origemDestino, setOrigemDestino] = useState<
-    'cliente_whatsapp' | 'contato_adicional_whatsapp' | 'cliente_telefone' | 'nenhum'
+    | 'contato_adicional_principal'
+    | 'cliente_whatsapp'
+    | 'contato_adicional_whatsapp'
+    | 'cliente_telefone'
+    | 'nenhum'
   >('cliente_whatsapp')
   const [contatoAdicionalNome, setContatoAdicionalNome] = useState<string | undefined>()
 

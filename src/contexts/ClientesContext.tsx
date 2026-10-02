@@ -201,6 +201,7 @@ interface ClientesContextType {
     telefone?: string
     email?: string
     is_whatsapp?: boolean
+    is_principal?: boolean
   }) => Promise<import('@/types/crm').ContatoAdicional>
   updateContatoAdicional: (
     id: string,
@@ -211,8 +212,13 @@ interface ClientesContextType {
       telefone: string
       email: string
       is_whatsapp: boolean
+      is_principal: boolean
     }>,
   ) => Promise<import('@/types/crm').ContatoAdicional>
+  definirContatoPrincipal: (opcoes: {
+    clienteId: string
+    contatoAdicionalId: string | null
+  }) => Promise<void>
   removeContatoAdicional: (id: string) => Promise<void>
   refreshContatosAdicionais: () => Promise<void>
   whatsAppTemplates: WhatsAppTemplate[]
@@ -324,6 +330,7 @@ interface ClientesContextType {
   ) => Promise<import('@/types/crm').TipoAtividadeCustomItem>
   removeTipoAtividadeCustom: (id: string) => Promise<void>
   refreshTiposAtividadesCustom: () => Promise<void>
+  refreshClientes: () => Promise<void>
   updateCliente: (id: string, data: Partial<Cliente>) => Promise<Cliente>
   updateClienteStatus: (
     id: string,
@@ -2913,13 +2920,62 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         contatosAdicionais,
         addContatoAdicional: async (data) => {
           const created = await apiCreateContatoAdicional(data)
-          setContatosAdicionais((prev) => [...prev, created])
+          // Se criado como principal, desmarca os outros localmente
+          if (data.is_principal || data.papel === 'principal') {
+            setContatosAdicionais((prev) =>
+              prev
+                .map((c) =>
+                  c.cliente === data.cliente
+                    ? {
+                        ...c,
+                        is_principal: false,
+                        papel: c.papel === 'principal' ? 'outro' : c.papel,
+                      }
+                    : c,
+                )
+                .concat(created),
+            )
+          } else {
+            setContatosAdicionais((prev) => [...prev, created])
+          }
           return created
         },
         updateContatoAdicional: async (id, data) => {
           const updated = await apiUpdateContatoAdicional(id, data)
-          setContatosAdicionais((prev) => prev.map((c) => (c.id === id ? updated : c)))
+          if (data.is_principal || data.papel === 'principal') {
+            setContatosAdicionais((prev) =>
+              prev.map((c) => {
+                if (c.id === id) return updated
+                if (c.cliente === updated.cliente) {
+                  return {
+                    ...c,
+                    is_principal: false,
+                    papel: c.papel === 'principal' ? 'outro' : c.papel,
+                  }
+                }
+                return c
+              }),
+            )
+          } else {
+            setContatosAdicionais((prev) => prev.map((c) => (c.id === id ? updated : c)))
+          }
           return updated
+        },
+        definirContatoPrincipal: async ({ clienteId, contatoAdicionalId }) => {
+          await import('@/services/crmService').then((m) =>
+            m.definirContatoPrincipal({ clienteId, contatoAdicionalId }),
+          )
+          setContatosAdicionais((prev) =>
+            prev.map((c) => {
+              if (c.cliente !== clienteId) return c
+              const isSelected = Boolean(contatoAdicionalId && c.id === contatoAdicionalId)
+              return {
+                ...c,
+                is_principal: isSelected,
+                papel: isSelected ? 'principal' : c.papel === 'principal' ? 'outro' : c.papel,
+              }
+            }),
+          )
         },
         removeContatoAdicional: async (id) => {
           await apiDeleteContatoAdicional(id)
@@ -2952,6 +3008,10 @@ export const ClientesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         notificacoes,
         marcarNotificacaoComoLida,
         marcarTodasNotificacoesComoLidas,
+        refreshClientes: async () => {
+          const list = await fetchClientes()
+          setClientes(list)
+        },
         refreshNotificacoes,
         refreshData: loadAllData,
       }}
@@ -2991,6 +3051,7 @@ export function useClientes(): ClientesContextType {
       contatosAdicionais: [],
       addContatoAdicional: async () => ({}) as any,
       updateContatoAdicional: async () => ({}) as any,
+      definirContatoPrincipal: async () => {},
       removeContatoAdicional: async () => {},
       refreshContatosAdicionais: async () => {},
       whatsAppTemplates: [],
@@ -3101,6 +3162,7 @@ export function useClientes(): ClientesContextType {
       notificacoes: [],
       marcarNotificacaoComoLida: async () => true,
       marcarTodasNotificacoesComoLidas: async () => true,
+      refreshClientes: async () => {},
       refreshNotificacoes: async () => {},
       refreshData: async () => {},
     }

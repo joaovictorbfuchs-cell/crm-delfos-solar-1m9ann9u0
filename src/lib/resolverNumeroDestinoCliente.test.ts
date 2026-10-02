@@ -16,7 +16,32 @@ describe('resolverNumeroDestinoCliente', () => {
     expect(validarDigitosTelefone('(54) 99999-8888')).toBe(true) // 11 dígitos
   })
 
-  it('1. prioriza WhatsApp do cliente quando preenchido', () => {
+  it('0. prioriza contato adicional marcado como principal (is_principal ou papel=principal)', () => {
+    const cliente: Partial<Cliente> = {
+      whatsapp: '(54) 99999-1111',
+      telefone: '(54) 3522-0000',
+    }
+    const contatos: ContatoAdicional[] = [
+      {
+        id: 'ca0',
+        cliente: 'c1',
+        nome: 'Contato Principal Escolhido',
+        telefone: '(54) 97777-0000',
+        is_principal: true,
+        collectionId: '',
+        collectionName: '',
+        created: '',
+        updated: '',
+      },
+    ]
+
+    const res = resolverNumeroDestinoClienteSync(cliente, contatos)
+    expect(res.origem).toBe('contato_adicional_principal')
+    expect(res.numero).toBe('54977770000')
+    expect(res.contatoAdicionalNome).toBe('Contato Principal Escolhido')
+  })
+
+  it('1. prioriza WhatsApp do cliente quando não há contato adicional principal', () => {
     const cliente: Partial<Cliente> = {
       whatsapp: '(54) 99999-1111',
       telefone: '(54) 3522-0000',

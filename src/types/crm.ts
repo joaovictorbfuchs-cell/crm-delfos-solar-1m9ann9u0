@@ -734,6 +734,7 @@ export interface ContatoAdicional extends RecordModel {
   telefone?: string
   email?: string
   is_whatsapp?: boolean
+  is_principal?: boolean
   created: string
   updated: string
   expand?: {

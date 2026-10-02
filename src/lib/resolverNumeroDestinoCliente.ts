@@ -3,6 +3,7 @@ import type { Cliente, ContatoAdicional } from '@/types/crm'
 import pb from '@/lib/pocketbase/client'
 
 export type OrigemNumeroDestino =
+  | 'contato_adicional_principal'
   | 'cliente_whatsapp'
   | 'contato_adicional_whatsapp'
   | 'cliente_telefone'
@@ -44,11 +45,12 @@ export interface ResolverNumeroDestinoOptions {
 
 /**
  * Versão SÍNCRONA da resolução de número de destino.
- * Aplica a ordem estrita:
- * 1. WhatsApp cadastrado no cliente (>= 10 dígitos)
- * 2. WhatsApp de um contato adicional vinculado com is_whatsapp = true (>= 10 dígitos)
- * 3. Telefone do cliente (>= 10 dígitos)
- * 4. Se nada existir: origem 'nenhum' e numero null
+ * Prioridades:
+ * 1. Contato adicional marcado como principal (is_principal = true ou papel === 'principal') com telefone válido
+ * 2. WhatsApp cadastrado no cliente (>= 10 dígitos)
+ * 3. Contato adicional com is_whatsapp marcado (>= 10 dígitos)
+ * 4. Telefone do cliente (>= 10 dígitos)
+ * 5. Se nada existir: origem 'nenhum' e numero null
  */
 export function resolverNumeroDestinoClienteSync(
   cliente?: Partial<Cliente> | null,
@@ -58,7 +60,27 @@ export function resolverNumeroDestinoClienteSync(
     return { numero: null, origem: 'nenhum' }
   }
 
-  // 1. WhatsApp do cliente
+  // 1. Contato adicional marcado como principal
+  if (Array.isArray(contatosAdicionais) && contatosAdicionais.length > 0) {
+    const contatoPrincipal = contatosAdicionais.find(
+      (c) =>
+        (Boolean(c?.is_principal) || c?.papel === 'principal') &&
+        validarDigitosTelefone(c?.telefone),
+    )
+    if (contatoPrincipal && contatoPrincipal.telefone) {
+      const limpo = normalizarDigitosDestino(contatoPrincipal.telefone)
+      return {
+        numero: limpo,
+        origem: 'contato_adicional_principal',
+        contatoAdicionalNome: contatoPrincipal.nome || 'Contato Principal',
+        numeroLimpo: limpo,
+        numeroFormatado: formatWhatsAppPhone(limpo),
+        detalheOrigem: `Contato principal: ${contatoPrincipal.nome || 'Contato Principal'}`,
+      }
+    }
+  }
+
+  // 2. WhatsApp do cliente
   if (validarDigitosTelefone(cliente.whatsapp)) {
     const limpo = normalizarDigitosDestino(cliente.whatsapp!)
     return {
@@ -70,7 +92,7 @@ export function resolverNumeroDestinoClienteSync(
     }
   }
 
-  // 2. WhatsApp de contato adicional com is_whatsapp marcado
+  // 3. WhatsApp de contato adicional com is_whatsapp marcado
   if (Array.isArray(contatosAdicionais) && contatosAdicionais.length > 0) {
     const contatoValido = contatosAdicionais.find(
       (c) => Boolean(c?.is_whatsapp) && validarDigitosTelefone(c?.telefone),
@@ -88,7 +110,7 @@ export function resolverNumeroDestinoClienteSync(
     }
   }
 
-  // 3. Telefone do cliente
+  // 4. Telefone do cliente
   if (validarDigitosTelefone(cliente.telefone)) {
     const limpo = normalizarDigitosDestino(cliente.telefone!)
     return {
@@ -100,7 +122,7 @@ export function resolverNumeroDestinoClienteSync(
     }
   }
 
-  // 4. Se nada existir
+  // 5. Se nada existir
   return {
     numero: null,
     origem: 'nenhum',
@@ -109,8 +131,8 @@ export function resolverNumeroDestinoClienteSync(
 
 /**
  * Versão ASSÍNCRONA da resolução de número de destino.
- * Caso o cliente não possua WhatsApp próprio e os contatos adicionais não tenham sido
- * passados em memória, busca na coleção `contatos_adicionais` do PocketBase se `buscarNoBancoSeNecessario` for true (padrão).
+ * Caso o cliente não possua os contatos adicionais passados em memória, busca na
+ * coleção `contatos_adicionais` do PocketBase se `buscarNoBancoSeNecessario` for true (padrão).
  */
 export async function resolverNumeroDestinoCliente(
   cliente?: Partial<Cliente> | null,
@@ -120,19 +142,6 @@ export async function resolverNumeroDestinoCliente(
     return { numero: null, origem: 'nenhum' }
   }
 
-  // 1. WhatsApp cadastrado no cliente
-  if (validarDigitosTelefone(cliente.whatsapp)) {
-    const limpo = normalizarDigitosDestino(cliente.whatsapp!)
-    return {
-      numero: limpo,
-      origem: 'cliente_whatsapp',
-      numeroLimpo: limpo,
-      numeroFormatado: formatWhatsAppPhone(limpo),
-      detalheOrigem: 'WhatsApp do cliente',
-    }
-  }
-
-  // 2. Se temos contatos em memória ou podemos buscar no banco
   let contatos: ContatoAdicional[] = options?.contatosAdicionais || []
 
   if (contatos.length === 0 && options?.buscarNoBancoSeNecessario !== false && cliente.id) {
@@ -148,39 +157,8 @@ export async function resolverNumeroDestinoCliente(
     }
   }
 
-  // 2. Avalia contato adicional com is_whatsapp = true
-  const contatoValido = contatos.find(
-    (c) => Boolean(c?.is_whatsapp) && validarDigitosTelefone(c?.telefone),
-  )
-  if (contatoValido && contatoValido.telefone) {
-    const limpo = normalizarDigitosDestino(contatoValido.telefone)
-    return {
-      numero: limpo,
-      origem: 'contato_adicional_whatsapp',
-      contatoAdicionalNome: contatoValido.nome || 'Contato Adicional',
-      numeroLimpo: limpo,
-      numeroFormatado: formatWhatsAppPhone(limpo),
-      detalheOrigem: `Contato adicional: ${contatoValido.nome || 'Contato Adicional'} (WhatsApp)`,
-    }
-  }
-
-  // 3. Telefone do cliente
-  if (validarDigitosTelefone(cliente.telefone)) {
-    const limpo = normalizarDigitosDestino(cliente.telefone!)
-    return {
-      numero: limpo,
-      origem: 'cliente_telefone',
-      numeroLimpo: limpo,
-      numeroFormatado: formatWhatsAppPhone(limpo),
-      detalheOrigem: 'Telefone comercial/fixo do cliente',
-    }
-  }
-
-  // 4. Nenhum
-  return {
-    numero: null,
-    origem: 'nenhum',
-  }
+  // Executa a lógica com todas as prioridades
+  return resolverNumeroDestinoClienteSync(cliente, contatos)
 }
 
 export default resolverNumeroDestinoCliente

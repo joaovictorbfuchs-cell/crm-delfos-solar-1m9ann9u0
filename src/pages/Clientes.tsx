@@ -161,6 +161,7 @@ export default function Clientes() {
     removeCliente,
     bulkRemoveClientes,
     mesclarClientes,
+    refreshClientes,
   } = useClientes()
 
   // Mapear contatos únicos da área unificada vinculados aos clientes (N:N)
@@ -1903,6 +1904,7 @@ export default function Clientes() {
             onConfirmarMesclagem={async (opcoes) => {
               await mesclarClientes(opcoes)
               setSelectedIds((prev) => prev.filter((id) => id !== opcoes.clienteSecundarioId))
+              await refreshClientes()
             }}
           />
 
