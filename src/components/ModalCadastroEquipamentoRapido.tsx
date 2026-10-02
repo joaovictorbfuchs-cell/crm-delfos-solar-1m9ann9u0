@@ -1,6 +1,12 @@
 import React, { useState, useEffect } from 'react'
-import { createPortal } from 'react-dom'
-import { X, Cpu, Sun, Wrench, AlertCircle, RefreshCw } from 'lucide-react'
+import { Cpu, Sun, AlertCircle, RefreshCw } from 'lucide-react'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from '@/components/ui/dialog'
 import { createEquipamento } from '@/services/equipamentosService'
 import type { Equipamento, TipoEquipamento } from '@/types/equipamentos'
 import { toast } from 'sonner'
@@ -78,8 +84,6 @@ export function ModalCadastroEquipamentoRapido({
     }
   }, [isOpen, tipoInicial, marcaInicial, modeloInicial, potenciaInicial, fornecedorNome])
 
-  if (!isOpen) return null
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
@@ -143,17 +147,9 @@ export function ModalCadastroEquipamentoRapido({
     }
   }
 
-  const modalContent = (
-    <div
-      className="fixed inset-0 z-[70] flex items-center justify-center p-3 bg-black/70 backdrop-blur-[2px] animate-in fade-in"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose()
-      }}
-    >
-      <div
-        className="bg-white w-full max-w-lg rounded-2xl shadow-2xl border border-gray-200 overflow-hidden flex flex-col max-h-[92vh]"
-        onClick={(e) => e.stopPropagation()}
-      >
+  return (
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto p-0">
         {/* Topo */}
         <div className="px-5 py-3.5 border-b border-gray-100 flex items-center justify-between bg-emerald-50/70">
           <div className="flex items-center gap-2.5">
@@ -161,21 +157,14 @@ export function ModalCadastroEquipamentoRapido({
               {tipo === 'inversor' ? <Cpu className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
             </div>
             <div>
-              <h2 className="text-sm font-bold text-gray-900">
+              <DialogTitle className="text-sm font-bold text-gray-900">
                 Cadastrar no Banco de Equipamentos
-              </h2>
-              <p className="text-[11px] text-gray-500">
+              </DialogTitle>
+              <DialogDescription className="text-[11px] text-gray-500">
                 Salva permanentemente para vincular aos orçamentos
-              </p>
+              </DialogDescription>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 p-1.5 rounded-lg hover:bg-white/80 transition-colors"
-          >
-            <X className="w-4 h-4" />
-          </button>
         </div>
 
         {/* Formulário */}
@@ -445,12 +434,7 @@ export function ModalCadastroEquipamentoRapido({
             </button>
           </div>
         </form>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   )
-
-  if (typeof document !== 'undefined') {
-    return createPortal(modalContent, document.body)
-  }
-  return modalContent
 }
