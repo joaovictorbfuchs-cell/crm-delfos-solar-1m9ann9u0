@@ -11,6 +11,7 @@ import {
   Check,
   X,
   UserCheck,
+  Pencil,
 } from 'lucide-react'
 import { Cliente, ContatoAdicional } from '@/types/crm'
 import { useClientes } from '@/contexts/ClientesContext'
@@ -62,6 +63,7 @@ export const SecaoContatosAdicionais: React.FC<SecaoContatosAdicionaisProps> = (
     updateContatoAdicional,
     definirContatoPrincipal,
     removeContatoAdicional,
+    updateCliente,
     refreshClientes,
     refreshContatosAdicionais,
   } = useClientes()
@@ -97,6 +99,31 @@ export const SecaoContatosAdicionais: React.FC<SecaoContatosAdicionaisProps> = (
   const [email, setEmail] = useState('')
   const [isWhatsapp, setIsWhatsapp] = useState(false)
   const [isPrincipal, setIsPrincipal] = useState(false)
+
+  // Estado para Edição do Titular do Cadastro
+  const [modalEditarTitularAberto, setModalEditarTitularAberto] = useState(false)
+  const [isSavingTitular, setIsSavingTitular] = useState(false)
+  const [titularFormNome, setTitularFormNome] = useState('')
+  const [titularFormCargo, setTitularFormCargo] = useState('')
+  const [titularFormTelefone, setTitularFormTelefone] = useState('')
+  const [titularFormWhatsapp, setTitularFormWhatsapp] = useState('')
+  const [titularFormEmail, setTitularFormEmail] = useState('')
+
+  // Estado para Edição de Contato Adicional
+  const [modalEditarAdicionalAberto, setModalEditarAdicionalAberto] = useState(false)
+  const [contatoAdicionalEditando, setContatoAdicionalEditando] = useState<ContatoAdicional | null>(
+    null,
+  )
+  const [isSavingAdicional, setIsSavingAdicional] = useState(false)
+  const [adicionalFormNome, setAdicionalFormNome] = useState('')
+  const [adicionalFormCargo, setAdicionalFormCargo] = useState('')
+  const [adicionalFormPapel, setAdicionalFormPapel] = useState<
+    'principal' | 'financeiro' | 'tecnico' | 'responsavel' | 'outro'
+  >('outro')
+  const [adicionalFormTelefone, setAdicionalFormTelefone] = useState('')
+  const [adicionalFormEmail, setAdicionalFormEmail] = useState('')
+  const [adicionalFormIsWhatsapp, setAdicionalFormIsWhatsapp] = useState(false)
+  const [adicionalFormIsPrincipal, setAdicionalFormIsPrincipal] = useState(false)
 
   // Filtrar contatos adicionais vinculados ao cliente
   const contatosDoCliente = contatosAdicionais.filter((c) => c.cliente === cliente.id)
@@ -363,6 +390,112 @@ export const SecaoContatosAdicionais: React.FC<SecaoContatosAdicionaisProps> = (
   const contatoPrincipalTelefone = cliente.whatsapp || cliente.telefone || 'Não informado'
   const contatoPrincipalEmail = cliente.email || 'Não informado'
 
+  // Abertura do modal de edição do Titular
+  const handleAbrirEditarTitular = () => {
+    setTitularFormNome(cliente.titular_nome || cliente.nome || '')
+    setTitularFormCargo(
+      cliente.contato && cliente.contato !== cliente.nome
+        ? cliente.contato
+        : cliente.tipo_pessoa === 'juridica'
+          ? 'Representante Legal / Titular'
+          : 'Titular / Proprietário',
+    )
+    setTitularFormTelefone(cliente.telefone || '')
+    setTitularFormWhatsapp(cliente.whatsapp || '')
+    setTitularFormEmail(cliente.email || cliente.titular_email || '')
+    setModalEditarTitularAberto(true)
+  }
+
+  const handleSalvarEdicaoTitular = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault()
+    if (!titularFormNome.trim()) {
+      toast.error('Informe o nome do titular')
+      return
+    }
+
+    setIsSavingTitular(true)
+    try {
+      const updates: Partial<Cliente> = {
+        nome: titularFormNome.trim(),
+        titular_nome: titularFormNome.trim(),
+        contato: titularFormCargo.trim() || undefined,
+        contato_principal: titularFormNome.trim(),
+        telefone: titularFormTelefone.trim() || undefined,
+        titular_telefone: titularFormTelefone.trim() || undefined,
+        whatsapp: titularFormWhatsapp.trim() || undefined,
+        email: titularFormEmail.trim() || undefined,
+        titular_email: titularFormEmail.trim() || undefined,
+      }
+
+      await updateCliente(cliente.id, updates)
+      await refreshClientes()
+      toast.success('Dados do titular atualizados com sucesso!')
+      setModalEditarTitularAberto(false)
+    } catch (err) {
+      console.error('Erro ao atualizar dados do titular:', err)
+      toast.error('Erro ao salvar dados do titular')
+    } finally {
+      setIsSavingTitular(false)
+    }
+  }
+
+  // Abertura do modal de edição do Contato Adicional
+  const handleAbrirEditarAdicional = (contato: ContatoAdicional) => {
+    setContatoAdicionalEditando(contato)
+    setAdicionalFormNome(contato.nome || '')
+    setAdicionalFormCargo(contato.cargo || '')
+    const papelVal = (contato.papel as any) || 'outro'
+    setAdicionalFormPapel(
+      ['principal', 'financeiro', 'tecnico', 'responsavel', 'outro'].includes(papelVal)
+        ? papelVal
+        : 'outro',
+    )
+    setAdicionalFormTelefone(contato.telefone || '')
+    setAdicionalFormEmail(contato.email || '')
+    setAdicionalFormIsWhatsapp(Boolean(contato.is_whatsapp))
+    setAdicionalFormIsPrincipal(Boolean(contato.is_principal) || contato.papel === 'principal')
+    setModalEditarAdicionalAberto(true)
+  }
+
+  const handleSalvarEdicaoAdicional = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault()
+    if (!contatoAdicionalEditando) return
+    if (!adicionalFormNome.trim()) {
+      toast.error('Informe o nome do contato')
+      return
+    }
+
+    setIsSavingAdicional(true)
+    try {
+      await updateContatoAdicional(contatoAdicionalEditando.id, {
+        nome: adicionalFormNome.trim(),
+        cargo: adicionalFormCargo.trim() || undefined,
+        papel: adicionalFormIsPrincipal ? 'principal' : adicionalFormPapel,
+        telefone: adicionalFormTelefone.trim() || undefined,
+        email: adicionalFormEmail.trim() || undefined,
+        is_whatsapp: adicionalFormIsWhatsapp,
+        is_principal: adicionalFormIsPrincipal,
+      })
+
+      if (adicionalFormIsPrincipal) {
+        await definirContatoPrincipal({
+          clienteId: cliente.id,
+          contatoAdicionalId: contatoAdicionalEditando.id,
+        })
+      }
+
+      await refreshContatosAdicionais()
+      toast.success('Contato adicional atualizado com sucesso!')
+      setModalEditarAdicionalAberto(false)
+      setContatoAdicionalEditando(null)
+    } catch (err) {
+      console.error('Erro ao atualizar contato adicional:', err)
+      toast.error('Erro ao salvar dados do contato adicional')
+    } finally {
+      setIsSavingAdicional(false)
+    }
+  }
+
   return (
     <>
       {/* Modal de confirmação ao converter um cliente existente em contato adicional */}
@@ -508,6 +641,274 @@ export const SecaoContatosAdicionais: React.FC<SecaoContatosAdicionaisProps> = (
         isCarregando={isMesclando}
       />
 
+      {/* Modal de Edição dos Dados do Titular do Cadastro */}
+      <Dialog
+        open={modalEditarTitularAberto}
+        onOpenChange={(open) => !isSavingTitular && setModalEditarTitularAberto(open)}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center mb-1">
+              <UserCheck className="w-5 h-5" />
+            </div>
+            <DialogTitle className="text-base font-bold text-gray-900">
+              Editar Titular do Cadastro
+            </DialogTitle>
+            <DialogDescription className="text-xs text-gray-600">
+              Atualize as informações de contato do titular do cadastro. As alterações serão salvas
+              diretamente no registro do cliente.
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={handleSalvarEdicaoTitular} className="space-y-3 py-2 text-xs">
+            <div>
+              <label className="block text-[10px] font-semibold text-gray-600 mb-0.5">
+                Nome completo *
+              </label>
+              <input
+                type="text"
+                required
+                value={titularFormNome}
+                onChange={(e) => setTitularFormNome(e.target.value)}
+                placeholder="Ex: João da Silva"
+                className="w-full px-2.5 py-1.5 text-xs bg-white border border-gray-300 rounded-md focus:outline-hidden focus:ring-1 focus:ring-emerald-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-[10px] font-semibold text-gray-600 mb-0.5">
+                Cargo / Descrição do Contato
+              </label>
+              <input
+                type="text"
+                value={titularFormCargo}
+                onChange={(e) => setTitularFormCargo(e.target.value)}
+                placeholder="Ex: Titular / Proprietário, Sócio-Administrador"
+                className="w-full px-2.5 py-1.5 text-xs bg-white border border-gray-300 rounded-md focus:outline-hidden focus:ring-1 focus:ring-emerald-500"
+              />
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <div>
+                <label className="block text-[10px] font-semibold text-gray-600 mb-0.5">
+                  Telefone Principal
+                </label>
+                <input
+                  type="text"
+                  value={titularFormTelefone}
+                  onChange={(e) => setTitularFormTelefone(formatWhatsAppPhone(e.target.value))}
+                  placeholder="(00) 00000-0000"
+                  className="w-full px-2.5 py-1.5 text-xs bg-white border border-gray-300 rounded-md focus:outline-hidden focus:ring-1 focus:ring-emerald-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-semibold text-gray-600 mb-0.5">
+                  WhatsApp (independente)
+                </label>
+                <input
+                  type="text"
+                  value={titularFormWhatsapp}
+                  onChange={(e) => setTitularFormWhatsapp(formatWhatsAppPhone(e.target.value))}
+                  placeholder="(00) 00000-0000"
+                  className="w-full px-2.5 py-1.5 text-xs bg-white border border-gray-300 rounded-md focus:outline-hidden focus:ring-1 focus:ring-emerald-500"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-[10px] font-semibold text-gray-600 mb-0.5">E-mail</label>
+              <input
+                type="email"
+                value={titularFormEmail}
+                onChange={(e) => setTitularFormEmail(e.target.value)}
+                placeholder="contato@empresa.com.br"
+                className="w-full px-2.5 py-1.5 text-xs bg-white border border-gray-300 rounded-md focus:outline-hidden focus:ring-1 focus:ring-emerald-500"
+              />
+            </div>
+
+            <DialogFooter className="gap-2 sm:gap-0 pt-2 border-t border-gray-100">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={isSavingTitular}
+                onClick={() => setModalEditarTitularAberto(false)}
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="submit"
+                size="sm"
+                disabled={isSavingTitular || !titularFormNome.trim()}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
+              >
+                {isSavingTitular ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" />
+                    Salvando...
+                  </>
+                ) : (
+                  <>
+                    <Check className="w-3.5 h-3.5 mr-1" />
+                    Salvar Alterações
+                  </>
+                )}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal de Edição de Contato Adicional */}
+      <Dialog
+        open={modalEditarAdicionalAberto}
+        onOpenChange={(open) => !isSavingAdicional && setModalEditarAdicionalAberto(open)}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center mb-1">
+              <User className="w-5 h-5" />
+            </div>
+            <DialogTitle className="text-base font-bold text-gray-900">
+              Editar Contato Adicional
+            </DialogTitle>
+            <DialogDescription className="text-xs text-gray-600">
+              Atualize as informações do contato adicional vinculado a {cliente.nome}.
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={handleSalvarEdicaoAdicional} className="space-y-3 py-2 text-xs">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <div className="sm:col-span-2">
+                <label className="block text-[10px] font-semibold text-gray-600 mb-0.5">
+                  Nome completo *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={adicionalFormNome}
+                  onChange={(e) => setAdicionalFormNome(e.target.value)}
+                  placeholder="Ex: Maria Pereira"
+                  className="w-full px-2.5 py-1.5 text-xs bg-white border border-gray-300 rounded-md focus:outline-hidden focus:ring-1 focus:ring-emerald-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-semibold text-gray-600 mb-0.5">
+                  Papel do contato
+                </label>
+                <select
+                  value={adicionalFormPapel}
+                  onChange={(e) => setAdicionalFormPapel(e.target.value as any)}
+                  className="w-full px-2.5 py-1.5 text-xs bg-white border border-gray-300 rounded-md focus:outline-hidden focus:ring-1 focus:ring-emerald-500 cursor-pointer"
+                >
+                  <option value="principal">Principal</option>
+                  <option value="financeiro">Financeiro</option>
+                  <option value="tecnico">Técnico</option>
+                  <option value="responsavel">Responsável</option>
+                  <option value="outro">Outro</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-semibold text-gray-600 mb-0.5">
+                  Cargo / Descrição
+                </label>
+                <input
+                  type="text"
+                  value={adicionalFormCargo}
+                  onChange={(e) => setAdicionalFormCargo(e.target.value)}
+                  placeholder="Ex: Gerente Financeiro, Sócio"
+                  className="w-full px-2.5 py-1.5 text-xs bg-white border border-gray-300 rounded-md focus:outline-hidden focus:ring-1 focus:ring-emerald-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-semibold text-gray-600 mb-0.5">
+                  Telefone / Celular
+                </label>
+                <input
+                  type="text"
+                  value={adicionalFormTelefone}
+                  onChange={(e) => setAdicionalFormTelefone(formatWhatsAppPhone(e.target.value))}
+                  placeholder="(00) 00000-0000"
+                  className="w-full px-2.5 py-1.5 text-xs bg-white border border-gray-300 rounded-md focus:outline-hidden focus:ring-1 focus:ring-emerald-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-semibold text-gray-600 mb-0.5">
+                  E-mail
+                </label>
+                <input
+                  type="email"
+                  value={adicionalFormEmail}
+                  onChange={(e) => setAdicionalFormEmail(e.target.value)}
+                  placeholder="contato@empresa.com.br"
+                  className="w-full px-2.5 py-1.5 text-xs bg-white border border-gray-300 rounded-md focus:outline-hidden focus:ring-1 focus:ring-emerald-500"
+                />
+              </div>
+
+              <div className="sm:col-span-2 pt-1 flex flex-col sm:flex-row gap-3">
+                <label className="inline-flex items-center gap-2 text-xs text-gray-700 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={adicionalFormIsWhatsapp}
+                    onChange={(e) => setAdicionalFormIsWhatsapp(e.target.checked)}
+                    className="w-3.5 h-3.5 text-emerald-600 rounded border-gray-300 focus:ring-emerald-500"
+                  />
+                  <span>Este número é WhatsApp de contato</span>
+                </label>
+
+                <label className="inline-flex items-center gap-2 text-xs text-gray-700 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={adicionalFormIsPrincipal}
+                    onChange={(e) => setAdicionalFormIsPrincipal(e.target.checked)}
+                    className="w-3.5 h-3.5 text-emerald-600 rounded border-gray-300 focus:ring-emerald-500"
+                  />
+                  <span className="font-semibold text-emerald-900 flex items-center gap-1">
+                    <Star className="w-3 h-3 fill-emerald-600 text-emerald-600" />
+                    Contato Principal
+                  </span>
+                </label>
+              </div>
+            </div>
+
+            <DialogFooter className="gap-2 sm:gap-0 pt-2 border-t border-gray-100">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={isSavingAdicional}
+                onClick={() => setModalEditarAdicionalAberto(false)}
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="submit"
+                size="sm"
+                disabled={isSavingAdicional || !adicionalFormNome.trim()}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
+              >
+                {isSavingAdicional ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" />
+                    Salvando...
+                  </>
+                ) : (
+                  <>
+                    <Check className="w-3.5 h-3.5 mr-1" />
+                    Salvar Alterações
+                  </>
+                )}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
       <div
         data-testid="secao-contatos-adicionais"
         className="bg-white rounded-xl p-4 border border-emerald-200/90 shadow-xs space-y-3.5"
@@ -580,22 +981,35 @@ export const SecaoContatosAdicionais: React.FC<SecaoContatosAdicionaisProps> = (
                 )}
               </div>
 
-              {!contatoDiretoEhPrincipal && (
+              <div className="flex items-center gap-1.5">
+                {/* Botão Editar Titular */}
                 <button
                   type="button"
-                  onClick={() => handleDefinirComoPrincipal(null)}
-                  disabled={settingPrincipalId === 'direto'}
-                  className="text-[11px] font-semibold text-emerald-700 hover:text-emerald-900 hover:bg-emerald-50 px-2 py-0.5 rounded transition-colors inline-flex items-center gap-1 border border-emerald-200"
-                  title="Tornar este o contato principal para envios de WhatsApp"
+                  onClick={handleAbrirEditarTitular}
+                  className="text-[11px] font-semibold text-gray-700 hover:text-emerald-800 hover:bg-emerald-50 px-2 py-0.5 rounded transition-colors inline-flex items-center gap-1 border border-gray-200 hover:border-emerald-300"
+                  title="Editar dados do titular do cadastro"
                 >
-                  {settingPrincipalId === 'direto' ? (
-                    <Loader2 className="w-3 h-3 animate-spin" />
-                  ) : (
-                    <Star className="w-3 h-3 text-emerald-600" />
-                  )}
-                  <span>Definir como Contato Principal</span>
+                  <Pencil className="w-3 h-3 text-gray-500 hover:text-emerald-600" />
+                  <span>Editar</span>
                 </button>
-              )}
+
+                {!contatoDiretoEhPrincipal && (
+                  <button
+                    type="button"
+                    onClick={() => handleDefinirComoPrincipal(null)}
+                    disabled={settingPrincipalId === 'direto'}
+                    className="text-[11px] font-semibold text-emerald-700 hover:text-emerald-900 hover:bg-emerald-50 px-2 py-0.5 rounded transition-colors inline-flex items-center gap-1 border border-emerald-200"
+                    title="Tornar este o contato principal para envios de WhatsApp"
+                  >
+                    {settingPrincipalId === 'direto' ? (
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                    ) : (
+                      <Star className="w-3 h-3 text-emerald-600" />
+                    )}
+                    <span>Definir como Contato Principal</span>
+                  </button>
+                )}
+              </div>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-[11px] text-gray-600 pt-1 border-t border-gray-200/50">
@@ -677,6 +1091,17 @@ export const SecaoContatosAdicionais: React.FC<SecaoContatosAdicionaisProps> = (
                   </div>
 
                   <div className="flex items-center gap-1.5">
+                    {/* Botão Editar Contato Adicional */}
+                    <button
+                      type="button"
+                      onClick={() => handleAbrirEditarAdicional(contato)}
+                      className="text-[11px] font-semibold text-gray-700 hover:text-emerald-800 hover:bg-emerald-50 px-2 py-0.5 rounded transition-colors inline-flex items-center gap-1 border border-gray-200 hover:border-emerald-300"
+                      title="Editar dados deste contato adicional"
+                    >
+                      <Pencil className="w-3 h-3 text-gray-500 hover:text-emerald-600" />
+                      <span>Editar</span>
+                    </button>
+
                     {!ehPrincipal && (
                       <button
                         type="button"
